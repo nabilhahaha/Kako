@@ -41,12 +41,12 @@ export function LoginForm() {
 
     const { data: profile } = await supabase
       .from('users')
-      .select('role')
+      .select('user_type')
       .eq('id', userId)
-      .maybeSingle<Pick<AppUser, 'role'>>();
+      .maybeSingle<Pick<AppUser, 'user_type'>>();
 
     toast.success('تم تسجيل الدخول');
-    const target = from && from !== '/login' ? from : homeForRole(profile?.role);
+    const target = from && from !== '/login' ? from : homeForRole(profile?.user_type);
     navigate(target, { replace: true });
   }
 

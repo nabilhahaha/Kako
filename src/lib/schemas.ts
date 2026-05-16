@@ -103,7 +103,7 @@ const userRoleSchema = z.enum([
 
 export const userEditSchema = z.object({
   fullName: z.string().min(2, 'الاسم قصير').max(100),
-  role: userRoleSchema,
+  user_type: userRoleSchema,
   region: z.string().max(50).optional().default(''),
   supervisorId: z.string().uuid().nullable(),
   isActive: z.boolean(),

@@ -27,7 +27,7 @@ CREATE POLICY "audit_logs_admin_read"
   USING (
     EXISTS (
       SELECT 1 FROM public.users u
-      WHERE u.id = auth.uid() AND u.role = 'admin_relia'
+      WHERE u.id = auth.uid() AND u.user_type = 'admin_relia'
     )
   );
 

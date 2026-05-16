@@ -11,7 +11,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (initialized && session && profile) {
-      navigate(homeForRole(profile.role), { replace: true });
+      navigate(homeForRole(profile.user_type), { replace: true });
     }
   }, [initialized, session, profile, navigate]);
 

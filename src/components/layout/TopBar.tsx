@@ -16,7 +16,7 @@ export function TopBar() {
 
   const email = profile?.email ?? session?.user?.email ?? '';
   const fullName = profile?.full_name ?? email;
-  const roleLabel = profile?.role ? ROLE_LABELS_AR[profile.role] : 'مستخدم';
+  const roleLabel = profile?.user_type ? ROLE_LABELS_AR[profile.user_type] : 'مستخدم';
 
   async function handleLogout() {
     await signOut();

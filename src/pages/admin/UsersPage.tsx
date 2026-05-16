@@ -112,7 +112,7 @@ export function UsersPage() {
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">{u.email}</td>
                       <td className="px-5 py-3">
-                        {u.role ? ROLE_LABELS_AR[u.role] : '—'}
+                        {u.user_type ? ROLE_LABELS_AR[u.user_type] : '—'}
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">
                         {u.region ?? '—'}
@@ -223,14 +223,14 @@ function EditUserForm({ user, onClose, onSubmit }: EditUserFormProps) {
     resolver: zodResolver(userEditSchema),
     defaultValues: {
       fullName: user.full_name ?? '',
-      role: (user.role ?? 'presales_rep') as UserRole,
+      user_type: (user.user_type ?? 'presales_rep') as UserRole,
       region: user.region ?? '',
       supervisorId: user.supervisor_id,
       isActive: user.is_active,
     },
   });
 
-  const role = watch('role');
+  const role = watch('user_type');
   const isActive = watch('isActive');
 
   return (
@@ -255,7 +255,7 @@ function EditUserForm({ user, onClose, onSubmit }: EditUserFormProps) {
         <select
           id="role"
           value={role}
-          onChange={(e) => setValue('role', e.target.value as UserRole, { shouldValidate: true })}
+          onChange={(e) => setValue('user_type', e.target.value as UserRole, { shouldValidate: true })}
           className="flex h-11 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {ROLES.map((r) => (

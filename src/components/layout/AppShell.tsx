@@ -5,7 +5,7 @@ import { BottomNav } from './BottomNav';
 import { useAuthStore } from '@/stores/authStore';
 
 export function AppShell() {
-  const role = useAuthStore((s) => s.profile?.role ?? null);
+  const role = useAuthStore((s) => s.profile?.user_type ?? null);
 
   return (
     <div className="min-h-screen bg-background">

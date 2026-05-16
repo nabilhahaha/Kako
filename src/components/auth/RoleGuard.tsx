@@ -12,7 +12,7 @@ interface RoleGuardProps {
 export function RoleGuard({ allow, children }: RoleGuardProps) {
   const profile = useAuthStore((s) => s.profile);
 
-  if (!hasRole(profile?.role, allow)) {
+  if (!hasRole(profile?.user_type, allow)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

@@ -17,7 +17,7 @@ export function useUsersAdmin(page: number, pageSize: number, search: string) {
       const to = from + pageSize - 1;
       let q = supabase
         .from('users')
-        .select('id, email, full_name, role, region, supervisor_id, is_active', {
+        .select('id, email, full_name, user_type, region, supervisor_id, is_active', {
           count: 'exact',
         })
         .order('created_at', { ascending: false })
@@ -47,7 +47,7 @@ export function useUpdateUser() {
         .from('users')
         .update({
           full_name: values.fullName,
-          role: values.role,
+          user_type: values.user_type,
           region: values.region || null,
           supervisor_id: values.supervisorId,
           is_active: values.isActive,
@@ -59,7 +59,7 @@ export function useUpdateUser() {
         action: 'update',
         entity: 'user',
         entityId: userId,
-        metadata: { role: values.role, is_active: values.isActive },
+        metadata: { user_type: values.user_type, is_active: values.isActive },
       });
     },
     onSuccess: () => {

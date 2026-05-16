@@ -53,8 +53,8 @@ export function useExecutiveKPIs() {
           .lt('invoice_date', since30),
         supabase
           .from('users')
-          .select('id, role, is_active')
-          .eq('role', 'presales_rep')
+          .select('id, user_type, is_active')
+          .eq('user_type', 'presales_rep')
           .eq('is_active', true),
         supabase
           .from('visits')

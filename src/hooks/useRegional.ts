@@ -27,9 +27,9 @@ export function useRegionalSnapshot(region: string | null) {
 
       const usersQ = supabase
         .from('users')
-        .select('id, region, role, is_active')
+        .select('id, region, user_type, is_active')
         .eq('is_active', true)
-        .eq('role', 'presales_rep');
+        .eq('user_type', 'presales_rep');
 
       const visitsQ = supabase
         .from('visits')

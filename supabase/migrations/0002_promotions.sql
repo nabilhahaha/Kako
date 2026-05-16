@@ -41,14 +41,14 @@ CREATE POLICY "promotions_trade_marketing_write"
     EXISTS (
       SELECT 1 FROM public.users u
       WHERE u.id = auth.uid()
-        AND u.role IN ('trade_marketing_manager', 'admin_relia')
+        AND u.user_type IN ('trade_marketing_manager', 'admin_relia')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.users u
       WHERE u.id = auth.uid()
-        AND u.role IN ('trade_marketing_manager', 'admin_relia')
+        AND u.user_type IN ('trade_marketing_manager', 'admin_relia')
     )
   );
 

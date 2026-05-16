@@ -48,7 +48,7 @@ function RootRedirect() {
 
   if (!initialized) return null;
   if (!session) return <Navigate to="/login" replace state={{ from: location }} />;
-  return <Navigate to={homeForRole(profile?.role)} replace />;
+  return <Navigate to={homeForRole(profile?.user_type)} replace />;
 }
 
 function App() {

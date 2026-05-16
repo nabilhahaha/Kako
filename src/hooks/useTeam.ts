@@ -10,7 +10,7 @@ export function useTeamReps(supervisorId: string | undefined) {
     queryFn: async (): Promise<AppUser[]> => {
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, full_name, role, region, supervisor_id, is_active')
+        .select('id, email, full_name, user_type, region, supervisor_id, is_active')
         .eq('supervisor_id', supervisorId)
         .eq('is_active', true)
         .order('full_name', { ascending: true });

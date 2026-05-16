@@ -6,7 +6,7 @@ import type { AppUser } from '@/lib/types';
 async function fetchProfile(userId: string): Promise<AppUser | null> {
   const { data, error } = await supabase
     .from('users')
-    .select('id, email, full_name, role, region, supervisor_id, is_active')
+    .select('id, email, full_name, user_type, region, supervisor_id, is_active')
     .eq('id', userId)
     .maybeSingle();
 

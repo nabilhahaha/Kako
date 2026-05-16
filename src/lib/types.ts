@@ -12,7 +12,7 @@ export interface AppUser {
   id: string;
   email: string;
   full_name: string | null;
-  role: UserRole | null;
+  user_type: UserRole | null;
   region: string | null;
   supervisor_id: string | null;
   is_active: boolean;
