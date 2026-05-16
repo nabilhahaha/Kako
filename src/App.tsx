@@ -17,6 +17,12 @@ import { Customer360Page } from '@/pages/salesman/Customer360Page';
 import { VisitWizardPage } from '@/pages/salesman/VisitWizardPage';
 import { VisitsHistoryPage } from '@/pages/salesman/VisitsHistoryPage';
 import { NearExpiryPage } from '@/pages/salesman/NearExpiryPage';
+import { TeamDashboard } from '@/pages/supervisor/TeamDashboard';
+import { LiveMapPage } from '@/pages/supervisor/LiveMapPage';
+import { VisitApprovalsPage } from '@/pages/supervisor/VisitApprovalsPage';
+import { NearExpiryApprovalsPage } from '@/pages/supervisor/NearExpiryApprovalsPage';
+import { VisitRequestsPage } from '@/pages/supervisor/VisitRequestsPage';
+import { FinancialRequestsPage } from '@/pages/supervisor/FinancialRequestsPage';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -97,14 +103,50 @@ function App() {
             }
           />
           <Route
-            path="/supervisor/*"
+            path="/supervisor"
             element={
               <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
-                <PlaceholderPage
-                  title="لوحة المشرف"
-                  description="فريقك، الموافقات، الخريطة المباشرة"
-                  phase={3}
-                />
+                <TeamDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/supervisor/map"
+            element={
+              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
+                <LiveMapPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/supervisor/approvals/visits"
+            element={
+              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
+                <VisitApprovalsPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/supervisor/approvals/near-expiry"
+            element={
+              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
+                <NearExpiryApprovalsPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/supervisor/visit-requests"
+            element={
+              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
+                <VisitRequestsPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/supervisor/financial-requests"
+            element={
+              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
+                <FinancialRequestsPage />
               </RoleGuard>
             }
           />

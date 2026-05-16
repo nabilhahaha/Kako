@@ -111,3 +111,46 @@ export interface GPSCoords {
   accuracy: number;
   capturedAt: string;
 }
+
+export interface TeamMemberPerformance {
+  salesman_id: string;
+  full_name: string | null;
+  email: string | null;
+  strike_rate: number | null;
+  drop_size: number | null;
+  coverage_percent: number | null;
+  performance_status: string | null;
+  total_visits: number | null;
+  last_visit_at: string | null;
+}
+
+export interface VisitRequest {
+  id: string;
+  created_by: string;
+  assigned_to: string;
+  customer_id: string;
+  notes: string | null;
+  due_date: string | null;
+  status: string | null;
+  created_at: string;
+}
+
+export interface FinancialDataRequest {
+  id: string;
+  requested_by: string;
+  customer_id: string;
+  expires_at: string;
+  payload: Record<string, unknown> | null;
+  status: string | null;
+  created_at: string;
+}
+
+export interface NearExpiryApproval {
+  id: string;
+  record_id: string;
+  approver_id: string;
+  stage: string | null;
+  decision: 'approved' | 'rejected' | null;
+  notes: string | null;
+  created_at: string;
+}

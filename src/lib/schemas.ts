@@ -41,3 +41,24 @@ export const nearExpirySchema = z.object({
 });
 
 export type NearExpiryValues = z.infer<typeof nearExpirySchema>;
+
+export const visitRequestSchema = z.object({
+  assignedTo: z.string().uuid({ message: 'اختر المندوب' }),
+  customerId: z.string().uuid({ message: 'اختر العميل' }),
+  dueDate: z.string().min(1, 'أدخل التاريخ المستهدف'),
+  notes: z.string().max(500),
+});
+
+export type VisitRequestValues = z.infer<typeof visitRequestSchema>;
+
+export const financialRequestSchema = z.object({
+  customerId: z.string().uuid({ message: 'اختر العميل' }),
+  ttlMinutes: z
+    .number()
+    .int()
+    .min(1, 'الحد الأدنى دقيقة واحدة')
+    .max(60, 'الحد الأقصى 60 دقيقة'),
+  reason: z.string().min(3, 'وضّح سبب الطلب').max(300),
+});
+
+export type FinancialRequestValues = z.infer<typeof financialRequestSchema>;

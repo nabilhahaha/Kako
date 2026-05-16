@@ -37,13 +37,17 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   presales_supervisor: [
     { to: '/supervisor', label: 'فريقي', icon: LayoutDashboard },
     { to: '/supervisor/map', label: 'الخريطة', icon: Map },
-    { to: '/supervisor/approvals', label: 'الموافقات', icon: CheckSquare },
-    { to: '/supervisor/near-expiry', label: 'قارب على الانتهاء', icon: ShieldCheck },
+    { to: '/supervisor/approvals/visits', label: 'موافقات الزيارات', icon: CheckSquare },
+    {
+      to: '/supervisor/approvals/near-expiry',
+      label: 'قارب على الانتهاء',
+      icon: ShieldCheck,
+    },
   ],
   cashvan_supervisor: [
     { to: '/supervisor', label: 'فريقي', icon: LayoutDashboard },
     { to: '/supervisor/map', label: 'الخريطة', icon: Map },
-    { to: '/supervisor/approvals', label: 'الموافقات', icon: CheckSquare },
+    { to: '/supervisor/approvals/visits', label: 'الموافقات', icon: CheckSquare },
   ],
   regional_manager_roshen: [
     { to: '/regional', label: 'الإقليم', icon: LayoutDashboard },
