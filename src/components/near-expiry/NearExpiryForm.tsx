@@ -12,6 +12,7 @@ import { nearExpirySchema, type NearExpiryValues } from '@/lib/schemas';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useProducts, useCreateNearExpiry } from '@/hooks/useNearExpiry';
 import { useAuthStore } from '@/stores/authStore';
+import { validateFreshPhoto } from '@/lib/photoFreshness';
 
 export function NearExpiryForm({ onSuccess }: { onSuccess?: () => void }) {
   const profile = useAuthStore((s) => s.profile);
@@ -50,6 +51,20 @@ export function NearExpiryForm({ onSuccess }: { onSuccess?: () => void }) {
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     setPhoto(file);
     setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  }
+
+  async function handlePhotoInput(file: File | null) {
+    if (!file) {
+      handlePhoto(null);
+      return;
+    }
+    const result = await validateFreshPhoto(file);
+    if (!result.ok) {
+      toast.error('تم رفض الصورة', { description: result.reasonAr });
+      handlePhoto(null);
+      return;
+    }
+    handlePhoto(file);
   }
 
   async function onSubmit(values: NearExpiryValues) {
@@ -154,7 +169,10 @@ export function NearExpiryForm({ onSuccess }: { onSuccess?: () => void }) {
           accept="image/*"
           capture="environment"
           className="sr-only"
-          onChange={(e) => handlePhoto(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            void handlePhotoInput(e.target.files?.[0] ?? null);
+            e.target.value = '';
+          }}
         />
         {photoPreview ? (
           <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-muted">

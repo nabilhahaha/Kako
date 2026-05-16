@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, X, ImagePlus } from 'lucide-react';
+import { Camera, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { validateFreshPhoto } from '@/lib/photoFreshness';
 
 interface PhotoCaptureProps {
   files: File[];
@@ -15,7 +17,6 @@ interface PreviewItem {
 
 export function PhotoCapture({ files, onChange, max = 5 }: PhotoCaptureProps) {
   const cameraRef = useRef<HTMLInputElement>(null);
-  const libraryRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<PreviewItem[]>([]);
 
   useEffect(() => {
@@ -26,12 +27,27 @@ export function PhotoCapture({ files, onChange, max = 5 }: PhotoCaptureProps) {
     };
   }, [files]);
 
-  function appendFiles(input: HTMLInputElement | null) {
+  async function appendFiles(input: HTMLInputElement | null) {
     if (!input?.files?.length) return;
     const incoming = Array.from(input.files);
-    const next = [...files, ...incoming].slice(0, max);
-    onChange(next);
     input.value = '';
+
+    const remaining = Math.max(0, max - files.length);
+    const candidates = incoming.slice(0, remaining);
+
+    const accepted: File[] = [];
+    for (const file of candidates) {
+      const result = await validateFreshPhoto(file);
+      if (result.ok) {
+        accepted.push(file);
+      } else {
+        toast.error('تم رفض الصورة', { description: result.reasonAr });
+      }
+    }
+
+    if (accepted.length > 0) {
+      onChange([...files, ...accepted]);
+    }
   }
 
   function removeAt(idx: number) {
@@ -48,15 +64,9 @@ export function PhotoCapture({ files, onChange, max = 5 }: PhotoCaptureProps) {
         accept="image/*"
         capture="environment"
         className="sr-only"
-        onChange={() => appendFiles(cameraRef.current)}
-      />
-      <input
-        ref={libraryRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="sr-only"
-        onChange={() => appendFiles(libraryRef.current)}
+        onChange={() => {
+          void appendFiles(cameraRef.current);
+        }}
       />
 
       {previews.length > 0 && (
@@ -85,30 +95,19 @@ export function PhotoCapture({ files, onChange, max = 5 }: PhotoCaptureProps) {
       )}
 
       {canAdd && (
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant="default"
-            className="h-auto py-4"
-            onClick={() => cameraRef.current?.click()}
-          >
-            <Camera className="h-4 w-4" />
-            التقاط صورة
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-auto py-4"
-            onClick={() => libraryRef.current?.click()}
-          >
-            <ImagePlus className="h-4 w-4" />
-            من المعرض
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="default"
+          className="h-auto w-full py-4"
+          onClick={() => cameraRef.current?.click()}
+        >
+          <Camera className="h-4 w-4" />
+          التقاط صورة
+        </Button>
       )}
 
       <p className="text-caption">
-        {files.length} / {max} صور · يُفضل صورة لواجهة المحل، الرف، وأي عرض
+        {files.length} / {max} صور · كاميرا مباشرة فقط — لا يمكن رفع صور من المعرض
       </p>
     </div>
   );
