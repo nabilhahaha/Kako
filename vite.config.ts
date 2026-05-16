@@ -23,6 +23,8 @@ export default defineConfig({
           'query-vendor': ['@tanstack/react-query'],
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'charts-vendor': ['recharts'],
+          'xlsx-vendor': ['xlsx'],
+          'pptx-vendor': ['pptxgenjs'],
         },
       },
     },

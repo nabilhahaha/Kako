@@ -10,7 +10,6 @@ import { Toaster } from '@/components/ui/sonner';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
-import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { SalesmanDashboard } from '@/pages/salesman/SalesmanDashboard';
 import { CustomersListPage } from '@/pages/salesman/CustomersListPage';
 import { Customer360Page } from '@/pages/salesman/Customer360Page';
@@ -31,6 +30,12 @@ import { TradeMarketingDashboard } from '@/pages/trade-marketing/TradeMarketingD
 import { PromotionCalendarPage } from '@/pages/trade-marketing/PromotionCalendarPage';
 import { ListingReportsPage } from '@/pages/trade-marketing/ListingReportsPage';
 import { NearExpiryAnalyticsPage } from '@/pages/trade-marketing/NearExpiryAnalyticsPage';
+import { ExecutiveDashboard } from '@/pages/executive/ExecutiveDashboard';
+import { AdminDashboard } from '@/pages/admin/AdminDashboard';
+import { UsersPage } from '@/pages/admin/UsersPage';
+import { RawDataUploadPage } from '@/pages/admin/RawDataUploadPage';
+import { SettingsPage } from '@/pages/admin/SettingsPage';
+import { AuditLogsPage } from '@/pages/admin/AuditLogsPage';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -223,26 +228,50 @@ function App() {
             }
           />
           <Route
-            path="/executive/*"
+            path="/executive"
             element={
               <RoleGuard allow={['top_management_relia', 'top_management_roshen']}>
-                <PlaceholderPage
-                  title="لوحة التنفيذيين"
-                  description="مؤشرات استراتيجية وتنبيهات ذكية"
-                  phase={5}
-                />
+                <ExecutiveDashboard />
               </RoleGuard>
             }
           />
           <Route
-            path="/admin/*"
+            path="/admin"
             element={
               <RoleGuard allow={['admin_relia']}>
-                <PlaceholderPage
-                  title="إدارة النظام"
-                  description="المستخدمون، البيانات الخام، الإعدادات"
-                  phase={5}
-                />
+                <AdminDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <RoleGuard allow={['admin_relia']}>
+                <UsersPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/raw-data"
+            element={
+              <RoleGuard allow={['admin_relia']}>
+                <RawDataUploadPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <RoleGuard allow={['admin_relia']}>
+                <SettingsPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/audit"
+            element={
+              <RoleGuard allow={['admin_relia']}>
+                <AuditLogsPage />
               </RoleGuard>
             }
           />

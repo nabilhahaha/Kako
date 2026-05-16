@@ -89,3 +89,43 @@ export const promotionSchema = z
   });
 
 export type PromotionValues = z.infer<typeof promotionSchema>;
+
+const userRoleSchema = z.enum([
+  'admin_relia',
+  'presales_rep',
+  'presales_supervisor',
+  'cashvan_supervisor',
+  'regional_manager_roshen',
+  'trade_marketing_manager',
+  'top_management_relia',
+  'top_management_roshen',
+]);
+
+export const userEditSchema = z.object({
+  fullName: z.string().min(2, 'الاسم قصير').max(100),
+  role: userRoleSchema,
+  region: z.string().max(50).optional().default(''),
+  supervisorId: z.string().uuid().nullable(),
+  isActive: z.boolean(),
+});
+
+export type UserEditValues = z.infer<typeof userEditSchema>;
+
+export const visitReasonEditSchema = z.object({
+  label: z.string().min(2, 'التسمية قصيرة'),
+  labelAr: z.string().max(200),
+  appliesTo: z.string().max(50),
+  isActive: z.boolean(),
+});
+
+export type VisitReasonEditValues = z.infer<typeof visitReasonEditSchema>;
+
+export const productEditSchema = z.object({
+  productCode: z.string().min(1, 'أدخل الكود'),
+  productName: z.string().min(2, 'أدخل الاسم'),
+  productNameAr: z.string().max(200),
+  category: z.string().max(80),
+  isActive: z.boolean(),
+});
+
+export type ProductEditValues = z.infer<typeof productEditSchema>;

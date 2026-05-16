@@ -27,6 +27,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/admin/users', label: 'المستخدمون', icon: Users },
     { to: '/admin/raw-data', label: 'البيانات الخام', icon: ClipboardList },
     { to: '/admin/settings', label: 'الإعدادات', icon: Settings },
+    { to: '/admin/audit', label: 'سجل النشاط', icon: ShieldCheck },
   ],
   presales_rep: [
     { to: '/salesman', label: 'لوحة التحكم', icon: LayoutDashboard },

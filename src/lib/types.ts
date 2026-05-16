@@ -201,3 +201,46 @@ export interface NearExpiryAggregate {
   count: number;
   total_quantity: number;
 }
+
+export interface AuditLog {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  entity: string;
+  entity_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface RawDataMapping {
+  id: string;
+  source: string;
+  target_field: string;
+  source_field: string;
+  is_active: boolean | null;
+  created_at: string;
+}
+
+export interface ExecutiveKPIs {
+  totalRevenue30d: number;
+  totalRevenuePrev30d: number;
+  totalVisits30d: number;
+  totalVisitsPrev30d: number;
+  totalCustomers: number;
+  activeCustomers30d: number;
+  totalReps: number;
+  coveragePercent: number;
+  totalOverdue: number;
+  totalDebt: number;
+  pendingApprovals: number;
+  atRiskQuantity: number;
+}
+
+export interface Anomaly {
+  id: string;
+  severity: 'high' | 'medium' | 'low';
+  metric: string;
+  message: string;
+  detected_at: string;
+  delta_percent: number;
+}
