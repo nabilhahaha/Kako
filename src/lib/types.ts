@@ -77,9 +77,10 @@ export interface Customer360 {
 
 export interface VisitReason {
   id: string;
-  label: string;
-  label_ar: string | null;
-  applies_to: string | null;
+  reason_name_en: string;
+  reason_name_ar: string | null;
+  available_for_office: boolean;
+  available_for_branch: boolean;
   is_active: boolean | null;
 }
 
@@ -214,9 +215,13 @@ export interface AuditLog {
 
 export interface RawDataMapping {
   id: string;
-  source: string;
-  target_field: string;
-  source_field: string;
+  data_type: string;
+  system_field: string;
+  excel_column_name: string;
+  data_format?: string;
+  is_required?: boolean;
+  notes?: string;
+  updated_by?: string;
   is_active: boolean | null;
   created_at: string;
 }

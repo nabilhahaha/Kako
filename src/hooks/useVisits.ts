@@ -28,9 +28,11 @@ export function useVisitReasons() {
     queryFn: async (): Promise<VisitReason[]> => {
       const { data, error } = await supabase
         .from('visit_reasons_master')
-        .select('id, label, label_ar, applies_to, is_active')
+        .select(
+          'id, reason_name_en, reason_name_ar, available_for_office, available_for_branch, is_active',
+        )
         .eq('is_active', true)
-        .order('label_ar', { ascending: true });
+        .order('reason_name_ar', { ascending: true });
       if (error) throw error;
       return (data ?? []) as VisitReason[];
     },

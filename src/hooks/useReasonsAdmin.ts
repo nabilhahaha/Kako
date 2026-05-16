@@ -10,8 +10,10 @@ export function useReasonsAdmin() {
     queryFn: async (): Promise<VisitReason[]> => {
       const { data, error } = await supabase
         .from('visit_reasons_master')
-        .select('id, label, label_ar, applies_to, is_active')
-        .order('label_ar', { ascending: true });
+        .select(
+          'id, reason_name_en, reason_name_ar, available_for_office, available_for_branch, is_active',
+        )
+        .order('reason_name_ar', { ascending: true });
       if (error) throw error;
       return (data ?? []) as VisitReason[];
     },
@@ -29,9 +31,10 @@ export function useUpsertReason() {
   return useMutation({
     mutationFn: async ({ values, id, actorId }: ReasonInput) => {
       const row = {
-        label: values.label,
-        label_ar: values.labelAr || null,
-        applies_to: values.appliesTo || null,
+        reason_name_en: values.label,
+        reason_name_ar: values.labelAr || null,
+        available_for_office: values.availableForOffice,
+        available_for_branch: values.availableForBranch,
         is_active: values.isActive,
       };
       if (id) {

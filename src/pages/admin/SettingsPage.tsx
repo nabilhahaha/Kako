@@ -139,9 +139,17 @@ function ReasonsSection() {
               <tbody className="divide-y divide-border">
                 {(reasonsQ.data ?? []).map((r) => (
                   <tr key={r.id} className="hover:bg-muted/30">
-                    <td className="px-5 py-3 font-medium text-foreground">{r.label_ar ?? '—'}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{r.label}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{r.applies_to ?? '—'}</td>
+                    <td className="px-5 py-3 font-medium text-foreground">{r.reason_name_ar ?? '—'}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{r.reason_name_en}</td>
+                    <td className="px-5 py-3 text-muted-foreground">
+                      {r.available_for_office && r.available_for_branch
+                        ? 'مكتب + فرع'
+                        : r.available_for_office
+                          ? 'مكتب'
+                          : r.available_for_branch
+                            ? 'فرع'
+                            : '—'}
+                    </td>
                     <td className="px-5 py-3">
                       <Badge variant={r.is_active ? 'success' : 'secondary'}>
                         {r.is_active ? 'فعّال' : 'موقوف'}
@@ -219,14 +227,17 @@ function ReasonForm({
   } = useForm<VisitReasonEditValues>({
     resolver: zodResolver(visitReasonEditSchema),
     defaultValues: {
-      label: initial?.label ?? '',
-      labelAr: initial?.label_ar ?? '',
-      appliesTo: initial?.applies_to ?? '',
+      label: initial?.reason_name_en ?? '',
+      labelAr: initial?.reason_name_ar ?? '',
+      availableForOffice: initial?.available_for_office ?? true,
+      availableForBranch: initial?.available_for_branch ?? true,
       isActive: initial?.is_active ?? true,
     },
   });
 
   const isActive = watch('isActive');
+  const availableForOffice = watch('availableForOffice');
+  const availableForBranch = watch('availableForBranch');
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -243,8 +254,34 @@ function ReasonForm({
         {errors.label && <p className="text-caption text-destructive">{errors.label.message}</p>}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="appliesTo">يطبّق على (مثل: office, branch)</Label>
-        <Input id="appliesTo" {...register('appliesTo')} />
+        <Label>يطبّق على</Label>
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={availableForOffice}
+              onChange={(e) =>
+                setValue('availableForOffice', e.target.checked, { shouldValidate: true })
+              }
+              className="h-4 w-4 accent-primary"
+            />
+            متاح لزيارات المكتب
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={availableForBranch}
+              onChange={(e) =>
+                setValue('availableForBranch', e.target.checked, { shouldValidate: true })
+              }
+              className="h-4 w-4 accent-primary"
+            />
+            متاح لزيارات الفروع
+          </label>
+        </div>
+        {errors.availableForOffice && (
+          <p className="text-caption text-destructive">{errors.availableForOffice.message}</p>
+        )}
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input

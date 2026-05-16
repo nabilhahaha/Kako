@@ -57,7 +57,7 @@ export function VisitReasonsPicker({
             aria-pressed={active}
           >
             {active && <Check className="h-3.5 w-3.5" />}
-            {r.label_ar || r.label}
+            {r.reason_name_ar || r.reason_name_en}
           </button>
         );
       })}

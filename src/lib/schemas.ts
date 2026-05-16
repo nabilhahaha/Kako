@@ -111,12 +111,18 @@ export const userEditSchema = z.object({
 
 export type UserEditValues = z.infer<typeof userEditSchema>;
 
-export const visitReasonEditSchema = z.object({
-  label: z.string().min(2, 'التسمية قصيرة'),
-  labelAr: z.string().max(200),
-  appliesTo: z.string().max(50),
-  isActive: z.boolean(),
-});
+export const visitReasonEditSchema = z
+  .object({
+    label: z.string().min(2, 'التسمية قصيرة'),
+    labelAr: z.string().max(200),
+    availableForOffice: z.boolean(),
+    availableForBranch: z.boolean(),
+    isActive: z.boolean(),
+  })
+  .refine((v) => v.availableForOffice || v.availableForBranch, {
+    message: 'يجب اختيار نوع زيارة واحد على الأقل',
+    path: ['availableForOffice'],
+  });
 
 export type VisitReasonEditValues = z.infer<typeof visitReasonEditSchema>;
 

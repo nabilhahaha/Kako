@@ -64,9 +64,9 @@ export function RawDataUploadPage() {
     setImporting(true);
     try {
       const mappingRows = STANDARD_FIELDS.filter((f) => mapping[f.key]).map((f) => ({
-        source: file.name,
-        target_field: f.key,
-        source_field: mapping[f.key],
+        data_type: file.name,
+        system_field: f.key,
+        excel_column_name: mapping[f.key],
         is_active: true,
       }));
       const { error: mErr } = await supabase
