@@ -11,6 +11,12 @@ import { LoginPage } from '@/pages/auth/LoginPage';
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
+import { SalesmanDashboard } from '@/pages/salesman/SalesmanDashboard';
+import { CustomersListPage } from '@/pages/salesman/CustomersListPage';
+import { Customer360Page } from '@/pages/salesman/Customer360Page';
+import { VisitWizardPage } from '@/pages/salesman/VisitWizardPage';
+import { VisitsHistoryPage } from '@/pages/salesman/VisitsHistoryPage';
+import { NearExpiryPage } from '@/pages/salesman/NearExpiryPage';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -43,14 +49,50 @@ function App() {
           }
         >
           <Route
-            path="/salesman/*"
+            path="/salesman"
             element={
               <RoleGuard allow={['presales_rep']}>
-                <PlaceholderPage
-                  title="لوحة تحكم المندوب"
-                  description="المؤشرات الشخصية، العملاء، الزيارات"
-                  phase={2}
-                />
+                <SalesmanDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/salesman/customers"
+            element={
+              <RoleGuard allow={['presales_rep']}>
+                <CustomersListPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/salesman/customers/:customerId"
+            element={
+              <RoleGuard allow={['presales_rep']}>
+                <Customer360Page />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/salesman/visits"
+            element={
+              <RoleGuard allow={['presales_rep']}>
+                <VisitsHistoryPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/salesman/visits/new"
+            element={
+              <RoleGuard allow={['presales_rep']}>
+                <VisitWizardPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/salesman/near-expiry"
+            element={
+              <RoleGuard allow={['presales_rep']}>
+                <NearExpiryPage />
               </RoleGuard>
             }
           />

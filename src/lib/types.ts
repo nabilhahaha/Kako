@@ -74,3 +74,40 @@ export interface Customer360 {
   latitude: number | null;
   longitude: number | null;
 }
+
+export interface VisitReason {
+  id: string;
+  label: string;
+  label_ar: string | null;
+  applies_to: string | null;
+  is_active: boolean | null;
+}
+
+export interface Product {
+  id: string;
+  product_code: string;
+  product_name: string;
+  product_name_ar: string | null;
+  category: string | null;
+  is_active: boolean | null;
+}
+
+export interface NearExpiryRecord {
+  id: string;
+  product_id: string;
+  customer_id: string;
+  reported_by: string;
+  quantity: number;
+  expiry_date: string;
+  notes: string | null;
+  status: string | null;
+  photo_url: string | null;
+  created_at: string;
+}
+
+export interface GPSCoords {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  capturedAt: string;
+}
