@@ -89,7 +89,7 @@ export function VisitApprovalsPage() {
               title={customerName.get(v.customer_id) ?? 'عميل غير معروف'}
               meta={
                 <span className="flex flex-wrap items-center gap-2">
-                  <span>{repName.get(v.salesman_id) ?? '—'}</span>
+                  <span>{repName.get(v.user_id) ?? '—'}</span>
                   <span>·</span>
                   <span>{TYPE_LABELS[v.visit_type] ?? v.visit_type}</span>
                   <span>·</span>

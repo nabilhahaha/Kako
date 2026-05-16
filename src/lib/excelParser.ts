@@ -54,7 +54,7 @@ export const STANDARD_FIELDS = [
   { key: 'product_code', label: 'كود المنتج' },
   { key: 'quantity', label: 'الكمية' },
   { key: 'amount', label: 'القيمة' },
-  { key: 'salesman_id', label: 'معرف المندوب' },
+  { key: 'user_id', label: 'معرف المندوب' },
   { key: 'region', label: 'المنطقة' },
 ] as const;
 

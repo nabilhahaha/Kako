@@ -42,7 +42,7 @@ export type VisitType = 'office' | 'branch' | 'cashvan' | 'hybrid';
 export interface Visit {
   id: string;
   customer_id: string;
-  salesman_id: string;
+  user_id: string;
   visit_type: VisitType | string;
   visited_at: string;
   latitude: number | null;
@@ -113,7 +113,7 @@ export interface GPSCoords {
 }
 
 export interface TeamMemberPerformance {
-  salesman_id: string;
+  user_id: string;
   full_name: string | null;
   email: string | null;
   strike_rate: number | null;

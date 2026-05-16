@@ -11,8 +11,8 @@ export function useVisits(userId: string | undefined) {
     queryFn: async (): Promise<Visit[]> => {
       const { data, error } = await supabase
         .from('visits')
-        .select('id, customer_id, salesman_id, visit_type, visited_at, latitude, longitude, notes, status')
-        .eq('salesman_id', userId)
+        .select('id, customer_id, user_id, visit_type, visited_at, latitude, longitude, notes, status')
+        .eq('user_id', userId)
         .order('visited_at', { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -40,19 +40,19 @@ export function useVisitReasons() {
 interface CreateVisitInput {
   values: VisitWizardValues;
   photos: File[];
-  salesmanId: string;
+  userId: string;
 }
 
 export function useCreateVisit() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ values, photos, salesmanId }: CreateVisitInput) => {
+    mutationFn: async ({ values, photos, userId }: CreateVisitInput) => {
       const { data: visit, error: visitErr } = await supabase
         .from('visits')
         .insert({
           customer_id: values.customerId,
-          salesman_id: salesmanId,
+          user_id: userId,
           visit_type: values.visitType,
           visited_at: new Date().toISOString(),
           latitude: values.gps?.latitude ?? null,
@@ -101,7 +101,7 @@ export function useCreateVisit() {
       return { visitId, uploadedPhotos: uploadedUrls.length };
     },
     onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: qk.visits(vars.salesmanId) });
+      qc.invalidateQueries({ queryKey: qk.visits(vars.userId) });
       qc.invalidateQueries({ queryKey: qk.customer360(vars.values.customerId) });
     },
   });

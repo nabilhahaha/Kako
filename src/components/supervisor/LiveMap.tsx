@@ -42,11 +42,11 @@ export function LiveMap({ customers, recentVisits, repsById }: LiveMapProps) {
     const latest = new Map<string, Visit>();
     for (const v of recentVisits) {
       if (v.latitude == null || v.longitude == null) continue;
-      if (!latest.has(v.salesman_id)) latest.set(v.salesman_id, v);
+      if (!latest.has(v.user_id)) latest.set(v.user_id, v);
     }
     return Array.from(latest.values()).map((v) => ({
-      id: v.salesman_id,
-      name: repsById.get(v.salesman_id)?.name ?? 'مندوب',
+      id: v.user_id,
+      name: repsById.get(v.user_id)?.name ?? 'مندوب',
       lat: v.latitude!,
       lng: v.longitude!,
       visitedAt: v.visited_at,

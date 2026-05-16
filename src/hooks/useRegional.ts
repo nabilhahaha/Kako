@@ -33,7 +33,7 @@ export function useRegionalSnapshot(region: string | null) {
 
       const visitsQ = supabase
         .from('visits')
-        .select('id, customer_id, salesman_id, visited_at')
+        .select('id, customer_id, user_id, visited_at')
         .gte('visited_at', since);
 
       const [{ data: customers, error: cErr }, { data: users, error: uErr }, { data: visits, error: vErr }] =

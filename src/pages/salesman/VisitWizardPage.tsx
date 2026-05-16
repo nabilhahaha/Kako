@@ -117,7 +117,7 @@ export function VisitWizardPage() {
       const result = await mutation.mutateAsync({
         values: data,
         photos,
-        salesmanId: userId,
+        userId,
       });
       toast.success('تم تسجيل الزيارة', {
         description: result.uploadedPhotos

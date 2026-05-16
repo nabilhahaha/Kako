@@ -10,7 +10,7 @@ export function usePendingVisits(supervisorId: string | undefined) {
     queryFn: async (): Promise<Visit[]> => {
       const { data, error } = await supabase
         .from('visits')
-        .select('id, customer_id, salesman_id, visit_type, visited_at, latitude, longitude, notes, status')
+        .select('id, customer_id, user_id, visit_type, visited_at, latitude, longitude, notes, status')
         .eq('status', 'pending')
         .order('visited_at', { ascending: false })
         .limit(200);

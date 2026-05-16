@@ -24,10 +24,10 @@ CREATE POLICY "visit_reasons_select_own_or_supervised"
   USING (
     EXISTS (
       SELECT 1 FROM public.visits v
-      JOIN public.users u ON u.id = v.salesman_id
+      JOIN public.users u ON u.id = v.user_id
       WHERE v.id = visit_reasons.visit_id
         AND (
-          v.salesman_id = auth.uid()
+          v.user_id = auth.uid()
           OR u.supervisor_id = auth.uid()
         )
     )
@@ -39,7 +39,7 @@ CREATE POLICY "visit_reasons_insert_own_visit"
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.visits v
-      WHERE v.id = visit_reasons.visit_id AND v.salesman_id = auth.uid()
+      WHERE v.id = visit_reasons.visit_id AND v.user_id = auth.uid()
     )
   );
 

@@ -27,7 +27,7 @@ export function TeamDashboard() {
 
   const perfById = useMemo(() => {
     const map = new Map<string, TeamMemberPerformance>();
-    (perfQ.data ?? []).forEach((p) => map.set(p.salesman_id, p));
+    (perfQ.data ?? []).forEach((p) => map.set(p.user_id, p));
     return map;
   }, [perfQ.data]);
 

@@ -32,9 +32,9 @@ export function useLiveMapData(supervisorId: string | undefined, repIds: string[
           supabase
             .from('visits')
             .select(
-              'id, customer_id, salesman_id, visit_type, visited_at, latitude, longitude, notes, status',
+              'id, customer_id, user_id, visit_type, visited_at, latitude, longitude, notes, status',
             )
-            .in('salesman_id', repIds)
+            .in('user_id', repIds)
             .gte('visited_at', since)
             .not('latitude', 'is', null)
             .order('visited_at', { ascending: false })
@@ -61,7 +61,7 @@ export function useLiveMapData(supervisorId: string | undefined, repIds: string[
         { event: 'INSERT', schema: 'public', table: 'visits' },
         (payload) => {
           const v = payload.new as Visit;
-          if (repIds.includes(v.salesman_id)) {
+          if (repIds.includes(v.user_id)) {
             qc.invalidateQueries({ queryKey: qk.liveMap(supervisorId) });
           }
         },
