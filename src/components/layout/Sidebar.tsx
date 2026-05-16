@@ -51,13 +51,15 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   ],
   regional_manager_roshen: [
     { to: '/regional', label: 'الإقليم', icon: LayoutDashboard },
+    { to: '/regional/distributor', label: 'الموزّع', icon: TrendingUp },
     { to: '/regional/coverage', label: 'التغطية', icon: Map },
     { to: '/regional/approvals', label: 'الموافقات', icon: CheckSquare },
   ],
   trade_marketing_manager: [
     { to: '/trade-marketing', label: 'لوحة التحكم', icon: LayoutDashboard },
     { to: '/trade-marketing/promotions', label: 'العروض', icon: Megaphone },
-    { to: '/trade-marketing/analytics', label: 'التحليلات', icon: TrendingUp },
+    { to: '/trade-marketing/listings', label: 'القنوات', icon: TrendingUp },
+    { to: '/trade-marketing/near-expiry', label: 'الفقد', icon: ShieldCheck },
   ],
   top_management_relia: [
     { to: '/executive', label: 'لوحة التنفيذيين', icon: LayoutDashboard },

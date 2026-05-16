@@ -23,6 +23,14 @@ import { VisitApprovalsPage } from '@/pages/supervisor/VisitApprovalsPage';
 import { NearExpiryApprovalsPage } from '@/pages/supervisor/NearExpiryApprovalsPage';
 import { VisitRequestsPage } from '@/pages/supervisor/VisitRequestsPage';
 import { FinancialRequestsPage } from '@/pages/supervisor/FinancialRequestsPage';
+import { RegionalDashboard } from '@/pages/regional/RegionalDashboard';
+import { DistributorPerformancePage } from '@/pages/regional/DistributorPerformancePage';
+import { CoverageMapPage } from '@/pages/regional/CoverageMapPage';
+import { ApprovalQueuePage } from '@/pages/regional/ApprovalQueuePage';
+import { TradeMarketingDashboard } from '@/pages/trade-marketing/TradeMarketingDashboard';
+import { PromotionCalendarPage } from '@/pages/trade-marketing/PromotionCalendarPage';
+import { ListingReportsPage } from '@/pages/trade-marketing/ListingReportsPage';
+import { NearExpiryAnalyticsPage } from '@/pages/trade-marketing/NearExpiryAnalyticsPage';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -151,26 +159,66 @@ function App() {
             }
           />
           <Route
-            path="/regional/*"
+            path="/regional"
             element={
               <RoleGuard allow={['regional_manager_roshen']}>
-                <PlaceholderPage
-                  title="لوحة المدير الإقليمي"
-                  description="أداء الإقليم وتغطية العملاء"
-                  phase={4}
-                />
+                <RegionalDashboard />
               </RoleGuard>
             }
           />
           <Route
-            path="/trade-marketing/*"
+            path="/regional/distributor"
+            element={
+              <RoleGuard allow={['regional_manager_roshen']}>
+                <DistributorPerformancePage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/regional/coverage"
+            element={
+              <RoleGuard allow={['regional_manager_roshen']}>
+                <CoverageMapPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/regional/approvals"
+            element={
+              <RoleGuard allow={['regional_manager_roshen']}>
+                <ApprovalQueuePage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/trade-marketing"
             element={
               <RoleGuard allow={['trade_marketing_manager']}>
-                <PlaceholderPage
-                  title="التسويق التجاري"
-                  description="العروض، التحليلات، ROI"
-                  phase={4}
-                />
+                <TradeMarketingDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/trade-marketing/promotions"
+            element={
+              <RoleGuard allow={['trade_marketing_manager']}>
+                <PromotionCalendarPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/trade-marketing/listings"
+            element={
+              <RoleGuard allow={['trade_marketing_manager']}>
+                <ListingReportsPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/trade-marketing/near-expiry"
+            element={
+              <RoleGuard allow={['trade_marketing_manager']}>
+                <NearExpiryAnalyticsPage />
               </RoleGuard>
             }
           />

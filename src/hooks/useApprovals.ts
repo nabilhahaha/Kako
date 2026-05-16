@@ -63,10 +63,11 @@ interface DecideNearExpiryInput {
   recordId: string;
   decision: 'approved' | 'rejected';
   supervisorId: string;
-  stage?: string;
   notes?: string;
 }
 
+// Supervisor stage: approval moves status → 'supervisor_approved' so the
+// regional manager can finalize it. Rejection ends the flow.
 export function useDecideNearExpiry() {
   const qc = useQueryClient();
   return useMutation({
@@ -74,7 +75,6 @@ export function useDecideNearExpiry() {
       recordId,
       decision,
       supervisorId,
-      stage = 'supervisor',
       notes,
     }: DecideNearExpiryInput) => {
       const { error: approvalErr } = await supabase
@@ -82,15 +82,16 @@ export function useDecideNearExpiry() {
         .insert({
           record_id: recordId,
           approver_id: supervisorId,
-          stage,
+          stage: 'supervisor',
           decision,
           notes: notes ?? null,
         });
       if (approvalErr) throw approvalErr;
 
+      const nextStatus = decision === 'approved' ? 'supervisor_approved' : 'rejected';
       const { error: recordErr } = await supabase
         .from('near_expiry_records')
-        .update({ status: decision })
+        .update({ status: nextStatus })
         .eq('id', recordId);
       if (recordErr) throw recordErr;
     },

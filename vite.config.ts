@@ -22,6 +22,7 @@ export default defineConfig({
           'supabase-vendor': ['@supabase/supabase-js'],
           'query-vendor': ['@tanstack/react-query'],
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'charts-vendor': ['recharts'],
         },
       },
     },

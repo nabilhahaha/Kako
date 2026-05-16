@@ -62,3 +62,30 @@ export const financialRequestSchema = z.object({
 });
 
 export type FinancialRequestValues = z.infer<typeof financialRequestSchema>;
+
+const promotionStatusSchema = z.enum([
+  'draft',
+  'active',
+  'paused',
+  'completed',
+  'cancelled',
+]);
+
+export const promotionSchema = z
+  .object({
+    name: z.string().min(2, 'الاسم قصير'),
+    nameAr: z.string().max(200),
+    status: promotionStatusSchema,
+    startDate: z.string().min(1, 'أدخل تاريخ البداية'),
+    endDate: z.string().min(1, 'أدخل تاريخ النهاية'),
+    channelTypes: z.array(z.string()).min(1, 'اختر قناة واحدة على الأقل'),
+    expectedRoi: z.number().nullable(),
+    tradeSpend: z.number().nullable(),
+    notes: z.string().max(500),
+  })
+  .refine((v) => Date.parse(v.endDate) >= Date.parse(v.startDate), {
+    message: 'تاريخ النهاية يجب أن يكون بعد البداية',
+    path: ['endDate'],
+  });
+
+export type PromotionValues = z.infer<typeof promotionSchema>;

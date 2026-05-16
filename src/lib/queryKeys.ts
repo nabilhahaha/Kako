@@ -17,4 +17,12 @@ export const qk = {
   financialRequests: (supervisorId: string) =>
     ['financial-requests', supervisorId] as const,
   liveMap: (supervisorId: string) => ['live-map', supervisorId] as const,
+
+  regional: (region: string | null) => ['regional', region ?? 'all'] as const,
+  channelStats: () => ['channel-stats'] as const,
+  nearExpiryAnalytics: () => ['near-expiry-analytics'] as const,
+  promotions: () => ['promotions'] as const,
+  regionalApprovals: () => ['regional-approvals'] as const,
+  coverageMap: (region: string | null) =>
+    ['coverage-map', region ?? 'all'] as const,
 };

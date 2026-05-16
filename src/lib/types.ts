@@ -154,3 +154,50 @@ export interface NearExpiryApproval {
   notes: string | null;
   created_at: string;
 }
+
+export type PromotionStatus =
+  | 'draft'
+  | 'active'
+  | 'paused'
+  | 'completed'
+  | 'cancelled';
+
+export interface Promotion {
+  id: string;
+  name: string;
+  name_ar: string | null;
+  status: PromotionStatus;
+  start_date: string;
+  end_date: string;
+  channel_types: string[];
+  product_ids: string[];
+  expected_roi: number | null;
+  actual_roi: number | null;
+  trade_spend: number | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface RegionStats {
+  region: string;
+  customers: number;
+  active_customers: number;
+  coverage_percent: number;
+  visits_30d: number;
+  overdue_count: number;
+}
+
+export interface ChannelStats {
+  channel: string;
+  customers: number;
+  visits_30d: number;
+  total_debt: number;
+  overdue_amount: number;
+}
+
+export interface NearExpiryAggregate {
+  status: string;
+  count: number;
+  total_quantity: number;
+}
