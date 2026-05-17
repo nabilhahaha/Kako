@@ -259,20 +259,7 @@ function RMDetail({ submission, onDone }) {
       }
 
       await db.updateSubmission(submission.id, patch);
-
-      // Fire email — non-fatal if it fails.
-      try {
-        toast(tr.sendingEmail);
-        await db.sendDecisionEmail({
-          submission_id: submission.id,
-          is_edit: isEdit,
-          lang,
-        });
-        toast(isEdit ? tr.decisionUpdated : tr.emailSent, 'success');
-      } catch (emailErr) {
-        console.error(emailErr);
-        toast(tr.emailFailed + ': ' + emailErr.message, 'error');
-      }
+      toast(isEdit ? tr.decisionUpdated : tr.decisionSavedFinal, 'success');
       onDone();
     } catch (e) {
       console.error(e);
@@ -328,7 +315,7 @@ function RMDetail({ submission, onDone }) {
           {confirmStage && (
             <div className="card p-3 bg-amber-50 border-amber-300 border-2">
               <p className="text-sm text-amber-900 font-semibold mb-2">
-                ⚠️ {mode === 'edit' ? tr.confirmEditDecision : tr.confirmFinalDecision}
+                ⚠️ {mode === 'edit' ? tr.confirmEditApprove : tr.confirmApprove}
               </p>
               <div className="flex gap-2">
                 <button
@@ -360,7 +347,7 @@ function RMDetail({ submission, onDone }) {
                 </button>
               )}
               <button onClick={submit} disabled={!action || submitting} className="btn-primary flex-1">
-                ✅ {tr.approveAndSend}
+                ✅ {tr.approveOnly}
               </button>
             </div>
           )}

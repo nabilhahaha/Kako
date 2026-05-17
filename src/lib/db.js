@@ -144,10 +144,6 @@ export const db = {
     return data?.signedUrl || null;
   },
 
-  /* ─── Send decision email ─── */
-  sendDecisionEmail: ({ submission_id, is_edit, lang }) =>
-    callFn('send-decision-email', { submission_id, is_edit, lang }),
-
   /* ─── Realtime ─── */
   onSubmissionsChange: (callback) => {
     const channel = supabase

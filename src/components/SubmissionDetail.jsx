@@ -3,6 +3,7 @@ import { daysColor, fmtDate, fmtDateTime } from '../lib/utils.js';
 import ActionBadge from './ActionBadge.jsx';
 import StatusBadge from './StatusBadge.jsx';
 import DecisionStepper from './DecisionStepper.jsx';
+import PdfButton from './PdfButton.jsx';
 
 // Read-only summary block reused by salesman, TM, and RM detail views.
 export default function SubmissionDetail({ submission, onViewPhotos, showStepper = true }) {
@@ -53,11 +54,16 @@ export default function SubmissionDetail({ submission, onViewPhotos, showStepper
           </div>
         </dl>
 
-        {onViewPhotos && (
-          <button onClick={onViewPhotos} className="btn-secondary w-full mt-3 text-sm">
-            📷 {tr.viewBothPhotos}
-          </button>
-        )}
+        <div className="flex flex-col sm:flex-row gap-2 mt-3">
+          {onViewPhotos && (
+            <button onClick={onViewPhotos} className="btn-secondary flex-1 text-sm">
+              📷 {tr.viewBothPhotos}
+            </button>
+          )}
+          <div className="flex-1">
+            <PdfButton submission={s} size="md" variant="secondary" stop={false} fullWidth />
+          </div>
+        </div>
       </div>
 
       {/* Salesman suggestion */}

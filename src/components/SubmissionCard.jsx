@@ -3,6 +3,7 @@ import { daysColor, fmtDateTime } from '../lib/utils.js';
 import StatusBadge from './StatusBadge.jsx';
 import ActionBadge from './ActionBadge.jsx';
 import EditCountdown from './EditCountdown.jsx';
+import PdfButton from './PdfButton.jsx';
 
 export default function SubmissionCard({
   submission: s,
@@ -18,9 +19,17 @@ export default function SubmissionCard({
       : `${s.daysRemaining} ${tr.daysAr}`;
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className="card w-full p-3.5 text-start active:scale-[0.99] transition hover:shadow-md"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+      className="card w-full p-3.5 text-start active:scale-[0.99] transition hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-roshen-500"
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
@@ -78,11 +87,12 @@ export default function SubmissionCard({
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-        <span className="text-[10px] text-gray-400">
+      <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-gray-100">
+        <span className="text-[10px] text-gray-400 truncate flex-1">
           {tr.submittedAt}: {fmtDateTime(s.submittedAt, lang)}
         </span>
+        <PdfButton submission={s} />
       </div>
-    </button>
+    </div>
   );
 }
