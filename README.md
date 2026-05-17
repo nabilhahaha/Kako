@@ -1,4 +1,13 @@
-# Near Expiry Registration System — v3.0
+# Near Expiry Registration System — v3.5
+
+> **v3.5 (visit-based architecture)** — submissions table replaced by `visits` +
+> `visit_items`. One visit = one salesman + one customer + one day, containing
+> many items. TM and RM make decisions **per item**. Apply migration
+> `supabase/migrations/0006_visits_schema.sql` on top of an existing v3.0 install.
+
+---
+
+
 
 Bilingual (Arabic + English) mobile-first React app for tracking near-expiry
 FMCG items across Roshen KSA's distribution network. 3-tier approval workflow:

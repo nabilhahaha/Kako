@@ -1,7 +1,7 @@
-// Convert a Supabase row (snake_case) into the camelCase shape the UI components
-// already expect. This is the single boundary between DB and view.
+// DB rows (snake_case) → UI shape (camelCase). Single boundary between DB and
+// the view layer.
 
-export const fromDb = (row) => {
+export const visitFromDb = (row) => {
   if (!row) return null;
   return {
     id: row.id,
@@ -9,17 +9,30 @@ export const fromDb = (row) => {
     salesmanName: row.salesman_name,
     custAccount: row.cust_account,
     custName: row.cust_name,
+    visitDate: row.visit_date,
+    status: row.status,
+    notes: row.notes || '',
+    submittedAt: row.submitted_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+};
+
+export const visitItemFromDb = (row) => {
+  if (!row) return null;
+  return {
+    id: row.id,
+    visitId: row.visit_id,
     itemId: row.item_id,
     itemDesc: row.item_desc,
     netQty: Number(row.net_qty),
     physQty: Number(row.phys_qty),
     expiryDate: row.expiry_date,
     daysRemaining: row.days_remaining,
-    salesmanSuggestion: row.salesman_suggestion,
-    salesmanNotes: row.salesman_notes || '',
     photoExpiryPath: row.photo_expiry_path,
     photoQtyPath: row.photo_qty_path,
-    status: row.status,
+    salesmanSuggestion: row.salesman_suggestion,
+    salesmanNotes: row.salesman_notes || '',
     tmId: row.tm_id,
     tmDecision: row.tm_decision,
     tmNotes: row.tm_notes || '',
@@ -28,8 +41,9 @@ export const fromDb = (row) => {
     roshenDecision: row.rm_decision,
     roshenNotes: row.rm_notes || '',
     roshenDecisionDate: row.rm_decision_date,
+    itemStatus: row.item_status,
     editHistory: Array.isArray(row.edit_history) ? row.edit_history : [],
-    submittedAt: row.submitted_at,
+    createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 };

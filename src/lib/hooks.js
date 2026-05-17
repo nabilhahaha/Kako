@@ -30,15 +30,29 @@ const useFetchWithRealtime = (fetchFn, realtimeSubscribe, deps = []) => {
   return { data, loading, error, reload };
 };
 
-export const useMySubmissions = (salesmanId) =>
+export const useMyVisits = (salesmanId) =>
   useFetchWithRealtime(
-    () => (salesmanId ? db.listMySubmissions(salesmanId) : Promise.resolve([])),
-    db.onSubmissionsChange,
+    () => (salesmanId ? db.listMyVisits(salesmanId) : Promise.resolve([])),
+    db.onVisitsChange,
     [salesmanId],
   );
 
-export const useAllSubmissions = () =>
-  useFetchWithRealtime(() => db.listAllSubmissions(), db.onSubmissionsChange, []);
+export const useAllVisits = () =>
+  useFetchWithRealtime(() => db.listAllVisits(), db.onVisitsChange, []);
+
+export const useVisitWithItems = (visitId) =>
+  useFetchWithRealtime(
+    async () => {
+      if (!visitId) return null;
+      const [visit, items] = await Promise.all([
+        db.getVisit(visitId),
+        db.listVisitItems(visitId),
+      ]);
+      return { visit, items };
+    },
+    db.onVisitsChange,
+    [visitId],
+  );
 
 export const useAggregatedData = () =>
   useFetchWithRealtime(

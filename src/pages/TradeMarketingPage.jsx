@@ -1,17 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth, useLang, useToast } from '../App.jsx';
 import Header from '../components/Header.jsx';
-import SubmissionCard from '../components/SubmissionCard.jsx';
-import SubmissionDetail from '../components/SubmissionDetail.jsx';
-import ActionSelector from '../components/ActionSelector.jsx';
-import ActionBadge from '../components/ActionBadge.jsx';
-import PhotoViewer from '../components/PhotoViewer.jsx';
+import VisitCard from '../components/VisitCard.jsx';
+import VisitDetail from '../components/VisitDetail.jsx';
+import VisitItemDecisionRow from '../components/VisitItemDecisionRow.jsx';
+import PdfButton from '../components/PdfButton.jsx';
 import { db } from '../lib/db.js';
-import { useAllSubmissions } from '../lib/hooks.js';
-import { fromDb } from '../lib/mapping.js';
+import { useAllVisits } from '../lib/hooks.js';
+import { visitFromDb, visitItemFromDb } from '../lib/mapping.js';
 
 const TABS = [
-  { key: 'pending', icon: '📥', labelKey: 'pendingNew' },
+  { key: 'pending', icon: '⏳', labelKey: 'pendingNew' },
   { key: 'history', icon: '📋', labelKey: 'history' },
 ];
 
@@ -21,20 +20,36 @@ export default function TradeMarketingPage() {
   const [tab, setTab] = useState('pending');
   const [openId, setOpenId] = useState(null);
 
-  const { data: rows, loading } = useAllSubmissions();
-  const subs = useMemo(() => (rows || []).map(fromDb), [rows]);
+  const { data: rows, loading } = useAllVisits();
+  const visits = useMemo(() => (rows || []).map(visitFromDb), [rows]);
 
-  const pending = useMemo(() => subs.filter((s) => s.status === 'pending_tm'), [subs]);
-  const history = useMemo(() => subs.filter((s) => s.status !== 'pending_tm'), [subs]);
+  // Item counts per visit (lazy).
+  const [itemCounts, setItemCounts] = useState({});
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const out = {};
+      for (const v of visits) {
+        const items = await db.listVisitItems(v.id).catch(() => []);
+        out[v.id] = items.length;
+      }
+      if (active) setItemCounts(out);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [visits]);
 
-  const open = openId ? subs.find((s) => s.id === openId) : null;
+  const pending = useMemo(() => visits.filter((v) => v.status === 'pending_tm'), [visits]);
+  const history = useMemo(() => visits.filter((v) => v.status !== 'pending_tm'), [visits]);
 
-  if (open) {
+  if (openId) {
     return (
-      <>
-        <Header title={tr.tmDashboard} onBack={() => setOpenId(null)} onLogout={signOut} />
-        <TMDetail submission={open} onDone={() => setOpenId(null)} />
-      </>
+      <TMVisitDetail
+        visitId={openId}
+        onBack={() => setOpenId(null)}
+        onLogout={signOut}
+      />
     );
   }
 
@@ -64,134 +79,159 @@ export default function TradeMarketingPage() {
       <div className="p-3 space-y-2.5 fade-in">
         {loading ? (
           <p className="text-center text-gray-400 py-12 text-sm">…</p>
-        ) : tab === 'pending' ? (
-          pending.length === 0 ? <Empty /> : pending.map((s) => (
-            <SubmissionCard key={s.id} submission={s} onClick={() => setOpenId(s.id)} />
+        ) : (tab === 'pending' ? pending : history).length === 0 ? (
+          <div className="text-center text-gray-500 py-12 text-sm">
+            <p className="text-3xl mb-2">📭</p>
+            <p>{tr.visitsListEmpty}</p>
+          </div>
+        ) : (
+          (tab === 'pending' ? pending : history).map((v) => (
+            <VisitCard
+              key={v.id}
+              visit={v}
+              itemCount={itemCounts[v.id] || 0}
+              onClick={() => setOpenId(v.id)}
+            />
           ))
-        ) : history.length === 0 ? <Empty /> : history.map((s) => (
-          <SubmissionCard key={s.id} submission={s} onClick={() => setOpenId(s.id)} />
-        ))}
+        )}
       </div>
     </>
   );
 }
 
-function Empty() {
-  const { tr } = useLang();
-  return (
-    <div className="text-center text-gray-500 py-12 text-sm">
-      <p className="text-3xl mb-2">📭</p>
-      <p>{tr.noSubmissions}</p>
-    </div>
-  );
-}
-
-function TMDetail({ submission, onDone }) {
+/* ───────── TM visit detail with per-item decisions ───────── */
+function TMVisitDetail({ visitId, onBack, onLogout }) {
   const { tr } = useLang();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [action, setAction] = useState(submission.tmDecision || '');
-  const [notes, setNotes] = useState(submission.tmNotes || '');
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [confirmClose, setConfirmClose] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [visit, setVisit] = useState(null);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingByItem, setPendingByItem] = useState({});
+  const [saving, setSaving] = useState(false);
 
-  const isPending = submission.status === 'pending_tm';
+  const reload = async () => {
+    setLoading(true);
+    const [v, it] = await Promise.all([db.getVisit(visitId), db.listVisitItems(visitId)]);
+    setVisit(visitFromDb(v));
+    setItems(it.map(visitItemFromDb));
+    setLoading(false);
+    setPendingByItem({});
+  };
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visitId]);
 
-  const decide = async () => {
-    if (!action) {
-      toast(tr.chooseActionFirst, 'error');
+  const dirtyCount = Object.values(pendingByItem).filter(
+    (p) => p?.dirty && p.decision,
+  ).length;
+
+  const saveAll = async () => {
+    const entries = Object.entries(pendingByItem).filter(
+      ([, p]) => p?.dirty && p.decision,
+    );
+    if (entries.length === 0) {
+      toast(tr.noDecisionsToSave, 'error');
       return;
     }
-    if (action === 'no_action' && !confirmClose) {
-      setConfirmClose(true);
-      return;
-    }
-
-    setSubmitting(true);
+    setSaving(true);
     try {
-      const patch = {
-        tm_id: user.id,
-        tm_decision: action,
-        tm_notes: notes.trim() || null,
-        tm_decision_date: new Date().toISOString(),
-        status: action === 'no_action' ? 'closed_no_action' : 'pending_roshen',
-      };
-      await db.updateSubmission(submission.id, patch);
-      toast(action === 'no_action' ? tr.closedRequest : tr.forwardedToRoshen, 'success');
-      onDone();
+      for (const [itemId, p] of entries) {
+        await db.updateVisitItem(itemId, {
+          tm_id: user.id,
+          tm_decision: p.decision,
+          tm_notes: p.notes?.trim() || null,
+          tm_decision_date: new Date().toISOString(),
+          item_status: p.decision === 'no_action' ? 'closed_no_action' : 'pending_roshen',
+        });
+      }
+      toast(tr.decisionsBatchSaved, 'success');
+      await reload();
     } catch (e) {
       console.error(e);
-      toast(e.message || 'Error', 'error');
+      toast(e.message, 'error');
     } finally {
-      setSubmitting(false);
-      setConfirmClose(false);
+      setSaving(false);
     }
   };
 
+  if (loading || !visit) {
+    return (
+      <>
+        <Header title={tr.tmDashboard} onBack={onBack} onLogout={onLogout} />
+        <p className="text-center text-gray-400 py-12 text-sm">…</p>
+      </>
+    );
+  }
+
+  const tmEligibleItems = items.filter((i) => i.itemStatus === 'pending_tm');
+
   return (
-    <div className="p-3 space-y-3 fade-in pb-8">
-      <SubmissionDetail submission={submission} onViewPhotos={() => setViewerOpen(true)} />
-
-      {isPending && (
-        <>
-          <div className="card p-4">
-            <h3 className="font-bold text-sm mb-2">🟨 {tr.pickAction}</h3>
-            <ActionSelector value={action} onChange={setAction} />
-          </div>
-
-          <label className="card p-4 block">
-            <span className="block text-xs font-semibold text-gray-600 mb-1">{tr.tmNotes}</span>
-            <textarea
-              className="input-field"
-              rows={3}
-              maxLength={200}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={tr.tmNotesPlaceholder}
-            />
-            <span className="text-[10px] text-gray-400 block mt-1 text-end">
-              {notes.length} / 200
-            </span>
-          </label>
-
-          {confirmClose && action === 'no_action' && (
-            <div className="card p-3 bg-amber-50 border-amber-300 border-2">
-              <p className="text-sm text-amber-900 font-semibold mb-2">
-                ⚠️ {tr.confirmCloseNoAction}
+    <>
+      <Header title={tr.tmDashboard} onBack={onBack} onLogout={onLogout} />
+      <div className="p-3 space-y-3 fade-in pb-32">
+        {/* Visit info (read-only) */}
+        <div className="card p-3.5">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex-1 min-w-0">
+              <h2 className="font-bold text-base text-gray-900">🏪 {visit.custName}</h2>
+              <p className="text-xs text-gray-500 mt-0.5" dir="ltr">
+                {visit.custAccount} · #{visit.id.slice(-6)}
               </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setConfirmClose(false)}
-                  className="btn-secondary flex-1 text-sm"
-                  disabled={submitting}
-                >
-                  {tr.cancel}
-                </button>
-                <button onClick={decide} className="btn-primary flex-1 text-sm" disabled={submitting}>
-                  {submitting ? '...' : tr.confirm}
-                </button>
-              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {visit.salesmanName} · {items.length} {tr.items}
+              </p>
             </div>
-          )}
+            <PdfButton visit={visit} items={items} />
+          </div>
+        </div>
 
-          {!confirmClose && (
-            <button onClick={decide} disabled={!action || submitting} className="btn-primary w-full">
-              {submitting ? '...' : `💾 ${tr.save}`}
-            </button>
-          )}
+        {/* Per-item decision rows */}
+        <h3 className="font-bold text-sm text-gray-700 px-1">
+          📦 {tr.items} ({items.length})
+        </h3>
+        {items.map((it) => (
+          <VisitItemDecisionRow
+            key={it.id}
+            item={it}
+            role="tm"
+            editable={it.itemStatus === 'pending_tm'}
+            pending={pendingByItem[it.id]}
+            onPendingChange={(p) =>
+              setPendingByItem((prev) => ({ ...prev, [it.id]: p }))
+            }
+          />
+        ))}
 
-          {action && action !== 'no_action' && (
-            <div className="text-center text-xs text-gray-500">
-              <ActionBadge action={action} size="sm" /> → 📨 {tr.awaitingRoshen}
+        {/* Footer save bar */}
+        {tmEligibleItems.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 z-20">
+            <div className="max-w-page mx-auto">
+              <button
+                onClick={saveAll}
+                disabled={dirtyCount === 0 || saving}
+                className="btn-primary w-full"
+              >
+                {saving ? '...' : `💾 ${tr.saveAllDecisions} (${dirtyCount})`}
+              </button>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
 
-      {viewerOpen && (
-        <PhotoViewer submission={submission} onClose={() => setViewerOpen(false)} />
-      )}
-    </div>
+        {tmEligibleItems.length === 0 && (
+          <div className="card p-4 text-center text-sm text-gray-500">
+            {tr.decisionSaved} — all items handled.
+          </div>
+        )}
+
+        {/* For history view, also include the read-only VisitDetail at the bottom */}
+        {tmEligibleItems.length === 0 && (
+          <div className="mt-4">
+            <VisitDetail visit={visit} items={items} />
+          </div>
+        )}
+      </div>
+    </>
   );
 }

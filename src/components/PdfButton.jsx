@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { useLang, useToast } from '../App.jsx';
-import { generateSubmissionPdf } from '../lib/pdf.js';
+import { generateVisitPdf } from '../lib/pdf.js';
 
-export default function PdfButton({ submission, size = 'sm', variant = 'secondary', stop = true, fullWidth = false }) {
-  const { tr, lang } = useLang();
+export default function PdfButton({
+  visit,
+  items,
+  size = 'sm',
+  variant = 'secondary',
+  stop = true,
+  fullWidth = false,
+}) {
+  const { tr } = useLang();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -13,10 +20,14 @@ export default function PdfButton({ submission, size = 'sm', variant = 'secondar
       e.stopPropagation();
     }
     if (busy) return;
+    if (!visit || !items) {
+      toast(tr.pdfFailed, 'error');
+      return;
+    }
     setBusy(true);
     try {
       toast(tr.generatingPdf);
-      await generateSubmissionPdf(submission, lang);
+      await generateVisitPdf(visit, items);
       toast(tr.pdfReady, 'success');
     } catch (err) {
       console.error(err);
@@ -27,11 +38,9 @@ export default function PdfButton({ submission, size = 'sm', variant = 'secondar
   };
 
   const sizeCls =
-    size === 'lg'
-      ? 'text-sm px-4 py-3'
-      : size === 'md'
-      ? 'text-sm px-3 py-2'
-      : 'text-xs px-2.5 py-1';
+    size === 'lg' ? 'text-sm px-4 py-3'
+    : size === 'md' ? 'text-sm px-3 py-2'
+    : 'text-xs px-2.5 py-1';
 
   const variantCls =
     variant === 'primary'

@@ -1,3 +1,8 @@
+// ⚠️  STALE since v3.5 — the submissions table no longer exists.
+// Email is currently disabled in the UI (PDF download replaces it).
+// If you re-enable email, rewrite this function to query
+//   public.visits + public.visit_items  instead of  public.submissions.
+//
 // POST { submission_id, is_edit, lang }
 // Builds the decision/edit email from the DB row and sends it via Resend.
 //

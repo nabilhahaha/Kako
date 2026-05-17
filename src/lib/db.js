@@ -1,5 +1,5 @@
-// All Supabase reads/writes live here. UI code should never touch supabase directly
-// for business data — only for auth events.
+// All Supabase reads/writes live here. UI code should never touch supabase
+// directly for business data — only for auth events.
 
 import { supabase, callFn } from './supabase.js';
 
@@ -32,9 +32,9 @@ export const db = {
   },
 
   /* ─── Admin operations (Edge Functions) ─── */
-  adminCreateUser: (payload) => callFn('admin-create-user', payload),
-  adminUpdateUser: (payload) => callFn('admin-update-user', payload),
-  adminDeleteUser: (id) => callFn('admin-delete-user', { id }),
+  adminCreateUser:    (payload) => callFn('admin-create-user', payload),
+  adminUpdateUser:    (payload) => callFn('admin-update-user', payload),
+  adminDeleteUser:    (id)      => callFn('admin-delete-user', { id }),
   adminResetPassword: (id, new_password) =>
     callFn('admin-reset-password', { id, new_password }),
 
@@ -66,44 +66,40 @@ export const db = {
     return data;
   },
 
-  /* ─── Submissions ─── */
-  listMySubmissions: async (salesmanId) => {
+  /* ─── Visits ─── */
+  listMyVisits: async (salesmanId) => {
     const { data, error } = await supabase
-      .from('submissions')
+      .from('visits')
       .select('*')
       .eq('salesman_id', salesmanId)
-      .order('submitted_at', { ascending: false });
+      .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
   },
 
-  listSubmissionsByStatus: async (status) => {
+  listAllVisits: async () => {
     const { data, error } = await supabase
-      .from('submissions')
+      .from('visits')
       .select('*')
-      .eq('status', status)
+      .neq('status', 'draft')
       .order('submitted_at', { ascending: false });
     if (error) throw error;
     return data || [];
   },
 
-  listAllSubmissions: async () => {
+  getVisit: async (id) => {
     const { data, error } = await supabase
-      .from('submissions')
+      .from('visits')
       .select('*')
-      .order('submitted_at', { ascending: false });
+      .eq('id', id)
+      .maybeSingle();
     if (error) throw error;
-    return data || [];
+    return data;
   },
 
-  createSubmission: async (row) => {
-    // .maybeSingle() instead of .single() — RLS can shadow the RETURNING row
-    // for the salesman role on certain pg / postgrest versions, which fires a
-    // spurious PGRST116. The insert itself still succeeds. The caller should
-    // supply `row.id` (a client-generated uuid) if it needs to reference the
-    // row before the round-trip returns.
+  createVisit: async (row) => {
     const { data, error } = await supabase
-      .from('submissions')
+      .from('visits')
       .insert(row)
       .select()
       .maybeSingle();
@@ -111,9 +107,9 @@ export const db = {
     return data ?? row;
   },
 
-  updateSubmission: async (id, patch) => {
+  updateVisit: async (id, patch) => {
     const { data, error } = await supabase
-      .from('submissions')
+      .from('visits')
       .update(patch)
       .eq('id', id)
       .select()
@@ -122,10 +118,64 @@ export const db = {
     return data;
   },
 
+  deleteVisit: async (id) => {
+    const { error } = await supabase.from('visits').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  submitVisit: async (id) => {
+    const { data, error } = await supabase
+      .from('visits')
+      .update({ status: 'pending_tm', submitted_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  /* ─── Visit items ─── */
+  listVisitItems: async (visitId) => {
+    const { data, error } = await supabase
+      .from('visit_items')
+      .select('*')
+      .eq('visit_id', visitId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  },
+
+  createVisitItem: async (row) => {
+    const { data, error } = await supabase
+      .from('visit_items')
+      .insert(row)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data ?? row;
+  },
+
+  updateVisitItem: async (id, patch) => {
+    const { data, error } = await supabase
+      .from('visit_items')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  deleteVisitItem: async (id) => {
+    const { error } = await supabase.from('visit_items').delete().eq('id', id);
+    if (error) throw error;
+  },
+
   /* ─── Photos ─── */
-  uploadPhoto: async (submissionId, kind /* 'expiry' | 'qty' */, dataUrl) => {
+  // Path convention: `{visitId}/{itemId}/{kind}.jpg`
+  uploadItemPhoto: async (visitId, itemId, kind, dataUrl) => {
     const blob = await dataUrlToBlob(dataUrl);
-    const path = `${submissionId}/${kind}.jpg`;
+    const path = `${visitId}/${itemId}/${kind}.jpg`;
     const { error } = await supabase
       .storage
       .from(PHOTO_BUCKET)
@@ -145,12 +195,17 @@ export const db = {
   },
 
   /* ─── Realtime ─── */
-  onSubmissionsChange: (callback) => {
+  onVisitsChange: (callback) => {
     const channel = supabase
-      .channel('nex_submissions')
+      .channel('nex_visits')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'submissions' },
+        { event: '*', schema: 'public', table: 'visits' },
+        () => callback()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'visit_items' },
         () => callback()
       )
       .subscribe();
