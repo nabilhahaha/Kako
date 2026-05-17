@@ -14,3 +14,7 @@ dist-ssr
 *.sln
 *.sw?
 *.log
+
+# Supabase CLI scratch
+supabase/.temp/
+supabase/.branches/
