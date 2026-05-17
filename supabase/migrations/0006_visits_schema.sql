@@ -10,8 +10,22 @@
 --   4. Updates the supabase_realtime publication.
 
 -- ─── 1. Drop legacy ──────────────────────────────────────────────────────────
-drop trigger if exists trg_submissions_updated on public.submissions;
+-- DROP TABLE ... CASCADE removes any dependent triggers / policies / etc.
+-- (DROP TRIGGER ... ON missing_table would error even with IF EXISTS, so we
+-- just let the CASCADE take care of it.)
 drop table if exists public.submissions cascade;
+
+-- ─── 1b. Make sure the shared updated_at function exists ─────────────────────
+-- (Defined in 0001, redefined here so this file is self-contained.)
+create or replace function public.update_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
 
 -- ─── 2a. visits ──────────────────────────────────────────────────────────────
 create table if not exists public.visits (
@@ -264,24 +278,26 @@ create policy "visit_items update by RM" on public.visit_items
     )
   );
 
--- ─── 5. Explicit grants (Supabase already grants these by default, but the
---        user spec asks for them explicitly) ───────────────────────────────
-grant select, insert, update, delete on public.visits to authenticated;
+-- ─── 5. Explicit grants ─────────────────────────────────────────────────────
+-- Supabase grants these by default, but the spec asks for them explicitly so
+-- the file is portable.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.visits      to authenticated;
 grant select, insert, update, delete on public.visit_items to authenticated;
 
--- ─── 6. Realtime publication ────────────────────────────────────────────────
+-- ─── 6. Realtime publication (defensive — never let this block roll back) ──
 do $$
 begin
   begin
     alter publication supabase_realtime drop table public.submissions;
-  exception when undefined_object then null;
+  exception when others then null;
   end;
   begin
     alter publication supabase_realtime add table public.visits;
-  exception when duplicate_object then null;
+  exception when others then null;
   end;
   begin
     alter publication supabase_realtime add table public.visit_items;
-  exception when duplicate_object then null;
+  exception when others then null;
   end;
 end $$;
