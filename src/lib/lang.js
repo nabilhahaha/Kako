@@ -280,6 +280,16 @@ export const t = {
     copied: '✅ تم النسخ إلى الحافظة',
     emailInstructions: 'انسخ الموضوع والمحتوى ثم الصقهما في Outlook أو Gmail. سيظهر الجدول بتنسيقه الكامل.',
     emailPreparing: 'جاري تحضير الإيميل...',
+
+    // ── Login user-picker ──
+    modeSelectFromList: 'اختر من القائمة',
+    modeTypeManually: 'اكتب الإيميل يدوياً',
+    pickYourName: 'اختر اسمك',
+    pickedAs: 'سجل الدخول كـ',
+    loadingUsers: 'جاري تحميل قائمة المستخدمين...',
+    noUserFound: 'لا يوجد مستخدم بهذا الاسم',
+    userListUnavailable: 'قائمة المستخدمين غير متاحة، يرجى كتابة الإيميل يدوياً',
+    changeUser: 'تغيير المستخدم',
   },
 
   en: {
@@ -544,6 +554,15 @@ export const t = {
     copied: '✅ Copied to clipboard',
     emailInstructions: 'Copy the subject and body, then paste into Outlook or Gmail. The table will render with full formatting.',
     emailPreparing: 'Preparing email…',
+
+    modeSelectFromList: 'Select from list',
+    modeTypeManually: 'Type manually',
+    pickYourName: 'Pick your name',
+    pickedAs: 'Signing in as',
+    loadingUsers: 'Loading users…',
+    noUserFound: 'No user found',
+    userListUnavailable: 'User list unavailable — please type your email manually',
+    changeUser: 'Change user',
   },
 };
 
