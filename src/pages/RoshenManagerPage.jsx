@@ -5,6 +5,7 @@ import VisitCard from '../components/VisitCard.jsx';
 import VisitDetail from '../components/VisitDetail.jsx';
 import VisitItemDecisionRow from '../components/VisitItemDecisionRow.jsx';
 import PdfButton from '../components/PdfButton.jsx';
+import EmailButton from '../components/EmailButton.jsx';
 import UserManagementPanel from '../components/UserManagementPanel.jsx';
 import { db } from '../lib/db.js';
 import { parseExcel } from '../lib/excel.js';
@@ -335,7 +336,10 @@ function RMVisitDetail({ visitId, onBack, onLogout }) {
                 {visit.salesmanName} · {items.length} {tr.items}
               </p>
             </div>
-            <PdfButton visit={visit} items={items} />
+            <div className="flex flex-col gap-1.5 shrink-0">
+              <PdfButton visit={visit} items={items} />
+              <EmailButton visit={visit} items={items} />
+            </div>
           </div>
         </div>
 

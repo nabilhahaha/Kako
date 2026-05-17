@@ -1,8 +1,10 @@
 import { useLang } from '../App.jsx';
 import { fmtDateTime } from '../lib/utils.js';
 import StatusBadge from './StatusBadge.jsx';
+import PdfButton from './PdfButton.jsx';
+import EmailButton from './EmailButton.jsx';
 
-export default function VisitCard({ visit, itemCount = 0, onClick, rightSlot = null }) {
+export default function VisitCard({ visit, itemCount = 0, onClick, showActions = true }) {
   const { tr, lang } = useLang();
   return (
     <div
@@ -37,10 +39,15 @@ export default function VisitCard({ visit, itemCount = 0, onClick, rightSlot = n
       </div>
 
       <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-gray-100">
-        <span className="text-[10px] text-gray-400 truncate font-mono" dir="ltr">
+        <span className="text-[10px] text-gray-400 font-mono shrink-0" dir="ltr">
           #{visit.id.slice(-6)}
         </span>
-        {rightSlot}
+        {showActions && (
+          <div className="flex items-center gap-1.5">
+            <PdfButton visit={visit} />
+            <EmailButton visit={visit} />
+          </div>
+        )}
       </div>
     </div>
   );

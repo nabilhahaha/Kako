@@ -270,6 +270,16 @@ export const t = {
     visitsListEmpty: 'لا توجد زيارات',
     noPhotosYet: 'لم يتم رفع الصور بعد',
     addItemHint: 'أدخل البيانات والصور، ثم احفظ الصنف',
+
+    // ── Email feature ──
+    emailLabel: 'إيميل',
+    emailSubject: 'موضوع الإيميل',
+    emailBody: 'نص الإيميل',
+    copySubject: 'نسخ الموضوع',
+    copyBody: 'نسخ نص الإيميل',
+    copied: '✅ تم النسخ إلى الحافظة',
+    emailInstructions: 'انسخ الموضوع والمحتوى ثم الصقهما في Outlook أو Gmail. سيظهر الجدول بتنسيقه الكامل.',
+    emailPreparing: 'جاري تحضير الإيميل...',
   },
 
   en: {
@@ -525,6 +535,15 @@ export const t = {
     visitsListEmpty: 'No visits',
     noPhotosYet: 'No photos uploaded yet',
     addItemHint: 'Fill in the details and photos, then save the item',
+
+    emailLabel: 'Email',
+    emailSubject: 'Email subject',
+    emailBody: 'Email body',
+    copySubject: 'Copy subject',
+    copyBody: 'Copy email body',
+    copied: '✅ Copied to clipboard',
+    emailInstructions: 'Copy the subject and body, then paste into Outlook or Gmail. The table will render with full formatting.',
+    emailPreparing: 'Preparing email…',
   },
 };
 

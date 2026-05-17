@@ -6,6 +6,7 @@ import { db } from '../lib/db.js';
 import VisitCard from './VisitCard.jsx';
 import VisitDetail from './VisitDetail.jsx';
 import PdfButton from './PdfButton.jsx';
+import EmailButton from './EmailButton.jsx';
 
 const TABS = [
   { key: 'draft',     icon: '📝', labelKey: 'drafts' },
@@ -187,11 +188,14 @@ function VisitOpenView({ visitId, onBack }) {
 
   return (
     <div className="p-3 space-y-3 fade-in">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <button onClick={onBack} className="btn-ghost text-sm">
           ← {tr.back}
         </button>
-        <PdfButton visit={visit} items={items} size="md" />
+        <div className="flex items-center gap-1.5">
+          <PdfButton visit={visit} items={items} size="md" />
+          <EmailButton visit={visit} items={items} size="md" />
+        </div>
       </div>
       <VisitDetail visit={visit} items={items} />
     </div>

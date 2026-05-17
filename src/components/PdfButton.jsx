@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useLang, useToast } from '../App.jsx';
 import { generateVisitPdf } from '../lib/pdf.js';
+import { db } from '../lib/db.js';
+import { visitItemFromDb } from '../lib/mapping.js';
 
 export default function PdfButton({
   visit,
-  items,
+  items, // optional — fetched lazily if not provided
   size = 'sm',
   variant = 'secondary',
   stop = true,
@@ -20,14 +22,19 @@ export default function PdfButton({
       e.stopPropagation();
     }
     if (busy) return;
-    if (!visit || !items) {
+    if (!visit) {
       toast(tr.pdfFailed, 'error');
       return;
     }
     setBusy(true);
     try {
       toast(tr.generatingPdf);
-      await generateVisitPdf(visit, items);
+      let resolved = items;
+      if (!resolved) {
+        const rows = await db.listVisitItems(visit.id);
+        resolved = rows.map(visitItemFromDb);
+      }
+      await generateVisitPdf(visit, resolved);
       toast(tr.pdfReady, 'success');
     } catch (err) {
       console.error(err);
