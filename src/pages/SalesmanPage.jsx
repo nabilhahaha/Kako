@@ -207,8 +207,23 @@ function RegisterFlow({ aggData, salesmanName, onDone, onViewTracker }) {
     }
     setSubmitting(true);
     try {
-      // 1. Insert submission row (without photos).
-      const inserted = await db.createSubmission({
+      // Generate the submission id up-front so we can name the photo objects
+      // before the row exists. This avoids a follow-up UPDATE (which the
+      // salesman role isn't granted) and avoids any PGRST116 quirk on the
+      // post-insert SELECT.
+      const submissionId =
+        (crypto.randomUUID && crypto.randomUUID()) ||
+        `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+      // 1. Upload both photos in parallel to {id}/expiry.jpg and {id}/qty.jpg.
+      const [photoExpiryPath, photoQtyPath] = await Promise.all([
+        db.uploadPhoto(submissionId, 'expiry', expiryPhoto),
+        db.uploadPhoto(submissionId, 'qty', qtyPhoto),
+      ]);
+
+      // 2. Insert the row with everything already set — no update needed.
+      await db.createSubmission({
+        id: submissionId,
         salesman_id: user.id,
         salesman_name: salesmanName,
         cust_account: customer.acc,
@@ -222,19 +237,11 @@ function RegisterFlow({ aggData, salesmanName, onDone, onViewTracker }) {
         status: 'pending_tm',
         salesman_suggestion: suggestion,
         salesman_notes: notes.trim() || null,
-      });
-
-      // 2. Upload photos and patch paths.
-      const [photoExpiryPath, photoQtyPath] = await Promise.all([
-        db.uploadPhoto(inserted.id, 'expiry', expiryPhoto),
-        db.uploadPhoto(inserted.id, 'qty', qtyPhoto),
-      ]);
-      await db.updateSubmission(inserted.id, {
         photo_expiry_path: photoExpiryPath,
         photo_qty_path: photoQtyPath,
       });
 
-      setSubmittedId(inserted.id);
+      setSubmittedId(submissionId);
       setStep(4);
     } catch (e) {
       console.error(e);

@@ -61,7 +61,7 @@ export const db = {
         source_filename: filename || null,
       })
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
     return data;
   },
@@ -97,13 +97,18 @@ export const db = {
   },
 
   createSubmission: async (row) => {
+    // .maybeSingle() instead of .single() — RLS can shadow the RETURNING row
+    // for the salesman role on certain pg / postgrest versions, which fires a
+    // spurious PGRST116. The insert itself still succeeds. The caller should
+    // supply `row.id` (a client-generated uuid) if it needs to reference the
+    // row before the round-trip returns.
     const { data, error } = await supabase
       .from('submissions')
       .insert(row)
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
-    return data;
+    return data ?? row;
   },
 
   updateSubmission: async (id, patch) => {
@@ -112,7 +117,7 @@ export const db = {
       .update(patch)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
     return data;
   },
