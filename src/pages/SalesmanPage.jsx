@@ -1,60 +1,30 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLang, useToast } from '../App.jsx';
+import { useMemo, useState } from 'react';
+import { useAuth, useLang, useToast } from '../App.jsx';
 import Header from '../components/Header.jsx';
 import ActionSelector from '../components/ActionSelector.jsx';
 import MySubmissionsTracker from '../components/MySubmissionsTracker.jsx';
-import { ACTION_LABELS } from '../lib/actions.js';
-import { getAgg, hasAgg, addSub, setPhotos } from '../lib/storage.js';
-import { getSalesmen, getCustomersFor, getItemsFor } from '../lib/excel.js';
-import { calcDays, daysColor, compressImage, genId } from '../lib/utils.js';
+import { db } from '../lib/db.js';
+import { useAggregatedData } from '../lib/hooks.js';
+import { getCustomersFor, getItemsFor } from '../lib/excel.js';
+import { calcDays, daysColor, compressImage } from '../lib/utils.js';
 
-const STORE_NAME_KEY = 'nex_salesman_name';
-
-const readStoredName = () => {
-  try {
-    return sessionStorage.getItem(STORE_NAME_KEY) || '';
-  } catch {
-    return '';
-  }
-};
-
-const writeStoredName = (name) => {
-  try {
-    if (name) sessionStorage.setItem(STORE_NAME_KEY, name);
-    else sessionStorage.removeItem(STORE_NAME_KEY);
-  } catch {}
-};
-
-export default function SalesmanPage({ onLogout }) {
+export default function SalesmanPage() {
   const { tr } = useLang();
-  const { toast } = useToast();
-  const [salesmanName, setSalesmanName] = useState(readStoredName());
-  const [view, setView] = useState('home'); // 'home' | 'register' | 'tracker'
-
-  const agg = useMemo(() => getAgg(), [view]);
-
-  useEffect(() => {
-    writeStoredName(salesmanName);
-  }, [salesmanName]);
-
-  if (!salesmanName) {
-    return (
-      <>
-        <Header subtitle={tr.salesman} onLogout={onLogout} />
-        <NameSelector
-          agg={agg}
-          onSelect={(name) => setSalesmanName(name)}
-        />
-      </>
-    );
-  }
+  const { profile, signOut } = useAuth();
+  const [view, setView] = useState('home');
+  const { data: agg } = useAggregatedData();
+  const aggData = agg?.data || {};
+  const salesmanName = profile.salesman_name || profile.full_name;
 
   if (view === 'register') {
-    if (!hasAgg()) {
+    if (!agg || !aggData[salesmanName]) {
       return (
         <>
-          <Header subtitle={salesmanName} onLogout={onLogout} onBack={() => setView('home')} />
-          <div className="p-5 text-center text-gray-500">{tr.noSalesmen}</div>
+          <Header subtitle={salesmanName} onBack={() => setView('home')} onLogout={signOut} />
+          <div className="p-5 text-center text-gray-500 fade-in">
+            <div className="text-5xl mb-3">📂</div>
+            <p>{tr.salesmanNameNotInData}</p>
+          </div>
         </>
       );
     }
@@ -66,14 +36,10 @@ export default function SalesmanPage({ onLogout }) {
           onBack={() => setView('home')}
         />
         <RegisterFlow
-          agg={agg}
+          aggData={aggData}
           salesmanName={salesmanName}
           onDone={() => setView('home')}
           onViewTracker={() => setView('tracker')}
-          onLogout={() => {
-            writeStoredName('');
-            onLogout();
-          }}
         />
       </>
     );
@@ -87,39 +53,31 @@ export default function SalesmanPage({ onLogout }) {
           subtitle={salesmanName}
           onBack={() => setView('home')}
         />
-        <MySubmissionsTracker salesmanName={salesmanName} />
+        <MySubmissionsTracker />
       </>
     );
   }
 
   return (
     <>
-      <Header subtitle={salesmanName} onLogout={onLogout} />
+      <Header subtitle={salesmanName} onLogout={signOut} />
       <SalesmanHome
         salesmanName={salesmanName}
         onRegister={() => setView('register')}
         onTracker={() => setView('tracker')}
-        onChangeName={() => {
-          writeStoredName('');
-          setSalesmanName('');
-        }}
       />
     </>
   );
 }
 
-/* ───────────────────── Salesman Home ───────────────────── */
-
-function SalesmanHome({ salesmanName, onRegister, onTracker, onChangeName }) {
+/* ───────── Home ───────── */
+function SalesmanHome({ salesmanName, onRegister, onTracker }) {
   const { tr } = useLang();
   return (
     <div className="p-4 space-y-3 fade-in">
       <div className="card p-5 bg-gradient-to-bl from-roshen-600 to-roshen-800 text-white">
         <p className="text-xs opacity-80">{tr.salesman}</p>
         <h2 className="text-xl font-bold mt-1">{salesmanName}</h2>
-        <button onClick={onChangeName} className="text-xs mt-2 opacity-80 underline">
-          {tr.selectYourName}
-        </button>
       </div>
 
       <button
@@ -142,7 +100,9 @@ function SalesmanHome({ salesmanName, onRegister, onTracker, onChangeName }) {
         <span className="text-3xl">📋</span>
         <div className="flex-1">
           <h3 className="font-bold text-gray-900">{tr.mySubmissions}</h3>
-          <p className="text-xs text-gray-500">{tr.underReview} · {tr.approved} · {tr.closed}</p>
+          <p className="text-xs text-gray-500">
+            {tr.underReview} · {tr.approved} · {tr.closed}
+          </p>
         </div>
         <span className="text-gray-400 rtl-only">←</span>
         <span className="text-gray-400 ltr-only">→</span>
@@ -151,65 +111,14 @@ function SalesmanHome({ salesmanName, onRegister, onTracker, onChangeName }) {
   );
 }
 
-/* ───────────────────── Salesman Name Selector ───────────────────── */
-
-function NameSelector({ agg, onSelect }) {
-  const { tr } = useLang();
-  const [q, setQ] = useState('');
-  const names = useMemo(() => getSalesmen(agg), [agg]);
-  const filtered = useMemo(
-    () =>
-      q ? names.filter((n) => n.toLowerCase().includes(q.toLowerCase())) : names,
-    [names, q]
-  );
-
-  if (names.length === 0) {
-    return (
-      <div className="p-5 text-center fade-in">
-        <div className="text-5xl mb-3">📂</div>
-        <p className="text-gray-600 text-sm">{tr.noSalesmen}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-3 fade-in">
-      <h2 className="font-bold text-gray-800 mb-2 px-1">{tr.selectYourName}</h2>
-      <input
-        type="text"
-        className="input-field mb-3"
-        placeholder={tr.searchByName}
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
-      <div className="space-y-1.5">
-        {filtered.map((name) => (
-          <button
-            key={name}
-            onClick={() => onSelect(name)}
-            className="card w-full p-3.5 text-start active:scale-[0.99] hover:bg-gray-50 transition flex items-center gap-3"
-          >
-            <div className="w-9 h-9 rounded-full bg-roshen-100 text-roshen-700 flex items-center justify-center font-bold shrink-0">
-              {name.charAt(0)}
-            </div>
-            <span className="font-semibold text-sm flex-1">{name}</span>
-            <span className="text-gray-300 rtl-only">←</span>
-            <span className="text-gray-300 ltr-only">→</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ───────────────────── Register Flow ───────────────────── */
-
-function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
+/* ───────── Register flow ───────── */
+function RegisterFlow({ aggData, salesmanName, onDone, onViewTracker }) {
   const { tr } = useLang();
   const { toast } = useToast();
-  const [step, setStep] = useState(1); // 1 customer → 2 item → 3 details → 4 success
-  const [customer, setCustomer] = useState(null); // { acc, name }
-  const [item, setItem] = useState(null); // { id, desc, qty }
+  const { user } = useAuth();
+  const [step, setStep] = useState(1);
+  const [customer, setCustomer] = useState(null);
+  const [item, setItem] = useState(null);
   const [physQty, setPhysQty] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [expiryPhoto, setExpiryPhoto] = useState(null);
@@ -234,11 +143,10 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
     setSubmittedId(null);
   };
 
-  /* Step 1: customer */
   if (step === 1) {
     return (
       <CustomerStep
-        agg={agg}
+        aggData={aggData}
         salesmanName={salesmanName}
         onPick={(c) => {
           setCustomer(c);
@@ -247,12 +155,10 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
       />
     );
   }
-
-  /* Step 2: item */
   if (step === 2) {
     return (
       <ItemStep
-        agg={agg}
+        aggData={aggData}
         salesmanName={salesmanName}
         customer={customer}
         onBack={() => setStep(1)}
@@ -263,8 +169,6 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
       />
     );
   }
-
-  /* Step 4: success */
   if (step === 4) {
     return (
       <div className="p-6 text-center fade-in">
@@ -286,8 +190,6 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
     );
   }
 
-  /* Step 3: details + photos + suggested action */
-
   const physQtyN = parseFloat(physQty);
   const isValid =
     item &&
@@ -305,33 +207,34 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
     }
     setSubmitting(true);
     try {
-      const id = genId();
-      const sub = {
-        id,
-        salesmanName,
-        custAccount: customer.acc,
-        custName: customer.name,
-        itemId: item.id,
-        itemDesc: item.desc,
-        netQty: item.qty,
-        physQty: physQtyN,
-        expiryDate,
-        daysRemaining: calcDays(expiryDate),
+      // 1. Insert submission row (without photos).
+      const inserted = await db.createSubmission({
+        salesman_id: user.id,
+        salesman_name: salesmanName,
+        cust_account: customer.acc,
+        cust_name: customer.name,
+        item_id: item.id,
+        item_desc: item.desc,
+        net_qty: item.qty,
+        phys_qty: physQtyN,
+        expiry_date: expiryDate,
+        days_remaining: calcDays(expiryDate),
         status: 'pending_tm',
-        salesmanSuggestion: suggestion,
-        salesmanNotes: notes.trim(),
-        submittedAt: new Date().toISOString(),
-        tmDecision: null,
-        tmNotes: '',
-        tmDecisionDate: null,
-        roshenDecision: null,
-        roshenNotes: '',
-        roshenDecisionDate: null,
-        editHistory: [],
-      };
-      setPhotos(id, expiryPhoto, qtyPhoto);
-      addSub(sub);
-      setSubmittedId(id);
+        salesman_suggestion: suggestion,
+        salesman_notes: notes.trim() || null,
+      });
+
+      // 2. Upload photos and patch paths.
+      const [photoExpiryPath, photoQtyPath] = await Promise.all([
+        db.uploadPhoto(inserted.id, 'expiry', expiryPhoto),
+        db.uploadPhoto(inserted.id, 'qty', qtyPhoto),
+      ]);
+      await db.updateSubmission(inserted.id, {
+        photo_expiry_path: photoExpiryPath,
+        photo_qty_path: photoQtyPath,
+      });
+
+      setSubmittedId(inserted.id);
       setStep(4);
     } catch (e) {
       console.error(e);
@@ -358,7 +261,9 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
       <div className="card p-3.5 bg-gray-50">
         <p className="text-[11px] text-gray-500">{tr.selectItem}</p>
         <p className="font-bold text-gray-900 leading-snug">{item.desc}</p>
-        <p className="text-xs text-gray-500 mt-1" dir="ltr">{item.id}</p>
+        <p className="text-xs text-gray-500 mt-1" dir="ltr">
+          {item.id}
+        </p>
         <div className="mt-2 flex items-center justify-between">
           <span className="text-xs text-gray-600">{tr.systemQty}:</span>
           <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full">
@@ -367,7 +272,6 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
         </div>
       </div>
 
-      {/* Physical qty */}
       <label className="card p-3.5 block">
         <span className="block text-xs font-semibold text-gray-600 mb-1">
           {tr.physicalQty} ({tr.cases})
@@ -384,7 +288,6 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
         />
       </label>
 
-      {/* Expiry date */}
       <label className="card p-3.5 block">
         <span className="block text-xs font-semibold text-gray-600 mb-1">{tr.expiryDate}</span>
         <input
@@ -405,7 +308,6 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
         )}
       </label>
 
-      {/* Photos */}
       <div className="grid grid-cols-2 gap-3">
         <PhotoCapture
           label={tr.expiryPhoto}
@@ -421,7 +323,6 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
         />
       </div>
 
-      {/* Suggestion */}
       <div className="card p-3.5">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-semibold text-gray-700">{tr.suggestedAction}</span>
@@ -432,7 +333,6 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
         <ActionSelector value={suggestion} onChange={setSuggestion} />
       </div>
 
-      {/* Notes */}
       <label className="card p-3.5 block">
         <span className="block text-xs font-semibold text-gray-600 mb-1">{tr.salesmanNotes}</span>
         <textarea
@@ -459,16 +359,20 @@ function RegisterFlow({ agg, salesmanName, onDone, onViewTracker, onLogout }) {
   );
 }
 
-/* ───────── Customer step ───────── */
-function CustomerStep({ agg, salesmanName, onPick }) {
+/* ───────── Customer / Item steps ───────── */
+function CustomerStep({ aggData, salesmanName, onPick }) {
   const { tr } = useLang();
   const [q, setQ] = useState('');
-  const customers = useMemo(() => getCustomersFor(agg, salesmanName), [agg, salesmanName]);
+  const customers = useMemo(
+    () => getCustomersFor(aggData, salesmanName),
+    [aggData, salesmanName],
+  );
   const filtered = useMemo(() => {
     const s = q.toLowerCase();
     return s
       ? customers.filter(
-          (c) => c.name.toLowerCase().includes(s) || c.acc.toLowerCase().includes(s)
+          (c) =>
+            c.name.toLowerCase().includes(s) || c.acc.toLowerCase().includes(s),
         )
       : customers;
   }, [customers, q]);
@@ -515,19 +419,19 @@ function CustomerStep({ agg, salesmanName, onPick }) {
   );
 }
 
-/* ───────── Item step ───────── */
-function ItemStep({ agg, salesmanName, customer, onBack, onPick }) {
+function ItemStep({ aggData, salesmanName, customer, onBack, onPick }) {
   const { tr } = useLang();
   const [q, setQ] = useState('');
   const items = useMemo(
-    () => getItemsFor(agg, salesmanName, customer.acc),
-    [agg, salesmanName, customer]
+    () => getItemsFor(aggData, salesmanName, customer.acc),
+    [aggData, salesmanName, customer],
   );
   const filtered = useMemo(() => {
     const s = q.toLowerCase();
     return s
       ? items.filter(
-          (it) => it.desc.toLowerCase().includes(s) || it.id.toLowerCase().includes(s)
+          (it) =>
+            it.desc.toLowerCase().includes(s) || it.id.toLowerCase().includes(s),
         )
       : items;
   }, [items, q]);

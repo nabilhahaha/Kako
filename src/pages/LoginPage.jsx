@@ -1,52 +1,65 @@
 import { useState } from 'react';
 import { useLang, useToast } from '../App.jsx';
+import { supabase } from '../lib/supabase.js';
 import LanguageToggle from '../components/LanguageToggle.jsx';
 
-const ROLES = [
-  {
-    key: 'salesman',
-    password: 'rep123',
-    color: 'from-cyan-600 to-cyan-800',
-    icon: '👤',
-    labelKey: 'salesman',
-  },
-  {
-    key: 'trade_marketing',
-    password: 'tm123',
-    color: 'from-amber-600 to-amber-800',
-    icon: '📊',
-    labelKey: 'tradeMarketing',
-  },
-  {
-    key: 'roshen_manager',
-    password: 'rm123',
-    color: 'from-roshen-600 to-roshen-800',
-    icon: '🏢',
-    labelKey: 'roshenManager',
-  },
-];
-
-export default function LoginPage({ onLogin }) {
+export default function LoginPage() {
   const { tr } = useLang();
   const { toast } = useToast();
-  const [selectedRole, setSelectedRole] = useState(null);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
 
-  const role = selectedRole ? ROLES.find((r) => r.key === selectedRole) : null;
+  const submit = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    if (!email || !password) return;
 
-  const submit = (e) => {
-    e?.preventDefault();
-    if (!role) return;
-    if (password.trim() !== role.password) {
-      toast(tr.wrongPassword, 'error');
-      return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      if (error) {
+        toast(tr.invalidCredentials, 'error');
+      }
+      // On success, App.jsx re-routes via auth state change.
+    } catch (e) {
+      console.error(e);
+      toast(e.message || 'Error', 'error');
+    } finally {
+      setSubmitting(false);
     }
-    onLogin(role.key);
+  };
+
+  const sendReset = async (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        { redirectTo: window.location.origin },
+      );
+      if (error) {
+        toast(error.message, 'error');
+      } else {
+        toast(tr.forgotPasswordSent, 'success');
+        setForgotMode(false);
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="flex flex-col min-h-screen">
-      <div className="bg-gradient-to-l from-roshen-700 to-roshen-900 text-white pt-8 pb-12 px-5 relative" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}>
+      <div
+        className="bg-gradient-to-l from-roshen-700 to-roshen-900 text-white pt-8 pb-12 px-5 relative"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}
+      >
         <div className="absolute top-3 end-3">
           <LanguageToggle />
         </div>
@@ -60,64 +73,68 @@ export default function LoginPage({ onLogin }) {
       </div>
 
       <div className="flex-1 px-4 -mt-6">
-        <div className="card p-4 fade-in">
-          {!role ? (
-            <>
-              <h2 className="text-center font-bold text-gray-700 mb-4">{tr.selectRole}</h2>
-              <div className="space-y-2.5">
-                {ROLES.map((r) => (
-                  <button
-                    key={r.key}
-                    onClick={() => setSelectedRole(r.key)}
-                    className={`w-full bg-gradient-to-l ${r.color} text-white rounded-input px-4 py-4 flex items-center gap-3 active:scale-[0.98] transition shadow-sm hover:shadow-md`}
-                  >
-                    <span className="text-2xl">{r.icon}</span>
-                    <span className="font-semibold text-base flex-1 text-start">
-                      {tr[r.labelKey]}
-                    </span>
-                    <span className="opacity-70 rtl-only">←</span>
-                    <span className="opacity-70 ltr-only">→</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <form onSubmit={submit} className="space-y-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedRole(null);
-                  setPassword('');
-                }}
-                className="btn-ghost text-sm"
-              >
-                ← {tr.back}
-              </button>
-              <div className="text-center py-3">
-                <div className="text-4xl mb-1">{role.icon}</div>
-                <h2 className="font-bold">{tr[role.labelKey]}</h2>
-              </div>
-              <label className="block">
-                <span className="block text-sm font-semibold text-gray-700 mb-1">
-                  {tr.password}
-                </span>
-                <input
-                  type="password"
-                  autoFocus
-                  className="input-field"
-                  placeholder={tr.enterPassword}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  dir="ltr"
-                />
-              </label>
-              <button type="submit" className="btn-primary w-full">
-                {tr.login}
-              </button>
-            </form>
+        <form
+          onSubmit={forgotMode ? sendReset : submit}
+          className="card p-5 space-y-3 fade-in"
+        >
+          <h2 className="text-center font-bold text-gray-800">
+            {forgotMode ? tr.forgotPassword : tr.signIn}
+          </h2>
+
+          <label className="block">
+            <span className="block text-sm font-semibold text-gray-700 mb-1">
+              {tr.email}
+            </span>
+            <input
+              type="email"
+              autoComplete="email"
+              autoFocus
+              required
+              dir="ltr"
+              className="input-field"
+              placeholder={tr.emailPlaceholder}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
+
+          {!forgotMode && (
+            <label className="block">
+              <span className="block text-sm font-semibold text-gray-700 mb-1">
+                {tr.password}
+              </span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                required
+                dir="ltr"
+                className="input-field"
+                placeholder={tr.enterPassword}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
           )}
-        </div>
-        <p className="text-center text-[11px] text-gray-400 mt-4">v2.0 · localStorage edition</p>
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="btn-primary w-full"
+          >
+            {submitting ? tr.signingIn : forgotMode ? tr.submit : tr.signIn}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setForgotMode((v) => !v)}
+            className="btn-ghost w-full text-sm text-roshen-700"
+          >
+            {forgotMode ? `← ${tr.back}` : tr.forgotPassword}
+          </button>
+        </form>
+        <p className="text-center text-[11px] text-gray-400 mt-4">
+          v3.0 · Supabase
+        </p>
       </div>
     </div>
   );

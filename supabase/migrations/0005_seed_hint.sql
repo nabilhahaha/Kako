@@ -1,0 +1,16 @@
+-- ONE-TIME bootstrap: promote your first user to Roshen Manager.
+--
+-- Step A (in the app): the future Roshen Manager signs up via the login screen
+--                      with their real email + password. This creates the
+--                      auth.users row but NOT a public.profiles row yet.
+--
+-- Step B (here, ONCE): run the INSERT below in the Supabase SQL Editor,
+--                      replacing the email with the one used in Step A.
+--                      After this, the RM logs in and uses the User Management
+--                      tab to create everyone else. No more SQL is needed.
+
+-- insert into public.profiles (id, email, full_name, role)
+-- select id, email, 'مدير المنطقة - Ahmed Nabil', 'roshen_manager'
+-- from auth.users
+-- where email = 'YOUR_REAL_EMAIL@example.com'
+-- on conflict (id) do update set role = 'roshen_manager';

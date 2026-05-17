@@ -1,17 +1,31 @@
 import { useEffect, useState } from 'react';
 import { useLang } from '../App.jsx';
-import { getPhotoExpiry, getPhotoQty } from '../lib/storage.js';
+import { db } from '../lib/db.js';
 
-export default function PhotoViewer({ submissionId, onClose }) {
+export default function PhotoViewer({ submission, onClose }) {
   const { tr } = useLang();
-  const [expiry, setExpiry] = useState(null);
-  const [qty, setQty] = useState(null);
+  const [expiryUrl, setExpiryUrl] = useState(null);
+  const [qtyUrl, setQtyUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState('expiry');
 
   useEffect(() => {
-    setExpiry(getPhotoExpiry(submissionId));
-    setQty(getPhotoQty(submissionId));
-  }, [submissionId]);
+    let active = true;
+    setLoading(true);
+    Promise.all([
+      submission?.photoExpiryPath ? db.getPhotoUrl(submission.photoExpiryPath) : null,
+      submission?.photoQtyPath ? db.getPhotoUrl(submission.photoQtyPath) : null,
+    ])
+      .then(([e, q]) => {
+        if (!active) return;
+        setExpiryUrl(e);
+        setQtyUrl(q);
+      })
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [submission?.id]);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -19,7 +33,7 @@ export default function PhotoViewer({ submissionId, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const current = view === 'expiry' ? expiry : qty;
+  const current = view === 'expiry' ? expiryUrl : qtyUrl;
 
   return (
     <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
@@ -51,7 +65,9 @@ export default function PhotoViewer({ submissionId, onClose }) {
         </button>
       </div>
       <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
-        {current ? (
+        {loading ? (
+          <p className="text-white/70 text-sm">…</p>
+        ) : current ? (
           <img src={current} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
         ) : (
           <p className="text-white/70">No image available</p>

@@ -1,27 +1,28 @@
 import { useMemo, useState } from 'react';
-import { useLang, useToast } from '../App.jsx';
+import { useAuth, useLang, useToast } from '../App.jsx';
 import Header from '../components/Header.jsx';
 import SubmissionCard from '../components/SubmissionCard.jsx';
 import SubmissionDetail from '../components/SubmissionDetail.jsx';
 import ActionSelector from '../components/ActionSelector.jsx';
 import ActionBadge from '../components/ActionBadge.jsx';
 import PhotoViewer from '../components/PhotoViewer.jsx';
-import SettingsModal from '../components/SettingsModal.jsx';
-import { getSubs, updateSub } from '../lib/storage.js';
+import { db } from '../lib/db.js';
+import { useAllSubmissions } from '../lib/hooks.js';
+import { fromDb } from '../lib/mapping.js';
 
 const TABS = [
   { key: 'pending', icon: '📥', labelKey: 'pendingNew' },
   { key: 'history', icon: '📋', labelKey: 'history' },
 ];
 
-export default function TradeMarketingPage({ onLogout }) {
+export default function TradeMarketingPage() {
   const { tr } = useLang();
+  const { signOut } = useAuth();
   const [tab, setTab] = useState('pending');
   const [openId, setOpenId] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [refresh, setRefresh] = useState(0);
 
-  const subs = useMemo(() => getSubs(), [refresh, openId]);
+  const { data: rows, loading } = useAllSubmissions();
+  const subs = useMemo(() => (rows || []).map(fromDb), [rows]);
 
   const pending = useMemo(() => subs.filter((s) => s.status === 'pending_tm'), [subs]);
   const history = useMemo(() => subs.filter((s) => s.status !== 'pending_tm'), [subs]);
@@ -31,25 +32,15 @@ export default function TradeMarketingPage({ onLogout }) {
   if (open) {
     return (
       <>
-        <Header
-          title={tr.tmDashboard}
-          onBack={() => setOpenId(null)}
-          onLogout={onLogout}
-        />
-        <TMDetail
-          submission={open}
-          onDone={() => {
-            setOpenId(null);
-            setRefresh((n) => n + 1);
-          }}
-        />
+        <Header title={tr.tmDashboard} onBack={() => setOpenId(null)} onLogout={signOut} />
+        <TMDetail submission={open} onDone={() => setOpenId(null)} />
       </>
     );
   }
 
   return (
     <>
-      <Header title={tr.tmDashboard} onLogout={onLogout} />
+      <Header title={tr.tmDashboard} onLogout={signOut} />
       <div className="flex border-b border-gray-200 bg-white sticky top-0 z-20">
         {TABS.map((t) => {
           const count = t.key === 'pending' ? pending.length : history.length;
@@ -68,34 +59,19 @@ export default function TradeMarketingPage({ onLogout }) {
             </button>
           );
         })}
-        <button
-          onClick={() => setShowSettings(true)}
-          className="px-3 text-gray-500 hover:text-gray-800"
-          aria-label={tr.settings}
-        >
-          ⚙️
-        </button>
       </div>
 
       <div className="p-3 space-y-2.5 fade-in">
-        {tab === 'pending' ? (
-          pending.length === 0 ? (
-            <Empty />
-          ) : (
-            pending.map((s) => (
-              <SubmissionCard key={s.id} submission={s} onClick={() => setOpenId(s.id)} />
-            ))
-          )
-        ) : history.length === 0 ? (
-          <Empty />
-        ) : (
-          history.map((s) => (
+        {loading ? (
+          <p className="text-center text-gray-400 py-12 text-sm">…</p>
+        ) : tab === 'pending' ? (
+          pending.length === 0 ? <Empty /> : pending.map((s) => (
             <SubmissionCard key={s.id} submission={s} onClick={() => setOpenId(s.id)} />
           ))
-        )}
+        ) : history.length === 0 ? <Empty /> : history.map((s) => (
+          <SubmissionCard key={s.id} submission={s} onClick={() => setOpenId(s.id)} />
+        ))}
       </div>
-
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </>
   );
 }
@@ -110,19 +86,19 @@ function Empty() {
   );
 }
 
-/* ───────────────────── TM Detail / Decision view ───────────────────── */
-
 function TMDetail({ submission, onDone }) {
   const { tr } = useLang();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [action, setAction] = useState(submission.tmDecision || '');
   const [notes, setNotes] = useState(submission.tmNotes || '');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const isPending = submission.status === 'pending_tm';
 
-  const decide = () => {
+  const decide = async () => {
     if (!action) {
       toast(tr.chooseActionFirst, 'error');
       return;
@@ -131,31 +107,31 @@ function TMDetail({ submission, onDone }) {
       setConfirmClose(true);
       return;
     }
-    const next =
-      action === 'no_action'
-        ? {
-            tmDecision: action,
-            tmNotes: notes.trim(),
-            tmDecisionDate: new Date().toISOString(),
-            status: 'closed_no_action',
-          }
-        : {
-            tmDecision: action,
-            tmNotes: notes.trim(),
-            tmDecisionDate: new Date().toISOString(),
-            status: 'pending_roshen',
-          };
-    updateSub(submission.id, next);
-    toast(action === 'no_action' ? tr.closedRequest : tr.forwardedToRoshen, 'success');
-    onDone();
+
+    setSubmitting(true);
+    try {
+      const patch = {
+        tm_id: user.id,
+        tm_decision: action,
+        tm_notes: notes.trim() || null,
+        tm_decision_date: new Date().toISOString(),
+        status: action === 'no_action' ? 'closed_no_action' : 'pending_roshen',
+      };
+      await db.updateSubmission(submission.id, patch);
+      toast(action === 'no_action' ? tr.closedRequest : tr.forwardedToRoshen, 'success');
+      onDone();
+    } catch (e) {
+      console.error(e);
+      toast(e.message || 'Error', 'error');
+    } finally {
+      setSubmitting(false);
+      setConfirmClose(false);
+    }
   };
 
   return (
     <div className="p-3 space-y-3 fade-in pb-8">
-      <SubmissionDetail
-        submission={submission}
-        onViewPhotos={() => setViewerOpen(true)}
-      />
+      <SubmissionDetail submission={submission} onViewPhotos={() => setViewerOpen(true)} />
 
       {isPending && (
         <>
@@ -165,9 +141,7 @@ function TMDetail({ submission, onDone }) {
           </div>
 
           <label className="card p-4 block">
-            <span className="block text-xs font-semibold text-gray-600 mb-1">
-              {tr.tmNotes}
-            </span>
+            <span className="block text-xs font-semibold text-gray-600 mb-1">{tr.tmNotes}</span>
             <textarea
               className="input-field"
               rows={3}
@@ -190,19 +164,20 @@ function TMDetail({ submission, onDone }) {
                 <button
                   onClick={() => setConfirmClose(false)}
                   className="btn-secondary flex-1 text-sm"
+                  disabled={submitting}
                 >
                   {tr.cancel}
                 </button>
-                <button onClick={decide} className="btn-primary flex-1 text-sm">
-                  {tr.confirm}
+                <button onClick={decide} className="btn-primary flex-1 text-sm" disabled={submitting}>
+                  {submitting ? '...' : tr.confirm}
                 </button>
               </div>
             </div>
           )}
 
           {!confirmClose && (
-            <button onClick={decide} disabled={!action} className="btn-primary w-full">
-              💾 {tr.save}
+            <button onClick={decide} disabled={!action || submitting} className="btn-primary w-full">
+              {submitting ? '...' : `💾 ${tr.save}`}
             </button>
           )}
 
@@ -215,7 +190,7 @@ function TMDetail({ submission, onDone }) {
       )}
 
       {viewerOpen && (
-        <PhotoViewer submissionId={submission.id} onClose={() => setViewerOpen(false)} />
+        <PhotoViewer submission={submission} onClose={() => setViewerOpen(false)} />
       )}
     </div>
   );

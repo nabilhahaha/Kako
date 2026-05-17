@@ -1,0 +1,17 @@
+# Supabase CLI configuration. Used by `supabase functions deploy` etc.
+project_id = "njgjrktszvogivhbplbn"
+
+[functions.admin-create-user]
+verify_jwt = true
+
+[functions.admin-update-user]
+verify_jwt = true
+
+[functions.admin-delete-user]
+verify_jwt = true
+
+[functions.admin-reset-password]
+verify_jwt = true
+
+[functions.send-decision-email]
+verify_jwt = true

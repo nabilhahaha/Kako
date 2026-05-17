@@ -1,38 +1,33 @@
 import { useMemo, useState } from 'react';
-import { useLang, useToast } from '../App.jsx';
+import { useAuth, useLang, useToast } from '../App.jsx';
 import Header from '../components/Header.jsx';
 import SubmissionCard from '../components/SubmissionCard.jsx';
 import SubmissionDetail from '../components/SubmissionDetail.jsx';
 import ActionSelector from '../components/ActionSelector.jsx';
 import PhotoViewer from '../components/PhotoViewer.jsx';
-import SettingsModal from '../components/SettingsModal.jsx';
 import EditCountdown from '../components/EditCountdown.jsx';
-import {
-  getSubs,
-  updateSub,
-  setAgg,
-  getAgg,
-  getEmailConfig,
-  isEmailConfigReady,
-} from '../lib/storage.js';
+import UserManagementPanel from '../components/UserManagementPanel.jsx';
+import { db } from '../lib/db.js';
 import { parseExcel } from '../lib/excel.js';
-import { sendDecisionEmail } from '../lib/email.js';
 import { isEditable } from '../lib/utils.js';
+import { fromDb } from '../lib/mapping.js';
+import { useAllSubmissions, useAggregatedData } from '../lib/hooks.js';
 
 const TABS = [
   { key: 'upload', icon: '📥', labelKey: 'uploadData' },
   { key: 'pending', icon: '⏳', labelKey: 'awaitingMyDecision' },
   { key: 'mine', icon: '📋', labelKey: 'myDecisions' },
+  { key: 'users', icon: '👥', labelKey: 'userManagement' },
 ];
 
-export default function RoshenManagerPage({ onLogout }) {
+export default function RoshenManagerPage() {
   const { tr } = useLang();
+  const { signOut } = useAuth();
   const [tab, setTab] = useState('pending');
   const [openId, setOpenId] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [refresh, setRefresh] = useState(0);
 
-  const subs = useMemo(() => getSubs(), [refresh, openId]);
+  const { data: rows, loading } = useAllSubmissions();
+  const subs = useMemo(() => (rows || []).map(fromDb), [rows]);
 
   const pending = useMemo(() => subs.filter((s) => s.status === 'pending_roshen'), [subs]);
   const mine = useMemo(() => subs.filter((s) => s.status === 'approved'), [subs]);
@@ -42,26 +37,16 @@ export default function RoshenManagerPage({ onLogout }) {
   if (open) {
     return (
       <>
-        <Header
-          title={tr.rmDashboard}
-          onBack={() => setOpenId(null)}
-          onLogout={onLogout}
-        />
-        <RMDetail
-          submission={open}
-          onDone={() => {
-            setOpenId(null);
-            setRefresh((n) => n + 1);
-          }}
-        />
+        <Header title={tr.rmDashboard} onBack={() => setOpenId(null)} onLogout={signOut} />
+        <RMDetail submission={open} onDone={() => setOpenId(null)} />
       </>
     );
   }
 
   return (
     <>
-      <Header title={tr.rmDashboard} onLogout={onLogout} />
-      <div className="flex border-b border-gray-200 bg-white sticky top-0 z-20">
+      <Header title={tr.rmDashboard} onLogout={signOut} />
+      <div className="flex border-b border-gray-200 bg-white sticky top-0 z-20 overflow-x-auto">
         {TABS.map((t) => {
           const count =
             t.key === 'pending' ? pending.length : t.key === 'mine' ? mine.length : 0;
@@ -69,7 +54,7 @@ export default function RoshenManagerPage({ onLogout }) {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`tab-btn ${tab === t.key ? 'active' : ''}`}
+              className={`tab-btn whitespace-nowrap shrink-0 ${tab === t.key ? 'active' : ''}`}
             >
               {t.icon} {tr[t.labelKey]}
               {count > 0 && (
@@ -80,19 +65,14 @@ export default function RoshenManagerPage({ onLogout }) {
             </button>
           );
         })}
-        <button
-          onClick={() => setShowSettings(true)}
-          className="px-3 text-gray-500 hover:text-gray-800"
-          aria-label={tr.settings}
-        >
-          ⚙️
-        </button>
       </div>
 
       <div className="p-3 space-y-2.5 fade-in">
-        {tab === 'upload' && <UploadPanel onDone={() => setRefresh((n) => n + 1)} />}
+        {tab === 'upload' && <UploadPanel />}
         {tab === 'pending' &&
-          (pending.length === 0 ? (
+          (loading ? (
+            <p className="text-center text-gray-400 py-12 text-sm">…</p>
+          ) : pending.length === 0 ? (
             <Empty />
           ) : (
             pending.map((s) => (
@@ -100,21 +80,17 @@ export default function RoshenManagerPage({ onLogout }) {
             ))
           ))}
         {tab === 'mine' &&
-          (mine.length === 0 ? (
+          (loading ? (
+            <p className="text-center text-gray-400 py-12 text-sm">…</p>
+          ) : mine.length === 0 ? (
             <Empty />
           ) : (
             mine.map((s) => (
-              <SubmissionCard
-                key={s.id}
-                submission={s}
-                showCountdown
-                onClick={() => setOpenId(s.id)}
-              />
+              <SubmissionCard key={s.id} submission={s} showCountdown onClick={() => setOpenId(s.id)} />
             ))
           ))}
+        {tab === 'users' && <UserManagementPanel />}
       </div>
-
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </>
   );
 }
@@ -129,16 +105,13 @@ function Empty() {
   );
 }
 
-/* ───────────────────── Upload Excel Panel ───────────────────── */
-
-function UploadPanel({ onDone }) {
+/* ───────── Upload Excel ───────── */
+function UploadPanel() {
   const { tr } = useLang();
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [stats, setStats] = useState(null);
-
-  const existing = getAgg();
-  const existingSalesmen = Object.keys(existing).length;
+  const { data: existing } = useAggregatedData();
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
@@ -146,15 +119,20 @@ function UploadPanel({ onDone }) {
     setUploading(true);
     setStats(null);
     try {
-      const { agg, stats } = await parseExcel(file);
-      if (stats.salesmen === 0) {
+      const { agg, stats: s } = await parseExcel(file);
+      if (s.salesmen === 0) {
         toast('Empty file — check column names', 'error');
         return;
       }
-      setAgg(agg);
-      setStats(stats);
+      await db.uploadAggregated({
+        data: agg,
+        salesmen: s.salesmen,
+        customers: s.customers,
+        items: s.items,
+        filename: file.name,
+      });
+      setStats(s);
       toast(tr.uploadSuccess, 'success');
-      onDone();
     } catch (err) {
       console.error(err);
       toast(err.message || 'Parse failed', 'error');
@@ -201,11 +179,17 @@ function UploadPanel({ onDone }) {
         </div>
       )}
 
-      {!stats && existingSalesmen > 0 && (
+      {!stats && existing && (
         <div className="card p-4 bg-blue-50 border-blue-200">
           <p className="text-xs text-blue-800 font-semibold">
-            ℹ️ {existingSalesmen} {tr.salesmenCount} {tr.uploadSuccess.toLowerCase()}
+            ℹ️ {existing.salesmen_count} {tr.salesmenCount} · {existing.customers_count}{' '}
+            {tr.customersCount} · {existing.items_count} {tr.itemsCount}
           </p>
+          {existing.source_filename && (
+            <p className="text-[11px] text-blue-700 mt-1" dir="ltr">
+              {existing.source_filename}
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -221,19 +205,19 @@ function StatCell({ label, value }) {
   );
 }
 
-/* ───────────────────── RM Detail / Final Decision ───────────────────── */
-
+/* ───────── RM Detail / Final Decision ───────── */
 function RMDetail({ submission, onDone }) {
   const { tr, lang } = useLang();
   const { toast } = useToast();
+  const { user } = useAuth();
+
   const isApproved = submission.status === 'approved';
   const canEdit = isApproved && isEditable(submission);
   const isFreshPending = submission.status === 'pending_roshen';
 
-  // Mode: 'view' | 'decide' | 'edit'
   const [mode, setMode] = useState(isFreshPending ? 'decide' : 'view');
   const [action, setAction] = useState(
-    submission.roshenDecision || submission.tmDecision || ''
+    submission.roshenDecision || submission.tmDecision || '',
   );
   const [notes, setNotes] = useState(submission.roshenNotes || '');
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -243,11 +227,6 @@ function RMDetail({ submission, onDone }) {
   const submit = async () => {
     if (!action) {
       toast(tr.chooseActionFirst, 'error');
-      return;
-    }
-    const cfg = getEmailConfig();
-    if (!isEmailConfigReady(cfg)) {
-      toast(tr.configIncomplete, 'error');
       return;
     }
     if (!confirmStage) {
@@ -260,10 +239,10 @@ function RMDetail({ submission, onDone }) {
       const isEdit = mode === 'edit';
       const now = new Date().toISOString();
 
-      // Build new submission patch.
       const patch = {
-        roshenDecision: action,
-        roshenNotes: notes.trim(),
+        rm_id: user.id,
+        rm_decision: action,
+        rm_notes: notes.trim() || null,
       };
 
       if (isEdit) {
@@ -273,20 +252,22 @@ function RMDetail({ submission, onDone }) {
           newAction: action,
           previousNotes: submission.roshenNotes || '',
         };
-        patch.editHistory = [...(submission.editHistory || []), newHistoryEntry];
-        // Keep original decisionDate (48h window anchored to first decision).
+        patch.edit_history = [...(submission.editHistory || []), newHistoryEntry];
       } else {
-        patch.roshenDecisionDate = now;
+        patch.rm_decision_date = now;
         patch.status = 'approved';
-        patch.editHistory = submission.editHistory || [];
       }
 
-      const updated = updateSub(submission.id, patch);
+      await db.updateSubmission(submission.id, patch);
 
-      // Send email. Use the (now-updated) submission state.
+      // Fire email — non-fatal if it fails.
       try {
         toast(tr.sendingEmail);
-        await sendDecisionEmail(updated, isEdit, cfg, lang);
+        await db.sendDecisionEmail({
+          submission_id: submission.id,
+          is_edit: isEdit,
+          lang,
+        });
         toast(isEdit ? tr.decisionUpdated : tr.emailSent, 'success');
       } catch (emailErr) {
         console.error(emailErr);
@@ -306,12 +287,8 @@ function RMDetail({ submission, onDone }) {
 
   return (
     <div className="p-3 space-y-3 fade-in pb-8">
-      <SubmissionDetail
-        submission={submission}
-        onViewPhotos={() => setViewerOpen(true)}
-      />
+      <SubmissionDetail submission={submission} onViewPhotos={() => setViewerOpen(true)} />
 
-      {/* Edit window status (only shown when already approved) */}
       {isApproved && mode === 'view' && (
         <div className="card p-3 flex items-center justify-between">
           <EditCountdown submission={submission} />
@@ -334,9 +311,7 @@ function RMDetail({ submission, onDone }) {
           </div>
 
           <label className="card p-4 block">
-            <span className="block text-xs font-semibold text-gray-600 mb-1">
-              {tr.rmNotes}
-            </span>
+            <span className="block text-xs font-semibold text-gray-600 mb-1">{tr.rmNotes}</span>
             <textarea
               className="input-field"
               rows={4}
@@ -363,11 +338,7 @@ function RMDetail({ submission, onDone }) {
                 >
                   {tr.cancel}
                 </button>
-                <button
-                  onClick={submit}
-                  className="btn-primary flex-1 text-sm"
-                  disabled={submitting}
-                >
+                <button onClick={submit} className="btn-primary flex-1 text-sm" disabled={submitting}>
                   {submitting ? '...' : tr.confirm}
                 </button>
               </div>
@@ -388,11 +359,7 @@ function RMDetail({ submission, onDone }) {
                   {tr.cancel}
                 </button>
               )}
-              <button
-                onClick={submit}
-                disabled={!action || submitting}
-                className="btn-primary flex-1"
-              >
+              <button onClick={submit} disabled={!action || submitting} className="btn-primary flex-1">
                 ✅ {tr.approveAndSend}
               </button>
             </div>
@@ -401,7 +368,7 @@ function RMDetail({ submission, onDone }) {
       )}
 
       {viewerOpen && (
-        <PhotoViewer submissionId={submission.id} onClose={() => setViewerOpen(false)} />
+        <PhotoViewer submission={submission} onClose={() => setViewerOpen(false)} />
       )}
     </div>
   );

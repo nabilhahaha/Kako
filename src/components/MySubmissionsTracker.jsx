@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useLang } from '../App.jsx';
-import { getSubs } from '../lib/storage.js';
+import { useAuth, useLang } from '../App.jsx';
+import { useMySubmissions } from '../lib/hooks.js';
+import { fromDb } from '../lib/mapping.js';
 import SubmissionCard from './SubmissionCard.jsx';
 import SubmissionDetail from './SubmissionDetail.jsx';
 import PhotoViewer from './PhotoViewer.jsx';
@@ -11,21 +12,20 @@ const TABS = [
   { key: 'closed', icon: '🔒', labelKey: 'closed' },
 ];
 
-export default function MySubmissionsTracker({ salesmanName }) {
+export default function MySubmissionsTracker() {
   const { tr } = useLang();
+  const { user } = useAuth();
   const [tab, setTab] = useState('review');
   const [openId, setOpenId] = useState(null);
-  const [viewerId, setViewerId] = useState(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
-  const mine = useMemo(
-    () => getSubs().filter((s) => s.salesmanName === salesmanName),
-    [salesmanName, openId]
-  );
+  const { data: rows, loading } = useMySubmissions(user?.id);
+  const mine = useMemo(() => (rows || []).map(fromDb), [rows]);
 
   const filtered = useMemo(() => {
     if (tab === 'review')
       return mine.filter(
-        (s) => s.status === 'pending_tm' || s.status === 'pending_roshen'
+        (s) => s.status === 'pending_tm' || s.status === 'pending_roshen',
       );
     if (tab === 'approved') return mine.filter((s) => s.status === 'approved');
     return mine.filter((s) => s.status === 'closed_no_action');
@@ -41,9 +41,11 @@ export default function MySubmissionsTracker({ salesmanName }) {
         </button>
         <SubmissionDetail
           submission={open}
-          onViewPhotos={() => setViewerId(open.id)}
+          onViewPhotos={() => setViewerOpen(true)}
         />
-        {viewerId && <PhotoViewer submissionId={viewerId} onClose={() => setViewerId(null)} />}
+        {viewerOpen && (
+          <PhotoViewer submission={open} onClose={() => setViewerOpen(false)} />
+        )}
       </div>
     );
   }
@@ -65,7 +67,7 @@ export default function MySubmissionsTracker({ salesmanName }) {
               onClick={() => setTab(t.key)}
               className={`tab-btn ${tab === t.key ? 'active' : ''}`}
             >
-              {t.icon} {tr[t.labelKey]}{' '}
+              {t.icon} {tr[t.labelKey]}
               {count > 0 && (
                 <span className="ms-1 text-[10px] bg-gray-200 text-gray-700 rounded-full px-1.5 py-0.5">
                   {count}
@@ -77,7 +79,9 @@ export default function MySubmissionsTracker({ salesmanName }) {
       </div>
 
       <div className="p-3 space-y-2.5">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <p className="text-center text-gray-400 py-12 text-sm">…</p>
+        ) : filtered.length === 0 ? (
           <div className="text-center text-gray-500 py-12 text-sm">
             <p className="text-3xl mb-2">📭</p>
             <p>{tr.noSubmissions}</p>

@@ -156,6 +156,48 @@ export const t = {
     confirmCloseNoAction: 'سيتم إقفال الطلب نهائياً بدون إرسال للمدير. متأكد؟',
     confirmFinalDecision: 'سيتم إرسال إيميل القرار النهائي. متأكد؟',
     confirmEditDecision: 'سيتم تعديل القرار وإرسال إيميل جديد. متأكد؟',
+
+    // Auth
+    email: 'البريد الإلكتروني',
+    emailPlaceholder: 'name@example.com',
+    signIn: 'تسجيل الدخول',
+    signingIn: 'جاري الدخول...',
+    forgotPassword: 'نسيت كلمة المرور؟',
+    forgotPasswordSent: 'تم إرسال رابط إعادة التعيين',
+    invalidCredentials: 'بيانات الدخول غير صحيحة',
+    noProfile: 'حسابك غير مفعّل. تواصل مع المدير.',
+    inactiveAccount: 'الحساب موقوف. تواصل مع المدير.',
+    salesmanNameNotInData: 'اسم المندوب غير موجود في بيانات الإكسل بعد. اطلب من المدير رفع بيانات محدثة.',
+
+    // User management
+    users: 'المستخدمون',
+    userManagement: 'إدارة المستخدمين',
+    addUser: 'إضافة مستخدم',
+    editUser: 'تعديل المستخدم',
+    resetPassword: 'إعادة تعيين كلمة المرور',
+    newPassword: 'كلمة مرور جديدة',
+    generatePassword: 'توليد كلمة مرور',
+    deactivate: 'إيقاف',
+    activate: 'تفعيل',
+    deleteUser: 'حذف نهائي',
+    role: 'الدور',
+    fullName: 'الاسم الكامل',
+    active: 'مفعّل',
+    inactive: 'موقوف',
+    confirmDeactivate: 'إيقاف هذا المستخدم؟ سيمنع من تسجيل الدخول.',
+    confirmDelete: 'حذف نهائي للمستخدم؟ هذا الإجراء لا يمكن التراجع عنه.',
+    userCreated: 'تم إنشاء المستخدم',
+    userUpdated: 'تم تحديث المستخدم',
+    userDeleted: 'تم حذف المستخدم',
+    passwordReset: 'تم تغيير كلمة المرور',
+    salesmanNameLink: 'اسم المندوب في الإكسل',
+    salesmanNameHint: 'يجب أن يطابق اسماً موجوداً في بيانات الإكسل المرفوعة',
+    pickFromExcel: 'اختر من الإكسل',
+    typeManually: 'اكتب يدوياً',
+    noUsers: 'لا يوجد مستخدمون',
+    salesmenLabel: 'مندوبون',
+    tmLabel: 'تريد ماركتنج',
+    rmLabel: 'مدير المنطقة',
   },
 
   en: {
@@ -301,21 +343,55 @@ export const t = {
     confirmCloseNoAction: 'This will close the request permanently without forwarding. Continue?',
     confirmFinalDecision: 'Final decision email will be sent. Continue?',
     confirmEditDecision: 'Decision will be updated and a new email sent. Continue?',
+
+    email: 'Email',
+    emailPlaceholder: 'name@example.com',
+    signIn: 'Sign in',
+    signingIn: 'Signing in...',
+    forgotPassword: 'Forgot password?',
+    forgotPasswordSent: 'Reset link sent',
+    invalidCredentials: 'Invalid credentials',
+    noProfile: 'Your account is not provisioned. Contact your manager.',
+    inactiveAccount: 'Account is deactivated. Contact your manager.',
+    salesmanNameNotInData: "Your salesman name isn't in the latest Excel yet. Ask the manager to upload fresh data.",
+
+    users: 'Users',
+    userManagement: 'User management',
+    addUser: 'Add user',
+    editUser: 'Edit user',
+    resetPassword: 'Reset password',
+    newPassword: 'New password',
+    generatePassword: 'Generate password',
+    deactivate: 'Deactivate',
+    activate: 'Activate',
+    deleteUser: 'Delete user',
+    role: 'Role',
+    fullName: 'Full name',
+    active: 'Active',
+    inactive: 'Inactive',
+    confirmDeactivate: 'Deactivate this user? They will be locked out of the app.',
+    confirmDelete: 'Permanently delete this user? This cannot be undone.',
+    userCreated: 'User created',
+    userUpdated: 'User updated',
+    userDeleted: 'User deleted',
+    passwordReset: 'Password updated',
+    salesmanNameLink: 'Salesman name (in Excel)',
+    salesmanNameHint: 'Must match a name present in the uploaded Excel data',
+    pickFromExcel: 'Pick from Excel',
+    typeManually: 'Type manually',
+    noUsers: 'No users yet',
+    salesmenLabel: 'Salesmen',
+    tmLabel: 'Trade Marketing',
+    rmLabel: 'Roshen Manager',
   },
 };
 
-export const getLang = () => {
-  try {
-    return localStorage.getItem('nex_lang') || 'ar';
-  } catch {
-    return 'ar';
-  }
-};
+import { getLangPref, setLangPref } from './storage.js';
+
+export const getLang = () => getLangPref();
 
 export const setLang = (lang) => {
-  try {
-    localStorage.setItem('nex_lang', lang);
-  } catch {}
+  setLangPref(lang);
   document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
   document.documentElement.lang = lang;
 };
