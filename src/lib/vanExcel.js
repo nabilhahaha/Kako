@@ -1,5 +1,11 @@
 // Parser for the ERP "Van Stock" Excel export.
 //
+// The ERP sometimes emits a "metadata" row above the real header row, so we
+// can't blindly use row 1 as headers. Instead we read the sheet as a raw
+// matrix, scan the first ~15 rows for one containing "Item Number", and use
+// that as the header. The detected index is reported in stats.header_row_index
+// for downstream debugging.
+//
 // Only 9 columns out of 21 are read; everything else (incl. cost / financials)
 // is discarded. Expiry dates are parsed STRICTLY as US format MM/DD/YYYY
 // (or M/D/YYYY) — Excel numeric serials are also accepted.
@@ -36,7 +42,6 @@ const parseMDY = (v) => {
     return v.toISOString().slice(0, 10);
   }
   if (typeof v === 'number') {
-    // Excel serial date
     const d = XLSX.SSF.parse_date_code(v);
     if (d && d.y && d.m && d.d) {
       return `${String(d.y).padStart(4, '0')}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
@@ -54,15 +59,59 @@ const parseMDY = (v) => {
   return `${y.padStart(4, '0')}-${String(moI).padStart(2, '0')}-${String(dI).padStart(2, '0')}`;
 };
 
+// Scan up to `limit` rows for one containing "Item Number" (case-insensitive).
+// Returns the index of the header row, or -1 if not found.
+const findHeaderRow = (matrix, limit = 15) => {
+  const HINT = 'item number';
+  const stop = Math.min(limit, matrix.length);
+  for (let i = 0; i < stop; i++) {
+    const row = matrix[i] || [];
+    for (const cell of row) {
+      if (cell !== null && cell !== undefined) {
+        if (String(cell).trim().toLowerCase() === HINT) return i;
+      }
+    }
+  }
+  return -1;
+};
+
 // Return { rows, stats } where:
 //   rows  — array of column-mapped objects ready for INSERT into van_stock.
 //   stats — { total, imported, skipped: { inactive, missing, bad_date },
-//            warehouses_seen: [...] }
+//             warehouses_seen: [...], header_row_index: N,
+//             header_row_preview: [...] }
 export const parseVanStockExcel = async (file) => {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array', cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+  // Read the sheet as a 2-D array of raw cells so we control where headers
+  // start. defval keeps empty cells as '' so column positions are stable.
+  const matrix = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+  const headerRowIdx = findHeaderRow(matrix, 15);
+  if (headerRowIdx < 0) {
+    throw new Error(
+      'Could not find an "Item Number" header in the first 15 rows of the file.',
+    );
+  }
+
+  const headers = (matrix[headerRowIdx] || []).map((h) =>
+    String(h ?? '').trim(),
+  );
+
+  // Build objects from the rows below the header row.
+  const dataRows = [];
+  for (let i = headerRowIdx + 1; i < matrix.length; i++) {
+    const row = matrix[i] || [];
+    // Skip totally empty rows.
+    if (row.every((c) => c === '' || c === null || c === undefined)) continue;
+    const obj = {};
+    headers.forEach((h, j) => {
+      if (h) obj[h] = row[j] !== undefined ? row[j] : '';
+    });
+    dataRows.push(obj);
+  }
 
   const out = [];
   const warehouses = new Set();
@@ -71,7 +120,7 @@ export const parseVanStockExcel = async (file) => {
   let skippedMissing = 0;
   let skippedBadDate = 0;
 
-  for (const row of rows) {
+  for (const row of dataRows) {
     const status = cleanStr(pick(row, 'Status'));
     if (status && status.toLowerCase() !== 'active') {
       skippedInactive++;
@@ -114,7 +163,7 @@ export const parseVanStockExcel = async (file) => {
   return {
     rows: out,
     stats: {
-      total: rows.length,
+      total: dataRows.length,
       imported,
       skipped: {
         inactive: skippedInactive,
@@ -122,6 +171,8 @@ export const parseVanStockExcel = async (file) => {
         bad_date: skippedBadDate,
       },
       warehouses_seen: [...warehouses],
+      header_row_index: headerRowIdx,
+      header_row_preview: headers.filter(Boolean).slice(0, 12),
     },
   };
 };

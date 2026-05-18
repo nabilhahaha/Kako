@@ -110,6 +110,11 @@ export default function VanStockUploadPanel() {
       {parsed && (
         <div className="card p-4 space-y-2">
           <h3 className="font-bold text-sm">{parsed.filename}</h3>
+          <p className="text-[11px] text-gray-500" dir="ltr">
+            Header row detected at row {parsed.stats.header_row_index + 1}
+            {' · '}
+            {parsed.stats.header_row_preview.join(' / ')}
+          </p>
           <div className="grid grid-cols-3 gap-2 text-center">
             <Stat label={tr.vanRowsTotal} value={parsed.stats.total} tone="blue" />
             <Stat label={tr.vanRowsImported} value={parsed.stats.imported} tone="green" />
