@@ -285,10 +285,52 @@ function SourceTab({ value, current, onChange, label }) {
   );
 }
 
-/* ───────── Van source picker ───────── */
+/* ───────── Van source picker ─────────
+ *
+ * Damage requests don't care about batches — they care about SKU + total
+ * available quantity. So we collapse the raw van_stock rows (one per batch)
+ * into one row per item_number, summing `available_qty` and keeping a count
+ * of how many batches contributed. Searching still works because we match on
+ * the grouped item_name + item_number.
+ *
+ * Note: VanStockBuilder (Near Expiry van flow) still shows per-batch rows;
+ * this grouping is local to the damage workflow.
+ */
 function VanItemPicker({ warehouse, stock, loading, selected, onToggle }) {
   const { tr } = useLang();
   const [q, setQ] = useState('');
+
+  const grouped = useMemo(() => {
+    const map = new Map();
+    for (const row of stock || []) {
+      const key = row.item_number;
+      if (!key) continue;
+      const qty = Number(row.available_qty) || 0;
+      const existing = map.get(key);
+      if (existing) {
+        existing.available_qty += qty;
+        existing.batches += 1;
+        if (row.expiry_date && (!existing.earliest_expiry || row.expiry_date < existing.earliest_expiry)) {
+          existing.earliest_expiry = row.expiry_date;
+        }
+      } else {
+        map.set(key, {
+          // Shape stays compatible with `selected[item_number]` indexing and
+          // with the createDamageRequest payload builder in submit() above.
+          id: row.item_number,
+          item_number: row.item_number,
+          item_name: row.item_name,
+          sk_unit: row.sk_unit || '',
+          available_qty: qty,
+          batches: 1,
+          earliest_expiry: row.expiry_date || null,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.item_name.localeCompare(b.item_name),
+    );
+  }, [stock]);
 
   if (!warehouse) {
     return (
@@ -301,7 +343,7 @@ function VanItemPicker({ warehouse, stock, loading, selected, onToggle }) {
   if (loading) {
     return <p className="text-center text-gray-400 py-8 text-sm">…</p>;
   }
-  if (stock.length === 0) {
+  if (grouped.length === 0) {
     return (
       <div className="card p-6 text-center text-gray-500 text-sm">
         <p className="text-3xl mb-2">📭</p>
@@ -310,11 +352,12 @@ function VanItemPicker({ warehouse, stock, loading, selected, onToggle }) {
     );
   }
 
-  const filtered = stock.filter((r) => {
-    if (!q) return true;
-    const t = (r.item_name + ' ' + r.item_number).toLowerCase();
-    return t.includes(q.toLowerCase());
-  });
+  const term = q.trim().toLowerCase();
+  const filtered = term
+    ? grouped.filter((r) =>
+        (r.item_name + ' ' + r.item_number).toLowerCase().includes(term),
+      )
+    : grouped;
 
   return (
     <>
@@ -324,17 +367,21 @@ function VanItemPicker({ warehouse, stock, loading, selected, onToggle }) {
         placeholder={tr.searchItem}
         value={q}
         onChange={(e) => setQ(e.target.value)}
+        style={{ fontSize: '16px' }}
       />
       <div className="space-y-1.5">
-        {filtered.map((row) => (
-          <PickItemRow
-            key={row.id}
-            primary={row.item_name}
-            secondary={`${row.item_number} · ${row.available_qty} ${row.sk_unit || ''}`}
-            isSelected={!!selected[row.item_number]}
-            onToggle={() => onToggle(row)}
-          />
-        ))}
+        {filtered.map((row) => {
+          const batchSuffix = row.batches > 1 ? ` (${row.batches} batches)` : '';
+          return (
+            <PickItemRow
+              key={row.id}
+              primary={row.item_name}
+              secondary={`${row.item_number} · ${row.available_qty} ${row.sk_unit || ''}${batchSuffix}`}
+              isSelected={!!selected[row.item_number]}
+              onToggle={() => onToggle(row)}
+            />
+          );
+        })}
       </div>
     </>
   );
