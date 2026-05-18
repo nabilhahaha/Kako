@@ -319,6 +319,18 @@ export const t = {
     vanFilterCritical: 'حرج (<60)',
     vanFilterWarning: 'تحذير (60-120)',
     vanFilterSafe: 'آمن (>120)',
+
+    // ── Refresh ──
+    refresh: 'تحديث',
+    refreshing: 'جاري التحديث...',
+    lastUpdated: 'آخر تحديث',
+    justNow: 'الآن',
+    secondsAgo: 'منذ {n} ثانية',
+    minutesAgo: 'منذ {n} دقيقة',
+    hoursAgo: 'منذ {n} ساعة',
+    refreshFailed: 'فشل التحديث',
+    offline: 'أنت غير متصل',
+    partialRefresh: 'قد تكون بعض البيانات قديمة',
   },
 
   en: {
@@ -620,6 +632,17 @@ export const t = {
     vanFilterCritical: 'Critical (<60)',
     vanFilterWarning: 'Warning (60-120)',
     vanFilterSafe: 'Safe (>120)',
+
+    refresh: 'Refresh',
+    refreshing: 'Refreshing…',
+    lastUpdated: 'Last updated',
+    justNow: 'Just now',
+    secondsAgo: '{n}s ago',
+    minutesAgo: '{n}m ago',
+    hoursAgo: '{n}h ago',
+    refreshFailed: 'Failed to refresh',
+    offline: "You're offline — connect and try again",
+    partialRefresh: 'Some data may be outdated',
   },
 };
 

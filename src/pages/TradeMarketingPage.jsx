@@ -7,6 +7,8 @@ import VisitItemDecisionRow from '../components/VisitItemDecisionRow.jsx';
 import PdfButton from '../components/PdfButton.jsx';
 import EmailButton from '../components/EmailButton.jsx';
 import VanStockUploadPanel from '../components/VanStockUploadPanel.jsx';
+import RefreshButton from '../components/RefreshButton.jsx';
+import { useRefresh } from '../lib/useRefresh.js';
 import { db } from '../lib/db.js';
 import { useAllVisits } from '../lib/hooks.js';
 import { visitFromDb, visitItemFromDb } from '../lib/mapping.js';
@@ -23,8 +25,12 @@ export default function TradeMarketingPage() {
   const [tab, setTab] = useState('pending');
   const [openId, setOpenId] = useState(null);
 
-  const { data: rows, loading } = useAllVisits();
+  const { data: rows, loading, reload: reloadVisits } = useAllVisits();
   const visits = useMemo(() => (rows || []).map(visitFromDb), [rows]);
+
+  const listRefresh = useRefresh(async () => {
+    await reloadVisits?.();
+  });
 
   // Item counts per visit (lazy).
   const [itemCounts, setItemCounts] = useState({});
@@ -59,6 +65,13 @@ export default function TradeMarketingPage() {
   return (
     <>
       <Header title={tr.tmDashboard} onLogout={signOut} />
+      <div className="flex items-center justify-end gap-2 px-3 pt-2">
+        <RefreshButton
+          onRefresh={listRefresh.refresh}
+          lastRefreshedAt={listRefresh.lastRefreshedAt}
+          isRefreshing={listRefresh.isRefreshing}
+        />
+      </div>
       <div className="flex border-b border-gray-200 bg-white sticky top-0 z-20">
         {TABS.map((t) => {
           const count = t.key === 'pending' ? pending.length : history.length;

@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth, useLang, useToast } from '../App.jsx';
 import { db } from '../lib/db.js';
 import { visitFromDb, visitItemFromDb } from '../lib/mapping.js';
 import { calcDays, daysColor, fmtDate, fmtDateTime, compressImage } from '../lib/utils.js';
 import { ACTION_CODES, ACTION_LABELS, ACTION_COLORS } from '../lib/actions.js';
+import RefreshButton from './RefreshButton.jsx';
+import { useRefresh } from '../lib/useRefresh.js';
 
 const VAN_STOCK_PREFIX = 'Van Stock - ';
 
@@ -101,6 +103,21 @@ export default function VanStockBuilder({ onDone }) {
     setItems(dItems.map(visitItemFromDb));
   };
 
+  // Refresh stock + last-upload metadata + current draft items in parallel.
+  const refreshAll = useCallback(async () => {
+    if (!warehouse) return;
+    const [vStock, lastUp, dItems] = await Promise.all([
+      db.listMyVanStock(warehouse),
+      db.getLatestVanUpload(),
+      visit ? db.listVisitItems(visit.id) : Promise.resolve([]),
+    ]);
+    setStock(vStock);
+    setLastUpload(lastUp);
+    setItems(dItems.map(visitItemFromDb));
+  }, [warehouse, visit]);
+
+  const refreshState = useRefresh(refreshAll);
+
   const addedItemIds = useMemo(
     () => new Set(items.map((i) => i.itemId)),
     [items],
@@ -193,9 +210,17 @@ export default function VanStockBuilder({ onDone }) {
               {salesmanName} · {warehouse}
             </p>
           </div>
-          <span className="text-[11px] bg-white text-blue-700 font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">
-            {tr.vanItemsCount.replace('{n}', stock.length)}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] bg-white text-blue-700 font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">
+              {tr.vanItemsCount.replace('{n}', stock.length)}
+            </span>
+            <RefreshButton
+              onRefresh={refreshState.refresh}
+              lastRefreshedAt={refreshState.lastRefreshedAt}
+              isRefreshing={refreshState.isRefreshing}
+              compact
+            />
+          </div>
         </div>
         {criticalCount > 0 && (
           <p className="text-[11px] text-red-700 font-semibold mt-1">

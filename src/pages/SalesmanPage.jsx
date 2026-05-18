@@ -4,8 +4,10 @@ import Header from '../components/Header.jsx';
 import ActionSelector from '../components/ActionSelector.jsx';
 import MyVisitsTracker from '../components/MyVisitsTracker.jsx';
 import VanStockBuilder from '../components/VanStockBuilder.jsx';
+import RefreshButton from '../components/RefreshButton.jsx';
 import { db } from '../lib/db.js';
 import { useAggregatedData } from '../lib/hooks.js';
+import { useRefresh } from '../lib/useRefresh.js';
 import { visitFromDb, visitItemFromDb } from '../lib/mapping.js';
 import { getCustomersFor, getItemsFor } from '../lib/excel.js';
 import { calcDays, daysColor, compressImage } from '../lib/utils.js';
@@ -14,14 +16,24 @@ import { calcDays, daysColor, compressImage } from '../lib/utils.js';
 
 export default function SalesmanPage() {
   const { tr } = useLang();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
   const [view, setView] = useState('home');
   const [activeVisitId, setActiveVisitId] = useState(null);
 
-  const { data: agg } = useAggregatedData();
+  const { data: agg, reload: reloadAgg } = useAggregatedData();
   const aggData = agg?.data || {};
   const salesmanName = profile.salesman_name || profile.full_name;
   const hasExcelData = !!aggData[salesmanName];
+
+  // Home-screen refresh: aggregated customer data + my visits (used to drive
+  // counts / draft resumption) + the latest van-stock upload metadata.
+  const home = useRefresh(async () => {
+    await Promise.all([
+      reloadAgg?.(),
+      db.listMyVisits(user.id),
+      db.getLatestVanUpload(),
+    ]);
+  });
 
   if (view === 'pickCustomer') {
     return (
@@ -113,6 +125,13 @@ export default function SalesmanPage() {
   return (
     <>
       <Header subtitle={salesmanName} onLogout={signOut} />
+      <div className="flex items-center justify-end px-4 pt-3">
+        <RefreshButton
+          onRefresh={home.refresh}
+          lastRefreshedAt={home.lastRefreshedAt}
+          isRefreshing={home.isRefreshing}
+        />
+      </div>
       <SalesmanHome
         salesmanName={salesmanName}
         hasExcelData={hasExcelData}

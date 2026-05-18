@@ -7,6 +7,8 @@ import VisitCard from './VisitCard.jsx';
 import VisitDetail from './VisitDetail.jsx';
 import PdfButton from './PdfButton.jsx';
 import EmailButton from './EmailButton.jsx';
+import RefreshButton from './RefreshButton.jsx';
+import { useRefresh } from '../lib/useRefresh.js';
 
 const TABS = [
   { key: 'draft',     icon: '📝', labelKey: 'drafts' },
@@ -21,8 +23,12 @@ export default function MyVisitsTracker({ onResumeDraft }) {
   const [tab, setTab] = useState('pending');
   const [openId, setOpenId] = useState(null);
 
-  const { data: rows, loading } = useMyVisits(user?.id);
+  const { data: rows, loading, reload } = useMyVisits(user?.id);
   const visits = useMemo(() => (rows || []).map(visitFromDb), [rows]);
+
+  const refreshState = useRefresh(async () => {
+    await reload?.();
+  });
 
   // For badge counts we need item counts per visit; fetch lazily.
   const [itemCounts, setItemCounts] = useState({});
@@ -84,6 +90,13 @@ export default function MyVisitsTracker({ onResumeDraft }) {
 
   return (
     <div className="fade-in">
+      <div className="flex items-center justify-end gap-2 px-3 pt-2">
+        <RefreshButton
+          onRefresh={refreshState.refresh}
+          lastRefreshedAt={refreshState.lastRefreshedAt}
+          isRefreshing={refreshState.isRefreshing}
+        />
+      </div>
       <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10">
         {TABS.map((t) => (
           <button

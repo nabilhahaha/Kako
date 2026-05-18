@@ -3,6 +3,8 @@ import { useLang, useToast } from '../App.jsx';
 import { db } from '../lib/db.js';
 import { parseVanStockExcel } from '../lib/vanExcel.js';
 import { fmtDateTime, calcDays } from '../lib/utils.js';
+import RefreshButton from './RefreshButton.jsx';
+import { useRefresh } from '../lib/useRefresh.js';
 
 // Excel-upload panel shared by the RM and TM dashboards.
 export default function VanStockUploadPanel() {
@@ -24,6 +26,11 @@ export default function VanStockUploadPanel() {
       active = false;
     };
   }, [done]);
+
+  const panelRefresh = useRefresh(async () => {
+    const u = await db.getLatestVanUpload();
+    setLastUpload(u);
+  });
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
@@ -80,6 +87,13 @@ export default function VanStockUploadPanel() {
 
   return (
     <div className="space-y-3 fade-in">
+      <div className="flex items-center justify-end">
+        <RefreshButton
+          onRefresh={panelRefresh.refresh}
+          lastRefreshedAt={panelRefresh.lastRefreshedAt}
+          isRefreshing={panelRefresh.isRefreshing}
+        />
+      </div>
       <div className="card p-5">
         <h2 className="font-bold text-base mb-1">🚐 {tr.uploadVanStock}</h2>
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
