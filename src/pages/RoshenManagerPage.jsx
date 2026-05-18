@@ -6,6 +6,7 @@ import VisitDetail from '../components/VisitDetail.jsx';
 import VisitItemDecisionRow from '../components/VisitItemDecisionRow.jsx';
 import PdfButton from '../components/PdfButton.jsx';
 import EmailButton from '../components/EmailButton.jsx';
+import VanStockUploadPanel from '../components/VanStockUploadPanel.jsx';
 import UserManagementPanel from '../components/UserManagementPanel.jsx';
 import { db } from '../lib/db.js';
 import { parseExcel } from '../lib/excel.js';
@@ -14,10 +15,11 @@ import { visitFromDb, visitItemFromDb } from '../lib/mapping.js';
 import { useAllVisits, useAggregatedData } from '../lib/hooks.js';
 
 const TABS = [
-  { key: 'upload',  icon: '📥', labelKey: 'uploadData' },
-  { key: 'pending', icon: '⏳', labelKey: 'awaitingMyDecision' },
-  { key: 'mine',    icon: '📋', labelKey: 'myDecisions' },
-  { key: 'users',   icon: '👥', labelKey: 'userManagement' },
+  { key: 'upload',   icon: '📥', labelKey: 'uploadData' },
+  { key: 'vanStock', icon: '🚐', labelKey: 'uploadVanStock' },
+  { key: 'pending',  icon: '⏳', labelKey: 'awaitingMyDecision' },
+  { key: 'mine',     icon: '📋', labelKey: 'myDecisions' },
+  { key: 'users',    icon: '👥', labelKey: 'userManagement' },
 ];
 
 export default function RoshenManagerPage() {
@@ -86,6 +88,7 @@ export default function RoshenManagerPage() {
 
       <div className="p-3 space-y-2.5 fade-in">
         {tab === 'upload' && <UploadPanel />}
+        {tab === 'vanStock' && <VanStockUploadPanel />}
         {tab === 'pending' &&
           (loading ? (
             <p className="text-center text-gray-400 py-12 text-sm">…</p>

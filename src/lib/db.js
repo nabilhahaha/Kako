@@ -194,6 +194,82 @@ export const db = {
     return data?.signedUrl || null;
   },
 
+  /* ─── Van stock ─── */
+  getLatestVanUpload: async () => {
+    const { data, error } = await supabase
+      .from('van_stock_uploads')
+      .select('*')
+      .order('uploaded_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  listMyVanStock: async (warehouseCode) => {
+    if (!warehouseCode) return [];
+    const latest = await db.getLatestVanUpload();
+    if (!latest) return [];
+    const { data, error } = await supabase
+      .from('van_stock')
+      .select('*')
+      .eq('warehouse_code', warehouseCode)
+      .eq('upload_id', latest.id)
+      .order('expiry_date', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  },
+
+  listSalesmanWarehouses: async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, warehouse_code')
+      .eq('role', 'salesman')
+      .eq('is_active', true);
+    if (error) throw error;
+    return data || [];
+  },
+
+  uploadVanStock: async ({ rows, stats, filename }) => {
+    // 1. Insert the upload header (prune trigger fires on this insert).
+    const { data: header, error } = await supabase
+      .from('van_stock_uploads')
+      .insert({ source_filename: filename || null, stats })
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    if (!header?.id) throw new Error('Upload header not returned');
+
+    // 2. Chunked insert of the stock rows.
+    const CHUNK = 500;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK).map((r) => ({
+        ...r,
+        upload_id: header.id,
+      }));
+      const { error: e2 } = await supabase.from('van_stock').insert(chunk);
+      if (e2) throw e2;
+    }
+    return header;
+  },
+
+  onVanStockChange: (callback) => {
+    const channel = supabase
+      .channel('nex_van_stock')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'van_stock_uploads' },
+        () => callback(),
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'van_stock' },
+        () => callback(),
+      )
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  },
+
   /* ─── Realtime ─── */
   onVisitsChange: (callback) => {
     const channel = supabase

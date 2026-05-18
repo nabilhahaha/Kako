@@ -6,13 +6,15 @@ import VisitDetail from '../components/VisitDetail.jsx';
 import VisitItemDecisionRow from '../components/VisitItemDecisionRow.jsx';
 import PdfButton from '../components/PdfButton.jsx';
 import EmailButton from '../components/EmailButton.jsx';
+import VanStockUploadPanel from '../components/VanStockUploadPanel.jsx';
 import { db } from '../lib/db.js';
 import { useAllVisits } from '../lib/hooks.js';
 import { visitFromDb, visitItemFromDb } from '../lib/mapping.js';
 
 const TABS = [
-  { key: 'pending', icon: '⏳', labelKey: 'pendingNew' },
-  { key: 'history', icon: '📋', labelKey: 'history' },
+  { key: 'pending',  icon: '⏳', labelKey: 'pendingNew' },
+  { key: 'history',  icon: '📋', labelKey: 'history' },
+  { key: 'vanStock', icon: '🚐', labelKey: 'uploadVanStock' },
 ];
 
 export default function TradeMarketingPage() {
@@ -78,7 +80,9 @@ export default function TradeMarketingPage() {
       </div>
 
       <div className="p-3 space-y-2.5 fade-in">
-        {loading ? (
+        {tab === 'vanStock' ? (
+          <VanStockUploadPanel />
+        ) : loading ? (
           <p className="text-center text-gray-400 py-12 text-sm">…</p>
         ) : (tab === 'pending' ? pending : history).length === 0 ? (
           <div className="text-center text-gray-500 py-12 text-sm">

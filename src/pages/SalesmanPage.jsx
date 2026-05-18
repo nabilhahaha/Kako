@@ -3,6 +3,7 @@ import { useAuth, useLang, useToast } from '../App.jsx';
 import Header from '../components/Header.jsx';
 import ActionSelector from '../components/ActionSelector.jsx';
 import MyVisitsTracker from '../components/MyVisitsTracker.jsx';
+import VanStockBuilder from '../components/VanStockBuilder.jsx';
 import { db } from '../lib/db.js';
 import { useAggregatedData } from '../lib/hooks.js';
 import { visitFromDb, visitItemFromDb } from '../lib/mapping.js';
@@ -32,8 +33,12 @@ export default function SalesmanPage() {
           <CustomerPicker
             aggData={aggData}
             salesmanName={salesmanName}
+            onVanStock={() => setView('vanStock')}
             onPick={async (c) => {
               try {
+                // visit_type defaults to 'customer' on the DB side; omitting
+                // it here keeps this insert working even before the v3.6
+                // migration is applied.
                 const v = await db.createVisit({
                   salesman_id: profile.id,
                   salesman_name: salesmanName,
@@ -92,6 +97,19 @@ export default function SalesmanPage() {
     );
   }
 
+  if (view === 'vanStock') {
+    return (
+      <>
+        <Header
+          title={tr.myVanStock}
+          subtitle={salesmanName}
+          onBack={() => setView('home')}
+        />
+        <VanStockBuilder onDone={() => setView('home')} />
+      </>
+    );
+  }
+
   return (
     <>
       <Header subtitle={salesmanName} onLogout={signOut} />
@@ -100,13 +118,14 @@ export default function SalesmanPage() {
         hasExcelData={hasExcelData}
         onStartVisit={() => setView('pickCustomer')}
         onTracker={() => setView('tracker')}
+        onVanStock={() => setView('vanStock')}
       />
     </>
   );
 }
 
 /* ───────── Home ───────── */
-function SalesmanHome({ salesmanName, hasExcelData, onStartVisit, onTracker }) {
+function SalesmanHome({ salesmanName, hasExcelData, onStartVisit, onTracker, onVanStock }) {
   const { tr } = useLang();
   return (
     <div className="p-4 space-y-3 fade-in">
@@ -127,6 +146,19 @@ function SalesmanHome({ salesmanName, hasExcelData, onStartVisit, onTracker }) {
         </div>
         <span className="text-gray-400 rtl-only">←</span>
         <span className="text-gray-400 ltr-only">→</span>
+      </button>
+
+      <button
+        onClick={onVanStock}
+        className="card w-full p-5 text-start active:scale-[0.99] transition hover:shadow-md flex items-center gap-3 bg-blue-50 border-blue-200"
+      >
+        <span className="text-3xl">🚐</span>
+        <div className="flex-1">
+          <h3 className="font-bold text-blue-900">{tr.myVanStock}</h3>
+          <p className="text-xs text-blue-700">{tr.vanStock}</p>
+        </div>
+        <span className="text-blue-400 rtl-only">←</span>
+        <span className="text-blue-400 ltr-only">→</span>
       </button>
 
       <button
@@ -164,7 +196,7 @@ function NoDataMessage() {
 }
 
 /* ───────── Customer picker ───────── */
-function CustomerPicker({ aggData, salesmanName, onPick }) {
+function CustomerPicker({ aggData, salesmanName, onPick, onVanStock }) {
   const { tr } = useLang();
   const [q, setQ] = useState('');
   const customers = useMemo(
@@ -191,6 +223,24 @@ function CustomerPicker({ aggData, salesmanName, onPick }) {
 
   return (
     <div className="p-3 fade-in">
+      {/* Pinned virtual customer at the top */}
+      {onVanStock && (
+        <button
+          onClick={onVanStock}
+          className="card w-full p-3.5 text-start active:scale-[0.99] flex items-center gap-3 bg-blue-50 border-blue-200 hover:bg-blue-100 mb-2"
+        >
+          <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold shrink-0">
+            🚐
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-blue-900">{tr.myVanStock}</p>
+            <p className="text-[11px] text-blue-700">{tr.vanStock}</p>
+          </div>
+          <span className="text-blue-300 rtl-only">←</span>
+          <span className="text-blue-300 ltr-only">→</span>
+        </button>
+      )}
+
       <input
         type="text"
         className="input-field mb-3"

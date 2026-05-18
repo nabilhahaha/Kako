@@ -11,6 +11,7 @@ export const visitFromDb = (row) => {
     custName: row.cust_name,
     visitDate: row.visit_date,
     status: row.status,
+    visitType: row.visit_type || 'customer',
     notes: row.notes || '',
     submittedAt: row.submitted_at,
     createdAt: row.created_at,
