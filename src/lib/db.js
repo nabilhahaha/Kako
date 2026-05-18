@@ -231,13 +231,48 @@ export const db = {
   },
 
   uploadVanStock: async ({ rows, stats, filename }) => {
+    // Diagnostic — surfaces the live auth state right before the request
+    // hits Supabase. If you see `role: 'anon'` here, the JWT is missing.
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
+      // Decode the JWT 'role' claim without verifying (no secret needed).
+      let jwtRole = '(no-jwt)';
+      const tok = session?.access_token;
+      if (tok) {
+        try {
+          const payload = JSON.parse(atob(tok.split('.')[1]));
+          jwtRole = payload.role || '(no-role-claim)';
+        } catch {
+          jwtRole = '(unparseable)';
+        }
+      }
+      // eslint-disable-next-line no-console
+      console.info('[uploadVanStock] preflight', {
+        hasSession: !!session,
+        userId: user?.id || null,
+        userEmail: user?.email || null,
+        jwtRole,
+        accessTokenPresent: !!tok,
+        rowsToInsert: rows.length,
+        filename,
+      });
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[uploadVanStock] preflight check failed', e);
+    }
+
     // 1. Insert the upload header (prune trigger fires on this insert).
     const { data: header, error } = await supabase
       .from('van_stock_uploads')
       .insert({ source_filename: filename || null, stats })
       .select()
       .maybeSingle();
-    if (error) throw error;
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error('[uploadVanStock] header insert failed', error);
+      throw error;
+    }
     if (!header?.id) throw new Error('Upload header not returned');
 
     // 2. Chunked insert of the stock rows.
@@ -248,7 +283,15 @@ export const db = {
         upload_id: header.id,
       }));
       const { error: e2 } = await supabase.from('van_stock').insert(chunk);
-      if (e2) throw e2;
+      if (e2) {
+        // eslint-disable-next-line no-console
+        console.error('[uploadVanStock] chunk insert failed', {
+          chunkIndex: i / CHUNK,
+          chunkSize: chunk.length,
+          error: e2,
+        });
+        throw e2;
+      }
     }
     return header;
   },
