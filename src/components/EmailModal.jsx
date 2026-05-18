@@ -1,19 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth, useLang, useToast } from '../App.jsx';
-import { buildEmail } from '../lib/emailHtml.js';
+import { buildEmail, buildDamageEmail } from '../lib/emailHtml.js';
 import { db } from '../lib/db.js';
-import { visitItemFromDb } from '../lib/mapping.js';
+import { visitItemFromDb, damageItemFromDb } from '../lib/mapping.js';
 import PdfButton from './PdfButton.jsx';
 
-export default function EmailModal({ visit, items: providedItems, onClose }) {
+// Renders a copy-friendly email subject + HTML body preview for either a
+// visit (Near Expiry) or a damage request — dispatched by which prop is set.
+export default function EmailModal({ visit, damageRequest, items: providedItems, onClose }) {
   const { tr } = useLang();
   const { profile } = useAuth();
   const { toast } = useToast();
 
+  const target = damageRequest
+    ? { kind: 'damage', id: damageRequest.id }
+    : { kind: 'visit', id: visit?.id };
+
   const [items, setItems] = useState(providedItems || null);
   const [loading, setLoading] = useState(!providedItems);
 
-  // Lazy-load items if the caller didn't pass them (e.g. opening from a card).
   useEffect(() => {
     if (providedItems) {
       setItems(providedItems);
@@ -21,25 +26,38 @@ export default function EmailModal({ visit, items: providedItems, onClose }) {
       return;
     }
     let active = true;
-    db.listVisitItems(visit.id).then((rows) => {
-      if (!active) return;
-      setItems(rows.map(visitItemFromDb));
-      setLoading(false);
-    });
+    (async () => {
+      try {
+        const rows = target.kind === 'damage'
+          ? await db.listDamageItems(target.id)
+          : await db.listVisitItems(target.id);
+        if (!active) return;
+        setItems(rows.map(target.kind === 'damage' ? damageItemFromDb : visitItemFromDb));
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
     return () => {
       active = false;
     };
-  }, [visit.id, providedItems]);
+  }, [target.id, target.kind, providedItems]);
 
   const { subject, html, plainText } = useMemo(() => {
     if (!items) return { subject: '', html: '', plainText: '' };
+    if (target.kind === 'damage') {
+      return buildDamageEmail({
+        senderName: profile.full_name,
+        request: damageRequest,
+        items,
+      });
+    }
     return buildEmail({
       role: profile.role,
       senderName: profile.full_name,
       visit,
       items,
     });
-  }, [profile.role, profile.full_name, visit, items]);
+  }, [target.kind, profile.role, profile.full_name, visit, damageRequest, items]);
 
   const copyPlain = async (text) => {
     try {
@@ -51,7 +69,6 @@ export default function EmailModal({ visit, items: providedItems, onClose }) {
   };
 
   const copyRich = async () => {
-    // Prefer rich (HTML + plain) copy so Outlook/Gmail render the table.
     try {
       if (
         typeof window !== 'undefined' &&
@@ -73,7 +90,6 @@ export default function EmailModal({ visit, items: providedItems, onClose }) {
     } catch (e) {
       console.warn('Rich clipboard copy failed, falling back to text', e);
     }
-    // Fallback: plain-text copy.
     try {
       await navigator.clipboard.writeText(plainText);
       toast(tr.copied, 'success');
@@ -82,7 +98,6 @@ export default function EmailModal({ visit, items: providedItems, onClose }) {
     }
   };
 
-  // Close on Escape.
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -102,15 +117,12 @@ export default function EmailModal({ visit, items: providedItems, onClose }) {
             ✕
           </button>
         </div>
-
         <div className="p-4 space-y-4">
           {loading ? (
             <p className="text-center text-gray-400 py-8 text-sm">{tr.emailPreparing}</p>
           ) : (
             <>
               <p className="text-xs text-gray-500 leading-relaxed">{tr.emailInstructions}</p>
-
-              {/* Subject */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
                   {tr.emailSubject}
@@ -133,8 +145,6 @@ export default function EmailModal({ visit, items: providedItems, onClose }) {
                   </button>
                 </div>
               </div>
-
-              {/* Body preview */}
               <div>
                 <div className="flex items-center justify-between mb-1 gap-2">
                   <label className="block text-xs font-semibold text-gray-600">
@@ -151,13 +161,9 @@ export default function EmailModal({ visit, items: providedItems, onClose }) {
                 <div
                   dir="ltr"
                   className="border border-gray-300 rounded-input p-3 max-h-96 overflow-y-auto bg-white"
-                  // Email HTML is built from controlled inputs; all dynamic
-                  // strings go through `escape()` in lib/emailHtml.js.
                   dangerouslySetInnerHTML={{ __html: html }}
                 />
               </div>
-
-              {/* Actions */}
               <div className="flex gap-2">
                 <button onClick={onClose} className="btn-secondary flex-1">
                   {tr.cancel}
@@ -165,6 +171,7 @@ export default function EmailModal({ visit, items: providedItems, onClose }) {
                 <div className="flex-1">
                   <PdfButton
                     visit={visit}
+                    damageRequest={damageRequest}
                     items={items}
                     size="md"
                     stop={false}

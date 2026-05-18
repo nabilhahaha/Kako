@@ -9,13 +9,19 @@ import EmailButton from '../components/EmailButton.jsx';
 import VanStockUploadPanel from '../components/VanStockUploadPanel.jsx';
 import RefreshButton from '../components/RefreshButton.jsx';
 import { useRefresh } from '../lib/useRefresh.js';
+import { useAllDamageRequests } from '../lib/hooks.js';
+import { damageRequestFromDb, damageItemFromDb } from '../lib/mapping.js';
 import { db } from '../lib/db.js';
+import { DamageCard } from '../components/MyDamageRequestsTracker.jsx';
+import DamageRequestDetail from '../components/DamageRequestDetail.jsx';
+import DamageDecisionModal from '../components/DamageDecisionModal.jsx';
 import { useAllVisits } from '../lib/hooks.js';
 import { visitFromDb, visitItemFromDb } from '../lib/mapping.js';
 
 const TABS = [
   { key: 'pending',  icon: '⏳', labelKey: 'pendingNew' },
   { key: 'history',  icon: '📋', labelKey: 'history' },
+  { key: 'damage',   icon: '💔', labelKey: 'damageRequests' },
   { key: 'vanStock', icon: '🚐', labelKey: 'uploadVanStock' },
 ];
 
@@ -51,6 +57,14 @@ export default function TradeMarketingPage() {
 
   const pending = useMemo(() => visits.filter((v) => v.status === 'pending_tm'), [visits]);
   const history = useMemo(() => visits.filter((v) => v.status !== 'pending_tm'), [visits]);
+
+  // Damage requests for the dedicated tab.
+  const { data: damageRows, reload: reloadDamage } = useAllDamageRequests();
+  const damageRequests = useMemo(
+    () => (damageRows || []).map(damageRequestFromDb),
+    [damageRows],
+  );
+  const [openDamageId, setOpenDamageId] = useState(null);
 
   if (openId) {
     return (
@@ -92,9 +106,35 @@ export default function TradeMarketingPage() {
         })}
       </div>
 
+      {openDamageId && (
+        <TMDamageDetail
+          id={openDamageId}
+          onBack={() => setOpenDamageId(null)}
+          onDone={() => {
+            setOpenDamageId(null);
+            reloadDamage?.();
+          }}
+        />
+      )}
+
       <div className="p-3 space-y-2.5 fade-in">
         {tab === 'vanStock' ? (
           <VanStockUploadPanel />
+        ) : tab === 'damage' ? (
+          damageRequests.length === 0 ? (
+            <div className="text-center text-gray-500 py-12 text-sm">
+              <p className="text-3xl mb-2">📭</p>
+              <p>{tr.damageNoneYet}</p>
+            </div>
+          ) : (
+            damageRequests.map((r) => (
+              <DamageCard
+                key={r.id}
+                request={r}
+                onClick={() => setOpenDamageId(r.id)}
+              />
+            ))
+          )
         ) : loading ? (
           <p className="text-center text-gray-400 py-12 text-sm">…</p>
         ) : (tab === 'pending' ? pending : history).length === 0 ? (
@@ -254,5 +294,86 @@ function TMVisitDetail({ visitId, onBack, onLogout }) {
         )}
       </div>
     </>
+  );
+}
+
+/* ───────── TM Damage detail (modal-on-top page) ───────── */
+function TMDamageDetail({ id, onBack, onDone }) {
+  const { tr } = useLang();
+  const [req, setReq] = useState(null);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [decision, setDecision] = useState(null); // 'approve' | 'reject'
+
+  const reload = async () => {
+    setLoading(true);
+    const [r, its] = await Promise.all([
+      db.getDamageRequest(id),
+      db.listDamageItems(id),
+    ]);
+    setReq(damageRequestFromDb(r));
+    setItems(its.map(damageItemFromDb));
+    setLoading(false);
+  };
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  if (loading || !req) {
+    return (
+      <div className="fixed inset-0 z-30 bg-white p-3 overflow-y-auto">
+        <p className="text-center text-gray-400 py-12 text-sm">…</p>
+      </div>
+    );
+  }
+
+  const canDecide = req.status === 'submitted';
+
+  return (
+    <div className="fixed inset-0 z-30 bg-gray-50 overflow-y-auto">
+      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between gap-2 sticky top-0 z-10">
+        <button onClick={onBack} className="btn-ghost text-sm">← {tr.back}</button>
+        <div className="flex items-center gap-1.5">
+          <PdfButton damageRequest={req} items={items} size="md" stop={false} />
+          <EmailButton damageRequest={req} items={items} size="md" stop={false} />
+        </div>
+      </div>
+      <div className="p-3 space-y-3 fade-in pb-32">
+        <DamageRequestDetail request={req} items={items} />
+      </div>
+
+      {canDecide && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 z-20">
+          <div className="max-w-page mx-auto flex gap-2">
+            <button
+              onClick={() => setDecision('reject')}
+              className="flex-1 rounded-input px-4 py-3 font-semibold text-white bg-red-600 hover:bg-red-700 transition active:scale-[0.98]"
+            >
+              ❌ {tr.damageDecisionReject}
+            </button>
+            <button
+              onClick={() => setDecision('approve')}
+              className="flex-1 rounded-input px-4 py-3 font-semibold text-white bg-green-600 hover:bg-green-700 transition active:scale-[0.98]"
+            >
+              ✅ {tr.damageDecisionApprove}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {decision && (
+        <DamageDecisionModal
+          request={req}
+          decision={decision}
+          onClose={() => setDecision(null)}
+          onDone={async () => {
+            setDecision(null);
+            await reload();
+            onDone?.();
+          }}
+        />
+      )}
+    </div>
   );
 }

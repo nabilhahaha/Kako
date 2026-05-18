@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useLang, useToast } from '../App.jsx';
-import { generateVisitPdf } from '../lib/pdf.js';
+import { generateVisitPdf, generateDamageRequestPdf } from '../lib/pdf.js';
 import { db } from '../lib/db.js';
-import { visitItemFromDb } from '../lib/mapping.js';
+import { visitItemFromDb, damageItemFromDb } from '../lib/mapping.js';
 
+// Single button that handles both visits and damage requests, dispatched by
+// which prop was passed. Items are optional — lazy-loaded if missing.
 export default function PdfButton({
   visit,
-  items, // optional — fetched lazily if not provided
+  damageRequest,
+  items,
   size = 'sm',
   variant = 'secondary',
   stop = true,
@@ -22,19 +25,28 @@ export default function PdfButton({
       e.stopPropagation();
     }
     if (busy) return;
-    if (!visit) {
+    if (!visit && !damageRequest) {
       toast(tr.pdfFailed, 'error');
       return;
     }
     setBusy(true);
     try {
       toast(tr.generatingPdf);
-      let resolved = items;
-      if (!resolved) {
-        const rows = await db.listVisitItems(visit.id);
-        resolved = rows.map(visitItemFromDb);
+      if (damageRequest) {
+        let resolved = items;
+        if (!resolved) {
+          const rows = await db.listDamageItems(damageRequest.id);
+          resolved = rows.map(damageItemFromDb);
+        }
+        await generateDamageRequestPdf(damageRequest, resolved);
+      } else {
+        let resolved = items;
+        if (!resolved) {
+          const rows = await db.listVisitItems(visit.id);
+          resolved = rows.map(visitItemFromDb);
+        }
+        await generateVisitPdf(visit, resolved);
       }
-      await generateVisitPdf(visit, resolved);
       toast(tr.pdfReady, 'success');
     } catch (err) {
       console.error(err);

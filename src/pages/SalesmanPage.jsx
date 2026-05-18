@@ -4,6 +4,8 @@ import Header from '../components/Header.jsx';
 import ActionSelector from '../components/ActionSelector.jsx';
 import MyVisitsTracker from '../components/MyVisitsTracker.jsx';
 import VanStockBuilder from '../components/VanStockBuilder.jsx';
+import DamageRequestBuilder from '../components/DamageRequestBuilder.jsx';
+import MyDamageRequestsTracker from '../components/MyDamageRequestsTracker.jsx';
 import RefreshButton from '../components/RefreshButton.jsx';
 import { db } from '../lib/db.js';
 import { useAggregatedData } from '../lib/hooks.js';
@@ -122,6 +124,37 @@ export default function SalesmanPage() {
     );
   }
 
+  if (view === 'damageNew') {
+    return (
+      <>
+        <Header
+          title={tr.damageNew}
+          subtitle={salesmanName}
+          onBack={() => setView('home')}
+        />
+        <DamageRequestBuilder onDone={() => setView('damageList')} />
+      </>
+    );
+  }
+
+  if (view === 'damageList') {
+    return (
+      <>
+        <Header
+          title={tr.myDamageRequests}
+          subtitle={salesmanName}
+          onBack={() => setView('home')}
+        />
+        <div className="px-3 pt-3">
+          <button onClick={() => setView('damageNew')} className="btn-primary w-full">
+            ➕ {tr.damageNew}
+          </button>
+        </div>
+        <MyDamageRequestsTracker />
+      </>
+    );
+  }
+
   return (
     <>
       <Header subtitle={salesmanName} onLogout={signOut} />
@@ -138,13 +171,14 @@ export default function SalesmanPage() {
         onStartVisit={() => setView('pickCustomer')}
         onTracker={() => setView('tracker')}
         onVanStock={() => setView('vanStock')}
+        onDamage={() => setView('damageList')}
       />
     </>
   );
 }
 
 /* ───────── Home ───────── */
-function SalesmanHome({ salesmanName, hasExcelData, onStartVisit, onTracker, onVanStock }) {
+function SalesmanHome({ salesmanName, hasExcelData, onStartVisit, onTracker, onVanStock, onDamage }) {
   const { tr } = useLang();
   return (
     <div className="p-4 space-y-3 fade-in">
@@ -178,6 +212,19 @@ function SalesmanHome({ salesmanName, hasExcelData, onStartVisit, onTracker, onV
         </div>
         <span className="text-blue-400 rtl-only">←</span>
         <span className="text-blue-400 ltr-only">→</span>
+      </button>
+
+      <button
+        onClick={onDamage}
+        className="card w-full p-5 text-start active:scale-[0.99] transition hover:shadow-md flex items-center gap-3 bg-red-50 border-red-200"
+      >
+        <span className="text-3xl">💔</span>
+        <div className="flex-1">
+          <h3 className="font-bold text-red-900">{tr.damageRequestTitle}</h3>
+          <p className="text-xs text-red-700">{tr.myDamageRequests}</p>
+        </div>
+        <span className="text-red-300 rtl-only">←</span>
+        <span className="text-red-300 ltr-only">→</span>
       </button>
 
       <button

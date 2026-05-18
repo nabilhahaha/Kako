@@ -19,6 +19,40 @@ export const visitFromDb = (row) => {
   };
 };
 
+export const damageRequestFromDb = (row) => {
+  if (!row) return null;
+  return {
+    id: row.id,
+    salesmanId: row.salesman_id,
+    salesmanName: row.salesman_name,
+    sourceType: row.source_type,             // 'van' | 'customer'
+    custAccount: row.cust_account || null,
+    custName: row.cust_name || null,
+    status: row.status,                      // 'submitted' | 'tm_approved' | 'tm_rejected'
+    tmComment: row.tm_comment || '',
+    tmDecidedAt: row.tm_decided_at,
+    tmDecidedBy: row.tm_decided_by,
+    submittedAt: row.submitted_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+};
+
+export const damageItemFromDb = (row) => {
+  if (!row) return null;
+  return {
+    id: row.id,
+    damageRequestId: row.damage_request_id,
+    itemNumber: row.item_number,
+    itemName: row.item_name,
+    quantity: Number(row.quantity),
+    unit: row.unit || '',
+    photoUrl: row.photo_url || null,
+    notes: row.notes || '',
+    createdAt: row.created_at,
+  };
+};
+
 export const visitItemFromDb = (row) => {
   if (!row) return null;
   return {

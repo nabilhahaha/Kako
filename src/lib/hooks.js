@@ -61,6 +61,16 @@ export const useAggregatedData = () =>
     [],
   );
 
+export const useMyDamageRequests = (salesmanId) =>
+  useFetchWithRealtime(
+    () => (salesmanId ? db.listMyDamageRequests(salesmanId) : Promise.resolve([])),
+    db.onDamageChange,
+    [salesmanId],
+  );
+
+export const useAllDamageRequests = () =>
+  useFetchWithRealtime(() => db.listAllDamageRequests(), db.onDamageChange, []);
+
 export const useProfiles = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);

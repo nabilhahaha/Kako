@@ -296,6 +296,96 @@ export const db = {
     return header;
   },
 
+  /* ─── Damage requests ─── */
+  listMyDamageRequests: async (salesmanId) => {
+    if (!salesmanId) return [];
+    const { data, error } = await supabase
+      .from('damage_requests')
+      .select('*')
+      .eq('salesman_id', salesmanId)
+      .order('submitted_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  listAllDamageRequests: async () => {
+    const { data, error } = await supabase
+      .from('damage_requests')
+      .select('*')
+      .order('submitted_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  getDamageRequest: async (id) => {
+    const { data, error } = await supabase
+      .from('damage_requests')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  listDamageItems: async (requestId) => {
+    const { data, error } = await supabase
+      .from('damage_request_items')
+      .select('*')
+      .eq('damage_request_id', requestId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  },
+
+  createDamageRequest: async (row) => {
+    const { data, error } = await supabase
+      .from('damage_requests')
+      .insert(row)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data ?? row;
+  },
+
+  bulkInsertDamageItems: async (rows) => {
+    if (!rows?.length) return;
+    const { error } = await supabase.from('damage_request_items').insert(rows);
+    if (error) throw error;
+  },
+
+  decideDamageRequest: async (id, patch) => {
+    // Single write — TM comment is write-once (RLS enforces via status='submitted').
+    const { data, error } = await supabase
+      .from('damage_requests')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  // Photo path convention for damage: damage/{request_id}/{item_index}.jpg
+  uploadDamagePhoto: async (requestId, itemIndex, dataUrl) => {
+    const blob = await dataUrlToBlob(dataUrl);
+    const path = `damage/${requestId}/${itemIndex}.jpg`;
+    const { error } = await supabase
+      .storage
+      .from(PHOTO_BUCKET)
+      .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+    if (error) throw error;
+    return path;
+  },
+
+  onDamageChange: (callback) => {
+    const channel = supabase
+      .channel('nex_damage')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'damage_requests' }, () => callback())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'damage_request_items' }, () => callback())
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  },
+
   onVanStockChange: (callback) => {
     const channel = supabase
       .channel('nex_van_stock')

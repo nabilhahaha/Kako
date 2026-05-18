@@ -470,6 +470,232 @@ const drawPhotoPages = (pdf, visit, itemsWithPhotos) => {
 };
 
 /* ─── Entry point ────────────────────────────────────────────────────────── */
+/* ─── Damage request PDF (reuses the same helpers / palette) ─────────────── */
+const DAMAGE_STATUS = {
+  submitted:    { bg: [245, 158, 11], fg: [255, 255, 255], label: 'AWAITING TM' },
+  tm_approved:  { bg: [21, 128, 61],  fg: [255, 255, 255], label: 'APPROVED' },
+  tm_rejected:  { bg: [185, 28, 28],  fg: [255, 255, 255], label: 'REJECTED' },
+};
+
+const drawDamageHeader = (pdf, req) => {
+  const { margin, pageW } = PT;
+  const top = margin;
+  fillRect(pdf, margin, top, 42, 42, C.primary);
+  setText(pdf, C.white, 22, 'bold');
+  drawText(pdf, 'R', margin + 21, top + 28, { align: 'center' });
+  setText(pdf, C.primary, 12, 'bold');
+  drawText(pdf, 'ROSHEN KSA', margin + 52, top + 18);
+  setText(pdf, C.muted, 9, 'normal');
+  drawText(pdf, 'x Relia Distribution', margin + 52, top + 32);
+
+  setText(pdf, C.text, 17, 'bold');
+  drawText(pdf, 'Damage Request', pageW - margin, top + 18, { align: 'right' });
+  setText(pdf, C.muted, 9, 'normal');
+  drawText(pdf, `Request #${req.id.slice(-6).toUpperCase()}`, pageW - margin, top + 32, { align: 'right' });
+  drawText(pdf, `Generated: ${fmtDateTime(new Date().toISOString())}`, pageW - margin, top + 44, { align: 'right' });
+
+  const dividerY = top + 56;
+  pdf.setDrawColor(...C.primary);
+  pdf.setLineWidth(1.5);
+  pdf.line(margin, dividerY, pageW - margin, dividerY);
+  return dividerY + 14;
+};
+
+const drawDamageStatusBadge = (pdf, y, status) => {
+  const { margin, pageW } = PT;
+  const meta = DAMAGE_STATUS[status] || DAMAGE_STATUS.submitted;
+  const w = pageW - 2 * margin;
+  const h = 26;
+  pdf.setFillColor(...meta.bg);
+  pdf.roundedRect(margin, y, w, h, 4, 4, 'F');
+  setText(pdf, meta.fg, 11, 'bold');
+  drawText(pdf, meta.label, pageW / 2, y + 17, { align: 'center' });
+  return y + h + PT.sectionGap;
+};
+
+const DAMAGE_COL = { idx: 22, item: 270, qty: 80, unit: 60 };
+const DAMAGE_HEADERS = ['#', 'Item / SKU', 'Damaged qty', 'Unit'];
+
+const drawDamageItemsTable = (pdf, startY, items) => {
+  const { margin, pageW } = PT;
+  let y = drawSectionHeader(pdf, startY, `Items (${items.length})`);
+
+  // Header row
+  const widths = [DAMAGE_COL.idx, DAMAGE_COL.item, DAMAGE_COL.qty, DAMAGE_COL.unit];
+  const sumW = widths.reduce((a, b) => a + b, 0);
+  // Stretch last column to fill remaining width.
+  const tableW = pageW - 2 * margin;
+  widths[widths.length - 1] += tableW - sumW;
+
+  const hH = 22;
+  fillRect(pdf, margin, y, tableW, hH, C.primary);
+  setText(pdf, C.white, 9, 'bold');
+  let x = margin + 4;
+  DAMAGE_HEADERS.forEach((label, i) => {
+    drawText(pdf, label, x, y + 14);
+    x += widths[i];
+  });
+  y += hH;
+
+  items.forEach((it, i) => {
+    setText(pdf, C.text, 8.5, 'bold');
+    const descLines = pdf.splitTextToSize(safeText(it.itemName), widths[1] - 8).slice(0, 2);
+    const rowH = Math.max(30, descLines.length * 10 + 16);
+    y = ensureRoom(pdf, y, rowH);
+    if (i % 2 === 0) fillRect(pdf, margin, y, tableW, rowH, C.bgRow);
+    strokeRect(pdf, margin, y, tableW, rowH, C.border, 0.25);
+
+    let cx = margin + 4;
+    setText(pdf, C.muted, 9, 'bold');
+    drawText(pdf, String(i + 1), cx, y + rowH / 2 + 3);
+    cx += widths[0];
+
+    setText(pdf, C.text, 8.5, 'bold');
+    let ly = y + 10;
+    descLines.forEach((ln) => { drawText(pdf, ln, cx, ly); ly += 10; });
+    setText(pdf, C.muted, 7.5, 'normal');
+    drawText(pdf, it.itemNumber, cx, ly + 4);
+    cx += widths[1];
+
+    const midY = y + rowH / 2 + 3;
+    setText(pdf, C.text, 9, 'bold');
+    drawText(pdf, String(it.quantity), cx, midY);
+    cx += widths[2];
+
+    setText(pdf, C.muted, 9, 'normal');
+    drawText(pdf, it.unit || '-', cx, midY);
+
+    y += rowH;
+  });
+
+  return y + PT.sectionGap;
+};
+
+const drawDamageNotes = (pdf, startY, items) => {
+  const withNotes = items.filter((it) => it.notes);
+  if (withNotes.length === 0) return startY;
+  let y = ensureRoom(pdf, startY, 50);
+  y = drawSectionHeader(pdf, y, 'Item notes');
+  withNotes.forEach((it, i) => {
+    setText(pdf, C.text, 10, 'bold');
+    drawText(pdf, `${i + 1}. ${it.itemName}`, PT.margin + 8, y + 12);
+    y += 16;
+    const lines = pdf.splitTextToSize(safeText(it.notes), PT.pageW - 2 * PT.margin - 24);
+    const h = lines.length * 11 + 14;
+    y = ensureRoom(pdf, y, h);
+    pdf.setFillColor(...lighten(C.blueNote, 0.18));
+    pdf.rect(PT.margin + 12, y, PT.pageW - 2 * PT.margin - 12, h, 'F');
+    setText(pdf, C.text, 9, 'normal');
+    pdf.text(lines, PT.margin + 18, y + 12);
+    y += h + 6;
+  });
+  return y + 4;
+};
+
+const drawTmCommentBlock = (pdf, startY, req) => {
+  if (req.status === 'submitted') return startY;
+  let y = ensureRoom(pdf, startY, 80);
+  const isApprove = req.status === 'tm_approved';
+  const color = isApprove ? C.greenNote : [185, 28, 28];
+  y = drawSectionHeader(pdf, y, isApprove ? 'TM Decision — Approved' : 'TM Decision — Rejected');
+  y = drawKvRows(pdf, y, [
+    { label: 'Decided at', value: fmtDateTime(req.tmDecidedAt) },
+  ]);
+  if (req.tmComment) {
+    setText(pdf, C.muted, 9, 'bold');
+    drawText(pdf, 'TM comment', PT.margin + 12, y + 12);
+    y += 16;
+    const lines = pdf.splitTextToSize(safeText(req.tmComment), PT.pageW - 2 * PT.margin - 24);
+    const h = lines.length * 11 + 14;
+    y = ensureRoom(pdf, y, h);
+    pdf.setFillColor(...lighten(color, 0.18));
+    pdf.rect(PT.margin + 12, y, PT.pageW - 2 * PT.margin - 12, h, 'F');
+    setText(pdf, C.text, 9, 'normal');
+    pdf.text(lines, PT.margin + 18, y + 12);
+    y += h + 6;
+  }
+  return y;
+};
+
+const drawDamagePhotoPages = (pdf, req, items, photos) => {
+  // photos: array same length as items, each { img } | null
+  const photoEntries = items
+    .map((it, i) => ({ item: it, img: photos[i]?.img || null }))
+    .filter((p) => p.img);
+  if (photoEntries.length === 0) return;
+  const { margin, pageW, pageH } = PT;
+
+  photoEntries.forEach((entry, idx) => {
+    pdf.addPage();
+    let y = margin;
+    setText(pdf, C.primary, 14, 'bold');
+    drawText(pdf, `Photo - Item ${idx + 1} of ${photoEntries.length}`, margin, y + 12);
+    setText(pdf, C.muted, 9, 'normal');
+    drawText(pdf, `Request #${req.id.slice(-6).toUpperCase()}`, pageW - margin, y + 12, { align: 'right' });
+    y += 22;
+    pdf.setDrawColor(...C.border); pdf.setLineWidth(0.5);
+    pdf.line(margin, y, pageW - margin, y);
+    y += 16;
+    setText(pdf, C.text, 11, 'bold');
+    drawText(pdf, entry.item.itemName, margin, y + 12);
+    setText(pdf, C.muted, 9, 'normal');
+    drawText(pdf, `SKU: ${entry.item.itemNumber}  ·  Qty: ${entry.item.quantity} ${entry.item.unit || ''}`, margin, y + 26);
+    y += 36;
+
+    const img = entry.img;
+    const ratio = img.naturalWidth / img.naturalHeight;
+    const availableW = pageW - 2 * margin;
+    const maxH = pageH - y - margin - 40;
+    let w = availableW;
+    let h = w / ratio;
+    if (h > maxH) { h = maxH; w = h * ratio; }
+    const x = margin + (availableW - w) / 2;
+    fillRect(pdf, x - 2, y - 2, w + 4, h + 4, C.border);
+    pdf.addImage(img, 'JPEG', x, y, w, h, undefined, 'FAST');
+  });
+};
+
+export const generateDamageRequestPdf = async (req, items) => {
+  // Pre-load all photos in parallel.
+  const photos = await Promise.all(
+    items.map(async (it) => {
+      if (!it.photoUrl) return null;
+      const signed = await db.getPhotoUrl(it.photoUrl);
+      const data = await fetchAsDataUrl(signed);
+      const img = await loadImage(data).catch(() => null);
+      return { img };
+    }),
+  );
+
+  const { default: jsPDF } = await import('jspdf');
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+
+  let y = drawDamageHeader(pdf, req);
+  y = drawDamageStatusBadge(pdf, y, req.status);
+  y = drawSectionHeader(pdf, y, 'Request Information');
+  y = drawKvRows(pdf, y, [
+    { label: 'Salesman',    value: req.salesmanName },
+    { label: 'Source',      value: req.sourceType === 'van' ? 'Van Stock' : 'Customer' },
+    { label: 'Customer',    value: req.sourceType === 'customer' ? `${req.custName} (${req.custAccount})` : `Van Stock - ${req.salesmanName}` },
+    { label: 'Submitted at', value: fmtDateTime(req.submittedAt) },
+    { label: 'Total items',  value: String(items.length) },
+  ]);
+  y += 4;
+  y = drawDamageItemsTable(pdf, y, items);
+  y = drawDamageNotes(pdf, y, items);
+  y = drawTmCommentBlock(pdf, y, req);
+
+  drawDamagePhotoPages(pdf, req, items, photos);
+
+  const total = pdf.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
+    pdf.setPage(i);
+    drawFooter(pdf, i, total);
+  }
+  const dateSlug = new Date().toISOString().slice(0, 10);
+  pdf.save(`damage-request-${req.id.slice(-6)}-${dateSlug}.pdf`);
+};
+
 export const generateVisitPdf = async (visit, items) => {
   const itemPhotos = await Promise.all(
     items.map(async (it) => {

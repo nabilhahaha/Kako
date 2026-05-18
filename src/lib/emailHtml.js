@@ -275,6 +275,159 @@ const plainTextFor = ({ role, senderName, visit, items }) => {
   return lines.join('\n');
 };
 
+/* ─── Damage Request email ───────────────────────────────────────────────── */
+const DAMAGE_STATUS_BADGE = {
+  submitted:   { label: 'AWAITING TM',  bg: COLOR.pendingTmBg, fg: COLOR.pendingTmFg, border: COLOR.pendingTmBorder },
+  tm_approved: { label: 'APPROVED',     bg: COLOR.approvedBg,  fg: COLOR.approvedFg,  border: COLOR.approvedBorder },
+  tm_rejected: { label: 'REJECTED',     bg: '#fee2e2',         fg: '#991b1b',         border: '#fecaca' },
+};
+
+const damageSubjectFor = (req) => {
+  const short = req.id.slice(-6).toUpperCase();
+  if (req.status === 'tm_approved') return `Damage Request Approved - #${short}`;
+  if (req.status === 'tm_rejected') return `Damage Request Rejected - #${short}`;
+  return `Damage Request Submitted - #${short}`;
+};
+
+const damageIntroOutro = (req, senderName) => {
+  const base = `font-family:${FONT};font-size:${SIZE.body};color:${COLOR.text};line-height:1.6;margin:14px 0`;
+
+  if (req.status === 'tm_approved' || req.status === 'tm_rejected') {
+    const verb = req.status === 'tm_approved' ? 'approved' : 'rejected';
+    return {
+      intro:
+        `<p style="${base}">Hi ${escape(req.salesmanName)},</p>` +
+        `<p style="${base}">Your damage request has been ${verb}. See details below.</p>`,
+      outro:
+        `<p style="${base}">Best regards,</p>` +
+        `<p style="${base};margin-top:0"><strong>${escape(senderName)}</strong><br><span style="color:${COLOR.muted}">Trade Marketing</span></p>`,
+    };
+  }
+  // submitted
+  return {
+    intro:
+      `<p style="${base}">Hi Trade Marketing Team,</p>` +
+      `<p style="${base}">I have submitted a damage request for your review:</p>`,
+    outro:
+      `<p style="${base}">Please review and decide.</p>` +
+      `<p style="${base};margin-top:0">Best regards,<br><strong>${escape(senderName)}</strong></p>`,
+  };
+};
+
+const damageInfoTable = (req) => {
+  const stat = DAMAGE_STATUS_BADGE[req.status] || DAMAGE_STATUS_BADGE.submitted;
+  const cellLabel = `padding:12px;border-bottom:1px solid ${COLOR.border};background:${COLOR.bgRow};font-weight:600;width:160px;font-size:${SIZE.body};color:${COLOR.muted}`;
+  const cellValue = `padding:12px;border-bottom:1px solid ${COLOR.border};font-size:${SIZE.body};color:${COLOR.text}`;
+  const row = (label, value) =>
+    `<tr><td style="${cellLabel}">${escape(label)}</td><td style="${cellValue}">${value}</td></tr>`;
+
+  const sourceLabel =
+    req.sourceType === 'customer'
+      ? `${escape(req.custName)} <span style="color:${COLOR.muted};font-family:monospace">(${escape(req.custAccount)})</span>`
+      : `<span style="color:${COLOR.muted}">Van Stock — ${escape(req.salesmanName)}</span>`;
+
+  return `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:1px solid ${COLOR.border};border-radius:6px;width:100%;max-width:700px;font-family:${FONT};margin:18px 0">
+    <tr><td colspan="2" style="background:${COLOR.primary};color:${COLOR.white};padding:14px 16px;font-weight:600;font-size:${SIZE.sub}">Damage Request &nbsp;·&nbsp; Roshen KSA &times; Relia Distribution</td></tr>
+    ${row('Request ID',  `<span style="font-family:monospace;font-weight:600">#${escape(req.id.slice(-6).toUpperCase())}</span>`)}
+    ${row('Source',      req.sourceType === 'van' ? 'Van Stock' : 'Customer')}
+    ${row('From',        sourceLabel)}
+    ${row('Salesman',    `<span style="font-weight:600">${escape(req.salesmanName)}</span>`)}
+    ${row('Submitted',   escape(fmtDate(req.submittedAt)))}
+    ${row('Status',      pill(stat.label, stat))}
+  </table>`;
+};
+
+const damageItemsTable = (items) => {
+  const thStyle = `background:${COLOR.bgRow};color:${COLOR.muted};padding:12px;text-align:left;font-weight:600;font-size:13px;border-bottom:1px solid ${COLOR.border};letter-spacing:0.3px;text-transform:uppercase`;
+  const tdStyle = `padding:12px;border-bottom:1px solid ${COLOR.border};font-size:${SIZE.body};vertical-align:top;color:${COLOR.text};line-height:1.6`;
+
+  const headers = ['#', 'Item', 'SKU', 'Damaged qty', 'Unit', 'Note'];
+  const headerHtml = headers.map((h) => `<th style="${thStyle}">${escape(h)}</th>`).join('');
+  const rowsHtml = items
+    .map((it, i) => {
+      const td = (c) => `<td style="${tdStyle}">${c}</td>`;
+      return `<tr>${[
+        td(String(i + 1)),
+        td(`<div style="font-weight:600">${escape(it.itemName)}</div>`),
+        td(`<span style="font-family:monospace;color:${COLOR.muted};font-size:13px">${escape(it.itemNumber)}</span>`),
+        td(`<strong>${it.quantity}</strong>`),
+        td(escape(it.unit || '-')),
+        td(it.notes ? `<span style="color:${COLOR.muted};white-space:pre-wrap">${escape(it.notes)}</span>` : '—'),
+      ].join('')}</tr>`;
+    })
+    .join('');
+
+  return `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:1px solid ${COLOR.border};border-radius:6px;width:100%;max-width:700px;font-family:${FONT};margin:18px 0">
+    <tr><td colspan="${headers.length}" style="background:${COLOR.primary};color:${COLOR.white};padding:14px 16px;font-weight:600;font-size:${SIZE.sub}">Items (${items.length})</td></tr>
+    <thead><tr>${headerHtml}</tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>`;
+};
+
+const damageTmCommentCard = (req) => {
+  if (req.status === 'submitted') return '';
+  const isApprove = req.status === 'tm_approved';
+  const color = isApprove ? COLOR.greenNote : '#991b1b';
+  const bg    = isApprove ? COLOR.approvedBg : '#fee2e2';
+  return `<div style="margin:18px 0;padding:14px 16px;background:${bg};border-left:3px solid ${color};border-radius:6px;font-family:${FONT};font-size:${SIZE.body};line-height:1.6;color:${COLOR.text}">
+    <div style="font-weight:600;color:${color};font-size:13px;letter-spacing:0.3px;text-transform:uppercase;margin-bottom:6px">
+      TM ${isApprove ? 'approval' : 'rejection'} comment
+    </div>
+    ${req.tmComment ? `<div style="white-space:pre-wrap">${escape(req.tmComment)}</div>` : `<div style="color:${COLOR.muted}">— no comment —</div>`}
+    <div style="color:${COLOR.muted};font-size:12px;margin-top:6px">Decided: ${escape(fmtDate(req.tmDecidedAt))}</div>
+  </div>`;
+};
+
+const damagePlainText = ({ req, senderName, items }) => {
+  const lines = [];
+  lines.push(damageSubjectFor(req));
+  lines.push('');
+  lines.push(`Request ID: #${req.id.slice(-6).toUpperCase()}`);
+  lines.push(`Status: ${DAMAGE_STATUS_BADGE[req.status]?.label || req.status}`);
+  lines.push(`Salesman: ${req.salesmanName}`);
+  lines.push(
+    req.sourceType === 'customer'
+      ? `Customer: ${req.custName} (${req.custAccount})`
+      : `Source: Van Stock - ${req.salesmanName}`,
+  );
+  lines.push(`Submitted: ${fmtDate(req.submittedAt)}`);
+  lines.push('');
+  lines.push(`Items (${items.length}):`);
+  items.forEach((it, i) => {
+    const parts = [
+      `${i + 1}.`, it.itemName, `[${it.itemNumber}]`, `qty ${it.quantity}`, it.unit || '',
+    ].filter(Boolean);
+    lines.push('  ' + parts.join('  ·  '));
+    if (it.notes) lines.push(`     - note: ${it.notes.replace(/\s+/g, ' ')}`);
+  });
+  if (req.status !== 'submitted') {
+    lines.push('');
+    lines.push(`TM ${req.status === 'tm_approved' ? 'approved' : 'rejected'} on ${fmtDate(req.tmDecidedAt)}`);
+    if (req.tmComment) lines.push(`Comment: ${req.tmComment}`);
+  }
+  lines.push('');
+  lines.push('Best regards,');
+  lines.push(senderName);
+  return lines.join('\n');
+};
+
+export const buildDamageEmail = ({ senderName, request, items }) => {
+  const subject = damageSubjectFor(request);
+  const { intro, outro } = damageIntroOutro(request, senderName);
+
+  const html = `<div style="font-family:${FONT};color:${COLOR.text};max-width:700px;line-height:1.6;font-size:${SIZE.body}">
+    <h1 style="font-family:${FONT};font-size:${SIZE.heading};color:${COLOR.text};margin:0 0 8px;font-weight:600">Damage Request</h1>
+    <p style="font-family:${FONT};font-size:13px;color:${COLOR.muted};margin:0 0 18px;line-height:1.6">Roshen KSA &times; Relia Distribution</p>
+    ${intro}
+    ${damageInfoTable(request)}
+    ${damageItemsTable(items)}
+    ${damageTmCommentCard(request)}
+    ${outro}
+  </div>`;
+  const plainText = damagePlainText({ req: request, senderName, items });
+  return { subject, html, plainText };
+};
+
 /* ─── Public API ─────────────────────────────────────────────────────────── */
 export const buildEmail = ({ role, senderName, visit, items }) => {
   const subject = subjectFor(role, visit);

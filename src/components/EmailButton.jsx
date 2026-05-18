@@ -4,7 +4,8 @@ import EmailModal from './EmailModal.jsx';
 
 export default function EmailButton({
   visit,
-  items, // optional — modal will lazy-load if not provided
+  damageRequest,
+  items,
   size = 'sm',
   variant = 'secondary',
   stop = true,
@@ -45,6 +46,7 @@ export default function EmailButton({
       {open && (
         <EmailModal
           visit={visit}
+          damageRequest={damageRequest}
           items={items}
           onClose={() => setOpen(false)}
         />
