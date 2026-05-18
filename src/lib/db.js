@@ -10,6 +10,16 @@ const dataUrlToBlob = async (dataUrl) => {
   return await res.blob();
 };
 
+// Supabase JS reuses the same channel object whenever you call
+// `.channel(sameName)`. If two components both call one of these
+// realtime helpers, the second mount would try to add a
+// `postgres_changes` callback to an already-subscribed channel and
+// throw. Each subscription therefore gets a unique channel name
+// suffixed with a short random id; removal still works because we
+// keep the channel object closed over.
+const uniqChannel = (base) =>
+  `${base}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
+
 export const db = {
   /* ─── Profiles ─── */
   getProfile: async (userId) => {
@@ -379,7 +389,7 @@ export const db = {
 
   onDamageChange: (callback) => {
     const channel = supabase
-      .channel('nex_damage')
+      .channel(uniqChannel('nex_damage'))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'damage_requests' }, () => callback())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'damage_request_items' }, () => callback())
       .subscribe();
@@ -388,7 +398,7 @@ export const db = {
 
   onVanStockChange: (callback) => {
     const channel = supabase
-      .channel('nex_van_stock')
+      .channel(uniqChannel('nex_van_stock'))
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'van_stock_uploads' },
@@ -406,7 +416,7 @@ export const db = {
   /* ─── Realtime ─── */
   onVisitsChange: (callback) => {
     const channel = supabase
-      .channel('nex_visits')
+      .channel(uniqChannel('nex_visits'))
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'visits' },
@@ -423,7 +433,7 @@ export const db = {
 
   onAggregatedChange: (callback) => {
     const channel = supabase
-      .channel('nex_aggregated')
+      .channel(uniqChannel('nex_aggregated'))
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'aggregated_data' },
