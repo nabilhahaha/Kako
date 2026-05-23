@@ -1,8 +1,10 @@
+import { useCallback } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import type { ProductSales } from '@/lib/salesTypes';
 import { formatSAR, formatNumber } from '@/lib/salesDataUtils';
+import { exportTableToExcel } from '@/lib/excelExport';
 
 const sarFormatter = (value: unknown) => [formatSAR(Number(value)), 'Sales'];
 
@@ -15,6 +17,17 @@ interface Props {
 export function ProductsTab({ productSales }: Props) {
   const top15 = productSales.slice(0, 15);
   const totalSales = productSales.reduce((sum, p) => sum + p.sales, 0);
+
+  const handleExport = useCallback(() => {
+    const headers = ['#', 'Category', 'Sales (SAR)', 'Share %', 'Qty', 'SKUs'];
+    const rows = productSales.map((p, idx) => [
+      idx + 1, p.category,
+      Math.round(p.sales * 100) / 100,
+      totalSales > 0 ? Math.round((p.sales / totalSales) * 1000) / 10 : 0,
+      p.qty, p.skuCount,
+    ]);
+    exportTableToExcel(headers, rows, 'Roshen_Products');
+  }, [productSales, totalSales]);
 
   return (
     <div className="space-y-4">
@@ -44,8 +57,9 @@ export function ProductsTab({ productSales }: Props) {
       </div>
 
       <div className="bg-card rounded-xl border overflow-hidden">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b flex items-center justify-between">
           <h3 className="text-sm font-bold text-foreground">📋 All Categories</h3>
+          <button onClick={handleExport} className="dash-btn-ghost !h-7 !px-2.5 !text-[11px]">📥 Export</button>
         </div>
         <div className="overflow-x-auto">
           <table className="dash-table">

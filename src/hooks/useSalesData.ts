@@ -5,11 +5,13 @@ import { useSalesFilterStore } from '@/stores/salesFilterStore';
 import {
   buildFilteredIndices,
   computeKPIs,
+  computeKPIsForPeriod,
   computeMonthlySales,
   computeRegionSales,
   computeProductSales,
   computeSalesmanPerformance,
   computeChannelSales,
+  stringToDayIndex,
 } from '@/lib/salesDataUtils';
 
 async function fetchSalesData(): Promise<SalesDataset> {
@@ -75,6 +77,49 @@ export function useFilteredSalesData() {
     return computeKPIs(dataset, indices);
   }, [dataset, indices]);
 
+  const periodComparison = useMemo(() => {
+    if (!dataset) return null;
+
+    const dimensionFilters = {
+      regions: filters.regions,
+      channels: filters.channels,
+      branches: filters.branches,
+      cities: filters.cities,
+      categories: filters.categories,
+      managers: filters.managers,
+      nsms: filters.nsms,
+      salesmen: filters.salesmen,
+      customers: filters.customers,
+      skus: filters.skus,
+    };
+
+    if (filters.dateFrom && filters.dateTo) {
+      const curFrom = stringToDayIndex(filters.dateFrom);
+      const curTo = stringToDayIndex(filters.dateTo);
+      const periodLength = curTo - curFrom;
+      const prevTo = curFrom - 1;
+      const prevFrom = prevTo - periodLength;
+      return {
+        currentPeriodKpis: kpis, // when date filter is set, kpis already reflects the current period
+        previousKpis: computeKPIsForPeriod(dataset, prevFrom, prevTo, dimensionFilters),
+      };
+    }
+
+    // No date filter: compare last 30 days vs 30 days before that
+    const refDay = stringToDayIndex(dataset.meta.dateMax);
+    const curTo = refDay;
+    const curFrom = refDay - 29;
+    const prevTo = curFrom - 1;
+    const prevFrom = prevTo - 29;
+
+    return {
+      currentPeriodKpis: computeKPIsForPeriod(dataset, curFrom, curTo, dimensionFilters),
+      previousKpis: computeKPIsForPeriod(dataset, prevFrom, prevTo, dimensionFilters),
+    };
+  }, [dataset, kpis, filters.dateFrom, filters.dateTo, filters.regions, filters.channels,
+      filters.branches, filters.cities, filters.categories, filters.managers,
+      filters.nsms, filters.salesmen, filters.customers, filters.skus]);
+
   const monthlySales = useMemo(() => {
     if (!dataset) return [];
     return computeMonthlySales(dataset, indices);
@@ -106,6 +151,8 @@ export function useFilteredSalesData() {
     error,
     indices,
     kpis,
+    previousKpis: periodComparison?.previousKpis ?? null,
+    currentPeriodKpis: periodComparison?.currentPeriodKpis ?? null,
     monthlySales,
     regionSales,
     productSales,

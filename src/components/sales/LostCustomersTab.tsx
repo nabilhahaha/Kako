@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import type { SalesDataset } from '@/lib/salesTypes';
 import { formatSAR, formatNumber, stringToDayIndex } from '@/lib/salesDataUtils';
+import { exportTableToExcel } from '@/lib/excelExport';
 
 interface Props { dataset: SalesDataset }
 
@@ -46,6 +47,16 @@ export function LostCustomersTab({ dataset }: Props) {
     return { lost, critical, high, recoverable, totalRev, avgDays };
   }, [dataset, threshold]);
 
+  const handleExport = useCallback(() => {
+    const headers = ['#', 'Risk', 'Customer', 'Channel', 'Branch', 'Salesman', 'Last Order', 'Days Inactive', 'Revenue (SAR)'];
+    const rows = analysis.lost.slice(0, 500).map((c, idx) => [
+      idx + 1, c.risk, c.name, c.channel, c.branch, c.salesman,
+      c.lastDate, c.daysInactive,
+      Math.round(c.totalSales * 100) / 100,
+    ]);
+    exportTableToExcel(headers, rows, 'Roshen_LostCustomers');
+  }, [analysis.lost]);
+
   const riskBadge = (r: string) =>
     r === 'critical' ? '🔴' : r === 'high' ? '🟠' : '🟡';
 
@@ -85,7 +96,10 @@ export function LostCustomersTab({ dataset }: Props) {
       <div className="bg-card rounded-xl border overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between">
           <h3 className="text-sm font-bold">👥 Lost Customers (top 500 by revenue)</h3>
-          <span className="text-xs text-muted-foreground">Avg {analysis.avgDays} days inactive</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">Avg {analysis.avgDays} days inactive</span>
+            <button onClick={handleExport} className="dash-btn-ghost !h-7 !px-2.5 !text-[11px]">📥 Export</button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="dash-table">

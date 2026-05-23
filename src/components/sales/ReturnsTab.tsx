@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import type { SalesDataset } from '@/lib/salesTypes';
 import { formatSAR, formatNumber, formatPercent } from '@/lib/salesDataUtils';
+import { exportTableToExcel } from '@/lib/excelExport';
 
 const COLORS = ['#EF4444', '#F59E0B', '#8B5CF6', '#3B82F6', '#10B981', '#EC4899', '#06B6D4', '#F97316'];
 const sarFmt = (v: unknown) => [formatSAR(Number(v)), 'Value'];
@@ -75,6 +76,17 @@ export function ReturnsTab({ dataset, indices }: Props) {
     };
   }, [dataset, indices]);
 
+  const handleExportCustomers = useCallback(() => {
+    const headers = ['#', 'Name', 'Value (SAR)', 'Cases', 'Share %'];
+    const rows = analysis.topCustomers.map((item, idx) => [
+      idx + 1, item.name,
+      Math.round(item.val * 100) / 100,
+      item.cases,
+      analysis.returnsVal > 0 ? Math.round((item.val / analysis.returnsVal) * 1000) / 10 : 0,
+    ]);
+    exportTableToExcel(headers, rows, 'Roshen_Returns');
+  }, [analysis.topCustomers, analysis.returnsVal]);
+
   const rateColor = analysis.rate > 20 ? 'text-red-600' : analysis.rate > 10 ? 'text-orange-500' : 'text-green-600';
   const rateLabel = analysis.rate > 20 ? '🔴 Critical' : analysis.rate > 10 ? '🟠 High' : '🟢 Healthy';
 
@@ -131,12 +143,15 @@ export function ReturnsTab({ dataset, indices }: Props) {
       </div>
 
       {[
-        { title: '👥 Top Return Customers', data: analysis.topCustomers },
-        { title: '🍫 Top Return SKUs', data: analysis.topSKUs },
-        { title: '👤 Top Return Salesmen', data: analysis.topSalesmen },
-      ].map(({ title, data: items }) => (
+        { title: '👥 Top Return Customers', data: analysis.topCustomers, exportFn: handleExportCustomers },
+        { title: '🍫 Top Return SKUs', data: analysis.topSKUs, exportFn: undefined },
+        { title: '👤 Top Return Salesmen', data: analysis.topSalesmen, exportFn: undefined },
+      ].map(({ title, data: items, exportFn }) => (
         <div key={title} className="bg-card rounded-xl border overflow-hidden">
-          <div className="p-4 border-b"><h3 className="text-sm font-bold">{title}</h3></div>
+          <div className="p-4 border-b flex items-center justify-between">
+            <h3 className="text-sm font-bold">{title}</h3>
+            {exportFn && <button onClick={exportFn} className="dash-btn-ghost !h-7 !px-2.5 !text-[11px]">📥 Export</button>}
+          </div>
           <table className="w-full text-sm">
             <thead><tr className="bg-muted/50">
               <th className="text-start px-4 py-2 font-semibold">#</th>

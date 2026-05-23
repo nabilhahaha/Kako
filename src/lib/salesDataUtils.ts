@@ -76,6 +76,65 @@ export function buildFilteredIndices(
   return new Uint32Array(result);
 }
 
+export function computeKPIsForPeriod(
+  ds: SalesDataset,
+  fromDayIdx: number,
+  toDayIdx: number,
+  dimensionFilters?: {
+    regions?: number[];
+    channels?: number[];
+    branches?: number[];
+    cities?: number[];
+    categories?: number[];
+    managers?: number[];
+    nsms?: number[];
+    salesmen?: number[];
+    customers?: number[];
+    skus?: number[];
+  }
+): KPIData {
+  const { data, customers, skus } = ds;
+  const len = data.cu.length;
+
+  const regionSet = dimensionFilters?.regions?.length ? new Set(dimensionFilters.regions) : null;
+  const channelSet = dimensionFilters?.channels?.length ? new Set(dimensionFilters.channels) : null;
+  const branchSet = dimensionFilters?.branches?.length ? new Set(dimensionFilters.branches) : null;
+  const citySet = dimensionFilters?.cities?.length ? new Set(dimensionFilters.cities) : null;
+  const categorySet = dimensionFilters?.categories?.length ? new Set(dimensionFilters.categories) : null;
+  const managerSet = dimensionFilters?.managers?.length ? new Set(dimensionFilters.managers) : null;
+  const nsmSet = dimensionFilters?.nsms?.length ? new Set(dimensionFilters.nsms) : null;
+  const salesmanSet = dimensionFilters?.salesmen?.length ? new Set(dimensionFilters.salesmen) : null;
+  const customerSet = dimensionFilters?.customers?.length ? new Set(dimensionFilters.customers) : null;
+  const skuSet = dimensionFilters?.skus?.length ? new Set(dimensionFilters.skus) : null;
+
+  const filteredIndices: number[] = [];
+
+  for (let i = 0; i < len; i++) {
+    const d = data.d[i];
+    if (d < fromDayIdx || d > toDayIdx) continue;
+
+    const cuIdx = data.cu[i];
+    const cu = customers[cuIdx];
+
+    if (regionSet && !regionSet.has(cu.rg)) continue;
+    if (channelSet && !channelSet.has(cu.ch)) continue;
+    if (branchSet && !branchSet.has(cu.br)) continue;
+    if (citySet && !citySet.has(cu.ci)) continue;
+    if (managerSet && !managerSet.has(cu.mg)) continue;
+    if (nsmSet && !nsmSet.has(cu.nsm)) continue;
+    if (salesmanSet && !salesmanSet.has(data.sm[i])) continue;
+    if (customerSet && !customerSet.has(cuIdx)) continue;
+
+    const skIdx = data.sk[i];
+    if (categorySet && !categorySet.has(skus[skIdx].c)) continue;
+    if (skuSet && !skuSet.has(skIdx)) continue;
+
+    filteredIndices.push(i);
+  }
+
+  return computeKPIs(ds, new Uint32Array(filteredIndices));
+}
+
 export function computeKPIs(ds: SalesDataset, indices: Uint32Array): KPIData {
   const { data } = ds;
   let totalSales = 0;

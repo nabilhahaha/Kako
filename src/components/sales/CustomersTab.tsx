@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import type { SalesDataset } from '@/lib/salesTypes';
 import { formatSAR, formatNumber } from '@/lib/salesDataUtils';
+import { exportTableToExcel } from '@/lib/excelExport';
 
 interface Props {
   dataset: SalesDataset;
@@ -57,6 +58,17 @@ export function CustomersTab({ dataset, indices }: Props) {
   const totalSales = customers.reduce((s, c) => s + c.sales, 0);
   const visible = customers.slice(0, showCount);
 
+  const handleExport = useCallback(() => {
+    const headers = ['#', 'Customer', 'Account', 'Channel', 'Branch', 'Sales (SAR)', 'Returns (SAR)', 'Qty', 'Orders'];
+    const rows = customers.map((c, idx) => [
+      idx + 1, c.name, c.acct, c.channel, c.branch,
+      Math.round(c.sales * 100) / 100,
+      Math.round(c.returns * 100) / 100,
+      c.qty, c.orders,
+    ]);
+    exportTableToExcel(headers, rows, 'Roshen_Customers');
+  }, [customers]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
@@ -81,6 +93,10 @@ export function CustomersTab({ dataset, indices }: Props) {
       </div>
 
       <div className="bg-card rounded-xl border overflow-hidden">
+        <div className="p-4 border-b flex items-center justify-between">
+          <h3 className="text-sm font-bold">📋 Customer List</h3>
+          <button onClick={handleExport} className="dash-btn-ghost !h-7 !px-2.5 !text-[11px]">📥 Export</button>
+        </div>
         <div className="overflow-x-auto">
           <table className="dash-table">
             <thead>

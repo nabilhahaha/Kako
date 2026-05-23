@@ -1,8 +1,10 @@
+import { useCallback } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import type { SalesmanPerformance } from '@/lib/salesTypes';
 import { formatSAR, formatNumber } from '@/lib/salesDataUtils';
+import { exportTableToExcel } from '@/lib/excelExport';
 
 const sarFormatter = (value: unknown) => [formatSAR(Number(value)), 'Sales'];
 
@@ -12,6 +14,17 @@ interface Props {
 
 export function SalesTeamTab({ salesmanPerformance }: Props) {
   const top20 = salesmanPerformance.slice(0, 20);
+
+  const handleExport = useCallback(() => {
+    const headers = ['#', 'Salesman', 'Sales (SAR)', 'Qty', 'Customers', 'Orders', 'Avg Order'];
+    const rows = salesmanPerformance.map((sm, idx) => [
+      idx + 1, sm.name,
+      Math.round(sm.sales * 100) / 100,
+      sm.qty, sm.customers, sm.invoices,
+      Math.round(sm.avgOrderValue * 100) / 100,
+    ]);
+    exportTableToExcel(headers, rows, 'Roshen_SalesTeam');
+  }, [salesmanPerformance]);
 
   return (
     <div className="space-y-4">
@@ -37,8 +50,9 @@ export function SalesTeamTab({ salesmanPerformance }: Props) {
       </div>
 
       <div className="bg-card rounded-xl border overflow-hidden">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b flex items-center justify-between">
           <h3 className="text-sm font-bold text-foreground">📋 Full Sales Team</h3>
+          <button onClick={handleExport} className="dash-btn-ghost !h-7 !px-2.5 !text-[11px]">📥 Export</button>
         </div>
         <div className="overflow-x-auto">
           <table className="dash-table">

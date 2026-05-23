@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useFilteredSalesData } from '@/hooks/useSalesData';
 import { SalesKPIGrid } from '@/components/sales/SalesKPIGrid';
+import { SmartAlerts } from '@/components/sales/SmartAlerts';
 import { SalesFilterBar } from '@/components/sales/SalesFilterBar';
 import { OverviewTab } from '@/components/sales/OverviewTab';
 import { TrendTab } from '@/components/sales/TrendTab';
@@ -52,7 +53,7 @@ export function SalesDashboardPage() {
   const { lang, toggle: toggleLang } = useLangStore();
   const { theme, toggle: toggleTheme } = useThemeStore();
   const {
-    dataset, isLoading, error, indices, kpis,
+    dataset, isLoading, error, indices, kpis, previousKpis, currentPeriodKpis,
     monthlySales, regionSales, productSales, salesmanPerformance, channelSales,
   } = useFilteredSalesData();
 
@@ -178,7 +179,8 @@ ${contentRef.current.innerHTML}
       {/* ═══ Body ═══ */}
       <main className="max-w-[1440px] mx-auto px-4 py-3 space-y-3">
         <SalesFilterBar dataset={dataset} />
-        <SalesKPIGrid kpis={kpis} />
+        <SalesKPIGrid kpis={kpis} previousKpis={previousKpis} currentPeriodKpis={currentPeriodKpis} />
+        <SmartAlerts dataset={dataset} indices={indices} />
 
         {/* ═══ Tab Bar ═══ */}
         <nav className="dash-card px-1 py-1 flex items-center gap-px overflow-x-auto scrollbar-hide">
