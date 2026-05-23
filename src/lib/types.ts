@@ -1,246 +1,157 @@
-export type UserRole =
-  | 'admin_relia'
-  | 'presales_rep'
-  | 'presales_supervisor'
-  | 'cashvan_supervisor'
-  | 'regional_manager_roshen'
-  | 'trade_marketing_manager'
-  | 'top_management_relia'
-  | 'top_management_roshen';
+export type UserRole = 'admin' | 'manager' | 'supervisor' | 'merchandiser' | 'data_team';
 
 export interface AppUser {
   id: string;
+  username: string;
+  fullName: string;
+  role: UserRole;
   email: string;
-  full_name: string | null;
-  user_type: UserRole | null;
-  region: string | null;
-  supervisor_id: string | null;
-  is_active: boolean;
+  phone: string;
+  city: string;
+  supervisorId?: string;
+  managerId?: string;
+  isActive: boolean;
 }
 
-export type CustomerGrade = 'A' | 'B' | 'C';
+export type Channel = 'Supermarket' | 'Grocery' | 'Wholesale' | 'Key Account' | 'Mini Market';
 
-export type ChannelType = 'TT' | 'WS' | 'DS' | 'MT' | 'SW';
+export type CustomerStatus = 'Active' | 'Inactive' | 'Suspended';
 
 export interface Customer {
   id: string;
-  customer_code: string;
-  customer_name: string | null;
-  customer_name_ar: string | null;
-  channel_type: ChannelType | string | null;
-  customer_grade: CustomerGrade | string | null;
-  latitude: number | null;
-  longitude: number | null;
-  total_debt: number | null;
-  overdue_amount: number | null;
-  region: string | null;
-  assigned_rep_id: string | null;
+  customerCode: string;
+  customerName: string;
+  channel: Channel;
+  city: string;
+  route: string;
+  salesmanId: string;
+  supervisorId: string;
+  latitude: number;
+  longitude: number;
+  crNumber: string;
+  vatNumber: string;
+  nationalAddress: string;
+  phone: string;
+  status: CustomerStatus;
 }
 
-export type VisitType = 'office' | 'branch' | 'cashvan' | 'hybrid';
+export type VisitPurpose =
+  | 'Regular Visit'
+  | 'Merchandising'
+  | 'Collection'
+  | 'Order'
+  | 'Market Survey'
+  | 'Data Update'
+  | 'Out of Location Request';
+
+export type VisitStatus = 'Completed' | 'In Progress' | 'Missed' | 'Out of Location';
 
 export interface Visit {
   id: string;
-  customer_id: string;
-  user_id: string;
-  visit_type: VisitType | string;
-  visited_at: string;
-  latitude: number | null;
-  longitude: number | null;
-  notes: string | null;
-  status: string | null;
+  customerId: string;
+  userId: string;
+  purpose: VisitPurpose;
+  status: VisitStatus;
+  notes: string;
+  photoUrl?: string;
+  userLatitude: number;
+  userLongitude: number;
+  customerLatitude: number;
+  customerLongitude: number;
+  distance: number;
+  withinRadius: boolean;
+  createdAt: string;
 }
 
-export interface SalesmanDashboard {
-  strike_rate: number | null;
-  drop_size: number | null;
-  coverage_percent: number | null;
-  performance_status: string | null;
-}
+export type RequestStatus = 'Pending' | 'Approved' | 'Rejected';
 
-export interface Customer360 {
-  customer_id: string;
-  customer_code: string;
-  customer_name: string | null;
-  customer_name_ar: string | null;
-  channel_type: string | null;
-  customer_grade: string | null;
-  health_score: number | null;
-  recommended_action: string | null;
-  total_debt: number | null;
-  overdue_amount: number | null;
-  total_visits: number | null;
-  days_since_last_visit: number | null;
-  latitude: number | null;
-  longitude: number | null;
-}
-
-export interface VisitReason {
+export interface OutOfLocationRequest {
   id: string;
-  label: string;
-  label_ar: string | null;
-  applies_to: string | null;
-  is_active: boolean | null;
+  visitId: string;
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  userId: string;
+  userName: string;
+  actualLatitude: number;
+  actualLongitude: number;
+  registeredLatitude: number;
+  registeredLongitude: number;
+  distance: number;
+  reason: string;
+  photoProof?: string;
+  status: RequestStatus;
+  managerComment: string;
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
 }
 
-export interface Product {
+export type DataUpdateType =
+  | 'CR Number'
+  | 'VAT Number'
+  | 'National Address'
+  | 'Phone Number'
+  | 'Customer Name'
+  | 'GPS Location'
+  | 'Channel';
+
+export interface DataUpdateRequest {
   id: string;
-  product_code: string;
-  product_name: string;
-  product_name_ar: string | null;
-  category: string | null;
-  is_active: boolean | null;
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  userId: string;
+  userName: string;
+  updateType: DataUpdateType;
+  oldValue: string;
+  newValue: string;
+  attachment?: string;
+  notes: string;
+  status: RequestStatus;
+  approverRole: UserRole;
+  approverComment: string;
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
 }
 
-export interface NearExpiryRecord {
-  id: string;
-  product_id: string;
-  customer_id: string;
-  reported_by: string;
-  quantity: number;
-  expiry_date: string;
-  notes: string | null;
-  status: string | null;
-  photo_url: string | null;
-  created_at: string;
+export interface ApprovalRouting {
+  updateType: DataUpdateType;
+  approverRole: UserRole;
 }
 
-export interface GPSCoords {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  capturedAt: string;
+export interface AppSettings {
+  allowedGpsRadius: number;
+  visitPhotoRequired: boolean;
+  mandatoryNotes: boolean;
+  visitPurposes: VisitPurpose[];
+  cities: string[];
+  routes: string[];
+  approvalRouting: ApprovalRouting[];
 }
 
-export interface TeamMemberPerformance {
-  user_id: string;
-  full_name: string | null;
-  email: string | null;
-  strike_rate: number | null;
-  drop_size: number | null;
-  coverage_percent: number | null;
-  performance_status: string | null;
-  total_visits: number | null;
-  last_visit_at: string | null;
-}
-
-export interface VisitRequest {
-  id: string;
-  created_by: string;
-  assigned_to: string;
-  customer_id: string;
-  notes: string | null;
-  due_date: string | null;
-  status: string | null;
-  created_at: string;
-}
-
-export interface FinancialDataRequest {
-  id: string;
-  requested_by: string;
-  customer_id: string;
-  expires_at: string;
-  payload: Record<string, unknown> | null;
-  status: string | null;
-  created_at: string;
-}
-
-export interface NearExpiryApproval {
-  id: string;
-  record_id: string;
-  approver_id: string;
-  stage: string | null;
-  decision: 'approved' | 'rejected' | null;
-  notes: string | null;
-  created_at: string;
-}
-
-export type PromotionStatus =
-  | 'draft'
-  | 'active'
-  | 'paused'
-  | 'completed'
-  | 'cancelled';
-
-export interface Promotion {
-  id: string;
-  name: string;
-  name_ar: string | null;
-  status: PromotionStatus;
-  start_date: string;
-  end_date: string;
-  channel_types: string[];
-  product_ids: string[];
-  expected_roi: number | null;
-  actual_roi: number | null;
-  trade_spend: number | null;
-  notes: string | null;
-  created_by: string | null;
-  created_at: string;
-}
-
-export interface RegionStats {
-  region: string;
-  customers: number;
-  active_customers: number;
-  coverage_percent: number;
-  visits_30d: number;
-  overdue_count: number;
-}
-
-export interface ChannelStats {
-  channel: string;
-  customers: number;
-  visits_30d: number;
-  total_debt: number;
-  overdue_amount: number;
-}
-
-export interface NearExpiryAggregate {
-  status: string;
-  count: number;
-  total_quantity: number;
-}
+export type AuditAction =
+  | 'visit_submitted'
+  | 'request_created'
+  | 'request_approved'
+  | 'request_rejected'
+  | 'customer_gps_updated'
+  | 'customer_data_changed'
+  | 'customer_created'
+  | 'user_login'
+  | 'settings_changed';
 
 export interface AuditLog {
   id: string;
-  actor_id: string | null;
-  action: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  role: UserRole;
+  action: AuditAction;
   entity: string;
-  entity_id: string | null;
-  metadata: Record<string, unknown> | null;
-  created_at: string;
-}
-
-export interface RawDataMapping {
-  id: string;
-  source: string;
-  target_field: string;
-  source_field: string;
-  is_active: boolean | null;
-  created_at: string;
-}
-
-export interface ExecutiveKPIs {
-  totalRevenue30d: number;
-  totalRevenuePrev30d: number;
-  totalVisits30d: number;
-  totalVisitsPrev30d: number;
-  totalCustomers: number;
-  activeCustomers30d: number;
-  totalReps: number;
-  coveragePercent: number;
-  totalOverdue: number;
-  totalDebt: number;
-  pendingApprovals: number;
-  atRiskQuantity: number;
-}
-
-export interface Anomaly {
-  id: string;
-  severity: 'high' | 'medium' | 'low';
-  metric: string;
-  message: string;
-  detected_at: string;
-  delta_percent: number;
+  entityId: string;
+  oldValue: string;
+  newValue: string;
+  status: string;
 }

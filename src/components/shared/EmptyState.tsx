@@ -1,35 +1,17 @@
-import type { LucideIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-
 interface EmptyStateProps {
-  icon?: LucideIcon;
+  icon: React.ReactNode;
   title: string;
-  description?: string;
-  actionLabel?: string;
-  onAction?: () => void;
+  description: string;
+  action?: React.ReactNode;
 }
 
-export function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  actionLabel,
-  onAction,
-}: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
-      {Icon && (
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <Icon className="h-6 w-6" />
-        </div>
-      )}
-      <h3 className="text-h3 text-foreground">{title}</h3>
-      {description && <p className="max-w-md text-sm text-muted-foreground">{description}</p>}
-      {actionLabel && onAction && (
-        <Button onClick={onAction} className="mt-2">
-          {actionLabel}
-        </Button>
-      )}
+    <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-12 text-center dark:border-gray-600">
+      <div className="mb-4 text-gray-400">{icon}</div>
+      <h3 className="mb-1 text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+      <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">{description}</p>
+      {action}
     </div>
   );
 }

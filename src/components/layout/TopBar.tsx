@@ -1,56 +1,73 @@
-import { LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { signOut } from '@/hooks/useAuth';
-import { ROLE_LABELS_AR } from '@/lib/permissions';
-import { initialsFromEmail } from '@/lib/utils';
+import { Menu, Bell, Moon, Sun } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { useAppStore } from '@/stores/appStore';
+import { ROLE_LABELS } from '@/lib/permissions';
 
-export function TopBar() {
-  const navigate = useNavigate();
-  const profile = useAuthStore((s) => s.profile);
-  const session = useAuthStore((s) => s.session);
+interface TopBarProps {
+  onMenuToggle?: () => void;
+}
 
-  const email = profile?.email ?? session?.user?.email ?? '';
-  const fullName = profile?.full_name ?? email;
-  const roleLabel = profile?.user_type ? ROLE_LABELS_AR[profile.user_type] : 'مستخدم';
-
-  async function handleLogout() {
-    await signOut();
-    toast.success('تم تسجيل الخروج');
-    navigate('/login', { replace: true });
-  }
+export default function TopBar({ onMenuToggle }: TopBarProps) {
+  const { user } = useAuthStore();
+  const { darkMode, toggleDarkMode } = useAppStore();
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-card/95 px-4 backdrop-blur lg:px-6">
+    <header className="flex items-center justify-between h-16 px-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shrink-0">
+      {/* Left: Hamburger + Title */}
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <span className="text-sm font-bold">FS</span>
-        </div>
-        <div className="hidden sm:block">
-          <p className="text-h3 leading-tight text-foreground">FieldSync</p>
-          <p className="text-caption">Roshen × Relia</p>
-        </div>
+        <button
+          onClick={onMenuToggle}
+          className="lg:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="Toggle menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <h1 className="text-lg font-semibold text-gray-900 dark:text-white hidden sm:block">
+          FMCG Field Force Pro
+        </h1>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="hidden text-end sm:block">
-          <p className="text-sm font-medium text-foreground leading-tight">{fullName}</p>
-          <Badge variant="secondary" className="mt-1 font-normal">
-            {roleLabel}
-          </Badge>
-        </div>
-        <Avatar className="h-9 w-9 border border-border">
-          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-            {initialsFromEmail(email)}
-          </AvatarFallback>
-        </Avatar>
-        <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="تسجيل الخروج">
-          <LogOut className="h-4 w-4" />
-        </Button>
+      {/* Right: Actions */}
+      <div className="flex items-center gap-2">
+        {/* Dark Mode Toggle (mobile) */}
+        <button
+          onClick={toggleDarkMode}
+          className="lg:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="Toggle dark mode"
+        >
+          {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+
+        {/* Notifications */}
+        <button
+          className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors relative"
+          aria-label="Notifications"
+        >
+          <Bell className="w-5 h-5" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+        </button>
+
+        {/* User Info */}
+        {user && (
+          <div className="flex items-center gap-2 ml-2">
+            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-semibold shrink-0">
+              {user.fullName
+                .split(' ')
+                .map((n) => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2)}
+            </div>
+            <div className="hidden md:block">
+              <p className="text-sm font-medium text-gray-900 dark:text-white leading-tight">
+                {user.fullName}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">
+                {ROLE_LABELS[user.role]}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );

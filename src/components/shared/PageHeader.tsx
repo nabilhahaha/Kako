@@ -1,43 +1,17 @@
-import type { ReactNode } from 'react';
-import { ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-
 interface PageHeaderProps {
   title: string;
-  description?: string;
-  actions?: ReactNode;
-  back?: boolean | string;
+  subtitle?: string;
+  action?: React.ReactNode;
 }
 
-export function PageHeader({ title, description, actions, back }: PageHeaderProps) {
-  const navigate = useNavigate();
-
-  function handleBack() {
-    if (typeof back === 'string') navigate(back);
-    else navigate(-1);
-  }
-
+export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-start gap-3">
-        {back && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleBack}
-            aria-label="رجوع"
-            className="mt-0.5 shrink-0"
-          >
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        )}
-        <div className="space-y-1">
-          <h1 className="text-h1 text-foreground">{title}</h1>
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
-        </div>
+    <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{title}</h1>
+        {subtitle && <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {action && <div className="flex-shrink-0">{action}</div>}
     </div>
   );
 }

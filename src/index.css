@@ -13,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 0 72% 51%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96%;
@@ -39,9 +39,39 @@
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 0 72% 51%;
+    --ring: 217 91% 60%;
 
     --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 47% 14%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 222 47% 14%;
+    --muted-foreground: 220 9% 60%;
+
+    --accent: 222 47% 14%;
+    --accent-foreground: 210 40% 96%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 47% 18%;
+    --input: 222 47% 18%;
+    --ring: 217 91% 60%;
   }
 
   * {
@@ -55,16 +85,8 @@
   }
 
   body {
-    @apply bg-background text-foreground font-arabic;
-    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
-  }
-
-  [dir='rtl'] body {
-    @apply font-arabic;
-  }
-
-  [dir='ltr'] body {
-    @apply font-sans;
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 
   :focus-visible {
@@ -72,8 +94,8 @@
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -86,26 +108,5 @@
 
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/40;
-  }
-}
-
-@layer utilities {
-  .text-display {
-    @apply text-[32px] leading-10 font-bold tracking-tight;
-  }
-  .text-h1 {
-    @apply text-2xl font-semibold tracking-tight;
-  }
-  .text-h2 {
-    @apply text-xl font-semibold;
-  }
-  .text-h3 {
-    @apply text-base font-medium;
-  }
-  .text-body {
-    @apply text-sm;
-  }
-  .text-caption {
-    @apply text-xs text-muted-foreground;
   }
 }

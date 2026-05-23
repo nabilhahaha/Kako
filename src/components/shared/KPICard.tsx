@@ -1,50 +1,40 @@
-import type { LucideIcon } from 'lucide-react';
-import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 interface KPICardProps {
-  label: string;
+  title: string;
   value: string | number;
-  hint?: string;
-  icon?: LucideIcon;
-  tone?: 'default' | 'success' | 'warning' | 'danger' | 'info';
-  loading?: boolean;
+  icon: React.ReactNode;
+  trend?: { value: number; label: string };
+  color?: 'blue' | 'green' | 'red' | 'orange' | 'purple' | 'cyan';
+  className?: string;
 }
 
-const TONE_BG: Record<NonNullable<KPICardProps['tone']>, string> = {
-  default: 'bg-muted text-muted-foreground',
-  success: 'bg-success/10 text-success',
-  warning: 'bg-warning/10 text-warning',
-  danger: 'bg-destructive/10 text-destructive',
-  info: 'bg-info/10 text-info',
+const colorMap = {
+  blue: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+  green: 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400',
+  red: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+  orange: 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
+  purple: 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+  cyan: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400',
 };
 
-export function KPICard({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  tone = 'default',
-  loading,
-}: KPICardProps) {
+export function KPICard({ title, value, icon, trend, color = 'blue', className }: KPICardProps) {
   return (
-    <Card className="p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-2 min-w-0">
-          <p className="text-caption uppercase tracking-wide">{label}</p>
-          {loading ? (
-            <div className="h-9 w-24 animate-pulse rounded-md bg-muted" />
-          ) : (
-            <p className="text-display tabular-nums text-foreground">{value}</p>
+    <div className={cn('rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800', className)}>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{title}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
+          {trend && (
+            <p className={cn('text-xs font-medium', trend.value >= 0 ? 'text-green-600' : 'text-red-600')}>
+              {trend.value >= 0 ? '+' : ''}{trend.value}% {trend.label}
+            </p>
           )}
-          {hint && <p className="text-caption">{hint}</p>}
         </div>
-        {Icon && (
-          <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg', TONE_BG[tone])}>
-            <Icon className="h-5 w-5" />
-          </div>
-        )}
+        <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg', colorMap[color])}>
+          {icon}
+        </div>
       </div>
-    </Card>
+    </div>
   );
 }

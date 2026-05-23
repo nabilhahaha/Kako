@@ -1,33 +1,36 @@
 import type { UserRole } from './types';
 
-export const ROLE_LABELS_AR: Record<UserRole, string> = {
-  admin_relia: 'مشرف النظام',
-  presales_rep: 'مندوب مبيعات',
-  presales_supervisor: 'مشرف مبيعات',
-  cashvan_supervisor: 'مشرف الكاش فان',
-  regional_manager_roshen: 'مدير إقليمي',
-  trade_marketing_manager: 'مدير التسويق التجاري',
-  top_management_relia: 'الإدارة العليا - ريليا',
-  top_management_roshen: 'الإدارة العليا - روشن',
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Admin',
+  manager: 'Sales Manager',
+  supervisor: 'Supervisor',
+  merchandiser: 'Merchandiser',
+  data_team: 'Data Team',
 };
 
 export const ROLE_HOME: Record<UserRole, string> = {
-  admin_relia: '/admin',
-  presales_rep: '/salesman',
-  presales_supervisor: '/supervisor',
-  cashvan_supervisor: '/supervisor',
-  regional_manager_roshen: '/regional',
-  trade_marketing_manager: '/trade-marketing',
-  top_management_relia: '/executive',
-  top_management_roshen: '/executive',
+  admin: '/dashboard',
+  manager: '/dashboard',
+  supervisor: '/dashboard',
+  merchandiser: '/visits',
+  data_team: '/dashboard',
 };
 
-export function homeForRole(role: UserRole | null | undefined): string {
-  if (!role) return '/unauthorized';
-  return ROLE_HOME[role] ?? '/unauthorized';
+export function homeForRole(role?: UserRole | null): string {
+  if (!role) return '/login';
+  return ROLE_HOME[role] ?? '/login';
 }
 
-export function hasRole(userRole: UserRole | null | undefined, allowed: UserRole[]): boolean {
-  if (!userRole) return false;
-  return allowed.includes(userRole);
+export function canAccessModule(role: UserRole, module: string): boolean {
+  const access: Record<string, UserRole[]> = {
+    dashboard: ['admin', 'manager', 'supervisor', 'merchandiser', 'data_team'],
+    customers: ['admin', 'manager', 'supervisor', 'merchandiser', 'data_team'],
+    visits: ['admin', 'manager', 'supervisor', 'merchandiser'],
+    approvals: ['admin', 'manager', 'data_team'],
+    'data-requests': ['admin', 'manager', 'supervisor', 'merchandiser', 'data_team'],
+    reports: ['admin', 'manager', 'supervisor', 'data_team'],
+    settings: ['admin'],
+    audit: ['admin', 'manager'],
+  };
+  return (access[module] ?? []).includes(role);
 }
