@@ -473,6 +473,29 @@ export function ReportsPage() {
               <EmptyState icon={<FileBarChart className="h-12 w-12" />} title="No visits found" description="Adjust filters or date range." />
             ) : (
               <>
+                {/* Mobile cards */}
+                <div className="space-y-3 md:hidden">
+                  {paginate(visitReportData, vrPage).paged.map((v) => {
+                    const c = getCustomer(v.customerId);
+                    return (
+                      <div key={v.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                        <div className="mb-2 flex items-start justify-between">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{c?.customerName ?? 'Unknown'}</p>
+                          <StatusBadge status={v.status} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                          <div><span className="text-gray-500 dark:text-gray-400">Date: </span><span className="text-gray-700 dark:text-gray-300">{formatDateTime(v.createdAt)}</span></div>
+                          <div><span className="text-gray-500 dark:text-gray-400">City: </span><span className="text-gray-700 dark:text-gray-300">{c?.city ?? ''}</span></div>
+                          <div><span className="text-gray-500 dark:text-gray-400">Salesman: </span><span className="text-gray-700 dark:text-gray-300">{getUserName(v.userId)}</span></div>
+                          <div><span className="text-gray-500 dark:text-gray-400">GPS: </span><span className="text-gray-700 dark:text-gray-300">{v.distance}m</span></div>
+                          <div className="col-span-2"><span className="text-gray-500 dark:text-gray-400">Purpose: </span><span className="text-gray-700 dark:text-gray-300">{v.purpose}</span></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Desktop table */}
+                <div className="hidden md:block">
                 <TableWrap>
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
@@ -496,6 +519,7 @@ export function ReportsPage() {
                     })}
                   </tbody>
                 </TableWrap>
+                </div>
                 <PaginationBar page={vrPage} totalPages={paginate(visitReportData, vrPage).totalPages} total={visitReportData.length} setPage={setVrPage} />
               </>
             )}
@@ -514,6 +538,28 @@ export function ReportsPage() {
               <EmptyState icon={<FileBarChart className="h-12 w-12" />} title="No missed visits" description="No missed visits in the selected date range." />
             ) : (
               <>
+                {/* Mobile cards */}
+                <div className="space-y-3 md:hidden">
+                  {paginate(missedVisitData, mvPage).paged.map((v) => {
+                    const c = getCustomer(v.customerId);
+                    return (
+                      <div key={v.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                        <div className="mb-2 flex items-start justify-between">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{c?.customerName ?? 'Unknown'}</p>
+                          <StatusBadge status={v.status} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                          <div><span className="text-gray-500 dark:text-gray-400">Date: </span><span className="text-gray-700 dark:text-gray-300">{formatDateTime(v.createdAt)}</span></div>
+                          <div><span className="text-gray-500 dark:text-gray-400">Salesman: </span><span className="text-gray-700 dark:text-gray-300">{getUserName(v.userId)}</span></div>
+                          <div><span className="text-gray-500 dark:text-gray-400">GPS: </span><span className="text-gray-700 dark:text-gray-300">{v.distance}m</span></div>
+                          <div><span className="text-gray-500 dark:text-gray-400">City: </span><span className="text-gray-700 dark:text-gray-300">{c?.city ?? ''}</span></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Desktop table */}
+                <div className="hidden md:block">
                 <TableWrap>
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
@@ -537,6 +583,7 @@ export function ReportsPage() {
                     })}
                   </tbody>
                 </TableWrap>
+                </div>
                 <PaginationBar page={mvPage} totalPages={paginate(missedVisitData, mvPage).totalPages} total={missedVisitData.length} setPage={setMvPage} />
               </>
             )}
