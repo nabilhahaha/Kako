@@ -1,114 +1,58 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Shield,
-  Briefcase,
-  Users,
-  ShoppingCart,
-  Database,
-  Crown,
-  Eye,
-  EyeOff,
-} from 'lucide-react';
+import { Crown, LogIn, ChevronDown, User } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useAppStore } from '@/stores/appStore';
-import { mockUsers, roleCredentials } from '@/data/mockData';
-import { homeForRole } from '@/lib/permissions';
-import type { UserRole } from '@/lib/types';
-
-/* ------------------------------------------------------------------ */
-/*  Role definitions                                                   */
-/* ------------------------------------------------------------------ */
-
-const roles: {
-  key: string;
-  role: UserRole;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-}[] = [
-  {
-    key: 'admin',
-    role: 'admin',
-    label: 'Admin',
-    description: 'Full system access',
-    icon: <Shield className="h-6 w-6" />,
-  },
-  {
-    key: 'manager',
-    role: 'manager',
-    label: 'Manager',
-    description: 'Team oversight',
-    icon: <Briefcase className="h-6 w-6" />,
-  },
-  {
-    key: 'supervisor',
-    role: 'supervisor',
-    label: 'Supervisor',
-    description: 'Field management',
-    icon: <Users className="h-6 w-6" />,
-  },
-  {
-    key: 'merchandiser',
-    role: 'merchandiser',
-    label: 'Merchandiser',
-    description: 'Store execution',
-    icon: <ShoppingCart className="h-6 w-6" />,
-  },
-  {
-    key: 'data_team',
-    role: 'data_team',
-    label: 'Data Team',
-    description: 'Data management',
-    icon: <Database className="h-6 w-6" />,
-  },
-];
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
+import { mockUsers } from '@/data/mockData';
+import { homeForRole, ROLE_LABELS } from '@/lib/permissions';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { user, setUser } = useAuthStore();
   const { addAuditLog } = useAppStore();
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (user) navigate(homeForRole(user.role), { replace: true });
   }, [user, navigate]);
 
-  const handleLogin = (roleKey: string) => {
-    const cred = roleCredentials[roleKey];
-    const mockUser = mockUsers.find((u) => u.username === cred.username);
-    if (!mockUser) return;
+  const selectedUser = mockUsers.find((u) => u.id === selectedUserId) ?? null;
 
+  const handleLogin = () => {
+    if (!selectedUser) return;
     addAuditLog({
-      userId: mockUser.id,
-      userName: mockUser.fullName,
-      role: mockUser.role,
+      userId: selectedUser.id,
+      userName: selectedUser.fullName,
+      role: selectedUser.role,
       action: 'user_login',
       entity: 'User',
-      entityId: mockUser.id,
+      entityId: selectedUser.id,
       oldValue: '',
       newValue: 'Login',
       status: 'Success',
     });
+    setUser(selectedUser);
+  };
 
-    setUser(mockUser);
+  const groupedUsers = {
+    admin: mockUsers.filter((u) => u.role === 'admin'),
+    manager: mockUsers.filter((u) => u.role === 'manager'),
+    supervisor: mockUsers.filter((u) => u.role === 'supervisor'),
+    merchandiser: mockUsers.filter((u) => u.role === 'merchandiser'),
+    data_team: mockUsers.filter((u) => u.role === 'data_team'),
   };
 
   if (user) return null;
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center p-4"
+      className="flex min-h-screen items-center justify-center px-4 py-8"
       style={{
         background: 'linear-gradient(135deg, #2D1B69 0%, #1a0a3e 100%)',
       }}
     >
-      {/* Subtle radial glow */}
       <div
         className="pointer-events-none fixed inset-0"
         style={{
@@ -117,154 +61,145 @@ export function LoginPage() {
         }}
       />
 
-      <div className="relative z-10 w-full max-w-md">
-        {/* ---- Main Card ---- */}
-        <div
-          className="rounded-3xl border border-white/10 p-8 shadow-2xl backdrop-blur-xl"
-          style={{ background: 'rgba(255,255,255,0.06)' }}
-        >
-          {/* Crown icon */}
-          <div className="mb-4 flex justify-center">
-            <div
-              className="flex h-16 w-16 items-center justify-center rounded-2xl shadow-lg"
-              style={{
-                background:
-                  'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%)',
-                border: '1px solid rgba(255,255,255,0.12)',
-              }}
-            >
-              <Crown className="h-8 w-8" style={{ color: '#D4AF37' }} />
-            </div>
+      <div className="relative z-10 w-full max-w-sm">
+        {/* Logo */}
+        <div className="mb-6 flex flex-col items-center">
+          <div
+            className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl shadow-xl"
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%)',
+              border: '1px solid rgba(255,255,255,0.12)',
+            }}
+          >
+            <Crown className="h-10 w-10" style={{ color: '#D4AF37' }} />
           </div>
-
-          {/* App name */}
-          <h1 className="mb-1 text-center text-2xl font-bold tracking-wide text-white">
+          <h1 className="text-center text-2xl font-bold tracking-wide text-white">
             FMCG FIELD FORCE PRO
           </h1>
           <p
-            className="mb-8 text-center text-sm font-medium tracking-wider"
+            className="mt-1 text-center text-sm font-medium tracking-wider"
             style={{ color: 'rgba(180,160,220,0.85)' }}
           >
             Field Execution Platform
           </p>
+        </div>
 
-          {/* ---- Form fields (decorative) ---- */}
-          <div className="space-y-4">
-            {/* Company Code */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-purple-300/70">
-                Company Code
-              </label>
-              <input
-                type="text"
-                disabled
-                value="DEMO"
-                className="w-full rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-white/50 backdrop-blur-sm focus:outline-none disabled:cursor-not-allowed"
-                style={{ background: 'rgba(255,255,255,0.06)' }}
-              />
-            </div>
+        {/* Login Card */}
+        <div
+          className="rounded-3xl border border-white/10 p-6 shadow-2xl backdrop-blur-xl"
+          style={{ background: 'rgba(255,255,255,0.06)' }}
+        >
+          <h2 className="mb-1 text-lg font-semibold text-white">Welcome Back</h2>
+          <p className="mb-6 text-sm text-white/40">Select your account to continue</p>
 
-            {/* Email */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-purple-300/70">
-                Email
-              </label>
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="w-full rounded-xl border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors focus:border-purple-400/50 focus:outline-none focus:ring-1 focus:ring-purple-400/30"
-                style={{ background: 'rgba(255,255,255,0.06)' }}
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-purple-300/70">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  className="w-full rounded-xl border border-white/10 px-4 py-3 pr-11 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors focus:border-purple-400/50 focus:outline-none focus:ring-1 focus:ring-purple-400/30"
-                  style={{ background: 'rgba(255,255,255,0.06)' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-white/70"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Remember me / Forgot password */}
-          <div className="mt-4 flex items-center justify-between">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                className="h-3.5 w-3.5 rounded border-white/20 bg-white/10 text-purple-500 focus:ring-purple-400/30"
-              />
-              <span className="text-xs text-white/50">Remember me</span>
+          {/* User Dropdown */}
+          <div className="relative mb-4">
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-purple-300/70">
+              Select User
             </label>
             <button
               type="button"
-              className="text-xs text-purple-300/60 transition-colors hover:text-purple-300"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3.5 text-left transition-colors focus:border-purple-400/50 focus:outline-none focus:ring-1 focus:ring-purple-400/30"
+              style={{ background: 'rgba(255,255,255,0.06)' }}
             >
-              Forgot password?
+              {selectedUser ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-500/30 text-sm font-bold text-white">
+                    {selectedUser.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{selectedUser.fullName}</p>
+                    <p className="text-xs text-white/40">{ROLE_LABELS[selectedUser.role]} — {selectedUser.city}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+                    <User className="h-4 w-4 text-white/40" />
+                  </div>
+                  <span className="text-sm text-white/40">Choose your account...</span>
+                </div>
+              )}
+              <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
             </button>
+
+            {/* Dropdown List */}
+            {dropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+                <div
+                  className="absolute left-0 right-0 z-20 mt-2 max-h-72 overflow-y-auto rounded-xl border border-white/10 py-1 shadow-2xl backdrop-blur-xl"
+                  style={{ background: 'rgba(30,17,69,0.97)' }}
+                >
+                  {Object.entries(groupedUsers).map(([role, users]) => (
+                    <div key={role}>
+                      <div className="sticky top-0 px-4 py-2" style={{ background: 'rgba(30,17,69,0.97)' }}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#D4AF37' }}>
+                          {ROLE_LABELS[role as keyof typeof ROLE_LABELS]}
+                        </p>
+                      </div>
+                      {users.map((u) => (
+                        <button
+                          key={u.id}
+                          onClick={() => {
+                            setSelectedUserId(u.id);
+                            setDropdownOpen(false);
+                          }}
+                          className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/10 ${
+                            selectedUserId === u.id ? 'bg-purple-500/20' : ''
+                          }`}
+                        >
+                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-purple-500/20 text-xs font-bold text-white">
+                            {u.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-white">{u.fullName}</p>
+                            <p className="text-xs text-white/40">{u.city}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Login button (decorative) */}
+          {/* Selected user info */}
+          {selectedUser && (
+            <div className="mb-4 rounded-xl border border-purple-400/20 p-3" style={{ background: 'rgba(139,92,246,0.08)' }}>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-white/50">Role</span>
+                <span className="font-medium text-purple-300">{ROLE_LABELS[selectedUser.role]}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-sm">
+                <span className="text-white/50">City</span>
+                <span className="font-medium text-white/80">{selectedUser.city}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-sm">
+                <span className="text-white/50">Email</span>
+                <span className="font-medium text-white/80">{selectedUser.email}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Login Button */}
           <button
             type="button"
-            className="mt-6 w-full rounded-xl py-3.5 text-sm font-bold tracking-wide text-white shadow-lg transition-all hover:shadow-purple-500/25"
+            disabled={!selectedUser}
+            onClick={handleLogin}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-4 text-sm font-bold tracking-wide text-white shadow-lg transition-all disabled:opacity-40 disabled:shadow-none"
             style={{
-              background: 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)',
+              background: selectedUser
+                ? 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)'
+                : 'rgba(255,255,255,0.08)',
             }}
           >
+            <LogIn className="h-4 w-4" />
             Sign In
           </button>
-
-          {/* Divider */}
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-white/10" />
-            <span className="text-[11px] font-medium uppercase tracking-widest text-white/30">
-              Or select a role
-            </span>
-            <div className="h-px flex-1 bg-white/10" />
-          </div>
-
-          {/* ---- Role selection grid ---- */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {roles.map((r) => (
-              <button
-                key={r.key}
-                onClick={() => handleLogin(r.key)}
-                className="group flex flex-col items-center gap-2 rounded-xl border border-white/8 p-4 text-center backdrop-blur-sm transition-all duration-200 hover:scale-[1.05] hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-purple-400/40"
-                style={{ background: 'rgba(255,255,255,0.05)' }}
-              >
-                <div
-                  className="flex h-10 w-10 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-110"
-                  style={{ color: '#D4AF37' }}
-                >
-                  {r.icon}
-                </div>
-                <span className="text-xs font-semibold text-white">
-                  {r.label}
-                </span>
-                <span className="text-[10px] leading-tight text-white/40">
-                  {r.description}
-                </span>
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Footer */}
