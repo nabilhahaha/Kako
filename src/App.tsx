@@ -36,6 +36,7 @@ import { UsersPage } from '@/pages/admin/UsersPage';
 import { RawDataUploadPage } from '@/pages/admin/RawDataUploadPage';
 import { SettingsPage } from '@/pages/admin/SettingsPage';
 import { AuditLogsPage } from '@/pages/admin/AuditLogsPage';
+import { SalesDashboardPage } from '@/pages/sales/SalesDashboardPage';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -272,6 +273,14 @@ function App() {
             element={
               <RoleGuard allow={['admin_relia']}>
                 <AuditLogsPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/sales-dashboard"
+            element={
+              <RoleGuard allow={['top_management_relia', 'top_management_roshen', 'admin_relia', 'regional_manager_roshen']}>
+                <SalesDashboardPage />
               </RoleGuard>
             }
           />
