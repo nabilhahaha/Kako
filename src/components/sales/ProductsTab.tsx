@@ -1,0 +1,105 @@
+import { useCallback } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+} from 'recharts';
+import type { ProductSales } from '@/lib/salesTypes';
+import { formatSAR, formatNumber } from '@/lib/salesDataUtils';
+import { exportTableToExcel } from '@/lib/excelExport';
+
+const sarFormatter = (value: unknown) => [formatSAR(Number(value)), 'Sales'];
+
+const COLORS = ['#DC2626', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#84CC16', '#14B8A6'];
+
+interface Props {
+  productSales: ProductSales[];
+}
+
+export function ProductsTab({ productSales }: Props) {
+  const top15 = productSales.slice(0, 15);
+  const totalSales = productSales.reduce((sum, p) => sum + p.sales, 0);
+
+  const handleExport = useCallback(() => {
+    const headers = ['#', 'Category', 'Sales (SAR)', 'Share %', 'Qty', 'SKUs'];
+    const rows = productSales.map((p, idx) => [
+      idx + 1, p.category,
+      Math.round(p.sales * 100) / 100,
+      totalSales > 0 ? Math.round((p.sales / totalSales) * 1000) / 10 : 0,
+      p.qty, p.skuCount,
+    ]);
+    exportTableToExcel(headers, rows, 'Roshen_Products');
+  }, [productSales, totalSales]);
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-card rounded-xl border p-4">
+        <h3 className="text-sm font-bold text-foreground mb-3">🍫 Sales by Category (Top 15)</h3>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={top15} layout="vertical">
+              <XAxis
+                type="number"
+                tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}K`}
+                tick={{ fontSize: 11 }}
+              />
+              <YAxis type="category" dataKey="category" tick={{ fontSize: 10 }} width={140} />
+              <Tooltip
+                formatter={sarFormatter}
+                contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }}
+              />
+              <Bar dataKey="sales" radius={[0, 4, 4, 0]}>
+                {top15.map((_, idx) => (
+                  <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-xl border overflow-hidden">
+        <div className="p-4 border-b flex items-center justify-between">
+          <h3 className="text-sm font-bold text-foreground">📋 All Categories</h3>
+          <button onClick={handleExport} className="dash-btn-ghost !h-7 !px-2.5 !text-[11px]">📥 Export</button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="dash-table">
+            <thead>
+              <tr>
+                <th className="text-start font-semibold">#</th>
+                <th className="text-start font-semibold">Category</th>
+                <th className="text-end font-semibold">Sales (SAR)</th>
+                <th className="text-end font-semibold">Share</th>
+                <th className="text-end font-semibold">Qty</th>
+                <th className="text-end font-semibold">SKUs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productSales.map((p, idx) => (
+                <tr key={p.category} className="">
+                  <td className="text-muted-foreground">{idx + 1}</td>
+                  <td className="font-medium">{p.category}</td>
+                  <td className="num">{formatSAR(p.sales)}</td>
+                  <td className="text-end">
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full"
+                          style={{ width: `${(p.sales / totalSales) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {((p.sales / totalSales) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </td>
+                  <td className="num">{formatNumber(p.qty)}</td>
+                  <td className="text-end">{p.skuCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

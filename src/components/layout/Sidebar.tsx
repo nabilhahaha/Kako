@@ -11,6 +11,7 @@ import {
   Megaphone,
   TrendingUp,
   Settings,
+  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/lib/types';
@@ -24,6 +25,7 @@ interface NavItem {
 const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   admin_relia: [
     { to: '/admin', label: 'لوحة التحكم', icon: LayoutDashboard },
+    { to: '/sales-dashboard', label: 'تحليل المبيعات', icon: BarChart3 },
     { to: '/admin/users', label: 'المستخدمون', icon: Users },
     { to: '/admin/raw-data', label: 'البيانات الخام', icon: ClipboardList },
     { to: '/admin/settings', label: 'الإعدادات', icon: Settings },
@@ -52,6 +54,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   ],
   regional_manager_roshen: [
     { to: '/regional', label: 'الإقليم', icon: LayoutDashboard },
+    { to: '/sales-dashboard', label: 'تحليل المبيعات', icon: BarChart3 },
     { to: '/regional/distributor', label: 'الموزّع', icon: TrendingUp },
     { to: '/regional/coverage', label: 'التغطية', icon: Map },
     { to: '/regional/approvals', label: 'الموافقات', icon: CheckSquare },
@@ -64,10 +67,12 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   ],
   top_management_relia: [
     { to: '/executive', label: 'لوحة التنفيذيين', icon: LayoutDashboard },
+    { to: '/sales-dashboard', label: 'تحليل المبيعات', icon: BarChart3 },
     { to: '/executive/kpis', label: 'المؤشرات', icon: TrendingUp },
   ],
   top_management_roshen: [
     { to: '/executive', label: 'لوحة التنفيذيين', icon: LayoutDashboard },
+    { to: '/sales-dashboard', label: 'تحليل المبيعات', icon: BarChart3 },
     { to: '/executive/kpis', label: 'المؤشرات', icon: TrendingUp },
   ],
 };
