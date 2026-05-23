@@ -510,7 +510,7 @@ export function ApprovalsPage() {
   ];
 
   return (
-    <div>
+    <div className="pb-24 md:pb-6">
       <PageHeader
         title="Approvals"
         subtitle="Review and manage pending requests"

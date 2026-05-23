@@ -230,11 +230,11 @@ export function VisitRegistrationPage() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6 pb-24 md:pb-6">
       <PageHeader title="Register Visit" subtitle="Record a new customer visit" />
 
       {/* Step Progress Indicator */}
-      <div className="flex items-center justify-between px-2">
+      <div className="flex items-center justify-between px-0 sm:px-2">
         {STEPS.map((s, i) => {
           const Icon = s.icon;
           const isActive = i === step;
@@ -244,17 +244,17 @@ export function VisitRegistrationPage() {
               <div className="flex flex-col items-center gap-1">
                 <div
                   className={cn(
-                    'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors',
+                    'flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors sm:h-10 sm:w-10',
                     isActive && 'border-purple-600 bg-purple-600 text-white',
                     isCompleted && 'border-green-500 bg-green-500 text-white',
                     !isActive && !isCompleted && 'border-gray-300 bg-white text-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-500',
                   )}
                 >
-                  {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                  {isCompleted ? <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" /> : <Icon className="h-4 w-4 sm:h-5 sm:w-5" />}
                 </div>
                 <span
                   className={cn(
-                    'text-xs font-medium',
+                    'text-[10px] font-medium sm:text-xs',
                     isActive && 'text-purple-600 dark:text-purple-400',
                     isCompleted && 'text-green-600 dark:text-green-400',
                     !isActive && !isCompleted && 'text-gray-400 dark:text-gray-500',
@@ -266,7 +266,7 @@ export function VisitRegistrationPage() {
               {i < STEPS.length - 1 && (
                 <div
                   className={cn(
-                    'mx-2 mt-[-1rem] h-0.5 flex-1',
+                    'mx-1 mt-[-1rem] h-0.5 flex-1 sm:mx-2',
                     i < step ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600',
                   )}
                 />
@@ -292,7 +292,7 @@ export function VisitRegistrationPage() {
               />
             </div>
 
-            <div className="max-h-[400px] space-y-2 overflow-y-auto">
+            <div className="max-h-[400px] space-y-2 overflow-y-auto sm:max-h-[400px]">
               {filteredCustomers.length === 0 ? (
                 <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">No customers found</p>
               ) : (
@@ -301,7 +301,7 @@ export function VisitRegistrationPage() {
                     key={c.id}
                     onClick={() => handleSelectCustomer(c)}
                     className={cn(
-                      'w-full rounded-lg border p-4 text-left transition-all hover:shadow-md',
+                      'w-full rounded-lg border p-4 text-left transition-all hover:shadow-md min-h-[64px]',
                       selectedCustomer?.id === c.id
                         ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-500/20 dark:bg-purple-900/20'
                         : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600',
@@ -347,8 +347,8 @@ export function VisitRegistrationPage() {
             </div>
 
             {/* Capture GPS button */}
-            <Button onClick={handleCaptureGps} className="w-full gap-2" variant={gpsCaptured ? 'outline' : 'default'}>
-              <MapPin className="h-4 w-4" />
+            <Button onClick={handleCaptureGps} className="w-full gap-2 min-h-[52px] text-base" size="lg" variant={gpsCaptured ? 'outline' : 'default'}>
+              <MapPin className="h-5 w-5" />
               {gpsCaptured ? 'Recapture GPS' : 'Capture GPS'}
             </Button>
 
@@ -501,10 +501,11 @@ export function VisitRegistrationPage() {
               <Button
                 type="button"
                 variant={photoCaptured ? 'outline' : 'default'}
-                className="mt-1 w-full gap-2"
+                className="mt-1 w-full gap-2 min-h-[48px]"
+                size="lg"
                 onClick={() => setPhotoCaptured(true)}
               >
-                <Camera className="h-4 w-4" />
+                <Camera className="h-5 w-5" />
                 {photoCaptured ? 'Photo Captured' : 'Capture Photo'}
               </Button>
               {photoCaptured && (
@@ -575,7 +576,7 @@ export function VisitRegistrationPage() {
               </div>
             </div>
 
-            <Button onClick={handleSubmit} className="w-full gap-2" size="lg">
+            <Button onClick={handleSubmit} className="w-full gap-2 min-h-[52px] text-base" size="lg">
               <CheckCircle2 className="h-5 w-5" />
               Submit Visit
             </Button>
@@ -589,7 +590,7 @@ export function VisitRegistrationPage() {
           variant="outline"
           onClick={handleBack}
           disabled={step === 0}
-          className="gap-1"
+          className="gap-1 min-h-[44px] min-w-[100px]"
         >
           <ChevronLeft className="h-4 w-4" />
           Back
@@ -599,7 +600,7 @@ export function VisitRegistrationPage() {
           <Button
             onClick={handleNext}
             disabled={!canProceed(step)}
-            className="gap-1"
+            className="gap-1 min-h-[44px] min-w-[100px]"
           >
             Next
             <ChevronRight className="h-4 w-4" />

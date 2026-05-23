@@ -285,7 +285,7 @@ export function CustomerListPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24 md:pb-6">
       <PageHeader
         title="Customer Master Data"
         subtitle={`${filteredCustomers.length} customer${filteredCustomers.length !== 1 ? 's' : ''}`}
@@ -293,17 +293,17 @@ export function CustomerListPage() {
           <div className="flex flex-wrap items-center gap-2">
             {isAdmin && (
               <>
-                <Button size="sm" onClick={openAddDialog}>
+                <Button size="sm" onClick={openAddDialog} className="min-h-[44px]">
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Add Customer</span>
                 </Button>
-                <Button size="sm" variant="outline" onClick={handleUploadExcel}>
+                <Button size="sm" variant="outline" onClick={handleUploadExcel} className="min-h-[44px]">
                   <Upload className="h-4 w-4" />
                   <span className="hidden sm:inline">Upload Excel</span>
                 </Button>
               </>
             )}
-            <Button size="sm" variant="outline" onClick={handleExportCsv}>
+            <Button size="sm" variant="outline" onClick={handleExportCsv} className="min-h-[44px]">
               <Download className="h-4 w-4" />
               <span className="hidden sm:inline">Export CSV</span>
             </Button>
@@ -432,9 +432,9 @@ export function CustomerListPage() {
                 key={c.id}
                 className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
               >
-                <div className="mb-2 flex items-start justify-between">
+                <div className="mb-3 flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
+                    <p className="text-base font-medium text-gray-900 dark:text-white">
                       {c.customerName}
                     </p>
                     <p className="font-mono text-xs text-gray-500 dark:text-gray-400">
@@ -443,7 +443,7 @@ export function CustomerListPage() {
                   </div>
                   <StatusBadge status={c.status} />
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
                     <span className="text-gray-500 dark:text-gray-400">Channel: </span>
                     <span className="text-gray-700 dark:text-gray-300">{c.channel}</span>
@@ -464,11 +464,12 @@ export function CustomerListPage() {
                   </div>
                 </div>
                 {canEdit && (
-                  <div className="mt-3 flex justify-end">
+                  <div className="mt-4 flex justify-end">
                     <Button
-                      size="sm"
+                      size="default"
                       variant="outline"
                       onClick={() => openEditDialog(c)}
+                      className="min-h-[44px]"
                     >
                       <Edit2 className="h-4 w-4" />
                       Edit
@@ -487,21 +488,21 @@ export function CustomerListPage() {
               </p>
               <div className="flex gap-2">
                 <Button
-                  size="sm"
                   variant="outline"
                   disabled={safePage <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="min-h-[44px] min-w-[44px]"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  Prev
+                  <span className="hidden sm:inline">Prev</span>
                 </Button>
                 <Button
-                  size="sm"
                   variant="outline"
                   disabled={safePage >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="min-h-[44px] min-w-[44px]"
                 >
-                  Next
+                  <span className="hidden sm:inline">Next</span>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -712,11 +713,11 @@ export function CustomerListPage() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="min-h-[44px] w-full sm:w-auto">
               Cancel
             </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} className="min-h-[44px] w-full sm:w-auto">
               {editingCustomer ? 'Update Customer' : 'Add Customer'}
             </Button>
           </DialogFooter>

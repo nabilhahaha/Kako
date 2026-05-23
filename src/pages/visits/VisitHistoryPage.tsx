@@ -177,12 +177,12 @@ export function VisitHistoryPage() {
   if (!user) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 md:pb-6">
       <PageHeader
         title="Visit History"
         subtitle={`${filteredVisits.length} visit${filteredVisits.length !== 1 ? 's' : ''} found`}
         action={
-          <Button variant="outline" onClick={handleExport} className="gap-2" disabled={filteredVisits.length === 0}>
+          <Button variant="outline" onClick={handleExport} className="gap-2 min-h-[44px]" disabled={filteredVisits.length === 0}>
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
@@ -359,17 +359,17 @@ export function VisitHistoryPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Showing {(page - 1) * PAGE_SIZE + 1}-
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+            {(page - 1) * PAGE_SIZE + 1}-
             {Math.min(page * PAGE_SIZE, filteredVisits.length)} of{' '}
             {filteredVisits.length}
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              size="sm"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
+              className="min-h-[44px] min-w-[44px]"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -378,9 +378,9 @@ export function VisitHistoryPage() {
             </span>
             <Button
               variant="outline"
-              size="sm"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
+              className="min-h-[44px] min-w-[44px]"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
