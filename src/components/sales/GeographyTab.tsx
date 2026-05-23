@@ -5,6 +5,8 @@ import {
 import type { RegionSales } from '@/lib/salesTypes';
 import { formatSAR, formatNumber } from '@/lib/salesDataUtils';
 
+const sarFormatter = (value: unknown) => [formatSAR(Number(value)), 'Sales'];
+
 const COLORS = ['#DC2626', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
 
 interface Props {
@@ -29,7 +31,7 @@ export function GeographyTab({ regionSales }: Props) {
                 />
                 <YAxis type="category" dataKey="region" tick={{ fontSize: 10 }} width={130} />
                 <Tooltip
-                  formatter={(value: number) => [formatSAR(value), 'Sales']}
+                  formatter={sarFormatter}
                   contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }}
                 />
                 <Bar dataKey="sales" radius={[0, 4, 4, 0]}>
@@ -54,8 +56,8 @@ export function GeographyTab({ regionSales }: Props) {
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  label={({ region, percent }: { region: string; percent: number }) =>
-                    `${region} ${(percent * 100).toFixed(0)}%`
+                  label={({ percent, ...rest }) =>
+                    `${(rest as Record<string, unknown>).region} ${((percent ?? 0) * 100).toFixed(0)}%`
                   }
                   labelLine={{ strokeWidth: 1 }}
                 >

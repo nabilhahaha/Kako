@@ -4,6 +4,8 @@ import {
 import type { ProductSales } from '@/lib/salesTypes';
 import { formatSAR, formatNumber } from '@/lib/salesDataUtils';
 
+const sarFormatter = (value: unknown) => [formatSAR(Number(value)), 'Sales'];
+
 const COLORS = ['#DC2626', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#84CC16', '#14B8A6'];
 
 interface Props {
@@ -28,7 +30,7 @@ export function ProductsTab({ productSales }: Props) {
               />
               <YAxis type="category" dataKey="category" tick={{ fontSize: 10 }} width={140} />
               <Tooltip
-                formatter={(value: number) => [formatSAR(value), 'Sales']}
+                formatter={sarFormatter}
                 contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }}
               />
               <Bar dataKey="sales" radius={[0, 4, 4, 0]}>

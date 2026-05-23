@@ -4,6 +4,8 @@ import {
 import type { SalesmanPerformance } from '@/lib/salesTypes';
 import { formatSAR, formatNumber } from '@/lib/salesDataUtils';
 
+const sarFormatter = (value: unknown) => [formatSAR(Number(value)), 'Sales'];
+
 interface Props {
   salesmanPerformance: SalesmanPerformance[];
 }
@@ -25,7 +27,7 @@ export function SalesTeamTab({ salesmanPerformance }: Props) {
               />
               <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={160} />
               <Tooltip
-                formatter={(value: number) => [formatSAR(value), 'Sales']}
+                formatter={sarFormatter}
                 contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }}
               />
               <Bar dataKey="sales" fill="#3B82F6" radius={[0, 4, 4, 0]} />

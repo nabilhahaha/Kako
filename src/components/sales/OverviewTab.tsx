@@ -1,9 +1,12 @@
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell,
 } from 'recharts';
 import type { MonthlySales, RegionSales } from '@/lib/salesTypes';
 import { formatSAR } from '@/lib/salesDataUtils';
+
+const sarFormatter = (value: unknown) => [formatSAR(Number(value)), 'Sales'];
+const returnFormatter = (value: unknown) => [formatSAR(Number(value)), 'Returns'];
 
 const COLORS = ['#DC2626', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
 
@@ -41,7 +44,7 @@ export function OverviewTab({ monthlySales, regionSales, channelSales }: Props) 
                 tick={{ fontSize: 11 }}
               />
               <Tooltip
-                formatter={(value: number) => [formatSAR(value), 'Sales']}
+                formatter={sarFormatter}
                 contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }}
               />
               <Bar dataKey="sales" fill="#10B981" radius={[4, 4, 0, 0]} />
@@ -61,8 +64,8 @@ export function OverviewTab({ monthlySales, regionSales, channelSales }: Props) 
                 cx="50%"
                 cy="50%"
                 outerRadius={90}
-                label={({ region, percent }: { region: string; percent: number }) =>
-                  `${region} ${(percent * 100).toFixed(0)}%`
+                label={({ percent, ...rest }) =>
+                  `${(rest as Record<string, unknown>).region} ${((percent ?? 0) * 100).toFixed(0)}%`
                 }
                 labelLine={{ strokeWidth: 1 }}
               >
@@ -70,7 +73,7 @@ export function OverviewTab({ monthlySales, regionSales, channelSales }: Props) 
                   <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value: number) => [formatSAR(value), 'Sales']} />
+              <Tooltip formatter={sarFormatter} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -86,7 +89,7 @@ export function OverviewTab({ monthlySales, regionSales, channelSales }: Props) 
                 tick={{ fontSize: 11 }}
               />
               <Tooltip
-                formatter={(value: number) => [formatSAR(value), 'Returns']}
+                formatter={returnFormatter}
                 contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }}
               />
               <Bar dataKey="returns" fill="#EF4444" radius={[4, 4, 0, 0]} />
@@ -106,7 +109,7 @@ export function OverviewTab({ monthlySales, regionSales, channelSales }: Props) 
               />
               <YAxis type="category" dataKey="channel" tick={{ fontSize: 11 }} width={100} />
               <Tooltip
-                formatter={(value: number) => [formatSAR(value), 'Sales']}
+                formatter={sarFormatter}
                 contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb' }}
               />
               <Bar dataKey="sales" radius={[0, 4, 4, 0]}>
