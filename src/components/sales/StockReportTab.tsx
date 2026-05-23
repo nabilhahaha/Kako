@@ -52,10 +52,14 @@ export function StockReportTab({ dataset, indices }: Props) {
     const map = new Map<string, number>();
     for (const i of indices) {
       if (dataset.data.d[i] < start || dataset.data.d[i] > refDay) continue;
-      if (dataset.data.r[i] === 1) continue;
       const sku = dataset.skus[dataset.data.sk[i]];
       if (!sku) continue;
-      map.set(sku.iid, (map.get(sku.iid) || 0) + dataset.data.q[i]);
+      const cases = Math.abs(dataset.data.q[i]);
+      if (dataset.data.r[i] === 1) {
+        map.set(sku.iid, (map.get(sku.iid) || 0) - cases);
+      } else {
+        map.set(sku.iid, (map.get(sku.iid) || 0) + cases);
+      }
     }
     return map;
   }, [dataset, indices, selectedDate]);
@@ -94,7 +98,7 @@ export function StockReportTab({ dataset, indices }: Props) {
       return { sku, whMap, total, sold90 };
     }).sort((a, b) => b.sold90 - a.sold90 || b.total - a.total);
 
-    const atRisk = skuTotals.filter(s => s.total > 0 && s.sold90 === 0);
+    const atRisk = skuTotals.filter(s => s.total > 0 && s.sold90 <= 0);
 
     return { totalCases, totalQty, uniqueSkus, uniqueBatches, warehouses, expired, buckets, skuTotals, atRisk };
   }, [snapshot, selectedDate, sales90]);
@@ -191,14 +195,17 @@ export function StockReportTab({ dataset, indices }: Props) {
               <th className="text-start font-semibold">Name</th>
               {analysis.warehouses.map(wh => <th key={wh} className="text-end font-semibold">{wh}</th>)}
               <th className="text-end font-semibold">Total</th>
-              <th className="text-end font-semibold">90d Sales</th>
+              <th className="text-end font-semibold">90d Net Cases</th>
+              <th className="text-end font-semibold">Ratio</th>
               <th className="text-end font-semibold">Status</th>
             </tr></thead>
             <tbody>
               {filteredSkus.slice(0, 100).map(s => {
                 const info = stock?.skuInfo[s.sku];
-                const ratio = s.total > 0 && s.sold90 > 0 ? s.sold90 / s.total : 0;
-                const status = s.sold90 === 0 ? '🔴 No Sales' : ratio < 0.5 ? '🟡 Slow' : '🟢 OK';
+                const netSold = Math.max(0, s.sold90);
+                const ratio = s.total > 0 && netSold > 0 ? netSold / s.total : 0;
+                const ratioStr = s.total > 0 ? `${(ratio * 100).toFixed(0)}%` : '—';
+                const status = netSold === 0 ? '🔴 No Sales' : ratio < 0.5 ? '🟡 Slow' : '🟢 OK';
                 return (
                   <tr key={s.sku}>
                     <td className="font-mono text-[11px]">{s.sku}</td>
@@ -207,7 +214,8 @@ export function StockReportTab({ dataset, indices }: Props) {
                       <td key={wh} className="num">{s.whMap.get(wh) || '—'}</td>
                     ))}
                     <td className="num font-bold">{formatNumber(s.total)}</td>
-                    <td className={`num ${s.sold90 > 0 ? 'pos' : 'neg'}`}>{formatNumber(s.sold90)}</td>
+                    <td className={`num ${netSold > 0 ? 'pos' : 'neg'}`}>{formatNumber(netSold)}</td>
+                    <td className="num">{ratioStr}</td>
                     <td className="text-end text-[11px]">{status}</td>
                   </tr>
                 );
