@@ -269,17 +269,16 @@ export function ApprovalsPage() {
       {req.status === 'Pending' ? (
         <div className="flex gap-2">
           <Button
-            size="sm"
-            className="bg-green-600 text-white hover:bg-green-700"
+            className="bg-green-600 text-white hover:bg-green-700 min-h-[44px] flex-1 sm:flex-none"
             onClick={() => handleOpenDialog('approve', req.id, 'ool')}
           >
             <CheckCircle2 className="h-4 w-4" />
             Approve
           </Button>
           <Button
-            size="sm"
             variant="destructive"
             onClick={() => handleOpenDialog('reject', req.id, 'ool')}
+            className="min-h-[44px] flex-1 sm:flex-none"
           >
             <XCircle className="h-4 w-4" />
             Reject
@@ -371,17 +370,16 @@ export function ApprovalsPage() {
       {req.status === 'Pending' ? (
         <div className="flex gap-2">
           <Button
-            size="sm"
-            className="bg-green-600 text-white hover:bg-green-700"
+            className="bg-green-600 text-white hover:bg-green-700 min-h-[44px] flex-1 sm:flex-none"
             onClick={() => handleOpenDialog('approve', req.id, 'data')}
           >
             <CheckCircle2 className="h-4 w-4" />
             Approve
           </Button>
           <Button
-            size="sm"
             variant="destructive"
             onClick={() => handleOpenDialog('reject', req.id, 'data')}
+            className="min-h-[44px] flex-1 sm:flex-none"
           >
             <XCircle className="h-4 w-4" />
             Reject
@@ -517,10 +515,10 @@ export function ApprovalsPage() {
       />
 
       <Tabs defaultValue="ool">
-        <TabsList className="mb-4 w-full sm:w-auto">
-          <TabsTrigger value="ool">Out of Location</TabsTrigger>
-          <TabsTrigger value="data">Data Updates</TabsTrigger>
-          <TabsTrigger value="gps">GPS Corrections</TabsTrigger>
+        <TabsList className="mb-4 w-full overflow-x-auto sm:w-auto">
+          <TabsTrigger value="ool" className="min-h-[44px]">Out of Location</TabsTrigger>
+          <TabsTrigger value="data" className="min-h-[44px]">Data Updates</TabsTrigger>
+          <TabsTrigger value="gps" className="min-h-[44px]">GPS Corrections</TabsTrigger>
         </TabsList>
 
         {/* ─── Tab 1: Out of Location Requests ─── */}
