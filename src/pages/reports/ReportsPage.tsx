@@ -402,7 +402,7 @@ export function ReportsPage() {
   // ── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 md:pb-6">
       <PageHeader title="Reports" subtitle="Generate and export detailed reports" />
 
       {/* Shared date range */}
@@ -420,13 +420,13 @@ export function ReportsPage() {
       </div>
 
       <Tabs defaultValue="visit-report">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="visit-report">Visit Report</TabsTrigger>
-          <TabsTrigger value="missed-visits">Missed Visits</TabsTrigger>
-          <TabsTrigger value="ool">Out of Location</TabsTrigger>
-          <TabsTrigger value="data-updates">Data Updates</TabsTrigger>
-          <TabsTrigger value="user-activity">User Activity</TabsTrigger>
-          <TabsTrigger value="customer-updates">Customer Updates</TabsTrigger>
+        <TabsList className="overflow-x-auto flex-nowrap sm:flex-wrap">
+          <TabsTrigger value="visit-report" className="min-h-[44px]">Visit Report</TabsTrigger>
+          <TabsTrigger value="missed-visits" className="min-h-[44px]">Missed Visits</TabsTrigger>
+          <TabsTrigger value="ool" className="min-h-[44px]">Out of Location</TabsTrigger>
+          <TabsTrigger value="data-updates" className="min-h-[44px]">Data Updates</TabsTrigger>
+          <TabsTrigger value="user-activity" className="min-h-[44px]">User Activity</TabsTrigger>
+          <TabsTrigger value="customer-updates" className="min-h-[44px]">Customer Updates</TabsTrigger>
         </TabsList>
 
         {/* ═══════════════════ Visit Report ═══════════════════ */}

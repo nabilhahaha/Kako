@@ -196,7 +196,7 @@ export function DataRequestPage() {
   const statusOptions: (RequestStatus | 'All')[] = ['All', 'Pending', 'Approved', 'Rejected'];
 
   return (
-    <div>
+    <div className="pb-24 md:pb-6">
       <PageHeader
         title="Data Update Requests"
         subtitle="Request updates to customer data"
@@ -244,7 +244,7 @@ export function DataRequestPage() {
                         <button
                           key={c.id}
                           type="button"
-                          className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                          className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[44px]"
                           onClick={() => {
                             setSelectedCustomerId(c.id);
                             setCustomerSearch(`${c.customerCode} - ${c.customerName}`);
@@ -370,8 +370,10 @@ export function DataRequestPage() {
               <Button
                 type="submit"
                 disabled={!selectedCustomerId || !updateType || !newValue.trim()}
+                className="w-full min-h-[48px] sm:w-auto"
+                size="lg"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
                 Submit Request
               </Button>
             </div>
