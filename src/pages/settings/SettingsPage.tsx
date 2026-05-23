@@ -37,7 +37,7 @@ function ToggleSwitch({
   label: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3">
+    <label className="flex cursor-pointer items-center gap-3 min-h-[44px]">
       <div className="relative">
         <input
           type="checkbox"
@@ -46,15 +46,15 @@ function ToggleSwitch({
           onChange={(e) => onChange(e.target.checked)}
         />
         <div
-          className={`h-6 w-11 rounded-full transition-colors ${
+          className={`h-8 w-14 rounded-full transition-colors sm:h-6 sm:w-11 ${
             checked
               ? 'bg-purple-600'
               : 'bg-gray-300 dark:bg-gray-600'
           }`}
         />
         <div
-          className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-            checked ? 'translate-x-5' : 'translate-x-0'
+          className={`absolute left-0.5 top-0.5 h-7 w-7 rounded-full bg-white shadow transition-transform sm:h-5 sm:w-5 ${
+            checked ? 'translate-x-6 sm:translate-x-5' : 'translate-x-0'
           }`}
         />
       </div>
@@ -182,13 +182,13 @@ export function SettingsPage() {
   // ── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 md:pb-6">
       <PageHeader title="Admin Settings" subtitle="Configure application settings and view users" />
 
       {/* ═══════ GPS Settings ═══════ */}
       <Section icon={<MapPin className="h-5 w-5" />} title="GPS Settings">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="w-64">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="w-full sm:w-64">
             <Label className="mb-1 block text-xs text-gray-500 dark:text-gray-400">
               Allowed GPS Radius (meters)
             </Label>
@@ -200,7 +200,7 @@ export function SettingsPage() {
               onChange={(e) => setGpsRadius(Number(e.target.value))}
             />
           </div>
-          <Button onClick={saveGps} className="gap-2">
+          <Button onClick={saveGps} className="gap-2 w-full sm:w-auto min-h-[44px]">
             <Save className="h-4 w-4" />
             Save
           </Button>
@@ -221,7 +221,7 @@ export function SettingsPage() {
               onChange={setMandatoryNotes}
               label="Mandatory Notes"
             />
-            <Button onClick={saveVisitSettings} className="gap-2 self-start">
+            <Button onClick={saveVisitSettings} className="gap-2 self-start w-full sm:w-auto min-h-[44px]">
               <Save className="h-4 w-4" />
               Save
             </Button>
@@ -248,7 +248,31 @@ export function SettingsPage() {
       {/* ═══════ Approval Routing ═══════ */}
       <Section icon={<Route className="h-5 w-5" />} title="Approval Routing">
         <div className="space-y-4">
-          <div className="overflow-x-auto">
+          {/* Mobile cards */}
+          <div className="space-y-3 md:hidden">
+            {routing.map((r, idx) => (
+              <div key={r.updateType} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+                <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">{r.updateType}</p>
+                <Select
+                  value={r.approverRole}
+                  onChange={(e) => {
+                    const updated = [...routing];
+                    updated[idx] = { ...r, approverRole: e.target.value as UserRole };
+                    setRouting(updated);
+                  }}
+                  className="w-full"
+                >
+                  {APPROVER_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_LABELS[role]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead>
                 <tr>
@@ -288,7 +312,7 @@ export function SettingsPage() {
               </tbody>
             </table>
           </div>
-          <Button onClick={saveRouting} className="gap-2">
+          <Button onClick={saveRouting} className="gap-2 w-full sm:w-auto min-h-[44px]">
             <Save className="h-4 w-4" />
             Save
           </Button>
@@ -299,8 +323,8 @@ export function SettingsPage() {
       <Section icon={<Users className="h-5 w-5" />} title="User Management">
         <div className="space-y-4">
           {/* Filters */}
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="w-64">
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="w-full sm:w-64">
               <Label className="mb-1 block text-xs text-gray-500 dark:text-gray-400">
                 Search Users
               </Label>
@@ -314,7 +338,7 @@ export function SettingsPage() {
                 />
               </div>
             </div>
-            <div>
+            <div className="w-full sm:w-auto">
               <Label className="mb-1 block text-xs text-gray-500 dark:text-gray-400">
                 Filter by Role
               </Label>
@@ -336,8 +360,28 @@ export function SettingsPage() {
             {filteredUsers.length} user(s) shown (read-only)
           </p>
 
-          {/* User Table */}
-          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+          {/* Mobile User Cards */}
+          <div className="space-y-3 md:hidden">
+            {filteredUsers.map((u) => (
+              <div key={u.id} className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                <div className="mb-2 flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{u.fullName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">@{u.username}</p>
+                  </div>
+                  <StatusBadge status={u.isActive ? 'Active' : 'Inactive'} />
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                  <div><span className="text-gray-500 dark:text-gray-400">Role: </span><span className="text-gray-700 dark:text-gray-300">{ROLE_LABELS[u.role]}</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">City: </span><span className="text-gray-700 dark:text-gray-300">{u.city}</span></div>
+                  <div className="col-span-2 truncate"><span className="text-gray-500 dark:text-gray-400">Email: </span><span className="text-gray-700 dark:text-gray-300">{u.email}</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop User Table */}
+          <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>

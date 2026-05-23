@@ -190,12 +190,12 @@ export function AuditLogPage() {
   // ── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 md:pb-6">
       <PageHeader
         title="Audit Log"
         subtitle={`${filteredLogs.length} log entries`}
         action={
-          <Button variant="outline" onClick={handleExport} disabled={filteredLogs.length === 0} className="gap-2">
+          <Button variant="outline" onClick={handleExport} disabled={filteredLogs.length === 0} className="gap-2 min-h-[44px]">
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
@@ -283,7 +283,7 @@ export function AuditLogPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Content */}
       {pagedLogs.length === 0 ? (
         <EmptyState
           icon={<Shield className="h-12 w-12" />}
@@ -291,98 +291,134 @@ export function AuditLogPage() {
           description="Try adjusting your filters or date range."
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-900">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Date/Time
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  User
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Role
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Action
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Entity
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Old Value
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  New Value
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {pagedLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                    {formatDateTime(log.timestamp)}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                    {log.userName}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                    {ROLE_LABELS[log.role] ?? log.role}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-                        ACTION_COLORS[log.action] ?? 'bg-gray-100 text-gray-700',
-                      )}
-                    >
-                      {ACTION_LABELS[log.action] ?? log.action}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                    {log.entity}
-                    <span className="ml-1 text-xs text-gray-400">({log.entityId})</span>
-                  </td>
-                  <td className="max-w-[160px] truncate px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                    {log.oldValue || '-'}
-                  </td>
-                  <td className="max-w-[160px] truncate px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                    {log.newValue || '-'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        'text-sm font-medium',
-                        STATUS_COLORS[log.status] ?? 'text-gray-600 dark:text-gray-400',
-                      )}
-                    >
-                      {log.status}
-                    </span>
-                  </td>
+        <>
+          {/* Mobile cards */}
+          <div className="space-y-3 md:hidden">
+            {pagedLogs.map((log) => (
+              <div key={log.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <span
+                    className={cn(
+                      'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                      ACTION_COLORS[log.action] ?? 'bg-gray-100 text-gray-700',
+                    )}
+                  >
+                    {ACTION_LABELS[log.action] ?? log.action}
+                  </span>
+                  <span
+                    className={cn(
+                      'text-sm font-medium',
+                      STATUS_COLORS[log.status] ?? 'text-gray-600 dark:text-gray-400',
+                    )}
+                  >
+                    {log.status}
+                  </span>
+                </div>
+                <div className="space-y-1.5 text-sm">
+                  <div><span className="text-gray-500 dark:text-gray-400">User: </span><span className="font-medium text-gray-900 dark:text-white">{log.userName}</span> <span className="text-gray-400">({ROLE_LABELS[log.role] ?? log.role})</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">Entity: </span><span className="text-gray-700 dark:text-gray-300">{log.entity}</span></div>
+                  {log.oldValue && <div><span className="text-gray-500 dark:text-gray-400">Old: </span><span className="text-gray-600 dark:text-gray-400 break-all">{log.oldValue}</span></div>}
+                  {log.newValue && <div><span className="text-gray-500 dark:text-gray-400">New: </span><span className="text-gray-600 dark:text-gray-400 break-all">{log.newValue}</span></div>}
+                  <div className="text-xs text-gray-400">{formatDateTime(log.timestamp)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Date/Time
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    User
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Role
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Action
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Entity
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Old Value
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    New Value
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Status
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {pagedLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                      {formatDateTime(log.timestamp)}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                      {log.userName}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                      {ROLE_LABELS[log.role] ?? log.role}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                          ACTION_COLORS[log.action] ?? 'bg-gray-100 text-gray-700',
+                        )}
+                      >
+                        {ACTION_LABELS[log.action] ?? log.action}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                      {log.entity}
+                      <span className="ml-1 text-xs text-gray-400">({log.entityId})</span>
+                    </td>
+                    <td className="max-w-[160px] truncate px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                      {log.oldValue || '-'}
+                    </td>
+                    <td className="max-w-[160px] truncate px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                      {log.newValue || '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={cn(
+                          'text-sm font-medium',
+                          STATUS_COLORS[log.status] ?? 'text-gray-600 dark:text-gray-400',
+                        )}
+                      >
+                        {log.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredLogs.length)}{' '}
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+            {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredLogs.length)}{' '}
             of {filteredLogs.length}
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              size="sm"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
+              className="min-h-[44px] min-w-[44px]"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -391,9 +427,9 @@ export function AuditLogPage() {
             </span>
             <Button
               variant="outline"
-              size="sm"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
+              className="min-h-[44px] min-w-[44px]"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

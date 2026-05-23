@@ -614,6 +614,25 @@ export function ReportsPage() {
               <EmptyState icon={<FileBarChart className="h-12 w-12" />} title="No OOL requests" description="No out-of-location requests found." />
             ) : (
               <>
+                {/* Mobile cards */}
+                <div className="space-y-3 md:hidden">
+                  {paginate(oolData, oolPage).paged.map((r) => (
+                    <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                      <div className="mb-2 flex items-start justify-between">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{r.customerName}</p>
+                        <StatusBadge status={r.status} />
+                      </div>
+                      <div className="space-y-1.5 text-sm">
+                        <div><span className="text-gray-500 dark:text-gray-400">By: </span><span className="text-gray-700 dark:text-gray-300">{r.userName}</span></div>
+                        <div><span className="text-gray-500 dark:text-gray-400">Distance: </span><span className="text-gray-700 dark:text-gray-300">{r.distance}m</span></div>
+                        <div><span className="text-gray-500 dark:text-gray-400">Reason: </span><span className="text-gray-700 dark:text-gray-300">{r.reason}</span></div>
+                        <div><span className="text-gray-500 dark:text-gray-400">Date: </span><span className="text-gray-700 dark:text-gray-300">{formatDateTime(r.createdAt)}</span></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop table */}
+                <div className="hidden md:block">
                 <TableWrap>
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
@@ -634,6 +653,7 @@ export function ReportsPage() {
                     ))}
                   </tbody>
                 </TableWrap>
+                </div>
                 <PaginationBar page={oolPage} totalPages={paginate(oolData, oolPage).totalPages} total={oolData.length} setPage={setOolPage} />
               </>
             )}
@@ -677,6 +697,25 @@ export function ReportsPage() {
               <EmptyState icon={<FileBarChart className="h-12 w-12" />} title="No data updates" description="No data update requests found." />
             ) : (
               <>
+                {/* Mobile cards */}
+                <div className="space-y-3 md:hidden">
+                  {paginate(duData, duPage).paged.map((r) => (
+                    <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                      <div className="mb-2 flex items-start justify-between">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{r.customerName}</p>
+                        <StatusBadge status={r.status} />
+                      </div>
+                      <div className="space-y-1.5 text-sm">
+                        <div><span className="text-gray-500 dark:text-gray-400">Type: </span><span className="font-medium text-purple-600 dark:text-purple-400">{r.updateType}</span></div>
+                        <div><span className="text-gray-500 dark:text-gray-400">Old: </span><span className="text-red-600 dark:text-red-400 break-all">{r.oldValue}</span></div>
+                        <div><span className="text-gray-500 dark:text-gray-400">New: </span><span className="text-green-600 dark:text-green-400 break-all">{r.newValue}</span></div>
+                        <div><span className="text-gray-500 dark:text-gray-400">Date: </span><span className="text-gray-700 dark:text-gray-300">{formatDateTime(r.createdAt)}</span></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop table */}
+                <div className="hidden md:block">
                 <TableWrap>
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
@@ -697,6 +736,7 @@ export function ReportsPage() {
                     ))}
                   </tbody>
                 </TableWrap>
+                </div>
                 <PaginationBar page={duPage} totalPages={paginate(duData, duPage).totalPages} total={duData.length} setPage={setDuPage} />
               </>
             )}
@@ -715,6 +755,25 @@ export function ReportsPage() {
               <EmptyState icon={<FileBarChart className="h-12 w-12" />} title="No activity" description="No user activity found in the selected date range." />
             ) : (
               <>
+                {/* Mobile cards */}
+                <div className="space-y-3 md:hidden">
+                  {paginate(userActivityData, uaPage).paged.map((u) => (
+                    <div key={u.userId} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                      <div className="mb-2 flex items-start justify-between">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{u.userName}</p>
+                        <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                          {u.totalActions} actions
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div><span className="text-gray-500 dark:text-gray-400">Role: </span><span className="text-gray-700 dark:text-gray-300">{ROLE_LABELS[u.role] ?? u.role}</span></div>
+                        <div><span className="text-gray-500 dark:text-gray-400">Last: </span><span className="text-gray-700 dark:text-gray-300">{formatDateTime(u.lastActivity)}</span></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop table */}
+                <div className="hidden md:block">
                 <TableWrap>
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
@@ -736,6 +795,7 @@ export function ReportsPage() {
                     ))}
                   </tbody>
                 </TableWrap>
+                </div>
                 <PaginationBar page={uaPage} totalPages={paginate(userActivityData, uaPage).totalPages} total={userActivityData.length} setPage={setUaPage} />
               </>
             )}
@@ -754,6 +814,25 @@ export function ReportsPage() {
               <EmptyState icon={<FileBarChart className="h-12 w-12" />} title="No customer updates" description="No customer data changes found." />
             ) : (
               <>
+                {/* Mobile cards */}
+                <div className="space-y-3 md:hidden">
+                  {paginate(customerUpdatesData, cuPage).paged.map((l) => (
+                    <div key={l.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                      <div className="mb-2">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{l.entity}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{l.action === 'customer_gps_updated' ? 'GPS Location' : 'Data Field'}</p>
+                      </div>
+                      <div className="space-y-1.5 text-sm">
+                        <div><span className="text-gray-500 dark:text-gray-400">Old: </span><span className="text-red-600 dark:text-red-400 break-all">{l.oldValue || '-'}</span></div>
+                        <div><span className="text-gray-500 dark:text-gray-400">New: </span><span className="text-green-600 dark:text-green-400 break-all">{l.newValue || '-'}</span></div>
+                        <div><span className="text-gray-500 dark:text-gray-400">By: </span><span className="text-gray-700 dark:text-gray-300">{l.userName}</span></div>
+                        <div><span className="text-gray-500 dark:text-gray-400">Date: </span><span className="text-gray-700 dark:text-gray-300">{formatDateTime(l.timestamp)}</span></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop table */}
+                <div className="hidden md:block">
                 <TableWrap>
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
@@ -773,6 +852,7 @@ export function ReportsPage() {
                     ))}
                   </tbody>
                 </TableWrap>
+                </div>
                 <PaginationBar page={cuPage} totalPages={paginate(customerUpdatesData, cuPage).totalPages} total={customerUpdatesData.length} setPage={setCuPage} />
               </>
             )}
