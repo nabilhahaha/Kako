@@ -59,8 +59,8 @@ export function SalesDashboardPage() {
 h1{font-size:15px;font-weight:800}h3{font-size:12px;font-weight:700;margin:12px 0 6px}
 table{width:100%;border-collapse:collapse;margin:8px 0}th{background:#f8fafc;font-weight:600;text-align:left;padding:6px 10px;border:1px solid #e2e8f0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
 td{padding:5px 10px;border:1px solid #e2e8f0;font-size:11px}tr:nth-child(even){background:#fafbfc}.text-end{text-align:right}
-.hdr{border-bottom:3px solid #8B0000;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:end}
-.sub{font-size:10px;color:#64748b}.roshen{color:#8B0000}
+.hdr{border-bottom:3px solid #E30613;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:end}
+.sub{font-size:10px;color:#64748b}.roshen{color:#E30613}
 @media print{body{padding:8px}thead{display:table-header-group}tr{page-break-inside:avoid}}</style></head><body>
 <div class="hdr"><div><h1>ROSHEN KSA <span class="roshen">Sales Dashboard</span></h1><div class="sub">${label} · ${dataset?.meta.dateMin} → ${dataset?.meta.dateMax} · ${dataset?.meta.rows.toLocaleString()} transactions</div></div><div class="sub">${new Date().toLocaleDateString('en-GB')}</div></div>
 ${contentRef.current.innerHTML}
@@ -74,13 +74,13 @@ ${contentRef.current.innerHTML}
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-4">
           <div className="w-14 h-14 mx-auto rounded-xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #8B0000, #a81c1c)' }}>
+            style={{ background: 'linear-gradient(135deg, #E30613, #c00510)' }}>
             <span className="text-white text-xl font-black">R</span>
           </div>
           <div className="space-y-1">
             <p className="text-sm font-bold text-foreground">{t('Loading Sales Data', lang)}</p>
             <div className="w-32 h-1 mx-auto bg-muted rounded-full overflow-hidden">
-              <div className="h-full rounded-full animate-pulse" style={{ width: '60%', background: '#8B0000' }} />
+              <div className="h-full rounded-full animate-pulse" style={{ width: '60%', background: '#E30613' }} />
             </div>
           </div>
         </div>
@@ -94,7 +94,7 @@ ${contentRef.current.innerHTML}
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-5 max-w-md px-6">
           <div className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #8B0000 0%, #a81c1c 100%)', boxShadow: '0 8px 32px rgb(139 0 0 / 0.2)' }}>
+            style={{ background: 'linear-gradient(135deg, #E30613 0%, #c00510 100%)', boxShadow: '0 8px 32px rgb(227 6 19 / 0.25)' }}>
             <span className="text-white text-3xl font-black">R</span>
           </div>
           <div>
@@ -118,13 +118,13 @@ ${contentRef.current.innerHTML}
           {/* Left: Brand */}
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
-              style={{ background: 'linear-gradient(135deg, #8B0000, #a81c1c)' }}>
+              style={{ background: 'linear-gradient(135deg, #E30613, #c00510)' }}>
               <span className="text-white text-xs font-black">R</span>
             </div>
             <div className="min-w-0">
               <h1 className="text-[13px] font-extrabold tracking-tight text-foreground leading-none">
                 {t('Sales Dashboard', lang)}
-                <span className="ml-1.5 font-bold" style={{ color: '#8B0000' }}>ROSHEN KSA</span>
+                <span className="ml-1.5 font-bold" style={{ color: '#E30613' }}>ROSHEN KSA</span>
               </h1>
               <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">
                 {dataset.meta.dateMin} → {dataset.meta.dateMax} · {dataset.meta.rows.toLocaleString()} {t('rows', lang)}
@@ -164,7 +164,7 @@ ${contentRef.current.innerHTML}
                     ? 'text-white'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
-                style={isActive ? { background: 'linear-gradient(135deg, #8B0000, #a81c1c)' } : undefined}
+                style={isActive ? { background: 'linear-gradient(135deg, #E30613, #c00510)' } : undefined}
               >
                 <span className="text-[13px]">{tab.icon}</span>
                 <span className="hidden sm:inline">{t(tab.label, lang)}</span>
