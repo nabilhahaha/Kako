@@ -2,136 +2,175 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 224 71% 4%;
-
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
-
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
-
-    --primary: 220 90% 56%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 224 71% 4%;
-
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 43%;
-
-    --accent: 220 14% 96%;
-    --accent-foreground: 224 71% 4%;
-
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
-    --success: 160 84% 39%;
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
-
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
-
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 220 90% 56%;
-
-    --radius: 0.625rem;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+    --radius: 0.5rem;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
 
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
 
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
-    font-feature-settings: 'rlig' 1, 'calt' 1;
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   }
 
   :focus-visible {
     @apply outline-none ring-2 ring-ring/30 ring-offset-1 ring-offset-background;
   }
 
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-border/60 rounded-full; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/30; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.3); }
 }
 
 @layer components {
+  /* Cards */
   .dash-card {
-    @apply bg-card rounded-xl border shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow;
-  }
-  .dash-card:hover {
-    @apply shadow-[0_2px_8px_rgba(0,0,0,0.06)];
+    @apply bg-card rounded-lg border;
+    box-shadow: var(--shadow-sm);
   }
 
+  /* Professional data tables */
   .dash-table {
-    @apply w-full text-[13px] leading-relaxed;
+    @apply w-full;
+    font-size: 13px;
+    line-height: 1.5;
+    border-collapse: separate;
+    border-spacing: 0;
   }
   .dash-table thead {
     @apply sticky top-0 z-10;
   }
-  .dash-table thead tr {
-    @apply bg-muted/70 backdrop-blur-sm;
-  }
   .dash-table th {
-    @apply px-4 py-2.5 font-semibold text-muted-foreground text-[11px] uppercase tracking-wider whitespace-nowrap;
+    @apply text-left font-semibold text-muted-foreground bg-muted/50 backdrop-blur-sm;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border-bottom: 1px solid hsl(var(--border));
+    white-space: nowrap;
   }
+  .dash-table th.text-end { text-align: right; }
   .dash-table td {
-    @apply px-4 py-2.5;
+    padding: 10px 16px;
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
+    vertical-align: middle;
   }
   .dash-table tbody tr {
-    @apply border-t border-border/50 transition-colors;
-  }
-  .dash-table tbody tr:hover {
-    @apply bg-primary/[0.03];
+    @apply transition-colors;
   }
   .dash-table tbody tr:nth-child(even) {
-    @apply bg-muted/30;
+    background: hsl(var(--muted) / 0.25);
   }
-  .dash-table tbody tr:nth-child(even):hover {
-    @apply bg-primary/[0.04];
+  .dash-table tbody tr:hover {
+    background: hsl(var(--primary) / 0.04);
   }
   .dash-table .num {
-    @apply text-end font-mono tabular-nums;
+    text-align: right;
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 12.5px;
+    letter-spacing: -0.01em;
   }
-  .dash-table .pos {
-    @apply text-emerald-600;
-  }
-  .dash-table .neg {
-    @apply text-red-500;
-  }
+  .dash-table .pos { color: #059669; }
+  .dash-table .neg { color: #dc2626; }
 
+  /* Inputs */
   .dash-input {
-    @apply w-full px-3 py-2 text-sm border rounded-lg bg-background
-           focus:ring-2 focus:ring-primary/20 focus:border-primary/40
-           outline-none transition-all placeholder:text-muted-foreground/50;
+    @apply w-full px-3 py-[7px] text-[13px] border rounded-md bg-background
+           outline-none transition-all placeholder:text-muted-foreground/40;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  }
+  .dash-input:focus {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1), 0 1px 2px rgb(0 0 0 / 0.04);
   }
 
+  /* Buttons */
   .dash-btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
-           transition-all active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary/30;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md text-[13px] font-semibold
+           transition-all active:scale-[0.98];
+    height: 34px;
+    padding: 0 14px;
   }
   .dash-btn-primary {
-    @apply dash-btn bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm;
+    @apply dash-btn bg-primary text-primary-foreground;
+    box-shadow: 0 1px 3px hsl(var(--primary) / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.1);
+  }
+  .dash-btn-primary:hover {
+    filter: brightness(1.08);
   }
   .dash-btn-ghost {
-    @apply dash-btn text-muted-foreground hover:text-foreground hover:bg-muted border;
+    @apply dash-btn text-muted-foreground border;
+    background: hsl(var(--card));
+    box-shadow: var(--shadow-sm);
+  }
+  .dash-btn-ghost:hover {
+    @apply text-foreground;
+    background: hsl(var(--muted));
   }
 
+  /* Chart card wrapper */
+  .chart-card {
+    @apply dash-card p-5;
+  }
+  .chart-card h3 {
+    @apply text-[13px] font-semibold text-foreground mb-4;
+    letter-spacing: -0.01em;
+  }
+
+  /* Share bar (inline progress) */
+  .share-bar {
+    @apply flex items-center gap-2 justify-end;
+  }
+  .share-bar .track {
+    @apply w-14 h-[5px] bg-muted rounded-full overflow-hidden;
+  }
+  .share-bar .fill {
+    @apply h-full bg-primary rounded-full;
+  }
+  .share-bar .label {
+    @apply text-[10px] text-muted-foreground font-medium tabular-nums w-10 text-right;
+  }
+
+  /* Scrollbar hide utility */
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 }

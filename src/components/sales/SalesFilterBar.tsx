@@ -2,99 +2,94 @@ import { useState, useRef, useEffect } from 'react';
 import type { SalesDataset } from '@/lib/salesTypes';
 import { useSalesFilterStore } from '@/stores/salesFilterStore';
 
-interface Props {
-  dataset: SalesDataset;
-}
+interface Props { dataset: SalesDataset }
 
 type DimKey = 'regions' | 'channels' | 'branches' | 'cities' | 'categories' | 'managers' | 'nsms';
 
-const DIMENSION_CONFIG: { key: DimKey; filterKey: DimKey; label: string; labelUk: string }[] = [
-  { key: 'regions', filterKey: 'regions', label: 'Region', labelUk: 'Регіон' },
-  { key: 'channels', filterKey: 'channels', label: 'Channel', labelUk: 'Канал' },
-  { key: 'branches', filterKey: 'branches', label: 'Branch', labelUk: 'Філія' },
-  { key: 'categories', filterKey: 'categories', label: 'Category', labelUk: 'Категорія' },
-  { key: 'managers', filterKey: 'managers', label: 'Manager', labelUk: 'Менеджер' },
-  { key: 'nsms', filterKey: 'nsms', label: 'NSM', labelUk: 'NSM' },
+const DIMS: { key: DimKey; label: string }[] = [
+  { key: 'regions', label: 'Region' },
+  { key: 'channels', label: 'Channel' },
+  { key: 'branches', label: 'Branch' },
+  { key: 'categories', label: 'Category' },
+  { key: 'managers', label: 'Manager' },
+  { key: 'nsms', label: 'NSM' },
 ];
 
-function DimFilter({
-  label, options, selected, onToggle, onClear, onSelectAll,
+function Pill({
+  label, options, selected, onToggle, onClear, onAll,
 }: {
   label: string; options: string[]; selected: number[];
-  onToggle: (idx: number) => void; onClear: () => void; onSelectAll: () => void;
+  onToggle: (i: number) => void; onClear: () => void; onAll: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const filtered = options
-    .map((opt, idx) => ({ opt, idx }))
-    .filter(({ opt }) => opt.toLowerCase().includes(search.toLowerCase()));
-
   const active = selected.length > 0;
+  const items = options
+    .map((o, i) => ({ o, i }))
+    .filter(({ o }) => o.toLowerCase().includes(q.toLowerCase()));
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`group flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium transition-all ${
+        className={`h-[30px] flex items-center gap-1 px-2.5 rounded-md text-[12px] font-medium transition-all border ${
           active
-            ? 'bg-primary/10 text-primary ring-1 ring-primary/20'
-            : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+            ? 'bg-primary/[0.08] border-primary/25 text-primary'
+            : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/20'
         }`}
       >
-        <span className="truncate max-w-[80px]">{label}</span>
+        <span>{label}</span>
         {active && (
-          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+          <span className="ml-0.5 w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
             {selected.length}
           </span>
         )}
-        <svg className={`w-3 h-3 opacity-40 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+        <svg className={`w-2.5 h-2.5 opacity-50 ml-0.5 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1.5 start-0 z-50 bg-card border rounded-xl shadow-lg shadow-black/5 w-60 max-h-80 overflow-hidden flex flex-col animate-fade-in">
-          <div className="p-2 border-b space-y-1.5">
+        <div className="absolute top-full mt-1 left-0 z-50 w-56 bg-card border rounded-lg overflow-hidden animate-fade-in"
+          style={{ boxShadow: '0 4px 24px rgb(0 0 0 / 0.12), 0 1px 4px rgb(0 0 0 / 0.06)' }}>
+          <div className="p-1.5 border-b">
             <input
-              type="text"
-              placeholder={`Search...`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="dash-input !py-1.5 !text-[13px]"
               autoFocus
+              type="text"
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Search..."
+              className="w-full px-2 py-[5px] text-[12px] rounded border bg-muted/40 outline-none focus:border-primary/30"
             />
-            <div className="flex gap-1.5">
-              <button onClick={onSelectAll} className="text-[11px] font-medium text-primary hover:underline">All</button>
-              <span className="text-border">|</span>
-              <button onClick={onClear} className="text-[11px] font-medium text-red-500 hover:underline">Clear</button>
-            </div>
           </div>
-          <div className="overflow-y-auto p-1 scrollbar-hide">
-            {filtered.map(({ opt, idx }) => (
-              <label
-                key={idx}
-                className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg hover:bg-muted/70 cursor-pointer text-[13px] transition-colors"
-              >
+          <div className="flex items-center gap-2 px-2.5 py-1.5 border-b bg-muted/20">
+            <button onClick={onAll} className="text-[11px] font-semibold text-primary hover:underline">Select all</button>
+            <span className="text-border text-[10px]">|</span>
+            <button onClick={() => { onClear(); }} className="text-[11px] font-semibold text-red-500 hover:underline">Clear</button>
+            <span className="ml-auto text-[10px] text-muted-foreground">{items.length} items</span>
+          </div>
+          <div className="max-h-[220px] overflow-y-auto p-0.5 scrollbar-hide">
+            {items.map(({ o, i }) => (
+              <label key={i} className="flex items-center gap-2 px-2.5 py-[6px] rounded hover:bg-muted/50 cursor-pointer text-[12px] transition-colors">
                 <input
                   type="checkbox"
-                  checked={selected.includes(idx)}
-                  onChange={() => onToggle(idx)}
-                  className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/20"
+                  checked={selected.includes(i)}
+                  onChange={() => onToggle(i)}
+                  className="w-3.5 h-3.5 rounded border-muted-foreground/30 text-primary focus:ring-primary/20 accent-primary"
                 />
-                <span className="truncate">{opt}</span>
+                <span className="truncate text-foreground/90">{o}</span>
               </label>
             ))}
-            {filtered.length === 0 && (
-              <div className="px-3 py-4 text-center text-xs text-muted-foreground">No results</div>
-            )}
+            {items.length === 0 && <p className="text-center py-3 text-[11px] text-muted-foreground">No results</p>}
           </div>
         </div>
       )}
@@ -103,57 +98,43 @@ function DimFilter({
 }
 
 export function SalesFilterBar({ dataset }: Props) {
-  const store = useSalesFilterStore();
-  const hasFilters = store.dateFrom || store.dateTo || store.regions.length || store.channels.length ||
-    store.branches.length || store.cities.length || store.categories.length || store.managers.length || store.nsms.length;
+  const s = useSalesFilterStore();
+  const hasFilters = !!(s.dateFrom || s.dateTo || s.regions.length || s.channels.length ||
+    s.branches.length || s.cities.length || s.categories.length || s.managers.length || s.nsms.length);
 
   return (
-    <div className="dash-card p-2.5 flex flex-wrap items-center gap-1.5">
-      <div className="flex items-center gap-1.5 bg-muted/60 rounded-lg px-2 h-8">
-        <svg className="w-3.5 h-3.5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-        <input
-          type="date"
-          value={store.dateFrom || ''}
-          min={dataset.meta.dateMin}
-          max={dataset.meta.dateMax}
-          onChange={(e) => store.setDateRange(e.target.value || null, store.dateTo)}
-          className="bg-transparent text-[13px] font-medium outline-none w-[110px]"
-        />
-        <span className="text-muted-foreground/40">—</span>
-        <input
-          type="date"
-          value={store.dateTo || ''}
-          min={dataset.meta.dateMin}
-          max={dataset.meta.dateMax}
-          onChange={(e) => store.setDateRange(store.dateFrom, e.target.value || null)}
-          className="bg-transparent text-[13px] font-medium outline-none w-[110px]"
-        />
+    <div className="dash-card px-3 py-2 flex flex-wrap items-center gap-1.5">
+      {/* Date range */}
+      <div className="flex items-center gap-1 rounded-md border bg-card px-2 h-[30px] text-[12px]">
+        <svg className="w-3.5 h-3.5 text-muted-foreground shrink-0" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.2"/><path d="M1 7h14M5 1v4M11 1v4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+        <input type="date" value={s.dateFrom || ''} min={dataset.meta.dateMin} max={dataset.meta.dateMax}
+          onChange={e => s.setDateRange(e.target.value || null, s.dateTo)}
+          className="bg-transparent w-[105px] outline-none font-medium" />
+        <span className="text-muted-foreground/40 text-[10px]">—</span>
+        <input type="date" value={s.dateTo || ''} min={dataset.meta.dateMin} max={dataset.meta.dateMax}
+          onChange={e => s.setDateRange(s.dateFrom, e.target.value || null)}
+          className="bg-transparent w-[105px] outline-none font-medium" />
       </div>
 
-      <div className="w-px h-5 bg-border/60 mx-0.5" />
+      <div className="w-px h-4 bg-border mx-0.5" />
 
-      {DIMENSION_CONFIG.map(({ key, filterKey, label }) => (
-        <DimFilter
+      {DIMS.map(({ key, label }) => (
+        <Pill
           key={key}
           label={label}
           options={dataset.dims[key]}
-          selected={store[filterKey] as number[]}
-          onToggle={(idx) => store.toggleDimension(filterKey, idx)}
-          onClear={() => store.setDimension(filterKey, [])}
-          onSelectAll={() => store.setDimension(filterKey, dataset.dims[key].map((_, i) => i))}
+          selected={s[key] as number[]}
+          onToggle={i => s.toggleDimension(key, i)}
+          onClear={() => s.setDimension(key, [])}
+          onAll={() => s.setDimension(key, dataset.dims[key].map((_, i) => i))}
         />
       ))}
 
       {hasFilters && (
-        <>
-          <div className="w-px h-5 bg-border/60 mx-0.5" />
-          <button
-            onClick={store.resetAll}
-            className="h-8 px-3 text-[13px] font-medium text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            Clear all
-          </button>
-        </>
+        <button onClick={s.resetAll}
+          className="ml-auto h-[30px] px-2.5 text-[11px] font-semibold text-red-500 hover:bg-red-50 rounded-md transition-colors">
+          Clear all ×
+        </button>
       )}
     </div>
   );

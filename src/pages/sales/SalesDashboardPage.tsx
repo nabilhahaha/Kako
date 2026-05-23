@@ -50,61 +50,57 @@ export function SalesDashboardPage() {
     queryClient.setQueryData(['sales-dataset'], newData);
   }, [queryClient]);
 
-  function handlePrintView() {
+  function handlePrint() {
     const pw = window.open('', '_blank');
     if (!pw || !contentRef.current) return;
-    const tabLabel = TABS.find(t => t.id === activeTab)?.label || activeTab;
-    pw.document.write(`<!DOCTYPE html><html><head><title>Roshen KSA — ${tabLabel}</title>
-      <style>
-        *{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:Inter,-apple-system,'Segoe UI',sans-serif;padding:28px;color:#0f172a;line-height:1.6;font-size:12px}
-        h1{font-size:16px;font-weight:800;letter-spacing:-0.02em}
-        h3{font-size:13px;font-weight:700;margin:14px 0 8px}
-        table{width:100%;border-collapse:collapse;margin:10px 0}
-        th{background:#f1f5f9;font-weight:600;text-align:left;padding:7px 10px;border:1px solid #e2e8f0;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b}
-        td{padding:6px 10px;border:1px solid #e2e8f0}
-        tr:nth-child(even){background:#f8fafc}
-        .text-end{text-align:right}
-        .hdr{border-bottom:2px solid #2563eb;padding-bottom:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:baseline}
-        .sub{font-size:11px;color:#64748b}
-        @media print{body{padding:12px}thead{display:table-header-group}tr{page-break-inside:avoid}}
-      </style></head><body>
-      <div class="hdr"><div><h1>ROSHEN KSA — ${tabLabel}</h1><div class="sub">${dataset?.meta.dateMin} → ${dataset?.meta.dateMax} · ${dataset?.meta.rows.toLocaleString()} transactions</div></div><div class="sub">${new Date().toLocaleDateString('en-GB')}</div></div>
-      ${contentRef.current.innerHTML}
-      <script>window.print();window.onafterprint=()=>window.close()<\/script></body></html>`);
+    const label = TABS.find(t => t.id === activeTab)?.label || activeTab;
+    pw.document.write(`<!DOCTYPE html><html><head><title>Roshen KSA — ${label}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,-apple-system,sans-serif;padding:24px;color:#0f172a;font-size:12px;line-height:1.6}
+h1{font-size:15px;font-weight:800}h3{font-size:12px;font-weight:700;margin:12px 0 6px}
+table{width:100%;border-collapse:collapse;margin:8px 0}th{background:#f8fafc;font-weight:600;text-align:left;padding:6px 10px;border:1px solid #e2e8f0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
+td{padding:5px 10px;border:1px solid #e2e8f0;font-size:11px}tr:nth-child(even){background:#fafbfc}.text-end{text-align:right}
+.hdr{border-bottom:3px solid #8B0000;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:end}
+.sub{font-size:10px;color:#64748b}.roshen{color:#8B0000}
+@media print{body{padding:8px}thead{display:table-header-group}tr{page-break-inside:avoid}}</style></head><body>
+<div class="hdr"><div><h1>ROSHEN KSA <span class="roshen">Sales Dashboard</span></h1><div class="sub">${label} · ${dataset?.meta.dateMin} → ${dataset?.meta.dateMax} · ${dataset?.meta.rows.toLocaleString()} transactions</div></div><div class="sub">${new Date().toLocaleDateString('en-GB')}</div></div>
+${contentRef.current.innerHTML}
+<script>window.print();window.onafterprint=()=>window.close()<\/script></body></html>`);
     pw.document.close();
   }
 
+  // Loading
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[70vh]">
-        <div className="text-center space-y-5">
-          <div className="relative w-16 h-16 mx-auto">
-            <div className="absolute inset-0 rounded-2xl bg-primary/10 animate-ping" />
-            <div className="relative w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <span className="text-2xl">📊</span>
-            </div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center space-y-4">
+          <div className="w-14 h-14 mx-auto rounded-xl flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #8B0000, #a81c1c)' }}>
+            <span className="text-white text-xl font-black">R</span>
           </div>
-          <div>
-            <p className="font-bold text-foreground">{t('Loading Sales Data', lang)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Processing transactions...</p>
+          <div className="space-y-1">
+            <p className="text-sm font-bold text-foreground">{t('Loading Sales Data', lang)}</p>
+            <div className="w-32 h-1 mx-auto bg-muted rounded-full overflow-hidden">
+              <div className="h-full rounded-full animate-pulse" style={{ width: '60%', background: '#8B0000' }} />
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
+  // Empty / error
   if (error || !dataset || !kpis) {
     return (
-      <div className="flex items-center justify-center min-h-[70vh]">
-        <div className="text-center space-y-6 max-w-md px-6">
-          <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-lg shadow-primary/10">
-            <span className="text-4xl">📤</span>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center space-y-5 max-w-md px-6">
+          <div className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #8B0000 0%, #a81c1c 100%)', boxShadow: '0 8px 32px rgb(139 0 0 / 0.2)' }}>
+            <span className="text-white text-3xl font-black">R</span>
           </div>
           <div>
             <p className="text-xl font-extrabold text-foreground tracking-tight">{t('Welcome to Roshen KSA Dashboard', lang)}</p>
-            <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
-              Upload your sales Excel file to get started. Required columns: Invoice Date, Cust Account, Item Description, Sales Man, Inv Qty Cases, Invoice Amount ex Vat.
+            <p className="text-[13px] text-muted-foreground mt-3 leading-relaxed">
+              Upload your sales Excel file to visualize 100K+ transactions across customers, products, salesmen and regions.
             </p>
           </div>
           <ExcelUpload onDataLoaded={handleDataLoaded} />
@@ -116,59 +112,68 @@ export function SalesDashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Bar */}
-      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b">
-        <div className="max-w-[1440px] mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-black text-sm shrink-0">R</div>
+      {/* ═══ Top Nav ═══ */}
+      <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur-xl" style={{ borderColor: 'hsl(var(--border))' }}>
+        <div className="max-w-[1440px] mx-auto h-12 px-4 flex items-center justify-between gap-4">
+          {/* Left: Brand */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+              style={{ background: 'linear-gradient(135deg, #8B0000, #a81c1c)' }}>
+              <span className="text-white text-xs font-black">R</span>
+            </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-extrabold text-foreground tracking-tight truncate">
-                {t('Sales Dashboard', lang)} <span className="text-primary">— ROSHEN KSA</span>
+              <h1 className="text-[13px] font-extrabold tracking-tight text-foreground leading-none">
+                {t('Sales Dashboard', lang)}
+                <span className="ml-1.5 font-bold" style={{ color: '#8B0000' }}>ROSHEN KSA</span>
               </h1>
-              <p className="text-[11px] text-muted-foreground truncate">
-                {dataset.meta.dateMin} → {dataset.meta.dateMax} · {dataset.meta.rows.toLocaleString()} {t('rows', lang)} · {dataset.salesmen.length} {t('salesmen', lang)} · {dataset.customers.length.toLocaleString()} {t('customers', lang)}
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">
+                {dataset.meta.dateMin} → {dataset.meta.dateMax} · {dataset.meta.rows.toLocaleString()} {t('rows', lang)}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={toggleLang}
-              className="h-8 px-2.5 rounded-lg text-[12px] font-bold border hover:bg-muted transition-colors"
-              title="Switch language"
-            >
-              {lang === 'en' ? '🇺🇦 UK' : '🇬🇧 EN'}
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={toggleLang} title="Switch language"
+              className="dash-btn-ghost !h-7 !px-2 !text-[11px] !gap-1">
+              {lang === 'en' ? '🇺🇦 УКР' : '🇬🇧 ENG'}
             </button>
             <ExcelUpload onDataLoaded={handleDataLoaded} />
-            <button onClick={handlePrintView} className="dash-btn-ghost !h-8 !px-2.5 !text-[12px]">
-              🖨️ <span className="hidden sm:inline">{t('Print', lang)}</span>
+            <button onClick={handlePrint} className="dash-btn-ghost !h-7 !px-2 !text-[11px]">
+              🖨️
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-[1440px] mx-auto px-4 py-3 space-y-3">
+      {/* ═══ Body ═══ */}
+      <main className="max-w-[1440px] mx-auto px-4 py-3 space-y-3">
         <SalesFilterBar dataset={dataset} />
         <SalesKPIGrid kpis={kpis} />
 
-        {/* Tab Bar */}
-        <div className="dash-card p-1 flex items-center gap-0.5 overflow-x-auto scrollbar-hide">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-[13px] font-semibold transition-all whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              }`}
-            >
-              <span className="text-[14px]">{tab.icon}</span>
-              <span className="hidden sm:inline">{t(tab.label, lang)}</span>
-            </button>
-          ))}
-        </div>
+        {/* ═══ Tab Bar ═══ */}
+        <nav className="dash-card px-1 py-1 flex items-center gap-px overflow-x-auto scrollbar-hide">
+          {TABS.map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative flex items-center gap-1 px-3 py-[6px] rounded-md text-[12px] font-semibold whitespace-nowrap transition-all ${
+                  isActive
+                    ? 'text-white'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+                style={isActive ? { background: 'linear-gradient(135deg, #8B0000, #a81c1c)' } : undefined}
+              >
+                <span className="text-[13px]">{tab.icon}</span>
+                <span className="hidden sm:inline">{t(tab.label, lang)}</span>
+              </button>
+            );
+          })}
+        </nav>
 
-        {/* Tab Content */}
+        {/* ═══ Content ═══ */}
         <div ref={contentRef}>
           {activeTab === 'overview' && <OverviewTab monthlySales={monthlySales} regionSales={regionSales} channelSales={channelSales} />}
           {activeTab === 'trend' && <TrendTab monthlySales={monthlySales} />}
@@ -183,7 +188,7 @@ export function SalesDashboardPage() {
           {activeTab === 'promo' && <PromoTab dataset={dataset} indices={indices} />}
           {activeTab === 'invoice' && <InvoiceTab dataset={dataset} indices={indices} />}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
