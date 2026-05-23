@@ -37,6 +37,31 @@
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
 
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 71% 35%;
+    --warning: 38 92% 45%;
+    --info: 217 91% 55%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 224 64% 33%;
+  }
+
   * { @apply border-border; }
 
   html {
@@ -110,7 +135,9 @@
     letter-spacing: -0.01em;
   }
   .dash-table .pos { color: #059669; }
+  .dark .dash-table .pos { color: #34d399; }
   .dash-table .neg { color: #dc2626; }
+  .dark .dash-table .neg { color: #f87171; }
 
   /* Inputs */
   .dash-input {
@@ -120,7 +147,7 @@
   }
   .dash-input:focus {
     border-color: hsl(var(--primary) / 0.5);
-    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1), 0 1px 2px rgb(0 0 0 / 0.04);
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1), 0 1px 2px hsl(var(--foreground) / 0.04);
   }
 
   /* Buttons */

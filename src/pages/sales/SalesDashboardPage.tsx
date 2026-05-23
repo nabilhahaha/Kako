@@ -15,8 +15,12 @@ import { LostCustomersTab } from '@/components/sales/LostCustomersTab';
 import { ProfilesTab } from '@/components/sales/ProfilesTab';
 import { PromoTab } from '@/components/sales/PromoTab';
 import { InvoiceTab } from '@/components/sales/InvoiceTab';
+import { JourneyTab } from '@/components/sales/JourneyTab';
+import { DailyTab } from '@/components/sales/DailyTab';
+import { CoverageTab } from '@/components/sales/CoverageTab';
 import { ExcelUpload } from '@/components/sales/ExcelUpload';
 import { useLangStore, t } from '@/lib/i18n';
+import { useThemeStore } from '@/stores/themeStore';
 import type { SalesDataset } from '@/lib/salesTypes';
 
 const TABS = [
@@ -32,6 +36,9 @@ const TABS = [
   { id: 'profiles', label: 'Profiles', icon: '🔍' },
   { id: 'promo', label: 'Promo', icon: '🎁' },
   { id: 'invoice', label: 'Invoice 360', icon: '📄' },
+  { id: 'journey', label: 'Journey', icon: '🧬' },
+  { id: 'daily', label: 'Daily', icon: '📅' },
+  { id: 'coverage', label: 'Coverage', icon: '🗺️' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -41,6 +48,7 @@ export function SalesDashboardPage() {
   const queryClient = useQueryClient();
   const contentRef = useRef<HTMLDivElement>(null);
   const { lang, toggle: toggleLang } = useLangStore();
+  const { theme, toggle: toggleTheme } = useThemeStore();
   const {
     dataset, isLoading, error, indices, kpis,
     monthlySales, regionSales, productSales, salesmanPerformance, channelSales,
@@ -48,6 +56,17 @@ export function SalesDashboardPage() {
 
   const handleDataLoaded = useCallback((newData: SalesDataset) => {
     queryClient.setQueryData(['sales-dataset'], newData);
+    try {
+      localStorage.setItem('roshen_sales_data', JSON.stringify(newData));
+    } catch {
+      // localStorage might be full; silently ignore
+    }
+  }, [queryClient]);
+
+  const handleClearCache = useCallback(() => {
+    localStorage.removeItem('roshen_sales_data');
+    queryClient.removeQueries({ queryKey: ['sales-dataset'] });
+    window.location.reload();
   }, [queryClient]);
 
   function handlePrint() {
@@ -113,7 +132,7 @@ ${contentRef.current.innerHTML}
   return (
     <div className="min-h-screen bg-background">
       {/* ═══ Top Nav ═══ */}
-      <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur-xl" style={{ borderColor: 'hsl(var(--border))' }}>
+      <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-xl" style={{ borderColor: 'hsl(var(--border))' }}>
         <div className="max-w-[1440px] mx-auto h-12 px-4 flex items-center justify-between gap-4">
           {/* Left: Brand */}
           <div className="flex items-center gap-2.5 min-w-0">
@@ -134,11 +153,19 @@ ${contentRef.current.innerHTML}
 
           {/* Right: Actions */}
           <div className="flex items-center gap-1 shrink-0">
+            <button onClick={toggleTheme} title="Toggle dark mode"
+              className="dash-btn-ghost !h-7 !px-2 !text-[11px]">
+              {theme === 'light' ? '\u{1F319}' : '\u{2600}\u{FE0F}'}
+            </button>
             <button onClick={toggleLang} title="Switch language"
               className="dash-btn-ghost !h-7 !px-2 !text-[11px] !gap-1">
               {lang === 'en' ? '🇺🇦 УКР' : '🇬🇧 ENG'}
             </button>
             <ExcelUpload onDataLoaded={handleDataLoaded} />
+            <button onClick={handleClearCache} title="Clear cached data"
+              className="text-[10px] text-muted-foreground hover:text-destructive transition-colors underline">
+              {t('Clear cache', lang)}
+            </button>
             <button onClick={handlePrint} className="dash-btn-ghost !h-7 !px-2 !text-[11px]">
               🖨️
             </button>
@@ -187,6 +214,9 @@ ${contentRef.current.innerHTML}
           {activeTab === 'profiles' && <ProfilesTab dataset={dataset} indices={indices} />}
           {activeTab === 'promo' && <PromoTab dataset={dataset} indices={indices} />}
           {activeTab === 'invoice' && <InvoiceTab dataset={dataset} indices={indices} />}
+          {activeTab === 'journey' && <JourneyTab dataset={dataset} indices={indices} />}
+          {activeTab === 'daily' && <DailyTab dataset={dataset} indices={indices} />}
+          {activeTab === 'coverage' && <CoverageTab dataset={dataset} indices={indices} />}
         </div>
       </main>
     </div>

@@ -13,9 +13,28 @@ import {
 } from '@/lib/salesDataUtils';
 
 async function fetchSalesData(): Promise<SalesDataset> {
+  // Check localStorage cache first
+  try {
+    const cached = localStorage.getItem('roshen_sales_data');
+    if (cached) {
+      return JSON.parse(cached) as SalesDataset;
+    }
+  } catch {
+    // Corrupted cache; fall through to fetch
+  }
+
   const res = await fetch('/data/sales-data.json');
   if (!res.ok) throw new Error('Failed to load sales data');
-  return res.json();
+  const data: SalesDataset = await res.json();
+
+  // Save to localStorage for future visits
+  try {
+    localStorage.setItem('roshen_sales_data', JSON.stringify(data));
+  } catch {
+    // localStorage might be full; silently ignore
+  }
+
+  return data;
 }
 
 export function useSalesDataset() {
