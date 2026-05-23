@@ -4,26 +4,26 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 222 47% 11%;
+    --background: 220 20% 97%;
+    --foreground: 224 71% 4%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 224 71% 4%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 224 71% 4%;
 
-    --primary: 0 72% 51%;
+    --primary: 220 90% 56%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 71% 4%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 43%;
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 224 71% 4%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
@@ -39,9 +39,9 @@
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 0 72% 51%;
+    --ring: 220 90% 56%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
   }
 
   * {
@@ -52,60 +52,95 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
   body {
-    @apply bg-background text-foreground font-arabic;
-    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
-  }
-
-  [dir='rtl'] body {
-    @apply font-arabic;
-  }
-
-  [dir='ltr'] body {
-    @apply font-sans;
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    @apply outline-none ring-2 ring-ring/30 ring-offset-1 ring-offset-background;
   }
 
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border/60 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/30; }
+}
+
+@layer components {
+  .dash-card {
+    @apply bg-card rounded-xl border shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow;
+  }
+  .dash-card:hover {
+    @apply shadow-[0_2px_8px_rgba(0,0,0,0.06)];
   }
 
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+  .dash-table {
+    @apply w-full text-[13px] leading-relaxed;
+  }
+  .dash-table thead {
+    @apply sticky top-0 z-10;
+  }
+  .dash-table thead tr {
+    @apply bg-muted/70 backdrop-blur-sm;
+  }
+  .dash-table th {
+    @apply px-4 py-2.5 font-semibold text-muted-foreground text-[11px] uppercase tracking-wider whitespace-nowrap;
+  }
+  .dash-table td {
+    @apply px-4 py-2.5;
+  }
+  .dash-table tbody tr {
+    @apply border-t border-border/50 transition-colors;
+  }
+  .dash-table tbody tr:hover {
+    @apply bg-primary/[0.03];
+  }
+  .dash-table tbody tr:nth-child(even) {
+    @apply bg-muted/30;
+  }
+  .dash-table tbody tr:nth-child(even):hover {
+    @apply bg-primary/[0.04];
+  }
+  .dash-table .num {
+    @apply text-end font-mono tabular-nums;
+  }
+  .dash-table .pos {
+    @apply text-emerald-600;
+  }
+  .dash-table .neg {
+    @apply text-red-500;
   }
 
-  ::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-full;
+  .dash-input {
+    @apply w-full px-3 py-2 text-sm border rounded-lg bg-background
+           focus:ring-2 focus:ring-primary/20 focus:border-primary/40
+           outline-none transition-all placeholder:text-muted-foreground/50;
   }
 
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/40;
+  .dash-btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
+           transition-all active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary/30;
   }
+  .dash-btn-primary {
+    @apply dash-btn bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm;
+  }
+  .dash-btn-ghost {
+    @apply dash-btn text-muted-foreground hover:text-foreground hover:bg-muted border;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
 @layer utilities {
-  .text-display {
-    @apply text-[32px] leading-10 font-bold tracking-tight;
-  }
-  .text-h1 {
-    @apply text-2xl font-semibold tracking-tight;
-  }
-  .text-h2 {
-    @apply text-xl font-semibold;
-  }
-  .text-h3 {
-    @apply text-base font-medium;
-  }
-  .text-body {
-    @apply text-sm;
-  }
-  .text-caption {
-    @apply text-xs text-muted-foreground;
-  }
+  .text-display { @apply text-[32px] leading-10 font-bold tracking-tight; }
+  .text-h1 { @apply text-2xl font-semibold tracking-tight; }
+  .text-h2 { @apply text-xl font-semibold; }
+  .text-h3 { @apply text-base font-medium; }
+  .text-body { @apply text-sm; }
+  .text-caption { @apply text-xs text-muted-foreground; }
 }

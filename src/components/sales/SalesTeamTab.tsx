@@ -41,28 +41,28 @@ export function SalesTeamTab({ salesmanPerformance }: Props) {
           <h3 className="text-sm font-bold text-foreground">📋 Full Sales Team</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="dash-table">
             <thead>
-              <tr className="bg-muted/50">
-                <th className="text-start px-4 py-2 font-semibold">#</th>
-                <th className="text-start px-4 py-2 font-semibold">Salesman</th>
-                <th className="text-end px-4 py-2 font-semibold">Sales (SAR)</th>
-                <th className="text-end px-4 py-2 font-semibold">Qty</th>
-                <th className="text-end px-4 py-2 font-semibold">Customers</th>
-                <th className="text-end px-4 py-2 font-semibold">Orders</th>
-                <th className="text-end px-4 py-2 font-semibold">Avg Order</th>
+              <tr>
+                <th className="text-start font-semibold">#</th>
+                <th className="text-start font-semibold">Salesman</th>
+                <th className="text-end font-semibold">Sales (SAR)</th>
+                <th className="text-end font-semibold">Qty</th>
+                <th className="text-end font-semibold">Customers</th>
+                <th className="text-end font-semibold">Orders</th>
+                <th className="text-end font-semibold">Avg Order</th>
               </tr>
             </thead>
             <tbody>
               {salesmanPerformance.map((sm, idx) => (
-                <tr key={sm.name} className="border-t hover:bg-muted/30">
-                  <td className="px-4 py-2 text-muted-foreground">{idx + 1}</td>
-                  <td className="px-4 py-2 font-medium">{sm.name}</td>
-                  <td className="px-4 py-2 text-end font-mono text-emerald-600">{formatSAR(sm.sales)}</td>
-                  <td className="px-4 py-2 text-end font-mono">{formatNumber(sm.qty)}</td>
-                  <td className="px-4 py-2 text-end">{sm.customers}</td>
-                  <td className="px-4 py-2 text-end">{formatNumber(sm.invoices)}</td>
-                  <td className="px-4 py-2 text-end font-mono">{formatSAR(sm.avgOrderValue)}</td>
+                <tr key={sm.name} className="">
+                  <td className="text-muted-foreground">{idx + 1}</td>
+                  <td className="font-medium">{sm.name}</td>
+                  <td className="num pos">{formatSAR(sm.sales)}</td>
+                  <td className="num">{formatNumber(sm.qty)}</td>
+                  <td className="text-end">{sm.customers}</td>
+                  <td className="text-end">{formatNumber(sm.invoices)}</td>
+                  <td className="num">{formatSAR(sm.avgOrderValue)}</td>
                 </tr>
               ))}
             </tbody>

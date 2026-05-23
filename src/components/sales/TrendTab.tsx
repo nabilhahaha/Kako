@@ -95,26 +95,26 @@ export function TrendTab({ monthlySales }: Props) {
           <h3 className="text-sm font-bold text-foreground">📋 Monthly Summary</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="dash-table">
             <thead>
-              <tr className="bg-muted/50">
-                <th className="text-start px-4 py-2 font-semibold">Month</th>
-                <th className="text-end px-4 py-2 font-semibold">Sales (SAR)</th>
-                <th className="text-end px-4 py-2 font-semibold">Returns</th>
-                <th className="text-end px-4 py-2 font-semibold">Net</th>
-                <th className="text-end px-4 py-2 font-semibold">Qty</th>
-                <th className="text-end px-4 py-2 font-semibold">Customers</th>
+              <tr>
+                <th className="text-start font-semibold">Month</th>
+                <th className="text-end font-semibold">Sales (SAR)</th>
+                <th className="text-end font-semibold">Returns</th>
+                <th className="text-end font-semibold">Net</th>
+                <th className="text-end font-semibold">Qty</th>
+                <th className="text-end font-semibold">Customers</th>
               </tr>
             </thead>
             <tbody>
               {data.map((m) => (
-                <tr key={m.month} className="border-t hover:bg-muted/30">
-                  <td className="px-4 py-2 font-medium">{m.label}</td>
-                  <td className="px-4 py-2 text-end font-mono text-emerald-600">{formatSAR(m.sales)}</td>
-                  <td className="px-4 py-2 text-end font-mono text-red-500">{formatSAR(m.returns)}</td>
-                  <td className="px-4 py-2 text-end font-mono">{formatSAR(m.sales - m.returns)}</td>
-                  <td className="px-4 py-2 text-end font-mono">{formatNumber(m.qty)}</td>
-                  <td className="px-4 py-2 text-end">{m.customers}</td>
+                <tr key={m.month} className="">
+                  <td className="font-medium">{m.label}</td>
+                  <td className="num pos">{formatSAR(m.sales)}</td>
+                  <td className="num neg">{formatSAR(m.returns)}</td>
+                  <td className="num">{formatSAR(m.sales - m.returns)}</td>
+                  <td className="num">{formatNumber(m.qty)}</td>
+                  <td className="text-end">{m.customers}</td>
                 </tr>
               ))}
             </tbody>

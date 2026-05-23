@@ -48,24 +48,24 @@ export function ProductsTab({ productSales }: Props) {
           <h3 className="text-sm font-bold text-foreground">📋 All Categories</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="dash-table">
             <thead>
-              <tr className="bg-muted/50">
-                <th className="text-start px-4 py-2 font-semibold">#</th>
-                <th className="text-start px-4 py-2 font-semibold">Category</th>
-                <th className="text-end px-4 py-2 font-semibold">Sales (SAR)</th>
-                <th className="text-end px-4 py-2 font-semibold">Share</th>
-                <th className="text-end px-4 py-2 font-semibold">Qty</th>
-                <th className="text-end px-4 py-2 font-semibold">SKUs</th>
+              <tr>
+                <th className="text-start font-semibold">#</th>
+                <th className="text-start font-semibold">Category</th>
+                <th className="text-end font-semibold">Sales (SAR)</th>
+                <th className="text-end font-semibold">Share</th>
+                <th className="text-end font-semibold">Qty</th>
+                <th className="text-end font-semibold">SKUs</th>
               </tr>
             </thead>
             <tbody>
               {productSales.map((p, idx) => (
-                <tr key={p.category} className="border-t hover:bg-muted/30">
-                  <td className="px-4 py-2 text-muted-foreground">{idx + 1}</td>
-                  <td className="px-4 py-2 font-medium">{p.category}</td>
-                  <td className="px-4 py-2 text-end font-mono">{formatSAR(p.sales)}</td>
-                  <td className="px-4 py-2 text-end">
+                <tr key={p.category} className="">
+                  <td className="text-muted-foreground">{idx + 1}</td>
+                  <td className="font-medium">{p.category}</td>
+                  <td className="num">{formatSAR(p.sales)}</td>
+                  <td className="text-end">
                     <div className="flex items-center justify-end gap-2">
                       <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
@@ -78,8 +78,8 @@ export function ProductsTab({ productSales }: Props) {
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-2 text-end font-mono">{formatNumber(p.qty)}</td>
-                  <td className="px-4 py-2 text-end">{p.skuCount}</td>
+                  <td className="num">{formatNumber(p.qty)}</td>
+                  <td className="text-end">{p.skuCount}</td>
                 </tr>
               ))}
             </tbody>

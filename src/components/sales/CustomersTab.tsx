@@ -82,32 +82,32 @@ export function CustomersTab({ dataset, indices }: Props) {
 
       <div className="bg-card rounded-xl border overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="dash-table">
             <thead>
-              <tr className="bg-muted/50">
-                <th className="text-start px-4 py-2 font-semibold w-10">#</th>
-                <th className="text-start px-4 py-2 font-semibold">Customer</th>
-                <th className="text-start px-4 py-2 font-semibold">Channel</th>
-                <th className="text-start px-4 py-2 font-semibold">Branch</th>
-                <th className="text-end px-4 py-2 font-semibold">Sales (SAR)</th>
-                <th className="text-end px-4 py-2 font-semibold">Share</th>
-                <th className="text-end px-4 py-2 font-semibold">Returns</th>
-                <th className="text-end px-4 py-2 font-semibold">Qty</th>
-                <th className="text-end px-4 py-2 font-semibold">Orders</th>
+              <tr>
+                <th className="text-start font-semibold w-10">#</th>
+                <th className="text-start font-semibold">Customer</th>
+                <th className="text-start font-semibold">Channel</th>
+                <th className="text-start font-semibold">Branch</th>
+                <th className="text-end font-semibold">Sales (SAR)</th>
+                <th className="text-end font-semibold">Share</th>
+                <th className="text-end font-semibold">Returns</th>
+                <th className="text-end font-semibold">Qty</th>
+                <th className="text-end font-semibold">Orders</th>
               </tr>
             </thead>
             <tbody>
               {visible.map((c, idx) => (
-                <tr key={c.acct} className="border-t hover:bg-muted/30">
-                  <td className="px-4 py-2 text-muted-foreground">{idx + 1}</td>
-                  <td className="px-4 py-2">
+                <tr key={c.acct} className="">
+                  <td className="text-muted-foreground">{idx + 1}</td>
+                  <td className="">
                     <div className="font-medium">{c.name}</div>
                     <div className="text-[10px] text-muted-foreground">{c.acct}</div>
                   </td>
-                  <td className="px-4 py-2 text-xs">{c.channel}</td>
-                  <td className="px-4 py-2 text-xs">{c.branch}</td>
-                  <td className="px-4 py-2 text-end font-mono text-emerald-600">{formatSAR(c.sales)}</td>
-                  <td className="px-4 py-2 text-end">
+                  <td className="text-xs">{c.channel}</td>
+                  <td className="text-xs">{c.branch}</td>
+                  <td className="num pos">{formatSAR(c.sales)}</td>
+                  <td className="text-end">
                     <div className="flex items-center justify-end gap-2">
                       <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
@@ -120,11 +120,11 @@ export function CustomersTab({ dataset, indices }: Props) {
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-2 text-end font-mono text-red-500">
+                  <td className="num neg">
                     {c.returns > 0 ? formatSAR(c.returns) : '—'}
                   </td>
-                  <td className="px-4 py-2 text-end font-mono">{formatNumber(c.qty)}</td>
-                  <td className="px-4 py-2 text-end">{c.orders}</td>
+                  <td className="num">{formatNumber(c.qty)}</td>
+                  <td className="text-end">{c.orders}</td>
                 </tr>
               ))}
             </tbody>

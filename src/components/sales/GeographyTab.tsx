@@ -78,23 +78,23 @@ export function GeographyTab({ regionSales }: Props) {
           <h3 className="text-sm font-bold text-foreground">📋 Region Breakdown</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="dash-table">
             <thead>
-              <tr className="bg-muted/50">
-                <th className="text-start px-4 py-2 font-semibold">Region</th>
-                <th className="text-end px-4 py-2 font-semibold">Sales (SAR)</th>
-                <th className="text-end px-4 py-2 font-semibold">Share</th>
-                <th className="text-end px-4 py-2 font-semibold">Qty</th>
-                <th className="text-end px-4 py-2 font-semibold">Customers</th>
-                <th className="text-end px-4 py-2 font-semibold">Salesmen</th>
+              <tr>
+                <th className="text-start font-semibold">Region</th>
+                <th className="text-end font-semibold">Sales (SAR)</th>
+                <th className="text-end font-semibold">Share</th>
+                <th className="text-end font-semibold">Qty</th>
+                <th className="text-end font-semibold">Customers</th>
+                <th className="text-end font-semibold">Salesmen</th>
               </tr>
             </thead>
             <tbody>
               {regionSales.map((r) => (
-                <tr key={r.region} className="border-t hover:bg-muted/30">
-                  <td className="px-4 py-2 font-medium">{r.region}</td>
-                  <td className="px-4 py-2 text-end font-mono text-emerald-600">{formatSAR(r.sales)}</td>
-                  <td className="px-4 py-2 text-end">
+                <tr key={r.region} className="">
+                  <td className="font-medium">{r.region}</td>
+                  <td className="num pos">{formatSAR(r.sales)}</td>
+                  <td className="text-end">
                     <div className="flex items-center justify-end gap-2">
                       <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
@@ -107,9 +107,9 @@ export function GeographyTab({ regionSales }: Props) {
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-2 text-end font-mono">{formatNumber(r.qty)}</td>
-                  <td className="px-4 py-2 text-end">{r.customers}</td>
-                  <td className="px-4 py-2 text-end">{r.salesmen}</td>
+                  <td className="num">{formatNumber(r.qty)}</td>
+                  <td className="text-end">{r.customers}</td>
+                  <td className="text-end">{r.salesmen}</td>
                 </tr>
               ))}
             </tbody>

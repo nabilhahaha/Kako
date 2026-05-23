@@ -88,31 +88,31 @@ export function LostCustomersTab({ dataset }: Props) {
           <span className="text-xs text-muted-foreground">Avg {analysis.avgDays} days inactive</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="bg-muted/50">
-              <th className="text-start px-4 py-2 font-semibold">#</th>
-              <th className="text-start px-4 py-2 font-semibold">Risk</th>
-              <th className="text-start px-4 py-2 font-semibold">Customer</th>
-              <th className="text-start px-4 py-2 font-semibold">Branch</th>
-              <th className="text-start px-4 py-2 font-semibold">Salesman</th>
-              <th className="text-end px-4 py-2 font-semibold">Last Order</th>
-              <th className="text-end px-4 py-2 font-semibold">Days</th>
-              <th className="text-end px-4 py-2 font-semibold">Revenue</th>
+          <table className="dash-table">
+            <thead><tr>
+              <th className="text-start font-semibold">#</th>
+              <th className="text-start font-semibold">Risk</th>
+              <th className="text-start font-semibold">Customer</th>
+              <th className="text-start font-semibold">Branch</th>
+              <th className="text-start font-semibold">Salesman</th>
+              <th className="text-end font-semibold">Last Order</th>
+              <th className="text-end font-semibold">Days</th>
+              <th className="text-end font-semibold">Revenue</th>
             </tr></thead>
             <tbody>
               {analysis.lost.slice(0, 500).map((c, idx) => (
-                <tr key={c.acct} className="border-t hover:bg-muted/30">
-                  <td className="px-4 py-2 text-muted-foreground">{idx + 1}</td>
-                  <td className="px-4 py-2">{riskBadge(c.risk)}</td>
-                  <td className="px-4 py-2">
+                <tr key={c.acct} className="">
+                  <td className="text-muted-foreground">{idx + 1}</td>
+                  <td className="">{riskBadge(c.risk)}</td>
+                  <td className="">
                     <div className="font-medium">{c.name}</div>
                     <div className="text-[10px] text-muted-foreground">{c.channel}</div>
                   </td>
-                  <td className="px-4 py-2 text-xs">{c.branch}</td>
-                  <td className="px-4 py-2 text-xs">{c.salesman}</td>
-                  <td className="px-4 py-2 text-end text-xs">{c.lastDate}</td>
-                  <td className="px-4 py-2 text-end font-bold text-red-500">{c.daysInactive}</td>
-                  <td className="px-4 py-2 text-end font-mono">{formatSAR(c.totalSales)}</td>
+                  <td className="text-xs">{c.branch}</td>
+                  <td className="text-xs">{c.salesman}</td>
+                  <td className="text-end text-xs">{c.lastDate}</td>
+                  <td className="text-end font-bold text-red-500">{c.daysInactive}</td>
+                  <td className="num">{formatSAR(c.totalSales)}</td>
                 </tr>
               ))}
             </tbody>
