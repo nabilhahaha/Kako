@@ -349,17 +349,17 @@ export function ReportsPage() {
   }) =>
     tp > 1 ? (
       <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Showing {(pg - 1) * PAGE_SIZE + 1}-{Math.min(pg * PAGE_SIZE, total)} of {total}
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+          {(pg - 1) * PAGE_SIZE + 1}-{Math.min(pg * PAGE_SIZE, total)} of {total}
         </p>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => sp(Math.max(1, pg - 1))} disabled={pg === 1}>
+          <Button variant="outline" onClick={() => sp(Math.max(1, pg - 1))} disabled={pg === 1} className="min-h-[44px] min-w-[44px]">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {pg} / {tp}
           </span>
-          <Button variant="outline" size="sm" onClick={() => sp(Math.min(tp, pg + 1))} disabled={pg === tp}>
+          <Button variant="outline" onClick={() => sp(Math.min(tp, pg + 1))} disabled={pg === tp} className="min-h-[44px] min-w-[44px]">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -370,13 +370,13 @@ export function ReportsPage() {
 
   const ActionButtons = ({ onExport, count }: { onExport: () => void; count: number }) => (
     <div className="flex items-center gap-2">
-      <Button variant="outline" size="sm" onClick={handlePrint}>
+      <Button variant="outline" onClick={handlePrint} className="min-h-[44px]">
         <Printer className="h-4 w-4" />
-        Print
+        <span className="hidden sm:inline">Print</span>
       </Button>
-      <Button variant="outline" size="sm" onClick={onExport} disabled={count === 0}>
+      <Button variant="outline" onClick={onExport} disabled={count === 0} className="min-h-[44px]">
         <Download className="h-4 w-4" />
-        Export CSV
+        <span className="hidden sm:inline">Export CSV</span>
       </Button>
     </div>
   );
@@ -389,8 +389,8 @@ export function ReportsPage() {
     </div>
   );
 
-  const Th = ({ children }: { children: React.ReactNode }) => (
-    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+  const Th = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 ${className ?? ''}`}>
       {children}
     </th>
   );
