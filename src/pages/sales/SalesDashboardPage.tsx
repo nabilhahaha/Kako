@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useFilteredSalesData } from '@/hooks/useSalesData';
 import { SalesKPIGrid } from '@/components/sales/SalesKPIGrid';
@@ -13,6 +13,8 @@ import { ReturnsTab } from '@/components/sales/ReturnsTab';
 import { RisksTab } from '@/components/sales/RisksTab';
 import { LostCustomersTab } from '@/components/sales/LostCustomersTab';
 import { ProfilesTab } from '@/components/sales/ProfilesTab';
+import { PromoTab } from '@/components/sales/PromoTab';
+import { InvoiceTab } from '@/components/sales/InvoiceTab';
 import { ExcelUpload } from '@/components/sales/ExcelUpload';
 import type { SalesDataset } from '@/lib/salesTypes';
 
@@ -27,6 +29,8 @@ const TABS = [
   { id: 'risks', label: 'Risks', icon: '🚨' },
   { id: 'lost', label: 'Lost', icon: '🎯' },
   { id: 'profiles', label: 'Profiles', icon: '🔍' },
+  { id: 'promo', label: 'Promo', icon: '🎁' },
+  { id: 'invoice', label: 'Invoice 360', icon: '📄' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -34,6 +38,7 @@ type TabId = (typeof TABS)[number]['id'];
 export function SalesDashboardPage() {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const queryClient = useQueryClient();
+  const contentRef = useRef<HTMLDivElement>(null);
   const {
     dataset,
     isLoading,
@@ -50,6 +55,26 @@ export function SalesDashboardPage() {
   const handleDataLoaded = useCallback((newData: SalesDataset) => {
     queryClient.setQueryData(['sales-dataset'], newData);
   }, [queryClient]);
+
+  function handlePrintView() {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow || !contentRef.current) return;
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Roshen KSA — ${activeTab}</title>
+      <style>
+        body { font-family: -apple-system, 'Segoe UI', sans-serif; padding: 20px; color: #1a1a1a; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+        th, td { padding: 6px 10px; border: 1px solid #ddd; font-size: 12px; }
+        th { background: #f5f5f5; font-weight: 700; }
+        .text-end { text-align: right; }
+        h1, h2, h3 { margin: 8px 0; }
+        @media print { body { padding: 5px; } }
+      </style></head><body>
+      <h2>Roshen KSA — Sales Dashboard — ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h2>
+      ${contentRef.current.innerHTML}
+      <script>window.print(); window.onafterprint = () => window.close();<\/script>
+      </body></html>`);
+    printWindow.document.close();
+  }
 
   if (isLoading) {
     return (
@@ -112,34 +137,47 @@ export function SalesDashboardPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === tab.id
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
             }`}
           >
             <span>{tab.icon}</span>
-            <span>{tab.label}</span>
+            <span className="hidden sm:inline">{tab.label}</span>
           </button>
         ))}
       </div>
 
-      {activeTab === 'overview' && (
-        <OverviewTab
-          monthlySales={monthlySales}
-          regionSales={regionSales}
-          channelSales={channelSales}
-        />
-      )}
-      {activeTab === 'trend' && <TrendTab monthlySales={monthlySales} />}
-      {activeTab === 'geography' && <GeographyTab regionSales={regionSales} />}
-      {activeTab === 'customers' && <CustomersTab dataset={dataset} indices={indices} />}
-      {activeTab === 'products' && <ProductsTab productSales={productSales} />}
-      {activeTab === 'team' && <SalesTeamTab salesmanPerformance={salesmanPerformance} />}
-      {activeTab === 'returns' && <ReturnsTab dataset={dataset} indices={indices} />}
-      {activeTab === 'risks' && <RisksTab dataset={dataset} indices={indices} />}
-      {activeTab === 'lost' && <LostCustomersTab dataset={dataset} />}
-      {activeTab === 'profiles' && <ProfilesTab dataset={dataset} indices={indices} />}
+      <div ref={contentRef}>
+        {activeTab === 'overview' && (
+          <OverviewTab
+            monthlySales={monthlySales}
+            regionSales={regionSales}
+            channelSales={channelSales}
+          />
+        )}
+        {activeTab === 'trend' && <TrendTab monthlySales={monthlySales} />}
+        {activeTab === 'geography' && <GeographyTab regionSales={regionSales} />}
+        {activeTab === 'customers' && <CustomersTab dataset={dataset} indices={indices} />}
+        {activeTab === 'products' && <ProductsTab productSales={productSales} />}
+        {activeTab === 'team' && <SalesTeamTab salesmanPerformance={salesmanPerformance} />}
+        {activeTab === 'returns' && <ReturnsTab dataset={dataset} indices={indices} />}
+        {activeTab === 'risks' && <RisksTab dataset={dataset} indices={indices} />}
+        {activeTab === 'lost' && <LostCustomersTab dataset={dataset} />}
+        {activeTab === 'profiles' && <ProfilesTab dataset={dataset} indices={indices} />}
+        {activeTab === 'promo' && <PromoTab dataset={dataset} indices={indices} />}
+        {activeTab === 'invoice' && <InvoiceTab dataset={dataset} indices={indices} />}
+      </div>
+
+      <div className="flex items-center justify-center pt-4 pb-8 border-t">
+        <button
+          onClick={handlePrintView}
+          className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
+        >
+          🖨️ Print Current View
+        </button>
+      </div>
     </div>
   );
 }
