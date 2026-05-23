@@ -426,58 +426,32 @@ export function CustomerListPage() {
           </div>
 
           {/* Mobile cards */}
-          <div className="space-y-3 md:hidden">
-            {paginatedCustomers.map((c) => (
-              <div
-                key={c.id}
-                className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-              >
-                <div className="mb-3 flex items-start justify-between">
-                  <div>
-                    <p className="text-base font-medium text-gray-900 dark:text-white">
-                      {c.customerName}
-                    </p>
-                    <p className="font-mono text-xs text-gray-500 dark:text-gray-400">
-                      {c.customerCode}
-                    </p>
+          <div className="space-y-2 md:hidden">
+            {paginatedCustomers.map((c) => {
+              const dotColor = c.status === 'Active' ? '#16A34A' : c.status === 'Inactive' ? '#9CA3AF' : '#DC2626';
+              return (
+                <div
+                  key={c.id}
+                  className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm active:bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
+                  onClick={() => canEdit ? openEditDialog(c) : undefined}
+                >
+                  <div
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+                    style={{ backgroundColor: `${dotColor}15` }}
+                  >
+                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: dotColor }} />
                   </div>
-                  <StatusBadge status={c.status} />
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Channel: </span>
-                    <span className="text-gray-700 dark:text-gray-300">{c.channel}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{c.customerName}</p>
+                    <p className="text-xs text-gray-400">{c.city} · {c.channel}</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">City: </span>
-                    <span className="text-gray-700 dark:text-gray-300">{c.city}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Route: </span>
-                    <span className="text-gray-700 dark:text-gray-300">{c.route}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Salesman: </span>
-                    <span className="text-gray-700 dark:text-gray-300">
-                      {getSalesmanName(c.salesmanId)}
-                    </span>
+                  <div className="flex-shrink-0 text-right">
+                    <p className="text-xs font-mono text-gray-400">{c.customerCode}</p>
+                    <p className="mt-0.5 text-[10px] text-gray-400">{c.route}</p>
                   </div>
                 </div>
-                {canEdit && (
-                  <div className="mt-4 flex justify-end">
-                    <Button
-                      size="default"
-                      variant="outline"
-                      onClick={() => openEditDialog(c)}
-                      className="min-h-[44px]"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                      Edit
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Pagination */}
