@@ -48,8 +48,8 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
   const pageTitle = getPageTitle(location.pathname);
 
   return (
-    <header className="flex items-center justify-between h-14 px-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm shrink-0">
-      {/* Left: Hamburger + Page Title */}
+    <header className="relative flex items-center justify-between h-14 px-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm shrink-0">
+      {/* Left: Hamburger */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuToggle}
@@ -58,10 +58,15 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
+        <h1 className="hidden lg:block text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
           {pageTitle}
         </h1>
       </div>
+
+      {/* Center: Page Title (mobile only) */}
+      <h1 className="lg:hidden absolute left-1/2 -translate-x-1/2 text-base font-semibold text-gray-900 dark:text-white tracking-tight">
+        {pageTitle}
+      </h1>
 
       {/* Right: Notifications, Dark Mode, User */}
       <div className="flex items-center gap-1">

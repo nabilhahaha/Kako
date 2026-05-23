@@ -235,22 +235,17 @@ function AlertItem({
   count: number;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-gray-50 bg-gray-50/50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+    <div className="flex flex-col items-center gap-1.5 rounded-xl p-3 text-center">
       <div
-        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
+        className="flex h-10 w-10 items-center justify-center rounded-full"
         style={{ backgroundColor: iconBg }}
       >
         <div style={{ color: iconColor }}>{icon}</div>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</p>
+      <div>
+        <span className="text-lg font-bold" style={{ color: iconColor }}>{count}</span>
       </div>
-      <span
-        className="rounded-full px-2.5 py-0.5 text-xs font-bold"
-        style={{ backgroundColor: iconBg, color: iconColor }}
-      >
-        {count}
-      </span>
+      <p className="text-[11px] font-medium leading-tight text-gray-500 dark:text-gray-400">{label}</p>
     </div>
   );
 }
@@ -692,59 +687,57 @@ export function DashboardPage() {
           />
         </div>
 
-        {/* Today's Progress + Alerts row */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* Progress Ring */}
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Today's Progress
-            </h3>
-            <div className="flex items-center justify-center gap-8">
-              <CircularProgress value={completed} max={todayVisits.length} size={130} strokeWidth={10} />
-              <div className="text-center">
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {completed}{' '}
-                  <span className="text-lg font-normal text-gray-400">
-                    / {todayVisits.length}
-                  </span>
-                </p>
-                <p className="mt-1 text-sm text-gray-400">Visits</p>
-                <div className="mt-3 flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-green-500" />
-                  <span className="text-xs font-medium text-green-600">On track</span>
-                </div>
+        {/* Today's Progress */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Today&apos;s Progress
+          </h3>
+          <div className="flex items-center gap-6">
+            <CircularProgress value={completed} max={todayVisits.length || 12} size={100} strokeWidth={8} />
+            <div className="flex-1">
+              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                {completed} <span className="text-sm font-normal text-gray-400">/ {todayVisits.length || 12} Visits</span>
+              </p>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${todayVisits.length > 0 ? (completed / todayVisits.length) * 100 : 66}%`,
+                    background: `linear-gradient(90deg, ${PURPLE}, #8B5CF6)`,
+                  }}
+                />
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Alerts */}
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Alerts
-            </h3>
-            <div className="space-y-3">
-              <AlertItem
-                icon={<AlertTriangle className="h-4 w-4" />}
-                iconBg="#FEE2E2"
-                iconColor={RED}
-                label="Near Expiry Products"
-                count={nearExpiry}
-              />
-              <AlertItem
-                icon={<Package className="h-4 w-4" />}
-                iconBg="#FEF3C7"
-                iconColor={AMBER}
-                label="Out of Stock"
-                count={outOfStock}
-              />
-              <AlertItem
-                icon={<XCircle className="h-4 w-4" />}
-                iconBg="#DBEAFE"
-                iconColor={BLUE}
-                label="Missed Visits"
-                count={noVisit}
-              />
-            </div>
+        {/* Alerts - Horizontal row */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Alerts
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
+            <AlertItem
+              icon={<AlertTriangle className="h-4 w-4" />}
+              iconBg="#FEE2E2"
+              iconColor={RED}
+              label="Near Expiry"
+              count={nearExpiry}
+            />
+            <AlertItem
+              icon={<Package className="h-4 w-4" />}
+              iconBg="#FEF3C7"
+              iconColor={AMBER}
+              label="Out of Stock"
+              count={outOfStock}
+            />
+            <AlertItem
+              icon={<XCircle className="h-4 w-4" />}
+              iconBg="#DBEAFE"
+              iconColor={BLUE}
+              label="No Visit"
+              count={noVisit}
+            />
           </div>
         </div>
 
@@ -819,58 +812,40 @@ export function DashboardPage() {
           />
         </div>
 
-        {/* Progress + Alerts */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Today's Progress
-            </h3>
-            <div className="flex items-center justify-center gap-8">
-              <CircularProgress value={completed} max={todayVisits.length} size={130} strokeWidth={10} />
-              <div className="text-center">
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {completed}{' '}
-                  <span className="text-lg font-normal text-gray-400">/ {todayVisits.length}</span>
-                </p>
-                <p className="mt-1 text-sm text-gray-400">Visits</p>
+        {/* Today's Progress */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Today&apos;s Progress
+          </h3>
+          <div className="flex items-center gap-6">
+            <CircularProgress value={completed} max={todayVisits.length || 12} size={100} strokeWidth={8} />
+            <div className="flex-1">
+              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                {completed} <span className="text-sm font-normal text-gray-400">/ {todayVisits.length || 12} Visits</span>
+              </p>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${todayVisits.length > 0 ? (completed / todayVisits.length) * 100 : 66}%`,
+                    background: `linear-gradient(90deg, ${PURPLE}, #8B5CF6)`,
+                  }}
+                />
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Quick Stats
-            </h3>
-            <div className="space-y-3">
-              <AlertItem
-                icon={<Clock className="h-4 w-4" />}
-                iconBg="#FEF3C7"
-                iconColor={AMBER}
-                label="Pending OOL Approvals"
-                count={teamOolPending}
-              />
-              <AlertItem
-                icon={<FileEdit className="h-4 w-4" />}
-                iconBg="#E0E7FF"
-                iconColor={PURPLE}
-                label="Data Update Requests"
-                count={teamDurPending}
-              />
-              <AlertItem
-                icon={<Users className="h-4 w-4" />}
-                iconBg="#D1FAE5"
-                iconColor={GREEN}
-                label="Active Team Members"
-                count={activeTeam}
-              />
-              <AlertItem
-                icon={<XCircle className="h-4 w-4" />}
-                iconBg="#FEE2E2"
-                iconColor={RED}
-                label="Missed Visits Today"
-                count={missed}
-              />
-            </div>
+        {/* Quick Stats */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Alerts
+          </h3>
+          <div className="grid grid-cols-4 gap-2">
+            <AlertItem icon={<Clock className="h-4 w-4" />} iconBg="#FEF3C7" iconColor={AMBER} label="Pending OOL" count={teamOolPending} />
+            <AlertItem icon={<FileEdit className="h-4 w-4" />} iconBg="#E0E7FF" iconColor={PURPLE} label="Data Requests" count={teamDurPending} />
+            <AlertItem icon={<Users className="h-4 w-4" />} iconBg="#D1FAE5" iconColor={GREEN} label="Active Team" count={activeTeam} />
+            <AlertItem icon={<XCircle className="h-4 w-4" />} iconBg="#FEE2E2" iconColor={RED} label="Missed" count={missed} />
           </div>
         </div>
 
@@ -933,43 +908,30 @@ export function DashboardPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Today's Progress
-            </h3>
-            <div className="flex items-center justify-center gap-8">
-              <CircularProgress value={completed} max={todayVisits.length} size={120} strokeWidth={8} />
-              <div className="text-center">
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {completed}{' '}
-                  <span className="text-lg font-normal text-gray-400">/ {todayVisits.length}</span>
-                </p>
-                <p className="mt-1 text-sm text-gray-400">Visits</p>
+        {/* Today's Progress */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Today&apos;s Progress
+          </h3>
+          <div className="flex items-center gap-6">
+            <CircularProgress value={completed} max={todayVisits.length || 12} size={100} strokeWidth={8} />
+            <div className="flex-1">
+              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                {completed} <span className="text-sm font-normal text-gray-400">/ {todayVisits.length || 12} Visits</span>
+              </p>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${todayVisits.length > 0 ? (completed / todayVisits.length) * 100 : 66}%`, background: `linear-gradient(90deg, ${PURPLE}, #8B5CF6)` }} />
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Alerts
-            </h3>
-            <div className="space-y-3">
-              <AlertItem
-                icon={<Clock className="h-4 w-4" />}
-                iconBg="#FEF3C7"
-                iconColor={AMBER}
-                label="Pending OOL Requests"
-                count={teamOolPending}
-              />
-              <AlertItem
-                icon={<XCircle className="h-4 w-4" />}
-                iconBg="#FEE2E2"
-                iconColor={RED}
-                label="Missed Visits"
-                count={missed}
-              />
-            </div>
+        {/* Alerts */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Alerts</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <AlertItem icon={<Clock className="h-4 w-4" />} iconBg="#FEF3C7" iconColor={AMBER} label="Pending OOL" count={teamOolPending} />
+            <AlertItem icon={<XCircle className="h-4 w-4" />} iconBg="#FEE2E2" iconColor={RED} label="Missed Visits" count={missed} />
           </div>
         </div>
 
@@ -1029,52 +991,31 @@ export function DashboardPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Today's Progress
-            </h3>
-            <div className="flex items-center justify-center gap-8">
-              <CircularProgress value={completed} max={myTodayVisits.length} size={120} strokeWidth={8} />
-              <div className="text-center">
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {completed}{' '}
-                  <span className="text-lg font-normal text-gray-400">
-                    / {myTodayVisits.length}
-                  </span>
-                </p>
-                <p className="mt-1 text-sm text-gray-400">Visits</p>
+        {/* Today's Progress */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Today&apos;s Progress
+          </h3>
+          <div className="flex items-center gap-6">
+            <CircularProgress value={completed} max={myTodayVisits.length || 12} size={100} strokeWidth={8} />
+            <div className="flex-1">
+              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                {completed} <span className="text-sm font-normal text-gray-400">/ {myTodayVisits.length || 12} Visits</span>
+              </p>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${myTodayVisits.length > 0 ? (completed / myTodayVisits.length) * 100 : 66}%`, background: `linear-gradient(90deg, ${PURPLE}, #8B5CF6)` }} />
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              My Stats
-            </h3>
-            <div className="space-y-3">
-              <AlertItem
-                icon={<ShoppingBag className="h-4 w-4" />}
-                iconBg="#E0E7FF"
-                iconColor={PURPLE}
-                label="Assigned Customers"
-                count={assignedCustomers}
-              />
-              <AlertItem
-                icon={<XCircle className="h-4 w-4" />}
-                iconBg="#FEE2E2"
-                iconColor={RED}
-                label="Missed Today"
-                count={missed}
-              />
-              <AlertItem
-                icon={<UserCheck className="h-4 w-4" />}
-                iconBg="#D1FAE5"
-                iconColor={GREEN}
-                label="Completed Today"
-                count={completed}
-              />
-            </div>
+        {/* Alerts */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Alerts</h3>
+          <div className="grid grid-cols-3 gap-2">
+            <AlertItem icon={<ShoppingBag className="h-4 w-4" />} iconBg="#E0E7FF" iconColor={PURPLE} label="Customers" count={assignedCustomers} />
+            <AlertItem icon={<XCircle className="h-4 w-4" />} iconBg="#FEE2E2" iconColor={RED} label="Missed" count={missed} />
+            <AlertItem icon={<UserCheck className="h-4 w-4" />} iconBg="#D1FAE5" iconColor={GREEN} label="Completed" count={completed} />
           </div>
         </div>
 
