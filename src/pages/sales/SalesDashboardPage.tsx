@@ -18,6 +18,7 @@ import { InvoiceTab } from '@/components/sales/InvoiceTab';
 import { JourneyTab } from '@/components/sales/JourneyTab';
 import { DailyTab } from '@/components/sales/DailyTab';
 import { CoverageTab } from '@/components/sales/CoverageTab';
+import { StockReportTab } from '@/components/sales/StockReportTab';
 import { ExcelUpload } from '@/components/sales/ExcelUpload';
 import { useLangStore, t } from '@/lib/i18n';
 import { useThemeStore } from '@/stores/themeStore';
@@ -39,6 +40,7 @@ const TABS = [
   { id: 'journey', label: 'Journey', icon: '🧬' },
   { id: 'daily', label: 'Daily', icon: '📅' },
   { id: 'coverage', label: 'Coverage', icon: '🗺️' },
+  { id: 'stock', label: 'Stock Report', icon: '📦' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -217,6 +219,7 @@ ${contentRef.current.innerHTML}
           {activeTab === 'journey' && <JourneyTab dataset={dataset} indices={indices} />}
           {activeTab === 'daily' && <DailyTab dataset={dataset} indices={indices} />}
           {activeTab === 'coverage' && <CoverageTab dataset={dataset} indices={indices} />}
+          {activeTab === 'stock' && <StockReportTab dataset={dataset} indices={indices} />}
         </div>
       </main>
     </div>

@@ -31,6 +31,7 @@ const translations: Record<string, Record<Lang, string>> = {
   'Journey': { en: 'Journey', uk: 'Подорож клієнта' },
   'Daily': { en: 'Daily', uk: 'Щоденно' },
   'Coverage': { en: 'Coverage', uk: 'Покриття' },
+  'Stock Report': { en: 'Stock Report', uk: 'Звіт по запасах' },
   'Print': { en: 'Print', uk: 'Друк' },
   'Upload Excel': { en: 'Upload Excel', uk: 'Завантажити Excel' },
   'Total Sales': { en: 'Total Sales', uk: 'Загальні продажі' },
