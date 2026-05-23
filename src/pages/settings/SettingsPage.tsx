@@ -48,7 +48,7 @@ function ToggleSwitch({
         <div
           className={`h-6 w-11 rounded-full transition-colors ${
             checked
-              ? 'bg-blue-600'
+              ? 'bg-purple-600'
               : 'bg-gray-300 dark:bg-gray-600'
           }`}
         />
@@ -402,7 +402,7 @@ export function SettingsPage() {
               {settings.cities.map((c) => (
                 <span
                   key={c}
-                  className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                  className="rounded-full bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
                 >
                   {c}
                 </span>

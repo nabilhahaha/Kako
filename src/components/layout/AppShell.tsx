@@ -11,7 +11,7 @@ export default function AppShell() {
   const { user } = useAuthStore();
   const { darkMode } = useAppStore();
 
-  const showBottomNav = user?.role === 'merchandiser' || user?.role === 'supervisor';
+  const showBottomNav = !!user;
 
   // Sync dark mode class on <html>
   useEffect(() => {

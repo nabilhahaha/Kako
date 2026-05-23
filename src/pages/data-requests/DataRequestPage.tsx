@@ -353,7 +353,7 @@ export function DataRequestPage() {
                 <Label>Routed To</Label>
                 <div className="mt-1.5 flex h-11 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm dark:border-gray-700 dark:bg-gray-700/50">
                   {approverRole ? (
-                    <span className="font-medium text-blue-600 dark:text-blue-400">
+                    <span className="font-medium text-purple-600 dark:text-purple-400">
                       {ROLE_LABELS[approverRole]}
                     </span>
                   ) : (
@@ -432,13 +432,13 @@ export function DataRequestPage() {
                   <div className="mb-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
                     <div className="flex items-center gap-2">
                       {req.updateType === 'GPS Location' ? (
-                        <MapPin className="h-4 w-4 text-blue-500" />
+                        <MapPin className="h-4 w-4 text-purple-500" />
                       ) : (
                         <FileText className="h-4 w-4 text-gray-400" />
                       )}
                       <span>
                         Type:{' '}
-                        <span className="font-medium text-blue-600 dark:text-blue-400">
+                        <span className="font-medium text-purple-600 dark:text-purple-400">
                           {req.updateType}
                         </span>
                       </span>

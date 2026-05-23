@@ -236,7 +236,7 @@ export function ApprovalsPage() {
           <span>Requested by: <span className="font-medium">{req.userName}</span></span>
         </div>
         <div className="flex items-center gap-2">
-          <Navigation className="h-4 w-4 text-blue-500" />
+          <Navigation className="h-4 w-4 text-purple-500" />
           <span>
             Actual GPS: {req.actualLatitude.toFixed(4)}, {req.actualLongitude.toFixed(4)}
           </span>
@@ -330,7 +330,7 @@ export function ApprovalsPage() {
           <FileText className="h-4 w-4 text-gray-400" />
           <span>
             Update Type:{' '}
-            <span className="font-medium text-blue-600 dark:text-blue-400">
+            <span className="font-medium text-purple-600 dark:text-purple-400">
               {req.updateType}
             </span>
           </span>
@@ -413,7 +413,7 @@ export function ApprovalsPage() {
     >
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <MapPin className="h-5 w-5 text-blue-500" />
+          <MapPin className="h-5 w-5 text-purple-500" />
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-white">
               {req.customerName}

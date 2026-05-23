@@ -245,7 +245,7 @@ export function VisitRegistrationPage() {
                 <div
                   className={cn(
                     'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors',
-                    isActive && 'border-blue-600 bg-blue-600 text-white',
+                    isActive && 'border-purple-600 bg-purple-600 text-white',
                     isCompleted && 'border-green-500 bg-green-500 text-white',
                     !isActive && !isCompleted && 'border-gray-300 bg-white text-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-500',
                   )}
@@ -255,7 +255,7 @@ export function VisitRegistrationPage() {
                 <span
                   className={cn(
                     'text-xs font-medium',
-                    isActive && 'text-blue-600 dark:text-blue-400',
+                    isActive && 'text-purple-600 dark:text-purple-400',
                     isCompleted && 'text-green-600 dark:text-green-400',
                     !isActive && !isCompleted && 'text-gray-400 dark:text-gray-500',
                   )}
@@ -303,7 +303,7 @@ export function VisitRegistrationPage() {
                     className={cn(
                       'w-full rounded-lg border p-4 text-left transition-all hover:shadow-md',
                       selectedCustomer?.id === c.id
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/20 dark:bg-blue-900/20'
+                        ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-500/20 dark:bg-purple-900/20'
                         : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600',
                     )}
                   >
@@ -313,7 +313,7 @@ export function VisitRegistrationPage() {
                         <p className="text-sm text-gray-500 dark:text-gray-400">{c.customerCode}</p>
                       </div>
                       {selectedCustomer?.id === c.id && (
-                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-blue-600" />
+                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-purple-600" />
                       )}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -424,7 +424,7 @@ export function VisitRegistrationPage() {
                         id="ool-submit"
                         checked
                         readOnly
-                        className="h-4 w-4 text-blue-600"
+                        className="h-4 w-4 text-purple-600"
                       />
                       <label htmlFor="ool-submit" className="text-sm font-medium text-gray-900 dark:text-white">
                         Submit as Out of Location
