@@ -60,6 +60,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/sales-dashboard" element={<SalesDashboardPage />} />
 
         <Route
           element={
