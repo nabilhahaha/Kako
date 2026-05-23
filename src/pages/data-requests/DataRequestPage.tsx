@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import {
-  Plus,
   FileText,
   Search,
   Upload,

@@ -16,7 +16,6 @@ import {
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { useAppStore } from '@/stores/appStore';
-import { mockUsers } from '@/data/mockData';
 import type { Customer, VisitPurpose } from '@/lib/types';
 import { cn, generateId } from '@/lib/utils';
 import { isWithinRadius, mockCurrentLocation } from '@/lib/gps';

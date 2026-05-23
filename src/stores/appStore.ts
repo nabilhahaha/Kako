@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type {
   Customer, Visit, OutOfLocationRequest, DataUpdateRequest,
-  AuditLog, AppSettings, AuditAction, UserRole,
+  AuditLog, AppSettings,
 } from '@/lib/types';
 import {
   mockCustomers, mockVisits, mockOutOfLocationRequests,

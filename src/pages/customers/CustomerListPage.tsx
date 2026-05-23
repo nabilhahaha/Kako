@@ -14,7 +14,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAppStore } from '@/stores/appStore';
 import { mockUsers } from '@/data/mockData';
 import type { Customer, Channel, CustomerStatus } from '@/lib/types';
-import { cn, generateId, exportToCsv } from '@/lib/utils';
+import { generateId, exportToCsv } from '@/lib/utils';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -80,7 +80,6 @@ export function CustomerListPage() {
   const [form, setForm] = useState<Omit<Customer, 'id'>>(emptyForm);
 
   const isAdmin = user?.role === 'admin';
-  const isDataTeam = user?.role === 'data_team';
   const canEdit = isAdmin;
 
   // Merchandiser users for salesman dropdown

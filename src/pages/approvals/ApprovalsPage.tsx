@@ -15,7 +15,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAppStore } from '@/stores/appStore';
 import { mockUsers } from '@/data/mockData';
 import { ROLE_LABELS } from '@/lib/permissions';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
 import type {
   OutOfLocationRequest,
   DataUpdateRequest,
@@ -50,7 +50,6 @@ export function ApprovalsPage() {
   const {
     oolRequests,
     dataUpdateRequests,
-    customers,
     approveOolRequest,
     rejectOolRequest,
     approveDataUpdateRequest,

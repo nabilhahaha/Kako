@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import {
   Download,
   Printer,
-  Search,
   FileBarChart,
   ChevronLeft,
   ChevronRight,
@@ -12,7 +11,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAppStore } from '@/stores/appStore';
 import { mockUsers } from '@/data/mockData';
 import type { VisitStatus, RequestStatus, DataUpdateType } from '@/lib/types';
-import { formatDate, formatDateTime, exportToCsv } from '@/lib/utils';
+import { formatDateTime, exportToCsv } from '@/lib/utils';
 import { ROLE_LABELS } from '@/lib/permissions';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
