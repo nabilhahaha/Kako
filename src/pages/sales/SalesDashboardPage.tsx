@@ -9,6 +9,10 @@ import { GeographyTab } from '@/components/sales/GeographyTab';
 import { CustomersTab } from '@/components/sales/CustomersTab';
 import { ProductsTab } from '@/components/sales/ProductsTab';
 import { SalesTeamTab } from '@/components/sales/SalesTeamTab';
+import { ReturnsTab } from '@/components/sales/ReturnsTab';
+import { RisksTab } from '@/components/sales/RisksTab';
+import { LostCustomersTab } from '@/components/sales/LostCustomersTab';
+import { ProfilesTab } from '@/components/sales/ProfilesTab';
 import { ExcelUpload } from '@/components/sales/ExcelUpload';
 import type { SalesDataset } from '@/lib/salesTypes';
 
@@ -19,6 +23,10 @@ const TABS = [
   { id: 'customers', label: 'Customers', icon: '👥' },
   { id: 'products', label: 'Products', icon: '🍫' },
   { id: 'team', label: 'Sales Team', icon: '👤' },
+  { id: 'returns', label: 'Returns', icon: '🔁' },
+  { id: 'risks', label: 'Risks', icon: '🚨' },
+  { id: 'lost', label: 'Lost', icon: '🎯' },
+  { id: 'profiles', label: 'Profiles', icon: '🔍' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -128,6 +136,10 @@ export function SalesDashboardPage() {
       {activeTab === 'customers' && <CustomersTab dataset={dataset} indices={indices} />}
       {activeTab === 'products' && <ProductsTab productSales={productSales} />}
       {activeTab === 'team' && <SalesTeamTab salesmanPerformance={salesmanPerformance} />}
+      {activeTab === 'returns' && <ReturnsTab dataset={dataset} indices={indices} />}
+      {activeTab === 'risks' && <RisksTab dataset={dataset} indices={indices} />}
+      {activeTab === 'lost' && <LostCustomersTab dataset={dataset} />}
+      {activeTab === 'profiles' && <ProfilesTab dataset={dataset} indices={indices} />}
     </div>
   );
 }
