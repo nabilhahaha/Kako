@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, TrendingDown, BarChart3, Users, Route, MapPin, Clock } from 'lucide-react';
+import { TrendingDown, BarChart3, Users, Route } from 'lucide-react';
 import type { Customer, OptimizationResult } from '../types';
 import { totalPathDistance } from '../algorithms/haversine';
 
