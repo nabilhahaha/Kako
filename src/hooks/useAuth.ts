@@ -31,6 +31,8 @@ export function useAuthBootstrap() {
         if (active) setProfile(profile);
       }
       if (active) setInitialized(true);
+    }).catch(() => {
+      if (active) setInitialized(true);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {

@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { useAuthBootstrap } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
 import { homeForRole } from '@/lib/permissions';
@@ -36,7 +36,7 @@ import { UsersPage } from '@/pages/admin/UsersPage';
 import { RawDataUploadPage } from '@/pages/admin/RawDataUploadPage';
 import { SettingsPage } from '@/pages/admin/SettingsPage';
 import { AuditLogsPage } from '@/pages/admin/AuditLogsPage';
-import { RouteOptimizerPage } from '@/pages/RouteOptimizerPage';
+const RouteOptimizerPage = lazy(() => import('@/pages/RouteOptimizerPage').then(m => ({ default: m.RouteOptimizerPage })));
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -60,7 +60,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
-        <Route path="/route-optimizer" element={<RouteOptimizerPage />} />
+        <Route path="/route-optimizer" element={<Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}><RouteOptimizerPage /></Suspense>} />
 
         <Route
           element={
