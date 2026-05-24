@@ -40,15 +40,14 @@ const RouteOptimizerPage = lazy(() => import('@/pages/RouteOptimizerPage').then(
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
-  const location = useLocation();
 
   useEffect(() => {
-    document.documentElement.lang = 'ar';
-    document.documentElement.dir = 'rtl';
+    document.documentElement.lang = 'en';
+    document.documentElement.dir = 'ltr';
   }, []);
 
-  if (!initialized) return null;
-  if (!session) return <Navigate to="/login" replace state={{ from: location }} />;
+  if (!initialized) return <Navigate to="/route-optimizer" replace />;
+  if (!session) return <Navigate to="/route-optimizer" replace />;
   return <Navigate to={homeForRole(profile?.user_type)} replace />;
 }
 
@@ -280,7 +279,7 @@ function App() {
         </Route>
 
         <Route path="/" element={<RootRedirect />} />
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<Navigate to="/route-optimizer" replace />} />
       </Routes>
       <Toaster />
     </>
