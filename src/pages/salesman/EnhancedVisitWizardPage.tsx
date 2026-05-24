@@ -388,7 +388,7 @@ export function EnhancedVisitWizardPage() {
           ? `${result.uploadedPhotos} صورة مرفوعة`
           : undefined,
       });
-      navigate('/salesman/visits', { replace: true });
+      navigate('/supervisor/visits', { replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'تعذّر تسجيل الزيارة';
       toast.error('فشل التسجيل', { description: msg });
@@ -406,8 +406,8 @@ export function EnhancedVisitWizardPage() {
         description={`الخطوة ${step + 1} من ${STEPS.length} · ${STEPS[step].label}`}
         back={
           selectedCustomer
-            ? `/salesman/customers/${selectedCustomer.id}`
-            : '/salesman'
+            ? `/supervisor/customers/${selectedCustomer.id}`
+            : '/supervisor'
         }
       />
 
@@ -1028,7 +1028,6 @@ function visitTypeLabel(t: string) {
     office: 'مكتب',
     branch: 'فرع',
     cashvan: 'كاش فان',
-    hybrid: 'هجين',
   };
   return map[t] ?? t;
 }

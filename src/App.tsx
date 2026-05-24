@@ -70,43 +70,12 @@ function App() {
             </AuthGuard>
           }
         >
+          {/* المندوب: تسجيل قارب على الانتهاء فقط */}
           <Route
             path="/salesman"
             element={
               <RoleGuard allow={['presales_rep']}>
                 <SalesmanDashboard />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/salesman/customers"
-            element={
-              <RoleGuard allow={['presales_rep']}>
-                <CustomersListPage />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/salesman/customers/:customerId"
-            element={
-              <RoleGuard allow={['presales_rep']}>
-                <Customer360Page />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/salesman/visits"
-            element={
-              <RoleGuard allow={['presales_rep']}>
-                <VisitsHistoryPage />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/salesman/visits/new"
-            element={
-              <RoleGuard allow={['presales_rep']}>
-                <EnhancedVisitWizardPage />
               </RoleGuard>
             }
           />
@@ -118,11 +87,45 @@ function App() {
               </RoleGuard>
             }
           />
+
+          {/* المشرف: تسجيل الزيارات + إدارة الفريق */}
           <Route
             path="/supervisor"
             element={
               <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
                 <TeamDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/supervisor/customers"
+            element={
+              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
+                <CustomersListPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/supervisor/customers/:customerId"
+            element={
+              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
+                <Customer360Page />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/supervisor/visits"
+            element={
+              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
+                <VisitsHistoryPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/supervisor/visits/new"
+            element={
+              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
+                <EnhancedVisitWizardPage />
               </RoleGuard>
             }
           />

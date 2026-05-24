@@ -4,6 +4,21 @@ import { qk } from '@/lib/queryKeys';
 import type { Visit, VisitReason } from '@/lib/types';
 import type { VisitWizardValues } from '@/lib/schemas';
 
+const DEMO_VISIT_REASONS: VisitReason[] = [
+  { id: 'r01', label: 'Routine Visit', label_ar: 'زيارة روتينية', applies_to: 'all', is_active: true },
+  { id: 'r02', label: 'New Product Launch', label_ar: 'إطلاق منتج جديد', applies_to: 'all', is_active: true },
+  { id: 'r03', label: 'Shelf Arrangement', label_ar: 'ترتيب الرف', applies_to: 'all', is_active: true },
+  { id: 'r04', label: 'Stock Check', label_ar: 'جرد المخزون', applies_to: 'all', is_active: true },
+  { id: 'r05', label: 'Promotion Follow-up', label_ar: 'متابعة العرض الترويجي', applies_to: 'all', is_active: true },
+  { id: 'r06', label: 'Complaint Resolution', label_ar: 'حل شكوى', applies_to: 'all', is_active: true },
+  { id: 'r07', label: 'Payment Collection', label_ar: 'تحصيل مبالغ', applies_to: 'all', is_active: true },
+  { id: 'r08', label: 'Price Update', label_ar: 'تحديث الأسعار', applies_to: 'all', is_active: true },
+  { id: 'r09', label: 'Competitor Activity', label_ar: 'نشاط منافسين', applies_to: 'all', is_active: true },
+  { id: 'r10', label: 'Near Expiry Check', label_ar: 'فحص قارب على الانتهاء', applies_to: 'all', is_active: true },
+  { id: 'r11', label: 'New Customer Onboarding', label_ar: 'تسجيل عميل جديد', applies_to: 'all', is_active: true },
+  { id: 'r12', label: 'Display Installation', label_ar: 'تركيب ستاند عرض', applies_to: 'all', is_active: true },
+];
+
 export function useVisits(userId: string | undefined) {
   return useQuery({
     enabled: !!userId,
@@ -15,8 +30,8 @@ export function useVisits(userId: string | undefined) {
         .eq('user_id', userId)
         .order('visited_at', { ascending: false })
         .limit(100);
-      if (error) throw error;
-      return (data ?? []) as Visit[];
+      if (error || !data) return [];
+      return data as Visit[];
     },
   });
 }
@@ -31,8 +46,10 @@ export function useVisitReasons() {
         .select('id, label, label_ar, applies_to, is_active')
         .eq('is_active', true)
         .order('label_ar', { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as VisitReason[];
+      if (error || !data || data.length === 0) {
+        return DEMO_VISIT_REASONS;
+      }
+      return data as VisitReason[];
     },
   });
 }

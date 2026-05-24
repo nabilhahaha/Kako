@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const visitTypeSchema = z.enum(['office', 'branch', 'cashvan', 'hybrid'], {
+export const visitTypeSchema = z.enum(['office', 'branch', 'cashvan'], {
   errorMap: () => ({ message: 'اختر نوع الزيارة' }),
 });
 

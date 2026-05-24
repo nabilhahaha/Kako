@@ -37,7 +37,7 @@ export interface Customer {
   assigned_rep_id: string | null;
 }
 
-export type VisitType = 'office' | 'branch' | 'cashvan' | 'hybrid';
+export type VisitType = 'office' | 'branch' | 'cashvan';
 
 export interface Visit {
   id: string;

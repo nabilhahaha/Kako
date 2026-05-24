@@ -1,4 +1,4 @@
-import { Building2, Store, Truck, Layers } from 'lucide-react';
+import { Building2, Store, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { VisitType } from '@/lib/types';
 
@@ -6,7 +6,6 @@ const OPTIONS: { value: VisitType; label: string; icon: typeof Building2 }[] = [
   { value: 'office', label: 'مكتب', icon: Building2 },
   { value: 'branch', label: 'فرع', icon: Store },
   { value: 'cashvan', label: 'كاش فان', icon: Truck },
-  { value: 'hybrid', label: 'هجين', icon: Layers },
 ];
 
 interface VisitTypePickerProps {
