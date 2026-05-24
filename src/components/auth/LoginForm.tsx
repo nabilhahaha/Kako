@@ -1,114 +1,141 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Users, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { signIn } from '@/hooks/useAuth';
-import { homeForRole } from '@/lib/permissions';
+import { homeForRole, ROLE_LABELS_AR } from '@/lib/permissions';
 import { supabase } from '@/lib/supabase';
-import type { AppUser } from '@/lib/types';
+import { useAuthStore } from '@/stores/authStore';
+import type { AppUser, UserRole } from '@/lib/types';
+import type { Session } from '@supabase/supabase-js';
 
 export function LoginForm() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const { setSession, setProfile, setInitialized } = useAuthStore();
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    async function fetchUsers() {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, email, full_name, user_type, region, supervisor_id, is_active')
+        .eq('is_active', true)
+        .order('user_type')
+        .order('full_name');
+      if (error) {
+        console.warn('failed to fetch users', error);
+        setUsers([]);
+      } else {
+        setUsers((data ?? []) as AppUser[]);
+      }
+      setLoading(false);
+    }
+    fetchUsers();
+  }, []);
+
+  const selectedUser = users.find((u) => u.id === selectedId);
+
+  async function handleLogin() {
+    if (!selectedUser) {
+      toast.error('اختر مستخدماً أولاً');
+      return;
+    }
     setSubmitting(true);
 
-    const { data, error } = await signIn(email.trim(), password);
+    const mockSession = {
+      access_token: 'demo-token',
+      refresh_token: 'demo-refresh',
+      expires_in: 999999,
+      token_type: 'bearer',
+      user: {
+        id: selectedUser.id,
+        email: selectedUser.email,
+        aud: 'authenticated',
+        role: 'authenticated',
+        app_metadata: {},
+        user_metadata: {},
+        created_at: new Date().toISOString(),
+      },
+    } as unknown as Session;
 
-    if (error) {
-      toast.error('فشل تسجيل الدخول', { description: error.message });
-      setSubmitting(false);
-      return;
-    }
+    setSession(mockSession);
+    setProfile(selectedUser);
+    setInitialized(true);
 
-    const userId = data.user?.id;
-    if (!userId) {
-      toast.error('تعذّر إكمال تسجيل الدخول');
-      setSubmitting(false);
-      return;
-    }
-
-    const { data: profile } = await supabase
-      .from('users')
-      .select('user_type')
-      .eq('id', userId)
-      .maybeSingle<Pick<AppUser, 'user_type'>>();
-
-    toast.success('تم تسجيل الدخول');
-    const target = from && from !== '/login' ? from : homeForRole(profile?.user_type);
+    toast.success(`مرحباً ${selectedUser.full_name || selectedUser.email}`);
+    const target = from && from !== '/login' ? from : homeForRole(selectedUser.user_type);
     navigate(target, { replace: true });
+    setSubmitting(false);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <div className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="email">البريد الإلكتروني</Label>
-        <div className="relative">
-          <Mail className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            placeholder="rep1@relia.sa"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="pe-10"
-            disabled={submitting}
-          />
-        </div>
+        <Label>اختر المستخدم</Label>
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 rounded-lg border border-border p-4">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">جاري تحميل المستخدمين...</span>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="rounded-lg border border-border p-4 text-center text-sm text-muted-foreground">
+            لا يوجد مستخدمون في النظام
+          </div>
+        ) : (
+          <div className="relative">
+            <Users className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <ChevronDown className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <select
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+              disabled={submitting}
+              className="w-full appearance-none rounded-lg border border-border bg-background px-10 py-3 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">— اختر مستخدماً —</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.full_name || u.email} — {ROLE_LABELS_AR[u.user_type as UserRole] ?? u.user_type}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="password">كلمة المرور</Label>
-        <div className="relative">
-          <Lock className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="current-password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="pe-10 ps-10"
-            disabled={submitting}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((v) => !v)}
-            className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-            tabIndex={-1}
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
+      {selectedUser && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+          <p className="font-medium text-foreground">
+            {selectedUser.full_name || selectedUser.email}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {ROLE_LABELS_AR[selectedUser.user_type as UserRole] ?? selectedUser.user_type}
+            {selectedUser.region && ` · ${selectedUser.region}`}
+          </p>
         </div>
-      </div>
+      )}
 
-      <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+      <Button
+        size="lg"
+        className="w-full"
+        disabled={!selectedId || submitting}
+        onClick={handleLogin}
+      >
         {submitting ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            جاري التحقق...
+            جاري الدخول...
           </>
         ) : (
-          'تسجيل الدخول'
+          'دخول'
         )}
       </Button>
-    </form>
+    </div>
   );
 }
