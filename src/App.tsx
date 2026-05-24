@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { Suspense, lazy, useEffect } from 'react';
 import { useAuthBootstrap } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
@@ -9,7 +9,6 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Toaster } from '@/components/ui/sonner';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage';
-import { NotFoundPage } from '@/pages/NotFoundPage';
 import { SalesmanDashboard } from '@/pages/salesman/SalesmanDashboard';
 import { CustomersListPage } from '@/pages/salesman/CustomersListPage';
 import { Customer360Page } from '@/pages/salesman/Customer360Page';
