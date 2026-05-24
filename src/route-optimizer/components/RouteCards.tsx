@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Clock, TrendingUp, AlertTriangle, ExternalLink } from 'lucide-react';
+import { MapPin, Clock, TrendingUp, AlertTriangle, Navigation, Copy, Check } from 'lucide-react';
 import type { RouteResult } from '../types';
 
 interface RouteCardsProps {
@@ -40,6 +41,25 @@ function RouteCard({
   t: ReturnType<typeof useTranslation>['t'];
 }) {
   const hasWarnings = route.warnings.length > 0;
+  const [copied, setCopied] = useState(false);
+
+  const dailyMapsLinks = route.dailyPlans
+    .filter((dp) => dp.googleMapsUrl)
+    .map((dp) => {
+      const dayName = t('print.days.' + (DAY_KEYS[dp.dayIndex] ?? `day${dp.dayIndex}`));
+      return `${dayName}: ${dp.googleMapsUrl}`;
+    });
+
+  const handleCopyAllLinks = async () => {
+    if (dailyMapsLinks.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(dailyMapsLinks.join('\n'));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback: ignore
+    }
+  };
 
   return (
     <div
@@ -57,7 +77,23 @@ function RouteCard({
             </span>
           )}
         </div>
-        {hasWarnings && <AlertTriangle className="h-4 w-4 text-warning" />}
+        <div className="flex items-center gap-2">
+          {dailyMapsLinks.length > 0 && (
+            <button
+              type="button"
+              onClick={handleCopyAllLinks}
+              className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+              {copied ? t('common.success') : 'Copy Maps Links'}
+            </button>
+          )}
+          {hasWarnings && <AlertTriangle className="h-4 w-4 text-warning" />}
+        </div>
       </div>
 
       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -97,9 +133,10 @@ function RouteCard({
                     href={dp.googleMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline"
+                    className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/80"
                   >
-                    <ExternalLink className="h-3 w-3" />
+                    <Navigation className="h-3 w-3" />
+                    Maps
                   </a>
                 )}
               </div>
