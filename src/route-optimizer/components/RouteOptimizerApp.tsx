@@ -1,8 +1,11 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, ArrowLeft, ArrowRight } from 'lucide-react';
-import type { RawCustomer, Customer, OptimizationParams, OptimizationResult, Depot, WorkerMessage } from '../types';
+import type { RawCustomer, Customer, OptimizationParams, OptimizationResult, Depot, WorkerMessage, RouteResult, DayPlan } from '../types';
 import { monthlyToWeekly } from '../algorithms/frequency';
+import { solveRoundTripTsp } from '../algorithms/tsp';
+import { haversine, roundTripDistance } from '../algorithms/haversine';
+import { generateGoogleMapsUrl } from '../excelExport';
 import { exportToExcel } from '../excelExport';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { DataImport } from './DataImport';
@@ -18,6 +21,74 @@ import { JourneyPlanPrint } from './JourneyPlanPrint';
 import { MasterPlanPrint } from './MasterPlanPrint';
 
 import '../i18n';
+
+const DAY_NAMES = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+
+function resequenceRouteWithDepot(
+  route: RouteResult,
+  depot: Depot,
+  avgSpeed: number,
+  avgVisitTimeMin: number,
+  workingHoursPerDay: number,
+  dailyKmCap: number,
+): RouteResult {
+  const avgVisitTimeHrs = avgVisitTimeMin / 60;
+  const newDailyPlans: DayPlan[] = route.dailyPlans.map((dp) => {
+    const customers = dp.sequencedCustomers;
+    if (customers.length === 0) {
+      return { ...dp, distanceKm: 0, travelTimeHours: 0, visitTimeHours: 0, totalHours: 0, googleMapsUrl: '' };
+    }
+
+    const tspPoints = customers.map((c) => ({ index: c.index, lat: c.lat, lng: c.lng }));
+    const tspResult = solveRoundTripTsp(depot, tspPoints);
+
+    const custMap = new Map(customers.map((c) => [c.index, c]));
+    const sequenced = tspResult.orderedIndices.map((idx) => custMap.get(idx)!).filter(Boolean);
+
+    const distanceKm = tspResult.totalDistance;
+    const travelTimeHours = distanceKm / avgSpeed;
+    const visitTimeHours = sequenced.length * avgVisitTimeHrs;
+    const totalHours = travelTimeHours + visitTimeHours;
+
+    return {
+      ...dp,
+      sequencedCustomers: sequenced,
+      distanceKm,
+      travelTimeHours,
+      visitTimeHours,
+      totalHours,
+      googleMapsUrl: generateGoogleMapsUrl(depot, sequenced),
+    };
+  });
+
+  const weeklyKm = newDailyPlans.reduce((s, dp) => s + dp.distanceKm, 0);
+  const monthlyKm = weeklyKm * 4;
+  const activeDays = newDailyPlans.filter((dp) => dp.sequencedCustomers.length > 0);
+  const avgDailyHours = activeDays.length > 0
+    ? activeDays.reduce((s, dp) => s + dp.totalHours, 0) / activeDays.length
+    : 0;
+  const totalVisitHrs = newDailyPlans.reduce((s, dp) => s + dp.visitTimeHours, 0);
+  const totalHrs = newDailyPlans.reduce((s, dp) => s + dp.totalHours, 0);
+  const sellingTimeRatio = totalHrs > 0 ? totalVisitHrs / totalHrs : 0;
+
+  const warnings: string[] = [];
+  for (const dp of newDailyPlans) {
+    if (dp.totalHours > workingHoursPerDay) warnings.push(`${DAY_NAMES[dp.dayIndex]}: hours exceeded (${dp.totalHours.toFixed(1)}h)`);
+    if (dailyKmCap > 0 && dp.distanceKm > dailyKmCap) warnings.push(`${DAY_NAMES[dp.dayIndex]}: km exceeded (${dp.distanceKm.toFixed(0)} km)`);
+  }
+  if (sellingTimeRatio < 0.4) warnings.push('Low selling time ratio');
+
+  return {
+    ...route,
+    depot,
+    dailyPlans: newDailyPlans,
+    weeklyKm,
+    monthlyKm,
+    avgDailyHours,
+    sellingTimeRatio,
+    warnings,
+  };
+}
 
 type Step = 'import' | 'configure' | 'results';
 
@@ -182,15 +253,14 @@ export function RouteOptimizerApp() {
     }
   }, [result, scopedCustomers]);
 
-  // Apply depots to result routes
   const routesWithDepots = useMemo(() => {
     if (!result) return [];
     return result.routes.map((route, i) => {
       const depot = depots.get(i);
-      if (depot) return { ...route, depot };
-      return route;
+      if (!depot) return route;
+      return resequenceRouteWithDepot(route, depot, params.avgSpeed, params.avgVisitTime, params.workingHoursPerDay, params.dailyKmCap);
     });
-  }, [result, depots]);
+  }, [result, depots, params.avgSpeed, params.avgVisitTime, params.workingHoursPerDay, params.dailyKmCap]);
 
   return (
     <div className="min-h-screen bg-background">
