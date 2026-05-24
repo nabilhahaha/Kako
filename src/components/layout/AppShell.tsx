@@ -2,19 +2,13 @@ import { Outlet } from 'react-router-dom';
 import { TopBar } from './TopBar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
-import { SyncStatusBar } from '@/components/shared/SyncStatusBar';
-import { OfflineIndicator } from '@/components/shared/OfflineIndicator';
-import { useAuthStore } from '@/stores/authStore';
 
 export function AppShell() {
-  const role = useAuthStore((s) => s.profile?.user_type ?? null);
-
   return (
     <div className="min-h-screen bg-background">
-      <SyncStatusBar />
       <TopBar />
       <div className="flex">
-        <Sidebar role={role} />
+        <Sidebar />
         <main
           className="flex-1 px-4 pb-24 pt-6 lg:px-8 lg:pb-8"
           style={{ minHeight: 'calc(100vh - 4rem)' }}
@@ -24,8 +18,7 @@ export function AppShell() {
           </div>
         </main>
       </div>
-      <BottomNav role={role} />
-      <OfflineIndicator />
+      <BottomNav />
     </div>
   );
 }

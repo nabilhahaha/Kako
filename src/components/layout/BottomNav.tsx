@@ -1,14 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { getNavForRole } from './Sidebar';
-import type { UserRole } from '@/lib/types';
+import { getNavItems } from './Sidebar';
 
-interface BottomNavProps {
-  role: UserRole | null;
-}
-
-export function BottomNav({ role }: BottomNavProps) {
-  const items = getNavForRole(role).slice(0, 4);
+export function BottomNav() {
+  const items = getNavItems().slice(0, 5);
   if (items.length === 0) return null;
 
   return (
@@ -16,12 +11,12 @@ export function BottomNav({ role }: BottomNavProps) {
       className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <ul className="grid grid-cols-4">
+      <ul className="grid" style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}>
         {items.map((item) => (
           <li key={item.to}>
             <NavLink
               to={item.to}
-              end={item.to.split('/').length === 2}
+              end={item.to === '/admin'}
               className={({ isActive }) =>
                 cn(
                   'flex flex-col items-center gap-1 px-2 py-2.5 text-xs transition-colors',
