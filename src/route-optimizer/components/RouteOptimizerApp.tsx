@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Download, ArrowLeft, ArrowRight, Printer, FileSpreadsheet, LayoutDashboard } from 'lucide-react';
 import type { RawCustomer, Customer, OptimizationParams, OptimizationResult, Depot, WorkerMessage, RouteResult, DayPlan } from '../types';
 import { monthlyToWeekly } from '../algorithms/frequency';
 import { solveRoundTripTsp } from '../algorithms/tsp';
@@ -18,6 +18,7 @@ import { BeforeAfterComparison } from './BeforeAfterComparison';
 import { StartPointEditor } from './StartPointEditor';
 import { JourneyPlanPrint } from './JourneyPlanPrint';
 import { MasterPlanPrint } from './MasterPlanPrint';
+import { RouteSelector } from './RouteSelector';
 
 import '../i18n';
 
@@ -90,6 +91,7 @@ function resequenceRouteWithDepot(
 }
 
 type Step = 'import' | 'configure' | 'results';
+type ResultsTab = 'dashboard' | 'map' | 'routes' | 'schedule' | 'print';
 
 const DEFAULT_PARAMS: OptimizationParams = {
   distributionMethod: 'count',
@@ -139,6 +141,10 @@ export function RouteOptimizerApp() {
 
   // Salesman names state
   const [salesmanNames, setSalesmanNames] = useState<Map<number, string>>(new Map());
+
+  // Results view state
+  const [resultsTab, setResultsTab] = useState<ResultsTab>('dashboard');
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState<number | null>(null);
 
   const handleSalesmanNameChange = useCallback((routeIndex: number, name: string) => {
     setSalesmanNames((prev) => {
@@ -201,6 +207,8 @@ export function RouteOptimizerApp() {
     setProgressPercent(0);
     setResult(null);
     setStep('results');
+    setResultsTab('dashboard');
+    setSelectedRouteIndex(null);
 
     const worker = new Worker(
       new URL('../algorithms/optimizer.worker.ts', import.meta.url),
@@ -278,66 +286,117 @@ export function RouteOptimizerApp() {
     });
   }, [result, depots, params.avgSpeed, params.avgVisitTime, params.workingHoursPerDay, params.dailyKmCap]);
 
+  // Filtered routes for single-route view
+  const filteredRoutes = useMemo(() => {
+    if (selectedRouteIndex === null) return routesWithDepots;
+    if (selectedRouteIndex < routesWithDepots.length) {
+      return [routesWithDepots[selectedRouteIndex]];
+    }
+    return [];
+  }, [routesWithDepots, selectedRouteIndex]);
+
+  const filteredOutstationRoutes = useMemo(() => {
+    if (!result) return [];
+    if (selectedRouteIndex === null) return result.outstationRoutes;
+    const outstationIdx = selectedRouteIndex - routesWithDepots.length;
+    if (outstationIdx >= 0 && outstationIdx < result.outstationRoutes.length) {
+      return [result.outstationRoutes[outstationIdx]];
+    }
+    return [];
+  }, [result, selectedRouteIndex, routesWithDepots.length]);
+
+  // Sync print route with selected route
+  const effectivePrintRoute = selectedRouteIndex !== null ? selectedRouteIndex : printRoute;
+
+  const resultsTabs: { key: ResultsTab; label: string }[] = [
+    { key: 'dashboard', label: t('kpi.title') },
+    { key: 'map', label: t('routeCards.title') },
+    { key: 'routes', label: t('routeCards.routeNumber', { number: '' }).trim() },
+    { key: 'schedule', label: t('visitTable.title') },
+    { key: 'print', label: t('print.journeyPlanTitle') },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-h1 font-bold text-primary">{t('app.title')}</h1>
-            <p className="text-caption text-muted-foreground">{t('app.subtitle')}</p>
+    <div className="min-h-screen bg-slate-50">
+      {/* Professional Header */}
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-800">
+              <LayoutDashboard className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-800 tracking-tight">{t('app.title')}</h1>
+              <p className="text-xs text-slate-500">{t('app.subtitle')}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {result && (
-              <>
+          <div className="flex items-center gap-2">
+            {result && step === 'results' && (
+              <div className="flex items-center gap-2 border-r border-slate-200 pr-3 mr-1">
                 <button
                   onClick={handleExportExcel}
-                  className="flex items-center gap-2 rounded-lg bg-success px-3 py-2 text-sm font-medium text-success-foreground hover:bg-success/90"
+                  className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                 >
-                  <Download className="h-4 w-4" />
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
                   {t('excel.exportExcel')}
                 </button>
-              </>
+              </div>
             )}
             <LanguageSwitcher />
           </div>
         </div>
       </header>
 
-      {/* Step navigation */}
-      <div className="mx-auto max-w-7xl px-4 py-3">
-        <div className="flex items-center gap-2">
-          {(['import', 'configure', 'results'] as const).map((s, i) => (
-            <button
-              key={s}
-              onClick={() => {
-                if (s === 'import') setStep('import');
-                else if (s === 'configure' && rawCustomers.length > 0) setStep('configure');
-                else if (s === 'results' && result) setStep('results');
-              }}
-              disabled={
+      {/* Step navigation - professional underline style */}
+      <div className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-[1440px] px-6">
+          <nav className="flex items-center gap-0">
+            {(['import', 'configure', 'results'] as const).map((s, i) => {
+              const isActive = step === s;
+              const isDisabled =
                 (s === 'configure' && rawCustomers.length === 0) ||
-                (s === 'results' && !result && !isOptimizing)
-              }
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                step === s
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80 disabled:opacity-40'
-              }`}
-            >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background/20 text-xs font-bold">
-                {i + 1}
-              </span>
-              {s === 'import' && t('import.title')}
-              {s === 'configure' && t('params.title')}
-              {s === 'results' && t('kpi.title')}
-            </button>
-          ))}
+                (s === 'results' && !result && !isOptimizing);
+
+              return (
+                <button
+                  key={s}
+                  onClick={() => {
+                    if (s === 'import') setStep('import');
+                    else if (s === 'configure' && rawCustomers.length > 0) setStep('configure');
+                    else if (s === 'results' && result) setStep('results');
+                  }}
+                  disabled={isDisabled}
+                  className={`relative flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'text-blue-600'
+                      : 'text-slate-500 hover:text-slate-700 disabled:text-slate-300 disabled:cursor-not-allowed'
+                  }`}
+                >
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${
+                    isActive
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {i + 1}
+                  </span>
+                  <span>
+                    {s === 'import' && t('import.title')}
+                    {s === 'configure' && t('params.title')}
+                    {s === 'results' && t('kpi.title')}
+                  </span>
+                  {/* Active underline indicator */}
+                  {isActive && (
+                    <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-blue-600 rounded-t" />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
       </div>
 
       {/* Main content */}
-      <main className="mx-auto max-w-7xl space-y-8 px-4 py-6">
+      <main className="mx-auto max-w-[1440px] px-6 py-6">
         {/* Step 1: Import */}
         {step === 'import' && (
           <div className="space-y-6">
@@ -353,7 +412,7 @@ export function RouteOptimizerApp() {
               <div className="flex justify-end">
                 <button
                   onClick={() => setStep('configure')}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground"
+                  className="flex items-center gap-2 rounded-md bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
                 >
                   {t('scope.title')} <ArrowRight className="h-4 w-4" />
                 </button>
@@ -389,7 +448,7 @@ export function RouteOptimizerApp() {
             <div className="flex justify-between">
               <button
                 onClick={() => setStep('import')}
-                className="flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground"
+                className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" /> {t('import.title')}
               </button>
@@ -399,95 +458,191 @@ export function RouteOptimizerApp() {
 
         {/* Step 3: Results */}
         {step === 'results' && (
-          <div className="space-y-8">
+          <div className="space-y-0">
             {isOptimizing && (
-              <ProgressIndicator step={progressStep} percent={progressPercent} />
+              <div className="py-8">
+                <ProgressIndicator step={progressStep} percent={progressPercent} />
+              </div>
             )}
 
             {result && !isOptimizing && (
               <>
-                {hasSalesmanData && (
-                  <BeforeAfterComparison customers={scopedCustomers} result={result} />
-                )}
-
-                <KPIDashboard result={result} params={params} />
-
-                <RouteMap
-                  routes={routesWithDepots}
-                  outstationRoutes={result.outstationRoutes}
-                  onMapClick={handleMapClick}
-                  depotEditRoute={depotEditRoute}
-                />
-
-                <RouteCards
-                  routes={routesWithDepots}
-                  outstationRoutes={result.outstationRoutes}
-                  salesmanNames={salesmanNames}
-                />
-
-                <StartPointEditor
-                  routes={routesWithDepots}
-                  depots={depots}
-                  onSetDepot={handleSetDepot}
-                  onResetDepot={handleResetDepot}
-                  onStartMapClick={setDepotEditRoute}
-                  depotEditRoute={depotEditRoute}
-                  salesmanNames={salesmanNames}
-                  onSalesmanNameChange={handleSalesmanNameChange}
-                />
-
-                <VisitTable
-                  routes={routesWithDepots}
-                  outstationRoutes={result.outstationRoutes}
-                />
-
-                {/* Print section */}
-                <div className="space-y-4">
-                  <h2 className="text-h2 font-semibold">{t('print.journeyPlanTitle')}</h2>
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium">{t('visitTable.filterByRoute')}</label>
-                      <select
-                        value={printRoute ?? ''}
-                        onChange={(e) => setPrintRoute(e.target.value ? Number(e.target.value) : null)}
-                        className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                {/* Results tab bar */}
+                <div className="mb-6 border-b border-slate-200">
+                  <nav className="flex items-center gap-0 -mb-px">
+                    {resultsTabs.map((tab) => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setResultsTab(tab.key)}
+                        className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
+                          resultsTab === tab.key
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-slate-500 hover:text-slate-700 border-b-2 border-transparent'
+                        }`}
                       >
-                        <option value="">{t('print.printAll')}</option>
-                        {routesWithDepots.map((_, i) => (
-                          <option key={i} value={i}>{t('routeCards.routeNumber', { number: i + 1 })}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium">{t('visitTable.filterByDay')}</label>
-                      <select
-                        value={printDay ?? ''}
-                        onChange={(e) => setPrintDay(e.target.value ? Number(e.target.value) : null)}
-                        className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
-                      >
-                        <option value="">{t('visitTable.allDays')}</option>
-                        {['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday'].map((day, i) => (
-                          <option key={i} value={i}>{t(`print.days.${day}`)}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex items-end gap-2">
-                      <JourneyPlanPrint
-                        routes={routesWithDepots}
-                        outstationRoutes={result.outstationRoutes}
-                        selectedRoute={printRoute}
-                        selectedDay={printDay}
-                        salesmanNames={salesmanNames}
+                        {tab.label}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+
+                {/* Quick Actions Bar */}
+                <div className="mb-6 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wide mr-3">
+                    {t('print.journeyPlanTitle')}:
+                  </span>
+                  <button
+                    onClick={handleExportExcel}
+                    className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {t('excel.exportExcel')}
+                  </button>
+                  {selectedRouteIndex !== null && (
+                    <button
+                      onClick={() => {
+                        setPrintRoute(selectedRouteIndex);
+                        setPrintDay(null);
+                        setResultsTab('print');
+                      }}
+                      className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition-colors"
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      {t('print.printJourneyPlan')}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setPrintRoute(null);
+                      setPrintDay(null);
+                      setResultsTab('print');
+                    }}
+                    className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    {t('print.printAll')}
+                  </button>
+                </div>
+
+                {/* Main results layout: sidebar + content */}
+                <div className="flex gap-6">
+                  {/* Route Selector Sidebar */}
+                  <div className="w-64 flex-shrink-0">
+                    <RouteSelector
+                      routes={routesWithDepots}
+                      outstationRoutes={result.outstationRoutes}
+                      selectedRouteIndex={selectedRouteIndex}
+                      onSelectRoute={setSelectedRouteIndex}
+                      salesmanNames={salesmanNames}
+                    />
+                  </div>
+
+                  {/* Content area */}
+                  <div className="flex-1 min-w-0 space-y-6">
+                    {/* Dashboard tab */}
+                    {resultsTab === 'dashboard' && (
+                      <>
+                        {hasSalesmanData && (
+                          <BeforeAfterComparison customers={scopedCustomers} result={result} />
+                        )}
+                        <KPIDashboard result={result} params={params} />
+                      </>
+                    )}
+
+                    {/* Map tab */}
+                    {resultsTab === 'map' && (
+                      <RouteMap
+                        routes={filteredRoutes}
+                        outstationRoutes={filteredOutstationRoutes}
+                        onMapClick={handleMapClick}
+                        depotEditRoute={depotEditRoute}
                       />
-                      <MasterPlanPrint result={result} />
-                    </div>
+                    )}
+
+                    {/* Routes tab */}
+                    {resultsTab === 'routes' && (
+                      <>
+                        <RouteCards
+                          routes={filteredRoutes}
+                          outstationRoutes={filteredOutstationRoutes}
+                          salesmanNames={salesmanNames}
+                        />
+
+                        <StartPointEditor
+                          routes={routesWithDepots}
+                          depots={depots}
+                          onSetDepot={handleSetDepot}
+                          onResetDepot={handleResetDepot}
+                          onStartMapClick={setDepotEditRoute}
+                          depotEditRoute={depotEditRoute}
+                          salesmanNames={salesmanNames}
+                          onSalesmanNameChange={handleSalesmanNameChange}
+                        />
+                      </>
+                    )}
+
+                    {/* Schedule tab */}
+                    {resultsTab === 'schedule' && (
+                      <VisitTable
+                        routes={filteredRoutes}
+                        outstationRoutes={filteredOutstationRoutes}
+                      />
+                    )}
+
+                    {/* Print tab */}
+                    {resultsTab === 'print' && (
+                      <div className="space-y-4">
+                        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                          <h2 className="text-base font-semibold text-slate-800 mb-4">{t('print.journeyPlanTitle')}</h2>
+                          <div className="flex flex-wrap items-end gap-4">
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-slate-600">{t('visitTable.filterByRoute')}</label>
+                              <select
+                                value={effectivePrintRoute ?? ''}
+                                onChange={(e) => setPrintRoute(e.target.value ? Number(e.target.value) : null)}
+                                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              >
+                                <option value="">{t('print.printAll')}</option>
+                                {routesWithDepots.map((_, i) => (
+                                  <option key={i} value={i}>{t('routeCards.routeNumber', { number: i + 1 })}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-slate-600">{t('visitTable.filterByDay')}</label>
+                              <select
+                                value={printDay ?? ''}
+                                onChange={(e) => setPrintDay(e.target.value ? Number(e.target.value) : null)}
+                                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              >
+                                <option value="">{t('visitTable.allDays')}</option>
+                                {['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday'].map((day, i) => (
+                                  <option key={i} value={i}>{t(`print.days.${day}`)}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex items-end gap-2">
+                              <JourneyPlanPrint
+                                routes={routesWithDepots}
+                                outstationRoutes={result.outstationRoutes}
+                                selectedRoute={effectivePrintRoute}
+                                selectedDay={printDay}
+                                salesmanNames={salesmanNames}
+                              />
+                              <MasterPlanPrint result={result} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex justify-start pb-8">
+                {/* Back button */}
+                <div className="flex justify-start pt-6 pb-8">
                   <button
                     onClick={() => setStep('configure')}
-                    className="flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground"
+                    className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                   >
                     <ArrowLeft className="h-4 w-4" /> {t('params.title')}
                   </button>
