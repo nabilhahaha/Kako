@@ -16,20 +16,13 @@ import { Customer360Page } from '@/pages/salesman/Customer360Page';
 import { VisitsHistoryPage } from '@/pages/salesman/VisitsHistoryPage';
 import { NearExpiryPage } from '@/pages/salesman/NearExpiryPage';
 import { TeamDashboard } from '@/pages/supervisor/TeamDashboard';
-import { LiveMapPage } from '@/pages/supervisor/LiveMapPage';
 import { VisitApprovalsPage } from '@/pages/supervisor/VisitApprovalsPage';
 import { NearExpiryApprovalsPage } from '@/pages/supervisor/NearExpiryApprovalsPage';
-import { VisitRequestsPage } from '@/pages/supervisor/VisitRequestsPage';
 import { FinancialRequestsPage } from '@/pages/supervisor/FinancialRequestsPage';
 import { RegionalDashboard } from '@/pages/regional/RegionalDashboard';
 import { DistributorPerformancePage } from '@/pages/regional/DistributorPerformancePage';
 import { CoverageMapPage } from '@/pages/regional/CoverageMapPage';
 import { ApprovalQueuePage } from '@/pages/regional/ApprovalQueuePage';
-import { TradeMarketingDashboard } from '@/pages/trade-marketing/TradeMarketingDashboard';
-import { PromotionCalendarPage } from '@/pages/trade-marketing/PromotionCalendarPage';
-import { ListingReportsPage } from '@/pages/trade-marketing/ListingReportsPage';
-import { NearExpiryAnalyticsPage } from '@/pages/trade-marketing/NearExpiryAnalyticsPage';
-import { ExecutiveDashboard } from '@/pages/executive/ExecutiveDashboard';
 import { AdminDashboard } from '@/pages/admin/AdminDashboard';
 import { UsersPage } from '@/pages/admin/UsersPage';
 import { RawDataUploadPage } from '@/pages/admin/RawDataUploadPage';
@@ -130,14 +123,6 @@ function App() {
             }
           />
           <Route
-            path="/supervisor/map"
-            element={
-              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
-                <LiveMapPage />
-              </RoleGuard>
-            }
-          />
-          <Route
             path="/supervisor/approvals/visits"
             element={
               <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
@@ -150,14 +135,6 @@ function App() {
             element={
               <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
                 <NearExpiryApprovalsPage />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/supervisor/visit-requests"
-            element={
-              <RoleGuard allow={['presales_supervisor', 'cashvan_supervisor']}>
-                <VisitRequestsPage />
               </RoleGuard>
             }
           />
@@ -198,46 +175,6 @@ function App() {
             element={
               <RoleGuard allow={['regional_manager_roshen']}>
                 <ApprovalQueuePage />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/trade-marketing"
-            element={
-              <RoleGuard allow={['trade_marketing_manager']}>
-                <TradeMarketingDashboard />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/trade-marketing/promotions"
-            element={
-              <RoleGuard allow={['trade_marketing_manager']}>
-                <PromotionCalendarPage />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/trade-marketing/listings"
-            element={
-              <RoleGuard allow={['trade_marketing_manager']}>
-                <ListingReportsPage />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/trade-marketing/near-expiry"
-            element={
-              <RoleGuard allow={['trade_marketing_manager']}>
-                <NearExpiryAnalyticsPage />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/executive"
-            element={
-              <RoleGuard allow={['top_management_relia', 'top_management_roshen']}>
-                <ExecutiveDashboard />
               </RoleGuard>
             }
           />

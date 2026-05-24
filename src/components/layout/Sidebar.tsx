@@ -5,16 +5,15 @@ import {
   Users,
   ClipboardList,
   PackageX,
-  Map,
   CheckSquare,
   ShieldCheck,
-  Megaphone,
   TrendingUp,
   Settings,
   FileSpreadsheet,
   ListChecks,
   FormInput,
   Upload,
+  Map,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/lib/types';
@@ -44,7 +43,6 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/supervisor', label: 'لوحة التحكم', icon: LayoutDashboard },
     { to: '/supervisor/customers', label: 'العملاء', icon: Users },
     { to: '/supervisor/visits', label: 'الزيارات', icon: ClipboardList },
-    { to: '/supervisor/map', label: 'الخريطة', icon: Map },
     { to: '/supervisor/approvals/visits', label: 'موافقات الزيارات', icon: CheckSquare },
     { to: '/supervisor/approvals/near-expiry', label: 'قارب على الانتهاء', icon: ShieldCheck },
   ],
@@ -52,7 +50,6 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/supervisor', label: 'لوحة التحكم', icon: LayoutDashboard },
     { to: '/supervisor/customers', label: 'العملاء', icon: Users },
     { to: '/supervisor/visits', label: 'الزيارات', icon: ClipboardList },
-    { to: '/supervisor/map', label: 'الخريطة', icon: Map },
     { to: '/supervisor/approvals/visits', label: 'الموافقات', icon: CheckSquare },
   ],
   regional_manager_roshen: [
@@ -61,20 +58,9 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/regional/coverage', label: 'التغطية', icon: Map },
     { to: '/regional/approvals', label: 'الموافقات', icon: CheckSquare },
   ],
-  trade_marketing_manager: [
-    { to: '/trade-marketing', label: 'لوحة التحكم', icon: LayoutDashboard },
-    { to: '/trade-marketing/promotions', label: 'العروض', icon: Megaphone },
-    { to: '/trade-marketing/listings', label: 'القنوات', icon: TrendingUp },
-    { to: '/trade-marketing/near-expiry', label: 'الفقد', icon: ShieldCheck },
-  ],
-  top_management_relia: [
-    { to: '/executive', label: 'لوحة التنفيذيين', icon: LayoutDashboard },
-    { to: '/executive/kpis', label: 'المؤشرات', icon: TrendingUp },
-  ],
-  top_management_roshen: [
-    { to: '/executive', label: 'لوحة التنفيذيين', icon: LayoutDashboard },
-    { to: '/executive/kpis', label: 'المؤشرات', icon: TrendingUp },
-  ],
+  trade_marketing_manager: [],
+  top_management_relia: [],
+  top_management_roshen: [],
 };
 
 interface SidebarProps {

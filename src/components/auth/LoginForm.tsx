@@ -16,9 +16,6 @@ const DEMO_USERS: AppUser[] = [
   { id: 'demo-supervisor', email: 'supervisor@roshen.com', full_name: 'خالد المشرف', user_type: 'presales_supervisor', region: 'الرياض', supervisor_id: null, is_active: true },
   { id: 'demo-cashvan', email: 'cashvan@roshen.com', full_name: 'سعد مشرف الكاش فان', user_type: 'cashvan_supervisor', region: 'جدة', supervisor_id: null, is_active: true },
   { id: 'demo-regional', email: 'regional@roshen.com', full_name: 'محمد المدير الإقليمي', user_type: 'regional_manager_roshen', region: 'الرياض', supervisor_id: null, is_active: true },
-  { id: 'demo-trade', email: 'trade@roshen.com', full_name: 'فهد مدير التسويق', user_type: 'trade_marketing_manager', region: null, supervisor_id: null, is_active: true },
-  { id: 'demo-exec-relia', email: 'exec-relia@roshen.com', full_name: 'عبدالله الإدارة العليا', user_type: 'top_management_relia', region: null, supervisor_id: null, is_active: true },
-  { id: 'demo-exec-roshen', email: 'exec-roshen@roshen.com', full_name: 'ناصر الإدارة العليا روشن', user_type: 'top_management_roshen', region: null, supervisor_id: null, is_active: true },
 ];
 
 export function LoginForm() {

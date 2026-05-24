@@ -9,8 +9,8 @@ export function NearExpiryPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="تسجيل منتج قارب على الانتهاء"
-        description="سيُراجع التسجيل من قبل المشرف قبل اعتماده"
+        title="تسجيل منتجات قاربت على الانتهاء"
+        description="يمكنك تسجيل عدة منتجات لنفس العميل في نموذج واحد"
         back="/salesman"
       />
       <Card className="p-5">

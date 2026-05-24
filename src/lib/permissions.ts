@@ -17,9 +17,9 @@ export const ROLE_HOME: Record<UserRole, string> = {
   presales_supervisor: '/supervisor',
   cashvan_supervisor: '/supervisor',
   regional_manager_roshen: '/regional',
-  trade_marketing_manager: '/trade-marketing',
-  top_management_relia: '/executive',
-  top_management_roshen: '/executive',
+  trade_marketing_manager: '/unauthorized',
+  top_management_relia: '/unauthorized',
+  top_management_roshen: '/unauthorized',
 };
 
 export function homeForRole(role: UserRole | null | undefined): string {
