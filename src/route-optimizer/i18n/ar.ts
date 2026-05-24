@@ -255,6 +255,24 @@ const ar = {
       selectOption: 'اختر خياراً',
     },
 
+    // ─── مقارنة قبل / بعد ─────────────────────────────────────────────
+    comparison: {
+      title: 'مقارنة قبل / بعد',
+      before: 'قبل (التوزيع الحالي)',
+      after: 'بعد (المسارات المحسّنة)',
+      salesmenCount: 'عدد المندوبين',
+      routesCount: 'عدد المسارات',
+      customersPerGroup: 'العملاء (أقل / أكثر / متوسط)',
+      customersPerRoute: 'العملاء (أقل / أكثر / متوسط)',
+      loadBalance: 'توازن الحمل',
+      estMonthlyKm: 'الكم الشهري التقديري',
+      totalMonthlyKm: 'إجمالي الكم الشهري',
+      avgSellingTime: 'متوسط وقت البيع',
+      distanceSavings: 'توفير المسافة',
+      betterBalance: 'تحسين التوازن',
+      minMaxAvgHint: 'أعداد العملاء معروضة كـ أقل / أكثر / متوسط',
+    },
+
     // ─── تصدير Excel ────────────────────────────────────────────────
     excel: {
       exportExcel: 'تصدير إلى Excel',

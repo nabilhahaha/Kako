@@ -255,6 +255,24 @@ const en = {
       selectOption: 'Select an option',
     },
 
+    // ─── Before/After Comparison ───────────────────────────────────
+    comparison: {
+      title: 'Before / After Comparison',
+      before: 'Before (Current Distribution)',
+      after: 'After (Optimized Routes)',
+      salesmenCount: 'Number of Salesmen',
+      routesCount: 'Number of Routes',
+      customersPerGroup: 'Customers (min / max / avg)',
+      customersPerRoute: 'Customers (min / max / avg)',
+      loadBalance: 'Load Balance',
+      estMonthlyKm: 'Est. Monthly KM',
+      totalMonthlyKm: 'Total Monthly KM',
+      avgSellingTime: 'Avg. Selling Time',
+      distanceSavings: 'Distance Savings',
+      betterBalance: 'Balance Improvement',
+      minMaxAvgHint: 'Customer counts shown as min / max / avg',
+    },
+
     // ─── Excel Export ───────────────────────────────────────────────
     excel: {
       exportExcel: 'Export to Excel',

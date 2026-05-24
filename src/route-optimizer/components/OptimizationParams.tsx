@@ -235,6 +235,24 @@ export function OptimizationParamsPanel({ params, onChange, onRun, isOptimizing,
             hint={t('params.disabledHint')}
           />
         </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <NumberInput
+            label="Fuel Price (SAR/L)"
+            value={params.fuelPricePerLiter}
+            onChange={(v) => update('fuelPricePerLiter', Math.max(0, v))}
+            min={0}
+            step={0.1}
+            unit="SAR"
+          />
+          <NumberInput
+            label="Fuel Consumption"
+            value={params.fuelConsumption}
+            onChange={(v) => update('fuelConsumption', Math.max(1, v))}
+            min={1}
+            unit="km/L"
+          />
+        </div>
       </div>
 
       <button

@@ -14,6 +14,7 @@ import { RouteMap } from './RouteMap';
 import { RouteCards } from './RouteCards';
 import { VisitTable } from './VisitTable';
 import { KPIDashboard } from './KPIDashboard';
+import { BeforeAfterComparison } from './BeforeAfterComparison';
 import { StartPointEditor } from './StartPointEditor';
 import { JourneyPlanPrint } from './JourneyPlanPrint';
 import { MasterPlanPrint } from './MasterPlanPrint';
@@ -104,6 +105,8 @@ const DEFAULT_PARAMS: OptimizationParams = {
   createOutstationRoutes: true,
   outlierLinkDistance: 30,
   dailyKmCap: 0,
+  fuelPricePerLiter: 2.18,
+  fuelConsumption: 12,
 };
 
 export function RouteOptimizerApp() {
@@ -133,6 +136,17 @@ export function RouteOptimizerApp() {
   // Depot state
   const [depots, setDepots] = useState<Map<number, Depot>>(new Map());
   const [depotEditRoute, setDepotEditRoute] = useState<number | null>(null);
+
+  // Salesman names state
+  const [salesmanNames, setSalesmanNames] = useState<Map<number, string>>(new Map());
+
+  const handleSalesmanNameChange = useCallback((routeIndex: number, name: string) => {
+    setSalesmanNames((prev) => {
+      const next = new Map(prev);
+      next.set(routeIndex, name);
+      return next;
+    });
+  }, []);
 
   // Print state
   const [printRoute, setPrintRoute] = useState<number | null>(null);
@@ -250,6 +264,10 @@ export function RouteOptimizerApp() {
       exportToExcel(result, scopedCustomers, 'en');
     }
   }, [result, scopedCustomers]);
+
+  const hasSalesmanData = useMemo(() => {
+    return scopedCustomers.some((c) => c.salesmanName && c.salesmanName.trim() !== '');
+  }, [scopedCustomers]);
 
   const routesWithDepots = useMemo(() => {
     if (!result) return [];
@@ -388,7 +406,11 @@ export function RouteOptimizerApp() {
 
             {result && !isOptimizing && (
               <>
-                <KPIDashboard result={result} />
+                {hasSalesmanData && (
+                  <BeforeAfterComparison customers={scopedCustomers} result={result} />
+                )}
+
+                <KPIDashboard result={result} params={params} />
 
                 <RouteMap
                   routes={routesWithDepots}
@@ -400,6 +422,7 @@ export function RouteOptimizerApp() {
                 <RouteCards
                   routes={routesWithDepots}
                   outstationRoutes={result.outstationRoutes}
+                  salesmanNames={salesmanNames}
                 />
 
                 <StartPointEditor
@@ -409,6 +432,8 @@ export function RouteOptimizerApp() {
                   onResetDepot={handleResetDepot}
                   onStartMapClick={setDepotEditRoute}
                   depotEditRoute={depotEditRoute}
+                  salesmanNames={salesmanNames}
+                  onSalesmanNameChange={handleSalesmanNameChange}
                 />
 
                 <VisitTable
@@ -452,6 +477,7 @@ export function RouteOptimizerApp() {
                         outstationRoutes={result.outstationRoutes}
                         selectedRoute={printRoute}
                         selectedDay={printDay}
+                        salesmanNames={salesmanNames}
                       />
                       <MasterPlanPrint result={result} />
                     </div>

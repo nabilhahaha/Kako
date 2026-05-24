@@ -9,11 +9,12 @@ interface JourneyPlanPrintProps {
   outstationRoutes: RouteResult[];
   selectedRoute: number | null;
   selectedDay: number | null;
+  salesmanNames: Map<number, string>;
 }
 
 const DAY_KEYS = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday'] as const;
 
-export function JourneyPlanPrint({ routes, outstationRoutes, selectedRoute, selectedDay }: JourneyPlanPrintProps) {
+export function JourneyPlanPrint({ routes, outstationRoutes, selectedRoute, selectedDay, salesmanNames }: JourneyPlanPrintProps) {
   const { t, i18n } = useTranslation();
   const printRef = useRef<HTMLDivElement>(null);
   const isRTL = i18n.language === 'ar';
@@ -150,6 +151,9 @@ export function JourneyPlanPrint({ routes, outstationRoutes, selectedRoute, sele
                 </div>
                 <div className="header-right">
                   <strong>{routeLabel}</strong>
+                  {salesmanNames.get(ri) && (
+                    <p style={{ fontWeight: 600 }}>Salesman: {salesmanNames.get(ri)}</p>
+                  )}
                   <p>{t('print.issueDate')}: {new Date().toLocaleDateString(i18n.language)}</p>
                   <p>{t('routeCards.routeType')}: {route.routeType === 'outstation' ? t('routeCards.outstationLabel') : t('map.normalRoute')}</p>
                 </div>

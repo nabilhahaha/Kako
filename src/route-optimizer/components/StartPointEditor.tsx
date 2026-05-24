@@ -10,6 +10,8 @@ interface StartPointEditorProps {
   onResetDepot: (routeIndex: number) => void;
   onStartMapClick: (routeIndex: number) => void;
   depotEditRoute: number | null;
+  salesmanNames: Map<number, string>;
+  onSalesmanNameChange: (routeIndex: number, name: string) => void;
 }
 
 export function StartPointEditor({
@@ -19,6 +21,8 @@ export function StartPointEditor({
   onResetDepot,
   onStartMapClick,
   depotEditRoute,
+  salesmanNames,
+  onSalesmanNameChange,
 }: StartPointEditorProps) {
   const { t } = useTranslation();
 
@@ -31,6 +35,7 @@ export function StartPointEditor({
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="px-3 py-2 text-start font-medium">{t('visitTable.columns.route')}</th>
+              <th className="px-3 py-2 text-start font-medium">Salesman</th>
               <th className="px-3 py-2 text-start font-medium">{t('depot.latitude')}</th>
               <th className="px-3 py-2 text-start font-medium">{t('depot.longitude')}</th>
               <th className="px-3 py-2 text-start font-medium">Source</th>
@@ -48,6 +53,8 @@ export function StartPointEditor({
                 onResetDepot={onResetDepot}
                 onStartMapClick={onStartMapClick}
                 isMapEditing={depotEditRoute === i}
+                salesmanName={salesmanNames.get(i) ?? ''}
+                onSalesmanNameChange={onSalesmanNameChange}
                 t={t}
               />
             ))}
@@ -66,6 +73,8 @@ function DepotRow({
   onResetDepot,
   onStartMapClick,
   isMapEditing,
+  salesmanName,
+  onSalesmanNameChange,
   t,
 }: {
   routeIndex: number;
@@ -75,6 +84,8 @@ function DepotRow({
   onResetDepot: (ri: number) => void;
   onStartMapClick: (ri: number) => void;
   isMapEditing: boolean;
+  salesmanName: string;
+  onSalesmanNameChange: (ri: number, name: string) => void;
   t: ReturnType<typeof useTranslation>['t'];
 }) {
   const [manualLat, setManualLat] = useState('');
@@ -101,6 +112,15 @@ function DepotRow({
           <div className="h-3 w-3 rounded-full" style={{ backgroundColor: route.color }} />
           <span className="font-medium">{t('map.routeLabel', { number: routeIndex + 1 })}</span>
         </div>
+      </td>
+      <td className="px-3 py-2">
+        <input
+          type="text"
+          placeholder="Salesman name"
+          value={salesmanName}
+          onChange={(e) => onSalesmanNameChange(routeIndex, e.target.value)}
+          className="w-32 rounded border border-input bg-background px-2 py-1 text-xs"
+        />
       </td>
       <td className="px-3 py-2 font-mono text-xs">
         {depot ? depot.lat.toFixed(6) : '—'}

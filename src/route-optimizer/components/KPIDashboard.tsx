@@ -1,14 +1,19 @@
 import { useTranslation } from 'react-i18next';
-import { Route, Users, MapPin, TrendingUp, AlertTriangle, CheckCircle, BarChart3, Clock } from 'lucide-react';
-import type { OptimizationResult } from '../types';
+import { Route, Users, MapPin, TrendingUp, AlertTriangle, CheckCircle, BarChart3, Clock, Fuel } from 'lucide-react';
+import type { OptimizationResult, OptimizationParams } from '../types';
 
 interface KPIDashboardProps {
   result: OptimizationResult;
+  params?: OptimizationParams;
 }
 
-export function KPIDashboard({ result }: KPIDashboardProps) {
+export function KPIDashboard({ result, params }: KPIDashboardProps) {
   const { t } = useTranslation();
   const { kpis } = result;
+
+  const fuelCost = params
+    ? (kpis.monthlyDistance / params.fuelConsumption) * params.fuelPricePerLiter
+    : 0;
 
   const kpiCards = [
     { label: t('kpi.totalRoutes'), value: kpis.totalRoutes, icon: Route, color: 'text-primary' },
@@ -19,6 +24,7 @@ export function KPIDashboard({ result }: KPIDashboardProps) {
     { label: t('kpi.avgSellingTime'), value: `${(kpis.avgSellingTime * 100).toFixed(1)}%`, icon: Clock, color: kpis.avgSellingTime > 0.5 ? 'text-success' : 'text-warning' },
     { label: t('kpi.unassignedCustomers'), value: kpis.unassignedCount, icon: AlertTriangle, color: kpis.unassignedCount > 0 ? 'text-destructive' : 'text-success' },
     { label: t('kpi.overloadedRoutes'), value: kpis.overloadedRoutes, icon: AlertTriangle, color: kpis.overloadedRoutes > 0 ? 'text-warning' : 'text-success' },
+    ...(params ? [{ label: 'Monthly Fuel Cost', value: `${fuelCost.toFixed(0)} SAR`, icon: Fuel, color: 'text-warning' }] : []),
   ];
 
   return (

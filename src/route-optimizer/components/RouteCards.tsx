@@ -6,11 +6,12 @@ import type { RouteResult } from '../types';
 interface RouteCardsProps {
   routes: RouteResult[];
   outstationRoutes: RouteResult[];
+  salesmanNames: Map<number, string>;
 }
 
 const DAY_KEYS = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday'] as const;
 
-export function RouteCards({ routes, outstationRoutes }: RouteCardsProps) {
+export function RouteCards({ routes, outstationRoutes, salesmanNames }: RouteCardsProps) {
   const { t } = useTranslation();
 
   return (
@@ -19,7 +20,7 @@ export function RouteCards({ routes, outstationRoutes }: RouteCardsProps) {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {routes.map((route, i) => (
-          <RouteCard key={`r-${i}`} route={route} index={i} type="normal" t={t} />
+          <RouteCard key={`r-${i}`} route={route} index={i} type="normal" salesmanName={salesmanNames.get(i)} t={t} />
         ))}
         {outstationRoutes.map((route, i) => (
           <RouteCard key={`o-${i}`} route={route} index={i} type="outstation" t={t} />
@@ -33,11 +34,13 @@ function RouteCard({
   route,
   index,
   type,
+  salesmanName,
   t,
 }: {
   route: RouteResult;
   index: number;
   type: 'normal' | 'outstation';
+  salesmanName?: string;
   t: ReturnType<typeof useTranslation>['t'];
 }) {
   const hasWarnings = route.warnings.length > 0;
@@ -71,6 +74,11 @@ function RouteCard({
           <h3 className="text-h3 font-semibold">
             {type === 'outstation' ? t('routeCards.outstationLabel') : t('routeCards.routeNumber', { number: index + 1 })}
           </h3>
+          {salesmanName && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              {salesmanName}
+            </span>
+          )}
           {type === 'outstation' && (
             <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-medium text-warning">
               {t('routeCards.outstationLabel')}

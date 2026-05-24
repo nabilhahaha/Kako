@@ -49,6 +49,8 @@ export interface OptimizationParams {
   createOutstationRoutes: boolean;
   outlierLinkDistance: number; // km
   dailyKmCap: number; // 0 = no cap
+  fuelPricePerLiter: number;
+  fuelConsumption: number; // km per liter
 }
 
 // Depot/start point for a route
