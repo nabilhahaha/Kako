@@ -36,6 +36,7 @@ import { UsersPage } from '@/pages/admin/UsersPage';
 import { RawDataUploadPage } from '@/pages/admin/RawDataUploadPage';
 import { SettingsPage } from '@/pages/admin/SettingsPage';
 import { AuditLogsPage } from '@/pages/admin/AuditLogsPage';
+import { RouteOptimizerPage } from '@/pages/RouteOptimizerPage';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -59,6 +60,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/route-optimizer" element={<RouteOptimizerPage />} />
 
         <Route
           element={
