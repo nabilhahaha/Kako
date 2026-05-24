@@ -25,4 +25,27 @@ export const qk = {
   regionalApprovals: () => ['regional-approvals'] as const,
   coverageMap: (region: string | null) =>
     ['coverage-map', region ?? 'all'] as const,
+
+  // Dynamic Forms
+  dynamicFields: (formKey: string) => ['dynamic-fields', formKey] as const,
+  formResponses: (formKey: string, entityId: string) => ['form-responses', formKey, entityId] as const,
+
+  // Competitor Tracking
+  competitorReports: (visitId: string) => ['competitor-reports', visitId] as const,
+
+  // Action Plans
+  actionPlans: (filters?: string) => ['action-plans', filters ?? 'all'] as const,
+  customerActions: (customerId: string) => ['customer-actions', customerId] as const,
+
+  // Visit Product Checks
+  productChecks: (visitId: string) => ['product-checks', visitId] as const,
+
+  // Visit Issues
+  visitIssues: (visitId: string) => ['visit-issues', visitId] as const,
+
+  // Sync
+  syncLogs: (userId: string) => ['sync-logs', userId] as const,
+
+  // Customer Upload
+  customerUploadHistory: () => ['customer-upload-history'] as const,
 };

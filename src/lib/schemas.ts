@@ -135,3 +135,63 @@ export const productEditSchema = z.object({
 });
 
 export type ProductEditValues = z.infer<typeof productEditSchema>;
+
+// ── Enhanced Visit Wizard (PRD Section 9) ──
+
+export const competitorEntrySchema = z.object({
+  competitor_name: z.string().min(1, 'أدخل اسم المنافس'),
+  competitor_products: z.string().max(500).optional().default(''),
+  competitor_promotions: z.string().max(500).optional().default(''),
+  competitor_pricing: z.string().max(500).optional().default(''),
+  notes: z.string().max(500).optional().default(''),
+});
+
+export type CompetitorEntryValues = z.infer<typeof competitorEntrySchema>;
+
+export const visitIssueSchema = z.object({
+  issue_type: z.enum(['pricing', 'display', 'visibility', 'distribution', 'other'], {
+    errorMap: () => ({ message: 'اختر نوع المشكلة' }),
+  }),
+  description: z.string().min(3, 'وصف المشكلة مطلوب').max(500),
+  severity: z.enum(['low', 'medium', 'high']).default('medium'),
+});
+
+export type VisitIssueValues = z.infer<typeof visitIssueSchema>;
+
+export const actionPlanEntrySchema = z.object({
+  action_description: z.string().min(3, 'وصف الإجراء مطلوب').max(500),
+  responsible_person: z.string().max(100).optional().default(''),
+  due_date: z.string().optional().default(''),
+  priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
+});
+
+export type ActionPlanEntryValues = z.infer<typeof actionPlanEntrySchema>;
+
+export const productCheckSchema = z.object({
+  product_id: z.string().uuid(),
+  is_available: z.boolean(),
+  stock_level: z.enum(['full', 'low', 'out_of_stock']).nullable().default(null),
+  notes: z.string().max(300).optional().default(''),
+});
+
+export type ProductCheckValues = z.infer<typeof productCheckSchema>;
+
+export const enhancedVisitWizardSchema = z.object({
+  customerId: z.string().uuid({ message: 'اختر عميلاً' }),
+  visitType: visitTypeSchema,
+  visitObjective: z.string().max(500).optional().default(''),
+  gps: gpsCoordsSchema.nullable(),
+  gpsOutOfRange: z.boolean().optional().default(false),
+  outOfRangeReason: z.string().max(300).optional().default(''),
+  reasonIds: z
+    .array(z.string().uuid())
+    .min(1, { message: 'اختر سبب الزيارة على الأقل' }),
+  photoCount: z.number().min(0),
+  notes: z.string().max(1000, 'الملاحظات طويلة جدًا'),
+  marketObservation: z.string().max(1000).optional().default(''),
+  competitors: z.array(competitorEntrySchema).optional().default([]),
+  issues: z.array(visitIssueSchema).optional().default([]),
+  actionPlans: z.array(actionPlanEntrySchema).optional().default([]),
+});
+
+export type EnhancedVisitWizardValues = z.infer<typeof enhancedVisitWizardSchema>;

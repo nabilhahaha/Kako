@@ -33,7 +33,7 @@ export function LoginPage() {
             <div>
               <h1 className="text-h1 text-foreground">مرحباً بك في FieldSync</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Roshen × Relia — سجّل الدخول للمتابعة
+                Roshen × Relia — اختر المستخدم للمتابعة
               </p>
             </div>
           </CardHeader>

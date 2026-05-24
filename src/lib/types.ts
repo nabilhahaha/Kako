@@ -249,3 +249,124 @@ export interface Anomaly {
   detected_at: string;
   delta_percent: number;
 }
+
+// Dynamic Form Builder
+export type DynamicFieldType = 'text' | 'number' | 'dropdown' | 'multi_select' | 'date' | 'time' | 'photo' | 'gps' | 'toggle' | 'rating' | 'notes';
+
+export interface DynamicFormField {
+  id: string;
+  form_key: string;
+  field_key: string;
+  field_type: DynamicFieldType;
+  label: string;
+  label_ar: string | null;
+  section: string | null;
+  options: { value: string; label: string; label_ar?: string }[] | null;
+  is_required: boolean;
+  sort_order: number;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface DynamicFormResponse {
+  id: string;
+  form_key: string;
+  entity_id: string;
+  field_key: string;
+  value_text: string | null;
+  value_number: number | null;
+  value_json: unknown | null;
+  created_at: string;
+}
+
+// Competitor Tracking
+export interface CompetitorReport {
+  id: string;
+  visit_id: string;
+  competitor_name: string;
+  competitor_products: string | null;
+  competitor_promotions: string | null;
+  competitor_pricing: string | null;
+  notes: string | null;
+  created_at: string;
+  photos?: CompetitorPhoto[];
+}
+
+export interface CompetitorPhoto {
+  id: string;
+  competitor_report_id: string;
+  photo_url: string;
+  created_at: string;
+}
+
+// Action Plans
+export type ActionPriority = 'low' | 'medium' | 'high' | 'critical';
+export type ActionStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface ActionPlan {
+  id: string;
+  visit_id: string | null;
+  customer_id: string;
+  action_description: string;
+  responsible_person: string | null;
+  responsible_user_id: string | null;
+  due_date: string | null;
+  priority: ActionPriority;
+  status: ActionStatus;
+  completed_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Visit Product Checks
+export type StockLevel = 'full' | 'low' | 'out_of_stock';
+
+export interface VisitProductCheck {
+  id: string;
+  visit_id: string;
+  product_id: string;
+  is_available: boolean;
+  stock_level: StockLevel | null;
+  shelf_share_percent: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+// Visit Issues
+export type IssueType = 'pricing' | 'display' | 'visibility' | 'distribution' | 'other';
+export type IssueSeverity = 'low' | 'medium' | 'high';
+
+export interface VisitIssue {
+  id: string;
+  visit_id: string;
+  issue_type: IssueType;
+  description: string;
+  severity: IssueSeverity;
+  photo_url: string | null;
+  created_at: string;
+}
+
+// Sync
+export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
+
+export interface SyncLog {
+  id: string;
+  user_id: string;
+  entity: string;
+  entity_id: string | null;
+  action: string;
+  status: SyncStatus;
+  error_message: string | null;
+  payload: unknown | null;
+  created_at: string;
+  synced_at: string | null;
+}
+
+// Customer Upload Mapping (enhanced)
+export interface CustomerUploadMapping {
+  excelColumn: string;
+  systemField: string;
+  isCustomField: boolean;
+}
