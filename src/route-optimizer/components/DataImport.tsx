@@ -97,7 +97,7 @@ function parseRow(row: Record<string, unknown>): RawCustomer | null {
     branch: String(mapped.branch ?? mapped.newBranch ?? ''),
     newBranch: String(mapped.newBranch ?? ''),
     monthlyVisits: Number(mapped.monthlyVisits) || 4,
-    inactive: mapped.inactive === 1 || mapped.inactive === '1' || mapped.inactive === true,
+    inactive: Number(mapped.inactive) === 1 || mapped.inactive === true,
     salesmanName: String(mapped.salesmanName ?? ''),
     address: String(mapped.address ?? ''),
     customerType: String(mapped.customerType ?? ''),

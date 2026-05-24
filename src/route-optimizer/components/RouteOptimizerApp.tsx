@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, ArrowLeft, ArrowRight } from 'lucide-react';
 import type { RawCustomer, Customer, OptimizationParams, OptimizationResult, Depot, WorkerMessage } from '../types';

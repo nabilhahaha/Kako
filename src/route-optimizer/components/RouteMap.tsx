@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, CircleMarker, Polyline, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Eye, EyeOff } from 'lucide-react';
-import type { RouteResult, Depot } from '../types';
+import type { RouteResult } from '../types';
 
 import 'leaflet/dist/leaflet.css';
 

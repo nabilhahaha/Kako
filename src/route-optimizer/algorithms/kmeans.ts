@@ -204,7 +204,7 @@ export function distributeByCount(
   }
 
   let centroids = initCentroidsKMeansPP(customers, k);
-  let bestAssignments = new Int32Array(n).fill(-1);
+  let bestAssignments: Int32Array = new Int32Array(n).fill(-1);
   let bestUnassigned: number[] = [];
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
@@ -260,7 +260,7 @@ export function distributeByWorkload(
   numRoutes: number,
   avgVisitTime: number,
   avgSpeed: number,
-  workingHoursPerDay: number,
+  _workingHoursPerDay: number,
   workingDays: number,
 ): ClusterResult {
   const n = customers.length;

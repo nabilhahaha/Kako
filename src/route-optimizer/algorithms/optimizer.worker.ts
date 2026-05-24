@@ -309,11 +309,11 @@ function runOptimization(customers: Customer[], params: OptimizationParams) {
       totalRoutes: kpis.totalRoutes,
       distributedCustomers: kpis.distributedCustomers,
       monthlyVisits: kpis.monthlyVisits,
-      monthlyDistance: kpis.monthlyDistance,
+      monthlyDistance: kpis.monthlyDistanceKm,
       loadBalancePercent: kpis.loadBalancePercent,
-      avgSellingTime: kpis.avgSellingTime,
+      avgSellingTime: kpis.avgSellingTimePercent,
       unassignedCount: unassignedCustomers.length,
-      overloadedRoutes: kpis.overloadedRoutes,
+      overloadedRoutes: kpis.overloadedRoutesCount,
     },
   };
 

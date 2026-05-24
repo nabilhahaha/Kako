@@ -3,7 +3,7 @@
  * Computes daily plans, route statistics, and overall optimizer KPIs.
  */
 
-import { haversine, roundTripDistance } from './haversine';
+import { roundTripDistance } from './haversine';
 
 // ---------------------------------------------------------------------------
 // Types
