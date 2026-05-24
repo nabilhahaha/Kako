@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/route-optimizer", "destination": "/route-optimizer.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

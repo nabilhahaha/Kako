@@ -15,6 +15,10 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        'route-optimizer': path.resolve(__dirname, 'route-optimizer.html'),
+      },
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
@@ -24,6 +28,7 @@ export default defineConfig({
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'charts-vendor': ['recharts'],
           'xlsx-vendor': ['xlsx'],
+          'i18n-vendor': ['i18next', 'react-i18next'],
           'pptx-vendor': ['pptxgenjs'],
         },
       },

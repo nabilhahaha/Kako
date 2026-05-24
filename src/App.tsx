@@ -1,5 +1,5 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { Suspense, lazy, useEffect } from 'react';
 import { useAuthBootstrap } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
 import { homeForRole } from '@/lib/permissions';
@@ -9,7 +9,6 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Toaster } from '@/components/ui/sonner';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage';
-import { NotFoundPage } from '@/pages/NotFoundPage';
 import { SalesmanDashboard } from '@/pages/salesman/SalesmanDashboard';
 import { CustomersListPage } from '@/pages/salesman/CustomersListPage';
 import { Customer360Page } from '@/pages/salesman/Customer360Page';
@@ -36,18 +35,18 @@ import { UsersPage } from '@/pages/admin/UsersPage';
 import { RawDataUploadPage } from '@/pages/admin/RawDataUploadPage';
 import { SettingsPage } from '@/pages/admin/SettingsPage';
 import { AuditLogsPage } from '@/pages/admin/AuditLogsPage';
+const RouteOptimizerPage = lazy(() => import('@/pages/RouteOptimizerPage').then(m => ({ default: m.RouteOptimizerPage })));
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
-  const location = useLocation();
 
   useEffect(() => {
-    document.documentElement.lang = 'ar';
-    document.documentElement.dir = 'rtl';
+    document.documentElement.lang = 'en';
+    document.documentElement.dir = 'ltr';
   }, []);
 
-  if (!initialized) return null;
-  if (!session) return <Navigate to="/login" replace state={{ from: location }} />;
+  if (!initialized) return <Navigate to="/route-optimizer" replace />;
+  if (!session) return <Navigate to="/route-optimizer" replace />;
   return <Navigate to={homeForRole(profile?.user_type)} replace />;
 }
 
@@ -59,6 +58,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/route-optimizer" element={<Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}><RouteOptimizerPage /></Suspense>} />
 
         <Route
           element={
@@ -278,7 +278,7 @@ function App() {
         </Route>
 
         <Route path="/" element={<RootRedirect />} />
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<Navigate to="/route-optimizer" replace />} />
       </Routes>
       <Toaster />
     </>

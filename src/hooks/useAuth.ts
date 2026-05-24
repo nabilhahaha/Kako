@@ -4,17 +4,18 @@ import { useAuthStore } from '@/stores/authStore';
 import type { AppUser } from '@/lib/types';
 
 async function fetchProfile(userId: string): Promise<AppUser | null> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, email, full_name, user_type, region, supervisor_id, is_active')
-    .eq('id', userId)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, full_name, user_type, region, supervisor_id, is_active')
+      .eq('id', userId)
+      .maybeSingle();
 
-  if (error) {
-    console.error('fetchProfile error', error);
+    if (error) return null;
+    return (data as AppUser) ?? null;
+  } catch {
     return null;
   }
-  return (data as AppUser) ?? null;
 }
 
 export function useAuthBootstrap() {
@@ -23,31 +24,43 @@ export function useAuthBootstrap() {
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      if (data.session?.user) {
-        const profile = await fetchProfile(data.session.user.id);
-        if (active) setProfile(profile);
-      }
-      if (active) setInitialized(true);
-    });
+    try {
+      supabase.auth.getSession().then(async ({ data }) => {
+        if (!active) return;
+        setSession(data.session);
+        if (data.session?.user) {
+          const profile = await fetchProfile(data.session.user.id);
+          if (active) setProfile(profile);
+        }
+        if (active) setInitialized(true);
+      }).catch(() => {
+        if (active) setInitialized(true);
+      });
+    } catch {
+      setInitialized(true);
+    }
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!active) return;
-      setSession(session);
-      if (!session) {
-        reset();
-        setInitialized(true);
-        return;
-      }
-      const profile = await fetchProfile(session.user.id);
-      if (active) setProfile(profile);
-    });
+    let unsub: (() => void) | undefined;
+    try {
+      const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        if (!active) return;
+        setSession(session);
+        if (!session) {
+          reset();
+          setInitialized(true);
+          return;
+        }
+        const profile = await fetchProfile(session.user.id);
+        if (active) setProfile(profile);
+      });
+      unsub = () => sub.subscription.unsubscribe();
+    } catch {
+      if (active) setInitialized(true);
+    }
 
     return () => {
       active = false;
-      sub.subscription.unsubscribe();
+      unsub?.();
     };
   }, [setSession, setProfile, setInitialized, reset]);
 }
