@@ -29,10 +29,10 @@ export function VisitsHistoryPage() {
       <PageHeader
         title="سجل الزيارات"
         description={`آخر ${visitsQ.data?.length ?? 0} زيارة`}
-        back="/salesman"
+        back="/supervisor"
         actions={
           <Button asChild>
-            <Link to="/salesman/visits/new">
+            <Link to="/supervisor/visits/new">
               <Plus className="h-4 w-4" />
               زيارة جديدة
             </Link>
@@ -57,7 +57,7 @@ export function VisitsHistoryPage() {
           title="لا توجد زيارات بعد"
           description="ابدأ زيارتك الأولى لتظهر هنا."
           actionLabel="زيارة جديدة"
-          onAction={() => (window.location.href = '/salesman/visits/new')}
+          onAction={() => (window.location.href = '/supervisor/visits/new')}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">

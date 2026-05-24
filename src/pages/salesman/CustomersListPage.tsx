@@ -114,7 +114,7 @@ export function CustomersListPage() {
             <CustomerCard
               key={c.id}
               customer={c}
-              to={`/salesman/customers/${c.id}`}
+              to={`/supervisor/customers/${c.id}`}
             />
           ))}
         </div>

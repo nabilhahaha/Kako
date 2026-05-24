@@ -15,7 +15,7 @@ interface VisitTypePickerProps {
 
 export function VisitTypePicker({ value, onChange }: VisitTypePickerProps) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="grid grid-cols-3 gap-2">
       {OPTIONS.map((opt) => {
         const Icon = opt.icon;
         const selected = value === opt.value;

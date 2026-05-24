@@ -25,7 +25,7 @@ export function Customer360Page() {
   return (
     <div className="space-y-6">
       <PageHeader
-        back="/salesman/customers"
+        back="/supervisor/customers"
         title={
           isLoading
             ? 'جاري التحميل...'
@@ -39,7 +39,7 @@ export function Customer360Page() {
         actions={
           data && (
             <Button asChild>
-              <Link to={`/salesman/visits/new?customerId=${data.customer_id}`}>
+              <Link to={`/supervisor/visits/new?customerId=${data.customer_id}`}>
                 <Plus className="h-4 w-4" />
                 زيارة جديدة
               </Link>

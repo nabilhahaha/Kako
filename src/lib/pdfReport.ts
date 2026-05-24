@@ -262,7 +262,6 @@ function visitTypeLabel(type: string): string {
     office: 'مكتبية',
     branch: 'فرع',
     cashvan: 'كاش فان',
-    hybrid: 'مختلطة',
   };
   return labels[type] ?? type;
 }

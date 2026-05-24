@@ -17,7 +17,6 @@ const TYPE_LABELS: Record<string, string> = {
   office: 'مكتب',
   branch: 'فرع',
   cashvan: 'كاش فان',
-  hybrid: 'هجين',
 };
 
 export function VisitApprovalsPage() {
