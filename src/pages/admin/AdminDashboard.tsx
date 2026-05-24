@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Users, ClipboardList, Database, FileSpreadsheet, ShieldCheck, Activity } from 'lucide-react';
+import { Users, ClipboardList, Database, FileSpreadsheet, ShieldCheck, Activity, ListChecks, FormInput, UserPlus } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { KPICard } from '@/components/shared/KPICard';
 import { SkeletonKPI } from '@/components/shared/SkeletonCard';
@@ -73,6 +73,24 @@ export function AdminDashboard() {
           icon={Activity}
           title="سجل النشاط"
           desc="تتبّع الإجراءات"
+        />
+        <QuickLink
+          to="/admin/forms"
+          icon={FormInput}
+          title="إدارة النماذج"
+          desc="الحقول الديناميكية"
+        />
+        <QuickLink
+          to="/admin/action-plans"
+          icon={ListChecks}
+          title="خطط العمل"
+          desc="إدارة ومتابعة الخطط"
+        />
+        <QuickLink
+          to="/admin/customers-upload"
+          icon={UserPlus}
+          title="رفع العملاء"
+          desc="استيراد عملاء من Excel"
         />
       </section>
     </div>

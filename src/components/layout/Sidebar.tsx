@@ -11,6 +11,10 @@ import {
   Megaphone,
   TrendingUp,
   Settings,
+  FileSpreadsheet,
+  ListChecks,
+  FormInput,
+  Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/lib/types';
@@ -25,7 +29,10 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   admin_relia: [
     { to: '/admin', label: 'لوحة التحكم', icon: LayoutDashboard },
     { to: '/admin/users', label: 'المستخدمون', icon: Users },
-    { to: '/admin/raw-data', label: 'البيانات الخام', icon: ClipboardList },
+    { to: '/admin/customers-upload', label: 'رفع العملاء', icon: Upload },
+    { to: '/admin/raw-data', label: 'البيانات الخام', icon: FileSpreadsheet },
+    { to: '/admin/forms', label: 'إدارة النماذج', icon: FormInput },
+    { to: '/admin/action-plans', label: 'خطط العمل', icon: ListChecks },
     { to: '/admin/settings', label: 'الإعدادات', icon: Settings },
     { to: '/admin/audit', label: 'سجل النشاط', icon: ShieldCheck },
   ],

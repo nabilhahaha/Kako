@@ -13,7 +13,6 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 import { SalesmanDashboard } from '@/pages/salesman/SalesmanDashboard';
 import { CustomersListPage } from '@/pages/salesman/CustomersListPage';
 import { Customer360Page } from '@/pages/salesman/Customer360Page';
-import { VisitWizardPage } from '@/pages/salesman/VisitWizardPage';
 import { VisitsHistoryPage } from '@/pages/salesman/VisitsHistoryPage';
 import { NearExpiryPage } from '@/pages/salesman/NearExpiryPage';
 import { TeamDashboard } from '@/pages/supervisor/TeamDashboard';
@@ -36,6 +35,10 @@ import { UsersPage } from '@/pages/admin/UsersPage';
 import { RawDataUploadPage } from '@/pages/admin/RawDataUploadPage';
 import { SettingsPage } from '@/pages/admin/SettingsPage';
 import { AuditLogsPage } from '@/pages/admin/AuditLogsPage';
+import { FormBuilderPage } from '@/pages/admin/FormBuilderPage';
+import { ActionPlansPage } from '@/pages/admin/ActionPlansPage';
+import { CustomerUploadPage } from '@/pages/admin/CustomerUploadPage';
+import { EnhancedVisitWizardPage } from '@/pages/salesman/EnhancedVisitWizardPage';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -103,7 +106,7 @@ function App() {
             path="/salesman/visits/new"
             element={
               <RoleGuard allow={['presales_rep']}>
-                <VisitWizardPage />
+                <EnhancedVisitWizardPage />
               </RoleGuard>
             }
           />
@@ -272,6 +275,30 @@ function App() {
             element={
               <RoleGuard allow={['admin_relia']}>
                 <AuditLogsPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/forms"
+            element={
+              <RoleGuard allow={['admin_relia']}>
+                <FormBuilderPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/action-plans"
+            element={
+              <RoleGuard allow={['admin_relia', 'presales_supervisor', 'cashvan_supervisor', 'regional_manager_roshen']}>
+                <ActionPlansPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/customers-upload"
+            element={
+              <RoleGuard allow={['admin_relia']}>
+                <CustomerUploadPage />
               </RoleGuard>
             }
           />

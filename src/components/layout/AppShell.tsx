@@ -2,6 +2,8 @@ import { Outlet } from 'react-router-dom';
 import { TopBar } from './TopBar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
+import { SyncStatusBar } from '@/components/shared/SyncStatusBar';
+import { OfflineIndicator } from '@/components/shared/OfflineIndicator';
 import { useAuthStore } from '@/stores/authStore';
 
 export function AppShell() {
@@ -9,6 +11,7 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SyncStatusBar />
       <TopBar />
       <div className="flex">
         <Sidebar role={role} />
@@ -22,6 +25,7 @@ export function AppShell() {
         </main>
       </div>
       <BottomNav role={role} />
+      <OfflineIndicator />
     </div>
   );
 }
