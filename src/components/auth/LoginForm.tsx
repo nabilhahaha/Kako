@@ -10,6 +10,17 @@ import { useAuthStore } from '@/stores/authStore';
 import type { AppUser, UserRole } from '@/lib/types';
 import type { Session } from '@supabase/supabase-js';
 
+const DEMO_USERS: AppUser[] = [
+  { id: 'demo-admin', email: 'admin@roshen.com', full_name: 'مدير النظام', user_type: 'admin_relia', region: 'الرياض', supervisor_id: null, is_active: true },
+  { id: 'demo-rep', email: 'rep@roshen.com', full_name: 'أحمد المندوب', user_type: 'presales_rep', region: 'الرياض', supervisor_id: null, is_active: true },
+  { id: 'demo-supervisor', email: 'supervisor@roshen.com', full_name: 'خالد المشرف', user_type: 'presales_supervisor', region: 'الرياض', supervisor_id: null, is_active: true },
+  { id: 'demo-cashvan', email: 'cashvan@roshen.com', full_name: 'سعد مشرف الكاش فان', user_type: 'cashvan_supervisor', region: 'جدة', supervisor_id: null, is_active: true },
+  { id: 'demo-regional', email: 'regional@roshen.com', full_name: 'محمد المدير الإقليمي', user_type: 'regional_manager_roshen', region: 'الرياض', supervisor_id: null, is_active: true },
+  { id: 'demo-trade', email: 'trade@roshen.com', full_name: 'فهد مدير التسويق', user_type: 'trade_marketing_manager', region: null, supervisor_id: null, is_active: true },
+  { id: 'demo-exec-relia', email: 'exec-relia@roshen.com', full_name: 'عبدالله الإدارة العليا', user_type: 'top_management_relia', region: null, supervisor_id: null, is_active: true },
+  { id: 'demo-exec-roshen', email: 'exec-roshen@roshen.com', full_name: 'ناصر الإدارة العليا روشن', user_type: 'top_management_roshen', region: null, supervisor_id: null, is_active: true },
+];
+
 export function LoginForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,11 +40,11 @@ export function LoginForm() {
         .eq('is_active', true)
         .order('user_type')
         .order('full_name');
-      if (error) {
-        console.warn('failed to fetch users', error);
-        setUsers([]);
+      if (error || !data || data.length === 0) {
+        if (error) console.warn('failed to fetch users, using demo list', error);
+        setUsers(DEMO_USERS);
       } else {
-        setUsers((data ?? []) as AppUser[]);
+        setUsers(data as AppUser[]);
       }
       setLoading(false);
     }
