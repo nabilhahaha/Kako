@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Search,
   Plus,
   Pencil,
+  Trash2,
   UserCheck,
   UserX,
   ShieldAlert,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -50,44 +51,54 @@ const ROLE_COLORS: Record<TradeSpendRole, string> = {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Helpers                                                           */
+/* ------------------------------------------------------------------ */
+
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
+/* ------------------------------------------------------------------ */
 /*  Component                                                         */
 /* ------------------------------------------------------------------ */
 
 export function UsersPage() {
   const { t } = useTranslation();
 
-  // Pull seed data from store
-  const storeUsers = useTradeSpendStore((s) => s.users);
+  /* --- Store --- */
+  const users = useTradeSpendStore((s) => s.users);
+  const addUser = useTradeSpendStore((s) => s.addUser);
+  const updateUser = useTradeSpendStore((s) => s.updateUser);
+  const deleteUser = useTradeSpendStore((s) => s.deleteUser);
 
-  // Local user list (inline state management -- store has no CRUD methods)
-  const [userList, setUserList] = useState<TradeSpendUser[]>([]);
+  /* --- Local UI state --- */
   const [search, setSearch] = useState('');
-
-  // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<TradeSpendUser | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
-  // Form fields
+  /* --- Form fields --- */
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formRoles, setFormRoles] = useState<TradeSpendRole[]>([]);
   const [formActive, setFormActive] = useState(true);
 
-  // Seed local list from store on mount
-  useEffect(() => {
-    setUserList([...storeUsers]);
-  }, [storeUsers]);
-
-  // Filtered list
+  /* --- Filtered list --- */
   const filteredUsers = useMemo(() => {
-    if (!search.trim()) return userList;
+    if (!search.trim()) return users;
     const q = search.toLowerCase();
-    return userList.filter(
+    return users.filter(
       (u) =>
         u.display_name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q),
     );
-  }, [userList, search]);
+  }, [users, search]);
 
   /* ---- helpers ---- */
 
@@ -123,41 +134,32 @@ export function UsersPage() {
     if (!formName.trim() || !formEmail.trim()) return;
 
     if (editingUser) {
-      // Update existing
-      setUserList((prev) =>
-        prev.map((u) =>
-          u.id === editingUser.id
-            ? {
-                ...u,
-                display_name: formName.trim(),
-                email: formEmail.trim(),
-                roles: formRoles,
-                active: formActive,
-              }
-            : u,
-        ),
-      );
-    } else {
-      // Create new
-      const newUser: TradeSpendUser = {
-        id: `user-${Date.now()}`,
+      updateUser(editingUser.id, {
         display_name: formName.trim(),
         email: formEmail.trim(),
         roles: formRoles,
         active: formActive,
-        created_at: new Date().toISOString(),
-      };
-      setUserList((prev) => [...prev, newUser]);
+      });
+    } else {
+      addUser({
+        display_name: formName.trim(),
+        email: formEmail.trim(),
+        roles: formRoles,
+        active: formActive,
+      });
     }
 
     setDialogOpen(false);
     resetForm();
   }
 
-  function toggleActive(userId: string) {
-    setUserList((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, active: !u.active } : u)),
-    );
+  function handleToggleActive(user: TradeSpendUser) {
+    updateUser(user.id, { active: !user.active });
+  }
+
+  function confirmDelete(userId: string) {
+    deleteUser(userId);
+    setDeletingUserId(null);
   }
 
   /* ---------------------------------------------------------------- */
@@ -174,151 +176,171 @@ export function UsersPage() {
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="heading-1">{t('users.title', 'User Management')}</h1>
+        <h1 className="heading-2">{t('users.title', 'User Management')}</h1>
         <Button size="sm" onClick={openAddDialog}>
           <Plus className="me-1.5 h-4 w-4" />
           {t('users.addUser', 'Add User')}
         </Button>
       </div>
 
-      {/* Main card */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <CardTitle className="text-base font-semibold">
-              {t('users.allUsers', 'All Users')}
-              <span className="ms-2 text-sm font-normal text-muted-foreground">
-                ({filteredUsers.length})
-              </span>
-            </CardTitle>
-            <div className="relative w-full max-w-xs">
-              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={t('users.search', 'Search by name or email...')}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="ps-9 h-9 text-sm"
-              />
-            </div>
-          </div>
-        </CardHeader>
+      {/* Search */}
+      <div className="relative w-full">
+        <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder={t('users.search', 'Search by name or email...')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="ps-9 h-10 text-sm"
+        />
+      </div>
 
-        <CardContent>
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-start text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="pb-3 pe-4 font-medium text-start">
-                    {t('users.colName', 'Name')}
-                  </th>
-                  <th className="pb-3 pe-4 font-medium text-start">
-                    {t('users.colEmail', 'Email')}
-                  </th>
-                  <th className="pb-3 pe-4 font-medium text-start">
-                    {t('users.colRoles', 'Roles')}
-                  </th>
-                  <th className="pb-3 pe-4 font-medium text-start">
-                    {t('users.colStatus', 'Status')}
-                  </th>
-                  <th className="pb-3 font-medium text-start">
-                    {t('users.colActions', 'Actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredUsers.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="py-8 text-center text-muted-foreground"
-                    >
-                      {t('common.noData', 'No data')}
-                    </td>
-                  </tr>
-                )}
+      {/* Count */}
+      <p className="text-sm text-muted-foreground">
+        {t('users.showing', 'Showing')} {filteredUsers.length}{' '}
+        {t('users.of', 'of')} {users.length} {t('users.users', 'users')}
+      </p>
 
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="group hover:bg-muted/30">
-                    {/* Name */}
-                    <td className="py-3 pe-4 font-medium">{user.display_name}</td>
+      {/* User Cards */}
+      {filteredUsers.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            {t('common.noData', 'No data')}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredUsers.map((user) => (
+            <Card
+              key={user.id}
+              className={`transition-colors ${!user.active ? 'opacity-60' : ''}`}
+            >
+              <CardContent className="p-4">
+                {/* Top row: avatar + info */}
+                <div className="flex items-start gap-3">
+                  {/* Avatar */}
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    {getInitials(user.display_name)}
+                  </div>
 
-                    {/* Email */}
-                    <td className="py-3 pe-4 text-muted-foreground">
-                      {user.email}
-                    </td>
-
-                    {/* Roles */}
-                    <td className="py-3 pe-4">
-                      <div className="flex flex-wrap gap-1">
-                        {user.roles.map((role) => (
-                          <span
-                            key={role}
-                            className={`inline-flex items-center rounded-full border-transparent px-2 py-0.5 text-[11px] font-medium ${ROLE_COLORS[role]}`}
-                          >
-                            {t(`roles.${role}`, role)}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-3 pe-4">
+                  {/* Name / Email / Status */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {user.display_name}
+                      </p>
                       {user.active ? (
-                        <Badge
-                          variant="success"
-                          className="text-[11px]"
-                        >
+                        <Badge variant="success" className="text-[10px] px-1.5 py-0">
                           {t('users.active', 'Active')}
                         </Badge>
                       ) : (
-                        <Badge
-                          variant="secondary"
-                          className="text-[11px]"
-                        >
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                           {t('users.inactive', 'Inactive')}
                         </Badge>
                       )}
-                    </td>
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
 
-                    {/* Actions */}
-                    <td className="py-3">
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          title={t('common.edit', 'Edit')}
-                          onClick={() => openEditDialog(user)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          title={
-                            user.active
-                              ? t('users.deactivate', 'Deactivate')
-                              : t('users.activate', 'Activate')
-                          }
-                          onClick={() => toggleActive(user.id)}
-                        >
-                          {user.active ? (
-                            <UserX className="h-3.5 w-3.5 text-destructive" />
-                          ) : (
-                            <UserCheck className="h-3.5 w-3.5 text-success" />
-                          )}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                {/* Role badges */}
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {user.roles.map((role) => (
+                    <span
+                      key={role}
+                      className={`inline-flex items-center rounded-full border-transparent px-2 py-0.5 text-[11px] font-medium ${ROLE_COLORS[role]}`}
+                    >
+                      {t(`roles.${role}`, role)}
+                    </span>
+                  ))}
+                  {user.roles.length === 0 && (
+                    <span className="text-xs text-muted-foreground italic">
+                      {t('users.noRoles', 'No roles assigned')}
+                    </span>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="mt-3 flex items-center gap-1 border-t border-border pt-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    title={t('common.edit', 'Edit')}
+                    onClick={() => openEditDialog(user)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">
+                      {t('common.edit', 'Edit')}
+                    </span>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    title={
+                      user.active
+                        ? t('users.deactivate', 'Deactivate')
+                        : t('users.activate', 'Activate')
+                    }
+                    onClick={() => handleToggleActive(user)}
+                  >
+                    {user.active ? (
+                      <UserX className="h-3.5 w-3.5 text-destructive" />
+                    ) : (
+                      <UserCheck className="h-3.5 w-3.5 text-success" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {user.active
+                        ? t('users.deactivate', 'Deactivate')
+                        : t('users.activate', 'Activate')}
+                    </span>
+                  </Button>
+
+                  <div className="flex-1" />
+
+                  {/* Delete with inline confirmation */}
+                  {deletingUserId === user.id ? (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-destructive font-medium me-1">
+                        {t('common.areYouSure', 'Are you sure?')}
+                      </span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => confirmDelete(user.id)}
+                      >
+                        {t('common.confirm', 'Confirm')}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setDeletingUserId(null)}
+                      >
+                        {t('common.cancel', 'Cancel')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      title={t('common.delete', 'Delete')}
+                      onClick={() => setDeletingUserId(user.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

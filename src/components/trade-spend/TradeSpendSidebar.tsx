@@ -8,6 +8,7 @@ import {
   Upload,
   BarChart3,
   ClipboardCheck,
+  Settings,
 } from 'lucide-react';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import type { TradeSpendRole } from '@/lib/trade-spend/types';
@@ -27,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/trade-spend/customers', labelKey: 'nav.customerSummary', icon: BarChart3, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer', 'admin'] },
   { to: '/trade-spend/upload', labelKey: 'nav.dataUpload', icon: Upload, roles: ['admin'] },
   { to: '/trade-spend/users', labelKey: 'nav.users', icon: UsersIcon, roles: ['admin'] },
+  { to: '/trade-spend/settings', labelKey: 'Settings', icon: Settings, roles: ['admin'] },
 ];
 
 export function TradeSpendSidebar() {

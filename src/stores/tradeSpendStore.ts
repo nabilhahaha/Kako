@@ -35,9 +35,15 @@ interface TradeSpendState {
   workflowEvents: WorkflowEvent[];
   savedMappings: SavedColumnMapping[];
   latestDataDate: string;
+  classifications: string[];
 
   setCurrentUser: (user: TradeSpendUser | null) => void;
   switchRole: (userId: string) => void;
+
+  // Users CRUD
+  addUser: (user: Omit<TradeSpendUser, 'id' | 'created_at'>) => void;
+  updateUser: (id: string, updates: Partial<TradeSpendUser>) => void;
+  deleteUser: (id: string) => void;
 
   setTransactions: (txns: SalesTransaction[]) => void;
   setCustomers: (custs: TradeSpendCustomer[]) => void;
@@ -46,7 +52,14 @@ interface TradeSpendState {
 
   updateCustomerClassification: (account: string, classification: string) => void;
 
+  // Spend types CRUD
   addSpendType: (name: string) => void;
+  updateSpendType: (id: string, name: string) => void;
+  deleteSpendType: (id: string) => void;
+
+  // Classifications CRUD
+  addClassification: (name: string) => void;
+  deleteClassification: (name: string) => void;
 
   addCampaign: (campaign: Campaign) => void;
   updateCampaign: (id: string, updates: Partial<Campaign>) => void;
@@ -120,6 +133,7 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   campaigns: [...DEMO_CAMPAIGNS],
   workflowEvents: [],
   savedMappings: JSON.parse(localStorage.getItem('ts_saved_mappings') || '[]'),
+  classifications: JSON.parse(localStorage.getItem('ts_classifications') || '["wholesale","discounter","roastery","grocery","sweets"]'),
   latestDataDate: DEMO_TRANSACTIONS.reduce(
     (max, t) => (t.date > max ? t.date : max),
     '1970-01-01',
@@ -129,6 +143,25 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   switchRole: (userId) => {
     const user = get().users.find((u) => u.id === userId);
     if (user) set({ currentUser: user });
+  },
+
+  addUser: (user) => {
+    const newUser: TradeSpendUser = {
+      ...user,
+      id: `user-${generateId()}`,
+      created_at: new Date().toISOString(),
+    };
+    set((s) => ({ users: [...s.users, newUser] }));
+  },
+
+  updateUser: (id, updates) => {
+    set((s) => ({
+      users: s.users.map((u) => (u.id === id ? { ...u, ...updates } : u)),
+    }));
+  },
+
+  deleteUser: (id) => {
+    set((s) => ({ users: s.users.filter((u) => u.id !== id) }));
   },
 
   setTransactions: (txns) => set({ transactions: txns }),
@@ -157,6 +190,32 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
     set((s) => ({
       spendTypes: [...s.spendTypes, { id: `st-${generateId()}`, name }],
     }));
+  },
+
+  updateSpendType: (id, name) => {
+    set((s) => ({
+      spendTypes: s.spendTypes.map((t) => (t.id === id ? { ...t, name } : t)),
+    }));
+  },
+
+  deleteSpendType: (id) => {
+    set((s) => ({ spendTypes: s.spendTypes.filter((t) => t.id !== id) }));
+  },
+
+  addClassification: (name) => {
+    set((s) => {
+      const next = [...s.classifications, name];
+      localStorage.setItem('ts_classifications', JSON.stringify(next));
+      return { classifications: next };
+    });
+  },
+
+  deleteClassification: (name) => {
+    set((s) => {
+      const next = s.classifications.filter((c) => c !== name);
+      localStorage.setItem('ts_classifications', JSON.stringify(next));
+      return { classifications: next };
+    });
   },
 
   addCampaign: (campaign) => {

@@ -12,6 +12,7 @@ import { TradeSpendLoginPage } from '@/pages/trade-spend/TradeSpendLoginPage';
 import { UsersPage as TradeSpendUsersPage } from '@/pages/trade-spend/UsersPage';
 import { ApprovalsPage } from '@/pages/trade-spend/ApprovalsPage';
 import { ErrorBoundary } from '@/components/trade-spend/ErrorBoundary';
+import { SettingsPage } from '@/pages/trade-spend/SettingsPage';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
           <Route path="customers/:account" element={<CustomerDetailPage />} />
           <Route path="upload" element={<ErrorBoundary><DataUploadPage /></ErrorBoundary>} />
           <Route path="users" element={<TradeSpendUsersPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
 
         <Route path="/" element={<Navigate to="/trade-spend/login" replace />} />
