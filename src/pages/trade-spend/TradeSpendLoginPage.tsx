@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogIn, User, ChevronDown } from 'lucide-react';
+import { LogIn, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import { SUPPORTED_LANGUAGES, isRTL } from '@/i18n';
 
@@ -11,15 +12,31 @@ export function TradeSpendLoginPage() {
   const navigate = useNavigate();
   const users = useTradeSpendStore((s) => s.users);
   const setCurrentUser = useTradeSpendStore((s) => s.setCurrentUser);
-  const [selectedUserId, setSelectedUserId] = useState(users[0]?.id || '');
 
-  const selectedUser = users.find((u) => u.id === selectedUserId);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
 
   const handleLogin = () => {
-    if (selectedUser) {
-      setCurrentUser(selectedUser);
-      navigate('/trade-spend');
+    setError('');
+    const user = users.find(
+      (u) => u.email.toLowerCase() === email.trim().toLowerCase(),
+    );
+    if (!user) {
+      setError('User not found');
+      return;
     }
+    if (!user.active) {
+      setError('Account is inactive');
+      return;
+    }
+    if (user.password !== password) {
+      setError('Wrong password');
+      return;
+    }
+    setCurrentUser(user);
+    navigate('/trade-spend');
   };
 
   const changeLanguage = (lng: string) => {
@@ -30,7 +47,7 @@ export function TradeSpendLoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      {/* Language selector */}
+      {/* Language */}
       <div className="fixed top-3 end-3 z-10">
         <select
           value={i18n.language}
@@ -57,61 +74,78 @@ export function TradeSpendLoginPage() {
           </p>
         </div>
 
-        {/* Card */}
-        <div className="rounded-2xl border bg-card p-6 shadow-lg">
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {t('auth.selectRole')}
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="flex h-11 w-full appearance-none rounded-xl border border-input bg-background pe-9 ps-3 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
-                >
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>{u.display_name}</option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              </div>
+        {/* Login Card */}
+        <div className="rounded-2xl border bg-card p-6 shadow-lg space-y-4">
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-2.5 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {error}
             </div>
+          )}
 
-            {selectedUser && (
-              <div className="rounded-xl bg-muted/40 p-3 space-y-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-                    <User className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{selectedUser.display_name}</p>
-                    <p className="text-[11px] text-muted-foreground">{selectedUser.email}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {selectedUser.roles.map((role) => (
-                    <span key={role} className="inline-flex items-center rounded-md bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                      {t(`roles.${role}`)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {t('auth.email')}
+            </label>
+            <Input
+              type="email"
+              placeholder="email@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-11 rounded-xl"
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            />
+          </div>
 
-            <Button
-              onClick={handleLogin}
-              className="h-11 w-full rounded-xl text-sm font-semibold shadow-md bg-maroon hover:opacity-90 transition-opacity"
-            >
-              <LogIn className="me-2 h-4 w-4" />
-              {t('auth.loginAs')} {selectedUser?.display_name}
-            </Button>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {t('auth.password')}
+            </label>
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-11 rounded-xl pe-10"
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleLogin}
+            className="h-11 w-full rounded-xl text-sm font-semibold shadow-md bg-maroon hover:opacity-90 transition-opacity"
+          >
+            <LogIn className="me-2 h-4 w-4" />
+            {t('auth.login')}
+          </Button>
+
+          {/* Quick login hint */}
+          <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Demo accounts</p>
+            <div className="space-y-0.5">
+              {users.slice(0, 4).map((u) => (
+                <button
+                  key={u.id}
+                  className="flex w-full items-center justify-between text-[11px] py-0.5 hover:text-primary transition-colors"
+                  onClick={() => { setEmail(u.email); setPassword(u.password); }}
+                >
+                  <span className="font-medium">{u.display_name}</span>
+                  <span className="text-muted-foreground">{u.email}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[9px] text-muted-foreground mt-1">Tap to fill • Default password: Roshen2026</p>
           </div>
         </div>
-
-        <p className="mt-4 text-center text-[10px] text-muted-foreground">
-          Demo Mode
-        </p>
       </div>
     </div>
   );

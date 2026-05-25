@@ -12,6 +12,7 @@ export interface TradeSpendUser {
   display_name: string;
   roles: TradeSpendRole[];
   active: boolean;
+  password: string;
   created_at: string;
 }
 

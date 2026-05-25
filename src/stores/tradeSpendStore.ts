@@ -148,6 +148,7 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   addUser: (user) => {
     const newUser: TradeSpendUser = {
       ...user,
+      password: (user as any).password || 'Roshen2026',
       id: `user-${generateId()}`,
       created_at: new Date().toISOString(),
     };

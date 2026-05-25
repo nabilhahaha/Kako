@@ -76,6 +76,8 @@ export function UsersPage() {
   const addUser = useTradeSpendStore((s) => s.addUser);
   const updateUser = useTradeSpendStore((s) => s.updateUser);
   const deleteUser = useTradeSpendStore((s) => s.deleteUser);
+  const currentUser = useTradeSpendStore((s) => s.currentUser);
+  const isAdmin = currentUser?.roles.includes('admin') ?? false;
 
   /* --- Local UI state --- */
   const [search, setSearch] = useState('');
@@ -146,6 +148,7 @@ export function UsersPage() {
         email: formEmail.trim(),
         roles: formRoles,
         active: formActive,
+        password: 'Roshen2026',
       });
     }
 
@@ -241,6 +244,11 @@ export function UsersPage() {
                     <p className="truncate text-xs text-muted-foreground">
                       {user.email}
                     </p>
+                    {isAdmin && (
+                      <p className="text-[10px] text-muted-foreground/60 font-mono">
+                        🔑 {user.password}
+                      </p>
+                    )}
                   </div>
                 </div>
 

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Sun, Moon, User } from 'lucide-react';
+import { Sun, Moon, User, Lock } from 'lucide-react';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import { SUPPORTED_LANGUAGES, isRTL } from '@/i18n';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,11 @@ export function TradeSpendTopBar() {
         {/* Theme */}
         <Button variant="ghost" size="sm" onClick={toggle} className="h-7 w-7 p-0">
           {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+        </Button>
+
+        {/* Change password */}
+        <Button variant="ghost" size="sm" onClick={() => navigate('/trade-spend/change-password')} className="h-7 w-7 p-0" title="Change Password">
+          <Lock className="h-3.5 w-3.5" />
         </Button>
 
         {/* User avatar */}
