@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import { computeCampaignMetrics } from '@/lib/trade-spend/engine';
+import { exportToExcel, exportToPDF, exportToPPTX } from '@/lib/trade-spend/exports';
 import type { Campaign, CampaignMetrics, CampaignStatus } from '@/lib/trade-spend/types';
 
 // ---------------------------------------------------------------------------
@@ -406,6 +407,57 @@ export function CustomerDetailPage() {
     }));
   }, [customerCampaigns, transactions, latestDataDate]);
 
+  function buildExportData() {
+    if (!customer) return null;
+    const campaignRows = campaignsWithMetrics.map(({ campaign: c, metrics: m }) => ({
+      id: c.id,
+      customerName: customer.name,
+      spendType: spendTypesMap.get(c.spend_type) || c.spend_type,
+      duration: c.duration_key,
+      spendAmount: c.spend_amount,
+      roshenPct: c.roshen_pct,
+      roshenShare: m.roshen_share,
+      distributorShare: m.distributor_share,
+      beforeValue: m.selected_before_value,
+      afterValue: m.selected_after_value,
+      upliftValue: m.uplift_value,
+      upliftPct: m.uplift_pct,
+      roiTotal: m.roi_total,
+      roiRoshen: m.roi_roshen,
+      spendToSales: m.spend_to_sales_pct,
+      annualizedRoi: m.annualized_roi_roshen,
+      paybackDays: m.payback_days,
+      status: c.status,
+      resultStatus: m.result_status,
+    }));
+    const totalSpend = campaignsWithMetrics.reduce((s, { campaign: c }) => s + c.spend_amount, 0);
+    const roshenShare = campaignsWithMetrics.reduce((s, { metrics: m }) => s + m.roshen_share, 0);
+    const distributorShare = campaignsWithMetrics.reduce((s, { metrics: m }) => s + m.distributor_share, 0);
+    const salesBefore = campaignsWithMetrics.reduce((s, { metrics: m }) => s + m.selected_before_value, 0);
+    const salesAfter = campaignsWithMetrics.reduce((s, { metrics: m }) => s + m.selected_after_value, 0);
+    const uplift = salesAfter - salesBefore;
+    return {
+      title: `${customer.name} — Trade Spend Report`,
+      date: new Date().toISOString().substring(0, 10),
+      customers: [{
+        account: customer.account,
+        name: customer.name,
+        classification: customer.classification || '',
+        campaignCount: customerCampaigns.length,
+        totalSpend,
+        roshenShare,
+        distributorShare,
+        salesBefore,
+        salesAfter,
+        uplift,
+        roiTotal: totalSpend ? ((uplift - totalSpend) / totalSpend) * 100 : null,
+        roiRoshen: roshenShare ? ((uplift - roshenShare) / roshenShare) * 100 : null,
+        spendToSales: salesAfter ? (roshenShare / salesAfter) * 100 : null,
+      }],
+      campaigns: campaignRows,
+    };
+  }
+
   // Customer not found
   if (!customer) {
     return (
@@ -513,17 +565,26 @@ export function CustomerDetailPage() {
           <p className="font-mono text-sm text-muted-foreground">{customer.account}</p>
         </div>
 
-        {/* Export buttons (placeholder) */}
+        {/* Export buttons */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {}}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+            const data = buildExportData();
+            if (data) exportToExcel(data);
+          }}>
             <FileSpreadsheet className="h-4 w-4" />
             Excel
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {}}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+            const data = buildExportData();
+            if (data) exportToPDF(data);
+          }}>
             <FileText className="h-4 w-4" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {}}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+            const data = buildExportData();
+            if (data) exportToPPTX(data);
+          }}>
             <Presentation className="h-4 w-4" />
             PPT
           </Button>

@@ -44,6 +44,7 @@ import { CustomerSummaryPage } from '@/pages/trade-spend/CustomerSummaryPage';
 import { CustomerDetailPage } from '@/pages/trade-spend/CustomerDetailPage';
 import { DataUploadPage } from '@/pages/trade-spend/DataUploadPage';
 import { TradeSpendLoginPage } from '@/pages/trade-spend/TradeSpendLoginPage';
+import { UsersPage as TradeSpendUsersPage } from '@/pages/trade-spend/UsersPage';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -295,6 +296,7 @@ function App() {
           <Route path="customers" element={<CustomerSummaryPage />} />
           <Route path="customers/:account" element={<CustomerDetailPage />} />
           <Route path="upload" element={<DataUploadPage />} />
+          <Route path="users" element={<TradeSpendUsersPage />} />
         </Route>
 
         <Route path="/" element={<RootRedirect />} />
