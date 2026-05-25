@@ -1075,6 +1075,96 @@ function UnifiedDashboard() {
           </Card>
         </section>
       )}
+
+      {/* ================================================================== */}
+      {/* Row 5 — All Customers Summary Table                                */}
+      {/* ================================================================== */}
+      <section>
+        <Card className="rounded-xl shadow-sm overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="heading-2 flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Customer Summary — All Distributors
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-3 py-2.5 text-start font-semibold">Distributor</th>
+                    <th className="px-3 py-2.5 text-start font-semibold">Customer</th>
+                    <th className="px-3 py-2.5 text-start font-semibold">Classification</th>
+                    <th className="px-3 py-2.5 text-end font-semibold">Campaigns</th>
+                    <th className="px-3 py-2.5 text-end font-semibold">Spend (SAR)</th>
+                    <th className="px-3 py-2.5 text-end font-semibold">Sales Before</th>
+                    <th className="px-3 py-2.5 text-end font-semibold">Sales After</th>
+                    <th className="px-3 py-2.5 text-end font-semibold">Uplift</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const rows: Array<{
+                      distName: string; distColor: string; custName: string;
+                      classification: string; campaigns: number; spend: number;
+                      before: number; after: number;
+                    }> = [];
+                    for (const dd of allDistData) {
+                      const custCampaigns = new Map<string, typeof dd.campaigns>();
+                      for (const c of dd.campaigns) {
+                        const list = custCampaigns.get(c.account) || [];
+                        list.push(c);
+                        custCampaigns.set(c.account, list);
+                      }
+                      for (const cust of dd.customers) {
+                        const cc = custCampaigns.get(cust.account);
+                        if (!cc || cc.length === 0) continue;
+                        const spend = cc.reduce((s: number, c: any) => s + (c.spend_amount || 0), 0);
+                        rows.push({
+                          distName: dd.distName,
+                          distColor: getDistColor(dd.distId),
+                          custName: cust.name,
+                          classification: (cust as any).classification || '',
+                          campaigns: cc.length,
+                          spend,
+                          before: 0,
+                          after: 0,
+                        });
+                      }
+                    }
+                    if (rows.length === 0) {
+                      return (
+                        <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">No customer data</td></tr>
+                      );
+                    }
+                    return rows.sort((a, b) => b.spend - a.spend).map((row, i) => (
+                      <tr key={i} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: row.distColor }} />
+                            <span className="font-medium">{row.distName}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 font-medium">{row.custName}</td>
+                        <td className="px-3 py-2">
+                          {row.classification && (
+                            <Badge variant="secondary" className="text-[9px] capitalize">{row.classification}</Badge>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-end tabular-nums">{row.campaigns}</td>
+                        <td className="px-3 py-2 text-end tabular-nums font-medium">{row.spend.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-end tabular-nums text-muted-foreground">—</td>
+                        <td className="px-3 py-2 text-end tabular-nums text-muted-foreground">—</td>
+                        <td className="px-3 py-2 text-end tabular-nums text-muted-foreground">—</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
