@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   PlusCircle,
-  FileText,
+  ClipboardCheck,
   BarChart3,
   Upload,
 } from 'lucide-react';
@@ -31,9 +31,9 @@ const MOBILE_NAV: MobileNavItem[] = [
     roles: ['dept_manager', 'distributor_trade_mktg', 'admin'],
   },
   {
-    to: '/trade-spend/requests',
-    labelKey: 'nav.myRequests',
-    icon: FileText,
+    to: '/trade-spend/approvals',
+    labelKey: 'nav.approvals',
+    icon: ClipboardCheck,
     roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'admin'],
   },
   {

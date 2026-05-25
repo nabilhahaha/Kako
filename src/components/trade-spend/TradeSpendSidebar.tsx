@@ -7,6 +7,7 @@ import {
   Users as UsersIcon,
   Upload,
   BarChart3,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import type { TradeSpendRole } from '@/lib/trade-spend/types';
@@ -35,6 +36,12 @@ const NAV_ITEMS: NavItem[] = [
     to: '/trade-spend/requests',
     labelKey: 'nav.myRequests',
     icon: FileText,
+    roles: ['dept_manager', 'distributor_trade_mktg', 'admin'],
+  },
+  {
+    to: '/trade-spend/approvals',
+    labelKey: 'nav.approvals',
+    icon: ClipboardCheck,
     roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'admin'],
   },
   {
