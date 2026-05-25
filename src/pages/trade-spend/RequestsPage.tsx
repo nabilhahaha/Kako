@@ -6,6 +6,7 @@ import {
   CheckCircle,
   ArrowLeft,
   AlertTriangle,
+  Mail,
   Camera,
   MessageSquare,
   Clock,
@@ -553,6 +554,27 @@ export function RequestsPage() {
                           <Eye className="me-1.5 h-3.5 w-3.5" />
                           {t('common.details')}
                         </Button>
+
+                        {campaign.status === 'final_approved' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 border-primary text-primary"
+                            onClick={() => {
+                              const customer = getCustomerName(campaign.account);
+                              const itemsList = campaign.item_ids.map((id) => getItemDesc(id)).join('\n  - ');
+                              const branchesList = campaign.branches.map((b) => b.branch_name).join('\n  - ');
+                              const roshenShare = (campaign.spend_amount * campaign.roshen_pct / 100).toLocaleString();
+                              const distShare = (campaign.spend_amount * (100 - campaign.roshen_pct) / 100).toLocaleString();
+                              const subject = `Trade Spend Final Approval — ${campaign.id} — ${customer}`;
+                              const body = `Trade Spend Request — Final Approval\n\nCampaign: ${campaign.id}\nCustomer: ${customer} (${campaign.account})\nSpend Type: ${campaign.spend_type}\nTotal Amount: SAR ${campaign.spend_amount.toLocaleString()}\nRoshen Share (${campaign.roshen_pct}%): SAR ${roshenShare}\nDistributor Share (${100 - campaign.roshen_pct}%): SAR ${distShare}\nStart Date: ${campaign.start_date}\n\nItems:\n  - ${itemsList}\n\nBranches:\n  - ${branchesList}\n\nStatus: FINAL APPROVED ✅\nApproved By: ${currentUser?.display_name}\nApproval Date: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}\n\n---\nThis approval was issued through the Roshen Trade Spend Platform.`;
+                              window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+                            }}
+                          >
+                            <Mail className="h-3.5 w-3.5" />
+                            Send Email
+                          </Button>
+                        )}
 
                         {canSubmit(campaign) && (
                           <Button

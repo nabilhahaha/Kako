@@ -11,6 +11,7 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
+  Mail,
   ShieldCheck,
   Send,
   Eye,
@@ -568,6 +569,13 @@ This approval was issued through the Roshen Trade Spend Platform.`;
                     <Eye className="me-1 h-3 w-3" />
                     {t('common.details')}
                   </Button>
+
+                  {campaign.status === 'final_approved' && (
+                    <Button size="sm" variant="outline" className="h-8 text-xs gap-1 border-primary text-primary" onClick={() => sendApprovalEmail(campaign)}>
+                      <Mail className="h-3 w-3" />
+                      Send Email
+                    </Button>
+                  )}
 
                   {canSubmit && (
                     <Button size="sm" className="h-8 text-xs bg-primary" onClick={() => doAction(campaign.id, skipDistributor ? 'pending_roshen' : 'pending_distributor', 'submitted')}>
