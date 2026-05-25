@@ -565,43 +565,50 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
       itemMap.set(existing.id, existing);
     }
 
+    // Build a normalized key lookup for each row to handle whitespace/case issues
+    function getVal(row: Record<string, unknown>, mappedCol: string | undefined): unknown {
+      if (!mappedCol) return undefined;
+      // Direct match first
+      if (row[mappedCol] !== undefined) return row[mappedCol];
+      // Try trimmed match
+      const trimmed = mappedCol.trim();
+      if (row[trimmed] !== undefined) return row[trimmed];
+      // Try case-insensitive match
+      const lower = trimmed.toLowerCase();
+      for (const key of Object.keys(row)) {
+        if (key.trim().toLowerCase() === lower) return row[key];
+      }
+      return undefined;
+    }
+
     for (const row of rows) {
-      const account = mapping.customer_account
-        ? String(row[mapping.customer_account] ?? '').trim()
-        : '';
-      const itemId = mapping.item_id
-        ? String(row[mapping.item_id] ?? '').trim()
-        : '';
-      const dateRaw = mapping.invoice_date ? row[mapping.invoice_date] : null;
+      const account = String(getVal(row, mapping.customer_account) ?? '').trim();
+      const itemId = String(getVal(row, mapping.item_id) ?? '').trim();
+      const dateRaw = getVal(row, mapping.invoice_date);
       const date = parseDate(dateRaw);
 
       if (!account || !itemId || !date) {
         if (dropped === 0) {
-          console.warn('[importRawData] First dropped row:', { account, itemId, date, dateRaw, mapping, rowKeys: Object.keys(row).slice(0, 5) });
+          console.warn('[importRawData] First dropped row:', {
+            account, itemId, date, dateRaw,
+            mappedCols: { custCol: mapping.customer_account, itemCol: mapping.item_id, dateCol: mapping.invoice_date },
+            actualKeys: Object.keys(row).slice(0, 10),
+            firstRowSample: Object.entries(row).slice(0, 5).map(([k, v]) => `${k}=${v}`),
+          });
         }
         dropped++;
         continue;
       }
 
-      const value = parseNumber(
-        mapping.invoice_amount ? row[mapping.invoice_amount] : 0,
-      );
-      const cases = parseNumber(
-        mapping.invoice_qty_cases ? row[mapping.invoice_qty_cases] : 0,
-      );
+      const value = parseNumber(getVal(row, mapping.invoice_amount) ?? 0);
+      const cases = parseNumber(getVal(row, mapping.invoice_qty_cases) ?? 0);
 
       if (!custMap.has(account)) {
         custMap.set(account, {
           account,
-          name: mapping.customer_name
-            ? String(row[mapping.customer_name] ?? account)
-            : account,
-          class: mapping.customer_class
-            ? String(row[mapping.customer_class] ?? '')
-            : undefined,
-          channel: mapping.customer_channel
-            ? String(row[mapping.customer_channel] ?? '')
-            : undefined,
+          name: String(getVal(row, mapping.customer_name) ?? account),
+          class: mapping.customer_class ? String(getVal(row, mapping.customer_class) ?? '') : undefined,
+          channel: mapping.customer_channel ? String(getVal(row, mapping.customer_channel) ?? '') : undefined,
           created_at: new Date().toISOString(),
         });
       }
@@ -609,9 +616,7 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
       if (!itemMap.has(itemId)) {
         itemMap.set(itemId, {
           id: itemId,
-          description: mapping.item_description
-            ? String(row[mapping.item_description] ?? itemId)
-            : itemId,
+          description: String(getVal(row, mapping.item_description) ?? itemId),
         });
       }
 
