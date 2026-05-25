@@ -414,7 +414,6 @@ export function ApprovalsPage() {
                       <Button
                         size="sm"
                         className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                        disabled={!photosOk && campaign.branches.length > 0}
                         onClick={() => doAction(campaign.id, 'pending_roshen', 'approved_distributor')}
                       >
                         <CheckCircle2 className="me-1 h-3 w-3" />
@@ -424,18 +423,50 @@ export function ApprovalsPage() {
                         <XCircle className="me-1 h-3 w-3" />
                         {t('workflow.returnToManager')}
                       </Button>
+                      <Button size="sm" variant="outline" className="h-8 text-xs border-red-700 text-red-700" onClick={() => doAction(campaign.id, 'rejected', 'rejected')}>
+                        <Ban className="me-1 h-3 w-3" />
+                        {t('workflow.reject')}
+                      </Button>
                     </>
                   )}
 
                   {canApproveRoshen && (
                     <>
-                      <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => doAction(campaign.id, 'approved', 'approved_roshen')}>
+                      <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => doAction(campaign.id, 'approved_pending_photos', 'approved_roshen')}>
                         <CheckCircle2 className="me-1 h-3 w-3" />
-                        {t('common.approve')}
+                        {t('workflow.approveBudget')}
                       </Button>
                       <Button size="sm" variant="outline" className="h-8 text-xs border-destructive text-destructive" onClick={() => doAction(campaign.id, 'pending_distributor', 'changes_requested')}>
                         <XCircle className="me-1 h-3 w-3" />
                         {t('workflow.requestChanges')}
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 text-xs border-red-700 text-red-700" onClick={() => doAction(campaign.id, 'rejected', 'rejected')}>
+                        <Ban className="me-1 h-3 w-3" />
+                        {t('workflow.reject')}
+                      </Button>
+                    </>
+                  )}
+
+                  {canUploadPhotos && photosOk && (
+                    <Button size="sm" className="h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white" onClick={() => doAction(campaign.id, 'photos_submitted', 'photos_added')}>
+                      <Upload className="me-1 h-3 w-3" />
+                      {t('workflow.submitPhotos')}
+                    </Button>
+                  )}
+
+                  {canFinalApprove && (
+                    <>
+                      <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => doAction(campaign.id, 'final_approved', 'final_approved')}>
+                        <CheckCircle2 className="me-1 h-3 w-3" />
+                        {t('workflow.finalApprove')}
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 text-xs border-amber-600 text-amber-600" onClick={() => doAction(campaign.id, 'approved_pending_photos', 'returned')}>
+                        <XCircle className="me-1 h-3 w-3" />
+                        {t('workflow.returnForPhotos')}
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 text-xs border-red-700 text-red-700" onClick={() => doAction(campaign.id, 'rejected', 'rejected')}>
+                        <Ban className="me-1 h-3 w-3" />
+                        {t('workflow.reject')}
                       </Button>
                     </>
                   )}

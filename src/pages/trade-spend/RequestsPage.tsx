@@ -26,16 +26,22 @@ const STATUS_COLORS: Record<CampaignStatus, string> = {
   draft: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
   pending_distributor: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
   pending_roshen: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-  approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
+  approved_pending_photos: 'bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300',
+  photos_submitted: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300',
+  final_approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
   changes_requested: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+  rejected: 'bg-red-200 text-red-800 dark:bg-red-950 dark:text-red-400',
 };
 
 const STATUS_ORDER: CampaignStatus[] = [
   'pending_distributor',
   'pending_roshen',
+  'approved_pending_photos',
+  'photos_submitted',
   'changes_requested',
   'draft',
-  'approved',
+  'final_approved',
+  'rejected',
 ];
 
 const ACTION_LABELS: Record<WorkflowAction, string> = {
@@ -44,7 +50,10 @@ const ACTION_LABELS: Record<WorkflowAction, string> = {
   edited: 'Edited',
   changes_requested: 'Changes requested',
   approved_distributor: 'Approved by Distributor',
-  approved_roshen: 'Final approval by Roshen',
+  approved_roshen: 'Budget approved by Roshen',
+  photos_added: 'Execution photos submitted',
+  final_approved: 'Final approval by Roshen',
+  rejected: 'Rejected',
   returned: 'Returned',
 };
 
@@ -93,8 +102,8 @@ export function RequestsPage() {
     } else if (isViewer) {
       // viewer sees all (read-only)
     } else if (isRoshenApprover) {
-      // roshen_approver sees campaigns pending_roshen
-      list = list.filter((c) => c.status === 'pending_roshen');
+      // roshen_approver sees campaigns pending_roshen and photos_submitted
+      list = list.filter((c) => c.status === 'pending_roshen' || c.status === 'photos_submitted');
     } else if (isDistributorTM) {
       // distributor sees pending_distributor or campaigns they need to action
       list = list.filter(
@@ -182,11 +191,44 @@ export function RequestsPage() {
   };
 
   const handleApproveRoshen = (campaignId: string) => {
-    updateCampaignStatus(campaignId, 'approved');
+    updateCampaignStatus(campaignId, 'approved_pending_photos');
     addWorkflowEvent({
       campaign_id: campaignId,
       actor_user_id: currentUser?.id || '',
       action: 'approved_roshen',
+      note: noteText || undefined,
+    });
+    setNoteText('');
+  };
+
+  const handleSubmitPhotos = (campaignId: string) => {
+    updateCampaignStatus(campaignId, 'photos_submitted');
+    addWorkflowEvent({
+      campaign_id: campaignId,
+      actor_user_id: currentUser?.id || '',
+      action: 'photos_added',
+      note: noteText || undefined,
+    });
+    setNoteText('');
+  };
+
+  const handleFinalApprove = (campaignId: string) => {
+    updateCampaignStatus(campaignId, 'final_approved');
+    addWorkflowEvent({
+      campaign_id: campaignId,
+      actor_user_id: currentUser?.id || '',
+      action: 'final_approved',
+      note: noteText || undefined,
+    });
+    setNoteText('');
+  };
+
+  const handleReject = (campaignId: string) => {
+    updateCampaignStatus(campaignId, 'rejected');
+    addWorkflowEvent({
+      campaign_id: campaignId,
+      actor_user_id: currentUser?.id || '',
+      action: 'rejected',
       note: noteText || undefined,
     });
     setNoteText('');
@@ -333,13 +375,13 @@ export function RequestsPage() {
                     <p className="text-sm font-semibold mt-0.5">{formatSAR(campaign.spend_amount)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('customerDetail.roiRoshen')}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('customerDetail.upliftValue')}</p>
                     <p className={`text-sm font-bold mt-0.5 ${
-                      metrics?.roi_roshen != null
-                        ? metrics.roi_roshen >= 0 ? 'text-success' : 'text-destructive'
+                      metrics?.uplift_value != null
+                        ? metrics.uplift_value >= 0 ? 'text-success' : 'text-destructive'
                         : 'text-muted-foreground'
                     }`}>
-                      {metrics?.roi_roshen != null ? `${metrics.roi_roshen.toFixed(1)}%` : '—'}
+                      {metrics?.uplift_value != null ? formatSAR(metrics.uplift_value) : '—'}
                     </p>
                   </div>
                 </div>
