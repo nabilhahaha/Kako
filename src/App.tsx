@@ -46,6 +46,7 @@ import { DataUploadPage } from '@/pages/trade-spend/DataUploadPage';
 import { TradeSpendLoginPage } from '@/pages/trade-spend/TradeSpendLoginPage';
 import { UsersPage as TradeSpendUsersPage } from '@/pages/trade-spend/UsersPage';
 import { ApprovalsPage } from '@/pages/trade-spend/ApprovalsPage';
+import { ErrorBoundary } from '@/components/trade-spend/ErrorBoundary';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -297,7 +298,7 @@ function App() {
           <Route path="approvals" element={<ApprovalsPage />} />
           <Route path="customers" element={<CustomerSummaryPage />} />
           <Route path="customers/:account" element={<CustomerDetailPage />} />
-          <Route path="upload" element={<DataUploadPage />} />
+          <Route path="upload" element={<ErrorBoundary><DataUploadPage /></ErrorBoundary>} />
           <Route path="users" element={<TradeSpendUsersPage />} />
         </Route>
 
