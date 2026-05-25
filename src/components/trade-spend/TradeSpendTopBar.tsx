@@ -55,7 +55,7 @@ export function TradeSpendTopBar() {
   const notifications = useTradeSpendStore((s) => s.notifications);
   const markNotificationRead = useTradeSpendStore((s) => s.markNotificationRead);
   const markAllNotificationsRead = useTradeSpendStore((s) => s.markAllNotificationsRead);
-  const unreadCount = useTradeSpendStore((s) => s.unreadCount)();
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
