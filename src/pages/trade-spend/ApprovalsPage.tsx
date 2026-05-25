@@ -307,12 +307,34 @@ export function ApprovalsPage() {
 
               {/* Cost split — privileged users only */}
               {isPrivileged && (
-                <div className="flex h-5 rounded-full overflow-hidden text-[9px] font-bold">
-                  <div className="bg-maroon text-white flex items-center justify-center" style={{ width: `${campaign.roshen_pct}%` }}>
-                    Roshen {campaign.roshen_pct}%
+                <div className="space-y-2">
+                  {isRoshenApprover && (campaign.status === 'pending_roshen' || campaign.status === 'pending_distributor') && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">Roshen %</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={campaign.roshen_pct}
+                        onChange={(e) => {
+                          updateCampaign(campaign.id, { roshen_pct: Number(e.target.value) });
+                        }}
+                        className="flex-1 h-1.5 accent-primary"
+                      />
+                      <span className="text-xs font-bold tabular-nums w-10 text-end">{campaign.roshen_pct}%</span>
+                    </div>
+                  )}
+                  <div className="flex h-5 rounded-full overflow-hidden text-[9px] font-bold">
+                    <div className="bg-maroon text-white flex items-center justify-center" style={{ width: `${campaign.roshen_pct}%` }}>
+                      Roshen {campaign.roshen_pct}%
+                    </div>
+                    <div className="bg-gold flex items-center justify-center" style={{ width: `${100 - campaign.roshen_pct}%` }}>
+                      {t('campaign.distributorShare')} {100 - campaign.roshen_pct}%
+                    </div>
                   </div>
-                  <div className="bg-gold flex items-center justify-center" style={{ width: `${100 - campaign.roshen_pct}%` }}>
-                    {t('campaign.distributorShare')} {100 - campaign.roshen_pct}%
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>﷼ {(campaign.spend_amount * campaign.roshen_pct / 100).toLocaleString()}</span>
+                    <span>﷼ {(campaign.spend_amount * (100 - campaign.roshen_pct) / 100).toLocaleString()}</span>
                   </div>
                 </div>
               )}
