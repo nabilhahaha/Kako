@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   FileText,
   Presentation,
+  AlertTriangle,
   Clock,
   Camera,
   Package,
@@ -424,13 +425,7 @@ export function CustomerDetailPage() {
       (s, m) => s + m.metrics.uplift_value,
       0,
     );
-    const roshenShare = campaignsWithMetrics.reduce(
-      (s, m) => s + m.metrics.roshen_share,
-      0,
-    );
-    const roiRoshen =
-      roshenShare !== 0 ? ((totalUplift - roshenShare) / roshenShare) * 100 : null;
-    return { totalSpend, totalUplift, roshenShare, roiRoshen };
+    return { totalSpend, totalUplift };
   }, [customerCampaigns, campaignsWithMetrics]);
 
   return (
