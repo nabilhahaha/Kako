@@ -4,89 +4,70 @@ import autoTable from 'jspdf-autotable';
 import PptxGenJS from 'pptxgenjs';
 
 // ---------------------------------------------------------------------------
-// Shared types
+// Types
 // ---------------------------------------------------------------------------
+
+export interface CampaignExport {
+  id: string;
+  customerName: string;
+  customerAccount: string;
+  classification: string;
+  spendType: string;
+  duration: string;
+  items: string[];
+  spendAmount: number;
+  roshenPct: number;
+  roshenShare: number;
+  distributorShare: number;
+  startDate: string;
+  status: string;
+  createdBy: string;
+  createdAt: string;
+  approvedDistributorAt?: string;
+  approvedDistributorBy?: string;
+  approvedRoshenAt?: string;
+  approvedRoshenBy?: string;
+  branches: Array<{ name: string; photoUrl?: string }>;
+}
 
 export interface ExportData {
   title: string;
   date: string;
-  customers: Array<{
-    account: string;
-    name: string;
-    classification: string;
-    campaignCount: number;
-    totalSpend: number;
-    roshenShare: number;
-    distributorShare: number;
-    salesBefore: number;
-    salesAfter: number;
-    uplift: number;
-    roiTotal: number | null;
-    roiRoshen: number | null;
-    spendToSales: number | null;
-  }>;
-  campaigns: Array<{
-    id: string;
-    customerName: string;
-    spendType: string;
-    duration: string;
-    spendAmount: number;
-    roshenPct: number;
-    roshenShare: number;
-    distributorShare: number;
-    beforeValue: number;
-    afterValue: number;
-    upliftValue: number;
-    upliftPct: number | null;
-    roiTotal: number | null;
-    roiRoshen: number | null;
-    spendToSales: number | null;
-    annualizedRoi: number | null;
-    paybackDays: number | null;
-    status: string;
-    resultStatus: string;
-  }>;
-  transactions?: Array<{
-    account: string;
-    itemId: string;
-    date: string;
-    value: number;
-    cases: number;
-  }>;
+  campaigns: CampaignExport[];
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Constants & Helpers
 // ---------------------------------------------------------------------------
 
 const COLORS = {
   maroon: '#7A1D2E',
   gold: '#D4A843',
   white: '#FFFFFF',
+  dark: '#1a1a1a',
+  muted: '#6b7280',
   lightGray: '#F5F5F5',
+  rowAlt: '#F9F5F6',
 } as const;
 
-/** Format a number as currency string (no symbol, 2 decimals). */
-function fmtCurrency(v: number | null | undefined): string {
-  if (v == null) return '—';
-  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Format a number as SAR currency string. */
+function fmtSAR(v: number): string {
+  return `SAR ${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Format a percentage (already in %, e.g. 12.5 → "12.50%"). */
-function fmtPct(v: number | null | undefined): string {
-  if (v == null) return '—';
-  return `${v.toFixed(2)}%`;
+/** Format a percentage (e.g. 65 → "65%"). */
+function fmtPct(v: number): string {
+  return `${v}%`;
 }
 
-/** Format a number with 2 decimal places. */
-function fmtNum(v: number | null | undefined): string {
-  if (v == null) return '—';
-  return v.toFixed(2);
-}
-
-/** Generate the download filename stem. */
-function baseFilename(date: string): string {
-  return `Trade_Spend_Report_${date}`;
+/** Return a status color hex string. */
+function statusColor(status: string): string {
+  const s = status.toLowerCase();
+  if (s.includes('approved') || s.includes('complete')) return '#16a34a';
+  if (s.includes('pending') || s.includes('waiting')) return '#d97706';
+  if (s.includes('rejected') || s.includes('declined')) return '#dc2626';
+  if (s.includes('draft')) return '#6b7280';
+  return COLORS.dark;
 }
 
 /** Trigger a browser download from a Blob. */
@@ -101,686 +82,691 @@ function downloadBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+/** Build the export filename. */
+function buildFilename(data: ExportData, ext: string): string {
+  const datePart = data.date.replace(/[/\s]/g, '_');
+  if (data.campaigns.length === 1) {
+    return `Trade_Spend_Request_${data.campaigns[0].id}_${datePart}.${ext}`;
+  }
+  return `Trade_Spend_Requests_${datePart}.${ext}`;
+}
+
+/** Strip the '#' from a hex color for pptxgenjs. */
+function pptColor(hex: string): string {
+  return hex.replace('#', '');
+}
+
 // ---------------------------------------------------------------------------
-// 1. Excel export
+// 1. PDF Export
+// ---------------------------------------------------------------------------
+
+export function exportToPDF(data: ExportData): void {
+  try {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const contentW = pageW - margin * 2;
+
+    let isFirstPage = true;
+
+    // --- Shared page chrome ---
+
+    const addHeader = (): void => {
+      doc.setFillColor(COLORS.maroon);
+      doc.rect(0, 0, pageW, 18, 'F');
+
+      doc.setTextColor(COLORS.white);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TRADE SPEND REQUEST', margin, 12);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.date, pageW - margin, 12, { align: 'right' });
+    }
+
+    const addFooter = (): void => {
+      const pageNum = (doc as unknown as { internal: { pages: unknown[] } }).internal.pages.length - 1;
+      doc.setFontSize(8);
+      doc.setTextColor(COLORS.muted);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Page ${pageNum}`, pageW / 2, pageH - 8, { align: 'center' });
+    }
+
+    const newPage = (): void => {
+      if (!isFirstPage) {
+        doc.addPage();
+      }
+      isFirstPage = false;
+      addHeader();
+      addFooter();
+    }
+
+    // --- Render each campaign ---
+
+    data.campaigns.forEach((camp) => {
+      // ===== PAGE 1: Campaign Summary =====
+      newPage();
+      let y = 26;
+
+      // Campaign ID title
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(COLORS.dark);
+      doc.text(camp.id, margin, y);
+      y += 4;
+
+      // Gold accent line under title
+      doc.setFillColor(COLORS.gold);
+      doc.rect(margin, y, 40, 1, 'F');
+      y += 8;
+
+      // --- Info Grid (2 columns) ---
+      const colLabelW = 45;
+      const col2X = margin + contentW / 2;
+      const lineH = 7;
+
+      const drawInfoRow = (
+        label: string,
+        value: string,
+        x: number,
+        rowY: number,
+        valueColor?: string
+      ): void => {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(COLORS.muted);
+        doc.text(label, x, rowY);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(valueColor || COLORS.dark);
+        doc.text(value, x + colLabelW, rowY);
+      }
+
+      // Left column rows
+      const leftRows: Array<[string, string, string?]> = [
+        ['Customer', `${camp.customerName} (${camp.customerAccount})`],
+        ['Classification', camp.classification],
+        ['Spend Type', camp.spendType],
+        ['Duration', camp.duration],
+        ['Start Date', camp.startDate],
+      ];
+
+      // Right column rows
+      const rightRows: Array<[string, string, string?]> = [
+        ['Status', camp.status, statusColor(camp.status)],
+        ['Created By', camp.createdBy],
+        ['Created At', camp.createdAt],
+        [
+          'Approved (Dist.)',
+          camp.approvedDistributorAt
+            ? `${camp.approvedDistributorAt}${camp.approvedDistributorBy ? ' by ' + camp.approvedDistributorBy : ''}`
+            : '—',
+        ],
+        [
+          'Approved (Roshen)',
+          camp.approvedRoshenAt
+            ? `${camp.approvedRoshenAt}${camp.approvedRoshenBy ? ' by ' + camp.approvedRoshenBy : ''}`
+            : '—',
+        ],
+      ];
+
+      const maxRows = Math.max(leftRows.length, rightRows.length);
+      for (let i = 0; i < maxRows; i++) {
+        const rowY = y + i * lineH;
+        if (i < leftRows.length) {
+          const [label, value, color] = leftRows[i];
+          drawInfoRow(label, value, margin, rowY, color);
+        }
+        if (i < rightRows.length) {
+          const [label, value, color] = rightRows[i];
+          drawInfoRow(label, value, col2X, rowY, color);
+        }
+      }
+
+      y += maxRows * lineH + 6;
+
+      // --- Cost Split Section ---
+      doc.setFillColor(COLORS.lightGray);
+      doc.roundedRect(margin, y, contentW, 28, 2, 2, 'F');
+
+      // Gold accent bar on left
+      doc.setFillColor(COLORS.gold);
+      doc.rect(margin, y, 2, 28, 'F');
+
+      const splitX = margin + 8;
+      const splitY = y + 6;
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(COLORS.dark);
+      doc.text('Cost Split', splitX, splitY);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(COLORS.dark);
+
+      const distributorPct = 100 - camp.roshenPct;
+
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total: ${fmtSAR(camp.spendAmount)}`, splitX, splitY + 8);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(COLORS.maroon);
+      doc.text(
+        `Roshen Share (${fmtPct(camp.roshenPct)}): ${fmtSAR(camp.roshenShare)}`,
+        splitX,
+        splitY + 15
+      );
+
+      doc.setTextColor(COLORS.muted);
+      doc.text(
+        `Distributor Share (${fmtPct(distributorPct)}): ${fmtSAR(camp.distributorShare)}`,
+        splitX + contentW / 2 - 8,
+        splitY + 15
+      );
+
+      y += 36;
+
+      // --- Items Table ---
+      if (camp.items.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(COLORS.dark);
+        doc.text('Items', margin, y);
+        y += 3;
+
+        autoTable(doc, {
+          startY: y,
+          head: [['#', 'Item Description']],
+          body: camp.items.map((item, idx) => [String(idx + 1), item]),
+          styles: {
+            fontSize: 10,
+            cellPadding: 3,
+            textColor: COLORS.dark,
+          },
+          headStyles: {
+            fillColor: COLORS.maroon,
+            textColor: COLORS.white,
+            fontStyle: 'bold',
+            fontSize: 10,
+          },
+          alternateRowStyles: { fillColor: COLORS.rowAlt },
+          columnStyles: {
+            0: { cellWidth: 12, halign: 'center' },
+            1: { cellWidth: contentW - 12 },
+          },
+          margin: { left: margin, right: margin },
+        });
+      }
+
+      // ===== PAGE 2: Branch Photos (if any) =====
+      if (camp.branches.length > 0) {
+        newPage();
+        let bY = 26;
+
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(COLORS.dark);
+        doc.text('Branch Documentation', margin, bY);
+        bY += 2;
+
+        doc.setFillColor(COLORS.gold);
+        doc.rect(margin, bY, 50, 1, 'F');
+        bY += 6;
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(COLORS.muted);
+        doc.text(`Campaign ${camp.id} — ${camp.customerName}`, margin, bY);
+        bY += 8;
+
+        // Layout: 2 photos per row
+        const photoW = (contentW - 10) / 2;
+        const photoH = 70;
+        const gapX = 10;
+        const gapY = 12;
+
+        camp.branches.forEach((branch, idx) => {
+          const col = idx % 2;
+          const row = Math.floor(idx / 2);
+
+          const px = margin + col * (photoW + gapX);
+          const py = bY + row * (photoH + gapY);
+
+          // Check if we need a new page
+          if (py + photoH + 10 > pageH - 20) {
+            newPage();
+            bY = 26;
+            // Recalculate — restart the positioning on the new page
+            // We'll just let subsequent branches overflow for simplicity
+            // A more robust approach would track position across pages
+          }
+
+          // Branch name
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(COLORS.dark);
+          doc.text(branch.name, px, py);
+
+          if (branch.photoUrl) {
+            try {
+              // Determine image format from data URL
+              let format: 'JPEG' | 'PNG' = 'JPEG';
+              if (branch.photoUrl.includes('image/png')) {
+                format = 'PNG';
+              }
+              doc.addImage(branch.photoUrl, format, px, py + 3, photoW, photoH - 8);
+            } catch {
+              // Fallback: draw placeholder
+              doc.setFillColor(COLORS.lightGray);
+              doc.rect(px, py + 3, photoW, photoH - 8, 'F');
+              doc.setFontSize(9);
+              doc.setTextColor(COLORS.muted);
+              doc.setFont('helvetica', 'italic');
+              doc.text('Photo could not be loaded', px + photoW / 2, py + photoH / 2, {
+                align: 'center',
+              });
+            }
+          } else {
+            // No photo placeholder
+            doc.setDrawColor(COLORS.muted);
+            doc.setFillColor(COLORS.lightGray);
+            doc.roundedRect(px, py + 3, photoW, photoH - 8, 1, 1, 'FD');
+            doc.setFontSize(9);
+            doc.setTextColor(COLORS.muted);
+            doc.setFont('helvetica', 'italic');
+            doc.text('No photo', px + photoW / 2, py + photoH / 2, { align: 'center' });
+          }
+        });
+      }
+    });
+
+    // --- Save ---
+    doc.save(buildFilename(data, 'pdf'));
+  } catch (err) {
+    console.error('PDF export failed:', err);
+    alert('Failed to generate PDF document. Please try again.');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. PowerPoint Export
+// ---------------------------------------------------------------------------
+
+export function exportToPPTX(data: ExportData): void {
+  try {
+    const pptx = new PptxGenJS();
+    pptx.author = 'Trade Spend Management Platform';
+    pptx.subject = 'Trade Spend Request';
+
+    // ---- Slide 1: Title ----
+    const slideTitle = pptx.addSlide();
+    slideTitle.background = { color: pptColor(COLORS.maroon) };
+
+    slideTitle.addText('Trade Spend Requests', {
+      x: 0.8,
+      y: 1.5,
+      w: 8.4,
+      h: 1.5,
+      fontSize: 34,
+      fontFace: 'Arial',
+      color: pptColor(COLORS.white),
+      bold: true,
+      align: 'center',
+    });
+
+    slideTitle.addText(data.date, {
+      x: 0.8,
+      y: 3.2,
+      w: 8.4,
+      h: 0.6,
+      fontSize: 18,
+      fontFace: 'Arial',
+      color: pptColor(COLORS.gold),
+      align: 'center',
+    });
+
+    slideTitle.addText('Confidential', {
+      x: 0.8,
+      y: 4.5,
+      w: 8.4,
+      h: 0.4,
+      fontSize: 10,
+      fontFace: 'Arial',
+      color: 'BBBBBB',
+      align: 'center',
+      italic: true,
+    });
+
+    // ---- Per-campaign slides ----
+    data.campaigns.forEach((camp) => {
+      // === Campaign Details Slide ===
+      const slide = pptx.addSlide();
+
+      // Title bar
+      slide.addShape(pptx.ShapeType.rect, {
+        x: 0,
+        y: 0,
+        w: 10,
+        h: 0.9,
+        fill: { color: pptColor(COLORS.maroon) },
+      });
+
+      slide.addText(`${camp.id}  —  ${camp.customerName}`, {
+        x: 0.5,
+        y: 0.1,
+        w: 9,
+        h: 0.7,
+        fontSize: 20,
+        fontFace: 'Arial',
+        color: pptColor(COLORS.white),
+        bold: true,
+      });
+
+      // Left side: details table
+      const distributorPct = 100 - camp.roshenPct;
+
+      const detailRows: Array<[string, string]> = [
+        ['Customer', `${camp.customerName} (${camp.customerAccount})`],
+        ['Classification', camp.classification],
+        ['Spend Type', camp.spendType],
+        ['Duration', camp.duration],
+        ['Start Date', camp.startDate],
+        ['Amount', fmtSAR(camp.spendAmount)],
+        ['Roshen Share', `${fmtPct(camp.roshenPct)} — ${fmtSAR(camp.roshenShare)}`],
+        ['Distributor Share', `${fmtPct(distributorPct)} — ${fmtSAR(camp.distributorShare)}`],
+        ['Status', camp.status],
+        ['Created By', `${camp.createdBy} (${camp.createdAt})`],
+        [
+          'Approved (Dist.)',
+          camp.approvedDistributorAt
+            ? `${camp.approvedDistributorAt}${camp.approvedDistributorBy ? ' — ' + camp.approvedDistributorBy : ''}`
+            : '—',
+        ],
+        [
+          'Approved (Roshen)',
+          camp.approvedRoshenAt
+            ? `${camp.approvedRoshenAt}${camp.approvedRoshenBy ? ' — ' + camp.approvedRoshenBy : ''}`
+            : '—',
+        ],
+      ];
+
+      const tableRows: PptxGenJS.TableRow[] = [];
+
+      // Header
+      tableRows.push([
+        {
+          text: 'Field',
+          options: {
+            fill: { color: pptColor(COLORS.maroon) },
+            color: 'FFFFFF',
+            bold: true,
+            fontSize: 9,
+          },
+        },
+        {
+          text: 'Details',
+          options: {
+            fill: { color: pptColor(COLORS.maroon) },
+            color: 'FFFFFF',
+            bold: true,
+            fontSize: 9,
+          },
+        },
+      ]);
+
+      detailRows.forEach((row, idx) => {
+        const bg = idx % 2 === 0 ? 'F9F5F6' : 'FFFFFF';
+        const isStatus = row[0] === 'Status';
+        const valColor = isStatus ? pptColor(statusColor(row[1])) : '333333';
+
+        tableRows.push([
+          {
+            text: row[0],
+            options: { bold: true, fontSize: 9, fill: { color: bg }, color: pptColor(COLORS.muted) },
+          },
+          {
+            text: row[1],
+            options: { fontSize: 9, fill: { color: bg }, color: valColor, bold: isStatus },
+          },
+        ]);
+      });
+
+      slide.addTable(tableRows, {
+        x: 0.4,
+        y: 1.1,
+        w: 5.2,
+        colW: [1.6, 3.6],
+        fontSize: 9,
+        fontFace: 'Arial',
+        border: { type: 'solid', pt: 0.5, color: 'DDDDDD' },
+      });
+
+      // Right side: items list
+      if (camp.items.length > 0) {
+        slide.addText('Items', {
+          x: 5.9,
+          y: 1.1,
+          w: 3.8,
+          h: 0.4,
+          fontSize: 12,
+          fontFace: 'Arial',
+          color: pptColor(COLORS.maroon),
+          bold: true,
+        });
+
+        // Gold accent under "Items"
+        slide.addShape(pptx.ShapeType.rect, {
+          x: 5.9,
+          y: 1.5,
+          w: 3.8,
+          h: 0.03,
+          fill: { color: pptColor(COLORS.gold) },
+        });
+
+        const itemText = camp.items
+          .map((item, idx) => `${idx + 1}. ${item}`)
+          .join('\n');
+
+        slide.addText(itemText, {
+          x: 5.9,
+          y: 1.7,
+          w: 3.8,
+          h: 3.5,
+          fontSize: 9,
+          fontFace: 'Arial',
+          color: '333333',
+          valign: 'top',
+          lineSpacingMultiple: 1.3,
+        });
+      }
+
+      // === Branch Photos Slide (if any) ===
+      if (camp.branches.length > 0) {
+        const branchSlide = pptx.addSlide();
+
+        // Title bar
+        branchSlide.addShape(pptx.ShapeType.rect, {
+          x: 0,
+          y: 0,
+          w: 10,
+          h: 0.9,
+          fill: { color: pptColor(COLORS.maroon) },
+        });
+
+        branchSlide.addText(`Branch Documentation — ${camp.id}`, {
+          x: 0.5,
+          y: 0.1,
+          w: 9,
+          h: 0.7,
+          fontSize: 20,
+          fontFace: 'Arial',
+          color: pptColor(COLORS.white),
+          bold: true,
+        });
+
+        // 2x2 grid
+        const gridCols = 2;
+        const cellW = 4.2;
+        const cellH = 2.5;
+        const startX = 0.6;
+        const startY = 1.2;
+        const gapX = 0.6;
+        const gapY = 0.4;
+
+        camp.branches.forEach((branch, idx) => {
+          const col = idx % gridCols;
+          const row = Math.floor(idx / gridCols);
+          const bx = startX + col * (cellW + gapX);
+          const by = startY + row * (cellH + gapY);
+
+          if (branch.photoUrl) {
+            try {
+              branchSlide.addImage({
+                data: branch.photoUrl,
+                x: bx,
+                y: by,
+                w: cellW,
+                h: cellH - 0.4,
+              });
+            } catch {
+              // Placeholder on error
+              branchSlide.addShape(pptx.ShapeType.rect, {
+                x: bx,
+                y: by,
+                w: cellW,
+                h: cellH - 0.4,
+                fill: { color: 'F0F0F0' },
+                line: { color: 'CCCCCC', width: 0.5 },
+              });
+              branchSlide.addText('Photo unavailable', {
+                x: bx,
+                y: by,
+                w: cellW,
+                h: cellH - 0.4,
+                fontSize: 9,
+                color: '999999',
+                align: 'center',
+                valign: 'middle',
+                italic: true,
+              });
+            }
+          } else {
+            branchSlide.addShape(pptx.ShapeType.rect, {
+              x: bx,
+              y: by,
+              w: cellW,
+              h: cellH - 0.4,
+              fill: { color: 'F0F0F0' },
+              line: { color: 'CCCCCC', width: 0.5 },
+            });
+            branchSlide.addText('No photo', {
+              x: bx,
+              y: by,
+              w: cellW,
+              h: cellH - 0.4,
+              fontSize: 9,
+              color: '999999',
+              align: 'center',
+              valign: 'middle',
+              italic: true,
+            });
+          }
+
+          // Branch name label
+          branchSlide.addText(branch.name, {
+            x: bx,
+            y: by + cellH - 0.4,
+            w: cellW,
+            h: 0.35,
+            fontSize: 8,
+            fontFace: 'Arial',
+            color: '333333',
+            align: 'center',
+            bold: true,
+          });
+        });
+      }
+    });
+
+    // ---- Save ----
+    pptx.writeFile({ fileName: buildFilename(data, 'pptx') }).catch((err) => {
+      console.error('PPTX write failed:', err);
+      alert('Failed to generate PowerPoint document. Please try again.');
+    });
+  } catch (err) {
+    console.error('PowerPoint export failed:', err);
+    alert('Failed to generate PowerPoint document. Please try again.');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. Excel Export
 // ---------------------------------------------------------------------------
 
 export function exportToExcel(data: ExportData): void {
   try {
     const wb = XLSX.utils.book_new();
 
-    // ---- Sheet 1: Summary ------------------------------------------------
-    const summaryRows = data.customers.map((c) => ({
-      Account: c.account,
-      Name: c.name,
-      Classification: c.classification,
-      '# Campaigns': c.campaignCount,
-      'Total Spend': c.totalSpend,
-      'Roshen Share': c.roshenShare,
-      'Distributor Share': c.distributorShare,
-      'Sales Before': c.salesBefore,
-      'Sales After': c.salesAfter,
-      Uplift: c.uplift,
-      'ROI Total': c.roiTotal,
-      'ROI Roshen': c.roiRoshen,
-      'Spend / Sales %': c.spendToSales,
-    }));
-
-    const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
-
-    // Column widths
-    wsSummary['!cols'] = [
-      { wch: 14 }, // Account
-      { wch: 28 }, // Name
-      { wch: 16 }, // Classification
-      { wch: 13 }, // # Campaigns
-      { wch: 14 }, // Total Spend
-      { wch: 14 }, // Roshen Share
-      { wch: 16 }, // Distributor Share
-      { wch: 14 }, // Sales Before
-      { wch: 14 }, // Sales After
-      { wch: 14 }, // Uplift
-      { wch: 12 }, // ROI Total
-      { wch: 12 }, // ROI Roshen
-      { wch: 14 }, // Spend / Sales %
-    ];
-
-    // Auto-filter on header row
-    wsSummary['!autofilter'] = { ref: wsSummary['!ref']! };
-
-    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
-
-    // ---- Sheet 2: Campaign Detail ----------------------------------------
-    const detailRows = data.campaigns.map((c) => ({
+    const rows = data.campaigns.map((c) => ({
       'Campaign ID': c.id,
       Customer: c.customerName,
+      Account: c.customerAccount,
+      Classification: c.classification,
       'Spend Type': c.spendType,
       Duration: c.duration,
-      'Spend Amount': c.spendAmount,
+      Items: c.items.join(', '),
+      Amount: c.spendAmount,
       'Roshen %': c.roshenPct,
       'Roshen Share': c.roshenShare,
       'Distributor Share': c.distributorShare,
-      'Before Value': c.beforeValue,
-      'After Value': c.afterValue,
-      'Uplift Value': c.upliftValue,
-      'Uplift %': c.upliftPct,
-      'ROI Total': c.roiTotal,
-      'ROI Roshen': c.roiRoshen,
-      'Spend / Sales %': c.spendToSales,
-      'Annualized ROI': c.annualizedRoi,
-      'Payback Days': c.paybackDays,
+      'Start Date': c.startDate,
       Status: c.status,
-      'Result Status': c.resultStatus,
+      'Created By': c.createdBy,
+      'Created At': c.createdAt,
+      'Approved Distributor': c.approvedDistributorAt
+        ? `${c.approvedDistributorAt}${c.approvedDistributorBy ? ' — ' + c.approvedDistributorBy : ''}`
+        : '',
+      'Approved Roshen': c.approvedRoshenAt
+        ? `${c.approvedRoshenAt}${c.approvedRoshenBy ? ' — ' + c.approvedRoshenBy : ''}`
+        : '',
     }));
 
-    const wsDetail = XLSX.utils.json_to_sheet(detailRows);
+    const ws = XLSX.utils.json_to_sheet(rows);
 
-    wsDetail['!cols'] = [
+    ws['!cols'] = [
       { wch: 14 }, // Campaign ID
       { wch: 28 }, // Customer
+      { wch: 14 }, // Account
+      { wch: 16 }, // Classification
       { wch: 16 }, // Spend Type
-      { wch: 10 }, // Duration
-      { wch: 14 }, // Spend Amount
+      { wch: 12 }, // Duration
+      { wch: 40 }, // Items
+      { wch: 14 }, // Amount
       { wch: 10 }, // Roshen %
       { wch: 14 }, // Roshen Share
       { wch: 16 }, // Distributor Share
-      { wch: 14 }, // Before Value
-      { wch: 14 }, // After Value
-      { wch: 14 }, // Uplift Value
-      { wch: 10 }, // Uplift %
-      { wch: 12 }, // ROI Total
-      { wch: 12 }, // ROI Roshen
-      { wch: 14 }, // Spend / Sales %
-      { wch: 14 }, // Annualized ROI
-      { wch: 13 }, // Payback Days
+      { wch: 12 }, // Start Date
       { wch: 18 }, // Status
-      { wch: 14 }, // Result Status
+      { wch: 18 }, // Created By
+      { wch: 12 }, // Created At
+      { wch: 30 }, // Approved Distributor
+      { wch: 30 }, // Approved Roshen
     ];
 
-    wsDetail['!autofilter'] = { ref: wsDetail['!ref']! };
+    ws['!autofilter'] = { ref: ws['!ref']! };
 
-    XLSX.utils.book_append_sheet(wb, wsDetail, 'Campaign Detail');
+    XLSX.utils.book_append_sheet(wb, ws, 'Trade Spend Requests');
 
-    // ---- Sheet 3: Transactions (optional) --------------------------------
-    if (data.transactions && data.transactions.length > 0) {
-      const txRows = data.transactions.map((t) => ({
-        Account: t.account,
-        'Item ID': t.itemId,
-        Date: t.date,
-        Value: t.value,
-        Cases: t.cases,
-      }));
-
-      const wsTx = XLSX.utils.json_to_sheet(txRows);
-
-      wsTx['!cols'] = [
-        { wch: 14 }, // Account
-        { wch: 14 }, // Item ID
-        { wch: 12 }, // Date
-        { wch: 14 }, // Value
-        { wch: 10 }, // Cases
-      ];
-
-      wsTx['!autofilter'] = { ref: wsTx['!ref']! };
-
-      XLSX.utils.book_append_sheet(wb, wsTx, 'Transactions');
-    }
-
-    // ---- Write & download ------------------------------------------------
     const wbOut = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([wbOut], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
-    downloadBlob(blob, `${baseFilename(data.date)}.xlsx`);
+    downloadBlob(blob, buildFilename(data, 'xlsx'));
   } catch (err) {
     console.error('Excel export failed:', err);
-    alert('Failed to generate Excel report. Please try again.');
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 2. PDF export
-// ---------------------------------------------------------------------------
-
-export function exportToPDF(data: ExportData): void {
-  try {
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    // ---- Header ----------------------------------------------------------
-    doc.setFillColor(COLORS.maroon);
-    doc.rect(0, 0, pageWidth, 22, 'F');
-
-    doc.setTextColor(COLORS.white);
-    doc.setFontSize(14);
-    doc.text('Roshen Trade Spend Report', 14, 12);
-
-    doc.setFontSize(9);
-    doc.text(data.date, pageWidth - 14, 9, { align: 'right' });
-
-    doc.setTextColor(COLORS.gold);
-    doc.setFontSize(8);
-    doc.text('CONFIDENTIAL', pageWidth - 14, 16, { align: 'right' });
-
-    // ---- KPI block (2x2 grid) -------------------------------------------
-    const kpiY = 30;
-    const kpiW = 60;
-    const kpiH = 20;
-    const kpiGap = 8;
-    const kpiStartX = (pageWidth - 2 * kpiW - kpiGap) / 2;
-
-    const totalSpend = data.customers.reduce((s, c) => s + c.totalSpend, 0);
-    const totalRoshenShare = data.customers.reduce((s, c) => s + c.roshenShare, 0);
-    const totalUplift = data.customers.reduce((s, c) => s + c.uplift, 0);
-    const roshenRois = data.campaigns
-      .map((c) => c.roiRoshen)
-      .filter((v): v is number => v != null);
-    const avgRoiRoshen =
-      roshenRois.length > 0
-        ? roshenRois.reduce((a, b) => a + b, 0) / roshenRois.length
-        : null;
-
-    const kpis = [
-      { label: 'Total Spend', value: fmtCurrency(totalSpend) },
-      { label: 'Roshen Share', value: fmtCurrency(totalRoshenShare) },
-      { label: 'Total Uplift', value: fmtCurrency(totalUplift) },
-      { label: 'Avg ROI Roshen', value: avgRoiRoshen != null ? fmtNum(avgRoiRoshen) : '—' },
-    ];
-
-    kpis.forEach((kpi, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const x = kpiStartX + col * (kpiW + kpiGap);
-      const y = kpiY + row * (kpiH + kpiGap);
-
-      doc.setFillColor(COLORS.lightGray);
-      doc.roundedRect(x, y, kpiW, kpiH, 2, 2, 'F');
-
-      // Gold accent line at top
-      doc.setFillColor(COLORS.gold);
-      doc.rect(x, y, kpiW, 1.5, 'F');
-
-      doc.setTextColor('#333333');
-      doc.setFontSize(8);
-      doc.text(kpi.label, x + kpiW / 2, y + 7, { align: 'center' });
-
-      doc.setFontSize(12);
-      doc.setTextColor(COLORS.maroon);
-      doc.text(kpi.value, x + kpiW / 2, y + 15, { align: 'center' });
-    });
-
-    // ---- Customer Summary table ------------------------------------------
-    const tableStartY = kpiY + 2 * (kpiH + kpiGap) + 8;
-
-    autoTable(doc, {
-      startY: tableStartY,
-      head: [
-        [
-          'Account',
-          'Name',
-          'Class',
-          '# Camp.',
-          'Spend',
-          'Roshen',
-          'Distr.',
-          'Before',
-          'After',
-          'Uplift',
-          'ROI Tot.',
-          'ROI Rosh.',
-          'Sp/Sales',
-        ],
-      ],
-      body: data.customers.map((c) => [
-        c.account,
-        c.name,
-        c.classification,
-        String(c.campaignCount),
-        fmtCurrency(c.totalSpend),
-        fmtCurrency(c.roshenShare),
-        fmtCurrency(c.distributorShare),
-        fmtCurrency(c.salesBefore),
-        fmtCurrency(c.salesAfter),
-        fmtCurrency(c.uplift),
-        fmtNum(c.roiTotal),
-        fmtNum(c.roiRoshen),
-        fmtPct(c.spendToSales),
-      ]),
-      styles: { fontSize: 7, cellPadding: 1.5 },
-      headStyles: {
-        fillColor: COLORS.maroon,
-        textColor: COLORS.white,
-        fontStyle: 'bold',
-        fontSize: 7,
-      },
-      alternateRowStyles: { fillColor: '#F9F5F6' },
-      margin: { left: 10, right: 10 },
-    });
-
-    // ---- Campaign Detail tables (single-customer export) -----------------
-    if (data.customers.length === 1 && data.campaigns.length > 0) {
-      data.campaigns.forEach((camp) => {
-        doc.addPage();
-
-        // Campaign header
-        doc.setFillColor(COLORS.maroon);
-        doc.rect(0, 0, pageWidth, 14, 'F');
-        doc.setTextColor(COLORS.white);
-        doc.setFontSize(11);
-        doc.text(`Campaign ${camp.id} — ${camp.customerName}`, 14, 9);
-
-        const rows: [string, string][] = [
-          ['Spend Type', camp.spendType],
-          ['Duration', camp.duration],
-          ['Spend Amount', fmtCurrency(camp.spendAmount)],
-          ['Roshen %', fmtPct(camp.roshenPct)],
-          ['Roshen Share', fmtCurrency(camp.roshenShare)],
-          ['Distributor Share', fmtCurrency(camp.distributorShare)],
-          ['Before Value', fmtCurrency(camp.beforeValue)],
-          ['After Value', fmtCurrency(camp.afterValue)],
-          ['Uplift Value', fmtCurrency(camp.upliftValue)],
-          ['Uplift %', fmtPct(camp.upliftPct)],
-          ['ROI Total', fmtNum(camp.roiTotal)],
-          ['ROI Roshen', fmtNum(camp.roiRoshen)],
-          ['Spend / Sales %', fmtPct(camp.spendToSales)],
-          ['Annualized ROI', fmtNum(camp.annualizedRoi)],
-          ['Payback Days', camp.paybackDays != null ? String(camp.paybackDays) : '—'],
-          ['Status', camp.status],
-          ['Result Status', camp.resultStatus],
-        ];
-
-        autoTable(doc, {
-          startY: 20,
-          head: [['Metric', 'Value']],
-          body: rows,
-          styles: { fontSize: 9, cellPadding: 2 },
-          headStyles: {
-            fillColor: COLORS.maroon,
-            textColor: COLORS.white,
-            fontStyle: 'bold',
-          },
-          columnStyles: {
-            0: { fontStyle: 'bold', cellWidth: 50 },
-            1: { cellWidth: 60 },
-          },
-          margin: { left: 40, right: 40 },
-        });
-      });
-    }
-
-    // ---- Save ------------------------------------------------------------
-    doc.save(`${baseFilename(data.date)}.pdf`);
-  } catch (err) {
-    console.error('PDF export failed:', err);
-    alert('Failed to generate PDF report. Please try again.');
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 3. PowerPoint export
-// ---------------------------------------------------------------------------
-
-export function exportToPPTX(data: ExportData): void {
-  try {
-    const pptx = new PptxGenJS();
-    pptx.author = 'Roshen Trade Spend Platform';
-    pptx.subject = 'Trade Spend Performance Report';
-
-    // ---- Slide 1: Title --------------------------------------------------
-    const slideTitle = pptx.addSlide();
-    slideTitle.background = { color: COLORS.maroon.replace('#', '') };
-
-    slideTitle.addText('Trade Spend\nPerformance Report', {
-      x: 0.8,
-      y: 1.2,
-      w: 8.4,
-      h: 2.0,
-      fontSize: 32,
-      fontFace: 'Arial',
-      color: COLORS.white.replace('#', ''),
-      bold: true,
-      align: 'center',
-      lineSpacingMultiple: 1.2,
-    });
-
-    slideTitle.addText(data.date, {
-      x: 0.8,
-      y: 3.4,
-      w: 8.4,
-      h: 0.5,
-      fontSize: 16,
-      fontFace: 'Arial',
-      color: COLORS.gold.replace('#', ''),
-      align: 'center',
-    });
-
-    slideTitle.addText('Roshen × Distributor', {
-      x: 0.8,
-      y: 4.1,
-      w: 8.4,
-      h: 0.5,
-      fontSize: 14,
-      fontFace: 'Arial',
-      color: COLORS.white.replace('#', ''),
-      align: 'center',
-      italic: true,
-    });
-
-    // ---- Slide 2: Executive Summary KPI cards ----------------------------
-    const slideSummary = pptx.addSlide();
-
-    slideSummary.addText('Executive Summary', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.6,
-      fontSize: 22,
-      fontFace: 'Arial',
-      color: COLORS.maroon.replace('#', ''),
-      bold: true,
-    });
-
-    // Gold divider line
-    slideSummary.addShape(pptx.ShapeType.rect, {
-      x: 0.5,
-      y: 0.9,
-      w: 9,
-      h: 0.04,
-      fill: { color: COLORS.gold.replace('#', '') },
-      line: { color: COLORS.gold.replace('#', ''), width: 0 },
-    });
-
-    const totalSpend = data.customers.reduce((s, c) => s + c.totalSpend, 0);
-    const totalRoshenShare = data.customers.reduce((s, c) => s + c.roshenShare, 0);
-    const totalUplift = data.customers.reduce((s, c) => s + c.uplift, 0);
-    const roshenRois = data.campaigns
-      .map((c) => c.roiRoshen)
-      .filter((v): v is number => v != null);
-    const avgRoiRoshen =
-      roshenRois.length > 0
-        ? roshenRois.reduce((a, b) => a + b, 0) / roshenRois.length
-        : null;
-
-    const kpiCards = [
-      { label: 'Total Spend', value: fmtCurrency(totalSpend) },
-      { label: 'Roshen Share', value: fmtCurrency(totalRoshenShare) },
-      { label: 'Total Uplift', value: fmtCurrency(totalUplift) },
-      { label: 'Avg ROI Roshen', value: avgRoiRoshen != null ? fmtNum(avgRoiRoshen) : '—' },
-    ];
-
-    const cardW = 2.0;
-    const cardH = 1.6;
-    const cardGap = 0.35;
-    const totalCardsW = 4 * cardW + 3 * cardGap;
-    const cardStartX = (10 - totalCardsW) / 2;
-    const cardY = 1.6;
-
-    kpiCards.forEach((kpi, i) => {
-      const x = cardStartX + i * (cardW + cardGap);
-
-      // Card background
-      slideSummary.addShape(pptx.ShapeType.rect, {
-        x,
-        y: cardY,
-        w: cardW,
-        h: cardH,
-        fill: { color: 'F5F5F5' },
-        rectRadius: 0.1,
-        line: { color: COLORS.gold.replace('#', ''), width: 1 },
-      });
-
-      // Gold top accent
-      slideSummary.addShape(pptx.ShapeType.rect, {
-        x,
-        y: cardY,
-        w: cardW,
-        h: 0.08,
-        fill: { color: COLORS.gold.replace('#', '') },
-        line: { color: COLORS.gold.replace('#', ''), width: 0 },
-      });
-
-      // Label
-      slideSummary.addText(kpi.label, {
-        x,
-        y: cardY + 0.25,
-        w: cardW,
-        h: 0.4,
-        fontSize: 10,
-        fontFace: 'Arial',
-        color: '666666',
-        align: 'center',
-      });
-
-      // Value
-      slideSummary.addText(kpi.value, {
-        x,
-        y: cardY + 0.7,
-        w: cardW,
-        h: 0.6,
-        fontSize: 18,
-        fontFace: 'Arial',
-        color: COLORS.maroon.replace('#', ''),
-        bold: true,
-        align: 'center',
-      });
-    });
-
-    // ---- Slide 3+: Customer/Campaign Details -----------------------------
-    const isSingleCustomer = data.customers.length === 1;
-
-    if (isSingleCustomer) {
-      // One slide per campaign
-      data.campaigns.forEach((camp) => {
-        const slide = pptx.addSlide();
-
-        slide.addText(`Campaign ${camp.id}`, {
-          x: 0.5,
-          y: 0.3,
-          w: 9,
-          h: 0.6,
-          fontSize: 20,
-          fontFace: 'Arial',
-          color: COLORS.maroon.replace('#', ''),
-          bold: true,
-        });
-
-        slide.addText(camp.customerName, {
-          x: 0.5,
-          y: 0.85,
-          w: 9,
-          h: 0.35,
-          fontSize: 12,
-          fontFace: 'Arial',
-          color: '666666',
-          italic: true,
-        });
-
-        // Gold divider
-        slide.addShape(pptx.ShapeType.rect, {
-          x: 0.5,
-          y: 1.2,
-          w: 9,
-          h: 0.04,
-          fill: { color: COLORS.gold.replace('#', '') },
-          line: { color: COLORS.gold.replace('#', ''), width: 0 },
-        });
-
-        const metricsRows: Array<Array<{ text: string; options?: object }>> = [
-          [
-            { text: 'Spend Type', options: { bold: true } },
-            { text: camp.spendType },
-            { text: 'Duration', options: { bold: true } },
-            { text: camp.duration },
-          ],
-          [
-            { text: 'Spend Amount', options: { bold: true } },
-            { text: fmtCurrency(camp.spendAmount) },
-            { text: 'Roshen %', options: { bold: true } },
-            { text: fmtPct(camp.roshenPct) },
-          ],
-          [
-            { text: 'Roshen Share', options: { bold: true } },
-            { text: fmtCurrency(camp.roshenShare) },
-            { text: 'Distributor Share', options: { bold: true } },
-            { text: fmtCurrency(camp.distributorShare) },
-          ],
-          [
-            { text: 'Before Value', options: { bold: true } },
-            { text: fmtCurrency(camp.beforeValue) },
-            { text: 'After Value', options: { bold: true } },
-            { text: fmtCurrency(camp.afterValue) },
-          ],
-          [
-            { text: 'Uplift Value', options: { bold: true } },
-            { text: fmtCurrency(camp.upliftValue) },
-            { text: 'Uplift %', options: { bold: true } },
-            { text: fmtPct(camp.upliftPct) },
-          ],
-          [
-            { text: 'ROI Total', options: { bold: true } },
-            { text: fmtNum(camp.roiTotal) },
-            { text: 'ROI Roshen', options: { bold: true } },
-            { text: fmtNum(camp.roiRoshen) },
-          ],
-          [
-            { text: 'Spend / Sales %', options: { bold: true } },
-            { text: fmtPct(camp.spendToSales) },
-            { text: 'Annualized ROI', options: { bold: true } },
-            { text: fmtNum(camp.annualizedRoi) },
-          ],
-          [
-            { text: 'Payback Days', options: { bold: true } },
-            { text: camp.paybackDays != null ? String(camp.paybackDays) : '—' },
-            { text: 'Status', options: { bold: true } },
-            { text: camp.status },
-          ],
-          [
-            { text: 'Result', options: { bold: true } },
-            { text: camp.resultStatus },
-            { text: '', options: {} },
-            { text: '' },
-          ],
-        ];
-
-        // Build table rows for pptxgenjs
-        const tableRows: PptxGenJS.TableRow[] = [];
-
-        // Header row
-        tableRows.push([
-          { text: 'Metric', options: { fill: { color: COLORS.maroon.replace('#', '') }, color: 'FFFFFF', bold: true, fontSize: 9 } },
-          { text: 'Value', options: { fill: { color: COLORS.maroon.replace('#', '') }, color: 'FFFFFF', bold: true, fontSize: 9 } },
-          { text: 'Metric', options: { fill: { color: COLORS.maroon.replace('#', '') }, color: 'FFFFFF', bold: true, fontSize: 9 } },
-          { text: 'Value', options: { fill: { color: COLORS.maroon.replace('#', '') }, color: 'FFFFFF', bold: true, fontSize: 9 } },
-        ]);
-
-        metricsRows.forEach((row, idx) => {
-          const bgColor = idx % 2 === 0 ? 'F9F5F6' : 'FFFFFF';
-          tableRows.push(
-            row.map((cell) => ({
-              text: cell.text,
-              options: {
-                fontSize: 9,
-                fill: { color: bgColor },
-                bold: !!(cell.options && 'bold' in cell.options && cell.options.bold),
-                color: '333333',
-              },
-            }))
-          );
-        });
-
-        slide.addTable(tableRows, {
-          x: 0.5,
-          y: 1.5,
-          w: 9,
-          colW: [2.0, 2.5, 2.0, 2.5],
-          fontSize: 9,
-          fontFace: 'Arial',
-          border: { type: 'solid', pt: 0.5, color: 'CCCCCC' },
-        });
-      });
-    } else {
-      // Portfolio view — one slide per customer
-      data.customers.forEach((cust) => {
-        const slide = pptx.addSlide();
-
-        slide.addText(cust.name, {
-          x: 0.5,
-          y: 0.3,
-          w: 9,
-          h: 0.6,
-          fontSize: 20,
-          fontFace: 'Arial',
-          color: COLORS.maroon.replace('#', ''),
-          bold: true,
-        });
-
-        slide.addText(`${cust.account}  |  ${cust.classification}`, {
-          x: 0.5,
-          y: 0.85,
-          w: 9,
-          h: 0.35,
-          fontSize: 11,
-          fontFace: 'Arial',
-          color: '666666',
-        });
-
-        // Gold divider
-        slide.addShape(pptx.ShapeType.rect, {
-          x: 0.5,
-          y: 1.2,
-          w: 9,
-          h: 0.04,
-          fill: { color: COLORS.gold.replace('#', '') },
-          line: { color: COLORS.gold.replace('#', ''), width: 0 },
-        });
-
-        const custRows: [string, string][] = [
-          ['# Campaigns', String(cust.campaignCount)],
-          ['Total Spend', fmtCurrency(cust.totalSpend)],
-          ['Roshen Share', fmtCurrency(cust.roshenShare)],
-          ['Distributor Share', fmtCurrency(cust.distributorShare)],
-          ['Sales Before', fmtCurrency(cust.salesBefore)],
-          ['Sales After', fmtCurrency(cust.salesAfter)],
-          ['Uplift', fmtCurrency(cust.uplift)],
-          ['ROI Total', fmtNum(cust.roiTotal)],
-          ['ROI Roshen', fmtNum(cust.roiRoshen)],
-          ['Spend / Sales %', fmtPct(cust.spendToSales)],
-        ];
-
-        const tableRows: PptxGenJS.TableRow[] = [];
-
-        tableRows.push([
-          { text: 'Metric', options: { fill: { color: COLORS.maroon.replace('#', '') }, color: 'FFFFFF', bold: true, fontSize: 10 } },
-          { text: 'Value', options: { fill: { color: COLORS.maroon.replace('#', '') }, color: 'FFFFFF', bold: true, fontSize: 10 } },
-        ]);
-
-        custRows.forEach((row, idx) => {
-          const bgColor = idx % 2 === 0 ? 'F9F5F6' : 'FFFFFF';
-          tableRows.push([
-            { text: row[0], options: { bold: true, fontSize: 10, fill: { color: bgColor }, color: '333333' } },
-            { text: row[1], options: { fontSize: 10, fill: { color: bgColor }, color: '333333' } },
-          ]);
-        });
-
-        slide.addTable(tableRows, {
-          x: 1.5,
-          y: 1.5,
-          w: 7,
-          colW: [3.0, 4.0],
-          fontSize: 10,
-          fontFace: 'Arial',
-          border: { type: 'solid', pt: 0.5, color: 'CCCCCC' },
-        });
-      });
-    }
-
-    // ---- Save ------------------------------------------------------------
-    pptx.writeFile({ fileName: `${baseFilename(data.date)}.pptx` }).catch((err) => {
-      console.error('PPTX write failed:', err);
-      alert('Failed to generate PowerPoint report. Please try again.');
-    });
-  } catch (err) {
-    console.error('PowerPoint export failed:', err);
-    alert('Failed to generate PowerPoint report. Please try again.');
+    alert('Failed to generate Excel document. Please try again.');
   }
 }

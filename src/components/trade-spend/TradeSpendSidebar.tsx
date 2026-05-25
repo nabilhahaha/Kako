@@ -20,48 +20,13 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  {
-    to: '/trade-spend',
-    labelKey: 'nav.dashboard',
-    icon: LayoutDashboard,
-    roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer', 'admin'],
-  },
-  {
-    to: '/trade-spend/new-request',
-    labelKey: 'nav.newRequest',
-    icon: PlusCircle,
-    roles: ['dept_manager', 'distributor_trade_mktg', 'admin'],
-  },
-  {
-    to: '/trade-spend/requests',
-    labelKey: 'nav.myRequests',
-    icon: FileText,
-    roles: ['dept_manager', 'distributor_trade_mktg', 'admin'],
-  },
-  {
-    to: '/trade-spend/approvals',
-    labelKey: 'nav.approvals',
-    icon: ClipboardCheck,
-    roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'admin'],
-  },
-  {
-    to: '/trade-spend/customers',
-    labelKey: 'nav.customerSummary',
-    icon: BarChart3,
-    roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer', 'admin'],
-  },
-  {
-    to: '/trade-spend/upload',
-    labelKey: 'nav.dataUpload',
-    icon: Upload,
-    roles: ['admin'],
-  },
-  {
-    to: '/trade-spend/users',
-    labelKey: 'nav.users',
-    icon: UsersIcon,
-    roles: ['admin'],
-  },
+  { to: '/trade-spend', labelKey: 'nav.dashboard', icon: LayoutDashboard, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer', 'admin'] },
+  { to: '/trade-spend/new-request', labelKey: 'nav.newRequest', icon: PlusCircle, roles: ['dept_manager', 'distributor_trade_mktg', 'admin'] },
+  { to: '/trade-spend/requests', labelKey: 'nav.myRequests', icon: FileText, roles: ['dept_manager', 'distributor_trade_mktg', 'admin'] },
+  { to: '/trade-spend/approvals', labelKey: 'nav.approvals', icon: ClipboardCheck, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'admin'] },
+  { to: '/trade-spend/customers', labelKey: 'nav.customerSummary', icon: BarChart3, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer', 'admin'] },
+  { to: '/trade-spend/upload', labelKey: 'nav.dataUpload', icon: Upload, roles: ['admin'] },
+  { to: '/trade-spend/users', labelKey: 'nav.users', icon: UsersIcon, roles: ['admin'] },
 ];
 
 export function TradeSpendSidebar() {
@@ -74,51 +39,51 @@ export function TradeSpendSidebar() {
   );
 
   return (
-    <aside className="hidden w-56 flex-shrink-0 border-e bg-card shadow-sm lg:flex lg:flex-col">
-      <div className="flex h-14 items-center gap-2 border-b px-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-maroon">
-          <span className="text-base font-bold text-white font-display">R</span>
+    <aside className="hidden w-[220px] flex-shrink-0 border-e bg-card lg:flex lg:flex-col">
+      {/* Brand */}
+      <div className="flex h-12 items-center gap-2.5 border-b px-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-maroon shadow-sm">
+          <span className="text-sm font-bold text-white">R</span>
         </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground font-display">Roshen</p>
-          <p className="text-[10px] text-muted-foreground">{t('common.appName')}</p>
+        <div className="leading-none">
+          <p className="text-[13px] font-bold text-foreground tracking-tight">Roshen</p>
+          <p className="text-[9px] text-muted-foreground tracking-wide uppercase">Trade Spend</p>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      {/* Nav */}
+      <nav className="flex-1 py-2 px-2 space-y-0.5">
         {visibleItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/trade-spend'}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              `flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
                 isActive
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`
             }
           >
-            <item.icon className="h-4 w-4 flex-shrink-0" />
+            <item.icon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={1.8} />
             <span>{t(item.labelKey)}</span>
           </NavLink>
         ))}
       </nav>
 
-      <div className="border-t p-3">
-        <div className="rounded-lg bg-muted/50 p-3">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t('auth.selectRole')}
+      {/* User card */}
+      <div className="border-t p-2">
+        <div className="rounded-lg bg-muted/40 px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+            Demo
           </p>
-          <p className="mt-1 text-xs font-medium text-foreground">
+          <p className="mt-0.5 text-[12px] font-semibold text-foreground truncate">
             {currentUser?.display_name}
           </p>
           <div className="mt-1 flex flex-wrap gap-1">
             {userRoles.map((r) => (
-              <span
-                key={r}
-                className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
-              >
+              <span key={r} className="inline-block rounded bg-primary/8 px-1.5 py-0.5 text-[9px] font-medium text-primary">
                 {t(`roles.${r}`)}
               </span>
             ))}

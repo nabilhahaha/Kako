@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import { computeCampaignMetrics } from '@/lib/trade-spend/engine';
 import { exportToExcel, exportToPDF, exportToPPTX } from '@/lib/trade-spend/exports';
-import type { ExportData } from '@/lib/trade-spend/exports';
+import type { CampaignExport } from '@/lib/trade-spend/exports';
 import type { CampaignMetrics } from '@/lib/trade-spend/types';
 
 // ---------------------------------------------------------------------------
@@ -204,38 +204,37 @@ export function CustomerSummaryPage() {
     );
   }
 
-  function buildExportData(): ExportData {
-    const campaignRows = campaigns.map((c) => {
-      let m: CampaignMetrics | null = null;
-      try { m = computeCampaignMetrics(c, transactions, latestDataDate); } catch { /* skip */ }
+  function buildExportData() {
+    const users = useTradeSpendStore.getState().users;
+    const items = useTradeSpendStore.getState().items;
+    const campaignExports: CampaignExport[] = campaigns.map((c) => {
       const cust = customers.find((cu) => cu.account === c.account);
+      const creator = users.find((u) => u.id === c.created_by);
       return {
         id: c.id,
         customerName: cust?.name || c.account,
+        customerAccount: c.account,
+        classification: c.classification || cust?.classification || '',
         spendType: c.spend_type,
-        duration: c.duration_key,
+        duration: c.duration_key === 'none' ? 'Open-ended' : c.duration_key,
+        items: c.item_ids.map((id) => items.find((i) => i.id === id)?.description || id),
         spendAmount: c.spend_amount,
         roshenPct: c.roshen_pct,
-        roshenShare: m?.roshen_share ?? 0,
-        distributorShare: m?.distributor_share ?? 0,
-        beforeValue: m?.selected_before_value ?? 0,
-        afterValue: m?.selected_after_value ?? 0,
-        upliftValue: m?.uplift_value ?? 0,
-        upliftPct: m?.uplift_pct ?? null,
-        roiTotal: m?.roi_total ?? null,
-        roiRoshen: m?.roi_roshen ?? null,
-        spendToSales: m?.spend_to_sales_pct ?? null,
-        annualizedRoi: m?.annualized_roi_roshen ?? null,
-        paybackDays: m?.payback_days ?? null,
+        roshenShare: c.spend_amount * c.roshen_pct / 100,
+        distributorShare: c.spend_amount * (100 - c.roshen_pct) / 100,
+        startDate: c.start_date,
         status: c.status,
-        resultStatus: m?.result_status ?? 'running',
+        createdBy: creator?.display_name || c.created_by,
+        createdAt: c.created_at,
+        approvedDistributorAt: c.approved_distributor_at,
+        approvedRoshenAt: c.approved_roshen_at,
+        branches: c.branches.map((b) => ({ name: b.branch_name, photoUrl: b.photo_url })),
       };
     });
     return {
-      title: 'Trade Spend Report',
+      title: 'Trade Spend Requests',
       date: new Date().toISOString().substring(0, 10),
-      customers: sorted,
-      campaigns: campaignRows,
+      campaigns: campaignExports,
     };
   }
 

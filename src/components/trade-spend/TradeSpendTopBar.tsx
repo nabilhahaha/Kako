@@ -29,55 +29,50 @@ export function TradeSpendTopBar() {
   };
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-card px-4 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-maroon">
-          <span className="text-sm font-bold text-white">R</span>
+    <header className="flex h-12 items-center justify-between border-b bg-card px-3 sm:px-4">
+      {/* Left: Logo */}
+      <div className="flex items-center gap-2 lg:hidden">
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-maroon">
+          <span className="text-xs font-bold text-white">R</span>
         </div>
-        <h1 className="hidden text-lg font-semibold text-foreground sm:block font-display">
-          {t('common.appName')}
-        </h1>
+        <span className="text-sm font-semibold">{t('common.appName')}</span>
       </div>
 
-      <div className="flex items-center gap-2">
-        {/* Demo role switcher */}
+      {/* Right: Controls */}
+      <div className="flex items-center gap-1.5 ms-auto">
+        {/* Role switcher */}
         <select
           value={currentUser?.id || ''}
-          onChange={(e) => {
-            switchRole(e.target.value);
-            navigate('/trade-spend');
-          }}
-          className="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+          onChange={(e) => { switchRole(e.target.value); navigate('/trade-spend'); }}
+          className="h-7 max-w-[140px] rounded-md border border-input bg-background px-1.5 text-[11px] font-medium focus:outline-none focus:ring-1 focus:ring-ring"
         >
           {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.display_name} ({u.roles.join(', ')})
-            </option>
+            <option key={u.id} value={u.id}>{u.display_name}</option>
           ))}
         </select>
 
-        {/* Language selector */}
+        {/* Language */}
         <select
           value={i18n.language}
           onChange={(e) => changeLanguage(e.target.value)}
-          className="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-7 rounded-md border border-input bg-background px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-ring"
         >
           {SUPPORTED_LANGUAGES.map((l) => (
-            <option key={l.code} value={l.code}>
-              {l.label}
-            </option>
+            <option key={l.code} value={l.code}>{l.label}</option>
           ))}
         </select>
 
-        {/* Theme toggle */}
-        <Button variant="ghost" size="sm" onClick={toggle} className="h-8 w-8 p-0">
-          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        {/* Theme */}
+        <Button variant="ghost" size="sm" onClick={toggle} className="h-7 w-7 p-0">
+          {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
         </Button>
 
-        {/* Current user info */}
-        <div className="hidden items-center gap-1.5 rounded-md bg-muted px-2 py-1 sm:flex">
-          <User className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium">{currentUser?.display_name}</span>
+        {/* User avatar */}
+        <div className="hidden sm:flex h-7 items-center gap-1.5 rounded-md bg-primary/5 px-2">
+          <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center">
+            <User className="h-3 w-3 text-primary" />
+          </div>
+          <span className="text-[11px] font-medium max-w-[100px] truncate">{currentUser?.display_name}</span>
         </div>
       </div>
     </header>

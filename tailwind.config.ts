@@ -13,9 +13,8 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
         arabic: ['"IBM Plex Sans Arabic"', 'system-ui', 'sans-serif'],
-        display: ['"Playfair Display"', '"IBM Plex Sans Arabic"', 'serif'],
       },
       colors: {
         border: 'hsl(var(--border))',

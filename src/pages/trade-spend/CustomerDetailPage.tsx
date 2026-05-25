@@ -409,52 +409,35 @@ export function CustomerDetailPage() {
 
   function buildExportData() {
     if (!customer) return null;
-    const campaignRows = campaignsWithMetrics.map(({ campaign: c, metrics: m }) => ({
-      id: c.id,
-      customerName: customer.name,
-      spendType: spendTypesMap.get(c.spend_type) || c.spend_type,
-      duration: c.duration_key,
-      spendAmount: c.spend_amount,
-      roshenPct: c.roshen_pct,
-      roshenShare: m.roshen_share,
-      distributorShare: m.distributor_share,
-      beforeValue: m.selected_before_value,
-      afterValue: m.selected_after_value,
-      upliftValue: m.uplift_value,
-      upliftPct: m.uplift_pct,
-      roiTotal: m.roi_total,
-      roiRoshen: m.roi_roshen,
-      spendToSales: m.spend_to_sales_pct,
-      annualizedRoi: m.annualized_roi_roshen,
-      paybackDays: m.payback_days,
-      status: c.status,
-      resultStatus: m.result_status,
-    }));
-    const totalSpend = campaignsWithMetrics.reduce((s, { campaign: c }) => s + c.spend_amount, 0);
-    const roshenShare = campaignsWithMetrics.reduce((s, { metrics: m }) => s + m.roshen_share, 0);
-    const distributorShare = campaignsWithMetrics.reduce((s, { metrics: m }) => s + m.distributor_share, 0);
-    const salesBefore = campaignsWithMetrics.reduce((s, { metrics: m }) => s + m.selected_before_value, 0);
-    const salesAfter = campaignsWithMetrics.reduce((s, { metrics: m }) => s + m.selected_after_value, 0);
-    const uplift = salesAfter - salesBefore;
+    const storeUsers = useTradeSpendStore.getState().users;
+    const storeItems = useTradeSpendStore.getState().items;
+    const campaignExports = customerCampaigns.map((c) => {
+      const creator = storeUsers.find((u) => u.id === c.created_by);
+      return {
+        id: c.id,
+        customerName: customer.name,
+        customerAccount: customer.account,
+        classification: c.classification || customer.classification || '',
+        spendType: spendTypesMap.get(c.spend_type) || c.spend_type,
+        duration: c.duration_key === 'none' ? 'Open-ended' : c.duration_key,
+        items: c.item_ids.map((id) => storeItems.find((i) => i.id === id)?.description || id),
+        spendAmount: c.spend_amount,
+        roshenPct: c.roshen_pct,
+        roshenShare: c.spend_amount * c.roshen_pct / 100,
+        distributorShare: c.spend_amount * (100 - c.roshen_pct) / 100,
+        startDate: c.start_date,
+        status: c.status,
+        createdBy: creator?.display_name || c.created_by,
+        createdAt: c.created_at,
+        approvedDistributorAt: c.approved_distributor_at,
+        approvedRoshenAt: c.approved_roshen_at,
+        branches: c.branches.map((b) => ({ name: b.branch_name, photoUrl: b.photo_url })),
+      };
+    });
     return {
-      title: `${customer.name} — Trade Spend Report`,
+      title: `${customer.name} — Trade Spend Requests`,
       date: new Date().toISOString().substring(0, 10),
-      customers: [{
-        account: customer.account,
-        name: customer.name,
-        classification: customer.classification || '',
-        campaignCount: customerCampaigns.length,
-        totalSpend,
-        roshenShare,
-        distributorShare,
-        salesBefore,
-        salesAfter,
-        uplift,
-        roiTotal: totalSpend ? ((uplift - totalSpend) / totalSpend) * 100 : null,
-        roiRoshen: roshenShare ? ((uplift - roshenShare) / roshenShare) * 100 : null,
-        spendToSales: salesAfter ? (roshenShare / salesAfter) * 100 : null,
-      }],
-      campaigns: campaignRows,
+      campaigns: campaignExports,
     };
   }
 
