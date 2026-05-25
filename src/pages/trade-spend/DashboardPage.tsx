@@ -56,14 +56,8 @@ interface CampaignWithMetrics {
   metrics: CampaignMetrics;
 }
 
-interface GroupedROI {
-  name: string;
-  avgRoi: number;
-  count: number;
-}
-
 interface AlertItem {
-  type: 'expiring' | 'zeroUplift' | 'cannibalization' | 'repeatedNegative';
+  type: 'expiring';
   campaignId?: string;
   customerAccount?: string;
   label: string;
