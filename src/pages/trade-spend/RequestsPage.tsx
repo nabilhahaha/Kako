@@ -162,6 +162,15 @@ export function RequestsPage() {
   const canApproveRoshen = (c: typeof campaigns[0]) =>
     (isRoshenApprover || isAdmin) && c.status === 'pending_roshen';
 
+  const canUploadPhotos = (c: typeof campaigns[0]) =>
+    (isDeptManager || isDistributorTM || isAdmin) && c.status === 'approved_pending_photos';
+
+  const canSubmitPhotos = (c: typeof campaigns[0]) =>
+    canUploadPhotos(c) && allBranchPhotosPresent(c);
+
+  const canFinalApprove = (c: typeof campaigns[0]) =>
+    (isRoshenApprover || isAdmin) && c.status === 'photos_submitted';
+
   const allBranchPhotosPresent = (c: typeof campaigns[0]) =>
     c.branches.length === 0 || c.branches.every((b) => b.photo_url);
 
@@ -237,7 +246,9 @@ export function RequestsPage() {
   const handleRequestChanges = (campaignId: string) => {
     const campaign = campaigns.find((c) => c.id === campaignId);
     if (!campaign) return;
-    if (campaign.status === 'pending_roshen') {
+    if (campaign.status === 'photos_submitted') {
+      updateCampaignStatus(campaignId, 'approved_pending_photos');
+    } else if (campaign.status === 'pending_roshen') {
       updateCampaignStatus(campaignId, 'pending_distributor');
     } else if (campaign.status === 'pending_distributor') {
       updateCampaignStatus(campaignId, 'changes_requested');
@@ -543,8 +554,7 @@ export function RequestsPage() {
                             <Button
                               size="sm"
                               onClick={() => handleApproveDistributor(campaign.id)}
-                              disabled={!photosOk && campaign.branches.length > 0}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
                             >
                               <CheckCircle className="me-1.5 h-3.5 w-3.5" />
                               {t('workflow.approveForward')}
@@ -558,6 +568,14 @@ export function RequestsPage() {
                               <ArrowLeft className="me-1.5 h-3.5 w-3.5" />
                               {t('workflow.returnToManager')}
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-700 text-red-700"
+                              onClick={() => handleReject(campaign.id)}
+                            >
+                              {t('workflow.reject')}
+                            </Button>
                           </>
                         )}
 
@@ -569,7 +587,7 @@ export function RequestsPage() {
                               className="bg-emerald-600 hover:bg-emerald-700 text-white"
                             >
                               <CheckCircle className="me-1.5 h-3.5 w-3.5" />
-                              {t('common.approve')}
+                              {t('workflow.approveBudget')}
                             </Button>
                             <Button
                               size="sm"
@@ -578,6 +596,53 @@ export function RequestsPage() {
                               onClick={() => handleRequestChanges(campaign.id)}
                             >
                               {t('workflow.requestChanges')}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-700 text-red-700"
+                              onClick={() => handleReject(campaign.id)}
+                            >
+                              {t('workflow.reject')}
+                            </Button>
+                          </>
+                        )}
+
+                        {canSubmitPhotos(campaign) && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleSubmitPhotos(campaign.id)}
+                            className="bg-violet-600 hover:bg-violet-700 text-white"
+                          >
+                            {t('workflow.submitPhotos')}
+                          </Button>
+                        )}
+
+                        {canFinalApprove(campaign) && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleFinalApprove(campaign.id)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                            >
+                              <CheckCircle className="me-1.5 h-3.5 w-3.5" />
+                              {t('workflow.finalApprove')}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-amber-600 text-amber-600"
+                              onClick={() => handleRequestChanges(campaign.id)}
+                            >
+                              {t('workflow.returnForPhotos')}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-700 text-red-700"
+                              onClick={() => handleReject(campaign.id)}
+                            >
+                              {t('workflow.reject')}
                             </Button>
                           </>
                         )}

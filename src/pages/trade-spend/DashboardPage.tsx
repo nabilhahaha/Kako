@@ -1,22 +1,11 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
-import {
   AlertTriangle,
   TrendingUp,
   TrendingDown,
   DollarSign,
-  PieChart,
   Clock,
-  Activity,
   BarChart3,
   FileWarning,
   Users,
@@ -37,11 +26,6 @@ function formatSAR(value: number): string {
   return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} SAR`;
 }
 
-function formatPct(value: number | null): string {
-  if (value == null) return '--';
-  return `${value.toFixed(1)}%`;
-}
-
 function valueColorClass(value: number): string {
   if (value > 0) return 'value-positive';
   if (value < 0) return 'value-negative';
@@ -56,8 +40,11 @@ const STATUS_BADGE_VARIANT: Record<CampaignStatus, 'secondary' | 'warning' | 'in
   draft: 'secondary',
   pending_distributor: 'warning',
   pending_roshen: 'info',
-  approved: 'success',
+  approved_pending_photos: 'info',
+  photos_submitted: 'info',
+  final_approved: 'success',
   changes_requested: 'destructive',
+  rejected: 'destructive',
 };
 
 // ---------------------------------------------------------------------------
