@@ -628,6 +628,142 @@ function formatTimeAgo(dateStr: string): string {
   return `${diffMonths}mo ago`;
 }
 
+function exportUnifiedExcel(allDistData: DistributorFullData[], grandTotals: { totalSpend: number; totalCampaigns: number; totalCustomers: number; activeCampaigns: number }) {
+  import('xlsx').then((XLSX) => {
+    const summaryRows = allDistData.map(d => ({
+      Distributor: d.distName,
+      Campaigns: d.campaignCount,
+      Customers: d.customerCount,
+      'Total Spend (SAR)': d.totalSpend,
+      'Active Campaigns': d.activeCampaigns,
+      'Top Customer': d.topCustomerName || '',
+    }));
+    summaryRows.push({ Distributor: 'TOTAL', Campaigns: grandTotals.totalCampaigns, Customers: grandTotals.totalCustomers, 'Total Spend (SAR)': grandTotals.totalSpend, 'Active Campaigns': grandTotals.activeCampaigns, 'Top Customer': '' });
+
+    const custRows: Record<string, unknown>[] = [];
+    for (const dd of allDistData) {
+      const custCampaigns = new Map<string, any[]>();
+      for (const c of dd.campaigns) { const l = custCampaigns.get(c.account) || []; l.push(c); custCampaigns.set(c.account, l); }
+      for (const cust of dd.customers) {
+        const cc = custCampaigns.get(cust.account);
+        if (!cc || cc.length === 0) continue;
+        custRows.push({ Distributor: dd.distName, Customer: cust.name, Account: cust.account, Classification: (cust as any).classification || '', Campaigns: cc.length, 'Spend (SAR)': cc.reduce((s: number, c: any) => s + (c.spend_amount || 0), 0) });
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(summaryRows);
+    ws1['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 16 }, { wch: 25 }];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+    const ws2 = XLSX.utils.json_to_sheet(custRows);
+    ws2['!cols'] = [{ wch: 18 }, { wch: 25 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Customers');
+    XLSX.writeFile(wb, `Executive_Dashboard_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }).catch(() => alert('Excel export failed'));
+}
+
+function exportUnifiedPDF(allDistData: DistributorFullData[], grandTotals: { totalSpend: number; totalCampaigns: number; totalCustomers: number; activeCampaigns: number }) {
+  import('jspdf').then(({ default: jsPDF }) => {
+    import('jspdf-autotable').then(({ default: autoTable }) => {
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+      const maroon = '#7A1D2E';
+
+      doc.setFillColor(maroon);
+      doc.rect(0, 0, 297, 18, 'F');
+      doc.setTextColor('#FFFFFF');
+      doc.setFontSize(14);
+      doc.text('ROSHEN — Executive Trade Spend Report', 14, 12);
+      doc.setFontSize(9);
+      doc.text(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }), 260, 12);
+
+      doc.setTextColor('#1a1a1a');
+      doc.setFontSize(11);
+      doc.text('Grand Totals', 14, 28);
+      doc.setFontSize(9);
+      doc.text(`Total Spend: SAR ${grandTotals.totalSpend.toLocaleString()}`, 14, 34);
+      doc.text(`Total Campaigns: ${grandTotals.totalCampaigns}`, 90, 34);
+      doc.text(`Total Customers: ${grandTotals.totalCustomers}`, 160, 34);
+      doc.text(`Active: ${grandTotals.activeCampaigns}`, 230, 34);
+
+      autoTable(doc, {
+        startY: 42,
+        head: [['Distributor', 'Campaigns', 'Customers', 'Spend (SAR)', 'Active', 'Top Customer']],
+        body: allDistData.map(d => [d.distName, d.campaignCount, d.customerCount, d.totalSpend.toLocaleString(), d.activeCampaigns, d.topCustomerName || '']),
+        headStyles: { fillColor: maroon, fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        alternateRowStyles: { fillColor: '#F9F5F6' },
+      });
+
+      const custRows: string[][] = [];
+      for (const dd of allDistData) {
+        const custCampaigns = new Map<string, any[]>();
+        for (const c of dd.campaigns) { const l = custCampaigns.get(c.account) || []; l.push(c); custCampaigns.set(c.account, l); }
+        for (const cust of dd.customers) {
+          const cc = custCampaigns.get(cust.account);
+          if (!cc || cc.length === 0) continue;
+          custRows.push([dd.distName, cust.name, (cust as any).classification || '', String(cc.length), cc.reduce((s: number, c: any) => s + (c.spend_amount || 0), 0).toLocaleString()]);
+        }
+      }
+      custRows.sort((a, b) => parseFloat(b[4].replace(/,/g, '')) - parseFloat(a[4].replace(/,/g, '')));
+
+      doc.addPage();
+      doc.setFillColor(maroon);
+      doc.rect(0, 0, 297, 18, 'F');
+      doc.setTextColor('#FFFFFF');
+      doc.setFontSize(14);
+      doc.text('Customer Summary — All Distributors', 14, 12);
+
+      autoTable(doc, {
+        startY: 24,
+        head: [['Distributor', 'Customer', 'Classification', 'Campaigns', 'Spend (SAR)']],
+        body: custRows,
+        headStyles: { fillColor: maroon, fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        alternateRowStyles: { fillColor: '#F9F5F6' },
+      });
+
+      doc.save(`Executive_Dashboard_${new Date().toISOString().slice(0, 10)}.pdf`);
+    });
+  }).catch(() => alert('PDF export failed'));
+}
+
+function exportUnifiedPPTX(allDistData: DistributorFullData[], grandTotals: { totalSpend: number; totalCampaigns: number; totalCustomers: number; activeCampaigns: number }) {
+  import('pptxgenjs').then(({ default: PptxGenJS }) => {
+    const pptx = new PptxGenJS();
+    const maroon = '7A1D2E';
+
+    const slide1 = pptx.addSlide();
+    slide1.background = { color: maroon };
+    slide1.addText('Roshen Trade Spend\nExecutive Report', { x: 1, y: 1.5, w: 8, h: 2, fontSize: 32, color: 'FFFFFF', bold: true, align: 'center' });
+    slide1.addText(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }), { x: 1, y: 3.8, w: 8, h: 0.5, fontSize: 14, color: 'D4A843', align: 'center' });
+    slide1.addText('Confidential', { x: 1, y: 4.5, w: 8, h: 0.4, fontSize: 10, color: 'CCCCCC', align: 'center' });
+
+    const slide2 = pptx.addSlide();
+    slide2.addText('Grand Totals', { x: 0.5, y: 0.3, w: 9, h: 0.5, fontSize: 20, color: maroon, bold: true });
+    const kpis = [
+      { label: 'Total Spend', value: `SAR ${grandTotals.totalSpend.toLocaleString()}` },
+      { label: 'Campaigns', value: String(grandTotals.totalCampaigns) },
+      { label: 'Customers', value: String(grandTotals.totalCustomers) },
+      { label: 'Active', value: String(grandTotals.activeCampaigns) },
+    ];
+    kpis.forEach((kpi, i) => {
+      slide2.addShape('roundRect' as any, { x: 0.3 + i * 2.4, y: 1.2, w: 2.2, h: 1.2, fill: { color: 'F5F5F5' }, rectRadius: 0.1 });
+      slide2.addText(kpi.label, { x: 0.3 + i * 2.4, y: 1.3, w: 2.2, h: 0.4, fontSize: 10, color: '6B7280', align: 'center' });
+      slide2.addText(kpi.value, { x: 0.3 + i * 2.4, y: 1.7, w: 2.2, h: 0.6, fontSize: 18, color: maroon, bold: true, align: 'center' });
+    });
+
+    slide2.addTable(
+      [
+        [{ text: 'Distributor', options: { bold: true, color: 'FFFFFF', fill: { color: maroon } } }, { text: 'Campaigns', options: { bold: true, color: 'FFFFFF', fill: { color: maroon } } }, { text: 'Customers', options: { bold: true, color: 'FFFFFF', fill: { color: maroon } } }, { text: 'Spend (SAR)', options: { bold: true, color: 'FFFFFF', fill: { color: maroon } } }, { text: 'Top Customer', options: { bold: true, color: 'FFFFFF', fill: { color: maroon } } }],
+        ...allDistData.map(d => [d.distName, String(d.campaignCount), String(d.customerCount), d.totalSpend.toLocaleString(), d.topCustomerName || ''] as any),
+      ],
+      { x: 0.3, y: 2.8, w: 9.4, fontSize: 9, border: { type: 'solid', pt: 0.5, color: 'CCCCCC' }, rowH: 0.35 },
+    );
+
+    pptx.writeFile({ fileName: `Executive_Dashboard_${new Date().toISOString().slice(0, 10)}.pptx` });
+  }).catch(() => alert('PPT export failed'));
+}
+
 function UnifiedDashboard() {
   const distributors = useTradeSpendStore((s) => s.distributors);
   const currentDistId = useTradeSpendStore((s) => s.currentDistributorId);
@@ -723,9 +859,20 @@ function UnifiedDashboard() {
             Real-time overview across {activeDistCount} active distributor{activeDistCount !== 1 ? 's' : ''}
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-xs text-muted-foreground">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          Live Data
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => exportUnifiedExcel(allDistData, grandTotals)} className="flex items-center gap-1.5 rounded-lg border bg-card px-3 py-2 text-xs font-medium hover:bg-muted transition-colors">
+            <DollarSign className="h-3.5 w-3.5" /> Excel
+          </button>
+          <button onClick={() => exportUnifiedPDF(allDistData, grandTotals)} className="flex items-center gap-1.5 rounded-lg border bg-card px-3 py-2 text-xs font-medium hover:bg-muted transition-colors">
+            <Layers className="h-3.5 w-3.5" /> PDF
+          </button>
+          <button onClick={() => exportUnifiedPPTX(allDistData, grandTotals)} className="flex items-center gap-1.5 rounded-lg border bg-card px-3 py-2 text-xs font-medium hover:bg-muted transition-colors">
+            <BarChart3 className="h-3.5 w-3.5" /> PPT
+          </button>
+          <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-xs text-muted-foreground">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            Live Data
+          </div>
         </div>
       </header>
 
