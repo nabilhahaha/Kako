@@ -1,34 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 222 47% 11%;
+    --background: 220 16% 96%;
+    --foreground: 220 25% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 220 25% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 220 25% 10%;
 
-    --primary: 0 72% 51%;
+    --primary: 348 68% 28%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 220 25% 15%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 10% 46%;
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 42 82% 50%;
+    --accent-foreground: 220 25% 10%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 84% 39%;
+    --success: 158 64% 36%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
@@ -37,11 +39,62 @@
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 0 72% 51%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 348 68% 28%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
+
+    --gold: 42 82% 50%;
+    --gold-foreground: 220 25% 10%;
+    --maroon: 348 68% 28%;
+    --maroon-light: 348 50% 40%;
+    --cream: 220 16% 96%;
+  }
+
+  .dark {
+    --background: 222 20% 7%;
+    --foreground: 210 20% 93%;
+
+    --card: 222 18% 10%;
+    --card-foreground: 210 20% 93%;
+
+    --popover: 222 18% 10%;
+    --popover-foreground: 210 20% 93%;
+
+    --primary: 348 55% 42%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 14% 15%;
+    --secondary-foreground: 210 20% 88%;
+
+    --muted: 222 12% 16%;
+    --muted-foreground: 210 10% 55%;
+
+    --accent: 42 72% 46%;
+    --accent-foreground: 222 25% 8%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 158 52% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 80% 48%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 217 80% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 222 12% 18%;
+    --input: 222 12% 18%;
+    --ring: 348 55% 42%;
+
+    --gold: 42 72% 46%;
+    --gold-foreground: 222 25% 8%;
+    --maroon: 348 55% 42%;
+    --maroon-light: 348 45% 52%;
+    --cream: 222 20% 7%;
   }
 
   * {
@@ -52,60 +105,104 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-size: 15px;
+    scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-background text-foreground font-arabic;
-    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+    letter-spacing: -0.01em;
+    -webkit-tap-highlight-color: transparent;
   }
 
   [dir='rtl'] body {
-    @apply font-arabic;
+    font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
   }
 
   [dir='ltr'] body {
-    @apply font-sans;
+    font-family: 'DM Sans', system-ui, sans-serif;
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    @apply outline-none ring-2 ring-ring/40 ring-offset-1 ring-offset-background;
   }
 
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  select, input, textarea {
+    font-family: inherit;
   }
 
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/30; }
+}
+
+@layer components {
+  .heading-display {
+    @apply text-[28px] leading-9 font-bold tracking-tight;
   }
 
-  ::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-full;
+  .heading-1 {
+    @apply text-[22px] leading-7 font-semibold tracking-tight;
   }
 
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/40;
+  .heading-2 {
+    @apply text-lg font-semibold tracking-tight;
+  }
+
+  .heading-3 {
+    @apply text-[15px] font-semibold;
+  }
+
+  .kpi-value {
+    @apply text-2xl font-bold tracking-tight tabular-nums;
+  }
+
+  .value-positive { @apply text-success; }
+  .value-negative { @apply text-destructive; }
+  .gold-accent { color: hsl(var(--gold)); }
+
+  .bg-gold {
+    background-color: hsl(var(--gold));
+    color: hsl(var(--gold-foreground));
+  }
+
+  .bg-maroon {
+    background-color: hsl(var(--maroon));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .border-gold { border-color: hsl(var(--gold)); }
+
+  .enterprise-card {
+    @apply rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md;
+  }
+
+  .stat-tile {
+    @apply rounded-lg bg-muted/50 p-3;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider;
   }
 }
 
 @layer utilities {
-  .text-display {
-    @apply text-[32px] leading-10 font-bold tracking-tight;
+  .text-display { @apply heading-display; }
+  .text-h1 { @apply heading-1; }
+  .text-h2 { @apply heading-2; }
+  .text-h3 { @apply heading-3; }
+  .text-body { @apply text-sm leading-relaxed; }
+  .text-caption { @apply text-xs text-muted-foreground; }
+  .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+  .animate-in {
+    animation: fadeSlideIn 0.3s ease-out;
   }
-  .text-h1 {
-    @apply text-2xl font-semibold tracking-tight;
-  }
-  .text-h2 {
-    @apply text-xl font-semibold;
-  }
-  .text-h3 {
-    @apply text-base font-medium;
-  }
-  .text-body {
-    @apply text-sm;
-  }
-  .text-caption {
-    @apply text-xs text-muted-foreground;
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 }

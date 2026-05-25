@@ -13,7 +13,7 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
         arabic: ['"IBM Plex Sans Arabic"', 'system-ui', 'sans-serif'],
       },
       colors: {
@@ -49,6 +49,14 @@ const config: Config = {
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
+        },
+        gold: {
+          DEFAULT: 'hsl(var(--gold))',
+          foreground: 'hsl(var(--gold-foreground))',
+        },
+        maroon: {
+          DEFAULT: 'hsl(var(--maroon))',
+          light: 'hsl(var(--maroon-light))',
         },
         success: {
           DEFAULT: 'hsl(var(--success))',
