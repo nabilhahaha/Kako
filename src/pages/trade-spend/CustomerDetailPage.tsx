@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   FileText,
   Presentation,
-  AlertTriangle,
   Clock,
   Camera,
   Package,
@@ -30,19 +29,9 @@ function formatSAR(n: number): string {
   return `﷼ ${n.toLocaleString('en-SA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-function formatPct(n: number | null): string {
-  if (n == null) return '--';
-  return `${n.toFixed(1)}%`;
-}
-
 function formatNumber(n: number | null): string {
   if (n == null) return '--';
   return n.toLocaleString('en-SA', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function formatSARValue(n: number | null): string {
-  if (n == null) return '--';
-  return `﷼ ${n.toLocaleString('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function valueColorClass(value: number | null): string {
