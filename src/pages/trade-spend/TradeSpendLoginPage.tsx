@@ -12,11 +12,16 @@ export function TradeSpendLoginPage() {
   const navigate = useNavigate();
   const users = useTradeSpendStore((s) => s.users);
   const setCurrentUser = useTradeSpendStore((s) => s.setCurrentUser);
+  const distributors = useTradeSpendStore((s) => s.distributors);
+  const setCurrentDistributor = useTradeSpendStore((s) => s.setCurrentDistributor);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [selectedDistId, setSelectedDistId] = useState(
+    distributors.find((d) => d.active)?.id || '',
+  );
 
   const handleLogin = () => {
     setError('');
@@ -36,6 +41,7 @@ export function TradeSpendLoginPage() {
       return;
     }
     setCurrentUser(user);
+    setCurrentDistributor(selectedDistId);
     navigate('/trade-spend');
   };
 
@@ -82,6 +88,22 @@ export function TradeSpendLoginPage() {
               {error}
             </div>
           )}
+
+          {/* Step 1: Choose Distributor */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Distributor
+            </label>
+            <select
+              value={selectedDistId}
+              onChange={(e) => setSelectedDistId(e.target.value)}
+              className="flex h-11 w-full appearance-none rounded-xl border border-input bg-background px-3 text-sm font-medium shadow-sm"
+            >
+              {distributors.filter(d => d.active).map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

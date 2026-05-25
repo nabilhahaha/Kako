@@ -19,6 +19,9 @@ export function TradeSpendTopBar() {
   const { isDark, toggle } = useTheme();
   const currentUser = useTradeSpendStore((s) => s.currentUser);
   const setCurrentUser = useTradeSpendStore((s) => s.setCurrentUser);
+  const distributors = useTradeSpendStore((s) => s.distributors);
+  const currentDistributorId = useTradeSpendStore((s) => s.currentDistributorId);
+  const setCurrentDistributor = useTradeSpendStore((s) => s.setCurrentDistributor);
   const navigate = useNavigate();
 
   const changeLanguage = (lng: string) => {
@@ -34,12 +37,23 @@ export function TradeSpendTopBar() {
 
   return (
     <header className="flex h-12 items-center justify-between border-b bg-card px-3 sm:px-4">
-      {/* Left: Logo (mobile only) */}
-      <div className="flex items-center gap-2 lg:hidden">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-maroon">
-          <span className="text-xs font-bold text-white">R</span>
+      {/* Left: Logo (mobile only) + Distributor selector */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-maroon">
+            <span className="text-xs font-bold text-white">R</span>
+          </div>
+          <span className="text-sm font-semibold">{t('common.appName')}</span>
         </div>
-        <span className="text-sm font-semibold">{t('common.appName')}</span>
+        <select
+          value={currentDistributorId || ''}
+          onChange={(e) => setCurrentDistributor(e.target.value)}
+          className="h-7 rounded-md border border-input bg-background px-1.5 text-[11px] font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          {distributors.filter(d => d.active).map(d => (
+            <option key={d.id} value={d.id}>{d.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Right: Controls */}

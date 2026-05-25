@@ -9,6 +9,7 @@ import type {
   CampaignStatus,
   ColumnMappingConfig,
   WorkflowEvent,
+  Distributor,
 } from '@/lib/trade-spend/types';
 import {
   DEMO_USERS,
@@ -37,9 +38,17 @@ interface TradeSpendState {
   latestDataDate: string;
   classifications: string[];
   skipDistributorApproval: boolean;
+  distributors: Distributor[];
+  currentDistributorId: string | null;
 
   setCurrentUser: (user: TradeSpendUser | null) => void;
   switchRole: (userId: string) => void;
+
+  // Distributors CRUD
+  addDistributor: (d: Omit<Distributor, 'id' | 'created_at'>) => void;
+  updateDistributor: (id: string, updates: Partial<Distributor>) => void;
+  deleteDistributor: (id: string) => void;
+  setCurrentDistributor: (id: string | null) => void;
 
   // Users CRUD
   addUser: (user: Omit<TradeSpendUser, 'id' | 'created_at'>) => void;
@@ -150,6 +159,13 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
     '1970-01-01',
   )),
   skipDistributorApproval: loadOrDefault('skipDistributorApproval', false),
+  distributors: loadOrDefault('distributors', [
+    { id: 'dist-relaia', name: 'Relaia', code: 'REL', active: true, created_at: '2026-01-01' },
+    { id: 'dist-tofola', name: 'Tofola', code: 'TOF', active: true, created_at: '2026-01-01' },
+    { id: 'dist-gulf', name: 'Gulf Food Supply', code: 'GFS', active: true, created_at: '2026-01-01' },
+    { id: 'dist-tala', name: 'Tala', code: 'TAL', active: true, created_at: '2026-01-01' },
+  ]),
+  currentDistributorId: loadOrDefault('currentDistributorId', 'dist-relaia'),
 
   setCurrentUser: (user) => set({ currentUser: user }),
   switchRole: (userId) => {
@@ -176,6 +192,27 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   deleteUser: (id) => {
     set((s) => ({ users: s.users.filter((u) => u.id !== id) }));
   },
+
+  addDistributor: (d) => {
+    const newDist: Distributor = {
+      ...d,
+      id: `dist-${generateId()}`,
+      created_at: new Date().toISOString(),
+    };
+    set((s) => ({ distributors: [...s.distributors, newDist] }));
+  },
+
+  updateDistributor: (id, updates) => {
+    set((s) => ({
+      distributors: s.distributors.map((d) => (d.id === id ? { ...d, ...updates } : d)),
+    }));
+  },
+
+  deleteDistributor: (id) => {
+    set((s) => ({ distributors: s.distributors.filter((d) => d.id !== id) }));
+  },
+
+  setCurrentDistributor: (id) => set({ currentDistributorId: id }),
 
   setTransactions: (txns) => set({ transactions: txns }),
   setCustomers: (custs) => set({ customers: custs }),
@@ -396,7 +433,7 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
 }));
 
 // Persist to localStorage on changes
-const PERSIST_KEYS = ['currentUser', 'users', 'customers', 'items', 'transactions', 'campaigns', 'workflowEvents', 'spendTypes', 'latestDataDate'] as const;
+const PERSIST_KEYS = ['currentUser', 'users', 'customers', 'items', 'transactions', 'campaigns', 'workflowEvents', 'spendTypes', 'latestDataDate', 'distributors', 'currentDistributorId'] as const;
 
 useTradeSpendStore.subscribe((state, prevState) => {
   for (const key of PERSIST_KEYS) {

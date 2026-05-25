@@ -15,6 +15,7 @@ import {
   Users,
   ChevronRight,
   Upload,
+  Building2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,24 @@ export function SettingsPage() {
   const deleteMappingConfig = useTradeSpendStore((s) => s.deleteMappingConfig);
 
   const customers = useTradeSpendStore((s) => s.customers);
+
+  const currentUser = useTradeSpendStore((s) => s.currentUser);
+  const distributors = useTradeSpendStore((s) => s.distributors);
+  const addDistributor = useTradeSpendStore((s) => s.addDistributor);
+  const updateDistributor = useTradeSpendStore((s) => s.updateDistributor);
+  const deleteDistributor = useTradeSpendStore((s) => s.deleteDistributor);
+
+  const canManageDistributors = currentUser?.roles.some(
+    (r) => r === 'roshen_approver' || r === 'admin',
+  );
+
+  /* --- Distributors local state --- */
+  const [newDistName, setNewDistName] = useState('');
+  const [newDistCode, setNewDistCode] = useState('');
+  const [editingDistId, setEditingDistId] = useState<string | null>(null);
+  const [editingDistName, setEditingDistName] = useState('');
+  const [editingDistCode, setEditingDistCode] = useState('');
+  const [deletingDistId, setDeletingDistId] = useState<string | null>(null);
 
   /* --- Spend Types local state --- */
   const [newSpendTypeName, setNewSpendTypeName] = useState('');

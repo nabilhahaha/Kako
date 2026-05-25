@@ -6,6 +6,14 @@ export type TradeSpendRole =
   | 'viewer'                 // Read-only viewer
   | 'admin';                 // Admin (upload data, manage users)
 
+export interface Distributor {
+  id: string;
+  name: string;
+  code: string;
+  active: boolean;
+  created_at: string;
+}
+
 export interface TradeSpendUser {
   id: string;
   email: string;
