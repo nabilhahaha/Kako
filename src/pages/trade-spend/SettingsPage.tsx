@@ -31,6 +31,9 @@ export function SettingsPage() {
   const navigate = useNavigate();
 
   /* --- Store --- */
+  const skipDistributor = useTradeSpendStore((s) => s.skipDistributorApproval);
+  const setSkipDistributorApproval = useTradeSpendStore((s) => s.setSkipDistributorApproval);
+
   const spendTypes = useTradeSpendStore((s) => s.spendTypes);
   const addSpendType = useTradeSpendStore((s) => s.addSpendType);
   const updateSpendType = useTradeSpendStore((s) => s.updateSpendType);
@@ -158,6 +161,33 @@ export function SettingsPage() {
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </button>
       </div>
+
+      {/* ============================================================ */}
+      {/*  Section 0: Workflow Configuration                           */}
+      {/* ============================================================ */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="heading-2">Workflow Configuration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <p className="text-sm font-medium">Trade Marketing Approval</p>
+              <p className="text-xs text-muted-foreground">
+                {skipDistributor
+                  ? 'Disabled — requests go directly from Manager to Roshen'
+                  : 'Enabled — requests pass through Trade Marketing first'}
+              </p>
+            </div>
+            <button
+              onClick={() => setSkipDistributorApproval(!skipDistributor)}
+              className={`relative h-6 w-11 rounded-full transition-colors ${skipDistributor ? 'bg-muted' : 'bg-primary'}`}
+            >
+              <span className={`block h-5 w-5 rounded-full bg-white shadow transition-transform ${skipDistributor ? 'translate-x-0.5' : 'translate-x-[22px]'}`} />
+            </button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ============================================================ */}
       {/*  Section 1: Spend Types                                      */}

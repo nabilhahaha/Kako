@@ -81,6 +81,8 @@ export function RequestsPage() {
   const updateCampaign = useTradeSpendStore((s) => s.updateCampaign);
   const addWorkflowEvent = useTradeSpendStore((s) => s.addWorkflowEvent);
 
+  const skipDistributor = useTradeSpendStore((s) => s.skipDistributorApproval);
+
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -175,7 +177,8 @@ export function RequestsPage() {
     c.branches.length === 0 || c.branches.every((b) => b.photo_url);
 
   const handleSubmit = (campaignId: string) => {
-    updateCampaignStatus(campaignId, 'pending_distributor');
+    const targetStatus = skipDistributor ? 'pending_roshen' : 'pending_distributor';
+    updateCampaignStatus(campaignId, targetStatus);
     addWorkflowEvent({
       campaign_id: campaignId,
       actor_user_id: currentUser?.id || '',

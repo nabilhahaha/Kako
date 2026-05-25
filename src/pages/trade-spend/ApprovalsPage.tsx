@@ -113,6 +113,8 @@ export function ApprovalsPage() {
   const updateCampaign = useTradeSpendStore((s) => s.updateCampaign);
   const addWorkflowEvent = useTradeSpendStore((s) => s.addWorkflowEvent);
 
+  const skipDistributor = useTradeSpendStore((s) => s.skipDistributorApproval);
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
 
@@ -524,7 +526,7 @@ export function ApprovalsPage() {
                   </Button>
 
                   {canSubmit && (
-                    <Button size="sm" className="h-8 text-xs bg-primary" onClick={() => doAction(campaign.id, 'pending_distributor', 'submitted')}>
+                    <Button size="sm" className="h-8 text-xs bg-primary" onClick={() => doAction(campaign.id, skipDistributor ? 'pending_roshen' : 'pending_distributor', 'submitted')}>
                       <Send className="me-1 h-3 w-3" />
                       {t('campaign.submitForApproval')}
                     </Button>

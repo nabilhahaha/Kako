@@ -36,6 +36,7 @@ interface TradeSpendState {
   savedMappings: SavedColumnMapping[];
   latestDataDate: string;
   classifications: string[];
+  skipDistributorApproval: boolean;
 
   setCurrentUser: (user: TradeSpendUser | null) => void;
   switchRole: (userId: string) => void;
@@ -67,6 +68,8 @@ interface TradeSpendState {
 
   addWorkflowEvent: (event: Omit<WorkflowEvent, 'id' | 'timestamp'>) => void;
 
+  setSkipDistributorApproval: (skip: boolean) => void;
+
   saveMappingConfig: (name: string, mapping: Partial<ColumnMappingConfig>) => void;
   deleteMappingConfig: (name: string) => void;
 
@@ -74,6 +77,14 @@ interface TradeSpendState {
     rows: Record<string, unknown>[],
     mapping: Partial<ColumnMappingConfig>,
   ) => { summary: { total_rows: number; valid_rows: number; dropped_rows: number; customers_count: number; items_count: number; date_range: { min: string; max: string } } };
+}
+
+function loadOrDefault<T>(key: string, fallback: T): T {
+  try {
+    const stored = localStorage.getItem(`ts_${key}`);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return fallback;
 }
 
 function generateId(): string {
@@ -124,20 +135,21 @@ function parseNumber(val: unknown): number {
 }
 
 export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
-  currentUser: DEMO_USERS[0],
-  users: DEMO_USERS,
-  customers: [...DEMO_CUSTOMERS],
-  items: [...DEMO_ITEMS],
-  transactions: [...DEMO_TRANSACTIONS],
-  spendTypes: [...DEMO_SPEND_TYPES],
-  campaigns: [...DEMO_CAMPAIGNS],
-  workflowEvents: [],
-  savedMappings: JSON.parse(localStorage.getItem('ts_saved_mappings') || '[]'),
-  classifications: JSON.parse(localStorage.getItem('ts_classifications') || '["wholesale","discounter","roastery","grocery","sweets"]'),
-  latestDataDate: DEMO_TRANSACTIONS.reduce(
+  currentUser: loadOrDefault('currentUser', DEMO_USERS[0]),
+  users: loadOrDefault('users', DEMO_USERS),
+  customers: loadOrDefault('customers', [...DEMO_CUSTOMERS]),
+  items: loadOrDefault('items', [...DEMO_ITEMS]),
+  transactions: loadOrDefault('transactions', [...DEMO_TRANSACTIONS]),
+  spendTypes: loadOrDefault('spendTypes', [...DEMO_SPEND_TYPES]),
+  campaigns: loadOrDefault('campaigns', [...DEMO_CAMPAIGNS]),
+  workflowEvents: loadOrDefault('workflowEvents', []),
+  savedMappings: loadOrDefault('saved_mappings', []),
+  classifications: loadOrDefault('classifications', ["wholesale","discounter","roastery","grocery","sweets"]),
+  latestDataDate: loadOrDefault('latestDataDate', DEMO_TRANSACTIONS.reduce(
     (max, t) => (t.date > max ? t.date : max),
     '1970-01-01',
-  ),
+  )),
+  skipDistributorApproval: loadOrDefault('skipDistributorApproval', false),
 
   setCurrentUser: (user) => set({ currentUser: user }),
   switchRole: (userId) => {
@@ -260,6 +272,11 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
     }));
   },
 
+  setSkipDistributorApproval: (skip) => {
+    try { localStorage.setItem('ts_skipDistributorApproval', JSON.stringify(skip)); } catch { /* */ }
+    set({ skipDistributorApproval: skip });
+  },
+
   saveMappingConfig: (name, mapping) => {
     set((s) => {
       const filtered = s.savedMappings.filter((m) => m.name !== name);
@@ -377,3 +394,16 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
     return { summary };
   },
 }));
+
+// Persist to localStorage on changes
+const PERSIST_KEYS = ['currentUser', 'users', 'customers', 'items', 'transactions', 'campaigns', 'workflowEvents', 'spendTypes', 'latestDataDate'] as const;
+
+useTradeSpendStore.subscribe((state, prevState) => {
+  for (const key of PERSIST_KEYS) {
+    if (state[key] !== prevState[key]) {
+      try {
+        localStorage.setItem(`ts_${key}`, JSON.stringify(state[key]));
+      } catch { /* quota exceeded — ignore */ }
+    }
+  }
+});

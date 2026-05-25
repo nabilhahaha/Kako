@@ -61,8 +61,12 @@ export function NewRequestPage() {
   const addSpendType = useTradeSpendStore((s) => s.addSpendType);
   const updateCustomerClassification = useTradeSpendStore((s) => s.updateCustomerClassification);
 
+  const skipDistributor = useTradeSpendStore((s) => s.skipDistributorApproval);
+
   /* ---- Form state ---- */
   const [selectedAccount, setSelectedAccount] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const [classification, setClassification] = useState<string>('');
   const [customClassification, setCustomClassification] = useState('');
   const [useCustomClassification, setUseCustomClassification] = useState(false);
@@ -117,6 +121,14 @@ export function NewRequestPage() {
       )
       .slice(0, 20);
   }, [items, itemSearch]);
+
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return customers.slice(0, 20);
+    const q = customerSearch.toLowerCase();
+    return customers.filter(c =>
+      c.name.toLowerCase().includes(q) || c.account.toLowerCase().includes(q)
+    ).slice(0, 20);
+  }, [customers, customerSearch]);
 
   const durationMonths = DURATION_MAP[durationKey];
 
@@ -310,7 +322,7 @@ export function NewRequestPage() {
   ]);
 
   const buildCampaign = useCallback(
-    (status: 'draft' | 'pending_distributor'): Campaign => {
+    (status: 'draft' | 'pending_distributor' | 'pending_roshen'): Campaign => {
       const resolvedClassification = useCustomClassification
         ? customClassification.trim()
         : classification;
@@ -350,7 +362,7 @@ export function NewRequestPage() {
         status,
         created_by: currentUser?.id ?? '',
         created_at: now,
-        submitted_at: status === 'pending_distributor' ? now : undefined,
+        submitted_at: status !== 'draft' ? now : undefined,
       };
     },
     [
@@ -370,11 +382,14 @@ export function NewRequestPage() {
         return;
       }
       setValidationErrors([]);
-      const campaign = buildCampaign(status);
+      const submitStatus = status === 'pending_distributor' && skipDistributor
+        ? 'pending_roshen' as const
+        : status;
+      const campaign = buildCampaign(submitStatus);
       addCampaign(campaign);
       navigate('/trade-spend/requests');
     },
-    [validate, buildCampaign, addCampaign, navigate],
+    [validate, buildCampaign, addCampaign, navigate, skipDistributor],
   );
 
   /* ================================================================ */
@@ -406,26 +421,51 @@ export function NewRequestPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Customer dropdown */}
+            {/* Customer dropdown with search */}
             <div className="space-y-2">
               <Label>{t('campaign.customer')}</Label>
-              <select
-                value={selectedAccount}
-                onChange={(e) => {
-                  handleSelectCustomer(e.target.value);
-                }}
-                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="">{t('campaign.searchCustomer')}</option>
-                {customers
-                  .slice()
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((c) => (
-                    <option key={c.account} value={c.account}>
-                      {c.name} ({c.account})
-                    </option>
-                  ))}
-              </select>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={t('campaign.searchCustomer')}
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    if (!e.target.value) setSelectedAccount('');
+                  }}
+                  onFocus={() => setShowDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                {showDropdown && (
+                  <div className="absolute z-30 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border bg-card shadow-lg">
+                    {filteredCustomers.map((c) => (
+                      <button
+                        key={c.account}
+                        type="button"
+                        className="w-full px-3 py-2 text-start text-sm hover:bg-muted transition-colors flex justify-between"
+                        onMouseDown={() => {
+                          setSelectedAccount(c.account);
+                          setCustomerSearch(c.name);
+                          setShowDropdown(false);
+                          handleSelectCustomer(c.account);
+                        }}
+                      >
+                        <span className="font-medium truncate">{c.name}</span>
+                        <span className="text-xs text-muted-foreground ms-2">{c.account}</span>
+                      </button>
+                    ))}
+                    {filteredCustomers.length === 0 && (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">No customers found</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              {selectedAccount && (
+                <p className="text-xs text-muted-foreground">
+                  Selected: {customers.find(c => c.account === selectedAccount)?.name} ({selectedAccount})
+                </p>
+              )}
             </div>
 
             {/* Classification */}
