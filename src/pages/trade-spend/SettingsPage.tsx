@@ -130,6 +130,49 @@ export function SettingsPage() {
     setDeletingClassification(null);
   }
 
+  /* ---- Distributor handlers ---- */
+
+  function handleAddDistributor() {
+    const name = newDistName.trim();
+    const code = newDistCode.trim().toUpperCase();
+    if (!name || !code) return;
+    addDistributor({ name, code, active: true });
+    setNewDistName('');
+    setNewDistCode('');
+  }
+
+  function startEditDistributor(id: string, currentName: string, currentCode: string) {
+    setEditingDistId(id);
+    setEditingDistName(currentName);
+    setEditingDistCode(currentCode);
+  }
+
+  function saveEditDistributor() {
+    if (!editingDistId || !editingDistName.trim() || !editingDistCode.trim()) return;
+    updateDistributor(editingDistId, {
+      name: editingDistName.trim(),
+      code: editingDistCode.trim().toUpperCase(),
+    });
+    setEditingDistId(null);
+    setEditingDistName('');
+    setEditingDistCode('');
+  }
+
+  function cancelEditDistributor() {
+    setEditingDistId(null);
+    setEditingDistName('');
+    setEditingDistCode('');
+  }
+
+  function confirmDeleteDistributor(id: string) {
+    deleteDistributor(id);
+    setDeletingDistId(null);
+  }
+
+  function toggleDistributorActive(id: string, currentActive: boolean) {
+    updateDistributor(id, { active: !currentActive });
+  }
+
   /* ---- Mapping handlers ---- */
 
   function confirmDeleteMapping(name: string) {
@@ -207,6 +250,170 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ============================================================ */}
+      {/*  Section: Distributors (roshen_approver / admin only)        */}
+      {/* ============================================================ */}
+      {canManageDistributors && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Distributors
+              <Badge variant="secondary" className="ms-auto text-xs font-normal">
+                {distributors.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {distributors.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                No distributors defined.
+              </p>
+            )}
+
+            {distributors.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2"
+              >
+                {editingDistId === d.id ? (
+                  /* Inline edit mode */
+                  <>
+                    <Input
+                      value={editingDistName}
+                      onChange={(e) => setEditingDistName(e.target.value)}
+                      className="h-8 flex-1 text-sm"
+                      placeholder="Name"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEditDistributor();
+                        if (e.key === 'Escape') cancelEditDistributor();
+                      }}
+                    />
+                    <Input
+                      value={editingDistCode}
+                      onChange={(e) => setEditingDistCode(e.target.value)}
+                      className="h-8 w-20 text-sm"
+                      placeholder="Code"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEditDistributor();
+                        if (e.key === 'Escape') cancelEditDistributor();
+                      }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-success"
+                      onClick={saveEditDistributor}
+                      title="Save"
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-muted-foreground"
+                      onClick={cancelEditDistributor}
+                      title="Cancel"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : deletingDistId === d.id ? (
+                  /* Delete confirmation */
+                  <>
+                    <span className="flex-1 text-sm text-destructive font-medium">
+                      Are you sure?
+                    </span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => confirmDeleteDistributor(d.id)}
+                    >
+                      Confirm
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setDeletingDistId(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  /* Normal display */
+                  <>
+                    <span className="text-sm font-medium flex-1">{d.name}</span>
+                    <span className="text-xs text-muted-foreground">{d.code}</span>
+                    <Badge variant={d.active ? 'default' : 'secondary'}>
+                      {d.active ? 'Active' : 'Inactive'}
+                    </Badge>
+                    <button
+                      onClick={() => toggleDistributorActive(d.id, d.active)}
+                      className={`relative h-5 w-9 rounded-full transition-colors ${d.active ? 'bg-primary' : 'bg-muted'}`}
+                      title={d.active ? 'Deactivate' : 'Activate'}
+                    >
+                      <span className={`block h-4 w-4 rounded-full bg-white shadow transition-transform ${d.active ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => startEditDistributor(d.id, d.name, d.code)}
+                      title="Edit"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeletingDistId(d.id)}
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            ))}
+
+            {/* Add new distributor */}
+            <div className="flex items-center gap-2 pt-2">
+              <Input
+                value={newDistName}
+                onChange={(e) => setNewDistName(e.target.value)}
+                placeholder="Distributor name..."
+                className="h-9 flex-1 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddDistributor();
+                }}
+              />
+              <Input
+                value={newDistCode}
+                onChange={(e) => setNewDistCode(e.target.value)}
+                placeholder="Code"
+                className="h-9 w-24 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddDistributor();
+                }}
+              />
+              <Button
+                size="sm"
+                className="h-9 gap-1.5"
+                onClick={handleAddDistributor}
+                disabled={!newDistName.trim() || !newDistCode.trim()}
+              >
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ============================================================ */}
       {/*  Section 1: Spend Types                                      */}
