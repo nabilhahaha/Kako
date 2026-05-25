@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
@@ -9,6 +9,8 @@ import {
   BarChart3,
   ClipboardCheck,
   Settings,
+  LogOut,
+  Building2,
 } from 'lucide-react';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import type { TradeSpendRole } from '@/lib/trade-spend/types';
@@ -31,14 +33,71 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/trade-spend/settings', labelKey: 'Settings', icon: Settings, roles: ['admin'] },
 ];
 
+// Admin-mode nav: shows a subset of pages relevant to admin work on the selected distributor
+const ADMIN_NAV_ITEMS: NavItem[] = [
+  { to: '/trade-spend', labelKey: 'nav.dashboard', icon: LayoutDashboard, roles: ['admin', 'roshen_approver'] },
+  { to: '/trade-spend/users', labelKey: 'nav.users', icon: UsersIcon, roles: ['admin'] },
+  { to: '/trade-spend/upload', labelKey: 'nav.dataUpload', icon: Upload, roles: ['admin'] },
+  { to: '/trade-spend/customers', labelKey: 'nav.customerSummary', icon: BarChart3, roles: ['admin', 'roshen_approver'] },
+  { to: '/trade-spend/requests', labelKey: 'nav.myRequests', icon: FileText, roles: ['admin', 'roshen_approver'] },
+  { to: '/trade-spend/approvals', labelKey: 'nav.approvals', icon: ClipboardCheck, roles: ['admin', 'roshen_approver'] },
+  { to: '/trade-spend/settings', labelKey: 'Settings', icon: Settings, roles: ['admin'] },
+];
+
+// Unified dashboard nav: minimal
+const DASHBOARD_NAV_ITEMS: NavItem[] = [
+  { to: '/trade-spend', labelKey: 'nav.dashboard', icon: LayoutDashboard, roles: ['admin', 'roshen_approver'] },
+];
+
 export function TradeSpendSidebar() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const currentUser = useTradeSpendStore((s) => s.currentUser);
+  const viewMode = useTradeSpendStore((s) => s.viewMode);
+  const distributors = useTradeSpendStore((s) => s.distributors);
+  const currentDistributorId = useTradeSpendStore((s) => s.currentDistributorId);
+  const switchDistributor = useTradeSpendStore((s) => s.switchDistributor);
+  const setCurrentUser = useTradeSpendStore((s) => s.setCurrentUser);
+  const setCurrentDistributor = useTradeSpendStore((s) => s.setCurrentDistributor);
   const userRoles = currentUser?.roles || [];
 
-  const visibleItems = NAV_ITEMS.filter((item) =>
+  // Determine which nav items to show
+  let navItems: NavItem[];
+  if (viewMode === 'unified_dashboard') {
+    navItems = DASHBOARD_NAV_ITEMS;
+  } else if (viewMode === 'admin') {
+    navItems = ADMIN_NAV_ITEMS;
+  } else {
+    navItems = NAV_ITEMS;
+  }
+
+  const visibleItems = navItems.filter((item) =>
     item.roles.some((r) => userRoles.includes(r)),
   );
+
+  const handleBackToLogin = () => {
+    setCurrentUser(null);
+    navigate('/trade-spend/login');
+  };
+
+  // Admin mode: switch distributor context
+  const handleAdminDistributorSwitch = (distId: string) => {
+    // Save current state, load new distributor's data
+    switchDistributor(distId);
+    // Re-set the admin user (switchDistributor clears currentUser)
+    setCurrentUser({
+      id: 'global-admin',
+      email: 'admin@demo.com',
+      display_name: 'Global Admin',
+      roles: ['admin', 'roshen_approver'],
+      active: true,
+      password: 'Roshen2026',
+      created_at: '2026-01-01',
+    });
+    setCurrentDistributor(distId);
+  };
+
+  const currentDistName = distributors.find((d) => d.id === currentDistributorId)?.name || '';
 
   return (
     <aside className="hidden w-[220px] flex-shrink-0 border-e bg-card lg:flex lg:flex-col">
@@ -52,6 +111,36 @@ export function TradeSpendSidebar() {
           <p className="text-[9px] text-muted-foreground tracking-wide uppercase">Trade Spend</p>
         </div>
       </div>
+
+      {/* Admin mode: Distributor selector */}
+      {viewMode === 'admin' && (
+        <div className="border-b px-3 py-2.5">
+          <label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/70 block mb-1">
+            Distributor Context
+          </label>
+          <select
+            value={currentDistributorId || ''}
+            onChange={(e) => handleAdminDistributorSwitch(e.target.value)}
+            className="flex h-8 w-full rounded-lg border border-primary/30 bg-primary/5 px-2 text-[11px] font-bold text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            {distributors.filter(d => d.active).map(d => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Mode indicator */}
+      {viewMode !== 'distributor' && (
+        <div className="px-3 py-2 border-b">
+          <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-2.5 py-1.5">
+            <Building2 className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[11px] font-semibold text-primary">
+              {viewMode === 'admin' ? 'Admin Panel' : 'All Distributors'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 py-2 px-2 space-y-0.5">
@@ -72,14 +161,30 @@ export function TradeSpendSidebar() {
             <span>{t(item.labelKey)}</span>
           </NavLink>
         ))}
+
+        {/* Back to login */}
+        <button
+          onClick={handleBackToLogin}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all mt-2"
+        >
+          <LogOut className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={1.8} />
+          <span>Back to Login</span>
+        </button>
       </nav>
 
       {/* User card */}
       <div className="border-t p-2">
         <div className="rounded-lg bg-muted/40 px-3 py-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-            Demo
-          </p>
+          {viewMode === 'distributor' && (
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+              {currentDistName}
+            </p>
+          )}
+          {viewMode !== 'distributor' && (
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+              {viewMode === 'admin' ? 'Admin' : 'Dashboard'}
+            </p>
+          )}
           <p className="mt-0.5 text-[12px] font-semibold text-foreground truncate">
             {currentUser?.display_name}
           </p>

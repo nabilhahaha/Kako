@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   BarChart3,
   Settings,
+  LogOut,
 } from 'lucide-react';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import type { TradeSpendRole } from '@/lib/trade-spend/types';
@@ -50,14 +51,34 @@ const MOBILE_NAV: MobileNavItem[] = [
   },
 ];
 
+// Unified dashboard: minimal nav
+const DASHBOARD_MOBILE_NAV: MobileNavItem[] = [
+  {
+    to: '/trade-spend',
+    labelKey: 'nav.dashboard',
+    icon: LayoutDashboard,
+    roles: ['admin', 'roshen_approver'],
+  },
+];
+
 export function TradeSpendBottomNav() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const currentUser = useTradeSpendStore((s) => s.currentUser);
+  const viewMode = useTradeSpendStore((s) => s.viewMode);
+  const setCurrentUser = useTradeSpendStore((s) => s.setCurrentUser);
   const userRoles = currentUser?.roles || [];
 
-  const visibleItems = MOBILE_NAV.filter((item) =>
+  const navItems = viewMode === 'unified_dashboard' ? DASHBOARD_MOBILE_NAV : MOBILE_NAV;
+
+  const visibleItems = navItems.filter((item) =>
     item.roles.some((r) => userRoles.includes(r)),
   );
+
+  const handleBackToLogin = () => {
+    setCurrentUser(null);
+    navigate('/trade-spend/login');
+  };
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 flex h-14 items-center justify-around border-t bg-card/95 backdrop-blur-md shadow-[0_-2px_10px_rgba(0,0,0,0.06)] lg:hidden safe-area-bottom">
@@ -76,6 +97,14 @@ export function TradeSpendBottomNav() {
           <span className="truncate max-w-[56px]">{t(item.labelKey)}</span>
         </NavLink>
       ))}
+      {/* Back to login button in mobile nav */}
+      <button
+        onClick={handleBackToLogin}
+        className="flex flex-col items-center gap-0.5 px-1.5 py-1 text-[9px] font-medium text-muted-foreground transition-colors"
+      >
+        <LogOut className="h-[18px] w-[18px]" strokeWidth={1.8} />
+        <span className="truncate max-w-[56px]">Logout</span>
+      </button>
     </nav>
   );
 }

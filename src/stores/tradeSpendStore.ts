@@ -25,6 +25,16 @@ interface SavedColumnMapping {
   mapping: Partial<ColumnMappingConfig>;
 }
 
+export type ViewMode = 'distributor' | 'admin' | 'unified_dashboard';
+
+interface DistributorSummary {
+  distId: string;
+  distName: string;
+  campaignCount: number;
+  customerCount: number;
+  totalSpend: number;
+}
+
 interface TradeSpendState {
   currentUser: TradeSpendUser | null;
   users: TradeSpendUser[];
@@ -40,9 +50,19 @@ interface TradeSpendState {
   skipDistributorApproval: boolean;
   distributors: Distributor[];
   currentDistributorId: string | null;
+  viewMode: ViewMode;
 
   setCurrentUser: (user: TradeSpendUser | null) => void;
   switchRole: (userId: string) => void;
+
+  // View mode
+  setViewMode: (mode: ViewMode) => void;
+
+  // Distributor switching (multi-tenant)
+  switchDistributor: (distId: string) => void;
+
+  // All distributors summary for unified dashboard
+  getAllDistributorsSummary: () => DistributorSummary[];
 
   // Distributors CRUD
   addDistributor: (d: Omit<Distributor, 'id' | 'created_at'>) => void;
@@ -88,13 +108,68 @@ interface TradeSpendState {
   ) => { summary: { total_rows: number; valid_rows: number; dropped_rows: number; customers_count: number; items_count: number; date_range: { min: string; max: string } } };
 }
 
-function loadOrDefault<T>(key: string, fallback: T): T {
+/* -------------------------------------------------------------------------- */
+/*  localStorage helpers                                                      */
+/* -------------------------------------------------------------------------- */
+
+/** Load a value from localStorage (no distributor prefix — global keys). */
+function loadGlobal<T>(key: string, fallback: T): T {
   try {
     const stored = localStorage.getItem(`ts_${key}`);
     if (stored) return JSON.parse(stored);
   } catch { /* ignore */ }
   return fallback;
 }
+
+/** Load a value scoped to a specific distributor. */
+function loadDistScoped<T>(distId: string, key: string, fallback: T): T {
+  try {
+    const stored = localStorage.getItem(`ts_${distId}_${key}`);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return fallback;
+}
+
+/** Save a value scoped to a specific distributor. */
+function saveDistScoped(distId: string, key: string, value: unknown): void {
+  try {
+    localStorage.setItem(`ts_${distId}_${key}`, JSON.stringify(value));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+/** Load all distributor-specific data slices from localStorage (or demo defaults). */
+function loadDistributorData(distId: string) {
+  return {
+    users: loadDistScoped(distId, 'users', [...DEMO_USERS]),
+    customers: loadDistScoped(distId, 'customers', [...DEMO_CUSTOMERS]),
+    items: loadDistScoped(distId, 'items', [...DEMO_ITEMS]),
+    transactions: loadDistScoped(distId, 'transactions', [...DEMO_TRANSACTIONS]),
+    campaigns: loadDistScoped(distId, 'campaigns', [...DEMO_CAMPAIGNS]),
+    workflowEvents: loadDistScoped<WorkflowEvent[]>(distId, 'workflowEvents', []),
+    spendTypes: loadDistScoped(distId, 'spendTypes', [...DEMO_SPEND_TYPES]),
+    classifications: loadDistScoped(distId, 'classifications', ['wholesale', 'discounter', 'roastery', 'grocery', 'sweets']),
+    savedMappings: loadDistScoped<SavedColumnMapping[]>(distId, 'savedMappings', []),
+    skipDistributorApproval: loadDistScoped(distId, 'skipDistributorApproval', false),
+  };
+}
+
+/** Persist the current distributor's data slices to localStorage. */
+function saveCurrentDistributorData(distId: string, state: TradeSpendState): void {
+  const DIST_KEYS: (keyof TradeSpendState)[] = [
+    'users', 'customers', 'items', 'transactions', 'campaigns',
+    'workflowEvents', 'spendTypes', 'classifications', 'savedMappings',
+    'skipDistributorApproval',
+  ];
+  for (const key of DIST_KEYS) {
+    saveDistScoped(distId, key, state[key]);
+  }
+  // Also persist latestDataDate
+  saveDistScoped(distId, 'latestDataDate', state.latestDataDate);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Utility helpers                                                           */
+/* -------------------------------------------------------------------------- */
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 10);
@@ -143,34 +218,101 @@ function parseNumber(val: unknown): number {
   return isNaN(n) ? 0 : n;
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Resolve initial distributor & load its data                               */
+/* -------------------------------------------------------------------------- */
+
+const DEFAULT_DISTRIBUTORS: Distributor[] = [
+  { id: 'dist-relaia', name: 'Relaia', code: 'REL', active: true, created_at: '2026-01-01' },
+  { id: 'dist-tofola', name: 'Tofola', code: 'TOF', active: true, created_at: '2026-01-01' },
+  { id: 'dist-gulf', name: 'Gulf Food Supply', code: 'GFS', active: true, created_at: '2026-01-01' },
+  { id: 'dist-tala', name: 'Tala', code: 'TAL', active: true, created_at: '2026-01-01' },
+];
+
+const initialDistributors = loadGlobal<Distributor[]>('distributors', DEFAULT_DISTRIBUTORS);
+const initialDistId = loadGlobal<string | null>('currentDistributorId', initialDistributors[0]?.id ?? null);
+const initialDistData = initialDistId ? loadDistributorData(initialDistId) : loadDistributorData('dist-relaia');
+
 export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
-  currentUser: loadOrDefault('currentUser', DEMO_USERS[0]),
-  users: loadOrDefault('users', DEMO_USERS),
-  customers: loadOrDefault('customers', [...DEMO_CUSTOMERS]),
-  items: loadOrDefault('items', [...DEMO_ITEMS]),
-  transactions: loadOrDefault('transactions', [...DEMO_TRANSACTIONS]),
-  spendTypes: loadOrDefault('spendTypes', [...DEMO_SPEND_TYPES]),
-  campaigns: loadOrDefault('campaigns', [...DEMO_CAMPAIGNS]),
-  workflowEvents: loadOrDefault('workflowEvents', []),
-  savedMappings: loadOrDefault('saved_mappings', []),
-  classifications: loadOrDefault('classifications', ["wholesale","discounter","roastery","grocery","sweets"]),
-  latestDataDate: loadOrDefault('latestDataDate', DEMO_TRANSACTIONS.reduce(
-    (max, t) => (t.date > max ? t.date : max),
-    '1970-01-01',
-  )),
-  skipDistributorApproval: loadOrDefault('skipDistributorApproval', false),
-  distributors: loadOrDefault('distributors', [
-    { id: 'dist-relaia', name: 'Relaia', code: 'REL', active: true, created_at: '2026-01-01' },
-    { id: 'dist-tofola', name: 'Tofola', code: 'TOF', active: true, created_at: '2026-01-01' },
-    { id: 'dist-gulf', name: 'Gulf Food Supply', code: 'GFS', active: true, created_at: '2026-01-01' },
-    { id: 'dist-tala', name: 'Tala', code: 'TAL', active: true, created_at: '2026-01-01' },
-  ]),
-  currentDistributorId: loadOrDefault('currentDistributorId', 'dist-relaia'),
+  currentUser: null, // always null until login
+  users: initialDistData.users,
+  customers: initialDistData.customers,
+  items: initialDistData.items,
+  transactions: initialDistData.transactions,
+  spendTypes: initialDistData.spendTypes,
+  campaigns: initialDistData.campaigns,
+  workflowEvents: initialDistData.workflowEvents,
+  savedMappings: initialDistData.savedMappings,
+  classifications: initialDistData.classifications,
+  skipDistributorApproval: initialDistData.skipDistributorApproval,
+  latestDataDate: loadDistScoped(
+    initialDistId || 'dist-relaia',
+    'latestDataDate',
+    DEMO_TRANSACTIONS.reduce((max, t) => (t.date > max ? t.date : max), '1970-01-01'),
+  ),
+  distributors: initialDistributors,
+  currentDistributorId: initialDistId,
+  viewMode: loadGlobal<ViewMode>('viewMode', 'distributor'),
 
   setCurrentUser: (user) => set({ currentUser: user }),
   switchRole: (userId) => {
     const user = get().users.find((u) => u.id === userId);
     if (user) set({ currentUser: user });
+  },
+
+  /* ---- View mode ---- */
+  setViewMode: (mode) => set({ viewMode: mode }),
+
+  /* ---- Multi-tenant distributor switching ---- */
+  switchDistributor: (distId) => {
+    const state = get();
+    // 1. Save current distributor's data
+    if (state.currentDistributorId) {
+      saveCurrentDistributorData(state.currentDistributorId, state);
+    }
+    // 2. Load new distributor's data
+    const newData = loadDistributorData(distId);
+    const newLatest = loadDistScoped(
+      distId,
+      'latestDataDate',
+      DEMO_TRANSACTIONS.reduce((max, t) => (t.date > max ? t.date : max), '1970-01-01'),
+    );
+    // 3. Set all state at once, clear currentUser
+    set({
+      ...newData,
+      currentDistributorId: distId,
+      currentUser: null,
+      latestDataDate: newLatest,
+    });
+  },
+
+  /* ---- Unified dashboard summary ---- */
+  getAllDistributorsSummary: () => {
+    const distributors = get().distributors.filter((d) => d.active);
+    const currentDistId = get().currentDistributorId;
+
+    return distributors.map((d) => {
+      // For the currently-loaded distributor, read from state; otherwise from localStorage
+      if (d.id === currentDistId) {
+        const state = get();
+        return {
+          distId: d.id,
+          distName: d.name,
+          campaignCount: state.campaigns.length,
+          customerCount: state.customers.length,
+          totalSpend: state.campaigns.reduce((s, c) => s + c.spend_amount, 0),
+        };
+      }
+      const campaigns = loadDistScoped<Campaign[]>(d.id, 'campaigns', [...DEMO_CAMPAIGNS]);
+      const customers = loadDistScoped<TradeSpendCustomer[]>(d.id, 'customers', [...DEMO_CUSTOMERS]);
+      return {
+        distId: d.id,
+        distName: d.name,
+        campaignCount: campaigns.length,
+        customerCount: customers.length,
+        totalSpend: campaigns.reduce((s, c) => s + c.spend_amount, 0),
+      };
+    });
   },
 
   addUser: (user) => {
@@ -255,7 +397,6 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   addClassification: (name) => {
     set((s) => {
       const next = [...s.classifications, name];
-      localStorage.setItem('ts_classifications', JSON.stringify(next));
       return { classifications: next };
     });
   },
@@ -263,7 +404,6 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   deleteClassification: (name) => {
     set((s) => {
       const next = s.classifications.filter((c) => c !== name);
-      localStorage.setItem('ts_classifications', JSON.stringify(next));
       return { classifications: next };
     });
   },
@@ -310,7 +450,6 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   },
 
   setSkipDistributorApproval: (skip) => {
-    try { localStorage.setItem('ts_skipDistributorApproval', JSON.stringify(skip)); } catch { /* */ }
     set({ skipDistributorApproval: skip });
   },
 
@@ -318,7 +457,6 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
     set((s) => {
       const filtered = s.savedMappings.filter((m) => m.name !== name);
       const next = [...filtered, { name, mapping }];
-      localStorage.setItem('ts_saved_mappings', JSON.stringify(next));
       return { savedMappings: next };
     });
   },
@@ -326,7 +464,6 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   deleteMappingConfig: (name) => {
     set((s) => {
       const next = s.savedMappings.filter((m) => m.name !== name);
-      localStorage.setItem('ts_saved_mappings', JSON.stringify(next));
       return { savedMappings: next };
     });
   },
@@ -432,11 +569,35 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   },
 }));
 
-// Persist to localStorage on changes
-const PERSIST_KEYS = ['currentUser', 'users', 'customers', 'items', 'transactions', 'campaigns', 'workflowEvents', 'spendTypes', 'latestDataDate', 'distributors', 'currentDistributorId'] as const;
+/* -------------------------------------------------------------------------- */
+/*  Persist to localStorage on changes (distributor-scoped + global)          */
+/* -------------------------------------------------------------------------- */
+
+// Distributor-scoped keys — persisted under ts_{distId}_{key}
+const DIST_PERSIST_KEYS: (keyof TradeSpendState)[] = [
+  'users', 'customers', 'items', 'transactions', 'campaigns',
+  'workflowEvents', 'spendTypes', 'classifications', 'savedMappings',
+  'skipDistributorApproval', 'latestDataDate',
+];
+
+// Global keys — persisted under ts_{key} (no distributor prefix)
+const GLOBAL_PERSIST_KEYS: (keyof TradeSpendState)[] = [
+  'distributors', 'currentDistributorId', 'viewMode',
+];
 
 useTradeSpendStore.subscribe((state, prevState) => {
-  for (const key of PERSIST_KEYS) {
+  // Persist distributor-scoped data
+  const distId = state.currentDistributorId;
+  if (distId) {
+    for (const key of DIST_PERSIST_KEYS) {
+      if (state[key] !== prevState[key]) {
+        saveDistScoped(distId, key, state[key]);
+      }
+    }
+  }
+
+  // Persist global data
+  for (const key of GLOBAL_PERSIST_KEYS) {
     if (state[key] !== prevState[key]) {
       try {
         localStorage.setItem(`ts_${key}`, JSON.stringify(state[key]));

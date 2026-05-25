@@ -11,6 +11,7 @@ import {
   Users,
   ShoppingBag,
   Layers,
+  Building2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -478,17 +479,111 @@ function FullDashboardView({
 }
 
 // ---------------------------------------------------------------------------
+// Unified Dashboard (All Distributors)
+// ---------------------------------------------------------------------------
+
+function UnifiedDashboard() {
+  const distributors = useTradeSpendStore((s) => s.distributors);
+  const getAllSummary = useTradeSpendStore((s) => s.getAllDistributorsSummary);
+  const summary = useMemo(() => getAllSummary(), [getAllSummary]);
+
+  const totalCampaigns = summary.reduce((s, d) => s + d.campaignCount, 0);
+  const totalCustomers = summary.reduce((s, d) => s + d.customerCount, 0);
+  const totalSpend = summary.reduce((s, d) => s + d.totalSpend, 0);
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <h1 className="heading-1 font-display">All Distributors Overview</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Aggregate view across {distributors.filter(d => d.active).length} active distributors
+        </p>
+      </header>
+
+      {/* Global summary row */}
+      <section className="grid gap-4 sm:grid-cols-3">
+        <Card className="relative overflow-hidden rounded-xl border shadow-sm p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Layers className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground font-medium">Total Campaigns</p>
+              <p className="text-3xl font-bold tabular-nums tracking-tight">{totalCampaigns}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="relative overflow-hidden rounded-xl border shadow-sm p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+              <Users className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground font-medium">Total Customers</p>
+              <p className="text-3xl font-bold tabular-nums tracking-tight">{totalCustomers}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="relative overflow-hidden rounded-xl border shadow-sm p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+              <DollarSign className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground font-medium">Total Spend</p>
+              <p className="text-3xl font-bold tabular-nums tracking-tight">{totalSpend.toLocaleString()} SAR</p>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      {/* Per-distributor cards */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {summary.map((d) => (
+          <Card key={d.distId} className="rounded-xl border shadow-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-semibold font-display">{d.distName}</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Campaigns</p>
+                <p className="text-xl font-bold tabular-nums">{d.campaignCount}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Customers</p>
+                <p className="text-xl font-bold tabular-nums">{d.customerCount}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Spend</p>
+                <p className="text-xl font-bold tabular-nums">{d.totalSpend.toLocaleString()} SAR</p>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
 export function DashboardPage() {
   const { t } = useTranslation();
+  const viewMode = useTradeSpendStore((s) => s.viewMode);
   const campaigns = useTradeSpendStore((s) => s.campaigns);
   const transactions = useTradeSpendStore((s) => s.transactions);
   const customers = useTradeSpendStore((s) => s.customers);
   const items = useTradeSpendStore((s) => s.items);
   const latestDataDate = useTradeSpendStore((s) => s.latestDataDate);
   const currentUser = useTradeSpendStore((s) => s.currentUser);
+
+  // Unified dashboard mode
+  if (viewMode === 'unified_dashboard') return <UnifiedDashboard />;
 
   // Determine view type based on user roles
   const isFullView = useMemo(
