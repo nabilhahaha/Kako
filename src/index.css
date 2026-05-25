@@ -1,34 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 222 47% 11%;
+    --background: 35 33% 97%;
+    --foreground: 350 25% 12%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card: 35 30% 99%;
+    --card-foreground: 350 25% 12%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 35 30% 99%;
+    --popover-foreground: 350 25% 12%;
 
-    --primary: 0 72% 51%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 348 65% 30%;
+    --primary-foreground: 35 30% 98%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 35 25% 93%;
+    --secondary-foreground: 350 25% 15%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 35 18% 93%;
+    --muted-foreground: 350 10% 45%;
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 42 85% 52%;
+    --accent-foreground: 350 25% 12%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 84% 39%;
+    --success: 152 60% 36%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
@@ -37,11 +39,62 @@
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 0 72% 51%;
+    --border: 35 15% 88%;
+    --input: 35 15% 88%;
+    --ring: 348 65% 30%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
+
+    --gold: 42 85% 52%;
+    --gold-foreground: 350 25% 12%;
+    --maroon: 348 65% 30%;
+    --maroon-light: 348 50% 42%;
+    --cream: 35 33% 97%;
+  }
+
+  .dark {
+    --background: 350 20% 8%;
+    --foreground: 35 20% 92%;
+
+    --card: 350 18% 11%;
+    --card-foreground: 35 20% 92%;
+
+    --popover: 350 18% 11%;
+    --popover-foreground: 35 20% 92%;
+
+    --primary: 348 55% 45%;
+    --primary-foreground: 35 30% 98%;
+
+    --secondary: 350 15% 16%;
+    --secondary-foreground: 35 20% 88%;
+
+    --muted: 350 12% 18%;
+    --muted-foreground: 35 10% 55%;
+
+    --accent: 42 75% 48%;
+    --accent-foreground: 350 25% 10%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 50% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 80% 48%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 217 80% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 350 12% 20%;
+    --input: 350 12% 20%;
+    --ring: 348 55% 45%;
+
+    --gold: 42 75% 48%;
+    --gold-foreground: 350 25% 10%;
+    --maroon: 348 55% 45%;
+    --maroon-light: 348 45% 55%;
+    --cream: 350 20% 8%;
   }
 
   * {
@@ -55,16 +108,16 @@
   }
 
   body {
-    @apply bg-background text-foreground font-arabic;
-    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 
   [dir='rtl'] body {
-    @apply font-arabic;
+    font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
   }
 
   [dir='ltr'] body {
-    @apply font-sans;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
   :focus-visible {
@@ -72,8 +125,8 @@
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -89,18 +142,71 @@
   }
 }
 
-@layer utilities {
-  .text-display {
+@layer components {
+  .heading-display {
+    font-family: 'Playfair Display', 'IBM Plex Sans Arabic', serif;
     @apply text-[32px] leading-10 font-bold tracking-tight;
   }
-  .text-h1 {
+
+  .heading-1 {
+    font-family: 'Playfair Display', 'IBM Plex Sans Arabic', serif;
     @apply text-2xl font-semibold tracking-tight;
   }
-  .text-h2 {
+
+  .heading-2 {
+    font-family: 'Playfair Display', 'IBM Plex Sans Arabic', serif;
     @apply text-xl font-semibold;
   }
-  .text-h3 {
+
+  .heading-3 {
+    font-family: 'Playfair Display', 'IBM Plex Sans Arabic', serif;
     @apply text-base font-medium;
+  }
+
+  .kpi-value {
+    font-family: 'Playfair Display', 'IBM Plex Sans Arabic', serif;
+    @apply text-3xl font-bold tracking-tight;
+  }
+
+  .value-positive {
+    @apply text-success;
+  }
+
+  .value-negative {
+    @apply text-destructive;
+  }
+
+  .gold-accent {
+    color: hsl(var(--gold));
+  }
+
+  .bg-gold {
+    background-color: hsl(var(--gold));
+    color: hsl(var(--gold-foreground));
+  }
+
+  .bg-maroon {
+    background-color: hsl(var(--maroon));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .border-gold {
+    border-color: hsl(var(--gold));
+  }
+}
+
+@layer utilities {
+  .text-display {
+    @apply heading-display;
+  }
+  .text-h1 {
+    @apply heading-1;
+  }
+  .text-h2 {
+    @apply heading-2;
+  }
+  .text-h3 {
+    @apply heading-3;
   }
   .text-body {
     @apply text-sm;

@@ -36,14 +36,22 @@ import { UsersPage } from '@/pages/admin/UsersPage';
 import { RawDataUploadPage } from '@/pages/admin/RawDataUploadPage';
 import { SettingsPage } from '@/pages/admin/SettingsPage';
 import { AuditLogsPage } from '@/pages/admin/AuditLogsPage';
+import { TradeSpendShell } from '@/components/trade-spend/TradeSpendShell';
+import { DashboardPage } from '@/pages/trade-spend/DashboardPage';
+import { NewRequestPage } from '@/pages/trade-spend/NewRequestPage';
+import { RequestsPage } from '@/pages/trade-spend/RequestsPage';
+import { CustomerSummaryPage } from '@/pages/trade-spend/CustomerSummaryPage';
+import { CustomerDetailPage } from '@/pages/trade-spend/CustomerDetailPage';
+import { DataUploadPage } from '@/pages/trade-spend/DataUploadPage';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
   const location = useLocation();
 
   useEffect(() => {
-    document.documentElement.lang = 'ar';
-    document.documentElement.dir = 'rtl';
+    const lang = localStorage.getItem('i18nextLng') || 'en';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
   }, []);
 
   if (!initialized) return null;
@@ -275,6 +283,16 @@ function App() {
               </RoleGuard>
             }
           />
+        </Route>
+
+        {/* Trade Spend Platform routes — no auth guard for Phase 1 (demo mode) */}
+        <Route path="/trade-spend" element={<TradeSpendShell />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="new-request" element={<NewRequestPage />} />
+          <Route path="requests" element={<RequestsPage />} />
+          <Route path="customers" element={<CustomerSummaryPage />} />
+          <Route path="customers/:account" element={<CustomerDetailPage />} />
+          <Route path="upload" element={<DataUploadPage />} />
         </Route>
 
         <Route path="/" element={<RootRedirect />} />
