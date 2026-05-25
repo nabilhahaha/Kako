@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import { computeCampaignMetrics } from '@/lib/trade-spend/engine';
+import { exportToExcel, exportToPDF, exportToPPTX } from '@/lib/trade-spend/exports';
+import type { ExportData } from '@/lib/trade-spend/exports';
 import type { CampaignMetrics } from '@/lib/trade-spend/types';
 
 // ---------------------------------------------------------------------------
@@ -202,6 +204,41 @@ export function CustomerSummaryPage() {
     );
   }
 
+  function buildExportData(): ExportData {
+    const campaignRows = campaigns.map((c) => {
+      let m: CampaignMetrics | null = null;
+      try { m = computeCampaignMetrics(c, transactions, latestDataDate); } catch { /* skip */ }
+      const cust = customers.find((cu) => cu.account === c.account);
+      return {
+        id: c.id,
+        customerName: cust?.name || c.account,
+        spendType: c.spend_type,
+        duration: c.duration_key,
+        spendAmount: c.spend_amount,
+        roshenPct: c.roshen_pct,
+        roshenShare: m?.roshen_share ?? 0,
+        distributorShare: m?.distributor_share ?? 0,
+        beforeValue: m?.selected_before_value ?? 0,
+        afterValue: m?.selected_after_value ?? 0,
+        upliftValue: m?.uplift_value ?? 0,
+        upliftPct: m?.uplift_pct ?? null,
+        roiTotal: m?.roi_total ?? null,
+        roiRoshen: m?.roi_roshen ?? null,
+        spendToSales: m?.spend_to_sales_pct ?? null,
+        annualizedRoi: m?.annualized_roi_roshen ?? null,
+        paybackDays: m?.payback_days ?? null,
+        status: c.status,
+        resultStatus: m?.result_status ?? 'running',
+      };
+    });
+    return {
+      title: 'Trade Spend Report',
+      date: new Date().toISOString().substring(0, 10),
+      customers: sorted,
+      campaigns: campaignRows,
+    };
+  }
+
   // Edge case: no customers with campaigns
   if (rows.length === 0) {
     return (
@@ -235,17 +272,26 @@ export function CustomerSummaryPage() {
           </p>
         </div>
 
-        {/* Export buttons (placeholder) */}
+        {/* Export buttons */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {}}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+            const data = buildExportData();
+            exportToExcel(data);
+          }}>
             <FileSpreadsheet className="h-4 w-4" />
             Excel
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {}}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+            const data = buildExportData();
+            exportToPDF(data);
+          }}>
             <FileText className="h-4 w-4" />
             PDF
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {}}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+            const data = buildExportData();
+            exportToPPTX(data);
+          }}>
             <Presentation className="h-4 w-4" />
             PPT
           </Button>
