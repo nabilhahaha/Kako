@@ -18,36 +18,37 @@ interface MobileNavItem {
   roles: TradeSpendRole[];
 }
 
+// Admin mobile nav
+const ADMIN_MOBILE_NAV: MobileNavItem[] = [
+  { to: '/trade-spend/users', labelKey: 'nav.users', icon: Settings, roles: ['admin'] },
+  { to: '/trade-spend/upload', labelKey: 'nav.dataUpload', icon: LayoutDashboard, roles: ['admin'] },
+  { to: '/trade-spend/settings', labelKey: 'Settings', icon: Settings, roles: ['admin'] },
+];
+
 const MOBILE_NAV: MobileNavItem[] = [
   {
     to: '/trade-spend',
     labelKey: 'nav.dashboard',
     icon: LayoutDashboard,
-    roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer', 'admin'],
+    roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer'],
   },
   {
     to: '/trade-spend/new-request',
     labelKey: 'nav.newRequest',
     icon: PlusCircle,
-    roles: ['dept_manager', 'distributor_trade_mktg', 'admin'],
+    roles: ['dept_manager', 'distributor_trade_mktg'],
   },
   {
     to: '/trade-spend/approvals',
     labelKey: 'nav.approvals',
     icon: ClipboardCheck,
-    roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'admin'],
+    roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver'],
   },
   {
     to: '/trade-spend/customers',
     labelKey: 'nav.customerSummary',
     icon: BarChart3,
-    roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer', 'admin'],
-  },
-  {
-    to: '/trade-spend/settings',
-    labelKey: 'Settings',
-    icon: Settings,
-    roles: ['admin'],
+    roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer'],
   },
 ];
 
@@ -69,7 +70,7 @@ export function TradeSpendBottomNav() {
   const setCurrentUser = useTradeSpendStore((s) => s.setCurrentUser);
   const userRoles = currentUser?.roles || [];
 
-  const navItems = viewMode === 'unified_dashboard' ? DASHBOARD_MOBILE_NAV : MOBILE_NAV;
+  const navItems = viewMode === 'unified_dashboard' ? DASHBOARD_MOBILE_NAV : viewMode === 'admin' ? ADMIN_MOBILE_NAV : MOBILE_NAV;
 
   const visibleItems = navItems.filter((item) =>
     item.roles.some((r) => userRoles.includes(r)),

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -12,12 +12,15 @@ import {
   ShoppingBag,
   Layers,
   Building2,
+  Activity,
+  Zap,
+  Crown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import { computeCampaignMetrics } from '@/lib/trade-spend/engine';
-import type { Campaign, CampaignMetrics, CampaignStatus } from '@/lib/trade-spend/types';
+import type { Campaign, CampaignMetrics, CampaignStatus, WorkflowEvent, TradeSpendUser } from '@/lib/trade-spend/types';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -479,91 +482,599 @@ function FullDashboardView({
 }
 
 // ---------------------------------------------------------------------------
-// Unified Dashboard (All Distributors)
+// Unified Dashboard (All Distributors) — Executive Overview
 // ---------------------------------------------------------------------------
+
+const DIST_COLORS: Record<string, string> = {
+  'dist-relaia': '#7A1D2E',
+  'dist-tofola': '#2563EB',
+  'dist-gulf': '#059669',
+  'dist-tala': '#D97706',
+};
+
+function getDistColor(id: string): string {
+  return DIST_COLORS[id] || '#6B7280';
+}
+
+const UNIFIED_STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  pending_distributor: 'Pending TM',
+  pending_roshen: 'Pending Roshen',
+  approved_pending_photos: 'Awaiting Photos',
+  photos_submitted: 'Photos Submitted',
+  final_approved: 'Final Approved',
+  changes_requested: 'Changes Requested',
+  rejected: 'Rejected',
+};
+
+const WORKFLOW_ACTION_LABELS: Record<string, string> = {
+  created: 'Created',
+  submitted: 'Submitted',
+  edited: 'Edited',
+  changes_requested: 'Requested Changes on',
+  approved_distributor: 'Approved (Distributor)',
+  approved_roshen: 'Approved (Roshen)',
+  photos_added: 'Added Photos to',
+  final_approved: 'Final Approved',
+  rejected: 'Rejected',
+  returned: 'Returned',
+};
+
+interface DistributorFullData {
+  distId: string;
+  distName: string;
+  campaigns: Campaign[];
+  customers: { account: string; name: string }[];
+  users: TradeSpendUser[];
+  workflowEvents: WorkflowEvent[];
+  totalSpend: number;
+  campaignCount: number;
+  customerCount: number;
+  statusCounts: Record<string, number>;
+  activeCampaigns: number;
+  topCustomerName: string | null;
+  latestActivityDate: string | null;
+}
+
+function getDistributorFullData(distId: string, distName: string, currentDistId: string | null, storeState: {
+  campaigns: Campaign[];
+  customers: { account: string; name: string }[];
+  users: TradeSpendUser[];
+  workflowEvents: WorkflowEvent[];
+}): DistributorFullData {
+  let campaigns: Campaign[];
+  let customers: { account: string; name: string }[];
+  let users: TradeSpendUser[];
+  let workflowEvents: WorkflowEvent[];
+
+  if (distId === currentDistId) {
+    campaigns = storeState.campaigns;
+    customers = storeState.customers;
+    users = storeState.users;
+    workflowEvents = storeState.workflowEvents;
+  } else {
+    campaigns = JSON.parse(localStorage.getItem(`ts_${distId}_campaigns`) || '[]');
+    customers = JSON.parse(localStorage.getItem(`ts_${distId}_customers`) || '[]');
+    users = JSON.parse(localStorage.getItem(`ts_${distId}_users`) || '[]');
+    workflowEvents = JSON.parse(localStorage.getItem(`ts_${distId}_workflowEvents`) || '[]');
+  }
+
+  const totalSpend = campaigns.reduce((s: number, c: Campaign) => s + (c.spend_amount || 0), 0);
+
+  const statusCounts = campaigns.reduce((acc: Record<string, number>, c: Campaign) => {
+    acc[c.status] = (acc[c.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const activeCampaigns = campaigns.filter(
+    (c: Campaign) => !['final_approved', 'rejected'].includes(c.status),
+  ).length;
+
+  // Top customer by spend
+  const spendByCustomer: Record<string, number> = {};
+  for (const c of campaigns) {
+    spendByCustomer[c.account] = (spendByCustomer[c.account] || 0) + c.spend_amount;
+  }
+  let topCustomerAccount: string | null = null;
+  let topSpend = 0;
+  for (const [acct, spend] of Object.entries(spendByCustomer)) {
+    if (spend > topSpend) {
+      topSpend = spend;
+      topCustomerAccount = acct;
+    }
+  }
+  const topCustomer = topCustomerAccount
+    ? customers.find((c) => c.account === topCustomerAccount)
+    : null;
+
+  // Latest activity
+  let latestActivityDate: string | null = null;
+  if (workflowEvents.length > 0) {
+    const sorted = [...workflowEvents].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+    latestActivityDate = sorted[0].timestamp;
+  }
+
+  return {
+    distId,
+    distName,
+    campaigns,
+    customers,
+    users,
+    workflowEvents,
+    totalSpend,
+    campaignCount: campaigns.length,
+    customerCount: customers.length,
+    statusCounts,
+    activeCampaigns,
+    topCustomerName: topCustomer?.name ?? topCustomerAccount,
+    latestActivityDate,
+  };
+}
+
+function formatTimeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `${diffDays}d ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `${diffMonths}mo ago`;
+}
 
 function UnifiedDashboard() {
   const distributors = useTradeSpendStore((s) => s.distributors);
-  const getAllSummary = useTradeSpendStore((s) => s.getAllDistributorsSummary);
-  const summary = useMemo(() => getAllSummary(), [getAllSummary]);
+  const currentDistId = useTradeSpendStore((s) => s.currentDistributorId);
+  const storeCampaigns = useTradeSpendStore((s) => s.campaigns);
+  const storeCustomers = useTradeSpendStore((s) => s.customers);
+  const storeUsers = useTradeSpendStore((s) => s.users);
+  const storeWorkflowEvents = useTradeSpendStore((s) => s.workflowEvents);
 
-  const totalCampaigns = summary.reduce((s, d) => s + d.campaignCount, 0);
-  const totalCustomers = summary.reduce((s, d) => s + d.customerCount, 0);
-  const totalSpend = summary.reduce((s, d) => s + d.totalSpend, 0);
+  const [hoveredDist, setHoveredDist] = useState<string | null>(null);
+
+  // Build full data for each active distributor
+  const allDistData = useMemo(() => {
+    const active = distributors.filter((d) => d.active);
+    return active.map((d) =>
+      getDistributorFullData(d.id, d.name, currentDistId, {
+        campaigns: storeCampaigns,
+        customers: storeCustomers,
+        users: storeUsers,
+        workflowEvents: storeWorkflowEvents,
+      }),
+    );
+  }, [distributors, currentDistId, storeCampaigns, storeCustomers, storeUsers, storeWorkflowEvents]);
+
+  // Grand totals
+  const grandTotals = useMemo(() => {
+    const totalSpend = allDistData.reduce((s, d) => s + d.totalSpend, 0);
+    const totalCampaigns = allDistData.reduce((s, d) => s + d.campaignCount, 0);
+    const totalCustomers = allDistData.reduce((s, d) => s + d.customerCount, 0);
+    const activeCampaigns = allDistData.reduce((s, d) => s + d.activeCampaigns, 0);
+    return { totalSpend, totalCampaigns, totalCustomers, activeCampaigns };
+  }, [allDistData]);
+
+  // Recent activity timeline (last 10 events across all distributors)
+  const recentActivity = useMemo(() => {
+    const allEvents: {
+      distName: string;
+      distId: string;
+      actorName: string;
+      action: string;
+      campaignId: string;
+      timestamp: string;
+    }[] = [];
+
+    for (const dist of allDistData) {
+      for (const evt of dist.workflowEvents) {
+        const actor = dist.users.find((u) => u.id === evt.actor_user_id);
+        allEvents.push({
+          distName: dist.distName,
+          distId: dist.distId,
+          actorName: actor?.display_name ?? evt.actor_user_id,
+          action: WORKFLOW_ACTION_LABELS[evt.action] ?? evt.action,
+          campaignId: evt.campaign_id,
+          timestamp: evt.timestamp,
+        });
+      }
+    }
+
+    allEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return allEvents.slice(0, 10);
+  }, [allDistData]);
+
+  // Spend distribution for stacked bar
+  const spendDistribution = useMemo(() => {
+    if (grandTotals.totalSpend === 0) return [];
+    return allDistData
+      .filter((d) => d.totalSpend > 0)
+      .sort((a, b) => b.totalSpend - a.totalSpend)
+      .map((d) => ({
+        distId: d.distId,
+        distName: d.distName,
+        spend: d.totalSpend,
+        pct: Math.round((d.totalSpend / grandTotals.totalSpend) * 100),
+        color: getDistColor(d.distId),
+      }));
+  }, [allDistData, grandTotals.totalSpend]);
+
+  const activeDistCount = distributors.filter((d) => d.active).length;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="heading-1 font-display">All Distributors Overview</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Aggregate view across {distributors.filter(d => d.active).length} active distributors
-        </p>
+    <div className="space-y-8">
+      {/* ------------------------------------------------------------------ */}
+      {/* Header                                                             */}
+      {/* ------------------------------------------------------------------ */}
+      <header className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
+              <Crown className="h-5 w-5" />
+            </div>
+            <h1 className="heading-1 font-display">Executive Dashboard</h1>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground ml-[52px]">
+            Real-time overview across {activeDistCount} active distributor{activeDistCount !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-xs text-muted-foreground">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          Live Data
+        </div>
       </header>
 
-      {/* Global summary row */}
-      <section className="grid gap-4 sm:grid-cols-3">
-        <Card className="relative overflow-hidden rounded-xl border shadow-sm p-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Layers className="h-6 w-6" />
+      {/* ------------------------------------------------------------------ */}
+      {/* Row 1 — Grand Total KPIs                                          */}
+      {/* ------------------------------------------------------------------ */}
+      <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Total Spend */}
+        <Card className="relative overflow-hidden rounded-xl border shadow-sm">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Total Spend
+                </p>
+                <p className="kpi-value tabular-nums text-2xl sm:text-3xl font-bold tracking-tight">
+                  {formatSAR(grandTotals.totalSpend)}
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                <DollarSign className="h-6 w-6" />
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">Total Campaigns</p>
-              <p className="text-3xl font-bold tabular-nums tracking-tight">{totalCampaigns}</p>
-            </div>
-          </div>
+          </CardContent>
         </Card>
-        <Card className="relative overflow-hidden rounded-xl border shadow-sm p-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-              <Users className="h-6 w-6" />
+
+        {/* Total Campaigns */}
+        <Card className="relative overflow-hidden rounded-xl border shadow-sm">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent pointer-events-none" />
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Total Campaigns
+                </p>
+                <p className="kpi-value tabular-nums text-2xl sm:text-3xl font-bold tracking-tight">
+                  {grandTotals.totalCampaigns}
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+                <Layers className="h-6 w-6" />
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">Total Customers</p>
-              <p className="text-3xl font-bold tabular-nums tracking-tight">{totalCustomers}</p>
-            </div>
-          </div>
+          </CardContent>
         </Card>
-        <Card className="relative overflow-hidden rounded-xl border shadow-sm p-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-              <DollarSign className="h-6 w-6" />
+
+        {/* Total Customers */}
+        <Card className="relative overflow-hidden rounded-xl border shadow-sm">
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent pointer-events-none" />
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Total Customers
+                </p>
+                <p className="kpi-value tabular-nums text-2xl sm:text-3xl font-bold tracking-tight">
+                  {grandTotals.totalCustomers}
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0">
+                <Users className="h-6 w-6" />
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">Total Spend</p>
-              <p className="text-3xl font-bold tabular-nums tracking-tight">{totalSpend.toLocaleString()} SAR</p>
+          </CardContent>
+        </Card>
+
+        {/* Active Campaigns */}
+        <Card className="relative overflow-hidden rounded-xl border shadow-sm">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none" />
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Active Campaigns
+                </p>
+                <p className="kpi-value tabular-nums text-2xl sm:text-3xl font-bold tracking-tight">
+                  {grandTotals.activeCampaigns}
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+                <Zap className="h-6 w-6" />
+              </div>
             </div>
-          </div>
+          </CardContent>
         </Card>
       </section>
 
-      {/* Per-distributor cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {summary.map((d) => (
-          <Card key={d.distId} className="rounded-xl border shadow-sm p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Building2 className="h-5 w-5" />
+      {/* ------------------------------------------------------------------ */}
+      {/* Row 2 — Per-Distributor Breakdown Cards                            */}
+      {/* ------------------------------------------------------------------ */}
+      <section>
+        <h2 className="heading-2 font-display mb-4 flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-muted-foreground" />
+          Distributor Breakdown
+        </h2>
+        <div className="grid gap-5 grid-cols-1 md:grid-cols-2">
+          {allDistData.map((dist) => {
+            const color = getDistColor(dist.distId);
+            const activeRate =
+              dist.campaignCount > 0
+                ? Math.round((dist.activeCampaigns / dist.campaignCount) * 100)
+                : 0;
+
+            return (
+              <Card
+                key={dist.distId}
+                className="group relative overflow-hidden rounded-xl border shadow-sm transition-all duration-200 hover:shadow-md"
+              >
+                {/* Colored top accent */}
+                <div className="h-1 w-full" style={{ backgroundColor: color }} />
+
+                <CardContent className="p-5 space-y-5">
+                  {/* Distributor Header */}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-lg text-white text-sm font-bold shrink-0"
+                      style={{ backgroundColor: color }}
+                    >
+                      {dist.distName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-base font-semibold font-display truncate">
+                        {dist.distName}
+                      </h3>
+                    </div>
+                  </div>
+
+                  {/* Quick Stats Grid */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg bg-muted/50 p-3 text-center">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Campaigns
+                      </p>
+                      <p className="text-xl font-bold tabular-nums mt-0.5">
+                        {dist.campaignCount}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-3 text-center">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Customers
+                      </p>
+                      <p className="text-xl font-bold tabular-nums mt-0.5">
+                        {dist.customerCount}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-3 text-center">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Total Spend
+                      </p>
+                      <p className="text-lg font-bold tabular-nums mt-0.5">
+                        {formatSAR(dist.totalSpend)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Active Campaigns Progress Bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground font-medium">Active Campaigns</span>
+                      <span className="font-semibold tabular-nums" style={{ color }}>
+                        {activeRate}%
+                      </span>
+                    </div>
+                    <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500 ease-out"
+                        style={{
+                          width: `${activeRate}%`,
+                          backgroundColor: color,
+                          opacity: 0.85,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Status Breakdown */}
+                  {Object.keys(dist.statusCounts).length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        By Status
+                      </p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                        {Object.entries(dist.statusCounts)
+                          .sort(([, a], [, b]) => b - a)
+                          .map(([status, count]) => (
+                            <div key={status} className="flex items-center gap-2 text-sm">
+                              <div
+                                className="h-2 w-2 rounded-full shrink-0"
+                                style={{ backgroundColor: color, opacity: 0.7 }}
+                              />
+                              <span className="text-muted-foreground text-xs truncate flex-1">
+                                {UNIFIED_STATUS_LABELS[status] ?? status}
+                              </span>
+                              <span className="font-semibold tabular-nums text-xs">
+                                {count}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Footer: Top Customer + Latest Activity */}
+                  <div className="flex flex-col gap-1.5 pt-2 border-t border-border/50 text-xs text-muted-foreground">
+                    {dist.topCustomerName && (
+                      <div className="flex items-center gap-1.5">
+                        <ShoppingBag className="h-3 w-3 shrink-0" />
+                        <span className="truncate">
+                          <span className="font-medium text-foreground/70">Top Customer:</span>{' '}
+                          {dist.topCustomerName}
+                        </span>
+                      </div>
+                    )}
+                    {dist.latestActivityDate && (
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span>
+                          <span className="font-medium text-foreground/70">Latest Activity:</span>{' '}
+                          {formatTimeAgo(dist.latestActivityDate)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Row 3 — Spend Distribution (Stacked Bar)                           */}
+      {/* ------------------------------------------------------------------ */}
+      {spendDistribution.length > 0 && (
+        <section>
+          <Card className="rounded-xl border shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="heading-2 font-display flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                Spend Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Stacked horizontal bar */}
+              <div className="h-10 w-full rounded-lg overflow-hidden flex">
+                {spendDistribution.map((d) => (
+                  <div
+                    key={d.distId}
+                    className="h-full flex items-center justify-center text-white text-xs font-semibold transition-opacity duration-200 cursor-default relative"
+                    style={{
+                      width: `${Math.max(d.pct, 3)}%`,
+                      backgroundColor: d.color,
+                      opacity: hoveredDist === null || hoveredDist === d.distId ? 1 : 0.35,
+                    }}
+                    onMouseEnter={() => setHoveredDist(d.distId)}
+                    onMouseLeave={() => setHoveredDist(null)}
+                    title={`${d.distName}: ${formatSAR(d.spend)} (${d.pct}%)`}
+                  >
+                    {d.pct >= 10 && (
+                      <span className="truncate px-1">{d.pct}%</span>
+                    )}
+                  </div>
+                ))}
               </div>
-              <h3 className="text-base font-semibold font-display">{d.distName}</h3>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Campaigns</p>
-                <p className="text-xl font-bold tabular-nums">{d.campaignCount}</p>
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                {spendDistribution.map((d) => (
+                  <div
+                    key={d.distId}
+                    className="flex items-center gap-2 text-sm cursor-default transition-opacity duration-200"
+                    style={{
+                      opacity: hoveredDist === null || hoveredDist === d.distId ? 1 : 0.4,
+                    }}
+                    onMouseEnter={() => setHoveredDist(d.distId)}
+                    onMouseLeave={() => setHoveredDist(null)}
+                  >
+                    <div
+                      className="h-3 w-3 rounded-sm shrink-0"
+                      style={{ backgroundColor: d.color }}
+                    />
+                    <span className="font-medium">{d.distName}</span>
+                    <span className="text-muted-foreground tabular-nums">
+                      {formatSAR(d.spend)} ({d.pct}%)
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Customers</p>
-                <p className="text-xl font-bold tabular-nums">{d.customerCount}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total Spend</p>
-                <p className="text-xl font-bold tabular-nums">{d.totalSpend.toLocaleString()} SAR</p>
-              </div>
-            </div>
+            </CardContent>
           </Card>
-        ))}
-      </div>
+        </section>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Row 4 — Recent Activity Timeline                                   */}
+      {/* ------------------------------------------------------------------ */}
+      {recentActivity.length > 0 && (
+        <section>
+          <Card className="rounded-xl border shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="heading-2 font-display flex items-center gap-2">
+                <Activity className="h-5 w-5 text-muted-foreground" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="relative">
+                {/* Timeline line */}
+                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
+
+                <ul className="space-y-0">
+                  {recentActivity.map((evt, idx) => (
+                    <li
+                      key={`${evt.campaignId}-${evt.timestamp}-${idx}`}
+                      className="relative flex items-start gap-4 py-3 first:pt-0 last:pb-0"
+                    >
+                      {/* Timeline dot */}
+                      <div
+                        className="relative z-10 mt-1.5 h-[15px] w-[15px] rounded-full border-2 border-background shrink-0"
+                        style={{ backgroundColor: getDistColor(evt.distId) }}
+                      />
+
+                      {/* Event content */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm">
+                          <span className="font-semibold">{evt.actorName}</span>
+                          <span className="text-muted-foreground"> ({evt.distName})</span>
+                          <span className="text-muted-foreground"> &mdash; </span>
+                          <span className="font-medium">{evt.action}</span>
+                          <span className="text-muted-foreground"> </span>
+                          <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                            {evt.campaignId}
+                          </span>
+                        </p>
+                      </div>
+
+                      {/* Time */}
+                      <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap shrink-0 mt-0.5">
+                        {formatTimeAgo(evt.timestamp)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
     </div>
   );
 }

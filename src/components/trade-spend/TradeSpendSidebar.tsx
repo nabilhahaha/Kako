@@ -23,24 +23,17 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/trade-spend', labelKey: 'nav.dashboard', icon: LayoutDashboard, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer', 'admin'] },
-  { to: '/trade-spend/new-request', labelKey: 'nav.newRequest', icon: PlusCircle, roles: ['dept_manager', 'distributor_trade_mktg', 'admin'] },
-  { to: '/trade-spend/requests', labelKey: 'nav.myRequests', icon: FileText, roles: ['dept_manager', 'distributor_trade_mktg', 'admin'] },
-  { to: '/trade-spend/approvals', labelKey: 'nav.approvals', icon: ClipboardCheck, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'admin'] },
-  { to: '/trade-spend/customers', labelKey: 'nav.customerSummary', icon: BarChart3, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer', 'admin'] },
-  { to: '/trade-spend/upload', labelKey: 'nav.dataUpload', icon: Upload, roles: ['admin'] },
-  { to: '/trade-spend/users', labelKey: 'nav.users', icon: UsersIcon, roles: ['admin'] },
-  { to: '/trade-spend/settings', labelKey: 'Settings', icon: Settings, roles: ['admin'] },
+  { to: '/trade-spend', labelKey: 'nav.dashboard', icon: LayoutDashboard, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer'] },
+  { to: '/trade-spend/new-request', labelKey: 'nav.newRequest', icon: PlusCircle, roles: ['dept_manager', 'distributor_trade_mktg'] },
+  { to: '/trade-spend/requests', labelKey: 'nav.myRequests', icon: FileText, roles: ['dept_manager', 'distributor_trade_mktg'] },
+  { to: '/trade-spend/approvals', labelKey: 'nav.approvals', icon: ClipboardCheck, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver'] },
+  { to: '/trade-spend/customers', labelKey: 'nav.customerSummary', icon: BarChart3, roles: ['dept_manager', 'distributor_trade_mktg', 'roshen_approver', 'viewer'] },
 ];
 
-// Admin-mode nav: shows a subset of pages relevant to admin work on the selected distributor
+// Admin-mode nav: Settings only (Users, Upload, Settings per distributor)
 const ADMIN_NAV_ITEMS: NavItem[] = [
-  { to: '/trade-spend', labelKey: 'nav.dashboard', icon: LayoutDashboard, roles: ['admin', 'roshen_approver'] },
   { to: '/trade-spend/users', labelKey: 'nav.users', icon: UsersIcon, roles: ['admin'] },
   { to: '/trade-spend/upload', labelKey: 'nav.dataUpload', icon: Upload, roles: ['admin'] },
-  { to: '/trade-spend/customers', labelKey: 'nav.customerSummary', icon: BarChart3, roles: ['admin', 'roshen_approver'] },
-  { to: '/trade-spend/requests', labelKey: 'nav.myRequests', icon: FileText, roles: ['admin', 'roshen_approver'] },
-  { to: '/trade-spend/approvals', labelKey: 'nav.approvals', icon: ClipboardCheck, roles: ['admin', 'roshen_approver'] },
   { to: '/trade-spend/settings', labelKey: 'Settings', icon: Settings, roles: ['admin'] },
 ];
 
