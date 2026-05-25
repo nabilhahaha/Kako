@@ -160,7 +160,7 @@ export function RequestsPage() {
     (isDistributorTM || isAdmin) && c.status === 'pending_distributor';
 
   const canApproveRoshen = (c: typeof campaigns[0]) =>
-    (isRoshenApprover || isAdmin) && c.status === 'pending_roshen';
+    isRoshenApprover && c.status === 'pending_roshen';
 
   const canUploadPhotos = (c: typeof campaigns[0]) =>
     (isDeptManager || isDistributorTM || isAdmin) && c.status === 'approved_pending_photos';
@@ -169,7 +169,7 @@ export function RequestsPage() {
     canUploadPhotos(c) && allBranchPhotosPresent(c);
 
   const canFinalApprove = (c: typeof campaigns[0]) =>
-    (isRoshenApprover || isAdmin) && c.status === 'photos_submitted';
+    isRoshenApprover && c.status === 'photos_submitted';
 
   const allBranchPhotosPresent = (c: typeof campaigns[0]) =>
     c.branches.length === 0 || c.branches.every((b) => b.photo_url);

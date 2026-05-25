@@ -238,9 +238,9 @@ export function ApprovalsPage() {
     const style = STATUS_STYLE[campaign.status];
 
     const canApproveDistributor = (isDistributorTM || isAdmin) && campaign.status === 'pending_distributor';
-    const canApproveRoshen = (isRoshenApprover || isAdmin) && campaign.status === 'pending_roshen';
+    const canApproveRoshen = isRoshenApprover && campaign.status === 'pending_roshen';
     const canUploadPhotos = (isDeptManager || isDistributorTM || isAdmin) && campaign.status === 'approved_pending_photos';
-    const canFinalApprove = (isRoshenApprover || isAdmin) && campaign.status === 'photos_submitted';
+    const canFinalApprove = isRoshenApprover && campaign.status === 'photos_submitted';
     const canSubmit = (isDeptManager || isDistributorTM || isAdmin) && (campaign.status === 'draft' || campaign.status === 'changes_requested');
 
     return (
