@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import * as XLSX from 'xlsx';
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -69,7 +70,7 @@ export function DataUploadPage() {
   const [saveName, setSaveName] = useState('');
   const [importSummary, setImportSummary] = useState<DataUploadSummary | null>(null);
 
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -77,36 +78,43 @@ export function DataUploadPage() {
     setParseError('');
     setLoading(true);
 
-    try {
-      const XLSX = await import('xlsx');
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
-      const firstSheet = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheet];
-      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' });
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheet];
+        const json: Record<string, unknown>[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
-      if (json.length === 0) {
-        setParseError(t('upload.dragDrop'));
+        if (json.length === 0) {
+          setParseError('File contains no data rows.');
+          setLoading(false);
+          return;
+        }
+
+        const hdrs = Object.keys(json[0]);
+        setHeaders(hdrs);
+        setAllRows(json);
+        setPreviewRows(json.slice(0, 5));
+        setTotalRows(json.length);
+
+        const detected = autoDetectMapping(hdrs);
+        setMapping(detected);
         setLoading(false);
-        return;
+        setStep(2);
+      } catch (err) {
+        console.error('Parse error:', err);
+        setParseError('Failed to parse file. Please check the format.');
+        setLoading(false);
       }
-
-      const hdrs = Object.keys(json[0]);
-      setHeaders(hdrs);
-      setAllRows(json);
-      setPreviewRows(json.slice(0, 5));
-      setTotalRows(json.length);
-
-      const detected = autoDetectMapping(hdrs);
-      setMapping(detected);
-      setStep(2);
-    } catch (err) {
-      console.error('Parse error:', err);
-      setParseError('Failed to parse file. Please check the format.');
-    } finally {
+    };
+    reader.onerror = () => {
+      setParseError('Failed to read file.');
       setLoading(false);
-    }
-  }, [t]);
+    };
+    reader.readAsArrayBuffer(file);
+  }, []);
 
   const updateMapping = useCallback((field: keyof ColumnMappingConfig, value: string) => {
     setMapping((prev) => {
