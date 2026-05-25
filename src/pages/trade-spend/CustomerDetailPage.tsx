@@ -88,10 +88,11 @@ interface CampaignCardProps {
   metrics: CampaignMetrics;
   items: Map<string, string>;
   spendTypes: Map<string, string>;
+  isPrivileged: boolean;
   t: (key: string) => string;
 }
 
-function CampaignCard({ campaign, metrics, items, spendTypes, t }: CampaignCardProps) {
+function CampaignCard({ campaign, metrics, items, spendTypes, isPrivileged, t }: CampaignCardProps) {
   const statusCfg = STATUS_CONFIG[campaign.status];
   const spendTypeName = spendTypes.get(campaign.spend_type) ?? campaign.spend_type;
   const totalSpend = campaign.spend_amount;
@@ -259,30 +260,32 @@ function CampaignCard({ campaign, metrics, items, spendTypes, t }: CampaignCardP
           </div>
         )}
 
-        {/* ---- Cost Split Bar ---- */}
-        <div className="space-y-2">
-          <p className="text-caption uppercase tracking-wide font-medium">{t('customerDetail.costSplit')}</p>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 flex h-7 rounded-full overflow-hidden border border-border">
-              <div
-                className="flex items-center justify-center bg-primary text-primary-foreground text-xs font-medium"
-                style={{ width: `${roshenPct}%` }}
-              >
-                {roshenPct >= 15 && `Roshen ${roshenPct.toFixed(0)}%`}
-              </div>
-              <div
-                className="flex items-center justify-center bg-accent text-accent-foreground text-xs font-medium"
-                style={{ width: `${distPct}%` }}
-              >
-                {distPct >= 15 && `Dist ${distPct.toFixed(0)}%`}
+        {/* ---- Cost Split Bar (privileged users only) ---- */}
+        {isPrivileged && (
+          <div className="space-y-2">
+            <p className="text-caption uppercase tracking-wide font-medium">{t('customerDetail.costSplit')}</p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 flex h-7 rounded-full overflow-hidden border border-border">
+                <div
+                  className="flex items-center justify-center bg-primary text-primary-foreground text-xs font-medium"
+                  style={{ width: `${roshenPct}%` }}
+                >
+                  {roshenPct >= 15 && `Roshen ${roshenPct.toFixed(0)}%`}
+                </div>
+                <div
+                  className="flex items-center justify-center bg-accent text-accent-foreground text-xs font-medium"
+                  style={{ width: `${distPct}%` }}
+                >
+                  {distPct >= 15 && `Dist ${distPct.toFixed(0)}%`}
+                </div>
               </div>
             </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Roshen: {formatSAR(metrics.roshen_share)}</span>
+              <span>Distributor: {formatSAR(metrics.distributor_share)}</span>
+            </div>
           </div>
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Roshen: {formatSAR(metrics.roshen_share)}</span>
-            <span>Distributor: {formatSAR(metrics.distributor_share)}</span>
-          </div>
-        </div>
+        )}
 
         {/* ---- Data Completeness ---- */}
         {!metrics.data_completeness.is_complete && (
@@ -369,6 +372,12 @@ export function CustomerDetailPage() {
   const latestDataDate = useTradeSpendStore((s) => s.latestDataDate);
   const storeItems = useTradeSpendStore((s) => s.items);
   const spendTypes = useTradeSpendStore((s) => s.spendTypes);
+  const currentUser = useTradeSpendStore((s) => s.currentUser);
+
+  const isPrivileged = useMemo(
+    () => currentUser?.roles.some((r) => ['roshen_approver', 'admin'].includes(r)) ?? false,
+    [currentUser],
+  );
 
   // Build lookup maps
   const itemsMap = useMemo(() => {
@@ -617,6 +626,7 @@ export function CustomerDetailPage() {
             metrics={metrics}
             items={itemsMap}
             spendTypes={spendTypesMap}
+            isPrivileged={isPrivileged}
             t={t}
           />
         ))}

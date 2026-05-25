@@ -78,6 +78,11 @@ export function NewRequestPage() {
 
   const [spendAmount, setSpendAmount] = useState<number>(0);
   const [startDate, setStartDate] = useState('');
+  const isPrivileged = useMemo(
+    () => currentUser?.roles.some((r) => ['roshen_approver', 'admin'].includes(r)) ?? false,
+    [currentUser],
+  );
+
   const [roshenPct, setRoshenPct] = useState<number>(50);
 
   const [periodMode, setPeriodMode] = useState<PeriodMode>('match');
@@ -644,10 +649,10 @@ export function NewRequestPage() {
       {/* ============================================================ */}
       <Card>
         <CardHeader>
-          <CardTitle>{t('campaign.costSplit')}</CardTitle>
+          <CardTitle>{isPrivileged ? t('campaign.costSplit') : t('campaign.spendAmount')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className={`grid gap-4 ${isPrivileged ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
             {/* Spend amount */}
             <div className="space-y-2">
               <Label>{t('campaign.spendAmount')}</Label>
@@ -670,26 +675,28 @@ export function NewRequestPage() {
               />
             </div>
 
-            {/* Roshen share % */}
-            <div className="space-y-2">
-              <Label>{t('campaign.roshenPct')}: {roshenPct}%</Label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={roshenPct}
-                onChange={(e) => setRoshenPct(Number(e.target.value))}
-                className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>0%</span>
-                <span>100%</span>
+            {/* Roshen share % — only for privileged users */}
+            {isPrivileged && (
+              <div className="space-y-2">
+                <Label>{t('campaign.roshenPct')}: {roshenPct}%</Label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={roshenPct}
+                  onChange={(e) => setRoshenPct(Number(e.target.value))}
+                  className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>0%</span>
+                  <span>100%</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Cost split visualization */}
-          {spendAmount > 0 && (
+          {/* Cost split visualization — only for privileged users */}
+          {isPrivileged && spendAmount > 0 && (
             <div className="space-y-2">
               <Label>{t('campaign.costSplit')}</Label>
               <div className="relative h-10 w-full rounded-lg overflow-hidden border">

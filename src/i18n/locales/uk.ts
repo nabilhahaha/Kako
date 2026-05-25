@@ -157,6 +157,8 @@ const uk: TranslationKeys = {
   },
   dashboard: {
     title: 'Панель ROI',
+    simpleTitle: 'Огляд торгових витрат',
+    simpleSubtitle: 'Активність торгових витрат клієнтів одним поглядом',
     totalSpend: 'Загальні витрати',
     roshenShare: 'Частка Roshen',
     totalUplift: 'Загальне зростання',
@@ -176,6 +178,10 @@ const uk: TranslationKeys = {
     bottom5: '5 найгірших кампаній',
     provisionalBanner: 'Результати попередні — дані продажів ще не охоплюють повний період порівняння',
     daysOfData: '{{captured}} з {{total}} днів зафіксовано',
+    totalCampaignsCount: 'Загальна кількість кампаній',
+    totalCustomersCount: 'Клієнти з кампаніями',
+    salesBefore: 'Продажі до',
+    salesAfter: 'Продажі після',
   },
   customerSummary: {
     title: 'Зведення по клієнтах',

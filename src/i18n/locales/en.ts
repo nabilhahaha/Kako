@@ -155,6 +155,8 @@ const en = {
   },
   dashboard: {
     title: 'ROI Dashboard',
+    simpleTitle: 'Trade Spend Overview',
+    simpleSubtitle: 'Customer trade spend activity at a glance',
     totalSpend: 'Total Spend',
     roshenShare: 'Roshen Share',
     totalUplift: 'Total Uplift',
@@ -174,6 +176,10 @@ const en = {
     bottom5: 'Bottom 5 Campaigns',
     provisionalBanner: 'Results are provisional — sales data does not yet cover the full comparison period',
     daysOfData: '{{captured}} of {{total}} days captured',
+    totalCampaignsCount: 'Total Campaigns',
+    totalCustomersCount: 'Customers with Campaigns',
+    salesBefore: 'Sales Before',
+    salesAfter: 'Sales After',
   },
   customerSummary: {
     title: 'Customer Summary',

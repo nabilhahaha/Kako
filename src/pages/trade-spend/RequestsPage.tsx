@@ -81,12 +81,32 @@ export function RequestsPage() {
   const isDistributorTM = userRoles.includes('distributor_trade_mktg');
   const isRoshenApprover = userRoles.includes('roshen_approver');
   const isAdmin = userRoles.includes('admin');
+  const isViewer = userRoles.includes('viewer');
+  const isPrivileged = isRoshenApprover || isAdmin;
 
   const visibleCampaigns = useMemo(() => {
     let list = campaigns;
-    if (isDeptManager && !isDistributorTM && !isRoshenApprover && !isAdmin) {
+
+    // Role-based filtering
+    if (isAdmin) {
+      // admin sees everything
+    } else if (isViewer) {
+      // viewer sees all (read-only)
+    } else if (isRoshenApprover) {
+      // roshen_approver sees campaigns pending_roshen
+      list = list.filter((c) => c.status === 'pending_roshen');
+    } else if (isDistributorTM) {
+      // distributor sees pending_distributor or campaigns they need to action
+      list = list.filter(
+        (c) =>
+          c.status === 'pending_distributor' ||
+          c.created_by === currentUser?.id,
+      );
+    } else if (isDeptManager) {
+      // dept_manager sees ONLY their own campaigns
       list = list.filter((c) => c.created_by === currentUser?.id);
     }
+
     if (statusFilter !== 'all') {
       list = list.filter((c) => c.status === statusFilter);
     }
@@ -95,7 +115,7 @@ export function RequestsPage() {
       const bi = STATUS_ORDER.indexOf(b.status);
       return ai - bi;
     });
-  }, [campaigns, currentUser, isDeptManager, isDistributorTM, isRoshenApprover, isAdmin, statusFilter]);
+  }, [campaigns, currentUser, isDeptManager, isDistributorTM, isRoshenApprover, isAdmin, isViewer, statusFilter]);
 
   const metricsMap = useMemo(() => {
     const map = new Map<string, ReturnType<typeof computeCampaignMetrics>>();
@@ -339,28 +359,30 @@ export function RequestsPage() {
                       </div>
                     </div>
 
-                    {/* Cost split */}
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-2">{t('campaign.costSplit')}</p>
-                      <div className="flex h-6 rounded-full overflow-hidden">
-                        <div
-                          className="bg-maroon flex items-center justify-center text-[10px] font-bold text-white transition-all"
-                          style={{ width: `${campaign.roshen_pct}%` }}
-                        >
-                          {campaign.roshen_pct}%
+                    {/* Cost split — privileged users only */}
+                    {isPrivileged && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">{t('campaign.costSplit')}</p>
+                        <div className="flex h-6 rounded-full overflow-hidden">
+                          <div
+                            className="bg-maroon flex items-center justify-center text-[10px] font-bold text-white transition-all"
+                            style={{ width: `${campaign.roshen_pct}%` }}
+                          >
+                            {campaign.roshen_pct}%
+                          </div>
+                          <div
+                            className="bg-gold flex items-center justify-center text-[10px] font-bold transition-all"
+                            style={{ width: `${100 - campaign.roshen_pct}%` }}
+                          >
+                            {100 - campaign.roshen_pct}%
+                          </div>
                         </div>
-                        <div
-                          className="bg-gold flex items-center justify-center text-[10px] font-bold transition-all"
-                          style={{ width: `${100 - campaign.roshen_pct}%` }}
-                        >
-                          {100 - campaign.roshen_pct}%
+                        <div className="flex justify-between mt-1 text-xs text-muted-foreground">
+                          <span>Roshen: {formatSAR(campaign.spend_amount * campaign.roshen_pct / 100)}</span>
+                          <span>{t('campaign.distributorShare')}: {formatSAR(campaign.spend_amount * (100 - campaign.roshen_pct) / 100)}</span>
                         </div>
                       </div>
-                      <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-                        <span>Roshen: {formatSAR(campaign.spend_amount * campaign.roshen_pct / 100)}</span>
-                        <span>{t('campaign.distributorShare')}: {formatSAR(campaign.spend_amount * (100 - campaign.roshen_pct) / 100)}</span>
-                      </div>
-                    </div>
+                    )}
 
                     {/* Branch photos — editable for distributor TM */}
                     {campaign.branches.length > 0 && (

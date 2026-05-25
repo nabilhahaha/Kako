@@ -157,6 +157,8 @@ const ar: TranslationKeys = {
   },
   dashboard: {
     title: 'لوحة ROI',
+    simpleTitle: 'نظرة عامة على الإنفاق التجاري',
+    simpleSubtitle: 'نشاط الإنفاق التجاري للعملاء بلمحة واحدة',
     totalSpend: 'إجمالي الإنفاق',
     roshenShare: 'حصة Roshen',
     totalUplift: 'إجمالي النمو',
@@ -176,6 +178,10 @@ const ar: TranslationKeys = {
     bottom5: 'أسوأ 5 حملات',
     provisionalBanner: 'النتائج مؤقتة — بيانات المبيعات لا تغطي فترة المقارنة الكاملة بعد',
     daysOfData: '{{captured}} من {{total}} يوم مسجل',
+    totalCampaignsCount: 'إجمالي الحملات',
+    totalCustomersCount: 'العملاء ذوو الحملات',
+    salesBefore: 'المبيعات قبل',
+    salesAfter: 'المبيعات بعد',
   },
   customerSummary: {
     title: 'ملخص العملاء',

@@ -106,6 +106,7 @@ export function ApprovalsPage() {
   const isRoshenApprover = userRoles.includes('roshen_approver');
   const isAdmin = userRoles.includes('admin');
   const isDeptManager = userRoles.includes('dept_manager');
+  const isPrivileged = isRoshenApprover || isAdmin;
 
   const pendingCampaigns = useMemo(() => {
     return campaigns.filter((c) => {
@@ -265,15 +266,17 @@ export function ApprovalsPage() {
                 </div>
               </div>
 
-              {/* Cost split */}
-              <div className="flex h-5 rounded-full overflow-hidden text-[9px] font-bold">
-                <div className="bg-maroon text-white flex items-center justify-center" style={{ width: `${campaign.roshen_pct}%` }}>
-                  Roshen {campaign.roshen_pct}%
+              {/* Cost split — privileged users only */}
+              {isPrivileged && (
+                <div className="flex h-5 rounded-full overflow-hidden text-[9px] font-bold">
+                  <div className="bg-maroon text-white flex items-center justify-center" style={{ width: `${campaign.roshen_pct}%` }}>
+                    Roshen {campaign.roshen_pct}%
+                  </div>
+                  <div className="bg-gold flex items-center justify-center" style={{ width: `${100 - campaign.roshen_pct}%` }}>
+                    {t('campaign.distributorShare')} {100 - campaign.roshen_pct}%
+                  </div>
                 </div>
-                <div className="bg-gold flex items-center justify-center" style={{ width: `${100 - campaign.roshen_pct}%` }}>
-                  {t('campaign.distributorShare')} {100 - campaign.roshen_pct}%
-                </div>
-              </div>
+              )}
 
               {/* Branch photos */}
               {campaign.branches.length > 0 && (
