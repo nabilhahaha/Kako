@@ -159,6 +159,16 @@ export interface ColumnMappingConfig {
   is_return: string;          // optional/informational
 }
 
+export interface AppNotification {
+  id: string;
+  type: 'approval_pending' | 'approved' | 'rejected' | 'changes_requested' | 'photos_needed' | 'info';
+  title: string;
+  message: string;
+  campaignId?: string;
+  read: boolean;
+  timestamp: string;
+}
+
 export interface DataUploadSummary {
   total_rows: number;
   valid_rows: number;

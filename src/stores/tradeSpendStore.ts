@@ -10,6 +10,7 @@ import type {
   ColumnMappingConfig,
   WorkflowEvent,
   Distributor,
+  AppNotification,
 } from '@/lib/trade-spend/types';
 import {
   DEMO_USERS,
@@ -51,6 +52,7 @@ interface TradeSpendState {
   distributors: Distributor[];
   currentDistributorId: string | null;
   viewMode: ViewMode;
+  notifications: AppNotification[];
 
   setCurrentUser: (user: TradeSpendUser | null) => void;
   switchRole: (userId: string) => void;
@@ -98,6 +100,12 @@ interface TradeSpendState {
   addWorkflowEvent: (event: Omit<WorkflowEvent, 'id' | 'timestamp'>) => void;
 
   setSkipDistributorApproval: (skip: boolean) => void;
+
+  // Notifications
+  addNotification: (n: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  unreadCount: () => number;
 
   saveMappingConfig: (name: string, mapping: Partial<ColumnMappingConfig>) => void;
   deleteMappingConfig: (name: string) => void;
@@ -150,6 +158,7 @@ function loadDistributorData(distId: string) {
     classifications: loadDistScoped(distId, 'classifications', ['wholesale', 'discounter', 'roastery', 'grocery', 'sweets']),
     savedMappings: loadDistScoped<SavedColumnMapping[]>(distId, 'savedMappings', []),
     skipDistributorApproval: loadDistScoped(distId, 'skipDistributorApproval', false),
+    notifications: loadDistScoped<AppNotification[]>(distId, 'notifications', []),
   };
 }
 
@@ -158,7 +167,7 @@ function saveCurrentDistributorData(distId: string, state: TradeSpendState): voi
   const DIST_KEYS: (keyof TradeSpendState)[] = [
     'users', 'customers', 'items', 'transactions', 'campaigns',
     'workflowEvents', 'spendTypes', 'classifications', 'savedMappings',
-    'skipDistributorApproval',
+    'skipDistributorApproval', 'notifications',
   ];
   for (const key of DIST_KEYS) {
     saveDistScoped(distId, key, state[key]);
@@ -245,6 +254,7 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   savedMappings: initialDistData.savedMappings,
   classifications: initialDistData.classifications,
   skipDistributorApproval: initialDistData.skipDistributorApproval,
+  notifications: initialDistData.notifications,
   latestDataDate: loadDistScoped(
     initialDistId || 'dist-relaia',
     'latestDataDate',
@@ -438,6 +448,22 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
         return { ...c, ...upd };
       }),
     }));
+
+    // Auto-generate notification based on status change
+    const notifMap: Record<CampaignStatus, { type: AppNotification['type']; title: string; message: string } | null> = {
+      draft: null,
+      pending_distributor: { type: 'approval_pending', title: 'New Request', message: 'New request awaiting Trade Marketing approval' },
+      pending_roshen: { type: 'approval_pending', title: 'Awaiting Roshen', message: 'Request awaiting Roshen approval' },
+      approved_pending_photos: { type: 'photos_needed', title: 'Photos Needed', message: `Budget approved — photos needed for ${id}` },
+      photos_submitted: { type: 'info', title: 'Photos Submitted', message: 'Photos submitted — awaiting final approval' },
+      final_approved: { type: 'approved', title: 'Approved', message: `Request ${id} has been finally approved ✅` },
+      changes_requested: { type: 'changes_requested', title: 'Changes Requested', message: `Changes requested on ${id}` },
+      rejected: { type: 'rejected', title: 'Rejected', message: `Request ${id} has been rejected` },
+    };
+    const notif = notifMap[status];
+    if (notif) {
+      get().addNotification({ ...notif, campaignId: id });
+    }
   },
 
   addWorkflowEvent: (event) => {
@@ -451,6 +477,35 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
 
   setSkipDistributorApproval: (skip) => {
     set({ skipDistributorApproval: skip });
+  },
+
+  /* ---- Notifications ---- */
+  addNotification: (n) => {
+    const notification: AppNotification = {
+      ...n,
+      id: generateId(),
+      read: false,
+      timestamp: new Date().toISOString(),
+    };
+    set((s) => ({ notifications: [notification, ...s.notifications] }));
+  },
+
+  markNotificationRead: (id) => {
+    set((s) => ({
+      notifications: s.notifications.map((n) =>
+        n.id === id ? { ...n, read: true } : n,
+      ),
+    }));
+  },
+
+  markAllNotificationsRead: () => {
+    set((s) => ({
+      notifications: s.notifications.map((n) => ({ ...n, read: true })),
+    }));
+  },
+
+  unreadCount: () => {
+    return get().notifications.filter((n) => !n.read).length;
   },
 
   saveMappingConfig: (name, mapping) => {
@@ -577,7 +632,7 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
 const DIST_PERSIST_KEYS: (keyof TradeSpendState)[] = [
   'users', 'customers', 'items', 'transactions', 'campaigns',
   'workflowEvents', 'spendTypes', 'classifications', 'savedMappings',
-  'skipDistributorApproval', 'latestDataDate',
+  'skipDistributorApproval', 'latestDataDate', 'notifications',
 ];
 
 // Global keys — persisted under ts_{key} (no distributor prefix)
