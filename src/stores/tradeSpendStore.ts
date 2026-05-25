@@ -141,8 +141,12 @@ function loadDistScoped<T>(distId: string, key: string, fallback: T): T {
 /** Save a value scoped to a specific distributor. */
 function saveDistScoped(distId: string, key: string, value: unknown): void {
   try {
-    localStorage.setItem(`ts_${distId}_${key}`, JSON.stringify(value));
-  } catch { /* quota exceeded — ignore */ }
+    const json = JSON.stringify(value);
+    localStorage.setItem(`ts_${distId}_${key}`, json);
+  } catch (err) {
+    console.error(`[saveDistScoped] Failed to save ${key} for ${distId}:`, err);
+    alert(`Storage full! Could not save ${key}. Try clearing old data or using a smaller file.`);
+  }
 }
 
 /** Load all distributor-specific data slices from localStorage (or demo defaults). */
