@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus,
   Pencil,
@@ -11,6 +12,9 @@ import {
   FileSpreadsheet,
   Tags,
   Layers,
+  Users,
+  ChevronRight,
+  Upload,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +28,7 @@ import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 
 export function SettingsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   /* --- Store --- */
   const spendTypes = useTradeSpendStore((s) => s.spendTypes);
@@ -122,6 +127,36 @@ export function SettingsPage() {
         <h1 className="heading-2">
           {t('settings.title', 'Settings & Field Management')}
         </h1>
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => navigate('/trade-spend/users')}
+          className="flex items-center gap-3 rounded-xl border bg-card p-3 text-start shadow-sm active:shadow-none transition-shadow"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950">
+            <Users className="h-4 w-4 text-blue-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold">{t('nav.users')}</p>
+            <p className="text-[10px] text-muted-foreground">Manage & roles</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </button>
+        <button
+          onClick={() => navigate('/trade-spend/upload')}
+          className="flex items-center gap-3 rounded-xl border bg-card p-3 text-start shadow-sm active:shadow-none transition-shadow"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950">
+            <Upload className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold">{t('nav.dataUpload')}</p>
+            <p className="text-[10px] text-muted-foreground">Upload data</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </button>
       </div>
 
       {/* ============================================================ */}
