@@ -62,9 +62,7 @@ export function NewRequestPage() {
   const updateCustomerClassification = useTradeSpendStore((s) => s.updateCustomerClassification);
 
   /* ---- Form state ---- */
-  const [customerSearch, setCustomerSearch] = useState('');
   const [selectedAccount, setSelectedAccount] = useState('');
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [classification, setClassification] = useState<string>('');
   const [customClassification, setCustomClassification] = useState('');
   const [useCustomClassification, setUseCustomClassification] = useState(false);
@@ -99,20 +97,6 @@ export function NewRequestPage() {
   const photoInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   /* ---- Derived data ---- */
-  const selectedCustomer = useMemo(
-    () => customers.find((c) => c.account === selectedAccount),
-    [customers, selectedAccount],
-  );
-
-  const filteredCustomers = useMemo(() => {
-    if (!customerSearch.trim()) return [];
-    const q = customerSearch.toLowerCase();
-    return customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) || c.account.toLowerCase().includes(q),
-    ).slice(0, 10);
-  }, [customers, customerSearch]);
-
   const filteredItems = useMemo(() => {
     if (!itemSearch.trim()) return items.slice(0, 20);
     const q = itemSearch.toLowerCase();
@@ -195,23 +179,19 @@ export function NewRequestPage() {
     (account: string) => {
       setSelectedAccount(account);
       const cust = customers.find((c) => c.account === account);
-      if (cust) {
-        setCustomerSearch(cust.name);
-        if (cust.classification) {
-          const isPreset = CLASSIFICATION_OPTIONS.some(
-            (o) => o.value === cust.classification,
-          );
-          if (isPreset) {
-            setClassification(cust.classification);
-            setUseCustomClassification(false);
-          } else {
-            setClassification('custom');
-            setCustomClassification(cust.classification);
-            setUseCustomClassification(true);
-          }
+      if (cust?.classification) {
+        const isPreset = CLASSIFICATION_OPTIONS.some(
+          (o) => o.value === cust.classification,
+        );
+        if (isPreset) {
+          setClassification(cust.classification);
+          setUseCustomClassification(false);
+        } else {
+          setClassification('custom');
+          setCustomClassification(cust.classification);
+          setUseCustomClassification(true);
         }
       }
-      setShowCustomerDropdown(false);
     },
     [customers],
   );
@@ -411,49 +391,26 @@ export function NewRequestPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Search */}
-            <div className="relative space-y-2">
-              <Label>{t('campaign.searchCustomer')}</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  placeholder={t('campaign.searchCustomer')}
-                  value={customerSearch}
-                  onChange={(e) => {
-                    setCustomerSearch(e.target.value);
-                    setShowCustomerDropdown(true);
-                    if (!e.target.value) setSelectedAccount('');
-                  }}
-                  onFocus={() => customerSearch && setShowCustomerDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
-                />
-              </div>
-
-              {/* Dropdown */}
-              {showCustomerDropdown && filteredCustomers.length > 0 && (
-                <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border bg-popover shadow-lg">
-                  {filteredCustomers.map((c) => (
-                    <button
-                      key={c.account}
-                      type="button"
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex justify-between"
-                      onMouseDown={() => handleSelectCustomer(c.account)}
-                    >
-                      <span className="font-medium">{c.name}</span>
-                      <span className="text-muted-foreground">{c.account}</span>
-                    </button>
+            {/* Customer dropdown */}
+            <div className="space-y-2">
+              <Label>{t('campaign.customer')}</Label>
+              <select
+                value={selectedAccount}
+                onChange={(e) => {
+                  handleSelectCustomer(e.target.value);
+                }}
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">{t('campaign.searchCustomer')}</option>
+                {customers
+                  .slice()
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((c) => (
+                    <option key={c.account} value={c.account}>
+                      {c.name} ({c.account})
+                    </option>
                   ))}
-                </div>
-              )}
-
-              {/* Selected display */}
-              {selectedCustomer && (
-                <div className="mt-2 flex items-center gap-2">
-                  <Badge variant="secondary">{selectedCustomer.account}</Badge>
-                  <span className="text-sm font-medium">{selectedCustomer.name}</span>
-                </div>
-              )}
+              </select>
             </div>
 
             {/* Classification */}
