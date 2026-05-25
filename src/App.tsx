@@ -43,6 +43,7 @@ import { RequestsPage } from '@/pages/trade-spend/RequestsPage';
 import { CustomerSummaryPage } from '@/pages/trade-spend/CustomerSummaryPage';
 import { CustomerDetailPage } from '@/pages/trade-spend/CustomerDetailPage';
 import { DataUploadPage } from '@/pages/trade-spend/DataUploadPage';
+import { TradeSpendLoginPage } from '@/pages/trade-spend/TradeSpendLoginPage';
 
 function RootRedirect() {
   const { initialized, session, profile } = useAuthStore();
@@ -55,7 +56,7 @@ function RootRedirect() {
   }, []);
 
   if (!initialized) return null;
-  if (!session) return <Navigate to="/login" replace state={{ from: location }} />;
+  if (!session) return <Navigate to="/trade-spend/login" replace state={{ from: location }} />;
   return <Navigate to={homeForRole(profile?.user_type)} replace />;
 }
 
@@ -285,7 +286,8 @@ function App() {
           />
         </Route>
 
-        {/* Trade Spend Platform routes — no auth guard for Phase 1 (demo mode) */}
+        {/* Trade Spend Platform */}
+        <Route path="/trade-spend/login" element={<TradeSpendLoginPage />} />
         <Route path="/trade-spend" element={<TradeSpendShell />}>
           <Route index element={<DashboardPage />} />
           <Route path="new-request" element={<NewRequestPage />} />
