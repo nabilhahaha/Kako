@@ -48,7 +48,7 @@ export function TradeSpendTopBar() {
         <select
           value={currentDistributorId || ''}
           onChange={(e) => setCurrentDistributor(e.target.value)}
-          className="h-7 rounded-md border border-input bg-background px-1.5 text-[11px] font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-7 rounded-md border border-primary/30 bg-primary/5 px-2 text-[11px] font-bold text-primary focus:outline-none focus:ring-1 focus:ring-ring"
         >
           {distributors.filter(d => d.active).map(d => (
             <option key={d.id} value={d.id}>{d.name}</option>

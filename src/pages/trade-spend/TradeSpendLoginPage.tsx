@@ -92,17 +92,19 @@ export function TradeSpendLoginPage() {
           {/* Step 1: Choose Distributor */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Distributor
+              Select Distributor / اختار الموزع
             </label>
-            <select
-              value={selectedDistId}
-              onChange={(e) => setSelectedDistId(e.target.value)}
-              className="flex h-11 w-full appearance-none rounded-xl border border-input bg-background px-3 text-sm font-medium shadow-sm"
-            >
-              {distributors.filter(d => d.active).map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={selectedDistId}
+                onChange={(e) => setSelectedDistId(e.target.value)}
+                className="flex h-12 w-full appearance-none rounded-xl border-2 border-primary/30 bg-primary/5 px-3 text-sm font-semibold shadow-sm focus:border-primary focus:outline-none"
+              >
+                {distributors.filter(d => d.active).map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="space-y-1.5">
