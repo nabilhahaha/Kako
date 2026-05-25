@@ -276,8 +276,8 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
   /* ---- Multi-tenant distributor switching ---- */
   switchDistributor: (distId) => {
     const state = get();
-    // 1. Save current distributor's data
-    if (state.currentDistributorId) {
+    // 1. Save current distributor's data (only if switching to a DIFFERENT one)
+    if (state.currentDistributorId && state.currentDistributorId !== distId) {
       saveCurrentDistributorData(state.currentDistributorId, state);
     }
     // 2. Load new distributor's data
