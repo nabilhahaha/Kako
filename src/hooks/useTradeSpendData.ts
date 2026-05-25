@@ -654,8 +654,11 @@ export function useUpdateCampaignStatus() {
         draft: 'edited',
         pending_distributor: 'submitted',
         pending_roshen: 'approved_distributor',
-        approved: 'approved_roshen',
+        approved_pending_photos: 'approved_roshen',
+        photos_submitted: 'photos_added',
+        final_approved: 'final_approved',
         changes_requested: 'changes_requested',
+        rejected: 'rejected',
       };
       const action = actionMap[status];
 
@@ -670,7 +673,10 @@ export function useUpdateCampaignStatus() {
       const updates: Record<string, unknown> = { status };
       if (status === 'pending_distributor') updates.submitted_at = now;
       if (status === 'pending_roshen') updates.approved_distributor_at = now;
-      if (status === 'approved') updates.approved_roshen_at = now;
+      if (status === 'approved_pending_photos') updates.approved_roshen_at = now;
+      if (status === 'photos_submitted') updates.photos_submitted_at = now;
+      if (status === 'final_approved') updates.final_approved_at = now;
+      if (status === 'rejected') updates.rejected_at = now;
 
       // Persist campaign status
       const { error: statusError } = await supabase

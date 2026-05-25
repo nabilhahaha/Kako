@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   XCircle,
   ArrowRight,
-  AlertTriangle,
   Camera,
   Image,
   MessageSquare,

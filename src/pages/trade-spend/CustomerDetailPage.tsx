@@ -60,8 +60,11 @@ const STATUS_CONFIG: Record<CampaignStatus, { variant: 'secondary' | 'warning' |
   draft: { variant: 'secondary', label: 'Draft' },
   pending_distributor: { variant: 'warning', label: 'Pending Distributor' },
   pending_roshen: { variant: 'info', label: 'Pending Roshen' },
-  approved: { variant: 'success', label: 'Approved' },
+  approved_pending_photos: { variant: 'info', label: 'Awaiting Photos' },
+  photos_submitted: { variant: 'warning', label: 'Photos Submitted' },
+  final_approved: { variant: 'success', label: 'Final Approved' },
   changes_requested: { variant: 'destructive', label: 'Changes Requested' },
+  rejected: { variant: 'destructive', label: 'Rejected' },
 };
 
 // ---------------------------------------------------------------------------
@@ -129,7 +132,7 @@ function CampaignCard({ campaign, metrics, items, spendTypes, isPrivileged, t }:
         )}
 
         {/* ---- Metrics Grid ---- */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Selected Items: Before vs After */}
           <div className="space-y-1 rounded-lg border border-border p-3">
             <p className="text-caption uppercase tracking-wide">{t('customerDetail.selectedItems')}</p>
@@ -167,98 +170,7 @@ function CampaignCard({ campaign, metrics, items, spendTypes, isPrivileged, t }:
               {formatSAR(metrics.uplift_value)}
             </p>
           </div>
-
-          {/* Uplift (Cases) */}
-          <div className="space-y-1 rounded-lg border border-border p-3">
-            <p className="text-caption uppercase tracking-wide">{t('customerDetail.upliftCases')}</p>
-            <p className={`text-lg font-semibold tabular-nums ${valueColorClass(metrics.uplift_cases)}`}>
-              {formatNumber(metrics.uplift_cases)}
-            </p>
-          </div>
-
-          {/* Uplift % */}
-          <div className="space-y-1 rounded-lg border border-border p-3">
-            <p className="text-caption uppercase tracking-wide">{t('customerDetail.upliftPct')}</p>
-            <p className={`text-lg font-semibold tabular-nums ${valueColorClass(metrics.uplift_pct)}`}>
-              {formatPct(metrics.uplift_pct)}
-            </p>
-          </div>
-
-          {/* ROI (Total) */}
-          <div className="space-y-1 rounded-lg border border-border p-3">
-            <p className="text-caption uppercase tracking-wide">{t('customerDetail.roiTotal')}</p>
-            <p className={`text-lg font-semibold tabular-nums ${valueColorClass(metrics.roi_total)}`}>
-              {formatPct(metrics.roi_total)}
-            </p>
-          </div>
-
-          {/* ROI (Roshen) -- HIGHLIGHTED */}
-          <div className="space-y-1 rounded-lg border-2 border-gold bg-gold/5 p-3 relative overflow-hidden">
-            <div className="absolute inset-x-0 top-0 h-1 bg-gold" />
-            <p className="text-caption uppercase tracking-wide font-semibold text-amber-700 dark:text-amber-400">
-              {t('customerDetail.roiRoshen')}
-            </p>
-            <p className="text-2xl font-bold tabular-nums text-amber-700 dark:text-amber-400">
-              {formatPct(metrics.roi_roshen)}
-            </p>
-          </div>
-
-          {/* Spend / Sales */}
-          <div className="space-y-1 rounded-lg border border-border p-3">
-            <p className="text-caption uppercase tracking-wide">{t('customerDetail.spendToSales')}</p>
-            <p className="text-lg font-semibold tabular-nums">
-              {formatPct(metrics.spend_to_sales_pct)}
-            </p>
-          </div>
-
-          {/* Annualized ROI (Roshen) */}
-          <div className="space-y-1 rounded-lg border border-border p-3">
-            <p className="text-caption uppercase tracking-wide">{t('customerDetail.annualizedRoi')}</p>
-            <p className={`text-lg font-semibold tabular-nums ${valueColorClass(metrics.annualized_roi_roshen)}`}>
-              {formatPct(metrics.annualized_roi_roshen)}
-            </p>
-          </div>
-
-          {/* Payback (Days) */}
-          <div className="space-y-1 rounded-lg border border-border p-3">
-            <p className="text-caption uppercase tracking-wide">{t('customerDetail.paybackDays')}</p>
-            <p className="text-lg font-semibold tabular-nums">
-              {metrics.payback_days != null ? `${Math.round(metrics.payback_days)} days` : '--'}
-            </p>
-          </div>
-
-          {/* Spend per Incremental Case */}
-          <div className="space-y-1 rounded-lg border border-border p-3">
-            <p className="text-caption uppercase tracking-wide">{t('customerDetail.spendPerCase')}</p>
-            <p className="text-lg font-semibold tabular-nums">
-              {metrics.spend_per_incremental_case != null
-                ? formatSARValue(metrics.spend_per_incremental_case)
-                : '--'}
-            </p>
-          </div>
-
-          {/* Realized Price/Case */}
-          <div className="space-y-1 rounded-lg border border-border p-3">
-            <p className="text-caption uppercase tracking-wide">{t('customerDetail.realizedPrice')}</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-sm text-muted-foreground">{t('customerDetail.before')}:</span>
-              <span className="tabular-nums font-medium">{formatSARValue(metrics.realized_price_before)}</span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-sm text-muted-foreground">{t('customerDetail.after')}:</span>
-              <span className="tabular-nums font-medium">{formatSARValue(metrics.realized_price_after)}</span>
-            </div>
-          </div>
         </div>
-
-        {/* Cannibalization warning */}
-        {metrics.cannibalization_flag && (
-          <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>{t('customerDetail.cannibalizationWarning')}</span>
-            <Badge variant="destructive" className="ml-auto">{t('customerDetail.cannibalization')}</Badge>
-          </div>
-        )}
 
         {/* ---- Cost Split Bar (privileged users only) ---- */}
         {isPrivileged && (
@@ -584,7 +496,7 @@ export function CustomerDetailPage() {
       </header>
 
       {/* Summary KPI cards */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-3">
         <Card className="p-5">
           <p className="text-caption uppercase tracking-wide">{t('customerDetail.totalCampaigns')}</p>
           <p className="kpi-value tabular-nums mt-1">{customerCampaigns.length}</p>
@@ -605,11 +517,6 @@ export function CustomerDetailPage() {
               <TrendingDown className="h-4 w-4 text-destructive inline" />
             )}
           </div>
-        </Card>
-        <Card className="relative overflow-hidden border-2 border-gold p-5">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gold" />
-          <p className="text-caption uppercase tracking-wide">{t('customerDetail.roiRoshenAvg')}</p>
-          <p className="kpi-value gold-accent tabular-nums mt-1">{formatPct(summary.roiRoshen)}</p>
         </Card>
       </section>
 

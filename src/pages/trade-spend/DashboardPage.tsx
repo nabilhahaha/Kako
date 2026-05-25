@@ -292,26 +292,10 @@ function FullDashboardView({
     const roshenShare = allMetrics.reduce((s, m) => s + m.metrics.roshen_share, 0);
     const totalUplift = allMetrics.reduce((s, m) => s + m.metrics.uplift_value, 0);
 
-    const roiValues = allMetrics
-      .map((m) => m.metrics.roi_roshen)
-      .filter((v): v is number => v != null);
-    const avgRoiRoshen =
-      roiValues.length > 0
-        ? roiValues.reduce((s, v) => s + v, 0) / roiValues.length
-        : null;
-
-    const committedSpend = allMetrics
-      .filter((m) => m.metrics.result_status === 'running')
-      .reduce((s, m) => s + m.campaign.spend_amount, 0);
-
-    const wins = allMetrics.filter((m) => m.metrics.result_status === 'win').length;
-    const losses = allMetrics.filter((m) => m.metrics.result_status === 'loss').length;
-    const running = allMetrics.filter((m) => m.metrics.result_status === 'running').length;
-
-    return { totalSpend, roshenShare, totalUplift, avgRoiRoshen, committedSpend, wins, losses, running };
+    return { totalSpend, roshenShare, totalUplift };
   }, [campaigns, allMetrics]);
 
-  // ------ Alerts ------
+  // ------ Alerts (expiring only) ------
   const alerts = useMemo(() => {
     const items: AlertItem[] = [];
 
@@ -325,113 +309,8 @@ function FullDashboardView({
       }
     }
 
-    for (const m of allMetrics) {
-      if (m.metrics.uplift_value === 0) {
-        items.push({
-          type: 'zeroUplift',
-          campaignId: m.campaign.id,
-          label: `${m.campaign.id} — ${t('dashboard.zeroUplift')}`,
-        });
-      }
-    }
-
-    for (const m of allMetrics) {
-      if (m.metrics.cannibalization_flag) {
-        items.push({
-          type: 'cannibalization',
-          campaignId: m.campaign.id,
-          label: `${m.campaign.id} — ${t('dashboard.cannibalization')}`,
-        });
-      }
-    }
-
-    const negByCustomer = new Map<string, string[]>();
-    for (const m of allMetrics) {
-      if (m.metrics.roi_roshen != null && m.metrics.roi_roshen < 0) {
-        const existing = negByCustomer.get(m.campaign.account) ?? [];
-        existing.push(m.campaign.id);
-        negByCustomer.set(m.campaign.account, existing);
-      }
-    }
-    for (const [account, ids] of negByCustomer) {
-      if (ids.length >= 2) {
-        items.push({
-          type: 'repeatedNegative',
-          customerAccount: account,
-          label: `${account} — ${t('dashboard.repeatedNegative')} (${ids.length} campaigns)`,
-        });
-      }
-    }
-
     return items;
   }, [allMetrics, t]);
-
-  // ------ ROI by Spend Type ------
-  const roiBySpendType: GroupedROI[] = useMemo(() => {
-    const groups = new Map<string, number[]>();
-    for (const m of allMetrics) {
-      const key = m.campaign.spend_type || 'Other';
-      const arr = groups.get(key) ?? [];
-      if (m.metrics.roi_roshen != null) arr.push(m.metrics.roi_roshen);
-      groups.set(key, arr);
-    }
-    return Array.from(groups.entries()).map(([name, values]) => ({
-      name,
-      avgRoi: values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0,
-      count: values.length,
-    }));
-  }, [allMetrics]);
-
-  // ------ ROI by Classification ------
-  const roiByClassification: GroupedROI[] = useMemo(() => {
-    const groups = new Map<string, number[]>();
-    for (const m of allMetrics) {
-      const key = m.campaign.classification || 'Unclassified';
-      const arr = groups.get(key) ?? [];
-      if (m.metrics.roi_roshen != null) arr.push(m.metrics.roi_roshen);
-      groups.set(key, arr);
-    }
-    return Array.from(groups.entries()).map(([name, values]) => ({
-      name,
-      avgRoi: values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0,
-      count: values.length,
-    }));
-  }, [allMetrics]);
-
-  // ------ Top 5 / Bottom 5 ------
-  const { top5, bottom5 } = useMemo(() => {
-    const sorted = [...allMetrics]
-      .filter((m) => m.metrics.roi_roshen != null)
-      .sort((a, b) => (b.metrics.roi_roshen ?? 0) - (a.metrics.roi_roshen ?? 0));
-
-    return {
-      top5: sorted.slice(0, 5),
-      bottom5: sorted.slice(-5).reverse(),
-    };
-  }, [allMetrics]);
-
-  // ------ Alert icon mapping ------
-  const alertIcon: Record<AlertItem['type'], typeof AlertTriangle> = {
-    expiring: Clock,
-    zeroUplift: Activity,
-    cannibalization: TrendingDown,
-    repeatedNegative: AlertTriangle,
-  };
-
-  const alertVariant: Record<AlertItem['type'], 'warning' | 'destructive' | 'info' | 'secondary'> = {
-    expiring: 'warning',
-    zeroUplift: 'secondary',
-    cannibalization: 'destructive',
-    repeatedNegative: 'destructive',
-  };
-
-  // ------ Chart tooltip ------
-  const chartTooltipStyle = {
-    background: 'hsl(var(--card))',
-    border: '1px solid hsl(var(--border))',
-    borderRadius: 8,
-    fontSize: 12,
-  };
 
   return (
     <div className="space-y-6">
@@ -457,7 +336,7 @@ function FullDashboardView({
       {/* ------------------------------------------------------------------ */}
       {/* KPI Cards                                                          */}
       {/* ------------------------------------------------------------------ */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Total Spend */}
         <Card className="rounded-xl p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
@@ -479,7 +358,7 @@ function FullDashboardView({
               <p className="kpi-value tabular-nums">{formatSAR(kpis.roshenShare)}</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-info/10 text-info">
-              <PieChart className="h-5 w-5" />
+              <DollarSign className="h-5 w-5" />
             </div>
           </div>
         </Card>
@@ -508,58 +387,6 @@ function FullDashboardView({
             </div>
           </div>
         </Card>
-
-        {/* Avg ROI Roshen — HIGHLIGHTED with gold accent */}
-        <Card className="relative overflow-hidden rounded-xl border-2 border-gold p-5 shadow-sm">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gold" />
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <p className="text-caption uppercase tracking-wide">{t('dashboard.avgRoiRoshen')}</p>
-              <p className="kpi-value gold-accent tabular-nums">
-                {formatPct(kpis.avgRoiRoshen)}
-              </p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold text-gold-foreground">
-              <TrendingUp className="h-5 w-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Committed Spend */}
-        <Card className="rounded-xl p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <p className="text-caption uppercase tracking-wide">{t('dashboard.committedSpend')}</p>
-              <p className="kpi-value tabular-nums">{formatSAR(kpis.committedSpend)}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10 text-warning">
-              <Clock className="h-5 w-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Win / Loss / Running counts */}
-        <Card className="rounded-xl p-5 shadow-sm">
-          <div className="space-y-1">
-            <p className="text-caption uppercase tracking-wide">{t('common.status')}</p>
-            <div className="mt-2 flex items-center gap-3">
-              <div className="text-center">
-                <p className="kpi-value value-positive tabular-nums">{kpis.wins}</p>
-                <p className="text-caption">{t('dashboard.winCount')}</p>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div className="text-center">
-                <p className="kpi-value value-negative tabular-nums">{kpis.losses}</p>
-                <p className="text-caption">{t('dashboard.lossCount')}</p>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div className="text-center">
-                <p className="kpi-value tabular-nums text-muted-foreground">{kpis.running}</p>
-                <p className="text-caption">{t('dashboard.runningCount')}</p>
-              </div>
-            </div>
-          </div>
-        </Card>
       </section>
 
       {/* ------------------------------------------------------------------ */}
@@ -576,24 +403,18 @@ function FullDashboardView({
             </CardHeader>
             <CardContent>
               <ul className="divide-y divide-border">
-                {alerts.map((alert, idx) => {
-                  const Icon = alertIcon[alert.type];
-                  return (
-                    <li
-                      key={`${alert.type}-${alert.campaignId ?? alert.customerAccount}-${idx}`}
-                      className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                    >
-                      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="flex-1 text-sm text-foreground">{alert.label}</span>
-                      <Badge variant={alertVariant[alert.type]} className="shrink-0">
-                        {alert.type === 'expiring' && t('status.expiring')}
-                        {alert.type === 'zeroUplift' && t('dashboard.zeroUplift')}
-                        {alert.type === 'cannibalization' && t('dashboard.cannibalization')}
-                        {alert.type === 'repeatedNegative' && t('dashboard.repeatedNegative')}
-                      </Badge>
-                    </li>
-                  );
-                })}
+                {alerts.map((alert, idx) => (
+                  <li
+                    key={`${alert.type}-${alert.campaignId ?? alert.customerAccount}-${idx}`}
+                    className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="flex-1 text-sm text-foreground">{alert.label}</span>
+                    <Badge variant="warning" className="shrink-0">
+                      {t('status.expiring')}
+                    </Badge>
+                  </li>
+                ))}
               </ul>
             </CardContent>
           </Card>
@@ -601,205 +422,44 @@ function FullDashboardView({
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* Charts: ROI by Spend Type & ROI by Classification                  */}
+      {/* Campaign Summary Table                                             */}
       {/* ------------------------------------------------------------------ */}
-      <section className="grid gap-4 lg:grid-cols-2">
-        {/* ROI by Spend Type */}
-        <Card className="rounded-xl p-5 shadow-sm">
-          <div className="space-y-1">
-            <h3 className="heading-2 font-display">{t('dashboard.roiBySpendType')}</h3>
-            <p className="text-caption">{t('dashboard.avgRoiRoshen')}</p>
-          </div>
-          <div className="mt-4 w-full" style={{ height: 300 }}>
-            {roiBySpendType.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={roiBySpendType}
-                  margin={{ top: 8, right: 12, left: 0, bottom: 4 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v: number) => `${v.toFixed(0)}%`}
-                  />
-                  <Tooltip
-                    contentStyle={chartTooltipStyle}
-                    formatter={(value: unknown) => [`${Number(value).toFixed(1)}%`, t('dashboard.avgRoiRoshen')]}
-                    cursor={{ fill: 'hsl(var(--accent) / 0.15)' }}
-                  />
-                  <Bar dataKey="avgRoi" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full items-center justify-center text-caption">
-                {t('common.noData')}
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* ROI by Classification */}
-        <Card className="rounded-xl p-5 shadow-sm">
-          <div className="space-y-1">
-            <h3 className="heading-2 font-display">{t('dashboard.roiByClassification')}</h3>
-            <p className="text-caption">{t('dashboard.avgRoiRoshen')}</p>
-          </div>
-          <div className="mt-4 w-full" style={{ height: 300 }}>
-            {roiByClassification.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={roiByClassification}
-                  margin={{ top: 8, right: 12, left: 0, bottom: 4 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v: number) => `${v.toFixed(0)}%`}
-                  />
-                  <Tooltip
-                    contentStyle={chartTooltipStyle}
-                    formatter={(value: unknown) => [`${Number(value).toFixed(1)}%`, t('dashboard.avgRoiRoshen')]}
-                    cursor={{ fill: 'hsl(var(--accent) / 0.15)' }}
-                  />
-                  <Bar dataKey="avgRoi" fill="hsl(var(--accent))" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full items-center justify-center text-caption">
-                {t('common.noData')}
-              </div>
-            )}
-          </div>
-        </Card>
-      </section>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* Top 5 / Bottom 5 Tables                                            */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="grid gap-4 lg:grid-cols-2">
-        {/* Top 5 */}
+      <section>
         <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-3">
-            <CardTitle className="heading-2 font-display flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-success" />
-              {t('dashboard.top5')}
+            <CardTitle className="heading-2 font-display">
+              {t('dashboard.totalCampaignsCount')} ({campaigns.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {top5.length > 0 ? (
+            {allMetrics.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-caption">
-                      <th className="py-2 text-left font-medium">#</th>
                       <th className="py-2 text-left font-medium">ID</th>
                       <th className="py-2 text-left font-medium">{t('campaign.customer')}</th>
                       <th className="py-2 text-left font-medium">{t('campaign.spendType')}</th>
+                      <th className="py-2 text-right font-medium">{t('campaign.spendAmount')}</th>
                       <th className="py-2 text-right font-medium">{t('dashboard.totalUplift')}</th>
-                      <th className="py-2 text-right font-medium">ROI</th>
                       <th className="py-2 text-center font-medium">{t('common.status')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {top5.map((m, i) => (
+                    {allMetrics.map((m) => (
                       <tr key={m.campaign.id} className="hover:bg-muted/50 transition-colors">
-                        <td className="py-2.5 tabular-nums text-muted-foreground">{i + 1}</td>
                         <td className="py-2.5 font-medium">{m.campaign.id}</td>
                         <td className="py-2.5">{m.campaign.account}</td>
                         <td className="py-2.5">{m.campaign.spend_type}</td>
+                        <td className="py-2.5 text-right tabular-nums">
+                          {formatSAR(m.campaign.spend_amount)}
+                        </td>
                         <td className={`py-2.5 text-right tabular-nums ${valueColorClass(m.metrics.uplift_value)}`}>
                           {formatSAR(m.metrics.uplift_value)}
                         </td>
-                        <td className={`py-2.5 text-right tabular-nums font-semibold ${valueColorClass(m.metrics.roi_roshen ?? 0)}`}>
-                          {formatPct(m.metrics.roi_roshen)}
-                        </td>
                         <td className="py-2.5 text-center">
-                          <Badge
-                            variant={
-                              m.metrics.result_status === 'win'
-                                ? 'success'
-                                : m.metrics.result_status === 'loss'
-                                  ? 'destructive'
-                                  : 'warning'
-                            }
-                          >
-                            {t(`status.${m.metrics.result_status}`)}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="py-6 text-center text-caption">{t('common.noData')}</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Bottom 5 */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="heading-2 font-display flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-destructive" />
-              {t('dashboard.bottom5')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {bottom5.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-caption">
-                      <th className="py-2 text-left font-medium">#</th>
-                      <th className="py-2 text-left font-medium">ID</th>
-                      <th className="py-2 text-left font-medium">{t('campaign.customer')}</th>
-                      <th className="py-2 text-left font-medium">{t('campaign.spendType')}</th>
-                      <th className="py-2 text-right font-medium">{t('dashboard.totalUplift')}</th>
-                      <th className="py-2 text-right font-medium">ROI</th>
-                      <th className="py-2 text-center font-medium">{t('common.status')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {bottom5.map((m, i) => (
-                      <tr key={m.campaign.id} className="hover:bg-muted/50 transition-colors">
-                        <td className="py-2.5 tabular-nums text-muted-foreground">{i + 1}</td>
-                        <td className="py-2.5 font-medium">{m.campaign.id}</td>
-                        <td className="py-2.5">{m.campaign.account}</td>
-                        <td className="py-2.5">{m.campaign.spend_type}</td>
-                        <td className={`py-2.5 text-right tabular-nums ${valueColorClass(m.metrics.uplift_value)}`}>
-                          {formatSAR(m.metrics.uplift_value)}
-                        </td>
-                        <td className={`py-2.5 text-right tabular-nums font-semibold ${valueColorClass(m.metrics.roi_roshen ?? 0)}`}>
-                          {formatPct(m.metrics.roi_roshen)}
-                        </td>
-                        <td className="py-2.5 text-center">
-                          <Badge
-                            variant={
-                              m.metrics.result_status === 'win'
-                                ? 'success'
-                                : m.metrics.result_status === 'loss'
-                                  ? 'destructive'
-                                  : 'warning'
-                            }
-                          >
-                            {t(`status.${m.metrics.result_status}`)}
+                          <Badge variant={STATUS_BADGE_VARIANT[m.campaign.status]}>
+                            {t(`status.${m.campaign.status}`)}
                           </Badge>
                         </td>
                       </tr>
@@ -935,7 +595,7 @@ export function DashboardPage() {
             No campaigns yet
           </h2>
           <p className="max-w-md text-sm text-muted-foreground">
-            Create your first trade spend campaign to start seeing {isFullView ? 'ROI analytics' : 'data'} on this dashboard.
+            Create your first trade spend campaign to start seeing data on this dashboard.
           </p>
         </div>
       </div>
@@ -959,7 +619,7 @@ export function DashboardPage() {
             No sales data uploaded
           </h2>
           <p className="max-w-md text-sm text-muted-foreground">
-            Upload raw sales transaction data so the {isFullView ? 'ROI engine' : 'platform'} can compute campaign metrics.
+            Upload raw sales transaction data so the platform can compute campaign metrics.
           </p>
         </div>
       </div>
