@@ -138,9 +138,9 @@ export const DEMO_USERS: TradeSpendUser[] = [
   { id: 'demo-mgr-1', email: 'manager1@demo.com', display_name: 'Ahmad Al-Salem', roles: ['dept_manager'], active: true, password: 'Roshen2026', created_at: '2026-01-01' },
   { id: 'demo-mgr-2', email: 'manager2@demo.com', display_name: 'Khalid Al-Rashidi', roles: ['dept_manager'], active: true, password: 'Roshen2026', created_at: '2026-01-01' },
   { id: 'demo-dist', email: 'trade@demo.com', display_name: 'Sarah Al-Mutairi', roles: ['distributor_trade_mktg'], active: true, password: 'Roshen2026', created_at: '2026-01-01' },
-  { id: 'demo-roshen', email: 'roshen@demo.com', display_name: 'Olena Kovalenko', roles: ['roshen_approver'], active: true, password: 'Roshen2026', created_at: '2026-01-01' },
+  { id: 'demo-roshen', email: 'Ahmed.nabil@roshen.trade', display_name: 'Ahmed Nabil', roles: ['roshen_approver'], active: true, password: 'Roshen2026', created_at: '2026-01-01' },
   { id: 'demo-viewer', email: 'viewer@demo.com', display_name: 'Mohammed Al-Harbi', roles: ['viewer'], active: true, password: 'Roshen2026', created_at: '2026-01-01' },
-  { id: 'demo-admin', email: 'admin@demo.com', display_name: 'Nabil Ismailia', roles: ['admin', 'roshen_approver'], active: true, password: 'Roshen2026', created_at: '2026-01-01' },
+  { id: 'demo-admin', email: 'admin@demo.com', display_name: 'Nabil Ismailia', roles: ['admin'], active: true, password: 'Roshen2026', created_at: '2026-01-01' },
 ];
 
 // ---------------------------------------------------------------------------

@@ -170,6 +170,50 @@ export function ApprovalsPage() {
     updateCampaignStatus(campaignId, newStatus);
     addWorkflowEvent({ campaign_id: campaignId, actor_user_id: currentUser?.id || '', action: action as any, note: noteText || undefined });
     setNoteText('');
+
+    if (newStatus === 'final_approved') {
+      const campaign = campaigns.find((c) => c.id === campaignId);
+      if (campaign) {
+        sendApprovalEmail(campaign);
+      }
+    }
+  };
+
+  const sendApprovalEmail = (campaign: Campaign) => {
+    const customer = getCustomerName(campaign.account);
+    const itemsList = campaign.item_ids.map((id) => getItemDesc(id)).join('\n  - ');
+    const branchesList = campaign.branches.map((b) => b.branch_name).join('\n  - ');
+    const roshenShare = (campaign.spend_amount * campaign.roshen_pct / 100).toLocaleString();
+    const distShare = (campaign.spend_amount * (100 - campaign.roshen_pct) / 100).toLocaleString();
+    const approvedBy = currentUser?.display_name || '';
+    const approvalDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const subject = `Trade Spend Final Approval — ${campaign.id} — ${customer}`;
+    const body = `Trade Spend Request — Final Approval
+
+Campaign: ${campaign.id}
+Customer: ${customer} (${campaign.account})
+Spend Type: ${campaign.spend_type}
+Total Amount: SAR ${campaign.spend_amount.toLocaleString()}
+Roshen Share (${campaign.roshen_pct}%): SAR ${roshenShare}
+Distributor Share (${100 - campaign.roshen_pct}%): SAR ${distShare}
+Start Date: ${campaign.start_date}
+
+Items:
+  - ${itemsList}
+
+Branches:
+  - ${branchesList}
+
+Status: FINAL APPROVED ✅
+Approved By: ${approvedBy}
+Approval Date: ${approvalDate}
+
+---
+This approval was issued through the Roshen Trade Spend Platform.`;
+
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailto, '_blank');
   };
 
   const handlePhotoUpload = (campaignId: string, branchId: string, file: File) => {
