@@ -242,7 +242,10 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
         const upd: Partial<Campaign> = { status };
         if (status === 'pending_distributor') upd.submitted_at = now;
         if (status === 'pending_roshen') upd.approved_distributor_at = now;
-        if (status === 'approved') upd.approved_roshen_at = now;
+        if (status === 'approved_pending_photos') upd.approved_roshen_at = now;
+        if (status === 'photos_submitted') upd.photos_submitted_at = now;
+        if (status === 'final_approved') upd.final_approved_at = now;
+        if (status === 'rejected') upd.rejected_at = now;
         return { ...c, ...upd };
       }),
     }));

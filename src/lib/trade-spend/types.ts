@@ -61,8 +61,11 @@ export type CampaignStatus =
   | 'draft'
   | 'pending_distributor'   // was "pending_relaia"
   | 'pending_roshen'
-  | 'approved'
-  | 'changes_requested';
+  | 'approved_pending_photos'  // Roshen approved budget, waiting for execution photos
+  | 'photos_submitted'         // Photos added, waiting for Roshen final approval
+  | 'final_approved'           // Roshen final approval with photos
+  | 'changes_requested'
+  | 'rejected';
 
 export interface CampaignBranch {
   id: string;
@@ -96,6 +99,9 @@ export interface Campaign {
   submitted_at?: string;
   approved_distributor_at?: string;
   approved_roshen_at?: string;
+  photos_submitted_at?: string;
+  final_approved_at?: string;
+  rejected_at?: string;
 }
 
 // ROI Engine output
@@ -161,7 +167,10 @@ export type WorkflowAction =
   | 'edited'
   | 'changes_requested'
   | 'approved_distributor'   // was "approved_relaia"
-  | 'approved_roshen'
+  | 'approved_roshen'        // budget approval (stage 3)
+  | 'photos_added'           // photos uploaded after execution
+  | 'final_approved'         // Roshen final approval with photos
+  | 'rejected'               // explicitly rejected
   | 'returned';
 
 export interface WorkflowEvent {

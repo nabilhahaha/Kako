@@ -16,6 +16,8 @@ import {
   Send,
   Eye,
   UserCheck,
+  Upload,
+  Ban,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,8 +39,11 @@ const STATUS_STYLE: Record<CampaignStatus, { bg: string; dot: string }> = {
   draft: { bg: 'bg-gray-50 dark:bg-gray-900', dot: 'bg-gray-400' },
   pending_distributor: { bg: 'bg-amber-50 dark:bg-amber-950', dot: 'bg-amber-500' },
   pending_roshen: { bg: 'bg-blue-50 dark:bg-blue-950', dot: 'bg-blue-500' },
-  approved: { bg: 'bg-emerald-50 dark:bg-emerald-950', dot: 'bg-emerald-500' },
+  approved_pending_photos: { bg: 'bg-violet-50 dark:bg-violet-950', dot: 'bg-violet-500' },
+  photos_submitted: { bg: 'bg-cyan-50 dark:bg-cyan-950', dot: 'bg-cyan-500' },
+  final_approved: { bg: 'bg-emerald-50 dark:bg-emerald-950', dot: 'bg-emerald-500' },
   changes_requested: { bg: 'bg-red-50 dark:bg-red-950', dot: 'bg-red-500' },
+  rejected: { bg: 'bg-red-100 dark:bg-red-950', dot: 'bg-red-700' },
 };
 
 function WorkflowStepper({ status }: { status: CampaignStatus }) {
@@ -47,15 +52,25 @@ function WorkflowStepper({ status }: { status: CampaignStatus }) {
     { key: 'draft', label: t('status.draft'), icon: Send },
     { key: 'pending_distributor', label: t('status.pending_distributor'), icon: UserCheck },
     { key: 'pending_roshen', label: t('status.pending_roshen'), icon: ShieldCheck },
-    { key: 'approved', label: t('status.approved'), icon: CheckCircle2 },
+    { key: 'approved_pending_photos', label: t('status.approved_pending_photos'), icon: Camera },
+    { key: 'final_approved', label: t('status.final_approved'), icon: CheckCircle2 },
   ];
 
-  const statusOrder = ['draft', 'pending_distributor', 'pending_roshen', 'approved'];
-  const currentIdx = status === 'changes_requested' ? 1 : statusOrder.indexOf(status);
+  const statusOrder = ['draft', 'pending_distributor', 'pending_roshen', 'approved_pending_photos', 'photos_submitted', 'final_approved'];
+  const currentIdx = status === 'changes_requested' ? 1
+    : status === 'rejected' ? -1
+    : status === 'photos_submitted' ? 4
+    : statusOrder.indexOf(status);
 
   return (
     <div className="flex items-center gap-1 overflow-x-auto pb-1">
-      {steps.map((step, i) => {
+      {status === 'rejected' && (
+        <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-300">
+          <Ban className="h-3 w-3" />
+          <span className="hidden sm:inline">{t('status.rejected')}</span>
+        </div>
+      )}
+      {status !== 'rejected' && steps.map((step, i) => {
         const isComplete = i < currentIdx;
         const isCurrent = i === currentIdx;
         const isChangesRequested = status === 'changes_requested' && i === 1;
@@ -112,6 +127,8 @@ export function ApprovalsPage() {
     return campaigns.filter((c) => {
       if ((isDistributorTM || isAdmin) && c.status === 'pending_distributor') return true;
       if ((isRoshenApprover || isAdmin) && c.status === 'pending_roshen') return true;
+      if ((isRoshenApprover || isAdmin) && c.status === 'photos_submitted') return true;
+      if ((isDeptManager || isDistributorTM || isAdmin) && c.status === 'approved_pending_photos') return true;
       if (isDeptManager && c.created_by === currentUser?.id && c.status === 'changes_requested') return true;
       if (isDeptManager && c.created_by === currentUser?.id && c.status === 'draft') return true;
       return false;
@@ -120,9 +137,9 @@ export function ApprovalsPage() {
 
   const allCampaignsSorted = useMemo(() => {
     const order: Record<string, number> = {
-      pending_distributor: 0, pending_roshen: 1, changes_requested: 2, draft: 3, approved: 4,
+      pending_distributor: 0, pending_roshen: 1, approved_pending_photos: 2, photos_submitted: 3, changes_requested: 4, draft: 5, final_approved: 6, rejected: 7,
     };
-    return [...campaigns].sort((a, b) => (order[a.status] ?? 5) - (order[b.status] ?? 5));
+    return [...campaigns].sort((a, b) => (order[a.status] ?? 8) - (order[b.status] ?? 8));
   }, [campaigns]);
 
   const metricsMap = useMemo(() => {
@@ -202,6 +219,8 @@ export function ApprovalsPage() {
 
     const canApproveDistributor = (isDistributorTM || isAdmin) && campaign.status === 'pending_distributor';
     const canApproveRoshen = (isRoshenApprover || isAdmin) && campaign.status === 'pending_roshen';
+    const canUploadPhotos = (isDeptManager || isDistributorTM || isAdmin) && campaign.status === 'approved_pending_photos';
+    const canFinalApprove = (isRoshenApprover || isAdmin) && campaign.status === 'photos_submitted';
     const canSubmit = (isDeptManager || isDistributorTM || isAdmin) && (campaign.status === 'draft' || campaign.status === 'changes_requested');
 
     return (
@@ -242,13 +261,13 @@ export function ApprovalsPage() {
               <p className="text-xs font-semibold mt-0.5">{formatSAR(campaign.spend_amount)}</p>
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase">ROI Roshen</p>
+              <p className="text-[10px] text-muted-foreground uppercase">{t('customerDetail.upliftValue')}</p>
               <p className={`text-xs font-bold mt-0.5 ${
-                metrics?.roi_roshen != null
-                  ? metrics.roi_roshen >= 0 ? 'text-success' : 'text-destructive'
+                metrics?.uplift_value != null
+                  ? metrics.uplift_value >= 0 ? 'text-success' : 'text-destructive'
                   : 'text-muted-foreground'
               }`}>
-                {metrics?.roi_roshen != null ? `${metrics.roi_roshen.toFixed(1)}%` : '—'}
+                {metrics?.uplift_value != null ? formatSAR(metrics.uplift_value) : '—'}
               </p>
             </div>
           </div>
@@ -278,8 +297,42 @@ export function ApprovalsPage() {
                 </div>
               )}
 
-              {/* Branch photos */}
-              {campaign.branches.length > 0 && (
+              {/* Photo upload prompt for approved_pending_photos */}
+              {canUploadPhotos && (
+                <div className="rounded-lg border-2 border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-1.5">
+                    <Upload className="h-4 w-4" />
+                    {t('workflow.uploadPhotosPrompt')}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {campaign.branches.map((branch) => (
+                      <div key={branch.id} className="rounded-lg border p-1.5 space-y-1 bg-background">
+                        <p className="text-[10px] font-medium truncate">{branch.branch_name || '—'}</p>
+                        {branch.photo_url ? (
+                          <img src={branch.photo_url} alt={branch.branch_name} className="w-full h-16 object-cover rounded" />
+                        ) : (
+                          <div className="w-full h-16 rounded bg-muted flex items-center justify-center">
+                            <Image className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        {!branch.photo_url && (
+                          <label className="flex items-center gap-1 text-[9px] text-primary cursor-pointer">
+                            <Camera className="h-2.5 w-2.5" />
+                            {t('campaign.addPhoto')}
+                            <input type="file" accept="image/*" className="sr-only" onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) handlePhotoUpload(campaign.id, branch.id, f);
+                            }} />
+                          </label>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Branch photos (non-upload view) */}
+              {!canUploadPhotos && campaign.branches.length > 0 && (
                 <div>
                   <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1.5">
                     {t('campaign.branches')} ({campaign.branches.filter(b => b.photo_url).length}/{campaign.branches.length})
@@ -308,12 +361,6 @@ export function ApprovalsPage() {
                       </div>
                     ))}
                   </div>
-                  {!photosOk && canApproveDistributor && (
-                    <p className="mt-1.5 text-[10px] text-amber-600 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      {t('workflow.allPhotosRequired')}
-                    </p>
-                  )}
                 </div>
               )}
 
