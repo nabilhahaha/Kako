@@ -16,12 +16,14 @@ export function TradeSpendShell() {
   }, [i18n.language]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       <TradeSpendSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <TradeSpendTopBar />
-        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6 scroll-smooth">
+          <div className="mx-auto max-w-6xl animate-in">
+            <Outlet />
+          </div>
         </main>
       </div>
       <TradeSpendBottomNav />

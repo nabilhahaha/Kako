@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -22,9 +22,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
 import { computeCampaignMetrics } from '@/lib/trade-spend/engine';
-import type { CampaignStatus, Campaign } from '@/lib/trade-spend/types';
+import type { CampaignStatus, Campaign, PeriodMode } from '@/lib/trade-spend/types';
 
 function formatSAR(n: number): string {
   return `﷼ ${n.toLocaleString('en', { maximumFractionDigits: 0 })}`;
@@ -115,12 +116,20 @@ export function ApprovalsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
 
+  // Comparison period state for Roshen setting
+  const [cpPeriodMode, setCpPeriodMode] = useState<PeriodMode>('days');
+  const [cpCustomDays, setCpCustomDays] = useState<number>(30);
+  const [cpBeforeStart, setCpBeforeStart] = useState('');
+  const [cpBeforeEnd, setCpBeforeEnd] = useState('');
+  const [cpAfterStart, setCpAfterStart] = useState('');
+  const [cpAfterEnd, setCpAfterEnd] = useState('');
+
   const userRoles = currentUser?.roles || [];
   const isDistributorTM = userRoles.includes('distributor_trade_mktg');
   const isRoshenApprover = userRoles.includes('roshen_approver');
   const isAdmin = userRoles.includes('admin');
   const isDeptManager = userRoles.includes('dept_manager');
-  const isPrivileged = isRoshenApprover || isAdmin;
+  const isPrivileged = isRoshenApprover;
 
   const pendingCampaigns = useMemo(() => {
     return campaigns.filter((c) => {
@@ -171,6 +180,18 @@ export function ApprovalsPage() {
     };
     reader.readAsDataURL(file);
   };
+
+  const handleSaveComparisonPeriod = useCallback((campaignId: string) => {
+    const updates: Partial<Campaign> = {
+      period_mode: cpPeriodMode,
+      custom_days: cpPeriodMode === 'days' ? cpCustomDays : undefined,
+      before_start: cpPeriodMode === 'dates' ? cpBeforeStart : undefined,
+      before_end: cpPeriodMode === 'dates' ? cpBeforeEnd : undefined,
+      after_start: cpPeriodMode === 'dates' ? cpAfterStart : undefined,
+      after_end: cpPeriodMode === 'dates' ? cpAfterEnd : undefined,
+    };
+    updateCampaign(campaignId, updates);
+  }, [cpPeriodMode, cpCustomDays, cpBeforeStart, cpBeforeEnd, cpAfterStart, cpAfterEnd, updateCampaign]);
 
   const pendingCount = pendingCampaigns.length;
 
@@ -293,6 +314,85 @@ export function ApprovalsPage() {
                   <div className="bg-gold flex items-center justify-center" style={{ width: `${100 - campaign.roshen_pct}%` }}>
                     {t('campaign.distributorShare')} {100 - campaign.roshen_pct}%
                   </div>
+                </div>
+              )}
+
+              {/* Comparison Period — Roshen can SET it at pending_roshen stage */}
+              {isRoshenApprover && campaign.status === 'pending_roshen' && (
+                <div className="rounded-lg border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950 p-3 space-y-3">
+                  <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                    <Clock className="h-4 w-4" />
+                    {t('campaign.periodMode')}
+                  </p>
+                  {/* Period mode selector */}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <label className={`flex items-center gap-2 px-2 py-1.5 rounded border cursor-pointer text-xs transition-colors ${
+                      cpPeriodMode === 'match' ? 'border-primary bg-primary/5' : 'border-input bg-background'
+                    } ${campaign.duration_key === 'none' ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <input type="radio" name={`cpMode-${campaign.id}`} value="match" checked={cpPeriodMode === 'match'} onChange={() => setCpPeriodMode('match')} disabled={campaign.duration_key === 'none'} className="h-3 w-3" />
+                      {t('campaign.matchDuration')}
+                    </label>
+                    <label className={`flex items-center gap-2 px-2 py-1.5 rounded border cursor-pointer text-xs transition-colors ${
+                      cpPeriodMode === 'days' ? 'border-primary bg-primary/5' : 'border-input bg-background'
+                    }`}>
+                      <input type="radio" name={`cpMode-${campaign.id}`} value="days" checked={cpPeriodMode === 'days'} onChange={() => setCpPeriodMode('days')} className="h-3 w-3" />
+                      {t('campaign.customDays')}
+                    </label>
+                    <label className={`flex items-center gap-2 px-2 py-1.5 rounded border cursor-pointer text-xs transition-colors ${
+                      cpPeriodMode === 'dates' ? 'border-primary bg-primary/5' : 'border-input bg-background'
+                    }`}>
+                      <input type="radio" name={`cpMode-${campaign.id}`} value="dates" checked={cpPeriodMode === 'dates'} onChange={() => setCpPeriodMode('dates')} className="h-3 w-3" />
+                      {t('campaign.manualDates')}
+                    </label>
+                  </div>
+                  {/* Days input */}
+                  {cpPeriodMode === 'days' && (
+                    <div className="max-w-[200px]">
+                      <Label className="text-xs">{t('campaign.days')}</Label>
+                      <Input type="number" min={1} value={cpCustomDays} onChange={(e) => setCpCustomDays(Number(e.target.value))} className="h-8 text-xs mt-1" />
+                    </div>
+                  )}
+                  {/* Manual dates input */}
+                  {cpPeriodMode === 'dates' && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">{t('campaign.beforePeriod')}</Label>
+                        <div className="grid grid-cols-2 gap-1">
+                          <Input type="date" value={cpBeforeStart} onChange={(e) => setCpBeforeStart(e.target.value)} className="h-7 text-[10px]" />
+                          <Input type="date" value={cpBeforeEnd} onChange={(e) => setCpBeforeEnd(e.target.value)} className="h-7 text-[10px]" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">{t('campaign.afterPeriod')}</Label>
+                        <div className="grid grid-cols-2 gap-1">
+                          <Input type="date" value={cpAfterStart} onChange={(e) => setCpAfterStart(e.target.value)} className="h-7 text-[10px]" />
+                          <Input type="date" value={cpAfterEnd} onChange={(e) => setCpAfterEnd(e.target.value)} className="h-7 text-[10px]" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <Button size="sm" className="h-7 text-xs" onClick={() => handleSaveComparisonPeriod(campaign.id)}>
+                    {t('common.save')}
+                  </Button>
+                </div>
+              )}
+
+              {/* Comparison Period — read-only display when already set and past pending_roshen */}
+              {campaign.status !== 'pending_roshen' && campaign.period_mode && (
+                <div className="rounded-lg bg-muted/50 p-3 text-xs space-y-1">
+                  <p className="font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    {t('campaign.periodMode')}
+                  </p>
+                  {campaign.period_mode === 'days' && (
+                    <p>{t('campaign.customDays')}: {campaign.custom_days ?? 30} {t('campaign.days')}</p>
+                  )}
+                  {campaign.period_mode === 'match' && (
+                    <p>{t('campaign.matchDuration')}</p>
+                  )}
+                  {campaign.period_mode === 'dates' && (
+                    <p>{t('campaign.beforePeriod')}: {campaign.before_start} — {campaign.before_end} | {t('campaign.afterPeriod')}: {campaign.after_start} — {campaign.after_end}</p>
+                  )}
                 </div>
               )}
 

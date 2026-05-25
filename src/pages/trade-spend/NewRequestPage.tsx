@@ -79,7 +79,11 @@ export function NewRequestPage() {
   const [spendAmount, setSpendAmount] = useState<number>(0);
   const [startDate, setStartDate] = useState('');
   const isPrivileged = useMemo(
-    () => currentUser?.roles.some((r) => ['roshen_approver', 'admin'].includes(r)) ?? false,
+    () => currentUser?.roles.some((r) => r === 'roshen_approver') ?? false,
+    [currentUser],
+  );
+  const isRoshenOrAdmin = useMemo(
+    () => currentUser?.roles.some((r) => r === 'roshen_approver') ?? false,
     [currentUser],
   );
 
@@ -286,19 +290,21 @@ export function NewRequestPage() {
     if (selectedItemIds.length === 0) errors.push('At least 1 item must be selected');
     if (spendAmount <= 0) errors.push('Spend amount must be greater than 0');
     if (!startDate) errors.push('Start date is required');
-    if (periodMode === 'match' && durationKey === 'none')
-      errors.push('Cannot use "Match duration" with open-ended duration');
-    if (periodMode === 'days' && customDays <= 0)
-      errors.push('Custom days must be greater than 0');
-    if (periodMode === 'dates') {
-      if (!beforeStart || !beforeEnd || !afterStart || !afterEnd)
-        errors.push('All manual date fields are required');
+    if (isRoshenOrAdmin) {
+      if (periodMode === 'match' && durationKey === 'none')
+        errors.push('Cannot use "Match duration" with open-ended duration');
+      if (periodMode === 'days' && customDays <= 0)
+        errors.push('Custom days must be greater than 0');
+      if (periodMode === 'dates') {
+        if (!beforeStart || !beforeEnd || !afterStart || !afterEnd)
+          errors.push('All manual date fields are required');
+      }
     }
     if (overlapResult.blocked) errors.push('Overlap with active campaign blocks saving');
     return errors;
   }, [
     selectedAccount, selectedItemIds, spendAmount, startDate,
-    periodMode, durationKey, customDays,
+    isRoshenOrAdmin, periodMode, durationKey, customDays,
     beforeStart, beforeEnd, afterStart, afterEnd,
     overlapResult.blocked,
   ]);
@@ -318,6 +324,10 @@ export function NewRequestPage() {
 
       const now = new Date().toISOString();
 
+      // For non-Roshen users, use default comparison period values
+      const effectivePeriodMode = isRoshenOrAdmin ? periodMode : 'days';
+      const effectiveCustomDays = isRoshenOrAdmin ? (periodMode === 'days' ? customDays : undefined) : 30;
+
       return {
         id: '', // assigned by store
         account: selectedAccount,
@@ -329,12 +339,12 @@ export function NewRequestPage() {
         spend_amount: spendAmount,
         start_date: startDate,
         roshen_pct: roshenPct,
-        period_mode: periodMode,
-        custom_days: periodMode === 'days' ? customDays : undefined,
-        before_start: periodMode === 'dates' ? beforeStart : undefined,
-        before_end: periodMode === 'dates' ? beforeEnd : undefined,
-        after_start: periodMode === 'dates' ? afterStart : undefined,
-        after_end: periodMode === 'dates' ? afterEnd : undefined,
+        period_mode: effectivePeriodMode,
+        custom_days: effectiveCustomDays,
+        before_start: isRoshenOrAdmin && periodMode === 'dates' ? beforeStart : undefined,
+        before_end: isRoshenOrAdmin && periodMode === 'dates' ? beforeEnd : undefined,
+        after_start: isRoshenOrAdmin && periodMode === 'dates' ? afterStart : undefined,
+        after_end: isRoshenOrAdmin && periodMode === 'dates' ? afterEnd : undefined,
         branch_count: branchCount,
         branches: campaignBranches,
         status,
@@ -348,7 +358,7 @@ export function NewRequestPage() {
       spendType, durationKey, durationMonths, selectedItemIds,
       spendAmount, startDate, roshenPct, periodMode, customDays,
       beforeStart, beforeEnd, afterStart, afterEnd,
-      branchCount, branches, currentUser,
+      branchCount, branches, currentUser, isRoshenOrAdmin,
     ],
   );
 
@@ -737,8 +747,9 @@ export function NewRequestPage() {
       </Card>
 
       {/* ============================================================ */}
-      {/* 5. Comparison Period                                         */}
+      {/* 5. Comparison Period (Roshen only)                            */}
       {/* ============================================================ */}
+      {isRoshenOrAdmin && (
       <Card>
         <CardHeader>
           <CardTitle>{t('campaign.periodMode')}</CardTitle>
@@ -872,6 +883,7 @@ export function NewRequestPage() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* ============================================================ */}
       {/* 6. Branches                                                  */}

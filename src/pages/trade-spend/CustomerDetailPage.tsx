@@ -189,6 +189,24 @@ function CampaignCard({ campaign, metrics, items, spendTypes, isPrivileged, t }:
           </div>
         )}
 
+        {/* ---- Comparison Period (read-only) ---- */}
+        {campaign.period_mode && (
+          <div className="space-y-1">
+            <p className="text-caption uppercase tracking-wide font-medium">{t('campaign.periodMode')}</p>
+            <div className="rounded-lg bg-muted/50 p-3 text-sm">
+              {campaign.period_mode === 'days' && (
+                <p>{t('campaign.customDays')}: {campaign.custom_days ?? 30} {t('campaign.days')}</p>
+              )}
+              {campaign.period_mode === 'match' && (
+                <p>{t('campaign.matchDuration')}</p>
+              )}
+              {campaign.period_mode === 'dates' && (
+                <p>{t('campaign.beforePeriod')}: {campaign.before_start} — {campaign.before_end} | {t('campaign.afterPeriod')}: {campaign.after_start} — {campaign.after_end}</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ---- Data Completeness ---- */}
         {!metrics.data_completeness.is_complete && (
           <div className="space-y-2">
@@ -277,7 +295,7 @@ export function CustomerDetailPage() {
   const currentUser = useTradeSpendStore((s) => s.currentUser);
 
   const isPrivileged = useMemo(
-    () => currentUser?.roles.some((r) => ['roshen_approver', 'admin'].includes(r)) ?? false,
+    () => currentUser?.roles.some((r) => r === 'roshen_approver') ?? false,
     [currentUser],
   );
 

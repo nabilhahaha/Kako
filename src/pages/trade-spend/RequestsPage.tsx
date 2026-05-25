@@ -91,7 +91,7 @@ export function RequestsPage() {
   const isRoshenApprover = userRoles.includes('roshen_approver');
   const isAdmin = userRoles.includes('admin');
   const isViewer = userRoles.includes('viewer');
-  const isPrivileged = isRoshenApprover || isAdmin;
+  const isPrivileged = isRoshenApprover;
 
   const visibleCampaigns = useMemo(() => {
     let list = campaigns;

@@ -492,7 +492,7 @@ export function DashboardPage() {
 
   // Determine view type based on user roles
   const isFullView = useMemo(
-    () => currentUser?.roles.some((r) => ['roshen_approver', 'admin'].includes(r)) ?? false,
+    () => currentUser?.roles.some((r) => r === 'roshen_approver') ?? false,
     [currentUser],
   );
 
