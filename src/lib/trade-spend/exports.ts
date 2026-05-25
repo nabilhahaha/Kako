@@ -63,6 +63,9 @@ function fmtPct(v: number): string {
 /** Return a status color hex string. */
 function statusColor(status: string): string {
   const s = status.toLowerCase();
+  if (s === 'final_approved') return '#16a34a';
+  if (s === 'approved_pending_photos') return '#7c3aed';
+  if (s === 'photos_submitted') return '#0891b2';
   if (s.includes('approved') || s.includes('complete')) return '#16a34a';
   if (s.includes('pending') || s.includes('waiting')) return '#d97706';
   if (s.includes('rejected') || s.includes('declined')) return '#dc2626';

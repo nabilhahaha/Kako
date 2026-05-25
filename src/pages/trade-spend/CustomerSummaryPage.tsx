@@ -27,11 +27,6 @@ function formatSAR(n: number): string {
   return `﷼ ${n.toLocaleString('en-SA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-function formatPct(n: number | null): string {
-  if (n == null) return '--';
-  return `${n.toFixed(1)}%`;
-}
-
 function valueColorClass(value: number): string {
   if (value > 0) return 'text-success';
   if (value < 0) return 'text-destructive';
@@ -53,9 +48,6 @@ interface CustomerRow {
   salesBefore: number;
   salesAfter: number;
   uplift: number;
-  roiTotal: number | null;
-  roiRoshen: number | null;
-  spendToSales: number | null;
 }
 
 type SortKey = keyof CustomerRow;
@@ -110,13 +102,6 @@ export function CustomerSummaryPage() {
       const salesAfter = allMetrics.reduce((s, m) => s + m.selected_after_value, 0);
       const uplift = salesAfter - salesBefore;
 
-      const roiTotal =
-        totalSpend !== 0 ? ((uplift - totalSpend) / totalSpend) * 100 : null;
-      const roiRoshen =
-        roshenShare !== 0 ? ((uplift - roshenShare) / roshenShare) * 100 : null;
-      const spendToSales =
-        salesAfter !== 0 ? (roshenShare / salesAfter) * 100 : null;
-
       result.push({
         account: customer.account,
         name: customer.name,
@@ -128,9 +113,6 @@ export function CustomerSummaryPage() {
         salesBefore,
         salesAfter,
         uplift,
-        roiTotal,
-        roiRoshen,
-        spendToSales,
       });
     }
 
@@ -358,15 +340,6 @@ export function CustomerSummaryPage() {
                 <th className="whitespace-nowrap px-4 py-3 text-right">
                   <SortHeader label={t('customerSummary.uplift')} field="uplift" />
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-right">
-                  <SortHeader label={t('customerSummary.roiTotal')} field="roiTotal" />
-                </th>
-                <th className="whitespace-nowrap px-4 py-3 text-right border-x-2 border-gold/30 bg-gold/5">
-                  <SortHeader label={t('customerSummary.roiRoshen')} field="roiRoshen" />
-                </th>
-                <th className="whitespace-nowrap px-4 py-3 text-right">
-                  <SortHeader label={t('customerSummary.spendToSales')} field="spendToSales" />
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -411,15 +384,6 @@ export function CustomerSummaryPage() {
                     className={`whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium ${valueColorClass(row.uplift)}`}
                   >
                     {formatSAR(row.uplift)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
-                    {formatPct(row.roiTotal)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-semibold border-x-2 border-gold/30 bg-gold/5 text-amber-700 dark:text-amber-400">
-                    {formatPct(row.roiRoshen)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
-                    {formatPct(row.spendToSales)}
                   </td>
                 </tr>
               ))}
