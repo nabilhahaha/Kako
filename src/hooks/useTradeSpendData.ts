@@ -108,6 +108,7 @@ function toWorkflowEvent(row: Record<string, unknown>): WorkflowEvent {
 export function useSupabaseSync() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
   const store = useTradeSpendStore;
 
   const load = useCallback(async () => {
@@ -115,7 +116,17 @@ export function useSupabaseSync() {
     setError(null);
 
     try {
-      // --- Fetch all entities in parallel ---------------------------------
+      const { error: testError } = await supabase
+        .from('ts_customers')
+        .select('account')
+        .limit(1);
+
+      if (testError) {
+        console.warn('[useSupabaseSync] Tables not ready, using demo data:', testError.message);
+        setLoading(false);
+        return;
+      }
+
       const [
         customersRes,
         itemsRes,
@@ -132,7 +143,6 @@ export function useSupabaseSync() {
         supabase.from('ts_sales_transactions').select('*'),
       ]);
 
-      // If any critical query errors, throw so we fall back to demo data
       const firstError =
         customersRes.error ??
         itemsRes.error ??
