@@ -5,7 +5,9 @@ import { LogIn, Eye, EyeOff, AlertCircle, Shield, LayoutGrid } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTradeSpendStore } from '@/stores/tradeSpendStore';
+import { DEMO_USERS } from '@/lib/trade-spend/demo-data';
 import { SUPPORTED_LANGUAGES, isRTL } from '@/i18n';
+import type { TradeSpendUser } from '@/lib/trade-spend/types';
 
 const ADMIN_EMAIL = 'admin@demo.com';
 const ADMIN_PASSWORD = 'Roshen2026';
@@ -32,21 +34,19 @@ export function TradeSpendLoginPage() {
   const isManagement = isAdmin || isDashboard;
 
   // When a distributor is selected, load that distributor's users for quick-select
-  const distributorUsers = useMemo(() => {
+  const distributorUsers = useMemo((): TradeSpendUser[] => {
     if (!isDistributor) return [];
-    // We need to read the users from the store after switching — but we haven't
-    // switched yet at this point. Instead, read directly from localStorage.
+    // Read directly from localStorage for the selected distributor
     try {
       const stored = localStorage.getItem(`ts_${selectedOption}_users`);
       if (stored) {
-        const users = JSON.parse(stored);
+        const users: TradeSpendUser[] = JSON.parse(stored);
         // Filter out admin-only users — inside a distributor, no admin users appear
-        return (users as any[]).filter((u: any) => u.active && !u.roles?.every((r: string) => r === 'admin'));
+        return users.filter((u) => u.active && !u.roles?.every((r) => r === 'admin'));
       }
     } catch { /* ignore */ }
     // Fall back to demo users (excluding pure admins)
-    const { DEMO_USERS } = require('@/lib/trade-spend/demo-data');
-    return (DEMO_USERS as any[]).filter((u: any) => u.active && !u.roles?.every((r: string) => r === 'admin'));
+    return DEMO_USERS.filter((u) => u.active && !u.roles?.every((r) => r === 'admin'));
   }, [isDistributor, selectedOption]);
 
   const handleLogin = () => {
@@ -85,19 +85,17 @@ export function TradeSpendLoginPage() {
 
     // Distributor login
     // Read users for the selected distributor
-    let users: any[] = [];
+    let users: TradeSpendUser[] = [];
     try {
       const stored = localStorage.getItem(`ts_${selectedOption}_users`);
       if (stored) users = JSON.parse(stored);
     } catch { /* ignore */ }
     if (users.length === 0) {
-      // Fall back to demo data
-      const { DEMO_USERS } = require('@/lib/trade-spend/demo-data');
       users = [...DEMO_USERS];
     }
 
     const user = users.find(
-      (u: any) => u.email.toLowerCase() === email.trim().toLowerCase(),
+      (u) => u.email.toLowerCase() === email.trim().toLowerCase(),
     );
     if (!user) {
       setError('User not found');
@@ -266,13 +264,13 @@ export function TradeSpendLoginPage() {
                   <select
                     value=""
                     onChange={(e) => {
-                      const u = distributorUsers.find((u: any) => u.id === e.target.value);
+                      const u = distributorUsers.find((u) => u.id === e.target.value);
                       if (u) { setEmail(u.email); setPassword(u.password); }
                     }}
                     className="flex h-10 w-full rounded-xl border border-input bg-muted/30 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
                   >
                     <option value="">Select user to fill...</option>
-                    {distributorUsers.map((u: any) => (
+                    {distributorUsers.map((u) => (
                       <option key={u.id} value={u.id}>
                         {u.display_name} — {u.email}
                       </option>
