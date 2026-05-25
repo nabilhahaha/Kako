@@ -128,22 +128,26 @@ export function TradeSpendLoginPage() {
             {t('auth.login')}
           </Button>
 
-          {/* Quick login hint */}
-          <div className="rounded-lg bg-muted/50 p-3 space-y-1">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Demo accounts</p>
-            <div className="space-y-0.5">
-              {users.slice(0, 4).map((u) => (
-                <button
-                  key={u.id}
-                  className="flex w-full items-center justify-between text-[11px] py-0.5 hover:text-primary transition-colors"
-                  onClick={() => { setEmail(u.email); setPassword(u.password); }}
-                >
-                  <span className="font-medium">{u.display_name}</span>
-                  <span className="text-muted-foreground">{u.email}</span>
-                </button>
+          {/* Quick select user */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Quick Select
+            </label>
+            <select
+              value=""
+              onChange={(e) => {
+                const u = users.find((u) => u.id === e.target.value);
+                if (u) { setEmail(u.email); setPassword(u.password); }
+              }}
+              className="flex h-10 w-full rounded-xl border border-input bg-muted/30 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+            >
+              <option value="">Select user to fill...</option>
+              {users.filter(u => u.active).map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.display_name} — {u.email}
+                </option>
               ))}
-            </div>
-            <p className="text-[9px] text-muted-foreground mt-1">Tap to fill • Default password: Roshen2026</p>
+            </select>
           </div>
         </div>
       </div>
