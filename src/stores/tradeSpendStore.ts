@@ -327,6 +327,31 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
       currentUser: null,
       latestDataDate: newLatest,
     });
+
+    // 4. Try to load from Supabase in the background (source of truth if available)
+    import('@/lib/trade-spend/supabase-service').then(async ({ fetchCustomers, fetchItems, fetchTransactions, isSupabaseReady }) => {
+      if (!await isSupabaseReady()) return;
+
+      const [customers, items, transactions] = await Promise.all([
+        fetchCustomers(distId),
+        fetchItems(distId),
+        fetchTransactions(distId),
+      ]);
+
+      // If Supabase has data, use it (it's the source of truth)
+      if (customers && customers.length > 0) {
+        set({ customers });
+      }
+      if (items && items.length > 0) {
+        set({ items });
+      }
+      if (transactions && transactions.length > 0) {
+        set({ transactions });
+        // Update latestDataDate
+        const max = transactions.reduce((m, t) => (t.date > m ? t.date : m), '1970-01-01');
+        set({ latestDataDate: max });
+      }
+    });
   },
 
   /* ---- Unified dashboard summary ---- */
@@ -660,6 +685,21 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
         '1970-01-01',
       ),
     });
+
+    // Also sync to Supabase in the background (non-blocking)
+    const distId = get().currentDistributorId;
+    if (distId) {
+      import('@/lib/trade-spend/supabase-service').then(({ syncDistributorToSupabase }) => {
+        syncDistributorToSupabase(distId, {
+          customers: allCustomers,
+          items: allItems,
+          transactions: txns, // only new transactions, not allTxns
+        }).then((ok) => {
+          if (ok) console.log('[Supabase] Data synced successfully');
+          else console.warn('[Supabase] Sync failed, data saved to localStorage only');
+        });
+      });
+    }
 
     return { summary };
   },
