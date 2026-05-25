@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { isRTL } from '@/i18n';
 import { TradeSpendTopBar } from './TradeSpendTopBar';
 import { TradeSpendSidebar } from './TradeSpendSidebar';
+import { TradeSpendBottomNav } from './TradeSpendBottomNav';
 
 export function TradeSpendShell() {
   const { i18n } = useTranslation();
@@ -19,10 +20,11 @@ export function TradeSpendShell() {
       <TradeSpendSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <TradeSpendTopBar />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">
           <Outlet />
         </main>
       </div>
+      <TradeSpendBottomNav />
     </div>
   );
 }
