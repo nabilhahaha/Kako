@@ -194,27 +194,56 @@ function nextCampaignId(campaigns: Campaign[]): string {
 
 function parseDate(val: unknown): string | null {
   if (val == null || val === '') return null;
-  const s = String(val).trim();
 
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
-
-  if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(s)) {
-    const parts = s.split(/[\/\-]/);
-    const m = parts[0].padStart(2, '0');
-    const d = parts[1].padStart(2, '0');
-    let y = parts[2];
-    if (y.length === 2) y = '20' + y;
-    return `${y}-${m}-${d}`;
+  // Handle Date objects (from XLSX cellDates)
+  if (val instanceof Date) {
+    const yyyy = val.getFullYear();
+    const mm = String(val.getMonth() + 1).padStart(2, '0');
+    const dd = String(val.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   }
 
+  const s = String(val).trim();
+
+  // ISO format: 2025-12-28 or 2025-12-28T12:12:30
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+
+  // dd/mm/yyyy or dd-mm-yyyy or mm/dd/yyyy
+  if (/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/.test(s)) {
+    const parts = s.split(/[\/\-\.]/);
+    let d = parts[0], m = parts[1], y = parts[2];
+    if (y.length === 2) y = '20' + y;
+    // If first part > 12, it's dd/mm/yyyy
+    if (parseInt(d) > 12) { const tmp = d; d = m; m = tmp; }
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  // yyyy/mm/dd
+  if (/^\d{4}[\/\.]\d{1,2}[\/\.]\d{1,2}$/.test(s)) {
+    const parts = s.split(/[\/\.]/);
+    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+  }
+
+  // Excel serial number (e.g., 45654)
   const num = Number(val);
-  if (!isNaN(num) && num > 40000 && num < 60000) {
+  if (!isNaN(num) && num > 30000 && num < 70000) {
     const epoch = new Date((num - 25569) * 86400 * 1000);
     const yyyy = epoch.getFullYear();
     const mm = String(epoch.getMonth() + 1).padStart(2, '0');
     const dd = String(epoch.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   }
+
+  // Try native Date parse as last resort
+  try {
+    const d = new Date(s);
+    if (!isNaN(d.getTime()) && d.getFullYear() > 2000) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  } catch { /* ignore */ }
 
   return null;
 }
@@ -280,7 +309,7 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
     if (state.currentDistributorId && state.currentDistributorId !== distId) {
       saveCurrentDistributorData(state.currentDistributorId, state);
     }
-    // 2. Load target distributor's data from localStorage
+    // 2. Load new distributor's data
     const newData = loadDistributorData(distId);
     const newLatest = loadDistScoped(
       distId,
@@ -536,40 +565,50 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
       itemMap.set(existing.id, existing);
     }
 
+    // Build a normalized key lookup for each row to handle whitespace/case issues
+    function getVal(row: Record<string, unknown>, mappedCol: string | undefined): unknown {
+      if (!mappedCol) return undefined;
+      // Direct match first
+      if (row[mappedCol] !== undefined) return row[mappedCol];
+      // Try trimmed match
+      const trimmed = mappedCol.trim();
+      if (row[trimmed] !== undefined) return row[trimmed];
+      // Try case-insensitive match
+      const lower = trimmed.toLowerCase();
+      for (const key of Object.keys(row)) {
+        if (key.trim().toLowerCase() === lower) return row[key];
+      }
+      return undefined;
+    }
+
     for (const row of rows) {
-      const account = mapping.customer_account
-        ? String(row[mapping.customer_account] ?? '').trim()
-        : '';
-      const itemId = mapping.item_id
-        ? String(row[mapping.item_id] ?? '').trim()
-        : '';
-      const dateRaw = mapping.invoice_date ? row[mapping.invoice_date] : null;
+      const account = String(getVal(row, mapping.customer_account) ?? '').trim();
+      const itemId = String(getVal(row, mapping.item_id) ?? '').trim();
+      const dateRaw = getVal(row, mapping.invoice_date);
       const date = parseDate(dateRaw);
 
       if (!account || !itemId || !date) {
+        if (dropped === 0) {
+          console.warn('[importRawData] First dropped row:', {
+            account, itemId, date, dateRaw,
+            mappedCols: { custCol: mapping.customer_account, itemCol: mapping.item_id, dateCol: mapping.invoice_date },
+            actualKeys: Object.keys(row).slice(0, 10),
+            firstRowSample: Object.entries(row).slice(0, 5).map(([k, v]) => `${k}=${v}`),
+          });
+        }
         dropped++;
         continue;
       }
 
-      const value = parseNumber(
-        mapping.invoice_amount ? row[mapping.invoice_amount] : 0,
-      );
-      const cases = parseNumber(
-        mapping.invoice_qty_cases ? row[mapping.invoice_qty_cases] : 0,
-      );
+      const value = parseNumber(getVal(row, mapping.invoice_amount) ?? 0);
+      const cases = parseNumber(getVal(row, mapping.invoice_qty_cases) ?? 0);
 
       if (!custMap.has(account)) {
         custMap.set(account, {
           account,
-          name: mapping.customer_name
-            ? String(row[mapping.customer_name] ?? account)
-            : account,
-          class: mapping.customer_class
-            ? String(row[mapping.customer_class] ?? '')
-            : undefined,
-          channel: mapping.customer_channel
-            ? String(row[mapping.customer_channel] ?? '')
-            : undefined,
+          name: String(getVal(row, mapping.customer_name) ?? account),
+          class: mapping.customer_class ? String(getVal(row, mapping.customer_class) ?? '') : undefined,
+          channel: mapping.customer_channel ? String(getVal(row, mapping.customer_channel) ?? '') : undefined,
           created_at: new Date().toISOString(),
         });
       }
@@ -577,9 +616,7 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
       if (!itemMap.has(itemId)) {
         itemMap.set(itemId, {
           id: itemId,
-          description: mapping.item_description
-            ? String(row[mapping.item_description] ?? itemId)
-            : itemId,
+          description: String(getVal(row, mapping.item_description) ?? itemId),
         });
       }
 

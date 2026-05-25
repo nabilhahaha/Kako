@@ -145,7 +145,7 @@ export function DataUploadPage() {
         try {
           const XLSX = await import('xlsx');
           const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-          const wb = XLSX.read(data, { type: 'array', cellDates: true });
+          const wb = XLSX.read(data, { type: 'array' });
           const ws = wb.Sheets[wb.SheetNames[0]];
           const json: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
           if (json.length === 0) {
