@@ -194,27 +194,56 @@ function nextCampaignId(campaigns: Campaign[]): string {
 
 function parseDate(val: unknown): string | null {
   if (val == null || val === '') return null;
-  const s = String(val).trim();
 
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
-
-  if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(s)) {
-    const parts = s.split(/[\/\-]/);
-    const m = parts[0].padStart(2, '0');
-    const d = parts[1].padStart(2, '0');
-    let y = parts[2];
-    if (y.length === 2) y = '20' + y;
-    return `${y}-${m}-${d}`;
+  // Handle Date objects (from XLSX cellDates)
+  if (val instanceof Date) {
+    const yyyy = val.getFullYear();
+    const mm = String(val.getMonth() + 1).padStart(2, '0');
+    const dd = String(val.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   }
 
+  const s = String(val).trim();
+
+  // ISO format: 2025-12-28 or 2025-12-28T12:12:30
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+
+  // dd/mm/yyyy or dd-mm-yyyy or mm/dd/yyyy
+  if (/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/.test(s)) {
+    const parts = s.split(/[\/\-\.]/);
+    let d = parts[0], m = parts[1], y = parts[2];
+    if (y.length === 2) y = '20' + y;
+    // If first part > 12, it's dd/mm/yyyy
+    if (parseInt(d) > 12) { const tmp = d; d = m; m = tmp; }
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  // yyyy/mm/dd
+  if (/^\d{4}[\/\.]\d{1,2}[\/\.]\d{1,2}$/.test(s)) {
+    const parts = s.split(/[\/\.]/);
+    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+  }
+
+  // Excel serial number (e.g., 45654)
   const num = Number(val);
-  if (!isNaN(num) && num > 40000 && num < 60000) {
+  if (!isNaN(num) && num > 30000 && num < 70000) {
     const epoch = new Date((num - 25569) * 86400 * 1000);
     const yyyy = epoch.getFullYear();
     const mm = String(epoch.getMonth() + 1).padStart(2, '0');
     const dd = String(epoch.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   }
+
+  // Try native Date parse as last resort
+  try {
+    const d = new Date(s);
+    if (!isNaN(d.getTime()) && d.getFullYear() > 2000) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  } catch { /* ignore */ }
 
   return null;
 }
@@ -547,6 +576,9 @@ export const useTradeSpendStore = create<TradeSpendState>((set, get) => ({
       const date = parseDate(dateRaw);
 
       if (!account || !itemId || !date) {
+        if (dropped === 0) {
+          console.warn('[importRawData] First dropped row:', { account, itemId, date, dateRaw, mapping, rowKeys: Object.keys(row).slice(0, 5) });
+        }
         dropped++;
         continue;
       }
