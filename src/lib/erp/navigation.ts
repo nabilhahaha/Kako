@@ -1,4 +1,4 @@
-import type { BranchRole } from './types';
+import type { Permission } from './permissions';
 import {
   LayoutDashboard,
   Building2,
@@ -32,8 +32,8 @@ export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
-  /** Roles allowed to see this item. Empty = everyone. */
-  roles?: BranchRole[];
+  /** Permission(s) required; visible if the user has ANY. Omit = everyone. */
+  perm?: Permission | Permission[];
   /** Only super admins. */
   superAdminOnly?: boolean;
 }
@@ -46,210 +46,77 @@ export interface NavSection {
 export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'الرئيسية',
-    items: [
-      { label: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard },
-    ],
+    items: [{ label: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard }],
   },
   {
     title: 'المبيعات',
     items: [
-      {
-        label: 'بيع سريع',
-        href: '/sales/pos',
-        icon: Zap,
-        roles: ['admin', 'manager', 'salesman', 'cashier'],
-      },
-      {
-        label: 'تطبيق المندوب',
-        href: '/rep',
-        icon: Smartphone,
-        roles: ['admin', 'manager', 'salesman'],
-      },
-      {
-        label: 'محاسبة المندوب اليومية',
-        href: '/sales/settlement',
-        icon: Wallet,
-        roles: ['admin', 'manager', 'supervisor', 'accountant', 'salesman'],
-      },
-      {
-        label: 'أوامر البيع',
-        href: '/sales/orders',
-        icon: ShoppingCart,
-        roles: ['admin', 'manager', 'salesman', 'cashier'],
-      },
-      {
-        label: 'الفواتير',
-        href: '/sales/invoices',
-        icon: FileText,
-        roles: ['admin', 'manager', 'salesman', 'cashier', 'accountant'],
-      },
-      {
-        label: 'خطة الزيارات',
-        href: '/sales/journey',
-        icon: CalendarDays,
-        roles: ['admin', 'manager', 'supervisor', 'salesman'],
-      },
-      {
-        label: 'مرتجعات المبيعات',
-        href: '/sales/returns',
-        icon: Undo2,
-        roles: ['admin', 'manager', 'salesman', 'cashier'],
-      },
-      {
-        label: 'تقرير المبيعات',
-        href: '/sales/report',
-        icon: BarChart3,
-        roles: ['admin', 'manager', 'accountant'],
-      },
-      {
-        label: 'العملاء',
-        href: '/customers',
-        icon: Users,
-        roles: ['admin', 'manager', 'salesman'],
-      },
+      { label: 'بيع سريع', href: '/sales/pos', icon: Zap, perm: 'sales.sell' },
+      { label: 'تطبيق المندوب', href: '/rep', icon: Smartphone, perm: 'sales.sell' },
+      { label: 'محاسبة المندوب اليومية', href: '/sales/settlement', icon: Wallet, perm: ['sales.collect', 'reports.view'] },
+      { label: 'أوامر البيع', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell' },
+      { label: 'الفواتير', href: '/sales/invoices', icon: FileText, perm: ['sales.sell', 'sales.collect'] },
+      { label: 'خطة الزيارات', href: '/sales/journey', icon: CalendarDays, perm: 'customers.manage' },
+      { label: 'مرتجعات المبيعات', href: '/sales/returns', icon: Undo2, perm: 'sales.return' },
+      { label: 'تقرير المبيعات', href: '/sales/report', icon: BarChart3, perm: 'reports.view' },
+      { label: 'العملاء', href: '/customers', icon: Users, perm: 'customers.manage' },
     ],
   },
   {
     title: 'المخزون',
     items: [
-      {
-        label: 'المنتجات',
-        href: '/products',
-        icon: Package,
-        roles: ['admin', 'manager', 'warehouse_keeper'],
-      },
-      {
-        label: 'أرصدة المخزون',
-        href: '/inventory',
-        icon: Boxes,
-        roles: ['admin', 'manager', 'warehouse_keeper', 'salesman'],
-      },
-      {
-        label: 'التحويلات',
-        href: '/inventory/transfers',
-        icon: ArrowLeftRight,
-        roles: ['admin', 'manager', 'warehouse_keeper'],
-      },
-      {
-        label: 'طلبات التحميل',
-        href: '/inventory/requests',
-        icon: ClipboardCheck,
-        roles: ['admin', 'manager', 'warehouse_keeper', 'salesman', 'supervisor'],
-      },
-      {
-        label: 'الجرد',
-        href: '/inventory/count',
-        icon: ClipboardList,
-        roles: ['admin', 'manager', 'warehouse_keeper', 'supervisor'],
-      },
-      {
-        label: 'قرب انتهاء الصلاحية',
-        href: '/inventory/expiry',
-        icon: CalendarClock,
-        roles: ['admin', 'manager', 'warehouse_keeper'],
-      },
-      {
-        label: 'المخازن',
-        href: '/warehouses',
-        icon: Warehouse,
-        roles: ['admin', 'manager', 'warehouse_keeper'],
-      },
+      { label: 'المنتجات', href: '/products', icon: Package, perm: 'inventory.view' },
+      { label: 'أرصدة المخزون', href: '/inventory', icon: Boxes, perm: 'inventory.view' },
+      { label: 'التحويلات', href: '/inventory/transfers', icon: ArrowLeftRight, perm: 'inventory.transfer' },
+      { label: 'طلبات التحميل', href: '/inventory/requests', icon: ClipboardCheck, perm: ['stock_request.create', 'stock_request.approve'] },
+      { label: 'الجرد', href: '/inventory/count', icon: ClipboardList, perm: 'inventory.count' },
+      { label: 'قرب انتهاء الصلاحية', href: '/inventory/expiry', icon: CalendarClock, perm: 'inventory.view' },
+      { label: 'المخازن', href: '/warehouses', icon: Warehouse, perm: 'inventory.view' },
     ],
   },
   {
     title: 'المشتريات',
     items: [
-      {
-        label: 'الموردين',
-        href: '/suppliers',
-        icon: Truck,
-        roles: ['admin', 'manager', 'accountant'],
-      },
-      {
-        label: 'أوامر الشراء',
-        href: '/purchases/orders',
-        icon: Receipt,
-        roles: ['admin', 'manager', 'warehouse_keeper'],
-      },
+      { label: 'الموردين', href: '/suppliers', icon: Truck, perm: 'suppliers.manage' },
+      { label: 'أوامر الشراء', href: '/purchases/orders', icon: Receipt, perm: 'purchasing.manage' },
     ],
   },
   {
     title: 'الحسابات',
     items: [
-      {
-        label: 'شجرة الحسابات',
-        href: '/accounting/chart',
-        icon: Tags,
-        roles: ['admin', 'manager', 'accountant'],
-      },
-      {
-        label: 'سندات الصرف والقبض',
-        href: '/accounting/vouchers',
-        icon: ReceiptText,
-        roles: ['admin', 'manager', 'accountant', 'cashier'],
-      },
-      {
-        label: 'القيود اليومية',
-        href: '/accounting/journal',
-        icon: Wallet,
-        roles: ['admin', 'manager', 'accountant'],
-      },
-      {
-        label: 'التقارير المالية',
-        href: '/accounting/reports',
-        icon: BarChart3,
-        roles: ['admin', 'manager', 'accountant'],
-      },
-      {
-        label: 'تصدير البيانات',
-        href: '/exports',
-        icon: Download,
-        roles: ['admin', 'manager', 'accountant'],
-      },
+      { label: 'شجرة الحسابات', href: '/accounting/chart', icon: Tags, perm: 'accounting.view' },
+      { label: 'سندات الصرف والقبض', href: '/accounting/vouchers', icon: ReceiptText, perm: 'accounting.post' },
+      { label: 'القيود اليومية', href: '/accounting/journal', icon: Wallet, perm: 'accounting.view' },
+      { label: 'التقارير المالية', href: '/accounting/reports', icon: BarChart3, perm: 'accounting.view' },
+      { label: 'تصدير البيانات', href: '/exports', icon: Download, perm: ['accounting.view', 'reports.view'] },
     ],
   },
   {
     title: 'الإعدادات',
     items: [
-      {
-        label: 'الفروع',
-        href: '/settings/branches',
-        icon: Building2,
-        superAdminOnly: true,
-      },
-      {
-        label: 'المستخدمون',
-        href: '/settings/users',
-        icon: Users,
-        superAdminOnly: true,
-      },
-      {
-        label: 'الصلاحيات',
-        href: '/settings/permissions',
-        icon: ShieldCheck,
-        roles: ['admin', 'manager'],
-      },
-      {
-        label: 'حسابي',
-        href: '/account',
-        icon: UserCog,
-      },
+      { label: 'الفروع', href: '/settings/branches', icon: Building2, superAdminOnly: true },
+      { label: 'المستخدمون', href: '/settings/users', icon: Users, superAdminOnly: true },
+      { label: 'الصلاحيات', href: '/settings/permissions', icon: ShieldCheck, perm: 'settings.users' },
+      { label: 'حسابي', href: '/account', icon: UserCog },
     ],
   },
 ];
 
-/** Filter nav by role / super-admin status. */
+/** Filter nav by the user's effective permissions / super-admin status. */
 export function visibleSections(
-  topRole: BranchRole,
+  permissions: Permission[],
   isSuperAdmin: boolean,
 ): NavSection[] {
+  const has = (perm: Permission | Permission[]) =>
+    Array.isArray(perm) ? perm.some((p) => permissions.includes(p)) : permissions.includes(perm);
+
   return NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => {
       if (item.superAdminOnly) return isSuperAdmin;
       if (isSuperAdmin) return true;
-      if (!item.roles || item.roles.length === 0) return true;
-      return item.roles.includes(topRole);
+      if (!item.perm) return true;
+      return has(item.perm);
     }),
   })).filter((section) => section.items.length > 0);
 }

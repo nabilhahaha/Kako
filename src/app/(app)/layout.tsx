@@ -15,7 +15,7 @@ export default async function AppLayout({
   return (
     <ConfirmProvider>
       <div className="flex min-h-screen bg-secondary/30">
-        <Sidebar topRole={ctx.topRole} isSuperAdmin={ctx.isSuperAdmin} />
+        <Sidebar permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
             fullName={ctx.profile.full_name}

@@ -24,7 +24,7 @@ export default async function UsersPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: profiles }, { data: branches }, { data: assignments }] =
+  const [{ data: profiles }, { data: branches }, { data: assignments }, { data: roles }] =
     await Promise.all([
       supabase.from('erp_profiles').select('*').order('created_at'),
       supabase
@@ -33,6 +33,7 @@ export default async function UsersPage() {
         .eq('is_active', true)
         .order('code'),
       supabase.from('erp_user_branches').select('*'),
+      supabase.from('erp_roles').select('key, name_ar').order('rank', { ascending: false }),
     ]);
 
   return (
@@ -46,6 +47,7 @@ export default async function UsersPage() {
         profiles={(profiles as Profile[]) ?? []}
         branches={(branches as Branch[]) ?? []}
         assignments={(assignments as UserBranch[]) ?? []}
+        roles={(roles as { key: string; name_ar: string }[]) ?? []}
       />
     </div>
   );

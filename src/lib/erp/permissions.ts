@@ -75,14 +75,17 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
 
 export interface PermissionContext {
   isSuperAdmin: boolean;
-  topRole: BranchRole;
+  permissions: Permission[];
 }
 
-/** Whether the user (by highest role) holds a permission. Super admins hold all. */
+/** Whether the user holds a permission. Super admins hold all. */
 export function hasPermission(ctx: PermissionContext, perm: Permission): boolean {
-  if (ctx.isSuperAdmin) return true;
-  const set = ROLE_PERMISSIONS[ctx.topRole];
-  return set === ALL || set.includes(perm);
+  return ctx.isSuperAdmin || ctx.permissions.includes(perm);
+}
+
+/** Whether the user holds ANY of the given permissions (super admins: yes). */
+export function hasAnyPermission(ctx: PermissionContext, perms: Permission[]): boolean {
+  return ctx.isSuperAdmin || perms.some((p) => ctx.permissions.includes(p));
 }
 
 /** Resolve the concrete permission list for a role (expands '*'). */

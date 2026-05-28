@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Branch, BranchRole, Profile } from './types';
+import { ALL_PERMISSIONS, type Permission } from './permissions';
 
 export interface BranchMembership {
   branch: Branch;
@@ -14,6 +15,8 @@ export interface UserContext {
   memberships: BranchMembership[];
   /** Highest-privilege role across all branches, used for nav gating. */
   topRole: BranchRole;
+  /** Effective permissions (union across the user's roles; all for super admin). */
+  permissions: Permission[];
 }
 
 const ROLE_RANK: Record<BranchRole, number> = {
@@ -67,12 +70,30 @@ export async function getUserContext(): Promise<UserContext | null> {
         return ROLE_RANK[m.role] > ROLE_RANK[best] ? m.role : best;
       }, 'viewer');
 
+  // Effective permissions: super admin gets all; others get the union of their
+  // roles' permissions from the DB matrix.
+  const superAdmin = (profile as Profile).is_super_admin;
+  let permissions: Permission[] = [];
+  if (superAdmin) {
+    permissions = [...ALL_PERMISSIONS];
+  } else {
+    const roleKeys = [...new Set(memberships.map((m) => m.role))];
+    if (roleKeys.length > 0) {
+      const { data: perms } = await supabase
+        .from('erp_role_permissions')
+        .select('permission')
+        .in('role_key', roleKeys);
+      permissions = [...new Set((perms ?? []).map((p) => p.permission as Permission))];
+    }
+  }
+
   return {
     userId: user.id,
     profile: profile as Profile,
-    isSuperAdmin: (profile as Profile).is_super_admin,
+    isSuperAdmin: superAdmin,
     memberships,
     topRole,
+    permissions,
   };
 }
 

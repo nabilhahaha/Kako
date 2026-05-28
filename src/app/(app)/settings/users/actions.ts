@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
-import type { BranchRole } from '@/lib/erp/types';
 
 export interface ActionResult {
   ok: boolean;
@@ -59,7 +58,7 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
 export async function assignBranch(
   userId: string,
   branchId: string,
-  role: BranchRole,
+  role: string,
   reportsTo?: string | null,
 ): Promise<ActionResult> {
   const { error: authErr } = await requireSuperAdmin();

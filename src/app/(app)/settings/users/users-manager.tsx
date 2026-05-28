@@ -13,17 +13,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { BRANCH_ROLES, BRANCH_ROLE_OPTIONS } from '@/lib/erp/constants';
 import { initialsFromName } from '@/lib/utils';
-import type { Branch, BranchRole, Profile, UserBranch } from '@/lib/erp/types';
+import type { Branch, Profile, UserBranch } from '@/lib/erp/types';
 import { Plus, Loader2, X, ShieldCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface RoleOption {
+  key: string;
+  name_ar: string;
+}
 
 interface Props {
   currentUserId: string;
   profiles: Profile[];
   branches: Branch[];
   assignments: UserBranch[];
+  roles: RoleOption[];
 }
 
 export function UsersManager({
@@ -31,7 +36,9 @@ export function UsersManager({
   profiles,
   branches,
   assignments,
+  roles,
 }: Props) {
+  const roleLabel = (key: string) => roles.find((r) => r.key === key)?.name_ar ?? key;
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -135,6 +142,8 @@ export function UsersManager({
               assignments={userAssignments}
               branches={branches}
               allProfiles={profiles}
+              roles={roles}
+              roleLabel={roleLabel}
               branchName={branchName}
               pending={pending}
               onChange={refresh}
@@ -153,6 +162,8 @@ function UserCard({
   assignments,
   branches,
   allProfiles,
+  roles,
+  roleLabel,
   branchName,
   pending,
   onChange,
@@ -163,13 +174,15 @@ function UserCard({
   assignments: UserBranch[];
   branches: Branch[];
   allProfiles: Profile[];
+  roles: RoleOption[];
+  roleLabel: (key: string) => string;
   branchName: (id: string) => string;
   pending: boolean;
   onChange: () => void;
   startTransition: (cb: () => void) => void;
 }) {
   const [branchId, setBranchId] = useState('');
-  const [role, setRole] = useState<BranchRole>('salesman');
+  const [role, setRole] = useState<string>('salesman');
   const [reportsTo, setReportsTo] = useState('');
 
   // Reps/cashiers usually roll up to a supervisor or manager.
@@ -276,7 +289,7 @@ function UserCard({
                 >
                   {branchName(a.branch_id)}
                   <span className="text-muted-foreground">
-                    ({BRANCH_ROLES[a.role]?.ar})
+                    ({roleLabel(a.role)})
                   </span>
                   <button
                     onClick={() => remove(a.branch_id)}
@@ -312,12 +325,12 @@ function UserCard({
               <Label className="text-xs">الدور</Label>
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value as BranchRole)}
+                onChange={(e) => setRole(e.target.value)}
                 className="h-9 rounded-md border border-input bg-background px-2 text-sm"
               >
-                {BRANCH_ROLE_OPTIONS.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.ar}
+                {roles.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    {r.name_ar}
                   </option>
                 ))}
               </select>
