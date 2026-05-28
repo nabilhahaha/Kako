@@ -13,6 +13,7 @@ import {
   Truck,
   BarChart3,
   Receipt,
+  ReceiptText,
   Tags,
   Zap,
   type LucideIcon,
@@ -123,6 +124,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/accounting/chart',
         icon: Tags,
         roles: ['admin', 'manager', 'accountant'],
+      },
+      {
+        label: 'سندات الصرف والقبض',
+        href: '/accounting/vouchers',
+        icon: ReceiptText,
+        roles: ['admin', 'manager', 'accountant', 'cashier'],
       },
       {
         label: 'القيود اليومية',
