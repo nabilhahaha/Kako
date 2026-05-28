@@ -78,68 +78,13 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
  * journal entry. Also increases the customer's outstanding balance.
  */
 export async function issueInvoice(id: string): Promise<ActionResult> {
-  const { ctx, error: authErr } = await requireAuth();
+  const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
 
+  // Atomic: stock-out + AR/Revenue journal + customer balance in one tx.
   const supabase = await createClient();
-  const { data: invoice, error: invErr } = await supabase
-    .from('erp_invoices')
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (invErr || !invoice) return { ok: false, error: 'الفاتورة غير موجودة.' };
-  if (invoice.status !== 'draft') return { ok: false, error: 'لا يمكن إصدار إلا الفواتير المسودة.' };
-
-  const { data: lines } = await supabase
-    .from('erp_invoice_lines')
-    .select('*')
-    .eq('invoice_id', id);
-  if (!lines || lines.length === 0) return { ok: false, error: 'الفاتورة بلا بنود.' };
-
-  // Deduct stock from the branch's first active warehouse (if any).
-  const { data: warehouse } = await supabase
-    .from('erp_warehouses')
-    .select('id')
-    .eq('branch_id', invoice.branch_id)
-    .eq('is_active', true)
-    .order('code')
-    .limit(1)
-    .maybeSingle();
-
-  if (warehouse) {
-    const movements = lines.map((l) => ({
-      movement_type: 'sale_out' as const,
-      warehouse_id: warehouse.id,
-      product_id: l.product_id,
-      quantity: -Math.abs(Number(l.quantity)),
-      reference_type: 'invoice',
-      reference_id: id,
-      notes: `بيع: ${invoice.invoice_number}`,
-      created_by: ctx!.userId,
-    }));
-    const { error: movErr } = await supabase.from('erp_stock_movements').insert(movements);
-    if (movErr) return { ok: false, error: friendlyDbError(movErr) };
-  }
-
-  // Flip status -> fires AR/Revenue journal trigger.
-  const { error: statusErr } = await supabase
-    .from('erp_invoices')
-    .update({ status: 'issued' })
-    .eq('id', id);
-  if (statusErr) return { ok: false, error: friendlyDbError(statusErr) };
-
-  // Increase customer receivable balance.
-  const { data: customer } = await supabase
-    .from('erp_customers')
-    .select('balance')
-    .eq('id', invoice.customer_id)
-    .single();
-  if (customer) {
-    await supabase
-      .from('erp_customers')
-      .update({ balance: Number(customer.balance) + Number(invoice.net_amount) })
-      .eq('id', invoice.customer_id);
-  }
+  const { error } = await supabase.rpc('erp_issue_invoice', { p_invoice_id: id });
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   revalidatePath('/sales/invoices');
   revalidatePath('/customers');
@@ -153,49 +98,21 @@ export async function recordPayment(input: {
   reference_number?: string;
   payment_date?: string;
 }): Promise<ActionResult> {
-  const { ctx, error: authErr } = await requireAuth();
+  const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
 
   if (!(input.amount > 0)) return { ok: false, error: 'المبلغ يجب أن يكون أكبر من صفر.' };
 
+  // Atomic: payment row (fires Cash/AR journal + invoice update) + balance.
   const supabase = await createClient();
-  const { data: invoice, error: invErr } = await supabase
-    .from('erp_invoices')
-    .select('*')
-    .eq('id', input.invoice_id)
-    .single();
-  if (invErr || !invoice) return { ok: false, error: 'الفاتورة غير موجودة.' };
-  if (invoice.status === 'draft') return { ok: false, error: 'أصدر الفاتورة قبل التحصيل.' };
-  if (invoice.status === 'cancelled') return { ok: false, error: 'الفاتورة ملغية.' };
-
-  const remaining = Number(invoice.net_amount) - Number(invoice.paid_amount);
-  if (input.amount > remaining + 0.001)
-    return { ok: false, error: `المبلغ يتجاوز المتبقي (${remaining.toFixed(2)}).` };
-
-  // Insert payment -> trigger posts the Cash/AR journal and updates the
-  // invoice paid_amount + status.
-  const { error: payErr } = await supabase.from('erp_payments').insert({
-    invoice_id: input.invoice_id,
-    amount: input.amount,
-    payment_method: input.payment_method,
-    reference_number: input.reference_number?.trim() || null,
-    payment_date: input.payment_date || new Date().toISOString().slice(0, 10),
-    received_by: ctx!.userId,
+  const { error } = await supabase.rpc('erp_record_payment', {
+    p_invoice_id: input.invoice_id,
+    p_amount: input.amount,
+    p_method: input.payment_method,
+    p_ref: input.reference_number ?? null,
+    p_date: input.payment_date ?? null,
   });
-  if (payErr) return { ok: false, error: friendlyDbError(payErr) };
-
-  // Reduce customer receivable balance.
-  const { data: customer } = await supabase
-    .from('erp_customers')
-    .select('balance')
-    .eq('id', invoice.customer_id)
-    .single();
-  if (customer) {
-    await supabase
-      .from('erp_customers')
-      .update({ balance: Number(customer.balance) - Number(input.amount) })
-      .eq('id', invoice.customer_id);
-  }
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   revalidatePath('/sales/invoices');
   revalidatePath('/customers');
