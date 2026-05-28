@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { quickSale, logNoSaleVisit } from '../sales/pos/actions';
-import { getCustomerDebt, collectPayment, createPendingCustomer, type CustomerDebt } from './actions';
+import { getCustomerDebt, collectPayment, createPendingCustomer, startDay, endDay, type CustomerDebt } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +61,9 @@ export function RepTerminal({
   sourceLabel,
   todayPlan,
   visitedToday,
+  dayStatus,
+  vanId,
+  repId,
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
@@ -68,6 +71,9 @@ export function RepTerminal({
   sourceLabel: string;
   todayPlan: PlanCustomer[];
   visitedToday: string[];
+  dayStatus: 'none' | 'open' | 'closed';
+  vanId: string | null;
+  repId: string;
 }) {
   // Master data: prefer fresh server props; cache them; fall back to cache offline.
   const [customers, setCustomers] = useState(customersProp);
@@ -89,6 +95,26 @@ export function RepTerminal({
   const [debtLoading, setDebtLoading] = useState(false);
   const [collectFor, setCollectFor] = useState<{ id: string; number: string; remaining: number } | null>(null);
   const [newCustomer, setNewCustomer] = useState(false);
+  const [day, setDay] = useState(dayStatus);
+  const [dayPending, setDayPending] = useState(false);
+  const dayOpen = day === 'open';
+
+  function onStartDay() {
+    setDayPending(true);
+    startDay(branchId).then((res) => {
+      setDayPending(false);
+      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      else { setDay('open'); toast.success('تم بدء اليوم'); }
+    });
+  }
+  function onEndDay() {
+    setDayPending(true);
+    endDay().then((res) => {
+      setDayPending(false);
+      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      else { setDay('closed'); toast.success('تم إنهاء اليوم'); }
+    });
+  }
 
   // Hydrate from cache / seed cache, and read queue + online status.
   useEffect(() => {
@@ -282,7 +308,7 @@ export function RepTerminal({
     });
   }
 
-  const canSell = branchId && customerId && cart.length > 0;
+  const canSell = branchId && customerId && cart.length > 0 && dayOpen;
 
   if (products.length === 0 && customers.length === 0) {
     return (
@@ -316,9 +342,48 @@ export function RepTerminal({
         </div>
       )}
 
-      <div className="flex items-center gap-2 rounded-md border bg-secondary/30 p-2 text-xs">
+      {/* Day session control */}
+      <div className="rounded-md border p-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm font-medium">
+            {day === 'open' ? '🟢 يوم العمل مفتوح' : day === 'closed' ? '🔴 تم إنهاء اليوم' : '⚪ اليوم لم يبدأ'}
+          </span>
+          <div className="flex gap-2">
+            {day === 'none' && (
+              <Button size="sm" disabled={dayPending} onClick={onStartDay}>
+                {dayPending && <Loader2 className="h-4 w-4 animate-spin" />} بدء اليوم
+              </Button>
+            )}
+            {day === 'open' && (
+              <>
+                <Link href={`/print/day-summary?rep=${repId}`} target="_blank" className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm hover:bg-secondary">
+                  <Printer className="h-4 w-4" /> ملخص اليوم
+                </Link>
+                <Button size="sm" variant="destructive" disabled={dayPending} onClick={onEndDay}>
+                  {dayPending && <Loader2 className="h-4 w-4 animate-spin" />} إنهاء اليوم
+                </Button>
+              </>
+            )}
+            {day === 'closed' && (
+              <Link href={`/print/day-summary?rep=${repId}`} target="_blank" className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm hover:bg-secondary">
+                <Printer className="h-4 w-4" /> ملخص اليوم
+              </Link>
+            )}
+          </div>
+        </div>
+        {day === 'closed' && (
+          <p className="mt-1 text-xs text-muted-foreground">لا يمكن البيع أو التحصيل بعد إنهاء اليوم — يمكنك فقط طلب التحميل. للفتح من جديد راجع المدير.</p>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-md border bg-secondary/30 p-2 text-xs">
         <Warehouse className="h-3.5 w-3.5 text-muted-foreground" />
         البيع من: <span className="font-semibold">{sourceLabel}</span>
+        {vanId && (
+          <Link href={`/print/stock/${vanId}`} target="_blank" className="ms-auto inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 hover:bg-secondary">
+            <Printer className="h-3.5 w-3.5" /> مخزون السيارة
+          </Link>
+        )}
       </div>
 
       {lastSale && (
@@ -416,7 +481,7 @@ export function RepTerminal({
                           <span className="ms-2 text-xs text-muted-foreground">{inv.age_days} يوم</span>
                           <p className="tabular-nums" dir="ltr">المتبقي: {formatCurrency(inv.remaining)}</p>
                         </div>
-                        <Button size="sm" variant="outline" className="h-8 text-xs"
+                        <Button size="sm" variant="outline" className="h-8 text-xs" disabled={!dayOpen}
                           onClick={() => setCollectFor({ id: inv.id, number: inv.invoice_number, remaining: inv.remaining })}>
                           <Wallet className="h-3.5 w-3.5" /> تحصيل
                         </Button>

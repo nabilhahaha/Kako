@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, type ActionResult, friendlyDbError } from '@/lib/erp/guards';
+import { repDayBlocked } from '@/lib/erp/work-session';
 import type { LineInput } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { createInvoice, issueInvoice, recordPayment } from '../invoices/actions';
@@ -20,6 +21,9 @@ export async function quickSale(input: {
 }): Promise<ActionResult<{ invoice_id: string; invoice_number: string }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+
+  const blocked = await repDayBlocked(ctx);
+  if (blocked) return { ok: false, error: blocked };
 
   const created = await createInvoice({
     branch_id: input.branch_id,

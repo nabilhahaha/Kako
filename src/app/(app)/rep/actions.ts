@@ -4,7 +4,71 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { recordPayment } from '../sales/invoices/actions';
+import { repDayBlocked, today } from '@/lib/erp/work-session';
 import type { PaymentMethod } from '@/lib/erp/types';
+
+/** Open today's work session for the rep. */
+export async function startDay(branchId: string): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+  if (!branchId) return { ok: false, error: 'الفرع مطلوب.' };
+
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from('erp_work_sessions')
+    .select('status')
+    .eq('salesman_id', ctx.userId)
+    .eq('work_date', today())
+    .maybeSingle();
+  if (existing?.status === 'closed') {
+    return { ok: false, error: 'تم إنهاء يوم اليوم — لا يمكن إعادة فتحه إلا بموافقة المدير.' };
+  }
+  if (existing) return { ok: true };
+
+  const { error } = await supabase.from('erp_work_sessions').insert({
+    branch_id: branchId,
+    salesman_id: ctx.userId,
+    work_date: today(),
+    status: 'open',
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/rep');
+  return { ok: true };
+}
+
+/** Close today's work session — blocks further movements until reopened. */
+export async function endDay(): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('erp_work_sessions')
+    .update({ status: 'closed', closed_at: new Date().toISOString() })
+    .eq('salesman_id', ctx.userId)
+    .eq('work_date', today())
+    .eq('status', 'open');
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/rep');
+  return { ok: true };
+}
+
+/** Super admin reopens a rep's closed day. */
+export async function reopenDay(sessionId: string): Promise<ActionResult> {
+  const { ctx } = await requireAuth();
+  if (!ctx) return { ok: false, error: 'غير مصرح.' };
+  if (!ctx.isSuperAdmin) return { ok: false, error: 'إعادة الفتح متاحة لمدير النظام فقط.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('erp_work_sessions')
+    .update({ status: 'open', closed_at: null })
+    .eq('id', sessionId);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/rep');
+  revalidatePath('/sales/settlement');
+  return { ok: true };
+}
 
 /** Rep creates a customer with full details — stays unapproved until a super
  *  admin reviews/edits and approves it. */
@@ -132,6 +196,9 @@ export async function collectPayment(input: {
 }): Promise<ActionResult<{ invoice_id: string }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+
+  const blocked = await repDayBlocked(ctx);
+  if (blocked) return { ok: false, error: blocked };
 
   const res = await recordPayment({
     invoice_id: input.invoice_id,

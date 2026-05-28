@@ -15,18 +15,21 @@ export default async function RepPage() {
   const todayCode = DAY_CODES[today.getDay()];
   const todayStr = today.toISOString().slice(0, 10);
 
-  const [{ data: customers }, { data: branches }, { data: products }, { data: vans }, { data: visits }] =
+  const [{ data: customers }, { data: branches }, { data: products }, { data: vans }, { data: visits }, { data: session }] =
     await Promise.all([
       supabase.from('erp_customers').select('*').eq('is_active', true).order('name'),
       supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
       supabase.from('erp_products_catalog').select('*').eq('is_active', true).order('name'),
       supabase.from('erp_warehouses').select('id, name, name_ar, branch_id').eq('is_van', true).eq('assigned_to', ctx.userId).eq('is_active', true),
       supabase.from('erp_visits').select('customer_id').eq('salesman_id', ctx.userId).eq('visit_date', todayStr),
+      supabase.from('erp_work_sessions').select('status').eq('salesman_id', ctx.userId).eq('work_date', todayStr).maybeSingle(),
     ]);
 
   const allCustomers = (customers as ErpCustomer[]) ?? [];
   const van = (vans ?? [])[0];
   const sourceLabel = van ? `سيارتك (${van.name_ar || van.name})` : 'مخزن الفرع';
+  const status = (session as { status?: string } | null)?.status;
+  const dayStatus: 'none' | 'open' | 'closed' = status === 'open' ? 'open' : status === 'closed' ? 'closed' : 'none';
 
   // Today's planned visits for this rep.
   const todayPlan: PlanCustomer[] = allCustomers
@@ -42,6 +45,9 @@ export default async function RepPage() {
       sourceLabel={sourceLabel}
       todayPlan={todayPlan}
       visitedToday={visitedToday}
+      dayStatus={dayStatus}
+      vanId={van?.id ?? null}
+      repId={ctx.userId}
     />
   );
 }
