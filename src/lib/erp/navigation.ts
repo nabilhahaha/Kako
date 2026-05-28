@@ -14,6 +14,7 @@ import {
   BarChart3,
   Receipt,
   Tags,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -42,6 +43,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'المبيعات',
     items: [
+      {
+        label: 'بيع سريع',
+        href: '/sales/pos',
+        icon: Zap,
+        roles: ['admin', 'manager', 'salesman', 'cashier'],
+      },
       {
         label: 'أوامر البيع',
         href: '/sales/orders',
