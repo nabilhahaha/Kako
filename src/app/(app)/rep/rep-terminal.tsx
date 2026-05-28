@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { computeTotals, type LineInput } from '@/lib/erp/sales-calc';
+import { VISIT_DAYS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, ErpCustomer, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
 import { Search, Plus, Minus, Trash2, Wifi, WifiOff, RefreshCw, ShoppingBag, CheckCircle2, Loader2, Printer, MapPin, Warehouse, Wallet, UserPlus, FileText, PackagePlus, X } from 'lucide-react';
@@ -504,6 +505,7 @@ export function RepTerminal({
           onSubmit={async (data) => createPendingCustomer({ branch_id: branchId, ...data })}
         />
       )}
+      {/* end */}
     </div>
   );
 }
@@ -559,22 +561,33 @@ function CollectDialog({
   );
 }
 
+interface NewCustomerData {
+  code: string;
+  name: string;
+  name_ar?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  tax_number?: string;
+  credit_limit?: number;
+  visit_day?: string;
+}
+
 function NewCustomerDialog({
   onClose,
   onSubmit,
 }: {
   onClose: () => void;
-  onSubmit: (data: { code: string; name: string; phone?: string; city?: string }) => Promise<{ ok: boolean; error?: string }>;
+  onSubmit: (data: NewCustomerData) => Promise<{ ok: boolean; error?: string }>;
 }) {
-  const [code, setCode] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [city, setCity] = useState('');
+  const [f, setF] = useState<NewCustomerData>({ code: '', name: '', credit_limit: 0 });
   const [pending, setPending] = useState(false);
+  const set = (patch: Partial<NewCustomerData>) => setF((p) => ({ ...p, ...patch }));
 
   async function go() {
     setPending(true);
-    const res = await onSubmit({ code, name, phone, city });
+    const res = await onSubmit(f);
     setPending(false);
     if (!res.ok) {
       toast.error(res.error ?? 'حدث خطأ');
@@ -586,18 +599,33 @@ function NewCustomerDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+      <Card className="max-h-[90vh] w-full max-w-sm overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <CardContent className="space-y-3 pt-5">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">عميل جديد</h3>
             <button onClick={onClose} className="rounded-md p-1 hover:bg-secondary"><X className="h-4 w-4" /></button>
           </div>
-          <p className="text-xs text-warning">سيُرسل العميل لاعتماد مدير النظام قبل أن تتمكن من البيع له.</p>
-          <Input placeholder="كود العميل *" dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} className="h-11" />
-          <Input placeholder="اسم العميل *" value={name} onChange={(e) => setName(e.target.value)} className="h-11" />
-          <Input placeholder="الهاتف" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11" />
-          <Input placeholder="المنطقة" value={city} onChange={(e) => setCity(e.target.value)} className="h-11" />
-          <Button className="w-full" disabled={pending || !code.trim() || !name.trim()} onClick={go}>
+          <p className="text-xs text-warning">سيُرسل العميل لاعتماد مدير النظام (وله تعديله) قبل أن تتمكن من البيع له.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="كود العميل *" dir="ltr" value={f.code} onChange={(e) => set({ code: e.target.value })} className="h-11" />
+            <Input placeholder="الهاتف" dir="ltr" value={f.phone ?? ''} onChange={(e) => set({ phone: e.target.value })} className="h-11" />
+          </div>
+          <Input placeholder="اسم العميل *" value={f.name} onChange={(e) => set({ name: e.target.value })} className="h-11" />
+          <Input placeholder="الاسم بالعربي" value={f.name_ar ?? ''} onChange={(e) => set({ name_ar: e.target.value })} className="h-11" />
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="المنطقة" value={f.city ?? ''} onChange={(e) => set({ city: e.target.value })} className="h-11" />
+            <Input placeholder="البريد الإلكتروني" dir="ltr" value={f.email ?? ''} onChange={(e) => set({ email: e.target.value })} className="h-11" />
+          </div>
+          <Input placeholder="العنوان" value={f.address ?? ''} onChange={(e) => set({ address: e.target.value })} className="h-11" />
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="الرقم الضريبي" dir="ltr" value={f.tax_number ?? ''} onChange={(e) => set({ tax_number: e.target.value })} className="h-11" />
+            <Input placeholder="حد الائتمان" type="number" step="0.01" dir="ltr" value={f.credit_limit ?? 0} onChange={(e) => set({ credit_limit: Number(e.target.value) })} className="h-11" />
+          </div>
+          <select value={f.visit_day ?? ''} onChange={(e) => set({ visit_day: e.target.value })} className="h-11 w-full rounded-md border border-input bg-background px-2 text-sm">
+            <option value="">يوم الزيارة (اختياري)</option>
+            {VISIT_DAYS.map((d) => <option key={d.value} value={d.value}>{d.ar}</option>)}
+          </select>
+          <Button className="w-full" disabled={pending || !f.code.trim() || !f.name.trim()} onClick={go}>
             {pending && <Loader2 className="h-4 w-4 animate-spin" />} إرسال للاعتماد
           </Button>
         </CardContent>

@@ -6,13 +6,20 @@ import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guard
 import { recordPayment } from '../sales/invoices/actions';
 import type { PaymentMethod } from '@/lib/erp/types';
 
-/** Rep creates a customer — stays unapproved until a super admin approves it. */
+/** Rep creates a customer with full details — stays unapproved until a super
+ *  admin reviews/edits and approves it. */
 export async function createPendingCustomer(input: {
   branch_id: string;
   code: string;
   name: string;
+  name_ar?: string;
   phone?: string;
+  email?: string;
+  address?: string;
   city?: string;
+  tax_number?: string;
+  credit_limit?: number;
+  visit_day?: string;
 }): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
@@ -26,9 +33,14 @@ export async function createPendingCustomer(input: {
   const { error } = await supabase.from('erp_customers').insert({
     code,
     name,
-    name_ar: name,
+    name_ar: input.name_ar?.trim() || name,
     phone: input.phone?.trim() || null,
+    email: input.email?.trim() || null,
+    address: input.address?.trim() || null,
     city: input.city?.trim() || null,
+    tax_number: input.tax_number?.trim() || null,
+    credit_limit: Number(input.credit_limit) || 0,
+    visit_day: input.visit_day?.trim() || null,
     branch_id: input.branch_id || null,
     salesman_id: ctx.userId,
     is_approved: false,
