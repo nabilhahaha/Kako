@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, ErpCustomer } from '@/lib/erp/types';
-import { Plus, Pencil, Loader2, X, Users, Search, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Pencil, Loader2, X, Users, Search, AlertTriangle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function CustomersManager({
@@ -174,6 +175,9 @@ export function CustomersManager({
                         </td>
                         <td className="p-3">
                           <div className="flex justify-end gap-1">
+                            <Link href={`/customers/${c.id}`} className="rounded-md p-1.5 hover:bg-secondary" aria-label="كشف حساب" title="كشف حساب">
+                              <FileText className="h-4 w-4" />
+                            </Link>
                             <button onClick={() => setEditing(c)} className="rounded-md p-1.5 hover:bg-secondary" aria-label="تعديل">
                               <Pencil className="h-4 w-4" />
                             </button>

@@ -2,20 +2,29 @@
 
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { upsertSupplier, toggleSupplierActive } from './actions';
+import Link from 'next/link';
+import { upsertSupplier, toggleSupplierActive, recordSupplierPayment } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
-import type { Supplier } from '@/lib/erp/types';
-import { Plus, Pencil, Loader2, X, Truck, Search } from 'lucide-react';
+import type { Branch, PaymentMethod, Supplier } from '@/lib/erp/types';
+import { Plus, Pencil, Loader2, X, Truck, Search, FileText, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 
-export function SuppliersManager({ suppliers }: { suppliers: Supplier[] }) {
+export function SuppliersManager({
+  suppliers,
+  branches,
+}: {
+  suppliers: Supplier[];
+  branches: Branch[];
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState<Supplier | null | 'new'>(null);
+  const [payFor, setPayFor] = useState<Supplier | null>(null);
   const [query, setQuery] = useState('');
   const [pending, startTransition] = useTransition();
 
@@ -149,6 +158,14 @@ export function SuppliersManager({ suppliers }: { suppliers: Supplier[] }) {
                       </td>
                       <td className="p-3">
                         <div className="flex justify-end gap-1">
+                          {Number(s.balance) > 0 && (
+                            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setPayFor(s)}>
+                              <Wallet className="h-3.5 w-3.5" /> سداد
+                            </Button>
+                          )}
+                          <Link href={`/suppliers/${s.id}`} className="rounded-md p-1.5 hover:bg-secondary" aria-label="كشف حساب" title="كشف حساب">
+                            <FileText className="h-4 w-4" />
+                          </Link>
                           <button onClick={() => setEditing(s)} className="rounded-md p-1.5 hover:bg-secondary" aria-label="تعديل">
                             <Pencil className="h-4 w-4" />
                           </button>
@@ -165,6 +182,109 @@ export function SuppliersManager({ suppliers }: { suppliers: Supplier[] }) {
           </CardContent>
         </Card>
       )}
+
+      {payFor && (
+        <SupplierPaymentDialog
+          supplier={payFor}
+          branches={branches}
+          onClose={() => setPayFor(null)}
+          onDone={() => {
+            setPayFor(null);
+            router.refresh();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function SupplierPaymentDialog({
+  supplier,
+  branches,
+  onClose,
+  onDone,
+}: {
+  supplier: Supplier;
+  branches: Branch[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
+  const [amount, setAmount] = useState(Number(supplier.balance).toFixed(2));
+  const [method, setMethod] = useState<PaymentMethod>('bank_transfer');
+  const [ref, setRef] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [pending, startTransition] = useTransition();
+
+  function submit() {
+    startTransition(async () => {
+      const res = await recordSupplierPayment({
+        supplier_id: supplier.id,
+        branch_id: branchId,
+        amount: Number(amount),
+        payment_method: method,
+        reference_number: ref,
+        payment_date: date,
+      });
+      if (!res.ok) {
+        toast.error(res.error ?? 'حدث خطأ');
+        return;
+      }
+      toast.success('تم تسجيل السداد وترحيل القيد');
+      onDone();
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <CardContent className="space-y-4 pt-6">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">سداد لمورد: {supplier.name_ar || supplier.name}</h3>
+            <button onClick={onClose} className="rounded-md p-1 hover:bg-secondary">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            المستحق: <span dir="ltr" className="font-semibold tabular-nums">{formatCurrency(supplier.balance)}</span>
+          </p>
+          {branches.length === 0 ? (
+            <p className="text-sm text-warning">أنشئ فرعاً أولاً لتسجيل السداد.</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="الفرع الصارف *">
+                <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="المبلغ *">
+                <Input type="number" step="0.01" dir="ltr" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              </Field>
+              <Field label="طريقة الدفع">
+                <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  {PAYMENT_METHOD_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>{m.ar}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="رقم المرجع">
+                <Input dir="ltr" value={ref} onChange={(e) => setRef(e.target.value)} />
+              </Field>
+              <Field label="التاريخ">
+                <Input type="date" dir="ltr" value={date} onChange={(e) => setDate(e.target.value)} />
+              </Field>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button onClick={submit} disabled={pending || branches.length === 0}>
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />} تأكيد السداد
+            </Button>
+            <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
