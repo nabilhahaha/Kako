@@ -60,6 +60,7 @@ export async function assignBranch(
   userId: string,
   branchId: string,
   role: BranchRole,
+  reportsTo?: string | null,
 ): Promise<ActionResult> {
   const { error: authErr } = await requireSuperAdmin();
   if (authErr) return { ok: false, error: authErr };
@@ -69,7 +70,7 @@ export async function assignBranch(
   const { error } = await supabase
     .from('erp_user_branches')
     .upsert(
-      { user_id: userId, branch_id: branchId, role },
+      { user_id: userId, branch_id: branchId, role, reports_to: reportsTo || null },
       { onConflict: 'user_id,branch_id' },
     );
 

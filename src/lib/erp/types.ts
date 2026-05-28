@@ -133,6 +133,7 @@ export interface UserBranch {
   branch_id: string;
   role: BranchRole;
   is_default: boolean;
+  reports_to: string | null;
   created_at: string;
 }
 

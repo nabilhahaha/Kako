@@ -134,6 +134,7 @@ export function UsersManager({
               isSelf={isSelf}
               assignments={userAssignments}
               branches={branches}
+              allProfiles={profiles}
               branchName={branchName}
               pending={pending}
               onChange={refresh}
@@ -151,6 +152,7 @@ function UserCard({
   isSelf,
   assignments,
   branches,
+  allProfiles,
   branchName,
   pending,
   onChange,
@@ -160,6 +162,7 @@ function UserCard({
   isSelf: boolean;
   assignments: UserBranch[];
   branches: Branch[];
+  allProfiles: Profile[];
   branchName: (id: string) => string;
   pending: boolean;
   onChange: () => void;
@@ -167,6 +170,10 @@ function UserCard({
 }) {
   const [branchId, setBranchId] = useState('');
   const [role, setRole] = useState<BranchRole>('salesman');
+  const [reportsTo, setReportsTo] = useState('');
+
+  // Reps/cashiers usually roll up to a supervisor or manager.
+  const showSupervisor = role === 'salesman' || role === 'cashier';
 
   function add() {
     if (!branchId) {
@@ -174,11 +181,12 @@ function UserCard({
       return;
     }
     startTransition(async () => {
-      const res = await assignBranch(profile.id, branchId, role);
+      const res = await assignBranch(profile.id, branchId, role, showSupervisor ? reportsTo : null);
       if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
       else {
         toast.success('تم ربط الفرع');
         setBranchId('');
+        setReportsTo('');
         onChange();
       }
     });
@@ -314,6 +322,25 @@ function UserCard({
                 ))}
               </select>
             </div>
+            {showSupervisor && (
+              <div className="space-y-1">
+                <Label className="text-xs">يتبع (المشرف/المدير)</Label>
+                <select
+                  value={reportsTo}
+                  onChange={(e) => setReportsTo(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="">— بدون —</option>
+                  {allProfiles
+                    .filter((u) => u.id !== profile.id)
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.full_name || u.email}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
             <Button size="sm" onClick={add} disabled={pending}>
               <Plus className="h-4 w-4" /> ربط
             </Button>
