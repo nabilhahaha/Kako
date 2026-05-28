@@ -3,13 +3,15 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { quickSale, logNoSaleVisit } from '../sales/pos/actions';
+import { getCustomerDebt, collectPayment, createPendingCustomer, type CustomerDebt } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, ErpCustomer, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
-import { Search, Plus, Minus, Trash2, Wifi, WifiOff, RefreshCw, ShoppingBag, CheckCircle2, Loader2, Printer, MapPin, Warehouse } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Wifi, WifiOff, RefreshCw, ShoppingBag, CheckCircle2, Loader2, Printer, MapPin, Warehouse, Wallet, UserPlus, FileText, PackagePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface PlanCustomer {
@@ -82,6 +84,10 @@ export function RepTerminal({
   const [syncing, setSyncing] = useState(false);
   const [lastSale, setLastSale] = useState<{ invoice_id: string; invoice_number: string } | null>(null);
   const [visited, setVisited] = useState<Set<string>>(new Set(visitedToday));
+  const [debt, setDebt] = useState<CustomerDebt | null>(null);
+  const [debtLoading, setDebtLoading] = useState(false);
+  const [collectFor, setCollectFor] = useState<{ id: string; number: string; remaining: number } | null>(null);
+  const [newCustomer, setNewCustomer] = useState(false);
 
   // Hydrate from cache / seed cache, and read queue + online status.
   useEffect(() => {
@@ -108,7 +114,7 @@ export function RepTerminal({
 
   useEffect(() => {
     setBranchId((b) => b || branches[0]?.id || '');
-    setCustomerId((c) => c || customers[0]?.id || '');
+    setCustomerId((c) => c || customers.find((x) => x.is_approved !== false)?.id || '');
   }, [branches, customers]);
 
   const syncQueue = useCallback(async () => {
@@ -152,6 +158,21 @@ export function RepTerminal({
       window.removeEventListener('offline', goOffline);
     };
   }, [syncQueue]);
+
+  const loadDebt = useCallback((custId: string) => {
+    if (!custId || !navigator.onLine) {
+      setDebt(null);
+      return;
+    }
+    setDebtLoading(true);
+    getCustomerDebt(custId)
+      .then((res) => setDebt(res.ok ? res.data ?? null : null))
+      .finally(() => setDebtLoading(false));
+  }, []);
+
+  useEffect(() => {
+    loadDebt(customerId);
+  }, [customerId, loadDebt]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -346,13 +367,71 @@ export function RepTerminal({
           </select>
         )}
         <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
-          {customers.map((c) => <option key={c.id} value={c.id}>{c.name_ar || c.name}</option>)}
+          <option value="">اختر عميلاً…</option>
+          {customers.filter((c) => c.is_approved !== false).map((c) => <option key={c.id} value={c.id}>{c.name_ar || c.name}</option>)}
         </select>
         <div className="relative">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث عن صنف…" className="h-11 pr-9" />
         </div>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => setNewCustomer(true)}>
+          <UserPlus className="h-4 w-4" /> عميل جديد
+        </Button>
+        <Link href="/inventory/requests" className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm hover:bg-secondary">
+          <PackagePlus className="h-4 w-4" /> طلب تحميل
+        </Link>
+        {customerId && (
+          <Link href={`/print/statement/${customerId}`} target="_blank" className="inline-flex h-9 items-center gap-1 rounded-md border px-3 text-sm hover:bg-secondary">
+            <FileText className="h-4 w-4" /> كشف الحساب
+          </Link>
+        )}
+      </div>
+
+      {customerId && (
+        <Card>
+          <CardContent className="space-y-2 p-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">حساب العميل</span>
+              {debtLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+            {debt ? (
+              <>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <Badge variant={debt.balance > 0 ? 'warning' : 'success'}>المديونية: {formatCurrency(debt.balance)}</Badge>
+                  {debt.bucket0_30 > 0 && <Badge variant="secondary">٠-٣٠: {formatCurrency(debt.bucket0_30)}</Badge>}
+                  {debt.bucket31_60 > 0 && <Badge variant="secondary">٣١-٦٠: {formatCurrency(debt.bucket31_60)}</Badge>}
+                  {debt.bucket61_90 > 0 && <Badge variant="secondary">٦١-٩٠: {formatCurrency(debt.bucket61_90)}</Badge>}
+                  {debt.bucket90 > 0 && <Badge variant="destructive">+٩٠: {formatCurrency(debt.bucket90)}</Badge>}
+                </div>
+                {debt.invoices.length > 0 ? (
+                  <div className="divide-y rounded-md border">
+                    {debt.invoices.map((inv) => (
+                      <div key={inv.id} className="flex items-center justify-between gap-2 p-2 text-sm">
+                        <div>
+                          <span className="font-mono text-xs text-muted-foreground" dir="ltr">{inv.invoice_number}</span>
+                          <span className="ms-2 text-xs text-muted-foreground">{inv.age_days} يوم</span>
+                          <p className="tabular-nums" dir="ltr">المتبقي: {formatCurrency(inv.remaining)}</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="h-8 text-xs"
+                          onClick={() => setCollectFor({ id: inv.id, number: inv.invoice_number, remaining: inv.remaining })}>
+                          <Wallet className="h-3.5 w-3.5" /> تحصيل
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">لا توجد فواتير مستحقة على هذا العميل.</p>
+                )}
+              </>
+            ) : (
+              !debtLoading && <p className="text-xs text-muted-foreground">{online ? '—' : 'المديونية غير متاحة بدون اتصال.'}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         {filtered.map((p) => (
@@ -396,6 +475,133 @@ export function RepTerminal({
           <p>اختر الأصناف لإضافتها للفاتورة</p>
         </div>
       )}
+
+      {collectFor && (
+        <CollectDialog
+          invoice={collectFor}
+          onClose={() => setCollectFor(null)}
+          onDone={(invoiceId, invoiceNumber) => {
+            setCollectFor(null);
+            setLastSale({ invoice_id: invoiceId, invoice_number: invoiceNumber });
+            setVisited((prev) => new Set(prev).add(customerId));
+            loadDebt(customerId);
+          }}
+          onSubmit={async (amount, method) => {
+            return collectPayment({
+              invoice_id: collectFor.id,
+              branch_id: branchId,
+              customer_id: customerId,
+              amount,
+              payment_method: method,
+            });
+          }}
+        />
+      )}
+
+      {newCustomer && (
+        <NewCustomerDialog
+          onClose={() => setNewCustomer(false)}
+          onSubmit={async (data) => createPendingCustomer({ branch_id: branchId, ...data })}
+        />
+      )}
+    </div>
+  );
+}
+
+function CollectDialog({
+  invoice,
+  onClose,
+  onDone,
+  onSubmit,
+}: {
+  invoice: { id: string; number: string; remaining: number };
+  onClose: () => void;
+  onDone: (invoiceId: string, invoiceNumber: string) => void;
+  onSubmit: (amount: number, method: PaymentMethod) => Promise<{ ok: boolean; error?: string }>;
+}) {
+  const [amount, setAmount] = useState(invoice.remaining.toFixed(2));
+  const [method, setMethod] = useState<PaymentMethod>('cash');
+  const [pending, setPending] = useState(false);
+
+  async function go() {
+    setPending(true);
+    const res = await onSubmit(Number(amount), method);
+    setPending(false);
+    if (!res.ok) {
+      toast.error(res.error ?? 'حدث خطأ');
+      return;
+    }
+    toast.success('تم التحصيل');
+    onDone(invoice.id, invoice.number);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <CardContent className="space-y-3 pt-5">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">تحصيل فاتورة {invoice.number}</h3>
+            <button onClick={onClose} className="rounded-md p-1 hover:bg-secondary"><X className="h-4 w-4" /></button>
+          </div>
+          <p className="text-sm text-muted-foreground">المتبقي: <span dir="ltr" className="font-semibold">{formatCurrency(invoice.remaining)}</span></p>
+          <Input type="number" step="0.01" dir="ltr" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-11" />
+          <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className="h-11 w-full rounded-md border border-input bg-background px-2 text-sm">
+            <option value="cash">نقدي</option>
+            <option value="bank_transfer">تحويل بنكي</option>
+            <option value="check">شيك</option>
+          </select>
+          <Button className="w-full" disabled={pending} onClick={go}>
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} تأكيد التحصيل
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function NewCustomerDialog({
+  onClose,
+  onSubmit,
+}: {
+  onClose: () => void;
+  onSubmit: (data: { code: string; name: string; phone?: string; city?: string }) => Promise<{ ok: boolean; error?: string }>;
+}) {
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function go() {
+    setPending(true);
+    const res = await onSubmit({ code, name, phone, city });
+    setPending(false);
+    if (!res.ok) {
+      toast.error(res.error ?? 'حدث خطأ');
+      return;
+    }
+    toast.success('تم إرسال العميل لاعتماد مدير النظام');
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <CardContent className="space-y-3 pt-5">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">عميل جديد</h3>
+            <button onClick={onClose} className="rounded-md p-1 hover:bg-secondary"><X className="h-4 w-4" /></button>
+          </div>
+          <p className="text-xs text-warning">سيُرسل العميل لاعتماد مدير النظام قبل أن تتمكن من البيع له.</p>
+          <Input placeholder="كود العميل *" dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} className="h-11" />
+          <Input placeholder="اسم العميل *" value={name} onChange={(e) => setName(e.target.value)} className="h-11" />
+          <Input placeholder="الهاتف" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11" />
+          <Input placeholder="المنطقة" value={city} onChange={(e) => setCity(e.target.value)} className="h-11" />
+          <Button className="w-full" disabled={pending || !code.trim() || !name.trim()} onClick={go}>
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} إرسال للاعتماد
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

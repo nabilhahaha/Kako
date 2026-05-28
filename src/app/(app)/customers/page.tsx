@@ -26,6 +26,7 @@ export default async function CustomersPage() {
         customers={(customers as ErpCustomer[]) ?? []}
         branches={(branches as Branch[]) ?? []}
         reps={(profiles as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []}
+        isSuperAdmin={ctx.isSuperAdmin}
       />
     </div>
   );

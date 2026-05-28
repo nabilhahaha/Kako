@@ -10,10 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { VISIT_DAYS } from '@/lib/erp/constants';
-import { importCustomers } from './actions';
+import { importCustomers, approveCustomer } from './actions';
 import type { Branch, ErpCustomer, Profile } from '@/lib/erp/types';
 import Link from 'next/link';
-import { Plus, Pencil, Loader2, X, Users, Search, AlertTriangle, FileText, Upload } from 'lucide-react';
+import { Plus, Pencil, Loader2, X, Users, Search, AlertTriangle, FileText, Upload, Printer, BadgeCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Rep = Pick<Profile, 'id' | 'full_name' | 'email'>;
@@ -22,16 +22,29 @@ export function CustomersManager({
   customers,
   branches,
   reps,
+  isSuperAdmin,
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
   reps: Rep[];
+  isSuperAdmin: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<ErpCustomer | null | 'new'>(null);
   const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState('');
   const [pending, startTransition] = useTransition();
+
+  function onApprove(id: string) {
+    startTransition(async () => {
+      const res = await approveCustomer(id);
+      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      else {
+        toast.success('تم اعتماد العميل');
+        router.refresh();
+      }
+    });
+  }
 
   const repName = (id: string | null) => {
     if (!id) return '';
@@ -205,12 +218,26 @@ export function CustomersManager({
                           </span>
                         </td>
                         <td className="p-3 text-center">
-                          {c.is_active ? <Badge variant="success">نشط</Badge> : <Badge variant="destructive">موقوف</Badge>}
+                          {!c.is_approved ? (
+                            <Badge variant="warning">بانتظار الاعتماد</Badge>
+                          ) : c.is_active ? (
+                            <Badge variant="success">نشط</Badge>
+                          ) : (
+                            <Badge variant="destructive">موقوف</Badge>
+                          )}
                         </td>
                         <td className="p-3">
                           <div className="flex justify-end gap-1">
+                            {!c.is_approved && isSuperAdmin && (
+                              <Button variant="ghost" size="sm" disabled={pending} onClick={() => onApprove(c.id)} className="text-xs text-success">
+                                <BadgeCheck className="h-3.5 w-3.5" /> اعتماد
+                              </Button>
+                            )}
                             <Link href={`/customers/${c.id}`} className="rounded-md p-1.5 hover:bg-secondary" aria-label="كشف حساب" title="كشف حساب">
                               <FileText className="h-4 w-4" />
+                            </Link>
+                            <Link href={`/print/statement/${c.id}`} target="_blank" className="rounded-md p-1.5 hover:bg-secondary" aria-label="طباعة كشف" title="طباعة كشف الحساب">
+                              <Printer className="h-4 w-4" />
                             </Link>
                             <button onClick={() => setEditing(c)} className="rounded-md p-1.5 hover:bg-secondary" aria-label="تعديل">
                               <Pencil className="h-4 w-4" />

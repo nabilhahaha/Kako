@@ -109,6 +109,22 @@ export async function setCustomerJourney(
   return { ok: true };
 }
 
+/** Super admin approves a rep-created customer so it can be sold to. */
+export async function approveCustomer(id: string): Promise<ActionResult> {
+  const { ctx } = await requireAuth();
+  if (!ctx) return { ok: false, error: 'غير مصرح.' };
+  if (!ctx.isSuperAdmin) return { ok: false, error: 'الاعتماد متاح لمدير النظام فقط.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('erp_customers')
+    .update({ is_approved: true })
+    .eq('id', id);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/customers');
+  return { ok: true };
+}
+
 export async function toggleCustomerActive(
   id: string,
   isActive: boolean,

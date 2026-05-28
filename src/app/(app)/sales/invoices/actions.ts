@@ -24,6 +24,17 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
   if (lines.length === 0) return { ok: false, error: 'أضف بنداً واحداً على الأقل.' };
 
   const supabase = await createClient();
+
+  // Block selling to customers awaiting admin approval.
+  const { data: cust } = await supabase
+    .from('erp_customers')
+    .select('is_approved')
+    .eq('id', input.customer_id)
+    .maybeSingle();
+  if (cust && cust.is_approved === false) {
+    return { ok: false, error: 'هذا العميل بانتظار اعتماد مدير النظام، لا يمكن البيع له بعد.' };
+  }
+
   const totals = computeTotals(lines);
 
   const { data: invNumber, error: numErr } = await supabase.rpc('erp_next_number', {
