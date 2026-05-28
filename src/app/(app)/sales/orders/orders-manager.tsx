@@ -13,6 +13,7 @@ import { SALES_ORDER_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Branch, ErpCustomer, ProductCatalog, SalesOrderStatus } from '@/lib/erp/types';
 import type { OrderRow } from './page';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Plus, Loader2, X, FileText, FileUp } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,6 +36,7 @@ export function OrdersManager({
   products: ProductCatalog[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [customerId, setCustomerId] = useState('');
@@ -87,7 +89,14 @@ export function OrdersManager({
     });
   }
 
-  function onCancel(id: string) {
+  async function onCancel(id: string) {
+    const ok = await confirm({
+      title: 'إلغاء أمر البيع؟',
+      confirmText: 'إلغاء الأمر',
+      cancelText: 'تراجع',
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await cancelSalesOrder(id);
       if (!res.ok) {

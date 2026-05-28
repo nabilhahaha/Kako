@@ -13,6 +13,7 @@ import { INVOICE_STATUS_LABELS, PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constan
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Branch, ErpCustomer, InvoiceStatus, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
 import type { InvoiceRow } from './page';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Plus, Loader2, X, Receipt, CheckCircle2, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -37,6 +38,7 @@ export function InvoicesManager({
   products: ProductCatalog[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [customerId, setCustomerId] = useState('');
@@ -81,7 +83,13 @@ export function InvoicesManager({
     });
   }
 
-  function onIssue(id: string) {
+  async function onIssue(id: string) {
+    const ok = await confirm({
+      title: 'إصدار الفاتورة؟',
+      message: 'سيتم خصم الكميات من المخزون وترحيل القيد المحاسبي. لا يمكن التراجع.',
+      confirmText: 'إصدار',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await issueInvoice(id);
       if (!res.ok) {
@@ -93,7 +101,15 @@ export function InvoicesManager({
     });
   }
 
-  function onCancel(id: string) {
+  async function onCancel(id: string) {
+    const ok = await confirm({
+      title: 'إلغاء الفاتورة؟',
+      message: 'سيتم تعليم الفاتورة كملغية.',
+      confirmText: 'إلغاء الفاتورة',
+      cancelText: 'تراجع',
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await cancelInvoice(id);
       if (!res.ok) {

@@ -12,6 +12,7 @@ import { TRANSFER_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatDate, formatNumber } from '@/lib/utils';
 import type { Branch, ProductCatalog, TransferStatus, Warehouse } from '@/lib/erp/types';
 import type { TransferRow } from './page';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Plus, Loader2, X, ArrowLeftRight, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,6 +44,7 @@ export function TransfersManager({
   branches: Branch[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [fromWh, setFromWh] = useState('');
   const [toWh, setToWh] = useState('');
@@ -83,7 +85,13 @@ export function TransfersManager({
     });
   }
 
-  function onComplete(id: string) {
+  async function onComplete(id: string) {
+    const ok = await confirm({
+      title: 'تنفيذ التحويل؟',
+      message: 'سيتم نقل الكميات من المخزن المصدر إلى الوجهة. لا يمكن التراجع.',
+      confirmText: 'تنفيذ',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await completeTransfer(id);
       if (!res.ok) {
@@ -95,7 +103,14 @@ export function TransfersManager({
     });
   }
 
-  function onCancel(id: string) {
+  async function onCancel(id: string) {
+    const ok = await confirm({
+      title: 'إلغاء التحويل؟',
+      confirmText: 'إلغاء',
+      cancelText: 'تراجع',
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await cancelTransfer(id);
       if (!res.ok) {

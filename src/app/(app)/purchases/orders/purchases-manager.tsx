@@ -13,6 +13,7 @@ import { PURCHASE_ORDER_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Branch, ProductCatalog, PurchaseOrderStatus, Supplier, Warehouse } from '@/lib/erp/types';
 import type { PORow } from './page';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Plus, Loader2, X, ShoppingCart, PackageCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -38,6 +39,7 @@ export function PurchasesManager({
   warehouses: Warehouse[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [supplierId, setSupplierId] = useState('');
@@ -79,7 +81,14 @@ export function PurchasesManager({
     });
   }
 
-  function onCancel(id: string) {
+  async function onCancel(id: string) {
+    const ok = await confirm({
+      title: 'إلغاء أمر الشراء؟',
+      confirmText: 'إلغاء الأمر',
+      cancelText: 'تراجع',
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await cancelPurchaseOrder(id);
       if (!res.ok) {

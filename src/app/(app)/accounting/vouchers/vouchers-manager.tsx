@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { VOUCHER_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Branch, ChartOfAccount, VoucherStatus } from '@/lib/erp/types';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Plus, Loader2, X, CheckCircle2, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -79,6 +80,7 @@ function VoucherSection({
   branches: Branch[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [accountId, setAccountId] = useState('');
@@ -127,7 +129,13 @@ function VoucherSection({
     });
   }
 
-  function onPost(id: string) {
+  async function onPost(id: string) {
+    const ok = await confirm({
+      title: 'ترحيل السند؟',
+      message: 'سيتم إنشاء القيد المحاسبي وترحيله.',
+      confirmText: 'ترحيل',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await postVoucher(kind, id);
       if (!res.ok) {
@@ -139,7 +147,14 @@ function VoucherSection({
     });
   }
 
-  function onCancel(id: string) {
+  async function onCancel(id: string) {
+    const ok = await confirm({
+      title: 'إلغاء السند؟',
+      confirmText: 'إلغاء',
+      cancelText: 'تراجع',
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await cancelVoucher(kind, id);
       if (!res.ok) {

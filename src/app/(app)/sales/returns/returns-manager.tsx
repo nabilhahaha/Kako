@@ -12,6 +12,7 @@ import { RETURN_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Branch, ErpCustomer, ProductCatalog, ReturnStatus } from '@/lib/erp/types';
 import type { ReturnRow } from './page';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Plus, Loader2, X, Undo2, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -44,6 +45,7 @@ export function ReturnsManager({
   products: ProductCatalog[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [customerId, setCustomerId] = useState('');
@@ -85,7 +87,13 @@ export function ReturnsManager({
     });
   }
 
-  function onComplete(id: string) {
+  async function onComplete(id: string) {
+    const ok = await confirm({
+      title: 'اعتماد المرتجع؟',
+      message: 'سيتم إرجاع البضاعة للمخزون وتسوية حساب العميل وترحيل القيد. لا يمكن التراجع.',
+      confirmText: 'اعتماد',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await completeReturn(id);
       if (!res.ok) {
@@ -97,7 +105,14 @@ export function ReturnsManager({
     });
   }
 
-  function onCancel(id: string) {
+  async function onCancel(id: string) {
+    const ok = await confirm({
+      title: 'إلغاء المرتجع؟',
+      confirmText: 'إلغاء',
+      cancelText: 'تراجع',
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await cancelReturn(id);
       if (!res.ok) {
