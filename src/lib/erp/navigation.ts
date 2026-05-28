@@ -23,6 +23,7 @@ import {
   UserCog,
   Smartphone,
   ShieldCheck,
+  CalendarDays,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -74,6 +75,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/sales/invoices',
         icon: FileText,
         roles: ['admin', 'manager', 'salesman', 'cashier', 'accountant'],
+      },
+      {
+        label: 'خطة الزيارات',
+        href: '/sales/journey',
+        icon: CalendarDays,
+        roles: ['admin', 'manager', 'supervisor', 'salesman'],
       },
       {
         label: 'مرتجعات المبيعات',

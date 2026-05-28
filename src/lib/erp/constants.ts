@@ -245,6 +245,22 @@ export const SEQUENCE_TYPE_PREFIXES: Record<SequenceType, string> = {
   receipt_voucher:  'RV',
 };
 
+// ─── Visit Days (journey plan) ──────────────────────────────────────────────
+
+export const VISIT_DAYS: { value: string; ar: string }[] = [
+  { value: 'sat', ar: 'السبت' },
+  { value: 'sun', ar: 'الأحد' },
+  { value: 'mon', ar: 'الإثنين' },
+  { value: 'tue', ar: 'الثلاثاء' },
+  { value: 'wed', ar: 'الأربعاء' },
+  { value: 'thu', ar: 'الخميس' },
+  { value: 'fri', ar: 'الجمعة' },
+];
+
+export const VISIT_DAY_LABEL: Record<string, string> = Object.fromEntries(
+  VISIT_DAYS.map((d) => [d.value, d.ar]),
+);
+
 // ─── Product Unit Labels ────────────────────────────────────────────────────
 
 export const PRODUCT_UNIT_LABELS: Record<string, BilingualLabel> = {

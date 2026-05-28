@@ -281,6 +281,8 @@ export interface ErpCustomer {
   credit_limit: number;
   balance: number;
   branch_id: string | null;
+  salesman_id: string | null;
+  visit_day: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

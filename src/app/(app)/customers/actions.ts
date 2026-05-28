@@ -20,6 +20,8 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   if (!name) return { ok: false, error: 'اسم العميل مطلوب.' };
 
   const branchId = String(formData.get('branch_id') || '').trim();
+  const salesmanId = String(formData.get('salesman_id') || '').trim();
+  const visitDay = String(formData.get('visit_day') || '').trim();
   const payload = {
     code,
     name,
@@ -31,6 +33,8 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     tax_number: String(formData.get('tax_number') || '').trim() || null,
     credit_limit: num(formData.get('credit_limit')),
     branch_id: branchId || null,
+    salesman_id: salesmanId || null,
+    visit_day: visitDay || null,
   };
 
   const supabase = await createClient();
@@ -40,6 +44,68 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
 
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/customers');
+  return { ok: true };
+}
+
+interface ImportRow {
+  code: string;
+  name: string;
+  name_ar?: string;
+  phone?: string;
+  city?: string;
+  credit_limit?: number;
+}
+
+/** Bulk import customers (from a parsed Excel/CSV), upserting on code. */
+export async function importCustomers(
+  rows: ImportRow[],
+  branchId: string | null,
+  salesmanId: string | null,
+): Promise<ActionResult<{ count: number }>> {
+  const { error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+
+  const clean = rows
+    .map((r) => ({
+      code: String(r.code ?? '').trim(),
+      name: String(r.name ?? '').trim(),
+      name_ar: r.name_ar?.toString().trim() || null,
+      phone: r.phone?.toString().trim() || null,
+      city: r.city?.toString().trim() || null,
+      credit_limit: Number(r.credit_limit) || 0,
+      branch_id: branchId || null,
+      salesman_id: salesmanId || null,
+    }))
+    .filter((r) => r.code && r.name);
+
+  if (clean.length === 0) return { ok: false, error: 'لا توجد صفوف صالحة (الكود والاسم مطلوبان).' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('erp_customers')
+    .upsert(clean, { onConflict: 'code' });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  revalidatePath('/customers');
+  return { ok: true, data: { count: clean.length } };
+}
+
+/** Assign a salesman and/or visit day to a customer (journey plan). */
+export async function setCustomerJourney(
+  id: string,
+  salesmanId: string | null,
+  visitDay: string | null,
+): Promise<ActionResult> {
+  const { error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('erp_customers')
+    .update({ salesman_id: salesmanId || null, visit_day: visitDay || null })
+    .eq('id', id);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/customers');
+  revalidatePath('/sales/journey');
   return { ok: true };
 }
 
