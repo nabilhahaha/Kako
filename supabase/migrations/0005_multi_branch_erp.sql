@@ -687,9 +687,13 @@ CREATE TABLE IF NOT EXISTS erp_chart_of_accounts (
   description   TEXT,
   is_active     BOOLEAN NOT NULL DEFAULT true,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(code, COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid))
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Unique account code per branch (NULL branch = shared); expression unique
+-- constraints must be indexes, not inline table constraints.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_erp_coa_code_branch
+  ON erp_chart_of_accounts (code, COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid));
 
 DROP TRIGGER IF EXISTS erp_chart_of_accounts_updated ON erp_chart_of_accounts;
 CREATE TRIGGER erp_chart_of_accounts_updated
@@ -732,9 +736,11 @@ CREATE TABLE IF NOT EXISTS erp_cost_centers (
   branch_id   UUID REFERENCES erp_branches(id) ON DELETE SET NULL,
   is_active   BOOLEAN NOT NULL DEFAULT true,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(code, COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid))
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_erp_cost_centers_code_branch
+  ON erp_cost_centers (code, COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid));
 
 DROP TRIGGER IF EXISTS erp_cost_centers_updated ON erp_cost_centers;
 CREATE TRIGGER erp_cost_centers_updated
