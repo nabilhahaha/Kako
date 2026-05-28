@@ -26,10 +26,12 @@ export function LineItemsEditor({
   products,
   lines,
   onChange,
+  priceField = 'sell',
 }: {
   products: ProductCatalog[];
   lines: EditorLine[];
   onChange: (lines: EditorLine[]) => void;
+  priceField?: 'sell' | 'cost';
 }) {
   function update(key: string, patch: Partial<EditorLine>) {
     onChange(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
@@ -37,9 +39,10 @@ export function LineItemsEditor({
 
   function onPickProduct(key: string, productId: string) {
     const p = products.find((x) => x.id === productId);
+    const price = p ? Number(priceField === 'cost' ? p.cost_price : p.sell_price) : 0;
     update(key, {
       product_id: productId,
-      unit_price: p ? Number(p.sell_price) : 0,
+      unit_price: price,
       tax_rate: p ? Number(p.tax_rate) : 0,
     });
   }

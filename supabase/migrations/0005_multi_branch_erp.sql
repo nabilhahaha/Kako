@@ -1253,7 +1253,10 @@ DECLARE
 BEGIN
   SELECT * INTO v_receipt FROM erp_goods_receipts WHERE id = NEW.goods_receipt_id;
 
-  IF v_receipt IS NOT NULL THEN
+  -- NOTE: use FOUND, not "v_receipt IS NOT NULL". For a RECORD, IS NOT NULL is
+  -- only true when EVERY column is non-null, so nullable columns (notes,
+  -- received_by) would wrongly skip the stock movement.
+  IF FOUND THEN
     INSERT INTO erp_stock_movements (
       movement_type, warehouse_id, product_id, quantity,
       reference_type, reference_id, notes, created_by
