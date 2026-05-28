@@ -218,6 +218,7 @@ export function PurchasesManager({
       {receiveFor && (
         <ReceiveDialog
           po={receiveFor}
+          products={products}
           warehouses={warehouses.filter((w) => w.branch_id === receiveFor.branch_id)}
           onClose={() => setReceiveFor(null)}
           onDone={() => {
@@ -232,21 +233,43 @@ export function PurchasesManager({
 
 function ReceiveDialog({
   po,
+  products,
   warehouses,
   onClose,
   onDone,
 }: {
   po: PORow;
+  products: ProductCatalog[];
   warehouses: Warehouse[];
   onClose: () => void;
   onDone: () => void;
 }) {
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id ?? '');
+  const [details, setDetails] = useState<Record<string, { batch_number: string; expiry_date: string }>>({});
   const [pending, startTransition] = useTransition();
+
+  const productName = (id: string) => {
+    const p = products.find((x) => x.id === id);
+    return p ? `${p.code} · ${p.name_ar || p.name}` : id;
+  };
+  function setDetail(productId: string, patch: Partial<{ batch_number: string; expiry_date: string }>) {
+    setDetails((prev) => {
+      const current = prev[productId] ?? { batch_number: '', expiry_date: '' };
+      return { ...prev, [productId]: { ...current, ...patch } };
+    });
+  }
 
   function submit() {
     startTransition(async () => {
-      const res = await receivePurchaseOrder(po.id, warehouseId);
+      const res = await receivePurchaseOrder(
+        po.id,
+        warehouseId,
+        po.lines.map((l) => ({
+          product_id: l.product_id,
+          batch_number: details[l.product_id]?.batch_number,
+          expiry_date: details[l.product_id]?.expiry_date,
+        })),
+      );
       if (!res.ok) {
         toast.error(res.error ?? 'حدث خطأ');
         return;
@@ -258,7 +281,7 @@ function ReceiveDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+      <Card className="max-h-[90vh] w-full max-w-lg overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <CardContent className="space-y-4 pt-6">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">استلام أمر الشراء {po.po_number}</h3>
@@ -269,14 +292,38 @@ function ReceiveDialog({
           {warehouses.length === 0 ? (
             <p className="text-sm text-warning">لا يوجد مخزن لهذا الفرع. أنشئ مخزناً أولاً.</p>
           ) : (
-            <div className="space-y-1">
-              <Label className="text-xs">المخزن المستلِم *</Label>
-              <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
+            <>
+              <div className="space-y-1">
+                <Label className="text-xs">المخزن المستلِم *</Label>
+                <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">تفاصيل التشغيلة والصلاحية (اختياري)</Label>
+                {po.lines.map((l) => (
+                  <div key={l.product_id} className="rounded-md border p-2">
+                    <p className="mb-1 text-sm font-medium">{productName(l.product_id)} <span className="text-xs text-muted-foreground" dir="ltr">×{l.quantity}</span></p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        placeholder="رقم التشغيلة"
+                        value={details[l.product_id]?.batch_number ?? ''}
+                        onChange={(e) => setDetail(l.product_id, { batch_number: e.target.value })}
+                        className="h-9"
+                      />
+                      <Input
+                        type="date" dir="ltr" title="تاريخ الصلاحية"
+                        value={details[l.product_id]?.expiry_date ?? ''}
+                        onChange={(e) => setDetail(l.product_id, { expiry_date: e.target.value })}
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
                 ))}
-              </select>
-            </div>
+              </div>
+            </>
           )}
           <div className="flex gap-2">
             <Button onClick={submit} disabled={pending || warehouses.length === 0}>

@@ -6,6 +6,7 @@ import {
   Package,
   Boxes,
   ArrowLeftRight,
+  CalendarClock,
   Warehouse,
   ShoppingCart,
   FileText,
@@ -102,6 +103,12 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'التحويلات',
         href: '/inventory/transfers',
         icon: ArrowLeftRight,
+        roles: ['admin', 'manager', 'warehouse_keeper'],
+      },
+      {
+        label: 'قرب انتهاء الصلاحية',
+        href: '/inventory/expiry',
+        icon: CalendarClock,
         roles: ['admin', 'manager', 'warehouse_keeper'],
       },
       {

@@ -90,6 +90,7 @@ export async function cancelPurchaseOrder(id: string): Promise<ActionResult> {
 export async function receivePurchaseOrder(
   poId: string,
   warehouseId: string,
+  details?: Array<{ product_id: string; batch_number?: string; expiry_date?: string }>,
 ): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
@@ -131,12 +132,20 @@ export async function receivePurchaseOrder(
   if (grErr) return { ok: false, error: friendlyDbError(grErr) };
 
   // Receipt lines -> trigger inserts purchase_in stock movements automatically.
+  const detailByProduct = new Map(
+    (details ?? []).map((d) => [d.product_id, d]),
+  );
   const { error: grlErr } = await supabase.from('erp_goods_receipt_lines').insert(
-    lines.map((l) => ({
-      goods_receipt_id: receipt.id,
-      product_id: l.product_id,
-      quantity_received: l.quantity,
-    })),
+    lines.map((l) => {
+      const d = detailByProduct.get(l.product_id);
+      return {
+        goods_receipt_id: receipt.id,
+        product_id: l.product_id,
+        quantity_received: l.quantity,
+        batch_number: d?.batch_number?.trim() || null,
+        expiry_date: d?.expiry_date || null,
+      };
+    }),
   );
   if (grlErr) return { ok: false, error: friendlyDbError(grlErr) };
 

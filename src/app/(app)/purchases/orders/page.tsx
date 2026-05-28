@@ -5,8 +5,13 @@ import { PageHeader } from '@/components/shared/page-header';
 import type { Branch, ProductCatalog, PurchaseOrder, Supplier, Warehouse } from '@/lib/erp/types';
 import { PurchasesManager } from './purchases-manager';
 
+export interface POLineLite {
+  product_id: string;
+  quantity: number;
+}
 export interface PORow extends PurchaseOrder {
   supplier: { name: string; name_ar: string | null } | null;
+  lines: POLineLite[];
 }
 
 export default async function PurchaseOrdersPage() {
@@ -18,7 +23,7 @@ export default async function PurchaseOrdersPage() {
     await Promise.all([
       supabase
         .from('erp_purchase_orders')
-        .select('*, supplier:erp_suppliers(name, name_ar)')
+        .select('*, supplier:erp_suppliers(name, name_ar), lines:erp_purchase_order_lines(product_id, quantity)')
         .order('created_at', { ascending: false }),
       supabase.from('erp_suppliers').select('*').eq('is_active', true).order('name'),
       supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
@@ -30,7 +35,7 @@ export default async function PurchaseOrdersPage() {
     <div>
       <PageHeader title="أوامر الشراء" description="طلبات الشراء واستلام البضاعة في المخزن" />
       <PurchasesManager
-        orders={(orders as PORow[]) ?? []}
+        orders={(orders as unknown as PORow[]) ?? []}
         suppliers={(suppliers as Supplier[]) ?? []}
         branches={(branches as Branch[]) ?? []}
         products={(products as ProductCatalog[]) ?? []}
