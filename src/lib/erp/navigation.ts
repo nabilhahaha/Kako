@@ -5,6 +5,7 @@ import {
   Users,
   Package,
   Boxes,
+  ArrowLeftRight,
   Warehouse,
   ShoppingCart,
   FileText,
@@ -75,6 +76,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/inventory',
         icon: Boxes,
         roles: ['admin', 'manager', 'warehouse_keeper', 'salesman'],
+      },
+      {
+        label: 'التحويلات',
+        href: '/inventory/transfers',
+        icon: ArrowLeftRight,
+        roles: ['admin', 'manager', 'warehouse_keeper'],
       },
       {
         label: 'المخازن',
