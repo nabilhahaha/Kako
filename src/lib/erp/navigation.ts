@@ -70,6 +70,12 @@ export const NAV_SECTIONS: NavSection[] = [
         roles: ['admin', 'manager', 'salesman', 'cashier'],
       },
       {
+        label: 'تقرير المبيعات',
+        href: '/sales/report',
+        icon: BarChart3,
+        roles: ['admin', 'manager', 'accountant'],
+      },
+      {
         label: 'العملاء',
         href: '/customers',
         icon: Users,
