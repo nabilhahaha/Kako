@@ -4,6 +4,7 @@ import {
   Building2,
   Users,
   Package,
+  Boxes,
   Warehouse,
   ShoppingCart,
   FileText,
@@ -68,6 +69,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/products',
         icon: Package,
         roles: ['admin', 'manager', 'warehouse_keeper'],
+      },
+      {
+        label: 'أرصدة المخزون',
+        href: '/inventory',
+        icon: Boxes,
+        roles: ['admin', 'manager', 'warehouse_keeper', 'salesman'],
       },
       {
         label: 'المخازن',
