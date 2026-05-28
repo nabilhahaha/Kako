@@ -65,6 +65,12 @@ export const NAV_SECTIONS: NavSection[] = [
         roles: ['admin', 'manager', 'salesman'],
       },
       {
+        label: 'محاسبة المندوب اليومية',
+        href: '/sales/settlement',
+        icon: Wallet,
+        roles: ['admin', 'manager', 'supervisor', 'accountant', 'salesman'],
+      },
+      {
         label: 'أوامر البيع',
         href: '/sales/orders',
         icon: ShoppingCart,
