@@ -50,6 +50,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'لوحة المزوّد',
     items: [
+      { label: 'نظرة عامة', href: '/platform', icon: LayoutDashboard, platformOwnerOnly: true },
       { label: 'الشركات والاشتراكات', href: '/platform/companies', icon: Crown, platformOwnerOnly: true },
     ],
   },

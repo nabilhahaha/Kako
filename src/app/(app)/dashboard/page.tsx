@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
@@ -66,6 +67,8 @@ function StatCard({
 
 export default async function DashboardPage() {
   const ctx = await getUserContext();
+  // The vendor has no tenant company; send them to their portfolio overview.
+  if (ctx?.isPlatformOwner) redirect('/platform');
   const name = ctx?.profile.full_name || ctx?.profile.email || '';
 
   const supabase = await createClient();

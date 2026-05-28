@@ -23,6 +23,13 @@ export function Sidebar({
   // server→client boundary (functions aren't serializable as props).
   const sections = visibleSections(permissions, isSuperAdmin, isPlatformOwner);
 
+  // Highlight only the most specific (longest) matching href, so a parent like
+  // /platform doesn't stay active while on /platform/companies.
+  const activeHref = sections
+    .flatMap((s) => s.items.map((i) => i.href))
+    .filter((href) => pathname === href || pathname.startsWith(href + '/'))
+    .sort((a, b) => b.length - a.length)[0];
+
   const content = (
     <nav className="flex h-full flex-col gap-1 overflow-y-auto p-3">
       <div className="mb-4 flex items-center gap-2 px-2 py-2">
@@ -38,8 +45,7 @@ export function Sidebar({
             {section.title}
           </p>
           {section.items.map((item) => {
-            const active =
-              pathname === item.href || pathname.startsWith(item.href + '/');
+            const active = item.href === activeHref;
             const Icon = item.icon;
             return (
               <Link
