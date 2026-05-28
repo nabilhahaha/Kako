@@ -22,8 +22,8 @@ export default async function PermissionsPage() {
   return (
     <div>
       <PageHeader
-        title="الصلاحيات"
-        description="تعديل صلاحيات كل دور وإضافة أدوار جديدة. مدير النظام له جميع الصلاحيات."
+        title="الصلاحيات الافتراضية"
+        description="القالب الافتراضي لصلاحيات كل دور — يُطبَّق على أي شركة جديدة عند إنشائها. لتخصيص صلاحيات شركة بعينها افتح صفحتها من لوحة المزوّد. مدير النظام له جميع الصلاحيات."
       />
       <PermissionsMatrix
         roles={(roles as RoleRow[]) ?? []}

@@ -90,19 +90,52 @@ export async function getUserContext(): Promise<UserContext | null> {
   }
 
   // Effective permissions: super admin gets all; others get the union of their
-  // roles' permissions from the DB matrix.
+  // roles' permissions. Permissions are resolved per the user's tenant company
+  // (erp_company_role_permissions), so the same role can carry different
+  // capabilities in a pharmacy vs a food distributor vs a hotel. Companies
+  // without their own config fall back to the global defaults (erp_role_permissions).
   const superAdmin = (profile as Profile).is_super_admin;
   let permissions: Permission[] = [];
   if (superAdmin) {
     permissions = [...ALL_PERMISSIONS];
   } else {
-    const roleKeys = [...new Set(memberships.map((m) => m.role))];
+    const roleKeys = [...new Set(memberships.map((m) => m.role as string))];
     if (roleKeys.length > 0) {
-      const { data: perms } = await supabase
-        .from('erp_role_permissions')
-        .select('permission')
-        .in('role_key', roleKeys);
-      permissions = [...new Set((perms ?? []).map((p) => p.permission as Permission))];
+      let resolvedFromCompany = false;
+
+      if (companyId) {
+        // Which of the user's roles are enabled for their company?
+        const { data: companyRoles } = await supabase
+          .from('erp_company_roles')
+          .select('role_key, enabled')
+          .eq('company_id', companyId);
+
+        if (companyRoles && companyRoles.length > 0) {
+          // The company has its own role config → it is authoritative.
+          resolvedFromCompany = true;
+          const enabledKeys = companyRoles
+            .filter((r) => r.enabled && roleKeys.includes(r.role_key as string))
+            .map((r) => r.role_key as string);
+
+          if (enabledKeys.length > 0) {
+            const { data: perms } = await supabase
+              .from('erp_company_role_permissions')
+              .select('permission')
+              .eq('company_id', companyId)
+              .in('role_key', enabledKeys);
+            permissions = [...new Set((perms ?? []).map((p) => p.permission as Permission))];
+          }
+        }
+      }
+
+      if (!resolvedFromCompany) {
+        // No company-scoped config (legacy tenant): use the global defaults.
+        const { data: perms } = await supabase
+          .from('erp_role_permissions')
+          .select('permission')
+          .in('role_key', roleKeys);
+        permissions = [...new Set((perms ?? []).map((p) => p.permission as Permission))];
+      }
     }
   }
 

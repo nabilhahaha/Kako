@@ -56,10 +56,13 @@ export function CompanyDetail({
   company,
   branches,
   members,
+  companyRoles,
 }: {
   company: Company;
   branches: Branch[];
   members: MemberRow[];
+  /** Roles enabled for this company (key + Arabic label); used for onboarding. */
+  companyRoles?: { key: string; name_ar: string }[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -110,7 +113,15 @@ export function CompanyDetail({
     });
   }
 
-  const roleKeys = Object.keys(BRANCH_ROLES) as (keyof typeof BRANCH_ROLES)[];
+  // Onboarding role options: the roles enabled for this company (incl. custom
+  // ones). Falls back to the full built-in set when no company config is passed.
+  const roleOptions =
+    companyRoles && companyRoles.length > 0
+      ? companyRoles
+      : (Object.keys(BRANCH_ROLES) as (keyof typeof BRANCH_ROLES)[]).map((key) => ({
+          key,
+          name_ar: BRANCH_ROLES[key].ar,
+        }));
 
   return (
     <div className="space-y-6">
@@ -315,9 +326,9 @@ export function CompanyDetail({
                   ))}
                 </select>
                 <select name="role" className={selectCls} defaultValue="admin">
-                  {roleKeys.map((r) => (
-                    <option key={r} value={r}>
-                      {BRANCH_ROLES[r].ar}
+                  {roleOptions.map((r) => (
+                    <option key={r.key} value={r.key}>
+                      {r.name_ar}
                     </option>
                   ))}
                 </select>
