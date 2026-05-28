@@ -40,11 +40,11 @@ Deno.serve(async (req) => {
 
     const { data: callerProfile } = await callerClient
       .from('erp_profiles')
-      .select('is_super_admin')
+      .select('is_super_admin, is_platform_owner')
       .eq('id', caller.id)
       .single();
 
-    if (!callerProfile?.is_super_admin) {
+    if (!callerProfile?.is_super_admin && !callerProfile?.is_platform_owner) {
       return json({ error: 'هذه العملية متاحة لمدير النظام فقط' }, 403);
     }
 

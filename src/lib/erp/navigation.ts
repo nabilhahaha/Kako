@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   CalendarDays,
   Download,
+  Crown,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -36,6 +37,8 @@ export interface NavItem {
   perm?: Permission | Permission[];
   /** Only super admins. */
   superAdminOnly?: boolean;
+  /** Only the platform owner (the vendor). */
+  platformOwnerOnly?: boolean;
 }
 
 export interface NavSection {
@@ -44,6 +47,12 @@ export interface NavSection {
 }
 
 export const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'لوحة المزوّد',
+    items: [
+      { label: 'الشركات والاشتراكات', href: '/platform/companies', icon: Crown, platformOwnerOnly: true },
+    ],
+  },
   {
     title: 'الرئيسية',
     items: [{ label: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard }],
@@ -96,7 +105,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'الفروع', href: '/settings/branches', icon: Building2, superAdminOnly: true },
       { label: 'المستخدمون', href: '/settings/users', icon: Users, superAdminOnly: true },
-      { label: 'الصلاحيات', href: '/settings/permissions', icon: ShieldCheck, perm: 'settings.users' },
+      { label: 'الصلاحيات', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true },
       { label: 'حسابي', href: '/account', icon: UserCog },
     ],
   },
@@ -106,15 +115,18 @@ export const NAV_SECTIONS: NavSection[] = [
 export function visibleSections(
   permissions: Permission[],
   isSuperAdmin: boolean,
+  isPlatformOwner = false,
 ): NavSection[] {
   const has = (perm: Permission | Permission[]) =>
     Array.isArray(perm) ? perm.some((p) => permissions.includes(p)) : permissions.includes(perm);
+  const elevated = isSuperAdmin || isPlatformOwner;
 
   return NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => {
-      if (item.superAdminOnly) return isSuperAdmin;
-      if (isSuperAdmin) return true;
+      if (item.platformOwnerOnly) return isPlatformOwner;
+      if (item.superAdminOnly) return elevated;
+      if (elevated) return true;
       if (!item.perm) return true;
       return has(item.perm);
     }),

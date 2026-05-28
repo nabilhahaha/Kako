@@ -94,6 +94,16 @@ export type ProductUnit =
 
 // ─── Company & Branch Structure ─────────────────────────────────────────────
 
+export type BusinessType =
+  | 'general'
+  | 'supermarket'
+  | 'pharmacy'
+  | 'wholesale'
+  | 'clothing'
+  | 'restaurant'
+  | 'cafe'
+  | 'services';
+
 export interface Company {
   id: string;
   name: string;
@@ -107,6 +117,10 @@ export interface Company {
   website: string | null;
   currency: string;
   is_active: boolean;
+  business_type: BusinessType | null;
+  slug: string | null;
+  subscription_start: string | null;
+  subscription_end: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -144,6 +158,7 @@ export interface Profile {
   phone: string | null;
   avatar_url: string | null;
   is_super_admin: boolean;
+  is_platform_owner: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;

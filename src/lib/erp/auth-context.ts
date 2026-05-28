@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import type { Branch, BranchRole, Profile } from './types';
+import type { Branch, BranchRole, Company, Profile } from './types';
 import { ALL_PERMISSIONS, type Permission } from './permissions';
 
 export interface BranchMembership {
@@ -12,7 +12,12 @@ export interface UserContext {
   userId: string;
   profile: Profile;
   isSuperAdmin: boolean;
+  /** The vendor that runs the platform; sees/manages across all tenants. */
+  isPlatformOwner: boolean;
   memberships: BranchMembership[];
+  /** The tenant company the user belongs to (from their default branch). */
+  companyId: string | null;
+  company: Company | null;
   /** Highest-privilege role across all branches, used for nav gating. */
   topRole: BranchRole;
   /** Effective permissions (union across the user's roles; all for super admin). */
@@ -70,6 +75,20 @@ export async function getUserContext(): Promise<UserContext | null> {
         return ROLE_RANK[m.role] > ROLE_RANK[best] ? m.role : best;
       }, 'viewer');
 
+  // The tenant company: the default branch's company (fallback: first branch).
+  const defaultMembership =
+    memberships.find((m) => m.is_default) ?? memberships[0] ?? null;
+  const companyId = defaultMembership?.branch.company_id ?? null;
+  let company: Company | null = null;
+  if (companyId) {
+    const { data: companyRow } = await supabase
+      .from('erp_companies')
+      .select('*')
+      .eq('id', companyId)
+      .maybeSingle();
+    company = (companyRow as Company | null) ?? null;
+  }
+
   // Effective permissions: super admin gets all; others get the union of their
   // roles' permissions from the DB matrix.
   const superAdmin = (profile as Profile).is_super_admin;
@@ -91,7 +110,10 @@ export async function getUserContext(): Promise<UserContext | null> {
     userId: user.id,
     profile: profile as Profile,
     isSuperAdmin: superAdmin,
+    isPlatformOwner: (profile as Profile).is_platform_owner === true,
     memberships,
+    companyId,
+    company,
     topRole,
     permissions,
   };

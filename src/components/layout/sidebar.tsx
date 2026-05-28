@@ -11,15 +11,17 @@ import { Package, Menu, X } from 'lucide-react';
 export function Sidebar({
   permissions,
   isSuperAdmin,
+  isPlatformOwner = false,
 }: {
   permissions: Permission[];
   isSuperAdmin: boolean;
+  isPlatformOwner?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // Compute on the client so the icon components never cross the
   // server→client boundary (functions aren't serializable as props).
-  const sections = visibleSections(permissions, isSuperAdmin);
+  const sections = visibleSections(permissions, isSuperAdmin, isPlatformOwner);
 
   const content = (
     <nav className="flex h-full flex-col gap-1 overflow-y-auto p-3">
