@@ -1,15 +1,21 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { quickSale } from '../sales/pos/actions';
+import Link from 'next/link';
+import { quickSale, logNoSaleVisit } from '../sales/pos/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, ErpCustomer, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
-import { Search, Plus, Minus, Trash2, Wifi, WifiOff, RefreshCw, ShoppingBag, CheckCircle2, Loader2 } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Wifi, WifiOff, RefreshCw, ShoppingBag, CheckCircle2, Loader2, Printer, MapPin, Warehouse } from 'lucide-react';
 import { toast } from 'sonner';
+
+export interface PlanCustomer {
+  id: string;
+  name: string;
+}
 
 const DATA_KEY = 'kako_rep_data';
 const QUEUE_KEY = 'kako_rep_queue';
@@ -49,10 +55,16 @@ export function RepTerminal({
   customers: customersProp,
   branches: branchesProp,
   products: productsProp,
+  sourceLabel,
+  todayPlan,
+  visitedToday,
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
   products: ProductCatalog[];
+  sourceLabel: string;
+  todayPlan: PlanCustomer[];
+  visitedToday: string[];
 }) {
   // Master data: prefer fresh server props; cache them; fall back to cache offline.
   const [customers, setCustomers] = useState(customersProp);
@@ -68,6 +80,8 @@ export function RepTerminal({
   const [queue, setQueue] = useState<PendingSale[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [lastSale, setLastSale] = useState<{ invoice_id: string; invoice_number: string } | null>(null);
+  const [visited, setVisited] = useState<Set<string>>(new Set(visitedToday));
 
   // Hydrate from cache / seed cache, and read queue + online status.
   useEffect(() => {
@@ -203,6 +217,10 @@ export function RepTerminal({
         return;
       }
       toast.success(`تمت الفاتورة ${res.data?.invoice_number ?? ''}`);
+      if (res.data) {
+        setLastSale(res.data);
+        setVisited((prev) => new Set(prev).add(customerId));
+      }
       setCart([]);
       setQuery('');
     } catch {
@@ -227,6 +245,19 @@ export function RepTerminal({
     setCart([]);
     setQuery('');
     toast.success('تم حفظ الفاتورة للمزامنة عند عودة الاتصال');
+  }
+
+  function onNoSale(custId: string) {
+    startTransitionNoSale(custId);
+  }
+  function startTransitionNoSale(custId: string) {
+    logNoSaleVisit({ branch_id: branchId, customer_id: custId }).then((res) => {
+      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      else {
+        toast.success('تم تسجيل زيارة بدون بيع');
+        setVisited((prev) => new Set(prev).add(custId));
+      }
+    });
   }
 
   const canSell = branchId && customerId && cart.length > 0;
@@ -260,6 +291,51 @@ export function RepTerminal({
       {!online && (
         <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
           أنت غير متصل — الفواتير ستُحفظ محلياً وتُزامَن تلقائياً عند عودة الإنترنت.
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 rounded-md border bg-secondary/30 p-2 text-xs">
+        <Warehouse className="h-3.5 w-3.5 text-muted-foreground" />
+        البيع من: <span className="font-semibold">{sourceLabel}</span>
+      </div>
+
+      {lastSale && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-success/40 bg-success/10 p-2 text-sm">
+          <CheckCircle2 className="h-4 w-4 text-success" />
+          <span>تمت الفاتورة <span className="font-mono" dir="ltr">{lastSale.invoice_number}</span></span>
+          <div className="ms-auto flex gap-1">
+            <Link href={`/print/invoices/${lastSale.invoice_id}`} target="_blank" className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-xs hover:bg-secondary">
+              <Printer className="h-3.5 w-3.5" /> الفاتورة
+            </Link>
+            <Link href={`/print/receipt/${lastSale.invoice_id}`} target="_blank" className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-xs hover:bg-secondary">
+              <Printer className="h-3.5 w-3.5" /> سند التحصيل
+            </Link>
+            <button onClick={() => setLastSale(null)} className="rounded-md p-1 hover:bg-secondary"><Trash2 className="h-3.5 w-3.5" /></button>
+          </div>
+        </div>
+      )}
+
+      {todayPlan.length > 0 && (
+        <div className="rounded-md border">
+          <div className="flex items-center gap-2 border-b p-2 text-sm font-medium">
+            <MapPin className="h-4 w-4 text-primary" /> خطة زيارات اليوم ({todayPlan.length})
+          </div>
+          <ul className="divide-y">
+            {todayPlan.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-2 p-2 text-sm">
+                <span className="flex items-center gap-2">
+                  {visited.has(c.id) && <CheckCircle2 className="h-4 w-4 text-success" />}
+                  {c.name}
+                </span>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setCustomerId(c.id)}>بيع</Button>
+                  {!visited.has(c.id) && (
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onNoSale(c.id)}>بدون بيع</Button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
