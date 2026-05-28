@@ -24,6 +24,7 @@ import {
   Smartphone,
   ShieldCheck,
   CalendarDays,
+  Download,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -197,6 +198,12 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'التقارير المالية',
         href: '/accounting/reports',
         icon: BarChart3,
+        roles: ['admin', 'manager', 'accountant'],
+      },
+      {
+        label: 'تصدير البيانات',
+        href: '/exports',
+        icon: Download,
         roles: ['admin', 'manager', 'accountant'],
       },
     ],
