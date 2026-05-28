@@ -5,21 +5,36 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(value: number | string | null | undefined, currency = 'SAR') {
+export function formatCurrency(
+  value: number | string | null | undefined,
+  currency = 'EGP',
+) {
   const n = Number(value ?? 0);
-  return new Intl.NumberFormat('ar-SA', {
+  return new Intl.NumberFormat('ar-EG', {
     style: 'currency',
     currency,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(n);
 }
 
 export function formatNumber(value: number | string | null | undefined) {
-  return new Intl.NumberFormat('ar-SA').format(Number(value ?? 0));
+  return new Intl.NumberFormat('ar-EG').format(Number(value ?? 0));
 }
 
-export function initialsFromEmail(email: string | null | undefined) {
-  if (!email) return '?';
-  const name = email.split('@')[0];
-  return name.slice(0, 2).toUpperCase();
+export function formatDate(value: string | Date | null | undefined) {
+  if (!value) return '—';
+  const d = typeof value === 'string' ? new Date(value) : value;
+  if (isNaN(d.getTime())) return '—';
+  return new Intl.DateTimeFormat('ar-EG', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(d);
+}
+
+export function initialsFromName(name: string | null | undefined) {
+  if (!name) return '؟';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }

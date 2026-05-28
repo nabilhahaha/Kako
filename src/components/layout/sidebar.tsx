@@ -1,0 +1,91 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
+import type { NavSection } from '@/lib/erp/navigation';
+import { Package, Menu, X } from 'lucide-react';
+
+export function Sidebar({ sections }: { sections: NavSection[] }) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  const content = (
+    <nav className="flex h-full flex-col gap-1 overflow-y-auto p-3">
+      <div className="mb-4 flex items-center gap-2 px-2 py-2">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <Package className="h-5 w-5" />
+        </div>
+        <span className="text-lg font-bold">كاكو</span>
+      </div>
+
+      {sections.map((section) => (
+        <div key={section.title} className="mb-2">
+          <p className="px-3 py-1 text-xs font-medium text-muted-foreground">
+            {section.title}
+          </p>
+          {section.items.map((item) => {
+            const active =
+              pathname === item.href || pathname.startsWith(item.href + '/');
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-foreground hover:bg-secondary',
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </nav>
+  );
+
+  return (
+    <>
+      {/* Mobile toggle */}
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg lg:hidden"
+        aria-label="القائمة"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {/* Mobile drawer */}
+      {open && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setOpen(false)}
+          />
+          <aside className="absolute inset-y-0 right-0 w-72 border-l bg-card shadow-xl">
+            <button
+              onClick={() => setOpen(false)}
+              className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-md hover:bg-secondary"
+              aria-label="إغلاق"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            {content}
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop sidebar */}
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-l bg-card lg:block">
+        {content}
+      </aside>
+    </>
+  );
+}

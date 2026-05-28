@@ -135,6 +135,23 @@ export interface UserBranch {
   created_at: string;
 }
 
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  is_super_admin: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A profile joined with its branch assignments (UI convenience). */
+export interface ProfileWithBranches extends Profile {
+  branches: (UserBranch & { branch: Branch })[];
+}
+
 // ─── Inventory / Warehouse ──────────────────────────────────────────────────
 
 export interface Warehouse {

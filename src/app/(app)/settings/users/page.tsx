@@ -1,0 +1,52 @@
+import { redirect } from 'next/navigation';
+import { getUserContext } from '@/lib/erp/auth-context';
+import { createClient } from '@/lib/supabase/server';
+import { PageHeader } from '@/components/shared/page-header';
+import { Card, CardContent } from '@/components/ui/card';
+import type { Branch, Profile, UserBranch } from '@/lib/erp/types';
+import { UsersManager } from './users-manager';
+
+export default async function UsersPage() {
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+
+  if (!ctx.isSuperAdmin) {
+    return (
+      <div>
+        <PageHeader title="المستخدمون" />
+        <Card>
+          <CardContent className="p-8 text-center text-muted-foreground">
+            هذه الصفحة متاحة لمدير النظام فقط.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const supabase = await createClient();
+  const [{ data: profiles }, { data: branches }, { data: assignments }] =
+    await Promise.all([
+      supabase.from('erp_profiles').select('*').order('created_at'),
+      supabase
+        .from('erp_branches')
+        .select('*')
+        .eq('is_active', true)
+        .order('code'),
+      supabase.from('erp_user_branches').select('*'),
+    ]);
+
+  return (
+    <div>
+      <PageHeader
+        title="المستخدمون"
+        description="إدارة المستخدمين وربطهم بالفروع وتحديد الأدوار"
+      />
+      <UsersManager
+        currentUserId={ctx.userId}
+        profiles={(profiles as Profile[]) ?? []}
+        branches={(branches as Branch[]) ?? []}
+        assignments={(assignments as UserBranch[]) ?? []}
+      />
+    </div>
+  );
+}
