@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
-import { visibleSections } from '@/lib/erp/navigation';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/topbar';
 import { ConfirmProvider } from '@/components/confirm-dialog';
@@ -13,12 +12,10 @@ export default async function AppLayout({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
-  const sections = visibleSections(ctx.topRole, ctx.isSuperAdmin);
-
   return (
     <ConfirmProvider>
       <div className="flex min-h-screen bg-secondary/30">
-        <Sidebar sections={sections} />
+        <Sidebar topRole={ctx.topRole} isSuperAdmin={ctx.isSuperAdmin} />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
             fullName={ctx.profile.full_name}

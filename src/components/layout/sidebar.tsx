@@ -4,12 +4,22 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import type { NavSection } from '@/lib/erp/navigation';
+import { visibleSections } from '@/lib/erp/navigation';
+import type { BranchRole } from '@/lib/erp/types';
 import { Package, Menu, X } from 'lucide-react';
 
-export function Sidebar({ sections }: { sections: NavSection[] }) {
+export function Sidebar({
+  topRole,
+  isSuperAdmin,
+}: {
+  topRole: BranchRole;
+  isSuperAdmin: boolean;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // Compute on the client so the icon components never cross the
+  // server→client boundary (functions aren't serializable as props).
+  const sections = visibleSections(topRole, isSuperAdmin);
 
   const content = (
     <nav className="flex h-full flex-col gap-1 overflow-y-auto p-3">
