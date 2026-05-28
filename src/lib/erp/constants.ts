@@ -31,6 +31,7 @@ export interface BilingualLabel {
 export const BRANCH_ROLES: Record<BranchRole, BilingualLabel> = {
   admin:            { en: 'Administrator',      ar: 'مدير النظام' },
   manager:          { en: 'Branch Manager',     ar: 'مدير الفرع' },
+  supervisor:       { en: 'Sales Supervisor',   ar: 'مشرف مبيعات' },
   accountant:       { en: 'Accountant',         ar: 'محاسب' },
   cashier:          { en: 'Cashier',            ar: 'أمين الصندوق' },
   salesman:         { en: 'Salesman',           ar: 'مندوب مبيعات' },

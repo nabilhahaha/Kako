@@ -17,8 +17,9 @@ export interface UserContext {
 }
 
 const ROLE_RANK: Record<BranchRole, number> = {
-  admin: 7,
-  manager: 6,
+  admin: 8,
+  manager: 7,
+  supervisor: 6,
   accountant: 5,
   warehouse_keeper: 4,
   cashier: 3,

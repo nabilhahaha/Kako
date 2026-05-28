@@ -71,6 +71,7 @@ export type SequenceType =
 export type BranchRole =
   | 'admin'
   | 'manager'
+  | 'supervisor'
   | 'accountant'
   | 'cashier'
   | 'salesman'
