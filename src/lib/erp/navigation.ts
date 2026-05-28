@@ -18,6 +18,7 @@ import {
   Tags,
   Zap,
   Undo2,
+  UserCog,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -179,6 +180,11 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/settings/users',
         icon: Users,
         superAdminOnly: true,
+      },
+      {
+        label: 'حسابي',
+        href: '/account',
+        icon: UserCog,
       },
     ],
   },
