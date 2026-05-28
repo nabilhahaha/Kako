@@ -16,6 +16,7 @@ import {
   ReceiptText,
   Tags,
   Zap,
+  Undo2,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -61,6 +62,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/sales/invoices',
         icon: FileText,
         roles: ['admin', 'manager', 'salesman', 'cashier', 'accountant'],
+      },
+      {
+        label: 'مرتجعات المبيعات',
+        href: '/sales/returns',
+        icon: Undo2,
+        roles: ['admin', 'manager', 'salesman', 'cashier'],
       },
       {
         label: 'العملاء',
