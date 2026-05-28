@@ -14,23 +14,142 @@ export interface AccountAgg {
   credit: number;
 }
 
-type Tab = 'trial' | 'income' | 'balance';
+export interface AgingRow {
+  customer: string;
+  d0_30: number;
+  d31_60: number;
+  d61_90: number;
+  d90: number;
+  total: number;
+}
 
-export function ReportsView({ accounts }: { accounts: AccountAgg[] }) {
+export interface MarginRow {
+  code: string;
+  name: string;
+  qty: number;
+  revenue: number;
+  cost: number;
+}
+
+type Tab = 'trial' | 'income' | 'balance' | 'aging' | 'margin';
+
+export function ReportsView({
+  accounts,
+  aging,
+  margin,
+}: {
+  accounts: AccountAgg[];
+  aging: AgingRow[];
+  margin: MarginRow[];
+}) {
   const [tab, setTab] = useState<Tab>('trial');
 
   return (
     <div className="space-y-4">
-      <div className="flex w-fit rounded-lg border p-0.5">
+      <div className="flex w-fit flex-wrap rounded-lg border p-0.5">
         <TabBtn active={tab === 'trial'} onClick={() => setTab('trial')}>ميزان المراجعة</TabBtn>
         <TabBtn active={tab === 'income'} onClick={() => setTab('income')}>قائمة الدخل</TabBtn>
         <TabBtn active={tab === 'balance'} onClick={() => setTab('balance')}>الميزانية</TabBtn>
+        <TabBtn active={tab === 'aging'} onClick={() => setTab('aging')}>أعمار الديون</TabBtn>
+        <TabBtn active={tab === 'margin'} onClick={() => setTab('margin')}>هامش الربح</TabBtn>
       </div>
 
       {tab === 'trial' && <TrialBalance accounts={accounts} />}
       {tab === 'income' && <IncomeStatement accounts={accounts} />}
       {tab === 'balance' && <BalanceSheet accounts={accounts} />}
+      {tab === 'aging' && <Aging rows={aging} />}
+      {tab === 'margin' && <Margin rows={margin} />}
     </div>
+  );
+}
+
+function Aging({ rows }: { rows: AgingRow[] }) {
+  if (rows.length === 0) return <Empty text="لا توجد ديون مستحقة على العملاء." />;
+  const t = rows.reduce(
+    (a, r) => ({ d0_30: a.d0_30 + r.d0_30, d31_60: a.d31_60 + r.d31_60, d61_90: a.d61_90 + r.d61_90, d90: a.d90 + r.d90, total: a.total + r.total }),
+    { d0_30: 0, d31_60: 0, d61_90: 0, d90: 0, total: 0 },
+  );
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-secondary/50 text-muted-foreground">
+              <tr>
+                <th className="p-3 text-right font-medium">العميل</th>
+                <th className="p-3 text-left font-medium">٠-٣٠ يوم</th>
+                <th className="p-3 text-left font-medium">٣١-٦٠</th>
+                <th className="p-3 text-left font-medium">٦١-٩٠</th>
+                <th className="p-3 text-left font-medium">+٩٠</th>
+                <th className="p-3 text-left font-medium">الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i} className="border-b last:border-0 hover:bg-secondary/30">
+                  <td className="p-3 font-medium">{r.customer}</td>
+                  <td className="p-3 text-left tabular-nums" dir="ltr">{r.d0_30 ? formatCurrency(r.d0_30) : '—'}</td>
+                  <td className="p-3 text-left tabular-nums" dir="ltr">{r.d31_60 ? formatCurrency(r.d31_60) : '—'}</td>
+                  <td className="p-3 text-left tabular-nums" dir="ltr">{r.d61_90 ? formatCurrency(r.d61_90) : '—'}</td>
+                  <td className="p-3 text-left tabular-nums text-destructive" dir="ltr">{r.d90 ? formatCurrency(r.d90) : '—'}</td>
+                  <td className="p-3 text-left font-medium tabular-nums" dir="ltr">{formatCurrency(r.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t-2 font-bold">
+              <tr>
+                <td className="p-3">الإجمالي</td>
+                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(t.d0_30)}</td>
+                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(t.d31_60)}</td>
+                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(t.d61_90)}</td>
+                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(t.d90)}</td>
+                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(t.total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Margin({ rows }: { rows: MarginRow[] }) {
+  if (rows.length === 0) return <Empty text="لا توجد مبيعات لحساب الهامش." />;
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-secondary/50 text-muted-foreground">
+              <tr>
+                <th className="p-3 text-right font-medium">الصنف</th>
+                <th className="p-3 text-center font-medium">الكمية المباعة</th>
+                <th className="p-3 text-left font-medium">الإيراد</th>
+                <th className="p-3 text-left font-medium">التكلفة</th>
+                <th className="p-3 text-left font-medium">الربح</th>
+                <th className="p-3 text-center font-medium">الهامش %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const profit = r.revenue - r.cost;
+                const pct = r.revenue > 0 ? (profit / r.revenue) * 100 : 0;
+                return (
+                  <tr key={r.code} className="border-b last:border-0 hover:bg-secondary/30">
+                    <td className="p-3"><Code code={r.code} /> {r.name}</td>
+                    <td className="p-3 text-center tabular-nums" dir="ltr">{r.qty}</td>
+                    <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(r.revenue)}</td>
+                    <td className="p-3 text-left tabular-nums text-muted-foreground" dir="ltr">{formatCurrency(r.cost)}</td>
+                    <td className={`p-3 text-left tabular-nums ${profit >= 0 ? 'text-success' : 'text-destructive'}`} dir="ltr">{formatCurrency(profit)}</td>
+                    <td className={`p-3 text-center tabular-nums ${profit >= 0 ? '' : 'text-destructive'}`} dir="ltr">{pct.toFixed(1)}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
