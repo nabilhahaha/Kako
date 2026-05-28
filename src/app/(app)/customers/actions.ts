@@ -83,7 +83,7 @@ export async function importCustomers(
   const supabase = await createClient();
   const { error } = await supabase
     .from('erp_customers')
-    .upsert(clean, { onConflict: 'code' });
+    .upsert(clean, { onConflict: 'company_id,code' });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
   revalidatePath('/customers');
