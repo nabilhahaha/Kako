@@ -19,6 +19,7 @@ import {
   Zap,
   Undo2,
   UserCog,
+  Smartphone,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -52,6 +53,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/sales/pos',
         icon: Zap,
         roles: ['admin', 'manager', 'salesman', 'cashier'],
+      },
+      {
+        label: 'تطبيق المندوب',
+        href: '/rep',
+        icon: Smartphone,
+        roles: ['admin', 'manager', 'salesman'],
       },
       {
         label: 'أوامر البيع',

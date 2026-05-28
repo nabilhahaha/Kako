@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Sans_Arabic } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
+import { ServiceWorkerRegister } from '@/components/service-worker-register';
 
 const arabic = IBM_Plex_Sans_Arabic({
   subsets: ['arabic', 'latin'],
@@ -12,6 +13,8 @@ const arabic = IBM_Plex_Sans_Arabic({
 export const metadata: Metadata = {
   title: 'كاكو | نظام إدارة التوزيع',
   description: 'نظام متكامل لإدارة مبيعات وتوزيع شركات السلع سريعة الدوران (FMCG)',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'كاكو', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {
@@ -28,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className={`${arabic.variable} font-arabic antialiased`}>
+        <ServiceWorkerRegister />
         <Providers>{children}</Providers>
       </body>
     </html>

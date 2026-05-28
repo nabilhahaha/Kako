@@ -1,0 +1,16 @@
+{
+  "name": "كاكو - إدارة التوزيع",
+  "short_name": "كاكو",
+  "description": "نظام إدارة مبيعات وتوزيع FMCG - تطبيق المندوب",
+  "start_url": "/rep",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#8f1d2e",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
