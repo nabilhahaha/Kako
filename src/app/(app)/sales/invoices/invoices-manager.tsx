@@ -14,7 +14,8 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Branch, ErpCustomer, InvoiceStatus, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
 import type { InvoiceRow } from './page';
 import { useConfirm } from '@/components/confirm-dialog';
-import { Plus, Loader2, X, Receipt, CheckCircle2, Wallet } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Loader2, X, Receipt, CheckCircle2, Wallet, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STATUS_VARIANT: Record<InvoiceStatus, 'secondary' | 'success' | 'default' | 'destructive' | 'warning'> = {
@@ -226,6 +227,9 @@ export function InvoicesManager({
                         </td>
                         <td className="p-3">
                           <div className="flex justify-end gap-1">
+                            <Link href={`/print/invoices/${inv.id}`} target="_blank" className="rounded-md p-1.5 hover:bg-secondary" aria-label="طباعة" title="طباعة">
+                              <Printer className="h-4 w-4" />
+                            </Link>
                             {inv.status === 'draft' && (
                               <>
                                 <Button variant="ghost" size="sm" disabled={pending} onClick={() => onIssue(inv.id)} className="text-xs">
