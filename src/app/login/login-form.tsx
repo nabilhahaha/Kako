@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,6 +76,11 @@ export function LoginForm() {
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             تسجيل الدخول
           </Button>
+          <div className="text-center">
+            <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+              نسيت كلمة المرور؟
+            </Link>
+          </div>
         </form>
       </CardContent>
     </Card>
