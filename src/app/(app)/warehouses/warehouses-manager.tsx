@@ -8,20 +8,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import type { Branch, Warehouse } from '@/lib/erp/types';
-import { Plus, Pencil, Loader2, X, Warehouse as WarehouseIcon } from 'lucide-react';
+import type { Branch, Profile, Warehouse } from '@/lib/erp/types';
+import { Plus, Pencil, Loader2, X, Warehouse as WarehouseIcon, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function WarehousesManager({
   warehouses,
   branches,
+  profiles,
 }: {
   warehouses: Warehouse[];
   branches: Branch[];
+  profiles: Pick<Profile, 'id' | 'full_name' | 'email'>[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<Warehouse | null | 'new'>(null);
+  const [isVan, setIsVan] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  const userName = (id: string | null) => {
+    if (!id) return '';
+    const u = profiles.find((p) => p.id === id);
+    return u?.full_name || u?.email || '';
+  };
 
   const branchName = (id: string) => {
     const b = branches.find((x) => x.id === id);
@@ -57,7 +66,7 @@ export function WarehousesManager({
   return (
     <div className="space-y-4">
       {editing === null && (
-        <Button onClick={() => setEditing('new')} disabled={noBranches}>
+        <Button onClick={() => { setIsVan(false); setEditing('new'); }} disabled={noBranches}>
           <Plus className="h-4 w-4" /> مخزن جديد
         </Button>
       )}
@@ -94,6 +103,20 @@ export function WarehousesManager({
                 <Field label="الاسم (إنجليزي) *"><Input name="name" placeholder="Main Warehouse" defaultValue={current?.name ?? ''} required /></Field>
                 <Field label="الموقع"><Input name="location" defaultValue={current?.location ?? ''} /></Field>
               </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="is_van" checked={isVan} onChange={(e) => setIsVan(e.target.checked)} className="h-4 w-4" />
+                هذا مخزن سيارة (مندوب)
+              </label>
+              {isVan && (
+                <Field label="المندوب المسؤول عن السيارة">
+                  <select name="assigned_to" defaultValue={current?.assigned_to ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">— بدون —</option>
+                    {profiles.map((u) => (
+                      <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
               <div className="flex gap-2">
                 <Button type="submit" disabled={pending}>
                   {pending && <Loader2 className="h-4 w-4 animate-spin" />} حفظ
@@ -121,13 +144,17 @@ export function WarehousesManager({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{w.code}</Badge>
+                      {w.is_van && <Badge variant="secondary" className="gap-1"><Truck className="h-3 w-3" /> سيارة</Badge>}
                       {!w.is_active && <Badge variant="destructive">موقوف</Badge>}
                     </div>
                     <p className="mt-2 truncate font-semibold">{w.name_ar || w.name}</p>
                     <p className="text-sm text-muted-foreground">{branchName(w.branch_id)}</p>
+                    {w.is_van && w.assigned_to && (
+                      <p className="text-xs text-muted-foreground">المندوب: {userName(w.assigned_to)}</p>
+                    )}
                     {w.location && <p className="text-xs text-muted-foreground">{w.location}</p>}
                   </div>
-                  <button onClick={() => setEditing(w)} className="rounded-md p-1.5 hover:bg-secondary" aria-label="تعديل">
+                  <button onClick={() => { setIsVan(w.is_van); setEditing(w); }} className="rounded-md p-1.5 hover:bg-secondary" aria-label="تعديل">
                     <Pencil className="h-4 w-4" />
                   </button>
                 </div>

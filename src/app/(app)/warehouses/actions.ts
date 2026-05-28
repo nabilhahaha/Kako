@@ -16,12 +16,16 @@ export async function upsertWarehouse(formData: FormData): Promise<ActionResult>
   if (!code) return { ok: false, error: 'كود المخزن مطلوب.' };
   if (!name) return { ok: false, error: 'اسم المخزن مطلوب.' };
 
+  const isVan = String(formData.get('is_van') || '') === 'on';
+  const assignedTo = String(formData.get('assigned_to') || '').trim();
   const payload = {
     branch_id,
     code,
     name,
     name_ar: String(formData.get('name_ar') || '').trim() || null,
     location: String(formData.get('location') || '').trim() || null,
+    is_van: isVan,
+    assigned_to: isVan && assignedTo ? assignedTo : null,
   };
 
   const supabase = await createClient();

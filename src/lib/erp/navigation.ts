@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   CalendarClock,
   ClipboardList,
+  ClipboardCheck,
   Warehouse,
   ShoppingCart,
   FileText,
@@ -114,6 +115,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/inventory/transfers',
         icon: ArrowLeftRight,
         roles: ['admin', 'manager', 'warehouse_keeper'],
+      },
+      {
+        label: 'طلبات التحميل',
+        href: '/inventory/requests',
+        icon: ClipboardCheck,
+        roles: ['admin', 'manager', 'warehouse_keeper', 'salesman', 'supervisor'],
       },
       {
         label: 'الجرد',

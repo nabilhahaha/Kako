@@ -164,6 +164,8 @@ export interface Warehouse {
   name_ar: string | null;
   location: string | null;
   is_active: boolean;
+  is_van: boolean;
+  assigned_to: string | null;
   created_at: string;
   updated_at: string;
 }
