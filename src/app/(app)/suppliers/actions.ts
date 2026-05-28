@@ -66,70 +66,20 @@ export async function recordSupplierPayment(input: {
   reference_number?: string;
   payment_date?: string;
 }): Promise<ActionResult> {
-  const { ctx, error: authErr } = await requireAuth();
+  const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
-  if (!input.branch_id) return { ok: false, error: 'اختر الفرع الذي يصرف المبلغ.' };
-  if (!(input.amount > 0)) return { ok: false, error: 'المبلغ يجب أن يكون أكبر من صفر.' };
 
+  // Atomic via RPC: payment row + supplier balance + AP/Cash journal.
   const supabase = await createClient();
-  const { data: supplier, error: supErr } = await supabase
-    .from('erp_suppliers')
-    .select('balance')
-    .eq('id', input.supplier_id)
-    .single();
-  if (supErr || !supplier) return { ok: false, error: 'المورد غير موجود.' };
-
-  const paymentDate = input.payment_date || new Date().toISOString().slice(0, 10);
-  const { error: payErr } = await supabase.from('erp_supplier_payments').insert({
-    supplier_id: input.supplier_id,
-    amount: input.amount,
-    payment_method: input.payment_method,
-    reference_number: input.reference_number?.trim() || null,
-    payment_date: paymentDate,
-    created_by: ctx!.userId,
+  const { error } = await supabase.rpc('erp_record_supplier_payment', {
+    p_supplier_id: input.supplier_id,
+    p_branch_id: input.branch_id,
+    p_amount: input.amount,
+    p_method: input.payment_method,
+    p_ref: input.reference_number ?? null,
+    p_date: input.payment_date ?? null,
   });
-  if (payErr) return { ok: false, error: friendlyDbError(payErr) };
-
-  await supabase
-    .from('erp_suppliers')
-    .update({ balance: Number(supplier.balance) - Number(input.amount) })
-    .eq('id', input.supplier_id);
-
-  // Post AP (2100) debit / Cash (1100) credit.
-  const { data: accounts } = await supabase
-    .from('erp_chart_of_accounts')
-    .select('id, code')
-    .in('code', ['1100', '2100'])
-    .eq('is_system', true);
-  const cash = accounts?.find((a) => a.code === '1100');
-  const ap = accounts?.find((a) => a.code === '2100');
-  if (cash && ap) {
-    const { data: jvNumber } = await supabase.rpc('erp_next_number', {
-      p_branch_id: input.branch_id,
-      p_seq_type: 'journal',
-    });
-    const { data: entry } = await supabase
-      .from('erp_journal_entries')
-      .insert({
-        entry_number: jvNumber as string,
-        entry_date: paymentDate,
-        description: 'سداد دفعة لمورد',
-        reference_type: 'supplier_payment',
-        branch_id: input.branch_id,
-        status: 'posted',
-        created_by: ctx!.userId,
-        posted_by: ctx!.userId,
-        posted_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single();
-    if (entry) {
-      await supabase.from('erp_journal_lines').insert([
-        { journal_entry_id: entry.id, account_id: ap.id, debit: input.amount, credit: 0, description: 'موردون - سداد' },
-        { journal_entry_id: entry.id, account_id: cash.id, debit: 0, credit: input.amount, description: 'نقدية - سداد' },
-      ]);
-    }
-  }
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   revalidatePath('/suppliers');
   return { ok: true };

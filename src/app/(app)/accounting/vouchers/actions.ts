@@ -61,74 +61,18 @@ export async function createVoucher(
 }
 
 /**
- * Post a voucher: generate its journal entry and mark it posted.
+ * Post a voucher and generate its balanced journal entry, atomically via RPC.
  * Payment voucher → Debit chosen account (expense), Credit Cash.
  * Receipt voucher → Debit Cash, Credit chosen account (revenue).
  */
 export async function postVoucher(kind: VoucherKind, id: string): Promise<ActionResult> {
-  const { ctx, error: authErr } = await requireAuth();
+  const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
 
   const supabase = await createClient();
-  const { data: voucher, error: vErr } = await supabase
-    .from(TABLE[kind])
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (vErr || !voucher) return { ok: false, error: 'السند غير موجود.' };
-  if (voucher.status === 'posted') return { ok: false, error: 'تم ترحيل السند بالفعل.' };
-  if (voucher.status === 'cancelled') return { ok: false, error: 'السند ملغي.' };
-
-  const { data: cash } = await supabase
-    .from('erp_chart_of_accounts')
-    .select('id')
-    .eq('code', '1100')
-    .eq('is_system', true)
-    .single();
-  if (!cash) return { ok: false, error: 'حساب النقدية غير موجود.' };
-
-  const { data: jvNumber } = await supabase.rpc('erp_next_number', {
-    p_branch_id: voucher.branch_id,
-    p_seq_type: 'journal',
-  });
-  const { data: entry, error: entryErr } = await supabase
-    .from('erp_journal_entries')
-    .insert({
-      entry_number: jvNumber as string,
-      entry_date: voucher.voucher_date,
-      description:
-        kind === 'payment'
-          ? `سند صرف ${voucher.voucher_number} - ${voucher.payee}`
-          : `سند قبض ${voucher.voucher_number} - ${voucher.payer}`,
-      reference_type: kind === 'payment' ? 'payment_voucher' : 'receipt_voucher',
-      reference_id: id,
-      branch_id: voucher.branch_id,
-      status: 'posted',
-      created_by: ctx!.userId,
-      posted_by: ctx!.userId,
-      posted_at: new Date().toISOString(),
-    })
-    .select('id')
-    .single();
-  if (entryErr) return { ok: false, error: friendlyDbError(entryErr) };
-
-  const lines =
-    kind === 'payment'
-      ? [
-          { journal_entry_id: entry.id, account_id: voucher.account_id, debit: voucher.amount, credit: 0 },
-          { journal_entry_id: entry.id, account_id: cash.id, debit: 0, credit: voucher.amount },
-        ]
-      : [
-          { journal_entry_id: entry.id, account_id: cash.id, debit: voucher.amount, credit: 0 },
-          { journal_entry_id: entry.id, account_id: voucher.account_id, debit: 0, credit: voucher.amount },
-        ];
-  const { error: linesErr } = await supabase.from('erp_journal_lines').insert(lines);
-  if (linesErr) return { ok: false, error: friendlyDbError(linesErr) };
-
-  await supabase
-    .from(TABLE[kind])
-    .update({ status: 'posted', approved_by: ctx!.userId })
-    .eq('id', id);
+  const fn = kind === 'payment' ? 'erp_post_payment_voucher' : 'erp_post_receipt_voucher';
+  const { error } = await supabase.rpc(fn, { p_id: id });
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   revalidatePath('/accounting/vouchers');
   revalidatePath('/accounting/journal');

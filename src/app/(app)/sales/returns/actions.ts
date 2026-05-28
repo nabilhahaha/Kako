@@ -73,108 +73,16 @@ export async function createReturn(input: {
 }
 
 /**
- * Complete a return: restock the goods (return_in movements), post the
- * contra-revenue journal (Debit Sales Returns / Credit AR), and lower the
- * customer's outstanding balance.
+ * Complete a return. Atomic via RPC: restock (return_in), post the
+ * Sales-Returns/AR journal, and lower the customer balance in one tx.
  */
 export async function completeReturn(id: string): Promise<ActionResult> {
-  const { ctx, error: authErr } = await requireAuth();
+  const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
 
   const supabase = await createClient();
-  const { data: ret, error: rErr } = await supabase
-    .from('erp_sales_returns')
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (rErr || !ret) return { ok: false, error: 'المرتجع غير موجود.' };
-  if (ret.status === 'completed') return { ok: false, error: 'تم اعتماد هذا المرتجع بالفعل.' };
-  if (ret.status === 'cancelled') return { ok: false, error: 'المرتجع ملغي.' };
-
-  const { data: lines } = await supabase
-    .from('erp_sales_return_lines')
-    .select('*')
-    .eq('return_id', id);
-  if (!lines || lines.length === 0) return { ok: false, error: 'المرتجع بلا بنود.' };
-
-  // Restock into the branch's first active warehouse (if any).
-  const { data: warehouse } = await supabase
-    .from('erp_warehouses')
-    .select('id')
-    .eq('branch_id', ret.branch_id)
-    .eq('is_active', true)
-    .order('code')
-    .limit(1)
-    .maybeSingle();
-  if (warehouse) {
-    const { error: movErr } = await supabase.from('erp_stock_movements').insert(
-      lines.map((l) => ({
-        movement_type: 'return_in' as const,
-        warehouse_id: warehouse.id,
-        product_id: l.product_id,
-        quantity: Math.abs(Number(l.quantity)),
-        reference_type: 'sales_return',
-        reference_id: id,
-        notes: `مرتجع: ${ret.return_number}`,
-        created_by: ctx!.userId,
-      })),
-    );
-    if (movErr) return { ok: false, error: friendlyDbError(movErr) };
-  }
-
-  // Journal: Debit Sales Returns (4110) / Credit AR (1200).
-  const amount = Number(ret.total_amount);
-  if (amount > 0) {
-    const { data: accounts } = await supabase
-      .from('erp_chart_of_accounts')
-      .select('id, code')
-      .in('code', ['4110', '1200'])
-      .eq('is_system', true);
-    const salesReturns = accounts?.find((a) => a.code === '4110');
-    const ar = accounts?.find((a) => a.code === '1200');
-    if (salesReturns && ar) {
-      const { data: jvNumber } = await supabase.rpc('erp_next_number', {
-        p_branch_id: ret.branch_id,
-        p_seq_type: 'journal',
-      });
-      const { data: entry } = await supabase
-        .from('erp_journal_entries')
-        .insert({
-          entry_number: jvNumber as string,
-          description: `مرتجع مبيعات ${ret.return_number}`,
-          reference_type: 'sales_return',
-          reference_id: id,
-          branch_id: ret.branch_id,
-          status: 'posted',
-          created_by: ctx!.userId,
-          posted_by: ctx!.userId,
-          posted_at: new Date().toISOString(),
-        })
-        .select('id')
-        .single();
-      if (entry) {
-        await supabase.from('erp_journal_lines').insert([
-          { journal_entry_id: entry.id, account_id: salesReturns.id, debit: amount, credit: 0, description: `مرتجع ${ret.return_number}` },
-          { journal_entry_id: entry.id, account_id: ar.id, debit: 0, credit: amount, description: `مرتجع ${ret.return_number}` },
-        ]);
-      }
-    }
-  }
-
-  // Lower customer receivable.
-  const { data: customer } = await supabase
-    .from('erp_customers')
-    .select('balance')
-    .eq('id', ret.customer_id)
-    .single();
-  if (customer) {
-    await supabase
-      .from('erp_customers')
-      .update({ balance: Number(customer.balance) - amount })
-      .eq('id', ret.customer_id);
-  }
-
-  await supabase.from('erp_sales_returns').update({ status: 'completed', approved_by: ctx!.userId }).eq('id', id);
+  const { error } = await supabase.rpc('erp_complete_sales_return', { p_return_id: id });
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   revalidatePath('/sales/returns');
   revalidatePath('/customers');
