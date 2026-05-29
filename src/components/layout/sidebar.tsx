@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { visibleSections } from '@/lib/erp/navigation';
+import { visibleSections, type Module } from '@/lib/erp/navigation';
 import type { Permission } from '@/lib/erp/permissions';
 import { Package, Menu, X } from 'lucide-react';
 
@@ -12,16 +12,18 @@ export function Sidebar({
   permissions,
   isSuperAdmin,
   isPlatformOwner = false,
+  modules = [],
 }: {
   permissions: Permission[];
   isSuperAdmin: boolean;
   isPlatformOwner?: boolean;
+  modules?: Module[];
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // Compute on the client so the icon components never cross the
   // server→client boundary (functions aren't serializable as props).
-  const sections = visibleSections(permissions, isSuperAdmin, isPlatformOwner);
+  const sections = visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules);
 
   // Highlight only the most specific (longest) matching href, so a parent like
   // /platform doesn't stay active while on /platform/companies.

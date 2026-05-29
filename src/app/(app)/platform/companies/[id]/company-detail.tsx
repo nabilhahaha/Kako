@@ -12,6 +12,7 @@ import { Loader2, Plus, CalendarPlus, Power, Save, Gauge } from 'lucide-react';
 import type { Branch, Company } from '@/lib/erp/types';
 import type { Plan, CompanyUsage } from '@/lib/erp/plans';
 import { BRANCH_ROLES } from '@/lib/erp/constants';
+import { MODULE_LABELS, type Module } from '@/lib/erp/navigation';
 import {
   BUSINESS_TYPE_LABELS,
   BUSINESS_TYPES,
@@ -61,6 +62,7 @@ export function CompanyDetail({
   companyRoles,
   plans,
   usage,
+  modulesByPlan,
 }: {
   company: Company;
   branches: Branch[];
@@ -71,6 +73,8 @@ export function CompanyDetail({
   plans?: Plan[];
   /** Current usage tallies for this company. */
   usage?: CompanyUsage;
+  /** Modules unlocked per plan key (for display under the plan). */
+  modulesByPlan?: Record<string, string[]>;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -237,6 +241,16 @@ export function CompanyDetail({
                 </div>
               );
             })()}
+            {modulesByPlan && company.plan_key && (
+              <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                <span className="text-xs text-muted-foreground">الوحدات المتاحة:</span>
+                {(modulesByPlan[company.plan_key] ?? []).map((m) => (
+                  <Badge key={m} variant="secondary">
+                    {MODULE_LABELS[m as Module] ?? m}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

@@ -45,7 +45,22 @@ export interface NavItem {
 export interface NavSection {
   title: string;
   items: NavItem[];
+  /** Feature module this section belongs to; gated by the company's plan.
+   *  Omit = always available (dashboard, settings, vendor panel). */
+  module?: Module;
 }
+
+/** Feature modules that a subscription plan can unlock. */
+export type Module = 'sales' | 'inventory' | 'purchasing' | 'accounting';
+
+export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting'];
+
+export const MODULE_LABELS: Record<Module, string> = {
+  sales: 'المبيعات',
+  inventory: 'المخزون',
+  purchasing: 'المشتريات',
+  accounting: 'الحسابات',
+};
 
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -61,6 +76,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'المبيعات',
+    module: 'sales',
     items: [
       { label: 'بيع سريع', href: '/sales/pos', icon: Zap, perm: 'sales.sell' },
       { label: 'تطبيق المندوب', href: '/rep', icon: Smartphone, perm: 'sales.sell' },
@@ -75,6 +91,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'المخزون',
+    module: 'inventory',
     items: [
       { label: 'المنتجات', href: '/products', icon: Package, perm: 'inventory.view' },
       { label: 'أرصدة المخزون', href: '/inventory', icon: Boxes, perm: 'inventory.view' },
@@ -87,6 +104,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'المشتريات',
+    module: 'purchasing',
     items: [
       { label: 'الموردين', href: '/suppliers', icon: Truck, perm: 'suppliers.manage' },
       { label: 'أوامر الشراء', href: '/purchases/orders', icon: Receipt, perm: 'purchasing.manage' },
@@ -94,6 +112,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'الحسابات',
+    module: 'accounting',
     items: [
       { label: 'شجرة الحسابات', href: '/accounting/chart', icon: Tags, perm: 'accounting.view' },
       { label: 'سندات الصرف والقبض', href: '/accounting/vouchers', icon: ReceiptText, perm: 'accounting.post' },
@@ -114,17 +133,22 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-/** Filter nav by the user's effective permissions / super-admin status. */
+/** Filter nav by the user's effective permissions / super-admin status and the
+ *  feature modules unlocked by the company's plan. An empty `modules` list means
+ *  "no module restriction" (safe fallback for platform owner / legacy tenants). */
 export function visibleSections(
   permissions: Permission[],
   isSuperAdmin: boolean,
   isPlatformOwner = false,
+  modules: Module[] = [],
 ): NavSection[] {
   const has = (perm: Permission | Permission[]) =>
     Array.isArray(perm) ? perm.some((p) => permissions.includes(p)) : permissions.includes(perm);
   const elevated = isSuperAdmin || isPlatformOwner;
+  const moduleAllowed = (section: NavSection) =>
+    !section.module || modules.length === 0 || modules.includes(section.module);
 
-  return NAV_SECTIONS.map((section) => ({
+  return NAV_SECTIONS.filter(moduleAllowed).map((section) => ({
     ...section,
     items: section.items.filter((item) => {
       if (item.platformOwnerOnly) return isPlatformOwner;

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Branch, BranchRole, Company, Profile } from './types';
 import { ALL_PERMISSIONS, type Permission } from './permissions';
+import { ALL_MODULES, type Module } from './navigation';
 
 export interface BranchMembership {
   branch: Branch;
@@ -22,6 +23,8 @@ export interface UserContext {
   topRole: BranchRole;
   /** Effective permissions (union across the user's roles; all for super admin). */
   permissions: Permission[];
+  /** Feature modules unlocked by the company's plan (all for owner/super admin). */
+  modules: Module[];
 }
 
 const ROLE_RANK: Record<BranchRole, number> = {
@@ -140,16 +143,33 @@ export async function getUserContext(): Promise<UserContext | null> {
     }
   }
 
+  // Feature modules: the owner / super admin see everything; tenants see the
+  // modules unlocked by their company's plan (falls back to all when the plan
+  // has no module config — legacy tenants are not restricted).
+  const isPlatformOwner = (profile as Profile).is_platform_owner === true;
+  let modules: Module[] = [...ALL_MODULES];
+  const planKey = (company as { plan_key?: string } | null)?.plan_key;
+  if (!superAdmin && !isPlatformOwner && planKey) {
+    const { data: pm } = await supabase
+      .from('erp_plan_modules')
+      .select('module')
+      .eq('plan_key', planKey);
+    if (pm && pm.length > 0) {
+      modules = pm.map((m) => m.module as Module);
+    }
+  }
+
   return {
     userId: user.id,
     profile: profile as Profile,
     isSuperAdmin: superAdmin,
-    isPlatformOwner: (profile as Profile).is_platform_owner === true,
+    isPlatformOwner,
     memberships,
     companyId,
     company,
     topRole,
     permissions,
+    modules,
   };
 }
 
