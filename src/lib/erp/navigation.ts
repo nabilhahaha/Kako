@@ -35,6 +35,7 @@ import {
   ChefHat,
   LayoutGrid,
   Scissors,
+  Pill,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -71,11 +72,11 @@ export interface NavSection {
  *  item-level refinements driven by the business type so a clinic doesn't see
  *  POS and a restaurant doesn't see stock transfers. */
 export type Module =
-  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon'
+  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy'
   | 'pos' | 'sales_orders' | 'returns' | 'warehousing';
 
 /** The modules a subscription PLAN can grant (coarse). */
-export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon'];
+export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy'];
 
 export const MODULE_LABELS: Record<Module, string> = {
   sales: 'المبيعات',
@@ -86,6 +87,7 @@ export const MODULE_LABELS: Record<Module, string> = {
   clinic: 'العيادة',
   restaurant: 'المطعم / الكافيه',
   salon: 'الصالون',
+  pharmacy: 'الصيدلية',
   pos: 'نقطة البيع',
   sales_orders: 'أوامر البيع',
   returns: 'المرتجعات',
@@ -143,6 +145,14 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'المواعيد', href: '/salon/appointments', icon: CalendarClock, perm: 'salon.manage' },
       { label: 'التذاكر', href: '/salon/tickets', icon: Scissors, perm: 'salon.manage' },
       { label: 'الخدمات والأسعار', href: '/salon/services', icon: Tags, perm: 'salon.manage' },
+    ],
+  },
+  {
+    title: 'الصيدلية',
+    module: 'pharmacy',
+    items: [
+      { label: 'سجل صرف الأدوية', href: '/pharmacy/dispense', icon: Pill, perm: 'pharmacy.dispense' },
+      { label: 'قرب انتهاء الصلاحية', href: '/inventory/expiry', icon: CalendarClock, perm: 'pharmacy.dispense' },
     ],
   },
   {

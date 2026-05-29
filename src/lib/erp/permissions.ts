@@ -27,6 +27,7 @@ export type Permission =
   | 'clinic.doctor' // doctor: queue, exam, prescriptions, patient file
   | 'restaurant.manage' // tables, orders, kitchen, checkout (restaurant / café)
   | 'salon.manage' // services, bookings, tickets, checkout (salon / barber)
+  | 'pharmacy.dispense' // prescription / controlled-drug dispensing register
   | 'field.sales'; // rep app, daily settlement, visit planning (field roles only)
 
 export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }> = {
@@ -54,6 +55,7 @@ export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }
   'clinic.doctor': { ar: 'الطبيب (كشف/تشخيص/روشتة)', group: 'العيادة' },
   'restaurant.manage': { ar: 'إدارة المطعم/الكافيه (طاولات/أوردرات/مطبخ)', group: 'المطعم' },
   'salon.manage': { ar: 'إدارة الصالون (خدمات/مواعيد/تذاكر)', group: 'الصالون' },
+  'pharmacy.dispense': { ar: 'سجل صرف الأدوية والروشتات', group: 'الصيدلية' },
   'field.sales': { ar: 'المبيعات الميدانية (تطبيق المندوب)', group: 'المبيعات' },
 };
 
@@ -74,7 +76,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'accounting.view', 'accounting.post', 'reports.view',
     'suppliers.manage', 'sales.collect',
   ],
-  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage'],
+  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage', 'pharmacy.dispense'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales',
