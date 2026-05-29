@@ -30,6 +30,7 @@ import {
   AlertTriangle,
   Clock,
   BedDouble,
+  Stethoscope,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -66,11 +67,11 @@ export interface NavSection {
  *  item-level refinements driven by the business type so a clinic doesn't see
  *  POS and a restaurant doesn't see stock transfers. */
 export type Module =
-  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel'
+  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic'
   | 'pos' | 'sales_orders' | 'returns' | 'warehousing';
 
 /** The modules a subscription PLAN can grant (coarse). */
-export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel'];
+export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic'];
 
 export const MODULE_LABELS: Record<Module, string> = {
   sales: 'المبيعات',
@@ -78,6 +79,7 @@ export const MODULE_LABELS: Record<Module, string> = {
   purchasing: 'المشتريات',
   accounting: 'الحسابات',
   hotel: 'الفندق',
+  clinic: 'العيادة',
   pos: 'نقطة البيع',
   sales_orders: 'أوامر البيع',
   returns: 'المرتجعات',
@@ -102,6 +104,14 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'الغرف', href: '/hotel/rooms', icon: BedDouble, perm: 'hotel.manage' },
       { label: 'الحجوزات', href: '/hotel/bookings', icon: CalendarDays, perm: 'hotel.manage' },
+    ],
+  },
+  {
+    title: 'العيادة',
+    module: 'clinic',
+    items: [
+      { label: 'المرضى', href: '/clinic/patients', icon: Users, perm: 'clinic.manage' },
+      { label: 'الكشوفات', href: '/clinic/visits', icon: Stethoscope, perm: 'clinic.manage' },
     ],
   },
   {
