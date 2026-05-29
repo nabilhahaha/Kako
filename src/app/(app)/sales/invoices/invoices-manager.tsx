@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createInvoice, issueInvoice, recordPayment, cancelInvoice } from './actions';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import type { Branch, ErpCustomer, InvoiceStatus, PaymentMethod, ProductCatalog 
 import type { InvoiceRow } from './page';
 import { useConfirm } from '@/components/confirm-dialog';
 import Link from 'next/link';
-import { Plus, Loader2, X, Receipt, CheckCircle2, Wallet, Printer } from 'lucide-react';
+import { Plus, Loader2, X, Receipt, CheckCircle2, Wallet, Printer, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STATUS_VARIANT: Record<InvoiceStatus, 'secondary' | 'success' | 'default' | 'destructive' | 'warning'> = {
@@ -47,9 +47,24 @@ export function InvoicesManager({
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<EditorLine[]>([newLine()]);
   const [payFor, setPayFor] = useState<InvoiceRow | null>(null);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
   const [pending, startTransition] = useTransition();
 
   const canCreate = branches.length > 0 && customers.length > 0 && products.length > 0;
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return invoices.filter((inv) => {
+      if (statusFilter !== 'all' && inv.status !== statusFilter) return false;
+      if (!q) return true;
+      const cust = inv.customer?.name_ar || inv.customer?.name || '';
+      return (
+        inv.invoice_number.toLowerCase().includes(q) ||
+        cust.toLowerCase().includes(q)
+      );
+    });
+  }, [invoices, query, statusFilter]);
 
   function reset() {
     setCreating(false);
@@ -196,6 +211,33 @@ export function InvoicesManager({
       ) : (
         <Card>
           <CardContent className="p-0">
+            <div className="flex flex-wrap items-center gap-2 border-b p-3">
+              <div className="relative">
+                <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="بحث برقم الفاتورة أو العميل…"
+                  className="w-64 pr-9"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {([['all', 'الكل'], ['draft', 'مسودة'], ['issued', 'صادرة'], ['partially_paid', 'مدفوعة جزئياً'], ['paid', 'مدفوعة'], ['overdue', 'متأخرة'], ['cancelled', 'ملغاة']] as const).map(
+                  ([val, lbl]) => (
+                    <button
+                      key={val}
+                      onClick={() => setStatusFilter(val as InvoiceStatus | 'all')}
+                      className={`rounded-full px-3 py-1 text-xs ${statusFilter === val ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
+                    >
+                      {lbl}
+                    </button>
+                  ),
+                )}
+              </div>
+            </div>
+            {filtered.length === 0 ? (
+              <p className="p-8 text-center text-sm text-muted-foreground">لا توجد نتائج مطابقة.</p>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
@@ -211,7 +253,7 @@ export function InvoicesManager({
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.map((inv) => {
+                  {filtered.map((inv) => {
                     const remaining = Number(inv.net_amount) - Number(inv.paid_amount);
                     const canPay = ['issued', 'partially_paid', 'overdue'].includes(inv.status) && remaining > 0.001;
                     return (
@@ -253,6 +295,7 @@ export function InvoicesManager({
                 </tbody>
               </table>
             </div>
+            )}
           </CardContent>
         </Card>
       )}
