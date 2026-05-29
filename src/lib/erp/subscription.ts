@@ -8,6 +8,7 @@ export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
   clothing: 'محل ملابس',
   restaurant: 'مطعم',
   cafe: 'كافيه',
+  delivery: 'توصيل / ديليفري',
   services: 'خدمات (بلايستيشن، صيانة…)',
 };
 

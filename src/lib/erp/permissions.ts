@@ -65,6 +65,10 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create',
   ],
+  driver: [
+    'sales.sell', 'sales.collect', 'customers.manage',
+    'inventory.view', 'stock_request.create',
+  ],
   warehouse_keeper: [
     'inventory.view', 'inventory.adjust', 'inventory.transfer',
     'inventory.count', 'stock_request.approve', 'purchasing.manage',

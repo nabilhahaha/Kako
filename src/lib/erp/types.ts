@@ -75,6 +75,7 @@ export type BranchRole =
   | 'accountant'
   | 'cashier'
   | 'salesman'
+  | 'driver'
   | 'warehouse_keeper'
   | 'staff'
   | 'viewer';
@@ -102,6 +103,7 @@ export type BusinessType =
   | 'clothing'
   | 'restaurant'
   | 'cafe'
+  | 'delivery'
   | 'services';
 
 export interface Company {

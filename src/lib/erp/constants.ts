@@ -35,6 +35,7 @@ export const BRANCH_ROLES: Record<BranchRole, BilingualLabel> = {
   accountant:       { en: 'Accountant',         ar: 'محاسب' },
   cashier:          { en: 'Cashier',            ar: 'أمين الصندوق' },
   salesman:         { en: 'Salesman',           ar: 'مندوب مبيعات' },
+  driver:           { en: 'Driver / Courier',   ar: 'سائق / مندوب توصيل' },
   warehouse_keeper: { en: 'Warehouse Keeper',   ar: 'أمين المخزن' },
   staff:            { en: 'Staff',              ar: 'موظف' },
   viewer:           { en: 'Viewer',             ar: 'مشاهد فقط' },
