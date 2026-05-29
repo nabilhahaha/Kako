@@ -40,6 +40,7 @@ export const BRANCH_ROLES: Record<BranchRole, BilingualLabel> = {
   doctor:           { en: 'Doctor',             ar: 'طبيب' },
   receptionist:     { en: 'Receptionist',       ar: 'موظف استقبال' },
   stylist:          { en: 'Stylist',            ar: 'أخصائي تجميل' },
+  housekeeping:     { en: 'Housekeeping',       ar: 'تدبير منزلي / نظافة' },
   warehouse_keeper: { en: 'Warehouse Keeper',   ar: 'أمين المخزن' },
   staff:            { en: 'Staff',              ar: 'موظف' },
   viewer:           { en: 'Viewer',             ar: 'مشاهد فقط' },

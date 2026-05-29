@@ -20,6 +20,7 @@ export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
   workshop: 'ورشة صيانة',
   clinic: 'عيادة / مركز طبي',
   salon: 'صالون / مركز تجميل',
+  hotel: 'فندق / شقق مفروشة',
 };
 
 export const BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_LABELS) as BusinessType[];

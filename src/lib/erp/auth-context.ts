@@ -41,6 +41,7 @@ const ROLE_RANK: Record<BranchRole, number> = {
   driver: 2,
   receptionist: 2,
   staff: 1,
+  housekeeping: 1,
   viewer: 0,
 };
 

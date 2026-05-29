@@ -20,7 +20,8 @@ export type Permission =
   | 'accounting.post' // post vouchers / journals
   | 'settings.branches' // company & branches
   | 'settings.users' // users, roles, hierarchy
-  | 'reports.view';
+  | 'reports.view'
+  | 'hotel.manage'; // rooms & bookings (hotel / furnished apartments)
 
 export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }> = {
   'sales.sell': { ar: 'البيع (فواتير/أوامر/نقطة بيع)', group: 'المبيعات' },
@@ -41,6 +42,7 @@ export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }
   'reports.view': { ar: 'التقارير', group: 'الحسابات' },
   'settings.branches': { ar: 'إدارة الفروع', group: 'الإعدادات' },
   'settings.users': { ar: 'إدارة المستخدمين والصلاحيات', group: 'الإعدادات' },
+  'hotel.manage': { ar: 'إدارة الغرف والحجوزات', group: 'الفندق' },
 };
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS) as Permission[];
@@ -75,6 +77,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   doctor: ['customers.manage', 'sales.sell', 'reports.view'],
   receptionist: ['customers.manage', 'sales.sell', 'sales.collect'],
   stylist: ['customers.manage', 'sales.sell'],
+  housekeeping: ['hotel.manage'],
   warehouse_keeper: [
     'inventory.view', 'inventory.adjust', 'inventory.transfer',
     'inventory.count', 'stock_request.approve', 'purchasing.manage',

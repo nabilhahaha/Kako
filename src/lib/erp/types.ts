@@ -80,6 +80,7 @@ export type BranchRole =
   | 'doctor'
   | 'receptionist'
   | 'stylist'
+  | 'housekeeping'
   | 'warehouse_keeper'
   | 'staff'
   | 'viewer';
@@ -118,7 +119,8 @@ export type BusinessType =
   | 'laundry'
   | 'workshop'
   | 'clinic'
-  | 'salon';
+  | 'salon'
+  | 'hotel';
 
 export interface Company {
   id: string;

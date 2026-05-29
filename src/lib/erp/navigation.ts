@@ -29,6 +29,7 @@ import {
   ScrollText,
   AlertTriangle,
   Clock,
+  BedDouble,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -75,6 +76,13 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'الرئيسية',
     items: [{ label: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard }],
+  },
+  {
+    title: 'الفندق',
+    items: [
+      { label: 'الغرف', href: '/hotel/rooms', icon: BedDouble, perm: 'hotel.manage' },
+      { label: 'الحجوزات', href: '/hotel/bookings', icon: CalendarDays, perm: 'hotel.manage' },
+    ],
   },
   {
     title: 'المبيعات',
