@@ -26,6 +26,7 @@ export type Permission =
   | 'clinic.reception' // reception desk: appointments, registration, billing
   | 'clinic.doctor' // doctor: queue, exam, prescriptions, patient file
   | 'restaurant.manage' // tables, orders, kitchen, checkout (restaurant / café)
+  | 'salon.manage' // services, bookings, tickets, checkout (salon / barber)
   | 'field.sales'; // rep app, daily settlement, visit planning (field roles only)
 
 export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }> = {
@@ -52,6 +53,7 @@ export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }
   'clinic.reception': { ar: 'الاستقبال (مواعيد/تسجيل/تحصيل)', group: 'العيادة' },
   'clinic.doctor': { ar: 'الطبيب (كشف/تشخيص/روشتة)', group: 'العيادة' },
   'restaurant.manage': { ar: 'إدارة المطعم/الكافيه (طاولات/أوردرات/مطبخ)', group: 'المطعم' },
+  'salon.manage': { ar: 'إدارة الصالون (خدمات/مواعيد/تذاكر)', group: 'الصالون' },
   'field.sales': { ar: 'المبيعات الميدانية (تطبيق المندوب)', group: 'المبيعات' },
 };
 
@@ -86,7 +88,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   ],
   doctor: ['clinic.doctor', 'reports.view'],
   receptionist: ['clinic.reception', 'customers.manage', 'sales.sell', 'sales.collect'],
-  stylist: ['customers.manage', 'sales.sell'],
+  stylist: ['customers.manage', 'sales.sell', 'salon.manage'],
   housekeeping: ['hotel.manage'],
   warehouse_keeper: [
     'inventory.view', 'inventory.adjust', 'inventory.transfer',

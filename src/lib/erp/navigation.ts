@@ -34,6 +34,7 @@ import {
   UtensilsCrossed,
   ChefHat,
   LayoutGrid,
+  Scissors,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -70,11 +71,11 @@ export interface NavSection {
  *  item-level refinements driven by the business type so a clinic doesn't see
  *  POS and a restaurant doesn't see stock transfers. */
 export type Module =
-  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant'
+  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon'
   | 'pos' | 'sales_orders' | 'returns' | 'warehousing';
 
 /** The modules a subscription PLAN can grant (coarse). */
-export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant'];
+export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon'];
 
 export const MODULE_LABELS: Record<Module, string> = {
   sales: 'المبيعات',
@@ -84,6 +85,7 @@ export const MODULE_LABELS: Record<Module, string> = {
   hotel: 'الفندق',
   clinic: 'العيادة',
   restaurant: 'المطعم / الكافيه',
+  salon: 'الصالون',
   pos: 'نقطة البيع',
   sales_orders: 'أوامر البيع',
   returns: 'المرتجعات',
@@ -131,6 +133,16 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'الطاولات', href: '/restaurant/tables', icon: LayoutGrid, perm: 'restaurant.manage' },
       { label: 'الأوردرات', href: '/restaurant/orders', icon: UtensilsCrossed, perm: 'restaurant.manage' },
       { label: 'المطبخ', href: '/restaurant/kitchen', icon: ChefHat, perm: 'restaurant.manage' },
+    ],
+  },
+  {
+    title: 'الصالون / الكوافير',
+    module: 'salon',
+    items: [
+      { label: 'لوحة الصالون', href: '/salon', icon: LayoutDashboard, perm: 'salon.manage' },
+      { label: 'المواعيد', href: '/salon/appointments', icon: CalendarClock, perm: 'salon.manage' },
+      { label: 'التذاكر', href: '/salon/tickets', icon: Scissors, perm: 'salon.manage' },
+      { label: 'الخدمات والأسعار', href: '/salon/services', icon: Tags, perm: 'salon.manage' },
     ],
   },
   {
