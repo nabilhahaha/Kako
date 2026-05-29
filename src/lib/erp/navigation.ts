@@ -40,6 +40,7 @@ import {
   Shirt,
   ScanBarcode,
   Layers,
+  Target,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -201,6 +202,14 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'مرتجعات المبيعات', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
       { label: 'تقرير المبيعات', href: '/sales/report', icon: BarChart3, perm: 'reports.view' },
       { label: 'العملاء', href: '/customers', icon: Users, perm: 'customers.manage' },
+    ],
+  },
+  {
+    title: 'التوزيع',
+    module: 'sales',
+    items: [
+      { label: 'تقرير التوزيع', href: '/distribution/report', icon: BarChart3, perm: 'reports.view' },
+      { label: 'أهداف وعمولات المناديب', href: '/distribution/targets', icon: Target, perm: 'reports.view' },
     ],
   },
   {
