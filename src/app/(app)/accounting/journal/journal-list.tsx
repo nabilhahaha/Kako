@@ -50,6 +50,7 @@ export function JournalList({ entries }: { entries: JournalEntryRow[] }) {
             </button>
             {isOpen && (
               <CardContent className="border-t p-0">
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-secondary/40 text-muted-foreground">
                     <tr>
@@ -80,6 +81,7 @@ export function JournalList({ entries }: { entries: JournalEntryRow[] }) {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             )}
           </Card>

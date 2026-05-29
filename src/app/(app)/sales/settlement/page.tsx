@@ -108,6 +108,7 @@ export default async function SettlementPage({
           {payList.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted-foreground">لا توجد تحصيلات في هذا اليوم.</p>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-secondary/40 text-muted-foreground">
                 <tr>
@@ -134,6 +135,7 @@ export default async function SettlementPage({
                 </tr>
               </tfoot>
             </table>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -140,6 +140,7 @@ export default async function SalesReportPage({
             {branchRows.length === 0 ? (
               <p className="p-6 text-center text-sm text-muted-foreground">لا توجد مبيعات في الفترة.</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-secondary/40 text-muted-foreground">
                   <tr>
@@ -158,6 +159,7 @@ export default async function SalesReportPage({
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -168,6 +170,7 @@ export default async function SalesReportPage({
             {topProducts.length === 0 ? (
               <p className="p-6 text-center text-sm text-muted-foreground">لا توجد مبيعات في الفترة.</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-secondary/40 text-muted-foreground">
                   <tr>
@@ -186,6 +189,7 @@ export default async function SalesReportPage({
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </CardContent>
         </Card>
