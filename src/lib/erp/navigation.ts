@@ -208,6 +208,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'التوزيع',
     module: 'sales',
     items: [
+      { label: 'خطوط السير', href: '/distribution/routes', icon: Truck, perm: ['reports.view', 'customers.manage'] },
       { label: 'تقرير التوزيع', href: '/distribution/report', icon: BarChart3, perm: 'reports.view' },
       { label: 'أهداف وعمولات المناديب', href: '/distribution/targets', icon: Target, perm: 'reports.view' },
     ],
