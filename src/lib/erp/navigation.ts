@@ -39,6 +39,10 @@ export interface NavItem {
   icon: LucideIcon;
   /** Permission(s) required; visible if the user has ANY. Omit = everyone. */
   perm?: Permission | Permission[];
+  /** Finer-grained module gate for this specific item (overrides the section's
+   *  module). Lets a section like "المبيعات" hide POS/orders/returns for the
+   *  business types that don't need them. Omit = use the section's module. */
+  module?: Module;
   /** Only super admins. */
   superAdminOnly?: boolean;
   /** Only the platform owner (the vendor). */
@@ -56,9 +60,16 @@ export interface NavSection {
   module?: Module;
 }
 
-/** Feature modules that a subscription plan can unlock. */
-export type Module = 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel';
+/** Feature modules that a subscription plan / business type can unlock.
+ *  The four "core" modules (sales/inventory/purchasing/accounting) are what
+ *  plans grant; the finer ones (pos, sales_orders, returns, warehousing) are
+ *  item-level refinements driven by the business type so a clinic doesn't see
+ *  POS and a restaurant doesn't see stock transfers. */
+export type Module =
+  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel'
+  | 'pos' | 'sales_orders' | 'returns' | 'warehousing';
 
+/** The modules a subscription PLAN can grant (coarse). */
 export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel'];
 
 export const MODULE_LABELS: Record<Module, string> = {
@@ -67,6 +78,10 @@ export const MODULE_LABELS: Record<Module, string> = {
   purchasing: 'المشتريات',
   accounting: 'الحسابات',
   hotel: 'الفندق',
+  pos: 'نقطة البيع',
+  sales_orders: 'أوامر البيع',
+  returns: 'المرتجعات',
+  warehousing: 'إدارة المخازن',
 };
 
 export const NAV_SECTIONS: NavSection[] = [
@@ -93,13 +108,13 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'المبيعات',
     module: 'sales',
     items: [
-      { label: 'بيع سريع', href: '/sales/pos', icon: Zap, perm: 'sales.sell' },
+      { label: 'بيع سريع', href: '/sales/pos', icon: Zap, perm: 'sales.sell', module: 'pos' },
       { label: 'تطبيق المندوب', href: '/rep', icon: Smartphone, perm: 'field.sales' },
       { label: 'محاسبة المندوب اليومية', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'] },
-      { label: 'أوامر البيع', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell' },
+      { label: 'أوامر البيع', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell', module: 'sales_orders' },
       { label: 'الفواتير', href: '/sales/invoices', icon: FileText, perm: ['sales.sell', 'sales.collect'] },
       { label: 'خطة الزيارات', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales' },
-      { label: 'مرتجعات المبيعات', href: '/sales/returns', icon: Undo2, perm: 'sales.return' },
+      { label: 'مرتجعات المبيعات', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
       { label: 'تقرير المبيعات', href: '/sales/report', icon: BarChart3, perm: 'reports.view' },
       { label: 'العملاء', href: '/customers', icon: Users, perm: 'customers.manage' },
     ],
@@ -111,11 +126,11 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'المنتجات', href: '/products', icon: Package, perm: 'inventory.view' },
       { label: 'أرصدة المخزون', href: '/inventory', icon: Boxes, perm: 'inventory.view' },
       { label: 'تنبيهات نقص المخزون', href: '/inventory/low-stock', icon: AlertTriangle, perm: 'inventory.view' },
-      { label: 'التحويلات', href: '/inventory/transfers', icon: ArrowLeftRight, perm: 'inventory.transfer' },
-      { label: 'طلبات التحميل', href: '/inventory/requests', icon: ClipboardCheck, perm: ['stock_request.create', 'stock_request.approve'] },
-      { label: 'الجرد', href: '/inventory/count', icon: ClipboardList, perm: 'inventory.count' },
+      { label: 'التحويلات', href: '/inventory/transfers', icon: ArrowLeftRight, perm: 'inventory.transfer', module: 'warehousing' },
+      { label: 'طلبات التحميل', href: '/inventory/requests', icon: ClipboardCheck, perm: ['stock_request.create', 'stock_request.approve'], module: 'warehousing' },
+      { label: 'الجرد', href: '/inventory/count', icon: ClipboardList, perm: 'inventory.count', module: 'warehousing' },
       { label: 'قرب انتهاء الصلاحية', href: '/inventory/expiry', icon: CalendarClock, perm: 'inventory.view' },
-      { label: 'المخازن', href: '/warehouses', icon: Warehouse, perm: 'inventory.view' },
+      { label: 'المخازن', href: '/warehouses', icon: Warehouse, perm: 'inventory.view', module: 'warehousing' },
     ],
   },
   {
@@ -174,13 +189,15 @@ export function visibleSections(
   }
 
   const elevated = isSuperAdmin;
-  const moduleAllowed = (section: NavSection) =>
-    !section.module || modules.length === 0 || modules.includes(section.module);
+  const unrestricted = modules.length === 0; // platform owner / legacy tenant
+  const moduleAllowed = (m?: Module) => !m || unrestricted || modules.includes(m);
 
-  return NAV_SECTIONS.filter(moduleAllowed).map((section) => ({
+  return NAV_SECTIONS.filter((s) => moduleAllowed(s.module)).map((section) => ({
     ...section,
     items: section.items.filter((item) => {
       if (item.platformOwnerOnly) return false; // vendor-only, hidden from tenants
+      // finer per-item module gate (e.g. POS / sales orders / warehousing)
+      if (!moduleAllowed(item.module)) return false;
       if (item.superAdminOnly) return elevated;
       if (elevated) return true;
       if (!item.perm) return true;

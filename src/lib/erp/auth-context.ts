@@ -178,7 +178,12 @@ export async function getUserContext(): Promise<UserContext | null> {
       }
     }
 
-    modules = planModules.filter((m) => companyModules.includes(m));
+    // The plan only gates the coarse modules it lists (sales/inventory/…);
+    // finer per-item modules (pos, sales_orders, returns, warehousing) are
+    // driven purely by the company/business-type config and pass through.
+    modules = companyModules.filter(
+      (m) => !ALL_MODULES.includes(m) || planModules.includes(m),
+    );
   }
 
   return {
