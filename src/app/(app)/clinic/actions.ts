@@ -60,6 +60,7 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/clinic/visits');
+  revalidatePath('/clinic');
   return { ok: true };
 }
 
@@ -72,6 +73,7 @@ export async function setVisitStatus(visitId: string, status: string): Promise<A
   const { error } = await supabase.from('erp_clinic_visits').update({ status }).eq('id', visitId);
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/clinic/visits');
+  revalidatePath('/clinic');
   return { ok: true };
 }
 
@@ -93,6 +95,7 @@ export async function updateVisit(formData: FormData): Promise<ActionResult> {
     .eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/clinic/visits');
+  revalidatePath('/clinic');
   return { ok: true };
 }
 
@@ -106,5 +109,93 @@ export async function recordVisitPayment(visitId: string, amount: number): Promi
   const { error } = await supabase.from('erp_clinic_visits').update({ paid_amount: current + amount }).eq('id', visitId);
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/clinic/visits');
+  revalidatePath('/clinic');
+  return { ok: true };
+}
+
+// ─── Appointments (المواعيد) ────────────────────────────────────────────────
+
+const APPT_STATUSES = ['scheduled', 'confirmed', 'arrived', 'done', 'cancelled', 'no_show'];
+
+/** Book an appointment for a patient at a future date/time. */
+export async function createAppointment(formData: FormData): Promise<ActionResult> {
+  const ctx = await requirePermission('clinic.manage');
+  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  const patient_id = String(formData.get('patient_id') || '').trim();
+  if (!patient_id) return { ok: false, error: 'اختر المريض.' };
+  const when = String(formData.get('scheduled_at') || '').trim();
+  if (!when) return { ok: false, error: 'حدّد موعد الحجز.' };
+  const scheduled = new Date(when);
+  if (isNaN(scheduled.getTime())) return { ok: false, error: 'تاريخ غير صحيح.' };
+  const duration = Number(formData.get('duration_min') || 30);
+
+  const supabase = await createClient();
+  const { error } = await supabase.from('erp_clinic_appointments').insert({
+    company_id: ctx.companyId,
+    patient_id,
+    doctor_id: ctx.userId,
+    scheduled_at: scheduled.toISOString(),
+    duration_min: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 30,
+    reason: String(formData.get('reason') || '').trim() || null,
+    status: 'scheduled',
+    created_by: ctx.userId,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/clinic/appointments');
+  revalidatePath('/clinic');
+  return { ok: true };
+}
+
+export async function setAppointmentStatus(appointmentId: string, status: string): Promise<ActionResult> {
+  const ctx = await requirePermission('clinic.manage');
+  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!APPT_STATUSES.includes(status)) return { ok: false, error: 'حالة غير صحيحة.' };
+  const supabase = await createClient();
+  const { error } = await supabase.from('erp_clinic_appointments').update({ status }).eq('id', appointmentId);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/clinic/appointments');
+  revalidatePath('/clinic');
+  return { ok: true };
+}
+
+/**
+ * The patient arrived: open a visit (كشف) for them linked to the appointment
+ * and mark the appointment as arrived. The visit then flows through the normal
+ * exam/payment lifecycle on the visits screen.
+ */
+export async function checkInAppointment(formData: FormData): Promise<ActionResult> {
+  const ctx = await requirePermission('clinic.manage');
+  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  const appointmentId = String(formData.get('appointment_id') || '').trim();
+  if (!appointmentId) return { ok: false, error: 'الموعد مطلوب.' };
+  const fee = Number(formData.get('fee') || 0);
+
+  const supabase = await createClient();
+  const { data: appt } = await supabase
+    .from('erp_clinic_appointments')
+    .select('patient_id, reason, status')
+    .eq('id', appointmentId)
+    .maybeSingle();
+  const a = appt as { patient_id?: string; reason?: string | null; status?: string } | null;
+  if (!a?.patient_id) return { ok: false, error: 'الموعد غير موجود.' };
+  if (a.status === 'done' || a.status === 'arrived')
+    return { ok: false, error: 'تم تسجيل وصول هذا الموعد بالفعل.' };
+
+  const { error: visitErr } = await supabase.from('erp_clinic_visits').insert({
+    company_id: ctx.companyId,
+    patient_id: a.patient_id,
+    doctor_id: ctx.userId,
+    appointment_id: appointmentId,
+    visit_type: 'consultation',
+    complaint: a.reason || null,
+    fee: Number.isFinite(fee) && fee >= 0 ? fee : 0,
+    status: 'waiting',
+  });
+  if (visitErr) return { ok: false, error: friendlyDbError(visitErr) };
+
+  await supabase.from('erp_clinic_appointments').update({ status: 'arrived' }).eq('id', appointmentId);
+  revalidatePath('/clinic/appointments');
+  revalidatePath('/clinic/visits');
+  revalidatePath('/clinic');
   return { ok: true };
 }

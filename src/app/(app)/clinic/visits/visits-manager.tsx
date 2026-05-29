@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Loader2, X, Stethoscope, CheckCircle2 } from 'lucide-react';
+import { Plus, Loader2, X, Stethoscope, CheckCircle2, Printer } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { usePrompt } from '@/components/prompt-dialog';
 import { createVisit, updateVisit, setVisitStatus, recordVisitPayment } from '../actions';
@@ -179,6 +180,11 @@ export function VisitsManager({ visits, patients }: { visits: Visit[]; patients:
                             )}
                             {remaining > 0 && v.fee > 0 && (
                               <Button size="sm" variant="outline" disabled={pending} onClick={() => collect(v)}>تحصيل</Button>
+                            )}
+                            {v.status === 'done' && (
+                              <Link href={`/print/clinic/visit/${v.id}`} target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+                                <Printer className="h-3.5 w-3.5" /> طباعة
+                              </Link>
                             )}
                             {v.status === 'waiting' && (
                               <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setVisitStatus(v.id, 'cancelled'), 'تم الإلغاء')}><X className="h-3.5 w-3.5" /></Button>

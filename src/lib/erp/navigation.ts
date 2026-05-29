@@ -110,6 +110,8 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'العيادة',
     module: 'clinic',
     items: [
+      { label: 'لوحة العيادة', href: '/clinic', icon: LayoutDashboard, perm: 'clinic.manage' },
+      { label: 'المواعيد', href: '/clinic/appointments', icon: CalendarClock, perm: 'clinic.manage' },
       { label: 'المرضى', href: '/clinic/patients', icon: Users, perm: 'clinic.manage' },
       { label: 'الكشوفات', href: '/clinic/visits', icon: Stethoscope, perm: 'clinic.manage' },
     ],

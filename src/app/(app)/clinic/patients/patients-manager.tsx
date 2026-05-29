@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -109,7 +110,7 @@ export function PatientsManager({ patients }: { patients: Patient[] }) {
                   {filtered.map((p) => (
                     <tr key={p.id} className="border-b">
                       <td className="p-3">
-                        <span className="font-medium">{p.name}</span>
+                        <Link href={`/clinic/patients/${p.id}`} className="font-medium text-primary hover:underline">{p.name}</Link>
                         {p.notes && <span className="block text-xs text-muted-foreground">{p.notes}</span>}
                       </td>
                       <td className="p-3 text-muted-foreground" dir="ltr">{p.phone || '—'}</td>
