@@ -52,28 +52,33 @@ export function RegisterForm() {
       return;
     }
 
-    // Email confirmation off → we have a session and can provision the company now.
-    if (data.session) {
-      const { error: rpcErr } = await supabase.rpc('erp_self_register_company', {
-        p_company_name: company_name || company_name_ar,
-        p_company_name_ar: company_name_ar || null,
-        p_business_type: business_type,
-        p_trial_days: TRIAL_DAYS,
-      });
-      setLoading(false);
-      if (rpcErr) {
-        toast.error(rpcErr.message || 'تعذّر إنشاء الشركة.');
+    // signUp returns a session only when email confirmation is off. Emails are
+    // auto-confirmed server-side (trigger), so if we don't get a session we can
+    // sign in immediately with the same credentials to obtain one.
+    if (!data.session) {
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInErr) {
+        setLoading(false);
+        toast.error('تم إنشاء الحساب. سجّل الدخول لإكمال إنشاء شركتك.');
+        router.push('/login');
         return;
       }
-      toast.success('تم إنشاء شركتك وبدأت تجربتك المجانية 🎉');
-      window.location.href = '/dashboard';
-      return;
     }
 
-    // Email confirmation required → finish company setup after first login.
+    // Authenticated now → provision the company (free trial).
+    const { error: rpcErr } = await supabase.rpc('erp_self_register_company', {
+      p_company_name: company_name || company_name_ar,
+      p_company_name_ar: company_name_ar || null,
+      p_business_type: business_type,
+      p_trial_days: TRIAL_DAYS,
+    });
     setLoading(false);
-    toast.success('تم إنشاء الحساب. فعّل بريدك الإلكتروني ثم سجّل الدخول لإكمال إنشاء شركتك.');
-    router.push('/login');
+    if (rpcErr) {
+      toast.error(rpcErr.message || 'تعذّر إنشاء الشركة.');
+      return;
+    }
+    toast.success('تم إنشاء شركتك وبدأت تجربتك المجانية 🎉');
+    window.location.href = '/dashboard';
   }
 
   return (
