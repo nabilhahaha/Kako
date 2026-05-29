@@ -38,21 +38,27 @@ const STATE_BADGE: Record<SubscriptionState, { label: string; variant: 'success'
 const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-export function CompaniesManager({ rows, btDefaults }: { rows: CompanyRow[]; btDefaults: Record<string, string[]> }) {
+export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { rows: CompanyRow[]; btDefaults: Record<string, string[]>; btRoles: Record<string, string[]>; roleLabels: Record<string, string> }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [pending, startTransition] = useTransition();
   const [businessType, setBusinessType] = useState('general');
   const defaultsFor = (bt: string) => new Set<string>((btDefaults[bt] ?? []).filter((m) => (ALL_MODULES as string[]).includes(m)));
   const [modules, setModules] = useState<Set<string>>(() => defaultsFor('general'));
+  const [roles, setRoles] = useState<Set<string>>(() => new Set(btRoles['general'] ?? []));
 
   function onBusinessType(bt: string) {
     setBusinessType(bt);
-    setModules(defaultsFor(bt)); // reset module selection to the type's defaults
+    setModules(defaultsFor(bt)); // reset module + role selection to the type's defaults
+    setRoles(new Set(btRoles[bt] ?? []));
   }
   function toggleModule(m: Module, on: boolean) {
     setModules((prev) => { const next = new Set(prev); if (on) next.add(m); else next.delete(m); return next; });
   }
+  function toggleRole(r: string, on: boolean) {
+    setRoles((prev) => { const next = new Set(prev); if (on) next.add(r); else next.delete(r); return next; });
+  }
+  const templateRoles = btRoles[businessType] ?? [];
 
   function onCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -141,6 +147,22 @@ export function CompaniesManager({ rows, btDefaults }: { rows: CompanyRow[]; btD
                   ))}
                 </div>
               </div>
+
+              {templateRoles.length > 0 && (
+                <div className="space-y-2 rounded-md border bg-secondary/20 p-3">
+                  <Label>الأدوار المتاحة للشركة</Label>
+                  <p className="text-xs text-muted-foreground">شيل الأدوار اللي مش محتاجها (تقدر تظبط صلاحيات كل دور بالتفصيل بعد الإنشاء).</p>
+                  <input type="hidden" name="_roles" value="1" />
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {templateRoles.map((r) => (
+                      <label key={r} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="roles" value={r} checked={roles.has(r)} onChange={(e) => toggleRole(r, e.target.checked)} className="h-4 w-4" />
+                        {roleLabels[r] ?? r}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
               <Button type="submit" disabled={pending}>
                 {pending && <Loader2 className="h-4 w-4 animate-spin" />}
                 إنشاء الشركة

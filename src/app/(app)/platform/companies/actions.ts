@@ -80,6 +80,15 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
     await supabase.from('erp_company_modules').upsert(rows, { onConflict: 'company_id,module' });
   }
 
+  // Enable only the chosen roles (within the business type's template). Their
+  // permissions are seeded on creation; disabled roles simply can't be used.
+  if (formData.get('_roles')) {
+    const selectedRoles = formData.getAll('roles').map(String);
+    const { data: tmpl } = await supabase.from('erp_business_type_roles').select('role_key').eq('business_type', business_type);
+    const roleRows = ((tmpl as { role_key: string }[]) ?? []).map((t) => ({ company_id: newId, role_key: t.role_key, enabled: selectedRoles.includes(t.role_key) }));
+    if (roleRows.length > 0) await supabase.from('erp_company_roles').upsert(roleRows, { onConflict: 'company_id,role_key' });
+  }
+
   await logAudit(supabase, {
     action: 'create',
     entity: 'company',
