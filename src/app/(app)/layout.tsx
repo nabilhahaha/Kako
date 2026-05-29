@@ -3,6 +3,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/topbar';
 import { ConfirmProvider } from '@/components/confirm-dialog';
+import { PromptProvider } from '@/components/prompt-dialog';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
 import { LockKeyhole, AlertTriangle } from 'lucide-react';
 
@@ -57,6 +58,7 @@ export default async function AppLayout({
 
   return (
     <ConfirmProvider>
+     <PromptProvider>
       <div className="flex min-h-screen bg-secondary/30">
         <Sidebar
           permissions={ctx.permissions}
@@ -85,6 +87,7 @@ export default async function AppLayout({
           <main className="flex-1 p-4 lg:p-6">{children}</main>
         </div>
       </div>
+     </PromptProvider>
     </ConfirmProvider>
   );
 }

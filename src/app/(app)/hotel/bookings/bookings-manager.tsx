@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Loader2, LogIn, LogOut, X } from 'lucide-react';
 import { formatNumber } from '@/lib/utils';
 import { createBooking, setBookingStatus, addBookingPayment } from '../actions';
+import { usePrompt } from '@/components/prompt-dialog';
 
 export interface RoomOption {
   id: string;
@@ -44,6 +45,7 @@ const selectCls =
 
 export function BookingsManager({ bookings, rooms }: { bookings: Booking[]; rooms: RoomOption[] }) {
   const router = useRouter();
+  const prompt = usePrompt();
   const [pending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
 
@@ -72,11 +74,19 @@ export function BookingsManager({ bookings, rooms }: { bookings: Booking[]; room
 
   function collect(b: Booking) {
     const remaining = b.total_amount - b.paid_amount;
-    const raw = window.prompt('مبلغ التحصيل', remaining > 0 ? String(remaining) : '');
-    if (raw == null) return;
-    const amount = Number(raw);
-    if (!Number.isFinite(amount) || amount <= 0) { toast.error('مبلغ غير صحيح'); return; }
-    run(() => addBookingPayment(b.id, amount), 'تم تسجيل الدفعة');
+    prompt({
+      title: 'تحصيل دفعة',
+      message: `${b.guest_name} — المتبقي ${remaining.toLocaleString('ar-EG')} ج.م`,
+      label: 'مبلغ التحصيل',
+      type: 'number',
+      defaultValue: remaining > 0 ? String(remaining) : '',
+      confirmText: 'تحصيل',
+    }).then((raw) => {
+      if (raw == null) return;
+      const amount = Number(raw);
+      if (!Number.isFinite(amount) || amount <= 0) { toast.error('مبلغ غير صحيح'); return; }
+      run(() => addBookingPayment(b.id, amount), 'تم تسجيل الدفعة');
+    });
   }
 
   return (

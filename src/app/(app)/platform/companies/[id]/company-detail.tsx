@@ -13,6 +13,7 @@ import type { Branch, Company } from '@/lib/erp/types';
 import type { Plan, CompanyUsage } from '@/lib/erp/plans';
 import { BRANCH_ROLES } from '@/lib/erp/constants';
 import { ALL_MODULES, MODULE_LABELS, type Module } from '@/lib/erp/navigation';
+import { usePrompt } from '@/components/prompt-dialog';
 import {
   BUSINESS_TYPE_LABELS,
   BUSINESS_TYPES,
@@ -82,6 +83,7 @@ export function CompanyDetail({
   enabledModules?: string[];
 }) {
   const router = useRouter();
+  const prompt = usePrompt();
   const [pending, startTransition] = useTransition();
   const [customEnd, setCustomEnd] = useState('');
   const [modules, setModules] = useState<Set<string>>(new Set(enabledModules));
@@ -100,13 +102,20 @@ export function CompanyDetail({
   }
 
   function resetPassword(userId: string, label: string | null) {
-    const pwd = window.prompt(`كلمة مرور جديدة لـ ${label ?? 'المستخدم'} (٦ أحرف على الأقل):`);
-    if (pwd == null) return;
-    if (pwd.length < 6) { toast.error('كلمة المرور قصيرة جداً.'); return; }
-    startTransition(async () => {
-      const res = await resetUserPassword(userId, pwd);
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
-      toast.success('تم تغيير كلمة المرور');
+    prompt({
+      title: 'تغيير كلمة المرور',
+      message: `كلمة مرور جديدة لـ ${label ?? 'المستخدم'}`,
+      label: 'كلمة المرور الجديدة (٦ أحرف على الأقل)',
+      type: 'password',
+      confirmText: 'تغيير',
+    }).then((pwd) => {
+      if (pwd == null) return;
+      if (pwd.length < 6) { toast.error('كلمة المرور قصيرة جداً.'); return; }
+      startTransition(async () => {
+        const res = await resetUserPassword(userId, pwd);
+        if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
+        toast.success('تم تغيير كلمة المرور');
+      });
     });
   }
 
