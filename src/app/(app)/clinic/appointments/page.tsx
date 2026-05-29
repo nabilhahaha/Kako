@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { requireAnyPermission } from '@/lib/erp/guards';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { AppointmentsManager, type Appointment, type PatientOption } from './appointments-manager';
@@ -10,6 +11,7 @@ export default async function AppointmentsPage({
 }: {
   searchParams: Promise<{ patient?: string }>;
 }) {
+  await requireAnyPermission(['clinic.manage', 'clinic.reception']);
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {

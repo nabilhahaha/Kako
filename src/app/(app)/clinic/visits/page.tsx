@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { requirePermission } from '@/lib/erp/guards';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { VisitsManager, type Visit, type PatientOption } from './visits-manager';
@@ -10,6 +11,7 @@ export default async function VisitsPage({
 }: {
   searchParams: Promise<{ patient?: string }>;
 }) {
+  await requirePermission('clinic.manage');
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {

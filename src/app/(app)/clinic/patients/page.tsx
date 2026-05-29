@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { requireAnyPermission } from '@/lib/erp/guards';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { PatientsManager, type Patient } from './patients-manager';
 
 export default async function PatientsPage() {
+  await requireAnyPermission(['clinic.manage', 'clinic.reception', 'clinic.doctor']);
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
