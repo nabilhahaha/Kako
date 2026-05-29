@@ -12,9 +12,9 @@ import { Plus, Loader2, Wallet } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { usePrompt } from '@/components/prompt-dialog';
 import { createVisit, recordVisitPayment } from '../actions';
-import { type ClinicVisit as Visit, type PatientOption, type DoctorOption, VISIT_STATUS, selectCls } from '../clinical-ui';
+import { type ClinicVisit as Visit, type PatientOption, type DoctorOption, type ServiceOption, ServicePicker, VISIT_STATUS, selectCls } from '../clinical-ui';
 
-export function ReceptionBilling({ visits, patients, doctors }: { visits: Visit[]; patients: PatientOption[]; doctors: DoctorOption[] }) {
+export function ReceptionBilling({ visits, patients, doctors, services }: { visits: Visit[]; patients: PatientOption[]; doctors: DoctorOption[]; services: ServiceOption[] }) {
   const router = useRouter();
   const prompt = usePrompt();
   const [adding, setAdding] = useState(false);
@@ -89,7 +89,7 @@ export function ReceptionBilling({ visits, patients, doctors }: { visits: Visit[
                       <option value="consultation">كشف</option><option value="followup">متابعة</option><option value="procedure">إجراء</option>
                     </select>
                   </div>
-                  <div className="space-y-1"><Label>رسوم الكشف</Label><Input name="fee" type="number" min={0} step="0.01" dir="ltr" defaultValue={0} /></div>
+                  <ServicePicker services={services} />
                   <div className="space-y-1"><Label>الشكوى</Label><Input name="complaint" placeholder="مثال: صداع وحرارة" /></div>
                 </div>
                 <div className="flex gap-2">

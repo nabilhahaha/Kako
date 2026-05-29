@@ -22,7 +22,9 @@ export type Permission =
   | 'settings.users' // users, roles, hierarchy
   | 'reports.view'
   | 'hotel.manage' // rooms & bookings (hotel / furnished apartments)
-  | 'clinic.manage' // patients & visits (clinic / medical center)
+  | 'clinic.manage' // full clinic access (admin/manager) — implies reception + doctor
+  | 'clinic.reception' // reception desk: appointments, registration, billing
+  | 'clinic.doctor' // doctor: queue, exam, prescriptions, patient file
   | 'field.sales'; // rep app, daily settlement, visit planning (field roles only)
 
 export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }> = {
@@ -45,7 +47,9 @@ export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }
   'settings.branches': { ar: 'إدارة الفروع', group: 'الإعدادات' },
   'settings.users': { ar: 'إدارة المستخدمين والصلاحيات', group: 'الإعدادات' },
   'hotel.manage': { ar: 'إدارة الغرف والحجوزات', group: 'الفندق' },
-  'clinic.manage': { ar: 'إدارة المرضى والكشوفات', group: 'العيادة' },
+  'clinic.manage': { ar: 'إدارة العيادة بالكامل', group: 'العيادة' },
+  'clinic.reception': { ar: 'الاستقبال (مواعيد/تسجيل/تحصيل)', group: 'العيادة' },
+  'clinic.doctor': { ar: 'الطبيب (كشف/تشخيص/روشتة)', group: 'العيادة' },
   'field.sales': { ar: 'المبيعات الميدانية (تطبيق المندوب)', group: 'المبيعات' },
 };
 
@@ -78,8 +82,8 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   technician: [
     'customers.manage', 'sales.sell', 'inventory.view', 'stock_request.create',
   ],
-  doctor: ['customers.manage', 'sales.sell', 'reports.view'],
-  receptionist: ['customers.manage', 'sales.sell', 'sales.collect'],
+  doctor: ['clinic.doctor', 'reports.view'],
+  receptionist: ['clinic.reception', 'customers.manage', 'sales.sell', 'sales.collect'],
   stylist: ['customers.manage', 'sales.sell'],
   housekeeping: ['hotel.manage'],
   warehouse_keeper: [

@@ -1,19 +1,21 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { requireAnyPermission } from '@/lib/erp/guards';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { buttonVariants } from '@/components/ui/button';
 import { UserPlus, CalendarClock, Wallet } from 'lucide-react';
 import { AppointmentsManager, type Appointment } from '../appointments/appointments-manager';
 import { ReceptionBilling } from './reception-manager';
-import type { ClinicVisit, PatientOption, DoctorOption } from '../clinical-ui';
+import type { ClinicVisit, PatientOption, DoctorOption, ServiceOption } from '../clinical-ui';
 
 export default async function ReceptionPage({
   searchParams,
 }: {
   searchParams: Promise<{ patient?: string }>;
 }) {
+  await requireAnyPermission(['clinic.manage', 'clinic.reception']);
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
@@ -32,7 +34,7 @@ export default async function ReceptionPage({
   const since = new Date();
   since.setDate(since.getDate() - 1);
 
-  const [{ data: appointments }, { data: patients }, { data: visits }, { data: doctors }] = await Promise.all([
+  const [{ data: appointments }, { data: patients }, { data: visits }, { data: doctors }, { data: services }] = await Promise.all([
     supabase
       .from('erp_clinic_appointments')
       .select('id, scheduled_at, duration_min, reason, status, doctor_id, patient:erp_patients(name, phone)')
@@ -46,6 +48,7 @@ export default async function ReceptionPage({
       .order('visit_date', { ascending: false })
       .limit(200),
     supabase.rpc('erp_clinic_doctors'),
+    supabase.from('erp_clinic_services').select('id, name, price').eq('is_active', true).order('name'),
   ]);
 
   return (
@@ -78,6 +81,7 @@ export default async function ReceptionPage({
           visits={(visits as unknown as ClinicVisit[]) ?? []}
           patients={(patients as PatientOption[]) ?? []}
           doctors={(doctors as DoctorOption[]) ?? []}
+          services={(services as ServiceOption[]) ?? []}
         />
       </section>
     </div>

@@ -3,7 +3,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { VisitsManager, type Visit, type PatientOption } from './visits-manager';
-import type { DoctorOption } from '../clinical-ui';
+import type { DoctorOption, ServiceOption } from '../clinical-ui';
 
 export default async function VisitsPage({
   searchParams,
@@ -26,7 +26,7 @@ export default async function VisitsPage({
   const { patient: initialPatientId } = await searchParams;
 
   const supabase = await createClient();
-  const [{ data: visits }, { data: patients }, { data: doctors }] = await Promise.all([
+  const [{ data: visits }, { data: patients }, { data: doctors }, { data: services }] = await Promise.all([
     supabase
       .from('erp_clinic_visits')
       .select('id, patient_id, doctor_id, visit_date, visit_type, complaint, diagnosis, prescription, tests, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone)')
@@ -34,6 +34,7 @@ export default async function VisitsPage({
       .limit(200),
     supabase.from('erp_patients').select('id, name, phone').eq('is_active', true).order('name'),
     supabase.rpc('erp_clinic_doctors'),
+    supabase.from('erp_clinic_services').select('id, name, price').eq('is_active', true).order('name'),
   ]);
 
   return (
@@ -43,6 +44,7 @@ export default async function VisitsPage({
         visits={(visits as unknown as Visit[]) ?? []}
         patients={(patients as PatientOption[]) ?? []}
         doctors={(doctors as DoctorOption[]) ?? []}
+        services={(services as ServiceOption[]) ?? []}
         initialPatientId={initialPatientId ?? null}
       />
     </div>

@@ -53,6 +53,17 @@ export async function requirePermission(perm: Permission): Promise<UserContext> 
   redirect('/dashboard');
 }
 
+/**
+ * Page/layout guard: ensure the user holds ANY of the given permissions (super
+ * admins hold all). Redirects to the dashboard when none are present.
+ */
+export async function requireAnyPermission(perms: Permission[]): Promise<UserContext> {
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+  if (ctx.isSuperAdmin || perms.some((p) => ctx.permissions.includes(p))) return ctx;
+  redirect('/dashboard');
+}
+
 /** Translate common Postgres errors into friendly Arabic messages. */
 export function friendlyDbError(error: { code?: string; message: string }): string {
   if (error.code === '23505') return 'هذا الكود مستخدم بالفعل.';

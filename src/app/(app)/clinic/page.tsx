@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
+import { Printer } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import {
   Stethoscope,
@@ -139,7 +141,15 @@ export default async function ClinicDashboardPage() {
 
   return (
     <div>
-      <PageHeader title="لوحة العيادة" description="نظرة سريعة على نشاط العيادة اليوم." />
+      <PageHeader
+        title="لوحة العيادة"
+        description="نظرة سريعة على نشاط العيادة اليوم."
+        action={
+          <Link href="/print/clinic/day-closing" target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+            <Printer className="h-4 w-4" /> تقفيل اليوم
+          </Link>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="كشوفات اليوم" value={String(visitsCount)} icon={Stethoscope} tone="primary" href="/clinic/visits" />

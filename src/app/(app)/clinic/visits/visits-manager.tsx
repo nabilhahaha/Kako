@@ -17,7 +17,9 @@ import {
   type ClinicVisit as Visit,
   type PatientOption,
   type DoctorOption,
+  type ServiceOption,
   doctorName,
+  ServicePicker,
   TYPE,
   TEST_TEMPLATES,
   selectCls,
@@ -32,11 +34,13 @@ export function VisitsManager({
   visits,
   patients,
   doctors,
+  services,
   initialPatientId,
 }: {
   visits: Visit[];
   patients: PatientOption[];
   doctors: DoctorOption[];
+  services: ServiceOption[];
   initialPatientId?: string | null;
 }) {
   const router = useRouter();
@@ -121,7 +125,7 @@ export function VisitsManager({
                       <option value="consultation">كشف</option><option value="followup">متابعة</option><option value="procedure">إجراء</option>
                     </select>
                   </div>
-                  <div className="space-y-1"><Label>رسوم الكشف</Label><Input name="fee" type="number" min={0} step="0.01" dir="ltr" defaultValue={0} /></div>
+                  <ServicePicker services={services} />
                   <div className="space-y-1"><Label>الشكوى</Label><Input name="complaint" placeholder="مثال: صداع وحرارة" /></div>
                 </div>
                 <details className="rounded-md border bg-secondary/20 p-3">

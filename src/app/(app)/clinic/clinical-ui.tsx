@@ -1,11 +1,44 @@
 'use client';
 
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 // Shared clinical UI for the clinic vertical (reception + doctor + full views).
 
 export interface PatientOption { id: string; name: string; phone: string | null }
+
+export interface ServiceOption { id: string; name: string; price: number }
+
+/** Service picker + fee field as one unit: choosing a service fills the fee.
+ *  Emits name="service_id" and name="fee". */
+export function ServicePicker({ services }: { services: ServiceOption[] }) {
+  const [fee, setFee] = useState('0');
+  const [serviceId, setServiceId] = useState('');
+  function pick(id: string) {
+    setServiceId(id);
+    const s = services.find((x) => x.id === id);
+    if (s) setFee(String(s.price));
+  }
+  return (
+    <>
+      {services.length > 0 && (
+        <div className="space-y-1">
+          <Label>الخدمة</Label>
+          <select className={selectCls} value={serviceId} onChange={(e) => pick(e.target.value)}>
+            <option value="">— بدون —</option>
+            {services.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.price}</option>)}
+          </select>
+          <input type="hidden" name="service_id" value={serviceId} />
+        </div>
+      )}
+      <div className="space-y-1">
+        <Label>رسوم الكشف</Label>
+        <Input name="fee" type="number" min={0} step="0.01" dir="ltr" value={fee} onChange={(e) => setFee(e.target.value)} />
+      </div>
+    </>
+  );
+}
 
 export interface DoctorOption { id: string; full_name: string | null; email: string | null }
 

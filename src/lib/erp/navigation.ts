@@ -110,12 +110,13 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'العيادة',
     module: 'clinic',
     items: [
-      { label: 'لوحة العيادة', href: '/clinic', icon: LayoutDashboard, perm: 'clinic.manage' },
-      { label: 'الاستقبال', href: '/clinic/reception', icon: ClipboardCheck, perm: 'clinic.manage' },
-      { label: 'الطبيب', href: '/clinic/doctor', icon: Stethoscope, perm: 'clinic.manage' },
-      { label: 'المواعيد', href: '/clinic/appointments', icon: CalendarClock, perm: 'clinic.manage' },
-      { label: 'المرضى', href: '/clinic/patients', icon: Users, perm: 'clinic.manage' },
+      { label: 'لوحة العيادة', href: '/clinic', icon: LayoutDashboard, perm: ['clinic.manage', 'clinic.reception', 'clinic.doctor'] },
+      { label: 'الاستقبال', href: '/clinic/reception', icon: ClipboardCheck, perm: ['clinic.manage', 'clinic.reception'] },
+      { label: 'الطبيب', href: '/clinic/doctor', icon: Stethoscope, perm: ['clinic.manage', 'clinic.doctor'] },
+      { label: 'المواعيد', href: '/clinic/appointments', icon: CalendarClock, perm: ['clinic.manage', 'clinic.reception'] },
+      { label: 'المرضى', href: '/clinic/patients', icon: Users, perm: ['clinic.manage', 'clinic.reception', 'clinic.doctor'] },
       { label: 'الكشوفات', href: '/clinic/visits', icon: ClipboardList, perm: 'clinic.manage' },
+      { label: 'الخدمات والأسعار', href: '/clinic/services', icon: Tags, perm: 'clinic.manage' },
     ],
   },
   {
