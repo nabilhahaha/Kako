@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { LoginForm } from './login-form';
 import { Package } from 'lucide-react';
 
@@ -15,6 +16,12 @@ export default function LoginPage() {
           </p>
         </div>
         <LoginForm />
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          ليس لديك حساب؟{' '}
+          <Link href="/register" className="font-medium text-primary hover:underline">
+            أنشئ شركتك وابدأ مجاناً
+          </Link>
+        </p>
       </div>
     </div>
   );
