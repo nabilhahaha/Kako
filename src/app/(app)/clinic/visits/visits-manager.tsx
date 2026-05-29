@@ -17,6 +17,7 @@ import {
   type ClinicVisit as Visit,
   type PatientOption,
   TYPE,
+  TEST_TEMPLATES,
   selectCls,
   taCls,
   VitalsFields,
@@ -175,6 +176,14 @@ export function ExamForm({
   exam: Visit; pending: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void; onCancel: () => void;
 }) {
+  const [tests, setTests] = useState(exam.tests ?? '');
+  function addTest(t: string) {
+    setTests((prev) => {
+      const lines = prev.split('\n').map((s) => s.trim()).filter(Boolean);
+      if (lines.includes(t)) return prev;
+      return prev ? `${prev}\n${t}` : t;
+    });
+  }
   return (
     <Card className="border-primary/40">
       <CardContent className="pt-6">
@@ -190,7 +199,23 @@ export function ExamForm({
           <div className="space-y-1"><Label>الشكوى</Label><Input name="complaint" defaultValue={exam.complaint ?? ''} /></div>
           <div className="space-y-1"><Label>التشخيص</Label><textarea name="diagnosis" rows={2} defaultValue={exam.diagnosis ?? ''} className={taCls} /></div>
           <div className="space-y-1"><Label>الروشتة</Label><textarea name="prescription" rows={3} defaultValue={exam.prescription ?? ''} className={taCls} placeholder="اكتب كل دواء في سطر…" /></div>
-          <div className="space-y-1"><Label>طلب تحاليل / أشعة</Label><textarea name="tests" rows={2} defaultValue={exam.tests ?? ''} className={taCls} placeholder="اكتب كل تحليل أو أشعة في سطر…" /></div>
+          <div className="space-y-1">
+            <Label>طلب تحاليل / أشعة</Label>
+            <textarea name="tests" rows={2} value={tests} onChange={(e) => setTests(e.target.value)} className={taCls} placeholder="اكتب كل تحليل أو أشعة في سطر، أو اختر من القوالب بالأسفل…" />
+            <div className="space-y-1.5 pt-1">
+              {TEST_TEMPLATES.map((g) => (
+                <div key={g.group} className="flex flex-wrap items-center gap-1">
+                  <span className="text-xs text-muted-foreground">{g.group}:</span>
+                  {g.items.map((t) => (
+                    <button key={t} type="button" onClick={() => addTest(t)}
+                      className="rounded-full border border-input bg-background px-2 py-0.5 text-xs hover:bg-secondary">
+                      + {t}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="rounded-md border bg-secondary/20 p-3">
             <div className="space-y-1 sm:max-w-xs"><Label>موعد الزيارة القادمة (اختياري)</Label><Input name="followup_date" type="date" dir="ltr" defaultValue={exam.followup_date ?? ''} /></div>
             <label className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">

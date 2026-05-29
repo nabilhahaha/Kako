@@ -37,6 +37,27 @@ export const VISIT_STATUS: Record<string, { label: string; variant: 'secondary' 
 
 export const TYPE: Record<string, string> = { consultation: 'كشف', followup: 'متابعة', procedure: 'إجراء' };
 
+/** Quick-pick templates for common lab tests / imaging, grouped. The doctor
+ *  taps one and it's appended to the request field on its own line. */
+export const TEST_TEMPLATES: { group: string; items: string[] }[] = [
+  {
+    group: 'تحاليل',
+    items: [
+      'صورة دم كاملة (CBC)', 'سكر صائم', 'سكر فاطر', 'سكر تراكمي (HbA1c)',
+      'وظائف كبد', 'وظائف كلى', 'سرعة ترسيب (ESR)', 'CRP',
+      'دهون (كوليسترول/ثلاثية)', 'وظائف الغدة الدرقية (TSH)', 'فيتامين د',
+      'تحليل بول كامل', 'تحليل براز',
+    ],
+  },
+  {
+    group: 'أشعة',
+    items: [
+      'أشعة صدر', 'سونار بطن وحوض', 'رسم قلب (ECG)',
+      'إيكو على القلب', 'أشعة مقطعية (CT)', 'رنين مغناطيسي (MRI)',
+    ],
+  },
+];
+
 export const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 export const taCls = 'w-full rounded-md border border-input bg-background p-2 text-sm';
