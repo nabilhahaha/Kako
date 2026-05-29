@@ -6,13 +6,17 @@ import { requirePermission } from '@/lib/erp/guards';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 
 // Hotel / furnished-apartments: rooms + bookings. Every action requires the
-// hotel.manage permission; tenant isolation is enforced by RLS + the
-// company_id BEFORE INSERT trigger, so we never set company_id from the client.
+// hotel.manage permission AND that the actor belongs to a company (the platform
+// owner manages tenants, not their day-to-day data, so they have no company and
+// cannot create rooms/bookings — we surface a clear message instead of letting
+// the NOT NULL company_id constraint blow up).
 
+const NO_COMPANY = 'هذه العملية تتم من داخل حساب الشركة. سجّل الدخول بحساب الفندق.';
 const ROOM_STATUSES = ['available', 'occupied', 'cleaning', 'maintenance'] as const;
 
 export async function createRoom(formData: FormData): Promise<ActionResult> {
-  await requirePermission('hotel.manage');
+  const ctx = await requirePermission('hotel.manage');
+  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
   const code = String(formData.get('code') || '').trim();
   const name = String(formData.get('name') || '').trim() || null;
   const room_type = String(formData.get('room_type') || '').trim() || null;
@@ -22,6 +26,7 @@ export async function createRoom(formData: FormData): Promise<ActionResult> {
 
   const supabase = await createClient();
   const { error } = await supabase.from('erp_rooms').insert({
+    company_id: ctx.companyId,
     code, name, room_type,
     capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : 2,
     nightly_rate: Number.isFinite(nightly_rate) && nightly_rate >= 0 ? nightly_rate : 0,
@@ -47,7 +52,8 @@ export async function setRoomStatus(roomId: string, status: string): Promise<Act
 
 /** Create a booking. Validates the room is free for the requested dates. */
 export async function createBooking(formData: FormData): Promise<ActionResult> {
-  await requirePermission('hotel.manage');
+  const ctx = await requirePermission('hotel.manage');
+  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
   const room_id = String(formData.get('room_id') || '').trim();
   const guest_name = String(formData.get('guest_name') || '').trim();
   const guest_phone = String(formData.get('guest_phone') || '').trim() || null;
@@ -81,6 +87,7 @@ export async function createBooking(formData: FormData): Promise<ActionResult> {
   );
 
   const { error } = await supabase.from('erp_bookings').insert({
+    company_id: ctx.companyId,
     room_id, guest_name, guest_phone, check_in, check_out,
     nightly_rate: rate, total_amount: rate * nights, status: 'reserved',
   });

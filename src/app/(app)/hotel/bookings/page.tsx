@@ -8,6 +8,17 @@ export default async function BookingsPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  if (!ctx.companyId) {
+    return (
+      <div>
+        <PageHeader title="الحجوزات" />
+        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
+          إدارة الفندق تتم من داخل حساب الشركة. سجّل الدخول بحساب الفندق لإضافة الغرف والحجوزات.
+        </p>
+      </div>
+    );
+  }
+
   const supabase = await createClient();
   const [{ data: bookings }, { data: rooms }] = await Promise.all([
     supabase
