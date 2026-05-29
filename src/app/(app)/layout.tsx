@@ -5,7 +5,8 @@ import { TopBar } from '@/components/layout/topbar';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
-import { LockKeyhole, AlertTriangle } from 'lucide-react';
+import { whatsappLink, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@/lib/erp/contact';
+import { LockKeyhole, AlertTriangle, MessageCircle } from 'lucide-react';
 
 export default async function AppLayout({
   children,
@@ -37,13 +38,23 @@ export default async function AppLayout({
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {expired
-              ? `انتهت صلاحية الاشتراك بتاريخ ${ctx.company?.subscription_end}. يرجى التواصل مع مزوّد الخدمة لتجديد الاشتراك.`
-              : 'تم إيقاف الوصول مؤقتًا. يرجى التواصل مع مزوّد الخدمة.'}
+              ? `انتهت صلاحية الاشتراك بتاريخ ${ctx.company?.subscription_end}. للتجديد تواصل معنا.`
+              : 'تم إيقاف الوصول مؤقتًا. للتفعيل تواصل معنا.'}
           </p>
-          <form action="/auth/signout" method="post" className="mt-6">
+          <a
+            href={whatsappLink(`مرحباً، أريد تجديد/تفعيل اشتراك شركة «${ctx.company?.name_ar || ctx.company?.name || ''}».`)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-success px-4 font-medium text-success-foreground hover:opacity-90"
+          >
+            <MessageCircle className="h-5 w-5" />
+            تواصل عبر واتساب
+          </a>
+          <p className="mt-2 text-xs text-muted-foreground" dir="ltr">{SUPPORT_PHONE_DISPLAY}</p>
+          <form action="/auth/signout" method="post" className="mt-4">
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium hover:bg-secondary/80"
+              className="inline-flex h-9 items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium hover:bg-secondary/80"
             >
               تسجيل الخروج
             </button>
@@ -77,11 +88,17 @@ export default async function AppLayout({
             }))}
           />
           {state === 'expiring' && left !== null && (
-            <div className="flex items-center gap-2 border-b bg-warning/15 px-4 py-2 text-sm text-warning-foreground lg:px-6">
+            <div className="flex flex-wrap items-center gap-2 border-b bg-warning/15 px-4 py-2 text-sm text-warning-foreground lg:px-6">
               <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
-              <span>
-                ينتهي اشتراك شركتك خلال {left} يوم. يرجى التواصل مع مزوّد الخدمة للتجديد.
-              </span>
+              <span>ينتهي اشتراك شركتك خلال {left} يوم.</span>
+              <a
+                href={whatsappLink(`مرحباً، أريد تجديد اشتراك شركة «${ctx.company?.name_ar || ctx.company?.name || ''}».`)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-success underline-offset-2 hover:underline"
+              >
+                <MessageCircle className="h-4 w-4" /> جدّد الآن عبر واتساب
+              </a>
             </div>
           )}
           <main className="flex-1 p-4 lg:p-6">{children}</main>
