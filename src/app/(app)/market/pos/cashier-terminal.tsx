@@ -64,7 +64,9 @@ export function CashierTerminal({ branches, products }: { branches: BranchOption
       const res = await cashierCheckout({
         branch_id: branchId,
         payment_method: method,
-        lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: Number(l.product.sell_price), discount_pct: 0, tax_rate: Number(l.product.tax_rate || 0) })),
+        // Shelf prices are final (tax-inclusive), so the charged net matches the
+        // displayed cart total — no separate VAT added on top.
+        lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: Number(l.product.sell_price), discount_pct: 0, tax_rate: 0 })),
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? 'تعذّر إتمام البيع'); return; }
       const ch = method === 'cash' && paidNum > 0 ? paidNum - res.data.net : 0;
