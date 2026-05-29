@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { checkBranchLimit, checkUserLimit } from '@/lib/erp/plans';
+import { logAudit } from '@/lib/erp/audit';
 import type { BusinessType } from '@/lib/erp/types';
 
 async function requirePlatformOwner() {
@@ -64,8 +66,16 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
     if (error.code === '23505') return { ok: false, error: 'المعرّف (slug) مستخدم بالفعل.' };
     return { ok: false, error: friendlyDbError(error) };
   }
+  const newId = (data as { id: string }).id;
+  await logAudit(supabase, {
+    action: 'create',
+    entity: 'company',
+    entityId: newId,
+    details: { name, business_type },
+    companyId: newId,
+  });
   revalidatePath('/platform/companies');
-  return { ok: true, data: { id: (data as { id: string }).id } };
+  return { ok: true, data: { id: newId } };
 }
 
 /** Update a company's profile + subscription settings. */
@@ -94,6 +104,7 @@ export async function updateCompany(formData: FormData): Promise<ActionResult> {
     .eq('id', id);
 
   if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: 'update', entity: 'company', entityId: id, details: { name }, companyId: id });
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
@@ -107,6 +118,12 @@ export async function setCompanyActive(id: string, isActive: boolean): Promise<A
   const supabase = await createClient();
   const { error } = await supabase.from('erp_companies').update({ is_active: isActive }).eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, {
+    action: isActive ? 'activate' : 'deactivate',
+    entity: 'company',
+    entityId: id,
+    companyId: id,
+  });
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
@@ -124,6 +141,7 @@ export async function setSubscriptionEnd(id: string, end: string): Promise<Actio
     .update({ subscription_end: end, is_active: true })
     .eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: 'renew', entity: 'subscription', entityId: id, details: { end }, companyId: id });
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
@@ -142,6 +160,8 @@ export async function addBranch(formData: FormData): Promise<ActionResult> {
   if (!name) return { ok: false, error: 'اسم الفرع مطلوب.' };
 
   const supabase = await createClient();
+  const limitErr = await checkBranchLimit(supabase, company_id);
+  if (limitErr) return { ok: false, error: limitErr };
   const { error } = await supabase.from('erp_branches').insert({
     company_id,
     code,
@@ -153,6 +173,7 @@ export async function addBranch(formData: FormData): Promise<ActionResult> {
     if (error.code === '23505') return { ok: false, error: 'كود الفرع مستخدم بالفعل في هذه الشركة.' };
     return { ok: false, error: friendlyDbError(error) };
   }
+  await logAudit(supabase, { action: 'create', entity: 'branch', details: { code, name }, companyId: company_id });
   revalidatePath(`/platform/companies/${company_id}`);
   return { ok: true };
 }
@@ -178,6 +199,11 @@ export async function onboardAdmin(formData: FormData): Promise<ActionResult> {
   if (password.length < 6) return { ok: false, error: 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل.' };
 
   const supabase = await createClient();
+
+  // Enforce the company's plan user limit before creating a new account.
+  const limitErr = await checkUserLimit(supabase, company_id);
+  if (limitErr) return { ok: false, error: limitErr };
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -201,6 +227,28 @@ export async function onboardAdmin(formData: FormData): Promise<ActionResult> {
     );
   if (assignErr) return { ok: false, error: friendlyDbError(assignErr) };
 
+  await logAudit(supabase, {
+    action: 'create',
+    entity: 'user',
+    entityId: userId,
+    details: { email, role, branch_id },
+    companyId: company_id,
+  });
   revalidatePath(`/platform/companies/${company_id}`);
+  return { ok: true };
+}
+
+/** Change a company's subscription plan (caps on users/branches/products). */
+export async function setCompanyPlan(id: string, planKey: string): Promise<ActionResult> {
+  const { error: authErr } = await requirePlatformOwner();
+  if (authErr) return { ok: false, error: authErr };
+  if (!id || !planKey) return { ok: false, error: 'بيانات غير مكتملة.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from('erp_companies').update({ plan_key: planKey }).eq('id', id);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: 'plan_change', entity: 'plan', entityId: id, details: { plan_key: planKey }, companyId: id });
+  revalidatePath('/platform/companies');
+  revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
 }

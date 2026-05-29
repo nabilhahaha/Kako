@@ -119,6 +119,7 @@ export interface Company {
   is_active: boolean;
   business_type: BusinessType | null;
   slug: string | null;
+  plan_key: string | null;
   subscription_start: string | null;
   subscription_end: string | null;
   created_at: string;

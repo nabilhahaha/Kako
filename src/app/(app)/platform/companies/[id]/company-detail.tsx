@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, CalendarPlus, Power, Save } from 'lucide-react';
+import { Loader2, Plus, CalendarPlus, Power, Save, Gauge } from 'lucide-react';
 import type { Branch, Company } from '@/lib/erp/types';
+import type { Plan, CompanyUsage } from '@/lib/erp/plans';
 import { BRANCH_ROLES } from '@/lib/erp/constants';
 import {
   BUSINESS_TYPE_LABELS,
@@ -21,6 +22,7 @@ import {
   updateCompany,
   setCompanyActive,
   setSubscriptionEnd,
+  setCompanyPlan,
   addBranch,
   onboardAdmin,
 } from '../actions';
@@ -57,12 +59,18 @@ export function CompanyDetail({
   branches,
   members,
   companyRoles,
+  plans,
+  usage,
 }: {
   company: Company;
   branches: Branch[];
   members: MemberRow[];
   /** Roles enabled for this company (key + Arabic label); used for onboarding. */
   companyRoles?: { key: string; name_ar: string }[];
+  /** Available subscription plans (for the plan selector). */
+  plans?: Plan[];
+  /** Current usage tallies for this company. */
+  usage?: CompanyUsage;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -181,6 +189,57 @@ export function CompanyDetail({
           </div>
         </CardContent>
       </Card>
+
+      {/* Plan & limits */}
+      {plans && plans.length > 0 && (
+        <Card>
+          <CardContent className="space-y-4 pt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="flex items-center gap-2 font-semibold">
+                <Gauge className="h-4 w-4" /> الخطة والحدود
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">الخطة</span>
+                <select
+                  className={selectCls + ' w-44'}
+                  value={company.plan_key ?? ''}
+                  disabled={pending}
+                  onChange={(e) => run(() => setCompanyPlan(company.id, e.target.value), 'تم تحديث الخطة')}
+                >
+                  {plans.map((p) => (
+                    <option key={p.key} value={p.key}>
+                      {p.name_ar}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {usage && (() => {
+              const plan = plans.find((p) => p.key === company.plan_key) ?? null;
+              const fmt = (n: number, max: number | null | undefined) =>
+                max == null ? `${n} / ∞` : `${n} / ${max}`;
+              const over = (n: number, max: number | null | undefined) => max != null && n >= max;
+              const items: { label: string; used: number; max: number | null | undefined }[] = [
+                { label: 'المستخدمون', used: usage.users, max: plan?.max_users },
+                { label: 'الفروع', used: usage.branches, max: plan?.max_branches },
+                { label: 'المنتجات', used: usage.products, max: plan?.max_products },
+              ];
+              return (
+                <div className="grid grid-cols-3 gap-3">
+                  {items.map((it) => (
+                    <div key={it.label} className="rounded-md border p-3 text-center">
+                      <p className="text-xs text-muted-foreground">{it.label}</p>
+                      <p className={`text-lg font-bold tabular-nums ${over(it.used, it.max) ? 'text-destructive' : ''}`} dir="ltr">
+                        {fmt(it.used, it.max)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Company info */}
       <Card>

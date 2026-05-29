@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { Branch, Company, Profile } from '@/lib/erp/types';
 import { CompanyDetail, type MemberRow } from './company-detail';
 import { CompanyPermissions, type CompanyRoleRow } from './company-permissions';
+import { getCompanyUsage, type Plan } from '@/lib/erp/plans';
 
 export default async function PlatformCompanyDetailPage({
   params,
@@ -98,6 +99,13 @@ export default async function PlatformCompanyDetailPage({
     name_ar: roleNameByKey.get(key) ?? key,
   }));
 
+  // Plans & current usage (for the plan selector + usage meters).
+  const [{ data: plansData }, usage] = await Promise.all([
+    supabase.from('erp_plans').select('key, name_ar, max_users, max_branches, max_products, rank').order('rank', { ascending: true }),
+    getCompanyUsage(supabase, id),
+  ]);
+  const plans = (plansData as Plan[]) ?? [];
+
   return (
     <div>
       <PageHeader
@@ -109,6 +117,8 @@ export default async function PlatformCompanyDetailPage({
         branches={branchList}
         members={members}
         companyRoles={companyRoleOptions}
+        plans={plans}
+        usage={usage}
       />
       <div className="mt-6">
         <CompanyPermissions

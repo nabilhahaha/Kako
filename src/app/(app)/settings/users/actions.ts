@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { checkUserLimit } from '@/lib/erp/plans';
+import { logAudit } from '@/lib/erp/audit';
 
 export interface ActionResult {
   ok: boolean;
@@ -51,6 +53,13 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   }
   if (data?.error) return { ok: false, error: data.error };
 
+  await logAudit(supabase, {
+    action: 'create',
+    entity: 'user',
+    entityId: (data?.user_id as string) ?? null,
+    details: { email },
+    companyId: ctx.companyId,
+  });
   revalidatePath('/settings/users');
   return { ok: true };
 }
@@ -66,6 +75,20 @@ export async function assignBranch(
   if (!branchId) return { ok: false, error: 'اختر الفرع.' };
 
   const supabase = await createClient();
+
+  // Enforce the company's plan user limit (a user already in the company is
+  // exempt — e.g. assigning an existing member to an additional branch).
+  const { data: branch } = await supabase
+    .from('erp_branches')
+    .select('company_id')
+    .eq('id', branchId)
+    .maybeSingle();
+  const companyId = (branch as { company_id?: string } | null)?.company_id;
+  if (companyId) {
+    const limitErr = await checkUserLimit(supabase, companyId, userId);
+    if (limitErr) return { ok: false, error: limitErr };
+  }
+
   const { error } = await supabase
     .from('erp_user_branches')
     .upsert(
@@ -74,6 +97,13 @@ export async function assignBranch(
     );
 
   if (error) return { ok: false, error: error.message };
+  await logAudit(supabase, {
+    action: 'create',
+    entity: 'assignment',
+    entityId: userId,
+    details: { branch_id: branchId, role },
+    companyId: companyId ?? null,
+  });
   revalidatePath('/settings/users');
   return { ok: true };
 }
@@ -93,6 +123,7 @@ export async function removeAssignment(
     .eq('branch_id', branchId);
 
   if (error) return { ok: false, error: error.message };
+  await logAudit(supabase, { action: 'delete', entity: 'assignment', entityId: userId, details: { branch_id: branchId } });
   revalidatePath('/settings/users');
   return { ok: true };
 }
@@ -116,6 +147,7 @@ export async function setUserFlags(
     .eq('id', userId);
 
   if (error) return { ok: false, error: error.message };
+  await logAudit(supabase, { action: 'update', entity: 'user_flags', entityId: userId, details: flags });
   revalidatePath('/settings/users');
   return { ok: true };
 }

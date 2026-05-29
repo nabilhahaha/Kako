@@ -26,6 +26,7 @@ import {
   CalendarDays,
   Download,
   Crown,
+  ScrollText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -107,6 +108,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'الفروع', href: '/settings/branches', icon: Building2, superAdminOnly: true },
       { label: 'المستخدمون', href: '/settings/users', icon: Users, superAdminOnly: true },
       { label: 'الصلاحيات', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true },
+      { label: 'سجل التدقيق', href: '/platform/audit', icon: ScrollText, superAdminOnly: true },
       { label: 'حسابي', href: '/account', icon: UserCog },
     ],
   },

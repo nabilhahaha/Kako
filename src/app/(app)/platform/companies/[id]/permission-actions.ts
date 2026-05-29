@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { logAudit } from '@/lib/erp/audit';
 
 // Per-company role & permission management. Restricted to the platform owner:
 // they decide which roles are active and what each role can do for every tenant
@@ -66,6 +67,12 @@ export async function setCompanyRoleEnabled(
     }
   }
 
+  await logAudit(supabase, {
+    action: enabled ? 'enable' : 'disable',
+    entity: 'company_role',
+    entityId: roleKey,
+    companyId,
+  });
   revalidateCompany(companyId);
   return { ok: true };
 }
@@ -101,6 +108,13 @@ export async function setCompanyRolePermission(
     if (error) return { ok: false, error: friendlyDbError(error) };
   }
 
+  await logAudit(supabase, {
+    action: enabled ? 'grant' : 'revoke',
+    entity: 'company_role_permission',
+    entityId: roleKey,
+    details: { permission },
+    companyId,
+  });
   revalidateCompany(companyId);
   return { ok: true };
 }
@@ -142,6 +156,13 @@ export async function addCompanyRole(
     );
   if (enableErr) return { ok: false, error: friendlyDbError(enableErr) };
 
+  await logAudit(supabase, {
+    action: 'create',
+    entity: 'company_role',
+    entityId: cleanKey,
+    details: { name_ar: name_ar.trim() },
+    companyId,
+  });
   revalidateCompany(companyId);
   return { ok: true };
 }
