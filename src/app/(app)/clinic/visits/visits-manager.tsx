@@ -9,62 +9,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Loader2, X, Stethoscope, CheckCircle2, Printer, Play, Clock, ClipboardList } from 'lucide-react';
+import { Plus, Loader2, X, Stethoscope, CheckCircle2, Printer, Play, Clock, ClipboardList, FileText } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { usePrompt } from '@/components/prompt-dialog';
 import { createVisit, updateVisit, setVisitStatus, recordVisitPayment } from '../actions';
+import {
+  type ClinicVisit as Visit,
+  type PatientOption,
+  TYPE,
+  selectCls,
+  taCls,
+  VitalsFields,
+  VitalsLine,
+} from '../clinical-ui';
 
-export interface PatientOption { id: string; name: string; phone: string | null }
-
-export interface Visit {
-  id: string;
-  visit_date: string;
-  visit_type: string;
-  complaint: string | null;
-  diagnosis: string | null;
-  prescription: string | null;
-  fee: number;
-  paid_amount: number;
-  status: string;
-  temperature: number | null;
-  blood_pressure: string | null;
-  pulse: number | null;
-  weight: number | null;
-  height: number | null;
-  followup_date: string | null;
-  patient: { name: string; phone: string | null } | null;
-}
-
-const TYPE: Record<string, string> = { consultation: 'كشف', followup: 'متابعة', procedure: 'إجراء' };
-const selectCls =
-  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-const taCls = 'w-full rounded-md border border-input bg-background p-2 text-sm';
-
-/** Vital-sign inputs, shared by the new-visit and exam forms. */
-function VitalsFields({ v }: { v?: Visit }) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      <div className="space-y-1"><Label>الحرارة °م</Label><Input name="temperature" type="number" step="0.1" dir="ltr" defaultValue={v?.temperature ?? ''} /></div>
-      <div className="space-y-1"><Label>الضغط</Label><Input name="blood_pressure" placeholder="120/80" dir="ltr" defaultValue={v?.blood_pressure ?? ''} /></div>
-      <div className="space-y-1"><Label>النبض</Label><Input name="pulse" type="number" dir="ltr" defaultValue={v?.pulse ?? ''} /></div>
-      <div className="space-y-1"><Label>الوزن كجم</Label><Input name="weight" type="number" step="0.1" dir="ltr" defaultValue={v?.weight ?? ''} /></div>
-      <div className="space-y-1"><Label>الطول سم</Label><Input name="height" type="number" step="0.1" dir="ltr" defaultValue={v?.height ?? ''} /></div>
-    </div>
-  );
-}
-
-function VitalsLine({ v }: { v: Visit }) {
-  const has = v.temperature != null || v.blood_pressure || v.pulse != null || v.weight != null;
-  if (!has) return null;
-  return (
-    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground" dir="ltr">
-      {v.temperature != null && <span>🌡 {v.temperature}°</span>}
-      {v.blood_pressure && <span>🩸 {v.blood_pressure}</span>}
-      {v.pulse != null && <span>💓 {v.pulse}</span>}
-      {v.weight != null && <span>⚖ {v.weight}kg</span>}
-    </div>
-  );
-}
+export type { ClinicVisit as Visit, PatientOption } from '../clinical-ui';
 
 export function VisitsManager({
   visits,
@@ -168,26 +127,7 @@ export function VisitsManager({
         {patients.length === 0 && <p className="mt-2 text-sm text-muted-foreground">سجّل مريضاً أولاً من صفحة المرضى.</p>}
       </div>
 
-      {/* Exam (clinical note) */}
-      {exam && (
-        <Card className="border-primary/40">
-          <CardContent className="pt-6">
-            <form onSubmit={(e) => submitForm(e, updateVisit, 'تم حفظ الكشف', () => setExam(null))} className="space-y-4">
-              <input type="hidden" name="id" value={exam.id} />
-              <h3 className="flex items-center gap-2 font-semibold"><ClipboardList className="h-4 w-4" /> كشف: {exam.patient?.name}</h3>
-              <VitalsFields v={exam} />
-              <div className="space-y-1"><Label>الشكوى</Label><Input name="complaint" defaultValue={exam.complaint ?? ''} /></div>
-              <div className="space-y-1"><Label>التشخيص</Label><textarea name="diagnosis" rows={2} defaultValue={exam.diagnosis ?? ''} className={taCls} /></div>
-              <div className="space-y-1"><Label>الروشتة</Label><textarea name="prescription" rows={3} defaultValue={exam.prescription ?? ''} className={taCls} placeholder="اكتب كل دواء في سطر…" /></div>
-              <div className="space-y-1 sm:max-w-xs"><Label>تاريخ المتابعة (اختياري)</Label><Input name="followup_date" type="date" dir="ltr" defaultValue={exam.followup_date ?? ''} /></div>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={pending}><CheckCircle2 className="h-4 w-4" /> حفظ وإنهاء الكشف</Button>
-                <Button type="button" variant="outline" onClick={() => setExam(null)}>إلغاء</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+      {exam && <ExamForm exam={exam} pending={pending} onSubmit={(e) => submitForm(e, updateVisit, 'تم حفظ الكشف', () => setExam(null))} onCancel={() => setExam(null)} />}
 
       {/* Queue board */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -228,7 +168,40 @@ export function VisitsManager({
   );
 }
 
-function QueueColumn({
+/** The clinical exam note — vitals + complaint + diagnosis + Rx + follow-up. */
+export function ExamForm({
+  exam, pending, onSubmit, onCancel,
+}: {
+  exam: Visit; pending: boolean;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void; onCancel: () => void;
+}) {
+  return (
+    <Card className="border-primary/40">
+      <CardContent className="pt-6">
+        <form onSubmit={onSubmit} className="space-y-4">
+          <input type="hidden" name="id" value={exam.id} />
+          <div className="flex items-center justify-between">
+            <h3 className="flex items-center gap-2 font-semibold"><ClipboardList className="h-4 w-4" /> كشف: {exam.patient?.name}</h3>
+            <Link href={`/clinic/patients/${exam.patient_id}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+              <FileText className="h-3.5 w-3.5" /> الملف الطبي الكامل
+            </Link>
+          </div>
+          <VitalsFields v={exam} />
+          <div className="space-y-1"><Label>الشكوى</Label><Input name="complaint" defaultValue={exam.complaint ?? ''} /></div>
+          <div className="space-y-1"><Label>التشخيص</Label><textarea name="diagnosis" rows={2} defaultValue={exam.diagnosis ?? ''} className={taCls} /></div>
+          <div className="space-y-1"><Label>الروشتة</Label><textarea name="prescription" rows={3} defaultValue={exam.prescription ?? ''} className={taCls} placeholder="اكتب كل دواء في سطر…" /></div>
+          <div className="space-y-1 sm:max-w-xs"><Label>تاريخ المتابعة (اختياري)</Label><Input name="followup_date" type="date" dir="ltr" defaultValue={exam.followup_date ?? ''} /></div>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={pending}><CheckCircle2 className="h-4 w-4" /> حفظ وإنهاء الكشف</Button>
+            <Button type="button" variant="outline" onClick={onCancel}>إلغاء</Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function QueueColumn({
   title, icon: Icon, count, tone, empty, children,
 }: {
   title: string; icon: typeof Clock; count: number;
@@ -249,13 +222,13 @@ function QueueColumn({
   );
 }
 
-function QueueCard({ v, muted, children }: { v: Visit; muted?: boolean; children: React.ReactNode }) {
+export function QueueCard({ v, muted, children }: { v: Visit; muted?: boolean; children: React.ReactNode }) {
   return (
     <Card className={muted ? 'opacity-90' : ''}>
       <CardContent className="space-y-2 p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate font-medium">{v.patient?.name ?? '—'}</p>
+            <Link href={`/clinic/patients/${v.patient_id}`} className="truncate font-medium text-primary hover:underline">{v.patient?.name ?? '—'}</Link>
             <p className="text-xs text-muted-foreground" dir="ltr">{formatDate(v.visit_date)} · {TYPE[v.visit_type] ?? v.visit_type}</p>
           </div>
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground" dir="ltr">{formatCurrency(v.fee)}</span>

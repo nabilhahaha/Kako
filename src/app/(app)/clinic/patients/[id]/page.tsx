@@ -7,7 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { formatCurrency, formatDate, ageFromBirthDate } from '@/lib/utils';
-import { ArrowRight, Printer, Stethoscope, CalendarClock, AlertTriangle, Plus, Thermometer, Activity, HeartPulse, Weight, CalendarCheck } from 'lucide-react';
+import { ArrowRight, Printer, Stethoscope, CalendarClock, AlertTriangle, Plus, Thermometer, Activity, HeartPulse, Weight, CalendarCheck, LineChart as LineChartIcon } from 'lucide-react';
+import { VitalsTrend, type VitalsPoint } from './vitals-trend';
 
 interface Patient {
   id: string; code: string | null; name: string; phone: string | null;
@@ -81,6 +82,21 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0] ?? null;
 
   const apptFmt = new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const shortFmt = new Intl.DateTimeFormat('ar-EG', { day: 'numeric', month: 'short' });
+
+  // Vital-sign trend points (oldest → newest), for the mini charts.
+  const trendPoints: VitalsPoint[] = [...billable]
+    .reverse()
+    .map((v) => {
+      const sys = v.blood_pressure ? parseInt(v.blood_pressure.split('/')[0], 10) : NaN;
+      return {
+        date: shortFmt.format(new Date(v.visit_date)),
+        weight: v.weight ?? null,
+        pulse: v.pulse ?? null,
+        temperature: v.temperature ?? null,
+        systolic: Number.isFinite(sys) ? sys : null,
+      };
+    });
 
   const meta = [
     p.code ? `كود ${p.code}` : null,
@@ -153,6 +169,15 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         </div>
       )}
 
+      {trendPoints.length >= 2 && (
+        <div className="mb-6">
+          <h2 className="mb-2 flex items-center gap-2 font-semibold">
+            <LineChartIcon className="h-4 w-4" /> مؤشرات حيوية عبر الزيارات
+          </h2>
+          <VitalsTrend points={trendPoints} />
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <h2 className="mb-2 flex items-center gap-2 font-semibold">
@@ -204,7 +229,9 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
                         {v.prescription && (
                           <div className="rounded-md bg-secondary/40 p-2 text-sm">
                             <span className="text-muted-foreground">الروشتة:</span>
-                            <p className="whitespace-pre-wrap">{v.prescription}</p>
+                            <ul className="mt-1 list-disc space-y-0.5 pr-5">
+                              {v.prescription.split('\n').map((line, i) => line.trim() && <li key={i}>{line}</li>)}
+                            </ul>
                           </div>
                         )}
                         {v.followup_date && (
