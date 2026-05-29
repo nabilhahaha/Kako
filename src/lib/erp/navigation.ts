@@ -36,6 +36,8 @@ import {
   LayoutGrid,
   Scissors,
   Pill,
+  WashingMachine,
+  Shirt,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -72,11 +74,11 @@ export interface NavSection {
  *  item-level refinements driven by the business type so a clinic doesn't see
  *  POS and a restaurant doesn't see stock transfers. */
 export type Module =
-  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy'
+  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy' | 'laundry'
   | 'pos' | 'sales_orders' | 'returns' | 'warehousing';
 
 /** The modules a subscription PLAN can grant (coarse). */
-export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy'];
+export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry'];
 
 export const MODULE_LABELS: Record<Module, string> = {
   sales: 'المبيعات',
@@ -88,6 +90,7 @@ export const MODULE_LABELS: Record<Module, string> = {
   restaurant: 'المطعم / الكافيه',
   salon: 'الصالون',
   pharmacy: 'الصيدلية',
+  laundry: 'المغسلة',
   pos: 'نقطة البيع',
   sales_orders: 'أوامر البيع',
   returns: 'المرتجعات',
@@ -125,6 +128,15 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'المرضى', href: '/clinic/patients', icon: Users, perm: ['clinic.manage', 'clinic.reception', 'clinic.doctor'] },
       { label: 'الكشوفات', href: '/clinic/visits', icon: ClipboardList, perm: 'clinic.manage' },
       { label: 'الخدمات والأسعار', href: '/clinic/services', icon: Tags, perm: 'clinic.manage' },
+    ],
+  },
+  {
+    title: 'المغسلة',
+    module: 'laundry',
+    items: [
+      { label: 'لوحة المغسلة', href: '/laundry', icon: LayoutDashboard, perm: 'laundry.manage' },
+      { label: 'الطلبات', href: '/laundry/orders', icon: WashingMachine, perm: 'laundry.manage' },
+      { label: 'الأصناف والأسعار', href: '/laundry/services', icon: Shirt, perm: 'laundry.manage' },
     ],
   },
   {
