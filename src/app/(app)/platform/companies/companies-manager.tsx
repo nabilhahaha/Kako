@@ -18,6 +18,7 @@ import {
   subscriptionState,
   type SubscriptionState,
 } from '@/lib/erp/subscription';
+import { ALL_MODULES, MODULE_LABELS, type Module } from '@/lib/erp/navigation';
 import { createCompany, setCompanyActive } from './actions';
 
 export interface CompanyRow {
@@ -37,10 +38,21 @@ const STATE_BADGE: Record<SubscriptionState, { label: string; variant: 'success'
 const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-export function CompaniesManager({ rows }: { rows: CompanyRow[] }) {
+export function CompaniesManager({ rows, btDefaults }: { rows: CompanyRow[]; btDefaults: Record<string, string[]> }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [businessType, setBusinessType] = useState('general');
+  const defaultsFor = (bt: string) => new Set<string>((btDefaults[bt] ?? []).filter((m) => (ALL_MODULES as string[]).includes(m)));
+  const [modules, setModules] = useState<Set<string>>(() => defaultsFor('general'));
+
+  function onBusinessType(bt: string) {
+    setBusinessType(bt);
+    setModules(defaultsFor(bt)); // reset module selection to the type's defaults
+  }
+  function toggleModule(m: Module, on: boolean) {
+    setModules((prev) => { const next = new Set(prev); if (on) next.add(m); else next.delete(m); return next; });
+  }
 
   function onCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -99,7 +111,7 @@ export function CompaniesManager({ rows }: { rows: CompanyRow[] }) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="business_type">نوع النشاط</Label>
-                  <select id="business_type" name="business_type" className={selectCls} defaultValue="general">
+                  <select id="business_type" name="business_type" className={selectCls} value={businessType} onChange={(e) => onBusinessType(e.target.value)}>
                     {BUSINESS_TYPES.map((t) => (
                       <option key={t} value={t}>
                         {BUSINESS_TYPE_LABELS[t]}
@@ -114,6 +126,19 @@ export function CompaniesManager({ rows }: { rows: CompanyRow[] }) {
                 <div className="space-y-2">
                   <Label htmlFor="subscription_end">نهاية الاشتراك</Label>
                   <Input id="subscription_end" name="subscription_end" type="date" dir="ltr" />
+                </div>
+              </div>
+              <div className="space-y-2 rounded-md border bg-secondary/20 p-3">
+                <Label>الموديولات (الوحدات المتاحة للشركة)</Label>
+                <p className="text-xs text-muted-foreground">تتعبّى تلقائياً حسب النشاط — شيل/ضيف اللي تحبه قبل الإنشاء.</p>
+                <input type="hidden" name="_modules" value="1" />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {ALL_MODULES.map((m) => (
+                    <label key={m} className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="modules" value={m} checked={modules.has(m)} onChange={(e) => toggleModule(m, e.target.checked)} className="h-4 w-4" />
+                      {MODULE_LABELS[m]}
+                    </label>
+                  ))}
                 </div>
               </div>
               <Button type="submit" disabled={pending}>

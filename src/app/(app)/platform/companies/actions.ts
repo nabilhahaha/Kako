@@ -6,6 +6,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { checkBranchLimit, checkUserLimit } from '@/lib/erp/plans';
 import { logAudit } from '@/lib/erp/audit';
+import { ALL_MODULES } from '@/lib/erp/navigation';
 import type { BusinessType } from '@/lib/erp/types';
 
 async function requirePlatformOwner() {
@@ -69,6 +70,16 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
     return { ok: false, error: friendlyDbError(error) };
   }
   const newId = (data as { id: string }).id;
+
+  // Apply the module selection from the create form (overrides the business-type
+  // defaults seeded by the trigger). Only coarse modules are managed here;
+  // item-level ones (pos/returns/…) follow the business type.
+  if (formData.get('_modules')) {
+    const selected = formData.getAll('modules').map(String);
+    const rows = ALL_MODULES.map((m) => ({ company_id: newId, module: m, enabled: selected.includes(m) }));
+    await supabase.from('erp_company_modules').upsert(rows, { onConflict: 'company_id,module' });
+  }
+
   await logAudit(supabase, {
     action: 'create',
     entity: 'company',

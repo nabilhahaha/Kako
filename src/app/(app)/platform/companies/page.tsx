@@ -24,11 +24,18 @@ export default async function PlatformCompaniesPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: companies }, { data: branches }, { data: userBranches }] = await Promise.all([
+  const [{ data: companies }, { data: branches }, { data: userBranches }, { data: btModules }] = await Promise.all([
     supabase.from('erp_companies').select('*').order('created_at', { ascending: true }),
     supabase.from('erp_branches').select('id, company_id'),
     supabase.from('erp_user_branches').select('user_id, branch_id'),
+    supabase.from('erp_business_type_modules').select('business_type, module'),
   ]);
+
+  // business type → its default modules (to prefill the create form).
+  const btDefaults: Record<string, string[]> = {};
+  for (const r of (btModules as { business_type: string; module: string }[]) ?? []) {
+    (btDefaults[r.business_type] ??= []).push(r.module);
+  }
 
   const branchToCompany = new Map<string, string>();
   const branchCount = new Map<string, number>();
@@ -60,7 +67,7 @@ export default async function PlatformCompaniesPage() {
         title="الشركات والاشتراكات"
         description="إضافة الشركات (المستأجرين)، إدارة اشتراكاتها وقفلها عند الانتهاء"
       />
-      <CompaniesManager rows={rows} />
+      <CompaniesManager rows={rows} btDefaults={btDefaults} />
     </div>
   );
 }
