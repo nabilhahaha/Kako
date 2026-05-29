@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useEffect, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -49,13 +49,26 @@ function defaultSlot() {
   return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
 }
 
-export function AppointmentsManager({ appointments, patients }: { appointments: Appointment[]; patients: PatientOption[] }) {
+export function AppointmentsManager({
+  appointments,
+  patients,
+  initialPatientId,
+}: {
+  appointments: Appointment[];
+  patients: PatientOption[];
+  initialPatientId?: string | null;
+}) {
   const router = useRouter();
   const prompt = usePrompt();
   const [adding, setAdding] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const slot = useMemo(defaultSlot, []);
+
+  // Deep-link from a patient file (?patient=…) opens the booking form ready.
+  useEffect(() => {
+    if (initialPatientId && patients.some((p) => p.id === initialPatientId)) setAdding(true);
+  }, [initialPatientId, patients]);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) {
     startTransition(async () => {
@@ -108,7 +121,7 @@ export function AppointmentsManager({ appointments, patients }: { appointments: 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-1">
                     <Label>المريض *</Label>
-                    <select name="patient_id" className={selectCls} required defaultValue="">
+                    <select name="patient_id" className={selectCls} required defaultValue={initialPatientId ?? ''}>
                       <option value="" disabled>اختر المريض</option>
                       {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.phone ? ` — ${p.phone}` : ''}</option>)}
                     </select>

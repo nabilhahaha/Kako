@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Pencil, Loader2, X, Search, UserRound } from 'lucide-react';
+import { Plus, Pencil, Loader2, X, Search, UserRound, AlertTriangle } from 'lucide-react';
+import { ageFromBirthDate } from '@/lib/utils';
 import { upsertPatient } from '../actions';
 
 export interface Patient {
@@ -17,7 +18,9 @@ export interface Patient {
   name: string;
   phone: string | null;
   gender: string | null;
+  birth_date: string | null;
   blood_type: string | null;
+  allergies: string | null;
   notes: string | null;
 }
 
@@ -75,8 +78,13 @@ export function PatientsManager({ patients }: { patients: Patient[] }) {
                     <option value="">—</option><option value="male">ذكر</option><option value="female">أنثى</option>
                   </select>
                 </div>
-                <div className="space-y-1"><Label>فصيلة الدم</Label><Input name="blood_type" dir="ltr" defaultValue={editing !== 'new' ? editing.blood_type ?? '' : ''} /></div>
-                <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>ملاحظات (أمراض مزمنة/حساسية)</Label><Input name="notes" defaultValue={editing !== 'new' ? editing.notes ?? '' : ''} /></div>
+                <div className="space-y-1"><Label>تاريخ الميلاد</Label><Input name="birth_date" type="date" dir="ltr" defaultValue={editing !== 'new' ? editing.birth_date ?? '' : ''} /></div>
+                <div className="space-y-1"><Label>فصيلة الدم</Label><Input name="blood_type" dir="ltr" placeholder="مثال: O+" defaultValue={editing !== 'new' ? editing.blood_type ?? '' : ''} /></div>
+                <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+                  <Label className="text-destructive">⚠ الحساسية والأمراض المزمنة</Label>
+                  <Input name="allergies" placeholder="مثال: حساسية البنسلين، سكري، ضغط" defaultValue={editing !== 'new' ? editing.allergies ?? '' : ''} />
+                </div>
+                <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>ملاحظات عامة</Label><Input name="notes" defaultValue={editing !== 'new' ? editing.notes ?? '' : ''} /></div>
               </div>
               <div className="flex gap-2">
                 <Button type="submit" disabled={pending}>{pending && <Loader2 className="h-4 w-4 animate-spin" />} حفظ</Button>
@@ -102,25 +110,34 @@ export function PatientsManager({ patients }: { patients: Patient[] }) {
                     <th className="p-3 text-right font-medium">المريض</th>
                     <th className="p-3 text-right font-medium">الهاتف</th>
                     <th className="p-3 text-center font-medium">النوع</th>
+                    <th className="p-3 text-center font-medium">العمر</th>
                     <th className="p-3 text-center font-medium">فصيلة الدم</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((p) => (
+                  {filtered.map((p) => {
+                    const age = ageFromBirthDate(p.birth_date);
+                    return (
                     <tr key={p.id} className="border-b">
                       <td className="p-3">
                         <Link href={`/clinic/patients/${p.id}`} className="font-medium text-primary hover:underline">{p.name}</Link>
-                        {p.notes && <span className="block text-xs text-muted-foreground">{p.notes}</span>}
+                        {p.allergies && (
+                          <span className="mt-0.5 flex items-center gap-1 text-xs text-destructive">
+                            <AlertTriangle className="h-3 w-3 shrink-0" /> {p.allergies}
+                          </span>
+                        )}
                       </td>
                       <td className="p-3 text-muted-foreground" dir="ltr">{p.phone || '—'}</td>
                       <td className="p-3 text-center">{p.gender === 'male' ? 'ذكر' : p.gender === 'female' ? 'أنثى' : '—'}</td>
+                      <td className="p-3 text-center tabular-nums">{age != null ? `${age} سنة` : '—'}</td>
                       <td className="p-3 text-center" dir="ltr">{p.blood_type || '—'}</td>
                       <td className="p-3 text-left">
                         <Button size="sm" variant="ghost" onClick={() => setEditing(p)}><Pencil className="h-3.5 w-3.5" /></Button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

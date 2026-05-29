@@ -2,14 +2,16 @@ import { notFound, redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PrintButton } from '@/components/print-button';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, ageFromBirthDate } from '@/lib/utils';
 import type { Profile } from '@/lib/erp/types';
 
 interface VisitRow {
   id: string; visit_date: string; visit_type: string; complaint: string | null;
   diagnosis: string | null; prescription: string | null; fee: number; paid_amount: number;
   doctor_id: string | null;
-  patient: { name: string; phone: string | null; gender: string | null; code: string | null } | null;
+  temperature: number | null; blood_pressure: string | null; pulse: number | null;
+  weight: number | null; height: number | null; followup_date: string | null;
+  patient: { name: string; phone: string | null; gender: string | null; code: string | null; birth_date: string | null; allergies: string | null } | null;
 }
 
 const TYPE: Record<string, string> = { consultation: 'كشف', followup: 'متابعة', procedure: 'إجراء' };
@@ -22,7 +24,7 @@ export default async function ClinicVisitPrint({ params }: { params: Promise<{ i
   const supabase = await createClient();
   const { data: visit } = await supabase
     .from('erp_clinic_visits')
-    .select('id, visit_date, visit_type, complaint, diagnosis, prescription, fee, paid_amount, doctor_id, patient:erp_patients(name, phone, gender, code)')
+    .select('id, visit_date, visit_type, complaint, diagnosis, prescription, fee, paid_amount, doctor_id, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone, gender, code, birth_date, allergies)')
     .eq('id', id)
     .maybeSingle();
   if (!visit) notFound();
@@ -37,6 +39,14 @@ export default async function ClinicVisitPrint({ params }: { params: Promise<{ i
 
   const clinicName = ctx.company?.name_ar || ctx.company?.name || 'العيادة';
   const remaining = Math.max(0, Number(v.fee || 0) - Number(v.paid_amount || 0));
+  const age = ageFromBirthDate(v.patient?.birth_date);
+  const vitals = [
+    v.temperature != null ? `حرارة ${v.temperature}°` : null,
+    v.blood_pressure ? `ضغط ${v.blood_pressure}` : null,
+    v.pulse != null ? `نبض ${v.pulse}` : null,
+    v.weight != null ? `وزن ${v.weight}كجم` : null,
+    v.height != null ? `طول ${v.height}سم` : null,
+  ].filter(Boolean);
 
   return (
     <div className="space-y-5 text-sm">
@@ -58,11 +68,24 @@ export default async function ClinicVisitPrint({ params }: { params: Promise<{ i
         <div>
           <span className="text-gray-500">النوع: </span>{TYPE[v.visit_type] ?? v.visit_type}
           {v.patient?.gender && <> · {v.patient.gender === 'male' ? 'ذكر' : 'أنثى'}</>}
+          {age != null && <> · {age} سنة</>}
         </div>
         <div className="text-left">{doctorName && <><span className="text-gray-500">الطبيب: </span>{doctorName}</>}</div>
         {v.patient?.phone && <div><span className="text-gray-500">الهاتف: </span><span dir="ltr">{v.patient.phone}</span></div>}
         {v.patient?.code && <div className="text-left"><span className="text-gray-500">كود الملف: </span><span dir="ltr">{v.patient.code}</span></div>}
       </div>
+
+      {v.patient?.allergies && (
+        <div className="rounded-md border border-red-300 bg-red-50 p-2 text-red-700">
+          <span className="font-bold">⚠ حساسية / أمراض مزمنة: </span>{v.patient.allergies}
+        </div>
+      )}
+
+      {vitals.length > 0 && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 border-y py-2 text-gray-700" dir="ltr">
+          {vitals.map((t, i) => <span key={i}>{t}</span>)}
+        </div>
+      )}
 
       {v.complaint && (
         <div><span className="text-gray-500">الشكوى: </span>{v.complaint}</div>
@@ -78,6 +101,10 @@ export default async function ClinicVisitPrint({ params }: { params: Promise<{ i
         </div>
         <p className="whitespace-pre-wrap leading-7">{v.prescription || '—'}</p>
       </div>
+
+      {v.followup_date && (
+        <div className="font-medium">موعد المتابعة: <span dir="ltr">{formatDate(v.followup_date)}</span></div>
+      )}
 
       {/* Fee receipt */}
       <table className="w-full border-collapse text-sm">

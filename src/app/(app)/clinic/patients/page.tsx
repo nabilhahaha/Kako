@@ -21,7 +21,7 @@ export default async function PatientsPage() {
   const supabase = await createClient();
   const { data: patients } = await supabase
     .from('erp_patients')
-    .select('id, code, name, phone, gender, blood_type, notes')
+    .select('id, code, name, phone, gender, birth_date, blood_type, allergies, notes')
     .eq('is_active', true)
     .order('name', { ascending: true });
 

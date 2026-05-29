@@ -4,7 +4,11 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { AppointmentsManager, type Appointment, type PatientOption } from './appointments-manager';
 
-export default async function AppointmentsPage() {
+export default async function AppointmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ patient?: string }>;
+}) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
@@ -17,6 +21,8 @@ export default async function AppointmentsPage() {
       </div>
     );
   }
+
+  const { patient: initialPatientId } = await searchParams;
 
   const supabase = await createClient();
   // Show appointments from the start of today onward (plus very recent past),
@@ -40,6 +46,7 @@ export default async function AppointmentsPage() {
       <AppointmentsManager
         appointments={(appointments as unknown as Appointment[]) ?? []}
         patients={(patients as PatientOption[]) ?? []}
+        initialPatientId={initialPatientId ?? null}
       />
     </div>
   );

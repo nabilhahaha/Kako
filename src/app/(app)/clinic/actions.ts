@@ -11,18 +11,39 @@ import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 
 const NO_COMPANY = 'هذه العملية تتم من داخل حساب العيادة.';
 
+/** Parse the optional vital-sign / follow-up fields off a visit form. */
+function vitalsFrom(formData: FormData) {
+  const num = (key: string): number | null => {
+    const raw = String(formData.get(key) || '').trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  };
+  return {
+    temperature: num('temperature'),
+    blood_pressure: String(formData.get('blood_pressure') || '').trim() || null,
+    pulse: num('pulse'),
+    weight: num('weight'),
+    height: num('height'),
+    followup_date: String(formData.get('followup_date') || '').trim() || null,
+  };
+}
+
 export async function upsertPatient(formData: FormData): Promise<ActionResult> {
   const ctx = await requirePermission('clinic.manage');
   if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
   if (!name) return { ok: false, error: 'اسم المريض مطلوب.' };
+  const birth = String(formData.get('birth_date') || '').trim();
   const row = {
     code: String(formData.get('code') || '').trim() || null,
     name,
     phone: String(formData.get('phone') || '').trim() || null,
     gender: String(formData.get('gender') || '').trim() || null,
+    birth_date: birth || null,
     blood_type: String(formData.get('blood_type') || '').trim() || null,
+    allergies: String(formData.get('allergies') || '').trim() || null,
     notes: String(formData.get('notes') || '').trim() || null,
   };
 
@@ -57,6 +78,7 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
     prescription: String(formData.get('prescription') || '').trim() || null,
     fee: Number.isFinite(fee) && fee >= 0 ? fee : 0,
     status: 'waiting',
+    ...vitalsFrom(formData),
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/clinic/visits');
@@ -91,6 +113,7 @@ export async function updateVisit(formData: FormData): Promise<ActionResult> {
       diagnosis: String(formData.get('diagnosis') || '').trim() || null,
       prescription: String(formData.get('prescription') || '').trim() || null,
       status: 'done',
+      ...vitalsFrom(formData),
     })
     .eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };

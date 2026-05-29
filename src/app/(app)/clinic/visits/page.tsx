@@ -4,7 +4,11 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { VisitsManager, type Visit, type PatientOption } from './visits-manager';
 
-export default async function VisitsPage() {
+export default async function VisitsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ patient?: string }>;
+}) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
@@ -18,11 +22,13 @@ export default async function VisitsPage() {
     );
   }
 
+  const { patient: initialPatientId } = await searchParams;
+
   const supabase = await createClient();
   const [{ data: visits }, { data: patients }] = await Promise.all([
     supabase
       .from('erp_clinic_visits')
-      .select('id, visit_date, visit_type, complaint, diagnosis, prescription, fee, paid_amount, status, patient:erp_patients(name, phone)')
+      .select('id, visit_date, visit_type, complaint, diagnosis, prescription, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone)')
       .order('visit_date', { ascending: false })
       .limit(200),
     supabase.from('erp_patients').select('id, name, phone').eq('is_active', true).order('name'),
@@ -30,10 +36,11 @@ export default async function VisitsPage() {
 
   return (
     <div>
-      <PageHeader title="الكشوفات" description="كشوفات وزيارات المرضى — التشخيص والروشتة والرسوم." />
+      <PageHeader title="الكشوفات" description="طابور العيادة اليومي — استقبال، فحص (تشخيص وروشتة وعلامات حيوية)، وتحصيل." />
       <VisitsManager
         visits={(visits as unknown as Visit[]) ?? []}
         patients={(patients as PatientOption[]) ?? []}
+        initialPatientId={initialPatientId ?? null}
       />
     </div>
   );
