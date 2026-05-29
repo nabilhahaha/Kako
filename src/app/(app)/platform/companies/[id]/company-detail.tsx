@@ -12,7 +12,7 @@ import { Loader2, Plus, CalendarPlus, Power, Save, Gauge } from 'lucide-react';
 import type { Branch, Company } from '@/lib/erp/types';
 import type { Plan, CompanyUsage } from '@/lib/erp/plans';
 import { BRANCH_ROLES } from '@/lib/erp/constants';
-import { MODULE_LABELS, type Module } from '@/lib/erp/navigation';
+import { ALL_MODULES, MODULE_LABELS, type Module } from '@/lib/erp/navigation';
 import {
   BUSINESS_TYPE_LABELS,
   BUSINESS_TYPES,
@@ -24,6 +24,7 @@ import {
   setCompanyActive,
   setSubscriptionEnd,
   setCompanyPlan,
+  setCompanyModule,
   addBranch,
   onboardAdmin,
 } from '../actions';
@@ -63,6 +64,7 @@ export function CompanyDetail({
   plans,
   usage,
   modulesByPlan,
+  enabledModules = [],
 }: {
   company: Company;
   branches: Branch[];
@@ -75,10 +77,26 @@ export function CompanyDetail({
   usage?: CompanyUsage;
   /** Modules unlocked per plan key (for display under the plan). */
   modulesByPlan?: Record<string, string[]>;
+  /** Modules currently enabled for this company (overrides the type default). */
+  enabledModules?: string[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [customEnd, setCustomEnd] = useState('');
+  const [modules, setModules] = useState<Set<string>>(new Set(enabledModules));
+
+  function toggleModule(m: Module, on: boolean) {
+    setModules((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(m); else next.delete(m);
+      return next;
+    });
+    startTransition(async () => {
+      const res = await setCompanyModule(company.id, m, on);
+      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      router.refresh();
+    });
+  }
 
   const state = subscriptionState(company);
   const left = daysLeft(company);
@@ -254,6 +272,33 @@ export function CompanyDetail({
           </CardContent>
         </Card>
       )}
+
+      {/* Modules — which sections this company sees (default by business type;
+          editable here, and still capped by the plan's modules). */}
+      <Card>
+        <CardContent className="space-y-3 pt-6">
+          <div>
+            <h3 className="font-semibold">الوحدات المفعّلة</h3>
+            <p className="text-xs text-muted-foreground">
+              تتحكم في الأقسام الظاهرة لهذه الشركة (تُضبط افتراضياً حسب نوع النشاط). الخطة قد تحجب وحدة غير متاحة فيها.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {ALL_MODULES.map((m) => (
+              <label key={m} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary"
+                  checked={modules.has(m)}
+                  disabled={pending}
+                  onChange={(e) => toggleModule(m, e.target.checked)}
+                />
+                {MODULE_LABELS[m]}
+              </label>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Company info */}
       <Card>

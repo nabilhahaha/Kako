@@ -148,20 +148,37 @@ export async function getUserContext(): Promise<UserContext | null> {
     }
   }
 
-  // Feature modules: the owner / super admin see everything; tenants see the
-  // modules unlocked by their company's plan (falls back to all when the plan
-  // has no module config — legacy tenants are not restricted).
+  // Feature modules: the owner / super admin see everything. A tenant sees the
+  // intersection of (a) the modules its business type / company enables and
+  // (b) the modules its plan unlocks — so a hotel never shows inventory, and a
+  // free plan never shows accounting. Each layer falls back to "all" when it
+  // has no config, so legacy tenants are not accidentally locked out.
   const isPlatformOwner = (profile as Profile).is_platform_owner === true;
   let modules: Module[] = [...ALL_MODULES];
-  const planKey = (company as { plan_key?: string } | null)?.plan_key;
-  if (!superAdmin && !isPlatformOwner && planKey) {
-    const { data: pm } = await supabase
-      .from('erp_plan_modules')
-      .select('module')
-      .eq('plan_key', planKey);
-    if (pm && pm.length > 0) {
-      modules = pm.map((m) => m.module as Module);
+  if (!superAdmin && !isPlatformOwner) {
+    const planKey = (company as { plan_key?: string } | null)?.plan_key;
+
+    let planModules: Module[] = [...ALL_MODULES];
+    if (planKey) {
+      const { data: pm } = await supabase
+        .from('erp_plan_modules')
+        .select('module')
+        .eq('plan_key', planKey);
+      if (pm && pm.length > 0) planModules = pm.map((m) => m.module as Module);
     }
+
+    let companyModules: Module[] = [...ALL_MODULES];
+    if (companyId) {
+      const { data: cm } = await supabase
+        .from('erp_company_modules')
+        .select('module, enabled')
+        .eq('company_id', companyId);
+      if (cm && cm.length > 0) {
+        companyModules = cm.filter((m) => m.enabled).map((m) => m.module as Module);
+      }
+    }
+
+    modules = planModules.filter((m) => companyModules.includes(m));
   }
 
   return {

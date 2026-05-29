@@ -99,10 +99,11 @@ export default async function PlatformCompanyDetailPage({
     name_ar: roleNameByKey.get(key) ?? key,
   }));
 
-  // Plans, plan→module map & current usage (for the plan selector + meters).
-  const [{ data: plansData }, { data: planModData }, usage] = await Promise.all([
+  // Plans, plan→module map, the company's enabled modules & current usage.
+  const [{ data: plansData }, { data: planModData }, { data: companyModData }, usage] = await Promise.all([
     supabase.from('erp_plans').select('key, name_ar, max_users, max_branches, max_products, rank').order('rank', { ascending: true }),
     supabase.from('erp_plan_modules').select('plan_key, module'),
+    supabase.from('erp_company_modules').select('module, enabled').eq('company_id', id),
     getCompanyUsage(supabase, id),
   ]);
   const plans = (plansData as Plan[]) ?? [];
@@ -110,6 +111,9 @@ export default async function PlatformCompanyDetailPage({
   for (const pm of planModData ?? []) {
     (modulesByPlan[pm.plan_key as string] ??= []).push(pm.module as string);
   }
+  const enabledModules = (companyModData ?? [])
+    .filter((m) => m.enabled)
+    .map((m) => m.module as string);
 
   return (
     <div>
@@ -125,6 +129,7 @@ export default async function PlatformCompanyDetailPage({
         plans={plans}
         usage={usage}
         modulesByPlan={modulesByPlan}
+        enabledModules={enabledModules}
       />
       <div className="mt-6">
         <CompanyPermissions

@@ -54,15 +54,16 @@ export interface NavSection {
 }
 
 /** Feature modules that a subscription plan can unlock. */
-export type Module = 'sales' | 'inventory' | 'purchasing' | 'accounting';
+export type Module = 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel';
 
-export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting'];
+export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel'];
 
 export const MODULE_LABELS: Record<Module, string> = {
   sales: 'المبيعات',
   inventory: 'المخزون',
   purchasing: 'المشتريات',
   accounting: 'الحسابات',
+  hotel: 'الفندق',
 };
 
 export const NAV_SECTIONS: NavSection[] = [
@@ -79,6 +80,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'الفندق',
+    module: 'hotel',
     items: [
       { label: 'الغرف', href: '/hotel/rooms', icon: BedDouble, perm: 'hotel.manage' },
       { label: 'الحجوزات', href: '/hotel/bookings', icon: CalendarDays, perm: 'hotel.manage' },

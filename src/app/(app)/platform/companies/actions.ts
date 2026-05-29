@@ -254,3 +254,28 @@ export async function setCompanyPlan(id: string, planKey: string): Promise<Actio
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
 }
+
+/** Enable or disable a feature module for a company (overrides the type default). */
+export async function setCompanyModule(
+  companyId: string,
+  module: string,
+  enabled: boolean,
+): Promise<ActionResult> {
+  const { error: authErr } = await requirePlatformOwner();
+  if (authErr) return { ok: false, error: authErr };
+  if (!companyId || !module) return { ok: false, error: 'بيانات غير مكتملة.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('erp_company_modules')
+    .upsert({ company_id: companyId, module, enabled }, { onConflict: 'company_id,module' });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, {
+    action: enabled ? 'enable' : 'disable',
+    entity: 'company_module',
+    entityId: module,
+    companyId,
+  });
+  revalidatePath(`/platform/companies/${companyId}`);
+  return { ok: true };
+}
