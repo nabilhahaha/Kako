@@ -76,6 +76,10 @@ export type BranchRole =
   | 'cashier'
   | 'salesman'
   | 'driver'
+  | 'technician'
+  | 'doctor'
+  | 'receptionist'
+  | 'stylist'
   | 'warehouse_keeper'
   | 'staff'
   | 'viewer';
@@ -104,7 +108,17 @@ export type BusinessType =
   | 'restaurant'
   | 'cafe'
   | 'delivery'
-  | 'services';
+  | 'services'
+  | 'bakery'
+  | 'butchery'
+  | 'herbalist'
+  | 'auto_parts'
+  | 'bookstore'
+  | 'electronics'
+  | 'laundry'
+  | 'workshop'
+  | 'clinic'
+  | 'salon';
 
 export interface Company {
   id: string;

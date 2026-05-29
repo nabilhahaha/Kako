@@ -10,6 +10,16 @@ export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
   cafe: 'كافيه',
   delivery: 'توصيل / ديليفري',
   services: 'خدمات (بلايستيشن، صيانة…)',
+  bakery: 'مخبز / حلواني',
+  butchery: 'جزارة / أسماك / خضار',
+  herbalist: 'عطارة / مستحضرات تجميل',
+  auto_parts: 'قطع غيار / إكسسوار سيارات',
+  bookstore: 'مكتبة / أدوات مكتبية',
+  electronics: 'موبايلات / إلكترونيات',
+  laundry: 'مغسلة ملابس',
+  workshop: 'ورشة صيانة',
+  clinic: 'عيادة / مركز طبي',
+  salon: 'صالون / مركز تجميل',
 };
 
 export const BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_LABELS) as BusinessType[];

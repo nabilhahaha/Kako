@@ -28,6 +28,8 @@ function slugify(raw: string): string {
 const BUSINESS_TYPES: BusinessType[] = [
   'general', 'supermarket', 'pharmacy', 'wholesale',
   'clothing', 'restaurant', 'cafe', 'delivery', 'services',
+  'bakery', 'butchery', 'herbalist', 'auto_parts', 'bookstore',
+  'electronics', 'laundry', 'workshop', 'clinic', 'salon',
 ];
 
 /** Create a new tenant company with an optional timed subscription. */

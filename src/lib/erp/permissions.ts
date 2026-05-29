@@ -69,6 +69,12 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create',
   ],
+  technician: [
+    'customers.manage', 'sales.sell', 'inventory.view', 'stock_request.create',
+  ],
+  doctor: ['customers.manage', 'sales.sell', 'reports.view'],
+  receptionist: ['customers.manage', 'sales.sell', 'sales.collect'],
+  stylist: ['customers.manage', 'sales.sell'],
   warehouse_keeper: [
     'inventory.view', 'inventory.adjust', 'inventory.transfer',
     'inventory.count', 'stock_request.approve', 'purchasing.manage',
