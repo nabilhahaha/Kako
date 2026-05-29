@@ -27,6 +27,8 @@ import {
   Download,
   Crown,
   ScrollText,
+  AlertTriangle,
+  Clock,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -95,6 +97,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'المنتجات', href: '/products', icon: Package, perm: 'inventory.view' },
       { label: 'أرصدة المخزون', href: '/inventory', icon: Boxes, perm: 'inventory.view' },
+      { label: 'تنبيهات نقص المخزون', href: '/inventory/low-stock', icon: AlertTriangle, perm: 'inventory.view' },
       { label: 'التحويلات', href: '/inventory/transfers', icon: ArrowLeftRight, perm: 'inventory.transfer' },
       { label: 'طلبات التحميل', href: '/inventory/requests', icon: ClipboardCheck, perm: ['stock_request.create', 'stock_request.approve'] },
       { label: 'الجرد', href: '/inventory/count', icon: ClipboardList, perm: 'inventory.count' },
@@ -118,6 +121,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'سندات الصرف والقبض', href: '/accounting/vouchers', icon: ReceiptText, perm: 'accounting.post' },
       { label: 'القيود اليومية', href: '/accounting/journal', icon: Wallet, perm: 'accounting.view' },
       { label: 'التقارير المالية', href: '/accounting/reports', icon: BarChart3, perm: 'accounting.view' },
+      { label: 'أعمار ديون العملاء', href: '/accounting/aging', icon: Clock, perm: ['accounting.view', 'reports.view'] },
       { label: 'تصدير البيانات', href: '/exports', icon: Download, perm: ['accounting.view', 'reports.view'] },
     ],
   },
