@@ -172,6 +172,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'الفروع', href: '/settings/branches', icon: Building2, superAdminOnly: true },
       { label: 'المستخدمون', href: '/settings/users', icon: Users, superAdminOnly: true },
+      { label: 'فريق العمل', href: '/settings/staff', icon: UserCog, perm: 'settings.users' },
       { label: 'الصلاحيات', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true },
       { label: 'سجل التدقيق', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true },
       { label: 'حسابي', href: '/account', icon: UserCog, showForPlatformOwner: true },
