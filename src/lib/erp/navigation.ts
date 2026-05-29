@@ -138,6 +138,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'تاجر الجملة',
     module: 'wholesale',
     items: [
+      { label: 'فاتورة جملة', href: '/wholesale/order', icon: FileText, perm: 'wholesale.pricing' },
       { label: 'مستويات الأسعار', href: '/wholesale', icon: Layers, perm: 'wholesale.pricing' },
       { label: 'قائمة الأسعار', href: '/wholesale/prices', icon: Tags, perm: 'wholesale.pricing' },
       { label: 'مستويات العملاء', href: '/wholesale/customers', icon: Users, perm: 'wholesale.pricing' },
