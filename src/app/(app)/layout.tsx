@@ -14,6 +14,12 @@ export default async function AppLayout({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  // A signed-in user who isn't platform staff and has no company yet is sent to
+  // self-service onboarding to create their company (free trial).
+  if (!ctx.isPlatformOwner && !ctx.isSuperAdmin && ctx.memberships.length === 0) {
+    redirect('/onboarding');
+  }
+
   // Subscription gate: a tenant whose company is suspended or expired is
   // locked out (read-only message). The vendor (platform owner) is exempt.
   const locked = !ctx.isPlatformOwner && companyLocked(ctx.company);
