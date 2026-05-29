@@ -7,9 +7,19 @@ import { Label } from '@/components/ui/label';
 
 export interface PatientOption { id: string; name: string; phone: string | null }
 
+export interface DoctorOption { id: string; full_name: string | null; email: string | null }
+
+/** Display name for a doctor id, from the company's doctor list. */
+export function doctorName(doctors: DoctorOption[], id: string | null | undefined): string {
+  if (!id) return '—';
+  const d = doctors.find((x) => x.id === id);
+  return d?.full_name || d?.email || 'طبيب';
+}
+
 export interface ClinicVisit {
   id: string;
   patient_id: string;
+  doctor_id: string | null;
   visit_date: string;
   visit_type: string;
   complaint: string | null;

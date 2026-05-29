@@ -71,7 +71,7 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
   const { error } = await supabase.from('erp_clinic_visits').insert({
     company_id: ctx.companyId,
     patient_id,
-    doctor_id: ctx.userId,
+    doctor_id: String(formData.get('doctor_id') || '').trim() || ctx.userId,
     visit_type: String(formData.get('visit_type') || 'consultation'),
     complaint: String(formData.get('complaint') || '').trim() || null,
     diagnosis: String(formData.get('diagnosis') || '').trim() || null,
@@ -182,7 +182,7 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
   const { error } = await supabase.from('erp_clinic_appointments').insert({
     company_id: ctx.companyId,
     patient_id,
-    doctor_id: ctx.userId,
+    doctor_id: String(formData.get('doctor_id') || '').trim() || ctx.userId,
     scheduled_at: scheduled.toISOString(),
     duration_min: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 30,
     reason: String(formData.get('reason') || '').trim() || null,
@@ -222,10 +222,10 @@ export async function checkInAppointment(formData: FormData): Promise<ActionResu
   const supabase = await createClient();
   const { data: appt } = await supabase
     .from('erp_clinic_appointments')
-    .select('patient_id, reason, status')
+    .select('patient_id, reason, status, doctor_id')
     .eq('id', appointmentId)
     .maybeSingle();
-  const a = appt as { patient_id?: string; reason?: string | null; status?: string } | null;
+  const a = appt as { patient_id?: string; reason?: string | null; status?: string; doctor_id?: string | null } | null;
   if (!a?.patient_id) return { ok: false, error: 'الموعد غير موجود.' };
   if (a.status === 'done' || a.status === 'arrived')
     return { ok: false, error: 'تم تسجيل وصول هذا الموعد بالفعل.' };
@@ -233,7 +233,7 @@ export async function checkInAppointment(formData: FormData): Promise<ActionResu
   const { error: visitErr } = await supabase.from('erp_clinic_visits').insert({
     company_id: ctx.companyId,
     patient_id: a.patient_id,
-    doctor_id: ctx.userId,
+    doctor_id: a.doctor_id || ctx.userId,
     appointment_id: appointmentId,
     visit_type: 'consultation',
     complaint: a.reason || null,

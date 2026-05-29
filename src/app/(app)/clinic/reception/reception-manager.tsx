@@ -12,9 +12,9 @@ import { Plus, Loader2, Wallet } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { usePrompt } from '@/components/prompt-dialog';
 import { createVisit, recordVisitPayment } from '../actions';
-import { type ClinicVisit as Visit, type PatientOption, VISIT_STATUS, selectCls } from '../clinical-ui';
+import { type ClinicVisit as Visit, type PatientOption, type DoctorOption, VISIT_STATUS, selectCls } from '../clinical-ui';
 
-export function ReceptionBilling({ visits, patients }: { visits: Visit[]; patients: PatientOption[] }) {
+export function ReceptionBilling({ visits, patients, doctors }: { visits: Visit[]; patients: PatientOption[]; doctors: DoctorOption[] }) {
   const router = useRouter();
   const prompt = usePrompt();
   const [adding, setAdding] = useState(false);
@@ -74,6 +74,13 @@ export function ReceptionBilling({ visits, patients }: { visits: Visit[]; patien
                     <select name="patient_id" className={selectCls} required defaultValue="">
                       <option value="" disabled>اختر المريض</option>
                       {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.phone ? ` — ${p.phone}` : ''}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>الطبيب</Label>
+                    <select name="doctor_id" className={selectCls} defaultValue={doctors.length === 1 ? doctors[0].id : ''}>
+                      <option value="">— غير محدد —</option>
+                      {doctors.map((d) => <option key={d.id} value={d.id}>{d.full_name || d.email}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">

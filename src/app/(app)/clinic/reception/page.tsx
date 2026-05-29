@@ -7,7 +7,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { UserPlus, CalendarClock, Wallet } from 'lucide-react';
 import { AppointmentsManager, type Appointment } from '../appointments/appointments-manager';
 import { ReceptionBilling } from './reception-manager';
-import type { ClinicVisit, PatientOption } from '../clinical-ui';
+import type { ClinicVisit, PatientOption, DoctorOption } from '../clinical-ui';
 
 export default async function ReceptionPage({
   searchParams,
@@ -32,19 +32,20 @@ export default async function ReceptionPage({
   const since = new Date();
   since.setDate(since.getDate() - 1);
 
-  const [{ data: appointments }, { data: patients }, { data: visits }] = await Promise.all([
+  const [{ data: appointments }, { data: patients }, { data: visits }, { data: doctors }] = await Promise.all([
     supabase
       .from('erp_clinic_appointments')
-      .select('id, scheduled_at, duration_min, reason, status, patient:erp_patients(name, phone)')
+      .select('id, scheduled_at, duration_min, reason, status, doctor_id, patient:erp_patients(name, phone)')
       .gte('scheduled_at', since.toISOString())
       .order('scheduled_at', { ascending: true })
       .limit(200),
     supabase.from('erp_patients').select('id, name, phone').eq('is_active', true).order('name'),
     supabase
       .from('erp_clinic_visits')
-      .select('id, patient_id, visit_date, visit_type, complaint, diagnosis, prescription, tests, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone)')
+      .select('id, patient_id, doctor_id, visit_date, visit_type, complaint, diagnosis, prescription, tests, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone)')
       .order('visit_date', { ascending: false })
       .limit(200),
+    supabase.rpc('erp_clinic_doctors'),
   ]);
 
   return (
@@ -66,6 +67,7 @@ export default async function ReceptionPage({
         <AppointmentsManager
           appointments={(appointments as unknown as Appointment[]) ?? []}
           patients={(patients as PatientOption[]) ?? []}
+          doctors={(doctors as DoctorOption[]) ?? []}
           initialPatientId={initialPatientId ?? null}
         />
       </section>
@@ -75,6 +77,7 @@ export default async function ReceptionPage({
         <ReceptionBilling
           visits={(visits as unknown as ClinicVisit[]) ?? []}
           patients={(patients as PatientOption[]) ?? []}
+          doctors={(doctors as DoctorOption[]) ?? []}
         />
       </section>
     </div>

@@ -3,6 +3,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { AppointmentsManager, type Appointment, type PatientOption } from './appointments-manager';
+import type { DoctorOption } from '../clinical-ui';
 
 export default async function AppointmentsPage({
   searchParams,
@@ -30,14 +31,15 @@ export default async function AppointmentsPage({
   const since = new Date();
   since.setDate(since.getDate() - 1);
 
-  const [{ data: appointments }, { data: patients }] = await Promise.all([
+  const [{ data: appointments }, { data: patients }, { data: doctors }] = await Promise.all([
     supabase
       .from('erp_clinic_appointments')
-      .select('id, scheduled_at, duration_min, reason, status, patient:erp_patients(name, phone)')
+      .select('id, scheduled_at, duration_min, reason, status, doctor_id, patient:erp_patients(name, phone)')
       .gte('scheduled_at', since.toISOString())
       .order('scheduled_at', { ascending: true })
       .limit(200),
     supabase.from('erp_patients').select('id, name, phone').eq('is_active', true).order('name'),
+    supabase.rpc('erp_clinic_doctors'),
   ]);
 
   return (
@@ -46,6 +48,7 @@ export default async function AppointmentsPage({
       <AppointmentsManager
         appointments={(appointments as unknown as Appointment[]) ?? []}
         patients={(patients as PatientOption[]) ?? []}
+        doctors={(doctors as DoctorOption[]) ?? []}
         initialPatientId={initialPatientId ?? null}
       />
     </div>

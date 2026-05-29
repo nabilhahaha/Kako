@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Loader2, X, CalendarClock, CheckCircle2, LogIn } from 'lucide-react';
 import { usePrompt } from '@/components/prompt-dialog';
 import { createAppointment, setAppointmentStatus, checkInAppointment } from '../actions';
+import { type DoctorOption, doctorName } from '../clinical-ui';
 
 export interface PatientOption { id: string; name: string; phone: string | null }
 
@@ -20,6 +21,7 @@ export interface Appointment {
   duration_min: number;
   reason: string | null;
   status: string;
+  doctor_id: string | null;
   patient: { name: string; phone: string | null } | null;
 }
 
@@ -52,10 +54,12 @@ function defaultSlot() {
 export function AppointmentsManager({
   appointments,
   patients,
+  doctors,
   initialPatientId,
 }: {
   appointments: Appointment[];
   patients: PatientOption[];
+  doctors: DoctorOption[];
   initialPatientId?: string | null;
 }) {
   const router = useRouter();
@@ -127,6 +131,13 @@ export function AppointmentsManager({
                     </select>
                   </div>
                   <div className="space-y-1">
+                    <Label>الطبيب</Label>
+                    <select name="doctor_id" className={selectCls} defaultValue={doctors.length === 1 ? doctors[0].id : ''}>
+                      <option value="">— غير محدد —</option>
+                      {doctors.map((d) => <option key={d.id} value={d.id}>{d.full_name || d.email}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
                     <Label>التاريخ والوقت *</Label>
                     <Input name="scheduled_at" type="datetime-local" required defaultValue={slot} dir="ltr" />
                   </div>
@@ -163,6 +174,7 @@ export function AppointmentsManager({
                   <tr>
                     <th className="p-3 text-right font-medium">المريض</th>
                     <th className="p-3 text-right font-medium">الموعد</th>
+                    <th className="p-3 text-right font-medium">الطبيب</th>
                     <th className="p-3 text-right font-medium">السبب</th>
                     <th className="p-3 text-center font-medium">الحالة</th>
                     <th className="p-3"></th>
@@ -179,6 +191,7 @@ export function AppointmentsManager({
                           {a.patient?.phone && <span className="block text-xs text-muted-foreground" dir="ltr">{a.patient.phone}</span>}
                         </td>
                         <td className="p-3 text-muted-foreground" dir="ltr">{dateTimeFmt.format(new Date(a.scheduled_at))}</td>
+                        <td className="p-3 text-muted-foreground">{doctorName(doctors, a.doctor_id)}</td>
                         <td className="p-3 text-muted-foreground">{a.reason || '—'}</td>
                         <td className="p-3 text-center"><Badge variant={st.variant}>{st.label}</Badge></td>
                         <td className="p-3">

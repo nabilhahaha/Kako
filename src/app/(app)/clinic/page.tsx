@@ -12,8 +12,10 @@ import {
   Wallet,
   AlertTriangle,
   CalendarClock,
+  UserRound,
   type LucideIcon,
 } from 'lucide-react';
+import { type DoctorOption } from './clinical-ui';
 
 const VISIT_STATUS: Record<string, { label: string; variant: 'info' | 'warning' | 'success' | 'destructive' | 'secondary' }> = {
   waiting: { label: 'في الانتظار', variant: 'info' },
@@ -78,11 +80,11 @@ export default async function ClinicDashboardPage() {
   const dayStart = `${today}T00:00:00`;
   const dayEnd = `${today}T23:59:59`;
 
-  const [{ data: todayVisits }, { data: openVisits }, { data: todayAppts }] = await Promise.all([
-    // Today's visits (for count + revenue + waiting queue).
+  const [{ data: todayVisits }, { data: openVisits }, { data: todayAppts }, { data: doctorsData }] = await Promise.all([
+    // Today's visits (for count + revenue + waiting queue + per-doctor split).
     supabase
       .from('erp_clinic_visits')
-      .select('id, visit_type, fee, paid_amount, status, patient:erp_patients(name)')
+      .select('id, visit_type, fee, paid_amount, status, doctor_id, patient:erp_patients(name)')
       .eq('visit_date', today)
       .order('created_at', { ascending: true }),
     // Outstanding fees across all non-cancelled visits.
@@ -97,12 +99,28 @@ export default async function ClinicDashboardPage() {
       .gte('scheduled_at', dayStart)
       .lte('scheduled_at', dayEnd)
       .order('scheduled_at', { ascending: true }),
+    supabase.rpc('erp_clinic_doctors'),
   ]);
 
   const visits = (todayVisits as unknown as Array<{
-    id: string; visit_type: string; fee: number; paid_amount: number; status: string;
+    id: string; visit_type: string; fee: number; paid_amount: number; status: string; doctor_id: string | null;
     patient: { name: string } | null;
   }>) ?? [];
+  const doctors = (doctorsData as DoctorOption[]) ?? [];
+
+  // Per-doctor split of today's activity (count of visits + collected fees).
+  const byDoctor = doctors
+    .map((d) => {
+      const own = visits.filter((v) => v.doctor_id === d.id && v.status !== 'cancelled');
+      return {
+        id: d.id,
+        name: d.full_name || d.email || 'طبيب',
+        count: own.length,
+        revenue: own.reduce((s, v) => s + Number(v.paid_amount || 0), 0),
+      };
+    })
+    .filter((d) => d.count > 0)
+    .sort((a, b) => b.count - a.count);
 
   const visitsCount = visits.filter((v) => v.status !== 'cancelled').length;
   const waiting = visits.filter((v) => v.status === 'waiting' || v.status === 'in_progress');
@@ -129,6 +147,25 @@ export default async function ClinicDashboardPage() {
         <StatCard label="إيراد اليوم" value={formatCurrency(todayRevenue)} icon={Wallet} tone="success" />
         <StatCard label="مستحقات غير محصّلة" value={formatCurrency(outstanding)} icon={AlertTriangle} tone="warning" href="/clinic/visits" />
       </div>
+
+      {byDoctor.length > 1 && (
+        <div className="mt-6">
+          <h2 className="mb-2 flex items-center gap-2 font-semibold"><UserRound className="h-4 w-4" /> حسب الطبيب اليوم</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {byDoctor.map((d) => (
+              <Card key={d.id}>
+                <CardContent className="flex items-center justify-between gap-3 p-4">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">د. {d.name}</p>
+                    <p className="text-xs text-muted-foreground">{d.count} كشف اليوم</p>
+                  </div>
+                  <span className="shrink-0 text-sm font-bold tabular-nums text-success" dir="ltr">{formatCurrency(d.revenue)}</span>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>

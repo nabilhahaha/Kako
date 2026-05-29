@@ -9,6 +9,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { formatCurrency, formatDate, ageFromBirthDate } from '@/lib/utils';
 import { ArrowRight, Printer, Stethoscope, CalendarClock, AlertTriangle, Plus, Thermometer, Activity, HeartPulse, Weight, CalendarCheck, LineChart as LineChartIcon } from 'lucide-react';
 import { VitalsTrend, type VitalsPoint } from './vitals-trend';
+import { type DoctorOption, doctorName } from '../../clinical-ui';
 
 interface Patient {
   id: string; code: string | null; name: string; phone: string | null;
@@ -18,6 +19,7 @@ interface Patient {
 interface VisitRow {
   id: string; visit_date: string; visit_type: string; complaint: string | null;
   diagnosis: string | null; prescription: string | null; tests: string | null; fee: number; paid_amount: number; status: string;
+  doctor_id: string | null;
   temperature: number | null; blood_pressure: string | null; pulse: number | null;
   weight: number | null; height: number | null; followup_date: string | null;
 }
@@ -52,10 +54,10 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   if (!patient) notFound();
   const p = patient as Patient;
 
-  const [{ data: visits }, { data: appts }] = await Promise.all([
+  const [{ data: visits }, { data: appts }, { data: doctorsData }] = await Promise.all([
     supabase
       .from('erp_clinic_visits')
-      .select('id, visit_date, visit_type, complaint, diagnosis, prescription, tests, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date')
+      .select('id, visit_date, visit_type, complaint, diagnosis, prescription, tests, fee, paid_amount, status, doctor_id, temperature, blood_pressure, pulse, weight, height, followup_date')
       .eq('patient_id', id)
       .order('visit_date', { ascending: false })
       .limit(200),
@@ -65,8 +67,10 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       .eq('patient_id', id)
       .order('scheduled_at', { ascending: false })
       .limit(50),
+    supabase.rpc('erp_clinic_doctors'),
   ]);
 
+  const doctors = (doctorsData as DoctorOption[]) ?? [];
   const visitList = (visits as VisitRow[]) ?? [];
   const apptList = (appts as ApptRow[]) ?? [];
   const billable = visitList.filter((v) => v.status !== 'cancelled');
@@ -196,10 +200,11 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
                     <Card>
                       <CardContent className="space-y-2 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="text-sm font-medium" dir="ltr">{formatDate(v.visit_date)}</span>
                             <Badge variant="outline">{TYPE[v.visit_type] ?? v.visit_type}</Badge>
                             <Badge variant={st.variant}>{st.label}</Badge>
+                            {v.doctor_id && <span className="text-xs text-muted-foreground">د. {doctorName(doctors, v.doctor_id)}</span>}
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-sm tabular-nums" dir="ltr">

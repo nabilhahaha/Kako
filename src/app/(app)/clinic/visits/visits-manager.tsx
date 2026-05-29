@@ -16,6 +16,8 @@ import { createVisit, updateVisit, setVisitStatus, recordVisitPayment } from '..
 import {
   type ClinicVisit as Visit,
   type PatientOption,
+  type DoctorOption,
+  doctorName,
   TYPE,
   TEST_TEMPLATES,
   selectCls,
@@ -29,10 +31,12 @@ export type { ClinicVisit as Visit, PatientOption } from '../clinical-ui';
 export function VisitsManager({
   visits,
   patients,
+  doctors,
   initialPatientId,
 }: {
   visits: Visit[];
   patients: PatientOption[];
+  doctors: DoctorOption[];
   initialPatientId?: string | null;
 }) {
   const router = useRouter();
@@ -105,6 +109,13 @@ export function VisitsManager({
                     </select>
                   </div>
                   <div className="space-y-1">
+                    <Label>الطبيب</Label>
+                    <select name="doctor_id" className={selectCls} defaultValue={doctors.length === 1 ? doctors[0].id : ''}>
+                      <option value="">— غير محدد —</option>
+                      {doctors.map((d) => <option key={d.id} value={d.id}>{d.full_name || d.email}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
                     <Label>نوع الزيارة</Label>
                     <select name="visit_type" className={selectCls} defaultValue="consultation">
                       <option value="consultation">كشف</option><option value="followup">متابعة</option><option value="procedure">إجراء</option>
@@ -134,7 +145,7 @@ export function VisitsManager({
       <div className="grid gap-4 lg:grid-cols-3">
         <QueueColumn title="في الانتظار" icon={Clock} count={waiting.length} tone="info" empty="لا أحد في الانتظار.">
           {waiting.map((v) => (
-            <QueueCard key={v.id} v={v}>
+            <QueueCard key={v.id} v={v} doctorLabel={doctorName(doctors, v.doctor_id)}>
               <Button size="sm" disabled={pending} onClick={() => run(() => setVisitStatus(v.id, 'in_progress'), 'دخل الكشف')}><Play className="h-3.5 w-3.5" /> بدء الكشف</Button>
               <Button size="sm" variant="secondary" disabled={pending} onClick={() => setExam(v)}>فحص</Button>
               {v.fee - v.paid_amount > 0 && v.fee > 0 && <Button size="sm" variant="outline" disabled={pending} onClick={() => collect(v)}>تحصيل</Button>}
@@ -145,7 +156,7 @@ export function VisitsManager({
 
         <QueueColumn title="جاري الكشف" icon={Stethoscope} count={inProgress.length} tone="warning" empty="لا يوجد كشف جارٍ.">
           {inProgress.map((v) => (
-            <QueueCard key={v.id} v={v}>
+            <QueueCard key={v.id} v={v} doctorLabel={doctorName(doctors, v.doctor_id)}>
               <Button size="sm" variant="secondary" disabled={pending} onClick={() => setExam(v)}><ClipboardList className="h-3.5 w-3.5" /> إكمال الكشف</Button>
               {v.fee - v.paid_amount > 0 && v.fee > 0 && <Button size="sm" variant="outline" disabled={pending} onClick={() => collect(v)}>تحصيل</Button>}
             </QueueCard>
@@ -156,7 +167,7 @@ export function VisitsManager({
           {done.slice(0, 40).map((v) => {
             const remaining = v.fee - v.paid_amount;
             return (
-              <QueueCard key={v.id} v={v} muted>
+              <QueueCard key={v.id} v={v} muted doctorLabel={doctorName(doctors, v.doctor_id)}>
                 {v.diagnosis && <p className="text-xs text-muted-foreground">{v.diagnosis}</p>}
                 {remaining > 0 && v.fee > 0 && <Button size="sm" variant="outline" disabled={pending} onClick={() => collect(v)}>تحصيل ({formatCurrency(remaining)})</Button>}
                 <Link href={`/print/clinic/visit/${v.id}`} target="_blank" className={buttonVariants({ size: 'sm', variant: 'ghost' })}><Printer className="h-3.5 w-3.5" /> طباعة</Link>
@@ -254,7 +265,7 @@ export function QueueColumn({
   );
 }
 
-export function QueueCard({ v, muted, children }: { v: Visit; muted?: boolean; children: React.ReactNode }) {
+export function QueueCard({ v, muted, doctorLabel, children }: { v: Visit; muted?: boolean; doctorLabel?: string; children: React.ReactNode }) {
   return (
     <Card className={muted ? 'opacity-90' : ''}>
       <CardContent className="space-y-2 p-3">
@@ -262,6 +273,7 @@ export function QueueCard({ v, muted, children }: { v: Visit; muted?: boolean; c
           <div className="min-w-0">
             <Link href={`/clinic/patients/${v.patient_id}`} className="truncate font-medium text-primary hover:underline">{v.patient?.name ?? '—'}</Link>
             <p className="text-xs text-muted-foreground" dir="ltr">{formatDate(v.visit_date)} · {TYPE[v.visit_type] ?? v.visit_type}</p>
+            {doctorLabel && <p className="text-xs text-muted-foreground">د. {doctorLabel}</p>}
           </div>
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground" dir="ltr">{formatCurrency(v.fee)}</span>
         </div>
