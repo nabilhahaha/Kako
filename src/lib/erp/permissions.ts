@@ -21,7 +21,8 @@ export type Permission =
   | 'settings.branches' // company & branches
   | 'settings.users' // users, roles, hierarchy
   | 'reports.view'
-  | 'hotel.manage'; // rooms & bookings (hotel / furnished apartments)
+  | 'hotel.manage' // rooms & bookings (hotel / furnished apartments)
+  | 'field.sales'; // rep app, daily settlement, visit planning (field roles only)
 
 export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }> = {
   'sales.sell': { ar: 'البيع (فواتير/أوامر/نقطة بيع)', group: 'المبيعات' },
@@ -43,6 +44,7 @@ export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }
   'settings.branches': { ar: 'إدارة الفروع', group: 'الإعدادات' },
   'settings.users': { ar: 'إدارة المستخدمين والصلاحيات', group: 'الإعدادات' },
   'hotel.manage': { ar: 'إدارة الغرف والحجوزات', group: 'الفندق' },
+  'field.sales': { ar: 'المبيعات الميدانية (تطبيق المندوب)', group: 'المبيعات' },
 };
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS) as Permission[];
@@ -65,11 +67,11 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   cashier: ['sales.sell', 'sales.collect', 'customers.manage'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
-    'inventory.view', 'stock_request.create',
+    'inventory.view', 'stock_request.create', 'field.sales',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
-    'inventory.view', 'stock_request.create',
+    'inventory.view', 'stock_request.create', 'field.sales',
   ],
   technician: [
     'customers.manage', 'sales.sell', 'inventory.view', 'stock_request.create',
