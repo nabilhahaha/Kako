@@ -43,6 +43,9 @@ export interface NavItem {
   superAdminOnly?: boolean;
   /** Only the platform owner (the vendor). */
   platformOwnerOnly?: boolean;
+  /** Also show this item to the platform owner (who otherwise sees only the
+   *  vendor panel + a few cross-tenant tools). */
+  showForPlatformOwner?: boolean;
 }
 
 export interface NavSection {
@@ -141,8 +144,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'الفروع', href: '/settings/branches', icon: Building2, superAdminOnly: true },
       { label: 'المستخدمون', href: '/settings/users', icon: Users, superAdminOnly: true },
       { label: 'الصلاحيات', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true },
-      { label: 'سجل التدقيق', href: '/platform/audit', icon: ScrollText, superAdminOnly: true },
-      { label: 'حسابي', href: '/account', icon: UserCog },
+      { label: 'سجل التدقيق', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true },
+      { label: 'حسابي', href: '/account', icon: UserCog, showForPlatformOwner: true },
     ],
   },
 ];
@@ -158,14 +161,26 @@ export function visibleSections(
 ): NavSection[] {
   const has = (perm: Permission | Permission[]) =>
     Array.isArray(perm) ? perm.some((p) => permissions.includes(p)) : permissions.includes(perm);
-  const elevated = isSuperAdmin || isPlatformOwner;
+
+  // The platform owner (the vendor) runs the platform; they belong to no tenant
+  // company and must NOT see tenant-operational sections (sales, inventory,
+  // hotel, …). They see only the vendor panel + a few cross-tenant tools
+  // explicitly flagged with platformOwnerOnly / showForPlatformOwner.
+  if (isPlatformOwner) {
+    return NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => item.platformOwnerOnly || item.showForPlatformOwner),
+    })).filter((section) => section.items.length > 0);
+  }
+
+  const elevated = isSuperAdmin;
   const moduleAllowed = (section: NavSection) =>
     !section.module || modules.length === 0 || modules.includes(section.module);
 
   return NAV_SECTIONS.filter(moduleAllowed).map((section) => ({
     ...section,
     items: section.items.filter((item) => {
-      if (item.platformOwnerOnly) return isPlatformOwner;
+      if (item.platformOwnerOnly) return false; // vendor-only, hidden from tenants
       if (item.superAdminOnly) return elevated;
       if (elevated) return true;
       if (!item.perm) return true;

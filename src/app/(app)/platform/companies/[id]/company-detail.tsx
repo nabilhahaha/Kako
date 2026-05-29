@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, CalendarPlus, Power, Save, Gauge } from 'lucide-react';
+import { Loader2, Plus, CalendarPlus, Power, Save, Gauge, KeyRound } from 'lucide-react';
 import type { Branch, Company } from '@/lib/erp/types';
 import type { Plan, CompanyUsage } from '@/lib/erp/plans';
 import { BRANCH_ROLES } from '@/lib/erp/constants';
@@ -25,6 +25,7 @@ import {
   setSubscriptionEnd,
   setCompanyPlan,
   setCompanyModule,
+  resetUserPassword,
   addBranch,
   onboardAdmin,
 } from '../actions';
@@ -95,6 +96,17 @@ export function CompanyDetail({
       const res = await setCompanyModule(company.id, m, on);
       if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
       router.refresh();
+    });
+  }
+
+  function resetPassword(userId: string, label: string | null) {
+    const pwd = window.prompt(`كلمة مرور جديدة لـ ${label ?? 'المستخدم'} (٦ أحرف على الأقل):`);
+    if (pwd == null) return;
+    if (pwd.length < 6) { toast.error('كلمة المرور قصيرة جداً.'); return; }
+    startTransition(async () => {
+      const res = await resetUserPassword(userId, pwd);
+      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
+      toast.success('تم تغيير كلمة المرور');
     });
   }
 
@@ -406,15 +418,25 @@ export function CompanyDetail({
           {members.length > 0 && (
             <div className="divide-y rounded-md border">
               {members.map((m) => (
-                <div key={`${m.userId}-${m.branchId}`} className="flex items-center justify-between p-3 text-sm">
-                  <div>
+                <div key={`${m.userId}-${m.branchId}`} className="flex items-center justify-between gap-2 p-3 text-sm">
+                  <div className="min-w-0">
                     <span className="font-medium">{m.fullName || m.email || m.userId.slice(0, 8)}</span>
                     <span className="mx-1 text-muted-foreground">·</span>
                     <span className="text-muted-foreground">{m.branchName}</span>
                   </div>
-                  <Badge variant="secondary">
-                    {BRANCH_ROLES[m.role as keyof typeof BRANCH_ROLES]?.ar ?? m.role}
-                  </Badge>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant="secondary">
+                      {BRANCH_ROLES[m.role as keyof typeof BRANCH_ROLES]?.ar ?? m.role}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => resetPassword(m.userId, m.fullName || m.email)}
+                    >
+                      <KeyRound className="h-3.5 w-3.5" /> كلمة المرور
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

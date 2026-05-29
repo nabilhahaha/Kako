@@ -255,6 +255,25 @@ export async function setCompanyPlan(id: string, planKey: string): Promise<Actio
   return { ok: true };
 }
 
+/** Reset a tenant user's password (platform owner only). Passwords are hashed
+ *  and cannot be read; this sets a new one via the SECURITY DEFINER RPC. */
+export async function resetUserPassword(userId: string, newPassword: string): Promise<ActionResult> {
+  const { error: authErr } = await requirePlatformOwner();
+  if (authErr) return { ok: false, error: authErr };
+  if (!userId) return { ok: false, error: 'المستخدم مطلوب.' };
+  if (!newPassword || newPassword.length < 6)
+    return { ok: false, error: 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_admin_set_password', {
+    p_user_id: userId,
+    p_new_password: newPassword,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: 'update', entity: 'user', entityId: userId, details: { password_reset: true } });
+  return { ok: true };
+}
+
 /** Enable or disable a feature module for a company (overrides the type default). */
 export async function setCompanyModule(
   companyId: string,
