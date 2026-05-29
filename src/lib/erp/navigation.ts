@@ -39,6 +39,7 @@ import {
   WashingMachine,
   Shirt,
   ScanBarcode,
+  Layers,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -75,11 +76,11 @@ export interface NavSection {
  *  item-level refinements driven by the business type so a clinic doesn't see
  *  POS and a restaurant doesn't see stock transfers. */
 export type Module =
-  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy' | 'laundry' | 'market'
+  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy' | 'laundry' | 'market' | 'wholesale'
   | 'pos' | 'sales_orders' | 'returns' | 'warehousing';
 
 /** The modules a subscription PLAN can grant (coarse). */
-export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market'];
+export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale'];
 
 export const MODULE_LABELS: Record<Module, string> = {
   sales: 'المبيعات',
@@ -93,6 +94,7 @@ export const MODULE_LABELS: Record<Module, string> = {
   pharmacy: 'الصيدلية',
   laundry: 'المغسلة',
   market: 'السوبر ماركت',
+  wholesale: 'الجملة',
   pos: 'نقطة البيع',
   sales_orders: 'أوامر البيع',
   returns: 'المرتجعات',
@@ -130,6 +132,15 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'المرضى', href: '/clinic/patients', icon: Users, perm: ['clinic.manage', 'clinic.reception', 'clinic.doctor'] },
       { label: 'الكشوفات', href: '/clinic/visits', icon: ClipboardList, perm: 'clinic.manage' },
       { label: 'الخدمات والأسعار', href: '/clinic/services', icon: Tags, perm: 'clinic.manage' },
+    ],
+  },
+  {
+    title: 'تاجر الجملة',
+    module: 'wholesale',
+    items: [
+      { label: 'مستويات الأسعار', href: '/wholesale', icon: Layers, perm: 'wholesale.pricing' },
+      { label: 'قائمة الأسعار', href: '/wholesale/prices', icon: Tags, perm: 'wholesale.pricing' },
+      { label: 'مستويات العملاء', href: '/wholesale/customers', icon: Users, perm: 'wholesale.pricing' },
     ],
   },
   {

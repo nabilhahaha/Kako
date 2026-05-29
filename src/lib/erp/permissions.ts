@@ -30,6 +30,7 @@ export type Permission =
   | 'pharmacy.dispense' // prescription / controlled-drug dispensing register
   | 'laundry.manage' // laundry orders, wash workflow, checkout
   | 'market.pos' // supermarket fast cashier (walk-in checkout)
+  | 'wholesale.pricing' // wholesale price tiers + per-customer pricing
   | 'field.sales'; // rep app, daily settlement, visit planning (field roles only)
 
 export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }> = {
@@ -60,6 +61,7 @@ export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }
   'pharmacy.dispense': { ar: 'سجل صرف الأدوية والروشتات', group: 'الصيدلية' },
   'laundry.manage': { ar: 'إدارة المغسلة (طلبات/غسيل/تسليم)', group: 'المغسلة' },
   'market.pos': { ar: 'الكاشير السريع (سوبر ماركت)', group: 'السوبر ماركت' },
+  'wholesale.pricing': { ar: 'أسعار الجملة بالمستويات', group: 'الجملة' },
   'field.sales': { ar: 'المبيعات الميدانية (تطبيق المندوب)', group: 'المبيعات' },
 };
 
