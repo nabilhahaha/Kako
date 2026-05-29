@@ -42,7 +42,7 @@ export default async function ReceptionPage({
     supabase.from('erp_patients').select('id, name, phone').eq('is_active', true).order('name'),
     supabase
       .from('erp_clinic_visits')
-      .select('id, patient_id, visit_date, visit_type, complaint, diagnosis, prescription, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone)')
+      .select('id, patient_id, visit_date, visit_type, complaint, diagnosis, prescription, tests, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone)')
       .order('visit_date', { ascending: false })
       .limit(200),
   ]);

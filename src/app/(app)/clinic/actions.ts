@@ -105,6 +105,7 @@ export async function updateVisit(formData: FormData): Promise<ActionResult> {
   if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
   const id = String(formData.get('id') || '').trim();
   if (!id) return { ok: false, error: 'الكشف مطلوب.' };
+  const vitals = vitalsFrom(formData);
   const supabase = await createClient();
   const { error } = await supabase
     .from('erp_clinic_visits')
@@ -112,11 +113,36 @@ export async function updateVisit(formData: FormData): Promise<ActionResult> {
       complaint: String(formData.get('complaint') || '').trim() || null,
       diagnosis: String(formData.get('diagnosis') || '').trim() || null,
       prescription: String(formData.get('prescription') || '').trim() || null,
+      tests: String(formData.get('tests') || '').trim() || null,
       status: 'done',
-      ...vitalsFrom(formData),
+      ...vitals,
     })
     .eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
+
+  // Optionally book the next visit as a real appointment so reception sees it.
+  if (formData.get('book_followup') && vitals.followup_date) {
+    const { data: v } = await supabase
+      .from('erp_clinic_visits')
+      .select('patient_id')
+      .eq('id', id)
+      .maybeSingle();
+    const patientId = (v as { patient_id?: string } | null)?.patient_id;
+    if (patientId) {
+      await supabase.from('erp_clinic_appointments').insert({
+        company_id: ctx.companyId,
+        patient_id: patientId,
+        doctor_id: ctx.userId,
+        scheduled_at: new Date(`${vitals.followup_date}T10:00:00`).toISOString(),
+        reason: 'متابعة',
+        status: 'scheduled',
+        created_by: ctx.userId,
+      });
+      revalidatePath('/clinic/appointments');
+      revalidatePath('/clinic/reception');
+    }
+  }
+
   revalidatePath('/clinic/visits');
   revalidatePath('/clinic');
   return { ok: true };

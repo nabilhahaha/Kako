@@ -17,7 +17,7 @@ interface Patient {
 }
 interface VisitRow {
   id: string; visit_date: string; visit_type: string; complaint: string | null;
-  diagnosis: string | null; prescription: string | null; fee: number; paid_amount: number; status: string;
+  diagnosis: string | null; prescription: string | null; tests: string | null; fee: number; paid_amount: number; status: string;
   temperature: number | null; blood_pressure: string | null; pulse: number | null;
   weight: number | null; height: number | null; followup_date: string | null;
 }
@@ -55,7 +55,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const [{ data: visits }, { data: appts }] = await Promise.all([
     supabase
       .from('erp_clinic_visits')
-      .select('id, visit_date, visit_type, complaint, diagnosis, prescription, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date')
+      .select('id, visit_date, visit_type, complaint, diagnosis, prescription, tests, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date')
       .eq('patient_id', id)
       .order('visit_date', { ascending: false })
       .limit(200),
@@ -231,6 +231,14 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
                             <span className="text-muted-foreground">الروشتة:</span>
                             <ul className="mt-1 list-disc space-y-0.5 pr-5">
                               {v.prescription.split('\n').map((line, i) => line.trim() && <li key={i}>{line}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {v.tests && (
+                          <div className="rounded-md border border-info/40 bg-info/10 p-2 text-sm">
+                            <span className="text-muted-foreground">تحاليل/أشعة مطلوبة:</span>
+                            <ul className="mt-1 list-disc space-y-0.5 pr-5">
+                              {v.tests.split('\n').map((line, i) => line.trim() && <li key={i}>{line}</li>)}
                             </ul>
                           </div>
                         )}

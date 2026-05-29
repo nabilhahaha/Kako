@@ -190,7 +190,14 @@ export function ExamForm({
           <div className="space-y-1"><Label>الشكوى</Label><Input name="complaint" defaultValue={exam.complaint ?? ''} /></div>
           <div className="space-y-1"><Label>التشخيص</Label><textarea name="diagnosis" rows={2} defaultValue={exam.diagnosis ?? ''} className={taCls} /></div>
           <div className="space-y-1"><Label>الروشتة</Label><textarea name="prescription" rows={3} defaultValue={exam.prescription ?? ''} className={taCls} placeholder="اكتب كل دواء في سطر…" /></div>
-          <div className="space-y-1 sm:max-w-xs"><Label>تاريخ المتابعة (اختياري)</Label><Input name="followup_date" type="date" dir="ltr" defaultValue={exam.followup_date ?? ''} /></div>
+          <div className="space-y-1"><Label>طلب تحاليل / أشعة</Label><textarea name="tests" rows={2} defaultValue={exam.tests ?? ''} className={taCls} placeholder="اكتب كل تحليل أو أشعة في سطر…" /></div>
+          <div className="rounded-md border bg-secondary/20 p-3">
+            <div className="space-y-1 sm:max-w-xs"><Label>موعد الزيارة القادمة (اختياري)</Label><Input name="followup_date" type="date" dir="ltr" defaultValue={exam.followup_date ?? ''} /></div>
+            <label className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+              <input type="checkbox" name="book_followup" value="1" defaultChecked className="h-4 w-4" />
+              احجز موعداً تلقائياً بهذا التاريخ (يظهر للاستقبال)
+            </label>
+          </div>
           <div className="flex gap-2">
             <Button type="submit" disabled={pending}><CheckCircle2 className="h-4 w-4" /> حفظ وإنهاء الكشف</Button>
             <Button type="button" variant="outline" onClick={onCancel}>إلغاء</Button>

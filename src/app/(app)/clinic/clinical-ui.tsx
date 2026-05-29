@@ -15,6 +15,7 @@ export interface ClinicVisit {
   complaint: string | null;
   diagnosis: string | null;
   prescription: string | null;
+  tests: string | null;
   fee: number;
   paid_amount: number;
   status: string;

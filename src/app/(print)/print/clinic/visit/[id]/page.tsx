@@ -7,7 +7,7 @@ import type { Profile } from '@/lib/erp/types';
 
 interface VisitRow {
   id: string; visit_date: string; visit_type: string; complaint: string | null;
-  diagnosis: string | null; prescription: string | null; fee: number; paid_amount: number;
+  diagnosis: string | null; prescription: string | null; tests: string | null; fee: number; paid_amount: number;
   doctor_id: string | null;
   temperature: number | null; blood_pressure: string | null; pulse: number | null;
   weight: number | null; height: number | null; followup_date: string | null;
@@ -24,7 +24,7 @@ export default async function ClinicVisitPrint({ params }: { params: Promise<{ i
   const supabase = await createClient();
   const { data: visit } = await supabase
     .from('erp_clinic_visits')
-    .select('id, visit_date, visit_type, complaint, diagnosis, prescription, fee, paid_amount, doctor_id, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone, gender, code, birth_date, allergies)')
+    .select('id, visit_date, visit_type, complaint, diagnosis, prescription, tests, fee, paid_amount, doctor_id, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone, gender, code, birth_date, allergies)')
     .eq('id', id)
     .maybeSingle();
   if (!visit) notFound();
@@ -101,6 +101,16 @@ export default async function ClinicVisitPrint({ params }: { params: Promise<{ i
         </div>
         <p className="whitespace-pre-wrap leading-7">{v.prescription || '—'}</p>
       </div>
+
+      {/* Lab / radiology request sheet */}
+      {v.tests && (
+        <div className="rounded-md border p-3">
+          <div className="mb-1 font-bold">طلب تحاليل / أشعة</div>
+          <ul className="list-disc space-y-0.5 pr-5 leading-7">
+            {v.tests.split('\n').map((line, i) => line.trim() && <li key={i}>{line}</li>)}
+          </ul>
+        </div>
+      )}
 
       {v.followup_date && (
         <div className="font-medium">موعد المتابعة: <span dir="ltr">{formatDate(v.followup_date)}</span></div>
