@@ -29,6 +29,7 @@ export type Permission =
   | 'salon.manage' // services, bookings, tickets, checkout (salon / barber)
   | 'pharmacy.dispense' // prescription / controlled-drug dispensing register
   | 'laundry.manage' // laundry orders, wash workflow, checkout
+  | 'market.pos' // supermarket fast cashier (walk-in checkout)
   | 'field.sales'; // rep app, daily settlement, visit planning (field roles only)
 
 export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }> = {
@@ -58,6 +59,7 @@ export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }
   'salon.manage': { ar: 'إدارة الصالون (خدمات/مواعيد/تذاكر)', group: 'الصالون' },
   'pharmacy.dispense': { ar: 'سجل صرف الأدوية والروشتات', group: 'الصيدلية' },
   'laundry.manage': { ar: 'إدارة المغسلة (طلبات/غسيل/تسليم)', group: 'المغسلة' },
+  'market.pos': { ar: 'الكاشير السريع (سوبر ماركت)', group: 'السوبر ماركت' },
   'field.sales': { ar: 'المبيعات الميدانية (تطبيق المندوب)', group: 'المبيعات' },
 };
 
@@ -78,7 +80,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'accounting.view', 'accounting.post', 'reports.view',
     'suppliers.manage', 'sales.collect',
   ],
-  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage'],
+  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales',
