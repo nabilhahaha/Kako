@@ -25,6 +25,7 @@ export type Permission =
   | 'clinic.manage' // full clinic access (admin/manager) — implies reception + doctor
   | 'clinic.reception' // reception desk: appointments, registration, billing
   | 'clinic.doctor' // doctor: queue, exam, prescriptions, patient file
+  | 'restaurant.manage' // tables, orders, kitchen, checkout (restaurant / café)
   | 'field.sales'; // rep app, daily settlement, visit planning (field roles only)
 
 export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }> = {
@@ -50,6 +51,7 @@ export const PERMISSION_LABELS: Record<Permission, { ar: string; group: string }
   'clinic.manage': { ar: 'إدارة العيادة بالكامل', group: 'العيادة' },
   'clinic.reception': { ar: 'الاستقبال (مواعيد/تسجيل/تحصيل)', group: 'العيادة' },
   'clinic.doctor': { ar: 'الطبيب (كشف/تشخيص/روشتة)', group: 'العيادة' },
+  'restaurant.manage': { ar: 'إدارة المطعم/الكافيه (طاولات/أوردرات/مطبخ)', group: 'المطعم' },
   'field.sales': { ar: 'المبيعات الميدانية (تطبيق المندوب)', group: 'المبيعات' },
 };
 
@@ -70,7 +72,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'accounting.view', 'accounting.post', 'reports.view',
     'suppliers.manage', 'sales.collect',
   ],
-  cashier: ['sales.sell', 'sales.collect', 'customers.manage'],
+  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales',

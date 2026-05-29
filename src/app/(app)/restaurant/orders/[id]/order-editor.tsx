@@ -1,0 +1,194 @@
+'use client';
+
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Minus, Trash2, Printer, X, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
+import { addOrderItem, setItemQty, closeOrder, cancelOrder, updateOrderMeta } from '../../actions';
+
+export interface OrderItem { id: string; product_id: string | null; name: string; qty: number; price: number; notes: string | null; kitchen_status: string }
+export interface MenuItem { id: string; name: string; price: number }
+export interface MenuCategory { id: string; name: string; items: MenuItem[] }
+export interface EditorOrder {
+  id: string; order_type: string; status: string;
+  customer_name: string | null; customer_phone: string | null; customer_address: string | null;
+  delivery_fee: number; notes: string | null; table_name: string | null;
+}
+
+const TYPE: Record<string, string> = { dine_in: 'صالة', takeaway: 'تيك أواي', delivery: 'دليفري' };
+const KITCHEN: Record<string, { label: string; variant: 'secondary' | 'warning' | 'success' }> = {
+  new: { label: 'جديد', variant: 'secondary' }, preparing: { label: 'تحضير', variant: 'warning' }, ready: { label: 'جاهز', variant: 'success' },
+};
+
+export function OrderEditor({ order, items, menu }: { order: EditorOrder; items: OrderItem[]; menu: MenuCategory[] }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [activeCat, setActiveCat] = useState(menu[0]?.id ?? '');
+  const closed = order.status !== 'open';
+
+  const subtotal = items.reduce((s, it) => s + Number(it.qty) * Number(it.price), 0);
+  const total = subtotal + Number(order.delivery_fee || 0);
+  const cat = menu.find((c) => c.id === activeCat) ?? menu[0];
+
+  function run(fn: () => Promise<{ ok: boolean; error?: string }>, ok?: string) {
+    startTransition(async () => {
+      const res = await fn();
+      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
+      if (ok) toast.success(ok);
+      router.refresh();
+    });
+  }
+
+  function checkout() {
+    startTransition(async () => {
+      const res = await closeOrder(order.id);
+      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
+      toast.success('تم تحصيل الأوردر وإغلاقه');
+      router.push('/restaurant/orders');
+    });
+  }
+
+  function cancel() {
+    startTransition(async () => {
+      const res = await cancelOrder(order.id);
+      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
+      toast.success('تم إلغاء الأوردر');
+      router.push('/restaurant/orders');
+    });
+  }
+
+  function saveMeta(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    fd.set('id', order.id);
+    run(() => updateOrderMeta(fd), 'تم حفظ بيانات العميل');
+  }
+
+  const title = order.table_name ? `طاولة ${order.table_name}` : (order.customer_name || TYPE[order.order_type]);
+
+  return (
+    <div>
+      <Link href="/restaurant/orders" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowRight className="h-4 w-4" /> الأوردرات
+      </Link>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="flex items-center gap-2 text-2xl font-bold">{title} <Badge variant="secondary">{TYPE[order.order_type] ?? order.order_type}</Badge></h1>
+        {closed && <Badge variant="success">مغلق</Badge>}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-5">
+        {/* Menu */}
+        <div className="lg:col-span-3">
+          {closed ? (
+            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">هذا الأوردر {order.status === 'cancelled' ? 'ملغي' : 'مغلق'} — للعرض فقط.</CardContent></Card>
+          ) : menu.length === 0 ? (
+            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">لا توجد أصناف في المنيو. أضِف منتجات من صفحة المنتجات.</CardContent></Card>
+          ) : (
+            <>
+              <div className="mb-3 flex flex-wrap gap-1">
+                {menu.map((c) => (
+                  <button key={c.id} onClick={() => setActiveCat(c.id)}
+                    className={`rounded-full border px-3 py-1 text-sm ${c.id === (cat?.id) ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-secondary'}`}>
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {cat?.items.map((m) => (
+                  <button key={m.id} disabled={pending} onClick={() => run(() => addOrderItem(order.id, m.id))}
+                    className="flex flex-col items-center justify-center gap-1 rounded-lg border bg-card p-3 text-center text-sm transition-colors hover:border-primary/50 hover:bg-secondary disabled:opacity-50">
+                    <span className="font-medium leading-tight">{m.name}</span>
+                    <span className="tabular-nums text-xs text-muted-foreground" dir="ltr">{formatCurrency(m.price)}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Ticket */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              {order.order_type === 'delivery' && !closed && (
+                <form onSubmit={saveMeta} className="space-y-2 rounded-md border bg-secondary/20 p-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1"><Label className="text-xs">اسم العميل</Label><Input name="customer_name" defaultValue={order.customer_name ?? ''} className="h-8" /></div>
+                    <div className="space-y-1"><Label className="text-xs">الهاتف</Label><Input name="customer_phone" dir="ltr" defaultValue={order.customer_phone ?? ''} className="h-8" /></div>
+                    <div className="col-span-2 space-y-1"><Label className="text-xs">العنوان</Label><Input name="customer_address" defaultValue={order.customer_address ?? ''} className="h-8" /></div>
+                    <div className="space-y-1"><Label className="text-xs">رسوم التوصيل</Label><Input name="delivery_fee" type="number" min={0} step="0.01" dir="ltr" defaultValue={order.delivery_fee} className="h-8" /></div>
+                  </div>
+                  <Button type="submit" size="sm" variant="outline" disabled={pending}>حفظ بيانات العميل</Button>
+                </form>
+              )}
+
+              {items.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">لا أصناف بعد — اختر من المنيو.</p>
+              ) : (
+                <ul className="divide-y">
+                  {items.map((it) => {
+                    const ks = KITCHEN[it.kitchen_status] ?? KITCHEN.new;
+                    return (
+                      <li key={it.id} className="py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate font-medium">{it.name}</span>
+                          <span className="shrink-0 tabular-nums text-sm" dir="ltr">{formatCurrency(it.qty * it.price)}</span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between">
+                          <Badge variant={ks.variant} className="text-[10px]">{ks.label}</Badge>
+                          {!closed && (
+                            <div className="flex items-center gap-1">
+                              <Button size="icon" variant="outline" className="h-6 w-6" disabled={pending} onClick={() => run(() => setItemQty(it.id, it.qty - 1, order.id))}>
+                                {it.qty <= 1 ? <Trash2 className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                              </Button>
+                              <span className="w-6 text-center tabular-nums">{it.qty}</span>
+                              <Button size="icon" variant="outline" className="h-6 w-6" disabled={pending} onClick={() => run(() => setItemQty(it.id, it.qty + 1, order.id))}><Plus className="h-3 w-3" /></Button>
+                            </div>
+                          )}
+                          {closed && <span className="text-xs text-muted-foreground">× {it.qty}</span>}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
+              <div className="space-y-1 border-t pt-2 text-sm">
+                <Row label="الإجمالي الفرعي" value={formatCurrency(subtotal)} />
+                {order.delivery_fee > 0 && <Row label="رسوم التوصيل" value={formatCurrency(order.delivery_fee)} />}
+                <div className="flex items-center justify-between border-t pt-1 text-base font-bold">
+                  <span>الإجمالي</span><span className="tabular-nums" dir="ltr">{formatCurrency(total)}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {!closed ? (
+                  <>
+                    <Button className="flex-1" disabled={pending || items.length === 0} onClick={checkout}>
+                      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} تحصيل وإغلاق
+                    </Button>
+                    <Link href={`/print/restaurant/order/${order.id}`} target="_blank" className={buttonVariants({ variant: 'outline' })}><Printer className="h-4 w-4" /></Link>
+                    <Button variant="ghost" disabled={pending} onClick={cancel}><X className="h-4 w-4" /></Button>
+                  </>
+                ) : (
+                  <Link href={`/print/restaurant/order/${order.id}`} target="_blank" className={buttonVariants({ variant: 'outline' })}><Printer className="h-4 w-4" /> طباعة الفاتورة</Link>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return <div className="flex items-center justify-between text-muted-foreground"><span>{label}</span><span className="tabular-nums" dir="ltr">{value}</span></div>;
+}

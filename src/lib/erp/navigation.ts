@@ -31,6 +31,9 @@ import {
   Clock,
   BedDouble,
   Stethoscope,
+  UtensilsCrossed,
+  ChefHat,
+  LayoutGrid,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -67,11 +70,11 @@ export interface NavSection {
  *  item-level refinements driven by the business type so a clinic doesn't see
  *  POS and a restaurant doesn't see stock transfers. */
 export type Module =
-  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic'
+  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant'
   | 'pos' | 'sales_orders' | 'returns' | 'warehousing';
 
 /** The modules a subscription PLAN can grant (coarse). */
-export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic'];
+export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant'];
 
 export const MODULE_LABELS: Record<Module, string> = {
   sales: 'المبيعات',
@@ -80,6 +83,7 @@ export const MODULE_LABELS: Record<Module, string> = {
   accounting: 'الحسابات',
   hotel: 'الفندق',
   clinic: 'العيادة',
+  restaurant: 'المطعم / الكافيه',
   pos: 'نقطة البيع',
   sales_orders: 'أوامر البيع',
   returns: 'المرتجعات',
@@ -117,6 +121,16 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'المرضى', href: '/clinic/patients', icon: Users, perm: ['clinic.manage', 'clinic.reception', 'clinic.doctor'] },
       { label: 'الكشوفات', href: '/clinic/visits', icon: ClipboardList, perm: 'clinic.manage' },
       { label: 'الخدمات والأسعار', href: '/clinic/services', icon: Tags, perm: 'clinic.manage' },
+    ],
+  },
+  {
+    title: 'المطعم / الكافيه',
+    module: 'restaurant',
+    items: [
+      { label: 'لوحة المطعم', href: '/restaurant', icon: LayoutDashboard, perm: 'restaurant.manage' },
+      { label: 'الطاولات', href: '/restaurant/tables', icon: LayoutGrid, perm: 'restaurant.manage' },
+      { label: 'الأوردرات', href: '/restaurant/orders', icon: UtensilsCrossed, perm: 'restaurant.manage' },
+      { label: 'المطبخ', href: '/restaurant/kitchen', icon: ChefHat, perm: 'restaurant.manage' },
     ],
   },
   {
