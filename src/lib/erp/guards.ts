@@ -38,7 +38,7 @@ export async function requireModule(module: Module): Promise<UserContext> {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (ctx.isPlatformOwner || ctx.isSuperAdmin) return ctx;
-  if (!ctx.modules.includes(module)) redirect('/dashboard');
+  if (!ctx.modules.includes(module)) redirect(`/upgrade?module=${module}`);
   return ctx;
 }
 
