@@ -77,11 +77,11 @@ export interface NavSection {
  *  item-level refinements driven by the business type so a clinic doesn't see
  *  POS and a restaurant doesn't see stock transfers. */
 export type Module =
-  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy' | 'laundry' | 'market' | 'wholesale'
+  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy' | 'laundry' | 'market' | 'wholesale' | 'distribution'
   | 'pos' | 'sales_orders' | 'returns' | 'warehousing';
 
 /** The modules a subscription PLAN can grant (coarse). */
-export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale'];
+export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale', 'distribution'];
 
 export const MODULE_LABELS: Record<Module, string> = {
   sales: 'المبيعات',
@@ -96,6 +96,7 @@ export const MODULE_LABELS: Record<Module, string> = {
   laundry: 'المغسلة',
   market: 'السوبر ماركت',
   wholesale: 'الجملة',
+  distribution: 'التوزيع',
   pos: 'نقطة البيع',
   sales_orders: 'أوامر البيع',
   returns: 'المرتجعات',
@@ -194,11 +195,11 @@ export const NAV_SECTIONS: NavSection[] = [
     module: 'sales',
     items: [
       { label: 'بيع سريع', href: '/sales/pos', icon: Zap, perm: 'sales.sell', module: 'pos' },
-      { label: 'تطبيق المندوب', href: '/rep', icon: Smartphone, perm: 'field.sales' },
-      { label: 'محاسبة المندوب اليومية', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'] },
+      { label: 'تطبيق المندوب', href: '/rep', icon: Smartphone, perm: 'field.sales', module: 'distribution' },
+      { label: 'محاسبة المندوب اليومية', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'], module: 'distribution' },
       { label: 'أوامر البيع', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell', module: 'sales_orders' },
       { label: 'الفواتير', href: '/sales/invoices', icon: FileText, perm: ['sales.sell', 'sales.collect'] },
-      { label: 'خطة الزيارات', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales' },
+      { label: 'خطة الزيارات', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales', module: 'distribution' },
       { label: 'مرتجعات المبيعات', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
       { label: 'تقرير المبيعات', href: '/sales/report', icon: BarChart3, perm: 'reports.view' },
       { label: 'العملاء', href: '/customers', icon: Users, perm: 'customers.manage' },
@@ -206,7 +207,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'التوزيع',
-    module: 'sales',
+    module: 'distribution',
     items: [
       { label: 'خطوط السير', href: '/distribution/routes', icon: Truck, perm: ['reports.view', 'customers.manage'] },
       { label: 'تقرير التوزيع', href: '/distribution/report', icon: BarChart3, perm: 'reports.view' },
