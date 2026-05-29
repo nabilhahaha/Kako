@@ -175,6 +175,8 @@ export async function updateOrderMeta(formData: FormData): Promise<ActionResult>
   const id = String(formData.get('id') || '').trim();
   if (!id) return { ok: false, error: 'الأوردر مطلوب.' };
   const fee = Number(formData.get('delivery_fee') || 0);
+  const num = (k: string) => { const n = Number(formData.get(k) || 0); return Number.isFinite(n) && n >= 0 ? n : 0; };
+  const dtype = String(formData.get('discount_type') || 'amount') === 'percent' ? 'percent' : 'amount';
   const supabase = await createClient();
   const { error } = await supabase
     .from('erp_restaurant_orders')
@@ -183,6 +185,10 @@ export async function updateOrderMeta(formData: FormData): Promise<ActionResult>
       customer_phone: String(formData.get('customer_phone') || '').trim() || null,
       customer_address: String(formData.get('customer_address') || '').trim() || null,
       delivery_fee: Number.isFinite(fee) && fee >= 0 ? fee : 0,
+      discount_type: dtype,
+      discount_value: num('discount_value'),
+      service_rate: num('service_rate'),
+      tax_rate: num('tax_rate'),
       notes: String(formData.get('notes') || '').trim() || null,
     })
     .eq('id', id);
@@ -192,11 +198,14 @@ export async function updateOrderMeta(formData: FormData): Promise<ActionResult>
 }
 
 /** Checkout: totals, posts revenue, frees the table (atomic in the DB). */
-export async function closeOrder(orderId: string): Promise<ActionResult> {
+export async function closeOrder(orderId: string, paymentMethod = 'cash'): Promise<ActionResult> {
   const ctx = await requirePermission('restaurant.manage');
   if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
   const supabase = await createClient();
-  const { error } = await supabase.rpc('erp_close_restaurant_order', { p_order_id: orderId });
+  const { error } = await supabase.rpc('erp_close_restaurant_order', {
+    p_order_id: orderId,
+    p_payment_method: paymentMethod === 'card' ? 'card' : 'cash',
+  });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidate(orderId);
   return { ok: true };

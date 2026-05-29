@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { UtensilsCrossed, LayoutGrid, ChefHat, Wallet, Receipt, type LucideIcon } from 'lucide-react';
+import { UtensilsCrossed, LayoutGrid, ChefHat, Wallet, Receipt, Printer, type LucideIcon } from 'lucide-react';
 
 function Stat({ label, value, icon: Icon, tone = 'primary', href }: {
   label: string; value: string; icon: LucideIcon; tone?: 'primary' | 'success' | 'warning' | 'info'; href?: string;
@@ -53,7 +53,10 @@ export default async function RestaurantDashboard() {
   return (
     <div>
       <PageHeader title="لوحة المطعم / الكافيه" description="نظرة سريعة على نشاط اليوم." action={
-        <Link href="/restaurant/orders" className={buttonVariants({ size: 'sm' })}><UtensilsCrossed className="h-4 w-4" /> الأوردرات</Link>
+        <div className="flex gap-2">
+          <Link href="/restaurant/orders" className={buttonVariants({ size: 'sm' })}><UtensilsCrossed className="h-4 w-4" /> الأوردرات</Link>
+          <Link href="/print/restaurant/day-closing" target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}><Printer className="h-4 w-4" /> تقفيل اليوم</Link>
+        </div>
       } />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="مبيعات اليوم" value={formatCurrency(sales)} icon={Wallet} tone="success" />
