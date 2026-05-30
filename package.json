@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:db": "vitest run src/test/integration"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -32,11 +33,13 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.1.4",
+    "pg": "^8.21.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
