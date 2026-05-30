@@ -21,12 +21,12 @@ import {
   doctorName,
   ServicePicker,
   TYPE,
-  TEST_TEMPLATES,
   selectCls,
   taCls,
   VitalsFields,
   VitalsLine,
 } from '../clinical-ui';
+import { ClinicalListField } from '../clinical-list-field';
 
 export type { ClinicVisit as Visit, PatientOption } from '../clinical-ui';
 
@@ -191,14 +191,6 @@ export function ExamForm({
   exam: Visit; pending: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void; onCancel: () => void;
 }) {
-  const [tests, setTests] = useState(exam.tests ?? '');
-  function addTest(t: string) {
-    setTests((prev) => {
-      const lines = prev.split('\n').map((s) => s.trim()).filter(Boolean);
-      if (lines.includes(t)) return prev;
-      return prev ? `${prev}\n${t}` : t;
-    });
-  }
   return (
     <Card className="border-primary/40">
       <CardContent className="pt-6">
@@ -213,23 +205,26 @@ export function ExamForm({
           <VitalsFields v={exam} />
           <div className="space-y-1"><Label>الشكوى</Label><Input name="complaint" defaultValue={exam.complaint ?? ''} /></div>
           <div className="space-y-1"><Label>التشخيص</Label><textarea name="diagnosis" rows={2} defaultValue={exam.diagnosis ?? ''} className={taCls} /></div>
-          <div className="space-y-1"><Label>الروشتة</Label><textarea name="prescription" rows={3} defaultValue={exam.prescription ?? ''} className={taCls} placeholder="اكتب كل دواء في سطر…" /></div>
+          <div className="space-y-1">
+            <Label>الروشتة</Label>
+            <ClinicalListField
+              name="prescription"
+              kinds={['drug']}
+              defaultValue={exam.prescription ?? ''}
+              searchPlaceholder="ابحث عن دواء (اكتب ٣ حروف)…"
+              manualLabel="إضافة دواء يدوي"
+              itemPlaceholder="اسم الدواء + الجرعة (مثال: مرتين يومياً ٥ أيام)"
+            />
+          </div>
           <div className="space-y-1">
             <Label>طلب تحاليل / أشعة</Label>
-            <textarea name="tests" rows={2} value={tests} onChange={(e) => setTests(e.target.value)} className={taCls} placeholder="اكتب كل تحليل أو أشعة في سطر، أو اختر من القوالب بالأسفل…" />
-            <div className="space-y-1.5 pt-1">
-              {TEST_TEMPLATES.map((g) => (
-                <div key={g.group} className="flex flex-wrap items-center gap-1">
-                  <span className="text-xs text-muted-foreground">{g.group}:</span>
-                  {g.items.map((t) => (
-                    <button key={t} type="button" onClick={() => addTest(t)}
-                      className="rounded-full border border-input bg-background px-2 py-0.5 text-xs hover:bg-secondary">
-                      + {t}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
+            <ClinicalListField
+              name="tests"
+              kinds={['lab', 'radiology']}
+              defaultValue={exam.tests ?? ''}
+              searchPlaceholder="ابحث عن تحليل أو أشعة…"
+              manualLabel="إضافة يدوي"
+            />
           </div>
           <div className="rounded-md border bg-secondary/20 p-3">
             <div className="space-y-1 sm:max-w-xs"><Label>موعد الزيارة القادمة (اختياري)</Label><Input name="followup_date" type="date" dir="ltr" defaultValue={exam.followup_date ?? ''} /></div>

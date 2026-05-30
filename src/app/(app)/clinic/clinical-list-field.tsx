@@ -1,0 +1,141 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
+import { Plus, X, Search, Loader2 } from 'lucide-react';
+import { searchClinicalReference, type ReferenceItem } from './reference-actions';
+
+/** Multi-item clinical field with autocomplete from the reference list (drugs /
+ *  lab / radiology). The doctor can add several items, pick from suggestions, or
+ *  type anything manually. Serializes to a newline-joined value under `name` so
+ *  it stays compatible with the plain-text prescription/tests columns. */
+export function ClinicalListField({
+  name,
+  kinds,
+  defaultValue = '',
+  searchPlaceholder,
+  manualLabel = 'إضافة كما هو',
+  itemPlaceholder,
+}: {
+  name: string;
+  kinds: string[];
+  defaultValue?: string;
+  searchPlaceholder?: string;
+  manualLabel?: string;
+  itemPlaceholder?: string;
+}) {
+  const kindsKey = kinds.join(',');
+  const [lines, setLines] = useState<string[]>(() =>
+    defaultValue.split('\n').map((s) => s.trim()).filter(Boolean),
+  );
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState<ReferenceItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) { setResults([]); setOpen(false); setLoading(false); return; }
+    setLoading(true);
+    const t = setTimeout(async () => {
+      const r = await searchClinicalReference(kindsKey.split(','), term);
+      setResults(r);
+      setOpen(true);
+      setLoading(false);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q, kindsKey]);
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+
+  function addLine(text: string) {
+    const t = text.trim();
+    if (!t) return;
+    setLines((ls) => [...ls, t]);
+    setQ('');
+    setResults([]);
+    setOpen(false);
+  }
+
+  return (
+    <div className="space-y-2">
+      <input type="hidden" name={name} value={lines.join('\n')} />
+
+      {lines.length > 0 && (
+        <ul className="space-y-1">
+          {lines.map((l, i) => (
+            <li key={i} className="flex items-center gap-2">
+              <span className="w-5 text-center text-xs text-muted-foreground">{i + 1}.</span>
+              <Input
+                value={l}
+                onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? e.target.value : x)))}
+                placeholder={itemPlaceholder}
+                className="h-9"
+              />
+              <button
+                type="button"
+                onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}
+                className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
+                aria-label="حذف"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="relative" ref={boxRef}>
+        <div className="relative">
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); addLine(q); }
+            }}
+            placeholder={searchPlaceholder}
+            className="pr-9"
+          />
+          {loading && <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+        </div>
+
+        {open && results.length > 0 && (
+          <ul className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-md border bg-popover p-1 shadow-lg">
+            {results.map((r, i) => (
+              <li key={i}>
+                <button
+                  type="button"
+                  onClick={() => addLine(r.name)}
+                  className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-right text-sm hover:bg-secondary"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">
+                      {r.name}
+                      {r.name_ar ? <span className="text-muted-foreground"> — {r.name_ar}</span> : null}
+                    </span>
+                    {r.detail && <span className="block truncate text-xs text-muted-foreground" dir="ltr">{r.detail}</span>}
+                  </span>
+                  <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {q.trim().length >= 2 && (
+        <button type="button" onClick={() => addLine(q)} className="text-xs text-primary hover:underline">
+          + {manualLabel}: «{q.trim()}»
+        </button>
+      )}
+    </div>
+  );
+}

@@ -109,6 +109,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'نظرة عامة', href: '/platform', icon: LayoutDashboard, platformOwnerOnly: true },
       { label: 'الشركات والاشتراكات', href: '/platform/companies', icon: Crown, platformOwnerOnly: true },
+      { label: 'قائمة الأدوية', href: '/platform/drugs', icon: Pill, platformOwnerOnly: true },
     ],
   },
   {
