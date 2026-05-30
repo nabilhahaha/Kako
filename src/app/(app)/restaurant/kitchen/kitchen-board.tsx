@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ChefHat, Flame, Check } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 import { setItemKitchenStatus } from '../actions';
 
 export interface KitchenItem { id: string; name: string; qty: number; notes: string | null; kitchen_status: string }
@@ -14,19 +15,20 @@ export interface KitchenOrder { id: string; label: string; order_type: string; i
 
 export function KitchenBoard({ orders }: { orders: KitchenOrder[] }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [pending, startTransition] = useTransition();
 
   function mark(itemId: string, status: string, ok: string) {
     startTransition(async () => {
       const res = await setItemKitchenStatus(itemId, status);
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
+      if (!res.ok) { toast.error(res.error ?? t('restaurant.kitchen.errorGeneric')); return; }
       toast.success(ok);
       router.refresh();
     });
   }
 
   if (orders.length === 0) {
-    return <Card><CardContent className="flex flex-col items-center gap-2 p-10 text-center text-muted-foreground"><ChefHat className="h-10 w-10" /><p>لا أصناف في المطبخ حالياً.</p></CardContent></Card>;
+    return <Card><CardContent className="flex flex-col items-center gap-2 p-10 text-center text-muted-foreground"><ChefHat className="h-10 w-10" /><p>{t('restaurant.kitchen.empty')}</p></CardContent></Card>;
   }
 
   return (
@@ -42,14 +44,16 @@ export function KitchenBoard({ orders }: { orders: KitchenOrder[] }) {
                 <li key={it.id} className="space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium"><span className="tabular-nums">{it.qty}×</span> {it.name}</span>
-                    <Badge variant={it.kitchen_status === 'preparing' ? 'warning' : 'secondary'}>{it.kitchen_status === 'preparing' ? 'تحضير' : 'جديد'}</Badge>
+                    <Badge variant={it.kitchen_status === 'preparing' ? 'warning' : 'secondary'}>
+                      {it.kitchen_status === 'preparing' ? t('restaurant.kitchenStatus.preparing') : t('restaurant.kitchenStatus.new')}
+                    </Badge>
                   </div>
                   {it.notes && <p className="text-xs text-muted-foreground">📝 {it.notes}</p>}
                   <div className="flex gap-1">
                     {it.kitchen_status === 'new' && (
-                      <Button size="sm" variant="outline" className="flex-1" disabled={pending} onClick={() => mark(it.id, 'preparing', 'بدأ التحضير')}><Flame className="h-3.5 w-3.5" /> تحضير</Button>
+                      <Button size="sm" variant="outline" className="flex-1" disabled={pending} onClick={() => mark(it.id, 'preparing', t('restaurant.kitchen.toastPreparing'))}><Flame className="h-3.5 w-3.5" /> {t('restaurant.kitchen.btnPreparing')}</Button>
                     )}
-                    <Button size="sm" className="flex-1" disabled={pending} onClick={() => mark(it.id, 'ready', 'جاهز')}><Check className="h-3.5 w-3.5" /> جاهز</Button>
+                    <Button size="sm" className="flex-1" disabled={pending} onClick={() => mark(it.id, 'ready', t('restaurant.kitchen.toastReady'))}><Check className="h-3.5 w-3.5" /> {t('restaurant.kitchen.btnReady')}</Button>
                   </div>
                 </li>
               ))}

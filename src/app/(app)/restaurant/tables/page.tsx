@@ -2,16 +2,18 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { getT } from '@/lib/i18n/server';
 import { TablesFloor, type FloorTable } from './tables-floor';
 
 export default async function TablesPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
     return (
       <div>
-        <PageHeader title="الطاولات" />
-        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">إدارة المطعم تتم من داخل حساب المطعم.</p>
+        <PageHeader title={t('restaurant.tables.title')} />
+        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('restaurant.noCompany')}</p>
       </div>
     );
   }
@@ -31,7 +33,7 @@ export default async function TablesPage() {
 
   return (
     <div>
-      <PageHeader title="الطاولات" description="خريطة الصالة — اضغط طاولة لفتح أوردرها." />
+      <PageHeader title={t('restaurant.tables.title')} description={t('restaurant.tables.description')} />
       <TablesFloor tables={floor} />
     </div>
   );

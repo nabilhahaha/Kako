@@ -8,11 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, X, Plus } from 'lucide-react';
 import { assignCustomerToRoute } from '../../actions';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface Cust { id: string; code: string; name: string; route_id: string | null }
 
 export function RouteCustomers({ routeId, customers }: { routeId: string; customers: Cust[] }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [q, setQ] = useState('');
   const [pending, startTransition] = useTransition();
 
@@ -26,7 +28,7 @@ export function RouteCustomers({ routeId, customers }: { routeId: string; custom
   function set(customerId: string, rid: string | null, ok: string) {
     startTransition(async () => {
       const res = await assignCustomerToRoute(customerId, rid);
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
+      if (!res.ok) { toast.error(res.error ?? t('distribution.errorGeneric')); return; }
       toast.success(ok); router.refresh();
     });
   }
@@ -36,16 +38,16 @@ export function RouteCustomers({ routeId, customers }: { routeId: string; custom
       <Card><CardContent className="p-4">
         <div className="relative mb-3">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث عن عميل لإضافته للخط…" className="pr-9" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('distribution.routeCustomersSearchPlaceholder')} className="pr-9" />
         </div>
         {found.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">{q ? 'لا نتائج.' : 'اكتب اسم/كود عميل.'}</p>
+          <p className="py-4 text-center text-sm text-muted-foreground">{q ? t('distribution.routeCustomersNoResults') : t('distribution.routeCustomersTypePrompt')}</p>
         ) : (
           <ul className="divide-y">
             {found.map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                <div><span className="font-medium">{c.name}</span> <span className="text-xs text-muted-foreground" dir="ltr">{c.code}</span>{c.route_id && <span className="ms-2 text-xs text-warning">(بخط آخر)</span>}</div>
-                <Button size="sm" variant="outline" disabled={pending} onClick={() => set(c.id, routeId, 'تمت الإضافة للخط')}><Plus className="h-3.5 w-3.5" /> إضافة</Button>
+                <div><span className="font-medium">{c.name}</span> <span className="text-xs text-muted-foreground" dir="ltr">{c.code}</span>{c.route_id && <span className="ms-2 text-xs text-warning">{t('distribution.routeCustomersOnOtherRoute')}</span>}</div>
+                <Button size="sm" variant="outline" disabled={pending} onClick={() => set(c.id, routeId, t('distribution.routeCustomersToastAdded'))}><Plus className="h-3.5 w-3.5" /> {t('distribution.routeCustomersBtnAdd')}</Button>
               </li>
             ))}
           </ul>
@@ -53,15 +55,15 @@ export function RouteCustomers({ routeId, customers }: { routeId: string; custom
       </CardContent></Card>
 
       <Card><CardContent className="p-0">
-        <div className="border-b p-3 font-semibold">عملاء الخط ({assigned.length})</div>
+        <div className="border-b p-3 font-semibold">{t('distribution.routeCustomersAssignedHeader').replace('{count}', String(assigned.length))}</div>
         {assigned.length === 0 ? (
-          <p className="p-6 text-center text-sm text-muted-foreground">لا عملاء على الخط بعد.</p>
+          <p className="p-6 text-center text-sm text-muted-foreground">{t('distribution.routeCustomersEmptyState')}</p>
         ) : (
           <ul className="divide-y">
             {assigned.map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-2 p-3 text-sm">
                 <div><span className="font-medium">{c.name}</span> <span className="text-xs text-muted-foreground" dir="ltr">{c.code}</span></div>
-                <Button size="sm" variant="ghost" disabled={pending} onClick={() => set(c.id, null, 'تمت الإزالة')}><X className="h-3.5 w-3.5" /></Button>
+                <Button size="sm" variant="ghost" disabled={pending} onClick={() => set(c.id, null, t('distribution.routeCustomersToastRemoved'))}><X className="h-3.5 w-3.5" /></Button>
               </li>
             ))}
           </ul>

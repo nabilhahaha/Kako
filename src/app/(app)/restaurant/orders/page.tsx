@@ -2,16 +2,18 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { getT } from '@/lib/i18n/server';
 import { OrdersList, type OpenOrder } from './orders-list';
 
 export default async function OrdersPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
     return (
       <div>
-        <PageHeader title="الأوردرات" />
-        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">إدارة المطعم تتم من داخل حساب المطعم.</p>
+        <PageHeader title={t('restaurant.orders.titleNoCompany')} />
+        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('restaurant.noCompany')}</p>
       </div>
     );
   }
@@ -37,7 +39,7 @@ export default async function OrdersPage() {
 
   return (
     <div>
-      <PageHeader title="الأوردرات المفتوحة" description="افتح أوردر جديد أو أكمل أوردراً قائماً." />
+      <PageHeader title={t('restaurant.orders.title')} description={t('restaurant.orders.description')} />
       <OrdersList orders={list} />
     </div>
   );

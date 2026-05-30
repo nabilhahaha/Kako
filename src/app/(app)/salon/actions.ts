@@ -3,9 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requirePermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
-
-// Salon / barber: services catalogue, bookings, and service tickets (the bill).
-const NO_COMPANY = 'هذه العملية تتم من داخل حساب الصالون.';
+import { getT } from '@/lib/i18n/server';
 
 function revalidate(ticketId?: string) {
   revalidatePath('/salon');
@@ -16,11 +14,12 @@ function revalidate(ticketId?: string) {
 
 // ─── Services ───────────────────────────────────────────────────────────────
 export async function upsertService(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
-  if (!name) return { ok: false, error: 'اسم الخدمة مطلوب.' };
+  if (!name) return { ok: false, error: t('salon.errors.serviceNameRequired') };
   const price = Number(formData.get('price') || 0);
   const dur = Number(formData.get('duration_min') || 30);
   const row = {
@@ -43,12 +42,13 @@ export async function upsertService(formData: FormData): Promise<ActionResult> {
 
 // ─── Appointments ─────────────────────────────────────────────────────────��─
 export async function createAppointment(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const when = String(formData.get('scheduled_at') || '').trim();
-  if (!when) return { ok: false, error: 'حدّد موعد الحجز.' };
+  if (!when) return { ok: false, error: t('salon.errors.appointmentTimeRequired') };
   const scheduled = new Date(when);
-  if (isNaN(scheduled.getTime())) return { ok: false, error: 'تاريخ غير صحيح.' };
+  if (isNaN(scheduled.getTime())) return { ok: false, error: t('salon.errors.invalidDate') };
   const dur = Number(formData.get('duration_min') || 30);
   const supabase = await createClient();
   const { error } = await supabase.from('erp_salon_appointments').insert({
@@ -68,9 +68,10 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
 }
 
 export async function setAppointmentStatus(id: string, status: string): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
-  if (!['scheduled', 'confirmed', 'arrived', 'done', 'cancelled', 'no_show'].includes(status)) return { ok: false, error: 'حالة غير صحيحة.' };
+  if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
+  if (!['scheduled', 'confirmed', 'arrived', 'done', 'cancelled', 'no_show'].includes(status)) return { ok: false, error: t('salon.errors.invalidStatus') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_salon_appointments').update({ status }).eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
@@ -80,16 +81,17 @@ export async function setAppointmentStatus(id: string, status: string): Promise<
 
 /** Client arrived → open a ticket (with the booked service as first line). */
 export async function checkInAppointment(appointmentId: string): Promise<ActionResult<string>> {
+  const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const supabase = await createClient();
   const { data: a } = await supabase
     .from('erp_salon_appointments')
     .select('stylist_id, service_id, customer_name, customer_phone, status')
     .eq('id', appointmentId).maybeSingle();
   const appt = a as { stylist_id: string | null; service_id: string | null; customer_name: string | null; customer_phone: string | null; status: string } | null;
-  if (!appt) return { ok: false, error: 'الموعد غير موجود.' };
-  if (appt.status === 'arrived' || appt.status === 'done') return { ok: false, error: 'تم تسجيل وصول هذا الموعد بالفعل.' };
+  if (!appt) return { ok: false, error: t('salon.errors.appointmentNotFound') };
+  if (appt.status === 'arrived' || appt.status === 'done') return { ok: false, error: t('salon.errors.appointmentAlreadyArrived') };
 
   const { data: ticket, error } = await supabase.from('erp_salon_tickets').insert({
     company_id: ctx.companyId, appointment_id: appointmentId, stylist_id: appt.stylist_id,
@@ -110,8 +112,9 @@ export async function checkInAppointment(appointmentId: string): Promise<ActionR
 
 // ─── Tickets ──────────────────────────────────────────────────────────────��─
 export async function createTicket(input: { stylist_id?: string | null; customer_name?: string; customer_phone?: string }): Promise<ActionResult<string>> {
+  const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const supabase = await createClient();
   const { data, error } = await supabase.from('erp_salon_tickets').insert({
     company_id: ctx.companyId,
@@ -126,12 +129,13 @@ export async function createTicket(input: { stylist_id?: string | null; customer
 }
 
 export async function addTicketItem(ticketId: string, serviceId: string): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const supabase = await createClient();
   const { data: s } = await supabase.from('erp_salon_services').select('name, price').eq('id', serviceId).maybeSingle();
   const svc = s as { name: string; price: number } | null;
-  if (!svc) return { ok: false, error: 'الخدمة غير موجودة.' };
+  if (!svc) return { ok: false, error: t('salon.errors.serviceNotFound') };
   const { data: existing } = await supabase.from('erp_salon_ticket_items').select('id, qty').eq('ticket_id', ticketId).eq('service_id', serviceId).maybeSingle();
   if (existing?.id) {
     const { error } = await supabase.from('erp_salon_ticket_items').update({ qty: Number((existing as { qty: number }).qty) + 1 }).eq('id', existing.id);
@@ -145,8 +149,9 @@ export async function addTicketItem(ticketId: string, serviceId: string): Promis
 }
 
 export async function setItemQty(itemId: string, qty: number, ticketId: string): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const supabase = await createClient();
   if (qty <= 0) {
     const { error } = await supabase.from('erp_salon_ticket_items').delete().eq('id', itemId);
@@ -160,10 +165,11 @@ export async function setItemQty(itemId: string, qty: number, ticketId: string):
 }
 
 export async function updateTicketMeta(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
-  if (!id) return { ok: false, error: 'التذكرة مطلوبة.' };
+  if (!id) return { ok: false, error: t('salon.errors.ticketRequired') };
   const disc = Number(formData.get('discount_value') || 0);
   const supabase = await createClient();
   const { error } = await supabase.from('erp_salon_tickets').update({
@@ -178,8 +184,9 @@ export async function updateTicketMeta(formData: FormData): Promise<ActionResult
 }
 
 export async function closeTicket(ticketId: string, paymentMethod = 'cash'): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_close_salon_ticket', { p_ticket_id: ticketId, p_payment_method: paymentMethod === 'card' ? 'card' : 'cash' });
   if (error) return { ok: false, error: friendlyDbError(error) };
@@ -188,11 +195,12 @@ export async function closeTicket(ticketId: string, paymentMethod = 'cash'): Pro
 }
 
 export async function cancelTicket(ticketId: string): Promise<ActionResult> {
+  const { t: translate } = await getT();
   const ctx = await requirePermission('salon.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: translate('salon.errors.noCompany') };
   const supabase = await createClient();
   const { data: t } = await supabase.from('erp_salon_tickets').select('status').eq('id', ticketId).maybeSingle();
-  if ((t as { status: string } | null)?.status === 'closed') return { ok: false, error: 'لا يمكن إلغاء تذكرة مغلقة.' };
+  if ((t as { status: string } | null)?.status === 'closed') return { ok: false, error: translate('salon.errors.cannotCancelClosed') };
   const { error } = await supabase.from('erp_salon_tickets').update({ status: 'cancelled' }).eq('id', ticketId);
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidate(ticketId);

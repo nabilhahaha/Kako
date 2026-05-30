@@ -4,24 +4,26 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { PricesEditor, type TierOpt, type PriceRow } from './prices-editor';
+import { getT } from '@/lib/i18n/server';
 
 export default async function WholesalePricesPage({ searchParams }: { searchParams: Promise<{ tier?: string }> }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
-    return (<div><PageHeader title="قائمة الأسعار" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">يتم من داخل حساب الشركة.</p></div>);
+    return (<div><PageHeader title={t('wholesale.pricesPageTitleNoCompany')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('wholesale.companyOnly')}</p></div>);
   }
   const supabase = await createClient();
   const { data: tiers } = await supabase.from('erp_wholesale_tiers').select('id, name').eq('is_active', true).order('sort').order('name');
   const tierList = (tiers as TierOpt[]) ?? [];
   const sp = await searchParams;
-  const tierId = sp.tier && tierList.some((t) => t.id === sp.tier) ? sp.tier : (tierList[0]?.id ?? null);
+  const tierId = sp.tier && tierList.some((tier) => tier.id === sp.tier) ? sp.tier : (tierList[0]?.id ?? null);
 
   if (!tierId) {
     return (
       <div>
-        <PageHeader title="قائمة الأسعار" />
-        <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">أضِف مستوى سعر أولاً من «مستويات الأسعار».</CardContent></Card>
+        <PageHeader title={t('wholesale.pricesPageTitleNoCompany')} />
+        <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">{t('wholesale.pricesNoTier')}</CardContent></Card>
       </div>
     );
   }
@@ -37,7 +39,7 @@ export default async function WholesalePricesPage({ searchParams }: { searchPara
 
   return (
     <div>
-      <PageHeader title="قائمة أسعار الجملة" description="حدّد سعر كل صنف في المستوى المختار." />
+      <PageHeader title={t('wholesale.pricesPageTitle')} description={t('wholesale.pricesPageDescription')} />
       <PricesEditor tiers={tierList} tierId={tierId} rows={rows} />
     </div>
   );

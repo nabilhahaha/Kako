@@ -2,13 +2,15 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { getT } from '@/lib/i18n/server';
 import { TicketsList, type OpenTicket, type StylistOption } from './tickets-list';
 
 export default async function SalonTicketsPage() {
+  const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
-    return (<div><PageHeader title="التذاكر" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">إدارة الصالون تتم من داخل حساب الصالون.</p></div>);
+    return (<div><PageHeader title={t('salon.tickets.title')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('salon.tickets.noCompany')}</p></div>);
   }
   const supabase = await createClient();
   const [{ data: tickets }, { data: staff }] = await Promise.all([
@@ -22,7 +24,7 @@ export default async function SalonTicketsPage() {
   }));
   return (
     <div>
-      <PageHeader title="التذاكر المفتوحة" description="افتح تذكرة عميل جديدة أو أكمل تذكرة قائمة." />
+      <PageHeader title={t('salon.tickets.titleOpen')} description={t('salon.tickets.description')} />
       <TicketsList tickets={list} staff={(staff as StylistOption[]) ?? []} />
     </div>
   );

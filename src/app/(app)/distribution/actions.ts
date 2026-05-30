@@ -3,16 +3,16 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requirePermission, requireAnyPermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
-
-const NO_COMPANY = 'يتم من داخل حساب الشركة.';
+import { getT } from '@/lib/i18n/server';
 
 /** Create / update a sales route (rep + van + visit day). */
 export async function upsertRoute(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(['reports.view', 'customers.manage']);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('distribution.noCompany') };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
-  if (!name) return { ok: false, error: 'اسم خط السير مطلوب.' };
+  if (!name) return { ok: false, error: t('distribution.actionRouteNameRequired') };
   const row = {
     name,
     rep_id: String(formData.get('rep_id') || '').trim() || null,
@@ -34,8 +34,9 @@ export async function upsertRoute(formData: FormData): Promise<ActionResult> {
 
 /** Assign a customer to a route (also stamps salesman + visit day from it). */
 export async function assignCustomerToRoute(customerId: string, routeId: string | null): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(['reports.view', 'customers.manage']);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('distribution.noCompany') };
   const supabase = await createClient();
   const patch: { route_id: string | null; salesman_id?: string | null; visit_day?: string | null } = { route_id: routeId };
   if (routeId) {
@@ -51,9 +52,10 @@ export async function assignCustomerToRoute(customerId: string, routeId: string 
 
 /** Set a rep's monthly sales target + commission %. month = 'YYYY-MM'. */
 export async function setTarget(input: { user_id: string; month: string; target_amount: number; commission_pct: number }): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('reports.view');
-  if (!ctx.companyId) return { ok: false, error: 'يتم من داخل حساب الشركة.' };
-  if (!input.user_id || !/^\d{4}-\d{2}$/.test(input.month)) return { ok: false, error: 'بيانات غير صحيحة.' };
+  if (!ctx.companyId) return { ok: false, error: t('distribution.noCompany') };
+  if (!input.user_id || !/^\d{4}-\d{2}$/.test(input.month)) return { ok: false, error: t('distribution.actionInvalidData') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_rep_targets').upsert({
     company_id: ctx.companyId,

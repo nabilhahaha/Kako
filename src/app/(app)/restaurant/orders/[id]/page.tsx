@@ -1,11 +1,13 @@
 import { notFound, redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
+import { getT } from '@/lib/i18n/server';
 import { OrderEditor, type EditorOrder, type OrderItem, type MenuCategory } from './order-editor';
 
 export default async function OrderEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   const { id } = await params;
 
   const supabase = await createClient();
@@ -31,7 +33,7 @@ export default async function OrderEditorPage({ params }: { params: Promise<{ id
   const byCat = new Map<string, MenuCategory>();
   for (const p of (products as { id: string; name: string; name_ar: string | null; sell_price: number; category_id: string | null }[]) ?? []) {
     const key = p.category_id ?? '—';
-    const label = p.category_id ? (catName.get(p.category_id) ?? 'أصناف') : 'أصناف';
+    const label = p.category_id ? (catName.get(p.category_id) ?? t('restaurant.menuItemsLabel')) : t('restaurant.menuItemsLabel');
     if (!byCat.has(key)) byCat.set(key, { id: key, name: label, items: [] });
     byCat.get(key)!.items.push({ id: p.id, name: p.name_ar || p.name, price: Number(p.sell_price || 0) });
   }

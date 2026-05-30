@@ -3,12 +3,14 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { CustomerTiers, type CustomerRow, type TierOpt } from './customer-tiers';
+import { getT } from '@/lib/i18n/server';
 
 export default async function WholesaleCustomersPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
-    return (<div><PageHeader title="مستويات العملاء" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">يتم من داخل حساب الشركة.</p></div>);
+    return (<div><PageHeader title={t('wholesale.customersPageTitleNoCompany')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('wholesale.companyOnly')}</p></div>);
   }
   const supabase = await createClient();
   const [{ data: customers }, { data: tiers }, { data: assign }] = await Promise.all([
@@ -22,7 +24,7 @@ export default async function WholesaleCustomersPage() {
 
   return (
     <div>
-      <PageHeader title="مستويات العملاء" description="حدّد مستوى السعر لكل عميل." />
+      <PageHeader title={t('wholesale.customersPageTitle')} description={t('wholesale.customersPageDescription')} />
       <CustomerTiers rows={rows} tiers={(tiers as TierOpt[]) ?? []} />
     </div>
   );

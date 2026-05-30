@@ -10,6 +10,7 @@ import { Search, Trash2, Loader2, FileText } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { wholesaleInvoice } from '../actions';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface BranchOpt { id: string; name: string; name_ar: string | null }
 export interface WCustomer { id: string; name: string; tier_id: string | null }
@@ -20,6 +21,7 @@ interface Line { product: WProduct; qty: number; price: number }
 const selectCls = 'h-10 rounded-md border border-input bg-background px-2 text-sm';
 
 export function WholesaleOrder({ branches, customers, products, tierPrices }: { branches: BranchOpt[]; customers: WCustomer[]; products: WProduct[]; tierPrices: Record<string, number> }) {
+  const { t } = useI18n();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [customerId, setCustomerId] = useState('');
   const [query, setQuery] = useState('');
@@ -60,16 +62,16 @@ export function WholesaleOrder({ branches, customers, products, tierPrices }: { 
   const total = cart.reduce((s, l) => s + l.qty * l.price, 0);
 
   function submit() {
-    if (!customerId) { toast.error('اختر العميل'); return; }
-    if (!branchId) { toast.error('اختر الفرع'); return; }
+    if (!customerId) { toast.error(t('wholesale.toastChooseCustomer')); return; }
+    if (!branchId) { toast.error(t('wholesale.toastChooseBranch')); return; }
     if (cart.length === 0) return;
     startTransition(async () => {
       const res = await wholesaleInvoice({
         branch_id: branchId, customer_id: customerId, collect, payment_method: method,
         lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: l.price, discount_pct: 0, tax_rate: 0 })),
       });
-      if (!res.ok || !res.data) { toast.error(res.error ?? 'تعذّر إصدار الفاتورة'); return; }
-      toast.success(`تم إصدار الفاتورة ${res.data.invoice_number}`);
+      if (!res.ok || !res.data) { toast.error(res.error ?? t('wholesale.toastIssueFailed')); return; }
+      toast.success(t('wholesale.toastInvoiceIssued', { number: res.data.invoice_number }));
       setCart([]); setCustomerId('');
       window.open(`/print/receipt/${res.data.invoice_id}`, '_blank');
     });
@@ -85,15 +87,15 @@ export function WholesaleOrder({ branches, customers, products, tierPrices }: { 
             </select>
           )}
           <select value={customerId} onChange={(e) => onCustomerChange(e.target.value)} className={`${selectCls} min-w-48 flex-1`}>
-            <option value="">— اختر العميل —</option>
+            <option value="">{t('wholesale.optChooseCustomer')}</option>
             {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
-        {customer && <p className="text-xs text-muted-foreground">مستوى السعر: <span className="font-medium text-foreground">{tierId ? 'مستوى خاص' : 'قطاعي (افتراضي)'}</span> — الأسعار اتعبّت تلقائياً وتقدر تعدّلها.</p>}
+        {customer && <p className="text-xs text-muted-foreground">{t('wholesale.priceLevelLabel')} <span className="font-medium text-foreground">{tierId ? t('wholesale.priceLevelCustom') : t('wholesale.priceLevelRetail')}</span> — {t('wholesale.priceLevelHint')}</p>}
 
         <div className="relative">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث عن صنف لإضافته…" className="pr-9" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('wholesale.placeholderSearchItem')} className="pr-9" />
         </div>
         {filtered.length > 0 && (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -109,9 +111,9 @@ export function WholesaleOrder({ branches, customers, products, tierPrices }: { 
 
       <div className="lg:col-span-2">
         <Card><CardContent className="space-y-3 p-4">
-          <h2 className="flex items-center gap-2 font-semibold"><FileText className="h-4 w-4" /> بنود الفاتورة</h2>
+          <h2 className="flex items-center gap-2 font-semibold"><FileText className="h-4 w-4" /> {t('wholesale.invoiceLinesTitle')}</h2>
           {cart.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">لا بنود — أضف أصنافاً.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">{t('wholesale.emptyCart')}</p>
           ) : (
             <ul className="divide-y">
               {cart.map((l) => (
@@ -131,13 +133,13 @@ export function WholesaleOrder({ branches, customers, products, tierPrices }: { 
             </ul>
           )}
 
-          <div className="flex items-center justify-between border-t pt-2 text-lg font-bold"><span>الإجمالي</span><span className="tabular-nums" dir="ltr">{formatCurrency(total)}</span></div>
+          <div className="flex items-center justify-between border-t pt-2 text-lg font-bold"><span>{t('wholesale.labelTotal')}</span><span className="tabular-nums" dir="ltr">{formatCurrency(total)}</span></div>
 
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={collect} onChange={(e) => setCollect(e.target.checked)} className="h-4 w-4" /> تحصيل نقدي الآن (غير ذلك: آجل على حساب العميل)</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={collect} onChange={(e) => setCollect(e.target.checked)} className="h-4 w-4" /> {t('wholesale.collectNowLabel')}</label>
           {collect && (
-            <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className={`${selectCls} w-full`}><option value="cash">كاش</option><option value="card">فيزا</option></select>
+            <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className={`${selectCls} w-full`}><option value="cash">{t('wholesale.optCash')}</option><option value="card">{t('wholesale.optCard')}</option></select>
           )}
-          <Button className="w-full" disabled={pending || cart.length === 0 || !customerId} onClick={submit}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} إصدار الفاتورة وطباعة</Button>
+          <Button className="w-full" disabled={pending || cart.length === 0 || !customerId} onClick={submit}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} {t('wholesale.btnIssueAndPrint')}</Button>
         </CardContent></Card>
       </div>
     </div>

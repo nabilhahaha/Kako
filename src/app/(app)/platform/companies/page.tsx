@@ -5,18 +5,20 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Company } from '@/lib/erp/types';
 import { CompaniesManager, type CompanyRow } from './companies-manager';
+import { getT } from '@/lib/i18n/server';
 
 export default async function PlatformCompaniesPage() {
+  const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
   if (!ctx.isPlatformOwner) {
     return (
       <div>
-        <PageHeader title="لوحة المزوّد" />
+        <PageHeader title={t('platform.overview.title')} />
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            هذه الصفحة متاحة لمالك المنصّة فقط.
+            {t('platform.ownerOnly')}
           </CardContent>
         </Card>
       </div>
@@ -71,8 +73,8 @@ export default async function PlatformCompaniesPage() {
   return (
     <div>
       <PageHeader
-        title="الشركات والاشتراكات"
-        description="إضافة الشركات (المستأجرين)، إدارة اشتراكاتها وقفلها عند الانتهاء"
+        title={t('platform.companies.title')}
+        description={t('platform.companies.description')}
       />
       <CompaniesManager rows={rows} btDefaults={btDefaults} btRoles={btRoles} roleLabels={roleLabels} />
     </div>

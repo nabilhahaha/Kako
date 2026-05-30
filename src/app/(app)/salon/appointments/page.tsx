@@ -2,13 +2,15 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { getT } from '@/lib/i18n/server';
 import { SalonAppointments, type Appt, type StylistOption, type ServiceOption } from './appointments-manager';
 
 export default async function SalonAppointmentsPage() {
+  const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
-    return (<div><PageHeader title="المواعيد" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">إدارة الصالون تتم من داخل حساب الصالون.</p></div>);
+    return (<div><PageHeader title={t('salon.appointments.title')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('salon.appointments.noCompany')}</p></div>);
   }
   const supabase = await createClient();
   const since = new Date(); since.setDate(since.getDate() - 1);
@@ -19,7 +21,7 @@ export default async function SalonAppointmentsPage() {
   ]);
   return (
     <div>
-      <PageHeader title="المواعيد" description="حجوزات العملاء — احجز موعداً مع مصفف وسجّل الوصول ليتحوّل إلى تذكرة." />
+      <PageHeader title={t('salon.appointments.title')} description={t('salon.appointments.description')} />
       <SalonAppointments
         appts={(appts as Appt[]) ?? []}
         staff={(staff as StylistOption[]) ?? []}

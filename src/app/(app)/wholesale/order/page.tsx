@@ -3,12 +3,14 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { WholesaleOrder, type WCustomer, type WProduct, type BranchOpt } from './wholesale-order';
+import { getT } from '@/lib/i18n/server';
 
 export default async function WholesaleOrderPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
-    return (<div><PageHeader title="فاتورة جملة" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">يتم من داخل حساب الشركة.</p></div>);
+    return (<div><PageHeader title={t('wholesale.orderPageTitleNoCompany')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('wholesale.companyOnly')}</p></div>);
   }
   const supabase = await createClient();
   const [{ data: branches }, { data: customers }, { data: products }, { data: assign }, { data: prices }] = await Promise.all([
@@ -30,7 +32,7 @@ export default async function WholesaleOrderPage() {
 
   return (
     <div>
-      <PageHeader title="فاتورة جملة" description="اختر العميل فيتعبّى سعر مستواه تلقائياً — وتقدر تعدّل سعر أي صنف." />
+      <PageHeader title={t('wholesale.orderPageTitle')} description={t('wholesale.orderPageDescription')} />
       <WholesaleOrder
         branches={(branches as BranchOpt[]) ?? []}
         customers={wcustomers}

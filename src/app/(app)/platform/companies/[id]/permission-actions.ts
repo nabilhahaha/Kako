@@ -5,16 +5,18 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { logAudit } from '@/lib/erp/audit';
+import { getT } from '@/lib/i18n/server';
 
 // Per-company role & permission management. Restricted to the platform owner:
 // they decide which roles are active and what each role can do for every tenant
 // company, independently (a pharmacy != a food distributor != a hotel).
 
 async function requirePlatformOwner() {
+  const { t } = await getT();
   const ctx = await getUserContext();
-  if (!ctx) return { ctx: null, error: 'غير مصرح. سجّل الدخول.' };
+  if (!ctx) return { ctx: null, error: t('platform.errors.unauthorized') };
   if (!ctx.isPlatformOwner)
-    return { ctx: null, error: 'إدارة صلاحيات الشركات متاحة لمالك المنصّة فقط.' };
+    return { ctx: null, error: t('platform.errors.permissionsOwnerRequired') };
   return { ctx, error: null };
 }
 
@@ -30,7 +32,8 @@ export async function setCompanyRoleEnabled(
 ): Promise<ActionResult> {
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
-  if (!companyId || !roleKey) return { ok: false, error: 'بيانات غير مكتملة.' };
+  const { t } = await getT();
+  if (!companyId || !roleKey) return { ok: false, error: t('platform.errors.incompleteData') };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -86,8 +89,9 @@ export async function setCompanyRolePermission(
 ): Promise<ActionResult> {
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
+  const { t: tPerm } = await getT();
   if (!companyId || !roleKey || !permission)
-    return { ok: false, error: 'بيانات غير مكتملة.' };
+    return { ok: false, error: tPerm('platform.errors.incompleteData') };
 
   const supabase = await createClient();
   if (enabled) {
@@ -131,11 +135,12 @@ export async function addCompanyRole(
 ): Promise<ActionResult> {
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
-  if (!companyId) return { ok: false, error: 'الشركة مطلوبة.' };
+  const { t: tRole } = await getT();
+  if (!companyId) return { ok: false, error: tRole('platform.errors.companyRequired') };
 
   const cleanKey = key.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
-  if (!cleanKey) return { ok: false, error: 'مفتاح الدور (إنجليزي) مطلوب.' };
-  if (!name_ar.trim()) return { ok: false, error: 'اسم الدور مطلوب.' };
+  if (!cleanKey) return { ok: false, error: tRole('platform.errors.roleKeyRequired') };
+  if (!name_ar.trim()) return { ok: false, error: tRole('platform.errors.roleNameRequired') };
 
   const supabase = await createClient();
   // Add to the catalog if it does not exist yet (keep any existing name/rank).

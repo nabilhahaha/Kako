@@ -2,16 +2,18 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { getT } from '@/lib/i18n/server';
 import { KitchenBoard, type KitchenOrder } from './kitchen-board';
 
 export default async function KitchenPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
     return (
       <div>
-        <PageHeader title="المطبخ" />
-        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">إدارة المطعم تتم من داخل حساب المطعم.</p>
+        <PageHeader title={t('restaurant.kitchen.titleNoCompany')} />
+        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('restaurant.noCompany')}</p>
       </div>
     );
   }
@@ -34,7 +36,9 @@ export default async function KitchenPage() {
     if (!byOrder.has(oid)) {
       byOrder.set(oid, {
         id: oid,
-        label: r.order.table?.name ? `طاولة ${r.order.table.name}` : (r.order.customer_name || (r.order.order_type === 'delivery' ? 'دليفري' : 'تيك أواي')),
+        label: r.order.table?.name
+          ? t('restaurant.kitchen.tableLabel', { name: r.order.table.name })
+          : (r.order.customer_name || t(`restaurant.orderType.${r.order.order_type}`)),
         order_type: r.order.order_type,
         items: [],
       });
@@ -44,7 +48,7 @@ export default async function KitchenPage() {
 
   return (
     <div>
-      <PageHeader title="شاشة المطبخ" description="الأصناف المطلوب تحضيرها — علّم كل صنف عند بدء التحضير وعند الجاهزية." />
+      <PageHeader title={t('restaurant.kitchen.title')} description={t('restaurant.kitchen.description')} />
       <KitchenBoard orders={[...byOrder.values()]} />
     </div>
   );

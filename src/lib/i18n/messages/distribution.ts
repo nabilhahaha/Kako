@@ -1,7 +1,147 @@
-/** distribution module messages. Fill the namespace below; keep ar/en keys identical. */
+/** distribution module messages – ar values are the original Arabic; en values are professional English translations. */
+
 export const ar = {
-  distribution: {} as Record<string, string>,
+  distribution: {
+    // ── Generic ──────────────────────────────────────────────────────────────
+    errorGeneric: 'حدث خطأ',
+    btnSave: 'حفظ',
+    btnCancel: 'إلغاء',
+    noCompany: 'يتم من داخل حساب الشركة.',
+    defaultRepName: 'مندوب',
+
+    // ── Routes ───────────────────────────────────────────────────────────────
+    routesTitle: 'خطوط السير / المناطق',
+    routesDescription: 'جمّع عملاءك تحت خط سير بمندوب وعربية ويوم زيارة.',
+    routesTitleSimple: 'خطوط السير',
+    routeBtnNew: 'خط سير جديد',
+    routeLabelName: 'اسم الخط *',
+    routeNamePlaceholder: 'وسط البلد / المعادي',
+    routeLabelRep: 'المندوب',
+    routeLabelVan: 'العربية',
+    routeLabelVisitDay: 'يوم الزيارة',
+    routeToastAdded: 'تمت إضافة الخط',
+    routeToastUpdated: 'تم التحديث',
+    routeEmptyState: 'لا توجد خطوط سير بعد.',
+    routeColRoute: 'الخط',
+    routeColRep: 'المندوب',
+    routeColVan: 'العربية',
+    routeColDay: 'اليوم',
+    routeColCustomers: 'العملاء',
+    routeBadgeInactive: 'موقوف',
+    routeBtnCustomers: 'العملاء',
+
+    // ── Route detail / customers ─────────────────────────────────────────────
+    routeDetailBackLink: 'خطوط السير',
+    routeDetailTitle: 'عملاء خط: {name}',
+    routeDetailDescription: 'أضِف عملاء للخط — هيتربطوا تلقائياً بمندوب الخط ويوم زيارته.',
+    routeCustomersSearchPlaceholder: 'ابحث عن عميل لإضافته للخط…',
+    routeCustomersNoResults: 'لا نتائج.',
+    routeCustomersTypePrompt: 'اكتب اسم/كود عميل.',
+    routeCustomersOnOtherRoute: '(بخط آخر)',
+    routeCustomersBtnAdd: 'إضافة',
+    routeCustomersToastAdded: 'تمت الإضافة للخط',
+    routeCustomersToastRemoved: 'تمت الإزالة',
+    routeCustomersAssignedHeader: 'عملاء الخط ({count})',
+    routeCustomersEmptyState: 'لا عملاء على الخط بعد.',
+
+    // ── Targets ──────────────────────────────────────────────────────────────
+    targetsTitle: 'أهداف وعمولات المناديب',
+    targetsDescription: 'حدّد هدف المبيعات الشهري ونسبة العمولة لكل مندوب.',
+    targetsTitleSimple: 'أهداف المناديب',
+    targetsEmptyState: 'لا يوجد مناديب (مستخدمون بدور «مندوب/سائق»). أضِفهم من «فريق العمل».',
+    targetsColRep: 'المندوب',
+    targetsColSalesTarget: 'هدف المبيعات (شهري)',
+    targetsColCommissionPct: 'نسبة العمولة %',
+    targetsToastSaved: 'تم الحفظ',
+    targetsToastError: 'حدث خطأ',
+
+    // ── Report ────────────────────────────────────────────────────────────────
+    reportTitle: 'تقرير التوزيع',
+    reportDescription: 'مبيعات وتحصيل كل مندوب مقابل الهدف والعمولة.',
+    reportNoReps: 'لا يوجد مناديب.',
+    reportColRep: 'المندوب',
+    reportColSales: 'المبيعات',
+    reportColTarget: 'الهدف',
+    reportColAchievement: 'التحقيق',
+    reportColCollected: 'المحصّل',
+    reportColCommission: 'العمولة',
+    reportRowTotal: 'الإجمالي',
+
+    // ── Actions (server) ─────────────────────────────────────────────────────
+    actionRouteNameRequired: 'اسم خط السير مطلوب.',
+    actionInvalidData: 'بيانات غير صحيحة.',
+  },
 };
+
 export const en = {
-  distribution: {} as Record<string, string>,
+  distribution: {
+    // ── Generic ──────────────────────────────────────────────────────────────
+    errorGeneric: 'An error occurred',
+    btnSave: 'Save',
+    btnCancel: 'Cancel',
+    noCompany: 'Available within a company account.',
+    defaultRepName: 'Rep',
+
+    // ── Routes ───────────────────────────────────────────────────────────────
+    routesTitle: 'Routes / Territories',
+    routesDescription: 'Group your customers under a route with a rep, van, and visit day.',
+    routesTitleSimple: 'Routes',
+    routeBtnNew: 'New Route',
+    routeLabelName: 'Route Name *',
+    routeNamePlaceholder: 'Downtown / Maadi',
+    routeLabelRep: 'Rep',
+    routeLabelVan: 'Van',
+    routeLabelVisitDay: 'Visit Day',
+    routeToastAdded: 'Route added',
+    routeToastUpdated: 'Updated successfully',
+    routeEmptyState: 'No routes yet.',
+    routeColRoute: 'Route',
+    routeColRep: 'Rep',
+    routeColVan: 'Van',
+    routeColDay: 'Day',
+    routeColCustomers: 'Customers',
+    routeBadgeInactive: 'Inactive',
+    routeBtnCustomers: 'Customers',
+
+    // ── Route detail / customers ─────────────────────────────────────────────
+    routeDetailBackLink: 'Routes',
+    routeDetailTitle: 'Route Customers: {name}',
+    routeDetailDescription: 'Add customers to the route — they will be automatically linked to the route rep and visit day.',
+    routeCustomersSearchPlaceholder: 'Search for a customer to add to the route…',
+    routeCustomersNoResults: 'No results.',
+    routeCustomersTypePrompt: 'Type a customer name or code.',
+    routeCustomersOnOtherRoute: '(on another route)',
+    routeCustomersBtnAdd: 'Add',
+    routeCustomersToastAdded: 'Added to route',
+    routeCustomersToastRemoved: 'Removed',
+    routeCustomersAssignedHeader: 'Route Customers ({count})',
+    routeCustomersEmptyState: 'No customers on this route yet.',
+
+    // ── Targets ──────────────────────────────────────────────────────────────
+    targetsTitle: 'Rep Targets & Commissions',
+    targetsDescription: 'Set the monthly sales target and commission rate for each rep.',
+    targetsTitleSimple: 'Rep Targets',
+    targetsEmptyState: 'No reps found (users with the "rep/driver" role). Add them from "Team".',
+    targetsColRep: 'Rep',
+    targetsColSalesTarget: 'Sales Target (Monthly)',
+    targetsColCommissionPct: 'Commission %',
+    targetsToastSaved: 'Saved',
+    targetsToastError: 'An error occurred',
+
+    // ── Report ────────────────────────────────────────────────────────────────
+    reportTitle: 'Distribution Report',
+    reportDescription: 'Sales and collections per rep vs. target and commission.',
+    reportNoReps: 'No reps found.',
+    reportColRep: 'Rep',
+    reportColSales: 'Sales',
+    reportColTarget: 'Target',
+    reportColAchievement: 'Achievement',
+    reportColCollected: 'Collected',
+    reportColCommission: 'Commission',
+    reportRowTotal: 'Total',
+
+    // ── Actions (server) ─────────────────────────────────────────────────────
+    actionRouteNameRequired: 'Route name is required.',
+    actionInvalidData: 'Invalid data.',
+  },
 };

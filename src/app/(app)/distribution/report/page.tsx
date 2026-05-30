@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import { MonthNav } from '../month-nav';
+import { getT } from '@/lib/i18n/server';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 
 const ACTIVE = ['issued', 'paid', 'partially_paid', 'overdue'];
 function currentMonth() { return new Date().toISOString().slice(0, 7); }
@@ -17,8 +19,9 @@ export default async function DistributionReportPage({ searchParams }: { searchP
   await requirePermission('reports.view');
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t: tr, locale } = await getT();
   if (!ctx.companyId) {
-    return (<div><PageHeader title="تقرير التوزيع" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">يتم من داخل حساب الشركة.</p></div>);
+    return (<div><PageHeader title={tr('distribution.reportTitle')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{tr('distribution.noCompany')}</p></div>);
   }
   const sp = await searchParams;
   const month = /^\d{4}-\d{2}$/.test(sp.month || '') ? sp.month! : currentMonth();
@@ -54,48 +57,50 @@ export default async function DistributionReportPage({ searchParams }: { searchP
     const target = Number(t?.target_amount ?? 0);
     const pct = Number(t?.commission_pct ?? 0);
     return {
-      id: r.id, name: r.full_name || r.email || 'مندوب', sales, collections, target, pct,
+      id: r.id, name: r.full_name || r.email || tr('distribution.defaultRepName'), sales, collections, target, pct,
       achievement: target > 0 ? Math.round((sales / target) * 100) : null,
       commission: sales * pct / 100,
     };
   });
   const tot = rows.reduce((a, r) => ({ sales: a.sales + r.sales, collections: a.collections + r.collections, target: a.target + r.target, commission: a.commission + r.commission }), { sales: 0, collections: 0, target: 0, commission: 0 });
 
+  const fmt = (v: number) => formatCurrency(v, 'EGP', INTL_LOCALE[locale]);
+
   return (
     <div>
-      <PageHeader title="تقرير التوزيع" description="مبيعات وتحصيل كل مندوب مقابل الهدف والعمولة." action={<MonthNav month={month} base="/distribution/report" />} />
+      <PageHeader title={tr('distribution.reportTitle')} description={tr('distribution.reportDescription')} action={<MonthNav month={month} base="/distribution/report" />} />
       <Card><CardContent className="p-0">
         {rows.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">لا يوجد مناديب.</p>
+          <p className="p-8 text-center text-sm text-muted-foreground">{tr('distribution.reportNoReps')}</p>
         ) : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground"><tr>
-              <th className="p-3 text-right font-medium">المندوب</th>
-              <th className="p-3 text-center font-medium">المبيعات</th>
-              <th className="p-3 text-center font-medium">الهدف</th>
-              <th className="p-3 text-center font-medium">التحقيق</th>
-              <th className="p-3 text-center font-medium">المحصّل</th>
-              <th className="p-3 text-center font-medium">العمولة</th>
+              <th className="p-3 text-right font-medium">{tr('distribution.reportColRep')}</th>
+              <th className="p-3 text-center font-medium">{tr('distribution.reportColSales')}</th>
+              <th className="p-3 text-center font-medium">{tr('distribution.reportColTarget')}</th>
+              <th className="p-3 text-center font-medium">{tr('distribution.reportColAchievement')}</th>
+              <th className="p-3 text-center font-medium">{tr('distribution.reportColCollected')}</th>
+              <th className="p-3 text-center font-medium">{tr('distribution.reportColCommission')}</th>
             </tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="border-b">
                   <td className="p-3 font-medium">{r.name}</td>
-                  <td className="p-3 text-center tabular-nums" dir="ltr">{formatCurrency(r.sales)}</td>
-                  <td className="p-3 text-center tabular-nums text-muted-foreground" dir="ltr">{r.target > 0 ? formatCurrency(r.target) : '—'}</td>
+                  <td className="p-3 text-center tabular-nums" dir="ltr">{fmt(r.sales)}</td>
+                  <td className="p-3 text-center tabular-nums text-muted-foreground" dir="ltr">{r.target > 0 ? fmt(r.target) : '—'}</td>
                   <td className="p-3 text-center">{r.achievement != null ? <Badge variant={r.achievement >= 100 ? 'success' : r.achievement >= 70 ? 'warning' : 'secondary'}>{r.achievement}%</Badge> : '—'}</td>
-                  <td className="p-3 text-center tabular-nums" dir="ltr">{formatCurrency(r.collections)}</td>
-                  <td className="p-3 text-center tabular-nums text-success" dir="ltr">{r.pct > 0 ? formatCurrency(r.commission) : '—'}</td>
+                  <td className="p-3 text-center tabular-nums" dir="ltr">{fmt(r.collections)}</td>
+                  <td className="p-3 text-center tabular-nums text-success" dir="ltr">{r.pct > 0 ? fmt(r.commission) : '—'}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="border-t-2 font-bold"><tr>
-              <td className="p-3">الإجمالي</td>
-              <td className="p-3 text-center tabular-nums" dir="ltr">{formatCurrency(tot.sales)}</td>
-              <td className="p-3 text-center tabular-nums" dir="ltr">{formatCurrency(tot.target)}</td>
+              <td className="p-3">{tr('distribution.reportRowTotal')}</td>
+              <td className="p-3 text-center tabular-nums" dir="ltr">{fmt(tot.sales)}</td>
+              <td className="p-3 text-center tabular-nums" dir="ltr">{fmt(tot.target)}</td>
               <td className="p-3 text-center">{tot.target > 0 ? `${Math.round((tot.sales / tot.target) * 100)}%` : '—'}</td>
-              <td className="p-3 text-center tabular-nums" dir="ltr">{formatCurrency(tot.collections)}</td>
-              <td className="p-3 text-center tabular-nums text-success" dir="ltr">{formatCurrency(tot.commission)}</td>
+              <td className="p-3 text-center tabular-nums" dir="ltr">{fmt(tot.collections)}</td>
+              <td className="p-3 text-center tabular-nums text-success" dir="ltr">{fmt(tot.commission)}</td>
             </tr></tfoot>
           </table></div>
         )}

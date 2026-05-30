@@ -4,13 +4,15 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { RoutesManager, type RouteRow, type RepOpt, type VanOpt } from './routes-manager';
+import { getT } from '@/lib/i18n/server';
 
 export default async function RoutesPage() {
   await requireAnyPermission(['reports.view', 'customers.manage']);
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
-    return (<div><PageHeader title="خطوط السير" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">يتم من داخل حساب الشركة.</p></div>);
+    return (<div><PageHeader title={t('distribution.routesTitleSimple')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('distribution.noCompany')}</p></div>);
   }
   const supabase = await createClient();
   const [{ data: routes }, { data: reps }, { data: vans }, { data: custs }] = await Promise.all([
@@ -28,7 +30,7 @@ export default async function RoutesPage() {
 
   return (
     <div>
-      <PageHeader title="خطوط السير / المناطق" description="جمّع عملاءك تحت خط سير بمندوب وعربية ويوم زيارة." />
+      <PageHeader title={t('distribution.routesTitle')} description={t('distribution.routesDescription')} />
       <RoutesManager routes={rows} reps={repList} vans={vanList} />
     </div>
   );

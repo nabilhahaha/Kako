@@ -13,6 +13,7 @@ import {
 } from './permission-actions';
 import { Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface CompanyRoleRow {
   key: string;
@@ -34,6 +35,7 @@ export function CompanyPermissions({
   /** company-scoped permissions, per role_key */
   permsByRole: Record<string, string[]>;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -55,7 +57,7 @@ export function CompanyPermissions({
     startTransition(async () => {
       const res = await setCompanyRoleEnabled(companyId, roleKey, on);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('platform.permissions.toastError'));
       }
       // Enabling may seed default permissions server-side — refresh to reflect.
       router.refresh();
@@ -72,7 +74,7 @@ export function CompanyPermissions({
     startTransition(async () => {
       const res = await setCompanyRolePermission(companyId, roleKey, perm, on);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('platform.permissions.toastError'));
         router.refresh();
       }
     });
@@ -82,10 +84,10 @@ export function CompanyPermissions({
     startTransition(async () => {
       const res = await addCompanyRole(companyId, newName, newKey);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('platform.permissions.toastError'));
         return;
       }
-      toast.success('تمت إضافة الدور لهذه الشركة');
+      toast.success(t('platform.permissions.toastRoleAdded'));
       setAdding(false);
       setNewName('');
       setNewKey('');
@@ -104,14 +106,14 @@ export function CompanyPermissions({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-semibold">الأدوار والصلاحيات</p>
+          <p className="font-semibold">{t('platform.permissions.title')}</p>
           <p className="text-xs text-muted-foreground">
-            فعّل الأدوار المطلوبة لهذه الشركة وحدد صلاحيات كل دور. الإعداد مستقل لكل شركة.
+            {t('platform.permissions.description')}
           </p>
         </div>
         {!adding ? (
           <Button size="sm" onClick={() => setAdding(true)}>
-            <Plus className="h-4 w-4" /> دور جديد
+            <Plus className="h-4 w-4" /> {t('platform.permissions.newRole')}
           </Button>
         ) : null}
       </div>
@@ -120,17 +122,17 @@ export function CompanyPermissions({
         <Card>
           <CardContent className="flex flex-wrap items-end gap-3 pt-6">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">اسم الدور</label>
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="مثال: صيدلي" />
+              <label className="text-xs text-muted-foreground">{t('platform.permissions.roleNameLabel')}</label>
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t('platform.permissions.roleNamePlaceholder')} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">المفتاح (إنجليزي)</label>
-              <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} dir="ltr" placeholder="pharmacist" />
+              <label className="text-xs text-muted-foreground">{t('platform.permissions.roleKeyLabel')}</label>
+              <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} dir="ltr" placeholder={t('platform.permissions.roleKeyPlaceholder')} />
             </div>
             <Button onClick={addRole} disabled={pending}>
-              {pending && <Loader2 className="h-4 w-4 animate-spin" />} إضافة
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('platform.permissions.addButton')}
             </Button>
-            <Button variant="outline" onClick={() => setAdding(false)}>إلغاء</Button>
+            <Button variant="outline" onClick={() => setAdding(false)}>{t('platform.permissions.cancelButton')}</Button>
           </CardContent>
         </Card>
       )}
@@ -141,7 +143,7 @@ export function CompanyPermissions({
             <table className="w-full text-sm">
               <thead className="border-b bg-secondary/50 text-muted-foreground">
                 <tr>
-                  <th className="sticky right-0 bg-secondary/50 p-3 text-right font-medium">الصلاحية</th>
+                  <th className="sticky right-0 bg-secondary/50 p-3 text-right font-medium">{t('platform.permissions.thPermission')}</th>
                   {roles.map((r) => (
                     <th key={r.key} className="p-3 text-center font-medium whitespace-nowrap">
                       <div className="flex flex-col items-center gap-1">
@@ -154,7 +156,7 @@ export function CompanyPermissions({
                             disabled={pending}
                             onChange={(e) => toggleRole(r.key, e.target.checked)}
                           />
-                          مفعّل
+                          {t('platform.permissions.enabledLabel')}
                         </label>
                       </div>
                     </th>
@@ -196,7 +198,7 @@ export function CompanyPermissions({
       </Card>
 
       <p className="text-xs text-muted-foreground">
-        تسري التغييرات على مستخدمي الشركة عند تحديث الصفحة أو إعادة تسجيل الدخول. الأدوار غير المفعّلة لا تمنح أي صلاحية.
+        {t('platform.permissions.footer')}
       </p>
     </div>
   );

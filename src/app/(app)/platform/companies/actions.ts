@@ -8,12 +8,14 @@ import { checkBranchLimit, checkUserLimit } from '@/lib/erp/plans';
 import { logAudit } from '@/lib/erp/audit';
 import { ALL_MODULES } from '@/lib/erp/navigation';
 import type { BusinessType } from '@/lib/erp/types';
+import { getT } from '@/lib/i18n/server';
 
 async function requirePlatformOwner() {
+  const { t } = await getT();
   const ctx = await getUserContext();
-  if (!ctx) return { ctx: null, error: 'غير مصرح. سجّل الدخول.' };
+  if (!ctx) return { ctx: null, error: t('platform.errors.unauthorized') };
   if (!ctx.isPlatformOwner)
-    return { ctx: null, error: 'لوحة المزوّد متاحة لمالك المنصّة فقط.' };
+    return { ctx: null, error: t('platform.errors.ownerRequired') };
   return { ctx, error: null };
 }
 
@@ -38,9 +40,10 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
 
+  const { t } = await getT();
   const name = String(formData.get('name') || '').trim();
   const name_ar = String(formData.get('name_ar') || '').trim() || null;
-  if (!name) return { ok: false, error: 'اسم الشركة (إنجليزي) مطلوب.' };
+  if (!name) return { ok: false, error: t('platform.errors.companyNameRequired') };
 
   const rawSlug = String(formData.get('slug') || '').trim();
   const slug = rawSlug ? slugify(rawSlug) : slugify(name);
@@ -67,7 +70,7 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
     .single();
 
   if (error) {
-    if (error.code === '23505') return { ok: false, error: 'المعرّف (slug) مستخدم بالفعل.' };
+    if (error.code === '23505') return { ok: false, error: t('platform.errors.slugDuplicate') };
     return { ok: false, error: friendlyDbError(error) };
   }
   const newId = (data as { id: string }).id;
@@ -106,10 +109,11 @@ export async function updateCompany(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
 
+  const { t: t2 } = await getT();
   const id = String(formData.get('id') || '').trim();
-  if (!id) return { ok: false, error: 'الشركة مطلوبة.' };
+  if (!id) return { ok: false, error: t2('platform.errors.companyRequired') };
   const name = String(formData.get('name') || '').trim();
-  if (!name) return { ok: false, error: 'اسم الشركة (إنجليزي) مطلوب.' };
+  if (!name) return { ok: false, error: t2('platform.errors.companyNameRequired') };
 
   const btype = String(formData.get('business_type') || 'general') as BusinessType;
   const business_type = BUSINESS_TYPES.includes(btype) ? btype : 'general';
@@ -168,7 +172,8 @@ export async function setCompanyActive(id: string, isActive: boolean): Promise<A
 export async function setSubscriptionEnd(id: string, end: string): Promise<ActionResult> {
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
-  if (!end) return { ok: false, error: 'تاريخ الانتهاء مطلوب.' };
+  const { t: tSub } = await getT();
+  if (!end) return { ok: false, error: tSub('platform.errors.subscriptionEndRequired') };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -187,12 +192,13 @@ export async function addBranch(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
 
+  const { t: tBranch } = await getT();
   const company_id = String(formData.get('company_id') || '').trim();
   const code = String(formData.get('code') || '').trim().toUpperCase();
   const name = String(formData.get('name') || '').trim();
-  if (!company_id) return { ok: false, error: 'الشركة مطلوبة.' };
-  if (!code) return { ok: false, error: 'كود الفرع مطلوب.' };
-  if (!name) return { ok: false, error: 'اسم الفرع مطلوب.' };
+  if (!company_id) return { ok: false, error: tBranch('platform.errors.companyRequired') };
+  if (!code) return { ok: false, error: tBranch('platform.errors.branchCodeRequired') };
+  if (!name) return { ok: false, error: tBranch('platform.errors.branchNameRequired') };
 
   const supabase = await createClient();
   const limitErr = await checkBranchLimit(supabase, company_id);
@@ -205,7 +211,7 @@ export async function addBranch(formData: FormData): Promise<ActionResult> {
     is_hq: formData.get('is_hq') === 'on',
   });
   if (error) {
-    if (error.code === '23505') return { ok: false, error: 'كود الفرع مستخدم بالفعل في هذه الشركة.' };
+    if (error.code === '23505') return { ok: false, error: tBranch('platform.errors.branchCodeDuplicate') };
     return { ok: false, error: friendlyDbError(error) };
   }
   await logAudit(supabase, { action: 'create', entity: 'branch', details: { code, name }, companyId: company_id });
@@ -221,6 +227,7 @@ export async function onboardAdmin(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
 
+  const { t: tOnboard } = await getT();
   const company_id = String(formData.get('company_id') || '').trim();
   const branch_id = String(formData.get('branch_id') || '').trim();
   const email = String(formData.get('email') || '').trim().toLowerCase();
@@ -228,10 +235,10 @@ export async function onboardAdmin(formData: FormData): Promise<ActionResult> {
   const full_name = String(formData.get('full_name') || '').trim();
   const role = String(formData.get('role') || 'admin').trim() || 'admin';
 
-  if (!company_id) return { ok: false, error: 'الشركة مطلوبة.' };
-  if (!branch_id) return { ok: false, error: 'اختر الفرع لربط المستخدم به.' };
-  if (!email) return { ok: false, error: 'البريد الإلكتروني مطلوب.' };
-  if (password.length < 6) return { ok: false, error: 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل.' };
+  if (!company_id) return { ok: false, error: tOnboard('platform.errors.companyRequired') };
+  if (!branch_id) return { ok: false, error: tOnboard('platform.errors.branchRequired') };
+  if (!email) return { ok: false, error: tOnboard('platform.errors.emailRequired') };
+  if (password.length < 6) return { ok: false, error: tOnboard('platform.errors.passwordTooShort') };
 
   const supabase = await createClient();
 
@@ -249,10 +256,10 @@ export async function onboardAdmin(formData: FormData): Promise<ActionResult> {
   });
 
   if (error)
-    return { ok: false, error: 'تعذّر إنشاء المستخدم. تأكد من نشر دالة admin-create-user.' };
+    return { ok: false, error: tOnboard('platform.errors.userCreateFailed') };
   if (data?.error) return { ok: false, error: data.error };
   const userId = data?.user_id as string | undefined;
-  if (!userId) return { ok: false, error: 'تعذّر الحصول على معرّف المستخدم.' };
+  if (!userId) return { ok: false, error: tOnboard('platform.errors.userIdMissing') };
 
   const { error: assignErr } = await supabase
     .from('erp_user_branches')
@@ -277,7 +284,8 @@ export async function onboardAdmin(formData: FormData): Promise<ActionResult> {
 export async function setCompanyPlan(id: string, planKey: string): Promise<ActionResult> {
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
-  if (!id || !planKey) return { ok: false, error: 'بيانات غير مكتملة.' };
+  const { t: tPlan } = await getT();
+  if (!id || !planKey) return { ok: false, error: tPlan('platform.errors.incompleteData') };
 
   const supabase = await createClient();
   const { error } = await supabase.from('erp_companies').update({ plan_key: planKey }).eq('id', id);
@@ -293,9 +301,10 @@ export async function setCompanyPlan(id: string, planKey: string): Promise<Actio
 export async function resetUserPassword(userId: string, newPassword: string): Promise<ActionResult> {
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
-  if (!userId) return { ok: false, error: 'المستخدم مطلوب.' };
+  const { t: tPwd } = await getT();
+  if (!userId) return { ok: false, error: tPwd('platform.errors.userRequired') };
   if (!newPassword || newPassword.length < 6)
-    return { ok: false, error: 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل.' };
+    return { ok: false, error: tPwd('platform.errors.passwordTooShort') };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_admin_set_password', {
@@ -315,7 +324,8 @@ export async function setCompanyModule(
 ): Promise<ActionResult> {
   const { error: authErr } = await requirePlatformOwner();
   if (authErr) return { ok: false, error: authErr };
-  if (!companyId || !module) return { ok: false, error: 'بيانات غير مكتملة.' };
+  const { t: tMod } = await getT();
+  if (!companyId || !module) return { ok: false, error: tMod('platform.errors.incompleteData') };
 
   const supabase = await createClient();
   const { error } = await supabase

@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { MonthNav } from '../month-nav';
 import { TargetsManager, type Rep, type TargetRow } from './targets-manager';
+import { getT } from '@/lib/i18n/server';
 
 function currentMonth() { return new Date().toISOString().slice(0, 7); }
 
@@ -13,8 +14,9 @@ export default async function TargetsPage({ searchParams }: { searchParams: Prom
   await requirePermission('reports.view');
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
-    return (<div><PageHeader title="أهداف المناديب" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">يتم من داخل حساب الشركة.</p></div>);
+    return (<div><PageHeader title={t('distribution.targetsTitleSimple')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('distribution.noCompany')}</p></div>);
   }
   const sp = await searchParams;
   const month = /^\d{4}-\d{2}$/.test(sp.month || '') ? sp.month! : currentMonth();
@@ -26,16 +28,16 @@ export default async function TargetsPage({ searchParams }: { searchParams: Prom
   ]);
   const tmap = new Map(((targets as { user_id: string; target_amount: number; commission_pct: number }[]) ?? []).map((t) => [t.user_id, t]));
   const rows: TargetRow[] = ((reps as Rep[]) ?? []).map((r) => ({
-    id: r.id, name: r.full_name || r.email || 'مندوب',
+    id: r.id, name: r.full_name || r.email || t('distribution.defaultRepName'),
     target_amount: Number(tmap.get(r.id)?.target_amount ?? 0),
     commission_pct: Number(tmap.get(r.id)?.commission_pct ?? 0),
   }));
 
   return (
     <div>
-      <PageHeader title="أهداف وعمولات المناديب" description="حدّد هدف المبيعات الشهري ونسبة العمولة لكل مندوب." action={<MonthNav month={month} base="/distribution/targets" />} />
+      <PageHeader title={t('distribution.targetsTitle')} description={t('distribution.targetsDescription')} action={<MonthNav month={month} base="/distribution/targets" />} />
       {rows.length === 0 ? (
-        <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">لا يوجد مناديب (مستخدمون بدور «مندوب/سائق»). أضِفهم من «فريق العمل».</CardContent></Card>
+        <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">{t('distribution.targetsEmptyState')}</CardContent></Card>
       ) : (
         <TargetsManager month={month} rows={rows} />
       )}

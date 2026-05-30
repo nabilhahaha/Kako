@@ -3,12 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requirePermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 // Restaurant / café: tables + orders (dine-in / takeaway / delivery) built from
 // the product catalogue (the menu). All actions require restaurant.manage and a
 // company. company_id is set by the DB trigger; tenant isolation via RLS.
-
-const NO_COMPANY = 'هذه العملية تتم من داخل حساب المطعم.';
 
 function revalidate(orderId?: string) {
   revalidatePath('/restaurant');
@@ -19,11 +18,12 @@ function revalidate(orderId?: string) {
 }
 
 export async function upsertTable(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
-  if (!name) return { ok: false, error: 'اسم/رقم الطاولة مطلوب.' };
+  if (!name) return { ok: false, error: t('restaurant.actions.tableNameRequired') };
   const seats = Number(formData.get('seats') || 4);
   const row = {
     name,
@@ -51,8 +51,9 @@ export async function createOrder(input: {
   customer_address?: string;
   delivery_fee?: number;
 }): Promise<ActionResult<string>> {
+  const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const type = ['dine_in', 'takeaway', 'delivery'].includes(input.order_type || '') ? input.order_type! : 'dine_in';
   const supabase = await createClient();
 
@@ -93,8 +94,9 @@ export async function createOrder(input: {
 }
 
 export async function addOrderItem(orderId: string, productId: string): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const supabase = await createClient();
   const { data: p } = await supabase
     .from('erp_products_catalog')
@@ -102,7 +104,7 @@ export async function addOrderItem(orderId: string, productId: string): Promise<
     .eq('id', productId)
     .maybeSingle();
   const prod = p as { name: string; name_ar: string | null; sell_price: number } | null;
-  if (!prod) return { ok: false, error: 'الصنف غير موجود.' };
+  if (!prod) return { ok: false, error: t('restaurant.actions.itemNotFound') };
 
   // If the same product is already on the order (and still 'new'), bump qty.
   const { data: existing } = await supabase
@@ -134,8 +136,9 @@ export async function addOrderItem(orderId: string, productId: string): Promise<
 }
 
 export async function setItemQty(itemId: string, qty: number, orderId: string): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const supabase = await createClient();
   if (qty <= 0) {
     const { error } = await supabase.from('erp_restaurant_order_items').delete().eq('id', itemId);
@@ -149,8 +152,9 @@ export async function setItemQty(itemId: string, qty: number, orderId: string): 
 }
 
 export async function setItemNotes(itemId: string, notes: string, orderId: string): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_restaurant_order_items').update({ notes: notes.trim() || null }).eq('id', itemId);
   if (error) return { ok: false, error: friendlyDbError(error) };
@@ -159,9 +163,10 @@ export async function setItemNotes(itemId: string, notes: string, orderId: strin
 }
 
 export async function setItemKitchenStatus(itemId: string, status: string): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
-  if (!['new', 'preparing', 'ready'].includes(status)) return { ok: false, error: 'حالة غير صحيحة.' };
+  if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
+  if (!['new', 'preparing', 'ready'].includes(status)) return { ok: false, error: t('restaurant.actions.invalidStatus') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_restaurant_order_items').update({ kitchen_status: status }).eq('id', itemId);
   if (error) return { ok: false, error: friendlyDbError(error) };
@@ -170,10 +175,11 @@ export async function setItemKitchenStatus(itemId: string, status: string): Prom
 }
 
 export async function updateOrderMeta(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const id = String(formData.get('id') || '').trim();
-  if (!id) return { ok: false, error: 'الأوردر مطلوب.' };
+  if (!id) return { ok: false, error: t('restaurant.actions.orderRequired') };
   const fee = Number(formData.get('delivery_fee') || 0);
   const num = (k: string) => { const n = Number(formData.get(k) || 0); return Number.isFinite(n) && n >= 0 ? n : 0; };
   const dtype = String(formData.get('discount_type') || 'amount') === 'percent' ? 'percent' : 'amount';
@@ -199,8 +205,9 @@ export async function updateOrderMeta(formData: FormData): Promise<ActionResult>
 
 /** Checkout: totals, posts revenue, frees the table (atomic in the DB). */
 export async function closeOrder(orderId: string, paymentMethod = 'cash'): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_close_restaurant_order', {
     p_order_id: orderId,
@@ -212,12 +219,13 @@ export async function closeOrder(orderId: string, paymentMethod = 'cash'): Promi
 }
 
 export async function cancelOrder(orderId: string): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const supabase = await createClient();
   const { data: o } = await supabase.from('erp_restaurant_orders').select('table_id, status').eq('id', orderId).maybeSingle();
   const ord = o as { table_id: string | null; status: string } | null;
-  if (ord?.status === 'closed') return { ok: false, error: 'لا يمكن إلغاء أوردر مغلق.' };
+  if (ord?.status === 'closed') return { ok: false, error: t('restaurant.actions.cannotCancelClosed') };
   const { error } = await supabase.from('erp_restaurant_orders').update({ status: 'cancelled' }).eq('id', orderId);
   if (error) return { ok: false, error: friendlyDbError(error) };
   if (ord?.table_id) await supabase.from('erp_restaurant_tables').update({ status: 'free' }).eq('id', ord.table_id);

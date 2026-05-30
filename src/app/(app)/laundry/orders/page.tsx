@@ -3,12 +3,14 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { OrdersList, type LaundryOrder } from './orders-list';
+import { getT } from '@/lib/i18n/server';
 
 export default async function LaundryOrdersPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
-    return (<div><PageHeader title="الطلبات" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">إدارة المغسلة تتم من داخل حساب المغسلة.</p></div>);
+    return (<div><PageHeader title={t('laundry.orders.titleShort')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('laundry.noCompany')}</p></div>);
   }
   const supabase = await createClient();
   const { data } = await supabase
@@ -28,7 +30,7 @@ export default async function LaundryOrdersPage() {
 
   return (
     <div>
-      <PageHeader title="طلبات المغسلة" description="استلام، غسيل، جاهز، ثم تسليم وتحصيل." />
+      <PageHeader title={t('laundry.orders.title')} description={t('laundry.orders.description')} />
       <OrdersList orders={orders} />
     </div>
   );

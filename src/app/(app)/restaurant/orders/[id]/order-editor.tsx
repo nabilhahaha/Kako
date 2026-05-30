@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, StickyNote, SlidersHorizontal } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/provider';
 import { usePrompt } from '@/components/prompt-dialog';
 import { ServiceTileGrid, QtyStepper, TotalRow, CheckoutFooter } from '@/components/shared/order-editor-kit';
 import { addOrderItem, setItemQty, setItemNotes, closeOrder, cancelOrder, updateOrderMeta } from '../../actions';
@@ -25,14 +26,11 @@ export interface EditorOrder {
   notes: string | null; table_name: string | null;
 }
 
-const TYPE: Record<string, string> = { dine_in: 'صالة', takeaway: 'تيك أواي', delivery: 'دليفري' };
-const KITCHEN: Record<string, { label: string; variant: 'secondary' | 'warning' | 'success' }> = {
-  new: { label: 'جديد', variant: 'secondary' }, preparing: { label: 'تحضير', variant: 'warning' }, ready: { label: 'جاهز', variant: 'success' },
-};
 const selectCls = 'h-8 rounded-md border border-input bg-background px-2 text-sm';
 
 export function OrderEditor({ order, items, menu }: { order: EditorOrder; items: OrderItem[]; menu: MenuCategory[] }) {
   const router = useRouter();
+  const { t } = useI18n();
   const prompt = usePrompt();
   const [pending, startTransition] = useTransition();
   const [activeCat, setActiveCat] = useState(menu[0]?.id ?? '');
@@ -48,10 +46,16 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
   const total = base + service + tax;
   const cat = menu.find((c) => c.id === activeCat) ?? menu[0];
 
+  const KITCHEN: Record<string, { label: string; variant: 'secondary' | 'warning' | 'success' }> = {
+    new: { label: t('restaurant.kitchenStatus.new'), variant: 'secondary' },
+    preparing: { label: t('restaurant.kitchenStatus.preparing'), variant: 'warning' },
+    ready: { label: t('restaurant.kitchenStatus.ready'), variant: 'success' },
+  };
+
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, ok?: string) {
     startTransition(async () => {
       const res = await fn();
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
+      if (!res.ok) { toast.error(res.error ?? t('restaurant.editor.errorGeneric')); return; }
       if (ok) toast.success(ok);
       router.refresh();
     });
@@ -60,8 +64,8 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
   function checkout() {
     startTransition(async () => {
       const res = await closeOrder(order.id, payMethod);
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
-      toast.success('تم تحصيل الأوردر وإغلاقه');
+      if (!res.ok) { toast.error(res.error ?? t('restaurant.editor.errorGeneric')); return; }
+      toast.success(t('restaurant.editor.toastCheckedOut'));
       router.push('/restaurant/orders');
     });
   }
@@ -69,8 +73,8 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
   function cancel() {
     startTransition(async () => {
       const res = await cancelOrder(order.id);
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
-      toast.success('تم إلغاء الأوردر');
+      if (!res.ok) { toast.error(res.error ?? t('restaurant.editor.errorGeneric')); return; }
+      toast.success(t('restaurant.editor.toastCancelled'));
       router.push('/restaurant/orders');
     });
   }
@@ -79,34 +83,38 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     fd.set('id', order.id);
-    run(() => updateOrderMeta(fd), 'تم حفظ الحساب');
+    run(() => updateOrderMeta(fd), t('restaurant.editor.toastMetaSaved'));
     setAdjust(false);
   }
 
   function editNote(it: OrderItem) {
-    prompt({ title: `ملاحظة: ${it.name}`, label: 'مثال: بدون بصل / زيادة جبنة', defaultValue: it.notes ?? '', confirmText: 'حفظ' })
-      .then((raw) => { if (raw == null) return; run(() => setItemNotes(it.id, raw, order.id), 'تم حفظ الملاحظة'); });
+    prompt({ title: t('restaurant.editor.noteTitle', { name: it.name }), label: t('restaurant.editor.noteLabel'), defaultValue: it.notes ?? '', confirmText: t('restaurant.editor.noteConfirm') })
+      .then((raw) => { if (raw == null) return; run(() => setItemNotes(it.id, raw, order.id), t('restaurant.editor.toastNoteSaved')); });
   }
 
-  const title = order.table_name ? `طاولة ${order.table_name}` : (order.customer_name || TYPE[order.order_type]);
+  const title = order.table_name
+    ? t('restaurant.editor.tableLabel', { name: order.table_name })
+    : (order.customer_name || t(`restaurant.orderType.${order.order_type}`));
 
   return (
     <div>
       <Link href="/restaurant/orders" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowRight className="h-4 w-4" /> الأوردرات
+        <ArrowRight className="h-4 w-4" /> {t('restaurant.editor.backToOrders')}
       </Link>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="flex items-center gap-2 text-2xl font-bold">{title} <Badge variant="secondary">{TYPE[order.order_type] ?? order.order_type}</Badge></h1>
-        {closed && <Badge variant="success">مغلق</Badge>}
+        <h1 className="flex items-center gap-2 text-2xl font-bold">{title} <Badge variant="secondary">{t(`restaurant.orderType.${order.order_type}`) ?? order.order_type}</Badge></h1>
+        {closed && <Badge variant="success">{t('restaurant.editor.statusClosed')}</Badge>}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
         {/* Menu */}
         <div className="lg:col-span-3">
           {closed ? (
-            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">هذا الأوردر {order.status === 'cancelled' ? 'ملغي' : 'مغلق'} — للعرض فقط.</CardContent></Card>
+            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">
+              {t('restaurant.editor.closedNotice', { status: order.status === 'cancelled' ? t('restaurant.editor.statusCancelled') : t('restaurant.editor.statusClosed') })}
+            </CardContent></Card>
           ) : menu.length === 0 ? (
-            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">لا توجد أصناف في المنيو. أضِف منتجات من صفحة المنتجات.</CardContent></Card>
+            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">{t('restaurant.editor.emptyMenu')}</CardContent></Card>
           ) : (
             <>
               <div className="mb-3 flex flex-wrap gap-1">
@@ -130,30 +138,30 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
                 <form onSubmit={saveMeta} className="space-y-2 rounded-md border bg-secondary/20 p-2 text-sm">
                   {order.order_type === 'delivery' && (
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1"><Label className="text-xs">اسم العميل</Label><Input name="customer_name" defaultValue={order.customer_name ?? ''} className="h-8" /></div>
-                      <div className="space-y-1"><Label className="text-xs">الهاتف</Label><Input name="customer_phone" dir="ltr" defaultValue={order.customer_phone ?? ''} className="h-8" /></div>
-                      <div className="col-span-2 space-y-1"><Label className="text-xs">العنوان</Label><Input name="customer_address" defaultValue={order.customer_address ?? ''} className="h-8" /></div>
-                      <div className="space-y-1"><Label className="text-xs">رسوم التوصيل</Label><Input name="delivery_fee" type="number" min={0} step="0.01" dir="ltr" defaultValue={order.delivery_fee} className="h-8" /></div>
+                      <div className="space-y-1"><Label className="text-xs">{t('restaurant.editor.fieldCustomerName')}</Label><Input name="customer_name" defaultValue={order.customer_name ?? ''} className="h-8" /></div>
+                      <div className="space-y-1"><Label className="text-xs">{t('restaurant.editor.fieldPhone')}</Label><Input name="customer_phone" dir="ltr" defaultValue={order.customer_phone ?? ''} className="h-8" /></div>
+                      <div className="col-span-2 space-y-1"><Label className="text-xs">{t('restaurant.editor.fieldAddress')}</Label><Input name="customer_address" defaultValue={order.customer_address ?? ''} className="h-8" /></div>
+                      <div className="space-y-1"><Label className="text-xs">{t('restaurant.editor.fieldDeliveryFee')}</Label><Input name="delivery_fee" type="number" min={0} step="0.01" dir="ltr" defaultValue={order.delivery_fee} className="h-8" /></div>
                     </div>
                   )}
                   {order.order_type !== 'delivery' && <input type="hidden" name="delivery_fee" value={order.delivery_fee} />}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">الخصم</Label>
+                      <Label className="text-xs">{t('restaurant.editor.fieldDiscount')}</Label>
                       <div className="flex gap-1">
                         <Input name="discount_value" type="number" min={0} step="0.01" dir="ltr" defaultValue={order.discount_value} className="h-8" />
-                        <select name="discount_type" defaultValue={order.discount_type} className={selectCls}><option value="amount">ج.م</option><option value="percent">%</option></select>
+                        <select name="discount_type" defaultValue={order.discount_type} className={selectCls}><option value="amount">{t('restaurant.editor.discountAmount')}</option><option value="percent">%</option></select>
                       </div>
                     </div>
-                    <div className="space-y-1"><Label className="text-xs">خدمة %</Label><Input name="service_rate" type="number" min={0} step="0.01" dir="ltr" defaultValue={order.service_rate} className="h-8" /></div>
-                    <div className="space-y-1"><Label className="text-xs">ضريبة %</Label><Input name="tax_rate" type="number" min={0} step="0.01" dir="ltr" defaultValue={order.tax_rate} className="h-8" /></div>
+                    <div className="space-y-1"><Label className="text-xs">{t('restaurant.editor.fieldService')}</Label><Input name="service_rate" type="number" min={0} step="0.01" dir="ltr" defaultValue={order.service_rate} className="h-8" /></div>
+                    <div className="space-y-1"><Label className="text-xs">{t('restaurant.editor.fieldTax')}</Label><Input name="tax_rate" type="number" min={0} step="0.01" dir="ltr" defaultValue={order.tax_rate} className="h-8" /></div>
                   </div>
-                  <div className="flex gap-2"><Button type="submit" size="sm" disabled={pending}>حفظ</Button><Button type="button" size="sm" variant="ghost" onClick={() => setAdjust(false)}>إغلاق</Button></div>
+                  <div className="flex gap-2"><Button type="submit" size="sm" disabled={pending}>{t('restaurant.editor.save')}</Button><Button type="button" size="sm" variant="ghost" onClick={() => setAdjust(false)}>{t('restaurant.editor.close')}</Button></div>
                 </form>
               )}
 
               {items.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">لا أصناف بعد — اختر من المنيو.</p>
+                <p className="py-6 text-center text-sm text-muted-foreground">{t('restaurant.editor.emptyItems')}</p>
               ) : (
                 <ul className="divide-y">
                   {items.map((it) => {
@@ -182,17 +190,17 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
               )}
 
               <div className="space-y-1 border-t pt-2 text-sm">
-                <TotalRow label="الإجمالي الفرعي" value={formatCurrency(subtotal)} />
-                {discount > 0 && <TotalRow label="الخصم" value={`- ${formatCurrency(discount)}`} />}
-                {order.delivery_fee > 0 && <TotalRow label="رسوم التوصيل" value={formatCurrency(order.delivery_fee)} />}
-                {service > 0 && <TotalRow label={`خدمة ${order.service_rate}%`} value={formatCurrency(service)} />}
-                {tax > 0 && <TotalRow label={`ضريبة ${order.tax_rate}%`} value={formatCurrency(tax)} />}
+                <TotalRow label={t('restaurant.editor.subtotal')} value={formatCurrency(subtotal)} />
+                {discount > 0 && <TotalRow label={t('restaurant.editor.discount')} value={`- ${formatCurrency(discount)}`} />}
+                {order.delivery_fee > 0 && <TotalRow label={t('restaurant.editor.deliveryFee')} value={formatCurrency(order.delivery_fee)} />}
+                {service > 0 && <TotalRow label={t('restaurant.editor.serviceLine', { rate: order.service_rate })} value={formatCurrency(service)} />}
+                {tax > 0 && <TotalRow label={t('restaurant.editor.taxLine', { rate: order.tax_rate })} value={formatCurrency(tax)} />}
                 <div className="flex items-center justify-between border-t pt-1 text-base font-bold">
-                  <span>الإجمالي</span><span className="tabular-nums" dir="ltr">{formatCurrency(total)}</span>
+                  <span>{t('restaurant.editor.total')}</span><span className="tabular-nums" dir="ltr">{formatCurrency(total)}</span>
                 </div>
                 {!closed && (
                   <button onClick={() => setAdjust((a) => !a)} className="inline-flex items-center gap-1 pt-1 text-xs text-primary hover:underline">
-                    <SlidersHorizontal className="h-3 w-3" /> خصم / خدمة / ضريبة{order.order_type === 'delivery' ? ' / عميل' : ''}
+                    <SlidersHorizontal className="h-3 w-3" /> {order.order_type === 'delivery' ? t('restaurant.editor.adjustBtnWithCustomer') : t('restaurant.editor.adjustBtn')}
                   </button>
                 )}
               </div>
@@ -200,7 +208,7 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
               <CheckoutFooter
                 closed={closed} pending={pending} canCheckout={items.length > 0}
                 payMethod={payMethod} setPayMethod={setPayMethod} onCheckout={checkout} onCancel={cancel}
-                checkoutLabel="تحصيل وإغلاق" printHref={`/print/restaurant/order/${order.id}`} printLabel="طباعة الفاتورة"
+                checkoutLabel={t('restaurant.editor.checkoutLabel')} printHref={`/print/restaurant/order/${order.id}`} printLabel={t('restaurant.editor.printLabel')}
               />
             </CardContent>
           </Card>

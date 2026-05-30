@@ -4,12 +4,14 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { GettingStarted } from '@/components/shared/getting-started';
 import { TiersManager, type Tier } from './tiers-manager';
+import { getT } from '@/lib/i18n/server';
 
 export default async function WholesaleTiersPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
-    return (<div><PageHeader title="مستويات الأسعار" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">يتم من داخل حساب الشركة.</p></div>);
+    return (<div><PageHeader title={t('wholesale.tiersPageTitleNoCompany')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('wholesale.companyOnly')}</p></div>);
   }
   const supabase = await createClient();
   const [{ data }, { count: customersCount }, { count: invoicesCount }] = await Promise.all([
@@ -20,13 +22,13 @@ export default async function WholesaleTiersPage() {
   const tiers = (data as Tier[]) ?? [];
   return (
     <div>
-      <PageHeader title="مستويات أسعار الجملة" description="عرّف مستويات البيع (قطاعي / جملة / جملة الجملة) ثم حدّد أسعار الأصناف وربط العملاء." />
+      <PageHeader title={t('wholesale.tiersPageTitle')} description={t('wholesale.tiersPageDescription')} />
       <GettingStarted
         storageKey="kako_gs_wholesale"
         steps={[
-          { label: 'عرّف مستويات الأسعار', href: '/wholesale', done: tiers.length > 0 },
-          { label: 'أضف عملاء الجملة', href: '/wholesale/customers', done: (customersCount ?? 0) > 0 },
-          { label: 'أصدر أول فاتورة جملة', href: '/wholesale/order', done: (invoicesCount ?? 0) > 0 },
+          { label: t('wholesale.gsStepDefineTiers'), href: '/wholesale', done: tiers.length > 0 },
+          { label: t('wholesale.gsStepAddCustomers'), href: '/wholesale/customers', done: (customersCount ?? 0) > 0 },
+          { label: t('wholesale.gsStepFirstInvoice'), href: '/wholesale/order', done: (invoicesCount ?? 0) > 0 },
         ]}
       />
       <TiersManager tiers={tiers} />
