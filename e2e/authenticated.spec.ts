@@ -21,7 +21,7 @@ test.skip(
   'Set E2E_BASE_URL, E2E_TEST_EMAIL and E2E_TEST_PASSWORD to run authenticated flows against a seeded tenant.',
 );
 
-test.describe('AMS authenticated', () => {
+test.describe('Velora authenticated', () => {
   test('UI login lands on an authenticated home', async ({ page }) => {
     await page.goto(`${baseURL}/login`);
 
