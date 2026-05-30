@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface NotificationItem {
   label: string;
@@ -13,6 +14,7 @@ export interface NotificationItem {
 /** Bell with a badge + dropdown of actionable alerts (overdue invoices, today's
  *  appointments, …). Items are computed server-side and passed in. */
 export function NotificationsBell({ items }: { items: NotificationItem[] }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -31,7 +33,7 @@ export function NotificationsBell({ items }: { items: NotificationItem[] }) {
       <button
         onClick={() => setOpen((o) => !o)}
         className="relative flex h-9 w-9 items-center justify-center rounded-lg hover:bg-secondary"
-        aria-label="التنبيهات"
+        aria-label={t('shared.notifications.title')}
       >
         <Bell className="h-5 w-5" />
         {total > 0 && (
@@ -42,10 +44,10 @@ export function NotificationsBell({ items }: { items: NotificationItem[] }) {
       </button>
 
       {open && (
-        <div className="absolute left-0 mt-2 w-72 rounded-lg border bg-popover p-2 shadow-lg">
-          <p className="px-2 py-1 text-xs font-medium text-muted-foreground">التنبيهات</p>
+        <div className="absolute end-0 mt-2 w-72 rounded-lg border bg-popover p-2 shadow-lg">
+          <p className="px-2 py-1 text-xs font-medium text-muted-foreground">{t('shared.notifications.title')}</p>
           {items.length === 0 ? (
-            <p className="p-3 text-center text-sm text-muted-foreground">لا توجد تنبيهات 🎉</p>
+            <p className="p-3 text-center text-sm text-muted-foreground">{t('shared.notifications.empty')}</p>
           ) : (
             items.map((i) => (
               <Link

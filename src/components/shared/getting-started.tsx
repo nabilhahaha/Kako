@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle2, Circle, Rocket, X, ArrowLeft } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface GettingStartedStep {
   label: string;
@@ -20,6 +21,7 @@ export function GettingStarted({
   steps: GettingStartedStep[];
   storageKey?: string;
 }) {
+  const { t } = useI18n();
   const [mounted, setMounted] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -40,15 +42,15 @@ export function GettingStarted({
               <Rocket className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="font-semibold">ابدأ من هنا 👋</h2>
-              <p className="text-xs text-muted-foreground">خطوات سريعة لتجهيز شركتك ({done}/{steps.length})</p>
+              <h2 className="font-semibold">{t('shared.gettingStarted.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('shared.gettingStarted.subtitle', { done, total: steps.length })}</p>
             </div>
           </div>
           <button
             onClick={() => { localStorage.setItem(storageKey, '1'); setDismissed(true); }}
             className="rounded-md p-1 text-muted-foreground hover:bg-secondary"
-            aria-label="إخفاء"
-            title="إخفاء"
+            aria-label={t('shared.gettingStarted.hide')}
+            title={t('shared.gettingStarted.hide')}
           >
             <X className="h-4 w-4" />
           </button>

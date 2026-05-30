@@ -5,6 +5,8 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { Plus, Minus, Trash2, Printer, X, CheckCircle2, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/provider';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 
 /** Shared presentational primitives for the order/ticket editors of the
  *  restaurant / salon / laundry verticals. These carry no business logic
@@ -17,13 +19,14 @@ export interface TileItem { id: string; name: string; price: number }
 
 /** Grid of clickable menu/service tiles (left pane). */
 export function ServiceTileGrid({ items, disabled, onPick }: { items: TileItem[]; disabled?: boolean; onPick: (id: string) => void }) {
+  const { locale } = useI18n();
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {items.map((m) => (
         <button key={m.id} disabled={disabled} onClick={() => onPick(m.id)}
           className="flex flex-col items-center justify-center gap-1 rounded-lg border bg-card p-3 text-center text-sm transition-colors hover:border-primary/50 hover:bg-secondary disabled:opacity-50">
           <span className="font-medium leading-tight">{m.name}</span>
-          <span className="tabular-nums text-xs text-muted-foreground" dir="ltr">{formatCurrency(m.price)}</span>
+          <span className="tabular-nums text-xs text-muted-foreground" dir="ltr">{formatCurrency(m.price, 'EGP', INTL_LOCALE[locale])}</span>
         </button>
       ))}
     </div>
@@ -32,15 +35,16 @@ export function ServiceTileGrid({ items, disabled, onPick }: { items: TileItem[]
 
 /** Quantity +/- control; the decrement button turns into a trash icon at qty 1. */
 export function QtyStepper({ qty, disabled, onDec, onInc }: { qty: number; disabled?: boolean; onDec: () => void; onInc: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-1">
-      <Tooltip label={qty <= 1 ? 'حذف الصنف' : 'إنقاص'}>
+      <Tooltip label={qty <= 1 ? t('shared.orderKit.removeItem') : t('shared.orderKit.decrease')}>
         <Button size="icon" variant="outline" className="h-6 w-6" disabled={disabled} onClick={onDec}>
           {qty <= 1 ? <Trash2 className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
         </Button>
       </Tooltip>
       <span className="w-5 text-center tabular-nums">{qty}</span>
-      <Tooltip label="زيادة">
+      <Tooltip label={t('shared.orderKit.increase')}>
         <Button size="icon" variant="outline" className="h-6 w-6" disabled={disabled} onClick={onInc}><Plus className="h-3 w-3" /></Button>
       </Tooltip>
     </div>
@@ -68,6 +72,7 @@ export function CheckoutFooter({
   printHref: string;
   printLabel: string;
 }) {
+  const { t } = useI18n();
   if (closed) {
     return (
       <div className="flex flex-wrap items-center gap-2">
@@ -78,15 +83,15 @@ export function CheckoutFooter({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={`${selectCls} h-10`}>
-        <option value="cash">كاش</option><option value="card">فيزا</option>
+        <option value="cash">{t('shared.orderKit.cash')}</option><option value="card">{t('shared.orderKit.card')}</option>
       </select>
       <Button className="flex-1" disabled={pending || !canCheckout} onClick={onCheckout}>
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {checkoutLabel}
       </Button>
-      <Tooltip label="طباعة">
+      <Tooltip label={t('shared.orderKit.print')}>
         <Link href={printHref} target="_blank" className={buttonVariants({ variant: 'outline' })}><Printer className="h-4 w-4" /></Link>
       </Tooltip>
-      <Tooltip label="إلغاء">
+      <Tooltip label={t('shared.orderKit.cancel')}>
         <Button variant="ghost" disabled={pending} onClick={onCancel}><X className="h-4 w-4" /></Button>
       </Tooltip>
     </div>

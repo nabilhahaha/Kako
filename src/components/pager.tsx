@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
 /**
  * Simple page-based pager. Builds links to `?page=N`, preserving any extra
@@ -19,6 +22,7 @@ export function Pager({
   basePath: string;
   query?: Record<string, string | undefined>;
 }) {
+  const { t } = useI18n();
   const pages = Math.max(1, Math.ceil(total / pageSize));
   if (total <= pageSize) return null;
 
@@ -41,11 +45,11 @@ export function Pager({
       </span>
       <div className="flex items-center gap-2">
         <PagerLink href={href(page - 1)} disabled={page <= 1}>
-          <ChevronRight className="h-4 w-4" /> السابق
+          <ChevronRight className="h-4 w-4" /> {t('shared.prev')}
         </PagerLink>
         <span className="text-muted-foreground tabular-nums" dir="ltr">{page} / {pages}</span>
         <PagerLink href={href(page + 1)} disabled={page >= pages}>
-          التالي <ChevronLeft className="h-4 w-4" />
+          {t('shared.next')} <ChevronLeft className="h-4 w-4" />
         </PagerLink>
       </div>
     </div>

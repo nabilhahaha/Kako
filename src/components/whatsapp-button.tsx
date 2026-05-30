@@ -1,13 +1,16 @@
+'use client';
+
 import { MessageCircle } from 'lucide-react';
 import { customerWhatsappLink } from '@/lib/erp/contact';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/provider';
 
 /** A small "send on WhatsApp" button that opens a chat with the given phone and
  *  a prefilled message. Renders nothing when there's no usable phone number. */
 export function WhatsAppButton({
   phone,
   message,
-  label = 'واتساب',
+  label,
   className,
 }: {
   phone: string | null | undefined;
@@ -15,6 +18,8 @@ export function WhatsAppButton({
   label?: string;
   className?: string;
 }) {
+  const { t } = useI18n();
+  const text = label ?? t('shared.whatsapp');
   const href = customerWhatsappLink(phone, message);
   if (!href) return null;
   return (
@@ -22,13 +27,13 @@ export function WhatsAppButton({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      title={label}
+      title={text}
       className={cn(
         'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-success hover:bg-success/10',
         className,
       )}
     >
-      <MessageCircle className="h-3.5 w-3.5" /> {label}
+      <MessageCircle className="h-3.5 w-3.5" /> {text}
     </a>
   );
 }
