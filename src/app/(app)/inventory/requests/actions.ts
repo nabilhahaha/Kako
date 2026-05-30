@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 interface RequestInput {
   branch_id: string;
@@ -16,12 +17,13 @@ interface RequestInput {
 export async function createStockRequest(input: RequestInput): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
   if (!input.from_warehouse_id || !input.to_warehouse_id)
-    return { ok: false, error: 'اختر المخزن المصدر والسيارة.' };
+    return { ok: false, error: t('inventory.errorSelectSourceAndVan') };
   if (input.from_warehouse_id === input.to_warehouse_id)
-    return { ok: false, error: 'المصدر والوجهة لا يمكن أن يكونا نفس المخزن.' };
+    return { ok: false, error: t('inventory.errorSameSourceDest') };
   const lines = input.lines.filter((l) => l.product_id && l.quantity > 0);
-  if (lines.length === 0) return { ok: false, error: 'أضف صنفاً واحداً على الأقل.' };
+  if (lines.length === 0) return { ok: false, error: t('inventory.errorAtLeastOneItem') };
 
   const supabase = await createClient();
   const { data: number, error: numErr } = await supabase.rpc('erp_next_number', {

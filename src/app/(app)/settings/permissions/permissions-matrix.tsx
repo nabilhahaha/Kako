@@ -10,6 +10,7 @@ import { ALL_PERMISSIONS, PERMISSION_LABELS, type Permission } from '@/lib/erp/p
 import { setRolePermission, createRole, deleteRole } from './actions';
 import { Plus, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface RoleRow {
   key: string;
@@ -28,6 +29,7 @@ export function PermissionsMatrix({
   canEdit: boolean;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const confirm = useConfirm();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -49,7 +51,7 @@ export function PermissionsMatrix({
     startTransition(async () => {
       const res = await setRolePermission(roleKey, perm, enabled);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('settings.genericError'));
         router.refresh();
       }
     });
@@ -59,10 +61,10 @@ export function PermissionsMatrix({
     startTransition(async () => {
       const res = await createRole(newName, newKey);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('settings.genericError'));
         return;
       }
-      toast.success('تمت إضافة الدور');
+      toast.success(t('settings.permissions.toastRoleAdded'));
       setAdding(false);
       setNewName('');
       setNewKey('');
@@ -71,12 +73,12 @@ export function PermissionsMatrix({
   }
 
   function removeRole(r: RoleRow) {
-    confirm({ title: `حذف دور «${r.name_ar}»؟`, confirmText: 'حذف', cancelText: 'تراجع', destructive: true }).then((ok) => {
+    confirm({ title: t('settings.permissions.deleteRoleTitle', { name: r.name_ar }), confirmText: t('settings.permissions.deleteConfirm'), cancelText: t('settings.permissions.deleteCancel'), destructive: true }).then((ok) => {
       if (!ok) return;
       startTransition(async () => {
         const res = await deleteRole(r.key);
-        if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
-        else { toast.success('تم حذف الدور'); router.refresh(); }
+        if (!res.ok) toast.error(res.error ?? t('settings.genericError'));
+        else { toast.success(t('settings.permissions.toastRoleDeleted')); router.refresh(); }
       });
     });
   }
@@ -93,20 +95,20 @@ export function PermissionsMatrix({
       {canEdit && (
         <div>
           {!adding ? (
-            <Button onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> دور جديد</Button>
+            <Button onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {t('settings.permissions.newRole')}</Button>
           ) : (
             <Card>
               <CardContent className="flex flex-wrap items-end gap-3 pt-6">
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">اسم الدور</label>
-                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="مثال: مشرف منطقة" />
+                  <label className="text-xs text-muted-foreground">{t('settings.permissions.roleNameLabel')}</label>
+                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t('settings.permissions.roleNamePlaceholder')} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">المفتاح (إنجليزي)</label>
+                  <label className="text-xs text-muted-foreground">{t('settings.permissions.roleKeyLabel')}</label>
                   <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} dir="ltr" placeholder="area_supervisor" />
                 </div>
-                <Button onClick={addRole} disabled={pending}>{pending && <Loader2 className="h-4 w-4 animate-spin" />} إضافة</Button>
-                <Button variant="outline" onClick={() => setAdding(false)}>إلغاء</Button>
+                <Button onClick={addRole} disabled={pending}>{pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('settings.permissions.addRole')}</Button>
+                <Button variant="outline" onClick={() => setAdding(false)}>{t('settings.cancel')}</Button>
               </CardContent>
             </Card>
           )}
@@ -119,13 +121,13 @@ export function PermissionsMatrix({
             <table className="w-full text-sm">
               <thead className="border-b bg-secondary/50 text-muted-foreground">
                 <tr>
-                  <th className="sticky right-0 bg-secondary/50 p-3 text-right font-medium">الصلاحية</th>
+                  <th className="sticky right-0 bg-secondary/50 p-3 text-right font-medium">{t('settings.permissions.colPermission')}</th>
                   {roles.map((r) => (
                     <th key={r.key} className="p-3 text-center font-medium whitespace-nowrap">
                       <div className="flex flex-col items-center gap-1">
                         <span>{r.name_ar}</span>
                         {canEdit && !r.is_system && (
-                          <button onClick={() => removeRole(r)} className="text-destructive hover:opacity-70" title="حذف الدور">
+                          <button onClick={() => removeRole(r)} className="text-destructive hover:opacity-70" title={t('settings.permissions.ariaDeleteRole')}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         )}
@@ -165,8 +167,8 @@ export function PermissionsMatrix({
           </div>
         </CardContent>
       </Card>
-      {!canEdit && <p className="text-xs text-muted-foreground">العرض فقط — تعديل الصلاحيات متاح لمدير النظام.</p>}
-      <p className="text-xs text-muted-foreground">يسري تغيير الصلاحيات على المستخدمين عند تحديث الصفحة أو إعادة تسجيل الدخول.</p>
+      {!canEdit && <p className="text-xs text-muted-foreground">{t('settings.permissions.readOnlyNote')}</p>}
+      <p className="text-xs text-muted-foreground">{t('settings.permissions.effectNote')}</p>
     </div>
   );
 }

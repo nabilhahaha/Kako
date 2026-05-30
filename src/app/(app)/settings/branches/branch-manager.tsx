@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { Branch, Company } from '@/lib/erp/types';
 import { Plus, Pencil, Loader2, Building2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
 export function BranchManager({
   company,
@@ -20,6 +21,7 @@ export function BranchManager({
   branches: Branch[];
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [editing, setEditing] = useState<Branch | null | 'new'>(null);
   const [pending, startTransition] = useTransition();
 
@@ -29,10 +31,10 @@ export function BranchManager({
     startTransition(async () => {
       const res = await upsertBranch(formData);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('settings.genericError'));
         return;
       }
-      toast.success(editing === 'new' ? 'تمت إضافة الفرع' : 'تم تحديث الفرع');
+      toast.success(editing === 'new' ? t('settings.branches.toastAdded') : t('settings.branches.toastUpdated'));
       setEditing(null);
       router.refresh();
     });
@@ -41,7 +43,7 @@ export function BranchManager({
   function onToggle(b: Branch) {
     startTransition(async () => {
       const res = await toggleBranchActive(b.id, !b.is_active);
-      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      if (!res.ok) toast.error(res.error ?? t('settings.genericError'));
       else router.refresh();
     });
   }
@@ -52,7 +54,7 @@ export function BranchManager({
     <div className="space-y-4">
       {editing === null && (
         <Button onClick={() => setEditing('new')}>
-          <Plus className="h-4 w-4" /> إضافة فرع
+          <Plus className="h-4 w-4" /> {t('settings.branches.addBranch')}
         </Button>
       )}
 
@@ -61,7 +63,7 @@ export function BranchManager({
           <CardContent className="pt-6">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold">
-                {editing === 'new' ? 'فرع جديد' : 'تعديل الفرع'}
+                {editing === 'new' ? t('settings.branches.newBranch') : t('settings.branches.editBranch')}
               </h3>
               <button
                 onClick={() => setEditing(null)}
@@ -75,7 +77,7 @@ export function BranchManager({
               {current && <input type="hidden" name="id" value={current.id} />}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="code">كود الفرع *</Label>
+                  <Label htmlFor="code">{t('settings.branches.branchCodeLabel')}</Label>
                   <Input
                     id="code"
                     name="code"
@@ -86,25 +88,25 @@ export function BranchManager({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="city">المدينة</Label>
+                  <Label htmlFor="city">{t('settings.branches.cityLabel')}</Label>
                   <Input
                     id="city"
                     name="city"
-                    placeholder="القاهرة"
+                    placeholder={t('settings.branches.cityPlaceholder')}
                     defaultValue={current?.city ?? ''}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="name_ar">اسم الفرع (عربي)</Label>
+                  <Label htmlFor="name_ar">{t('settings.branches.nameArLabel')}</Label>
                   <Input
                     id="name_ar"
                     name="name_ar"
-                    placeholder="فرع القاهرة"
+                    placeholder={t('settings.branches.nameArPlaceholder')}
                     defaultValue={current?.name_ar ?? ''}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="name">اسم الفرع (إنجليزي) *</Label>
+                  <Label htmlFor="name">{t('settings.branches.nameLabel')}</Label>
                   <Input
                     id="name"
                     name="name"
@@ -114,7 +116,7 @@ export function BranchManager({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">الهاتف</Label>
+                  <Label htmlFor="phone">{t('settings.branches.phoneLabel')}</Label>
                   <Input
                     id="phone"
                     name="phone"
@@ -123,7 +125,7 @@ export function BranchManager({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address">العنوان</Label>
+                  <Label htmlFor="address">{t('settings.branches.addressLabel')}</Label>
                   <Input
                     id="address"
                     name="address"
@@ -138,19 +140,19 @@ export function BranchManager({
                   defaultChecked={current?.is_hq ?? false}
                   className="h-4 w-4"
                 />
-                المركز الرئيسي
+                {t('settings.branches.isHq')}
               </label>
               <div className="flex gap-2">
                 <Button type="submit" disabled={pending}>
                   {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-                  حفظ
+                  {t('settings.save')}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setEditing(null)}
                 >
-                  إلغاء
+                  {t('settings.cancel')}
                 </Button>
               </div>
             </form>
@@ -162,7 +164,7 @@ export function BranchManager({
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <Building2 className="h-8 w-8" />
-            <p>لا توجد فروع بعد. أضف أول فرع.</p>
+            <p>{t('settings.branches.empty')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -174,9 +176,9 @@ export function BranchManager({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{b.code}</Badge>
-                      {b.is_hq && <Badge variant="info">رئيسي</Badge>}
+                      {b.is_hq && <Badge variant="info">{t('settings.branches.badgeHq')}</Badge>}
                       {!b.is_active && (
-                        <Badge variant="destructive">موقوف</Badge>
+                        <Badge variant="destructive">{t('settings.branches.badgeSuspended')}</Badge>
                       )}
                     </div>
                     <p className="mt-2 truncate font-semibold">
@@ -189,7 +191,7 @@ export function BranchManager({
                   <button
                     onClick={() => setEditing(b)}
                     className="rounded-md p-1.5 hover:bg-secondary"
-                    aria-label="تعديل"
+                    aria-label={t('settings.branches.ariaEdit')}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -202,7 +204,7 @@ export function BranchManager({
                     onClick={() => onToggle(b)}
                     className="text-xs"
                   >
-                    {b.is_active ? 'إيقاف الفرع' : 'تفعيل الفرع'}
+                    {b.is_active ? t('settings.branches.deactivate') : t('settings.branches.activate')}
                   </Button>
                 </div>
               </CardContent>

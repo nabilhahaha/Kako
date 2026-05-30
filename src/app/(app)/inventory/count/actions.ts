@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 /**
  * Start a stock count for a warehouse: snapshots the current system quantity
@@ -11,7 +12,8 @@ import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guard
 export async function createStockCount(warehouseId: string): Promise<ActionResult<{ id: string }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
-  if (!warehouseId) return { ok: false, error: 'اختر المخزن.' };
+  const { t } = await getT();
+  if (!warehouseId) return { ok: false, error: t('inventory.errorSelectWarehouse') };
 
   const supabase = await createClient();
   const { data: wh } = await supabase
@@ -19,7 +21,7 @@ export async function createStockCount(warehouseId: string): Promise<ActionResul
     .select('id, branch_id')
     .eq('id', warehouseId)
     .single();
-  if (!wh) return { ok: false, error: 'المخزن غير موجود.' };
+  if (!wh) return { ok: false, error: t('inventory.errorWarehouseNotFound') };
 
   const { data: number, error: numErr } = await supabase.rpc('erp_next_number', {
     p_branch_id: wh.branch_id,

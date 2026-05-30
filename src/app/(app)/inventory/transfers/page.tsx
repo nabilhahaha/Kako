@@ -3,6 +3,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
+import { getT } from '@/lib/i18n/server';
 import type { Branch, ProductCatalog, TransferOrder, Warehouse } from '@/lib/erp/types';
 import { TransfersManager } from './transfers-manager';
 
@@ -21,6 +22,7 @@ export default async function TransfersPage({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
   const q = (sp.q ?? '').trim();
@@ -46,7 +48,7 @@ export default async function TransfersPage({
 
   return (
     <div>
-      <PageHeader title="التحويلات بين المخازن" description="نقل المخزون من مخزن لآخر" />
+      <PageHeader title={t('inventory.transfersPageTitle')} description={t('inventory.transfersPageDescription')} />
       <TransfersManager
         transfers={(transfers as unknown as TransferRow[]) ?? []}
         warehouses={(warehouses as Warehouse[]) ?? []}

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireAnyPermission } from '@/lib/erp/guards';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import type { Permission } from '@/lib/erp/permissions';
+import { getT } from '@/lib/i18n/server';
 
 // Who may do what in the clinic. clinic.manage (admin/manager) implies all.
 const ANY_CLINIC: Permission[] = ['clinic.manage', 'clinic.reception', 'clinic.doctor'];
@@ -14,8 +15,6 @@ const DOCTOR: Permission[] = ['clinic.manage', 'clinic.doctor'];
 // Clinic: patients + visits (كشف). All actions require clinic.manage and a
 // company (the platform owner has none). company_id is set explicitly from the
 // caller's context (tenant isolation also enforced by RLS).
-
-const NO_COMPANY = 'هذه العملية تتم من داخل حساب العيادة.';
 
 /** Parse the optional vital-sign / follow-up fields off a visit form. */
 function vitalsFrom(formData: FormData) {
@@ -36,11 +35,12 @@ function vitalsFrom(formData: FormData) {
 }
 
 export async function upsertPatient(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(ANY_CLINIC);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
-  if (!name) return { ok: false, error: 'اسم المريض مطلوب.' };
+  if (!name) return { ok: false, error: t('clinic.errors.patientNameRequired') };
   const birth = String(formData.get('birth_date') || '').trim();
   const row = {
     code: String(formData.get('code') || '').trim() || null,
@@ -85,10 +85,11 @@ async function pickDoctor(
 }
 
 export async function createVisit(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(ANY_CLINIC);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const patient_id = String(formData.get('patient_id') || '').trim();
-  if (!patient_id) return { ok: false, error: 'اختر المريض.' };
+  if (!patient_id) return { ok: false, error: t('clinic.errors.patientRequired') };
   const fee = Number(formData.get('fee') || 0);
 
   const supabase = await createClient();
@@ -112,10 +113,11 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
 }
 
 export async function setVisitStatus(visitId: string, status: string): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(ANY_CLINIC);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   if (!['waiting', 'in_progress', 'done', 'cancelled'].includes(status))
-    return { ok: false, error: 'حالة غير صحيحة.' };
+    return { ok: false, error: t('clinic.errors.invalidStatus') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_clinic_visits').update({ status }).eq('id', visitId);
   if (error) return { ok: false, error: friendlyDbError(error) };
@@ -126,10 +128,11 @@ export async function setVisitStatus(visitId: string, status: string): Promise<A
 
 /** Update a visit's clinical fields (diagnosis / prescription) + mark done. */
 export async function updateVisit(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(DOCTOR);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
-  if (!id) return { ok: false, error: 'الكشف مطلوب.' };
+  if (!id) return { ok: false, error: t('clinic.errors.visitRequired') };
   const vitals = vitalsFrom(formData);
   const supabase = await createClient();
   const { error } = await supabase
@@ -159,7 +162,7 @@ export async function updateVisit(formData: FormData): Promise<ActionResult> {
         patient_id: patientId,
         doctor_id: ctx.userId,
         scheduled_at: new Date(`${vitals.followup_date}T10:00:00`).toISOString(),
-        reason: 'متابعة',
+        reason: t('clinic.followupReason'),
         status: 'scheduled',
         created_by: ctx.userId,
       });
@@ -174,9 +177,10 @@ export async function updateVisit(formData: FormData): Promise<ActionResult> {
 }
 
 export async function recordVisitPayment(visitId: string, amount: number): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(RECEPTION);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
-  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: 'مبلغ غير صحيح.' };
+  if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
+  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: t('clinic.errors.invalidAmount') };
   const supabase = await createClient();
   // Atomically records the collection AND posts Debit Cash / Credit Service
   // Revenue to the accounting journal (so clinic income hits financial reports).
@@ -187,14 +191,15 @@ export async function recordVisitPayment(visitId: string, amount: number): Promi
   return { ok: true };
 }
 
-// ─── Services catalogue (الخدمات والأسعار) ──────────────────────────────────
+// ─── Services catalogue ──────────────────────────────────────────────────────
 
 export async function upsertService(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(['clinic.manage']);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
-  if (!name) return { ok: false, error: 'اسم الخدمة مطلوب.' };
+  if (!name) return { ok: false, error: t('clinic.errors.serviceNameRequired') };
   const price = Number(formData.get('price') || 0);
   const row = {
     name,
@@ -213,20 +218,21 @@ export async function upsertService(formData: FormData): Promise<ActionResult> {
   return { ok: true };
 }
 
-// ─── Appointments (المواعيد) ────────────────────────────────────────────────
+// ─── Appointments ─────────────────────────────────────────────────────────────
 
 const APPT_STATUSES = ['scheduled', 'confirmed', 'arrived', 'done', 'cancelled', 'no_show'];
 
 /** Book an appointment for a patient at a future date/time. */
 export async function createAppointment(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(RECEPTION);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const patient_id = String(formData.get('patient_id') || '').trim();
-  if (!patient_id) return { ok: false, error: 'اختر المريض.' };
+  if (!patient_id) return { ok: false, error: t('clinic.errors.patientRequired') };
   const when = String(formData.get('scheduled_at') || '').trim();
-  if (!when) return { ok: false, error: 'حدّد موعد الحجز.' };
+  if (!when) return { ok: false, error: t('clinic.errors.appointmentTimeRequired') };
   const scheduled = new Date(when);
-  if (isNaN(scheduled.getTime())) return { ok: false, error: 'تاريخ غير صحيح.' };
+  if (isNaN(scheduled.getTime())) return { ok: false, error: t('clinic.errors.invalidDate') };
   const duration = Number(formData.get('duration_min') || 30);
 
   const supabase = await createClient();
@@ -247,9 +253,10 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
 }
 
 export async function setAppointmentStatus(appointmentId: string, status: string): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(RECEPTION);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
-  if (!APPT_STATUSES.includes(status)) return { ok: false, error: 'حالة غير صحيحة.' };
+  if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
+  if (!APPT_STATUSES.includes(status)) return { ok: false, error: t('clinic.errors.invalidStatus') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_clinic_appointments').update({ status }).eq('id', appointmentId);
   if (error) return { ok: false, error: friendlyDbError(error) };
@@ -264,10 +271,11 @@ export async function setAppointmentStatus(appointmentId: string, status: string
  * exam/payment lifecycle on the visits screen.
  */
 export async function checkInAppointment(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
   const ctx = await requireAnyPermission(RECEPTION);
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const appointmentId = String(formData.get('appointment_id') || '').trim();
-  if (!appointmentId) return { ok: false, error: 'الموعد مطلوب.' };
+  if (!appointmentId) return { ok: false, error: t('clinic.errors.appointmentRequired') };
   const fee = Number(formData.get('fee') || 0);
 
   const supabase = await createClient();
@@ -277,9 +285,9 @@ export async function checkInAppointment(formData: FormData): Promise<ActionResu
     .eq('id', appointmentId)
     .maybeSingle();
   const a = appt as { patient_id?: string; reason?: string | null; status?: string; doctor_id?: string | null } | null;
-  if (!a?.patient_id) return { ok: false, error: 'الموعد غير موجود.' };
+  if (!a?.patient_id) return { ok: false, error: t('clinic.errors.appointmentNotFound') };
   if (a.status === 'done' || a.status === 'arrived')
-    return { ok: false, error: 'تم تسجيل وصول هذا الموعد بالفعل.' };
+    return { ok: false, error: t('clinic.errors.appointmentAlreadyArrived') };
 
   const { error: visitErr } = await supabase.from('erp_clinic_visits').insert({
     company_id: ctx.companyId,

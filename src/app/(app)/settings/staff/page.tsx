@@ -4,24 +4,27 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { hasPermission } from '@/lib/erp/permissions';
+import { getT } from '@/lib/i18n/server';
 import { StaffManager, type StaffMember, type RoleOption } from './staff-manager';
 
 export default async function StaffPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
+
   const selfBlocked = ctx.company ? ctx.company.allow_self_users === false : false;
   if (!hasPermission(ctx, 'settings.users') || !ctx.companyId || selfBlocked) {
     return (
       <div>
-        <PageHeader title="فريق العمل" />
+        <PageHeader title={t('settings.staff.pageTitle')} />
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             {!ctx.companyId
-              ? 'إدارة فريق العمل تتم من داخل حساب الشركة.'
+              ? t('settings.staff.noCompany')
               : selfBlocked
-                ? 'إدارة مستخدمي هذه الشركة يتولاها مزوّد الخدمة. تواصل معه لإضافة مستخدمين.'
-                : 'هذه الصفحة متاحة لمدير الشركة فقط.'}
+                ? t('settings.staff.providerManaged')
+                : t('settings.staff.managerOnly')}
           </CardContent>
         </Card>
       </div>
@@ -36,7 +39,7 @@ export default async function StaffPage() {
 
   return (
     <div>
-      <PageHeader title="فريق العمل" description="أضف موظفي عيادتك (أطباء، استقبال، …) وحدّد أدوارهم وكلمات مرورهم." />
+      <PageHeader title={t('settings.staff.pageTitle')} description={t('settings.staff.pageDescription')} />
       <StaffManager
         currentUserId={ctx.userId}
         staff={((staff as StaffMember[]) ?? []).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'ar'))}

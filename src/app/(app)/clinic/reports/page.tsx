@@ -9,6 +9,8 @@ import { formatCurrency } from '@/lib/utils';
 import type { DoctorOption } from '../clinical-ui';
 import { DateRangeFilter, IncomeChart } from './report-controls';
 import { Wallet, CalendarDays, Stethoscope, AlertTriangle, UserRound, Tags, LineChart } from 'lucide-react';
+import { getT } from '@/lib/i18n/server';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 
 interface VisitRow {
   paid_amount: number;
@@ -25,13 +27,14 @@ export default async function ClinicReportsPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   await requireAnyPermission(['clinic.manage', 'reports.view']);
+  const { t, locale } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
     return (
       <div>
-        <PageHeader title="تقارير العيادة" />
-        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">إدارة العيادة تتم من داخل حساب العيادة.</p>
+        <PageHeader title={t('clinic.reports.title')} />
+        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('clinic.reports.noCompany')}</p>
       </div>
     );
   }
@@ -55,9 +58,9 @@ export default async function ClinicReportsPage({
 
   const visits = ((visitsData as unknown as VisitRow[]) ?? []).filter((v) => v.status !== 'cancelled');
   const doctors = (doctorsData as DoctorOption[]) ?? [];
-  const doctorName = (id: string | null) => {
+  const getDoctorName = (id: string | null) => {
     const d = doctors.find((x) => x.id === id);
-    return d ? (d.full_name || d.email || 'طبيب') : 'غير محدد';
+    return d ? (d.full_name || d.email || t('clinic.ui.defaultDoctor')) : t('clinic.reports.unknownDoctor');
   };
 
   const periodRevenue = visits.reduce((s, v) => s + Number(v.paid_amount || 0), 0);
@@ -76,7 +79,7 @@ export default async function ClinicReportsPage({
   const docMap = new Map<string, { name: string; visits: number; revenue: number }>();
   for (const v of visits) {
     const key = v.doctor_id ?? 'none';
-    const row = docMap.get(key) ?? { name: doctorName(v.doctor_id), visits: 0, revenue: 0 };
+    const row = docMap.get(key) ?? { name: getDoctorName(v.doctor_id), visits: 0, revenue: 0 };
     row.visits += 1;
     row.revenue += Number(v.paid_amount || 0);
     docMap.set(key, row);
@@ -86,7 +89,7 @@ export default async function ClinicReportsPage({
   // By service
   const svcMap = new Map<string, { name: string; count: number; revenue: number }>();
   for (const v of visits) {
-    const name = v.service?.name ?? 'كشف / بدون خدمة';
+    const name = v.service?.name ?? t('clinic.reports.defaultService');
     const row = svcMap.get(name) ?? { name, count: 0, revenue: 0 };
     row.count += 1;
     row.revenue += Number(v.paid_amount || 0);
@@ -96,51 +99,55 @@ export default async function ClinicReportsPage({
 
   return (
     <div>
-      <PageHeader title="تقارير العيادة" description="دخل العيادة خلال الفترة المحددة" />
+      <PageHeader title={t('clinic.reports.title')} description={t('clinic.reports.description')} />
 
       <Card className="mb-4">
-        <CardContent className="pt-6"><DateRangeFilter from={from} to={to} /></CardContent>
+        <CardContent className="pt-6">
+          <DateRangeFilter from={from} to={to} fromLabel={t('clinic.reports.dateFrom')} toLabel={t('clinic.reports.dateTo')} />
+        </CardContent>
       </Card>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="إيراد اليوم" value={formatCurrency(todayRevenue)} icon={Wallet} tone="success" />
-        <StatCard label="إيراد الفترة" value={formatCurrency(periodRevenue)} icon={CalendarDays} tone="primary" />
-        <StatCard label="كشوفات الفترة" value={String(periodVisits)} icon={Stethoscope} tone="info" />
-        <StatCard label="مستحقات غير محصّلة" value={formatCurrency(outstanding)} icon={AlertTriangle} tone="warning" />
+        <StatCard label={t('clinic.reports.statTodayRevenue')} value={formatCurrency(todayRevenue, 'EGP', INTL_LOCALE[locale])} icon={Wallet} tone="success" />
+        <StatCard label={t('clinic.reports.statPeriodRevenue')} value={formatCurrency(periodRevenue, 'EGP', INTL_LOCALE[locale])} icon={CalendarDays} tone="primary" />
+        <StatCard label={t('clinic.reports.statPeriodVisits')} value={String(periodVisits)} icon={Stethoscope} tone="info" />
+        <StatCard label={t('clinic.reports.statOutstanding')} value={formatCurrency(outstanding, 'EGP', INTL_LOCALE[locale])} icon={AlertTriangle} tone="warning" />
       </div>
 
       <Card className="mt-6">
         <CardContent className="p-0">
-          <div className="flex items-center gap-2 border-b p-4 font-semibold"><LineChart className="h-4 w-4" /> الدخل اليومي</div>
-          <IncomeChart data={byDay} />
+          <div className="flex items-center gap-2 border-b p-4 font-semibold"><LineChart className="h-4 w-4" /> {t('clinic.reports.dailyIncomeTitle')}</div>
+          <IncomeChart data={byDay} revenueLabel={t('clinic.reports.chartRevenueLabel')} emptyText={t('clinic.reports.chartEmpty')} />
         </CardContent>
       </Card>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <ReportTable
-          title="الدخل حسب الطبيب"
+          title={t('clinic.reports.byDoctorTitle')}
           icon={<UserRound className="h-4 w-4" />}
-          cols={['الطبيب', 'كشوفات', 'الإيراد']}
-          rows={byDoctor.map((d) => [d.name, String(d.visits), formatCurrency(d.revenue)])}
+          cols={[t('clinic.reports.colDoctor'), t('clinic.reports.colVisits'), t('clinic.reports.colRevenue')]}
+          rows={byDoctor.map((d) => [d.name, String(d.visits), formatCurrency(d.revenue, 'EGP', INTL_LOCALE[locale])])}
+          emptyText={t('clinic.reports.emptyTable')}
         />
         <ReportTable
-          title="الدخل حسب الخدمة"
+          title={t('clinic.reports.byServiceTitle')}
           icon={<Tags className="h-4 w-4" />}
-          cols={['الخدمة', 'عدد', 'الإيراد']}
-          rows={byService.map((s) => [s.name, String(s.count), formatCurrency(s.revenue)])}
+          cols={[t('clinic.reports.colService'), t('clinic.reports.colCount'), t('clinic.reports.colRevenue')]}
+          rows={byService.map((s) => [s.name, String(s.count), formatCurrency(s.revenue, 'EGP', INTL_LOCALE[locale])])}
+          emptyText={t('clinic.reports.emptyTable')}
         />
       </div>
     </div>
   );
 }
 
-function ReportTable({ title, icon, cols, rows }: { title: string; icon: React.ReactNode; cols: string[]; rows: string[][] }) {
+function ReportTable({ title, icon, cols, rows, emptyText }: { title: string; icon: React.ReactNode; cols: string[]; rows: string[][]; emptyText: string }) {
   return (
     <Card>
       <CardContent className="p-0">
         <div className="flex items-center gap-2 border-b p-4 font-semibold">{icon} {title}</div>
         {rows.length === 0 ? (
-          <p className="p-6 text-center text-sm text-muted-foreground">لا توجد بيانات هذا الشهر.</p>
+          <p className="p-6 text-center text-sm text-muted-foreground">{emptyText}</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground">

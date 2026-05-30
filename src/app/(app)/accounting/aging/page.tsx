@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatNumber } from '@/lib/utils';
+import { getT } from '@/lib/i18n/server';
 
 interface InvoiceRow {
   id: string;
@@ -16,13 +17,6 @@ interface InvoiceRow {
 }
 
 type Bucket = 'current' | 'd30' | 'd60' | 'd90' | 'd90p';
-const BUCKETS: { key: Bucket; label: string }[] = [
-  { key: 'current', label: 'غير مستحق' },
-  { key: 'd30', label: '١–٣٠ يوم' },
-  { key: 'd60', label: '٣١–٦٠ يوم' },
-  { key: 'd90', label: '٦١–٩٠ يوم' },
-  { key: 'd90p', label: '+٩٠ يوم' },
-];
 
 function emptyRow(): Record<Bucket, number> {
   return { current: 0, d30: 0, d60: 0, d90: 0, d90p: 0 };
@@ -39,6 +33,15 @@ function bucketFor(daysOverdue: number): Bucket {
 export default async function AgingPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+
+  const { t } = await getT();
+  const BUCKETS: { key: Bucket; label: string }[] = [
+    { key: 'current', label: t('accounting.aging.bucketCurrent') },
+    { key: 'd30', label: t('accounting.aging.bucket30') },
+    { key: 'd60', label: t('accounting.aging.bucket60') },
+    { key: 'd90', label: t('accounting.aging.bucket90') },
+    { key: 'd90p', label: t('accounting.aging.bucket90p') },
+  ];
 
   const supabase = await createClient();
   const { data: invoices } = await supabase
@@ -85,23 +88,23 @@ export default async function AgingPage() {
   return (
     <div>
       <PageHeader
-        title="أعمار ديون العملاء"
-        description="إجمالي المديونية المستحقة على كل عميل موزّعة حسب عمر الدين."
+        title={t('accounting.aging.title')}
+        description={t('accounting.aging.description')}
       />
       <Card>
         <CardContent className="p-0">
           {customers.length === 0 ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">لا توجد مديونيات مستحقة. 👍</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('accounting.aging.emptyState')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="sticky right-0 bg-secondary/50 p-3 text-right font-medium">العميل</th>
+                    <th className="sticky right-0 bg-secondary/50 p-3 text-right font-medium">{t('accounting.aging.colCustomer')}</th>
                     {BUCKETS.map((b) => (
                       <th key={b.key} className="p-3 text-center font-medium whitespace-nowrap">{b.label}</th>
                     ))}
-                    <th className="p-3 text-center font-medium">الإجمالي</th>
+                    <th className="p-3 text-center font-medium">{t('accounting.aging.colTotal')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -119,7 +122,7 @@ export default async function AgingPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 bg-secondary/30 font-semibold">
-                    <td className="sticky right-0 bg-secondary/30 p-3">الإجمالي</td>
+                    <td className="sticky right-0 bg-secondary/30 p-3">{t('accounting.aging.rowTotal')}</td>
                     {BUCKETS.map((b) => (
                       <td key={b.key} className="p-3 text-center tabular-nums" dir="ltr">{formatNumber(Math.round(totals[b.key]))}</td>
                     ))}

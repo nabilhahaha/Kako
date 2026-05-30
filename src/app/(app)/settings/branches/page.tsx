@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Branch, Company } from '@/lib/erp/types';
+import { getT } from '@/lib/i18n/server';
 import { CompanyForm } from './company-form';
 import { BranchManager } from './branch-manager';
 
@@ -11,13 +12,15 @@ export default async function BranchesPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
+
   if (!ctx.isSuperAdmin) {
     return (
       <div>
-        <PageHeader title="الفروع" />
+        <PageHeader title={t('settings.branches.pageTitle')} />
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            هذه الصفحة متاحة لمدير النظام فقط.
+            {t('settings.branches.superAdminOnly')}
           </CardContent>
         </Card>
       </div>
@@ -36,8 +39,8 @@ export default async function BranchesPage() {
     return (
       <div>
         <PageHeader
-          title="إعداد الشركة"
-          description="ابدأ بإنشاء بيانات الشركة قبل إضافة الفروع"
+          title={t('settings.branches.setupTitle')}
+          description={t('settings.branches.setupDescription')}
         />
         <CompanyForm />
       </div>
@@ -53,8 +56,8 @@ export default async function BranchesPage() {
   return (
     <div>
       <PageHeader
-        title="الفروع"
-        description={`إدارة فروع ${company.name_ar || company.name}`}
+        title={t('settings.branches.pageTitle')}
+        description={t('settings.branches.pageDescription', { name: company.name_ar || company.name })}
       />
       <BranchManager
         company={company}

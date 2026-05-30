@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
+import { getT } from '@/lib/i18n/server';
 
 interface InvoiceInput {
   branch_id: string;
@@ -17,11 +18,12 @@ interface InvoiceInput {
 export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{ id: string }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
 
-  if (!input.branch_id) return { ok: false, error: 'الفرع مطلوب.' };
-  if (!input.customer_id) return { ok: false, error: 'العميل مطلوب.' };
+  if (!input.branch_id) return { ok: false, error: t('sales.branchRequired') };
+  if (!input.customer_id) return { ok: false, error: t('sales.customerRequired') };
   const lines = input.lines.filter((l) => l.product_id && l.quantity > 0);
-  if (lines.length === 0) return { ok: false, error: 'أضف بنداً واحداً على الأقل.' };
+  if (lines.length === 0) return { ok: false, error: t('sales.atLeastOneLine') };
 
   const supabase = await createClient();
 
@@ -32,7 +34,7 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
     .eq('id', input.customer_id)
     .maybeSingle();
   if (cust && cust.is_approved === false) {
-    return { ok: false, error: 'هذا العميل بانتظار اعتماد مدير النظام، لا يمكن البيع له بعد.' };
+    return { ok: false, error: t('sales.invoiceErrCustomerPending') };
   }
 
   const totals = computeTotals(lines);
@@ -112,7 +114,8 @@ export async function recordPayment(input: {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
 
-  if (!(input.amount > 0)) return { ok: false, error: 'المبلغ يجب أن يكون أكبر من صفر.' };
+  const { t } = await getT();
+  if (!(input.amount > 0)) return { ok: false, error: t('sales.invoiceErrAmountPositive') };
 
   // Atomic: payment row (fires Cash/AR journal + invoice update) + balance.
   const supabase = await createClient();

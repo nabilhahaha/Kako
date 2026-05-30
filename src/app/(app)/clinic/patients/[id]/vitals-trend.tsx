@@ -2,6 +2,7 @@
 
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent } from '@/components/ui/card';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface VitalsPoint {
   date: string;        // short label
@@ -11,14 +12,16 @@ export interface VitalsPoint {
   systolic: number | null;
 }
 
-const METRICS: { key: keyof Omit<VitalsPoint, 'date'>; label: string; color: string; unit: string }[] = [
-  { key: 'weight', label: 'الوزن', color: '#2563eb', unit: 'كجم' },
-  { key: 'systolic', label: 'الضغط الانقباضي', color: '#dc2626', unit: '' },
-  { key: 'pulse', label: 'النبض', color: '#16a34a', unit: '' },
-  { key: 'temperature', label: 'الحرارة', color: '#d97706', unit: '°م' },
-];
-
 export function VitalsTrend({ points }: { points: VitalsPoint[] }) {
+  const { t } = useI18n();
+
+  const METRICS: { key: keyof Omit<VitalsPoint, 'date'>; label: string; color: string; unit: string }[] = [
+    { key: 'weight', label: t('clinic.vitals.trendWeight'), color: '#2563eb', unit: t('clinic.vitals.weightMetric') },
+    { key: 'systolic', label: t('clinic.vitals.trendSystolic'), color: '#dc2626', unit: '' },
+    { key: 'pulse', label: t('clinic.vitals.trendPulse'), color: '#16a34a', unit: '' },
+    { key: 'temperature', label: t('clinic.vitals.trendTemperature'), color: '#d97706', unit: t('clinic.vitals.temperatureUnit') },
+  ];
+
   // Only render metrics that have at least two recorded values to trend.
   const shown = METRICS.filter((m) => points.filter((p) => p[m.key] != null).length >= 2);
   if (shown.length === 0) return null;

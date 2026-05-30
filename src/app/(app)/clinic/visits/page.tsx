@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { VisitsManager, type Visit, type PatientOption } from './visits-manager';
 import type { DoctorOption, ServiceOption } from '../clinical-ui';
+import { getT } from '@/lib/i18n/server';
 
 export default async function VisitsPage({
   searchParams,
@@ -12,14 +13,15 @@ export default async function VisitsPage({
   searchParams: Promise<{ patient?: string }>;
 }) {
   await requirePermission('clinic.manage');
+  const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
     return (
       <div>
-        <PageHeader title="الكشوفات" />
+        <PageHeader title={t('clinic.visits.title')} />
         <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-          إدارة العيادة تتم من داخل حساب العيادة.
+          {t('clinic.visits.noCompany')}
         </p>
       </div>
     );
@@ -41,7 +43,7 @@ export default async function VisitsPage({
 
   return (
     <div>
-      <PageHeader title="الكشوفات" description="طابور العيادة اليومي — استقبال، فحص (تشخيص وروشتة وعلامات حيوية)، وتحصيل." />
+      <PageHeader title={t('clinic.visits.title')} description={t('clinic.visits.description')} />
       <VisitsManager
         visits={(visits as unknown as Visit[]) ?? []}
         patients={(patients as PatientOption[]) ?? []}

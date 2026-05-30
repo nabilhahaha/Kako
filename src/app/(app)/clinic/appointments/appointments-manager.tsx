@@ -13,6 +13,8 @@ import { WhatsAppButton } from '@/components/whatsapp-button';
 import { usePrompt } from '@/components/prompt-dialog';
 import { createAppointment, setAppointmentStatus, checkInAppointment } from '../actions';
 import { type DoctorOption, doctorName } from '../clinical-ui';
+import { useI18n } from '@/lib/i18n/provider';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 
 export interface PatientOption { id: string; name: string; phone: string | null }
 
@@ -26,21 +28,8 @@ export interface Appointment {
   patient: { name: string; phone: string | null } | null;
 }
 
-const STATUS: Record<string, { label: string; variant: 'secondary' | 'info' | 'success' | 'destructive' | 'warning' | 'default' }> = {
-  scheduled: { label: 'محجوز', variant: 'info' },
-  confirmed: { label: 'مؤكد', variant: 'default' },
-  arrived: { label: 'وصل / كشف', variant: 'success' },
-  done: { label: 'تم', variant: 'success' },
-  cancelled: { label: 'ملغي', variant: 'destructive' },
-  no_show: { label: 'لم يحضر', variant: 'secondary' },
-};
-
 const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-
-const dateTimeFmt = new Intl.DateTimeFormat('ar-EG', {
-  weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-});
 
 /** Default the booking field to the next round hour, as a datetime-local value. */
 function defaultSlot() {
@@ -63,12 +52,26 @@ export function AppointmentsManager({
   doctors: DoctorOption[];
   initialPatientId?: string | null;
 }) {
+  const { t, locale } = useI18n();
   const router = useRouter();
   const prompt = usePrompt();
   const [adding, setAdding] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const slot = useMemo(defaultSlot, []);
+
+  const STATUS: Record<string, { label: string; variant: 'secondary' | 'info' | 'success' | 'destructive' | 'warning' | 'default' }> = {
+    scheduled: { label: t('clinic.apptStatus.scheduled'), variant: 'info' },
+    confirmed: { label: t('clinic.apptStatus.confirmed'), variant: 'default' },
+    arrived: { label: t('clinic.apptStatus.arrivedVisit'), variant: 'success' },
+    done: { label: t('clinic.apptStatus.done'), variant: 'success' },
+    cancelled: { label: t('clinic.apptStatus.cancelled'), variant: 'destructive' },
+    no_show: { label: t('clinic.apptStatus.no_show'), variant: 'secondary' },
+  };
+
+  const dateTimeFmt = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
 
   // Deep-link from a patient file (?patient=…) opens the booking form ready.
   useEffect(() => {
@@ -78,7 +81,7 @@ export function AppointmentsManager({
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) {
     startTransition(async () => {
       const res = await fn();
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
+      if (!res.ok) { toast.error(res.error ?? t('clinic.appointments.toastError')); return; }
       toast.success(ok);
       router.refresh();
     });
@@ -89,8 +92,8 @@ export function AppointmentsManager({
     const fd = new FormData(e.currentTarget);
     startTransition(async () => {
       const res = await createAppointment(fd);
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
-      toast.success('تم حجز الموعد');
+      if (!res.ok) { toast.error(res.error ?? t('clinic.appointments.toastError')); return; }
+      toast.success(t('clinic.appointments.toastBooked'));
       setAdding(false);
       router.refresh();
     });
@@ -98,17 +101,17 @@ export function AppointmentsManager({
 
   function checkIn(a: Appointment) {
     prompt({
-      title: 'تسجيل وصول المريض',
-      message: `${a.patient?.name ?? ''} — سيُفتح كشف جديد في قائمة الانتظار.`,
-      label: 'رسوم الكشف (اختياري)', type: 'number', defaultValue: '',
-      confirmText: 'تسجيل الوصول وفتح كشف',
+      title: t('clinic.appointments.checkInTitle'),
+      message: t('clinic.appointments.checkInMessage', { name: a.patient?.name ?? '' }),
+      label: t('clinic.appointments.checkInFeeLabel'), type: 'number', defaultValue: '',
+      confirmText: t('clinic.appointments.checkInConfirm'),
     }).then((raw) => {
       if (raw == null) return;
       const fd = new FormData();
       fd.set('appointment_id', a.id);
       const fee = Number(raw);
       fd.set('fee', Number.isFinite(fee) && fee > 0 ? String(fee) : '0');
-      run(() => checkInAppointment(fd), 'تم تسجيل الوصول وفتح كشف');
+      run(() => checkInAppointment(fd), t('clinic.appointments.toastCheckedIn'));
     });
   }
 
@@ -117,7 +120,7 @@ export function AppointmentsManager({
       <div>
         {!adding ? (
           <Button onClick={() => setAdding(true)} disabled={patients.length === 0}>
-            <Plus className="h-4 w-4" /> موعد جديد
+            <Plus className="h-4 w-4" /> {t('clinic.appointments.newButton')}
           </Button>
         ) : (
           <Card>
@@ -125,59 +128,59 @@ export function AppointmentsManager({
               <form onSubmit={onSubmit} className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-1">
-                    <Label>المريض *</Label>
+                    <Label>{t('clinic.appointments.fieldPatient')}</Label>
                     <select name="patient_id" className={selectCls} required defaultValue={initialPatientId ?? ''}>
-                      <option value="" disabled>اختر المريض</option>
+                      <option value="" disabled>{t('clinic.appointments.patientPlaceholder')}</option>
                       {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.phone ? ` — ${p.phone}` : ''}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <Label>الطبيب</Label>
+                    <Label>{t('clinic.appointments.fieldDoctor')}</Label>
                     <select name="doctor_id" className={selectCls} defaultValue={doctors.length === 1 ? doctors[0].id : ''}>
-                      <option value="">— غير محدد —</option>
+                      <option value="">{t('clinic.appointments.doctorPlaceholder')}</option>
                       {doctors.map((d) => <option key={d.id} value={d.id}>{d.full_name || d.email}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <Label>التاريخ والوقت *</Label>
+                    <Label>{t('clinic.appointments.fieldDateTime')}</Label>
                     <Input name="scheduled_at" type="datetime-local" required defaultValue={slot} dir="ltr" />
                   </div>
                   <div className="space-y-1">
-                    <Label>المدة (دقيقة)</Label>
+                    <Label>{t('clinic.appointments.fieldDuration')}</Label>
                     <Input name="duration_min" type="number" min={5} step={5} dir="ltr" defaultValue={30} />
                   </div>
                   <div className="space-y-1">
-                    <Label>سبب الزيارة</Label>
-                    <Input name="reason" placeholder="مثال: متابعة / كشف" />
+                    <Label>{t('clinic.appointments.fieldReason')}</Label>
+                    <Input name="reason" placeholder={t('clinic.appointments.reasonPlaceholder')} />
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={pending}>{pending && <Loader2 className="h-4 w-4 animate-spin" />} حجز</Button>
-                  <Button type="button" variant="outline" onClick={() => setAdding(false)}>إلغاء</Button>
+                  <Button type="submit" disabled={pending}>{pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('clinic.appointments.bookButton')}</Button>
+                  <Button type="button" variant="outline" onClick={() => setAdding(false)}>{t('clinic.appointments.cancel')}</Button>
                 </div>
               </form>
             </CardContent>
           </Card>
         )}
-        {patients.length === 0 && <p className="mt-2 text-sm text-muted-foreground">سجّل مريضاً أولاً من صفحة المرضى.</p>}
+        {patients.length === 0 && <p className="mt-2 text-sm text-muted-foreground">{t('clinic.appointments.noPatients')}</p>}
       </div>
 
       <Card>
         <CardContent className="p-0">
           {appointments.length === 0 ? (
             <div className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
-              <CalendarClock className="h-8 w-8" /><p>لا توجد مواعيد قادمة.</p>
+              <CalendarClock className="h-8 w-8" /><p>{t('clinic.appointments.emptyList')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">المريض</th>
-                    <th className="p-3 text-right font-medium">الموعد</th>
-                    <th className="p-3 text-right font-medium">الطبيب</th>
-                    <th className="p-3 text-right font-medium">السبب</th>
-                    <th className="p-3 text-center font-medium">الحالة</th>
+                    <th className="p-3 text-right font-medium">{t('clinic.appointments.colPatient')}</th>
+                    <th className="p-3 text-right font-medium">{t('clinic.appointments.colAppointment')}</th>
+                    <th className="p-3 text-right font-medium">{t('clinic.appointments.colDoctor')}</th>
+                    <th className="p-3 text-right font-medium">{t('clinic.appointments.colReason')}</th>
+                    <th className="p-3 text-center font-medium">{t('clinic.appointments.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
@@ -201,21 +204,21 @@ export function AppointmentsManager({
                               <>
                                 <WhatsAppButton
                                   phone={a.patient?.phone}
-                                  label="تذكير"
-                                  message={`مرحباً ${a.patient?.name ?? ''}، نذكّركم بموعدكم يوم ${dateTimeFmt.format(new Date(a.scheduled_at))}. برجاء الحضور في الموعد. شكراً.`}
+                                  label={t('clinic.appointments.reminderLabel')}
+                                  message={t('clinic.appointments.reminderMessage', { name: a.patient?.name ?? '', time: dateTimeFmt.format(new Date(a.scheduled_at)) })}
                                 />
                                 <Button size="sm" variant="secondary" disabled={pending} onClick={() => checkIn(a)}>
-                                  <LogIn className="h-3.5 w-3.5" /> وصل
+                                  <LogIn className="h-3.5 w-3.5" /> {t('clinic.appointments.arrivedButton')}
                                 </Button>
                                 {a.status === 'scheduled' && (
-                                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), 'تم تأكيد الموعد')}>
-                                    <CheckCircle2 className="h-3.5 w-3.5" /> تأكيد
+                                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), t('clinic.appointments.toastConfirmed'))}>
+                                    <CheckCircle2 className="h-3.5 w-3.5" /> {t('clinic.appointments.confirmButton')}
                                   </Button>
                                 )}
-                                <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setAppointmentStatus(a.id, 'no_show'), 'تم التسجيل: لم يحضر')}>
-                                  لم يحضر
+                                <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setAppointmentStatus(a.id, 'no_show'), t('clinic.appointments.toastNoShow'))}>
+                                  {t('clinic.appointments.noShowButton')}
                                 </Button>
-                                <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setAppointmentStatus(a.id, 'cancelled'), 'تم إلغاء الموعد')}>
+                                <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setAppointmentStatus(a.id, 'cancelled'), t('clinic.appointments.toastCancelled'))}>
                                   <X className="h-3.5 w-3.5" />
                                 </Button>
                               </>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { checkUserLimit } from '@/lib/erp/plans';
 import { logAudit } from '@/lib/erp/audit';
+import { getT } from '@/lib/i18n/server';
 
 export interface ActionResult {
   ok: boolean;
@@ -13,24 +14,26 @@ export interface ActionResult {
 
 async function requireSuperAdmin() {
   const ctx = await getUserContext();
-  if (!ctx) return { ctx: null, error: 'غير مصرح. سجّل الدخول.' };
+  const { t } = await getT();
+  if (!ctx) return { ctx: null, error: t('settings.unauthorizedLogin') };
   if (!ctx.isSuperAdmin)
-    return { ctx: null, error: 'هذه العملية متاحة لمدير النظام فقط.' };
+    return { ctx: null, error: t('settings.users.superAdminOnlyAction') };
   return { ctx, error: null };
 }
 
 /** Creates a new auth user via the admin-create-user edge function. */
 export async function createUser(formData: FormData): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireSuperAdmin();
-  if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+  const { t } = await getT();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? t('settings.unauthorized') };
 
   const email = String(formData.get('email') || '').trim().toLowerCase();
   const password = String(formData.get('password') || '');
   const full_name = String(formData.get('full_name') || '').trim();
 
-  if (!email) return { ok: false, error: 'البريد الإلكتروني مطلوب.' };
+  if (!email) return { ok: false, error: t('settings.users.errEmailRequired') };
   if (password.length < 6)
-    return { ok: false, error: 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل.' };
+    return { ok: false, error: t('settings.users.errPasswordTooShort') };
 
   const supabase = await createClient();
   const {
@@ -47,8 +50,7 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   if (error) {
     return {
       ok: false,
-      error:
-        'تعذّر إنشاء المستخدم. تأكد من نشر دالة admin-create-user على Supabase.',
+      error: t('settings.users.errCreateUser'),
     };
   }
   if (data?.error) return { ok: false, error: data.error };
@@ -71,8 +73,9 @@ export async function assignBranch(
   reportsTo?: string | null,
 ): Promise<ActionResult> {
   const { error: authErr } = await requireSuperAdmin();
+  const { t } = await getT();
   if (authErr) return { ok: false, error: authErr };
-  if (!branchId) return { ok: false, error: 'اختر الفرع.' };
+  if (!branchId) return { ok: false, error: t('settings.users.errBranchRequired') };
 
   const supabase = await createClient();
 
@@ -133,11 +136,12 @@ export async function setUserFlags(
   flags: { is_active?: boolean; is_super_admin?: boolean },
 ): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireSuperAdmin();
-  if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+  const { t } = await getT();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? t('settings.unauthorized') };
 
   // Guard: a super admin cannot strip their own super-admin/active flags.
   if (userId === ctx.userId) {
-    return { ok: false, error: 'لا يمكنك تعديل صلاحيات حسابك الخاص.' };
+    return { ok: false, error: t('settings.users.errSelfFlags') };
   }
 
   const supabase = await createClient();

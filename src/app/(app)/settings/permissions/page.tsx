@@ -2,11 +2,14 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { getT } from '@/lib/i18n/server';
 import { PermissionsMatrix, type RoleRow } from './permissions-matrix';
 
 export default async function PermissionsPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+
+  const { t } = await getT();
 
   const supabase = await createClient();
   const [{ data: roles }, { data: rolePerms }] = await Promise.all([
@@ -22,8 +25,8 @@ export default async function PermissionsPage() {
   return (
     <div>
       <PageHeader
-        title="الصلاحيات الافتراضية"
-        description="القالب الافتراضي لصلاحيات كل دور — يُطبَّق على أي شركة جديدة عند إنشائها. لتخصيص صلاحيات شركة بعينها افتح صفحتها من لوحة المزوّد. مدير النظام له جميع الصلاحيات."
+        title={t('settings.permissions.pageTitle')}
+        description={t('settings.permissions.pageDescription')}
       />
       <PermissionsMatrix
         roles={(roles as RoleRow[]) ?? []}

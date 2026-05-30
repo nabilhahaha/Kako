@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
 import type { Branch, ErpCustomer, ProductCatalog, SalesOrder } from '@/lib/erp/types';
 import { OrdersManager } from './orders-manager';
+import { getT } from '@/lib/i18n/server';
 
 export interface OrderRow extends SalesOrder {
   customer: { name: string; name_ar: string | null } | null;
@@ -19,6 +20,7 @@ export default async function SalesOrdersPage({
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
 
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
@@ -46,7 +48,7 @@ export default async function SalesOrdersPage({
 
   return (
     <div>
-      <PageHeader title="أوامر البيع" description="إنشاء أوامر البيع وتحويلها لفواتير" />
+      <PageHeader title={t('sales.ordersTitle')} description={t('sales.ordersDescription')} />
       <OrdersManager
         orders={(orders as OrderRow[]) ?? []}
         customers={(customers as ErpCustomer[]) ?? []}

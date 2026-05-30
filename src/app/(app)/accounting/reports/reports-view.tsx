@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { ACCOUNT_TYPE_LABELS } from '@/lib/erp/constants';
 import type { AccountType } from '@/lib/erp/types';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface AccountAgg {
   code: string;
@@ -42,16 +43,17 @@ export function ReportsView({
   aging: AgingRow[];
   margin: MarginRow[];
 }) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('trial');
 
   return (
     <div className="space-y-4">
       <div className="flex w-fit flex-wrap rounded-lg border p-0.5">
-        <TabBtn active={tab === 'trial'} onClick={() => setTab('trial')}>ميزان المراجعة</TabBtn>
-        <TabBtn active={tab === 'income'} onClick={() => setTab('income')}>قائمة الدخل</TabBtn>
-        <TabBtn active={tab === 'balance'} onClick={() => setTab('balance')}>الميزانية</TabBtn>
-        <TabBtn active={tab === 'aging'} onClick={() => setTab('aging')}>أعمار الديون</TabBtn>
-        <TabBtn active={tab === 'margin'} onClick={() => setTab('margin')}>هامش الربح</TabBtn>
+        <TabBtn active={tab === 'trial'} onClick={() => setTab('trial')}>{t('accounting.reports.tabTrial')}</TabBtn>
+        <TabBtn active={tab === 'income'} onClick={() => setTab('income')}>{t('accounting.reports.tabIncome')}</TabBtn>
+        <TabBtn active={tab === 'balance'} onClick={() => setTab('balance')}>{t('accounting.reports.tabBalance')}</TabBtn>
+        <TabBtn active={tab === 'aging'} onClick={() => setTab('aging')}>{t('accounting.reports.tabAging')}</TabBtn>
+        <TabBtn active={tab === 'margin'} onClick={() => setTab('margin')}>{t('accounting.reports.tabMargin')}</TabBtn>
       </div>
 
       {tab === 'trial' && <TrialBalance accounts={accounts} />}
@@ -64,8 +66,9 @@ export function ReportsView({
 }
 
 function Aging({ rows }: { rows: AgingRow[] }) {
-  if (rows.length === 0) return <Empty text="لا توجد ديون مستحقة على العملاء." />;
-  const t = rows.reduce(
+  const { t } = useI18n();
+  if (rows.length === 0) return <Empty text={t('accounting.reports.agingEmpty')} />;
+  const totals = rows.reduce(
     (a, r) => ({ d0_30: a.d0_30 + r.d0_30, d31_60: a.d31_60 + r.d31_60, d61_90: a.d61_90 + r.d61_90, d90: a.d90 + r.d90, total: a.total + r.total }),
     { d0_30: 0, d31_60: 0, d61_90: 0, d90: 0, total: 0 },
   );
@@ -76,12 +79,12 @@ function Aging({ rows }: { rows: AgingRow[] }) {
           <table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground">
               <tr>
-                <th className="p-3 text-right font-medium">العميل</th>
-                <th className="p-3 text-left font-medium">٠-٣٠ يوم</th>
-                <th className="p-3 text-left font-medium">٣١-٦٠</th>
-                <th className="p-3 text-left font-medium">٦١-٩٠</th>
-                <th className="p-3 text-left font-medium">+٩٠</th>
-                <th className="p-3 text-left font-medium">الإجمالي</th>
+                <th className="p-3 text-right font-medium">{t('accounting.reports.agingColCustomer')}</th>
+                <th className="p-3 text-left font-medium">{t('accounting.reports.agingCol030')}</th>
+                <th className="p-3 text-left font-medium">{t('accounting.reports.agingCol3160')}</th>
+                <th className="p-3 text-left font-medium">{t('accounting.reports.agingCol6190')}</th>
+                <th className="p-3 text-left font-medium">{t('accounting.reports.agingCol90p')}</th>
+                <th className="p-3 text-left font-medium">{t('accounting.reports.agingColTotal')}</th>
               </tr>
             </thead>
             <tbody>
@@ -98,12 +101,12 @@ function Aging({ rows }: { rows: AgingRow[] }) {
             </tbody>
             <tfoot className="border-t-2 font-bold">
               <tr>
-                <td className="p-3">الإجمالي</td>
-                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(t.d0_30)}</td>
-                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(t.d31_60)}</td>
-                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(t.d61_90)}</td>
-                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(t.d90)}</td>
-                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(t.total)}</td>
+                <td className="p-3">{t('accounting.reports.agingTotal')}</td>
+                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(totals.d0_30)}</td>
+                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(totals.d31_60)}</td>
+                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(totals.d61_90)}</td>
+                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(totals.d90)}</td>
+                <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(totals.total)}</td>
               </tr>
             </tfoot>
           </table>
@@ -114,7 +117,8 @@ function Aging({ rows }: { rows: AgingRow[] }) {
 }
 
 function Margin({ rows }: { rows: MarginRow[] }) {
-  if (rows.length === 0) return <Empty text="لا توجد مبيعات لحساب الهامش." />;
+  const { t } = useI18n();
+  if (rows.length === 0) return <Empty text={t('accounting.reports.marginEmpty')} />;
   return (
     <Card>
       <CardContent className="p-0">
@@ -122,12 +126,12 @@ function Margin({ rows }: { rows: MarginRow[] }) {
           <table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground">
               <tr>
-                <th className="p-3 text-right font-medium">الصنف</th>
-                <th className="p-3 text-center font-medium">الكمية المباعة</th>
-                <th className="p-3 text-left font-medium">الإيراد</th>
-                <th className="p-3 text-left font-medium">التكلفة</th>
-                <th className="p-3 text-left font-medium">الربح</th>
-                <th className="p-3 text-center font-medium">الهامش %</th>
+                <th className="p-3 text-right font-medium">{t('accounting.reports.marginColItem')}</th>
+                <th className="p-3 text-center font-medium">{t('accounting.reports.marginColQtySold')}</th>
+                <th className="p-3 text-left font-medium">{t('accounting.reports.marginColRevenue')}</th>
+                <th className="p-3 text-left font-medium">{t('accounting.reports.marginColCost')}</th>
+                <th className="p-3 text-left font-medium">{t('accounting.reports.marginColProfit')}</th>
+                <th className="p-3 text-center font-medium">{t('accounting.reports.marginColMarginPct')}</th>
               </tr>
             </thead>
             <tbody>
@@ -174,6 +178,7 @@ function Empty({ text }: { text: string }) {
 
 // ─── Trial Balance ──────────────────────────────────────────────────────────
 function TrialBalance({ accounts }: { accounts: AccountAgg[] }) {
+  const { t, locale } = useI18n();
   const rows = accounts
     .map((a) => {
       const net = a.debit - a.credit;
@@ -181,7 +186,7 @@ function TrialBalance({ accounts }: { accounts: AccountAgg[] }) {
     })
     .filter((r) => r.debitBal > 0.001 || r.creditBal > 0.001)
     .sort((a, b) => a.code.localeCompare(b.code));
-  if (rows.length === 0) return <Empty text="لا توجد قيود مرحّلة بعد." />;
+  if (rows.length === 0) return <Empty text={t('accounting.reports.trialEmpty')} />;
 
   const totalDebit = rows.reduce((s, r) => s + r.debitBal, 0);
   const totalCredit = rows.reduce((s, r) => s + r.creditBal, 0);
@@ -193,17 +198,17 @@ function TrialBalance({ accounts }: { accounts: AccountAgg[] }) {
         <table className="w-full text-sm">
           <thead className="border-b bg-secondary/50 text-muted-foreground">
             <tr>
-              <th className="p-3 text-right font-medium">الحساب</th>
-              <th className="p-3 text-right font-medium">النوع</th>
-              <th className="p-3 text-left font-medium">مدين</th>
-              <th className="p-3 text-left font-medium">دائن</th>
+              <th className="p-3 text-right font-medium">{t('accounting.reports.trialColAccount')}</th>
+              <th className="p-3 text-right font-medium">{t('accounting.reports.trialColType')}</th>
+              <th className="p-3 text-left font-medium">{t('accounting.reports.trialColDebit')}</th>
+              <th className="p-3 text-left font-medium">{t('accounting.reports.trialColCredit')}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.code} className="border-b last:border-0 hover:bg-secondary/30">
                 <td className="p-3"><Code code={r.code} /> {r.name}</td>
-                <td className="p-3 text-muted-foreground">{ACCOUNT_TYPE_LABELS[r.type].ar}</td>
+                <td className="p-3 text-muted-foreground">{ACCOUNT_TYPE_LABELS[r.type][locale]}</td>
                 <td className="p-3 text-left tabular-nums" dir="ltr">{r.debitBal > 0 ? formatCurrency(r.debitBal) : '—'}</td>
                 <td className="p-3 text-left tabular-nums" dir="ltr">{r.creditBal > 0 ? formatCurrency(r.creditBal) : '—'}</td>
               </tr>
@@ -211,7 +216,7 @@ function TrialBalance({ accounts }: { accounts: AccountAgg[] }) {
           </tbody>
           <tfoot className="border-t-2 font-bold">
             <tr>
-              <td className="p-3" colSpan={2}>الإجمالي</td>
+              <td className="p-3" colSpan={2}>{t('accounting.reports.trialTotal')}</td>
               <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(totalDebit)}</td>
               <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(totalCredit)}</td>
             </tr>
@@ -219,9 +224,9 @@ function TrialBalance({ accounts }: { accounts: AccountAgg[] }) {
         </table>
         <div className="border-t p-3 text-sm">
           {balanced ? (
-            <span className="text-success">✓ الميزان متوازن</span>
+            <span className="text-success">{t('accounting.reports.trialBalanced')}</span>
           ) : (
-            <span className="text-destructive">⚠ فرق: {formatCurrency(Math.abs(totalDebit - totalCredit))}</span>
+            <span className="text-destructive">{t('accounting.reports.trialDiff', { amount: formatCurrency(Math.abs(totalDebit - totalCredit)) })}</span>
           )}
         </div>
       </CardContent>
@@ -231,6 +236,7 @@ function TrialBalance({ accounts }: { accounts: AccountAgg[] }) {
 
 // ─── Income Statement ─────────────────────────────────────────────────────────
 function IncomeStatement({ accounts }: { accounts: AccountAgg[] }) {
+  const { t } = useI18n();
   const revenue = accounts
     .filter((a) => a.type === 'revenue')
     .map((a) => ({ ...a, amount: a.credit - a.debit }))
@@ -241,7 +247,7 @@ function IncomeStatement({ accounts }: { accounts: AccountAgg[] }) {
     .filter((a) => Math.abs(a.amount) > 0.001);
 
   if (revenue.length === 0 && expenses.length === 0)
-    return <Empty text="لا توجد إيرادات أو مصروفات مرحّلة بعد." />;
+    return <Empty text={t('accounting.reports.incomeEmpty')} />;
 
   const totalRev = revenue.reduce((s, r) => s + r.amount, 0);
   const totalExp = expenses.reduce((s, r) => s + r.amount, 0);
@@ -249,11 +255,11 @@ function IncomeStatement({ accounts }: { accounts: AccountAgg[] }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Section title="الإيرادات" rows={revenue} total={totalRev} totalLabel="إجمالي الإيرادات" />
-      <Section title="المصروفات" rows={expenses} total={totalExp} totalLabel="إجمالي المصروفات" />
+      <Section title={t('accounting.reports.incomeRevenue')} rows={revenue} total={totalRev} totalLabel={t('accounting.reports.incomeTotalRevenue')} />
+      <Section title={t('accounting.reports.incomeExpenses')} rows={expenses} total={totalExp} totalLabel={t('accounting.reports.incomeTotalExpenses')} />
       <Card className="lg:col-span-2">
         <CardContent className="flex items-center justify-between p-4">
-          <span className="font-semibold">{profit >= 0 ? 'صافي الربح' : 'صافي الخسارة'}</span>
+          <span className="font-semibold">{profit >= 0 ? t('accounting.reports.incomeNetProfit') : t('accounting.reports.incomeNetLoss')}</span>
           <span className={`text-lg font-bold tabular-nums ${profit >= 0 ? 'text-success' : 'text-destructive'}`} dir="ltr">
             {formatCurrency(Math.abs(profit))}
           </span>
@@ -265,6 +271,7 @@ function IncomeStatement({ accounts }: { accounts: AccountAgg[] }) {
 
 // ─── Balance Sheet ────────────────────────────────────────────────────────────
 function BalanceSheet({ accounts }: { accounts: AccountAgg[] }) {
+  const { t } = useI18n();
   const assets = accounts
     .filter((a) => a.type === 'asset')
     .map((a) => ({ ...a, amount: a.debit - a.credit }))
@@ -290,27 +297,27 @@ function BalanceSheet({ accounts }: { accounts: AccountAgg[] }) {
   const balanced = Math.abs(totalAssets - rhs) < 0.01;
 
   if (assets.length === 0 && liabilities.length === 0 && equityAccounts.length === 0 && Math.abs(profit) < 0.001)
-    return <Empty text="لا توجد أرصدة مرحّلة بعد." />;
+    return <Empty text={t('accounting.reports.balanceEmpty')} />;
 
   const equityRows = [
     ...equityAccounts,
     ...(Math.abs(profit) > 0.001
-      ? [{ code: '3400', name: profit >= 0 ? 'أرباح العام الحالي' : 'خسائر العام الحالي', amount: profit }]
+      ? [{ code: '3400', name: profit >= 0 ? t('accounting.reports.balanceCurrentYearProfit') : t('accounting.reports.balanceCurrentYearLoss'), amount: profit }]
       : []),
   ];
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="الأصول" rows={assets} total={totalAssets} totalLabel="إجمالي الأصول" />
+        <Section title={t('accounting.reports.balanceAssets')} rows={assets} total={totalAssets} totalLabel={t('accounting.reports.balanceTotalAssets')} />
         <div className="space-y-4">
-          <Section title="الالتزامات" rows={liabilities} total={totalLiab} totalLabel="إجمالي الالتزامات" />
-          <Section title="حقوق الملكية" rows={equityRows} total={totalEquity} totalLabel="إجمالي حقوق الملكية" />
+          <Section title={t('accounting.reports.balanceLiabilities')} rows={liabilities} total={totalLiab} totalLabel={t('accounting.reports.balanceTotalLiabilities')} />
+          <Section title={t('accounting.reports.balanceEquity')} rows={equityRows} total={totalEquity} totalLabel={t('accounting.reports.balanceTotalEquity')} />
         </div>
       </div>
       <Card>
         <CardContent className="flex items-center justify-between p-4 text-sm">
-          <span className="font-semibold">الأصول = الالتزامات + حقوق الملكية</span>
+          <span className="font-semibold">{t('accounting.reports.balanceEquation')}</span>
           <span dir="ltr" className="tabular-nums">
             {formatCurrency(totalAssets)} {balanced ? '=' : '≠'} {formatCurrency(rhs)}
           </span>
@@ -331,12 +338,13 @@ function Section({
   total: number;
   totalLabel: string;
 }) {
+  const { t } = useI18n();
   return (
     <Card>
       <CardContent className="p-0">
         <h3 className="border-b p-3 font-semibold">{title}</h3>
         {rows.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">لا يوجد.</p>
+          <p className="p-4 text-sm text-muted-foreground">{t('accounting.reports.sectionEmpty')}</p>
         ) : (
           <table className="w-full text-sm">
             <tbody>

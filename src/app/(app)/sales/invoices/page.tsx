@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
 import type { Branch, ErpCustomer, Invoice, ProductCatalog } from '@/lib/erp/types';
 import { InvoicesManager } from './invoices-manager';
+import { getT } from '@/lib/i18n/server';
 
 export interface InvoiceRow extends Invoice {
   customer: { name: string; name_ar: string | null; phone: string | null } | null;
@@ -19,6 +20,7 @@ export default async function InvoicesPage({
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
 
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
@@ -44,7 +46,7 @@ export default async function InvoicesPage({
 
   return (
     <div>
-      <PageHeader title="الفواتير" description="إصدار الفواتير وتسجيل التحصيل" />
+      <PageHeader title={t('sales.invoicesTitle')} description={t('sales.invoicesDescription')} />
       <InvoicesManager
         invoices={(invoices as InvoiceRow[]) ?? []}
         customers={(customers as ErpCustomer[]) ?? []}

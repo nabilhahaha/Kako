@@ -6,6 +6,7 @@ import { repDayBlocked } from '@/lib/erp/work-session';
 import type { LineInput } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { createInvoice, issueInvoice, recordPayment } from '../invoices/actions';
+import { getT } from '@/lib/i18n/server';
 
 /**
  * One-tap field sale: create the invoice, issue it (stock + AR/Revenue
@@ -20,7 +21,8 @@ export async function quickSale(input: {
   payment_method: PaymentMethod;
 }): Promise<ActionResult<{ invoice_id: string; invoice_number: string }>> {
   const { ctx, error: authErr } = await requireAuth();
-  if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+  const { t } = await getT();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? t('sales.posErrUnauthorized') };
 
   const blocked = await repDayBlocked(ctx);
   if (blocked) return { ok: false, error: blocked };
@@ -35,7 +37,7 @@ export async function quickSale(input: {
 
   const issued = await issueInvoice(invoiceId);
   if (!issued.ok) {
-    return { ok: false, error: `أُنشئت الفاتورة كمسودة لكن تعذّر إصدارها: ${issued.error}` };
+    return { ok: false, error: t('sales.posErrInvoiceDraftOnly', { detail: issued.error ?? '' }) };
   }
 
   if (input.pay && input.amount > 0) {
@@ -45,7 +47,7 @@ export async function quickSale(input: {
       payment_method: input.payment_method,
     });
     if (!paid.ok) {
-      return { ok: false, error: `صدرت الفاتورة لكن تعذّر التحصيل: ${paid.error}` };
+      return { ok: false, error: t('sales.posErrCollectionFailed', { detail: paid.error ?? '' }) };
     }
   }
 
@@ -75,7 +77,8 @@ export async function logNoSaleVisit(input: {
   notes?: string;
 }): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
-  if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+  const { t } = await getT();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? t('sales.posErrUnauthorized') };
 
   const supabase = await createClient();
   const { error } = await supabase.from('erp_visits').insert({

@@ -7,6 +7,7 @@ import { JOURNAL_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { JournalEntry, JournalLine, JournalStatus } from '@/lib/erp/types';
 import { ChevronDown, ChevronLeft } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface JournalLineRow extends JournalLine {
   account: { code: string; name: string; name_ar: string | null } | null;
@@ -22,6 +23,7 @@ const STATUS_VARIANT: Record<JournalStatus, 'secondary' | 'success' | 'destructi
 };
 
 export function JournalList({ entries }: { entries: JournalEntryRow[] }) {
+  const { t, locale } = useI18n();
   const [open, setOpen] = useState<string | null>(entries[0]?.id ?? null);
 
   return (
@@ -45,7 +47,7 @@ export function JournalList({ entries }: { entries: JournalEntryRow[] }) {
               <div className="flex items-center gap-3">
                 <span className="tabular-nums text-sm" dir="ltr">{formatCurrency(total)}</span>
                 <span className="text-xs text-muted-foreground">{formatDate(e.entry_date)}</span>
-                <Badge variant={STATUS_VARIANT[e.status]}>{JOURNAL_STATUS_LABELS[e.status].ar}</Badge>
+                <Badge variant={STATUS_VARIANT[e.status]}>{JOURNAL_STATUS_LABELS[e.status][locale]}</Badge>
               </div>
             </button>
             {isOpen && (
@@ -54,9 +56,9 @@ export function JournalList({ entries }: { entries: JournalEntryRow[] }) {
                 <table className="w-full text-sm">
                   <thead className="bg-secondary/40 text-muted-foreground">
                     <tr>
-                      <th className="p-2 text-right font-medium">الحساب</th>
-                      <th className="p-2 text-left font-medium w-32">مدين</th>
-                      <th className="p-2 text-left font-medium w-32">دائن</th>
+                      <th className="p-2 text-right font-medium">{t('accounting.journal.colAccount')}</th>
+                      <th className="p-2 text-left font-medium w-32">{t('accounting.journal.colDebit')}</th>
+                      <th className="p-2 text-left font-medium w-32">{t('accounting.journal.colCredit')}</th>
                     </tr>
                   </thead>
                   <tbody>

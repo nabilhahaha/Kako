@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Pager } from '@/components/pager';
 import { ListSearch } from '@/components/list-search';
 import { JournalList, type JournalEntryRow } from './journal-list';
+import { getT } from '@/lib/i18n/server';
 
 const PAGE_SIZE = 25;
 
@@ -17,6 +18,7 @@ export default async function JournalPage({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
   const q = (sp.q ?? '').trim();
@@ -40,23 +42,23 @@ export default async function JournalPage({
   return (
     <div>
       <PageHeader
-        title="القيود اليومية"
-        description="القيود المحاسبية (تتولّد تلقائياً من الفواتير والتحصيل والمشتريات)"
+        title={t('accounting.journal.title')}
+        description={t('accounting.journal.description')}
       />
       {entries.length === 0 && !q ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            لا توجد قيود بعد. أصدر فاتورة أو استلم أمر شراء لتتولّد القيود تلقائياً.
+            {t('accounting.journal.emptyState')}
           </CardContent>
         </Card>
       ) : (
         <>
           <div className="mb-3">
-            <ListSearch placeholder="بحث برقم القيد أو الوصف…" />
+            <ListSearch placeholder={t('accounting.journal.searchPlaceholder')} />
           </div>
           {entries.length === 0 ? (
             <Card>
-              <CardContent className="p-8 text-center text-muted-foreground">لا توجد نتائج مطابقة.</CardContent>
+              <CardContent className="p-8 text-center text-muted-foreground">{t('accounting.journal.noResults')}</CardContent>
             </Card>
           ) : (
             <JournalList entries={entries} />

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { requireAuth } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 export interface ReferenceItem {
   name: string;
@@ -62,26 +63,27 @@ function parseCsv(text: string): string[][] {
  *  (CC0) Egyptian Drug Database into the clinical reference. Replaces the
  *  existing drug rows. */
 export async function importEgyptianDrugs(): Promise<{ ok: boolean; error?: string; count?: number }> {
+  const { t } = await getT();
   const ctx = await getUserContext();
-  if (!ctx?.isPlatformOwner) return { ok: false, error: 'هذه العملية لمالك المنصة فقط.' };
+  if (!ctx?.isPlatformOwner) return { ok: false, error: t('clinic.refActions.platformOwnerOnly') };
 
   let rows: string[][];
   try {
     const res = await fetch(DRUG_CSV_URL, { cache: 'no-store' });
-    if (!res.ok) return { ok: false, error: 'تعذّر تحميل قائمة الأدوية من المصدر.' };
+    if (!res.ok) return { ok: false, error: t('clinic.refActions.drugLoadFailed') };
     rows = parseCsv(await res.text());
   } catch {
-    return { ok: false, error: 'تعذّر الوصول لمصدر قائمة الأدوية.' };
+    return { ok: false, error: t('clinic.refActions.drugSourceUnavailable') };
   }
 
   const header = rows.shift();
-  if (!header) return { ok: false, error: 'الملف فارغ.' };
+  if (!header) return { ok: false, error: t('clinic.refActions.emptyFile') };
   const idx = (k: string) => header.indexOf(k);
   const iEn = idx('commercial_name_en');
   const iAr = idx('commercial_name_ar');
   const iSci = idx('scientific_name');
   const iPrice = idx('price_egp');
-  if (iEn < 0) return { ok: false, error: 'تنسيق الملف غير متوقّع.' };
+  if (iEn < 0) return { ok: false, error: t('clinic.refActions.unexpectedFormat') };
 
   const records = rows
     .filter((r) => (r[iEn] ?? '').trim().length > 0)

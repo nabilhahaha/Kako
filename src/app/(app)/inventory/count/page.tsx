@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { getT } from '@/lib/i18n/server';
 import type { Warehouse } from '@/lib/erp/types';
 import { StockCountManager, type CountRow, type CountLineRow } from './stock-count-manager';
 
@@ -12,6 +13,7 @@ export default async function StockCountPage({
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   const sp = await searchParams;
 
   const supabase = await createClient();
@@ -44,7 +46,7 @@ export default async function StockCountPage({
 
   return (
     <div>
-      <PageHeader title="الجرد" description="جرد المخازن والسيارات وكشف العجز/الزيادة وتسويته" />
+      <PageHeader title={t('inventory.countPageTitle')} description={t('inventory.countPageDescription')} />
       <StockCountManager
         warehouses={(warehouses as Warehouse[]) ?? []}
         counts={(counts as unknown as CountRow[]) ?? []}

@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
 import type { Branch, ErpCustomer, ProductCatalog, SalesReturn } from '@/lib/erp/types';
 import { ReturnsManager } from './returns-manager';
+import { getT } from '@/lib/i18n/server';
 
 export interface ReturnRow extends SalesReturn {
   customer: { name: string; name_ar: string | null } | null;
@@ -19,6 +20,7 @@ export default async function ReturnsPage({
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
 
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
@@ -42,7 +44,7 @@ export default async function ReturnsPage({
 
   return (
     <div>
-      <PageHeader title="مرتجعات المبيعات" description="إرجاع البضاعة للمخزون وتسوية حساب العميل" />
+      <PageHeader title={t('sales.returnsTitle')} description={t('sales.returnsDescription')} />
       <ReturnsManager
         returns={(returns as ReturnRow[]) ?? []}
         customers={(customers as ErpCustomer[]) ?? []}

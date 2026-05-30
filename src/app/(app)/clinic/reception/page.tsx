@@ -9,6 +9,7 @@ import { UserPlus, CalendarClock, Wallet } from 'lucide-react';
 import { AppointmentsManager, type Appointment } from '../appointments/appointments-manager';
 import { ReceptionBilling } from './reception-manager';
 import type { ClinicVisit, PatientOption, DoctorOption, ServiceOption } from '../clinical-ui';
+import { getT } from '@/lib/i18n/server';
 
 export default async function ReceptionPage({
   searchParams,
@@ -16,14 +17,15 @@ export default async function ReceptionPage({
   searchParams: Promise<{ patient?: string }>;
 }) {
   await requireAnyPermission(['clinic.manage', 'clinic.reception']);
+  const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
     return (
       <div>
-        <PageHeader title="الاستقبال" />
+        <PageHeader title={t('clinic.reception.title')} />
         <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-          إدارة العيادة تتم من داخل حساب العيادة.
+          {t('clinic.reception.noCompany')}
         </p>
       </div>
     );
@@ -55,18 +57,18 @@ export default async function ReceptionPage({
     <div className="space-y-8">
       <div>
         <PageHeader
-          title="الاستقبال"
-          description="حجز المواعيد، استقبال المرضى، والتحصيل."
+          title={t('clinic.reception.title')}
+          description={t('clinic.reception.description')}
           action={
             <Link href="/clinic/patients" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
-              <UserPlus className="h-4 w-4" /> تسجيل مريض جديد
+              <UserPlus className="h-4 w-4" /> {t('clinic.reception.newPatientButton')}
             </Link>
           }
         />
       </div>
 
       <section>
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold"><CalendarClock className="h-5 w-5" /> المواعيد</h2>
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold"><CalendarClock className="h-5 w-5" /> {t('clinic.reception.appointmentsSectionTitle')}</h2>
         <AppointmentsManager
           appointments={(appointments as unknown as Appointment[]) ?? []}
           patients={(patients as PatientOption[]) ?? []}
@@ -76,7 +78,7 @@ export default async function ReceptionPage({
       </section>
 
       <section>
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold"><Wallet className="h-5 w-5" /> الاستقبال والتحصيل</h2>
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold"><Wallet className="h-5 w-5" /> {t('clinic.reception.billingSectionTitle')}</h2>
         <ReceptionBilling
           visits={(visits as unknown as ClinicVisit[]) ?? []}
           patients={(patients as PatientOption[]) ?? []}

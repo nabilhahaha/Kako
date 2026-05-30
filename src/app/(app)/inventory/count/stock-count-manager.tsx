@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useConfirm } from '@/components/confirm-dialog';
 import { formatNumber, formatDate } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/provider';
 import type { Warehouse } from '@/lib/erp/types';
 import { Plus, Loader2, ClipboardList, ArrowRight, Save, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -30,10 +31,16 @@ export interface CountLineRow {
   product: { code: string; name: string; name_ar: string | null } | null;
 }
 
-const STATUS: Record<CountRow['status'], { ar: string; v: 'secondary' | 'success' | 'destructive' }> = {
-  draft: { ar: 'مسودة', v: 'secondary' },
-  completed: { ar: 'معتمد', v: 'success' },
-  cancelled: { ar: 'ملغي', v: 'destructive' },
+const STATUS_VARIANT: Record<CountRow['status'], 'secondary' | 'success' | 'destructive'> = {
+  draft: 'secondary',
+  completed: 'success',
+  cancelled: 'destructive',
+};
+
+const STATUS_KEY: Record<CountRow['status'], string> = {
+  draft: 'inventory.countStatusDraft',
+  completed: 'inventory.countStatusCompleted',
+  cancelled: 'inventory.countStatusCancelled',
 };
 
 export function StockCountManager({
@@ -48,6 +55,7 @@ export function StockCountManager({
   activeLines: CountLineRow[];
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const confirm = useConfirm();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id ?? '');
   const [pending, startTransition] = useTransition();
@@ -57,10 +65,10 @@ export function StockCountManager({
     startTransition(async () => {
       const res = await createStockCount(warehouseId);
       if (!res.ok || !res.data) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('inventory.toastError'));
         return;
       }
-      toast.success('تم إنشاء الجرد');
+      toast.success(t('inventory.toastCountCreated'));
       router.push(`/inventory/count?id=${res.data.id}`);
     });
   }
@@ -81,7 +89,7 @@ export function StockCountManager({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">المخزن / السيارة</label>
+          <label className="text-xs text-muted-foreground">{t('inventory.warehouseOrVanLabel')}</label>
           <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
             {warehouses.map((w) => (
               <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
@@ -89,7 +97,7 @@ export function StockCountManager({
           </select>
         </div>
         <Button onClick={onCreate} disabled={pending || warehouses.length === 0}>
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} بدء جرد جديد
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t('inventory.startNewCount')}
         </Button>
       </div>
 
@@ -97,7 +105,7 @@ export function StockCountManager({
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <ClipboardList className="h-8 w-8" />
-            <p>لا توجد عمليات جرد بعد.</p>
+            <p>{t('inventory.emptyCount')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -107,10 +115,10 @@ export function StockCountManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">رقم الجرد</th>
-                    <th className="p-3 text-right font-medium">المخزن</th>
-                    <th className="p-3 text-right font-medium">التاريخ</th>
-                    <th className="p-3 text-center font-medium">الحالة</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colCountNo')}</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colWarehouse')}</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colCountDate')}</th>
+                    <th className="p-3 text-center font-medium">{t('inventory.colCountStatus')}</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
@@ -120,10 +128,10 @@ export function StockCountManager({
                       <td className="p-3 font-mono text-xs" dir="ltr">{c.count_number}</td>
                       <td className="p-3">{c.warehouse?.code} · {c.warehouse?.name_ar || c.warehouse?.name}</td>
                       <td className="p-3 text-muted-foreground">{formatDate(c.created_at)}</td>
-                      <td className="p-3 text-center"><Badge variant={STATUS[c.status].v}>{STATUS[c.status].ar}</Badge></td>
+                      <td className="p-3 text-center"><Badge variant={STATUS_VARIANT[c.status]}>{t(STATUS_KEY[c.status])}</Badge></td>
                       <td className="p-3 text-left">
                         <Link href={`/inventory/count?id=${c.id}`} className="text-xs text-primary hover:underline">
-                          {c.status === 'draft' ? 'متابعة الجرد' : 'عرض'}
+                          {c.status === 'draft' ? t('inventory.continueCount') : t('inventory.viewCount')}
                         </Link>
                       </td>
                     </tr>
@@ -150,6 +158,7 @@ function CountEditor({
   onBack: () => void;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [counted, setCounted] = useState<Record<string, number>>(
     Object.fromEntries(lines.map((l) => [l.id, Number(l.counted_qty)])),
   );
@@ -175,34 +184,34 @@ function CountEditor({
   function save() {
     startTransition(async () => {
       const res = await saveStockCount(count.id, payload);
-      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
-      else toast.success('تم حفظ الجرد');
+      if (!res.ok) toast.error(res.error ?? t('inventory.toastError'));
+      else toast.success(t('inventory.toastCountSaved'));
     });
   }
   function finalize() {
     confirm({
-      title: 'اعتماد الجرد؟',
-      message: 'سيتم ترحيل تسويات للعجز/الزيادة وتعديل أرصدة المخزون. لا يمكن التراجع.',
-      confirmText: 'اعتماد',
+      title: t('inventory.confirmFinalizeTitle'),
+      message: t('inventory.confirmFinalizeMessage'),
+      confirmText: t('inventory.confirmFinalizeBtn'),
     }).then((ok) => {
       if (!ok) return;
       startTransition(async () => {
         const res = await finalizeStockCount(count.id, payload);
         if (!res.ok) {
-          toast.error(res.error ?? 'حدث خطأ');
+          toast.error(res.error ?? t('inventory.toastError'));
           return;
         }
-        toast.success('تم اعتماد الجرد وتسوية الأرصدة');
+        toast.success(t('inventory.toastCountFinalized'));
         router.push('/inventory/count');
       });
     });
   }
   function cancel() {
-    confirm({ title: 'إلغاء الجرد؟', confirmText: 'إلغاء', cancelText: 'تراجع', destructive: true }).then((ok) => {
+    confirm({ title: t('inventory.confirmCancelCountTitle'), confirmText: t('inventory.confirmCancelCountBtn'), cancelText: t('inventory.confirmCancelCountBack'), destructive: true }).then((ok) => {
       if (!ok) return;
       startTransition(async () => {
         const res = await cancelStockCount(count.id);
-        if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+        if (!res.ok) toast.error(res.error ?? t('inventory.toastError'));
         else router.push('/inventory/count');
       });
     });
@@ -211,7 +220,7 @@ function CountEditor({
   return (
     <div className="space-y-4">
       <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowRight className="h-4 w-4" /> كل عمليات الجرد
+        <ArrowRight className="h-4 w-4" /> {t('inventory.backToAllCounts')}
       </button>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -219,14 +228,14 @@ function CountEditor({
           <p className="font-semibold">{count.warehouse?.name_ar || count.warehouse?.name}</p>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <Badge variant={STATUS[count.status].v}>{STATUS[count.status].ar}</Badge>
-          <Badge variant="destructive">عجز: {formatNumber(shortage)}</Badge>
-          <Badge variant="success">زيادة: +{formatNumber(surplus)}</Badge>
+          <Badge variant={STATUS_VARIANT[count.status]}>{t(STATUS_KEY[count.status])}</Badge>
+          <Badge variant="destructive">{t('inventory.shortageLabel', { n: formatNumber(shortage) })}</Badge>
+          <Badge variant="success">{t('inventory.surplusLabel', { n: formatNumber(surplus) })}</Badge>
         </div>
       </div>
 
       <div className="relative max-w-xs">
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث عن صنف…" className="h-9" />
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('inventory.searchCountProduct')} className="h-9" />
       </div>
 
       <Card>
@@ -235,10 +244,10 @@ function CountEditor({
             <table className="w-full text-sm">
               <thead className="border-b bg-secondary/50 text-muted-foreground">
                 <tr>
-                  <th className="p-3 text-right font-medium">الصنف</th>
-                  <th className="p-3 text-center font-medium">الرصيد الدفتري</th>
-                  <th className="p-3 text-center font-medium">الفعلي (المعدود)</th>
-                  <th className="p-3 text-center font-medium">الفرق</th>
+                  <th className="p-3 text-right font-medium">{t('inventory.colProduct')}</th>
+                  <th className="p-3 text-center font-medium">{t('inventory.colBookQty')}</th>
+                  <th className="p-3 text-center font-medium">{t('inventory.colActualQty')}</th>
+                  <th className="p-3 text-center font-medium">{t('inventory.colDiff')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -271,12 +280,12 @@ function CountEditor({
       {!readOnly && (
         <div className="flex flex-wrap gap-2">
           <Button onClick={save} variant="outline" disabled={pending}>
-            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} حفظ مؤقت
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {t('inventory.saveTempBtn')}
           </Button>
           <Button onClick={finalize} disabled={pending}>
-            <CheckCircle2 className="h-4 w-4" /> اعتماد الجرد وتسوية الأرصدة
+            <CheckCircle2 className="h-4 w-4" /> {t('inventory.finalizeCountBtn')}
           </Button>
-          <Button onClick={cancel} variant="ghost" className="text-destructive" disabled={pending}>إلغاء الجرد</Button>
+          <Button onClick={cancel} variant="ghost" className="text-destructive" disabled={pending}>{t('inventory.cancelCountBtn')}</Button>
         </div>
       )}
     </div>

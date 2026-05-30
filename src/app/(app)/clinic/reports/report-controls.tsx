@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 /** From/To date pickers that drive the report via URL params. */
-export function DateRangeFilter({ from, to }: { from: string; to: string }) {
+export function DateRangeFilter({ from, to, fromLabel, toLabel }: { from: string; to: string; fromLabel: string; toLabel: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -21,11 +21,11 @@ export function DateRangeFilter({ from, to }: { from: string; to: string }) {
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="space-y-1">
-        <Label className="text-xs">من</Label>
+        <Label className="text-xs">{fromLabel}</Label>
         <Input type="date" dir="ltr" value={from} onChange={(e) => update('from', e.target.value)} className="w-40" />
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">إلى</Label>
+        <Label className="text-xs">{toLabel}</Label>
         <Input type="date" dir="ltr" value={to} onChange={(e) => update('to', e.target.value)} className="w-40" />
       </div>
     </div>
@@ -33,9 +33,9 @@ export function DateRangeFilter({ from, to }: { from: string; to: string }) {
 }
 
 /** Daily-income bar chart for the selected period. */
-export function IncomeChart({ data }: { data: { day: string; revenue: number }[] }) {
+export function IncomeChart({ data, revenueLabel, emptyText }: { data: { day: string; revenue: number }[]; revenueLabel: string; emptyText: string }) {
   if (data.length === 0) {
-    return <p className="p-8 text-center text-sm text-muted-foreground">لا توجد بيانات في هذه الفترة.</p>;
+    return <p className="p-8 text-center text-sm text-muted-foreground">{emptyText}</p>;
   }
   return (
     <div className="h-72 w-full p-2" dir="ltr">
@@ -45,7 +45,7 @@ export function IncomeChart({ data }: { data: { day: string; revenue: number }[]
           <XAxis dataKey="day" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
           <YAxis tick={{ fontSize: 11 }} width={48} />
           <Tooltip
-            formatter={(v: number | string) => [Number(v).toLocaleString('en'), 'الإيراد']}
+            formatter={(v: number | string) => [Number(v).toLocaleString('en'), revenueLabel]}
             labelStyle={{ direction: 'ltr' }}
             contentStyle={{ fontSize: 12, borderRadius: 8 }}
           />

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { STOCK_MOVEMENT_TYPE_LABELS } from '@/lib/erp/constants';
 import { formatNumber, formatDate } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, ProductCatalog, StockMovementType, Warehouse } from '@/lib/erp/types';
 import { Boxes, Search, SlidersHorizontal, Loader2, X, History } from 'lucide-react';
 import { toast } from 'sonner';
@@ -43,6 +44,7 @@ export function InventoryView({
   movements: MovementRow[];
 }) {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const [tab, setTab] = useState<'levels' | 'movements'>('levels');
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [query, setQuery] = useState('');
@@ -80,13 +82,13 @@ export function InventoryView({
             onClick={() => setTab('levels')}
             className={`rounded-md px-3 py-1.5 text-sm ${tab === 'levels' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
           >
-            الأرصدة
+            {t('inventory.tabLevels')}
           </button>
           <button
             onClick={() => setTab('movements')}
             className={`rounded-md px-3 py-1.5 text-sm ${tab === 'movements' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
           >
-            <History className="me-1 inline h-3.5 w-3.5" /> الحركات
+            <History className="me-1 inline h-3.5 w-3.5" /> {t('inventory.tabMovements')}
           </button>
         </div>
 
@@ -97,21 +99,21 @@ export function InventoryView({
               onChange={(e) => setWarehouseFilter(e.target.value)}
               className="h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="">كل المخازن</option>
+              <option value="">{t('inventory.allWarehouses')}</option>
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
               ))}
             </select>
             <div className="relative ms-auto">
               <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث عن صنف…" className="w-56 pr-9" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('inventory.searchProduct')} className="w-56 pr-9" />
             </div>
             <Button
               variant="outline"
               onClick={() => setAdjust({ warehouse_id: warehouseFilter || warehouses[0]?.id || '', product_id: '' })}
               disabled={warehouses.length === 0 || products.length === 0}
             >
-              <SlidersHorizontal className="h-4 w-4" /> تسوية مخزون
+              <SlidersHorizontal className="h-4 w-4" /> {t('inventory.adjustStock')}
             </Button>
           </>
         )}
@@ -122,7 +124,7 @@ export function InventoryView({
           <Card>
             <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
               <Boxes className="h-8 w-8" />
-              <p>لا توجد أرصدة مخزون بعد. استلم أمر شراء أو اعمل تسوية افتتاحية.</p>
+              <p>{t('inventory.emptyLevels')}</p>
             </CardContent>
           </Card>
         ) : (
@@ -132,11 +134,11 @@ export function InventoryView({
                 <table className="w-full text-sm">
                   <thead className="border-b bg-secondary/50 text-muted-foreground">
                     <tr>
-                      <th className="p-3 text-right font-medium">الصنف</th>
-                      <th className="p-3 text-right font-medium">المخزن</th>
-                      <th className="p-3 text-left font-medium">المتاح</th>
-                      <th className="p-3 text-left font-medium">المحجوز</th>
-                      <th className="p-3 text-center font-medium">الحالة</th>
+                      <th className="p-3 text-right font-medium">{t('inventory.colProduct')}</th>
+                      <th className="p-3 text-right font-medium">{t('inventory.colWarehouse')}</th>
+                      <th className="p-3 text-left font-medium">{t('inventory.colAvailable')}</th>
+                      <th className="p-3 text-left font-medium">{t('inventory.colReserved')}</th>
+                      <th className="p-3 text-center font-medium">{t('inventory.colStatus')}</th>
                       <th className="p-3"></th>
                     </tr>
                   </thead>
@@ -153,11 +155,11 @@ export function InventoryView({
                           <td className="p-3 text-left tabular-nums" dir="ltr">{formatNumber(r.quantity)}</td>
                           <td className="p-3 text-left tabular-nums text-muted-foreground" dir="ltr">{formatNumber(r.reserved_qty)}</td>
                           <td className="p-3 text-center">
-                            {low ? <Badge variant="warning">تحت الحد ({formatNumber(r.minStock)})</Badge> : <Badge variant="success">متاح</Badge>}
+                            {low ? <Badge variant="warning">{t('inventory.statusBelowMin', { min: formatNumber(r.minStock) })}</Badge> : <Badge variant="success">{t('inventory.statusAvailable')}</Badge>}
                           </td>
                           <td className="p-3 text-left">
                             <Button variant="ghost" size="sm" className="text-xs" onClick={() => setAdjust({ warehouse_id: r.warehouse_id, product_id: r.product_id })}>
-                              تسوية
+                              {t('inventory.adjust')}
                             </Button>
                           </td>
                         </tr>
@@ -171,7 +173,7 @@ export function InventoryView({
         )
       ) : movements.length === 0 ? (
         <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">لا توجد حركات مخزون بعد.</CardContent>
+          <CardContent className="p-8 text-center text-muted-foreground">{t('inventory.emptyMovements')}</CardContent>
         </Card>
       ) : (
         <Card>
@@ -180,19 +182,19 @@ export function InventoryView({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">التاريخ</th>
-                    <th className="p-3 text-right font-medium">النوع</th>
-                    <th className="p-3 text-right font-medium">الصنف</th>
-                    <th className="p-3 text-right font-medium">المخزن</th>
-                    <th className="p-3 text-left font-medium">الكمية</th>
-                    <th className="p-3 text-right font-medium">ملاحظات</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colDate')}</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colType')}</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colProduct')}</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colWarehouse')}</th>
+                    <th className="p-3 text-left font-medium">{t('inventory.colQuantity')}</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colNotes')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {movements.map((m) => (
                     <tr key={m.id} className="border-b last:border-0 hover:bg-secondary/30">
                       <td className="p-3 text-muted-foreground">{formatDate(m.created_at)}</td>
-                      <td className="p-3">{STOCK_MOVEMENT_TYPE_LABELS[m.movement_type]?.ar ?? m.movement_type}</td>
+                      <td className="p-3">{STOCK_MOVEMENT_TYPE_LABELS[m.movement_type]?.[locale] ?? m.movement_type}</td>
                       <td className="p-3">{m.product?.name_ar || m.product?.name || '—'}</td>
                       <td className="p-3 text-muted-foreground">{m.warehouse ? `${m.warehouse.code}` : '—'}</td>
                       <td className={`p-3 text-left tabular-nums ${Number(m.quantity) < 0 ? 'text-destructive' : 'text-success'}`} dir="ltr">
@@ -237,6 +239,7 @@ function AdjustDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useI18n();
   const [warehouseId, setWarehouseId] = useState(initial.warehouse_id);
   const [productId, setProductId] = useState(initial.product_id);
   const [delta, setDelta] = useState('');
@@ -252,10 +255,10 @@ function AdjustDialog({
         notes,
       });
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('inventory.toastError'));
         return;
       }
-      toast.success('تم تسجيل التسوية وتحديث الرصيد');
+      toast.success(t('inventory.toastAdjustSuccess'));
       onDone();
     });
   }
@@ -265,13 +268,13 @@ function AdjustDialog({
       <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <CardContent className="space-y-4 pt-6">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">تسوية مخزون</h3>
+            <h3 className="font-semibold">{t('inventory.adjustDialogTitle')}</h3>
             <button onClick={onClose} className="rounded-md p-1 hover:bg-secondary">
               <X className="h-4 w-4" />
             </button>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">المخزن *</Label>
+            <Label className="text-xs">{t('inventory.adjustWarehouseLabel')}</Label>
             <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
@@ -279,27 +282,27 @@ function AdjustDialog({
             </select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">الصنف *</Label>
+            <Label className="text-xs">{t('inventory.adjustProductLabel')}</Label>
             <select value={productId} onChange={(e) => setProductId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-              <option value="">اختر صنفاً…</option>
+              <option value="">{t('inventory.adjustProductPlaceholder')}</option>
               {products.map((p) => (
                 <option key={p.id} value={p.id}>{p.code} · {p.name_ar || p.name}</option>
               ))}
             </select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">كمية التسوية * (موجبة للإضافة، سالبة للخصم)</Label>
-            <Input type="number" step="0.001" dir="ltr" value={delta} onChange={(e) => setDelta(e.target.value)} placeholder="مثال: 10 أو -5" />
+            <Label className="text-xs">{t('inventory.adjustDeltaLabel')}</Label>
+            <Input type="number" step="0.001" dir="ltr" value={delta} onChange={(e) => setDelta(e.target.value)} placeholder={t('inventory.adjustDeltaPlaceholder')} />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">ملاحظات</Label>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="سبب التسوية" />
+            <Label className="text-xs">{t('inventory.adjustNotesLabel')}</Label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('inventory.adjustNotesPlaceholder')} />
           </div>
           <div className="flex gap-2">
             <Button onClick={submit} disabled={pending || !productId || !warehouseId}>
-              {pending && <Loader2 className="h-4 w-4 animate-spin" />} تسجيل التسوية
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('inventory.adjustSubmit')}
             </Button>
-            <Button variant="outline" onClick={onClose}>إلغاء</Button>
+            <Button variant="outline" onClick={onClose}>{t('inventory.adjustCancel')}</Button>
           </div>
         </CardContent>
       </Card>

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { getT } from '@/lib/i18n/server';
 
 export interface ActionResult {
   ok: boolean;
@@ -11,9 +12,10 @@ export interface ActionResult {
 
 async function requireSuperAdmin() {
   const ctx = await getUserContext();
-  if (!ctx) return { ctx: null, error: 'غير مصرح. سجّل الدخول.' };
+  const { t } = await getT();
+  if (!ctx) return { ctx: null, error: t('settings.unauthorizedLogin') };
   if (!ctx.isSuperAdmin)
-    return { ctx: null, error: 'هذه العملية متاحة لمدير النظام فقط.' };
+    return { ctx: null, error: t('settings.branches.superAdminOnlyAction') };
   return { ctx, error: null };
 }
 
@@ -23,7 +25,8 @@ export async function createCompany(formData: FormData): Promise<ActionResult> {
 
   const name = String(formData.get('name') || '').trim();
   const name_ar = String(formData.get('name_ar') || '').trim() || null;
-  if (!name) return { ok: false, error: 'اسم الشركة مطلوب.' };
+  const { t: t2 } = await getT();
+  if (!name) return { ok: false, error: t2('settings.company.errNameRequired') };
 
   const supabase = await createClient();
   const { error } = await supabase.from('erp_companies').insert({
@@ -53,9 +56,10 @@ export async function upsertBranch(formData: FormData): Promise<ActionResult> {
   const address = String(formData.get('address') || '').trim() || null;
   const is_hq = formData.get('is_hq') === 'on';
 
-  if (!company_id) return { ok: false, error: 'الشركة مطلوبة.' };
-  if (!code) return { ok: false, error: 'كود الفرع مطلوب.' };
-  if (!name) return { ok: false, error: 'اسم الفرع مطلوب.' };
+  const { t: t3 } = await getT();
+  if (!company_id) return { ok: false, error: t3('settings.branches.errCompanyRequired') };
+  if (!code) return { ok: false, error: t3('settings.branches.errCodeRequired') };
+  if (!name) return { ok: false, error: t3('settings.branches.errNameRequired') };
 
   const supabase = await createClient();
   const payload = { company_id, code, name, name_ar, city, phone, address, is_hq };
@@ -66,7 +70,7 @@ export async function upsertBranch(formData: FormData): Promise<ActionResult> {
 
   if (error) {
     if (error.code === '23505')
-      return { ok: false, error: 'كود الفرع مستخدم بالفعل في هذه الشركة.' };
+      return { ok: false, error: t3('settings.branches.errCodeDuplicate') };
     return { ok: false, error: error.message };
   }
   revalidatePath('/settings/branches');

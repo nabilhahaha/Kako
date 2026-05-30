@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
 import type { Branch, ChartOfAccount, PaymentVoucher, ReceiptVoucher } from '@/lib/erp/types';
 import { VouchersManager, type VoucherRow } from './vouchers-manager';
+import { getT } from '@/lib/i18n/server';
 
 const PAGE_SIZE = 20;
 
@@ -16,6 +17,7 @@ export default async function VouchersPage({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
   const sp = await searchParams;
   const kind = sp.kind === 'receipt' ? 'receipt' : 'payment';
   const page = Math.max(1, Number(sp.page) || 1);
@@ -54,8 +56,8 @@ export default async function VouchersPage({
   return (
     <div>
       <PageHeader
-        title="سندات الصرف والقبض"
-        description="صرف المصروفات النثرية وقبض الإيرادات المتنوعة (مع ترحيل تلقائي للقيد)"
+        title={t('accounting.vouchers.title')}
+        description={t('accounting.vouchers.description')}
       />
       <VouchersManager
         kind={kind}

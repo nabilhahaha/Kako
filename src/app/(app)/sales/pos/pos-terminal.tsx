@@ -10,7 +10,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { computeTotals } from '@/lib/erp/sales-calc';
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 import type { Branch, ErpCustomer, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
+import { useI18n } from '@/lib/i18n/provider';
 import { Search, Plus, Minus, Trash2, Loader2, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -29,6 +31,7 @@ export function PosTerminal({
   products: ProductCatalog[];
 }) {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [customerId, setCustomerId] = useState(customers[0]?.id ?? '');
   const [query, setQuery] = useState('');
@@ -85,10 +88,10 @@ export function PosTerminal({
         payment_method: method,
       });
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
-      toast.success(`تمت الفاتورة ${res.data?.invoice_number ?? ''}${pay ? ' وتم التحصيل' : ''}`);
+      toast.success(t('sales.posSuccessMsg', { number: res.data?.invoice_number ?? '', collected: pay ? t('sales.posSuccessCollected') : '' }));
       setCart([]);
       setQuery('');
       router.refresh();
@@ -99,7 +102,7 @@ export function PosTerminal({
     return (
       <Card>
         <CardContent className="p-8 text-center text-muted-foreground">
-          تحتاج فرعاً وعميلاً ومنتجاً واحداً على الأقل لبدء البيع السريع.
+          {t('sales.posNeedData')}
         </CardContent>
       </Card>
     );
@@ -111,7 +114,7 @@ export function PosTerminal({
       <div className="space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث عن صنف بالاسم أو الكود أو الباركود…" className="pr-9" autoFocus />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('sales.posSearchPlaceholder')} className="pr-9" autoFocus />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {filtered.map((p) => (
@@ -122,11 +125,11 @@ export function PosTerminal({
             >
               <p className="line-clamp-2 text-sm font-medium">{p.name_ar || p.name}</p>
               <p className="mt-1 text-xs text-muted-foreground" dir="ltr">{p.code}</p>
-              <p className="mt-1 font-bold tabular-nums text-primary" dir="ltr">{formatCurrency(p.sell_price)}</p>
+              <p className="mt-1 font-bold tabular-nums text-primary" dir="ltr">{formatCurrency(p.sell_price, 'EGP', INTL_LOCALE[locale])}</p>
             </button>
           ))}
           {filtered.length === 0 && (
-            <p className="col-span-full p-6 text-center text-sm text-muted-foreground">لا توجد نتائج.</p>
+            <p className="col-span-full p-6 text-center text-sm text-muted-foreground">{t('sales.posNoResults')}</p>
           )}
         </div>
       </div>
@@ -137,7 +140,7 @@ export function PosTerminal({
           <div className="grid gap-2">
             {branches.length > 1 && (
               <div className="space-y-1">
-                <Label className="text-xs">الفرع</Label>
+                <Label className="text-xs">{t('sales.labelBranch')}</Label>
                 <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm">
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>
@@ -146,7 +149,7 @@ export function PosTerminal({
               </div>
             )}
             <div className="space-y-1">
-              <Label className="text-xs">العميل</Label>
+              <Label className="text-xs">{t('sales.labelCustomer')}</Label>
               <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm">
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>{c.name_ar || c.name}</option>
@@ -159,7 +162,7 @@ export function PosTerminal({
             {cart.length === 0 ? (
               <div className="flex flex-col items-center gap-1 py-6 text-center text-sm text-muted-foreground">
                 <ShoppingBag className="h-6 w-6" />
-                <p>أضف أصنافاً من القائمة</p>
+                <p>{t('sales.posCartEmpty')}</p>
               </div>
             ) : (
               cart.map((l) => (
@@ -167,7 +170,7 @@ export function PosTerminal({
                   <div className="min-w-0 flex-1">
                     <p className="truncate">{l.product.name_ar || l.product.name}</p>
                     <p className="text-xs text-muted-foreground tabular-nums" dir="ltr">
-                      {formatCurrency(l.product.sell_price)} × {l.quantity}
+                      {formatCurrency(l.product.sell_price, 'EGP', INTL_LOCALE[locale])} × {l.quantity}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
@@ -186,29 +189,29 @@ export function PosTerminal({
           </div>
 
           <div className="space-y-1 text-sm">
-            <Row label="الإجمالي" value={formatCurrency(totals.total_amount)} />
-            <Row label="الضريبة" value={formatCurrency(totals.tax_amount)} />
+            <Row label={t('sales.posTotal')} value={formatCurrency(totals.total_amount, 'EGP', INTL_LOCALE[locale])} />
+            <Row label={t('sales.posTax')} value={formatCurrency(totals.tax_amount, 'EGP', INTL_LOCALE[locale])} />
             <div className="flex justify-between border-t pt-1 text-base font-bold">
-              <span>الإجمالي النهائي</span>
-              <span dir="ltr" className="tabular-nums">{formatCurrency(totals.net_amount)}</span>
+              <span>{t('sales.posGrandTotal')}</span>
+              <span dir="ltr" className="tabular-nums">{formatCurrency(totals.net_amount, 'EGP', INTL_LOCALE[locale])}</span>
             </div>
           </div>
 
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={pay} onChange={(e) => setPay(e.target.checked)} className="h-4 w-4" />
-            تحصيل المبلغ كاملاً الآن
+            {t('sales.posCollectNow')}
           </label>
           {pay && (
             <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm">
               {PAYMENT_METHOD_OPTIONS.map((m) => (
-                <option key={m.value} value={m.value}>{m.ar}</option>
+                <option key={m.value} value={m.value}>{m[locale]}</option>
               ))}
             </select>
           )}
 
           <Button className="w-full" size="lg" disabled={!canSell || pending} onClick={complete}>
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-            {pay ? 'إتمام البيع والتحصيل' : 'إتمام البيع (آجل)'}
+            {pay ? t('sales.posBtnCompleteAndCollect') : t('sales.posBtnCompleteDeferred')}
           </Button>
         </CardContent>
       </Card>

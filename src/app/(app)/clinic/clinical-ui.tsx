@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useI18n } from '@/lib/i18n/provider';
 
 // Shared clinical UI for the clinic vertical (reception + doctor + full views).
 
@@ -13,6 +14,7 @@ export interface ServiceOption { id: string; name: string; price: number }
 /** Service picker + fee field as one unit: choosing a service fills the fee.
  *  Emits name="service_id" and name="fee". */
 export function ServicePicker({ services }: { services: ServiceOption[] }) {
+  const { t } = useI18n();
   const [fee, setFee] = useState('0');
   const [serviceId, setServiceId] = useState('');
   function pick(id: string) {
@@ -24,16 +26,16 @@ export function ServicePicker({ services }: { services: ServiceOption[] }) {
     <>
       {services.length > 0 && (
         <div className="space-y-1">
-          <Label>الخدمة</Label>
+          <Label>{t('clinic.ui.serviceLabel')}</Label>
           <select className={selectCls} value={serviceId} onChange={(e) => pick(e.target.value)}>
-            <option value="">— بدون —</option>
+            <option value="">{t('clinic.ui.serviceNone')}</option>
             {services.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.price}</option>)}
           </select>
           <input type="hidden" name="service_id" value={serviceId} />
         </div>
       )}
       <div className="space-y-1">
-        <Label>رسوم الكشف</Label>
+        <Label>{t('clinic.ui.visitFeeLabel')}</Label>
         <Input name="fee" type="number" min={0} step="0.01" dir="ltr" value={fee} onChange={(e) => setFee(e.target.value)} />
       </div>
     </>
@@ -46,7 +48,7 @@ export interface DoctorOption { id: string; full_name: string | null; email: str
 export function doctorName(doctors: DoctorOption[], id: string | null | undefined): string {
   if (!id) return '—';
   const d = doctors.find((x) => x.id === id);
-  return d?.full_name || d?.email || 'طبيب';
+  return d?.full_name || d?.email || 'Doctor';
 }
 
 export interface ClinicVisit {
@@ -69,6 +71,15 @@ export interface ClinicVisit {
   height: number | null;
   followup_date: string | null;
   patient: { name: string; phone: string | null } | null;
+}
+
+export function getVisitStatusMap(t: (key: string) => string): Record<string, { label: string; variant: 'secondary' | 'info' | 'success' | 'destructive' | 'warning' }> {
+  return {
+    waiting: { label: t('clinic.visitStatus.waiting'), variant: 'info' },
+    in_progress: { label: t('clinic.visitStatus.in_progress'), variant: 'warning' },
+    done: { label: t('clinic.visitStatus.done'), variant: 'success' },
+    cancelled: { label: t('clinic.visitStatus.cancelled'), variant: 'destructive' },
+  };
 }
 
 export const VISIT_STATUS: Record<string, { label: string; variant: 'secondary' | 'info' | 'success' | 'destructive' | 'warning' }> = {
@@ -107,13 +118,14 @@ export const taCls = 'w-full rounded-md border border-input bg-background p-2 te
 
 /** Vital-sign inputs, shared by the new-visit and exam forms. */
 export function VitalsFields({ v }: { v?: ClinicVisit }) {
+  const { t } = useI18n();
   return (
     <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      <div className="space-y-1"><Label>الحرارة °م</Label><Input name="temperature" type="number" step="0.1" dir="ltr" defaultValue={v?.temperature ?? ''} /></div>
-      <div className="space-y-1"><Label>الضغط</Label><Input name="blood_pressure" placeholder="120/80" dir="ltr" defaultValue={v?.blood_pressure ?? ''} /></div>
-      <div className="space-y-1"><Label>النبض</Label><Input name="pulse" type="number" dir="ltr" defaultValue={v?.pulse ?? ''} /></div>
-      <div className="space-y-1"><Label>الوزن كجم</Label><Input name="weight" type="number" step="0.1" dir="ltr" defaultValue={v?.weight ?? ''} /></div>
-      <div className="space-y-1"><Label>الطول سم</Label><Input name="height" type="number" step="0.1" dir="ltr" defaultValue={v?.height ?? ''} /></div>
+      <div className="space-y-1"><Label>{t('clinic.vitals.temperature')}</Label><Input name="temperature" type="number" step="0.1" dir="ltr" defaultValue={v?.temperature ?? ''} /></div>
+      <div className="space-y-1"><Label>{t('clinic.vitals.bloodPressure')}</Label><Input name="blood_pressure" placeholder="120/80" dir="ltr" defaultValue={v?.blood_pressure ?? ''} /></div>
+      <div className="space-y-1"><Label>{t('clinic.vitals.pulse')}</Label><Input name="pulse" type="number" dir="ltr" defaultValue={v?.pulse ?? ''} /></div>
+      <div className="space-y-1"><Label>{t('clinic.vitals.weight')}</Label><Input name="weight" type="number" step="0.1" dir="ltr" defaultValue={v?.weight ?? ''} /></div>
+      <div className="space-y-1"><Label>{t('clinic.vitals.height')}</Label><Input name="height" type="number" step="0.1" dir="ltr" defaultValue={v?.height ?? ''} /></div>
     </div>
   );
 }

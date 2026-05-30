@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { AppointmentsManager, type Appointment, type PatientOption } from './appointments-manager';
 import type { DoctorOption } from '../clinical-ui';
+import { getT } from '@/lib/i18n/server';
 
 export default async function AppointmentsPage({
   searchParams,
@@ -12,14 +13,15 @@ export default async function AppointmentsPage({
   searchParams: Promise<{ patient?: string }>;
 }) {
   await requireAnyPermission(['clinic.manage', 'clinic.reception']);
+  const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
     return (
       <div>
-        <PageHeader title="المواعيد" />
+        <PageHeader title={t('clinic.appointments.title')} />
         <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-          إدارة العيادة تتم من داخل حساب العيادة.
+          {t('clinic.appointments.noCompany')}
         </p>
       </div>
     );
@@ -46,7 +48,7 @@ export default async function AppointmentsPage({
 
   return (
     <div>
-      <PageHeader title="المواعيد" description="حجوزات المرضى — احجز موعداً وسجّل وصول المريض ليتحوّل إلى كشف." />
+      <PageHeader title={t('clinic.appointments.title')} description={t('clinic.appointments.description')} />
       <AppointmentsManager
         appointments={(appointments as unknown as Appointment[]) ?? []}
         patients={(patients as PatientOption[]) ?? []}

@@ -3,6 +3,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { hasPermission } from '@/lib/erp/permissions';
+import { getT } from '@/lib/i18n/server';
 import type { Branch, ProductCatalog, Warehouse } from '@/lib/erp/types';
 import { RequestsManager, type RequestRow } from './requests-manager';
 
@@ -10,6 +11,7 @@ export default async function StockRequestsPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
   const supabase = await createClient();
   const [{ data: requests }, { data: warehouses }, { data: branches }, { data: products }] =
     await Promise.all([
@@ -27,7 +29,7 @@ export default async function StockRequestsPage() {
 
   return (
     <div>
-      <PageHeader title="طلبات التحميل" description="المندوب يطلب تحميل بضاعة من المخزن إلى سيارته باعتماد أمين المخزن" />
+      <PageHeader title={t('inventory.requestsPageTitle')} description={t('inventory.requestsPageDescription')} />
       <RequestsManager
         requests={(requests as unknown as RequestRow[]) ?? []}
         warehouses={(warehouses as Warehouse[]) ?? []}

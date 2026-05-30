@@ -5,17 +5,19 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { ServiceCatalogManager, type CatalogService } from '@/components/shared/service-catalog-manager';
 import { upsertService } from '../actions';
+import { getT } from '@/lib/i18n/server';
 
 export default async function ServicesPage() {
   await requirePermission('clinic.manage');
+  const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
     return (
       <div>
-        <PageHeader title="الخدمات والأسعار" />
+        <PageHeader title={t('clinic.services.title')} />
         <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-          إدارة العيادة تتم من داخل حساب العيادة.
+          {t('clinic.services.noCompany')}
         </p>
       </div>
     );
@@ -29,8 +31,8 @@ export default async function ServicesPage() {
 
   return (
     <div>
-      <PageHeader title="الخدمات والأسعار" description="عرّف خدمات العيادة بأسعارها لتُختار سريعاً عند تسجيل الكشف." />
-      <ServiceCatalogManager services={(services as CatalogService[]) ?? []} upsert={upsertService} entityLabel="خدمة" namePlaceholder="كشف / استشارة / إجراء" />
+      <PageHeader title={t('clinic.services.title')} description={t('clinic.services.description')} />
+      <ServiceCatalogManager services={(services as CatalogService[]) ?? []} upsert={upsertService} entityLabel={t('clinic.services.entityLabel')} namePlaceholder={t('clinic.services.namePlaceholder')} />
     </div>
   );
 }

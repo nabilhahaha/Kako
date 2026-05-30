@@ -5,17 +5,19 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { DoctorManager } from './doctor-manager';
 import type { ClinicVisit, DoctorOption } from '../clinical-ui';
+import { getT } from '@/lib/i18n/server';
 
 export default async function DoctorPage() {
   await requireAnyPermission(['clinic.manage', 'clinic.doctor']);
+  const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {
     return (
       <div>
-        <PageHeader title="شاشة الطبيب" />
+        <PageHeader title={t('clinic.doctor.title')} />
         <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-          إدارة العيادة تتم من داخل حساب العيادة.
+          {t('clinic.doctor.noCompany')}
         </p>
       </div>
     );
@@ -35,7 +37,7 @@ export default async function DoctorPage() {
 
   return (
     <div>
-      <PageHeader title="شاشة الطبيب" description="طابور الكشف — ابدأ الكشف، اكتب التشخيص والروشتة، وافتح الملف الطبي الكامل للمريض." />
+      <PageHeader title={t('clinic.doctor.title')} description={t('clinic.doctor.description')} />
       <DoctorManager
         visits={(visits as unknown as ClinicVisit[]) ?? []}
         doctors={(doctors as DoctorOption[]) ?? []}

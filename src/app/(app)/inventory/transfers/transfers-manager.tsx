@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { TRANSFER_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatDate, formatNumber } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, ProductCatalog, TransferStatus, Warehouse } from '@/lib/erp/types';
 import type { TransferRow } from './page';
 import { useConfirm } from '@/components/confirm-dialog';
@@ -47,6 +48,7 @@ export function TransfersManager({
   q: string;
 }) {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [fromWh, setFromWh] = useState('');
@@ -79,10 +81,10 @@ export function TransfersManager({
         lines: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })),
       });
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('inventory.toastError'));
         return;
       }
-      toast.success('تم إنشاء أمر التحويل');
+      toast.success(t('inventory.toastTransferCreated'));
       reset();
       router.refresh();
     });
@@ -90,37 +92,37 @@ export function TransfersManager({
 
   async function onComplete(id: string) {
     const ok = await confirm({
-      title: 'تنفيذ التحويل؟',
-      message: 'سيتم نقل الكميات من المخزن المصدر إلى الوجهة. لا يمكن التراجع.',
-      confirmText: 'تنفيذ',
+      title: t('inventory.confirmCompleteTitle'),
+      message: t('inventory.confirmCompleteMessage'),
+      confirmText: t('inventory.confirmCompleteBtn'),
     });
     if (!ok) return;
     startTransition(async () => {
       const res = await completeTransfer(id);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('inventory.toastError'));
         return;
       }
-      toast.success('تم تنفيذ التحويل ونقل المخزون');
+      toast.success(t('inventory.toastTransferCompleted'));
       router.refresh();
     });
   }
 
   async function onCancel(id: string) {
     const ok = await confirm({
-      title: 'إلغاء التحويل؟',
-      confirmText: 'إلغاء',
-      cancelText: 'تراجع',
+      title: t('inventory.confirmCancelTransferTitle'),
+      confirmText: t('inventory.confirmCancelTransferBtn'),
+      cancelText: t('inventory.confirmCancelTransferBack'),
       destructive: true,
     });
     if (!ok) return;
     startTransition(async () => {
       const res = await cancelTransfer(id);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('inventory.toastError'));
         return;
       }
-      toast.success('تم إلغاء التحويل');
+      toast.success(t('inventory.toastTransferCancelled'));
       router.refresh();
     });
   }
@@ -132,41 +134,41 @@ export function TransfersManager({
     <div className="space-y-4">
       {!creating && (
         <Button onClick={() => setCreating(true)} disabled={!canCreate}>
-          <Plus className="h-4 w-4" /> تحويل جديد
+          <Plus className="h-4 w-4" /> {t('inventory.newTransfer')}
         </Button>
       )}
       {!canCreate && !creating && (
-        <p className="text-sm text-warning">تحتاج مخزنين على الأقل ومنتجاً واحداً لإنشاء تحويل.</p>
+        <p className="text-sm text-warning">{t('inventory.transferNeedMinWarnings')}</p>
       )}
 
       {creating && (
         <Card>
           <CardContent className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">تحويل جديد</h3>
+              <h3 className="font-semibold">{t('inventory.transferFormTitle')}</h3>
               <button onClick={reset} className="rounded-md p-1 hover:bg-secondary"><X className="h-4 w-4" /></button>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-1">
-                <Label className="text-xs">من مخزن *</Label>
+                <Label className="text-xs">{t('inventory.fromWarehouse')}</Label>
                 <select value={fromWh} onChange={(e) => setFromWh(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="">اختر…</option>
+                  <option value="">{t('inventory.selectPlaceholder')}</option>
                   {warehouses.map((w) => (
                     <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">إلى مخزن *</Label>
+                <Label className="text-xs">{t('inventory.toWarehouse')}</Label>
                 <select value={toWh} onChange={(e) => setToWh(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="">اختر…</option>
+                  <option value="">{t('inventory.selectPlaceholder')}</option>
                   {warehouses.filter((w) => w.id !== fromWh).map((w) => (
                     <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">ملاحظات</Label>
+                <Label className="text-xs">{t('inventory.notesLabel')}</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
             </div>
@@ -175,8 +177,8 @@ export function TransfersManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-2 text-right font-medium">المنتج</th>
-                    <th className="p-2 text-center font-medium w-28">الكمية</th>
+                    <th className="p-2 text-right font-medium">{t('inventory.colProductItem')}</th>
+                    <th className="p-2 text-center font-medium w-28">{t('inventory.colQty')}</th>
                     <th className="p-2 w-10"></th>
                   </tr>
                 </thead>
@@ -189,7 +191,7 @@ export function TransfersManager({
                           onChange={(e) => setLines(lines.map((x) => x.key === l.key ? { ...x, product_id: e.target.value } : x))}
                           className="h-9 w-full min-w-[10rem] rounded-md border border-input bg-background px-2 text-sm"
                         >
-                          <option value="">اختر منتجاً…</option>
+                          <option value="">{t('inventory.selectProductPlaceholder')}</option>
                           {products.map((p) => (
                             <option key={p.id} value={p.id}>{p.code} · {p.name_ar || p.name}</option>
                           ))}
@@ -212,14 +214,14 @@ export function TransfersManager({
               </table>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={() => setLines([...lines, newLine()])}>
-              <Plus className="h-4 w-4" /> إضافة بند
+              <Plus className="h-4 w-4" /> {t('inventory.addLine')}
             </Button>
 
             <div className="flex gap-2">
               <Button onClick={onCreate} disabled={pending}>
-                {pending && <Loader2 className="h-4 w-4 animate-spin" />} حفظ
+                {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('inventory.saveDraft')}
               </Button>
-              <Button variant="outline" onClick={reset}>إلغاء</Button>
+              <Button variant="outline" onClick={reset}>{t('inventory.cancelBtn')}</Button>
             </div>
           </CardContent>
         </Card>
@@ -229,49 +231,49 @@ export function TransfersManager({
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <ArrowLeftRight className="h-8 w-8" />
-            <p>لا توجد تحويلات بعد.</p>
+            <p>{t('inventory.emptyTransfers')}</p>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardContent className="p-0">
             <div className="flex flex-wrap items-center gap-2 border-b p-3">
-              <ListSearch placeholder="بحث برقم التحويل…" className="w-64" />
+              <ListSearch placeholder={t('inventory.searchTransfer')} className="w-64" />
             </div>
             {transfers.length === 0 ? (
-              <p className="p-8 text-center text-sm text-muted-foreground">لا توجد نتائج مطابقة.</p>
+              <p className="p-8 text-center text-sm text-muted-foreground">{t('inventory.noResults')}</p>
             ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">رقم التحويل</th>
-                    <th className="p-3 text-right font-medium">من</th>
-                    <th className="p-3 text-right font-medium">إلى</th>
-                    <th className="p-3 text-right font-medium">التاريخ</th>
-                    <th className="p-3 text-center font-medium">الحالة</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colTransferNo')}</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colFrom')}</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colTo')}</th>
+                    <th className="p-3 text-right font-medium">{t('inventory.colDate')}</th>
+                    <th className="p-3 text-center font-medium">{t('inventory.colStatusTh')}</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {transfers.map((t) => (
-                    <tr key={t.id} className="border-b last:border-0 hover:bg-secondary/30">
-                      <td className="p-3 font-mono text-xs" dir="ltr">{t.transfer_number}</td>
-                      <td className="p-3">{whLabel(t.from_warehouse)}</td>
-                      <td className="p-3">{whLabel(t.to_warehouse)}</td>
-                      <td className="p-3 text-muted-foreground">{formatDate(t.created_at)}</td>
+                  {transfers.map((tr) => (
+                    <tr key={tr.id} className="border-b last:border-0 hover:bg-secondary/30">
+                      <td className="p-3 font-mono text-xs" dir="ltr">{tr.transfer_number}</td>
+                      <td className="p-3">{whLabel(tr.from_warehouse)}</td>
+                      <td className="p-3">{whLabel(tr.to_warehouse)}</td>
+                      <td className="p-3 text-muted-foreground">{formatDate(tr.created_at)}</td>
                       <td className="p-3 text-center">
-                        <Badge variant={STATUS_VARIANT[t.status]}>{TRANSFER_STATUS_LABELS[t.status].ar}</Badge>
+                        <Badge variant={STATUS_VARIANT[tr.status]}>{TRANSFER_STATUS_LABELS[tr.status][locale]}</Badge>
                       </td>
                       <td className="p-3">
                         <div className="flex justify-end gap-1">
-                          {(t.status === 'draft' || t.status === 'in_transit') && (
+                          {(tr.status === 'draft' || tr.status === 'in_transit') && (
                             <>
-                              <Button variant="ghost" size="sm" disabled={pending} onClick={() => onComplete(t.id)} className="text-xs">
-                                <CheckCircle2 className="h-3.5 w-3.5" /> تنفيذ
+                              <Button variant="ghost" size="sm" disabled={pending} onClick={() => onComplete(tr.id)} className="text-xs">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> {t('inventory.completeTransfer')}
                               </Button>
-                              <Button variant="ghost" size="sm" disabled={pending} onClick={() => onCancel(t.id)} className="text-xs text-destructive">
-                                إلغاء
+                              <Button variant="ghost" size="sm" disabled={pending} onClick={() => onCancel(tr.id)} className="text-xs text-destructive">
+                                {t('inventory.cancelTransfer')}
                               </Button>
                             </>
                           )}

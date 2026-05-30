@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Plus, X, Search, Loader2 } from 'lucide-react';
 import { searchClinicalReference, type ReferenceItem } from './reference-actions';
+import { useI18n } from '@/lib/i18n/provider';
 
 /** Multi-item clinical field with autocomplete from the reference list (drugs /
  *  lab / radiology). The doctor can add several items, pick from suggestions, or
@@ -14,7 +15,7 @@ export function ClinicalListField({
   kinds,
   defaultValue = '',
   searchPlaceholder,
-  manualLabel = 'إضافة كما هو',
+  manualLabel,
   itemPlaceholder,
 }: {
   name: string;
@@ -24,6 +25,9 @@ export function ClinicalListField({
   manualLabel?: string;
   itemPlaceholder?: string;
 }) {
+  const { t } = useI18n();
+  const resolvedManualLabel = manualLabel ?? t('clinic.listField.manualLabel');
+
   const kindsKey = kinds.join(',');
   const [lines, setLines] = useState<string[]>(() =>
     defaultValue.split('\n').map((s) => s.trim()).filter(Boolean),
@@ -38,13 +42,13 @@ export function ClinicalListField({
     const term = q.trim();
     if (term.length < 2) { setResults([]); setOpen(false); setLoading(false); return; }
     setLoading(true);
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const r = await searchClinicalReference(kindsKey.split(','), term);
       setResults(r);
       setOpen(true);
       setLoading(false);
     }, 250);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [q, kindsKey]);
 
   useEffect(() => {
@@ -56,9 +60,9 @@ export function ClinicalListField({
   }, []);
 
   function addLine(text: string) {
-    const t = text.trim();
-    if (!t) return;
-    setLines((ls) => [...ls, t]);
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setLines((ls) => [...ls, trimmed]);
     setQ('');
     setResults([]);
     setOpen(false);
@@ -83,7 +87,7 @@ export function ClinicalListField({
                 type="button"
                 onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}
                 className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
-                aria-label="حذف"
+                aria-label={t('clinic.listField.deleteAriaLabel')}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -133,7 +137,7 @@ export function ClinicalListField({
 
       {q.trim().length >= 2 && (
         <button type="button" onClick={() => addLine(q)} className="text-xs text-primary hover:underline">
-          + {manualLabel}: «{q.trim()}»
+          + {resolvedManualLabel}: «{q.trim()}»
         </button>
       )}
     </div>
