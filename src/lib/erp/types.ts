@@ -169,7 +169,49 @@ export interface UserBranch {
   role: BranchRole;
   is_default: boolean;
   reports_to: string | null;
+  department_id: string | null;
+  team_id: string | null;
+  job_title_id: string | null;
   created_at: string;
+}
+
+// ─── Organization Structure ─────────────────────────────────────────────────
+// Generic, business-type-neutral org concepts: departments, teams, job titles
+// and reporting lines. Work for retail, distribution, clinics, manufacturing,
+// services, warehouses and corporate orgs alike. All company-scoped.
+
+export interface Department {
+  id: string;
+  company_id: string;
+  branch_id: string | null;
+  name: string;
+  name_ar: string | null;
+  manager_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Team {
+  id: string;
+  company_id: string;
+  department_id: string | null;
+  name: string;
+  name_ar: string | null;
+  lead_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobTitle {
+  id: string;
+  company_id: string;
+  name: string;
+  name_ar: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Profile {
