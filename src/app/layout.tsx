@@ -12,12 +12,27 @@ const arabic = IBM_Plex_Sans_Arabic({
   variable: '--font-arabic',
 });
 
+const TITLE = 'AMS | نظام إدارة الأعمال';
+const DESCRIPTION =
+  'نظام متكامل لإدارة الأعمال يتأقلم مع نشاطك — عيادات، مطاعم، صالونات، تجارة، وتوزيع.';
+
 export const metadata: Metadata = {
-  title: 'AMS | نظام إدارة الأعمال',
-  description: 'نظام متكامل لإدارة الأعمال يتأقلم مع نشاطك — عيادات، مطاعم، صالونات، تجارة، وتوزيع.',
+  title: TITLE,
+  description: DESCRIPTION,
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, title: 'AMS', statusBarStyle: 'default' },
+  applicationName: 'AMS',
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    siteName: 'AMS',
+    type: 'website',
+  },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
+
+/** Applies the saved theme before paint to avoid a flash of the wrong mode. */
+const THEME_SCRIPT = `try{var t=localStorage.getItem('ams-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}`;
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -34,6 +49,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} dir={LOCALE_DIR[locale]} suppressHydrationWarning>
       <body className={`${arabic.variable} font-arabic antialiased`}>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <ServiceWorkerRegister />
         <Providers locale={locale}>{children}</Providers>
       </body>

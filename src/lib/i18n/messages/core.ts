@@ -10,6 +10,10 @@ export const ar = {
     menu: 'القائمة',
     close: 'إغلاق',
     user: 'مستخدم',
+    toggleTheme: 'تبديل المظهر (فاتح/داكن)',
+    errorTitle: 'حصل خطأ في هذه الصفحة',
+    errorBody: 'نعتذر عن ذلك. تم تسجيل المشكلة تلقائياً. يمكنك إعادة المحاولة.',
+    errorRetry: 'إعادة المحاولة',
   },
   brand: {
     tagline: 'عيادات، مطاعم، صيدليات، صالونات، ومحلات — كل نشاط بأدواته، في مكان واحد محترف وآمن.',
@@ -207,6 +211,10 @@ export const en = {
     menu: 'Menu',
     close: 'Close',
     user: 'User',
+    toggleTheme: 'Toggle theme (light/dark)',
+    errorTitle: 'Something went wrong on this page',
+    errorBody: 'Sorry about that. The issue was logged automatically. You can try again.',
+    errorRetry: 'Try again',
   },
   brand: {
     tagline: 'Clinics, restaurants, pharmacies, salons, and shops — every business with its own tools, in one professional, secure place.',

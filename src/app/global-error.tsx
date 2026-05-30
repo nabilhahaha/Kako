@@ -24,6 +24,7 @@ export default function GlobalError({
             <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#8f1d2e1a', color: '#8f1d2e', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 28 }}>⚠️</div>
             <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>حصل خطأ غير متوقع</h1>
             <p style={{ color: '#666', fontSize: 14, marginTop: 8 }}>نعتذر عن ذلك. تم تسجيل المشكلة وسنعمل على حلّها. جرّب مرة أخرى.</p>
+            <p style={{ color: '#999', fontSize: 12, marginTop: 4 }}>Something went wrong. The issue was logged — please try again.</p>
             <button
               onClick={() => reset()}
               style={{ marginTop: 20, height: 44, padding: '0 24px', border: 'none', borderRadius: 8, background: '#8f1d2e', color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}

@@ -7,6 +7,7 @@ import type { BranchRole } from '@/lib/erp/types';
 import { LogOut, ChevronDown, ShieldCheck, Search } from 'lucide-react';
 import { NotificationsBell, type NotificationItem } from './notifications-bell';
 import { LanguageToggle } from './language-toggle';
+import { ThemeToggle } from './theme-toggle';
 import { useI18n } from '@/lib/i18n/provider';
 
 interface TopBarProps {
@@ -72,6 +73,8 @@ export function TopBar({
       </button>
 
       <LanguageToggle />
+
+      <ThemeToggle />
 
       <NotificationsBell items={notifications} />
 
