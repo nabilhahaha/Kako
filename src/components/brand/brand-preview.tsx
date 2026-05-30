@@ -1,88 +1,120 @@
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Users, FileText, Search } from 'lucide-react';
+
+const M = '#8f1d2e'; // brand maroon
 
 const GRAIN =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
-const MESH =
-  'radial-gradient(40% 50% at 18% 18%, rgba(192,57,43,0.38), transparent 60%),' +
-  'radial-gradient(45% 55% at 82% 22%, rgba(232,176,75,0.16), transparent 60%),' +
-  'radial-gradient(70% 60% at 50% 108%, rgba(143,29,46,0.55), transparent 60%),' +
-  'linear-gradient(180deg, #1c0710 0%, #120409 100%)';
-
-/** Premium dark auth scene: a maroon mesh gradient with a fading dot grid,
- *  fine grain, glow, particles, and two refined glass cards (gradient borders +
- *  area chart). Language-neutral, pure CSS/SVG. Fills its (relative) parent. */
-export function BrandScene() {
+/** Lighter, vibrant maroon backdrop with a top light, soft glows and fine grain. */
+export function BrandBg() {
   return (
     <>
-      {/* mesh gradient */}
-      <div className="absolute inset-0" style={{ background: MESH }} />
-
-      {/* fading dot grid */}
       <div
-        className="absolute inset-0 opacity-[0.07]"
+        className="absolute inset-0"
         style={{
-          backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)',
-          backgroundSize: '26px 26px',
-          WebkitMaskImage: 'radial-gradient(75% 65% at 50% 38%, #000, transparent)',
-          maskImage: 'radial-gradient(75% 65% at 50% 38%, #000, transparent)',
+          background:
+            'radial-gradient(95% 70% at 50% -12%, rgba(255,255,255,0.22), transparent 55%),' +
+            'radial-gradient(55% 50% at 85% 18%, rgba(232,176,75,0.20), transparent 60%),' +
+            'linear-gradient(155deg, #a81f39 0%, #8c1a30 52%, #63111f 100%)',
         }}
       />
-
-      {/* animated glows */}
-      <div className="ams-aura absolute left-1/2 top-[26%] h-72 w-72 -translate-x-1/2 rounded-full blur-3xl" style={{ background: 'rgba(232,176,75,0.16)' }} />
-      <div className="ams-aura-2 absolute -bottom-24 end-4 h-80 w-80 rounded-full blur-3xl" style={{ background: 'rgba(143,29,46,0.5)' }} />
-
-      {/* grain */}
+      <div className="ams-aura absolute -bottom-24 -start-16 h-80 w-80 rounded-full blur-3xl" style={{ background: 'rgba(232,176,75,0.20)' }} />
       <div className="absolute inset-0 opacity-[0.05] mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
-
-      {/* particles */}
-      {[
-        ['16%', '24%', 0.55], ['74%', '32%', 0.4], ['38%', '12%', 0.5],
-        ['84%', '58%', 0.45], ['26%', '70%', 0.4], ['62%', '80%', 0.5], ['12%', '50%', 0.3],
-      ].map(([top, left, o], i) => (
-        <span key={i} className="absolute h-1 w-1 rounded-full bg-white" style={{ top, left, opacity: o as number }} />
-      ))}
-
-      {/* ── floating glass cards (gradient borders) ── */}
-      {/* stat card — top end */}
-      <div className="absolute end-10 top-16 hidden rounded-2xl p-px shadow-2xl lg:block" style={{ background: 'linear-gradient(135deg, rgba(232,176,75,0.55), rgba(255,255,255,0.06))' }}>
-        <div className="w-44 rounded-2xl bg-[#1b0810]/80 p-4 backdrop-blur-xl">
-          <div className="flex items-center justify-between">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(232,176,75,0.18)] text-[rgba(232,176,75,0.95)]">
-              <TrendingUp className="h-4 w-4" />
-            </span>
-            <span className="h-1.5 w-10 rounded-full bg-white/12" />
-          </div>
-          <div className="mt-3 bg-gradient-to-b from-white to-[rgba(232,176,75,0.8)] bg-clip-text text-2xl font-bold tabular-nums text-transparent" dir="ltr">٤٨٫٢ك</div>
-          <div className="mt-1 h-1.5 w-16 rounded-full bg-white/12" />
-        </div>
-      </div>
-
-      {/* area-chart card — bottom start */}
-      <div className="absolute start-10 bottom-20 hidden rounded-2xl p-px shadow-2xl lg:block" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.10), rgba(232,176,75,0.40))' }}>
-        <div className="w-56 rounded-2xl bg-[#1b0810]/80 p-4 backdrop-blur-xl">
-          <div className="mb-1 h-1.5 w-20 rounded-full bg-white/18" />
-          <div className="mb-3 h-1.5 w-12 rounded-full bg-white/10" />
-          <svg viewBox="0 0 220 80" className="w-full" fill="none" aria-hidden>
-            <defs>
-              <linearGradient id="ams-area" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="rgba(232,176,75,0.35)" />
-                <stop offset="1" stopColor="rgba(232,176,75,0)" />
-              </linearGradient>
-            </defs>
-            <path d="M0,60 C30,52 52,30 84,38 116,46 150,16 220,24 L220,80 L0,80 Z" fill="url(#ams-area)" />
-            <path d="M0,60 C30,52 52,30 84,38 116,46 150,16 220,24" stroke="rgba(232,176,75,0.95)" strokeWidth="2.5" strokeLinecap="round" />
-            <circle cx="220" cy="24" r="3.5" fill="#fff" />
-          </svg>
-        </div>
-      </div>
-
-      {/* small floating pill — adds life */}
-      <div className="absolute end-16 bottom-28 hidden items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 py-1.5 shadow-xl backdrop-blur-md xl:flex">
-        <span className="h-2 w-2 rounded-full" style={{ background: 'rgba(232,176,75,0.9)' }} />
-        <span className="h-1.5 w-14 rounded-full bg-white/20" />
-      </div>
     </>
+  );
+}
+
+/** A realistic light-theme product mockup of the app — the hero visual. Shows
+ *  the product itself (sidebar + KPIs + area chart + table) so the splash reads
+ *  premium and authentic. Language-neutral, pure CSS/SVG. */
+export function ProductMockup() {
+  return (
+    <div className="relative" aria-hidden>
+      {/* glow + floor reflection under the card */}
+      <div className="absolute -inset-6 -z-10 rounded-[2rem] opacity-70 blur-2xl" style={{ background: 'radial-gradient(60% 60% at 50% 40%, rgba(232,176,75,0.35), transparent 70%)' }} />
+
+      <div
+        className="w-[27rem] max-w-full overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+        style={{ transform: 'perspective(1400px) rotateY(-9deg) rotateX(4deg)' }}
+      >
+        {/* top bar */}
+        <div className="flex items-center gap-2 border-b border-neutral-100 px-4 py-2.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-neutral-200" />
+          <span className="h-2.5 w-2.5 rounded-full bg-neutral-200" />
+          <span className="h-2.5 w-2.5 rounded-full bg-neutral-200" />
+          <div className="ms-3 flex h-6 flex-1 items-center gap-1.5 rounded-md bg-neutral-100 px-2 text-neutral-400">
+            <Search className="h-3 w-3" />
+            <span className="h-1.5 w-20 rounded-full bg-neutral-200" />
+          </div>
+          <span className="h-6 w-6 rounded-full" style={{ background: M }} />
+        </div>
+
+        <div className="flex">
+          {/* sidebar */}
+          <div className="w-14 shrink-0 space-y-2 border-e border-neutral-100 bg-neutral-50 p-2">
+            <div className="h-7 w-full rounded-lg" style={{ background: M }} />
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-2.5 w-full rounded-md bg-neutral-200" />
+            ))}
+          </div>
+
+          {/* content */}
+          <div className="flex-1 space-y-3 p-4">
+            {/* header */}
+            <div className="flex items-center justify-between">
+              <div className="h-2.5 w-28 rounded-full bg-neutral-200" />
+              <div className="h-6 w-16 rounded-md" style={{ background: M }} />
+            </div>
+
+            {/* KPI tiles */}
+            <div className="grid grid-cols-3 gap-2.5">
+              {[
+                { icon: TrendingUp, v: '٤٨٫٢ك' },
+                { icon: Users, v: '١٬٣٢٠' },
+                { icon: FileText, v: '٢٦٧' },
+              ].map((k, i) => (
+                <div key={i} className="rounded-xl border border-neutral-100 bg-neutral-50 p-2.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ background: 'rgba(143,29,46,0.10)', color: M }}>
+                    <k.icon className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="mt-2 text-sm font-bold tabular-nums text-neutral-800" dir="ltr">{k.v}</div>
+                  <div className="mt-1 h-1 w-8 rounded-full bg-neutral-200" />
+                </div>
+              ))}
+            </div>
+
+            {/* area chart */}
+            <div className="rounded-xl border border-neutral-100 bg-white p-3">
+              <div className="mb-2 h-1.5 w-20 rounded-full bg-neutral-200" />
+              <svg viewBox="0 0 240 70" className="w-full" fill="none" aria-hidden>
+                <defs>
+                  <linearGradient id="ams-mk-area" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stopColor="rgba(143,29,46,0.22)" />
+                    <stop offset="1" stopColor="rgba(143,29,46,0)" />
+                  </linearGradient>
+                </defs>
+                <path d="M0,52 C32,46 54,26 88,32 122,38 156,12 240,20 L240,70 L0,70 Z" fill="url(#ams-mk-area)" />
+                <path d="M0,52 C32,46 54,26 88,32 122,38 156,12 240,20" stroke={M} strokeWidth="2.5" strokeLinecap="round" />
+                <circle cx="240" cy="20" r="3.5" fill={M} />
+              </svg>
+            </div>
+
+            {/* table rows */}
+            <div className="space-y-2.5">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  <span className="h-6 w-6 shrink-0 rounded-full bg-neutral-200" />
+                  <div className="flex-1">
+                    <div className="h-1.5 w-24 rounded-full bg-neutral-200" />
+                    <div className="mt-1 h-1.5 w-14 rounded-full bg-neutral-100" />
+                  </div>
+                  <span className="h-4 w-12 rounded-full" style={{ background: i === 0 ? 'rgba(22,163,74,0.15)' : 'rgba(143,29,46,0.10)' }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
