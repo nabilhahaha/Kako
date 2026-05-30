@@ -6,7 +6,7 @@ import { CommandPalette } from '@/components/layout/command-palette';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
-import { whatsappLink, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@/lib/erp/contact';
+import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
 import { LockKeyhole, AlertTriangle, MessageCircle } from 'lucide-react';
 
 export default async function AppLayout({
@@ -51,7 +51,7 @@ export default async function AppLayout({
             <MessageCircle className="h-5 w-5" />
             تواصل عبر واتساب
           </a>
-          <p className="mt-2 text-xs text-muted-foreground" dir="ltr">{SUPPORT_PHONE_DISPLAY}</p>
+          <p className="mt-2 text-xs text-muted-foreground" dir="ltr">{SUPPORT_PHONES.map((p) => p.display).join('  •  ')}</p>
           <form action="/auth/signout" method="post" className="mt-4">
             <button
               type="submit"

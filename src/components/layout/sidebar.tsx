@@ -6,7 +6,8 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { visibleSections, type Module } from '@/lib/erp/navigation';
 import type { Permission } from '@/lib/erp/permissions';
-import { Package, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
+import { Logo } from '@/components/brand/logo';
 
 export function Sidebar({
   permissions,
@@ -34,11 +35,8 @@ export function Sidebar({
 
   const content = (
     <nav className="flex h-full flex-col gap-1 overflow-y-auto p-3">
-      <div className="mb-4 flex items-center gap-2 px-2 py-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Package className="h-5 w-5" />
-        </div>
-        <span className="text-lg font-bold">كاكو</span>
+      <div className="mb-4 px-2 py-2">
+        <Logo withWordmark />
       </div>
 
       {sections.map((section) => (

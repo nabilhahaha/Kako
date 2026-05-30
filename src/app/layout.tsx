@@ -11,10 +11,10 @@ const arabic = IBM_Plex_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: 'كاكو | نظام إدارة التوزيع',
-  description: 'نظام متكامل لإدارة مبيعات وتوزيع شركات السلع سريعة الدوران (FMCG)',
+  title: 'AMS | نظام إدارة الأعمال',
+  description: 'نظام متكامل لإدارة الأعمال يتأقلم مع نشاطك — عيادات، مطاعم، صالونات، تجارة، وتوزيع.',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, title: 'كاكو', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'AMS', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

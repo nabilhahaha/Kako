@@ -2,5 +2,5 @@
   <rect width="512" height="512" rx="96" fill="#8f1d2e"/>
   <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
         font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"
-        font-size="300" font-weight="700" fill="#ffffff">ك</text>
+        font-size="180" font-weight="700" letter-spacing="-6" fill="#ffffff">AMS</text>
 </svg>

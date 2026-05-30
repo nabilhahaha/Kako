@@ -37,11 +37,11 @@ export function CompanyForm() {
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name_ar">اسم الشركة (عربي)</Label>
-            <Input id="name_ar" name="name_ar" placeholder="شركة كاكو للتوزيع" />
+            <Input id="name_ar" name="name_ar" placeholder="شركة النور للتجارة" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="name">اسم الشركة (إنجليزي) *</Label>
-            <Input id="name" name="name" required placeholder="Kako Distribution" />
+            <Input id="name" name="name" required placeholder="Al Noor Trading" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

@@ -1,7 +1,7 @@
 {
-  "name": "كاكو - إدارة التوزيع",
-  "short_name": "كاكو",
-  "description": "نظام إدارة مبيعات وتوزيع FMCG - تطبيق المندوب",
+  "name": "AMS - نظام إدارة الأعمال",
+  "short_name": "AMS",
+  "description": "نظام متكامل لإدارة الأعمال يتأقلم مع نشاطك",
   "start_url": "/rep",
   "scope": "/",
   "display": "standalone",

@@ -63,11 +63,11 @@ export function OnboardingForm() {
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="company_name_ar">اسم الشركة *</Label>
-              <Input id="company_name_ar" name="company_name_ar" placeholder="مثال: شركة كاكو للتوزيع" required />
+              <Input id="company_name_ar" name="company_name_ar" placeholder="مثال: شركة النور للتجارة" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="company_name">اسم الشركة (إنجليزي)</Label>
-              <Input id="company_name" name="company_name" dir="ltr" placeholder="Kako Distribution" />
+              <Input id="company_name" name="company_name" dir="ltr" placeholder="Al Noor Trading" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="business_type">نوع النشاط</Label>
