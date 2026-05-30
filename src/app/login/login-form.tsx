@@ -12,7 +12,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n/provider';
 
-export function LoginForm() {
+export function LoginForm({ bare = false }: { bare?: boolean }) {
   const router = useRouter();
   const { t } = useI18n();
   const [email, setEmail] = useState('');
@@ -42,9 +42,7 @@ export function LoginForm() {
     router.refresh();
   }
 
-  return (
-    <Card>
-      <CardContent className="pt-6">
+  const form = (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">{t('auth.email')}</Label>
@@ -84,7 +82,12 @@ export function LoginForm() {
             </Link>
           </div>
         </form>
-      </CardContent>
+  );
+
+  if (bare) return form;
+  return (
+    <Card>
+      <CardContent className="pt-6">{form}</CardContent>
     </Card>
   );
 }

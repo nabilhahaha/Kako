@@ -27,12 +27,13 @@ import * as rep from './rep';
 import * as exportsMod from './exports';
 import * as warehouses from './warehouses';
 import * as upgrade from './upgrade';
+import * as landing from './landing';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
   accounting, clinic, restaurant, salon, pharmacy, laundry, hotel, wholesale,
   market, distribution, settings, account, platform, rep, exportsMod,
-  warehouses, upgrade,
+  warehouses, upgrade, landing,
 ];
 
 type Catalog = Record<string, unknown>;
