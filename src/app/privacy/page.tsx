@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import { LegalShell, LegalSection } from '@/components/legal-shell';
 import { SUPPORT_PHONES } from '@/lib/erp/contact';
 
-export const metadata: Metadata = { title: 'سياسة الخصوصية | Velora' };
+export const metadata: Metadata = { title: 'سياسة الخصوصية | VANTORA' };
 
 export default function PrivacyPage() {
   return (
     <LegalShell title="سياسة الخصوصية">
       <p className="text-muted-foreground">
-        تشرح هذه السياسة كيف يجمع نظام Velora بياناتك ويستخدمها ويحميها عند استخدامك للخدمة.
+        تشرح هذه السياسة كيف يجمع نظام VANTORA بياناتك ويستخدمها ويحميها عند استخدامك للخدمة.
         باستخدامك للخدمة فأنت توافق على ما ورد في هذه السياسة.
       </p>
 

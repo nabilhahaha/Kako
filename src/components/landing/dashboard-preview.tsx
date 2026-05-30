@@ -16,7 +16,7 @@ export function DashboardPreview() {
           <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
           <span className="h-3 w-3 rounded-full bg-[#28c840]" />
           <div className="ms-4 hidden h-6 max-w-xs flex-1 items-center gap-2 rounded-md bg-white px-3 text-[11px] text-neutral-400 ring-1 ring-neutral-200 sm:flex" dir="ltr">
-            <Search className="h-3 w-3" /> app.velora.com/dashboard
+            <Search className="h-3 w-3" /> app.vantora.com/dashboard
           </div>
         </div>
 

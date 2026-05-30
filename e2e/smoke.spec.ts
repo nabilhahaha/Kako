@@ -7,12 +7,12 @@ import { test, expect } from '@playwright/test';
  * unauthenticated auth-gate redirect.
  */
 
-test.describe('Velora smoke', () => {
+test.describe('VANTORA smoke', () => {
   test('landing page returns 200 and shows brand, defaults to rtl', async ({ page }) => {
     const response = await page.goto('/');
     expect(response?.status()).toBe(200);
     // Brand wordmark (header logo) renders.
-    await expect(page.getByText('Velora').first()).toBeVisible();
+    await expect(page.getByText('VANTORA').first()).toBeVisible();
     // Default locale is Arabic → document direction is RTL.
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   });

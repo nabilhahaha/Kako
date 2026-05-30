@@ -229,7 +229,7 @@ export default async function HomePage({
             </FooterCol>
           </div>
           <div className="mt-12 border-t pt-6 text-center text-xs text-muted-foreground">
-            Velora © {year} · {t('landing.footer.rights')}
+            VANTORA © {year} · {t('landing.footer.rights')}
           </div>
         </div>
       </footer>

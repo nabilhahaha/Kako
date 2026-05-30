@@ -4,7 +4,7 @@ import { BrandBg, ProductMockup } from './brand-preview';
 import { useI18n } from '@/lib/i18n/provider';
 
 /** The premium branded side of the auth screens (login / register): a vibrant
- *  maroon splash with the Velora wordmark, a headline, and a realistic light-theme
+ *  maroon splash with the VANTORA wordmark, a headline, and a realistic light-theme
  *  product mockup as the hero. Self-translates by `variant`. Hidden on mobile. */
 export function AuthBrandPanel({ variant = 'login' }: { variant?: 'login' | 'register' }) {
   const { t } = useI18n();
@@ -23,7 +23,7 @@ export function AuthBrandPanel({ variant = 'login' }: { variant?: 'login' | 'reg
           <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-base font-bold shadow-lg backdrop-blur" dir="ltr">
             V
           </span>
-          <span className="text-lg font-bold tracking-tight" dir="ltr">Velora</span>
+          <span className="text-lg font-bold tracking-tight" dir="ltr">VANTORA</span>
         </div>
 
         <h2 className="text-[2.5rem] font-bold leading-[1.18]">

@@ -7,7 +7,7 @@
  */
 
 export const metadata = {
-  title: 'غير متصل | Velora',
+  title: 'غير متصل | VANTORA',
 };
 
 export default function OfflinePage() {

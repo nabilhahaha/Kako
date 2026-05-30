@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ type: str
   const { type } = await params;
   const theme = getPromoTheme(type);
   return {
-    title: `Velora · نظام ${theme.vertical}`,
+    title: `VANTORA · نظام ${theme.vertical}`,
     description: theme.subline,
   };
 }

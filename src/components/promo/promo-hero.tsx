@@ -18,7 +18,7 @@ export function PromoHero({ theme }: { theme: PromoTheme }) {
       <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8">
         {/* top bar */}
         <header className="flex items-center justify-between">
-          <span dir="ltr" className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-sm font-bold tracking-tight backdrop-blur">Velora</span>
+          <span dir="ltr" className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-sm font-bold tracking-tight backdrop-blur">VANTORA</span>
           <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">نظام {theme.vertical}</span>
         </header>
 
@@ -44,7 +44,7 @@ export function PromoHero({ theme }: { theme: PromoTheme }) {
               <Link href="/register" className="inline-flex h-12 items-center gap-2 rounded-xl bg-white px-6 font-semibold text-foreground shadow-lg hover:opacity-90">
                 ابدأ مجاناً <ArrowLeft className="h-4 w-4" />
               </Link>
-              <a href={whatsappLink(`مرحباً، أريد معرفة المزيد عن نظام ${theme.vertical} من Velora.`)} target="_blank" rel="noopener noreferrer"
+              <a href={whatsappLink(`مرحباً، أريد معرفة المزيد عن نظام ${theme.vertical} من VANTORA.`)} target="_blank" rel="noopener noreferrer"
                 className="inline-flex h-12 items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-6 font-medium backdrop-blur hover:bg-white/20">
                 <MessageCircle className="h-4 w-4" /> تواصل معنا
               </a>
@@ -60,7 +60,7 @@ export function PromoHero({ theme }: { theme: PromoTheme }) {
 
         {/* footer */}
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/15 pt-5 text-sm text-white/80">
-          <span dir="ltr" className="font-semibold">Velora · نظام إدارة الأعمال</span>
+          <span dir="ltr" className="font-semibold">VANTORA · نظام إدارة الأعمال</span>
           <div className="flex flex-wrap items-center gap-4" dir="ltr">
             {SUPPORT_PHONES.map((p) => (
               <a key={p.phone} href={whatsappLink(undefined, p.phone)} target="_blank" rel="noopener noreferrer" className="hover:text-white">{p.display}</a>

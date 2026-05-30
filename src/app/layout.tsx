@@ -12,7 +12,7 @@ const arabic = IBM_Plex_Sans_Arabic({
   variable: '--font-arabic',
 });
 
-const TITLE = 'Velora | نظام إدارة الأعمال';
+const TITLE = 'VANTORA Business OS | نظام إدارة الأعمال';
 const DESCRIPTION =
   'نظام متكامل لإدارة الأعمال يتأقلم مع نشاطك — عيادات، مطاعم، صالونات، تجارة، وتوزيع.';
 
@@ -20,12 +20,12 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, title: 'Velora', statusBarStyle: 'default' },
-  applicationName: 'Velora',
+  appleWebApp: { capable: true, title: 'VANTORA', statusBarStyle: 'default' },
+  applicationName: 'VANTORA',
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
-    siteName: 'Velora',
+    siteName: 'VANTORA',
     type: 'website',
   },
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },

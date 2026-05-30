@@ -1,4 +1,4 @@
-// Velora PWA service worker — app-shell offline strategy.
+// VANTORA PWA service worker — app-shell offline strategy.
 // Navigation → network-first, fallback to cached /offline page.
 // Static assets (script/style/image) → cache-first, network fallback.
 // Non-GET and cross-origin/API/auth requests are never cached.
