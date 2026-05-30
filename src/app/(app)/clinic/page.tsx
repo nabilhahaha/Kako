@@ -4,6 +4,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { GettingStarted } from '@/components/shared/getting-started';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -45,7 +46,10 @@ export default async function ClinicDashboardPage() {
   const dayStart = `${today}T00:00:00`;
   const dayEnd = `${today}T23:59:59`;
 
-  const [{ data: todayVisits }, { data: openVisits }, { data: todayAppts }, { data: doctorsData }] = await Promise.all([
+  const [
+    { data: todayVisits }, { data: openVisits }, { data: todayAppts }, { data: doctorsData },
+    { count: servicesCount }, { count: patientsCount }, { count: visitsTotal },
+  ] = await Promise.all([
     // Today's visits (for count + revenue + waiting queue + per-doctor split).
     supabase
       .from('erp_clinic_visits')
@@ -65,6 +69,9 @@ export default async function ClinicDashboardPage() {
       .lte('scheduled_at', dayEnd)
       .order('scheduled_at', { ascending: true }),
     supabase.rpc('erp_clinic_doctors'),
+    supabase.from('erp_clinic_services').select('id', { count: 'exact', head: true }),
+    supabase.from('erp_patients').select('id', { count: 'exact', head: true }),
+    supabase.from('erp_clinic_visits').select('id', { count: 'exact', head: true }),
   ]);
 
   const visits = (todayVisits as unknown as Array<{
@@ -112,6 +119,15 @@ export default async function ClinicDashboardPage() {
             <Printer className="h-4 w-4" /> تقفيل اليوم
           </Link>
         }
+      />
+
+      <GettingStarted
+        storageKey="kako_gs_clinic"
+        steps={[
+          { label: 'عرّف خدمات العيادة', href: '/clinic/services', done: (servicesCount ?? 0) > 0 },
+          { label: 'سجّل أول مريض', href: '/clinic/patients', done: (patientsCount ?? 0) > 0 },
+          { label: 'سجّل أول كشف', href: '/clinic/reception', done: (visitsTotal ?? 0) > 0 },
+        ]}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { FieldError } from '@/components/ui/field-error';
 import { PRODUCT_UNIT_OPTIONS, PRODUCT_UNIT_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { ProductCatalog, ProductCategory } from '@/lib/erp/types';
@@ -25,6 +26,7 @@ export function ProductsManager({
   const [editing, setEditing] = useState<ProductCatalog | null | 'new'>(null);
   const [showCategory, setShowCategory] = useState(false);
   const [query, setQuery] = useState('');
+  const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [pending, startTransition] = useTransition();
 
   const catName = (id: string | null) =>
@@ -47,6 +49,11 @@ export function ProductsManager({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const next: { code?: string; name?: string } = {};
+    if (!String(formData.get('code') ?? '').trim()) next.code = 'كود المنتج مطلوب.';
+    if (!String(formData.get('name') ?? '').trim()) next.name = 'الاسم (إنجليزي) مطلوب.';
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
     startTransition(async () => {
       const res = await upsertProduct(formData);
       if (!res.ok) {
@@ -155,7 +162,8 @@ export function ProductsManager({
               {current && <input type="hidden" name="id" value={current.id} />}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="كود المنتج *">
-                  <Input name="code" dir="ltr" defaultValue={current?.code ?? ''} required />
+                  <Input name="code" dir="ltr" defaultValue={current?.code ?? ''} onChange={() => setErrors((x) => ({ ...x, code: undefined }))} />
+                  <FieldError>{errors.code}</FieldError>
                 </Field>
                 <Field label="الباركود">
                   <Input name="barcode" dir="ltr" defaultValue={current?.barcode ?? ''} />
@@ -172,7 +180,8 @@ export function ProductsManager({
                   <Input name="name_ar" defaultValue={current?.name_ar ?? ''} />
                 </Field>
                 <Field label="الاسم (إنجليزي) *">
-                  <Input name="name" defaultValue={current?.name ?? ''} required />
+                  <Input name="name" defaultValue={current?.name ?? ''} onChange={() => setErrors((x) => ({ ...x, name: undefined }))} />
+                  <FieldError>{errors.name}</FieldError>
                 </Field>
                 <Field label="الوحدة">
                   <select name="unit" defaultValue={current?.unit ?? 'piece'} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">

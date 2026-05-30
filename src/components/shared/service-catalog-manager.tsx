@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { FieldError } from '@/components/ui/field-error';
 import { Plus, Pencil, Loader2, X, Tags } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
@@ -38,11 +39,16 @@ export function ServiceCatalogManager({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<CatalogService | null | 'new'>(null);
+  const [nameErr, setNameErr] = useState('');
   const [pending, startTransition] = useTransition();
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    if (!String(fd.get('name') ?? '').trim()) {
+      setNameErr(`اسم ${entityLabel} مطلوب.`);
+      return;
+    }
     startTransition(async () => {
       const res = await upsert(fd);
       if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
@@ -54,14 +60,14 @@ export function ServiceCatalogManager({
 
   return (
     <div className="space-y-4">
-      <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> {entityLabel} جديدة</Button>
+      <Button onClick={() => { setNameErr(''); setEditing('new'); }}><Plus className="h-4 w-4" /> {entityLabel} جديدة</Button>
 
       {editing && (
         <Card><CardContent className="pt-6">
           <form onSubmit={onSubmit} className="space-y-4">
             {editing !== 'new' && <input type="hidden" name="id" value={editing.id} />}
             <div className="grid gap-3 sm:grid-cols-4">
-              <div className="space-y-1 sm:col-span-2"><Label>اسم {entityLabel} *</Label><Input name="name" required defaultValue={editing !== 'new' ? editing.name : ''} placeholder={namePlaceholder} /></div>
+              <div className="space-y-1 sm:col-span-2"><Label>اسم {entityLabel} *</Label><Input name="name" defaultValue={editing !== 'new' ? editing.name : ''} placeholder={namePlaceholder} onChange={() => setNameErr('')} /><FieldError>{nameErr}</FieldError></div>
               <div className="space-y-1"><Label>السعر</Label><Input name="price" type="number" min={0} step="0.01" dir="ltr" defaultValue={editing !== 'new' ? editing.price : 0} /></div>
               {showDuration && (
                 <div className="space-y-1"><Label>المدة (دقيقة)</Label><Input name="duration_min" type="number" min={5} step={5} dir="ltr" defaultValue={editing !== 'new' ? (editing.duration_min ?? 30) : 30} /></div>

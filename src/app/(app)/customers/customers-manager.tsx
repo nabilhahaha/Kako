@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { FieldError } from '@/components/ui/field-error';
 import { formatCurrency } from '@/lib/utils';
 import { VISIT_DAYS } from '@/lib/erp/constants';
 import { importCustomers, approveCustomer } from './actions';
@@ -33,6 +34,7 @@ export function CustomersManager({
   const [editing, setEditing] = useState<ErpCustomer | null | 'new'>(null);
   const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState('');
+  const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [pending, startTransition] = useTransition();
 
   function onApprove(id: string) {
@@ -73,6 +75,11 @@ export function CustomersManager({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const next: { code?: string; name?: string } = {};
+    if (!String(formData.get('code') ?? '').trim()) next.code = 'كود العميل مطلوب.';
+    if (!String(formData.get('name') ?? '').trim()) next.name = 'الاسم (إنجليزي) مطلوب.';
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
     startTransition(async () => {
       const res = await upsertCustomer(formData);
       if (!res.ok) {
@@ -132,9 +139,9 @@ export function CustomersManager({
             <form onSubmit={onSubmit} className="space-y-4">
               {current && <input type="hidden" name="id" value={current.id} />}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Field label="كود العميل *"><Input name="code" dir="ltr" defaultValue={current?.code ?? ''} required /></Field>
+                <Field label="كود العميل *"><Input name="code" dir="ltr" defaultValue={current?.code ?? ''} onChange={() => setErrors((x) => ({ ...x, code: undefined }))} /><FieldError>{errors.code}</FieldError></Field>
                 <Field label="الاسم (عربي)"><Input name="name_ar" defaultValue={current?.name_ar ?? ''} /></Field>
-                <Field label="الاسم (إنجليزي) *"><Input name="name" defaultValue={current?.name ?? ''} required /></Field>
+                <Field label="الاسم (إنجليزي) *"><Input name="name" defaultValue={current?.name ?? ''} onChange={() => setErrors((x) => ({ ...x, name: undefined }))} /><FieldError>{errors.name}</FieldError></Field>
                 <Field label="الهاتف"><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} /></Field>
                 <Field label="البريد الإلكتروني"><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} /></Field>
                 <Field label="الرقم الضريبي"><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>

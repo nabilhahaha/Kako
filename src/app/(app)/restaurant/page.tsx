@@ -4,6 +4,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard as Stat } from '@/components/shared/stat-card';
+import { GettingStarted } from '@/components/shared/getting-started';
 import { buttonVariants } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
 import { UtensilsCrossed, LayoutGrid, ChefHat, Wallet, Receipt, Printer } from 'lucide-react';
@@ -22,11 +23,16 @@ export default async function RestaurantDashboard() {
 
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const [{ data: closed }, { data: openOrders }, { data: tables }, { data: kitchenItems }] = await Promise.all([
+  const [
+    { data: closed }, { data: openOrders }, { data: tables }, { data: kitchenItems },
+    { count: menuCount }, { count: ordersTotal },
+  ] = await Promise.all([
     supabase.from('erp_restaurant_orders').select('total').eq('status', 'closed').gte('closed_at', `${today}T00:00:00`),
     supabase.from('erp_restaurant_orders').select('id').eq('status', 'open'),
     supabase.from('erp_restaurant_tables').select('status').eq('is_active', true),
     supabase.from('erp_restaurant_order_items').select('id').in('kitchen_status', ['new', 'preparing']),
+    supabase.from('erp_products_catalog').select('id', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('erp_restaurant_orders').select('id', { count: 'exact', head: true }),
   ]);
 
   const sales = ((closed as { total: number }[]) ?? []).reduce((s, o) => s + Number(o.total || 0), 0);
@@ -43,6 +49,14 @@ export default async function RestaurantDashboard() {
           <Link href="/print/restaurant/day-closing" target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}><Printer className="h-4 w-4" /> تقفيل اليوم</Link>
         </div>
       } />
+      <GettingStarted
+        storageKey="kako_gs_restaurant"
+        steps={[
+          { label: 'أضف أصناف المنيو', href: '/products', done: (menuCount ?? 0) > 0 },
+          { label: 'جهّز الطاولات', href: '/restaurant/tables', done: tablesTotal > 0 },
+          { label: 'سجّل أول أوردر', href: '/restaurant/orders', done: (ordersTotal ?? 0) > 0 },
+        ]}
+      />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="مبيعات اليوم" value={formatCurrency(sales)} icon={Wallet} tone="success" />
         <Stat label="أوردرات مفتوحة" value={String(openCount)} icon={Receipt} tone="info" href="/restaurant/orders" />

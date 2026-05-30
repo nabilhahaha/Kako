@@ -4,6 +4,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard as Stat } from '@/components/shared/stat-card';
+import { GettingStarted } from '@/components/shared/getting-started';
 import { Card, CardContent } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
@@ -20,11 +21,16 @@ export default async function SalonDashboard() {
 
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const [{ data: closed }, { data: openTickets }, { data: appts }, { data: staffData }] = await Promise.all([
+  const [
+    { data: closed }, { data: openTickets }, { data: appts }, { data: staffData },
+    { count: servicesCount }, { count: ticketsTotal },
+  ] = await Promise.all([
     supabase.from('erp_salon_tickets').select('total, stylist_id').eq('status', 'closed').gte('closed_at', `${today}T00:00:00`),
     supabase.from('erp_salon_tickets').select('id').eq('status', 'open'),
     supabase.from('erp_salon_appointments').select('id').gte('scheduled_at', `${today}T00:00:00`).lte('scheduled_at', `${today}T23:59:59`).in('status', ['scheduled', 'confirmed']),
     supabase.rpc('erp_salon_staff'),
+    supabase.from('erp_salon_services').select('id', { count: 'exact', head: true }),
+    supabase.from('erp_salon_tickets').select('id', { count: 'exact', head: true }),
   ]);
 
   const tickets = (closed as { total: number; stylist_id: string | null }[]) ?? [];
@@ -44,6 +50,13 @@ export default async function SalonDashboard() {
           <Link href="/print/salon/day-closing" target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}><Printer className="h-4 w-4" /> تقفيل اليوم</Link>
         </div>
       } />
+      <GettingStarted
+        storageKey="kako_gs_salon"
+        steps={[
+          { label: 'عرّف خدمات الصالون وأسعارها', href: '/salon/services', done: (servicesCount ?? 0) > 0 },
+          { label: 'افتح أول تذكرة', href: '/salon/tickets', done: (ticketsTotal ?? 0) > 0 },
+        ]}
+      />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="مبيعات اليوم" value={formatCurrency(sales)} icon={Wallet} tone="success" />
         <Stat label="تذاكر مفتوحة" value={String(((openTickets as unknown[]) ?? []).length)} icon={Receipt} tone="info" href="/salon/tickets" />
