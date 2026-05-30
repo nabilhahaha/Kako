@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Pencil, Loader2, X, Search, UserRound, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Loader2, X, Search, UserRound, AlertTriangle, Printer } from 'lucide-react';
 import { ageFromBirthDate } from '@/lib/utils';
 import { upsertPatient } from '../actions';
 import { useI18n } from '@/lib/i18n/provider';
@@ -137,7 +137,18 @@ export function PatientsManager({ patients }: { patients: Patient[] }) {
                       <td className="p-3 text-center tabular-nums">{age != null ? t('clinic.patients.ageSuffix', { age }) : '—'}</td>
                       <td className="p-3 text-center" dir="ltr">{p.blood_type || '—'}</td>
                       <td className="p-3 text-end">
-                        <Button size="sm" variant="ghost" onClick={() => setEditing(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Link
+                            href={`/print/clinic/patient/${p.id}`}
+                            target="_blank"
+                            title={t('clinic.patients.printRecord')}
+                            aria-label={t('clinic.patients.printRecord')}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                          </Link>
+                          <Button size="sm" variant="ghost" onClick={() => setEditing(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        </div>
                       </td>
                     </tr>
                     );

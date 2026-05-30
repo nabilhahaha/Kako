@@ -51,6 +51,7 @@ export const ar = {
     patients: {
       title: 'المرضى',
       description: 'ملفات المرضى المسجّلين في العيادة.',
+      printRecord: 'طباعة الملف الطبي',
       noCompany: 'إدارة العيادة تتم من داخل حساب العيادة.',
       newButton: 'مريض جديد',
       searchPlaceholder: 'بحث بالاسم أو الهاتف…',
@@ -404,6 +405,7 @@ export const en = {
     patients: {
       title: 'Patients',
       description: 'Patient files registered in the clinic.',
+      printRecord: 'Print medical record',
       noCompany: 'Clinic management is available inside a clinic account.',
       newButton: 'New Patient',
       searchPlaceholder: 'Search by name or phone…',
