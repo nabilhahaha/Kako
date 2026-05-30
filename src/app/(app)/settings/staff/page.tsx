@@ -10,13 +10,18 @@ export default async function StaffPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
-  if (!hasPermission(ctx, 'settings.users') || !ctx.companyId) {
+  const selfBlocked = ctx.company ? ctx.company.allow_self_users === false : false;
+  if (!hasPermission(ctx, 'settings.users') || !ctx.companyId || selfBlocked) {
     return (
       <div>
         <PageHeader title="فريق العمل" />
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            {ctx.companyId ? 'هذه الصفحة متاحة لمدير الشركة فقط.' : 'إدارة فريق العمل تتم من داخل حساب الشركة.'}
+            {!ctx.companyId
+              ? 'إدارة فريق العمل تتم من داخل حساب الشركة.'
+              : selfBlocked
+                ? 'إدارة مستخدمي هذه الشركة يتولاها مزوّد الخدمة. تواصل معه لإضافة مستخدمين.'
+                : 'هذه الصفحة متاحة لمدير الشركة فقط.'}
           </CardContent>
         </Card>
       </div>

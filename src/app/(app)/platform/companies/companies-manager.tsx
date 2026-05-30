@@ -163,6 +163,11 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
                   </div>
                 </div>
               )}
+              <input type="hidden" name="_self" value="1" />
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="allow_self_users" defaultChecked className="h-4 w-4" />
+                السماح للشركة بإدارة مستخدميها بنفسها
+              </label>
               <Button type="submit" disabled={pending}>
                 {pending && <Loader2 className="h-4 w-4 animate-spin" />}
                 إنشاء الشركة

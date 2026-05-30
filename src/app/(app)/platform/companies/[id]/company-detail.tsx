@@ -26,6 +26,7 @@ import {
   setSubscriptionEnd,
   setCompanyPlan,
   setCompanyModule,
+  setCompanySelfUsers,
   resetUserPassword,
   addBranch,
   onboardAdmin,
@@ -202,6 +203,18 @@ export function CompanyDetail({
               {company.is_active ? 'إيقاف الشركة' : 'تفعيل الشركة'}
             </Button>
           </div>
+
+          <label className="mt-4 flex items-center gap-2 border-t pt-4 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={company.allow_self_users}
+              disabled={pending}
+              onChange={(e) => run(() => setCompanySelfUsers(company.id, e.target.checked), e.target.checked ? 'الشركة تدير مستخدميها' : 'المزوّد يدير المستخدمين')}
+            />
+            السماح للشركة بإدارة مستخدميها بنفسها
+            <span className="text-xs text-muted-foreground">(لو مقفول، أنت اللي تضيف مستخدمين هذه الشركة)</span>
+          </label>
 
           <div className="flex flex-wrap items-end gap-2">
             <Button variant="secondary" size="sm" disabled={pending} onClick={() => renewBy(1)}>

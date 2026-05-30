@@ -61,6 +61,7 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
       subscription_end,
       currency: 'EGP',
       is_active: true,
+      allow_self_users: formData.get('_self') ? formData.has('allow_self_users') : true,
     })
     .select('id')
     .single();
@@ -128,6 +129,18 @@ export async function updateCompany(formData: FormData): Promise<ActionResult> {
   if (error) return { ok: false, error: friendlyDbError(error) };
   await logAudit(supabase, { action: 'update', entity: 'company', entityId: id, details: { name }, companyId: id });
   revalidatePath('/platform/companies');
+  revalidatePath(`/platform/companies/${id}`);
+  return { ok: true };
+}
+
+/** Allow / forbid a tenant from managing its own users (else the vendor does). */
+export async function setCompanySelfUsers(id: string, allowed: boolean): Promise<ActionResult> {
+  const { error: authErr } = await requirePlatformOwner();
+  if (authErr) return { ok: false, error: authErr };
+  const supabase = await createClient();
+  const { error } = await supabase.from('erp_companies').update({ allow_self_users: allowed }).eq('id', id);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: allowed ? 'enable' : 'disable', entity: 'company_self_users', entityId: id, companyId: id });
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
 }

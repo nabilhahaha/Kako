@@ -25,6 +25,8 @@ async function requireManager(): Promise<
     return { ctx: null, error: 'هذه الصفحة متاحة لمدير الشركة فقط.' };
   if (!ctx.companyId)
     return { ctx: null, error: 'إدارة فريق العمل تتم من داخل حساب الشركة.' };
+  if (ctx.company && ctx.company.allow_self_users === false)
+    return { ctx: null, error: 'إدارة مستخدمي هذه الشركة يتولاها مزوّد الخدمة.' };
   return { ctx, error: null };
 }
 

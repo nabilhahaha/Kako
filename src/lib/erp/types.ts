@@ -135,6 +135,7 @@ export interface Company {
   website: string | null;
   currency: string;
   is_active: boolean;
+  allow_self_users: boolean;
   business_type: BusinessType | null;
   slug: string | null;
   plan_key: string | null;
