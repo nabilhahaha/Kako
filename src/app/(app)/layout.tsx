@@ -7,6 +7,7 @@ import { CommandPalette } from '@/components/layout/command-palette';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
+import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
 import { getT } from '@/lib/i18n/server';
 import { LockKeyhole, AlertTriangle, MessageCircle } from 'lucide-react';
@@ -25,6 +26,17 @@ export default async function AppLayout({
   // self-service onboarding to create their company (free trial).
   if (!ctx.isPlatformOwner && !ctx.isSuperAdmin && ctx.memberships.length === 0) {
     redirect('/onboarding');
+  }
+
+  // First-run setup wizard: a fresh company whose business type has a setup
+  // profile is sent to /setup once (owner only). Skipped/finished sets the flag.
+  if (
+    ctx.isSuperAdmin &&
+    ctx.company &&
+    ctx.company.setup_done === false &&
+    getSetupProfile(ctx.company.business_type)
+  ) {
+    redirect('/setup');
   }
 
   // Subscription gate: a tenant whose company is suspended or expired is

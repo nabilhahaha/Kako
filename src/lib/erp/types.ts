@@ -141,6 +141,7 @@ export interface Company {
   plan_key: string | null;
   subscription_start: string | null;
   subscription_end: string | null;
+  setup_done: boolean | null;
   created_at: string;
   updated_at: string;
 }
