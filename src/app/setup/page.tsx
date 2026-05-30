@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { resolveHomePath } from '@/lib/erp/home';
 import { getSetupProfile } from '@/lib/erp/setup-wizard';
+import { BUSINESS_TYPE_LABELS } from '@/lib/erp/subscription';
+import { getLocale } from '@/lib/i18n/server';
+import type { BusinessType } from '@/lib/erp/types';
 import { SetupWizard } from './setup-wizard';
 
 export default async function SetupPage() {
@@ -16,5 +19,15 @@ export default async function SetupPage() {
     redirect(resolveHomePath(ctx));
   }
 
-  return <SetupWizard profile={profile} companyName={ctx.company.name_ar || ctx.company.name} />;
+  const locale = await getLocale();
+  const bt = ctx.company.business_type as BusinessType | null;
+  const businessLabel = bt ? BUSINESS_TYPE_LABELS[bt][locale] : '';
+
+  return (
+    <SetupWizard
+      profile={profile}
+      companyName={ctx.company.name_ar || ctx.company.name}
+      businessLabel={businessLabel}
+    />
+  );
 }
