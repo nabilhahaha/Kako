@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { ListSearch } from '@/components/list-search';
 import { createTransfer, completeTransfer, cancelTransfer } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,11 +38,13 @@ export function TransfersManager({
   warehouses,
   products,
   branches,
+  q,
 }: {
   transfers: TransferRow[];
   warehouses: Warehouse[];
   products: ProductCatalog[];
   branches: Branch[];
+  q: string;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -222,7 +225,7 @@ export function TransfersManager({
         </Card>
       )}
 
-      {transfers.length === 0 ? (
+      {transfers.length === 0 && !q ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <ArrowLeftRight className="h-8 w-8" />
@@ -232,6 +235,12 @@ export function TransfersManager({
       ) : (
         <Card>
           <CardContent className="p-0">
+            <div className="flex flex-wrap items-center gap-2 border-b p-3">
+              <ListSearch placeholder="بحث برقم التحويل…" className="w-64" />
+            </div>
+            {transfers.length === 0 ? (
+              <p className="p-8 text-center text-sm text-muted-foreground">لا توجد نتائج مطابقة.</p>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
@@ -273,6 +282,7 @@ export function TransfersManager({
                 </tbody>
               </table>
             </div>
+            )}
           </CardContent>
         </Card>
       )}

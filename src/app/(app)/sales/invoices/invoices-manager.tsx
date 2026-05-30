@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { ListSearch } from '@/components/list-search';
 import { createInvoice, issueInvoice, recordPayment, cancelInvoice } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,7 @@ import type { Branch, ErpCustomer, InvoiceStatus, PaymentMethod, ProductCatalog 
 import type { InvoiceRow } from './page';
 import { useConfirm } from '@/components/confirm-dialog';
 import Link from 'next/link';
-import { Plus, Loader2, X, Receipt, CheckCircle2, Wallet, Printer, Search } from 'lucide-react';
+import { Plus, Loader2, X, Receipt, CheckCircle2, Wallet, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STATUS_VARIANT: Record<InvoiceStatus, 'secondary' | 'success' | 'default' | 'destructive' | 'warning'> = {
@@ -32,11 +33,15 @@ export function InvoicesManager({
   customers,
   branches,
   products,
+  q,
+  status,
 }: {
   invoices: InvoiceRow[];
   customers: ErpCustomer[];
   branches: Branch[];
   products: ProductCatalog[];
+  q: string;
+  status: string;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -47,24 +52,18 @@ export function InvoicesManager({
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<EditorLine[]>([newLine()]);
   const [payFor, setPayFor] = useState<InvoiceRow | null>(null);
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
   const [pending, startTransition] = useTransition();
 
   const canCreate = branches.length > 0 && customers.length > 0 && products.length > 0;
+  const hasFilter = Boolean(q) || status !== 'all';
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return invoices.filter((inv) => {
-      if (statusFilter !== 'all' && inv.status !== statusFilter) return false;
-      if (!q) return true;
-      const cust = inv.customer?.name_ar || inv.customer?.name || '';
-      return (
-        inv.invoice_number.toLowerCase().includes(q) ||
-        cust.toLowerCase().includes(q)
-      );
-    });
-  }, [invoices, query, statusFilter]);
+  const statusHref = (val: string) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (val !== 'all') params.set('status', val);
+    const qs = params.toString();
+    return qs ? `/sales/invoices?${qs}` : '/sales/invoices';
+  };
 
   function reset() {
     setCreating(false);
@@ -201,7 +200,7 @@ export function InvoicesManager({
         </Card>
       )}
 
-      {invoices.length === 0 ? (
+      {invoices.length === 0 && !hasFilter ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <Receipt className="h-8 w-8" />
@@ -212,30 +211,22 @@ export function InvoicesManager({
         <Card>
           <CardContent className="p-0">
             <div className="flex flex-wrap items-center gap-2 border-b p-3">
-              <div className="relative">
-                <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="بحث برقم الفاتورة أو العميل…"
-                  className="w-64 pr-9"
-                />
-              </div>
+              <ListSearch placeholder="بحث برقم الفاتورة…" className="w-64" />
               <div className="flex flex-wrap gap-1">
                 {([['all', 'الكل'], ['draft', 'مسودة'], ['issued', 'صادرة'], ['partially_paid', 'مدفوعة جزئياً'], ['paid', 'مدفوعة'], ['overdue', 'متأخرة'], ['cancelled', 'ملغاة']] as const).map(
                   ([val, lbl]) => (
-                    <button
+                    <Link
                       key={val}
-                      onClick={() => setStatusFilter(val as InvoiceStatus | 'all')}
-                      className={`rounded-full px-3 py-1 text-xs ${statusFilter === val ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
+                      href={statusHref(val)}
+                      className={`rounded-full px-3 py-1 text-xs ${status === val ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
                     >
                       {lbl}
-                    </button>
+                    </Link>
                   ),
                 )}
               </div>
             </div>
-            {filtered.length === 0 ? (
+            {invoices.length === 0 ? (
               <p className="p-8 text-center text-sm text-muted-foreground">لا توجد نتائج مطابقة.</p>
             ) : (
             <div className="overflow-x-auto">
@@ -253,7 +244,7 @@ export function InvoicesManager({
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((inv) => {
+                  {invoices.map((inv) => {
                     const remaining = Number(inv.net_amount) - Number(inv.paid_amount);
                     const canPay = ['issued', 'partially_paid', 'overdue'].includes(inv.status) && remaining > 0.001;
                     return (

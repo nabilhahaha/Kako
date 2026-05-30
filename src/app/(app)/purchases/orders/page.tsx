@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { Pager } from '@/components/pager';
 import type { Branch, ProductCatalog, PurchaseOrder, Supplier, Warehouse } from '@/lib/erp/types';
 import { PurchasesManager } from './purchases-manager';
 
@@ -14,17 +15,31 @@ export interface PORow extends PurchaseOrder {
   lines: POLineLite[];
 }
 
-export default async function PurchaseOrdersPage() {
+const PAGE_SIZE = 20;
+
+export default async function PurchaseOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>;
+}) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const sp = await searchParams;
+  const page = Math.max(1, Number(sp.page) || 1);
+  const q = (sp.q ?? '').trim();
+  const fromIdx = (page - 1) * PAGE_SIZE;
+
   const supabase = await createClient();
-  const [{ data: orders }, { data: suppliers }, { data: branches }, { data: products }, { data: warehouses }] =
+  let listQuery = supabase
+    .from('erp_purchase_orders')
+    .select('*, supplier:erp_suppliers(name, name_ar), lines:erp_purchase_order_lines(product_id, quantity)', { count: 'exact' })
+    .order('created_at', { ascending: false });
+  if (q) listQuery = listQuery.ilike('po_number', `%${q}%`);
+
+  const [{ data: orders, count }, { data: suppliers }, { data: branches }, { data: products }, { data: warehouses }] =
     await Promise.all([
-      supabase
-        .from('erp_purchase_orders')
-        .select('*, supplier:erp_suppliers(name, name_ar), lines:erp_purchase_order_lines(product_id, quantity)')
-        .order('created_at', { ascending: false }),
+      listQuery.range(fromIdx, fromIdx + PAGE_SIZE - 1),
       supabase.from('erp_suppliers').select('*').eq('is_active', true).order('name'),
       supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
       supabase.from('erp_products_catalog').select('*').eq('is_active', true).order('name'),
@@ -40,7 +55,9 @@ export default async function PurchaseOrdersPage() {
         branches={(branches as Branch[]) ?? []}
         products={(products as ProductCatalog[]) ?? []}
         warehouses={(warehouses as Warehouse[]) ?? []}
+        q={q}
       />
+      <Pager page={page} pageSize={PAGE_SIZE} total={count ?? 0} basePath="/purchases/orders" query={{ q: q || undefined }} />
     </div>
   );
 }

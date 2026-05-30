@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { ListSearch } from '@/components/list-search';
 import { createReturn, completeReturn, cancelReturn } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,11 +39,13 @@ export function ReturnsManager({
   customers,
   branches,
   products,
+  q,
 }: {
   returns: ReturnRow[];
   customers: ErpCustomer[];
   branches: Branch[];
   products: ProductCatalog[];
+  q: string;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -222,7 +225,7 @@ export function ReturnsManager({
         </Card>
       )}
 
-      {returns.length === 0 ? (
+      {returns.length === 0 && !q ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <Undo2 className="h-8 w-8" />
@@ -232,6 +235,12 @@ export function ReturnsManager({
       ) : (
         <Card>
           <CardContent className="p-0">
+            <div className="flex flex-wrap items-center gap-2 border-b p-3">
+              <ListSearch placeholder="بحث برقم المرتجع…" className="w-64" />
+            </div>
+            {returns.length === 0 ? (
+              <p className="p-8 text-center text-sm text-muted-foreground">لا توجد نتائج مطابقة.</p>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
@@ -275,6 +284,7 @@ export function ReturnsManager({
                 </tbody>
               </table>
             </div>
+            )}
           </CardContent>
         </Card>
       )}

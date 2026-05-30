@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ListSearch } from '@/components/list-search';
 import { createVoucher, postVoucher, cancelVoucher, type VoucherKind } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,37 +35,36 @@ const STATUS_VARIANT: Record<VoucherStatus, 'secondary' | 'success' | 'default' 
 };
 
 export function VouchersManager({
-  paymentVouchers,
-  receiptVouchers,
+  kind,
+  rows,
+  q,
   accounts,
   branches,
 }: {
-  paymentVouchers: VoucherRow[];
-  receiptVouchers: VoucherRow[];
+  kind: VoucherKind;
+  rows: VoucherRow[];
+  q: string;
   accounts: ChartOfAccount[];
   branches: Branch[];
 }) {
-  const [kind, setKind] = useState<VoucherKind>('payment');
-  const rows = kind === 'payment' ? paymentVouchers : receiptVouchers;
-
   return (
     <div className="space-y-4">
       <div className="flex w-fit rounded-lg border p-0.5">
-        <button
-          onClick={() => setKind('payment')}
+        <Link
+          href="/accounting/vouchers?kind=payment"
           className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm ${kind === 'payment' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
         >
           <ArrowUpCircle className="h-4 w-4" /> سندات صرف
-        </button>
-        <button
-          onClick={() => setKind('receipt')}
+        </Link>
+        <Link
+          href="/accounting/vouchers?kind=receipt"
           className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm ${kind === 'receipt' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
         >
           <ArrowDownCircle className="h-4 w-4" /> سندات قبض
-        </button>
+        </Link>
       </div>
 
-      <VoucherSection key={kind} kind={kind} rows={rows} accounts={accounts} branches={branches} />
+      <VoucherSection key={kind} kind={kind} rows={rows} q={q} accounts={accounts} branches={branches} />
     </div>
   );
 }
@@ -71,11 +72,13 @@ export function VouchersManager({
 function VoucherSection({
   kind,
   rows,
+  q,
   accounts,
   branches,
 }: {
   kind: VoucherKind;
   rows: VoucherRow[];
+  q: string;
   accounts: ChartOfAccount[];
   branches: Branch[];
 }) {
@@ -230,7 +233,7 @@ function VoucherSection({
         </Card>
       )}
 
-      {rows.length === 0 ? (
+      {rows.length === 0 && !q ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             لا توجد {isPayment ? 'سندات صرف' : 'سندات قبض'} بعد.
@@ -239,6 +242,12 @@ function VoucherSection({
       ) : (
         <Card>
           <CardContent className="p-0">
+            <div className="flex flex-wrap items-center gap-2 border-b p-3">
+              <ListSearch placeholder="بحث بالرقم أو الطرف…" className="w-64" />
+            </div>
+            {rows.length === 0 ? (
+              <p className="p-8 text-center text-sm text-muted-foreground">لا توجد نتائج مطابقة.</p>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
@@ -282,6 +291,7 @@ function VoucherSection({
                 </tbody>
               </table>
             </div>
+            )}
           </CardContent>
         </Card>
       )}

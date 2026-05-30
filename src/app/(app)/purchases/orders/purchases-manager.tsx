@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { ListSearch } from '@/components/list-search';
 import { createPurchaseOrder, cancelPurchaseOrder, receivePurchaseOrder } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,12 +32,14 @@ export function PurchasesManager({
   branches,
   products,
   warehouses,
+  q,
 }: {
   orders: PORow[];
   suppliers: Supplier[];
   branches: Branch[];
   products: ProductCatalog[];
   warehouses: Warehouse[];
+  q: string;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -160,7 +163,7 @@ export function PurchasesManager({
         </Card>
       )}
 
-      {orders.length === 0 ? (
+      {orders.length === 0 && !q ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <ShoppingCart className="h-8 w-8" />
@@ -170,6 +173,12 @@ export function PurchasesManager({
       ) : (
         <Card>
           <CardContent className="p-0">
+            <div className="flex flex-wrap items-center gap-2 border-b p-3">
+              <ListSearch placeholder="بحث برقم الأمر…" className="w-64" />
+            </div>
+            {orders.length === 0 ? (
+              <p className="p-8 text-center text-sm text-muted-foreground">لا توجد نتائج مطابقة.</p>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
@@ -211,6 +220,7 @@ export function PurchasesManager({
                 </tbody>
               </table>
             </div>
+            )}
           </CardContent>
         </Card>
       )}
