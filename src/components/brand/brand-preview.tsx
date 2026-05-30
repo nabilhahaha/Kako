@@ -3,13 +3,24 @@ import {
 } from 'lucide-react';
 
 /** Decorative, language-neutral hero for the auth brand panel: a translucent
- *  laptop showing the app (KPI tiles + lists + a soft ring — no bar chart),
- *  with a strip of the verticals it serves beneath it. Pure CSS, no images. */
+ *  device showing the app placed in a soft "workspace" scene (desk + plant +
+ *  light), with the verticals it serves beneath. Pure CSS/SVG — no images. */
 export function BrandPreview() {
   return (
-    <div className="relative mx-auto w-[23rem] max-w-full select-none" aria-hidden>
-      {/* soft accent glow behind the device */}
-      <div className="absolute -end-10 -top-10 -z-10 h-36 w-36 rounded-full blur-3xl" style={{ background: 'rgba(232,176,75,0.28)' }} />
+    <div className="relative mx-auto w-[24rem] max-w-full select-none" aria-hidden>
+      {/* window light */}
+      <div className="absolute -end-12 -top-12 -z-10 h-44 w-44 rounded-full blur-3xl" style={{ background: 'rgba(232,176,75,0.30)' }} />
+
+      {/* potted plant (scene prop, behind the device) */}
+      <svg className="absolute -start-4 bottom-8 -z-10 h-28 w-20 text-white/15" viewBox="0 0 80 110" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M40 70 C40 50 30 38 18 30" />
+        <path d="M40 70 C40 48 52 36 64 30" />
+        <path d="M40 72 C40 56 40 44 40 26" />
+        <path d="M18 30 C8 24 8 14 14 8 C22 12 24 22 18 30 Z" />
+        <path d="M64 30 C74 24 74 14 68 8 C60 12 58 22 64 30 Z" />
+        <path d="M40 26 C34 16 38 8 46 4 C50 14 48 22 40 26 Z" />
+        <path d="M28 72 h24 l-3 22 a3 3 0 0 1 -3 3 h-12 a3 3 0 0 1 -3 -3 Z" />
+      </svg>
 
       {/* ── Laptop screen ── */}
       <div className="rounded-t-2xl border border-white/15 bg-white/[0.06] p-2.5 shadow-2xl backdrop-blur-md">
@@ -33,7 +44,6 @@ export function BrandPreview() {
             </div>
 
             <div className="flex-1 space-y-3">
-              {/* KPI tiles */}
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { icon: TrendingUp, v: '٤٨٫٢ك' },
@@ -48,7 +58,6 @@ export function BrandPreview() {
                 ))}
               </div>
 
-              {/* list panel + soft ring (no chart) */}
               <div className="flex gap-3">
                 <div className="flex-1 space-y-2.5 rounded-lg border border-white/10 bg-white/[0.04] p-2.5">
                   {[0, 1, 2].map((i) => (
@@ -74,14 +83,17 @@ export function BrandPreview() {
         </div>
       </div>
 
-      {/* ── Laptop base (wider than the screen) ── */}
+      {/* laptop base */}
       <div className="flex justify-center">
-        <div className="relative h-2.5 w-[26.5rem] max-w-[116%] rounded-b-2xl border-x border-b border-white/15 bg-white/10 shadow-lg backdrop-blur-md">
+        <div className="relative h-2.5 w-[27rem] max-w-[116%] rounded-b-2xl border-x border-b border-white/15 bg-white/10 shadow-lg backdrop-blur-md">
           <span className="absolute start-1/2 top-0 h-1 w-16 -translate-x-1/2 rounded-b-lg bg-white/15" />
         </div>
       </div>
 
-      {/* ── Verticals it serves (brand identity strip) ── */}
+      {/* desk surface line */}
+      <div className="mx-auto mt-1 h-px w-[30rem] max-w-[128%] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+      {/* verticals it serves (brand identity) */}
       <div className="mt-7 flex items-center justify-center gap-2.5">
         {[Stethoscope, UtensilsCrossed, Pill, Scissors, ShoppingBag].map((Icon, i) => (
           <span key={i} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/12 bg-white/10 text-white/85 backdrop-blur">
