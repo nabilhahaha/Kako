@@ -14,13 +14,16 @@ import { formatCurrency } from '@/lib/utils';
 import type { ProductCatalog, ProductCategory } from '@/lib/erp/types';
 import { Plus, Pencil, Loader2, X, Package, Search, Tags } from 'lucide-react';
 import { toast } from 'sonner';
+import { DrugCatalogPicker } from './drug-catalog-picker';
 
 export function ProductsManager({
   products,
   categories,
+  showDrugCatalog = false,
 }: {
   products: ProductCatalog[];
   categories: ProductCategory[];
+  showDrugCatalog?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<ProductCatalog | null | 'new'>(null);
@@ -104,6 +107,7 @@ export function ProductsManager({
         <Button variant="outline" onClick={() => setShowCategory((s) => !s)}>
           <Tags className="h-4 w-4" /> التصنيفات ({categories.length})
         </Button>
+        {showDrugCatalog && <DrugCatalogPicker />}
         <div className="relative ms-auto">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

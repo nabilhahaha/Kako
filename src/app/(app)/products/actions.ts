@@ -9,6 +9,33 @@ function num(v: FormDataEntryValue | null): number {
   return isNaN(n) ? 0 : n;
 }
 
+/** Bulk-add drugs picked from the Egyptian drug reference into this company's
+ *  product catalog (market price → suggested sell price). Codes are generated. */
+export async function addDrugsToProducts(
+  items: { name: string; name_ar?: string | null; detail?: string | null; price?: number | null }[],
+): Promise<ActionResult & { count?: number }> {
+  const { error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  if (!items?.length) return { ok: false, error: 'لم يتم اختيار أي صنف.' };
+
+  const supabase = await createClient();
+  const stamp = Date.now().toString(36).toUpperCase();
+  const rows = items.slice(0, 200).map((d, i) => ({
+    code: `RX${stamp}${i}`,
+    name: (d.name || '').slice(0, 200),
+    name_ar: d.name_ar || null,
+    description: d.detail || null,
+    sell_price: d.price ?? 0,
+    unit: 'علبة',
+    is_active: true,
+  }));
+
+  const { error } = await supabase.from('erp_products_catalog').insert(rows);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/products');
+  return { ok: true, count: rows.length };
+}
+
 export async function upsertProduct(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };

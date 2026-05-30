@@ -24,6 +24,7 @@ export default async function ProductsPage() {
       <ProductsManager
         products={(products as ProductCatalog[]) ?? []}
         categories={(categories as ProductCategory[]) ?? []}
+        showDrugCatalog={ctx.modules.includes('pharmacy') || ctx.modules.includes('clinic')}
       />
     </div>
   );

@@ -9,6 +9,7 @@ export interface ReferenceItem {
   name_ar: string | null;
   detail: string | null;
   kind: string;
+  price: number | null;
 }
 
 const DRUG_CSV_URL =
@@ -27,7 +28,7 @@ export async function searchClinicalReference(kinds: string[], q: string): Promi
   const like = `%${term}%`;
   const { data } = await supabase
     .from('erp_clinic_reference')
-    .select('name, name_ar, detail, kind')
+    .select('name, name_ar, detail, kind, price')
     .in('kind', kinds)
     .eq('is_active', true)
     .or(`name.ilike.${like},name_ar.ilike.${like},detail.ilike.${like}`)
