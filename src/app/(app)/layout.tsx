@@ -29,9 +29,10 @@ export default async function AppLayout({
   }
 
   // First-run setup wizard: a fresh company whose business type has a setup
-  // profile is sent to /setup once (owner only). Skipped/finished sets the flag.
+  // profile is sent to /setup once. The company admin (owner) runs it.
+  const isCompanyAdmin = ctx.memberships.some((m) => m.role === 'admin');
   if (
-    ctx.isSuperAdmin &&
+    isCompanyAdmin &&
     ctx.company &&
     ctx.company.setup_done === false &&
     getSetupProfile(ctx.company.business_type)

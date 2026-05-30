@@ -8,10 +8,11 @@ export default async function SetupPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
-  // Only the company owner runs setup; everyone else (or no profile / already
-  // done) goes to their normal home.
+  // Only the company owner (admin) runs setup; everyone else (or no profile /
+  // already done) goes to their normal home.
+  const isCompanyAdmin = ctx.memberships.some((m) => m.role === 'admin');
   const profile = ctx.company ? getSetupProfile(ctx.company.business_type) : null;
-  if (!ctx.isSuperAdmin || !ctx.company || ctx.company.setup_done !== false || !profile) {
+  if (!isCompanyAdmin || !ctx.company || ctx.company.setup_done !== false || !profile) {
     redirect(resolveHomePath(ctx));
   }
 
