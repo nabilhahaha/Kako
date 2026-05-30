@@ -313,6 +313,8 @@ the same books.
 | 3 | Dynamic dashboard builder (widgets per role/branch/department) | 🔜 |
 | 4 | Custom fields / form builder | 🔜 |
 | 4 | AI Business Assistant (reports/sales/inventory Q&A) — env-gated arch | 🔜 |
+| 5 | Data Integration Layer — Excel/CSV import (map/validate/import) + saved templates | 🔜 (see `docs/INTEGRATION.md`) |
+| 5 | External integration — REST API, per-company API keys, webhooks, sync logs | 🔜 (see `docs/INTEGRATION.md`) |
 | Ops | Real staging env + managed backups/PITR; ETA e-invoicing go-live | owner action |
 
 **Guiding principle for every phase:** one shared core, dynamic configuration,

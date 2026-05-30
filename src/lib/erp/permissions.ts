@@ -20,6 +20,7 @@ export type Permission =
   | 'accounting.post' // post vouchers / journals
   | 'settings.branches' // company & branches
   | 'settings.users' // users, roles, hierarchy
+  | 'integrations.manage' // data import, API keys, webhooks, sync (Data Integration Layer)
   | 'reports.view'
   | 'hotel.manage' // rooms & bookings (hotel / furnished apartments)
   | 'clinic.manage' // full clinic access (admin/manager) — implies reception + doctor
@@ -52,6 +53,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'reports.view': { en: 'Reports', ar: 'التقارير', group: 'accounting' },
   'settings.branches': { en: 'Manage branches', ar: 'إدارة الفروع', group: 'settings' },
   'settings.users': { en: 'Manage users and permissions', ar: 'إدارة المستخدمين والصلاحيات', group: 'settings' },
+  'integrations.manage': { en: 'Manage data import & integrations', ar: 'إدارة استيراد البيانات والتكاملات', group: 'settings' },
   'hotel.manage': { en: 'Manage rooms and bookings', ar: 'إدارة الغرف والحجوزات', group: 'hotel' },
   'clinic.manage': { en: 'Full clinic management', ar: 'إدارة العيادة بالكامل', group: 'clinic' },
   'clinic.reception': { en: 'Reception (appointments/registration/billing)', ar: 'الاستقبال (مواعيد/تسجيل/تحصيل)', group: 'clinic' },
