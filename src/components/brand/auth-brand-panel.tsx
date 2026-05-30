@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { AuthAmbientBg } from './auth-ambient-bg';
+import { BrandPreview } from './brand-preview';
 import { useI18n } from '@/lib/i18n/provider';
 
 const HIGHLIGHTS: Record<'login' | 'register', { icon: LucideIcon; key: string }[]> = {
@@ -39,11 +40,7 @@ export function AuthBrandPanel({ variant = 'login' }: { variant?: 'login' | 'reg
     <div className="relative hidden overflow-hidden lg:flex lg:items-center lg:justify-center">
       <AuthAmbientBg />
 
-      <div className="relative z-10 max-w-md px-12 text-white">
-        <div className="mb-9 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-white/25 bg-white/10 text-xl font-bold tracking-tight shadow-lg backdrop-blur" dir="ltr">
-          AMS
-        </div>
-
+      <div className="relative z-10 w-full max-w-md px-12 text-white">
         <h2 className="text-4xl font-bold leading-[1.25]">
           {line1}
           <br />
@@ -51,7 +48,12 @@ export function AuthBrandPanel({ variant = 'login' }: { variant?: 'login' | 'reg
         </h2>
         <p className="mt-4 leading-relaxed text-white/80">{subtext}</p>
 
-        <ul className="mt-10 space-y-3">
+        {/* Product mockup — the creative hero visual */}
+        <div className="my-10">
+          <BrandPreview />
+        </div>
+
+        <ul className="mt-6 space-y-3">
           {HIGHLIGHTS[variant].map((h) => (
             <li key={h.key} className="flex items-center gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 backdrop-blur">
