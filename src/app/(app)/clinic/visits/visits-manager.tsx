@@ -9,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Loader2, X, Stethoscope, CheckCircle2, Printer, Play, Clock, ClipboardList, FileText } from 'lucide-react';
+import { Plus, Loader2, X, Stethoscope, CheckCircle2, Printer, Play, Clock, ClipboardList, FileText, Activity, Pill, FlaskConical, CalendarClock } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { usePrompt } from '@/components/prompt-dialog';
+import { useConfirm } from '@/components/confirm-dialog';
 import { createVisit, updateVisit, setVisitStatus, recordVisitPayment } from '../actions';
 import {
   type ClinicVisit as Visit,
@@ -202,10 +203,39 @@ export function ExamForm({
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void; onCancel: () => void;
 }) {
   const { t } = useI18n();
+  const confirm = useConfirm();
+
+  // Guard: warn the doctor before finishing a visit that has no clinical data
+  // entered (no diagnosis AND no prescription AND no tests). We re-submit the
+  // same form element after confirmation (requestSubmit bypasses this handler's
+  // guard via a one-shot flag) so the existing onSubmit contract is unchanged.
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const form = e.currentTarget;
+    if (form.dataset.confirmed === '1') {
+      form.dataset.confirmed = '';
+      onSubmit(e);
+      return;
+    }
+    e.preventDefault();
+    const fd = new FormData(form);
+    const isEmpty = (k: string) => !String(fd.get(k) ?? '').trim();
+    if (isEmpty('diagnosis') && isEmpty('prescription') && isEmpty('tests')) {
+      const go = await confirm({
+        title: t('clinic.visits.emptyWarnTitle'),
+        message: t('clinic.visits.emptyWarnBody'),
+        confirmText: t('clinic.visits.emptyWarnConfirm'),
+        cancelText: t('clinic.visits.cancel'),
+      });
+      if (!go) return;
+    }
+    form.dataset.confirmed = '1';
+    form.requestSubmit();
+  }
+
   return (
     <Card className="border-primary/40">
       <CardContent className="pt-6">
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input type="hidden" name="id" value={exam.id} />
           <div className="flex items-center justify-between">
             <h3 className="flex items-center gap-2 font-semibold"><ClipboardList className="h-4 w-4" /> {t('clinic.visits.examFormTitle', { name: exam.patient?.name ?? '' })}</h3>
@@ -213,11 +243,19 @@ export function ExamForm({
               <FileText className="h-3.5 w-3.5" /> {t('clinic.visits.fullRecordLink')}
             </Link>
           </div>
-          <VitalsFields v={exam} />
-          <div className="space-y-1"><Label>{t('clinic.visits.fieldComplaint')}</Label><Input name="complaint" defaultValue={exam.complaint ?? ''} /></div>
-          <div className="space-y-1"><Label>{t('clinic.visits.fieldDiagnosis')}</Label><textarea name="diagnosis" rows={2} defaultValue={exam.diagnosis ?? ''} className={taCls} /></div>
-          <div className="space-y-1">
-            <Label>{t('clinic.visits.fieldPrescription')}</Label>
+          {/* Section: vital signs */}
+          <ExamSection icon={Activity} title={t('clinic.visits.sectionVitals')}>
+            <VitalsFields v={exam} />
+          </ExamSection>
+
+          {/* Section: assessment */}
+          <ExamSection icon={Stethoscope} title={t('clinic.visits.sectionAssessment')}>
+            <div className="space-y-1"><Label>{t('clinic.visits.fieldComplaint')}</Label><Input name="complaint" defaultValue={exam.complaint ?? ''} /></div>
+            <div className="space-y-1"><Label>{t('clinic.visits.fieldDiagnosis')}</Label><textarea name="diagnosis" rows={2} defaultValue={exam.diagnosis ?? ''} className={taCls} /></div>
+          </ExamSection>
+
+          {/* Section: prescription */}
+          <ExamSection icon={Pill} title={t('clinic.visits.fieldPrescription')}>
             <ClinicalListField
               name="prescription"
               kinds={['drug']}
@@ -225,10 +263,12 @@ export function ExamForm({
               searchPlaceholder={t('clinic.visits.prescriptionSearchPlaceholder')}
               manualLabel={t('clinic.visits.prescriptionManualLabel')}
               itemPlaceholder={t('clinic.visits.prescriptionItemPlaceholder')}
+              withDosage
             />
-          </div>
-          <div className="space-y-1">
-            <Label>{t('clinic.visits.fieldTests')}</Label>
+          </ExamSection>
+
+          {/* Section: tests */}
+          <ExamSection icon={FlaskConical} title={t('clinic.visits.fieldTests')}>
             <ClinicalListField
               name="tests"
               kinds={['lab', 'radiology']}
@@ -236,14 +276,16 @@ export function ExamForm({
               searchPlaceholder={t('clinic.visits.testsSearchPlaceholder')}
               manualLabel={t('clinic.visits.testsManualLabel')}
             />
-          </div>
-          <div className="rounded-md border bg-secondary/20 p-3">
+          </ExamSection>
+
+          {/* Section: follow-up */}
+          <ExamSection icon={CalendarClock} title={t('clinic.visits.followupSection')}>
             <div className="space-y-1 sm:max-w-xs"><Label>{t('clinic.visits.followupSection')}</Label><Input name="followup_date" type="date" dir="ltr" defaultValue={exam.followup_date ?? ''} /></div>
             <label className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
               <input type="checkbox" name="book_followup" value="1" defaultChecked className="h-4 w-4" />
               {t('clinic.visits.followupAutoBook')}
             </label>
-          </div>
+          </ExamSection>
           <div className="flex gap-2">
             <Button type="submit" disabled={pending}><CheckCircle2 className="h-4 w-4" /> {t('clinic.visits.saveAndFinish')}</Button>
             <Button type="button" variant="outline" onClick={onCancel}>{t('clinic.visits.cancel')}</Button>
@@ -251,6 +293,19 @@ export function ExamForm({
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+/** A titled, bordered section inside the exam form — keeps the doctor's screen
+ *  scannable (vitals / assessment / prescription / tests / follow-up). */
+function ExamSection({ icon: Icon, title, children }: { icon: typeof Clock; title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-lg border bg-secondary/10 p-3">
+      <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+        <Icon className="h-4 w-4 text-primary" /> {title}
+      </h4>
+      <div className="space-y-2">{children}</div>
+    </section>
   );
 }
 

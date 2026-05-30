@@ -10,6 +10,22 @@ import { useI18n } from '@/lib/i18n/provider';
  *  lab / radiology). The doctor can add several items, pick from suggestions, or
  *  type anything manually. Serializes to a newline-joined value under `name` so
  *  it stays compatible with the plain-text prescription/tests columns. */
+/** Common dosage / usage instructions a doctor appends to a prescription line.
+ *  Value is the Arabic text appended after the drug; label shown in the menu. */
+export const DOSAGE_OPTIONS = [
+  'مرة يومياً',
+  'مرتين يومياً',
+  '٣ مرات يومياً',
+  '٤ مرات يومياً',
+  'كل ٨ ساعات',
+  'كل ١٢ ساعة',
+  'قبل الأكل',
+  'بعد الأكل',
+  'على الريق',
+  'قبل النوم',
+  'عند اللزوم',
+];
+
 export function ClinicalListField({
   name,
   kinds,
@@ -17,6 +33,7 @@ export function ClinicalListField({
   searchPlaceholder,
   manualLabel,
   itemPlaceholder,
+  withDosage = false,
 }: {
   name: string;
   kinds: string[];
@@ -24,6 +41,8 @@ export function ClinicalListField({
   searchPlaceholder?: string;
   manualLabel?: string;
   itemPlaceholder?: string;
+  /** Show a quick dosage/usage picker on each line (for prescriptions). */
+  withDosage?: boolean;
 }) {
   const { t } = useI18n();
   const resolvedManualLabel = manualLabel ?? t('clinic.listField.manualLabel');
@@ -83,6 +102,23 @@ export function ClinicalListField({
                 placeholder={itemPlaceholder}
                 className="h-9"
               />
+              {withDosage && (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const dose = e.target.value;
+                    if (!dose) return;
+                    setLines((ls) => ls.map((x, j) => (j === i ? `${x.replace(/\s+$/, '')} — ${dose}` : x)));
+                  }}
+                  title={t('clinic.listField.dosageLabel')}
+                  className="h-9 shrink-0 rounded-md border border-input bg-background px-2 text-xs"
+                >
+                  <option value="">{t('clinic.listField.dosageLabel')}</option>
+                  {DOSAGE_OPTIONS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              )}
               <button
                 type="button"
                 onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}

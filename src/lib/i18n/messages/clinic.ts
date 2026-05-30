@@ -178,6 +178,11 @@ export const ar = {
       followupAutoBook: 'احجز موعداً تلقائياً بهذا التاريخ (يظهر للاستقبال)',
       vitalsToggle: 'العلامات الحيوية (اختياري)',
       saveAndFinish: 'حفظ وإنهاء الكشف',
+      sectionVitals: 'العلامات الحيوية',
+      sectionAssessment: 'الشكوى والتشخيص',
+      emptyWarnTitle: 'الكشف بدون بيانات',
+      emptyWarnBody: 'لم تُدخل تشخيصاً أو روشتة أو تحاليل. هل تريد إنهاء الكشف بدون بيانات؟',
+      emptyWarnConfirm: 'إنهاء بدون بيانات',
       // Payment prompt
       collectTitle: 'تحصيل رسوم الكشف',
       collectMessage: '{name} — المتبقي {remaining} ج.م',
@@ -319,6 +324,7 @@ export const ar = {
     listField: {
       deleteAriaLabel: 'حذف',
       manualLabel: 'إضافة كما هو',
+      dosageLabel: 'طريقة الاستخدام',
     },
     // ── Test templates ────────────────────────────────────────────────────
     testTemplates: {
@@ -532,6 +538,11 @@ export const en = {
       followupAutoBook: 'Auto-book an appointment on this date (visible to reception)',
       vitalsToggle: 'Vital Signs (optional)',
       saveAndFinish: 'Save & Finish Visit',
+      sectionVitals: 'Vital Signs',
+      sectionAssessment: 'Complaint & Diagnosis',
+      emptyWarnTitle: 'Visit has no data',
+      emptyWarnBody: 'You have not entered a diagnosis, prescription, or tests. Finish the visit anyway?',
+      emptyWarnConfirm: 'Finish without data',
       // Payment prompt
       collectTitle: 'Collect Visit Fee',
       collectMessage: '{name} — Remaining {remaining} EGP',
@@ -673,6 +684,7 @@ export const en = {
     listField: {
       deleteAriaLabel: 'Delete',
       manualLabel: 'Add as-is',
+      dosageLabel: 'Usage',
     },
     // ── Test templates ────────────────────────────────────────────────────
     testTemplates: {
