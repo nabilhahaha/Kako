@@ -76,7 +76,7 @@ export function Sidebar({
       {/* Mobile toggle */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg lg:hidden"
+        className="fixed bottom-4 end-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg lg:hidden"
         aria-label={t('common.menu')}
       >
         <Menu className="h-5 w-5" />
@@ -89,10 +89,10 @@ export function Sidebar({
             className="absolute inset-0 bg-black/40"
             onClick={() => setOpen(false)}
           />
-          <aside className="absolute inset-y-0 right-0 w-72 border-l bg-card shadow-xl">
+          <aside className="absolute inset-y-0 start-0 w-72 border-e bg-card shadow-xl">
             <button
               onClick={() => setOpen(false)}
-              className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-md hover:bg-secondary"
+              className="absolute end-3 top-3 flex h-8 w-8 items-center justify-center rounded-md hover:bg-secondary"
               aria-label={t('common.close')}
             >
               <X className="h-4 w-4" />
@@ -103,7 +103,7 @@ export function Sidebar({
       )}
 
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-l bg-card lg:block">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-e bg-card lg:block">
         {content}
       </aside>
     </>
