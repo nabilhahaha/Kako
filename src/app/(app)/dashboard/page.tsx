@@ -4,6 +4,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { GettingStarted } from '@/components/shared/getting-started';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { INVOICE_STATUS_LABELS } from '@/lib/erp/constants';
@@ -100,6 +101,14 @@ export default async function DashboardPage() {
   return (
     <div>
       <PageHeader title={`أهلاً ${name} 👋`} description="نظرة عامة على نشاط الشركة" />
+
+      <GettingStarted
+        steps={[
+          { label: 'أضف أول منتج', href: '/products', done: (products?.length ?? 0) > 0 },
+          { label: 'أضف أول عميل', href: '/customers', done: (customers?.length ?? 0) > 0 },
+          { label: 'أنشئ أول فاتورة', href: '/sales/invoices', done: recent.length > 0 },
+        ]}
+      />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="مبيعات هذا الشهر" value={formatCurrency(monthSales)} icon={TrendingUp} tone="success" href="/sales/invoices" />

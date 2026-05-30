@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/topbar';
+import { CommandPalette } from '@/components/layout/command-palette';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
@@ -71,6 +72,12 @@ export default async function AppLayout({
     <ConfirmProvider>
      <PromptProvider>
       <div className="flex min-h-screen bg-secondary/30">
+        <CommandPalette
+          permissions={ctx.permissions}
+          isSuperAdmin={ctx.isSuperAdmin}
+          isPlatformOwner={ctx.isPlatformOwner}
+          modules={ctx.modules}
+        />
         <Sidebar
           permissions={ctx.permissions}
           isSuperAdmin={ctx.isSuperAdmin}

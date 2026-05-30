@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LineItemsEditor, newLine, type EditorLine } from '@/components/sales/line-items-editor';
+import { FieldError } from '@/components/ui/field-error';
+import { Tooltip } from '@/components/ui/tooltip';
 import { INVOICE_STATUS_LABELS, PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Branch, ErpCustomer, InvoiceStatus, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
@@ -52,6 +54,7 @@ export function InvoicesManager({
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<EditorLine[]>([newLine()]);
   const [payFor, setPayFor] = useState<InvoiceRow | null>(null);
+  const [errors, setErrors] = useState<{ customer?: string; lines?: string }>({});
   const [pending, startTransition] = useTransition();
 
   const canCreate = branches.length > 0 && customers.length > 0 && products.length > 0;
@@ -71,9 +74,18 @@ export function InvoicesManager({
     setDueDate('');
     setNotes('');
     setLines([newLine()]);
+    setErrors({});
   }
 
   function onCreate() {
+    // Inline validation before hitting the server.
+    const next: { customer?: string; lines?: string } = {};
+    if (!customerId) next.customer = 'اختر العميل أولاً.';
+    const validLines = lines.filter((l) => l.product_id && Number(l.quantity) > 0);
+    if (validLines.length === 0) next.lines = 'أضف صنفاً واحداً على الأقل بكمية صحيحة.';
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+
     startTransition(async () => {
       const res = await createInvoice({
         branch_id: branchId,
@@ -171,12 +183,13 @@ export function InvoicesManager({
               )}
               <div className="space-y-1">
                 <Label className="text-xs">العميل *</Label>
-                <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); setErrors((x) => ({ ...x, customer: undefined })); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                   <option value="">اختر عميلاً…</option>
                   {customers.map((c) => (
                     <option key={c.id} value={c.id}>{c.name_ar || c.name}</option>
                   ))}
                 </select>
+                <FieldError>{errors.customer}</FieldError>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">تاريخ الاستحقاق</Label>
@@ -188,7 +201,8 @@ export function InvoicesManager({
               </div>
             </div>
 
-            <LineItemsEditor products={products} lines={lines} onChange={setLines} />
+            <LineItemsEditor products={products} lines={lines} onChange={(l) => { setLines(l); setErrors((x) => ({ ...x, lines: undefined })); }} />
+            <FieldError>{errors.lines}</FieldError>
 
             <div className="flex gap-2">
               <Button onClick={onCreate} disabled={pending}>
@@ -260,9 +274,11 @@ export function InvoicesManager({
                         </td>
                         <td className="p-3">
                           <div className="flex justify-end gap-1">
-                            <Link href={`/print/invoices/${inv.id}`} target="_blank" className="rounded-md p-1.5 hover:bg-secondary" aria-label="طباعة" title="طباعة">
-                              <Printer className="h-4 w-4" />
-                            </Link>
+                            <Tooltip label="طباعة">
+                              <Link href={`/print/invoices/${inv.id}`} target="_blank" className="rounded-md p-1.5 hover:bg-secondary" aria-label="طباعة">
+                                <Printer className="h-4 w-4" />
+                              </Link>
+                            </Tooltip>
                             {inv.status === 'draft' && (
                               <>
                                 <Button variant="ghost" size="sm" disabled={pending} onClick={() => onIssue(inv.id)} className="text-xs">

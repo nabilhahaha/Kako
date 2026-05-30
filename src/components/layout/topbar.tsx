@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { BRANCH_ROLES } from '@/lib/erp/constants';
 import { initialsFromName } from '@/lib/utils';
 import type { BranchRole } from '@/lib/erp/types';
-import { LogOut, ChevronDown, ShieldCheck } from 'lucide-react';
+import { LogOut, ChevronDown, ShieldCheck, Search } from 'lucide-react';
 
 interface TopBarProps {
   fullName: string | null;
@@ -54,6 +54,17 @@ export function TopBar({
         )}
       </div>
 
+      <div className="flex items-center gap-2">
+      <button
+        onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
+        className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
+        aria-label="بحث"
+      >
+        <Search className="h-4 w-4" />
+        <span className="hidden sm:inline">بحث…</span>
+        <kbd className="hidden rounded border bg-secondary px-1.5 py-0.5 text-[10px] md:inline" dir="ltr">Ctrl K</kbd>
+      </button>
+
       <div className="relative" ref={ref}>
         <button
           onClick={() => setOpen((o) => !o)}
@@ -87,6 +98,7 @@ export function TopBar({
             </form>
           </div>
         )}
+      </div>
       </div>
     </header>
   );

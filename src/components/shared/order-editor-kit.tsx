@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import { Plus, Minus, Trash2, Printer, X, CheckCircle2, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
@@ -33,11 +34,15 @@ export function ServiceTileGrid({ items, disabled, onPick }: { items: TileItem[]
 export function QtyStepper({ qty, disabled, onDec, onInc }: { qty: number; disabled?: boolean; onDec: () => void; onInc: () => void }) {
   return (
     <div className="flex items-center gap-1">
-      <Button size="icon" variant="outline" className="h-6 w-6" disabled={disabled} onClick={onDec}>
-        {qty <= 1 ? <Trash2 className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-      </Button>
+      <Tooltip label={qty <= 1 ? 'حذف الصنف' : 'إنقاص'}>
+        <Button size="icon" variant="outline" className="h-6 w-6" disabled={disabled} onClick={onDec}>
+          {qty <= 1 ? <Trash2 className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+        </Button>
+      </Tooltip>
       <span className="w-5 text-center tabular-nums">{qty}</span>
-      <Button size="icon" variant="outline" className="h-6 w-6" disabled={disabled} onClick={onInc}><Plus className="h-3 w-3" /></Button>
+      <Tooltip label="زيادة">
+        <Button size="icon" variant="outline" className="h-6 w-6" disabled={disabled} onClick={onInc}><Plus className="h-3 w-3" /></Button>
+      </Tooltip>
     </div>
   );
 }
@@ -78,8 +83,12 @@ export function CheckoutFooter({
       <Button className="flex-1" disabled={pending || !canCheckout} onClick={onCheckout}>
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {checkoutLabel}
       </Button>
-      <Link href={printHref} target="_blank" className={buttonVariants({ variant: 'outline' })}><Printer className="h-4 w-4" /></Link>
-      <Button variant="ghost" disabled={pending} onClick={onCancel}><X className="h-4 w-4" /></Button>
+      <Tooltip label="طباعة">
+        <Link href={printHref} target="_blank" className={buttonVariants({ variant: 'outline' })}><Printer className="h-4 w-4" /></Link>
+      </Tooltip>
+      <Tooltip label="إلغاء">
+        <Button variant="ghost" disabled={pending} onClick={onCancel}><X className="h-4 w-4" /></Button>
+      </Tooltip>
     </div>
   );
 }
