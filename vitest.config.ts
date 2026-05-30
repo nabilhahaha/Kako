@@ -8,5 +8,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Playwright owns the e2e/ specs; keep Vitest from ever picking them up.
+    exclude: ['node_modules/**', 'dist/**', '.next/**', 'e2e/**'],
   },
 });

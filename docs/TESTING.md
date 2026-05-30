@@ -1,5 +1,9 @@
 # Testing
 
+> **End-to-end (Playwright) tests** live under `e2e/` and are documented
+> separately in [`docs/E2E.md`](./E2E.md) — run them with `npm run test:e2e`.
+> They are isolated from the Vitest suites below (Vitest excludes `e2e/**`).
+
 ## Unit tests (always run)
 
 ```bash

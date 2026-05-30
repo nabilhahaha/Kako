@@ -1,0 +1,120 @@
+name: Migrate database
+
+# Applies supabase/migrations/*.sql in filename order, mirroring the ordering
+# used by supabase/ci/setup-test-db.sh.
+#
+#  - Auto-applies to STAGING on push to development branches.
+#  - Production apply is NOT automated: it is a guarded, manual
+#    workflow_dispatch job that requires typing the environment name.
+#
+# Both jobs are no-ops (clean exit) when the relevant secret is absent.
+#
+# Required secrets: STAGING_DATABASE_URL (auto job), PRODUCTION_DATABASE_URL (manual job).
+
+on:
+  push:
+    branches:
+      - develop
+      - staging
+      - 'claude/**'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target to migrate manually (type exactly: staging or PRODUCTION)'
+        required: true
+        default: 'staging'
+
+permissions:
+  contents: read
+
+jobs:
+  migrate-staging:
+    name: Apply migrations to STAGING
+    runs-on: ubuntu-latest
+    # Run on pushes, or on manual dispatch when target == staging.
+    if: github.event_name == 'push' || github.event.inputs.target == 'staging'
+    steps:
+      - name: Guard — require STAGING_DATABASE_URL
+        id: guard
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          if [ -z "${STAGING_DATABASE_URL:-}" ]; then
+            echo "::notice::STAGING_DATABASE_URL secret not set — skipping staging migration (no-op)."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Install postgresql-client
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply migrations (sorted order)
+        if: steps.guard.outputs.run == 'true'
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          # Mirror setup-test-db.sh: shell glob expands *.sql in sorted (filename) order.
+          # NOTE: staging is expected to be reset-able. These migrations are not
+          # guaranteed idempotent; re-running on a dirty staging DB may error.
+          # Reset staging (Supabase branch reset / fresh project) before re-applying.
+          for f in supabase/migrations/*.sql; do
+            echo "› applying $f"
+            psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          echo "› staging migrations applied"
+
+  migrate-production:
+    name: Apply migrations to PRODUCTION (manual, guarded)
+    runs-on: ubuntu-latest
+    # Only on explicit manual dispatch AND only when the operator typed PRODUCTION.
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'PRODUCTION'
+    environment: production
+    steps:
+      - name: Guard — require PRODUCTION_DATABASE_URL and exact confirmation
+        id: guard
+        env:
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          TARGET: ${{ github.event.inputs.target }}
+        run: |
+          if [ "${TARGET}" != "PRODUCTION" ]; then
+            echo "::error::Refusing: target must be typed exactly as 'PRODUCTION'."
+            exit 1
+          fi
+          if [ -z "${PRODUCTION_DATABASE_URL:-}" ]; then
+            echo "::notice::PRODUCTION_DATABASE_URL secret not set — skipping (no-op)."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Install postgresql-client
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply migrations to PRODUCTION (sorted order)
+        if: steps.guard.outputs.run == 'true'
+        env:
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          echo "::warning::Applying migrations to PRODUCTION. Ensure a fresh backup exists (see docs/BACKUPS.md)."
+          for f in supabase/migrations/*.sql; do
+            echo "› applying $f"
+            psql "$PRODUCTION_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          echo "› production migrations applied"

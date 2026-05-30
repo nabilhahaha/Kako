@@ -1,0 +1,120 @@
+name: Database backup
+
+# Scheduled production database backup (gzipped pg_dump), optionally GPG-encrypted,
+# uploaded to S3-compatible storage or kept as a short-retention CI artifact.
+#
+# Fully guarded: with no PRODUCTION_DATABASE_URL secret this is a clean no-op.
+# Secrets are passed via env: only — never inlined into shell, never printed.
+#
+# Required secret to do anything: PRODUCTION_DATABASE_URL
+# Optional: BACKUP_GPG_PUBLIC_KEY, BACKUP_S3_BUCKET, BACKUP_S3_ENDPOINT,
+#           BACKUP_S3_ACCESS_KEY_ID, BACKUP_S3_SECRET_ACCESS_KEY
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # daily at ~02:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: pg_dump production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard — require PRODUCTION_DATABASE_URL
+        id: guard
+        env:
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          if [ -z "${PRODUCTION_DATABASE_URL:-}" ]; then
+            echo "::notice::PRODUCTION_DATABASE_URL secret not set — skipping backup (no-op)."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Install postgresql-client
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Dump database (gzipped)
+        if: steps.guard.outputs.run == 'true'
+        id: dump
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          out_file="$(bash scripts/backup.sh --format=custom | tail -n1)"
+          echo "file=$out_file" >> "$GITHUB_OUTPUT"
+          echo "::notice::Backup created: $out_file"
+
+      - name: GPG-encrypt dump (optional)
+        if: steps.guard.outputs.run == 'true' && env.BACKUP_GPG_PUBLIC_KEY != ''
+        id: encrypt
+        env:
+          BACKUP_GPG_PUBLIC_KEY: ${{ secrets.BACKUP_GPG_PUBLIC_KEY }}
+          DUMP_FILE: ${{ steps.dump.outputs.file }}
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
+          # Import the armored public key from the secret (never echoed).
+          printf '%s' "$BACKUP_GPG_PUBLIC_KEY" | gpg --batch --import
+          recipient="$(gpg --list-keys --with-colons | awk -F: '/^pub:/ {print $5; exit}')"
+          gpg --batch --yes --trust-model always \
+            --encrypt --recipient "$recipient" \
+            --output "${DUMP_FILE}.gpg" "$DUMP_FILE"
+          rm -f "$DUMP_FILE"
+          echo "file=${DUMP_FILE}.gpg" >> "$GITHUB_OUTPUT"
+          echo "::notice::Dump encrypted: ${DUMP_FILE}.gpg"
+
+      - name: Resolve final artifact path
+        if: steps.guard.outputs.run == 'true'
+        id: artifact
+        env:
+          ENCRYPTED: ${{ steps.encrypt.outputs.file }}
+          PLAIN: ${{ steps.dump.outputs.file }}
+        run: |
+          if [ -n "${ENCRYPTED:-}" ]; then
+            echo "file=$ENCRYPTED" >> "$GITHUB_OUTPUT"
+          else
+            echo "file=$PLAIN" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload to S3-compatible storage (if configured)
+        if: steps.guard.outputs.run == 'true' && env.BACKUP_S3_BUCKET != ''
+        id: s3
+        env:
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          DUMP_FILE: ${{ steps.artifact.outputs.file }}
+        run: |
+          set -euo pipefail
+          endpoint_args=""
+          if [ -n "${BACKUP_S3_ENDPOINT:-}" ]; then
+            endpoint_args="--endpoint-url ${BACKUP_S3_ENDPOINT}"
+          fi
+          dest="s3://${BACKUP_S3_BUCKET}/db-backups/$(basename "$DUMP_FILE")"
+          # shellcheck disable=SC2086
+          aws s3 cp "$DUMP_FILE" "$dest" $endpoint_args
+          echo "::notice::Uploaded backup to ${dest}"
+          echo "uploaded=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload as CI artifact (fallback when S3 not configured)
+        if: steps.guard.outputs.run == 'true' && steps.s3.outputs.uploaded != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup
+          path: ${{ steps.artifact.outputs.file }}
+          retention-days: 7
+          if-no-files-found: error
