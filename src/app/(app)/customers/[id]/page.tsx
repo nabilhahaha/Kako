@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatementTable, type StatementEntry } from '@/components/statement-table';
+import { EntityNotes } from '@/components/entity/entity-notes';
 import { PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { ErpCustomer, Invoice, Payment, PaymentMethod } from '@/lib/erp/types';
@@ -116,6 +117,11 @@ export default async function CustomerStatementPage({
         creditLabel={t('customers.stmtCreditLabel')}
         emptyText={t('customers.stmtEmpty')}
       />
+
+      {/* Entity Framework — inherited Notes capability (build once, reuse everywhere) */}
+      <div className="mt-6">
+        <EntityNotes entity="customer" recordId={c.id} />
+      </div>
     </div>
   );
 }

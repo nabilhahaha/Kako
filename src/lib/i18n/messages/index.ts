@@ -31,12 +31,13 @@ import * as landing from './landing';
 import * as marketplace from './marketplace';
 import * as organization from './organization';
 import * as integrations from './integrations';
+import * as entity from './entity';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
   accounting, clinic, restaurant, salon, pharmacy, laundry, hotel, wholesale,
   market, distribution, settings, account, platform, rep, exportsMod,
-  warehouses, upgrade, landing, marketplace, organization, integrations,
+  warehouses, upgrade, landing, marketplace, organization, integrations, entity,
 ];
 
 type Catalog = Record<string, unknown>;
