@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/brand/logo';
 import { AuthBrandPanel } from '@/components/brand/auth-brand-panel';
+import { AuthAmbientBg } from '@/components/brand/auth-ambient-bg';
 import { toast } from 'sonner';
 import { Loader2, Rocket, Layers, MessageCircle } from 'lucide-react';
 import { BUSINESS_TYPE_LABELS, BUSINESS_TYPES } from '@/lib/erp/subscription';
@@ -89,9 +90,10 @@ export function RegisterForm() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Form side */}
-      <div className="flex items-center justify-center overflow-y-auto bg-background p-6 sm:p-10">
-        <div className="w-full max-w-md py-6">
+      {/* Form side — ambient brand background on mobile, plain on desktop */}
+      <div className="relative flex items-center justify-center overflow-y-auto p-6 sm:p-10 lg:bg-background">
+        <AuthAmbientBg className="lg:hidden" />
+        <div className="relative z-10 my-6 w-full max-w-md rounded-2xl bg-background p-6 shadow-2xl sm:p-8 lg:my-0 lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none">
           <div className="mb-6">
             <Logo size="lg" withWordmark />
             <h1 className="mt-6 text-2xl font-bold">أنشئ شركتك وابدأ مجاناً</h1>

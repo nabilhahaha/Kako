@@ -1,4 +1,5 @@
 import { ShieldCheck, Wallet, BarChart3, type LucideIcon } from 'lucide-react';
+import { AuthAmbientBg } from './auth-ambient-bg';
 
 const DEFAULT_HIGHLIGHTS = [
   { icon: ShieldCheck, text: 'بياناتك معزولة وآمنة بالكامل' },
@@ -20,14 +21,7 @@ export function AuthBrandPanel({
 }) {
   return (
     <div className="relative hidden overflow-hidden lg:flex lg:items-center lg:justify-center">
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #6f1624 0%, #8f1d2e 45%, #4d0f1c 100%)' }} />
-
-      <div className="ams-aura absolute -top-24 -left-16 h-96 w-96 rounded-full blur-3xl" style={{ background: 'rgba(232,176,75,0.30)' }} />
-      <div className="ams-aura-2 absolute -bottom-20 -right-10 h-[30rem] w-[30rem] rounded-full blur-3xl" style={{ background: 'rgba(255,255,255,0.10)' }} />
-      <div className="ams-aura absolute left-1/3 top-1/3 h-72 w-72 rounded-full blur-3xl" style={{ background: 'rgba(192,57,43,0.35)' }} />
-
-      <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
-      <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 80% at 50% 0%, transparent 40%, rgba(0,0,0,0.25) 100%)' }} />
+      <AuthAmbientBg />
 
       <div className="relative z-10 max-w-md px-12 text-white">
         <div className="mb-9 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-white/25 bg-white/10 text-xl font-bold tracking-tight shadow-lg backdrop-blur" dir="ltr">
