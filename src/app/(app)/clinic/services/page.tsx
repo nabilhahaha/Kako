@@ -3,7 +3,8 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { requirePermission } from '@/lib/erp/guards';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
-import { ServicesManager, type Service } from './services-manager';
+import { ServiceCatalogManager, type CatalogService } from '@/components/shared/service-catalog-manager';
+import { upsertService } from '../actions';
 
 export default async function ServicesPage() {
   await requirePermission('clinic.manage');
@@ -29,7 +30,7 @@ export default async function ServicesPage() {
   return (
     <div>
       <PageHeader title="الخدمات والأسعار" description="عرّف خدمات العيادة بأسعارها لتُختار سريعاً عند تسجيل الكشف." />
-      <ServicesManager services={(services as Service[]) ?? []} />
+      <ServiceCatalogManager services={(services as CatalogService[]) ?? []} upsert={upsertService} entityLabel="خدمة" namePlaceholder="كشف / استشارة / إجراء" />
     </div>
   );
 }

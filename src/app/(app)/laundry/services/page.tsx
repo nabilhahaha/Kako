@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
-import { ServicesManager, type Service } from './services-manager';
+import { ServiceCatalogManager, type CatalogService } from '@/components/shared/service-catalog-manager';
+import { upsertService } from '../actions';
 
 export default async function LaundryServicesPage() {
   const ctx = await getUserContext();
@@ -15,7 +16,7 @@ export default async function LaundryServicesPage() {
   return (
     <div>
       <PageHeader title="الأصناف والأسعار" description="قائمة الأصناف (قميص/بنطلون/بدلة/غسيل عادي…) بأسعارها." />
-      <ServicesManager services={(data as Service[]) ?? []} />
+      <ServiceCatalogManager services={(data as CatalogService[]) ?? []} upsert={upsertService} entityLabel="صنف" namePlaceholder="قميص / بنطلون / بدلة" />
     </div>
   );
 }

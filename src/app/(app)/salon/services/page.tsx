@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
-import { ServicesManager, type Service } from './services-manager';
+import { ServiceCatalogManager, type CatalogService } from '@/components/shared/service-catalog-manager';
+import { upsertService } from '../actions';
 
 export default async function SalonServicesPage() {
   const ctx = await getUserContext();
@@ -15,7 +16,7 @@ export default async function SalonServicesPage() {
   return (
     <div>
       <PageHeader title="الخدمات والأسعار" description="عرّف خدمات الصالون (قص/صبغة/مكواة…) بأسعارها ومدتها." />
-      <ServicesManager services={(services as Service[]) ?? []} />
+      <ServiceCatalogManager services={(services as CatalogService[]) ?? []} upsert={upsertService} showDuration entityLabel="خدمة" namePlaceholder="قص / صبغة / مكواة" />
     </div>
   );
 }
