@@ -5,19 +5,30 @@ const M = '#8f1d2e'; // brand maroon
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
-/** Lighter, vibrant maroon backdrop with a top light, soft glows and fine grain. */
+/** Translucent "ruby glass" maroon backdrop: a lighter jewel gradient with a
+ *  diagonal glass sheen, a top frosted highlight, soft glow and fine grain. */
 export function BrandBg() {
   return (
     <>
+      {/* jewel gradient (lighter, more translucent feel) */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(95% 70% at 50% -12%, rgba(255,255,255,0.22), transparent 55%),' +
-            'radial-gradient(55% 50% at 85% 18%, rgba(232,176,75,0.20), transparent 60%),' +
-            'linear-gradient(155deg, #a81f39 0%, #8c1a30 52%, #63111f 100%)',
+            'radial-gradient(95% 70% at 50% -12%, rgba(255,255,255,0.30), transparent 55%),' +
+            'radial-gradient(55% 50% at 85% 18%, rgba(232,176,75,0.22), transparent 60%),' +
+            'linear-gradient(155deg, #b62845 0%, #971f36 52%, #71152a 100%)',
         }}
       />
+      {/* diagonal glass sheen (light reflecting on a pane) */}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(115deg, transparent 26%, rgba(255,255,255,0.14) 45%, rgba(255,255,255,0) 60%)' }}
+      />
+      {/* top frosted highlight + glass edge on the start side */}
+      <div className="absolute inset-x-0 top-0 h-1/3" style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.12), transparent)' }} />
+      <div className="absolute inset-y-0 start-0 w-px" style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.25), transparent)' }} />
+
       <div className="ams-aura absolute -bottom-24 -start-16 h-80 w-80 rounded-full blur-3xl" style={{ background: 'rgba(232,176,75,0.20)' }} />
       <div className="absolute inset-0 opacity-[0.05] mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
     </>
@@ -69,9 +80,9 @@ export function ProductMockup() {
             {/* KPI tiles */}
             <div className="grid grid-cols-3 gap-2.5">
               {[
-                { icon: TrendingUp, v: '٤٨٫٢ك' },
-                { icon: Users, v: '١٬٣٢٠' },
-                { icon: FileText, v: '٢٦٧' },
+                { icon: TrendingUp, v: '48.2K' },
+                { icon: Users, v: '1,320' },
+                { icon: FileText, v: '267' },
               ].map((k, i) => (
                 <div key={i} className="rounded-xl border border-neutral-100 bg-neutral-50 p-2.5">
                   <span className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ background: 'rgba(143,29,46,0.10)', color: M }}>
