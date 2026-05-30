@@ -21,15 +21,31 @@ The suites under `src/test/integration/` exercise real Postgres behaviour:
   caller's own company; a platform owner sees everything.
 
 They only run when `TEST_DATABASE_URL` is set; otherwise they `skipIf`
-themselves so `npm test`/CI stays green.
+themselves so the plain `npm test` stays green.
+
+### In CI
+
+The `integration` job in `.github/workflows/ci.yml` spins up a throwaway
+`postgres:16` service, builds the schema with `supabase/ci/setup-test-db.sh`
+(a Supabase-compatible bootstrap + the erp_ migration chain), and runs
+`npm run test:db` on every push/PR. This is what makes a database change
+**verified before merge** rather than a risk taken against production.
+
+### Locally
+
+Against any disposable Postgres (a Supabase branch DB, a local `supabase start`
+stack, or a bare `postgres:16`), using a connection string for the owner/
+`postgres` role so the harness can `SET ROLE authenticated` to drive RLS:
 
 ```bash
-# Point at a DISPOSABLE database (a Supabase branch DB or a local stack), using
-# the SESSION connection string (port 5432) with the owner/`postgres` role so the
-# harness can `SET ROLE authenticated` to drive RLS.
-export TEST_DATABASE_URL='postgresql://postgres:<password>@<host>:5432/postgres'
+export TEST_DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:5432/postgres'
+bash supabase/ci/setup-test-db.sh   # bootstrap + migrations (skip if the DB is already provisioned)
 npm run test:db
 ```
+
+> `setup-test-db.sh` applies the erp_ chain from migration 0005 onward. The
+> 0001–0004 migrations patch the legacy inventory app, whose base tables predate
+> the migrations folder and aren't needed by these tests.
 
 Every test runs inside a transaction that is **always rolled back**
 (`withRollback` in `src/test/db.ts`), so nothing is persisted — it is safe to

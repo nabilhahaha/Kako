@@ -81,7 +81,10 @@ describe.skipIf(!hasTestDb)('RLS · tenant isolation', () => {
     await withRollback(async (c) => {
       const t = await seedTwoTenants(c);
       const owner = randomUUID();
-      await c.query('insert into erp_profiles(id, is_platform_owner) values($1, true)', [owner]);
+      // Creating the auth user fires the new-user trigger that inserts the
+      // profile (and satisfies erp_profiles.id -> auth.users); then mark it.
+      await c.query('insert into auth.users(id, email) values ($1, $2)', [owner, `owner+${owner}@test.local`]);
+      await c.query('update erp_profiles set is_platform_owner = true where id = $1', [owner]);
       await actAs(c, owner);
       const r = await c.query('select id from erp_clinic_services where id = any($1::uuid[])', [bothIds(t)]);
       expect(r.rows.map((x) => x.id).sort()).toEqual([t.svcA, t.svcB].sort());
