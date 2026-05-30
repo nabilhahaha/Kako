@@ -259,6 +259,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true },
       { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users' },
       { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true },
+      { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true },
       { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true },
       { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true },
