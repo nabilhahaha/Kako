@@ -26,6 +26,12 @@ export const etaConfig = {
   endpoints: ENDPOINTS[ENV],
   /** ETA document schema version (the doc shape may change between versions). */
   documentTypeVersion: process.env.ETA_DOCUMENT_TYPE_VERSION ?? '1.0',
+  /** URL of the e-seal signing service (local token agent / HSM front) that
+   *  turns the canonical string into a CAdES-BES signature. When unset,
+   *  signing is unavailable and submission is refused with a clear message. */
+  signingUrl: process.env.ETA_SIGNING_URL ?? '',
+  /** Optional bearer token for the signing service. */
+  signingToken: process.env.ETA_SIGNING_TOKEN ?? '',
 };
 
 /** True only when client credentials are present. Callers must short-circuit

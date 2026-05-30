@@ -33,7 +33,18 @@ calls happen during normal builds, tests, or runtime without credentials.
    `eta_unit_type`; set the company's tax registration & `taxpayer_activity_code`
    in `erp_company_eta_settings`.
 
-### Caveat on signing
+### Signing — how it's wired now
+Signing is pluggable via `getSigner()`:
+- Set **`ETA_SIGNING_URL`** (and optionally `ETA_SIGNING_TOKEN`) to your e-seal
+  signing service — the common pattern is a local "e-invoice signer" agent
+  (USB token) or an HSM front that exposes an HTTP endpoint. `HttpDocumentSigner`
+  POSTs `{ document: <canonical> }` and expects `{ signature }` back.
+- When `ETA_SIGNING_URL` is unset, `UnconfiguredSigner` makes the "Submit to ETA"
+  button return a clear "configure signing" message (no crash).
+
+So to go live you point `ETA_SIGNING_URL` at your signer — no app code change.
+
+### Caveat on canonical serialization
 `serializeForSignature()` implements the published ETA "Serialize" algorithm on
 a best-effort basis. **Validate it against the ETA SDK test vectors**
 (<https://sdk.invoicing.eta.gov.eg>) before signing real documents — a mismatch

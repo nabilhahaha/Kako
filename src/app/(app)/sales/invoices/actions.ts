@@ -8,7 +8,7 @@ import type { PaymentMethod } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
 import { isEtaConfigured } from '@/lib/eta/config';
 import { buildEtaDocument } from '@/lib/eta/document-builder';
-import { signDocument, UnconfiguredSigner } from '@/lib/eta/signing';
+import { signDocument, getSigner } from '@/lib/eta/signing';
 import { submitDocuments } from '@/lib/eta/client';
 import type { EtaInvoiceInput } from '@/lib/eta/types';
 
@@ -175,7 +175,7 @@ export async function submitInvoiceToEta(id: string): Promise<ActionResult> {
 
   try {
     const doc = buildEtaDocument(input);
-    const signed = await signDocument(doc, new UnconfiguredSigner());
+    const signed = await signDocument(doc, getSigner());
     const result = await submitDocuments([signed]);
     const accepted = result.acceptedDocuments?.[0];
     await supabase

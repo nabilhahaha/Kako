@@ -6,6 +6,7 @@
 // when credentials exist. Until then UnconfiguredSigner makes the gap explicit.
 
 import type { EtaDocument } from './types';
+import { etaConfig } from './config';
 
 export interface DocumentSigner {
   /** Returns the CAdES-BES signature value for the canonical serialization. */
@@ -15,10 +16,47 @@ export interface DocumentSigner {
 export class UnconfiguredSigner implements DocumentSigner {
   async sign(): Promise<string> {
     throw new Error(
-      'ETA signing provider not configured. Provide a DocumentSigner backed by ' +
-        'the company e-seal certificate (token agent or HSM). See docs/ETA.md.',
+      'ETA signing provider not configured. Set ETA_SIGNING_URL to your e-seal ' +
+        'signing service (token agent or HSM). See docs/ETA.md.',
     );
   }
+}
+
+/**
+ * Signs via an external e-seal service over HTTP — the common ETA pattern: a
+ * local "e-invoice signer" agent (USB token) or an HSM front exposes an
+ * endpoint that takes the canonical string and returns the CAdES-BES value.
+ * POST { document } → expects { signature } (or { value }) in the response.
+ */
+export class HttpDocumentSigner implements DocumentSigner {
+  constructor(private url: string, private token?: string) {}
+
+  async sign(canonical: string): Promise<string> {
+    const res = await fetch(this.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+      },
+      body: JSON.stringify({ document: canonical }),
+    });
+    if (!res.ok) {
+      throw new Error(`ETA signing service failed: ${res.status}`);
+    }
+    const json = (await res.json()) as { signature?: string; value?: string };
+    const value = json.signature ?? json.value;
+    if (!value) throw new Error('ETA signing service returned no signature');
+    return value;
+  }
+}
+
+/** Returns the configured signer (HTTP service if ETA_SIGNING_URL is set, else
+ *  the explicit no-op signer that surfaces the missing-config error). */
+export function getSigner(): DocumentSigner {
+  if (etaConfig.signingUrl) {
+    return new HttpDocumentSigner(etaConfig.signingUrl, etaConfig.signingToken || undefined);
+  }
+  return new UnconfiguredSigner();
 }
 
 /**
