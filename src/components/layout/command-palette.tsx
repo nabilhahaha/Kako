@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { visibleSections, type Module } from '@/lib/erp/navigation';
 import type { Permission } from '@/lib/erp/permissions';
 import { Search } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
 /** Global quick-jump (Ctrl/⌘ K). Searches the pages the current user can see and
  *  navigates on Enter/click. Also opens on a window `open-command-palette` event
@@ -22,6 +23,7 @@ export function CommandPalette({
   modules?: Module[];
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
@@ -30,15 +32,17 @@ export function CommandPalette({
   const items = useMemo(
     () =>
       visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules).flatMap((s) =>
-        s.items.map((i) => ({ label: i.label, href: i.href, icon: i.icon, section: s.title })),
+        s.items.map((i) => ({ label: t(i.label), href: i.href, icon: i.icon, section: t(s.title) })),
       ),
-    [permissions, isSuperAdmin, isPlatformOwner, modules],
+    [permissions, isSuperAdmin, isPlatformOwner, modules, t],
   );
 
   const filtered = useMemo(() => {
-    const t = q.trim();
-    if (!t) return items;
-    return items.filter((i) => i.label.includes(t) || i.section.includes(t));
+    const term = q.trim().toLowerCase();
+    if (!term) return items;
+    return items.filter(
+      (i) => i.label.toLowerCase().includes(term) || i.section.toLowerCase().includes(term),
+    );
   }, [q, items]);
 
   useEffect(() => {
@@ -92,14 +96,14 @@ export function CommandPalette({
               else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
               else if (e.key === 'Enter' && filtered[active]) { e.preventDefault(); go(filtered[active].href); }
             }}
-            placeholder="ابحث عن صفحة…"
+            placeholder={t('common.searchPage')}
             className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
           <kbd className="hidden rounded border bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline" dir="ltr">Ctrl K</kbd>
         </div>
         <ul className="max-h-80 overflow-y-auto p-2">
           {filtered.length === 0 ? (
-            <li className="p-4 text-center text-sm text-muted-foreground">لا توجد نتائج</li>
+            <li className="p-4 text-center text-sm text-muted-foreground">{t('common.noResults')}</li>
           ) : (
             filtered.map((i, idx) => {
               const Icon = i.icon;
@@ -114,7 +118,7 @@ export function CommandPalette({
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    <span className="flex-1 text-right">{i.label}</span>
+                    <span className="flex-1 text-start">{i.label}</span>
                     <span className={cn('text-xs', idx === active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{i.section}</span>
                   </button>
                 </li>

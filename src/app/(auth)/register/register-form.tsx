@@ -10,21 +10,19 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/brand/logo';
 import { AuthBrandPanel } from '@/components/brand/auth-brand-panel';
 import { AuthAmbientBg } from '@/components/brand/auth-ambient-bg';
+import { LanguageToggle } from '@/components/layout/language-toggle';
+import { useI18n } from '@/lib/i18n/provider';
 import { toast } from 'sonner';
-import { Loader2, Rocket, Layers, MessageCircle } from 'lucide-react';
+import { Loader2, Rocket } from 'lucide-react';
 import { BUSINESS_TYPE_LABELS, BUSINESS_TYPES } from '@/lib/erp/subscription';
 
 const TRIAL_DAYS = 14;
-const REGISTER_HIGHLIGHTS = [
-  { icon: Rocket, text: 'تجربة مجانية ١٤ يوم — بدون بطاقة' },
-  { icon: Layers, text: 'يتأقلم مع نوع نشاطك تلقائياً' },
-  { icon: MessageCircle, text: 'دعم سريع عبر واتساب' },
-];
 const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 export function RegisterForm() {
   const router = useRouter();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -38,11 +36,11 @@ export function RegisterForm() {
     const business_type = String(fd.get('business_type') || 'general');
 
     if (!company_name && !company_name_ar) {
-      toast.error('اسم الشركة مطلوب.');
+      toast.error(t('auth.errCompanyRequired'));
       return;
     }
     if (password.length < 6) {
-      toast.error('كلمة المرور يجب أن تكون ٦ أحرف على الأقل.');
+      toast.error(t('auth.errPasswordShort'));
       return;
     }
 
@@ -55,7 +53,7 @@ export function RegisterForm() {
     });
     if (error) {
       setLoading(false);
-      toast.error(error.message || 'تعذّر إنشاء الحساب.');
+      toast.error(error.message || t('auth.errSignup'));
       return;
     }
 
@@ -66,7 +64,7 @@ export function RegisterForm() {
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
       if (signInErr) {
         setLoading(false);
-        toast.error('تم إنشاء الحساب. سجّل الدخول لإكمال إنشاء شركتك.');
+        toast.error(t('auth.signInToFinish'));
         router.push('/login');
         return;
       }
@@ -81,10 +79,10 @@ export function RegisterForm() {
     });
     setLoading(false);
     if (rpcErr) {
-      toast.error(rpcErr.message || 'تعذّر إنشاء الشركة.');
+      toast.error(rpcErr.message || t('auth.errCompany'));
       return;
     }
-    toast.success('تم إنشاء شركتك وبدأت تجربتك المجانية 🎉');
+    toast.success(t('auth.regSuccess'));
     window.location.href = '/dashboard';
   }
 
@@ -93,30 +91,33 @@ export function RegisterForm() {
       {/* Form side — ambient brand background on mobile, plain on desktop */}
       <div className="relative flex items-center justify-center overflow-y-auto p-6 sm:p-10 lg:bg-background">
         <AuthAmbientBg className="lg:hidden" />
+        <div className="absolute end-4 top-4 z-20">
+          <LanguageToggle className="bg-background/70 backdrop-blur lg:bg-transparent" />
+        </div>
         <div className="relative z-10 my-6 w-full max-w-md rounded-2xl bg-background p-6 shadow-2xl sm:p-8 lg:my-0 lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none">
           <div className="mb-6">
             <Logo size="lg" withWordmark />
-            <h1 className="mt-6 text-2xl font-bold">أنشئ شركتك وابدأ مجاناً</h1>
+            <h1 className="mt-6 text-2xl font-bold">{t('auth.regTitle')}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              تجربة مجانية {TRIAL_DAYS} يوم — بدون بطاقة ائتمان.
+              {t('auth.regSubtitle', { days: TRIAL_DAYS })}
             </p>
           </div>
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="company_name_ar">اسم الشركة *</Label>
-              <Input id="company_name_ar" name="company_name_ar" placeholder="مثال: شركة النور للتجارة" required />
+              <Label htmlFor="company_name_ar">{t('auth.companyNameAr')}</Label>
+              <Input id="company_name_ar" name="company_name_ar" placeholder={t('auth.companyNameArPh')} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company_name">اسم الشركة (إنجليزي)</Label>
-              <Input id="company_name" name="company_name" dir="ltr" placeholder="Al Noor Trading" />
+              <Label htmlFor="company_name">{t('auth.companyNameEn')}</Label>
+              <Input id="company_name" name="company_name" dir="ltr" placeholder={t('auth.companyNameEnPh')} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="business_type">نوع النشاط</Label>
+              <Label htmlFor="business_type">{t('auth.businessType')}</Label>
               <select id="business_type" name="business_type" className={selectCls} defaultValue="general">
-                {BUSINESS_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {BUSINESS_TYPE_LABELS[t]}
+                {BUSINESS_TYPES.map((bt) => (
+                  <option key={bt} value={bt}>
+                    {BUSINESS_TYPE_LABELS[bt]}
                   </option>
                 ))}
               </select>
@@ -124,40 +125,36 @@ export function RegisterForm() {
 
             <div className="border-t pt-4 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="full_name">اسمك</Label>
-                <Input id="full_name" name="full_name" placeholder="الاسم الكامل" />
+                <Label htmlFor="full_name">{t('auth.yourName')}</Label>
+                <Input id="full_name" name="full_name" placeholder={t('auth.yourNamePh')} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">البريد الإلكتروني *</Label>
+                <Label htmlFor="email">{t('auth.email')}</Label>
                 <Input id="email" name="email" type="email" dir="ltr" required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">كلمة المرور *</Label>
+                <Label htmlFor="password">{t('auth.password')}</Label>
                 <Input id="password" name="password" type="password" dir="ltr" required minLength={6} />
               </div>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-              ابدأ التجربة المجانية
+              {t('auth.regSubmit')}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            لديك حساب بالفعل؟{' '}
+            {t('auth.haveAccount')}{' '}
             <Link href="/login" className="font-medium text-primary hover:underline">
-              تسجيل الدخول
+              {t('auth.loginCta')}
             </Link>
           </p>
         </div>
       </div>
 
       {/* Brand panel */}
-      <AuthBrandPanel
-        headline={<>ابدأ رحلتك<br />مع AMS</>}
-        subtext="جهّز شركتك في دقائق وابدأ تجربتك المجانية — النظام يتأقلم مع نشاطك أيًّا كان."
-        highlights={REGISTER_HIGHLIGHTS}
-      />
+      <AuthBrandPanel variant="register" />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
+import { getT } from '@/lib/i18n/server';
 import { LockKeyhole, AlertTriangle, MessageCircle } from 'lucide-react';
 
 export default async function AppLayout({
@@ -17,6 +18,8 @@ export default async function AppLayout({
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+
+  const { t } = await getT();
 
   // A signed-in user who isn't platform staff and has no company yet is sent to
   // self-service onboarding to create their company (free trial).
@@ -36,12 +39,12 @@ export default async function AppLayout({
             <LockKeyhole className="h-7 w-7" />
           </div>
           <h1 className="text-xl font-bold">
-            {expired ? 'انتهى اشتراك شركتك' : 'تم إيقاف اشتراك شركتك'}
+            {expired ? t('subscription.expiredTitle') : t('subscription.suspendedTitle')}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {expired
-              ? `انتهت صلاحية الاشتراك بتاريخ ${ctx.company?.subscription_end}. للتجديد تواصل معنا.`
-              : 'تم إيقاف الوصول مؤقتًا. للتفعيل تواصل معنا.'}
+              ? t('subscription.expiredBody', { date: ctx.company?.subscription_end ?? '' })
+              : t('subscription.suspendedBody')}
           </p>
           <a
             href={whatsappLink(`مرحباً، أريد تجديد/تفعيل اشتراك شركة «${ctx.company?.name_ar || ctx.company?.name || ''}».`)}
@@ -50,7 +53,7 @@ export default async function AppLayout({
             className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-success px-4 font-medium text-success-foreground hover:opacity-90"
           >
             <MessageCircle className="h-5 w-5" />
-            تواصل عبر واتساب
+            {t('subscription.contactWhatsapp')}
           </a>
           <p className="mt-2 text-xs text-muted-foreground" dir="ltr">{SUPPORT_PHONES.map((p) => p.display).join('  •  ')}</p>
           <form action="/auth/signout" method="post" className="mt-4">
@@ -58,7 +61,7 @@ export default async function AppLayout({
               type="submit"
               className="inline-flex h-9 items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium hover:bg-secondary/80"
             >
-              تسجيل الخروج
+              {t('common.signOut')}
             </button>
           </form>
         </div>
@@ -88,9 +91,9 @@ export default async function AppLayout({
         ? supabase.from('erp_salon_appointments').select('id', { count: 'exact', head: true }).gte('scheduled_at', dayRange[0]).lte('scheduled_at', dayRange[1]).in('status', ['scheduled', 'confirmed'])
         : Promise.resolve({ count: 0 }),
     ]);
-    if ((overdue.count ?? 0) > 0) notifications.push({ label: 'فواتير متأخرة', href: '/sales/invoices', count: overdue.count! });
-    if ((clinicAppts.count ?? 0) > 0) notifications.push({ label: 'مواعيد اليوم', href: '/clinic/appointments', count: clinicAppts.count! });
-    if ((salonAppts.count ?? 0) > 0) notifications.push({ label: 'مواعيد اليوم', href: '/salon/appointments', count: salonAppts.count! });
+    if ((overdue.count ?? 0) > 0) notifications.push({ label: t('shell.overdueInvoices'), href: '/sales/invoices', count: overdue.count! });
+    if ((clinicAppts.count ?? 0) > 0) notifications.push({ label: t('shell.todayAppointments'), href: '/clinic/appointments', count: clinicAppts.count! });
+    if ((salonAppts.count ?? 0) > 0) notifications.push({ label: t('shell.todayAppointments'), href: '/salon/appointments', count: salonAppts.count! });
   }
 
   return (
@@ -123,14 +126,14 @@ export default async function AppLayout({
           {state === 'expiring' && left !== null && (
             <div className="flex flex-wrap items-center gap-2 border-b bg-warning/15 px-4 py-2 text-sm text-warning-foreground lg:px-6">
               <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
-              <span>ينتهي اشتراك شركتك خلال {left} يوم.</span>
+              <span>{t('subscription.expiringSoon', { days: left })}</span>
               <a
                 href={whatsappLink(`مرحباً، أريد تجديد اشتراك شركة «${ctx.company?.name_ar || ctx.company?.name || ''}».`)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 font-medium text-success underline-offset-2 hover:underline"
               >
-                <MessageCircle className="h-4 w-4" /> جدّد الآن عبر واتساب
+                <MessageCircle className="h-4 w-4" /> {t('subscription.renewNow')}
               </a>
             </div>
           )}

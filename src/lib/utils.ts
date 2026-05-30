@@ -8,24 +8,31 @@ export function cn(...inputs: ClassValue[]) {
 export function formatCurrency(
   value: number | string | null | undefined,
   currency = 'EGP',
+  locale = 'ar-EG',
 ) {
   const n = Number(value ?? 0);
-  return new Intl.NumberFormat('ar-EG', {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     maximumFractionDigits: 2,
   }).format(n);
 }
 
-export function formatNumber(value: number | string | null | undefined) {
-  return new Intl.NumberFormat('ar-EG').format(Number(value ?? 0));
+export function formatNumber(
+  value: number | string | null | undefined,
+  locale = 'ar-EG',
+) {
+  return new Intl.NumberFormat(locale).format(Number(value ?? 0));
 }
 
-export function formatDate(value: string | Date | null | undefined) {
+export function formatDate(
+  value: string | Date | null | undefined,
+  locale = 'ar-EG',
+) {
   if (!value) return '—';
   const d = typeof value === 'string' ? new Date(value) : value;
   if (isNaN(d.getTime())) return '—';
-  return new Intl.DateTimeFormat('ar-EG', {
+  return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

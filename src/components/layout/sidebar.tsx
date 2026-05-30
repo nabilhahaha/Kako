@@ -8,6 +8,7 @@ import { visibleSections, type Module } from '@/lib/erp/navigation';
 import type { Permission } from '@/lib/erp/permissions';
 import { Menu, X } from 'lucide-react';
 import { Logo } from '@/components/brand/logo';
+import { useI18n } from '@/lib/i18n/provider';
 
 export function Sidebar({
   permissions,
@@ -21,6 +22,7 @@ export function Sidebar({
   modules?: Module[];
 }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   // Compute on the client so the icon components never cross the
   // server→client boundary (functions aren't serializable as props).
@@ -42,7 +44,7 @@ export function Sidebar({
       {sections.map((section) => (
         <div key={section.title} className="mb-2">
           <p className="px-3 py-1 text-xs font-medium text-muted-foreground">
-            {section.title}
+            {t(section.title)}
           </p>
           {section.items.map((item) => {
             const active = item.href === activeHref;
@@ -60,7 +62,7 @@ export function Sidebar({
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span>{item.label}</span>
+                <span>{t(item.label)}</span>
               </Link>
             );
           })}
@@ -75,7 +77,7 @@ export function Sidebar({
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg lg:hidden"
-        aria-label="القائمة"
+        aria-label={t('common.menu')}
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -91,7 +93,7 @@ export function Sidebar({
             <button
               onClick={() => setOpen(false)}
               className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-md hover:bg-secondary"
-              aria-label="إغلاق"
+              aria-label={t('common.close')}
             >
               <X className="h-4 w-4" />
             </button>

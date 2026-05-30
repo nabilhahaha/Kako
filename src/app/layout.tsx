@@ -3,6 +3,8 @@ import { IBM_Plex_Sans_Arabic } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
+import { getLocale } from '@/lib/i18n/server';
+import { LOCALE_DIR } from '@/lib/i18n/config';
 
 const arabic = IBM_Plex_Sans_Arabic({
   subsets: ['arabic', 'latin'],
@@ -23,16 +25,17 @@ export const viewport: Viewport = {
   themeColor: '#8f1d2e',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
+    <html lang={locale} dir={LOCALE_DIR[locale]} suppressHydrationWarning>
       <body className={`${arabic.variable} font-arabic antialiased`}>
         <ServiceWorkerRegister />
-        <Providers>{children}</Providers>
+        <Providers locale={locale}>{children}</Providers>
       </body>
     </html>
   );
