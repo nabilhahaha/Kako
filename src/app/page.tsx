@@ -20,7 +20,7 @@ const MODULES = [
   { key: 'fmcg', icon: Truck, grad: 'linear-gradient(135deg,#f59e0b,#f97316)' },
   { key: 'laundry', icon: WashingMachine, grad: 'linear-gradient(135deg,#0ea5e9,#3b82f6)' },
   { key: 'gaming', icon: Gamepad2, grad: 'linear-gradient(135deg,#8b5cf6,#a855f7)' },
-  { key: 'retail', icon: ShoppingBag, grad: 'linear-gradient(135deg,#e11d48,#8f1d2e)' },
+  { key: 'retail', icon: ShoppingBag, grad: 'linear-gradient(135deg,#22d3ee,#6366f1)' },
 ] as const;
 
 const FEATURES = [
@@ -61,7 +61,7 @@ export default async function HomePage({
       {/* ── Hero ── */}
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute left-1/2 top-[-10%] h-[28rem] w-[44rem] -translate-x-1/2 rounded-full blur-3xl" style={{ background: 'radial-gradient(closest-side, rgba(143,29,46,0.18), transparent)' }} />
+          <div className="absolute left-1/2 top-[-10%] h-[28rem] w-[44rem] -translate-x-1/2 rounded-full blur-3xl" style={{ background: 'radial-gradient(closest-side, rgba(124,58,237,0.18), transparent)' }} />
           <div className="absolute inset-0 opacity-[0.5]" style={{ backgroundImage: 'radial-gradient(hsl(var(--foreground)/0.06) 1px, transparent 1px)', backgroundSize: '28px 28px', WebkitMaskImage: 'radial-gradient(70% 55% at 50% 30%, #000, transparent)', maskImage: 'radial-gradient(70% 55% at 50% 30%, #000, transparent)' }} />
         </div>
 
@@ -75,7 +75,7 @@ export default async function HomePage({
             <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl">
               {t('landing.hero.title1')}
               <br />
-              <span className="bg-gradient-to-br from-primary to-[#e11d48] bg-clip-text text-transparent">{t('landing.hero.title2')}</span>
+              <span className="bg-gradient-to-br from-primary to-[#22d3ee] bg-clip-text text-transparent">{t('landing.hero.title2')}</span>
             </h1>
           </Reveal>
           <Reveal delay={120}>
@@ -178,7 +178,7 @@ export default async function HomePage({
           <div className="mt-12 grid grid-cols-2 gap-6 lg:grid-cols-4">
             {STATS.map((s, i) => (
               <Reveal key={s.key} delay={i * 60} className="text-center">
-                <div className="bg-gradient-to-br from-primary to-[#e11d48] bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl" dir="ltr">{s.v}</div>
+                <div className="bg-gradient-to-br from-primary to-[#22d3ee] bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl" dir="ltr">{s.v}</div>
                 <div className="mt-2 text-sm text-muted-foreground">{t(`landing.stats.${s.key}`)}</div>
               </Reveal>
             ))}
@@ -229,7 +229,7 @@ export default async function HomePage({
             </FooterCol>
           </div>
           <div className="mt-12 border-t pt-6 text-center text-xs text-muted-foreground">
-            AMS © {year} · {t('landing.footer.rights')}
+            Velora © {year} · {t('landing.footer.rights')}
           </div>
         </div>
       </footer>

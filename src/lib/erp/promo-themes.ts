@@ -85,8 +85,8 @@ export const PROMO_THEMES: Record<string, PromoTheme> = {
     subline: 'مبيعات وفواتير، مخزون ومشتريات، عملاء وموردين، ومحاسبة وتقارير — أيًّا كان نشاطك.',
     features: ['مبيعات وفواتير', 'مخزون ومشتريات', 'عملاء وموردين', 'محاسبة وتقارير'],
     icon: ShoppingCart,
-    gradient: 'linear-gradient(135deg, #6f1624 0%, #8f1d2e 45%, #4d0f1c 100%)',
-    accent: 'rgba(232,176,75,0.35)',
+    gradient: 'linear-gradient(135deg, #6d4afe 0%, #6366f1 45%, #3730a3 100%)',
+    accent: 'rgba(34,211,238,0.35)',
   },
 };
 

@@ -7,7 +7,7 @@
  */
 
 export const metadata = {
-  title: 'غير متصل | AMS',
+  title: 'غير متصل | Velora',
 };
 
 export default function OfflinePage() {
@@ -43,7 +43,7 @@ export default function OfflinePage() {
             width: 64,
             height: 64,
             borderRadius: 16,
-            background: '#8f1d2e',
+            background: '#6366f1',
             color: '#ffffff',
             fontSize: '1.375rem',
             fontWeight: 700,
@@ -51,7 +51,7 @@ export default function OfflinePage() {
             marginBottom: '1.5rem',
           }}
         >
-          AMS
+          V
         </div>
 
         <div style={{ fontSize: '2.25rem', marginBottom: '0.75rem', lineHeight: 1 }}>📶</div>

@@ -1,13 +1,13 @@
 import { LayoutGrid, BarChart3, Users, Wallet, TrendingUp, Search } from 'lucide-react';
 
-const M = '#8f1d2e';
+const M = '#6366f1';
 
 /** A detailed light-theme app window mockup — the product shot. Presentational
  *  (no hooks), language-neutral, pure CSS/SVG. */
 export function DashboardPreview() {
   return (
     <div className="relative mx-auto w-full max-w-4xl" aria-hidden>
-      <div className="absolute -inset-6 -z-10 rounded-[2.5rem] opacity-60 blur-3xl" style={{ background: 'radial-gradient(60% 60% at 50% 30%, rgba(143,29,46,0.35), transparent 70%)' }} />
+      <div className="absolute -inset-6 -z-10 rounded-[2.5rem] opacity-60 blur-3xl" style={{ background: 'radial-gradient(60% 60% at 50% 30%, rgba(124,58,237,0.35), transparent 70%)' }} />
 
       <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl ring-1 ring-black/5">
         {/* browser chrome */}
@@ -16,7 +16,7 @@ export function DashboardPreview() {
           <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
           <span className="h-3 w-3 rounded-full bg-[#28c840]" />
           <div className="ms-4 hidden h-6 max-w-xs flex-1 items-center gap-2 rounded-md bg-white px-3 text-[11px] text-neutral-400 ring-1 ring-neutral-200 sm:flex" dir="ltr">
-            <Search className="h-3 w-3" /> app.ams.com/dashboard
+            <Search className="h-3 w-3" /> app.velora.com/dashboard
           </div>
         </div>
 
@@ -24,7 +24,7 @@ export function DashboardPreview() {
           {/* sidebar */}
           <aside className="hidden w-44 shrink-0 border-e border-neutral-100 bg-neutral-50/70 p-3 md:block">
             <div className="mb-4 flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white" style={{ background: M }} dir="ltr">A</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white" style={{ background: M }} dir="ltr">V</span>
               <span className="h-2.5 w-16 rounded-full bg-neutral-200" />
             </div>
             {[LayoutGrid, BarChart3, Wallet, Users].map((Icon, i) => (
@@ -46,7 +46,7 @@ export function DashboardPreview() {
                 { icon: BarChart3, v: '267', l: 'Orders' },
               ].map((k, i) => (
                 <div key={i} className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'rgba(143,29,46,0.10)', color: M }}>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'rgba(124,58,237,0.10)', color: M }}>
                     <k.icon className="h-3.5 w-3.5" />
                   </span>
                   <div className="mt-2 text-base font-bold text-neutral-800" dir="ltr">{k.v}</div>
@@ -62,8 +62,8 @@ export function DashboardPreview() {
                 <svg viewBox="0 0 320 110" className="w-full" fill="none" aria-hidden>
                   <defs>
                     <linearGradient id="ams-dash-area" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0" stopColor="rgba(143,29,46,0.22)" />
-                      <stop offset="1" stopColor="rgba(143,29,46,0)" />
+                      <stop offset="0" stopColor="rgba(124,58,237,0.22)" />
+                      <stop offset="1" stopColor="rgba(124,58,237,0)" />
                     </linearGradient>
                   </defs>
                   <path d="M0,86 C40,78 70,48 110,56 150,64 190,24 230,34 270,42 300,18 320,22 L320,110 L0,110 Z" fill="url(#ams-dash-area)" />
@@ -92,7 +92,7 @@ export function DashboardPreview() {
                     <div className="mt-1 h-2 w-20 rounded-full bg-neutral-100" />
                   </div>
                   <span className="hidden h-2 w-20 rounded-full bg-neutral-100 sm:block" />
-                  <span className="h-5 w-14 rounded-full" style={{ background: i % 3 === 0 ? 'rgba(22,163,74,0.14)' : 'rgba(143,29,46,0.10)' }} />
+                  <span className="h-5 w-14 rounded-full" style={{ background: i % 3 === 0 ? 'rgba(22,163,74,0.14)' : 'rgba(124,58,237,0.10)' }} />
                 </div>
               ))}
             </div>

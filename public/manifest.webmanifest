@@ -1,13 +1,13 @@
 {
-  "name": "AMS - نظام إدارة الأعمال",
-  "short_name": "AMS",
+  "name": "Velora - نظام إدارة الأعمال",
+  "short_name": "Velora",
   "description": "نظام متكامل لإدارة الأعمال يتأقلم مع نشاطك — عيادات، مطاعم، صالونات، تجارة، وتوزيع.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
-  "theme_color": "#8f1d2e",
+  "theme_color": "#6366f1",
   "dir": "rtl",
   "lang": "ar",
   "icons": [

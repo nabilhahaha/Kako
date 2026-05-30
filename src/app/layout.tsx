@@ -12,7 +12,7 @@ const arabic = IBM_Plex_Sans_Arabic({
   variable: '--font-arabic',
 });
 
-const TITLE = 'AMS | نظام إدارة الأعمال';
+const TITLE = 'Velora | نظام إدارة الأعمال';
 const DESCRIPTION =
   'نظام متكامل لإدارة الأعمال يتأقلم مع نشاطك — عيادات، مطاعم، صالونات، تجارة، وتوزيع.';
 
@@ -20,12 +20,12 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, title: 'AMS', statusBarStyle: 'default' },
-  applicationName: 'AMS',
+  appleWebApp: { capable: true, title: 'Velora', statusBarStyle: 'default' },
+  applicationName: 'Velora',
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
-    siteName: 'AMS',
+    siteName: 'Velora',
     type: 'website',
   },
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
@@ -37,7 +37,7 @@ const THEME_SCRIPT = `try{var t=localStorage.getItem('ams-theme');if(t==='dark'|
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#8f1d2e',
+  themeColor: '#6366f1',
 };
 
 export default async function RootLayout({

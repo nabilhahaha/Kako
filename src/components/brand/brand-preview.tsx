@@ -1,6 +1,6 @@
 import { TrendingUp, Users, FileText, Search } from 'lucide-react';
 
-const M = '#8f1d2e'; // brand maroon
+const M = '#6366f1'; // brand maroon
 
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
@@ -16,8 +16,8 @@ export function BrandBg() {
         style={{
           background:
             'radial-gradient(95% 70% at 50% -12%, rgba(255,255,255,0.30), transparent 55%),' +
-            'radial-gradient(55% 50% at 85% 18%, rgba(232,176,75,0.22), transparent 60%),' +
-            'linear-gradient(155deg, #b62845 0%, #971f36 52%, #71152a 100%)',
+            'radial-gradient(55% 50% at 85% 18%, rgba(34,211,238,0.22), transparent 60%),' +
+            'linear-gradient(155deg, #7c5cff 0%, #5b4ee6 52%, #3b2db0 100%)',
         }}
       />
       {/* diagonal glass sheen (light reflecting on a pane) */}
@@ -29,7 +29,7 @@ export function BrandBg() {
       <div className="absolute inset-x-0 top-0 h-1/3" style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.12), transparent)' }} />
       <div className="absolute inset-y-0 start-0 w-px" style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.25), transparent)' }} />
 
-      <div className="ams-aura absolute -bottom-24 -start-16 h-80 w-80 rounded-full blur-3xl" style={{ background: 'rgba(232,176,75,0.20)' }} />
+      <div className="ams-aura absolute -bottom-24 -start-16 h-80 w-80 rounded-full blur-3xl" style={{ background: 'rgba(34,211,238,0.20)' }} />
       <div className="absolute inset-0 opacity-[0.05] mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
     </>
   );
@@ -42,7 +42,7 @@ export function ProductMockup() {
   return (
     <div className="relative" aria-hidden>
       {/* glow + floor reflection under the card */}
-      <div className="absolute -inset-6 -z-10 rounded-[2rem] opacity-70 blur-2xl" style={{ background: 'radial-gradient(60% 60% at 50% 40%, rgba(232,176,75,0.35), transparent 70%)' }} />
+      <div className="absolute -inset-6 -z-10 rounded-[2rem] opacity-70 blur-2xl" style={{ background: 'radial-gradient(60% 60% at 50% 40%, rgba(34,211,238,0.35), transparent 70%)' }} />
 
       <div
         className="w-[27rem] max-w-full overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
@@ -85,7 +85,7 @@ export function ProductMockup() {
                 { icon: FileText, v: '267' },
               ].map((k, i) => (
                 <div key={i} className="rounded-xl border border-neutral-100 bg-neutral-50 p-2.5">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ background: 'rgba(143,29,46,0.10)', color: M }}>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ background: 'rgba(124,58,237,0.10)', color: M }}>
                     <k.icon className="h-3.5 w-3.5" />
                   </span>
                   <div className="mt-2 text-sm font-bold tabular-nums text-neutral-800" dir="ltr">{k.v}</div>
@@ -100,8 +100,8 @@ export function ProductMockup() {
               <svg viewBox="0 0 240 70" className="w-full" fill="none" aria-hidden>
                 <defs>
                   <linearGradient id="ams-mk-area" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="rgba(143,29,46,0.22)" />
-                    <stop offset="1" stopColor="rgba(143,29,46,0)" />
+                    <stop offset="0" stopColor="rgba(124,58,237,0.22)" />
+                    <stop offset="1" stopColor="rgba(124,58,237,0)" />
                   </linearGradient>
                 </defs>
                 <path d="M0,52 C32,46 54,26 88,32 122,38 156,12 240,20 L240,70 L0,70 Z" fill="url(#ams-mk-area)" />
@@ -119,7 +119,7 @@ export function ProductMockup() {
                     <div className="h-1.5 w-24 rounded-full bg-neutral-200" />
                     <div className="mt-1 h-1.5 w-14 rounded-full bg-neutral-100" />
                   </div>
-                  <span className="h-4 w-12 rounded-full" style={{ background: i === 0 ? 'rgba(22,163,74,0.15)' : 'rgba(143,29,46,0.10)' }} />
+                  <span className="h-4 w-12 rounded-full" style={{ background: i === 0 ? 'rgba(22,163,74,0.15)' : 'rgba(124,58,237,0.10)' }} />
                 </div>
               ))}
             </div>

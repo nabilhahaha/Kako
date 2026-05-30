@@ -32,7 +32,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       {/* glass card */}
       <div className="ams-pop relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-white/15 bg-background/85 p-7 shadow-2xl backdrop-blur-2xl">
         {/* brand glow */}
-        <div className="pointer-events-none absolute -top-16 end-0 h-40 w-40 rounded-full blur-3xl" style={{ background: 'rgba(143,29,46,0.30)' }} />
+        <div className="pointer-events-none absolute -top-16 end-0 h-40 w-40 rounded-full blur-3xl" style={{ background: 'rgba(124,58,237,0.30)' }} />
 
         <button
           onClick={onClose}

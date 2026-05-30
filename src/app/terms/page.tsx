@@ -2,17 +2,17 @@ import type { Metadata } from 'next';
 import { LegalShell, LegalSection } from '@/components/legal-shell';
 import { SUPPORT_PHONES } from '@/lib/erp/contact';
 
-export const metadata: Metadata = { title: 'الشروط والأحكام | AMS' };
+export const metadata: Metadata = { title: 'الشروط والأحكام | Velora' };
 
 export default function TermsPage() {
   return (
     <LegalShell title="الشروط والأحكام">
       <p className="text-muted-foreground">
-        تحكم هذه الشروط استخدامك لنظام AMS. باستخدامك للخدمة فأنت توافق عليها بالكامل؛ وإذا لم توافق فيرجى عدم استخدام الخدمة.
+        تحكم هذه الشروط استخدامك لنظام Velora. باستخدامك للخدمة فأنت توافق عليها بالكامل؛ وإذا لم توافق فيرجى عدم استخدام الخدمة.
       </p>
 
       <LegalSection heading="١. وصف الخدمة">
-        <p>AMS نظام لإدارة الأعمال يتيح إدارة المبيعات والمخزون والمحاسبة وفريق العمل، ويتأقلم مع نوع نشاطك (عيادة، مطعم، صالون، تجارة، توزيع وغيرها).</p>
+        <p>Velora نظام لإدارة الأعمال يتيح إدارة المبيعات والمخزون والمحاسبة وفريق العمل، ويتأقلم مع نوع نشاطك (عيادة، مطعم، صالون، تجارة، توزيع وغيرها).</p>
       </LegalSection>
 
       <LegalSection heading="٢. الحساب والمسؤولية">
