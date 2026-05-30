@@ -1,6 +1,28 @@
 /** settings module messages. */
 export const ar = {
   settings: {
+    eta: {
+      pageTitle: 'الفاتورة الإلكترونية (مصلحة الضرائب)',
+      pageDescription: 'إعدادات الربط مع منظومة الفاتورة الإلكترونية المصرية (ETA).',
+      taxRegistrationNumber: 'الرقم الضريبي (التسجيل)',
+      activityCode: 'كود النشاط الضريبي',
+      issuerName: 'اسم المُصدِر (الشركة)',
+      branchId: 'كود الفرع لدى الضرائب',
+      country: 'الدولة',
+      governate: 'المحافظة',
+      regionCity: 'المنطقة / المدينة',
+      street: 'الشارع',
+      buildingNumber: 'رقم المبنى',
+      environment: 'البيئة',
+      envPreprod: 'تجريبية (preprod)',
+      envProduction: 'إنتاج (production)',
+      enableLabel: 'تفعيل إرسال الفواتير للمنظومة',
+      signingNote: 'الإرسال الفعلي يحتاج شهادة الختم الإلكتروني وبيانات الدخول من مصلحة الضرائب (راجع docs/ETA.md).',
+      save: 'حفظ الإعدادات',
+      saved: 'تم حفظ إعدادات الفاتورة الإلكترونية',
+      genericError: 'حدث خطأ',
+      errNoCompany: 'لا توجد شركة مرتبطة بالحساب.',
+    },
     // shared / generic
     unauthorized: 'غير مصرح.',
     unauthorizedLogin: 'غير مصرح. سجّل الدخول.',
@@ -181,6 +203,28 @@ export const ar = {
 
 export const en = {
   settings: {
+    eta: {
+      pageTitle: 'E-Invoicing (Tax Authority)',
+      pageDescription: 'Configure the integration with the Egyptian e-invoicing system (ETA).',
+      taxRegistrationNumber: 'Tax registration number',
+      activityCode: 'Taxpayer activity code',
+      issuerName: 'Issuer name (company)',
+      branchId: 'ETA branch ID',
+      country: 'Country',
+      governate: 'Governorate',
+      regionCity: 'Region / City',
+      street: 'Street',
+      buildingNumber: 'Building number',
+      environment: 'Environment',
+      envPreprod: 'Sandbox (preprod)',
+      envProduction: 'Production',
+      enableLabel: 'Enable submitting invoices to ETA',
+      signingNote: 'Actual submission requires the e-seal certificate and ETA credentials (see docs/ETA.md).',
+      save: 'Save settings',
+      saved: 'E-invoicing settings saved',
+      genericError: 'Something went wrong',
+      errNoCompany: 'No company is linked to this account.',
+    },
     // shared / generic
     unauthorized: 'Unauthorized.',
     unauthorizedLogin: 'Unauthorized. Please sign in.',

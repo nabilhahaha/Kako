@@ -64,6 +64,9 @@ export async function upsertProduct(formData: FormData): Promise<ActionResult> {
     sell_price: num(formData.get('sell_price')),
     min_stock: num(formData.get('min_stock')),
     tax_rate: num(formData.get('tax_rate')),
+    eta_item_code: String(formData.get('eta_item_code') || '').trim() || null,
+    eta_item_code_type: String(formData.get('eta_item_code_type') || '').trim() || null,
+    eta_unit_type: String(formData.get('eta_unit_type') || '').trim() || null,
   };
 
   const { error } = id

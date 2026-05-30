@@ -16,6 +16,7 @@ import { Plus, Pencil, Loader2, X, Package, Search, Tags } from 'lucide-react';
 import { toast } from 'sonner';
 import { DrugCatalogPicker } from './drug-catalog-picker';
 import { useI18n } from '@/lib/i18n/provider';
+import { ETA_UNIT_TYPES } from '@/lib/eta/codes';
 
 export function ProductsManager({
   products,
@@ -208,6 +209,24 @@ export function ProductsManager({
                 </Field>
                 <Field label={t('products.fieldMinStock')}>
                   <Input name="min_stock" type="number" step="0.001" dir="ltr" defaultValue={current?.min_stock ?? 0} />
+                </Field>
+                <Field label={t('products.fieldEtaCodeType')}>
+                  <select name="eta_item_code_type" defaultValue={current?.eta_item_code_type ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">{t('products.etaNone')}</option>
+                    <option value="EGS">EGS</option>
+                    <option value="GS1">GS1</option>
+                  </select>
+                </Field>
+                <Field label={t('products.fieldEtaItemCode')}>
+                  <Input name="eta_item_code" dir="ltr" defaultValue={current?.eta_item_code ?? ''} />
+                </Field>
+                <Field label={t('products.fieldEtaUnitType')}>
+                  <select name="eta_unit_type" defaultValue={current?.eta_unit_type ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">{t('products.etaNone')}</option>
+                    {Object.entries(ETA_UNIT_TYPES).map(([code, label]) => (
+                      <option key={code} value={code}>{code} · {label[locale]}</option>
+                    ))}
+                  </select>
                 </Field>
               </div>
               <div className="flex gap-2">

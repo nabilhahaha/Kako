@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
-import { createInvoice, issueInvoice, recordPayment, cancelInvoice } from './actions';
+import { createInvoice, issueInvoice, recordPayment, cancelInvoice, submitInvoiceToEta } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -128,6 +128,18 @@ export function InvoicesManager({
         return;
       }
       toast.success(t('sales.invoiceSuccessIssued'));
+      router.refresh();
+    });
+  }
+
+  function onSubmitEta(id: string) {
+    startTransition(async () => {
+      const res = await submitInvoiceToEta(id);
+      if (!res.ok) {
+        toast.error(res.error ?? t('sales.etaSubmitFailed'));
+        return;
+      }
+      toast.success(t('sales.etaSubmitted'));
       router.refresh();
     });
   }
@@ -283,6 +295,20 @@ export function InvoicesManager({
                                 <Printer className="h-4 w-4" />
                               </Link>
                             </Tooltip>
+                            {inv.status !== 'draft' && inv.eta_status === 'not_submitted' && (
+                              <Button variant="ghost" size="sm" disabled={pending} onClick={() => onSubmitEta(inv.id)} className="text-xs">
+                                {t('sales.etaSubmit')}
+                              </Button>
+                            )}
+                            {inv.eta_status === 'submitted' && (
+                              <Badge variant="secondary" className="text-[10px]">{t('sales.etaStatusSubmitted')}</Badge>
+                            )}
+                            {inv.eta_status === 'valid' && (
+                              <Badge variant="success" className="text-[10px]">{t('sales.etaStatusValid')}</Badge>
+                            )}
+                            {(inv.eta_status === 'rejected' || inv.eta_status === 'invalid') && (
+                              <Badge variant="destructive" className="text-[10px]">{t('sales.etaStatusRejected')}</Badge>
+                            )}
                             {inv.status === 'draft' && (
                               <>
                                 <Button variant="ghost" size="sm" disabled={pending} onClick={() => onIssue(inv.id)} className="text-xs">

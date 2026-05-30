@@ -47,4 +47,4 @@ alter table erp_invoices
   add column if not exists eta_submitted_at   timestamptz,
   add column if not exists eta_error          jsonb;
 
-create index if not exists idx_erp_invoices_eta_status on erp_invoices (company_id, eta_status);
+create index if not exists idx_erp_invoices_eta_status on erp_invoices (branch_id, eta_status);

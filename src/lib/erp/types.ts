@@ -232,6 +232,10 @@ export interface ProductCatalog {
   is_active: boolean;
   image_url: string | null;
   description: string | null;
+  /** ETA e-invoicing item code mapping (EGS or GS1) + unit-of-measure code. */
+  eta_item_code: string | null;
+  eta_item_code_type: 'EGS' | 'GS1' | null;
+  eta_unit_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -367,9 +371,19 @@ export interface Invoice {
   paid_amount: number;
   notes: string | null;
   created_by: string | null;
+  eta_status: EtaInvoiceStatus;
+  eta_uuid: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type EtaInvoiceStatus =
+  | 'not_submitted'
+  | 'submitted'
+  | 'valid'
+  | 'invalid'
+  | 'rejected'
+  | 'cancelled';
 
 export interface InvoiceLine {
   id: string;
