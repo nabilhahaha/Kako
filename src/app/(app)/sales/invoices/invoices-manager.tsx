@@ -40,6 +40,7 @@ export function InvoicesManager({
   products,
   q,
   status,
+  etaEnabled = false,
 }: {
   invoices: InvoiceRow[];
   customers: ErpCustomer[];
@@ -47,6 +48,7 @@ export function InvoicesManager({
   products: ProductCatalog[];
   q: string;
   status: string;
+  etaEnabled?: boolean;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -295,18 +297,18 @@ export function InvoicesManager({
                                 <Printer className="h-4 w-4" />
                               </Link>
                             </Tooltip>
-                            {inv.status !== 'draft' && inv.eta_status === 'not_submitted' && (
+                            {etaEnabled && inv.status !== 'draft' && inv.eta_status === 'not_submitted' && (
                               <Button variant="ghost" size="sm" disabled={pending} onClick={() => onSubmitEta(inv.id)} className="text-xs">
                                 {t('sales.etaSubmit')}
                               </Button>
                             )}
-                            {inv.eta_status === 'submitted' && (
+                            {etaEnabled && inv.eta_status === 'submitted' && (
                               <Badge variant="secondary" className="text-[10px]">{t('sales.etaStatusSubmitted')}</Badge>
                             )}
-                            {inv.eta_status === 'valid' && (
+                            {etaEnabled && inv.eta_status === 'valid' && (
                               <Badge variant="success" className="text-[10px]">{t('sales.etaStatusValid')}</Badge>
                             )}
-                            {(inv.eta_status === 'rejected' || inv.eta_status === 'invalid') && (
+                            {etaEnabled && (inv.eta_status === 'rejected' || inv.eta_status === 'invalid') && (
                               <Badge variant="destructive" className="text-[10px]">{t('sales.etaStatusRejected')}</Badge>
                             )}
                             {inv.status === 'draft' && (

@@ -13,10 +13,12 @@ export default async function ProductsPage() {
   const { t } = await getT();
 
   const supabase = await createClient();
-  const [{ data: products }, { data: categories }] = await Promise.all([
+  const [{ data: products }, { data: categories }, { data: etaSettings }] = await Promise.all([
     supabase.from('erp_products_catalog').select('*').order('code'),
     supabase.from('erp_product_categories').select('*').order('code'),
+    supabase.from('erp_company_eta_settings').select('enabled').eq('company_id', ctx.companyId).maybeSingle(),
   ]);
+  const etaEnabled = Boolean(etaSettings?.enabled);
 
   return (
     <div>
@@ -28,6 +30,7 @@ export default async function ProductsPage() {
         products={(products as ProductCatalog[]) ?? []}
         categories={(categories as ProductCategory[]) ?? []}
         showDrugCatalog={ctx.modules.includes('pharmacy') || ctx.modules.includes('clinic')}
+        etaEnabled={etaEnabled}
       />
     </div>
   );

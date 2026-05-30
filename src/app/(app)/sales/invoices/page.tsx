@@ -36,13 +36,15 @@ export default async function InvoicesPage({
   if (q) listQuery = listQuery.ilike('invoice_number', `%${q}%`);
   if (status !== 'all') listQuery = listQuery.eq('status', status);
 
-  const [{ data: invoices, count }, { data: customers }, { data: branches }, { data: products }] =
+  const [{ data: invoices, count }, { data: customers }, { data: branches }, { data: products }, { data: etaSettings }] =
     await Promise.all([
       listQuery.range(fromIdx, fromIdx + PAGE_SIZE - 1),
       supabase.from('erp_customers').select('*').eq('is_active', true).order('name'),
       supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
       supabase.from('erp_products_catalog').select('*').eq('is_active', true).order('name'),
+      supabase.from('erp_company_eta_settings').select('enabled').eq('company_id', ctx.companyId).maybeSingle(),
     ]);
+  const etaEnabled = Boolean(etaSettings?.enabled);
 
   return (
     <div>
@@ -54,6 +56,7 @@ export default async function InvoicesPage({
         products={(products as ProductCatalog[]) ?? []}
         q={q}
         status={status}
+        etaEnabled={etaEnabled}
       />
       <Pager
         page={page}
