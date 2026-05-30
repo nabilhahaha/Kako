@@ -144,8 +144,8 @@ export function BookingsManager({ bookings, rooms }: { bookings: Booking[]; room
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('hotel.bookings.colGuest')}</th>
-                    <th className="p-3 text-right font-medium">{t('hotel.bookings.colRoom')}</th>
+                    <th className="p-3 text-start font-medium">{t('hotel.bookings.colGuest')}</th>
+                    <th className="p-3 text-start font-medium">{t('hotel.bookings.colRoom')}</th>
                     <th className="p-3 text-center font-medium">{t('hotel.bookings.colDates')}</th>
                     <th className="p-3 text-center font-medium">{t('hotel.bookings.colNights')}</th>
                     <th className="p-3 text-center font-medium">{t('hotel.bookings.colTotal')}</th>

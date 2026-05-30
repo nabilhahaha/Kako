@@ -37,8 +37,8 @@ export function RouteCustomers({ routeId, customers }: { routeId: string; custom
     <div className="grid gap-4 lg:grid-cols-2">
       <Card><CardContent className="p-4">
         <div className="relative mb-3">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('distribution.routeCustomersSearchPlaceholder')} className="pr-9" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('distribution.routeCustomersSearchPlaceholder')} className="ps-9" />
         </div>
         {found.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">{q ? t('distribution.routeCustomersNoResults') : t('distribution.routeCustomersTypePrompt')}</p>

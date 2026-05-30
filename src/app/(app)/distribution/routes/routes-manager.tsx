@@ -73,7 +73,7 @@ export function RoutesManager({ routes, reps, vans }: { routes: RouteRow[]; reps
         ) : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground"><tr>
-              <th className="p-3 text-right font-medium">{t('distribution.routeColRoute')}</th><th className="p-3 text-right font-medium">{t('distribution.routeColRep')}</th><th className="p-3 text-right font-medium">{t('distribution.routeColVan')}</th><th className="p-3 text-center font-medium">{t('distribution.routeColDay')}</th><th className="p-3 text-center font-medium">{t('distribution.routeColCustomers')}</th><th className="p-3"></th>
+              <th className="p-3 text-start font-medium">{t('distribution.routeColRoute')}</th><th className="p-3 text-start font-medium">{t('distribution.routeColRep')}</th><th className="p-3 text-start font-medium">{t('distribution.routeColVan')}</th><th className="p-3 text-center font-medium">{t('distribution.routeColDay')}</th><th className="p-3 text-center font-medium">{t('distribution.routeColCustomers')}</th><th className="p-3"></th>
             </tr></thead>
             <tbody>
               {routes.map((r) => (
@@ -83,7 +83,7 @@ export function RoutesManager({ routes, reps, vans }: { routes: RouteRow[]; reps
                   <td className="p-3 text-muted-foreground">{vanName(r.van_warehouse_id)}</td>
                   <td className="p-3 text-center">{r.visit_day ? (VISIT_DAYS.find((d) => d.value === r.visit_day)?.[locale] ?? '—') : '—'}</td>
                   <td className="p-3 text-center tabular-nums">{r.customers}</td>
-                  <td className="p-3 text-left">
+                  <td className="p-3 text-end">
                     <div className="flex items-center justify-end gap-1">
                       <Link href={`/distribution/routes/${r.id}`} className={buttonVariants({ size: 'sm', variant: 'ghost' })}><Users className="h-3.5 w-3.5" /> {t('distribution.routeBtnCustomers')}</Link>
                       <Button size="sm" variant="ghost" onClick={() => setEditing(r)}><Pencil className="h-3.5 w-3.5" /></Button>

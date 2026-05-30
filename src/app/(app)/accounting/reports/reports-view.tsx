@@ -79,12 +79,12 @@ function Aging({ rows }: { rows: AgingRow[] }) {
           <table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground">
               <tr>
-                <th className="p-3 text-right font-medium">{t('accounting.reports.agingColCustomer')}</th>
-                <th className="p-3 text-left font-medium">{t('accounting.reports.agingCol030')}</th>
-                <th className="p-3 text-left font-medium">{t('accounting.reports.agingCol3160')}</th>
-                <th className="p-3 text-left font-medium">{t('accounting.reports.agingCol6190')}</th>
-                <th className="p-3 text-left font-medium">{t('accounting.reports.agingCol90p')}</th>
-                <th className="p-3 text-left font-medium">{t('accounting.reports.agingColTotal')}</th>
+                <th className="p-3 text-start font-medium">{t('accounting.reports.agingColCustomer')}</th>
+                <th className="p-3 text-end font-medium">{t('accounting.reports.agingCol030')}</th>
+                <th className="p-3 text-end font-medium">{t('accounting.reports.agingCol3160')}</th>
+                <th className="p-3 text-end font-medium">{t('accounting.reports.agingCol6190')}</th>
+                <th className="p-3 text-end font-medium">{t('accounting.reports.agingCol90p')}</th>
+                <th className="p-3 text-end font-medium">{t('accounting.reports.agingColTotal')}</th>
               </tr>
             </thead>
             <tbody>
@@ -126,11 +126,11 @@ function Margin({ rows }: { rows: MarginRow[] }) {
           <table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground">
               <tr>
-                <th className="p-3 text-right font-medium">{t('accounting.reports.marginColItem')}</th>
+                <th className="p-3 text-start font-medium">{t('accounting.reports.marginColItem')}</th>
                 <th className="p-3 text-center font-medium">{t('accounting.reports.marginColQtySold')}</th>
-                <th className="p-3 text-left font-medium">{t('accounting.reports.marginColRevenue')}</th>
-                <th className="p-3 text-left font-medium">{t('accounting.reports.marginColCost')}</th>
-                <th className="p-3 text-left font-medium">{t('accounting.reports.marginColProfit')}</th>
+                <th className="p-3 text-end font-medium">{t('accounting.reports.marginColRevenue')}</th>
+                <th className="p-3 text-end font-medium">{t('accounting.reports.marginColCost')}</th>
+                <th className="p-3 text-end font-medium">{t('accounting.reports.marginColProfit')}</th>
                 <th className="p-3 text-center font-medium">{t('accounting.reports.marginColMarginPct')}</th>
               </tr>
             </thead>
@@ -198,10 +198,10 @@ function TrialBalance({ accounts }: { accounts: AccountAgg[] }) {
         <table className="w-full text-sm">
           <thead className="border-b bg-secondary/50 text-muted-foreground">
             <tr>
-              <th className="p-3 text-right font-medium">{t('accounting.reports.trialColAccount')}</th>
-              <th className="p-3 text-right font-medium">{t('accounting.reports.trialColType')}</th>
-              <th className="p-3 text-left font-medium">{t('accounting.reports.trialColDebit')}</th>
-              <th className="p-3 text-left font-medium">{t('accounting.reports.trialColCredit')}</th>
+              <th className="p-3 text-start font-medium">{t('accounting.reports.trialColAccount')}</th>
+              <th className="p-3 text-start font-medium">{t('accounting.reports.trialColType')}</th>
+              <th className="p-3 text-end font-medium">{t('accounting.reports.trialColDebit')}</th>
+              <th className="p-3 text-end font-medium">{t('accounting.reports.trialColCredit')}</th>
             </tr>
           </thead>
           <tbody>

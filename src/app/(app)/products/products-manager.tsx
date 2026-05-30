@@ -110,12 +110,12 @@ export function ProductsManager({
         </Button>
         {showDrugCatalog && <DrugCatalogPicker />}
         <div className="relative ms-auto">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('products.searchPlaceholder')}
-            className="w-64 pr-9"
+            className="w-64 pe-9"
           />
         </div>
       </div>
@@ -235,12 +235,12 @@ export function ProductsManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('products.colCode')}</th>
-                    <th className="p-3 text-right font-medium">{t('products.colProduct')}</th>
-                    <th className="p-3 text-right font-medium">{t('products.colCategory')}</th>
-                    <th className="p-3 text-right font-medium">{t('products.colUnit')}</th>
-                    <th className="p-3 text-left font-medium">{t('products.colCost')}</th>
-                    <th className="p-3 text-left font-medium">{t('products.colSell')}</th>
+                    <th className="p-3 text-start font-medium">{t('products.colCode')}</th>
+                    <th className="p-3 text-start font-medium">{t('products.colProduct')}</th>
+                    <th className="p-3 text-start font-medium">{t('products.colCategory')}</th>
+                    <th className="p-3 text-start font-medium">{t('products.colUnit')}</th>
+                    <th className="p-3 text-end font-medium">{t('products.colCost')}</th>
+                    <th className="p-3 text-end font-medium">{t('products.colSell')}</th>
                     <th className="p-3 text-center font-medium">{t('products.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>

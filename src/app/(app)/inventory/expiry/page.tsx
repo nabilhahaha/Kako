@@ -63,11 +63,11 @@ export default async function ExpiryReportPage() {
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('inventory.colProduct')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colBatch')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colWarehouse')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colProduct')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colBatch')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colWarehouse')}</th>
                     <th className="p-3 text-center font-medium">{t('inventory.colQuantity')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colExpiryDate')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colExpiryDate')}</th>
                     <th className="p-3 text-center font-medium">{t('inventory.colStatus')}</th>
                   </tr>
                 </thead>

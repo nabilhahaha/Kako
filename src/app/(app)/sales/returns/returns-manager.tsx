@@ -174,10 +174,10 @@ export function ReturnsManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-2 text-right font-medium">{t('sales.returnColProduct')}</th>
+                    <th className="p-2 text-start font-medium">{t('sales.returnColProduct')}</th>
                     <th className="p-2 text-center font-medium w-24">{t('sales.returnColQty')}</th>
                     <th className="p-2 text-center font-medium w-28">{t('sales.returnColUnitPrice')}</th>
-                    <th className="p-2 text-left font-medium w-28">{t('sales.returnColTotal')}</th>
+                    <th className="p-2 text-end font-medium w-28">{t('sales.returnColTotal')}</th>
                     <th className="p-2 w-10"></th>
                   </tr>
                 </thead>
@@ -248,11 +248,11 @@ export function ReturnsManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('sales.returnColNumber')}</th>
-                    <th className="p-3 text-right font-medium">{t('sales.returnColCustomer')}</th>
-                    <th className="p-3 text-right font-medium">{t('sales.returnColReason')}</th>
-                    <th className="p-3 text-right font-medium">{t('sales.returnColDate')}</th>
-                    <th className="p-3 text-left font-medium">{t('sales.returnColValue')}</th>
+                    <th className="p-3 text-start font-medium">{t('sales.returnColNumber')}</th>
+                    <th className="p-3 text-start font-medium">{t('sales.returnColCustomer')}</th>
+                    <th className="p-3 text-start font-medium">{t('sales.returnColReason')}</th>
+                    <th className="p-3 text-start font-medium">{t('sales.returnColDate')}</th>
+                    <th className="p-3 text-end font-medium">{t('sales.returnColValue')}</th>
                     <th className="p-3 text-center font-medium">{t('sales.returnColStatus')}</th>
                     <th className="p-3"></th>
                   </tr>

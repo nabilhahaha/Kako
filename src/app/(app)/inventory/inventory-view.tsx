@@ -105,8 +105,8 @@ export function InventoryView({
               ))}
             </select>
             <div className="relative ms-auto">
-              <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('inventory.searchProduct')} className="w-56 pr-9" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('inventory.searchProduct')} className="w-56 pe-9" />
             </div>
             <Button
               variant="outline"
@@ -134,10 +134,10 @@ export function InventoryView({
                 <table className="w-full text-sm">
                   <thead className="border-b bg-secondary/50 text-muted-foreground">
                     <tr>
-                      <th className="p-3 text-right font-medium">{t('inventory.colProduct')}</th>
-                      <th className="p-3 text-right font-medium">{t('inventory.colWarehouse')}</th>
-                      <th className="p-3 text-left font-medium">{t('inventory.colAvailable')}</th>
-                      <th className="p-3 text-left font-medium">{t('inventory.colReserved')}</th>
+                      <th className="p-3 text-start font-medium">{t('inventory.colProduct')}</th>
+                      <th className="p-3 text-start font-medium">{t('inventory.colWarehouse')}</th>
+                      <th className="p-3 text-end font-medium">{t('inventory.colAvailable')}</th>
+                      <th className="p-3 text-end font-medium">{t('inventory.colReserved')}</th>
                       <th className="p-3 text-center font-medium">{t('inventory.colStatus')}</th>
                       <th className="p-3"></th>
                     </tr>
@@ -157,7 +157,7 @@ export function InventoryView({
                           <td className="p-3 text-center">
                             {low ? <Badge variant="warning">{t('inventory.statusBelowMin', { min: formatNumber(r.minStock) })}</Badge> : <Badge variant="success">{t('inventory.statusAvailable')}</Badge>}
                           </td>
-                          <td className="p-3 text-left">
+                          <td className="p-3 text-start">
                             <Button variant="ghost" size="sm" className="text-xs" onClick={() => setAdjust({ warehouse_id: r.warehouse_id, product_id: r.product_id })}>
                               {t('inventory.adjust')}
                             </Button>
@@ -182,12 +182,12 @@ export function InventoryView({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('inventory.colDate')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colType')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colProduct')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colWarehouse')}</th>
-                    <th className="p-3 text-left font-medium">{t('inventory.colQuantity')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colNotes')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colDate')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colType')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colProduct')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colWarehouse')}</th>
+                    <th className="p-3 text-end font-medium">{t('inventory.colQuantity')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colNotes')}</th>
                   </tr>
                 </thead>
                 <tbody>

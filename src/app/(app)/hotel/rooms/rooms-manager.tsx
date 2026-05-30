@@ -96,8 +96,8 @@ export function RoomsManager({ rooms }: { rooms: Room[] }) {
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('hotel.rooms.colRoom')}</th>
-                    <th className="p-3 text-right font-medium">{t('hotel.rooms.colType')}</th>
+                    <th className="p-3 text-start font-medium">{t('hotel.rooms.colRoom')}</th>
+                    <th className="p-3 text-start font-medium">{t('hotel.rooms.colType')}</th>
                     <th className="p-3 text-center font-medium">{t('hotel.rooms.colCapacity')}</th>
                     <th className="p-3 text-center font-medium">{t('hotel.rooms.colRate')}</th>
                     <th className="p-3 text-center font-medium">{t('hotel.rooms.colStatus')}</th>
@@ -112,7 +112,7 @@ export function RoomsManager({ rooms }: { rooms: Room[] }) {
                       <tr key={r.id} className="border-b">
                         <td className="p-3">
                           <span className="font-medium" dir="ltr">{r.code}</span>
-                          {r.name && <span className="mr-2 text-muted-foreground">{r.name}</span>}
+                          {r.name && <span className="ms-2 text-muted-foreground">{r.name}</span>}
                         </td>
                         <td className="p-3 text-muted-foreground">{r.room_type || '—'}</td>
                         <td className="p-3 text-center tabular-nums" dir="ltr">{r.capacity}</td>

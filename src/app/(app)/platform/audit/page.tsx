@@ -83,12 +83,12 @@ export default async function AuditLogPage() {
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium whitespace-nowrap">{t('platform.audit.thTime')}</th>
-                    <th className="p-3 text-right font-medium">{t('platform.audit.thActor')}</th>
-                    <th className="p-3 text-right font-medium">{t('platform.audit.thAction')}</th>
-                    <th className="p-3 text-right font-medium">{t('platform.audit.thEntity')}</th>
-                    <th className="p-3 text-right font-medium">{t('platform.audit.thCompany')}</th>
-                    <th className="p-3 text-right font-medium">{t('platform.audit.thDetails')}</th>
+                    <th className="p-3 text-start font-medium whitespace-nowrap">{t('platform.audit.thTime')}</th>
+                    <th className="p-3 text-start font-medium">{t('platform.audit.thActor')}</th>
+                    <th className="p-3 text-start font-medium">{t('platform.audit.thAction')}</th>
+                    <th className="p-3 text-start font-medium">{t('platform.audit.thEntity')}</th>
+                    <th className="p-3 text-start font-medium">{t('platform.audit.thCompany')}</th>
+                    <th className="p-3 text-start font-medium">{t('platform.audit.thDetails')}</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -104,8 +104,8 @@ export function StaffManager({
             <table className="w-full text-sm">
               <thead className="border-b bg-secondary/50 text-muted-foreground">
                 <tr>
-                  <th className="p-3 text-right font-medium">{t('settings.staff.colEmployee')}</th>
-                  <th className="p-3 text-right font-medium">{t('settings.staff.colRole')}</th>
+                  <th className="p-3 text-start font-medium">{t('settings.staff.colEmployee')}</th>
+                  <th className="p-3 text-start font-medium">{t('settings.staff.colRole')}</th>
                   <th className="p-3 text-center font-medium">{t('settings.staff.colStatus')}</th>
                   <th className="p-3"></th>
                 </tr>

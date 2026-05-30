@@ -98,7 +98,7 @@ export function ClinicalListField({
 
       <div className="relative" ref={boxRef}>
         <div className="relative">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -106,9 +106,9 @@ export function ClinicalListField({
               if (e.key === 'Enter') { e.preventDefault(); addLine(q); }
             }}
             placeholder={searchPlaceholder}
-            className="pr-9"
+            className="ps-9"
           />
-          {loading && <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+          {loading && <Loader2 className="absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
         </div>
 
         {open && results.length > 0 && (
@@ -118,7 +118,7 @@ export function ClinicalListField({
                 <button
                   type="button"
                   onClick={() => addLine(r.name)}
-                  className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-right text-sm hover:bg-secondary"
+                  className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-start text-sm hover:bg-secondary"
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium">

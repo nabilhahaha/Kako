@@ -62,8 +62,8 @@ export function JourneyManager({
           {reps.map((r) => <option key={r.id} value={r.id}>{r.full_name || r.email}</option>)}
         </select>
         <div className="relative ms-auto">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('sales.journeySearchPlaceholder')} className="w-56 pr-9" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('sales.journeySearchPlaceholder')} className="w-56 ps-9" />
         </div>
       </div>
 
@@ -79,10 +79,10 @@ export function JourneyManager({
             <table className="w-full text-sm">
               <thead className="border-b bg-secondary/50 text-muted-foreground">
                 <tr>
-                  <th className="p-3 text-right font-medium">{t('sales.journeyColCustomer')}</th>
-                  <th className="p-3 text-right font-medium">{t('sales.journeyColArea')}</th>
-                  <th className="p-3 text-right font-medium">{t('sales.journeyColRep')}</th>
-                  <th className="p-3 text-right font-medium">{t('sales.journeyColVisitDay')}</th>
+                  <th className="p-3 text-start font-medium">{t('sales.journeyColCustomer')}</th>
+                  <th className="p-3 text-start font-medium">{t('sales.journeyColArea')}</th>
+                  <th className="p-3 text-start font-medium">{t('sales.journeyColRep')}</th>
+                  <th className="p-3 text-start font-medium">{t('sales.journeyColVisitDay')}</th>
                 </tr>
               </thead>
               <tbody>

@@ -44,8 +44,8 @@ export function DispenseList({ rows }: { rows: DispenseRow[] }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button disabled={pending} onClick={start}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t('pharmacy.btnNewDispense')}</Button>
         <div className="relative">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('pharmacy.searchPlaceholder')} className="w-64 pr-9" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('pharmacy.searchPlaceholder')} className="w-64 ps-9" />
         </div>
       </div>
 
@@ -55,7 +55,7 @@ export function DispenseList({ rows }: { rows: DispenseRow[] }) {
         ) : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground"><tr>
-              <th className="p-3 text-right font-medium">{t('pharmacy.colDate')}</th><th className="p-3 text-right font-medium">{t('pharmacy.colPatient')}</th><th className="p-3 text-right font-medium">{t('pharmacy.colDoctor')}</th><th className="p-3 text-right font-medium">{t('pharmacy.colRx')}</th><th className="p-3 text-center font-medium">{t('pharmacy.colItems')}</th><th className="p-3 text-center font-medium">{t('pharmacy.colStatus')}</th>
+              <th className="p-3 text-start font-medium">{t('pharmacy.colDate')}</th><th className="p-3 text-start font-medium">{t('pharmacy.colPatient')}</th><th className="p-3 text-start font-medium">{t('pharmacy.colDoctor')}</th><th className="p-3 text-start font-medium">{t('pharmacy.colRx')}</th><th className="p-3 text-center font-medium">{t('pharmacy.colItems')}</th><th className="p-3 text-center font-medium">{t('pharmacy.colStatus')}</th>
             </tr></thead>
             <tbody>
               {filtered.map((r) => {

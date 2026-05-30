@@ -80,12 +80,12 @@ export function SuppliersManager({
           {t('suppliers.totalPayable')}: {formatCurrency(totalPayable)}
         </Badge>
         <div className="relative ms-auto">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('suppliers.searchPlaceholder')}
-            className="w-56 pr-9"
+            className="w-56 ps-9"
           />
         </div>
       </div>
@@ -138,11 +138,11 @@ export function SuppliersManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('suppliers.colCode')}</th>
-                    <th className="p-3 text-right font-medium">{t('suppliers.colSupplier')}</th>
-                    <th className="p-3 text-right font-medium">{t('suppliers.colPhone')}</th>
-                    <th className="p-3 text-right font-medium">{t('suppliers.colCity')}</th>
-                    <th className="p-3 text-left font-medium">{t('suppliers.colBalance')}</th>
+                    <th className="p-3 text-start font-medium">{t('suppliers.colCode')}</th>
+                    <th className="p-3 text-start font-medium">{t('suppliers.colSupplier')}</th>
+                    <th className="p-3 text-start font-medium">{t('suppliers.colPhone')}</th>
+                    <th className="p-3 text-start font-medium">{t('suppliers.colCity')}</th>
+                    <th className="p-3 text-end font-medium">{t('suppliers.colBalance')}</th>
                     <th className="p-3 text-center font-medium">{t('suppliers.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>

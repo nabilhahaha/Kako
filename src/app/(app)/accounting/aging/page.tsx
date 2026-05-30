@@ -100,7 +100,7 @@ export default async function AgingPage() {
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="sticky right-0 bg-secondary/50 p-3 text-right font-medium">{t('accounting.aging.colCustomer')}</th>
+                    <th className="sticky start-0 bg-secondary/50 p-3 text-start font-medium">{t('accounting.aging.colCustomer')}</th>
                     {BUCKETS.map((b) => (
                       <th key={b.key} className="p-3 text-center font-medium whitespace-nowrap">{b.label}</th>
                     ))}
@@ -110,7 +110,7 @@ export default async function AgingPage() {
                 <tbody>
                   {customers.map((c, i) => (
                     <tr key={i} className="border-b">
-                      <td className="sticky right-0 bg-background p-3 font-medium">{c.name}</td>
+                      <td className="sticky start-0 bg-background p-3 font-medium">{c.name}</td>
                       {BUCKETS.map((b) => (
                         <td key={b.key} className="p-3 text-center tabular-nums" dir="ltr">
                           {c.buckets[b.key] ? formatNumber(Math.round(c.buckets[b.key])) : '—'}
@@ -122,7 +122,7 @@ export default async function AgingPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 bg-secondary/30 font-semibold">
-                    <td className="sticky right-0 bg-secondary/30 p-3">{t('accounting.aging.rowTotal')}</td>
+                    <td className="sticky start-0 bg-secondary/30 p-3">{t('accounting.aging.rowTotal')}</td>
                     {BUCKETS.map((b) => (
                       <td key={b.key} className="p-3 text-center tabular-nums" dir="ltr">{formatNumber(Math.round(totals[b.key]))}</td>
                     ))}

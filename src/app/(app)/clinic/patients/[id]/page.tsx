@@ -204,7 +204,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
           {visitList.length === 0 ? (
             <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">{t('clinic.patientDetail.emptyVisits')}</CardContent></Card>
           ) : (
-            <ol className="relative space-y-3 border-r-2 border-border pr-4">
+            <ol className="relative space-y-3 border-s-2 border-border ps-4">
               {visitList.map((v) => {
                 const st = VISIT_STATUS[v.status] ?? { label: v.status, variant: 'secondary' as const };
                 const remaining = Number(v.fee || 0) - Number(v.paid_amount || 0);
@@ -248,7 +248,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
                         {v.prescription && (
                           <div className="rounded-md bg-secondary/40 p-2 text-sm">
                             <span className="text-muted-foreground">{t('clinic.patientDetail.prescriptionLabel')}</span>
-                            <ul className="mt-1 list-disc space-y-0.5 pr-5">
+                            <ul className="mt-1 list-disc space-y-0.5 ps-5">
                               {v.prescription.split('\n').map((line, i) => line.trim() && <li key={i}>{line}</li>)}
                             </ul>
                           </div>
@@ -256,7 +256,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
                         {v.tests && (
                           <div className="rounded-md border border-info/40 bg-info/10 p-2 text-sm">
                             <span className="text-muted-foreground">{t('clinic.patientDetail.testsLabel')}</span>
-                            <ul className="mt-1 list-disc space-y-0.5 pr-5">
+                            <ul className="mt-1 list-disc space-y-0.5 ps-5">
                               {v.tests.split('\n').map((line, i) => line.trim() && <li key={i}>{line}</li>)}
                             </ul>
                           </div>

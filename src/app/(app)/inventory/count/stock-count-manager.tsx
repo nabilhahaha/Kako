@@ -115,9 +115,9 @@ export function StockCountManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('inventory.colCountNo')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colWarehouse')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colCountDate')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colCountNo')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colWarehouse')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colCountDate')}</th>
                     <th className="p-3 text-center font-medium">{t('inventory.colCountStatus')}</th>
                     <th className="p-3"></th>
                   </tr>
@@ -129,7 +129,7 @@ export function StockCountManager({
                       <td className="p-3">{c.warehouse?.code} · {c.warehouse?.name_ar || c.warehouse?.name}</td>
                       <td className="p-3 text-muted-foreground">{formatDate(c.created_at)}</td>
                       <td className="p-3 text-center"><Badge variant={STATUS_VARIANT[c.status]}>{t(STATUS_KEY[c.status])}</Badge></td>
-                      <td className="p-3 text-left">
+                      <td className="p-3 text-start">
                         <Link href={`/inventory/count?id=${c.id}`} className="text-xs text-primary hover:underline">
                           {c.status === 'draft' ? t('inventory.continueCount') : t('inventory.viewCount')}
                         </Link>
@@ -244,7 +244,7 @@ function CountEditor({
             <table className="w-full text-sm">
               <thead className="border-b bg-secondary/50 text-muted-foreground">
                 <tr>
-                  <th className="p-3 text-right font-medium">{t('inventory.colProduct')}</th>
+                  <th className="p-3 text-start font-medium">{t('inventory.colProduct')}</th>
                   <th className="p-3 text-center font-medium">{t('inventory.colBookQty')}</th>
                   <th className="p-3 text-center font-medium">{t('inventory.colActualQty')}</th>
                   <th className="p-3 text-center font-medium">{t('inventory.colDiff')}</th>

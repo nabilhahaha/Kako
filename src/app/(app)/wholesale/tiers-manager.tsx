@@ -51,13 +51,13 @@ export function TiersManager({ tiers }: { tiers: Tier[] }) {
           <div className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground"><Layers className="h-8 w-8" /><p>{t('wholesale.emptyTiers')}</p></div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="border-b bg-secondary/50 text-muted-foreground"><tr><th className="p-3 text-right font-medium">{t('wholesale.colTier')}</th><th className="p-3 text-center font-medium">{t('wholesale.colStatus')}</th><th className="p-3"></th></tr></thead>
+            <thead className="border-b bg-secondary/50 text-muted-foreground"><tr><th className="p-3 text-start font-medium">{t('wholesale.colTier')}</th><th className="p-3 text-center font-medium">{t('wholesale.colStatus')}</th><th className="p-3"></th></tr></thead>
             <tbody>
               {tiers.map((tier) => (
                 <tr key={tier.id} className="border-b">
                   <td className="p-3 font-medium">{tier.name}</td>
                   <td className="p-3 text-center"><Badge variant={tier.is_active ? 'success' : 'secondary'}>{tier.is_active ? t('wholesale.statusActive') : t('wholesale.statusInactive')}</Badge></td>
-                  <td className="p-3 text-left">
+                  <td className="p-3 text-end">
                     <div className="flex items-center justify-end gap-1">
                       <Link href={`/wholesale/prices?tier=${tier.id}`} className={buttonVariants({ size: 'sm', variant: 'ghost' })}><Tags className="h-3.5 w-3.5" /> {t('wholesale.btnPrices')}</Link>
                       <Button size="sm" variant="ghost" onClick={() => setEditing(tier)}><Pencil className="h-3.5 w-3.5" /></Button>

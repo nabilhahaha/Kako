@@ -176,10 +176,10 @@ export function AppointmentsManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('clinic.appointments.colPatient')}</th>
-                    <th className="p-3 text-right font-medium">{t('clinic.appointments.colAppointment')}</th>
-                    <th className="p-3 text-right font-medium">{t('clinic.appointments.colDoctor')}</th>
-                    <th className="p-3 text-right font-medium">{t('clinic.appointments.colReason')}</th>
+                    <th className="p-3 text-start font-medium">{t('clinic.appointments.colPatient')}</th>
+                    <th className="p-3 text-start font-medium">{t('clinic.appointments.colAppointment')}</th>
+                    <th className="p-3 text-start font-medium">{t('clinic.appointments.colDoctor')}</th>
+                    <th className="p-3 text-start font-medium">{t('clinic.appointments.colReason')}</th>
                     <th className="p-3 text-center font-medium">{t('clinic.appointments.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>

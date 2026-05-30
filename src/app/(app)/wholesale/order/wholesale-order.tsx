@@ -94,8 +94,8 @@ export function WholesaleOrder({ branches, customers, products, tierPrices }: { 
         {customer && <p className="text-xs text-muted-foreground">{t('wholesale.priceLevelLabel')} <span className="font-medium text-foreground">{tierId ? t('wholesale.priceLevelCustom') : t('wholesale.priceLevelRetail')}</span> — {t('wholesale.priceLevelHint')}</p>}
 
         <div className="relative">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('wholesale.placeholderSearchItem')} className="pr-9" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('wholesale.placeholderSearchItem')} className="ps-9" />
         </div>
         {filtered.length > 0 && (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

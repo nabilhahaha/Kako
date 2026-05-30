@@ -85,8 +85,8 @@ export function DispenseEditor({ dispense, items, products }: { dispense: Dispen
           {!closed && (
             <Card><CardContent className="pt-6">
               <div className="relative mb-2">
-                <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('pharmacy.searchDrugPlaceholder')} className="pr-9" />
+                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('pharmacy.searchDrugPlaceholder')} className="ps-9" />
               </div>
               {found.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

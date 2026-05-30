@@ -121,7 +121,7 @@ export function PermissionsMatrix({
             <table className="w-full text-sm">
               <thead className="border-b bg-secondary/50 text-muted-foreground">
                 <tr>
-                  <th className="sticky right-0 bg-secondary/50 p-3 text-right font-medium">{t('settings.permissions.colPermission')}</th>
+                  <th className="sticky start-0 bg-secondary/50 p-3 text-start font-medium">{t('settings.permissions.colPermission')}</th>
                   {roles.map((r) => (
                     <th key={r.key} className="p-3 text-center font-medium whitespace-nowrap">
                       <div className="flex flex-col items-center gap-1">
@@ -143,7 +143,7 @@ export function PermissionsMatrix({
                   </tr>
                   {perms.map((p) => (
                     <tr key={p} className="border-b">
-                      <td className="sticky right-0 bg-background p-3">{PERMISSION_LABELS[p][locale]}</td>
+                      <td className="sticky start-0 bg-background p-3">{PERMISSION_LABELS[p][locale]}</td>
                       {roles.map((r) => {
                         const checked = matrix[r.key]?.has(p) ?? false;
                         // admin/manager are always-all by convention; still editable here.

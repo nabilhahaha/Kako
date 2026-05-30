@@ -189,7 +189,7 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b text-muted-foreground">
-                  <tr className="text-right">
+                  <tr className="text-start">
                     <th className="p-3 font-medium">{t('platform.companies.thCompany')}</th>
                     <th className="p-3 font-medium">{t('platform.companies.thActivity')}</th>
                     <th className="p-3 font-medium">{t('platform.companies.thStatus')}</th>

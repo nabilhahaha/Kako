@@ -32,15 +32,15 @@ export function CustomerTiers({ rows, tiers }: { rows: CustomerRow[]; tiers: Tie
   return (
     <div className="space-y-4">
       <div className="relative">
-        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('wholesale.placeholderSearchCustomer')} className="w-64 pr-9" />
+        <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('wholesale.placeholderSearchCustomer')} className="w-64 ps-9" />
       </div>
       <Card><CardContent className="p-0">
         {tiers.length === 0 ? (
           <p className="p-8 text-center text-sm text-muted-foreground">{t('wholesale.noTiersYet')}</p>
         ) : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
-            <thead className="border-b bg-secondary/50 text-muted-foreground"><tr><th className="p-3 text-right font-medium">{t('wholesale.colCustomer')}</th><th className="p-3 text-right font-medium">{t('wholesale.colCode')}</th><th className="p-3 text-right font-medium">{t('wholesale.colLevel')}</th></tr></thead>
+            <thead className="border-b bg-secondary/50 text-muted-foreground"><tr><th className="p-3 text-start font-medium">{t('wholesale.colCustomer')}</th><th className="p-3 text-start font-medium">{t('wholesale.colCode')}</th><th className="p-3 text-start font-medium">{t('wholesale.colLevel')}</th></tr></thead>
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id} className="border-b">

@@ -115,10 +115,10 @@ export default async function SettlementPage({
             <table className="w-full text-sm">
               <thead className="bg-secondary/40 text-muted-foreground">
                 <tr>
-                  <th className="p-2 ps-3 text-right font-medium">{t('sales.settlementColInvoice')}</th>
-                  <th className="p-2 text-right font-medium">{t('sales.settlementColCustomer')}</th>
-                  <th className="p-2 text-right font-medium">{t('sales.settlementColMethod')}</th>
-                  <th className="p-2 pe-3 text-left font-medium">{t('sales.settlementColAmount')}</th>
+                  <th className="p-2 ps-3 text-start font-medium">{t('sales.settlementColInvoice')}</th>
+                  <th className="p-2 text-start font-medium">{t('sales.settlementColCustomer')}</th>
+                  <th className="p-2 text-start font-medium">{t('sales.settlementColMethod')}</th>
+                  <th className="p-2 pe-3 text-end font-medium">{t('sales.settlementColAmount')}</th>
                 </tr>
               </thead>
               <tbody>

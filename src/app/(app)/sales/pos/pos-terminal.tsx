@@ -113,15 +113,15 @@ export function PosTerminal({
       {/* Products */}
       <div className="space-y-3">
         <div className="relative">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('sales.posSearchPlaceholder')} className="pr-9" autoFocus />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('sales.posSearchPlaceholder')} className="ps-9" autoFocus />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {filtered.map((p) => (
             <button
               key={p.id}
               onClick={() => addToCart(p)}
-              className="rounded-lg border p-3 text-right transition-colors hover:border-primary/50 hover:bg-secondary/40"
+              className="rounded-lg border p-3 text-start transition-colors hover:border-primary/50 hover:bg-secondary/40"
             >
               <p className="line-clamp-2 text-sm font-medium">{p.name_ar || p.name}</p>
               <p className="mt-1 text-xs text-muted-foreground" dir="ltr">{p.code}</p>

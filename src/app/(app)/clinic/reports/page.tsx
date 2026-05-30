@@ -152,9 +152,9 @@ function ReportTable({ title, icon, cols, rows, emptyText }: { title: string; ic
           <table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground">
               <tr>
-                <th className="p-3 text-right font-medium">{cols[0]}</th>
+                <th className="p-3 text-start font-medium">{cols[0]}</th>
                 <th className="p-3 text-center font-medium">{cols[1]}</th>
-                <th className="p-3 text-left font-medium">{cols[2]}</th>
+                <th className="p-3 text-end font-medium">{cols[2]}</th>
               </tr>
             </thead>
             <tbody>

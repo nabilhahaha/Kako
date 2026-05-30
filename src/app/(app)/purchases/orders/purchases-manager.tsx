@@ -186,10 +186,10 @@ export function PurchasesManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('purchases.colOrderNumber')}</th>
-                    <th className="p-3 text-right font-medium">{t('purchases.colSupplier')}</th>
-                    <th className="p-3 text-right font-medium">{t('purchases.colDate')}</th>
-                    <th className="p-3 text-left font-medium">{t('purchases.colNet')}</th>
+                    <th className="p-3 text-start font-medium">{t('purchases.colOrderNumber')}</th>
+                    <th className="p-3 text-start font-medium">{t('purchases.colSupplier')}</th>
+                    <th className="p-3 text-start font-medium">{t('purchases.colDate')}</th>
+                    <th className="p-3 text-end font-medium">{t('purchases.colNet')}</th>
                     <th className="p-3 text-center font-medium">{t('purchases.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>

@@ -29,7 +29,7 @@ export function TargetsManager({ month, rows }: { month: string; rows: TargetRow
     <Card><CardContent className="p-0">
       <div className="overflow-x-auto"><table className="w-full text-sm">
         <thead className="border-b bg-secondary/50 text-muted-foreground"><tr>
-          <th className="p-3 text-right font-medium">{t('distribution.targetsColRep')}</th>
+          <th className="p-3 text-start font-medium">{t('distribution.targetsColRep')}</th>
           <th className="p-3 text-center font-medium">{t('distribution.targetsColSalesTarget')}</th>
           <th className="p-3 text-center font-medium">{t('distribution.targetsColCommissionPct')}</th>
         </tr></thead>

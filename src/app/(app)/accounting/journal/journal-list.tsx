@@ -35,7 +35,7 @@ export function JournalList({ entries }: { entries: JournalEntryRow[] }) {
           <Card key={e.id}>
             <button
               onClick={() => setOpen(isOpen ? null : e.id)}
-              className="flex w-full items-center justify-between gap-3 p-4 text-right hover:bg-secondary/30"
+              className="flex w-full items-center justify-between gap-3 p-4 text-start hover:bg-secondary/30"
             >
               <div className="flex items-center gap-3">
                 {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -56,9 +56,9 @@ export function JournalList({ entries }: { entries: JournalEntryRow[] }) {
                 <table className="w-full text-sm">
                   <thead className="bg-secondary/40 text-muted-foreground">
                     <tr>
-                      <th className="p-2 text-right font-medium">{t('accounting.journal.colAccount')}</th>
-                      <th className="p-2 text-left font-medium w-32">{t('accounting.journal.colDebit')}</th>
-                      <th className="p-2 text-left font-medium w-32">{t('accounting.journal.colCredit')}</th>
+                      <th className="p-2 text-start font-medium">{t('accounting.journal.colAccount')}</th>
+                      <th className="p-2 text-end font-medium w-32">{t('accounting.journal.colDebit')}</th>
+                      <th className="p-2 text-end font-medium w-32">{t('accounting.journal.colCredit')}</th>
                     </tr>
                   </thead>
                   <tbody>

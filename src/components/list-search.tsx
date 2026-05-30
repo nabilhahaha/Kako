@@ -42,12 +42,12 @@ export function ListSearch({
 
   return (
     <div className={`relative ${className ?? 'w-full sm:w-72'}`}>
-      <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
-        className="pr-9"
+        className="ps-9"
       />
     </div>
   );

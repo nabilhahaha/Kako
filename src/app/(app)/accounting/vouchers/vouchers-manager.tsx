@@ -255,11 +255,11 @@ function VoucherSection({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('accounting.vouchers.colNumber')}</th>
-                    <th className="p-3 text-right font-medium">{isPayment ? t('accounting.vouchers.colPayee') : t('accounting.vouchers.colPayer')}</th>
-                    <th className="p-3 text-right font-medium">{t('accounting.vouchers.colAccount')}</th>
-                    <th className="p-3 text-right font-medium">{t('accounting.vouchers.colDate')}</th>
-                    <th className="p-3 text-left font-medium">{t('accounting.vouchers.colAmount')}</th>
+                    <th className="p-3 text-start font-medium">{t('accounting.vouchers.colNumber')}</th>
+                    <th className="p-3 text-start font-medium">{isPayment ? t('accounting.vouchers.colPayee') : t('accounting.vouchers.colPayer')}</th>
+                    <th className="p-3 text-start font-medium">{t('accounting.vouchers.colAccount')}</th>
+                    <th className="p-3 text-start font-medium">{t('accounting.vouchers.colDate')}</th>
+                    <th className="p-3 text-end font-medium">{t('accounting.vouchers.colAmount')}</th>
                     <th className="p-3 text-center font-medium">{t('accounting.vouchers.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>

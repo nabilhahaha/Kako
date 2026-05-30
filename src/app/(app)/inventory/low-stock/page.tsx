@@ -71,8 +71,8 @@ export default async function LowStockPage() {
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('inventory.colProduct')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colCode')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colProduct')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colCode')}</th>
                     <th className="p-3 text-center font-medium">{t('inventory.colAvailable')}</th>
                     <th className="p-3 text-center font-medium">{t('inventory.colReorderLevel')}</th>
                     <th className="p-3 text-center font-medium">{t('inventory.colDeficit')}</th>

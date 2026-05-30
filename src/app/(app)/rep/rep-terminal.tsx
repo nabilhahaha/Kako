@@ -440,8 +440,8 @@ export function RepTerminal({
           {customers.filter((c) => c.is_approved !== false).map((c) => <option key={c.id} value={c.id}>{c.name_ar || c.name}</option>)}
         </select>
         <div className="relative">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('rep.searchProductPlaceholder')} className="h-11 pr-9" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('rep.searchProductPlaceholder')} className="h-11 ps-9" />
         </div>
       </div>
 
@@ -505,7 +505,7 @@ export function RepTerminal({
       <div className="grid grid-cols-2 gap-2">
         {filtered.map((p) => (
           <button key={p.id} onClick={() => addToCart(p)}
-            className="rounded-lg border p-3 text-right active:scale-95 transition-transform">
+            className="rounded-lg border p-3 text-start active:scale-95 transition-transform">
             <p className="line-clamp-2 text-sm font-medium">{p.name_ar || p.name}</p>
             <p className="mt-1 font-bold tabular-nums text-primary" dir="ltr">{formatCurrency(p.sell_price)}</p>
           </button>

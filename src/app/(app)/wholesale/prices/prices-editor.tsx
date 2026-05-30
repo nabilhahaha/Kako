@@ -45,15 +45,15 @@ export function PricesEditor({ tiers, tierId, rows }: { tiers: TierOpt[]; tierId
           <Link href={`/print/wholesale/pricelist?tier=${tierId}`} target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}><Printer className="h-4 w-4" /> {t('wholesale.btnPrintList')}</Link>
         </div>
         <div className="relative">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('wholesale.placeholderSearchProduct')} className="w-60 pr-9" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('wholesale.placeholderSearchProduct')} className="w-60 ps-9" />
         </div>
       </div>
 
       <Card><CardContent className="p-0">
         <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead className="border-b bg-secondary/50 text-muted-foreground"><tr>
-            <th className="p-3 text-right font-medium">{t('wholesale.colProduct')}</th><th className="p-3 text-center font-medium">{t('wholesale.colBasePrice')}</th><th className="p-3 text-center font-medium">{t('wholesale.colTierPrice')}</th>
+            <th className="p-3 text-start font-medium">{t('wholesale.colProduct')}</th><th className="p-3 text-center font-medium">{t('wholesale.colBasePrice')}</th><th className="p-3 text-center font-medium">{t('wholesale.colTierPrice')}</th>
           </tr></thead>
           <tbody>
             {filtered.map((r) => (

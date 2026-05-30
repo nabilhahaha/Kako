@@ -84,7 +84,7 @@ export function SalonAppointments({ appts, staff, services }: { appts: Appt[]; s
         ) : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground"><tr>
-              <th className="p-3 text-right font-medium">{t('salon.appointments.colCustomer')}</th><th className="p-3 text-right font-medium">{t('salon.appointments.colAppointment')}</th><th className="p-3 text-right font-medium">{t('salon.appointments.colStylist')}</th><th className="p-3 text-right font-medium">{t('salon.appointments.colService')}</th><th className="p-3 text-center font-medium">{t('salon.appointments.colStatus')}</th><th className="p-3"></th>
+              <th className="p-3 text-start font-medium">{t('salon.appointments.colCustomer')}</th><th className="p-3 text-start font-medium">{t('salon.appointments.colAppointment')}</th><th className="p-3 text-start font-medium">{t('salon.appointments.colStylist')}</th><th className="p-3 text-start font-medium">{t('salon.appointments.colService')}</th><th className="p-3 text-center font-medium">{t('salon.appointments.colStatus')}</th><th className="p-3"></th>
             </tr></thead>
             <tbody>
               {appts.map((a) => {

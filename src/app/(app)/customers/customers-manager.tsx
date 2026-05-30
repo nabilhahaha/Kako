@@ -122,8 +122,8 @@ export function CustomersManager({
           {t('customers.totalReceivable')}: {formatCurrency(totalReceivable)}
         </Badge>
         <div className="relative ms-auto">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('customers.searchPlaceholder')} className="w-56 pr-9" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('customers.searchPlaceholder')} className="w-56 ps-9" />
         </div>
       </div>
 
@@ -200,11 +200,11 @@ export function CustomersManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('customers.colCode')}</th>
-                    <th className="p-3 text-right font-medium">{t('customers.colCustomer')}</th>
-                    <th className="p-3 text-right font-medium">{t('customers.colBranch')}</th>
-                    <th className="p-3 text-left font-medium">{t('customers.colCreditLimit')}</th>
-                    <th className="p-3 text-left font-medium">{t('customers.colBalance')}</th>
+                    <th className="p-3 text-start font-medium">{t('customers.colCode')}</th>
+                    <th className="p-3 text-start font-medium">{t('customers.colCustomer')}</th>
+                    <th className="p-3 text-start font-medium">{t('customers.colBranch')}</th>
+                    <th className="p-3 text-end font-medium">{t('customers.colCreditLimit')}</th>
+                    <th className="p-3 text-end font-medium">{t('customers.colBalance')}</th>
                     <th className="p-3 text-center font-medium">{t('customers.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>

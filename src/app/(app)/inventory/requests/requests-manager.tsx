@@ -179,7 +179,7 @@ export function RequestsManager({
             <div className="overflow-x-auto rounded-md border">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
-                  <tr><th className="p-2 text-right font-medium">{t('inventory.colProductItem')}</th><th className="p-2 text-center font-medium w-28">{t('inventory.colQty')}</th><th className="p-2 w-10"></th></tr>
+                  <tr><th className="p-2 text-start font-medium">{t('inventory.colProductItem')}</th><th className="p-2 text-center font-medium w-28">{t('inventory.colQty')}</th><th className="p-2 w-10"></th></tr>
                 </thead>
                 <tbody>
                   {lines.map((l) => (

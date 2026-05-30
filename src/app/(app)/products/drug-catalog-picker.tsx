@@ -75,15 +75,15 @@ export function DrugCatalogPicker() {
               </div>
 
               <div className="relative">
-                <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder={t('products.drugPickerSearchPlaceholder')}
-                  className="pr-9"
+                  className="pe-9"
                   autoFocus
                 />
-                {loading && <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+                {loading && <Loader2 className="absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
               </div>
 
               {results.length > 0 && (
@@ -95,7 +95,7 @@ export function DrugCatalogPicker() {
                         <button
                           onClick={() => setSelected((s) => (picked ? s : [...s, r]))}
                           disabled={picked}
-                          className="flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-right text-sm last:border-0 hover:bg-secondary disabled:opacity-50"
+                          className="flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-start text-sm last:border-0 hover:bg-secondary disabled:opacity-50"
                         >
                           <span className="min-w-0">
                             <span className="block truncate font-medium">{r.name}{r.name_ar ? <span className="text-muted-foreground"> — {r.name_ar}</span> : null}</span>

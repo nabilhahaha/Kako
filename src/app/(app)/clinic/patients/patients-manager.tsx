@@ -60,8 +60,8 @@ export function PatientsManager({ patients }: { patients: Patient[] }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> {t('clinic.patients.newButton')}</Button>
         <div className="relative">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('clinic.patients.searchPlaceholder')} className="w-60 pr-9" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('clinic.patients.searchPlaceholder')} className="w-60 ps-9" />
         </div>
       </div>
 
@@ -111,8 +111,8 @@ export function PatientsManager({ patients }: { patients: Patient[] }) {
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('clinic.patients.colPatient')}</th>
-                    <th className="p-3 text-right font-medium">{t('clinic.patients.colPhone')}</th>
+                    <th className="p-3 text-start font-medium">{t('clinic.patients.colPatient')}</th>
+                    <th className="p-3 text-start font-medium">{t('clinic.patients.colPhone')}</th>
                     <th className="p-3 text-center font-medium">{t('clinic.patients.colGender')}</th>
                     <th className="p-3 text-center font-medium">{t('clinic.patients.colAge')}</th>
                     <th className="p-3 text-center font-medium">{t('clinic.patients.colBloodType')}</th>
@@ -136,7 +136,7 @@ export function PatientsManager({ patients }: { patients: Patient[] }) {
                       <td className="p-3 text-center">{p.gender === 'male' ? t('clinic.patients.genderMale') : p.gender === 'female' ? t('clinic.patients.genderFemale') : '—'}</td>
                       <td className="p-3 text-center tabular-nums">{age != null ? t('clinic.patients.ageSuffix', { age }) : '—'}</td>
                       <td className="p-3 text-center" dir="ltr">{p.blood_type || '—'}</td>
-                      <td className="p-3 text-left">
+                      <td className="p-3 text-end">
                         <Button size="sm" variant="ghost" onClick={() => setEditing(p)}><Pencil className="h-3.5 w-3.5" /></Button>
                       </td>
                     </tr>

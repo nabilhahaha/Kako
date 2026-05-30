@@ -75,7 +75,7 @@ export default async function DistributionReportPage({ searchParams }: { searchP
         ) : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground"><tr>
-              <th className="p-3 text-right font-medium">{tr('distribution.reportColRep')}</th>
+              <th className="p-3 text-start font-medium">{tr('distribution.reportColRep')}</th>
               <th className="p-3 text-center font-medium">{tr('distribution.reportColSales')}</th>
               <th className="p-3 text-center font-medium">{tr('distribution.reportColTarget')}</th>
               <th className="p-3 text-center font-medium">{tr('distribution.reportColAchievement')}</th>

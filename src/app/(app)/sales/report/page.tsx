@@ -147,9 +147,9 @@ export default async function SalesReportPage({
               <table className="w-full text-sm">
                 <thead className="bg-secondary/40 text-muted-foreground">
                   <tr>
-                    <th className="p-2 ps-3 text-right font-medium">{t('sales.reportColBranch')}</th>
+                    <th className="p-2 ps-3 text-start font-medium">{t('sales.reportColBranch')}</th>
                     <th className="p-2 text-center font-medium">{t('sales.reportColInvoiceCount')}</th>
-                    <th className="p-2 pe-3 text-left font-medium">{t('sales.reportColSales')}</th>
+                    <th className="p-2 pe-3 text-end font-medium">{t('sales.reportColSales')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -177,9 +177,9 @@ export default async function SalesReportPage({
               <table className="w-full text-sm">
                 <thead className="bg-secondary/40 text-muted-foreground">
                   <tr>
-                    <th className="p-2 ps-3 text-right font-medium">{t('sales.reportColItem')}</th>
+                    <th className="p-2 ps-3 text-start font-medium">{t('sales.reportColItem')}</th>
                     <th className="p-2 text-center font-medium">{t('sales.reportColQty')}</th>
-                    <th className="p-2 pe-3 text-left font-medium">{t('sales.reportColValue')}</th>
+                    <th className="p-2 pe-3 text-end font-medium">{t('sales.reportColValue')}</th>
                   </tr>
                 </thead>
                 <tbody>

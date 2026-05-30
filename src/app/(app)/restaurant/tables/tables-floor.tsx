@@ -79,7 +79,7 @@ export function TablesFloor({ tables }: { tables: FloorTable[] }) {
               <Card key={tbl.id} className={`relative ${occupied ? 'border-warning/50 bg-warning/5' : 'border-success/40 bg-success/5'}`}>
                 <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
                   {manage && (
-                    <button onClick={() => setEditing(tbl)} className="absolute left-1 top-1 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => setEditing(tbl)} className="absolute end-1 top-1 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
                   )}
                   <span className="text-lg font-bold">{tbl.name}</span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground"><Users className="h-3 w-3" /> {tbl.seats}</span>

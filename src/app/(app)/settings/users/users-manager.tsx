@@ -239,7 +239,7 @@ function UserCard({
                 <p className="font-semibold">{name}</p>
                 {profile.is_super_admin && (
                   <Badge variant="info">
-                    <ShieldCheck className="mr-1 h-3 w-3" /> {t('settings.users.badgeSuperAdmin')}
+                    <ShieldCheck className="ms-1 h-3 w-3" /> {t('settings.users.badgeSuperAdmin')}
                   </Badge>
                 )}
                 {!profile.is_active && (

@@ -177,7 +177,7 @@ export function TransfersManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-2 text-right font-medium">{t('inventory.colProductItem')}</th>
+                    <th className="p-2 text-start font-medium">{t('inventory.colProductItem')}</th>
                     <th className="p-2 text-center font-medium w-28">{t('inventory.colQty')}</th>
                     <th className="p-2 w-10"></th>
                   </tr>
@@ -247,10 +247,10 @@ export function TransfersManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">{t('inventory.colTransferNo')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colFrom')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colTo')}</th>
-                    <th className="p-3 text-right font-medium">{t('inventory.colDate')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colTransferNo')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colFrom')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colTo')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colDate')}</th>
                     <th className="p-3 text-center font-medium">{t('inventory.colStatusTh')}</th>
                     <th className="p-3"></th>
                   </tr>
