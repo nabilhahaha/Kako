@@ -13,6 +13,7 @@
     "test:db": "vitest run src/test/integration"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.55.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
     "@tanstack/react-query": "^5.62.7",
