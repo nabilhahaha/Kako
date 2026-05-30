@@ -100,3 +100,18 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* Login brand-panel ambient motion */
+@keyframes ams-aura {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(24px, -22px) scale(1.12); }
+}
+@keyframes ams-aura-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-28px, 18px) scale(1.18); }
+}
+.ams-aura  { animation: ams-aura 16s ease-in-out infinite; }
+.ams-aura-2 { animation: ams-aura-2 20s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ams-aura, .ams-aura-2 { animation: none; }
+}
