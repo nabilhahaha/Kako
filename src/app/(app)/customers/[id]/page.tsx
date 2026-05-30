@@ -8,7 +8,9 @@ import { StatementTable, type StatementEntry } from '@/components/statement-tabl
 import { PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { ErpCustomer, Invoice, Payment, PaymentMethod } from '@/lib/erp/types';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Printer } from 'lucide-react';
+import { buttonVariants } from '@/components/ui/button';
+import { WhatsAppButton } from '@/components/whatsapp-button';
 
 export default async function CustomerStatementPage({
   params,
@@ -73,6 +75,21 @@ export default async function CustomerStatementPage({
       <PageHeader
         title={`كشف حساب: ${c.name_ar || c.name}`}
         description={`الكود ${c.code}${c.phone ? ' · ' + c.phone : ''}`}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {Number(c.balance) > 0 && (
+              <WhatsAppButton
+                phone={c.phone}
+                label="تذكير بالرصيد"
+                message={`مرحباً ${c.name_ar || c.name}، رصيدكم المستحق لدينا ${formatCurrency(c.balance)}. برجاء السداد. شكراً.`}
+                className="h-9 border px-3"
+              />
+            )}
+            <Link href={`/print/statement/${id}`} target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+              <Printer className="h-4 w-4" /> طباعة كشف الحساب
+            </Link>
+          </div>
+        }
       />
 
       <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3">

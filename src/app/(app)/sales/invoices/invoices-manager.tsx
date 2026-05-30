@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LineItemsEditor, newLine, type EditorLine } from '@/components/sales/line-items-editor';
 import { FieldError } from '@/components/ui/field-error';
 import { Tooltip } from '@/components/ui/tooltip';
+import { WhatsAppButton } from '@/components/whatsapp-button';
 import { INVOICE_STATUS_LABELS, PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Branch, ErpCustomer, InvoiceStatus, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
@@ -290,9 +291,16 @@ export function InvoicesManager({
                               </>
                             )}
                             {canPay && (
-                              <Button variant="ghost" size="sm" onClick={() => setPayFor(inv)} className="text-xs">
-                                <Wallet className="h-3.5 w-3.5" /> تحصيل
-                              </Button>
+                              <>
+                                <WhatsAppButton
+                                  phone={inv.customer?.phone}
+                                  label="تذكير"
+                                  message={`مرحباً ${inv.customer?.name_ar || inv.customer?.name || ''}، نذكّركم بالفاتورة رقم ${inv.invoice_number} والمبلغ المتبقي ${formatCurrency(remaining)}. برجاء السداد. شكراً.`}
+                                />
+                                <Button variant="ghost" size="sm" onClick={() => setPayFor(inv)} className="text-xs">
+                                  <Wallet className="h-3.5 w-3.5" /> تحصيل
+                                </Button>
+                              </>
                             )}
                           </div>
                         </td>

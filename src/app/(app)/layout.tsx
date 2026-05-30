@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/layout/command-palette';
@@ -68,6 +69,30 @@ export default async function AppLayout({
   const state = ctx.isPlatformOwner ? 'open' : subscriptionState(ctx.company);
   const left = ctx.company ? daysLeft(ctx.company) : null;
 
+  // Lightweight, module-gated alerts for the top-bar bell.
+  const notifications: { label: string; href: string; count: number }[] = [];
+  if (ctx.companyId && !ctx.isPlatformOwner) {
+    const supabase = await createClient();
+    const mods = ctx.modules;
+    const today = new Date().toISOString().slice(0, 10);
+    const dayRange = [`${today}T00:00:00`, `${today}T23:59:59`] as const;
+    const wantSales = mods.includes('sales') || mods.includes('wholesale') || mods.includes('accounting');
+    const [overdue, clinicAppts, salonAppts] = await Promise.all([
+      wantSales
+        ? supabase.from('erp_invoices').select('id', { count: 'exact', head: true }).lt('due_date', today).in('status', ['issued', 'partially_paid', 'overdue'])
+        : Promise.resolve({ count: 0 }),
+      mods.includes('clinic')
+        ? supabase.from('erp_clinic_appointments').select('id', { count: 'exact', head: true }).gte('scheduled_at', dayRange[0]).lte('scheduled_at', dayRange[1]).in('status', ['scheduled', 'confirmed'])
+        : Promise.resolve({ count: 0 }),
+      mods.includes('salon')
+        ? supabase.from('erp_salon_appointments').select('id', { count: 'exact', head: true }).gte('scheduled_at', dayRange[0]).lte('scheduled_at', dayRange[1]).in('status', ['scheduled', 'confirmed'])
+        : Promise.resolve({ count: 0 }),
+    ]);
+    if ((overdue.count ?? 0) > 0) notifications.push({ label: 'فواتير متأخرة', href: '/sales/invoices', count: overdue.count! });
+    if ((clinicAppts.count ?? 0) > 0) notifications.push({ label: 'مواعيد اليوم', href: '/clinic/appointments', count: clinicAppts.count! });
+    if ((salonAppts.count ?? 0) > 0) notifications.push({ label: 'مواعيد اليوم', href: '/salon/appointments', count: salonAppts.count! });
+  }
+
   return (
     <ConfirmProvider>
      <PromptProvider>
@@ -93,6 +118,7 @@ export default async function AppLayout({
               branchName: m.branch.name_ar || m.branch.name,
               role: m.role,
             }))}
+            notifications={notifications}
           />
           {state === 'expiring' && left !== null && (
             <div className="flex flex-wrap items-center gap-2 border-b bg-warning/15 px-4 py-2 text-sm text-warning-foreground lg:px-6">

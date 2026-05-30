@@ -23,3 +23,23 @@ export function whatsappLink(message?: string, phone: string = SUPPORT_PHONE): s
   const q = message ? `?text=${encodeURIComponent(message)}` : '';
   return `https://wa.me/${digits}${q}`;
 }
+
+/** Normalize a customer phone to an international WhatsApp number. Assumes
+ *  Egyptian local numbers (leading 0 → +20) unless an explicit country code
+ *  (20 / 966) is already present. Returns '' when there's no usable number. */
+export function normalizeWhatsAppPhone(phone: string | null | undefined): string {
+  let d = (phone ?? '').replace(/[^0-9]/g, '');
+  if (!d) return '';
+  if (d.startsWith('20') || d.startsWith('966')) return d;
+  if (d.startsWith('0')) d = '20' + d.slice(1); // Egyptian local mobile
+  return d;
+}
+
+/** WhatsApp deep link to a customer's own number (for reminders), or '' if the
+ *  number is missing/unusable. */
+export function customerWhatsappLink(phone: string | null | undefined, message?: string): string {
+  const d = normalizeWhatsAppPhone(phone);
+  if (!d) return '';
+  const q = message ? `?text=${encodeURIComponent(message)}` : '';
+  return `https://wa.me/${d}${q}`;
+}

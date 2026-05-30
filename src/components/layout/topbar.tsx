@@ -5,12 +5,14 @@ import { BRANCH_ROLES } from '@/lib/erp/constants';
 import { initialsFromName } from '@/lib/utils';
 import type { BranchRole } from '@/lib/erp/types';
 import { LogOut, ChevronDown, ShieldCheck, Search } from 'lucide-react';
+import { NotificationsBell, type NotificationItem } from './notifications-bell';
 
 interface TopBarProps {
   fullName: string | null;
   email: string | null;
   isSuperAdmin: boolean;
   memberships: { branchName: string; role: BranchRole }[];
+  notifications?: NotificationItem[];
 }
 
 export function TopBar({
@@ -18,6 +20,7 @@ export function TopBar({
   email,
   isSuperAdmin,
   memberships,
+  notifications = [],
 }: TopBarProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -64,6 +67,8 @@ export function TopBar({
         <span className="hidden sm:inline">بحث…</span>
         <kbd className="hidden rounded border bg-secondary px-1.5 py-0.5 text-[10px] md:inline" dir="ltr">Ctrl K</kbd>
       </button>
+
+      <NotificationsBell items={notifications} />
 
       <div className="relative" ref={ref}>
         <button

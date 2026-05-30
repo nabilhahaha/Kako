@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Loader2, X, CalendarClock, CheckCircle2, LogIn } from 'lucide-react';
+import { WhatsAppButton } from '@/components/whatsapp-button';
 import { createAppointment, setAppointmentStatus, checkInAppointment } from '../actions';
 
 export interface StylistOption { id: string; full_name: string | null; email: string | null }
@@ -100,6 +101,7 @@ export function SalonAppointments({ appts, staff, services }: { appts: Appt[]; s
                     <td className="p-3 text-center"><Badge variant={st.variant}>{st.label}</Badge></td>
                     <td className="p-3"><div className="flex flex-wrap items-center justify-center gap-1">
                       {open && (<>
+                        <WhatsAppButton phone={a.customer_phone} label="تذكير" message={`مرحباً ${a.customer_name ?? ''}، نذكّركم بموعدكم في الصالون يوم ${fmt.format(new Date(a.scheduled_at))}. بانتظاركم!`} />
                         <Button size="sm" variant="secondary" disabled={pending} onClick={() => checkIn(a)}><LogIn className="h-3.5 w-3.5" /> وصل</Button>
                         {a.status === 'scheduled' && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setAppointmentStatus(a.id, 'confirmed'), 'تم التأكيد')}><CheckCircle2 className="h-3.5 w-3.5" /> تأكيد</Button>}
                         <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => setAppointmentStatus(a.id, 'no_show'), 'لم يحضر')}>لم يحضر</Button>

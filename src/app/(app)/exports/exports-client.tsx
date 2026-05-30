@@ -11,17 +11,21 @@ import {
   exportInventoryRows,
   exportAccountingRows,
   exportPaymentsRows,
+  exportCustomersRows,
+  exportProductsRows,
 } from './actions';
-import { Download, Loader2, Receipt, Boxes, Wallet, BookOpen } from 'lucide-react';
+import { Download, Loader2, Receipt, Boxes, Wallet, BookOpen, Users, Package } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Fetcher = (from: string, to: string) => Promise<{ ok: boolean; error?: string; data?: Record<string, string | number>[] }>;
 
-const SECTIONS: { key: string; label: string; file: string; icon: typeof Receipt; fetch: Fetcher }[] = [
+const SECTIONS: { key: string; label: string; file: string; icon: typeof Receipt; fetch: Fetcher; full?: boolean }[] = [
   { key: 'sales', label: 'المبيعات (الفواتير)', file: 'sales', icon: Receipt, fetch: exportSalesRows },
   { key: 'payments', label: 'التحصيلات', file: 'payments', icon: Wallet, fetch: exportPaymentsRows },
   { key: 'inventory', label: 'حركات المخزون', file: 'inventory', icon: Boxes, fetch: exportInventoryRows },
   { key: 'accounting', label: 'القيود المحاسبية', file: 'accounting', icon: BookOpen, fetch: exportAccountingRows },
+  { key: 'customers', label: 'العملاء (القائمة كاملة)', file: 'customers', icon: Users, fetch: exportCustomersRows, full: true },
+  { key: 'products', label: 'المنتجات (القائمة كاملة)', file: 'products', icon: Package, fetch: exportProductsRows, full: true },
 ];
 
 function monthStart() {
@@ -34,19 +38,19 @@ export function ExportsClient() {
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [busy, setBusy] = useState<string | null>(null);
 
-  async function run(key: string, file: string, fetch: Fetcher) {
-    setBusy(key);
+  async function run(s: (typeof SECTIONS)[number]) {
+    setBusy(s.key);
     try {
-      const res = await fetch(from, to);
+      const res = await s.fetch(from, to);
       if (!res.ok || !res.data) {
         toast.error(res.error ?? 'حدث خطأ');
         return;
       }
       if (res.data.length === 0) {
-        toast.error('لا توجد بيانات في الفترة المحددة.');
+        toast.error(s.full ? 'لا توجد بيانات.' : 'لا توجد بيانات في الفترة المحددة.');
         return;
       }
-      downloadCsv(`${file}_${from}_${to}.csv`, res.data);
+      downloadCsv(s.full ? `${s.file}.csv` : `${s.file}_${from}_${to}.csv`, res.data);
       toast.success(`تم تصدير ${res.data.length} سجل`);
     } finally {
       setBusy(null);
@@ -82,7 +86,7 @@ export function ExportsClient() {
                   </div>
                   <span className="font-medium">{s.label}</span>
                 </div>
-                <Button variant="outline" size="sm" disabled={busy !== null} onClick={() => run(s.key, s.file, s.fetch)}>
+                <Button variant="outline" size="sm" disabled={busy !== null} onClick={() => run(s)}>
                   {busy === s.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                   تصدير CSV
                 </Button>

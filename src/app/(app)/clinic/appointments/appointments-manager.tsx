@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Loader2, X, CalendarClock, CheckCircle2, LogIn } from 'lucide-react';
+import { WhatsAppButton } from '@/components/whatsapp-button';
 import { usePrompt } from '@/components/prompt-dialog';
 import { createAppointment, setAppointmentStatus, checkInAppointment } from '../actions';
 import { type DoctorOption, doctorName } from '../clinical-ui';
@@ -198,6 +199,11 @@ export function AppointmentsManager({
                           <div className="flex flex-wrap items-center justify-center gap-1">
                             {open && (
                               <>
+                                <WhatsAppButton
+                                  phone={a.patient?.phone}
+                                  label="تذكير"
+                                  message={`مرحباً ${a.patient?.name ?? ''}، نذكّركم بموعدكم يوم ${dateTimeFmt.format(new Date(a.scheduled_at))}. برجاء الحضور في الموعد. شكراً.`}
+                                />
                                 <Button size="sm" variant="secondary" disabled={pending} onClick={() => checkIn(a)}>
                                   <LogIn className="h-3.5 w-3.5" /> وصل
                                 </Button>

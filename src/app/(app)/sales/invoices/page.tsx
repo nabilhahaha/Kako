@@ -7,7 +7,7 @@ import type { Branch, ErpCustomer, Invoice, ProductCatalog } from '@/lib/erp/typ
 import { InvoicesManager } from './invoices-manager';
 
 export interface InvoiceRow extends Invoice {
-  customer: { name: string; name_ar: string | null } | null;
+  customer: { name: string; name_ar: string | null; phone: string | null } | null;
 }
 
 const PAGE_SIZE = 20;
@@ -29,7 +29,7 @@ export default async function InvoicesPage({
   const supabase = await createClient();
   let listQuery = supabase
     .from('erp_invoices')
-    .select('*, customer:erp_customers(name, name_ar)', { count: 'exact' })
+    .select('*, customer:erp_customers(name, name_ar, phone)', { count: 'exact' })
     .order('created_at', { ascending: false });
   if (q) listQuery = listQuery.ilike('invoice_number', `%${q}%`);
   if (status !== 'all') listQuery = listQuery.eq('status', status);
