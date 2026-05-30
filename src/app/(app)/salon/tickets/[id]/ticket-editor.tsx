@@ -4,21 +4,20 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Minus, Trash2, Printer, X, CheckCircle2, ArrowRight, Loader2, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, SlidersHorizontal } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { ServiceTileGrid, QtyStepper, TotalRow, CheckoutFooter, selectCls } from '@/components/shared/order-editor-kit';
 import { addTicketItem, setItemQty, closeTicket, cancelTicket, updateTicketMeta } from '../../actions';
 
 export interface TicketItem { id: string; name: string; price: number; qty: number }
 export interface MenuService { id: string; name: string; price: number }
 export interface StylistOption { id: string; full_name: string | null; email: string | null }
 export interface EditorTicket { id: string; status: string; stylist_id: string | null; customer_name: string | null; customer_phone: string | null; discount_value: number }
-
-const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
 
 export function TicketEditor({ ticket, items, services, staff }: { ticket: EditorTicket; items: TicketItem[]; services: MenuService[]; staff: StylistOption[] }) {
   const router = useRouter();
@@ -61,15 +60,7 @@ export function TicketEditor({ ticket, items, services, staff }: { ticket: Edito
           ) : services.length === 0 ? (
             <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">لا توجد خدمات. أضِف خدمات من صفحة الخدمات والأسعار.</CardContent></Card>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {services.map((m) => (
-                <button key={m.id} disabled={pending} onClick={() => run(() => addTicketItem(ticket.id, m.id))}
-                  className="flex flex-col items-center justify-center gap-1 rounded-lg border bg-card p-3 text-center text-sm transition-colors hover:border-primary/50 hover:bg-secondary disabled:opacity-50">
-                  <span className="font-medium leading-tight">{m.name}</span>
-                  <span className="tabular-nums text-xs text-muted-foreground" dir="ltr">{formatCurrency(m.price)}</span>
-                </button>
-              ))}
-            </div>
+            <ServiceTileGrid items={services} disabled={pending} onPick={(id) => run(() => addTicketItem(ticket.id, id))} />
           )}
         </div>
 
@@ -99,11 +90,7 @@ export function TicketEditor({ ticket, items, services, staff }: { ticket: Edito
                     <div className="flex items-center gap-2">
                       <span className="tabular-nums text-sm" dir="ltr">{formatCurrency(it.qty * it.price)}</span>
                       {!closed && (
-                        <div className="flex items-center gap-1">
-                          <Button size="icon" variant="outline" className="h-6 w-6" disabled={pending} onClick={() => run(() => setItemQty(it.id, it.qty - 1, ticket.id))}>{it.qty <= 1 ? <Trash2 className="h-3 w-3" /> : <Minus className="h-3 w-3" />}</Button>
-                          <span className="w-5 text-center tabular-nums">{it.qty}</span>
-                          <Button size="icon" variant="outline" className="h-6 w-6" disabled={pending} onClick={() => run(() => setItemQty(it.id, it.qty + 1, ticket.id))}><Plus className="h-3 w-3" /></Button>
-                        </div>
+                        <QtyStepper qty={it.qty} disabled={pending} onDec={() => run(() => setItemQty(it.id, it.qty - 1, ticket.id))} onInc={() => run(() => setItemQty(it.id, it.qty + 1, ticket.id))} />
                       )}
                       {closed && <span className="text-xs text-muted-foreground">× {it.qty}</span>}
                     </div>
@@ -113,24 +100,17 @@ export function TicketEditor({ ticket, items, services, staff }: { ticket: Edito
             )}
 
             <div className="space-y-1 border-t pt-2 text-sm">
-              <div className="flex items-center justify-between text-muted-foreground"><span>الإجمالي الفرعي</span><span className="tabular-nums" dir="ltr">{formatCurrency(subtotal)}</span></div>
-              {discount > 0 && <div className="flex items-center justify-between text-muted-foreground"><span>الخصم</span><span className="tabular-nums" dir="ltr">- {formatCurrency(discount)}</span></div>}
+              <TotalRow label="الإجمالي الفرعي" value={formatCurrency(subtotal)} />
+              {discount > 0 && <TotalRow label="الخصم" value={`- ${formatCurrency(discount)}`} />}
               <div className="flex items-center justify-between border-t pt-1 text-base font-bold"><span>الإجمالي</span><span className="tabular-nums" dir="ltr">{formatCurrency(total)}</span></div>
               {!closed && <button onClick={() => setAdjust((a) => !a)} className="inline-flex items-center gap-1 pt-1 text-xs text-primary hover:underline"><SlidersHorizontal className="h-3 w-3" /> العميل / المصفف / الخصم</button>}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {!closed ? (
-                <>
-                  <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={`${selectCls} h-10`}><option value="cash">كاش</option><option value="card">فيزا</option></select>
-                  <Button className="flex-1" disabled={pending || items.length === 0} onClick={checkout}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} تحصيل وإغلاق</Button>
-                  <Link href={`/print/salon/ticket/${ticket.id}`} target="_blank" className={buttonVariants({ variant: 'outline' })}><Printer className="h-4 w-4" /></Link>
-                  <Button variant="ghost" disabled={pending} onClick={cancel}><X className="h-4 w-4" /></Button>
-                </>
-              ) : (
-                <Link href={`/print/salon/ticket/${ticket.id}`} target="_blank" className={buttonVariants({ variant: 'outline' })}><Printer className="h-4 w-4" /> طباعة الفاتورة</Link>
-              )}
-            </div>
+            <CheckoutFooter
+              closed={closed} pending={pending} canCheckout={items.length > 0}
+              payMethod={payMethod} setPayMethod={setPayMethod} onCheckout={checkout} onCancel={cancel}
+              checkoutLabel="تحصيل وإغلاق" printHref={`/print/salon/ticket/${ticket.id}`} printLabel="طباعة الفاتورة"
+            />
           </CardContent></Card>
         </div>
       </div>

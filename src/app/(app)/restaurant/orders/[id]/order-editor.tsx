@@ -4,14 +4,15 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Minus, Trash2, Printer, X, CheckCircle2, ArrowRight, Loader2, StickyNote, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, StickyNote, SlidersHorizontal } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { usePrompt } from '@/components/prompt-dialog';
+import { ServiceTileGrid, QtyStepper, TotalRow, CheckoutFooter } from '@/components/shared/order-editor-kit';
 import { addOrderItem, setItemQty, setItemNotes, closeOrder, cancelOrder, updateOrderMeta } from '../../actions';
 
 export interface OrderItem { id: string; product_id: string | null; name: string; qty: number; price: number; notes: string | null; kitchen_status: string }
@@ -116,15 +117,7 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {cat?.items.map((m) => (
-                  <button key={m.id} disabled={pending} onClick={() => run(() => addOrderItem(order.id, m.id))}
-                    className="flex flex-col items-center justify-center gap-1 rounded-lg border bg-card p-3 text-center text-sm transition-colors hover:border-primary/50 hover:bg-secondary disabled:opacity-50">
-                    <span className="font-medium leading-tight">{m.name}</span>
-                    <span className="tabular-nums text-xs text-muted-foreground" dir="ltr">{formatCurrency(m.price)}</span>
-                  </button>
-                ))}
-              </div>
+              <ServiceTileGrid items={cat?.items ?? []} disabled={pending} onPick={(id) => run(() => addOrderItem(order.id, id))} />
             </>
           )}
         </div>
@@ -177,11 +170,7 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
                           {!closed && (
                             <div className="flex items-center gap-1">
                               <Button size="icon" variant="ghost" className="h-6 w-6" disabled={pending} onClick={() => editNote(it)}><StickyNote className="h-3 w-3" /></Button>
-                              <Button size="icon" variant="outline" className="h-6 w-6" disabled={pending} onClick={() => run(() => setItemQty(it.id, it.qty - 1, order.id))}>
-                                {it.qty <= 1 ? <Trash2 className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                              </Button>
-                              <span className="w-6 text-center tabular-nums">{it.qty}</span>
-                              <Button size="icon" variant="outline" className="h-6 w-6" disabled={pending} onClick={() => run(() => setItemQty(it.id, it.qty + 1, order.id))}><Plus className="h-3 w-3" /></Button>
+                              <QtyStepper qty={it.qty} disabled={pending} onDec={() => run(() => setItemQty(it.id, it.qty - 1, order.id))} onInc={() => run(() => setItemQty(it.id, it.qty + 1, order.id))} />
                             </div>
                           )}
                           {closed && <span className="text-xs text-muted-foreground">× {it.qty}</span>}
@@ -193,11 +182,11 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
               )}
 
               <div className="space-y-1 border-t pt-2 text-sm">
-                <Row label="الإجمالي الفرعي" value={formatCurrency(subtotal)} />
-                {discount > 0 && <Row label="الخصم" value={`- ${formatCurrency(discount)}`} />}
-                {order.delivery_fee > 0 && <Row label="رسوم التوصيل" value={formatCurrency(order.delivery_fee)} />}
-                {service > 0 && <Row label={`خدمة ${order.service_rate}%`} value={formatCurrency(service)} />}
-                {tax > 0 && <Row label={`ضريبة ${order.tax_rate}%`} value={formatCurrency(tax)} />}
+                <TotalRow label="الإجمالي الفرعي" value={formatCurrency(subtotal)} />
+                {discount > 0 && <TotalRow label="الخصم" value={`- ${formatCurrency(discount)}`} />}
+                {order.delivery_fee > 0 && <TotalRow label="رسوم التوصيل" value={formatCurrency(order.delivery_fee)} />}
+                {service > 0 && <TotalRow label={`خدمة ${order.service_rate}%`} value={formatCurrency(service)} />}
+                {tax > 0 && <TotalRow label={`ضريبة ${order.tax_rate}%`} value={formatCurrency(tax)} />}
                 <div className="flex items-center justify-between border-t pt-1 text-base font-bold">
                   <span>الإجمالي</span><span className="tabular-nums" dir="ltr">{formatCurrency(total)}</span>
                 </div>
@@ -208,30 +197,15 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {!closed ? (
-                  <>
-                    <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={`${selectCls} h-10`}>
-                      <option value="cash">كاش</option><option value="card">فيزا</option>
-                    </select>
-                    <Button className="flex-1" disabled={pending || items.length === 0} onClick={checkout}>
-                      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} تحصيل وإغلاق
-                    </Button>
-                    <Link href={`/print/restaurant/order/${order.id}`} target="_blank" className={buttonVariants({ variant: 'outline' })}><Printer className="h-4 w-4" /></Link>
-                    <Button variant="ghost" disabled={pending} onClick={cancel}><X className="h-4 w-4" /></Button>
-                  </>
-                ) : (
-                  <Link href={`/print/restaurant/order/${order.id}`} target="_blank" className={buttonVariants({ variant: 'outline' })}><Printer className="h-4 w-4" /> طباعة الفاتورة</Link>
-                )}
-              </div>
+              <CheckoutFooter
+                closed={closed} pending={pending} canCheckout={items.length > 0}
+                payMethod={payMethod} setPayMethod={setPayMethod} onCheckout={checkout} onCancel={cancel}
+                checkoutLabel="تحصيل وإغلاق" printHref={`/print/restaurant/order/${order.id}`} printLabel="طباعة الفاتورة"
+              />
             </CardContent>
           </Card>
         </div>
       </div>
     </div>
   );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-center justify-between text-muted-foreground"><span>{label}</span><span className="tabular-nums" dir="ltr">{value}</span></div>;
 }
