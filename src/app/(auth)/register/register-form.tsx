@@ -7,12 +7,18 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
+import { Logo } from '@/components/brand/logo';
+import { AuthBrandPanel } from '@/components/brand/auth-brand-panel';
 import { toast } from 'sonner';
-import { Loader2, Rocket } from 'lucide-react';
+import { Loader2, Rocket, Layers, MessageCircle } from 'lucide-react';
 import { BUSINESS_TYPE_LABELS, BUSINESS_TYPES } from '@/lib/erp/subscription';
 
 const TRIAL_DAYS = 14;
+const REGISTER_HIGHLIGHTS = [
+  { icon: Rocket, text: 'تجربة مجانية ١٤ يوم — بدون بطاقة' },
+  { icon: Layers, text: 'يتأقلم مع نوع نشاطك تلقائياً' },
+  { icon: MessageCircle, text: 'دعم سريع عبر واتساب' },
+];
 const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -82,14 +88,13 @@ export function RegisterForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-secondary/30 p-4">
-      <Card className="w-full max-w-md">
-        <CardContent className="space-y-5 pt-6">
-          <div className="text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Rocket className="h-6 w-6" />
-            </div>
-            <h1 className="text-xl font-bold">أنشئ شركتك وابدأ مجاناً</h1>
+    <div className="grid min-h-screen lg:grid-cols-2">
+      {/* Form side */}
+      <div className="flex items-center justify-center overflow-y-auto bg-background p-6 sm:p-10">
+        <div className="w-full max-w-md py-6">
+          <div className="mb-6">
+            <Logo size="lg" withWordmark />
+            <h1 className="mt-6 text-2xl font-bold">أنشئ شركتك وابدأ مجاناً</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               تجربة مجانية {TRIAL_DAYS} يوم — بدون بطاقة ائتمان.
             </p>
@@ -136,14 +141,21 @@ export function RegisterForm() {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="mt-6 text-center text-sm text-muted-foreground">
             لديك حساب بالفعل؟{' '}
-            <Link href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="font-medium text-primary hover:underline">
               تسجيل الدخول
             </Link>
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* Brand panel */}
+      <AuthBrandPanel
+        headline={<>ابدأ رحلتك<br />مع AMS</>}
+        subtext="جهّز شركتك في دقائق وابدأ تجربتك المجانية — النظام يتأقلم مع نشاطك أيًّا كان."
+        highlights={REGISTER_HIGHLIGHTS}
+      />
     </div>
   );
 }
