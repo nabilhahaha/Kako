@@ -1,87 +1,87 @@
-import { Home, BarChart3, PieChart, FileText, User, Settings } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 
-/** Decorative auth hero scene (inspired by a modern dark SaaS splash): a deep
- *  brand-dark backdrop with soft glows, particles, flowing wave lines, and
- *  floating glass UI cards (sidebar / line chart / donut / list). Language-
- *  neutral, pure CSS+SVG, no images. Fills its (relative) parent. */
+const GRAIN =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
+
+const MESH =
+  'radial-gradient(40% 50% at 18% 18%, rgba(192,57,43,0.38), transparent 60%),' +
+  'radial-gradient(45% 55% at 82% 22%, rgba(232,176,75,0.16), transparent 60%),' +
+  'radial-gradient(70% 60% at 50% 108%, rgba(143,29,46,0.55), transparent 60%),' +
+  'linear-gradient(180deg, #1c0710 0%, #120409 100%)';
+
+/** Premium dark auth scene: a maroon mesh gradient with a fading dot grid,
+ *  fine grain, glow, particles, and two refined glass cards (gradient borders +
+ *  area chart). Language-neutral, pure CSS/SVG. Fills its (relative) parent. */
 export function BrandScene() {
   return (
     <>
-      {/* deep brand-dark gradient */}
+      {/* mesh gradient */}
+      <div className="absolute inset-0" style={{ background: MESH }} />
+
+      {/* fading dot grid */}
       <div
-        className="absolute inset-0"
-        style={{ background: 'radial-gradient(125% 100% at 50% -10%, #5e1424 0%, #320c16 46%, #150409 100%)' }}
+        className="absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)',
+          backgroundSize: '26px 26px',
+          WebkitMaskImage: 'radial-gradient(75% 65% at 50% 38%, #000, transparent)',
+          maskImage: 'radial-gradient(75% 65% at 50% 38%, #000, transparent)',
+        }}
       />
 
-      {/* soft glows */}
-      <div className="absolute left-1/2 top-[28%] h-72 w-72 -translate-x-1/2 rounded-full blur-3xl" style={{ background: 'rgba(232,176,75,0.16)' }} />
-      <div className="absolute -bottom-20 end-6 h-80 w-80 rounded-full blur-3xl" style={{ background: 'rgba(143,29,46,0.55)' }} />
-      <div className="absolute -top-16 start-0 h-64 w-64 rounded-full blur-3xl" style={{ background: 'rgba(192,57,43,0.30)' }} />
+      {/* animated glows */}
+      <div className="ams-aura absolute left-1/2 top-[26%] h-72 w-72 -translate-x-1/2 rounded-full blur-3xl" style={{ background: 'rgba(232,176,75,0.16)' }} />
+      <div className="ams-aura-2 absolute -bottom-24 end-4 h-80 w-80 rounded-full blur-3xl" style={{ background: 'rgba(143,29,46,0.5)' }} />
+
+      {/* grain */}
+      <div className="absolute inset-0 opacity-[0.05] mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
 
       {/* particles */}
       {[
-        ['18%', '22%', 0.6], ['72%', '30%', 0.4], ['40%', '14%', 0.5], ['82%', '60%', 0.5],
-        ['28%', '68%', 0.4], ['60%', '78%', 0.6], ['12%', '52%', 0.35], ['90%', '40%', 0.3],
+        ['16%', '24%', 0.55], ['74%', '32%', 0.4], ['38%', '12%', 0.5],
+        ['84%', '58%', 0.45], ['26%', '70%', 0.4], ['62%', '80%', 0.5], ['12%', '50%', 0.3],
       ].map(([top, left, o], i) => (
         <span key={i} className="absolute h-1 w-1 rounded-full bg-white" style={{ top, left, opacity: o as number }} />
       ))}
 
-      {/* flowing wave lines (bottom) */}
-      <svg className="absolute inset-x-0 bottom-0 h-1/2 w-full" viewBox="0 0 600 300" fill="none" preserveAspectRatio="none" aria-hidden>
-        {[0, 10, 20, 30, 40, 52].map((d, i) => (
-          <path
-            key={i}
-            d={`M-20 ${190 + d} C 150 ${120 + d}, 320 ${250 + d}, 620 ${150 + d}`}
-            stroke="rgba(232,176,75,0.22)"
-            strokeWidth="1"
-          />
-        ))}
-      </svg>
-
-      {/* ── floating glass cards ── */}
-      {/* sidebar */}
-      <div className="absolute start-8 top-1/2 hidden -translate-y-1/2 flex-col gap-3 rounded-2xl border border-white/12 bg-white/[0.06] p-3 shadow-xl backdrop-blur-md xl:flex">
-        {[Home, BarChart3, PieChart, FileText, User, Settings].map((Icon, i) => (
-          <span
-            key={i}
-            className={`flex h-9 w-9 items-center justify-center rounded-xl ${i === 0 ? 'bg-[rgba(232,176,75,0.85)] text-[#3a0a13]' : 'text-white/70'}`}
-          >
-            <Icon className="h-4 w-4" />
-          </span>
-        ))}
-      </div>
-
-      {/* line-chart card (top end) */}
-      <div className="absolute end-8 top-14 hidden w-52 rounded-2xl border border-white/12 bg-white/[0.06] p-3 shadow-xl backdrop-blur-md lg:block">
-        <div className="mb-1 h-1.5 w-16 rounded-full bg-white/20" />
-        <div className="mb-3 h-1.5 w-10 rounded-full bg-white/12" />
-        <svg viewBox="0 0 180 70" className="w-full" fill="none">
-          <polyline points="4,58 32,46 60,52 92,30 120,38 150,16 176,8" stroke="rgba(232,176,75,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="176" cy="8" r="3.5" fill="#fff" />
-        </svg>
-      </div>
-
-      {/* donut card (end, lower) */}
-      <div className="absolute end-10 bottom-24 hidden w-48 items-center gap-3 rounded-2xl border border-white/12 bg-white/[0.06] p-3 shadow-xl backdrop-blur-md lg:flex">
-        <div className="relative h-12 w-12 shrink-0">
-          <div className="absolute inset-0 rounded-full border-[6px] border-white/15" />
-          <div className="absolute inset-0 rounded-full border-[6px] border-transparent" style={{ borderTopColor: 'rgba(232,176,75,0.9)', borderInlineEndColor: 'rgba(232,176,75,0.9)', transform: 'rotate(45deg)' }} />
-        </div>
-        <div className="flex-1 space-y-1.5">
-          <div className="h-1.5 w-full rounded-full bg-white/18" />
-          <div className="h-1.5 w-3/4 rounded-full bg-white/12" />
-          <div className="h-1.5 w-1/2 rounded-full bg-white/10" />
-        </div>
-      </div>
-
-      {/* list card (start, lower) */}
-      <div className="absolute start-12 bottom-16 hidden w-44 space-y-2.5 rounded-2xl border border-white/12 bg-white/[0.06] p-3 shadow-xl backdrop-blur-md xl:block">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full" style={{ background: 'rgba(232,176,75,0.7)' }} />
-            <span className="h-1.5 flex-1 rounded-full bg-white/18" />
+      {/* ── floating glass cards (gradient borders) ── */}
+      {/* stat card — top end */}
+      <div className="absolute end-10 top-16 hidden rounded-2xl p-px shadow-2xl lg:block" style={{ background: 'linear-gradient(135deg, rgba(232,176,75,0.55), rgba(255,255,255,0.06))' }}>
+        <div className="w-44 rounded-2xl bg-[#1b0810]/80 p-4 backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(232,176,75,0.18)] text-[rgba(232,176,75,0.95)]">
+              <TrendingUp className="h-4 w-4" />
+            </span>
+            <span className="h-1.5 w-10 rounded-full bg-white/12" />
           </div>
-        ))}
+          <div className="mt-3 bg-gradient-to-b from-white to-[rgba(232,176,75,0.8)] bg-clip-text text-2xl font-bold tabular-nums text-transparent" dir="ltr">٤٨٫٢ك</div>
+          <div className="mt-1 h-1.5 w-16 rounded-full bg-white/12" />
+        </div>
+      </div>
+
+      {/* area-chart card — bottom start */}
+      <div className="absolute start-10 bottom-20 hidden rounded-2xl p-px shadow-2xl lg:block" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.10), rgba(232,176,75,0.40))' }}>
+        <div className="w-56 rounded-2xl bg-[#1b0810]/80 p-4 backdrop-blur-xl">
+          <div className="mb-1 h-1.5 w-20 rounded-full bg-white/18" />
+          <div className="mb-3 h-1.5 w-12 rounded-full bg-white/10" />
+          <svg viewBox="0 0 220 80" className="w-full" fill="none" aria-hidden>
+            <defs>
+              <linearGradient id="ams-area" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="rgba(232,176,75,0.35)" />
+                <stop offset="1" stopColor="rgba(232,176,75,0)" />
+              </linearGradient>
+            </defs>
+            <path d="M0,60 C30,52 52,30 84,38 116,46 150,16 220,24 L220,80 L0,80 Z" fill="url(#ams-area)" />
+            <path d="M0,60 C30,52 52,30 84,38 116,46 150,16 220,24" stroke="rgba(232,176,75,0.95)" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="220" cy="24" r="3.5" fill="#fff" />
+          </svg>
+        </div>
+      </div>
+
+      {/* small floating pill — adds life */}
+      <div className="absolute end-16 bottom-28 hidden items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 py-1.5 shadow-xl backdrop-blur-md xl:flex">
+        <span className="h-2 w-2 rounded-full" style={{ background: 'rgba(232,176,75,0.9)' }} />
+        <span className="h-1.5 w-14 rounded-full bg-white/20" />
       </div>
     </>
   );
