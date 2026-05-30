@@ -39,13 +39,16 @@ stack, or a bare `postgres:16`), using a connection string for the owner/
 
 ```bash
 export TEST_DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:5432/postgres'
-bash supabase/ci/setup-test-db.sh   # bootstrap + migrations (skip if the DB is already provisioned)
+bash supabase/ci/setup-test-db.sh   # bootstrap + legacy stubs + every migration
 npm run test:db
 ```
 
-> `setup-test-db.sh` applies the erp_ chain from migration 0005 onward. The
-> 0001–0004 migrations patch the legacy inventory app, whose base tables predate
-> the migrations folder and aren't needed by these tests.
+> `setup-test-db.sh` builds the schema from scratch: `ci/bootstrap.sql` (the
+> Supabase environment — roles, `auth`, storage, realtime), `ci/legacy-base.sql`
+> (stubs for the legacy "FieldSync" app tables that predate the migrations
+> folder), then **every** migration `0001`→latest. Those two CI files exist only
+> because the early migrations assume a base that was never captured as a
+> migration; the erp_ system proper begins at `0005`.
 
 Every test runs inside a transaction that is **always rolled back**
 (`withRollback` in `src/test/db.ts`), so nothing is persisted — it is safe to

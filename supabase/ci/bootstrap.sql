@@ -89,3 +89,30 @@ grant usage on schema public to anon, authenticated, service_role;
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+
+-- Supabase Storage — minimal buckets/objects so the legacy 0001 migration
+-- (photo buckets + object policies) applies.
+create schema if not exists storage;
+grant usage on schema storage to anon, authenticated, service_role;
+create table if not exists storage.buckets (
+  id text primary key,
+  name text,
+  public boolean default false,
+  created_at timestamptz default now()
+);
+create table if not exists storage.objects (
+  id uuid primary key default gen_random_uuid(),
+  bucket_id text references storage.buckets(id),
+  name text,
+  owner uuid,
+  metadata jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Realtime publication that 0001 appends tables to.
+do $$ begin
+  if not exists (select 1 from pg_publication where pubname='supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+end $$;
