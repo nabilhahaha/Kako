@@ -36,7 +36,7 @@ export function LoginForm() {
       return;
     }
     toast.success('تم تسجيل الدخول بنجاح');
-    router.push('/dashboard');
+    router.push('/');
     router.refresh();
   }
 

@@ -66,6 +66,24 @@ export async function upsertPatient(formData: FormData): Promise<ActionResult> {
 }
 
 /** Register a visit (كشف) for a patient. */
+/** Resolve which doctor a new visit/appointment is assigned to: the one the
+ *  receptionist picked → else the creator if they're a doctor → else the single
+ *  (or first) doctor in the clinic → else the creator. Ensures a receptionist's
+ *  check-in always lands in a real doctor's queue. */
+async function pickDoctor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  formData: FormData,
+  userId: string,
+): Promise<string> {
+  const picked = String(formData.get('doctor_id') || '').trim();
+  if (picked) return picked;
+  const { data } = await supabase.rpc('erp_clinic_doctors');
+  const list = (data as { id: string }[] | null) ?? [];
+  if (list.some((d) => d.id === userId)) return userId;
+  if (list.length >= 1) return list[0].id;
+  return userId;
+}
+
 export async function createVisit(formData: FormData): Promise<ActionResult> {
   const ctx = await requireAnyPermission(ANY_CLINIC);
   if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
@@ -77,7 +95,7 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
   const { error } = await supabase.from('erp_clinic_visits').insert({
     company_id: ctx.companyId,
     patient_id,
-    doctor_id: String(formData.get('doctor_id') || '').trim() || ctx.userId,
+    doctor_id: await pickDoctor(supabase, formData, ctx.userId),
     visit_type: String(formData.get('visit_type') || 'consultation'),
     complaint: String(formData.get('complaint') || '').trim() || null,
     diagnosis: String(formData.get('diagnosis') || '').trim() || null,
@@ -215,7 +233,7 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
   const { error } = await supabase.from('erp_clinic_appointments').insert({
     company_id: ctx.companyId,
     patient_id,
-    doctor_id: String(formData.get('doctor_id') || '').trim() || ctx.userId,
+    doctor_id: await pickDoctor(supabase, formData, ctx.userId),
     scheduled_at: scheduled.toISOString(),
     duration_min: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 30,
     reason: String(formData.get('reason') || '').trim() || null,

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { GettingStarted } from '@/components/shared/getting-started';
+import { resolveHomePath } from '@/lib/erp/home';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { INVOICE_STATUS_LABELS } from '@/lib/erp/constants';
@@ -34,6 +35,12 @@ export default async function DashboardPage() {
   const ctx = await getUserContext();
   // The vendor has no tenant company; send them to their portfolio overview.
   if (ctx?.isPlatformOwner) redirect('/platform');
+  // A specialised business (clinic, restaurant, …) opens its own home instead of
+  // the general sales dashboard.
+  if (ctx) {
+    const home = resolveHomePath(ctx);
+    if (home !== '/dashboard') redirect(home);
+  }
   const name = ctx?.profile.full_name || ctx?.profile.email || '';
 
   const supabase = await createClient();

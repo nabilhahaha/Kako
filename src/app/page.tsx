@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getUserContext } from '@/lib/erp/auth-context';
+import { resolveHomePath } from '@/lib/erp/home';
 import { Logo } from '@/components/brand/logo';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
 import {
@@ -29,10 +30,10 @@ const FEATURES = [
 ];
 
 export default async function HomePage() {
-  // Signed-in users go straight to the app; visitors see the landing page.
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) redirect('/dashboard');
+  // Signed-in users go straight to the right home for their role; visitors see
+  // the landing page.
+  const ctx = await getUserContext();
+  if (ctx) redirect(resolveHomePath(ctx));
 
   return (
     <div className="min-h-screen bg-background text-foreground">
