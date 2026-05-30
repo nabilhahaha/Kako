@@ -85,24 +85,24 @@ export type Module =
 /** The modules a subscription PLAN can grant (coarse). */
 export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale', 'distribution'];
 
-export const MODULE_LABELS: Record<Module, string> = {
-  sales: 'المبيعات',
-  inventory: 'المخزون',
-  purchasing: 'المشتريات',
-  accounting: 'الحسابات',
-  hotel: 'الفندق',
-  clinic: 'العيادة',
-  restaurant: 'المطعم / الكافيه',
-  salon: 'الصالون',
-  pharmacy: 'الصيدلية',
-  laundry: 'المغسلة',
-  market: 'السوبر ماركت',
-  wholesale: 'الجملة',
-  distribution: 'التوزيع',
-  pos: 'نقطة البيع',
-  sales_orders: 'أوامر البيع',
-  returns: 'المرتجعات',
-  warehousing: 'إدارة المخازن',
+export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
+  sales: { en: 'Sales', ar: 'المبيعات' },
+  inventory: { en: 'Inventory', ar: 'المخزون' },
+  purchasing: { en: 'Purchasing', ar: 'المشتريات' },
+  accounting: { en: 'Accounting', ar: 'الحسابات' },
+  hotel: { en: 'Hotel', ar: 'الفندق' },
+  clinic: { en: 'Clinic', ar: 'العيادة' },
+  restaurant: { en: 'Restaurant / Café', ar: 'المطعم / الكافيه' },
+  salon: { en: 'Salon', ar: 'الصالون' },
+  pharmacy: { en: 'Pharmacy', ar: 'الصيدلية' },
+  laundry: { en: 'Laundry', ar: 'المغسلة' },
+  market: { en: 'Supermarket', ar: 'السوبر ماركت' },
+  wholesale: { en: 'Wholesale', ar: 'الجملة' },
+  distribution: { en: 'Distribution', ar: 'التوزيع' },
+  pos: { en: 'Point of Sale', ar: 'نقطة البيع' },
+  sales_orders: { en: 'Sales Orders', ar: 'أوامر البيع' },
+  returns: { en: 'Returns', ar: 'المرتجعات' },
+  warehousing: { en: 'Warehouse Management', ar: 'إدارة المخازن' },
 };
 
 export const NAV_SECTIONS: NavSection[] = [

@@ -650,7 +650,7 @@ function NewCustomerDialog({
   onClose: () => void;
   onSubmit: (data: NewCustomerData) => Promise<{ ok: boolean; error?: string }>;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [f, setF] = useState<NewCustomerData>({ code: '', name: '', credit_limit: 0 });
   const [pending, setPending] = useState(false);
   const set = (patch: Partial<NewCustomerData>) => setF((p) => ({ ...p, ...patch }));
@@ -693,7 +693,7 @@ function NewCustomerDialog({
           </div>
           <select value={f.visit_day ?? ''} onChange={(e) => set({ visit_day: e.target.value })} className="h-11 w-full rounded-md border border-input bg-background px-2 text-sm">
             <option value="">{t('rep.fieldVisitDay')}</option>
-            {VISIT_DAYS.map((d) => <option key={d.value} value={d.value}>{d.ar}</option>)}
+            {VISIT_DAYS.map((d) => <option key={d.value} value={d.value}>{d[locale]}</option>)}
           </select>
           <Button className="w-full" disabled={pending || !f.code.trim() || !f.name.trim()} onClick={go}>
             {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('rep.btnSubmitForApproval')}

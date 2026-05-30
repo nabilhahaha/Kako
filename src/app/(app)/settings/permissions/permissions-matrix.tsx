@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useConfirm } from '@/components/confirm-dialog';
-import { ALL_PERMISSIONS, PERMISSION_LABELS, type Permission } from '@/lib/erp/permissions';
+import { ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_GROUP_LABELS, type Permission } from '@/lib/erp/permissions';
 import { setRolePermission, createRole, deleteRole } from './actions';
 import { Plus, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,7 +29,7 @@ export function PermissionsMatrix({
   canEdit: boolean;
 }) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const confirm = useConfirm();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -139,11 +139,11 @@ export function PermissionsMatrix({
               {[...groups.entries()].map(([group, perms]) => (
                 <tbody key={group}>
                   <tr className="border-b bg-secondary/30">
-                    <td colSpan={roles.length + 1} className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">{group}</td>
+                    <td colSpan={roles.length + 1} className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">{PERMISSION_GROUP_LABELS[group]?.[locale] ?? group}</td>
                   </tr>
                   {perms.map((p) => (
                     <tr key={p} className="border-b">
-                      <td className="sticky right-0 bg-background p-3">{PERMISSION_LABELS[p].ar}</td>
+                      <td className="sticky right-0 bg-background p-3">{PERMISSION_LABELS[p][locale]}</td>
                       {roles.map((r) => {
                         const checked = matrix[r.key]?.has(p) ?? false;
                         // admin/manager are always-all by convention; still editable here.

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Loader2, X, Route as RouteIcon, Users } from 'lucide-react';
-import { VISIT_DAYS, VISIT_DAY_LABEL } from '@/lib/erp/constants';
+import { VISIT_DAYS } from '@/lib/erp/constants';
 import { upsertRoute } from '../actions';
 import { useI18n } from '@/lib/i18n/provider';
 
@@ -22,7 +22,7 @@ const selectCls = 'flex h-10 w-full rounded-md border border-input bg-background
 
 export function RoutesManager({ routes, reps, vans }: { routes: RouteRow[]; reps: RepOpt[]; vans: VanOpt[] }) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [editing, setEditing] = useState<RouteRow | null | 'new'>(null);
   const [pending, startTransition] = useTransition();
   const repName = (id: string | null) => { const r = reps.find((x) => x.id === id); return r ? (r.full_name || r.email) : '—'; };
@@ -59,7 +59,7 @@ export function RoutesManager({ routes, reps, vans }: { routes: RouteRow[]; reps
               </div>
               <div className="space-y-1"><Label>{t('distribution.routeLabelVisitDay')}</Label>
                 <select name="visit_day" className={selectCls} defaultValue={editing !== 'new' ? editing.visit_day ?? '' : ''}>
-                  <option value="">—</option>{VISIT_DAYS.map((d) => <option key={d.value} value={d.value}>{d.ar}</option>)}
+                  <option value="">—</option>{VISIT_DAYS.map((d) => <option key={d.value} value={d.value}>{d[locale]}</option>)}
                 </select>
               </div>
             </div>
@@ -81,7 +81,7 @@ export function RoutesManager({ routes, reps, vans }: { routes: RouteRow[]; reps
                   <td className="p-3 font-medium">{r.name}{!r.is_active && <Badge variant="secondary" className="ms-2">{t('distribution.routeBadgeInactive')}</Badge>}</td>
                   <td className="p-3 text-muted-foreground">{repName(r.rep_id)}</td>
                   <td className="p-3 text-muted-foreground">{vanName(r.van_warehouse_id)}</td>
-                  <td className="p-3 text-center">{r.visit_day ? VISIT_DAY_LABEL[r.visit_day] : '—'}</td>
+                  <td className="p-3 text-center">{r.visit_day ? (VISIT_DAYS.find((d) => d.value === r.visit_day)?.[locale] ?? '—') : '—'}</td>
                   <td className="p-3 text-center tabular-nums">{r.customers}</td>
                   <td className="p-3 text-left">
                     <div className="flex items-center justify-end gap-1">

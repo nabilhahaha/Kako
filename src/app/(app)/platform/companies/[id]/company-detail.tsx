@@ -84,7 +84,7 @@ export function CompanyDetail({
   /** Modules currently enabled for this company (overrides the type default). */
   enabledModules?: string[];
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const prompt = usePrompt();
   const [pending, startTransition] = useTransition();
@@ -326,7 +326,7 @@ export function CompanyDetail({
                 <span className="text-xs text-muted-foreground">{t('platform.company.plan.availableModules')}</span>
                 {(modulesByPlan[company.plan_key] ?? []).map((m) => (
                   <Badge key={m} variant="secondary">
-                    {MODULE_LABELS[m as Module] ?? m}
+                    {MODULE_LABELS[m as Module]?.[locale] ?? m}
                   </Badge>
                 ))}
               </div>
@@ -355,7 +355,7 @@ export function CompanyDetail({
                   disabled={pending}
                   onChange={(e) => toggleModule(m, e.target.checked)}
                 />
-                {MODULE_LABELS[m]}
+                {MODULE_LABELS[m][locale]}
               </label>
             ))}
           </div>
@@ -389,7 +389,7 @@ export function CompanyDetail({
                 >
                   {BUSINESS_TYPES.map((bt) => (
                     <option key={bt} value={bt}>
-                      {BUSINESS_TYPE_LABELS[bt]}
+                      {BUSINESS_TYPE_LABELS[bt][locale]}
                     </option>
                   ))}
                 </select>

@@ -6,7 +6,7 @@ import { setCustomerJourney } from '../../customers/actions';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { VISIT_DAYS, VISIT_DAY_LABEL } from '@/lib/erp/constants';
+import { VISIT_DAYS } from '@/lib/erp/constants';
 import type { ErpCustomer, Profile } from '@/lib/erp/types';
 import { useI18n } from '@/lib/i18n/provider';
 import { Search } from 'lucide-react';
@@ -22,7 +22,7 @@ export function JourneyManager({
   reps: Rep[];
 }) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [repFilter, setRepFilter] = useState('');
   const [query, setQuery] = useState('');
   const [pending, startTransition] = useTransition();
@@ -69,7 +69,7 @@ export function JourneyManager({
 
       <div className="flex flex-wrap gap-2">
         {VISIT_DAYS.map((d) => (
-          <Badge key={d.value} variant="secondary">{d.ar}: {dayCounts[d.value] ?? 0}</Badge>
+          <Badge key={d.value} variant="secondary">{d[locale]}: {dayCounts[d.value] ?? 0}</Badge>
         ))}
       </div>
 
@@ -112,7 +112,7 @@ export function JourneyManager({
                         className="h-9 w-28 rounded-md border border-input bg-background px-2 text-sm"
                       >
                         <option value="">{t('sales.journeyNoRepOption')}</option>
-                        {VISIT_DAYS.map((d) => <option key={d.value} value={d.value}>{d.ar}</option>)}
+                        {VISIT_DAYS.map((d) => <option key={d.value} value={d.value}>{d[locale]}</option>)}
                       </select>
                     </td>
                   </tr>

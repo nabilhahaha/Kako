@@ -32,7 +32,7 @@ export function CustomersManager({
   isSuperAdmin: boolean;
 }) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [editing, setEditing] = useState<ErpCustomer | null | 'new'>(null);
   const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState('');
@@ -170,7 +170,7 @@ export function CustomersManager({
                   <select name="visit_day" defaultValue={current?.visit_day ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     <option value="">{t('customers.optionNoVisitDay')}</option>
                     {VISIT_DAYS.map((d) => (
-                      <option key={d.value} value={d.value}>{d.ar}</option>
+                      <option key={d.value} value={d.value}>{d[locale]}</option>
                     ))}
                   </select>
                 </Field>

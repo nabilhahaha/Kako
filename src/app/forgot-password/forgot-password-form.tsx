@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, MailCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
 export function ForgotPasswordForm() {
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -38,7 +40,7 @@ export function ForgotPasswordForm() {
             <MailCheck className="h-6 w-6" />
           </div>
           <p className="text-sm text-muted-foreground">
-            إذا كان البريد مسجّلاً لدينا، فستصلك رسالة بها رابط لإعادة تعيين كلمة المرور. تحقّق من بريدك (وملف الـ Spam).
+            {t('auth.fpSent')}
           </p>
         </CardContent>
       </Card>
@@ -50,7 +52,7 @@ export function ForgotPasswordForm() {
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">البريد الإلكتروني</Label>
+            <Label htmlFor="email">{t('auth.email')}</Label>
             <Input
               id="email" type="email" dir="ltr" className="text-left"
               placeholder="you@company.com"
@@ -60,7 +62,7 @@ export function ForgotPasswordForm() {
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            إرسال رابط الاستعادة
+            {t('auth.fpSubmit')}
           </Button>
         </form>
       </CardContent>

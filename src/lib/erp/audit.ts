@@ -29,31 +29,31 @@ export async function logAudit(
   }
 }
 
-// Arabic labels for the audit viewer.
-export const AUDIT_ACTION_LABELS: Record<string, string> = {
-  create: 'إنشاء',
-  update: 'تعديل',
-  delete: 'حذف',
-  enable: 'تفعيل',
-  disable: 'تعطيل',
-  grant: 'منح صلاحية',
-  revoke: 'سحب صلاحية',
-  activate: 'تفعيل',
-  deactivate: 'إيقاف',
-  renew: 'تجديد اشتراك',
-  plan_change: 'تغيير الخطة',
+// Bilingual labels for the audit viewer.
+export const AUDIT_ACTION_LABELS: Record<string, { en: string; ar: string }> = {
+  create: { en: 'Create', ar: 'إنشاء' },
+  update: { en: 'Update', ar: 'تعديل' },
+  delete: { en: 'Delete', ar: 'حذف' },
+  enable: { en: 'Enable', ar: 'تفعيل' },
+  disable: { en: 'Disable', ar: 'تعطيل' },
+  grant: { en: 'Grant permission', ar: 'منح صلاحية' },
+  revoke: { en: 'Revoke permission', ar: 'سحب صلاحية' },
+  activate: { en: 'Activate', ar: 'تفعيل' },
+  deactivate: { en: 'Deactivate', ar: 'إيقاف' },
+  renew: { en: 'Renew subscription', ar: 'تجديد اشتراك' },
+  plan_change: { en: 'Change plan', ar: 'تغيير الخطة' },
 };
 
-export const AUDIT_ENTITY_LABELS: Record<string, string> = {
-  company: 'شركة',
-  branch: 'فرع',
-  user: 'مستخدم',
-  user_flags: 'صلاحيات مستخدم',
-  assignment: 'ربط مستخدم بفرع',
-  role: 'دور',
-  role_permission: 'صلاحية دور (عام)',
-  company_role: 'دور شركة',
-  company_role_permission: 'صلاحية دور (شركة)',
-  subscription: 'اشتراك',
-  plan: 'خطة',
+export const AUDIT_ENTITY_LABELS: Record<string, { en: string; ar: string }> = {
+  company: { en: 'Company', ar: 'شركة' },
+  branch: { en: 'Branch', ar: 'فرع' },
+  user: { en: 'User', ar: 'مستخدم' },
+  user_flags: { en: 'User permissions', ar: 'صلاحيات مستخدم' },
+  assignment: { en: 'User-branch assignment', ar: 'ربط مستخدم بفرع' },
+  role: { en: 'Role', ar: 'دور' },
+  role_permission: { en: 'Role permission (global)', ar: 'صلاحية دور (عام)' },
+  company_role: { en: 'Company role', ar: 'دور شركة' },
+  company_role_permission: { en: 'Company role permission', ar: 'صلاحية دور (شركة)' },
+  subscription: { en: 'Subscription', ar: 'اشتراك' },
+  plan: { en: 'Plan', ar: 'خطة' },
 };

@@ -22,7 +22,7 @@ const selectCls =
 
 export function RegisterForm() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -117,7 +117,7 @@ export function RegisterForm() {
               <select id="business_type" name="business_type" className={selectCls} defaultValue="general">
                 {BUSINESS_TYPES.map((bt) => (
                   <option key={bt} value={bt}>
-                    {BUSINESS_TYPE_LABELS[bt]}
+                    {BUSINESS_TYPE_LABELS[bt][locale]}
                   </option>
                 ))}
               </select>

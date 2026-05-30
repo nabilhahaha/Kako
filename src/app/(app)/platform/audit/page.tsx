@@ -33,7 +33,7 @@ function fmtTime(iso: string): string {
 }
 
 export default async function AuditLogPage() {
-  const { t } = await getT();
+  const { t, locale } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
@@ -98,11 +98,11 @@ export default async function AuditLogPage() {
                       <td className="p-3" dir="ltr">{r.actor_email ?? '—'}</td>
                       <td className="p-3">
                         <Badge variant={DESTRUCTIVE.has(r.action) ? 'destructive' : 'secondary'}>
-                          {AUDIT_ACTION_LABELS[r.action] ?? r.action}
+                          {AUDIT_ACTION_LABELS[r.action]?.[locale] ?? r.action}
                         </Badge>
                       </td>
                       <td className="p-3">
-                        {AUDIT_ENTITY_LABELS[r.entity] ?? r.entity}
+                        {AUDIT_ENTITY_LABELS[r.entity]?.[locale] ?? r.entity}
                         {r.entity_id && (
                           <span className="block text-xs text-muted-foreground" dir="ltr">{r.entity_id}</span>
                         )}

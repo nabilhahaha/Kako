@@ -195,7 +195,7 @@ export default async function PlatformOverviewPage() {
                       <Link href={`/platform/companies/${c.id}`} className="min-w-0 hover:underline">
                         <p className="truncate font-medium">{c.name_ar || c.name}</p>
                         <span className="text-xs text-muted-foreground">
-                          {c.business_type ? BUSINESS_TYPE_LABELS[c.business_type] : '—'}
+                          {c.business_type ? BUSINESS_TYPE_LABELS[c.business_type][locale] : '—'}
                           {' · '}
                           {formatNumber(branchCount.get(c.id) ?? 0)} {t('platform.overview.branchCount')}
                           {' · '}

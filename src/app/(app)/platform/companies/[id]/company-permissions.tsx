@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { ALL_PERMISSIONS, PERMISSION_LABELS, type Permission } from '@/lib/erp/permissions';
+import { ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_GROUP_LABELS, type Permission } from '@/lib/erp/permissions';
 import {
   setCompanyRoleEnabled,
   setCompanyRolePermission,
@@ -35,7 +35,7 @@ export function CompanyPermissions({
   /** company-scoped permissions, per role_key */
   permsByRole: Record<string, string[]>;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -167,12 +167,12 @@ export function CompanyPermissions({
                 <tbody key={group}>
                   <tr className="border-b bg-secondary/30">
                     <td colSpan={roles.length + 1} className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
-                      {group}
+                      {PERMISSION_GROUP_LABELS[group]?.[locale] ?? group}
                     </td>
                   </tr>
                   {perms.map((p) => (
                     <tr key={p} className="border-b">
-                      <td className="sticky right-0 bg-background p-3">{PERMISSION_LABELS[p].ar}</td>
+                      <td className="sticky right-0 bg-background p-3">{PERMISSION_LABELS[p][locale]}</td>
                       {roles.map((r) => {
                         const roleOn = enabled.has(r.key);
                         const checked = matrix[r.key]?.has(p) ?? false;

@@ -15,9 +15,9 @@ export default async function UpgradePage({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
-  const { t } = await getT();
+  const { t, locale } = await getT();
   const { module } = await searchParams;
-  const moduleLabel = module && module in MODULE_LABELS ? MODULE_LABELS[module as Module] : null;
+  const moduleLabel = module && module in MODULE_LABELS ? MODULE_LABELS[module as Module][locale] : null;
   const companyName = ctx.company?.name_ar || ctx.company?.name || '';
 
   const msg = moduleLabel
