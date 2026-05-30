@@ -28,20 +28,15 @@ export async function applySetupProfile(answers: Record<string, string>): Promis
   const { enable, disable } = resolveModuleChanges(profile, answers);
   const supabase = await createClient();
 
-  // Enable: upsert enabled=true. Disable: set enabled=false (keep the row so the
-  // owner can re-enable later from settings).
-  const rows = [
-    ...enable.map((m) => ({ company_id: ctx.companyId, module: m as Module, enabled: true })),
-    ...disable.map((m) => ({ company_id: ctx.companyId, module: m as Module, enabled: false })),
-  ];
-  if (rows.length > 0) {
-    const { error: upErr } = await supabase
-      .from('erp_company_modules')
-      .upsert(rows, { onConflict: 'company_id,module' });
-    if (upErr) return { ok: false, error: upErr.message };
-  }
+  // erp_company_modules is platform-owner-writable only; apply via a guarded
+  // SECURITY DEFINER function scoped to the caller's company (also sets
+  // setup_done). Enable wins / disable wins per the resolved lists.
+  const { error: rpcErr } = await supabase.rpc('erp_apply_setup_modules', {
+    p_enable: enable as Module[],
+    p_disable: disable as Module[],
+  });
+  if (rpcErr) return { ok: false, error: rpcErr.message };
 
-  await markDone(ctx.companyId);
   revalidatePath('/', 'layout');
   return { ok: true };
 }
