@@ -22,12 +22,14 @@ export default async function DoctorPage() {
   }
 
   const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
   const [{ data: visits }, { data: doctors }] = await Promise.all([
     supabase
       .from('erp_clinic_visits')
       .select('id, patient_id, doctor_id, visit_date, visit_type, complaint, diagnosis, prescription, tests, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone)')
-      .order('visit_date', { ascending: false })
-      .limit(200),
+      .eq('visit_date', today)
+      .order('created_at', { ascending: true })
+      .limit(300),
     supabase.rpc('erp_clinic_doctors'),
   ]);
 

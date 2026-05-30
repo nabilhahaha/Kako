@@ -134,6 +134,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'المواعيد', href: '/clinic/appointments', icon: CalendarClock, perm: ['clinic.manage', 'clinic.reception'] },
       { label: 'المرضى', href: '/clinic/patients', icon: Users, perm: ['clinic.manage', 'clinic.reception', 'clinic.doctor'] },
       { label: 'الكشوفات', href: '/clinic/visits', icon: ClipboardList, perm: 'clinic.manage' },
+      { label: 'تقارير العيادة', href: '/clinic/reports', icon: BarChart3, perm: ['clinic.manage', 'reports.view'] },
       { label: 'الخدمات والأسعار', href: '/clinic/services', icon: Tags, perm: 'clinic.manage' },
     ],
   },
