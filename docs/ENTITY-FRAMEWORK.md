@@ -58,6 +58,24 @@ manufacturing, warehouses, services, distribution, and corporate.
 
 ---
 
+## 1a. Standard fields (the entity contract)
+
+Every registry entity carries a standard set of columns so framework features
+(audit, import/export, API, sync) work uniformly:
+
+| Field | Purpose | Status |
+|---|---|---|
+| `company_id` | tenant isolation (directly or via `branch_id`) | ✅ all |
+| `branch_id` | branch scope (operational entities) | ✅ where applicable |
+| `created_at` / `updated_at` | timestamps | ✅ all |
+| `created_by` / `updated_by` | actor audit | ✅ added across registry entities |
+| `status` | lifecycle state (where the entity has one) | ✅ where meaningful |
+| `external_id` | stable id from an external system — import/sync **dedupe** + linkage; unique per `(company_id, external_id)` | ✅ added |
+
+These are added **NULLABLE** (zero breakage). `created_by`/`status` exist only
+where they carry meaning (e.g. invoices/visits/tickets), not on pure line-item
+tables. New entities should include the full set from the start.
+
 ## 2. Shared capability tables (polymorphic, company-scoped)
 
 These tables are keyed by `(entity, record_id)` so one row type serves **all**
