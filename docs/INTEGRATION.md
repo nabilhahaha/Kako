@@ -43,9 +43,11 @@ Status legend: ✅ built · 🟡 placeholder (UI/coming-soon, no live processing
 
 User flow (the standard 4 steps): **Upload → Map → Validate → Import**.
 
-1. **Upload** — admin uploads `.xlsx` / `.csv` for a chosen target module. We
-   read headers + a sample client-side (SheetJS/papaparse) and create an
-   **import job** (`draft`).
+1. **Upload** — admin uploads `.xlsx` / `.csv` / `.json` for a chosen target
+   entity. We read headers + a sample client-side (SheetJS/papaparse; JSON keys
+   for JSON) and create an **import job** (`draft`). Direct import is never
+   allowed — every import MUST go through Upload → Mapping → Validation →
+   Preview → Import.
 2. **Map** — show a mapping screen: each uploaded column → a VANTORA field of the
    target entity (e.g. *"Client Name" → customer_name*, *"Route" → route_number*).
    Unmapped/required fields are flagged. Mapping can be **saved as a template**.
@@ -125,10 +127,14 @@ Notes:
 ## 6. Security
 
 - Multi-tenancy + RLS on every table above.
-- Per-company API keys (hashed at rest, scoped, revocable, `last_used_at`).
+- **Per-company API keys** (hashed at rest, scoped, revocable, `last_used_at`).
+- **OAuth** (authorization-code) for third-party app access — roadmap.
+- **Webhook signatures**: every outbound delivery is HMAC-signed with the
+  subscription `secret`; receivers verify the signature header.
+- **Rate limiting** on the inbound REST API, per API key.
 - New permission **`integrations.manage`** (✅ added to the catalog) gates the
-  whole area. OAuth and signed webhooks come later.
-- All integration activity logged in `erp_integration_logs`.
+  whole area.
+- All integration activity logged in `erp_integration_logs` (audit trail).
 
 ---
 
