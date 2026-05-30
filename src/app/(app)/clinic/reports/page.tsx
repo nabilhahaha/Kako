@@ -7,7 +7,8 @@ import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import type { DoctorOption } from '../clinical-ui';
-import { Wallet, CalendarDays, Stethoscope, AlertTriangle, UserRound, Tags } from 'lucide-react';
+import { DateRangeFilter, IncomeChart } from './report-controls';
+import { Wallet, CalendarDays, Stethoscope, AlertTriangle, UserRound, Tags, LineChart } from 'lucide-react';
 
 interface VisitRow {
   paid_amount: number;
@@ -18,9 +19,11 @@ interface VisitRow {
   service: { name: string } | null;
 }
 
-const monthLabel = new Intl.DateTimeFormat('ar-EG', { month: 'long', year: 'numeric' });
-
-export default async function ClinicReportsPage() {
+export default async function ClinicReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
   await requireAnyPermission(['clinic.manage', 'reports.view']);
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
@@ -36,13 +39,17 @@ export default async function ClinicReportsPage() {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const sp = await searchParams;
+  const from = sp.from || monthStart;
+  const to = sp.to || today;
 
   const supabase = await createClient();
   const [{ data: visitsData }, { data: doctorsData }] = await Promise.all([
     supabase
       .from('erp_clinic_visits')
       .select('paid_amount, fee, doctor_id, visit_date, status, service:erp_clinic_services(name)')
-      .gte('visit_date', monthStart),
+      .gte('visit_date', from)
+      .lte('visit_date', to),
     supabase.rpc('erp_clinic_doctors'),
   ]);
 
@@ -53,10 +60,17 @@ export default async function ClinicReportsPage() {
     return d ? (d.full_name || d.email || 'طبيب') : 'غير محدد';
   };
 
-  const monthRevenue = visits.reduce((s, v) => s + Number(v.paid_amount || 0), 0);
+  const periodRevenue = visits.reduce((s, v) => s + Number(v.paid_amount || 0), 0);
   const todayRevenue = visits.filter((v) => v.visit_date === today).reduce((s, v) => s + Number(v.paid_amount || 0), 0);
-  const monthVisits = visits.length;
+  const periodVisits = visits.length;
   const outstanding = visits.reduce((s, v) => s + Math.max(0, Number(v.fee || 0) - Number(v.paid_amount || 0)), 0);
+
+  // Daily income (for the chart).
+  const dayMap = new Map<string, number>();
+  for (const v of visits) dayMap.set(v.visit_date, (dayMap.get(v.visit_date) ?? 0) + Number(v.paid_amount || 0));
+  const byDay = [...dayMap.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([d, rev]) => ({ day: d.slice(5), revenue: Math.round(rev) }));
 
   // By doctor
   const docMap = new Map<string, { name: string; visits: number; revenue: number }>();
@@ -82,14 +96,25 @@ export default async function ClinicReportsPage() {
 
   return (
     <div>
-      <PageHeader title="تقارير العيادة" description={`ملخّص دخل العيادة — ${monthLabel.format(now)}`} />
+      <PageHeader title="تقارير العيادة" description="دخل العيادة خلال الفترة المحددة" />
+
+      <Card className="mb-4">
+        <CardContent className="pt-6"><DateRangeFilter from={from} to={to} /></CardContent>
+      </Card>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="إيراد اليوم" value={formatCurrency(todayRevenue)} icon={Wallet} tone="success" />
-        <StatCard label="إيراد الشهر" value={formatCurrency(monthRevenue)} icon={CalendarDays} tone="primary" />
-        <StatCard label="كشوفات الشهر" value={String(monthVisits)} icon={Stethoscope} tone="info" />
+        <StatCard label="إيراد الفترة" value={formatCurrency(periodRevenue)} icon={CalendarDays} tone="primary" />
+        <StatCard label="كشوفات الفترة" value={String(periodVisits)} icon={Stethoscope} tone="info" />
         <StatCard label="مستحقات غير محصّلة" value={formatCurrency(outstanding)} icon={AlertTriangle} tone="warning" />
       </div>
+
+      <Card className="mt-6">
+        <CardContent className="p-0">
+          <div className="flex items-center gap-2 border-b p-4 font-semibold"><LineChart className="h-4 w-4" /> الدخل اليومي</div>
+          <IncomeChart data={byDay} />
+        </CardContent>
+      </Card>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <ReportTable

@@ -53,7 +53,6 @@ export function ProductsManager({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const next: { code?: string; name?: string } = {};
-    if (!String(formData.get('code') ?? '').trim()) next.code = 'كود المنتج مطلوب.';
     if (!String(formData.get('name') ?? '').trim()) next.name = 'الاسم (إنجليزي) مطلوب.';
     setErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -165,8 +164,8 @@ export function ProductsManager({
             <form onSubmit={onSubmit} className="space-y-4">
               {current && <input type="hidden" name="id" value={current.id} />}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Field label="كود المنتج *">
-                  <Input name="code" dir="ltr" defaultValue={current?.code ?? ''} onChange={() => setErrors((x) => ({ ...x, code: undefined }))} />
+                <Field label="كود المنتج">
+                  <Input name="code" dir="ltr" defaultValue={current?.code ?? ''} placeholder="يُولّد تلقائياً" />
                   <FieldError>{errors.code}</FieldError>
                 </Field>
                 <Field label="الباركود">
