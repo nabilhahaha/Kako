@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
 import type { Branch, ProductCatalog, PurchaseOrder, Supplier, Warehouse } from '@/lib/erp/types';
 import { PurchasesManager } from './purchases-manager';
+import { getT } from '@/lib/i18n/server';
 
 export interface POLineLite {
   product_id: string;
@@ -24,6 +25,8 @@ export default async function PurchaseOrdersPage({
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+
+  const { t } = await getT();
 
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
@@ -48,7 +51,7 @@ export default async function PurchaseOrdersPage({
 
   return (
     <div>
-      <PageHeader title="أوامر الشراء" description="طلبات الشراء واستلام البضاعة في المخزن" />
+      <PageHeader title={t('purchases.pageTitle')} description={t('purchases.pageDescription')} />
       <PurchasesManager
         orders={(orders as unknown as PORow[]) ?? []}
         suppliers={(suppliers as Supplier[]) ?? []}

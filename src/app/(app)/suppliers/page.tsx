@@ -4,10 +4,13 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import type { Branch, Supplier } from '@/lib/erp/types';
 import { SuppliersManager } from './suppliers-manager';
+import { getT } from '@/lib/i18n/server';
 
 export default async function SuppliersPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+
+  const { t } = await getT();
 
   const supabase = await createClient();
   const [{ data: suppliers }, { data: branches }] = await Promise.all([
@@ -18,8 +21,8 @@ export default async function SuppliersPage() {
   return (
     <div>
       <PageHeader
-        title="الموردين"
-        description="بيانات الموردين وأرصدتهم المستحقة والسداد"
+        title={t('suppliers.pageTitle')}
+        description={t('suppliers.pageDescription')}
       />
       <SuppliersManager
         suppliers={(suppliers as Supplier[]) ?? []}

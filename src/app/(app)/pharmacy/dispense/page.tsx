@@ -3,12 +3,14 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { DispenseList, type DispenseRow } from './dispense-list';
+import { getT } from '@/lib/i18n/server';
 
 export default async function DispenseRegisterPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
   if (!ctx.companyId) {
-    return (<div><PageHeader title="سجل صرف الأدوية" /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">إدارة الصيدلية تتم من داخل حساب الصيدلية.</p></div>);
+    return (<div><PageHeader title={t('pharmacy.pageTitle')} /><p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">{t('pharmacy.noCompanyMsg')}</p></div>);
   }
   const supabase = await createClient();
   const { data } = await supabase
@@ -21,7 +23,7 @@ export default async function DispenseRegisterPage() {
 
   return (
     <div>
-      <PageHeader title="سجل صرف الأدوية" description="دفتر صرف الروشتات والمخدرات — مع إرشاد الدفعة الأقرب انتهاءً (FEFO)." />
+      <PageHeader title={t('pharmacy.pageTitle')} description={t('pharmacy.pageDescription')} />
       <DispenseList rows={rows} />
     </div>
   );

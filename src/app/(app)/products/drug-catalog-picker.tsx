@@ -10,11 +10,13 @@ import { Search, Loader2, X, Plus, Pill, Check } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { searchClinicalReference, type ReferenceItem } from '../clinic/reference-actions';
 import { addDrugsToProducts } from './actions';
+import { useI18n } from '@/lib/i18n/provider';
 
 /** Search the Egyptian drug reference and bulk-add the picked drugs to the
  *  product catalog — fast way for a pharmacy/clinic to build its inventory. */
 export function DrugCatalogPicker() {
   const router = useRouter();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [results, setResults] = useState<ReferenceItem[]>([]);
@@ -26,11 +28,11 @@ export function DrugCatalogPicker() {
     const term = q.trim();
     if (term.length < 2) { setResults([]); setLoading(false); return; }
     setLoading(true);
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       setResults(await searchClinicalReference(['drug'], term));
       setLoading(false);
     }, 250);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [q]);
 
   function save() {
@@ -38,8 +40,12 @@ export function DrugCatalogPicker() {
       const res = await addDrugsToProducts(
         selected.map((d) => ({ name: d.name, name_ar: d.name_ar, detail: d.detail, price: d.price ?? 0 })),
       );
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
-      toast.success(`تمت إضافة ${res.count} صنف للمخزون`);
+      if (!res.ok) { toast.error(res.error ?? t('products.drugPickerToastError')); return; }
+      toast.success(
+        res.count
+          ? t('products.drugPickerToastAdded').replace('{count}', String(res.count))
+          : t('products.drugPickerToastAdded').replace('{count}', '0'),
+      );
       setSelected([]); setQ(''); setResults([]); setOpen(false);
       router.refresh();
     });
@@ -48,7 +54,7 @@ export function DrugCatalogPicker() {
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)}>
-        <Pill className="h-4 w-4" /> من قائمة الأدوية
+        <Pill className="h-4 w-4" /> {t('products.btnDrugCatalog')}
       </Button>
 
       {open && (
@@ -56,13 +62,27 @@ export function DrugCatalogPicker() {
           <Card className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <CardContent className="space-y-3 p-4">
               <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 font-semibold"><Pill className="h-4 w-4" /> إضافة أدوية من القائمة المصرية</h3>
-                <button onClick={() => setOpen(false)} className="rounded-md p-1 hover:bg-secondary" aria-label="إغلاق"><X className="h-4 w-4" /></button>
+                <h3 className="flex items-center gap-2 font-semibold">
+                  <Pill className="h-4 w-4" /> {t('products.drugPickerTitle')}
+                </h3>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="rounded-md p-1 hover:bg-secondary"
+                  aria-label={t('products.drugPickerAriaClose')}
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
 
               <div className="relative">
                 <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث باسم الدواء (٣ حروف)…" className="pr-9" autoFocus />
+                <Input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder={t('products.drugPickerSearchPlaceholder')}
+                  className="pr-9"
+                  autoFocus
+                />
                 {loading && <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
               </div>
 
@@ -94,12 +114,20 @@ export function DrugCatalogPicker() {
 
               {selected.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">المختارة ({selected.length})</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {t('products.drugPickerSelectedLabel').replace('{count}', String(selected.length))}
+                  </p>
                   <div className="flex flex-wrap gap-1">
                     {selected.map((s) => (
                       <span key={s.name} className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-1 text-xs">
                         {s.name_ar || s.name}
-                        <button onClick={() => setSelected((x) => x.filter((y) => y.name !== s.name))} className="text-destructive" aria-label="حذف"><X className="h-3 w-3" /></button>
+                        <button
+                          onClick={() => setSelected((x) => x.filter((y) => y.name !== s.name))}
+                          className="text-destructive"
+                          aria-label={t('products.drugPickerAriaRemove')}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </span>
                     ))}
                   </div>
@@ -108,11 +136,14 @@ export function DrugCatalogPicker() {
 
               <div className="flex gap-2">
                 <Button onClick={save} disabled={pending || selected.length === 0}>
-                  {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} أضِف {selected.length || ''} للمخزون
+                  {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}{' '}
+                  {selected.length > 0
+                    ? t('products.drugPickerBtnAdd').replace('{count}', String(selected.length))
+                    : t('products.drugPickerBtnAddEmpty')}
                 </Button>
-                <Button variant="outline" onClick={() => setOpen(false)}>إغلاق</Button>
+                <Button variant="outline" onClick={() => setOpen(false)}>{t('products.drugPickerBtnClose')}</Button>
               </div>
-              <p className="text-xs text-muted-foreground">يُضاف سعر السوق كسعر بيع مبدئي — راجِع التكلفة والتصنيف بعد الإضافة.</p>
+              <p className="text-xs text-muted-foreground">{t('products.drugPickerHint')}</p>
             </CardContent>
           </Card>
         </div>

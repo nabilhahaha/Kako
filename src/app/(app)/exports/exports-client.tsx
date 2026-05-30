@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { downloadCsv } from '@/lib/export-csv';
+import { useI18n } from '@/lib/i18n/provider';
 import {
   exportSalesRows,
   exportInventoryRows,
@@ -19,13 +20,13 @@ import { toast } from 'sonner';
 
 type Fetcher = (from: string, to: string) => Promise<{ ok: boolean; error?: string; data?: Record<string, string | number>[] }>;
 
-const SECTIONS: { key: string; label: string; file: string; icon: typeof Receipt; fetch: Fetcher; full?: boolean }[] = [
-  { key: 'sales', label: 'المبيعات (الفواتير)', file: 'sales', icon: Receipt, fetch: exportSalesRows },
-  { key: 'payments', label: 'التحصيلات', file: 'payments', icon: Wallet, fetch: exportPaymentsRows },
-  { key: 'inventory', label: 'حركات المخزون', file: 'inventory', icon: Boxes, fetch: exportInventoryRows },
-  { key: 'accounting', label: 'القيود المحاسبية', file: 'accounting', icon: BookOpen, fetch: exportAccountingRows },
-  { key: 'customers', label: 'العملاء (القائمة كاملة)', file: 'customers', icon: Users, fetch: exportCustomersRows, full: true },
-  { key: 'products', label: 'المنتجات (القائمة كاملة)', file: 'products', icon: Package, fetch: exportProductsRows, full: true },
+const SECTION_DEFS: { key: string; labelKey: string; file: string; icon: typeof Receipt; fetch: Fetcher; full?: boolean }[] = [
+  { key: 'sales',      labelKey: 'exports.sectionSales',      file: 'sales',      icon: Receipt,  fetch: exportSalesRows },
+  { key: 'payments',   labelKey: 'exports.sectionPayments',   file: 'payments',   icon: Wallet,   fetch: exportPaymentsRows },
+  { key: 'inventory',  labelKey: 'exports.sectionInventory',  file: 'inventory',  icon: Boxes,    fetch: exportInventoryRows },
+  { key: 'accounting', labelKey: 'exports.sectionAccounting', file: 'accounting', icon: BookOpen, fetch: exportAccountingRows },
+  { key: 'customers',  labelKey: 'exports.sectionCustomers',  file: 'customers',  icon: Users,    fetch: exportCustomersRows, full: true },
+  { key: 'products',   labelKey: 'exports.sectionProducts',   file: 'products',   icon: Package,  fetch: exportProductsRows,  full: true },
 ];
 
 function monthStart() {
@@ -34,24 +35,25 @@ function monthStart() {
 }
 
 export function ExportsClient() {
+  const { t } = useI18n();
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [busy, setBusy] = useState<string | null>(null);
 
-  async function run(s: (typeof SECTIONS)[number]) {
+  async function run(s: (typeof SECTION_DEFS)[number]) {
     setBusy(s.key);
     try {
       const res = await s.fetch(from, to);
       if (!res.ok || !res.data) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('exports.errorGeneric'));
         return;
       }
       if (res.data.length === 0) {
-        toast.error(s.full ? 'لا توجد بيانات.' : 'لا توجد بيانات في الفترة المحددة.');
+        toast.error(s.full ? t('exports.errorNoData') : t('exports.errorNoDataInRange'));
         return;
       }
       downloadCsv(s.full ? `${s.file}.csv` : `${s.file}_${from}_${to}.csv`, res.data);
-      toast.success(`تم تصدير ${res.data.length} سجل`);
+      toast.success(t('exports.toastExported', { count: res.data.length }));
     } finally {
       setBusy(null);
     }
@@ -63,11 +65,11 @@ export function ExportsClient() {
         <CardContent className="pt-6">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">من</Label>
+              <Label className="text-xs">{t('exports.labelFrom')}</Label>
               <Input type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">إلى</Label>
+              <Label className="text-xs">{t('exports.labelTo')}</Label>
               <Input type="date" dir="ltr" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
             </div>
           </div>
@@ -75,7 +77,7 @@ export function ExportsClient() {
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {SECTIONS.map((s) => {
+        {SECTION_DEFS.map((s) => {
           const Icon = s.icon;
           return (
             <Card key={s.key}>
@@ -84,11 +86,11 @@ export function ExportsClient() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <span className="font-medium">{s.label}</span>
+                  <span className="font-medium">{t(s.labelKey)}</span>
                 </div>
                 <Button variant="outline" size="sm" disabled={busy !== null} onClick={() => run(s)}>
                   {busy === s.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  تصدير CSV
+                  {t('exports.btnExportCsv')}
                 </Button>
               </CardContent>
             </Card>
@@ -96,7 +98,7 @@ export function ExportsClient() {
         })}
       </div>
       <p className="text-xs text-muted-foreground">
-        الملفات بصيغة CSV بترميز UTF-8 (تفتح مباشرة في Excel بالعربية). الحد الأقصى ٥٠٠٠ سطر لكل تصدير.
+        {t('exports.footerNote')}
       </p>
     </div>
   );

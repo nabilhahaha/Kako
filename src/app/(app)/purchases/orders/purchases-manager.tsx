@@ -12,9 +12,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LineItemsEditor, newLine, type EditorLine } from '@/components/sales/line-items-editor';
 import { PURCHASE_ORDER_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 import type { Branch, ProductCatalog, PurchaseOrderStatus, Supplier, Warehouse } from '@/lib/erp/types';
 import type { PORow } from './page';
 import { useConfirm } from '@/components/confirm-dialog';
+import { useI18n } from '@/lib/i18n/provider';
 import { Plus, Loader2, X, ShoppingCart, PackageCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,6 +45,7 @@ export function PurchasesManager({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const { t, locale } = useI18n();
   const [creating, setCreating] = useState(false);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [supplierId, setSupplierId] = useState('');
@@ -75,10 +78,10 @@ export function PurchasesManager({
         })),
       });
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('purchases.errGeneric'));
         return;
       }
-      toast.success('تم إنشاء أمر الشراء');
+      toast.success(t('purchases.toastCreated'));
       reset();
       router.refresh();
     });
@@ -86,19 +89,19 @@ export function PurchasesManager({
 
   async function onCancel(id: string) {
     const ok = await confirm({
-      title: 'إلغاء أمر الشراء؟',
-      confirmText: 'إلغاء الأمر',
-      cancelText: 'تراجع',
+      title: t('purchases.confirmCancelTitle'),
+      confirmText: t('purchases.confirmCancelBtn'),
+      cancelText: t('purchases.confirmCancelBack'),
       destructive: true,
     });
     if (!ok) return;
     startTransition(async () => {
       const res = await cancelPurchaseOrder(id);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('purchases.errGeneric'));
         return;
       }
-      toast.success('تم إلغاء الأمر');
+      toast.success(t('purchases.toastCancelled'));
       router.refresh();
     });
   }
@@ -107,12 +110,12 @@ export function PurchasesManager({
     <div className="space-y-4">
       {!creating && (
         <Button onClick={() => setCreating(true)} disabled={!canCreate}>
-          <Plus className="h-4 w-4" /> أمر شراء جديد
+          <Plus className="h-4 w-4" /> {t('purchases.btnNewOrder')}
         </Button>
       )}
       {!canCreate && !creating && (
         <p className="text-sm text-warning">
-          تحتاج فرعاً ومورداً ومنتجاً واحداً على الأقل قبل إنشاء أمر شراء.
+          {t('purchases.warnNeedData')}
         </p>
       )}
 
@@ -120,7 +123,7 @@ export function PurchasesManager({
         <Card>
           <CardContent className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">أمر شراء جديد</h3>
+              <h3 className="font-semibold">{t('purchases.formNewOrderTitle')}</h3>
               <button onClick={reset} className="rounded-md p-1 hover:bg-secondary">
                 <X className="h-4 w-4" />
               </button>
@@ -128,7 +131,7 @@ export function PurchasesManager({
             <div className="grid gap-4 sm:grid-cols-3">
               {branches.length > 1 && (
                 <div className="space-y-1">
-                  <Label className="text-xs">الفرع *</Label>
+                  <Label className="text-xs">{t('purchases.labelBranch')}</Label>
                   <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     {branches.map((b) => (
                       <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>
@@ -137,16 +140,16 @@ export function PurchasesManager({
                 </div>
               )}
               <div className="space-y-1">
-                <Label className="text-xs">المورد *</Label>
+                <Label className="text-xs">{t('purchases.labelSupplier')}</Label>
                 <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="">اختر مورداً…</option>
+                  <option value="">{t('purchases.placeholderChooseSupplier')}</option>
                   {suppliers.map((s) => (
                     <option key={s.id} value={s.id}>{s.name_ar || s.name}</option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">ملاحظات</Label>
+                <Label className="text-xs">{t('purchases.labelNotes')}</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
             </div>
@@ -155,9 +158,9 @@ export function PurchasesManager({
 
             <div className="flex gap-2">
               <Button onClick={onCreate} disabled={pending}>
-                {pending && <Loader2 className="h-4 w-4 animate-spin" />} حفظ الأمر
+                {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('purchases.btnSaveOrder')}
               </Button>
-              <Button variant="outline" onClick={reset}>إلغاء</Button>
+              <Button variant="outline" onClick={reset}>{t('purchases.btnCancel')}</Button>
             </div>
           </CardContent>
         </Card>
@@ -167,27 +170,27 @@ export function PurchasesManager({
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <ShoppingCart className="h-8 w-8" />
-            <p>لا توجد أوامر شراء بعد.</p>
+            <p>{t('purchases.emptyOrders')}</p>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardContent className="p-0">
             <div className="flex flex-wrap items-center gap-2 border-b p-3">
-              <ListSearch placeholder="بحث برقم الأمر…" className="w-64" />
+              <ListSearch placeholder={t('purchases.searchPlaceholder')} className="w-64" />
             </div>
             {orders.length === 0 ? (
-              <p className="p-8 text-center text-sm text-muted-foreground">لا توجد نتائج مطابقة.</p>
+              <p className="p-8 text-center text-sm text-muted-foreground">{t('purchases.noResults')}</p>
             ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">رقم الأمر</th>
-                    <th className="p-3 text-right font-medium">المورد</th>
-                    <th className="p-3 text-right font-medium">التاريخ</th>
-                    <th className="p-3 text-left font-medium">الصافي</th>
-                    <th className="p-3 text-center font-medium">الحالة</th>
+                    <th className="p-3 text-right font-medium">{t('purchases.colOrderNumber')}</th>
+                    <th className="p-3 text-right font-medium">{t('purchases.colSupplier')}</th>
+                    <th className="p-3 text-right font-medium">{t('purchases.colDate')}</th>
+                    <th className="p-3 text-left font-medium">{t('purchases.colNet')}</th>
+                    <th className="p-3 text-center font-medium">{t('purchases.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
@@ -196,20 +199,20 @@ export function PurchasesManager({
                     <tr key={o.id} className="border-b last:border-0 hover:bg-secondary/30">
                       <td className="p-3 font-mono text-xs" dir="ltr">{o.po_number}</td>
                       <td className="p-3 font-medium">{o.supplier?.name_ar || o.supplier?.name || '—'}</td>
-                      <td className="p-3 text-muted-foreground">{formatDate(o.created_at)}</td>
-                      <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(o.net_amount)}</td>
+                      <td className="p-3 text-muted-foreground">{formatDate(o.created_at, INTL_LOCALE[locale])}</td>
+                      <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(o.net_amount, 'EGP', INTL_LOCALE[locale])}</td>
                       <td className="p-3 text-center">
-                        <Badge variant={STATUS_VARIANT[o.status]}>{PURCHASE_ORDER_STATUS_LABELS[o.status].ar}</Badge>
+                        <Badge variant={STATUS_VARIANT[o.status]}>{PURCHASE_ORDER_STATUS_LABELS[o.status][locale]}</Badge>
                       </td>
                       <td className="p-3">
                         <div className="flex justify-end gap-1">
                           {(o.status === 'draft' || o.status === 'sent' || o.status === 'partial') && (
                             <>
                               <Button variant="ghost" size="sm" disabled={pending} onClick={() => setReceiveFor(o)} className="text-xs">
-                                <PackageCheck className="h-3.5 w-3.5" /> استلام
+                                <PackageCheck className="h-3.5 w-3.5" /> {t('purchases.btnReceive')}
                               </Button>
                               <Button variant="ghost" size="sm" disabled={pending} onClick={() => onCancel(o.id)} className="text-xs text-destructive">
-                                إلغاء
+                                {t('purchases.btnCancel')}
                               </Button>
                             </>
                           )}
@@ -254,6 +257,7 @@ function ReceiveDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useI18n();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id ?? '');
   const [details, setDetails] = useState<Record<string, { batch_number: string; expiry_date: string }>>({});
   const [pending, startTransition] = useTransition();
@@ -281,10 +285,10 @@ function ReceiveDialog({
         })),
       );
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('purchases.errGeneric'));
         return;
       }
-      toast.success('تم الاستلام وزيادة المخزون وترحيل قيد المخزون/الموردين');
+      toast.success(t('purchases.toastReceived'));
       onDone();
     });
   }
@@ -294,17 +298,17 @@ function ReceiveDialog({
       <Card className="max-h-[90vh] w-full max-w-lg overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <CardContent className="space-y-4 pt-6">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">استلام أمر الشراء {po.po_number}</h3>
+            <h3 className="font-semibold">{t('purchases.receiveDialogTitle', { number: po.po_number })}</h3>
             <button onClick={onClose} className="rounded-md p-1 hover:bg-secondary">
               <X className="h-4 w-4" />
             </button>
           </div>
           {warehouses.length === 0 ? (
-            <p className="text-sm text-warning">لا يوجد مخزن لهذا الفرع. أنشئ مخزناً أولاً.</p>
+            <p className="text-sm text-warning">{t('purchases.warnNoWarehouse')}</p>
           ) : (
             <>
               <div className="space-y-1">
-                <Label className="text-xs">المخزن المستلِم *</Label>
+                <Label className="text-xs">{t('purchases.labelReceivingWarehouse')}</Label>
                 <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                   {warehouses.map((w) => (
                     <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
@@ -312,19 +316,19 @@ function ReceiveDialog({
                 </select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">تفاصيل التشغيلة والصلاحية (اختياري)</Label>
+                <Label className="text-xs">{t('purchases.labelBatchDetails')}</Label>
                 {po.lines.map((l) => (
                   <div key={l.product_id} className="rounded-md border p-2">
                     <p className="mb-1 text-sm font-medium">{productName(l.product_id)} <span className="text-xs text-muted-foreground" dir="ltr">×{l.quantity}</span></p>
                     <div className="grid grid-cols-2 gap-2">
                       <Input
-                        placeholder="رقم التشغيلة"
+                        placeholder={t('purchases.placeholderBatchNumber')}
                         value={details[l.product_id]?.batch_number ?? ''}
                         onChange={(e) => setDetail(l.product_id, { batch_number: e.target.value })}
                         className="h-9"
                       />
                       <Input
-                        type="date" dir="ltr" title="تاريخ الصلاحية"
+                        type="date" dir="ltr" title={t('purchases.titleExpiryDate')}
                         value={details[l.product_id]?.expiry_date ?? ''}
                         onChange={(e) => setDetail(l.product_id, { expiry_date: e.target.value })}
                         className="h-9"
@@ -337,9 +341,9 @@ function ReceiveDialog({
           )}
           <div className="flex gap-2">
             <Button onClick={submit} disabled={pending || warehouses.length === 0}>
-              {pending && <Loader2 className="h-4 w-4 animate-spin" />} تأكيد الاستلام الكامل
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('purchases.btnConfirmReceive')}
             </Button>
-            <Button variant="outline" onClick={onClose}>إلغاء</Button>
+            <Button variant="outline" onClick={onClose}>{t('purchases.btnCancel')}</Button>
           </div>
         </CardContent>
       </Card>

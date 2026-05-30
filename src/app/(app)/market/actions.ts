@@ -5,6 +5,7 @@ import { requirePermission, type ActionResult, friendlyDbError } from '@/lib/erp
 import { computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { createInvoice, issueInvoice, recordPayment } from '../sales/invoices/actions';
+import { getT } from '@/lib/i18n/server';
 
 // Supermarket fast cashier: a walk-in sale against a default cash customer,
 // reusing the invoice engine (stock-out + AR/Revenue + cash payment).
@@ -29,25 +30,26 @@ export async function cashierCheckout(input: {
   payment_method: PaymentMethod;
 }): Promise<ActionResult<{ invoice_id: string; invoice_number: string; net: number }>> {
   const ctx = await requirePermission('market.pos');
-  if (!ctx.companyId) return { ok: false, error: 'هذه العملية تتم من داخل حساب المتجر.' };
-  if (!input.branch_id) return { ok: false, error: 'الفرع مطلوب.' };
+  const { t } = await getT();
+  if (!ctx.companyId) return { ok: false, error: t('market.errors.noCompany') };
+  if (!input.branch_id) return { ok: false, error: t('market.errors.branchRequired') };
   const lines = input.lines.filter((l) => l.product_id && l.quantity > 0);
-  if (lines.length === 0) return { ok: false, error: 'أضف صنفاً واحداً على الأقل.' };
+  if (lines.length === 0) return { ok: false, error: t('market.errors.noItems') };
 
   const supabase = await createClient();
   const customerId = await cashCustomerId(supabase, input.branch_id);
-  if (!customerId) return { ok: false, error: 'تعذّر تجهيز العميل النقدي.' };
+  if (!customerId) return { ok: false, error: t('market.errors.cashCustomerFailed') };
 
   const created = await createInvoice({ branch_id: input.branch_id, customer_id: customerId, lines });
   if (!created.ok || !created.data) return { ok: false, error: created.error };
   const invoiceId = created.data.id;
 
   const issued = await issueInvoice(invoiceId);
-  if (!issued.ok) return { ok: false, error: `تعذّر إتمام البيع: ${issued.error}` };
+  if (!issued.ok) return { ok: false, error: t('market.errors.saleFailed', { detail: issued.error ?? '' }) };
 
   const net = computeTotals(lines).net_amount;
   const paid = await recordPayment({ invoice_id: invoiceId, amount: net, payment_method: input.payment_method });
-  if (!paid.ok) return { ok: false, error: `تم البيع لكن تعذّر تسجيل الدفع: ${paid.error}` };
+  if (!paid.ok) return { ok: false, error: t('market.errors.paymentFailed', { detail: paid.error ?? '' }) };
 
   const { data } = await supabase.from('erp_invoices').select('invoice_number').eq('id', invoiceId).single();
   return { ok: true, data: { invoice_id: invoiceId, invoice_number: (data as { invoice_number?: string } | null)?.invoice_number ?? '', net } };

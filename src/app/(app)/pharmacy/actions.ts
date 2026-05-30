@@ -3,11 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requirePermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 // Pharmacy dispensing register: a regulatory log (patient / doctor / Rx /
 // controlled) with FEFO batch capture per line. Does not move stock or post
 // accounting — the sale runs through POS.
-const NO_COMPANY = 'هذه العملية تتم من داخل حساب الصيدلية.';
 
 function revalidate(id?: string) {
   revalidatePath('/pharmacy/dispense');
@@ -16,7 +16,8 @@ function revalidate(id?: string) {
 
 export async function createDispense(): Promise<ActionResult<string>> {
   const ctx = await requirePermission('pharmacy.dispense');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  const { t } = await getT();
+  if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const supabase = await createClient();
   const { data, error } = await supabase.from('erp_pharmacy_dispenses')
     .insert({ company_id: ctx.companyId, status: 'open', created_by: ctx.userId })
@@ -28,9 +29,10 @@ export async function createDispense(): Promise<ActionResult<string>> {
 
 export async function updateDispenseMeta(formData: FormData): Promise<ActionResult> {
   const ctx = await requirePermission('pharmacy.dispense');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  const { t } = await getT();
+  if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const id = String(formData.get('id') || '').trim();
-  if (!id) return { ok: false, error: 'السجل مطلوب.' };
+  if (!id) return { ok: false, error: t('pharmacy.errRecordRequired') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_pharmacy_dispenses').update({
     patient_name: String(formData.get('patient_name') || '').trim() || null,
@@ -48,11 +50,12 @@ export async function updateDispenseMeta(formData: FormData): Promise<ActionResu
 
 export async function addDispenseItem(dispenseId: string, productId: string): Promise<ActionResult> {
   const ctx = await requirePermission('pharmacy.dispense');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  const { t } = await getT();
+  if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const supabase = await createClient();
   const { data: p } = await supabase.from('erp_products_catalog').select('name, name_ar, sell_price').eq('id', productId).maybeSingle();
   const prod = p as { name: string; name_ar: string | null; sell_price: number } | null;
-  if (!prod) return { ok: false, error: 'الصنف غير موجود.' };
+  if (!prod) return { ok: false, error: t('pharmacy.errProductNotFound') };
 
   // FEFO: pull the earliest-expiry received batch for traceability.
   const { data: fefo } = await supabase.rpc('erp_product_fefo_batch', { p_product_id: productId });
@@ -70,7 +73,8 @@ export async function addDispenseItem(dispenseId: string, productId: string): Pr
 
 export async function setItemQty(itemId: string, qty: number, dispenseId: string): Promise<ActionResult> {
   const ctx = await requirePermission('pharmacy.dispense');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  const { t } = await getT();
+  if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const supabase = await createClient();
   if (qty <= 0) {
     const { error } = await supabase.from('erp_pharmacy_dispense_items').delete().eq('id', itemId);
@@ -85,7 +89,8 @@ export async function setItemQty(itemId: string, qty: number, dispenseId: string
 
 export async function finalizeDispense(id: string): Promise<ActionResult> {
   const ctx = await requirePermission('pharmacy.dispense');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  const { t } = await getT();
+  if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_pharmacy_dispenses').update({ status: 'done', dispensed_at: new Date().toISOString() }).eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
@@ -95,7 +100,8 @@ export async function finalizeDispense(id: string): Promise<ActionResult> {
 
 export async function cancelDispense(id: string): Promise<ActionResult> {
   const ctx = await requirePermission('pharmacy.dispense');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  const { t } = await getT();
+  if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_pharmacy_dispenses').update({ status: 'cancelled' }).eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };

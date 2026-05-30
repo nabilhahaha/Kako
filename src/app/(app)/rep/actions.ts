@@ -3,15 +3,17 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 import { recordPayment } from '../sales/invoices/actions';
 import { repDayBlocked, today } from '@/lib/erp/work-session';
 import type { PaymentMethod } from '@/lib/erp/types';
 
 /** Open today's work session for the rep. */
 export async function startDay(branchId: string): Promise<ActionResult> {
+  const { t } = await getT();
   const { ctx, error: authErr } = await requireAuth();
-  if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
-  if (!branchId) return { ok: false, error: 'الفرع مطلوب.' };
+  if (authErr || !ctx) return { ok: false, error: authErr ?? t('rep.errorUnauthorized') };
+  if (!branchId) return { ok: false, error: t('rep.errorBranchRequired') };
 
   const supabase = await createClient();
   const { data: existing } = await supabase
@@ -21,7 +23,7 @@ export async function startDay(branchId: string): Promise<ActionResult> {
     .eq('work_date', today())
     .maybeSingle();
   if (existing?.status === 'closed') {
-    return { ok: false, error: 'تم إنهاء يوم اليوم — لا يمكن إعادة فتحه إلا بموافقة المدير.' };
+    return { ok: false, error: t('rep.errorDayClosed') };
   }
   if (existing) return { ok: true };
 
@@ -38,8 +40,9 @@ export async function startDay(branchId: string): Promise<ActionResult> {
 
 /** Close today's work session — blocks further movements until reopened. */
 export async function endDay(): Promise<ActionResult> {
+  const { t } = await getT();
   const { ctx, error: authErr } = await requireAuth();
-  if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+  if (authErr || !ctx) return { ok: false, error: authErr ?? t('rep.errorUnauthorized') };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -55,9 +58,10 @@ export async function endDay(): Promise<ActionResult> {
 
 /** Super admin reopens a rep's closed day. */
 export async function reopenDay(sessionId: string): Promise<ActionResult> {
+  const { t } = await getT();
   const { ctx } = await requireAuth();
-  if (!ctx) return { ok: false, error: 'غير مصرح.' };
-  if (!ctx.isSuperAdmin) return { ok: false, error: 'إعادة الفتح متاحة لمدير النظام فقط.' };
+  if (!ctx) return { ok: false, error: t('rep.errorUnauthorized') };
+  if (!ctx.isSuperAdmin) return { ok: false, error: t('rep.errorNotSuperAdmin') };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -85,13 +89,14 @@ export async function createPendingCustomer(input: {
   credit_limit?: number;
   visit_day?: string;
 }): Promise<ActionResult> {
+  const { t } = await getT();
   const { ctx, error: authErr } = await requireAuth();
-  if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+  if (authErr || !ctx) return { ok: false, error: authErr ?? t('rep.errorUnauthorized') };
 
   const code = input.code.trim();
   const name = input.name.trim();
-  if (!code) return { ok: false, error: 'كود العميل مطلوب.' };
-  if (!name) return { ok: false, error: 'اسم العميل مطلوب.' };
+  if (!code) return { ok: false, error: t('rep.errorCodeRequired') };
+  if (!name) return { ok: false, error: t('rep.errorNameRequired') };
 
   const supabase = await createClient();
   const { error } = await supabase.from('erp_customers').insert({
@@ -194,8 +199,9 @@ export async function collectPayment(input: {
   amount: number;
   payment_method: PaymentMethod;
 }): Promise<ActionResult<{ invoice_id: string }>> {
+  const { t } = await getT();
   const { ctx, error: authErr } = await requireAuth();
-  if (authErr || !ctx) return { ok: false, error: authErr ?? 'غير مصرح' };
+  if (authErr || !ctx) return { ok: false, error: authErr ?? t('rep.errorUnauthorized') };
 
   const blocked = await repDayBlocked(ctx);
   if (blocked) return { ok: false, error: blocked };
@@ -214,7 +220,7 @@ export async function collectPayment(input: {
     salesman_id: ctx.userId,
     invoice_id: input.invoice_id,
     no_sale: false,
-    notes: 'تحصيل مديونية',
+    notes: t('rep.notesDebtCollection'),
   });
 
   revalidatePath('/rep');

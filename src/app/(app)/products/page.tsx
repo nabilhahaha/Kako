@@ -3,11 +3,14 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import type { ProductCatalog, ProductCategory } from '@/lib/erp/types';
+import { getT } from '@/lib/i18n/server';
 import { ProductsManager } from './products-manager';
 
 export default async function ProductsPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+
+  const { t } = await getT();
 
   const supabase = await createClient();
   const [{ data: products }, { data: categories }] = await Promise.all([
@@ -18,8 +21,8 @@ export default async function ProductsPage() {
   return (
     <div>
       <PageHeader
-        title="المنتجات"
-        description="كتالوج المنتجات والأسعار والتصنيفات"
+        title={t('products.pageTitle')}
+        description={t('products.pageDescription')}
       />
       <ProductsManager
         products={(products as ProductCatalog[]) ?? []}

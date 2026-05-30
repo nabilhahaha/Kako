@@ -1,7 +1,217 @@
-/** customers module messages. Fill the namespace below; keep ar/en keys identical. */
+/** customers module messages – ar values are the original Arabic; en values are professional English translations. */
+
 export const ar = {
-  customers: {} as Record<string, string>,
+  customers: {
+    // ── Page / PageHeader ────────────────────────────────────────────
+    pageTitle: 'العملاء',
+    pageDescription: 'قاعدة بيانات العملاء وحدود الائتمان والأرصدة وخطة الزيارات',
+
+    // ── Toolbar ──────────────────────────────────────────────────────
+    btnNew: 'عميل جديد',
+    btnImport: 'استيراد Excel/CSV',
+    totalReceivable: 'إجمالي المديونية',
+    searchPlaceholder: 'بحث…',
+
+    // ── Form (add / edit) ────────────────────────────────────────────
+    formTitleNew: 'عميل جديد',
+    formTitleEdit: 'تعديل: {name}',
+    fieldCode: 'كود العميل *',
+    fieldNameAr: 'الاسم (عربي)',
+    fieldNameEn: 'الاسم (إنجليزي) *',
+    fieldPhone: 'الهاتف',
+    fieldEmail: 'البريد الإلكتروني',
+    fieldTaxNumber: 'الرقم الضريبي',
+    fieldCity: 'المدينة',
+    fieldAddress: 'العنوان',
+    fieldCreditLimit: 'حد الائتمان',
+    fieldBranch: 'الفرع',
+    fieldSalesman: 'المندوب المسؤول',
+    fieldVisitDay: 'يوم الزيارة',
+    optionAllBranches: 'عام (كل الفروع)',
+    optionNoSalesman: '— بدون —',
+    optionNoVisitDay: '— بدون —',
+    btnSave: 'حفظ',
+    btnCancel: 'إلغاء',
+
+    // ── Validation ───────────────────────────────────────────────────
+    errCodeRequired: 'كود العميل مطلوب.',
+    errNameRequired: 'الاسم (إنجليزي) مطلوب.',
+    errImportNoRows: 'لا توجد صفوف صالحة (الكود والاسم مطلوبان).',
+    errUnauthorized: 'غير مصرح.',
+    errApproveAdminOnly: 'الاعتماد متاح لمدير النظام فقط.',
+
+    // ── Table headers ────────────────────────────────────────────────
+    colCode: 'الكود',
+    colCustomer: 'العميل',
+    colBranch: 'الفرع',
+    colCreditLimit: 'حد الائتمان',
+    colBalance: 'الرصيد',
+    colStatus: 'الحالة',
+
+    // ── Status badges ─────────────────────────────────────────────────
+    statusPending: 'بانتظار الاعتماد',
+    statusActive: 'نشط',
+    statusInactive: 'موقوف',
+
+    // ── Row actions ───────────────────────────────────────────────────
+    btnApprove: 'اعتماد',
+    ariaStatement: 'كشف حساب',
+    ariaPrint: 'طباعة كشف',
+    ariaPrintTitle: 'طباعة كشف الحساب',
+    ariaEdit: 'تعديل',
+    btnDeactivate: 'إيقاف',
+    btnActivate: 'تفعيل',
+
+    // ── Branch fallback ───────────────────────────────────────────────
+    branchGeneral: 'عام',
+
+    // ── Empty states ──────────────────────────────────────────────────
+    emptyNoCustomers: 'لا يوجد عملاء بعد.',
+    emptyNoResults: 'لا توجد نتائج.',
+
+    // ── Toast messages ────────────────────────────────────────────────
+    toastApproved: 'تم اعتماد العميل',
+    toastCreated: 'تمت إضافة العميل',
+    toastUpdated: 'تم تحديث العميل',
+    toastError: 'حدث خطأ',
+
+    // ── Import dialog ─────────────────────────────────────────────────
+    importTitle: 'استيراد العملاء من Excel/CSV',
+    importHint: 'احفظ ملف الإكسيل بصيغة CSV، على أن يحتوي الصف الأول على العناوين:',
+    importFieldBranch: 'الفرع لكل العملاء',
+    importFieldSalesman: 'المندوب لكل العملاء (اختياري)',
+    importOptGeneral: 'عام',
+    importOptNoSalesman: '— بدون —',
+    importPreview: 'معاينة: {count} عميل',
+    btnImportAction: 'استيراد',
+    btnImportWithCount: 'استيراد ({count})',
+    toastImportNoRows: 'لم يتم العثور على صفوف صالحة. تأكد من أعمدة code و name.',
+    toastImportSuccess: 'تم استيراد {count} عميل',
+    toastImportError: 'حدث خطأ',
+
+    // ── Statement page ────────────────────────────────────────────────
+    stmtBackLink: 'العملاء',
+    stmtTitle: 'كشف حساب: {name}',
+    stmtDescription: 'الكود {code}',
+    stmtDescriptionWithPhone: 'الكود {code} · {phone}',
+    stmtWhatsAppLabel: 'تذكير بالرصيد',
+    stmtWhatsAppMsg: 'مرحباً {name}، رصيدكم المستحق لدينا {amount}. برجاء السداد. شكراً.',
+    stmtBtnPrint: 'طباعة كشف الحساب',
+    stmtSummaryBalance: 'الرصيد الحالي',
+    stmtSummaryCreditLimit: 'حد الائتمان',
+    stmtSummaryInvoiceCount: 'عدد الفواتير',
+    stmtDebitLabel: 'مدين (عليه)',
+    stmtCreditLabel: 'دائن (تحصيل)',
+    stmtEmpty: 'لا توجد حركات على هذا العميل بعد.',
+    stmtDescInvoice: 'فاتورة مبيعات',
+    stmtDescCollection: 'تحصيل ({method})',
+  },
 };
+
 export const en = {
-  customers: {} as Record<string, string>,
+  customers: {
+    // ── Page / PageHeader ────────────────────────────────────────────
+    pageTitle: 'Customers',
+    pageDescription: 'Customer database — credit limits, balances, and visit schedule',
+
+    // ── Toolbar ──────────────────────────────────────────────────────
+    btnNew: 'New Customer',
+    btnImport: 'Import Excel/CSV',
+    totalReceivable: 'Total Receivables',
+    searchPlaceholder: 'Search…',
+
+    // ── Form (add / edit) ────────────────────────────────────────────
+    formTitleNew: 'New Customer',
+    formTitleEdit: 'Edit: {name}',
+    fieldCode: 'Customer Code *',
+    fieldNameAr: 'Name (Arabic)',
+    fieldNameEn: 'Name (English) *',
+    fieldPhone: 'Phone',
+    fieldEmail: 'Email',
+    fieldTaxNumber: 'Tax Number',
+    fieldCity: 'City',
+    fieldAddress: 'Address',
+    fieldCreditLimit: 'Credit Limit',
+    fieldBranch: 'Branch',
+    fieldSalesman: 'Assigned Rep',
+    fieldVisitDay: 'Visit Day',
+    optionAllBranches: 'General (All Branches)',
+    optionNoSalesman: '— None —',
+    optionNoVisitDay: '— None —',
+    btnSave: 'Save',
+    btnCancel: 'Cancel',
+
+    // ── Validation ───────────────────────────────────────────────────
+    errCodeRequired: 'Customer code is required.',
+    errNameRequired: 'Name (English) is required.',
+    errImportNoRows: 'No valid rows found (code and name are required).',
+    errUnauthorized: 'Unauthorized.',
+    errApproveAdminOnly: 'Approval is restricted to system administrators.',
+
+    // ── Table headers ────────────────────────────────────────────────
+    colCode: 'Code',
+    colCustomer: 'Customer',
+    colBranch: 'Branch',
+    colCreditLimit: 'Credit Limit',
+    colBalance: 'Balance',
+    colStatus: 'Status',
+
+    // ── Status badges ─────────────────────────────────────────────────
+    statusPending: 'Pending Approval',
+    statusActive: 'Active',
+    statusInactive: 'Suspended',
+
+    // ── Row actions ───────────────────────────────────────────────────
+    btnApprove: 'Approve',
+    ariaStatement: 'Account statement',
+    ariaPrint: 'Print statement',
+    ariaPrintTitle: 'Print Account Statement',
+    ariaEdit: 'Edit',
+    btnDeactivate: 'Deactivate',
+    btnActivate: 'Activate',
+
+    // ── Branch fallback ───────────────────────────────────────────────
+    branchGeneral: 'General',
+
+    // ── Empty states ──────────────────────────────────────────────────
+    emptyNoCustomers: 'No customers yet.',
+    emptyNoResults: 'No results found.',
+
+    // ── Toast messages ────────────────────────────────────────────────
+    toastApproved: 'Customer approved',
+    toastCreated: 'Customer added',
+    toastUpdated: 'Customer updated',
+    toastError: 'An error occurred',
+
+    // ── Import dialog ─────────────────────────────────────────────────
+    importTitle: 'Import Customers from Excel/CSV',
+    importHint: 'Save the Excel file as CSV with the first row containing the headers:',
+    importFieldBranch: 'Branch for all customers',
+    importFieldSalesman: 'Rep for all customers (optional)',
+    importOptGeneral: 'General',
+    importOptNoSalesman: '— None —',
+    importPreview: 'Preview: {count} customer(s)',
+    btnImportAction: 'Import',
+    btnImportWithCount: 'Import ({count})',
+    toastImportNoRows: 'No valid rows found. Make sure the file has code and name columns.',
+    toastImportSuccess: '{count} customer(s) imported',
+    toastImportError: 'An error occurred',
+
+    // ── Statement page ────────────────────────────────────────────────
+    stmtBackLink: 'Customers',
+    stmtTitle: 'Account Statement: {name}',
+    stmtDescription: 'Code {code}',
+    stmtDescriptionWithPhone: 'Code {code} · {phone}',
+    stmtWhatsAppLabel: 'Balance Reminder',
+    stmtWhatsAppMsg: 'Hello {name}, your outstanding balance with us is {amount}. Please settle at your earliest convenience. Thank you.',
+    stmtBtnPrint: 'Print Statement',
+    stmtSummaryBalance: 'Current Balance',
+    stmtSummaryCreditLimit: 'Credit Limit',
+    stmtSummaryInvoiceCount: 'Invoice Count',
+    stmtDebitLabel: 'Debit (Receivable)',
+    stmtCreditLabel: 'Credit (Collection)',
+    stmtEmpty: 'No transactions for this customer yet.',
+    stmtDescInvoice: 'Sales Invoice',
+    stmtDescCollection: 'Collection ({method})',
+  },
 };

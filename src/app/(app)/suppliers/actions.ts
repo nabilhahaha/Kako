@@ -4,16 +4,18 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import type { PaymentMethod } from '@/lib/erp/types';
+import { getT } from '@/lib/i18n/server';
 
 export async function upsertSupplier(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
 
   const id = String(formData.get('id') || '').trim();
   const code = String(formData.get('code') || '').trim();
   const name = String(formData.get('name') || '').trim();
-  if (!code) return { ok: false, error: 'كود المورد مطلوب.' };
-  if (!name) return { ok: false, error: 'اسم المورد مطلوب.' };
+  if (!code) return { ok: false, error: t('suppliers.errCodeRequired') };
+  if (!name) return { ok: false, error: t('suppliers.errNameRequired') };
 
   const payload = {
     code,

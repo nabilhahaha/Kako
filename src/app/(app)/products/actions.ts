@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 function num(v: FormDataEntryValue | null): number {
   const n = Number(String(v ?? '').replace(/,/g, ''));
@@ -16,7 +17,8 @@ export async function addDrugsToProducts(
 ): Promise<ActionResult & { count?: number }> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
-  if (!items?.length) return { ok: false, error: 'لم يتم اختيار أي صنف.' };
+  const { t } = await getT();
+  if (!items?.length) return { ok: false, error: t('products.errorNoItems') };
 
   const supabase = await createClient();
   const stamp = Date.now().toString(36).toUpperCase();
@@ -39,11 +41,12 @@ export async function addDrugsToProducts(
 export async function upsertProduct(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
 
   const id = String(formData.get('id') || '').trim();
   let code = String(formData.get('code') || '').trim();
   const name = String(formData.get('name') || '').trim();
-  if (!name) return { ok: false, error: 'اسم المنتج مطلوب.' };
+  if (!name) return { ok: false, error: t('products.errorNameRequired') };
 
   const supabase = await createClient();
   // Auto-generate a sequential code (P00001, P00002, …) when left blank.
@@ -107,11 +110,12 @@ export async function toggleProductActive(
 export async function createCategory(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
 
   const code = String(formData.get('code') || '').trim();
   const name = String(formData.get('name') || '').trim();
   if (!code || !name)
-    return { ok: false, error: 'كود واسم التصنيف مطلوبان.' };
+    return { ok: false, error: t('products.errorCategoryRequired') };
 
   const supabase = await createClient();
   const { error } = await supabase.from('erp_product_categories').insert({

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requirePermission } from '@/lib/erp/guards';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 // Hotel / furnished-apartments: rooms + bookings. Every action requires the
 // hotel.manage permission AND that the actor belongs to a company (the platform
@@ -11,18 +12,18 @@ import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 // cannot create rooms/bookings — we surface a clear message instead of letting
 // the NOT NULL company_id constraint blow up).
 
-const NO_COMPANY = 'هذه العملية تتم من داخل حساب الشركة. سجّل الدخول بحساب الفندق.';
 const ROOM_STATUSES = ['available', 'occupied', 'cleaning', 'maintenance'] as const;
 
 export async function createRoom(formData: FormData): Promise<ActionResult> {
   const ctx = await requirePermission('hotel.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  const { t } = await getT();
+  if (!ctx.companyId) return { ok: false, error: t('hotel.noCompanyAction') };
   const code = String(formData.get('code') || '').trim();
   const name = String(formData.get('name') || '').trim() || null;
   const room_type = String(formData.get('room_type') || '').trim() || null;
   const capacity = Number(formData.get('capacity') || 2);
   const nightly_rate = Number(formData.get('nightly_rate') || 0);
-  if (!code) return { ok: false, error: 'رقم/كود الغرفة مطلوب.' };
+  if (!code) return { ok: false, error: t('hotel.errors.roomCodeRequired') };
 
   const supabase = await createClient();
   const { error } = await supabase.from('erp_rooms').insert({
@@ -32,7 +33,7 @@ export async function createRoom(formData: FormData): Promise<ActionResult> {
     nightly_rate: Number.isFinite(nightly_rate) && nightly_rate >= 0 ? nightly_rate : 0,
   });
   if (error) {
-    if (error.code === '23505') return { ok: false, error: 'كود الغرفة مستخدم بالفعل.' };
+    if (error.code === '23505') return { ok: false, error: t('hotel.errors.roomCodeDuplicate') };
     return { ok: false, error: friendlyDbError(error) };
   }
   revalidatePath('/hotel/rooms');
@@ -41,8 +42,9 @@ export async function createRoom(formData: FormData): Promise<ActionResult> {
 
 export async function setRoomStatus(roomId: string, status: string): Promise<ActionResult> {
   await requirePermission('hotel.manage');
+  const { t } = await getT();
   if (!ROOM_STATUSES.includes(status as (typeof ROOM_STATUSES)[number]))
-    return { ok: false, error: 'حالة غير صحيحة.' };
+    return { ok: false, error: t('hotel.errors.invalidStatus') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_rooms').update({ status }).eq('id', roomId);
   if (error) return { ok: false, error: friendlyDbError(error) };
@@ -53,17 +55,18 @@ export async function setRoomStatus(roomId: string, status: string): Promise<Act
 /** Create a booking. Validates the room is free for the requested dates. */
 export async function createBooking(formData: FormData): Promise<ActionResult> {
   const ctx = await requirePermission('hotel.manage');
-  if (!ctx.companyId) return { ok: false, error: NO_COMPANY };
+  const { t } = await getT();
+  if (!ctx.companyId) return { ok: false, error: t('hotel.noCompanyAction') };
   const room_id = String(formData.get('room_id') || '').trim();
   const guest_name = String(formData.get('guest_name') || '').trim();
   const guest_phone = String(formData.get('guest_phone') || '').trim() || null;
   const check_in = String(formData.get('check_in') || '').trim();
   const check_out = String(formData.get('check_out') || '').trim();
-  if (!room_id) return { ok: false, error: 'اختر الغرفة.' };
-  if (!guest_name) return { ok: false, error: 'اسم النزيل مطلوب.' };
-  if (!check_in || !check_out) return { ok: false, error: 'تاريخا الدخول والخروج مطلوبان.' };
+  if (!room_id) return { ok: false, error: t('hotel.errors.roomRequired') };
+  if (!guest_name) return { ok: false, error: t('hotel.errors.guestNameRequired') };
+  if (!check_in || !check_out) return { ok: false, error: t('hotel.errors.datesRequired') };
   if (new Date(check_out) <= new Date(check_in))
-    return { ok: false, error: 'تاريخ الخروج يجب أن يكون بعد تاريخ الدخول.' };
+    return { ok: false, error: t('hotel.errors.checkoutBeforeCheckin') };
 
   const supabase = await createClient();
 
@@ -76,7 +79,7 @@ export async function createBooking(formData: FormData): Promise<ActionResult> {
     .lt('check_in', check_out)
     .gt('check_out', check_in);
   if (clashes && clashes.length > 0)
-    return { ok: false, error: 'الغرفة محجوزة في هذه الفترة.' };
+    return { ok: false, error: t('hotel.errors.roomAlreadyBooked') };
 
   const { data: room } = await supabase
     .from('erp_rooms').select('nightly_rate').eq('id', room_id).maybeSingle();
@@ -100,8 +103,9 @@ export async function createBooking(formData: FormData): Promise<ActionResult> {
 /** Move a booking through its lifecycle and reflect room status. */
 export async function setBookingStatus(bookingId: string, status: string): Promise<ActionResult> {
   await requirePermission('hotel.manage');
+  const { t } = await getT();
   const valid = ['reserved', 'checked_in', 'checked_out', 'cancelled'];
-  if (!valid.includes(status)) return { ok: false, error: 'حالة غير صحيحة.' };
+  if (!valid.includes(status)) return { ok: false, error: t('hotel.errors.invalidStatus') };
 
   const supabase = await createClient();
   const { data: booking } = await supabase
@@ -127,7 +131,8 @@ export async function setBookingStatus(bookingId: string, status: string): Promi
 /** Record a payment against a booking (adds to paid_amount). */
 export async function addBookingPayment(bookingId: string, amount: number): Promise<ActionResult> {
   await requirePermission('hotel.manage');
-  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: 'مبلغ غير صحيح.' };
+  const { t } = await getT();
+  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: t('hotel.errors.invalidAmount') };
   const supabase = await createClient();
   const { data: booking } = await supabase
     .from('erp_bookings').select('paid_amount').eq('id', bookingId).maybeSingle();

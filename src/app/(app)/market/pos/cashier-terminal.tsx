@@ -10,6 +10,8 @@ import { ScanBarcode, Plus, Minus, Trash2, Loader2, ShoppingCart } from 'lucide-
 import { formatCurrency } from '@/lib/utils';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { cashierCheckout } from '../actions';
+import { useI18n } from '@/lib/i18n/provider';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 
 export interface CashierProduct { id: string; code: string; name: string; name_ar: string | null; barcode: string | null; sell_price: number; unit: string; tax_rate: number }
 export interface BranchOption { id: string; name: string; name_ar: string | null }
@@ -17,6 +19,7 @@ export interface BranchOption { id: string; name: string; name_ar: string | null
 interface Line { product: CashierProduct; qty: number }
 
 export function CashierTerminal({ branches, products }: { branches: BranchOption[]; products: CashierProduct[] }) {
+  const { t, locale } = useI18n();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [query, setQuery] = useState('');
   const [cart, setCart] = useState<Line[]>([]);
@@ -59,7 +62,7 @@ export function CashierTerminal({ branches, products }: { branches: BranchOption
 
   function checkout() {
     if (cart.length === 0) return;
-    if (!branchId) { toast.error('اختر الفرع'); return; }
+    if (!branchId) { toast.error(t('market.pos.errorSelectBranch')); return; }
     startTransition(async () => {
       const res = await cashierCheckout({
         branch_id: branchId,
@@ -68,9 +71,9 @@ export function CashierTerminal({ branches, products }: { branches: BranchOption
         // displayed cart total — no separate VAT added on top.
         lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: Number(l.product.sell_price), discount_pct: 0, tax_rate: 0 })),
       });
-      if (!res.ok || !res.data) { toast.error(res.error ?? 'تعذّر إتمام البيع'); return; }
+      if (!res.ok || !res.data) { toast.error(res.error ?? t('market.pos.errorCheckout')); return; }
       const ch = method === 'cash' && paidNum > 0 ? paidNum - res.data.net : 0;
-      toast.success(ch > 0 ? `تم البيع — الباقي ${ch.toLocaleString('ar-EG')} ج.م` : 'تم البيع');
+      toast.success(ch > 0 ? t('market.pos.toastSaleWithChange', { change: ch.toLocaleString(INTL_LOCALE[locale]) }) : t('market.pos.toastSaleComplete'));
       setCart([]); setPaid('');
       window.open(`/print/receipt/${res.data.invoice_id}`, '_blank');
     });
@@ -88,7 +91,7 @@ export function CashierTerminal({ branches, products }: { branches: BranchOption
           )}
           <div className="relative flex-1">
             <ScanBarcode className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearchKey} placeholder="امسح الباركود أو ابحث بالاسم/الكود ثم Enter…" className="pr-9" />
+            <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearchKey} placeholder={t('market.pos.searchPlaceholder')} className="pr-9" />
           </div>
         </div>
         {filtered.length > 0 && (
@@ -107,9 +110,9 @@ export function CashierTerminal({ branches, products }: { branches: BranchOption
       {/* Cart */}
       <div className="lg:col-span-2">
         <Card><CardContent className="space-y-3 p-4">
-          <h2 className="flex items-center gap-2 font-semibold"><ShoppingCart className="h-4 w-4" /> السلة</h2>
+          <h2 className="flex items-center gap-2 font-semibold"><ShoppingCart className="h-4 w-4" /> {t('market.pos.cartTitle')}</h2>
           {cart.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">السلة فارغة — امسح صنفاً.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">{t('market.pos.cartEmpty')}</p>
           ) : (
             <ul className="divide-y">
               {cart.map((l) => (
@@ -130,27 +133,27 @@ export function CashierTerminal({ branches, products }: { branches: BranchOption
           )}
 
           <div className="flex items-center justify-between border-t pt-2 text-lg font-bold">
-            <span>الإجمالي</span><span className="tabular-nums" dir="ltr">{formatCurrency(total)}</span>
+            <span>{t('market.pos.total')}</span><span className="tabular-nums" dir="ltr">{formatCurrency(total)}</span>
           </div>
 
           <div className="flex gap-2">
             <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className="h-10 flex-1 rounded-md border border-input bg-background px-2 text-sm">
-              <option value="cash">كاش</option><option value="card">فيزا</option>
+              <option value="cash">{t('market.pos.paymentCash')}</option><option value="card">{t('market.pos.paymentCard')}</option>
             </select>
             {method === 'cash' && (
               <div className="flex-1 space-y-0.5">
-                <Input type="number" min={0} step="any" value={paid} onChange={(e) => setPaid(e.target.value)} placeholder="المدفوع" dir="ltr" className="h-10" />
+                <Input type="number" min={0} step="any" value={paid} onChange={(e) => setPaid(e.target.value)} placeholder={t('market.pos.placeholderPaid')} dir="ltr" className="h-10" />
               </div>
             )}
           </div>
           {method === 'cash' && paidNum > 0 && (
             <div className={`flex items-center justify-between text-sm font-medium ${change < 0 ? 'text-destructive' : 'text-success'}`}>
-              <span>الباقي</span><span className="tabular-nums" dir="ltr">{formatCurrency(change)}</span>
+              <span>{t('market.pos.changeLabel')}</span><span className="tabular-nums" dir="ltr">{formatCurrency(change)}</span>
             </div>
           )}
 
           <Button className="w-full" disabled={pending || cart.length === 0} onClick={checkout}>
-            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanBarcode className="h-4 w-4" />} إنهاء البيع وطباعة
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanBarcode className="h-4 w-4" />} {t('market.pos.checkoutBtn')}
           </Button>
         </CardContent></Card>
       </div>
