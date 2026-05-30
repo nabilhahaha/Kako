@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,6 @@ import {
   Network,
   Users,
   Settings2,
-  type LucideIcon,
 } from 'lucide-react';
 
 const STATE_BADGE: Record<SubscriptionState, { label: string; variant: 'success' | 'warning' | 'destructive' | 'secondary' | 'info' }> = {
@@ -32,38 +32,6 @@ const STATE_BADGE: Record<SubscriptionState, { label: string; variant: 'success'
   suspended: { label: 'موقوف', variant: 'destructive' },
   open: { label: 'مفتوح', variant: 'info' },
 };
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  tone = 'primary',
-}: {
-  label: string;
-  value: string;
-  icon: LucideIcon;
-  tone?: 'primary' | 'success' | 'warning' | 'destructive';
-}) {
-  const toneCls = {
-    primary: 'bg-primary/10 text-primary',
-    success: 'bg-success/10 text-success',
-    warning: 'bg-warning/10 text-warning',
-    destructive: 'bg-destructive/10 text-destructive',
-  }[tone];
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${toneCls}`}>
-          <Icon className="h-6 w-6" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="truncate text-xl font-bold tabular-nums" dir="ltr">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 export default async function PlatformOverviewPage() {
   const ctx = await getUserContext();

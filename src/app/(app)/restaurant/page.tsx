@@ -3,25 +3,10 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
-import { Card, CardContent } from '@/components/ui/card';
+import { StatCard as Stat } from '@/components/shared/stat-card';
 import { buttonVariants } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { UtensilsCrossed, LayoutGrid, ChefHat, Wallet, Receipt, Printer, type LucideIcon } from 'lucide-react';
-
-function Stat({ label, value, icon: Icon, tone = 'primary', href }: {
-  label: string; value: string; icon: LucideIcon; tone?: 'primary' | 'success' | 'warning' | 'info'; href?: string;
-}) {
-  const toneCls = { primary: 'bg-primary/10 text-primary', success: 'bg-success/10 text-success', warning: 'bg-warning/10 text-warning', info: 'bg-info/10 text-info' }[tone];
-  const body = (
-    <Card className={href ? 'transition-colors hover:border-primary/40' : ''}>
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${toneCls}`}><Icon className="h-6 w-6" /></div>
-        <div className="min-w-0"><p className="text-sm text-muted-foreground">{label}</p><p className="truncate text-xl font-bold tabular-nums" dir="ltr">{value}</p></div>
-      </CardContent>
-    </Card>
-  );
-  return href ? <Link href={href}>{body}</Link> : body;
-}
+import { UtensilsCrossed, LayoutGrid, ChefHat, Wallet, Receipt, Printer } from 'lucide-react';
 
 export default async function RestaurantDashboard() {
   const ctx = await getUserContext();
