@@ -22,6 +22,8 @@ to **coexist with an external ERP** (sync only selected modules). See
   subscriptions (reference).
 - [`LICENSING-ARCHITECTURE.md`](LICENSING-ARCHITECTURE.md) — target-state
   licensing & subscription design (R4 review).
+- [`MARKETPLACE-STRATEGY.md`](MARKETPLACE-STRATEGY.md) — module / integrations /
+  partner / AI marketplace strategy (R5 review).
 
 ## Architecture
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — full system architecture.

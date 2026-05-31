@@ -171,5 +171,33 @@ counts. Feeds plan limits + Enterprise/usage pricing. (Design only here.)
 5. **Metering scope for v1** — enforce seat/connection caps first; defer
    usage-based (API/sync volume) pricing?
 
-*(Item #4 of the review sequence. Paused for review before #5 — Marketplace /
-Integrations Module Strategy.)*
+---
+
+## 11. Confirmed decisions (approved)
+
+1. **Platform-first architecture.** One platform; modules compose on it.
+2. **Modules are independently licensable** — à-la-carte. A customer can buy
+   **one module**, **several modules**, **an industry pack**, or the **full
+   platform**.
+3. **Industry packs are add-ons, not separate products** — a pack is a bundle of
+   core modules + that vertical's specific features layered on the platform
+   (never a separate app).
+4. **Core (capability) modules** (the independently-licensable set):
+   **CRM · Sales · Inventory · Purchasing · Finance · Workflow & Approvals ·
+   Analytics · Field Operations · Integrations.** *(Billing is platform/owner
+   SaaS billing, not a tenant-purchasable module. Trade Spend ships as a module
+   within the Distribution pack / as a future add-on, not a core tier module.)*
+5. **Industry packs:** **Clinic · Pharmacy · Distribution · Retail · Restaurant ·
+   Hotel** (Salon / Laundry / Wholesale exist as additional verticals/packs).
+6. **Coexistence (standing):** ERP may own **Finance / Inventory / Procurement**;
+   VANTORA may own **CRM / Sales / Field Operations / Trade Spend / Workflow /
+   Approvals / Analytics** — ownership **configurable per module and per entity**.
+7. **Protected forever:** medical/Clinic features and the **Egyptian Drug List** —
+   never removed; all clinic/pharmacy functionality preserved.
+
+> Plan tiers (Free/Starter/Professional/Enterprise) remain as **convenience
+> bundles** over the same à-la-carte modules — not a replacement for per-module
+> purchase. Tier↔module matrix + add-on pricing finalised with Billing Phase 2.
+
+*(Item #4 of the review sequence — approved. Next: #5 Marketplace / Integrations
+Module Strategy.)*
