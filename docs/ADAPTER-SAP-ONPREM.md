@@ -1,6 +1,14 @@
-# VANTORA — SAP On-Prem / ECC Adapter Design Review (B3b)
+# VANTORA — SAP On-Prem / ECC Adapter (B3b)
 
-> Build-track slice **B3b** — **design for approval, no implementation yet.**
+> **Status: ✅ built (code-only; no migration).** Decisions 1–6 confirmed
+> (file+middleware; CSV/JSON over SFTP primary; DEBMAS→customer / CREMAS→supplier
+> / MATMAS→product in, ORDERS/INVOIC out; full-snapshot file feeds; OData/SFTP
+> +middleware only, never RFC/BAPI; live validation deferred to a pilot).
+> Shipped: `sap_s4` `transport` selector (`odata` default | `file`), SAP IDoc
+> field presets (`sap-presets.ts`), dispatcher file routing (reuses the B1
+> `csv_sftp` runtime), transport-aware validation, and unit tests. Live SAP +
+> middleware validation pending a pilot system (mock-tested until then).
+>
 > Extends the existing `sap_s4` adapter (B3a: S/4HANA Cloud, OData ✅ built) with
 > a **file (SFTP) transport** for **S/4HANA On-Prem** and **SAP ECC**, reusing the
 > **B1 `csv_sftp` runtime**. Preserves two-way pull/push, module- & entity-level
