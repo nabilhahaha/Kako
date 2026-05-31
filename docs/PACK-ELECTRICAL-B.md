@@ -1,7 +1,16 @@
-# VANTORA — Electrical Pack — Sub-slice B Design Review (Serials + Warranty + RMA)
+# VANTORA — Electrical Pack — Sub-slice B (Serials + Warranty + RMA)
 
-> Build-track slice **Electrical Pack — Sub-slice B** — **design for approval, no
-> implementation yet.** Follows Sub-slice A (✅ merged; 0096 applied to prod). The
+> **Status: ✅ built (migration 0097 NOT yet applied to production; rolled-back
+> live verification passed — existing_serialized=0, warranty generated end_date
+> = start+24mo, RMA `refund` drove the serial to `returned`, RPC anon-grants=0,
+> 0 residue after rollback).** Decisions 1–6 confirmed. Shipped: catalog flags
+> (`is_serialized`/`warranty_months`), `erp_product_serials` / `erp_warranties`
+> (generated `end_date`) / `erp_rma`, `erp_complete_transfer` extended in place
+> for serialized relocation, `erp_rma_set_status` orchestration RPC, `electrical.
+> rma` permission + group, and the three entity registrations. **One PR** (the
+> serial spine shared by all three). Completing B finishes the Electrical pack.
+>
+> Follows Sub-slice A (✅ merged; 0096 applied to prod). The
 > §13 decisions from `PACK-ELECTRICAL.md` are already locked and carried here:
 > serial capture **enforced only when `is_serialized`**; warranty/RMA **additive**;
 > **RMA orchestrates** the existing returns/accounting; **extend

@@ -131,6 +131,9 @@ const REGISTRY: EntityDescriptor[] = [
   { key: 'visit', table: 'erp_clinic_visits', labelAr: 'الزيارات/الكشوفات', labelEn: 'Visits' },
   { key: 'ticket', table: 'erp_salon_tickets', labelAr: 'التذاكر', labelEn: 'Tickets' },
   { key: 'purchase_return', table: 'erp_purchase_returns', labelAr: 'مرتجعات المشتريات', labelEn: 'Supplier Returns', permission: 'purchasing.return' },
+  { key: 'product_serial', table: 'erp_product_serials', labelAr: 'الأرقام التسلسلية', labelEn: 'Product Serials', permission: 'inventory.view' },
+  { key: 'warranty', table: 'erp_warranties', labelAr: 'الضمانات', labelEn: 'Warranties', permission: 'electrical.rma' },
+  { key: 'rma', table: 'erp_rma', labelAr: 'طلبات الإرجاع', labelEn: 'RMA', permission: 'electrical.rma' },
 ];
 
 const BY_KEY = new Map(REGISTRY.map((e) => [e.key, e]));

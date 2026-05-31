@@ -130,7 +130,7 @@ Wholesale ✅, Distribution/FMCG ✅, Hotel ✅** (verticals on the shared core)
 
 | Pack | Status | Notable scope |
 |---|---|---|
-| **Electrical Retail & Wholesale** | 🟡 building (`PACK-ELECTRICAL.md`) | Sub-slice **A ✅ merged** (multi-tier pricing + supplier returns; 0096 applied to prod, no-regression verified); Sub-slice **B 🟡 design in review** (`PACK-ELECTRICAL-B.md`: serials + warranty + RMA). Reuses tiers/ledger/transfers/sales-returns. First pilot target. |
+| **Electrical Retail & Wholesale** | 🟡 building (`PACK-ELECTRICAL.md`) | Sub-slice **A ✅ merged** (multi-tier pricing + supplier returns; 0096 in prod); Sub-slice **B 🟡 built, in review** (`PACK-ELECTRICAL-B.md`: serials + warranty + RMA; 0097 rolled-back-verified, pending prod apply). Pack complete when B merges. First pilot target. |
 
 Pilot targets (R6): **FMCG Distribution · Electrical Retail & Wholesale ·
 Pharmacy · Clinic** — each with a seeded demo environment.
