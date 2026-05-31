@@ -19,8 +19,8 @@ const MODULES = [
   { key: 'pharmacy', icon: Pill, grad: 'linear-gradient(135deg,#10b981,#22c55e)' },
   { key: 'fmcg', icon: Truck, grad: 'linear-gradient(135deg,#f59e0b,#f97316)' },
   { key: 'laundry', icon: WashingMachine, grad: 'linear-gradient(135deg,#0ea5e9,#3b82f6)' },
-  { key: 'gaming', icon: Gamepad2, grad: 'linear-gradient(135deg,#8b5cf6,#a855f7)' },
-  { key: 'retail', icon: ShoppingBag, grad: 'linear-gradient(135deg,#22d3ee,#6366f1)' },
+  { key: 'gaming', icon: Gamepad2, grad: 'linear-gradient(135deg,#0e5e8a,#0bc5da)' },
+  { key: 'retail', icon: ShoppingBag, grad: 'linear-gradient(135deg,#0bc5da,#0f2c52)' },
 ] as const;
 
 const FEATURES = [
@@ -75,7 +75,7 @@ export default async function HomePage({
             <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl">
               {t('landing.hero.title1')}
               <br />
-              <span className="bg-gradient-to-br from-primary to-[#22d3ee] bg-clip-text text-transparent">{t('landing.hero.title2')}</span>
+              <span className="bg-gradient-to-br from-primary to-[#0bc5da] bg-clip-text text-transparent">{t('landing.hero.title2')}</span>
             </h1>
           </Reveal>
           <Reveal delay={120}>
@@ -178,7 +178,7 @@ export default async function HomePage({
           <div className="mt-12 grid grid-cols-2 gap-6 lg:grid-cols-4">
             {STATS.map((s, i) => (
               <Reveal key={s.key} delay={i * 60} className="text-center">
-                <div className="bg-gradient-to-br from-primary to-[#22d3ee] bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl" dir="ltr">{s.v}</div>
+                <div className="bg-gradient-to-br from-primary to-[#0bc5da] bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl" dir="ltr">{s.v}</div>
                 <div className="mt-2 text-sm text-muted-foreground">{t(`landing.stats.${s.key}`)}</div>
               </Reveal>
             ))}

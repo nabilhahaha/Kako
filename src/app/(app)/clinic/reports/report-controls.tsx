@@ -49,7 +49,7 @@ export function IncomeChart({ data, revenueLabel, emptyText }: { data: { day: st
             labelStyle={{ direction: 'ltr' }}
             contentStyle={{ fontSize: 12, borderRadius: 8 }}
           />
-          <Bar dataKey="revenue" fill="#6366f1" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="revenue" fill="#0f2c52" radius={[3, 3, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

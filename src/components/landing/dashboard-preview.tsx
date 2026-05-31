@@ -1,6 +1,6 @@
 import { LayoutGrid, BarChart3, Users, Wallet, TrendingUp, Search } from 'lucide-react';
 
-const M = '#6366f1';
+const M = '#0f2c52';
 
 /** A detailed light-theme app window mockup — the product shot. Presentational
  *  (no hooks), language-neutral, pure CSS/SVG. */

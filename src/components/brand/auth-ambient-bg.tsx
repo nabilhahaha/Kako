@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
  *  by the auth screens. Absolutely positioned; sits behind content. */
 export function AuthAmbientBg({
   className,
-  gradient = 'linear-gradient(135deg, #7c5cff 0%, #4f46e5 45%, #3730a3 100%)',
+  gradient = 'linear-gradient(135deg, #0f2c52 0%, #0e5e8a 45%, #0f2c52 100%)',
 }: {
   className?: string;
   gradient?: string;

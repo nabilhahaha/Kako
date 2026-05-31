@@ -37,7 +37,7 @@ const THEME_SCRIPT = `try{var t=localStorage.getItem('ams-theme');if(t==='dark'|
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#6366f1',
+  themeColor: '#0f2c52',
 };
 
 export default async function RootLayout({
