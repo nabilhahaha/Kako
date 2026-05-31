@@ -28,7 +28,7 @@ export default async function IntegrationsPage() {
   const areas = [
     { icon: Upload, key: 'dataImport' },
     { icon: FileSpreadsheet, key: 'mappingTemplates' },
-    { icon: Plug, key: 'connections' },
+    { icon: Plug, key: 'connections', href: '/settings/integrations/connections' },
     { icon: KeyRound, key: 'apiKeys', href: '/settings/integrations/api-keys' },
     { icon: Webhook, key: 'webhooks', href: '/settings/integrations/webhooks' },
     { icon: ScrollText, key: 'syncLogs' },
