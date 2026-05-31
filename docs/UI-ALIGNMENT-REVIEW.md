@@ -1,5 +1,15 @@
 # VANTORA — UI Alignment Review: Company Creation & Subscription screens
 
+> **Implementation status (BU):** 🟡 in progress. Done: shared licensing catalog
+> (`src/lib/erp/licensing-catalog.ts` — Core Modules ×10, Industry Packs ×9 incl.
+> Electrical first-class, the approved pack→core preselect map + pack→role
+> suggestions, `classifyModuleKey`); **Setup Wizard** module step + **Marketplace**
+> now split into **Core Modules** vs **Industry Pack(s)** sections (presentation
+> over existing toggles — no data change). Pending (with the R4 capability-key
+> build): the new capability modules (crm/workflow/analytics/field_ops/
+> integrations) as real entitlements, pack-keyed auto-preselect, inline editable
+> suggested roles, and the Platform→Companies/Subscription screen regroup.
+
 > **Review/plan for approval — no UI is built or deleted here.** Aligns the
 > existing company-creation and subscription screens with the licensing model
 > (`LICENSING-ARCHITECTURE.md` R4). **Constraint: do not delete the Companies &

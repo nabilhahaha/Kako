@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import type { SetupProfile } from '@/lib/erp/setup-wizard';
+import { classifyModuleKey } from '@/lib/erp/licensing-catalog';
 import { applySetupProfile, skipSetup } from './actions';
 
 /**
@@ -125,25 +126,39 @@ export function SetupWizard({
             );
           })()}
 
-          {/* ── required modules (toggle) ── */}
-          {isModuleStep && (
-            <>
-              <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold"><Boxes className="h-6 w-6 text-[#c4b5fd]" /> {tr('الوحدات المطلوبة', 'Required modules')}</h1>
-              <p className="mb-5 text-sm text-white/60">{tr('فعّل أو أوقف ما يناسب نشاطك — تقدر تغيّرها لاحقاً.', 'Turn on what fits your business — you can change this later.')}</p>
-              <div className="space-y-2.5">
-                {profile.moduleToggles.map((t) => {
-                  const on = (answers[`mod:${t.module}`] ?? (t.defaultOn ? 'on' : 'off')) === 'on';
-                  return (
-                    <button key={t.module} onClick={() => toggleMod(t.module, !on)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-start backdrop-blur transition ${on ? 'border-primary/60 bg-primary/10' : 'border-white/12 bg-white/[0.04]'}`}>
-                      <span className="font-medium">{ar ? t.labelAr : t.labelEn}</span>
-                      <Switch on={on} />
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          {/* ── modules — grouped: Core Modules + Industry Pack ── */}
+          {isModuleStep && (() => {
+            const coreToggles = profile.moduleToggles.filter((t) => classifyModuleKey(t.module) === 'core');
+            const packToggles = profile.moduleToggles.filter((t) => classifyModuleKey(t.module) === 'pack');
+            const Row = (t: SetupProfile['moduleToggles'][number]) => {
+              const on = (answers[`mod:${t.module}`] ?? (t.defaultOn ? 'on' : 'off')) === 'on';
+              return (
+                <button key={t.module} onClick={() => toggleMod(t.module, !on)}
+                  className={`flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-start backdrop-blur transition ${on ? 'border-primary/60 bg-primary/10' : 'border-white/12 bg-white/[0.04]'}`}>
+                  <span className="font-medium">{ar ? t.labelAr : t.labelEn}</span>
+                  <Switch on={on} />
+                </button>
+              );
+            };
+            return (
+              <>
+                <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold"><Boxes className="h-6 w-6 text-[#c4b5fd]" /> {tr('الوحدات والباقات', 'Modules & packs')}</h1>
+                <p className="mb-5 text-sm text-white/60">{tr('فعّل أو أوقف ما يناسب نشاطك — تقدر تغيّرها لاحقاً. اختيار نوع النشاط يقترح الافتراضيات فقط.', 'Turn on what fits your business — you can change this later. Business type only suggests defaults.')}</p>
+                {coreToggles.length > 0 && (
+                  <div className="mb-5">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/45">{tr('الوحدات الأساسية', 'Core Modules')}</div>
+                    <div className="space-y-2.5">{coreToggles.map(Row)}</div>
+                  </div>
+                )}
+                {packToggles.length > 0 && (
+                  <div>
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/45">{tr('باقة القطاع', 'Industry Pack')}</div>
+                    <div className="space-y-2.5">{packToggles.map(Row)}</div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* ── review ── */}
           {isReview && (
