@@ -17,9 +17,9 @@ export function Logo({
       <svg viewBox="0 0 48 48" role="img" aria-label="VANTORA" className={cn('shrink-0', mark)}>
         <defs>
           <linearGradient id="velora-mark" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#a855f7" />
-            <stop offset="0.5" stopColor="#6366f1" />
-            <stop offset="1" stopColor="#22d3ee" />
+            <stop offset="0" stopColor="#0f2c52" />
+            <stop offset="0.55" stopColor="#0e5e8a" />
+            <stop offset="1" stopColor="#0bc5da" />
           </linearGradient>
         </defs>
         <path d="M3 9 L14 9 L24 30 L34 9 L45 9 L24 43 Z" fill="url(#velora-mark)" />
