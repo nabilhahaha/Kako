@@ -24,6 +24,8 @@ to **coexist with an external ERP** (sync only selected modules). See
   licensing & subscription design (R4 review).
 - [`MARKETPLACE-STRATEGY.md`](MARKETPLACE-STRATEGY.md) — module / integrations /
   partner / AI marketplace strategy (R5 review).
+- [`PILOT-READINESS.md`](PILOT-READINESS.md) — pilot customer readiness plan
+  (R6 review).
 
 ## Architecture
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — full system architecture.

@@ -103,16 +103,14 @@ capability**.
 **Dependencies:** Integrations module (✅) · connector framework (✅) · vendor
 adapters (B2–B5, 🔜) · licensing/metering (R4, 🔜) · Billing Phase 2 (🔜).
 
-## 6. Open decisions (before any marketplace build)
-1. **Partner program scope/timing** — do we open partner adapters in this cycle,
-   or first-party-only marketplace until vendor adapters are proven? *(Recommend
-   first-party catalog first; partner SDK after B2–B5.)*
-2. **Sandboxing model for partner code** — in-process review-gated vs isolated
-   execution (edge function / worker) for untrusted adapters.
-3. **Monetization v1** — flat add-on pricing vs usage-based (sync volume) for paid
-   connectors. *(Recommend flat add-on first; usage-based with metering later.)*
-4. **AI marketplace** — confirm it stays parked as a tracked future item (R-series
-   addition) until core adapters + licensing land.
+## 6. Confirmed decisions (approved)
+1. **Partner program is deferred** until **after the first pilot customers** —
+   first-party catalog + connectors only until then.
+2. **Sandbox environment for partner code is tracked but not prioritized**
+   before pilot readiness.
+3. **Monetization v1 focuses on:** subscription plans · module licensing ·
+   industry packs · **Integrations as a paid module**. (Usage-based connector
+   pricing comes later with metering.)
+4. **AI Module Marketplace remains a future roadmap item (R7).**
 
-*(Item #5 of the review sequence. Paused for review before #6 — Pilot Customer
-Readiness Plan.)*
+*(Item #5 — approved. Next: #6 Pilot Customer Readiness Plan.)*

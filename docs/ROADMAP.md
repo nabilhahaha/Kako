@@ -87,9 +87,9 @@ at a time) and **build sub-slices** (each design→build→verify→PR→prod-ap
 | R2 | **Full Platform Documentation** (plan → docs) | Review→Build | R1 | High | Med | 2 | 🟡 plan approved; authoring next |
 | R3 | **Legacy Audit Report** (Keep/Refactor/Archive/Delete) | Review | — | High | Med | 3 | ✅ delivered |
 | R4 | **Module Licensing & Subscription Architecture** | Review | Billing, plan-modules, marketplace | High | Med–High | 4 | ✅ approved |
-| R5 | **Marketplace / Integrations Module Strategy** | Review | R4 | Med | Med | 5 | 🟡 delivered; in review |
+| R5 | **Marketplace / Integrations Module Strategy** | Review | R4 | Med | Med | 5 | ✅ approved |
+| R6 | **Pilot Customer Readiness Plan** | Review | B1–B2, R2, R4 | High | Med | 6 | 🟡 delivered; in review |
 | R7 | **AI Module Marketplace** (future) | Review→Build | R5, metering | Med | High | later | 🔜 tracked |
-| R6 | **Pilot Customer Readiness Plan** | Review | B1–B2, R2, R4 | High | Med | 6 | 🔜 |
 | B1 | **2C-3 CSV/SFTP Transport** | Build | 2C-2 (✅) | High | Low–Med (`ssh2-sftp-client` dep) | 1 | 🔜 next build |
 | B2 | **Dynamics 365 Business Central adapter** | Build | 2C-1/2C-2, B1 | High | Med (OAuth2 + OData v4) | 2 | 🔜 first vendor |
 | B3 | **SAP S/4HANA adapter** | Build | B1 (file path), framework | High | High (variants, OData, IDoc/middleware) | 3 | 🔜 |
