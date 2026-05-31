@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Tag, CreditCard, Receipt, Save, PlayCircle } from 'lucide-react';
+import { Tag, CreditCard, Receipt, Save, Layers, type LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
 import {
@@ -26,6 +28,21 @@ export interface InvoiceRow {
 
 const statusVariant = (s: string): 'success' | 'warning' | 'destructive' | 'secondary' =>
   s === 'active' ? 'success' : s === 'trial' ? 'warning' : s === 'expired' || s === 'suspended' || s === 'cancelled' ? 'destructive' : 'secondary';
+
+/** Premium section header: cyan-tinted icon chip + title + optional hint. */
+function SectionHeader({ icon: Icon, title, hint }: { icon: LucideIcon; title: string; hint?: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <h2 className="text-base font-semibold leading-tight">{title}</h2>
+        {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
+      </div>
+    </div>
+  );
+}
 
 export function BillingAdmin({
   plans, prices, subscriptions, companies, invoices,
@@ -82,16 +99,13 @@ export function BillingAdmin({
       {/* Price book */}
       <Card>
         <CardContent className="p-6 space-y-4">
-          <h2 className="flex items-center gap-2 text-base font-semibold">
-            <Tag className="h-4 w-4" /> {t('billing.priceBook.title')}
-          </h2>
-          <p className="text-xs text-muted-foreground">{t('billing.priceBook.hint')}</p>
+          <SectionHeader icon={Tag} title={t('billing.priceBook.title')} hint={t('billing.priceBook.hint')} />
           <div className="space-y-5">
             {plans.filter((p) => p.is_active).map((p) => (
               <div key={p.key} className="rounded-lg border p-4">
                 <div className="mb-3 font-medium">{planName(p)} <span className="text-xs text-muted-foreground">({p.key})</span></div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full min-w-[420px] text-sm">
                     <thead className="text-muted-foreground">
                       <tr>
                         <th className="px-2 py-1 text-start font-medium">{t('billing.priceBook.currency')}</th>
@@ -102,7 +116,7 @@ export function BillingAdmin({
                     </thead>
                     <tbody>
                       {BILLING_CURRENCIES.map((c) => (
-                        <tr key={c.code} className="border-t">
+                        <tr key={c.code} className="border-t transition-colors hover:bg-secondary/30">
                           <td className="px-2 py-1.5 whitespace-nowrap">{c.code} <span className="text-xs text-muted-foreground">· {c.decimals}d</span></td>
                           {BILLING_INTERVALS.map((iv) => {
                             const k = `${p.key}|${c.code}|${iv}`;
@@ -110,7 +124,8 @@ export function BillingAdmin({
                               <td key={iv} className="px-2 py-1.5">
                                 <div className="flex items-center gap-1">
                                   <Input
-                                    className="h-8 w-28"
+                                    className="h-8 w-28 tabular-nums"
+                                    dir="ltr"
                                     type="number"
                                     min={0}
                                     step={1 / 10 ** decimalsFor(c.code)}
@@ -145,30 +160,39 @@ export function BillingAdmin({
       {/* Assign / change a subscription */}
       <Card>
         <CardContent className="p-6 space-y-4">
-          <h2 className="flex items-center gap-2 text-base font-semibold">
-            <CreditCard className="h-4 w-4" /> {t('billing.subscribe.title')}
-          </h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-            <select className="h-10 rounded-md border border-input bg-background px-2 text-sm lg:col-span-2"
-              value={subCompany} onChange={(e) => setSubCompany(e.target.value)}>
-              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select className="h-10 rounded-md border border-input bg-background px-2 text-sm"
-              value={subPlan} onChange={(e) => setSubPlan(e.target.value)}>
-              {plans.map((p) => <option key={p.key} value={p.key}>{planName(p)}</option>)}
-            </select>
-            <select className="h-10 rounded-md border border-input bg-background px-2 text-sm"
-              value={subCurrency} onChange={(e) => setSubCurrency(e.target.value)}>
-              {BILLING_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code}</option>)}
-            </select>
-            <select className="h-10 rounded-md border border-input bg-background px-2 text-sm"
-              value={subInterval} onChange={(e) => setSubInterval(e.target.value)}>
-              {BILLING_INTERVALS.map((iv) => <option key={iv} value={iv}>{INTERVAL_LABELS[iv][locale]}</option>)}
-            </select>
-            <Input className="h-10" type="number" min={0} value={subTrial}
-              onChange={(e) => setSubTrial(e.target.value)} placeholder={t('billing.subscribe.trialDays')} />
+          <SectionHeader icon={CreditCard} title={t('billing.subscribe.title')} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+            <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
+              <Label htmlFor="sub-company">{t('billing.subscriptions.company')}</Label>
+              <Select id="sub-company" value={subCompany} onChange={(e) => setSubCompany(e.target.value)}>
+                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sub-plan">{t('billing.subscriptions.plan')}</Label>
+              <Select id="sub-plan" value={subPlan} onChange={(e) => setSubPlan(e.target.value)}>
+                {plans.map((p) => <option key={p.key} value={p.key}>{planName(p)}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sub-currency">{t('billing.priceBook.currency')}</Label>
+              <Select id="sub-currency" value={subCurrency} onChange={(e) => setSubCurrency(e.target.value)}>
+                {BILLING_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sub-interval">{INTERVAL_LABELS.monthly[locale]} / {INTERVAL_LABELS.yearly[locale]}</Label>
+              <Select id="sub-interval" value={subInterval} onChange={(e) => setSubInterval(e.target.value)}>
+                {BILLING_INTERVALS.map((iv) => <option key={iv} value={iv}>{INTERVAL_LABELS[iv][locale]}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sub-trial">{t('billing.subscribe.trialDays')}</Label>
+              <Input id="sub-trial" className="tabular-nums" dir="ltr" type="number" min={0} value={subTrial}
+                onChange={(e) => setSubTrial(e.target.value)} placeholder="0" />
+            </div>
           </div>
-          <Button disabled={busy || !subCompany || !subPlan}
+          <Button className="w-full sm:w-auto" disabled={busy || !subCompany || !subPlan}
             onClick={() => run(() => subscribeCompany(subCompany, subPlan, subCurrency, subInterval, parseInt(subTrial || '0', 10)), t('billing.toast.subscribed'))}>
             <CreditCard className="h-4 w-4" /> {t('billing.subscribe.submit')}
           </Button>
@@ -178,12 +202,12 @@ export function BillingAdmin({
       {/* Current subscriptions */}
       <Card>
         <CardContent className="p-6 space-y-4">
-          <h2 className="text-base font-semibold">{t('billing.subscriptions.title')}</h2>
+          <SectionHeader icon={Layers} title={t('billing.subscriptions.title')} />
           {subscriptions.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('billing.subscriptions.empty')}</p>
           ) : (
             <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead className="bg-secondary/50 text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 text-start font-medium">{t('billing.subscriptions.company')}</th>
@@ -195,7 +219,7 @@ export function BillingAdmin({
                 </thead>
                 <tbody>
                   {subscriptions.map((s) => (
-                    <tr key={s.companyId} className="border-t">
+                    <tr key={s.companyId} className="border-t transition-colors hover:bg-secondary/30">
                       <td className="px-3 py-2">{s.company}</td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         {planLabelByKey(s.planKey)} · {s.currency} · {INTERVAL_LABELS[s.interval as 'monthly' | 'yearly']?.[locale] ?? s.interval}
@@ -209,7 +233,7 @@ export function BillingAdmin({
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap items-center gap-1">
                           <select
-                            className="h-8 rounded border border-input bg-background px-1 text-xs"
+                            className="h-8 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                             value={s.status} disabled={busy}
                             onChange={(e) => run(() => setSubscriptionStatus(s.companyId, e.target.value), t('billing.toast.statusSet'))}
                           >
@@ -235,14 +259,12 @@ export function BillingAdmin({
       {/* Invoice history */}
       <Card>
         <CardContent className="p-6 space-y-4">
-          <h2 className="flex items-center gap-2 text-base font-semibold">
-            <Receipt className="h-4 w-4" /> {t('billing.invoices.title')}
-          </h2>
+          <SectionHeader icon={Receipt} title={t('billing.invoices.title')} />
           {invoices.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('billing.invoices.empty')}</p>
           ) : (
             <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead className="bg-secondary/50 text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 text-start font-medium">{t('billing.invoices.number')}</th>
@@ -255,11 +277,11 @@ export function BillingAdmin({
                 </thead>
                 <tbody>
                   {invoices.map((i) => (
-                    <tr key={i.id} className="border-t">
+                    <tr key={i.id} className="border-t transition-colors hover:bg-secondary/30">
                       <td className="px-3 py-2 whitespace-nowrap" dir="ltr">{i.number}</td>
                       <td className="px-3 py-2">{i.company}</td>
-                      <td className="px-3 py-2 text-end whitespace-nowrap">{formatMoney(i.taxMinor, i.currency)}</td>
-                      <td className="px-3 py-2 text-end whitespace-nowrap font-medium">{formatMoney(i.totalMinor, i.currency)}</td>
+                      <td className="px-3 py-2 text-end whitespace-nowrap tabular-nums">{formatMoney(i.taxMinor, i.currency)}</td>
+                      <td className="px-3 py-2 text-end whitespace-nowrap font-medium tabular-nums">{formatMoney(i.totalMinor, i.currency)}</td>
                       <td className="px-3 py-2"><Badge variant={i.status === 'paid' ? 'success' : 'secondary'}>{i.status}</Badge></td>
                       <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{new Date(i.issuedAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en')}</td>
                     </tr>

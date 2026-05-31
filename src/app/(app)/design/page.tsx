@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
 import { Plus, Check, Trash2 } from 'lucide-react';
 
@@ -95,9 +96,9 @@ export default function DesignSystemPage() {
           <div className="space-y-1.5"><Label htmlFor="d2">Number</Label><Input id="d2" type="number" dir="ltr" placeholder="0" /></div>
           <div className="space-y-1.5">
             <Label htmlFor="d3">Select</Label>
-            <select id="d3" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+            <Select id="d3">
               <option>Option A</option><option>Option B</option>
-            </select>
+            </Select>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">Focus any control to see the cyan focus ring (keyboard-accessible).</p>
