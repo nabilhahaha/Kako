@@ -130,7 +130,7 @@ Wholesale ✅, Distribution/FMCG ✅, Hotel ✅** (verticals on the shared core)
 
 | Pack | Status | Notable scope |
 |---|---|---|
-| **Electrical Retail & Wholesale** | 🔜 tracked | **Multi-tier pricing (Retail / Half-Wholesale / Wholesale / Project)**, **warranty tracking**, **Returns & RMA**, **serial-number support**, Inventory, Purchasing, Accounting, POS. First pilot target. |
+| **Electrical Retail & Wholesale** | 🟡 building (`PACK-ELECTRICAL.md`) | Sub-slice **A ✅ built** (multi-tier pricing seed + supplier returns; 0096 pending prod apply); Sub-slice **B 🔜** (serials + warranty + RMA). Reuses tiers/ledger/transfers/sales-returns. First pilot target. |
 
 Pilot targets (R6): **FMCG Distribution · Electrical Retail & Wholesale ·
 Pharmacy · Clinic** — each with a seeded demo environment.
