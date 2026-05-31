@@ -1,6 +1,15 @@
-# VANTORA — Oracle NetSuite Adapter Design Review (B4)
+# VANTORA — Oracle NetSuite Adapter (B4)
 
-> Build-track slice **B4** — **design for approval, no implementation yet.**
+> **Status: ✅ built (code-only; no migration).** Decisions 1–7 confirmed
+> (dedicated `netsuite` adapter; TBA OAuth 1.0a HMAC-SHA256; record API first,
+> SuiteQL a follow-up; customer / vendor→supplier / inventoryItem→product in,
+> salesOrder / invoice out, stock balances a follow-up; `lastModifiedDate` +
+> limit/offset; single packed Vault secret; live validation deferred). Shipped:
+> shared `oauth1.ts` TBA signer (Node crypto, no dep; verified against a known
+> HMAC-SHA256 vector), `netsuite` descriptor, `netsuite-runtime.ts` (record-API
+> pull/push), `netsuite-presets.ts`, registry + dispatcher wiring, unit tests.
+> Live NetSuite validation pending a pilot account (mock-tested until then).
+>
 > Adds a **`netsuite`** connector over **SuiteTalk REST** with **Token-Based Auth
 > (OAuth 1.0a, HMAC-SHA256 request signing)**. Builds on the 2C-1/2C-2 framework
 > and the injectable-`fetch` runtime pattern (generic_rest / Dynamics BC / SAP /
