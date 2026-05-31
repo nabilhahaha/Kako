@@ -43,7 +43,7 @@ export default function OfflinePage() {
             width: 64,
             height: 64,
             borderRadius: 16,
-            background: '#6366f1',
+            background: '#0f2c52',
             color: '#ffffff',
             fontSize: '1.375rem',
             fontWeight: 700,

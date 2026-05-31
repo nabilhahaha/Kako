@@ -40,7 +40,7 @@ export const PROMO_THEMES: Record<string, PromoTheme> = {
     subline: 'حجوزات ومواعيد، تذاكر خدمات، عمولات المصففين، وتحصيل وتقارير لحظية.',
     features: ['حجوزات ومواعيد', 'تذاكر الخدمات', 'عمولات المصففين', 'تحصيل وتقارير'],
     icon: Scissors,
-    gradient: 'linear-gradient(135deg, #581c87 0%, #7c3aed 45%, #3b0764 100%)',
+    gradient: 'linear-gradient(135deg, #0f2c52 0%, #0e5e8a 45%, #0a1f3a 100%)',
     accent: 'rgba(236,72,153,0.35)',
   },
   pharmacy: {
@@ -85,7 +85,7 @@ export const PROMO_THEMES: Record<string, PromoTheme> = {
     subline: 'مبيعات وفواتير، مخزون ومشتريات، عملاء وموردين، ومحاسبة وتقارير — أيًّا كان نشاطك.',
     features: ['مبيعات وفواتير', 'مخزون ومشتريات', 'عملاء وموردين', 'محاسبة وتقارير'],
     icon: ShoppingCart,
-    gradient: 'linear-gradient(135deg, #6d4afe 0%, #6366f1 45%, #3730a3 100%)',
+    gradient: 'linear-gradient(135deg, #0e5e8a 0%, #0f2c52 45%, #0f2c52 100%)',
     accent: 'rgba(34,211,238,0.35)',
   },
 };

@@ -1,6 +1,6 @@
 import { TrendingUp, Users, FileText, Search } from 'lucide-react';
 
-const M = '#6366f1'; // brand maroon
+const M = '#0f2c52'; // brand maroon
 
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
@@ -17,7 +17,7 @@ export function BrandBg() {
           background:
             'radial-gradient(95% 70% at 50% -12%, rgba(255,255,255,0.30), transparent 55%),' +
             'radial-gradient(55% 50% at 85% 18%, rgba(34,211,238,0.22), transparent 60%),' +
-            'linear-gradient(155deg, #7c5cff 0%, #5b4ee6 52%, #3b2db0 100%)',
+            'linear-gradient(155deg, #0f2c52 0%, #5b4ee6 52%, #3b2db0 100%)',
         }}
       />
       {/* diagonal glass sheen (light reflecting on a pane) */}
