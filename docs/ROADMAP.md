@@ -48,47 +48,96 @@ system; `OWNER_GUIDE.md` for operations.
 - Staff Management UI + granular gates across the platform area; internal **audit
   trail** (who/what/when/which company).
 
+**Commercial & extensibility layer**
+- **Billing & Subscriptions (Phase 1)** — 8-currency price books, trials,
+  plan-based access, country VAT, statuses, invoice history, owner-only admin.
+- **Custom Fields Engine** (JSONB-on-row, 7 types) + **Dynamic Forms Foundation**.
+- **Workflow / Approval Engine** (Phases 1–3) — conditional routing, parallel +
+  quorum, SLA + escalation (`reports_to`), in-app notifications, Builder Lite,
+  pg_cron scheduler.
+- **Premium UI/UX & Design System** — navy/cyan tokens, shared primitives,
+  rolled out to Dashboard / Customers / Approvals / Billing; `/design` showcase.
+
+**Data Integration (Phase 2A–2C-2)**
+- **2A Inbound REST API** (`/api/v1`) — per-company API keys (hashed, scoped,
+  rate-limited), entity-writer reuse, full audit.
+- **2B Outbound Webhooks** — HMAC-signed, pg_cron + pg_net delivery, backoff +
+  dead-letter, event subscriptions.
+- **2C-1 Connector Framework** — connection store + adapter registry; credentials
+  in **Supabase Vault**; `generic_rest` + `csv_sftp` reference adapters.
+- **2C-2 Sync Engine** — scheduled pull/push (Node dispatcher + Vercel Cron),
+  per-entity sync jobs, watermark/delta, conflict policy, run log.
+- **Modularity & coexistence principle** persisted (`PRODUCT_PRINCIPLES.md`).
+
 ---
 
-## 2. Billing & Subscription phase 🔜 (next)
+## 2. Forward roadmap — formally tracked (do not drop or deprioritize)
 
-Goal: turn subscription state into a real, multi-currency, GCC-ready billing
-system. (Detailed plan presented separately before build.)
+These are **standing roadmap items**, each tracked with dependencies, priority,
+complexity, sequence, and status. Goal: a **modular platform** supporting **ERP
+coexistence** and **partial adoption** (Sales only / Inventory only / Workflow
+only / Analytics only …) up to **full-platform** adoption.
 
-- **Plans & pricing** — versioned plan catalog; monthly/annual; per-currency
-  price books (**EGP, SAR, AED, KWD, QAR, BHD, OMR, USD**); trials, proration.
-- **Subscriptions & lifecycle** — active/trialing/past_due/suspended/cancelled;
-  renewals, upgrades/downgrades with proration; dunning.
-- **Invoices & payments** — billing invoices (separate from sales invoices);
-  payment records; manual/offline (bank transfer, cash) first; pluggable
-  gateways later (regional: HyperPay/PayTabs/Moyasar/Fawry; global: Stripe).
-- **Tax** — per-country VAT (KSA/UAE 15%/5%, etc.); tax-inclusive/exclusive;
-  invoice fields for GCC e-invoicing (ZATCA/UAE) hooks.
-- **Permissions/audit** — gated by `manage_billing`; every change audited; RLS
-  for billing tables; SECURITY DEFINER RPCs for state transitions.
-- **Owner/staff UX** — billing on the company detail page + a billing overview;
-  finance role operates it.
+There are two parallel tracks — **review/approval docs** (analysis, approved one
+at a time) and **build sub-slices** (each design→build→verify→PR→prod-apply).
 
-## 3. Support / Ticketing phase 🔜
+| # | Item | Track | Depends on | Priority | Complexity | Seq | Status |
+|---|---|---|---|---|---|---|---|
+| R1 | Adapter roadmap & architecture review | Review | 2C-2 | High | Low | 1 | ✅ approved |
+| R2 | **Full Platform Documentation** (plan → docs) | Review→Build | R1 | High | Med | 2 | 🟡 plan approved; authoring next |
+| R3 | **Legacy Audit Report** (Keep/Refactor/Archive/Delete) | Review | — | High | Med | 3 | ✅ delivered |
+| R4 | **Module Licensing & Subscription Architecture** | Review | Billing, plan-modules, marketplace | High | Med–High | 4 | ✅ approved |
+| R5 | **Marketplace / Integrations Module Strategy** | Review | R4 | Med | Med | 5 | ✅ approved |
+| R6 | **Pilot Customer Readiness Plan** | Review | B1–B2, R2, R4 | High | Med | 6 | ✅ approved |
+| R7 | **AI Module Marketplace** (future) | Review→Build | R5, metering | Med | High | later | 🔜 tracked |
+| B1 | **2C-3 CSV/SFTP Transport** | Build | 2C-2 (✅) | High | Low–Med (`ssh2-sftp-client` dep) | 1 | 🔜 next build |
+| B2 | **Dynamics 365 Business Central adapter** | Build | 2C-1/2C-2, B1 | High | Med (OAuth2 + OData v4) | 2 | 🔜 first vendor |
+| B3 | **SAP S/4HANA adapter** | Build | B1 (file path), framework | High | High (variants, OData, IDoc/middleware) | 3 | 🔜 |
+| B4 | **Oracle NetSuite adapter** | Build | framework | Med | Med–High (TBA OAuth1-HMAC) | 4 | 🔜 |
+| B5 | **Odoo adapter** | Build | framework | Med | Med (JSON-RPC) | 5 | 🔜 |
 
-- `access_support_tickets` permission already exists (no surface yet).
-- Tenant-raised tickets + internal queue; statuses, assignment to staff,
-  SLA/priority; comments + attachments (reuse entity attachments); per-company
-  scoping with staff cross-tenant access via `access_support_tickets`.
-- Notifications (in-app + WhatsApp/email); ticket audit trail; CSAT.
-- Integrate with billing (e.g. dunning → ticket) and the audit log.
+**Vendor-order override (standing):** a real pilot customer's ERP requirement
+overrides the default B2→B5 order.
 
-## 4. External Integrations phase 🔜
+### Recommended sequencing
+1. **R2 documentation authoring** proceeds in parallel (index + Module Catalog
+   first) while reviews continue.
+2. **R3 Legacy Audit → R4 Licensing → R5 Marketplace/Integrations strategy** as
+   sequential review docs (each approved before the next).
+3. **Build track:** **B1 (CSV/SFTP) → B2 (Dynamics BC)** is the first vendor
+   adapter package (review #5 "first adapter implementation"); B3–B5 follow.
+4. **R6 Pilot Customer Readiness** consolidates docs + first adapter + licensing
+   into a go-to-market-ready package.
 
-(Foundation documented in `INTEGRATION.md`; **not started** by request.)
+### Dependencies at a glance
+- Adapters (B2–B5) all sit on the **proven 2C-1/2C-2 framework** + **B1** for
+  file transport; each adds only protocol/auth/mapping.
+- **R4 Licensing** builds on existing **plan-modules ∩ marketplace** entitlement;
+  **R5** builds on R4; **R6** depends on the first adapter (B1–B2) + docs (R2) +
+  licensing (R4).
+- Detailed adapter analysis: `INTEGRATION-ADAPTERS.md`; doc plan:
+  `DOCUMENTATION-PLAN.md`.
 
-- **Inbound REST API** — per-company API keys (hashed, scoped, revocable);
-  rate-limited; create/update entities via the Entity Registry.
-- **Outbound webhooks** — HMAC-signed events (customer/invoice/payment/…),
-  retries with backoff, delivery logs.
-- **Mapping templates for sync**, scheduled sync jobs, external-ERP import,
-  accounting/BI export.
-- **OAuth** for third-party apps; integration logs as audit trail.
+### Tracked industry packs (add-ons, not separate products)
+Packs bundle core modules + vertical-specific features on the platform
+(`PRODUCT_PRINCIPLES.md`; `LICENSING-ARCHITECTURE.md`). Built ones: **Clinic ✅,
+Pharmacy ✅, Restaurant ✅, Salon ✅, Laundry ✅, Retail/Supermarket ✅,
+Wholesale ✅, Distribution/FMCG ✅, Hotel ✅** (verticals on the shared core).
+
+| Pack | Status | Notable scope |
+|---|---|---|
+| **Electrical Retail & Wholesale** | 🔜 tracked | **Multi-tier pricing (Retail / Half-Wholesale / Wholesale / Project)**, **warranty tracking**, **Returns & RMA**, **serial-number support**, Inventory, Purchasing, Accounting, POS. First pilot target. |
+
+Pilot targets (R6): **FMCG Distribution · Electrical Retail & Wholesale ·
+Pharmacy · Clinic** — each with a seeded demo environment.
+
+## 3. Deferred / parked phases 🔜
+
+- **Support / Ticketing** — `access_support_tickets` exists; tenant tickets +
+  internal queue, SLA, attachments, CSAT; integrate with billing + audit.
+- **Payment Gateways** — regional (HyperPay/PayTabs/Moyasar/Fawry/Tap) + Stripe;
+  manual/offline flows exist. (Billing is gateway-ready.)
+- **OAuth for third-party apps**; e-invoicing extensions (ZATCA/UAE).
 
 ---
 
