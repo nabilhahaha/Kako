@@ -11,6 +11,7 @@ import {
   FileText, Undo2, Warehouse, type LucideIcon,
 } from 'lucide-react';
 import { ALL_MODULES, MODULE_LABELS, type Module } from '@/lib/erp/navigation';
+import { classifyModuleKey } from '@/lib/erp/licensing-catalog';
 import { useI18n } from '@/lib/i18n/provider';
 import { toggleCompanyModule } from './actions';
 
@@ -50,40 +51,55 @@ export function MarketplaceManager({ enabledModules }: { enabledModules: Module[
     });
   }
 
+  const tile = (m: Module) => {
+    const Icon = ICONS[m];
+    const on = enabled.has(m);
+    const isBusy = busy === m;
+    return (
+      <Card key={m} className={on ? 'border-primary/40' : ''}>
+        <CardContent className="flex h-full flex-col gap-3 p-5">
+          <div className="flex items-start justify-between">
+            <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${on ? 'bg-primary/10 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+              <Icon className="h-5 w-5" />
+            </span>
+            {on && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                <Check className="h-3 w-3" /> {t('marketplace.installed')}
+              </span>
+            )}
+          </div>
+          <h3 className="font-semibold">{MODULE_LABELS[m][locale]}</h3>
+          <button
+            onClick={() => toggle(m)}
+            disabled={isBusy}
+            className={`mt-auto inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition ${
+              on ? 'border text-foreground hover:bg-secondary' : 'bg-primary text-primary-foreground hover:opacity-90'
+            }`}
+          >
+            {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {on ? t('marketplace.disable') : t('marketplace.enable')}
+          </button>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const core = MARKETPLACE_MODULES.filter((m) => classifyModuleKey(m) === 'core');
+  const packs = MARKETPLACE_MODULES.filter((m) => classifyModuleKey(m) === 'pack');
+  const heading = (en: string, ar: string) => (
+    <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{locale === 'ar' ? ar : en}</h2>
+  );
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {MARKETPLACE_MODULES.map((m) => {
-        const Icon = ICONS[m];
-        const on = enabled.has(m);
-        const isBusy = busy === m;
-        return (
-          <Card key={m} className={on ? 'border-primary/40' : ''}>
-            <CardContent className="flex h-full flex-col gap-3 p-5">
-              <div className="flex items-start justify-between">
-                <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${on ? 'bg-primary/10 text-primary' : 'bg-secondary text-muted-foreground'}`}>
-                  <Icon className="h-5 w-5" />
-                </span>
-                {on && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                    <Check className="h-3 w-3" /> {t('marketplace.installed')}
-                  </span>
-                )}
-              </div>
-              <h3 className="font-semibold">{MODULE_LABELS[m][locale]}</h3>
-              <button
-                onClick={() => toggle(m)}
-                disabled={isBusy}
-                className={`mt-auto inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition ${
-                  on ? 'border text-foreground hover:bg-secondary' : 'bg-primary text-primary-foreground hover:opacity-90'
-                }`}
-              >
-                {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-                {on ? t('marketplace.disable') : t('marketplace.enable')}
-              </button>
-            </CardContent>
-          </Card>
-        );
-      })}
+    <div className="space-y-8">
+      <section>
+        {heading('Core Modules', 'الوحدات الأساسية')}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{core.map(tile)}</div>
+      </section>
+      <section>
+        {heading('Industry Packs', 'باقات القطاعات')}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{packs.map(tile)}</div>
+      </section>
     </div>
   );
 }

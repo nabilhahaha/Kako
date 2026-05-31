@@ -94,7 +94,7 @@ at a time) and **build sub-slices** (each design→build→verify→PR→prod-ap
 | B2 | **Dynamics 365 Business Central adapter** | Build | 2C-1/2C-2, B1 | High | Med (OAuth2 + OData v4) | 2 | ✅ merged |
 | B3a | **SAP S/4HANA Cloud adapter (OData)** | Build | B2 (OData pattern) | High | Med–High | 3 | 🟡 built; in review |
 | B3b | **SAP on-prem / ECC (file + middleware)** | Build | B1 (file), B3a | High | High | 4 | 🔜 |
-| BU | **UI Alignment Implementation** (Core Modules / Industry Packs / Suggested Roles on company-creation & subscription screens) | Build | UI-ALIGNMENT-REVIEW, R4 | High | Med | after B3a | 🔜 scheduled next |
+| BU | **UI Alignment Implementation** (Core Modules / Industry Packs / Suggested Roles) | Build | UI-ALIGNMENT-REVIEW, R4 | High | Med | after B3a | 🟡 in progress (Setup Wizard + Marketplace grouped; catalog w/ defaults); platform-create + full pack-preselect wiring with R4 |
 | B4 | **Oracle NetSuite adapter** | Build | framework | Med | Med–High (TBA OAuth1-HMAC) | 5 | 🔜 |
 | B5 | **Odoo adapter** | Build | framework | Med | Med (JSON-RPC) | 6 | 🔜 |
 
