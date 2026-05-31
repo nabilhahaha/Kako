@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import type { Branch, ErpCustomer, Profile } from '@/lib/erp/types';
 import { CustomersManager } from './customers-manager';
+import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
 import { getT } from '@/lib/i18n/server';
 
 export default async function CustomersPage() {
@@ -18,6 +19,7 @@ export default async function CustomersPage() {
     supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
     supabase.from('erp_profiles').select('id, full_name, email').eq('is_active', true),
   ]);
+  const customFields = await getActiveCustomFields('customer');
 
   return (
     <div>
@@ -30,6 +32,7 @@ export default async function CustomersPage() {
         branches={(branches as Branch[]) ?? []}
         reps={(profiles as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []}
         isSuperAdmin={ctx.isSuperAdmin}
+        customFields={customFields}
       />
     </div>
   );
