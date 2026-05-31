@@ -63,6 +63,9 @@ export interface NavItem {
   superAdminOnly?: boolean;
   /** Only the platform owner (the vendor). */
   platformOwnerOnly?: boolean;
+  /** Visible to an internal employee holding this platform permission (the
+   *  platform owner always sees it). Generic, vendor-side gating. */
+  platformPerm?: string;
   /** Also show this item to the platform owner (who otherwise sees only the
    *  vendor panel + a few cross-tenant tools). */
   showForPlatformOwner?: boolean;
@@ -114,7 +117,8 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'nav.sections.provider',
     items: [
       { label: 'nav.items.overview', href: '/platform', icon: LayoutDashboard, platformOwnerOnly: true },
-      { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformOwnerOnly: true },
+      { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformPerm: 'view_companies' },
+      { label: 'nav.items.platformStaff', href: '/platform/staff', icon: UserCog, platformPerm: 'manage_users' },
       { label: 'nav.items.drugsList', href: '/platform/drugs', icon: Pill, platformOwnerOnly: true },
     ],
   },
@@ -269,7 +273,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage' },
       { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true },
-      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true },
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs' },
       { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true },
     ],
   },
@@ -283,18 +287,26 @@ export function visibleSections(
   isSuperAdmin: boolean,
   isPlatformOwner = false,
   modules: Module[] = [],
+  platformPermissions: string[] = [],
+  isPlatformStaff = false,
 ): NavSection[] {
   const has = (perm: Permission | Permission[]) =>
     Array.isArray(perm) ? perm.some((p) => permissions.includes(p)) : permissions.includes(perm);
 
-  // The platform owner (the vendor) runs the platform; they belong to no tenant
-  // company and must NOT see tenant-operational sections (sales, inventory,
-  // hotel, …). They see only the vendor panel + a few cross-tenant tools
-  // explicitly flagged with platformOwnerOnly / showForPlatformOwner.
-  if (isPlatformOwner) {
+  // The vendor tier (platform owner OR an internal employee) runs the platform;
+  // they belong to no tenant company and must NOT see tenant-operational sections
+  // (sales, inventory, hotel, …). They see only the vendor panel: the owner sees
+  // owner-flagged items + everything; an employee sees items whose platformPerm
+  // they hold.
+  if (isPlatformOwner || isPlatformStaff) {
+    const hasPlatform = (p?: string) =>
+      !!p && (isPlatformOwner || platformPermissions.includes(p));
     return NAV_SECTIONS.map((section) => ({
       ...section,
-      items: section.items.filter((item) => item.platformOwnerOnly || item.showForPlatformOwner),
+      items: section.items.filter((item) => {
+        if (isPlatformOwner && (item.platformOwnerOnly || item.showForPlatformOwner)) return true;
+        return hasPlatform(item.platformPerm);
+      }),
     })).filter((section) => section.items.length > 0);
   }
 

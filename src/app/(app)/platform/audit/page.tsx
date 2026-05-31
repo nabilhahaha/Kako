@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -36,8 +37,9 @@ export default async function AuditLogPage() {
   const { t, locale } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const pctx = await getPlatformContext();
 
-  if (!ctx.isPlatformOwner && !ctx.isSuperAdmin) {
+  if (!ctx.isPlatformOwner && !ctx.isSuperAdmin && !hasPlatformPermission(pctx, 'access_audit_logs')) {
     return (
       <div>
         <PageHeader title={t('platform.audit.title')} />

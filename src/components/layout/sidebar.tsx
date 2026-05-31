@@ -15,18 +15,22 @@ export function Sidebar({
   isSuperAdmin,
   isPlatformOwner = false,
   modules = [],
+  platformPermissions = [],
+  isPlatformStaff = false,
 }: {
   permissions: Permission[];
   isSuperAdmin: boolean;
   isPlatformOwner?: boolean;
   modules?: Module[];
+  platformPermissions?: string[];
+  isPlatformStaff?: boolean;
 }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   // Compute on the client so the icon components never cross the
   // server→client boundary (functions aren't serializable as props).
-  const sections = visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules);
+  const sections = visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules, platformPermissions, isPlatformStaff);
 
   // Highlight only the most specific (longest) matching href, so a parent like
   // /platform doesn't stay active while on /platform/companies.

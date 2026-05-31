@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,8 +12,9 @@ export default async function PlatformCompaniesPage() {
   const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const pctx = await getPlatformContext();
 
-  if (!ctx.isPlatformOwner) {
+  if (!hasPlatformPermission(pctx, 'view_companies')) {
     return (
       <div>
         <PageHeader title={t('platform.overview.title')} />

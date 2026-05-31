@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
+import type { PlatformPermission } from '@/lib/erp/platform-permissions';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { checkBranchLimit, checkUserLimit } from '@/lib/erp/plans';
 import { logAudit } from '@/lib/erp/audit';
@@ -17,6 +19,16 @@ async function requirePlatformOwner() {
   if (!ctx.isPlatformOwner)
     return { ctx: null, error: t('platform.errors.ownerRequired') };
   return { ctx, error: null };
+}
+
+/** Platform-permission guard for staff-accessible vendor actions (owner always
+ *  passes). Deeper tenant controls keep requirePlatformOwner(). */
+async function requirePlatformPerm(perm: PlatformPermission) {
+  const { t } = await getT();
+  const pctx = await getPlatformContext();
+  if (!pctx || !pctx.isStaff) return { error: t('platform.errors.unauthorized') };
+  if (!hasPlatformPermission(pctx, perm)) return { error: t('platform.errors.ownerRequired') };
+  return { error: null };
 }
 
 function slugify(raw: string): string {
@@ -37,7 +49,7 @@ const BUSINESS_TYPES: BusinessType[] = [
 
 /** Create a new tenant company with an optional timed subscription. */
 export async function createCompany(formData: FormData): Promise<ActionResult<{ id: string }>> {
-  const { error: authErr } = await requirePlatformOwner();
+  const { error: authErr } = await requirePlatformPerm('create_companies');
   if (authErr) return { ok: false, error: authErr };
 
   const { t } = await getT();
@@ -106,7 +118,7 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
 
 /** Update a company's profile + subscription settings. */
 export async function updateCompany(formData: FormData): Promise<ActionResult> {
-  const { error: authErr } = await requirePlatformOwner();
+  const { error: authErr } = await requirePlatformPerm('manage_billing');
   if (authErr) return { ok: false, error: authErr };
 
   const { t: t2 } = await getT();
@@ -151,7 +163,7 @@ export async function setCompanySelfUsers(id: string, allowed: boolean): Promise
 
 /** Suspend or re-activate a tenant (manual lock, independent of expiry). */
 export async function setCompanyActive(id: string, isActive: boolean): Promise<ActionResult> {
-  const { error: authErr } = await requirePlatformOwner();
+  const { error: authErr } = await requirePlatformPerm('manage_billing');
   if (authErr) return { ok: false, error: authErr };
 
   const supabase = await createClient();
@@ -170,7 +182,7 @@ export async function setCompanyActive(id: string, isActive: boolean): Promise<A
 
 /** Renew/extend a subscription to a new end date. */
 export async function setSubscriptionEnd(id: string, end: string): Promise<ActionResult> {
-  const { error: authErr } = await requirePlatformOwner();
+  const { error: authErr } = await requirePlatformPerm('manage_billing');
   if (authErr) return { ok: false, error: authErr };
   const { t: tSub } = await getT();
   if (!end) return { ok: false, error: tSub('platform.errors.subscriptionEndRequired') };
@@ -282,7 +294,7 @@ export async function onboardAdmin(formData: FormData): Promise<ActionResult> {
 
 /** Change a company's subscription plan (caps on users/branches/products). */
 export async function setCompanyPlan(id: string, planKey: string): Promise<ActionResult> {
-  const { error: authErr } = await requirePlatformOwner();
+  const { error: authErr } = await requirePlatformPerm('manage_billing');
   if (authErr) return { ok: false, error: authErr };
   const { t: tPlan } = await getT();
   if (!id || !planKey) return { ok: false, error: tPlan('platform.errors.incompleteData') };
