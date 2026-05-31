@@ -40,6 +40,8 @@ to **coexist with an external ERP** (sync only selected modules). See
   webhooks, connectors, sync).
 - [`INTEGRATION-ADAPTERS.md`](INTEGRATION-ADAPTERS.md) — external-ERP adapter
   roadmap (SAP / Oracle / Dynamics / Odoo).
+- [`ADAPTER-DYNAMICS-BC.md`](ADAPTER-DYNAMICS-BC.md) — Dynamics 365 Business
+  Central adapter design (B2).
 - [`API-WEBHOOKS.md`](API-WEBHOOKS.md) — inbound `/api/v1` + outbound webhooks
   reference (integrator-facing).
 - [`SYNC-ENGINE.md`](SYNC-ENGINE.md) — connections, sync jobs, dispatcher.
