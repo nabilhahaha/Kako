@@ -35,6 +35,8 @@ to **coexist with an external ERP** (sync only selected modules). See
   design (multi-tier pricing / serials / warranty / RMA / supplier returns).
 - [`PACK-ELECTRICAL-B.md`](PACK-ELECTRICAL-B.md) — Electrical pack sub-slice B
   design (serial numbers / warranty / RMA).
+- [`CAPABILITY-SEED.md`](CAPABILITY-SEED.md) — universal CRM/Workflow/Analytics
+  new-company seed + nav binding (closes the deferred UI-alignment gap).
 
 ## Architecture
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — full system architecture.
