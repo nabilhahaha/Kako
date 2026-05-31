@@ -3,83 +3,85 @@
 @tailwind utilities;
 
 @layer base {
+  /* VANTORA design system — deep navy + premium cyan + white + cool neutrals.
+     Enterprise/GCC-grade, calm and high-contrast. Tokens drive everything. */
   :root {
     --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --foreground: 216 52% 12%;            /* deep navy ink */
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 216 52% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 216 52% 12%;
 
-    --primary: 252 83% 60%;
+    --primary: 216 64% 22%;               /* deep navy (brand) */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 214 32% 95%;             /* subtle cool neutral */
+    --secondary-foreground: 216 48% 18%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 214 32% 95%;
+    --muted-foreground: 215 18% 42%;
 
-    --accent: 187 92% 45%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 190 90% 42%;                /* premium cyan */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 72% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 84% 39%;
+    --success: 158 64% 36%;               /* emerald */
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 88% 52%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 36 92% 48%;                /* amber */
+    --warning-foreground: 216 52% 12%;    /* dark text on amber */
 
-    --info: 217 91% 60%;
+    --info: 200 88% 44%;                  /* cyan-blue */
     --info-foreground: 0 0% 100%;
 
-    --gold: 41 80% 50%;
-    --gold-foreground: 222 47% 11%;
+    --gold: 41 72% 48%;
+    --gold-foreground: 216 52% 12%;
 
-    --maroon: 350 78% 35%;
-    --maroon-light: 350 60% 45%;
+    --maroon: 350 70% 38%;
+    --maroon-light: 350 55% 48%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 252 83% 60%;
+    --border: 214 28% 90%;
+    --input: 214 28% 90%;
+    --ring: 190 90% 42%;                  /* cyan focus ring */
 
     --radius: 0.625rem;
   }
 
   .dark {
-    --background: 222 47% 8%;
+    --background: 216 46% 8%;             /* deep navy canvas */
     --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
+    --card: 216 42% 12%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
+    --popover: 216 42% 12%;
     --popover-foreground: 210 40% 98%;
-    --primary: 252 90% 68%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 17%;
+    --primary: 205 80% 56%;              /* brighter navy-blue for dark */
+    --primary-foreground: 216 60% 10%;
+    --secondary: 215 32% 16%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 187 92% 45%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 63% 45%;
+    --muted: 215 32% 16%;
+    --muted-foreground: 215 20% 66%;
+    --accent: 190 85% 48%;               /* premium cyan */
+    --accent-foreground: 216 60% 10%;
+    --destructive: 0 63% 52%;
     --destructive-foreground: 0 0% 100%;
-    --success: 160 84% 39%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 88% 52%;
-    --warning-foreground: 0 0% 100%;
-    --info: 217 91% 60%;
-    --info-foreground: 0 0% 100%;
-    --gold: 41 80% 50%;
-    --gold-foreground: 222 47% 11%;
-    --maroon: 350 70% 50%;
-    --maroon-light: 350 60% 60%;
-    --border: 217 33% 20%;
-    --input: 217 33% 20%;
-    --ring: 252 90% 68%;
+    --success: 158 60% 44%;
+    --success-foreground: 216 60% 10%;
+    --warning: 36 92% 56%;
+    --warning-foreground: 216 60% 10%;
+    --info: 200 85% 56%;
+    --info-foreground: 216 60% 10%;
+    --gold: 41 72% 56%;
+    --gold-foreground: 216 60% 10%;
+    --maroon: 350 64% 56%;
+    --maroon-light: 350 58% 64%;
+    --border: 215 28% 20%;
+    --input: 215 28% 20%;
+    --ring: 190 85% 48%;
   }
 }
 
