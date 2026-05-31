@@ -64,9 +64,9 @@ export function ApprovalsManager({ tasks }: { tasks: TaskRow[] }) {
                 {t('workflow.step', { n: task.stepNo })} · {formatDate(task.createdAt, INTL_LOCALE[locale])}
               </div>
             </div>
-            <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+            <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-1">
               <Input
-                className="h-9 max-w-xs"
+                className="h-9 w-full sm:max-w-xs"
                 placeholder={t('workflow.commentPlaceholder')}
                 value={comments[task.id] ?? ''}
                 onChange={(e) => setComments((c) => ({ ...c, [task.id]: e.target.value }))}
