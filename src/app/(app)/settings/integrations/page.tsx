@@ -30,7 +30,7 @@ export default async function IntegrationsPage() {
     { icon: FileSpreadsheet, key: 'mappingTemplates' },
     { icon: Plug, key: 'connections' },
     { icon: KeyRound, key: 'apiKeys', href: '/settings/integrations/api-keys' },
-    { icon: Webhook, key: 'webhooks' },
+    { icon: Webhook, key: 'webhooks', href: '/settings/integrations/webhooks' },
     { icon: ScrollText, key: 'syncLogs' },
   ] as const;
 
