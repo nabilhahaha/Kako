@@ -45,7 +45,8 @@ Avoid playful/startup hues — stay in the navy/cyan/neutral family.
 Single source of truth — compose, don't re-style:
 `Button` (default / secondary / outline / ghost / destructive / link; sizes),
 `Badge` (default / secondary / success / warning / info / destructive / outline),
-`Input`, `Label`, `Card`, `Dialog`/Confirm, `Table`, `Tabs`, `Toast` (sonner),
+`Input`, `Select` (token-driven native select, cyan ring, RTL chevron),
+`Label`, `Card`, `Dialog`/Confirm, `Table`, `Tabs`, `Toast` (sonner),
 `Skeleton`, `PageHeader`, `EmptyState`. All token-driven, RTL-aware (use logical
 classes: `ms-`/`me-`, `text-start`/`text-end`, `rtl:rotate-180` for directional
 icons).
