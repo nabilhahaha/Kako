@@ -37,13 +37,14 @@ import * as dataExport from './data-export';
 import * as platformStaff from './platform-staff';
 import * as billing from './billing';
 import * as customFields from './custom-fields';
+import * as workflow from './workflow';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
   accounting, clinic, restaurant, salon, pharmacy, laundry, hotel, wholesale,
   market, distribution, settings, account, platform, rep, exportsMod,
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
-  importMsgs, dataExport, platformStaff, billing, customFields,
+  importMsgs, dataExport, platformStaff, billing, customFields, workflow,
 ];
 
 type Catalog = Record<string, unknown>;

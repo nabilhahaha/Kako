@@ -127,7 +127,10 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'nav.sections.main',
-    items: [{ label: 'nav.items.dashboard', href: '/dashboard', icon: LayoutDashboard }],
+    items: [
+      { label: 'nav.items.dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck },
+    ],
   },
   {
     title: 'nav.sections.hotel',

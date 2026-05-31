@@ -142,6 +142,25 @@ export async function setCustomerJourney(
   return { ok: true };
 }
 
+/** Submit a customer for onboarding approval: mark it pending and start the
+ *  generic workflow (an approval task routes to the company admin). */
+export async function requestCustomerApproval(id: string): Promise<ActionResult> {
+  const { error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  if (!id) return { ok: false, error: t('customers.errUnauthorized') };
+
+  const supabase = await createClient();
+  await supabase.from('erp_customers').update({ is_approved: false }).eq('id', id);
+  const { error } = await supabase.rpc('erp_workflow_start', {
+    p_key: 'customer_onboarding', p_entity: 'customer', p_record_id: id, p_context: {},
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/customers');
+  revalidatePath('/approvals');
+  return { ok: true };
+}
+
 /** Super admin approves a rep-created customer so it can be sold to. */
 export async function approveCustomer(id: string): Promise<ActionResult> {
   const { ctx } = await requireAuth();

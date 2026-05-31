@@ -22,6 +22,7 @@ export type Permission =
   | 'settings.users' // users, roles, hierarchy
   | 'integrations.manage' // data import, API keys, webhooks, sync (Data Integration Layer)
   | 'settings.custom_fields' // define custom fields per entity (Custom Fields Engine)
+  | 'workflow.manage' // define approval workflows (Workflow / Approval Engine)
   | 'reports.view'
   | 'hotel.manage' // rooms & bookings (hotel / furnished apartments)
   | 'clinic.manage' // full clinic access (admin/manager) — implies reception + doctor
@@ -56,6 +57,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'settings.users': { en: 'Manage users and permissions', ar: 'إدارة المستخدمين والصلاحيات', group: 'settings' },
   'integrations.manage': { en: 'Manage data import & integrations', ar: 'إدارة استيراد البيانات والتكاملات', group: 'settings' },
   'settings.custom_fields': { en: 'Manage custom fields', ar: 'إدارة الحقول المخصصة', group: 'settings' },
+  'workflow.manage': { en: 'Manage approval workflows', ar: 'إدارة مسارات الموافقات', group: 'settings' },
   'hotel.manage': { en: 'Manage rooms and bookings', ar: 'إدارة الغرف والحجوزات', group: 'hotel' },
   'clinic.manage': { en: 'Full clinic management', ar: 'إدارة العيادة بالكامل', group: 'clinic' },
   'clinic.reception': { en: 'Reception (appointments/registration/billing)', ar: 'الاستقبال (مواعيد/تسجيل/تحصيل)', group: 'clinic' },

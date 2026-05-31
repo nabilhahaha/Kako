@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { upsertCustomer, toggleCustomerActive } from './actions';
+import { upsertCustomer, toggleCustomerActive, requestCustomerApproval } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -189,6 +189,21 @@ export function CustomersManager({
                   {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('customers.btnSave')}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => setEditing(null)}>{t('customers.btnCancel')}</Button>
+                {current && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={pending}
+                    onClick={async () => {
+                      const res = await requestCustomerApproval(current.id);
+                      if (!res.ok) return toast.error(res.error ?? t('workflow.toast.error'));
+                      toast.success(t('workflow.toast.requested'));
+                      router.refresh();
+                    }}
+                  >
+                    {t('workflow.requestApproval')}
+                  </Button>
+                )}
               </div>
             </form>
           </CardContent>
