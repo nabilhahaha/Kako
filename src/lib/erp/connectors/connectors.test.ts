@@ -4,14 +4,15 @@ import {
 } from './registry';
 
 describe('connector framework — registry (Phase 2C-1)', () => {
-  it('ships the reference adapters + the first vendor adapter (Dynamics BC)', () => {
-    expect(listConnectorAdapters().map((a) => a.key).sort()).toEqual(['csv_sftp', 'dynamics_bc', 'generic_rest']);
+  it('ships the reference adapters + vendor adapters (Dynamics BC, SAP S/4HANA)', () => {
+    expect(listConnectorAdapters().map((a) => a.key).sort()).toEqual(['csv_sftp', 'dynamics_bc', 'generic_rest', 'sap_s4']);
   });
   it('resolves known vs unknown adapters', () => {
     expect(isKnownAdapter('generic_rest')).toBe(true);
     expect(isKnownAdapter('csv_sftp')).toBe(true);
     expect(isKnownAdapter('dynamics_bc')).toBe(true);
-    expect(isKnownAdapter('sap')).toBe(false);
+    expect(isKnownAdapter('sap_s4')).toBe(true);
+    expect(isKnownAdapter('oracle')).toBe(false);
   });
   it('every adapter has ar/en labels, a kind, directions, and config fields', () => {
     for (const a of listConnectorAdapters()) {

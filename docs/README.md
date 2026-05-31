@@ -20,8 +20,8 @@ to **coexist with an external ERP** (sync only selected modules). See
   ERP-coexistence ownership, per module/entity.
 - [`LICENSING.md`](LICENSING.md) — plans, module entitlement, marketplace,
   subscriptions (reference).
-- [`LICENSING-ARCHITECTURE.md`](LICENSING-ARCHITECTURE.md) — target-state
-  licensing & subscription design (R4 review).
+- [`LICENSING-ARCHITECTURE.md`](LICENSING-ARCHITECTURE.md) — target-state licensing & subscription design (R4 review).
+- [`UI-ALIGNMENT-REVIEW.md`](UI-ALIGNMENT-REVIEW.md) — company-creation / subscription UI alignment to the licensing model (relabel/regroup only).
 - [`MARKETPLACE-STRATEGY.md`](MARKETPLACE-STRATEGY.md) — module / integrations /
   partner / AI marketplace strategy (R5 review).
 - [`PILOT-READINESS.md`](PILOT-READINESS.md) — pilot customer readiness plan
@@ -40,8 +40,8 @@ to **coexist with an external ERP** (sync only selected modules). See
   webhooks, connectors, sync).
 - [`INTEGRATION-ADAPTERS.md`](INTEGRATION-ADAPTERS.md) — external-ERP adapter
   roadmap (SAP / Oracle / Dynamics / Odoo).
-- [`ADAPTER-DYNAMICS-BC.md`](ADAPTER-DYNAMICS-BC.md) — Dynamics 365 Business
-  Central adapter design (B2).
+- [`ADAPTER-DYNAMICS-BC.md`](ADAPTER-DYNAMICS-BC.md) — Dynamics 365 Business Central adapter (B2).
+- [`ADAPTER-SAP.md`](ADAPTER-SAP.md) — SAP S/4HANA adapter design (B3).
 - [`API-WEBHOOKS.md`](API-WEBHOOKS.md) — inbound `/api/v1` + outbound webhooks
   reference (integrator-facing).
 - [`SYNC-ENGINE.md`](SYNC-ENGINE.md) — connections, sync jobs, dispatcher.
