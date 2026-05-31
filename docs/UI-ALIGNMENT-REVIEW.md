@@ -108,17 +108,117 @@ labels are additive**, so existing companies/subscriptions are unaffected.
 - No production DB change required for the relabel/regroup; new module keys arrive
   with R4 (additive migration there, not here).
 
-## 8. Decisions to confirm (before the UI refactor build)
-1. **Land the UI grouping now** (presentation refactor over existing modules,
-   new capability items shown as "available with licensing") **or** wait for the
-   R4 capability-key build so Core Modules are fully real first? *(Recommend:
-   land grouping + labels now; wire new capability keys with R4.)*
-2. **Pack ↔ Core preselect map** — confirm the recommended Core Modules per pack
-   (draft in §3.2) so defaults are right.
-3. **Roles suggestions** — confirm the suggested-role sets per module/pack (reuse
-   the existing business-type role templates as the seed).
-4. Keep **Business Type** as a labeled preselector (not hidden)? *(Recommended —
-   familiar + drives good defaults.)*
+## 8. Confirmed principles (approved)
+1. **Clear three-way separation:** Core Modules · Industry Packs · Roles.
+2. **Industry Packs (9):** Clinic · Pharmacy · Distribution · Retail · **Electrical
+   Retail & Wholesale (first-class, not a custom option)** · Restaurant / Café ·
+   Hotel · Salon · Laundry.
+3. **Core Modules (10):** CRM · Sales · Inventory · Purchasing · Finance /
+   Accounting · POS · Workflow & Approvals · Analytics · Field Operations ·
+   Integrations.
+4. **Business Type only pre-selects** recommended Core Modules + a Pack (defaults);
+   never gates or replaces module licensing.
+5. **Keep** the current company-creation & subscription screens — improve labels,
+   grouping, defaults, and usability only.
+6. **Roles suggested dynamically** from the selected Core Modules + Industry Pack;
+   editable.
+7. **Electrical Retail & Wholesale = first-class Industry Pack.**
 
-*(UI Alignment Review — paused for your approval. Refactor is labels/grouping/
-defaults only; Companies & Subscriptions screens are preserved.)*
+### Build sequencing (recommended)
+- **UI grouping + labels + defaults + usability** land as a presentation refactor
+  over the existing toggles; the new capability keys (`crm`/`workflow`/`analytics`/
+  `field_ops`/`integrations`) + Electrical pack are surfaced and wired with the
+  **R4 licensing build**. No production DB change for the relabel/regroup itself.
+
+---
+
+## 9. Proposed screen layouts (wireframes)
+
+### 9.1 Setup Wizard — module/pack step (after business-type questions)
+```
+ ┌───────────────────────────────────────────────────────────────┐
+ │  Set up <Company>            Business type: [ Distribution ▾ ]  │  ← preselects
+ │  ●━━●━━●━━○   (Questions → Modules → Roles → Review)            │
+ ├───────────────────────────────────────────────────────────────┤
+ │  INDUSTRY PACK  (pick one; bundles recommended modules)         │
+ │  ┌─────────┐┌─────────┐┌──────────────────┐┌─────────┐         │
+ │  │ Clinic  ││Pharmacy ││ Distribution ✓   ││ Retail  │  …       │
+ │  └─────────┘└─────────┘└──────────────────┘└─────────┘         │
+ │  ┌──────────────────────────┐┌──────────┐┌────────┐            │
+ │  │ Electrical Retail & W/S  ││Restaurant││ Hotel  │  Salon  …   │
+ │  └──────────────────────────┘└──────────┘└────────┘            │
+ │                                                                 │
+ │  CORE MODULES  (toggle; pack preselects recommended ✓)          │
+ │  [✓] CRM        [✓] Sales      [✓] Inventory   [✓] Purchasing   │
+ │  [ ] Finance    [ ] POS        [✓] Field Ops   [✓] Workflow     │
+ │  [ ] Analytics  [✓] Integrations                                │
+ │  each: name · 1-line desc · ⓘ entitlement (in plan / add-on)    │
+ ├───────────────────────────────────────────────────────────────┤
+ │                                   [ Back ]   [ Continue → ]     │
+ └───────────────────────────────────────────────────────────────┘
+```
+
+### 9.2 Setup Wizard — suggested roles step (new, editable)
+```
+ │  SUGGESTED ROLES  (from your modules + pack — edit freely)      │
+ │  • Admin                              [keep]                    │
+ │  • Sales Rep        (Field Ops, Sales)[keep] [rename] [remove]  │
+ │  • Supervisor       (Field Ops)       [keep]                    │
+ │  • Accountant       (Finance)         [add]                     │
+ │  + Add custom role                                              │
+```
+
+### 9.3 App Marketplace — grouped (was a flat grid)
+```
+ │  Marketplace — enable what your company uses                    │
+ │  ── CORE MODULES ─────────────────────────────────────────────  │
+ │  [CRM ✓] [Sales ✓] [Inventory ✓] [Purchasing] [Finance]        │
+ │  [POS] [Workflow ✓] [Analytics] [Field Ops ✓] [Integrations ✓]  │
+ │      each tile: icon · name · desc · toggle · entitlement chip   │
+ │  ── INDUSTRY PACKS ───────────────────────────────────────────  │
+ │  [Clinic] [Pharmacy] [Distribution ✓] [Retail]                  │
+ │  [Electrical Retail & Wholesale] [Restaurant] [Hotel] [Salon]…  │
+ │      pack tile: features list · "enabling adds: Sales, POS…"     │
+```
+
+### 9.4 Platform → Companies → Create company
+```
+ │  New company                                                    │
+ │  Name [__________]  Country [SA ▾]  Currency [SAR ▾]            │
+ │  Business type [ Electrical Retail & Wholesale ▾ ]  ← preselect  │
+ │  ── Recommended setup (editable) ─────────────────────────────  │
+ │  Industry Pack:  Electrical Retail & Wholesale  [change]        │
+ │  Core Modules:   POS ✓ Inventory ✓ Purchasing ✓ Finance ✓       │
+ │                  Sales ✓ CRM ✓ Analytics ▢ Field Ops ▢          │
+ │  Plan:  [ Professional ▾ ]   (bundles core; packs/Integrations  │
+ │                               as add-ons)                       │
+ │                                   [ Create company ]            │
+```
+
+### 9.5 Platform → Billing / Subscriptions (labels regrouped)
+```
+ │  Subscription — <Company>                                       │
+ │  Plan: Professional (convenience bundle over Core Modules)      │
+ │  ── Included Core Modules ────────────────────────────────────  │
+ │  CRM · Sales · Inventory · Purchasing · Finance · POS · Workflow │
+ │  ── Add-ons ──────────────────────────────────────────────────  │
+ │  [Industry Pack: Electrical R&W]  [Integrations]  [+ add]       │
+ │  ── Price book (unchanged structurally) ──────────────────────  │
+ │  currency × interval grid …                                     │
+```
+
+(Wireframes are layout intent, not final visuals; all use the existing design
+system primitives — `SectionHeader`, `Card`, `Badge`, `Select`, token-driven.)
+
+## 10. Decisions to confirm before the UI build
+1. **Pack → Core preselect map** — confirm the recommended Core Modules per pack
+   (draft in §3.2 / the wizard defaults) so the checkmarks are right per pack.
+2. **Role suggestion sets** — confirm suggested roles per module/pack (seed from
+   the existing business-type role templates).
+3. **Sequencing** — land the **grouping/labels/usability** refactor now (over
+   existing modules), with the new capability keys + Electrical pack wired in the
+   **R4 build**? *(Recommended.)*
+
+*(UI Alignment Review — finalized for approval. Refactor is labels/grouping/
+defaults/usability only; Companies & Subscriptions screens are preserved;
+Electrical Retail & Wholesale is a first-class Industry Pack.)*
