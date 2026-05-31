@@ -126,9 +126,9 @@ export function CustomersManager({
         <Badge variant="secondary" className="text-sm">
           {t('customers.totalReceivable')}: {formatCurrency(totalReceivable)}
         </Badge>
-        <div className="relative ms-auto">
+        <div className="relative w-full sm:ms-auto sm:w-auto">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('customers.searchPlaceholder')} className="w-56 ps-9" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('customers.searchPlaceholder')} className="w-full ps-9 sm:w-64" />
         </div>
       </div>
 
@@ -247,8 +247,9 @@ export function CustomersManager({
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
+                  {/* sticky-ish header tone + readable density for mobile scroll */}
                   <tr>
                     <th className="p-3 text-start font-medium">{t('customers.colCode')}</th>
                     <th className="p-3 text-start font-medium">{t('customers.colCustomer')}</th>
@@ -266,11 +267,11 @@ export function CustomersManager({
                       Number(c.balance) > Number(c.credit_limit);
                     return (
                       <tr key={c.id} className="border-b last:border-0 hover:bg-secondary/30">
-                        <td className="p-3 font-mono text-xs" dir="ltr">{c.code}</td>
+                        <td className="whitespace-nowrap p-3 font-mono text-xs" dir="ltr">{c.code}</td>
                         <td className="p-3 font-medium">{c.name_ar || c.name}</td>
-                        <td className="p-3 text-muted-foreground">{branchName(c.branch_id)}</td>
-                        <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(c.credit_limit)}</td>
-                        <td className="p-3 text-left tabular-nums" dir="ltr">
+                        <td className="whitespace-nowrap p-3 text-muted-foreground">{branchName(c.branch_id)}</td>
+                        <td className="whitespace-nowrap p-3 text-end tabular-nums" dir="ltr">{formatCurrency(c.credit_limit)}</td>
+                        <td className="whitespace-nowrap p-3 text-end tabular-nums" dir="ltr">
                           <span className="inline-flex items-center gap-1">
                             {overLimit && <AlertTriangle className="h-3.5 w-3.5 text-warning" />}
                             {formatCurrency(c.balance)}
