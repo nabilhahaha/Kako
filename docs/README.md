@@ -31,6 +31,8 @@ to **coexist with an external ERP** (sync only selected modules). See
   partner / AI marketplace strategy (R5 review).
 - [`PILOT-READINESS.md`](PILOT-READINESS.md) — pilot customer readiness plan
   (R6 review).
+- [`PACK-ELECTRICAL.md`](PACK-ELECTRICAL.md) — Electrical Retail & Wholesale pack
+  design (multi-tier pricing / serials / warranty / RMA / supplier returns).
 
 ## Architecture
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — full system architecture.
