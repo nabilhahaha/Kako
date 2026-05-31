@@ -4,8 +4,8 @@ import {
 } from './registry';
 
 describe('connector framework — registry (Phase 2C-1)', () => {
-  it('ships the reference adapters + vendor adapters (Dynamics BC, SAP, Odoo)', () => {
-    expect(listConnectorAdapters().map((a) => a.key).sort()).toEqual(['csv_sftp', 'dynamics_bc', 'generic_rest', 'odoo', 'sap_s4']);
+  it('ships the reference adapters + vendor adapters (Dynamics BC, SAP, Odoo, NetSuite)', () => {
+    expect(listConnectorAdapters().map((a) => a.key).sort()).toEqual(['csv_sftp', 'dynamics_bc', 'generic_rest', 'netsuite', 'odoo', 'sap_s4']);
   });
   it('resolves known vs unknown adapters', () => {
     expect(isKnownAdapter('generic_rest')).toBe(true);
@@ -13,6 +13,7 @@ describe('connector framework — registry (Phase 2C-1)', () => {
     expect(isKnownAdapter('dynamics_bc')).toBe(true);
     expect(isKnownAdapter('sap_s4')).toBe(true);
     expect(isKnownAdapter('odoo')).toBe(true);
+    expect(isKnownAdapter('netsuite')).toBe(true);
     expect(isKnownAdapter('oracle')).toBe(false);
   });
   it('every adapter has ar/en labels, a kind, directions, and config fields', () => {
@@ -87,10 +88,23 @@ describe('connector framework — odoo validation (B5)', () => {
   });
 });
 
+describe('connector framework — netsuite validation (B4)', () => {
+  const a = getConnectorAdapter('netsuite')!;
+  it('requires account_id, consumer_key, token_id', () => {
+    expect(a.validateConfig({})).toBeTruthy();
+    expect(a.validateConfig({ account_id: '123_SB1', consumer_key: 'ck', token_id: 'tok' })).toBeNull();
+  });
+  it('exposes the single packed Vault secret (consumer_secret:token_secret)', () => {
+    expect(a.secretField?.key).toBe('secret');
+    expect(a.secretField?.secret).toBe(true);
+  });
+});
+
 describe('connector framework — validateConnection', () => {
   it('rejects unknown adapters and delegates to the adapter otherwise', () => {
     expect(validateConnection('nope', {})).toBe('Unknown adapter');
     expect(validateConnection('generic_rest', { base_url: 'https://x.io' })).toBeNull();
     expect(validateConnection('odoo', { base_url: 'https://acme.odoo.com', database: 'acme', username: 'admin' })).toBeNull();
+    expect(validateConnection('netsuite', { account_id: '123_SB1', consumer_key: 'ck', token_id: 'tok' })).toBeNull();
   });
 });
