@@ -56,7 +56,7 @@ export const PACK_ROLE_SUGGESTIONS: Record<string, string[]> = {
   clinic: ['System Admin', 'Clinic Manager', 'Receptionist', 'Doctor', 'Accountant'],
   pharmacy: ['System Admin', 'Pharmacist', 'Cashier', 'Storekeeper', 'Accountant'],
   distribution: ['System Admin', 'Sales Manager', 'Sales Supervisor', 'Salesman', 'Warehouse Keeper', 'Driver', 'Accountant'],
-  electrical: ['System Admin', 'Branch Manager', 'Cashier', 'Salesman', 'Warehouse Keeper', 'Accountant'],
+  electrical: ['System Administrator', 'General Manager', 'Branch Manager', 'Sales Manager', 'Sales Supervisor', 'Sales Representative', 'Projects Sales Representative', 'Purchasing Manager', 'Warehouse Keeper', 'Warehouse Supervisor', 'Accountant', 'Warranty Officer', 'RMA Officer', 'Driver / Delivery Representative'],
   retail: ['System Admin', 'Branch Manager', 'Cashier', 'Storekeeper'],
 };
 
