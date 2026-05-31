@@ -50,6 +50,29 @@ describe('connector framework — csv_sftp validation', () => {
   });
 });
 
+describe('connector framework — sap_s4 transport validation (B3a odata + B3b file)', () => {
+  const a = getConnectorAdapter('sap_s4')!;
+  it('defaults to OData when transport unset (B3a back-compat): requires base_url + auth', () => {
+    expect(a.validateConfig({})).toBeTruthy(); // missing base_url
+    expect(a.validateConfig({ base_url: 'https://h/sap/opu/odata/sap', auth_kind: 'basic', username: 'u' })).toBeNull();
+  });
+  it('OData OAuth2 needs token_url + client_id', () => {
+    expect(a.validateConfig({ transport: 'odata', base_url: 'https://h', auth_kind: 'oauth2' })).toBe('Token URL is required for OAuth2');
+    expect(a.validateConfig({ transport: 'odata', base_url: 'https://h', auth_kind: 'oauth2', token_url: 'https://t', client_id: 'c' })).toBeNull();
+  });
+  it('file transport requires host, username, remote_path (not base_url/auth)', () => {
+    expect(a.validateConfig({ transport: 'file' })).toBeTruthy();
+    expect(a.validateConfig({ transport: 'file', host: 'sftp.x', username: 'u', remote_path: '/out/customers.csv' })).toBeNull();
+  });
+  it('file transport rejects a bad format and non-numeric port', () => {
+    expect(a.validateConfig({ transport: 'file', host: 'h', username: 'u', remote_path: '/p', format: 'xml' })).toBe('Unsupported file format');
+    expect(a.validateConfig({ transport: 'file', host: 'h', username: 'u', remote_path: '/p', port: 'abc' })).toBe('Port must be a number');
+  });
+  it('rejects an unknown transport', () => {
+    expect(a.validateConfig({ transport: 'rfc' })).toBe('Transport must be odata or file');
+  });
+});
+
 describe('connector framework — validateConnection', () => {
   it('rejects unknown adapters and delegates to the adapter otherwise', () => {
     expect(validateConnection('nope', {})).toBe('Unknown adapter');

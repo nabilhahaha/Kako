@@ -6,6 +6,7 @@ import { pullGenericRest, pushGenericRest } from '@/lib/erp/connectors/runtime/g
 import { pullCsvSftp, pushCsvSftp, type SftpAuth, type FileFormat } from '@/lib/erp/connectors/runtime/csv-sftp-runtime';
 import { pullDynamicsBc, pushDynamicsBc, bcEntitySet, type BcConfig } from '@/lib/erp/connectors/runtime/dynamics-bc-runtime';
 import { pullSapS4, pushSapS4, sapEntityPath, type SapConfig } from '@/lib/erp/connectors/runtime/sap-s4-runtime';
+import { sapFileFieldMap } from '@/lib/erp/connectors/sap-presets';
 
 /** ── Sync dispatcher — POST/GET /api/internal/sync-tick ────────────────────
  *  Triggered by Vercel Cron (Authorization: Bearer $CRON_SECRET). Claims due
@@ -83,6 +84,10 @@ export async function POST(req: NextRequest) {
         scope: icfg.scope as string | undefined, username: icfg.username as string | undefined,
       });
       const sapPath = () => String((jcfg.entity_set as string) ?? sapEntityPath(j.entity) ?? '');
+      // B3b: SAP transport selector — 'file' (On-Prem/ECC via SFTP) vs 'odata'
+      // (B3a; default when unset). File transport reuses the B1 csv_sftp runtime
+      // with SAP IDoc field presets (job field_map still overrides).
+      const sapIsFile = adapter === 'sap_s4' && String(icfg.transport ?? 'odata') === 'file';
 
       if (j.direction === 'in') {
         let records: Record<string, unknown>[] = [];
@@ -108,6 +113,13 @@ export async function POST(req: NextRequest) {
             cursorField: (jcfg.cursor_field as string) || 'lastModifiedDateTime', fieldMap,
           });
           records = pull.records; cursorAfter = pull.cursorAfter;
+        } else if (sapIsFile) {
+          // SAP On-Prem/ECC file feed (SFTP) — full snapshot each run.
+          const pull = await pullCsvSftp({
+            auth: sftpAuth(), remotePath: sftpPath, format: sftpFormat,
+            fieldMap: fieldMap ?? sapFileFieldMap(j.entity, 'in'),
+          });
+          records = pull.records; cursorAfter = null;
         } else {
           const path = sapPath();
           if (!path) throw new Error(`no SAP entity path for "${j.entity}"`);
@@ -159,6 +171,13 @@ export async function POST(req: NextRequest) {
           const push = await pushDynamicsBc({ cfg: bcCfg(), entitySet, clientSecret: j.secret ?? '', records: recs, fieldMap });
           sent = push.sent; failedCount = push.failed;
           for (const r of recs) { const u = r.updated_at as string | undefined; if (u && (cursorAfter == null || u > cursorAfter)) cursorAfter = u; }
+        } else if (sapIsFile) {
+          // SAP On-Prem/ECC outbound file (SFTP) — whole-file write (ORDERS/INVOIC).
+          const push = await pushCsvSftp({
+            auth: sftpAuth(), remotePath: sftpPath, format: sftpFormat, records: recs,
+            fieldMap: fieldMap ?? sapFileFieldMap(j.entity, 'out'),
+          });
+          sent = push.sent; cursorAfter = null;
         } else {
           const path = sapPath();
           if (!path) throw new Error(`no SAP entity path for "${j.entity}"`);
