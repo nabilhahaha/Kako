@@ -71,7 +71,14 @@ One schedulable unit on a connection:
 - ✅ **Dynamics 365 Business Central** (`dynamics_bc`, B2) — Azure AD OAuth2
   client-credentials + OData v4 pull/push; entities customer/supplier/product
   (in) + order/invoice (out); delta via `lastModifiedDateTime`. SaaS only.
-- 🔜 **Vendor adapters:** SAP S/4HANA → Oracle NetSuite → Odoo (see roadmap).
+- ✅ **SAP S/4HANA Cloud** (`sap_s4`, B3a) — OData (v2 default / v4) via the
+  shared OData helper; auth OAuth2 (BTP) or Basic (communication user); presets
+  Business Partner→customer/supplier, Material→product (in), sales order/billing
+  doc (out). On-prem/ECC file transport = B3b (reuses `csv_sftp`).
+- 🔜 **Vendor adapters:** SAP on-prem/ECC (B3b) → Oracle NetSuite → Odoo.
+
+> OData adapters (BC + SAP) share `connectors/runtime/odata.ts` (version-aware
+> pull/push, pluggable auth headers) — extracted in B3a.
 
 Both transports support **inbound (pull)** and **outbound (push)** per the
 two-way external-compatibility requirement (`INTEGRATION.md` §4b).

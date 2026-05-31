@@ -5,6 +5,7 @@ import { ingestRecord, type IngestMode } from '@/lib/erp/integration-ingest';
 import { pullGenericRest, pushGenericRest } from '@/lib/erp/connectors/runtime/generic-rest-runtime';
 import { pullCsvSftp, pushCsvSftp, type SftpAuth, type FileFormat } from '@/lib/erp/connectors/runtime/csv-sftp-runtime';
 import { pullDynamicsBc, pushDynamicsBc, bcEntitySet, type BcConfig } from '@/lib/erp/connectors/runtime/dynamics-bc-runtime';
+import { pullSapS4, pushSapS4, sapEntityPath, type SapConfig } from '@/lib/erp/connectors/runtime/sap-s4-runtime';
 
 /** ── Sync dispatcher — POST/GET /api/internal/sync-tick ────────────────────
  *  Triggered by Vercel Cron (Authorization: Bearer $CRON_SECRET). Claims due
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
   for (const j of jobs) {
     try {
       const adapter = j.adapter;
-      if (adapter !== 'generic_rest' && adapter !== 'csv_sftp' && adapter !== 'dynamics_bc') {
+      if (adapter !== 'generic_rest' && adapter !== 'csv_sftp' && adapter !== 'dynamics_bc' && adapter !== 'sap_s4') {
         await db.rpc('erp_sync_complete', { p_run_id: j.run_id, p_status: 'failed', p_pulled: 0, p_written: 0, p_skipped: 0, p_failed: 0, p_cursor_after: null, p_error: `adapter ${adapter} not supported yet` });
         results.push({ job: j.job_id, status: 'failed', error: 'adapter not supported' });
         continue;
@@ -74,6 +75,14 @@ export async function POST(req: NextRequest) {
         apiVersion: (icfg.api_version as string) || undefined,
       });
       const bcEntity = () => String((jcfg.entity_set as string) ?? bcEntitySet(j.entity) ?? '');
+      const sapCfg = (): SapConfig => ({
+        baseUrl: String(icfg.base_url ?? ''),
+        auth: String(icfg.auth_kind ?? 'basic') === 'oauth2' ? 'oauth2' : 'basic',
+        odataVersion: icfg.odata_version === 'v4' ? 'v4' : 'v2',
+        tokenUrl: icfg.token_url as string | undefined, clientId: icfg.client_id as string | undefined,
+        scope: icfg.scope as string | undefined, username: icfg.username as string | undefined,
+      });
+      const sapPath = () => String((jcfg.entity_set as string) ?? sapEntityPath(j.entity) ?? '');
 
       if (j.direction === 'in') {
         let records: Record<string, unknown>[] = [];
@@ -90,13 +99,22 @@ export async function POST(req: NextRequest) {
         } else if (adapter === 'csv_sftp') {
           const pull = await pullCsvSftp({ auth: sftpAuth(), remotePath: sftpPath, format: sftpFormat, fieldMap });
           records = pull.records; cursorAfter = null; // file feeds: full each run
-        } else {
+        } else if (adapter === 'dynamics_bc') {
           const entitySet = bcEntity();
           if (!entitySet) throw new Error(`no Business Central entity set for "${j.entity}"`);
           const pull = await pullDynamicsBc({
             cfg: bcCfg(), entitySet, clientSecret: j.secret ?? '',
             cursor: j.mode === 'delta' ? j.job_cursor : null,
             cursorField: (jcfg.cursor_field as string) || 'lastModifiedDateTime', fieldMap,
+          });
+          records = pull.records; cursorAfter = pull.cursorAfter;
+        } else {
+          const path = sapPath();
+          if (!path) throw new Error(`no SAP entity path for "${j.entity}"`);
+          const pull = await pullSapS4({
+            cfg: sapCfg(), path, secret: j.secret ?? '',
+            cursor: j.mode === 'delta' ? j.job_cursor : null,
+            cursorField: (jcfg.cursor_field as string) || undefined, fieldMap,
           });
           records = pull.records; cursorAfter = pull.cursorAfter;
         }
@@ -135,10 +153,16 @@ export async function POST(req: NextRequest) {
         } else if (adapter === 'csv_sftp') {
           const push = await pushCsvSftp({ auth: sftpAuth(), remotePath: sftpPath, format: sftpFormat, records: recs, fieldMap });
           sent = push.sent; cursorAfter = null; // whole-file write
-        } else {
+        } else if (adapter === 'dynamics_bc') {
           const entitySet = bcEntity();
           if (!entitySet) throw new Error(`no Business Central entity set for "${j.entity}"`);
           const push = await pushDynamicsBc({ cfg: bcCfg(), entitySet, clientSecret: j.secret ?? '', records: recs, fieldMap });
+          sent = push.sent; failedCount = push.failed;
+          for (const r of recs) { const u = r.updated_at as string | undefined; if (u && (cursorAfter == null || u > cursorAfter)) cursorAfter = u; }
+        } else {
+          const path = sapPath();
+          if (!path) throw new Error(`no SAP entity path for "${j.entity}"`);
+          const push = await pushSapS4({ cfg: sapCfg(), path, secret: j.secret ?? '', records: recs, fieldMap });
           sent = push.sent; failedCount = push.failed;
           for (const r of recs) { const u = r.updated_at as string | undefined; if (u && (cursorAfter == null || u > cursorAfter)) cursorAfter = u; }
         }

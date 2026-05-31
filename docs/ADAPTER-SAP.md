@@ -11,6 +11,13 @@ engagements frequently route through **customer middleware** (SAP Integration
 Suite/CPI, PI/PO) and/or **files**. The design treats SAP as **one `sap_s4`
 adapter with selectable transport** (OData vs file) rather than a single path.
 
+> **Status: B3a (S/4HANA Cloud, OData) ✅ built** — `sap_s4` descriptor + OData
+> runtime (OAuth2/Basic) on the shared `odata.ts` helper + dispatcher wiring +
+> unit tests; no migration. **B3b** (on-prem/ECC file via `csv_sftp` + middleware)
+> remains 🔜. Live validation pending a SAP sandbox/customer system (mock-tested
+> until then). The OData `$filter` datetime-literal format for SAP v2 is a
+> per-deployment refinement to confirm during live validation.
+
 ---
 
 ## 1. Footprint
