@@ -74,9 +74,11 @@ create policy erp_integration_logs_read on erp_integration_logs for select using
 
 -- Create a key for the caller's company. Returns the plaintext ONCE. The app
 -- additionally gates the UI/action on the integrations.manage permission.
+-- search_path includes 'extensions' because digest()/gen_random_bytes() (pgcrypto)
+-- live there on Supabase; still pinned (no mutable-search_path lint).
 create or replace function erp_api_key_create(p_name text, p_scopes text[])
 returns jsonb language plpgsql security definer
-set search_path to 'public','pg_temp' as $$
+set search_path to 'public','extensions','pg_temp' as $$
 declare
   v_company uuid := (select erp_user_company_id());
   v_secret  text;
