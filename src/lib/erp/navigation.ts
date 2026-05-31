@@ -147,7 +147,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'nav.sections.main',
     items: [
       { label: 'nav.items.dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck },
+      { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck, module: 'workflow' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
     ],
   },
@@ -229,7 +229,11 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'nav.sections.sales',
-    module: 'sales',
+    // Any-of: the section shows if the company has Sales OR a capability whose
+    // item lives here (CRM→Customers, Analytics→report, Field Ops→rep). Every
+    // business type seeds `sales`, so this is identical to the old `sales` gate
+    // in practice (no regression); each item's own module gate then refines.
+    module: ['sales', 'crm', 'analytics', 'field_ops', 'distribution'],
     items: [
       { label: 'nav.items.quickSale', href: '/sales/pos', icon: Zap, perm: 'sales.sell', module: 'pos' },
       { label: 'nav.items.repApp', href: '/rep', icon: Smartphone, perm: 'field.sales', module: ['field_ops', 'distribution'] },
@@ -238,8 +242,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.invoices', href: '/sales/invoices', icon: FileText, perm: ['sales.sell', 'sales.collect'] },
       { label: 'nav.items.journey', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales', module: ['field_ops', 'distribution'] },
       { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
-      { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view' },
-      { label: 'nav.items.customers', href: '/customers', icon: Users, perm: 'customers.manage' },
+      { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view', module: ['analytics', 'sales'] },
+      { label: 'nav.items.customers', href: '/customers', icon: Users, perm: 'customers.manage', module: ['crm', 'sales'] },
     ],
   },
   {
@@ -298,7 +302,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage' },
       { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage' },
       { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields' },
-      { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage' },
+      { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow' },
       { label: 'nav.items.designSystem', href: '/design', icon: Palette, superAdminOnly: true },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true },
       { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs' },

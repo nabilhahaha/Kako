@@ -1,7 +1,16 @@
-# VANTORA — Capability-Seed Slice — Design Review
+# VANTORA — Capability-Seed Slice
 
-> Build-track slice **Capability-Seed** — **design for approval, no
-> implementation yet.** The final tracked item from the R4B / UI-Alignment work:
+> **Status: ✅ built (migration 0098 NOT yet applied to production; rolled-back
+> live verification passed — all 20 business types now seed crm/workflow/
+> analytics, 11 previously-unseeded types covered, general_fieldops=1 /
+> clinic_fieldops=0, integrations not auto-seeded, 0 existing caps disabled, 0
+> residue after rollback).** Decisions 1–6 confirmed. Shipped: migration 0098
+> (universal crm/workflow/analytics seed + field_ops for field-relevant types +
+> consistency backfill) and the nav binding (Customers→crm, Approvals/Workflows→
+> workflow, Reports→analytics; any-of with the legacy `sales` gate so nothing
+> regresses). **One PR.** Completes the final R4B / UI-Alignment tracked item.
+>
+> The final tracked item from the R4B / UI-Alignment work:
 > close the **new-company** seeding gap so CRM / Workflow / Analytics /
 > Integrations can be **navigation-gated universally** without regressing newly
 > created tenants. Additive + idempotent; rollback-verified; **no deletions;

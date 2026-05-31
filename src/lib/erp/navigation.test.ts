@@ -79,3 +79,45 @@ describe('navigation — field_ops capability binding (any-of, no regression)', 
     expect(v.some((s) => s.module === 'clinic')).toBe(true);
   });
 });
+
+describe('navigation — capability binding (CRM / Workflow / Analytics)', () => {
+  const hrefs = (secs: ReturnType<typeof visibleSections>) =>
+    secs.flatMap((s) => s.items.map((i) => i.href));
+
+  it('Customers shows when crm OR sales is enabled (any-of; no legacy regression)', () => {
+    expect(hrefs(visibleSections(['customers.manage'], false, false, ['crm']))).toContain('/customers');
+    expect(hrefs(visibleSections(['customers.manage'], false, false, ['sales']))).toContain('/customers');
+    expect(hrefs(visibleSections(['customers.manage'], false, false, ['inventory']))).not.toContain('/customers');
+  });
+
+  it('Approvals is gated by the workflow module', () => {
+    expect(hrefs(visibleSections([], false, false, ['workflow']))).toContain('/approvals');
+    expect(hrefs(visibleSections([], false, false, ['sales']))).not.toContain('/approvals');
+  });
+
+  it('Settings → Workflows needs the workflow module AND workflow.manage', () => {
+    expect(hrefs(visibleSections(['workflow.manage'], false, false, ['workflow']))).toContain('/settings/workflows');
+    expect(hrefs(visibleSections(['workflow.manage'], false, false, ['sales']))).not.toContain('/settings/workflows');
+    expect(hrefs(visibleSections([], false, false, ['workflow']))).not.toContain('/settings/workflows');
+  });
+
+  it('Sales report shows when analytics OR sales is enabled (any-of)', () => {
+    expect(hrefs(visibleSections(['reports.view'], false, false, ['analytics']))).toContain('/sales/report');
+    expect(hrefs(visibleSections(['reports.view'], false, false, ['sales']))).toContain('/sales/report');
+  });
+
+  it('no-regression: an existing tenant (0095 backfill = crm+workflow+analytics+sales) sees all three', () => {
+    const v = visibleSections(['customers.manage', 'workflow.manage', 'reports.view'], false, false, ['crm', 'workflow', 'analytics', 'sales']);
+    const h = hrefs(v);
+    expect(h).toContain('/customers');
+    expect(h).toContain('/approvals');
+    expect(h).toContain('/settings/workflows');
+    expect(h).toContain('/sales/report');
+  });
+
+  it('legacy/unrestricted (empty modules) still shows capability items', () => {
+    const v = visibleSections(['customers.manage', 'workflow.manage'], false, false, []);
+    expect(hrefs(v)).toContain('/customers');
+    expect(hrefs(v)).toContain('/approvals');
+  });
+});
