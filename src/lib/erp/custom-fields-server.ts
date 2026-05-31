@@ -26,18 +26,24 @@ function toDef(r: Row): CustomFieldDef {
   };
 }
 
-/** Active custom fields for an entity (for import/export/forms). */
+/** Active custom fields for an entity (for import/export/forms).
+ *
+ *  Pass `companyId` when calling with a service-role client (no RLS) — e.g. the
+ *  inbound integration API — so definitions stay scoped to one tenant. The
+ *  RLS-backed callers (import/export/forms with a user session) omit it. */
 export async function getActiveCustomFields(
   entityKey: string,
   client?: SupabaseClient,
+  companyId?: string,
 ): Promise<CustomFieldDef[]> {
   const supabase = client ?? (await createClient());
-  const { data } = await supabase
+  let query = supabase
     .from('erp_custom_fields')
     .select(SELECT)
     .eq('entity', entityKey)
-    .eq('is_active', true)
-    .order('sort', { ascending: true });
+    .eq('is_active', true);
+  if (companyId) query = query.eq('company_id', companyId);
+  const { data } = await query.order('sort', { ascending: true });
   return ((data as Row[]) ?? []).map(toDef);
 }
 
