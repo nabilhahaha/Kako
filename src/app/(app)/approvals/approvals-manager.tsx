@@ -14,6 +14,7 @@ import { decideTask } from './actions';
 
 export interface TaskRow {
   id: string; entity: string; recordId: string; recordLabel: string; stepNo: number; createdAt: string;
+  overdue?: boolean; escalated?: boolean;
 }
 
 export function ApprovalsManager({ tasks }: { tasks: TaskRow[] }) {
@@ -53,9 +54,11 @@ export function ApprovalsManager({ tasks }: { tasks: TaskRow[] }) {
         {tasks.map((task) => (
           <div key={task.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{entityLabel(task.entity)}</Badge>
                 <span className="font-medium">{task.recordLabel}</span>
+                {task.escalated && <Badge variant="destructive">{t('workflow.escalated')}</Badge>}
+                {task.overdue && !task.escalated && <Badge variant="warning">{t('workflow.overdue')}</Badge>}
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
                 {t('workflow.step', { n: task.stepNo })} · {formatDate(task.createdAt, INTL_LOCALE[locale])}

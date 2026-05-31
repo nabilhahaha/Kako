@@ -7,6 +7,8 @@ export const ar = {
     step: 'الخطوة {n}',
     approve: 'اعتماد',
     reject: 'رفض',
+    overdue: 'متأخرة',
+    escalated: 'مُصعّدة',
     requestApproval: 'إرسال للاعتماد',
     commentPlaceholder: 'تعليق (اختياري)',
     entity: {
@@ -34,6 +36,8 @@ export const en = {
     step: 'Step {n}',
     approve: 'Approve',
     reject: 'Reject',
+    overdue: 'Overdue',
+    escalated: 'Escalated',
     requestApproval: 'Submit for approval',
     commentPlaceholder: 'Comment (optional)',
     entity: {
