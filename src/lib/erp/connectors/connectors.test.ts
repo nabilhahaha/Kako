@@ -4,12 +4,13 @@ import {
 } from './registry';
 
 describe('connector framework — registry (Phase 2C-1)', () => {
-  it('ships the two reference adapters', () => {
-    expect(listConnectorAdapters().map((a) => a.key).sort()).toEqual(['csv_sftp', 'generic_rest']);
+  it('ships the reference adapters + the first vendor adapter (Dynamics BC)', () => {
+    expect(listConnectorAdapters().map((a) => a.key).sort()).toEqual(['csv_sftp', 'dynamics_bc', 'generic_rest']);
   });
   it('resolves known vs unknown adapters', () => {
     expect(isKnownAdapter('generic_rest')).toBe(true);
     expect(isKnownAdapter('csv_sftp')).toBe(true);
+    expect(isKnownAdapter('dynamics_bc')).toBe(true);
     expect(isKnownAdapter('sap')).toBe(false);
   });
   it('every adapter has ar/en labels, a kind, directions, and config fields', () => {

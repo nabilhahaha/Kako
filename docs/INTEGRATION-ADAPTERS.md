@@ -191,9 +191,11 @@ Azure AD OAuth2).
   external) + file **pull/push** on the `csv_sftp` adapter, wired into the sync
   dispatcher; CSV + JSON; unit-tested. Pending production apply note: none (no
   migration; needs `SUPABASE_SERVICE_ROLE_KEY` + `CRON_SECRET` at runtime).
-- **2C-4 — Dynamics 365 Business Central (OData v4)** — first vendor adapter:
-  adds the **OAuth2 client-credentials** token helper + OData `$filter modifiedon
-  gt` delta; descriptor + runtime + entity mapping presets.
+- **2C-4 — Dynamics 365 Business Central (OData v4)** — ✅ **built (B2)**: reusable
+  OAuth2 client-credentials helper + OData v4 pull/push (delta via
+  `lastModifiedDateTime`), `dynamics_bc` descriptor + runtime + dispatcher
+  wiring + presets + unit tests. SaaS only; live validation pending a pilot
+  sandbox.
 - **2C-5 — SAP S/4HANA** — OData v2/v4; on-prem/ECC handled via the file (SFTP)
   path + middleware, scoped to the customer's landscape.
 - **2C-6 — Oracle NetSuite** — adds the **TBA (OAuth1-HMAC) signing** layer.

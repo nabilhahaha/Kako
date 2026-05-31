@@ -68,8 +68,10 @@ One schedulable unit on a connection:
 - ✅ **CSV/JSON over SFTP** (`csv_sftp`) pull + push (sub-slice **2C-3 / B1**;
   `ssh2-sftp-client`, marked a server-external package). File feeds read/write
   whole files (no modified-since cursor → use `mode = full`).
-- 🔜 **Vendor adapters:** Dynamics 365 BC → SAP S/4HANA → Oracle NetSuite → Odoo
-  (see roadmap).
+- ✅ **Dynamics 365 Business Central** (`dynamics_bc`, B2) — Azure AD OAuth2
+  client-credentials + OData v4 pull/push; entities customer/supplier/product
+  (in) + order/invoice (out); delta via `lastModifiedDateTime`. SaaS only.
+- 🔜 **Vendor adapters:** SAP S/4HANA → Oracle NetSuite → Odoo (see roadmap).
 
 Both transports support **inbound (pull)** and **outbound (push)** per the
 two-way external-compatibility requirement (`INTEGRATION.md` §4b).

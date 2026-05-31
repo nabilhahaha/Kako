@@ -127,5 +127,9 @@ archive, or deletion — ever, unless separately and explicitly authorized:
 as its **own separate, reviewable PR** (tests added or component split or the
 single unused-file removal) — never bundled, never silent.
 
+**Deferred:** cleanup/removal execution is **deferred until after B2 (Dynamics
+365 BC) is completed and reviewed.** Recommendations remain tracked here; none
+are executed during the adapter build track without explicit go-ahead.
+
 > Awaiting your decision on which items (if any) to execute. Removal/refactor
 > happens only after you approve, as separate reviewable PRs.

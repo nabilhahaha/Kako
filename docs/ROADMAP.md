@@ -91,7 +91,7 @@ at a time) and **build sub-slices** (each design→build→verify→PR→prod-ap
 | R6 | **Pilot Customer Readiness Plan** | Review | B1–B2, R2, R4 | High | Med | 6 | ✅ approved |
 | R7 | **AI Module Marketplace** (future) | Review→Build | R5, metering | Med | High | later | 🔜 tracked |
 | B1 | **2C-3 CSV/SFTP Transport** | Build | 2C-2 (✅) | High | Low–Med | 1 | ✅ merged |
-| B2 | **Dynamics 365 Business Central adapter** | Build | 2C-1/2C-2, B1 | High | Med (OAuth2 + OData v4) | 2 | 🟡 design in review |
+| B2 | **Dynamics 365 Business Central adapter** | Build | 2C-1/2C-2, B1 | High | Med (OAuth2 + OData v4) | 2 | 🟡 built; in review |
 | B3 | **SAP S/4HANA adapter** | Build | B1 (file path), framework | High | High (variants, OData, IDoc/middleware) | 3 | 🔜 |
 | B4 | **Oracle NetSuite adapter** | Build | framework | Med | Med–High (TBA OAuth1-HMAC) | 4 | 🔜 |
 | B5 | **Odoo adapter** | Build | framework | Med | Med (JSON-RPC) | 5 | 🔜 |

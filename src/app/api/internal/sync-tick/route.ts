@@ -4,6 +4,7 @@ import { getEntity } from '@/lib/erp/entities';
 import { ingestRecord, type IngestMode } from '@/lib/erp/integration-ingest';
 import { pullGenericRest, pushGenericRest } from '@/lib/erp/connectors/runtime/generic-rest-runtime';
 import { pullCsvSftp, pushCsvSftp, type SftpAuth, type FileFormat } from '@/lib/erp/connectors/runtime/csv-sftp-runtime';
+import { pullDynamicsBc, pushDynamicsBc, bcEntitySet, type BcConfig } from '@/lib/erp/connectors/runtime/dynamics-bc-runtime';
 
 /** ── Sync dispatcher — POST/GET /api/internal/sync-tick ────────────────────
  *  Triggered by Vercel Cron (Authorization: Bearer $CRON_SECRET). Claims due
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
   for (const j of jobs) {
     try {
       const adapter = j.adapter;
-      if (adapter !== 'generic_rest' && adapter !== 'csv_sftp') {
+      if (adapter !== 'generic_rest' && adapter !== 'csv_sftp' && adapter !== 'dynamics_bc') {
         await db.rpc('erp_sync_complete', { p_run_id: j.run_id, p_status: 'failed', p_pulled: 0, p_written: 0, p_skipped: 0, p_failed: 0, p_cursor_after: null, p_error: `adapter ${adapter} not supported yet` });
         results.push({ job: j.job_id, status: 'failed', error: 'adapter not supported' });
         continue;
@@ -67,6 +68,12 @@ export async function POST(req: NextRequest) {
       });
       const sftpPath = String((jcfg.path as string) ?? (icfg.remote_path as string) ?? '');
       const sftpFormat = (String((jcfg.format as string) ?? (icfg.format as string) ?? 'csv') === 'json' ? 'json' : 'csv') as FileFormat;
+      const bcCfg = (): BcConfig => ({
+        tenantId: String(icfg.tenant_id ?? ''), clientId: String(icfg.client_id ?? ''),
+        environment: String(icfg.environment ?? ''), companyId: String(icfg.company_id ?? ''),
+        apiVersion: (icfg.api_version as string) || undefined,
+      });
+      const bcEntity = () => String((jcfg.entity_set as string) ?? bcEntitySet(j.entity) ?? '');
 
       if (j.direction === 'in') {
         let records: Record<string, unknown>[] = [];
@@ -80,9 +87,18 @@ export async function POST(req: NextRequest) {
             cursorField: jcfg.cursor_field as string | undefined, fieldMap,
           });
           records = pull.records; cursorAfter = pull.cursorAfter;
-        } else {
+        } else if (adapter === 'csv_sftp') {
           const pull = await pullCsvSftp({ auth: sftpAuth(), remotePath: sftpPath, format: sftpFormat, fieldMap });
           records = pull.records; cursorAfter = null; // file feeds: full each run
+        } else {
+          const entitySet = bcEntity();
+          if (!entitySet) throw new Error(`no Business Central entity set for "${j.entity}"`);
+          const pull = await pullDynamicsBc({
+            cfg: bcCfg(), entitySet, clientSecret: j.secret ?? '',
+            cursor: j.mode === 'delta' ? j.job_cursor : null,
+            cursorField: (jcfg.cursor_field as string) || 'lastModifiedDateTime', fieldMap,
+          });
+          records = pull.records; cursorAfter = pull.cursorAfter;
         }
         const mode = ingestModeFor(j.conflict_policy);
         let written = 0, skipped = 0, failed = 0;
@@ -116,9 +132,15 @@ export async function POST(req: NextRequest) {
           });
           sent = push.sent; failedCount = push.failed;
           for (const r of recs) { const u = r.updated_at as string | undefined; if (u && (cursorAfter == null || u > cursorAfter)) cursorAfter = u; }
-        } else {
+        } else if (adapter === 'csv_sftp') {
           const push = await pushCsvSftp({ auth: sftpAuth(), remotePath: sftpPath, format: sftpFormat, records: recs, fieldMap });
           sent = push.sent; cursorAfter = null; // whole-file write
+        } else {
+          const entitySet = bcEntity();
+          if (!entitySet) throw new Error(`no Business Central entity set for "${j.entity}"`);
+          const push = await pushDynamicsBc({ cfg: bcCfg(), entitySet, clientSecret: j.secret ?? '', records: recs, fieldMap });
+          sent = push.sent; failedCount = push.failed;
+          for (const r of recs) { const u = r.updated_at as string | undefined; if (u && (cursorAfter == null || u > cursorAfter)) cursorAfter = u; }
         }
         const status = failedCount > 0 ? (sent > 0 ? 'partial' : 'failed') : 'ok';
         await db.rpc('erp_sync_complete', { p_run_id: j.run_id, p_status: status, p_pulled: recs.length, p_written: sent, p_skipped: 0, p_failed: failedCount, p_cursor_after: cursorAfter, p_error: null });

@@ -5,6 +5,11 @@
 > (2C-2) + CSV/SFTP precedent (B1). Preserves: **pull + push**, **module-level**
 > and **entity-level ownership**, **partial adoption**, **ERP coexistence**, and
 > **Clinic / Pharmacy / Distribution / Electrical-Retail** compatibility.
+>
+> **Status: ✅ built (B2)** — `dynamics_bc` adapter + OAuth2 helper + OData
+> runtime + dispatcher wiring + unit tests. No migration. Live validation against
+> a real BC sandbox tenant is pending a pilot (unit-tested with mock fetch until
+> then).
 
 ---
 
