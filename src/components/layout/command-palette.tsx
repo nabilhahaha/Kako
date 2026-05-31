@@ -16,11 +16,15 @@ export function CommandPalette({
   isSuperAdmin,
   isPlatformOwner = false,
   modules = [],
+  platformPermissions = [],
+  isPlatformStaff = false,
 }: {
   permissions: Permission[];
   isSuperAdmin: boolean;
   isPlatformOwner?: boolean;
   modules?: Module[];
+  platformPermissions?: string[];
+  isPlatformStaff?: boolean;
 }) {
   const router = useRouter();
   const { t } = useI18n();
@@ -31,10 +35,10 @@ export function CommandPalette({
 
   const items = useMemo(
     () =>
-      visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules).flatMap((s) =>
+      visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules, platformPermissions, isPlatformStaff).flatMap((s) =>
         s.items.map((i) => ({ label: t(i.label), href: i.href, icon: i.icon, section: t(s.title) })),
       ),
-    [permissions, isSuperAdmin, isPlatformOwner, modules, t],
+    [permissions, isSuperAdmin, isPlatformOwner, modules, platformPermissions, isPlatformStaff, t],
   );
 
   const filtered = useMemo(() => {

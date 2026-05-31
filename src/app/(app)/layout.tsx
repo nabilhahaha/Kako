@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { getPlatformContext } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/topbar';
@@ -22,9 +23,16 @@ export default async function AppLayout({
 
   const { t } = await getT();
 
+  // Vendor-side internal employees (platform staff) belong to no tenant company;
+  // they run the platform, not a company, so they skip the tenant onboarding /
+  // setup / subscription gates below.
+  const pctx = await getPlatformContext();
+  const isPlatformStaff = Boolean(pctx?.isStaff);
+  const platformPermissions: string[] = pctx?.permissions ?? [];
+
   // A signed-in user who isn't platform staff and has no company yet is sent to
   // self-service onboarding to create their company (free trial).
-  if (!ctx.isPlatformOwner && !ctx.isSuperAdmin && ctx.memberships.length === 0) {
+  if (!ctx.isPlatformOwner && !ctx.isSuperAdmin && !isPlatformStaff && ctx.memberships.length === 0) {
     redirect('/onboarding');
   }
 
@@ -118,12 +126,16 @@ export default async function AppLayout({
           isSuperAdmin={ctx.isSuperAdmin}
           isPlatformOwner={ctx.isPlatformOwner}
           modules={ctx.modules}
+          platformPermissions={platformPermissions}
+          isPlatformStaff={isPlatformStaff}
         />
         <Sidebar
           permissions={ctx.permissions}
           isSuperAdmin={ctx.isSuperAdmin}
           isPlatformOwner={ctx.isPlatformOwner}
           modules={ctx.modules}
+          platformPermissions={platformPermissions}
+          isPlatformStaff={isPlatformStaff}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
