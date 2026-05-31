@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -15,6 +15,12 @@ import {
   RotateCcw,
   ArrowRight,
   ArrowLeft,
+  Bookmark,
+  Star,
+  Copy,
+  Share2,
+  Trash2,
+  Save,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +32,29 @@ import { INTL_LOCALE } from '@/lib/i18n/config';
 import { formatDate, cn } from '@/lib/utils';
 import { parseFile } from '@/lib/erp/import-parse';
 import { validateImport, runImport, type RowIssue } from './actions';
+import { parseXlsx } from './parse-actions';
+import {
+  listMappingTemplates,
+  saveMappingTemplate,
+  cloneMappingTemplate,
+  shareMappingTemplate,
+  setDefaultMappingTemplate,
+  deleteMappingTemplate,
+  type MappingTemplate,
+} from './templates-actions';
 import type { ImportMode } from '@/lib/erp/entities';
+
+/** Base64-encode a File's bytes (chunked, to avoid call-stack limits) for the
+ *  server-side .xlsx parser. */
+async function fileToBase64(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let bin = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
 
 /** ── Generic, registry-driven Import Engine wizard ─────────────────────────
  *  Drives a CSV/JSON import for ANY importable entity. Nothing is entity-
@@ -99,6 +127,13 @@ export function ImportWizard({
   const [rows, setRows] = useState<Row[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
 
+  // ── Mapping templates (Save / Clone / Share / Default) ──
+  const [templates, setTemplates] = useState<MappingTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [newTemplateName, setNewTemplateName] = useState<string>('');
+  const [shareNew, setShareNew] = useState<boolean>(false);
+  const [savingTpl, setSavingTpl] = useState<boolean>(false);
+
   const [mode, setMode] = useState<ImportMode>('insert');
   const [validating, setValidating] = useState(false);
   const [validation, setValidation] = useState<{
@@ -128,6 +163,36 @@ export function ImportWizard({
     [importableEntities],
   );
 
+  const selectedTemplate = useMemo(
+    () => templates.find((tp) => tp.id === selectedTemplateId) ?? null,
+    [templates, selectedTemplateId],
+  );
+  const defaultTemplate = useMemo(() => templates.find((tp) => tp.isDefault) ?? null, [templates]);
+
+  /** Load saved mapping templates for an entity. */
+  async function loadTemplates(key: string) {
+    if (!key) { setTemplates([]); return; }
+    const res = await listMappingTemplates(key);
+    if (res.ok && res.data) setTemplates(res.data);
+  }
+  // Reload templates whenever the selected entity changes.
+  useEffect(() => { loadTemplates(entityKey); }, [entityKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Apply a saved field→column mapping against a concrete header set (only
+   *  columns that still exist in the file are mapped; others fall back to ignore). */
+  function applyTemplateMapping(tplMapping: Record<string, string>, hdrs: string[]) {
+    if (!entity) return;
+    const have = new Set(hdrs);
+    setMapping((prev) => {
+      const next = { ...prev };
+      for (const f of entity.fields) {
+        const col = tplMapping[f.key];
+        if (col && col !== IGNORE && have.has(col)) next[f.key] = col;
+      }
+      return next;
+    });
+  }
+
   /** Build the mapped rows (fieldKey → value) from the source rows + mapping. */
   const mappedRows = useMemo<Row[]>(() => {
     if (!entity) return [];
@@ -152,20 +217,34 @@ export function ImportWizard({
     setMapping({});
     setValidation(null);
     setResult(null);
+    setSelectedTemplateId('');
   }
 
   async function onFile(file: File | null) {
     if (!file) return;
     try {
-      const text = await file.text();
-      const parsed = parseFile(file.name, text);
+      const lower = file.name.toLowerCase();
+      let parsed: { headers: string[]; rows: Row[] };
+      if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+        // Real Excel: parse server-side (binary zip/deflate needs Node).
+        const res = await parseXlsx(await fileToBase64(file));
+        if (!res.ok || !res.data) {
+          toast.error(res.error ?? t('import.toast.parseError'));
+          return;
+        }
+        parsed = res.data;
+      } else {
+        const text = await file.text();
+        parsed = parseFile(file.name, text);
+      }
       setFileName(file.name);
       setHeaders(parsed.headers);
       setRows(parsed.rows);
       setValidation(null);
       setResult(null);
-      // auto-guess mapping
+      // auto-guess mapping, then let a default template override where it applies
       autoMap(parsed.headers);
+      if (defaultTemplate) applyTemplateMapping(defaultTemplate.mapping, parsed.headers);
       toast.success(t('import.toast.parsed', { count: parsed.rows.length }));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('import.toast.parseError'));
@@ -253,6 +332,62 @@ export function ImportWizard({
       i.message,
     ]);
     downloadCsv(`${entity.key}-import-report.csv`, [header, ...issueRows]);
+  }
+
+  // ── template handlers ──
+  function applySelectedTemplate() {
+    if (!selectedTemplate) return;
+    if (headers.length === 0) return toast.error(t('import.toast.uploadFirst'));
+    applyTemplateMapping(selectedTemplate.mapping, headers);
+    toast.success(t('import.templates.applied'));
+  }
+  async function saveTemplate() {
+    if (!entity) return;
+    const name = newTemplateName.trim();
+    if (!name) return toast.error(t('import.templates.nameRequired'));
+    setSavingTpl(true);
+    try {
+      const res = await saveMappingTemplate(entity.key, name, mapping, shareNew);
+      if (!res.ok || !res.data) return toast.error(res.error ?? t('import.templates.saveError'));
+      setNewTemplateName('');
+      setShareNew(false);
+      await loadTemplates(entity.key);
+      setSelectedTemplateId(res.data.id);
+      toast.success(t('import.templates.saved'));
+    } finally {
+      setSavingTpl(false);
+    }
+  }
+  async function cloneSelected() {
+    if (!entity || !selectedTemplate) return;
+    const res = await cloneMappingTemplate(selectedTemplate.id, `${selectedTemplate.name} (${t('import.templates.copy')})`);
+    if (!res.ok || !res.data) return toast.error(res.error ?? t('import.templates.saveError'));
+    await loadTemplates(entity.key);
+    setSelectedTemplateId(res.data.id);
+    toast.success(t('import.templates.cloned'));
+  }
+  async function toggleShareSelected() {
+    if (!entity || !selectedTemplate) return;
+    const res = await shareMappingTemplate(selectedTemplate.id, !selectedTemplate.isShared);
+    if (!res.ok) return toast.error(res.error ?? t('import.templates.saveError'));
+    await loadTemplates(entity.key);
+    toast.success(selectedTemplate.isShared ? t('import.templates.unshared') : t('import.templates.shared'));
+  }
+  async function setDefaultSelected() {
+    if (!entity || !selectedTemplate) return;
+    const makeDefault = !selectedTemplate.isDefault;
+    const res = await setDefaultMappingTemplate(makeDefault ? selectedTemplate.id : null);
+    if (!res.ok) return toast.error(res.error ?? t('import.templates.saveError'));
+    await loadTemplates(entity.key);
+    toast.success(makeDefault ? t('import.templates.defaultSet') : t('import.templates.defaultCleared'));
+  }
+  async function deleteSelected() {
+    if (!entity || !selectedTemplate) return;
+    const res = await deleteMappingTemplate(selectedTemplate.id);
+    if (!res.ok) return toast.error(res.error ?? t('import.templates.saveError'));
+    setSelectedTemplateId('');
+    await loadTemplates(entity.key);
+    toast.success(t('import.templates.deleted'));
   }
 
   function reset() {
@@ -362,7 +497,7 @@ export function ImportWizard({
                   id="import-file"
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,.json,.txt"
+                  accept=".csv,.json,.txt,.xlsx,.xls"
                   onChange={(ev) => onFile(ev.target.files?.[0] ?? null)}
                 />
               </div>
@@ -389,6 +524,72 @@ export function ImportWizard({
                   <FileDown className="h-4 w-4" /> {t('import.mapping.downloadTemplate')}
                 </Button>
               </div>
+
+              {/* Saved mapping templates: Save / Clone / Share / Default */}
+              <div className="space-y-3 rounded-lg border p-4">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Bookmark className="h-4 w-4" /> {t('import.templates.title')}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    className="h-9 min-w-[12rem] rounded-md border border-input bg-background px-2 text-sm"
+                    value={selectedTemplateId}
+                    onChange={(ev) => setSelectedTemplateId(ev.target.value)}
+                  >
+                    <option value="">{t('import.templates.none')}</option>
+                    {templates.map((tp) => (
+                      <option key={tp.id} value={tp.id}>
+                        {tp.isDefault ? '★ ' : ''}{tp.name}
+                        {tp.isShared ? '' : ` — ${t('import.templates.personal')}`}
+                      </option>
+                    ))}
+                  </select>
+                  <Button size="sm" onClick={applySelectedTemplate} disabled={!selectedTemplate}>
+                    {t('import.templates.apply')}
+                  </Button>
+                  {selectedTemplate && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={setDefaultSelected}>
+                        <Star className={cn('h-4 w-4', selectedTemplate.isDefault && 'fill-warning text-warning')} />
+                        {selectedTemplate.isDefault ? t('import.templates.unsetDefault') : t('import.templates.setDefault')}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={toggleShareSelected}>
+                        <Share2 className="h-4 w-4" />
+                        {selectedTemplate.isShared ? t('import.templates.unshare') : t('import.templates.share')}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={cloneSelected}>
+                        <Copy className="h-4 w-4" /> {t('import.templates.clone')}
+                      </Button>
+                      {selectedTemplate.mine && (
+                        <Button variant="outline" size="sm" onClick={deleteSelected}>
+                          <Trash2 className="h-4 w-4" /> {t('import.templates.delete')}
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                  <Input
+                    className="h-9 max-w-xs"
+                    value={newTemplateName}
+                    onChange={(ev) => setNewTemplateName(ev.target.value)}
+                    placeholder={t('import.templates.namePlaceholder')}
+                  />
+                  <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={shareNew}
+                      onChange={(ev) => setShareNew(ev.target.checked)}
+                    />
+                    {t('import.templates.shareWithCompany')}
+                  </label>
+                  <Button size="sm" variant="secondary" onClick={saveTemplate} disabled={savingTpl}>
+                    <Save className="h-4 w-4" /> {t('import.templates.save')}
+                  </Button>
+                </div>
+              </div>
+
               <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full text-sm">
                   <thead className="bg-secondary/50 text-muted-foreground">
