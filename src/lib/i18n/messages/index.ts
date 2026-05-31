@@ -33,13 +33,14 @@ import * as organization from './organization';
 import * as integrations from './integrations';
 import * as entity from './entity';
 import * as importMsgs from './import';
+import * as dataExport from './data-export';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
   accounting, clinic, restaurant, salon, pharmacy, laundry, hotel, wholesale,
   market, distribution, settings, account, platform, rep, exportsMod,
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
-  importMsgs,
+  importMsgs, dataExport,
 ];
 
 type Catalog = Record<string, unknown>;
