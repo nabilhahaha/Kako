@@ -161,6 +161,36 @@ export async function requestCustomerApproval(id: string): Promise<ActionResult>
   return { ok: true };
 }
 
+/** Request a credit-limit change for a customer: records the request and starts
+ *  the (threshold-based, multi-step) credit_limit_approval workflow. */
+export async function requestCreditLimitChange(customerId: string, requestedLimit: number): Promise<ActionResult> {
+  const { error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  if (!customerId) return { ok: false, error: t('customers.errUnauthorized') };
+  if (!Number.isFinite(requestedLimit) || requestedLimit < 0) return { ok: false, error: t('customers.errImportNoRows') };
+
+  const supabase = await createClient();
+  const { data: cust } = await supabase.from('erp_customers').select('credit_limit').eq('id', customerId).maybeSingle();
+  const current = (cust as { credit_limit: number } | null)?.credit_limit ?? null;
+
+  const { data: req, error: insErr } = await supabase
+    .from('erp_credit_limit_requests')
+    .insert({ customer_id: customerId, current_limit: current, requested_limit: requestedLimit })
+    .select('id')
+    .single();
+  if (insErr) return { ok: false, error: friendlyDbError(insErr) };
+
+  const { error } = await supabase.rpc('erp_workflow_start', {
+    p_key: 'credit_limit_approval', p_entity: 'credit_limit_request',
+    p_record_id: (req as { id: string }).id, p_context: { amount: requestedLimit },
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/customers');
+  revalidatePath('/approvals');
+  return { ok: true };
+}
+
 /** Super admin approves a rep-created customer so it can be sold to. */
 export async function approveCustomer(id: string): Promise<ActionResult> {
   const { ctx } = await requireAuth();
