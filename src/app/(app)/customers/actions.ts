@@ -3,7 +3,31 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
+import { validateCustomValues } from '@/lib/erp/form-schema';
+import { coerceCustomValue } from '@/lib/erp/custom-fields';
 import { getT } from '@/lib/i18n/server';
+
+/** Parse the `custom` JSON bag from a form, validate it against the entity's
+ *  active custom-field definitions (server-authoritative), and return the
+ *  coerced bag to store in the row's `custom` jsonb. */
+async function resolveCustom(
+  entity: string,
+  raw: FormDataEntryValue | null,
+): Promise<{ ok: true; custom: Record<string, unknown> } | { ok: false; error: string }> {
+  const defs = await getActiveCustomFields(entity);
+  if (defs.length === 0) return { ok: true, custom: {} };
+  let values: Record<string, unknown> = {};
+  if (raw) { try { values = JSON.parse(String(raw)); } catch { values = {}; } }
+  const { ok, errors } = validateCustomValues(defs, values);
+  if (!ok) return { ok: false, error: Object.values(errors)[0] };
+  const custom: Record<string, unknown> = {};
+  for (const d of defs) {
+    const v = coerceCustomValue(d, values[d.key]);
+    if (v !== undefined) custom[d.key] = v;
+  }
+  return { ok: true, custom };
+}
 
 function num(v: FormDataEntryValue | null): number {
   const n = Number(String(v ?? '').replace(/,/g, ''));
@@ -24,6 +48,11 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   const branchId = String(formData.get('branch_id') || '').trim();
   const salesmanId = String(formData.get('salesman_id') || '').trim();
   const visitDay = String(formData.get('visit_day') || '').trim();
+
+  // Custom fields (Dynamic Forms): validated + coerced server-side.
+  const cf = await resolveCustom('customer', formData.get('custom'));
+  if (!cf.ok) return { ok: false, error: cf.error };
+
   const payload = {
     code,
     name,
@@ -37,6 +66,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     branch_id: branchId || null,
     salesman_id: salesmanId || null,
     visit_day: visitDay || null,
+    custom: cf.custom,
   };
 
   const supabase = await createClient();

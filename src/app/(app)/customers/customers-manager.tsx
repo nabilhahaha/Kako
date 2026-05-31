@@ -13,6 +13,8 @@ import { formatCurrency } from '@/lib/utils';
 import { VISIT_DAYS } from '@/lib/erp/constants';
 import { importCustomers, approveCustomer } from './actions';
 import type { Branch, ErpCustomer, Profile } from '@/lib/erp/types';
+import type { CustomFieldDef } from '@/lib/erp/custom-fields';
+import { DynamicCustomFields } from '@/components/forms/dynamic-custom-fields';
 import Link from 'next/link';
 import { Plus, Pencil, Loader2, X, Users, Search, AlertTriangle, FileText, Upload, Printer, BadgeCheck } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,11 +27,13 @@ export function CustomersManager({
   branches,
   reps,
   isSuperAdmin,
+  customFields = [],
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
   reps: Rep[];
   isSuperAdmin: boolean;
+  customFields?: CustomFieldDef[];
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
@@ -175,6 +179,11 @@ export function CustomersManager({
                   </select>
                 </Field>
               </div>
+              {/* Dynamic Forms: custom fields appear automatically + submit as `custom` JSON */}
+              <DynamicCustomFields
+                fields={customFields}
+                initial={(current as { custom?: Record<string, unknown> } | null)?.custom ?? {}}
+              />
               <div className="flex gap-2">
                 <Button type="submit" disabled={pending}>
                   {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('customers.btnSave')}

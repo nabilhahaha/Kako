@@ -4,6 +4,7 @@ export const ar = {
     title: 'الحقول المخصصة',
     subtitle: 'عرّف حقولاً إضافية لأي وحدة. تظهر في النماذج والاستيراد والتصدير تلقائياً.',
     noAccess: 'هذه الصفحة تتطلب صلاحية إدارة الحقول المخصصة.',
+    formSection: 'حقول إضافية',
     entity: { title: 'اختر الوحدة' },
     list: {
       title: 'الحقول الحالية',
@@ -41,6 +42,7 @@ export const en = {
     title: 'Custom Fields',
     subtitle: 'Define extra fields for any module. They appear in forms, import, and export automatically.',
     noAccess: 'This page requires the Manage Custom Fields permission.',
+    formSection: 'Additional fields',
     entity: { title: 'Choose a module' },
     list: {
       title: 'Existing fields',
