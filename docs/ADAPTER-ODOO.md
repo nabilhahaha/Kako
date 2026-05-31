@@ -1,6 +1,14 @@
-# VANTORA — Odoo Adapter Design Review (B5)
+# VANTORA — Odoo Adapter (B5)
 
-> Build-track slice **B5** — **design for approval, no implementation yet.**
+> **Status: ✅ built (code-only; no migration).** Decisions 1–5 confirmed
+> (dedicated `odoo` JSON-RPC adapter; API key v14+ primary + user/pass fallback;
+> res.partner→customer/supplier, product.template→product in, sale.order/
+> account.move out, stock.quant a follow-up; `write_date > cursor` /
+> max(write_date) / limit-offset paging; live validation deferred). Shipped: the
+> `odoo` descriptor, `odoo-runtime.ts` (authenticate → search_read pull / create
+> push), `odoo-presets.ts`, registry + dispatcher wiring, and unit tests. Live
+> Odoo validation pending a pilot instance (mock-tested until then).
+>
 > Adds a thin **`odoo`** connector over **JSON-RPC** (plain HTTP/JSON — fits our
 > Node dispatcher directly; no OAuth dance, no request signing). Builds on the
 > 2C-1/2C-2 framework and the injectable-`fetch` runtime pattern proven in

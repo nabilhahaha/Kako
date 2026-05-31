@@ -4,14 +4,15 @@ import {
 } from './registry';
 
 describe('connector framework — registry (Phase 2C-1)', () => {
-  it('ships the reference adapters + vendor adapters (Dynamics BC, SAP S/4HANA)', () => {
-    expect(listConnectorAdapters().map((a) => a.key).sort()).toEqual(['csv_sftp', 'dynamics_bc', 'generic_rest', 'sap_s4']);
+  it('ships the reference adapters + vendor adapters (Dynamics BC, SAP, Odoo)', () => {
+    expect(listConnectorAdapters().map((a) => a.key).sort()).toEqual(['csv_sftp', 'dynamics_bc', 'generic_rest', 'odoo', 'sap_s4']);
   });
   it('resolves known vs unknown adapters', () => {
     expect(isKnownAdapter('generic_rest')).toBe(true);
     expect(isKnownAdapter('csv_sftp')).toBe(true);
     expect(isKnownAdapter('dynamics_bc')).toBe(true);
     expect(isKnownAdapter('sap_s4')).toBe(true);
+    expect(isKnownAdapter('odoo')).toBe(true);
     expect(isKnownAdapter('oracle')).toBe(false);
   });
   it('every adapter has ar/en labels, a kind, directions, and config fields', () => {
@@ -73,9 +74,23 @@ describe('connector framework — sap_s4 transport validation (B3a odata + B3b f
   });
 });
 
+describe('connector framework — odoo validation (B5)', () => {
+  const a = getConnectorAdapter('odoo')!;
+  it('requires base_url, database, login and a sane URL', () => {
+    expect(a.validateConfig({})).toBeTruthy();
+    expect(a.validateConfig({ base_url: 'acme.odoo.com', database: 'acme', username: 'admin' })).toBe('Odoo URL must start with http(s)://');
+    expect(a.validateConfig({ base_url: 'https://acme.odoo.com', database: 'acme', username: 'admin' })).toBeNull();
+  });
+  it('exposes the API-key/password secret field', () => {
+    expect(a.secretField?.key).toBe('secret');
+    expect(a.secretField?.secret).toBe(true);
+  });
+});
+
 describe('connector framework — validateConnection', () => {
   it('rejects unknown adapters and delegates to the adapter otherwise', () => {
     expect(validateConnection('nope', {})).toBe('Unknown adapter');
     expect(validateConnection('generic_rest', { base_url: 'https://x.io' })).toBeNull();
+    expect(validateConnection('odoo', { base_url: 'https://acme.odoo.com', database: 'acme', username: 'admin' })).toBeNull();
   });
 });
