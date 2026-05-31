@@ -14,6 +14,9 @@ to **coexist with an external ERP** (sync only selected modules). See
 - [`PLATFORM-REVIEW.md`](PLATFORM-REVIEW.md) — **official post-build platform
   baseline** (executive summary → architecture → licensing → modules → packs →
   adapter portfolio → security → roadmap → tech-debt → GTM).
+- [`COMPLETION-REPORT.md`](COMPLETION-REPORT.md) — **program completion report**
+  (completed items · final capabilities · adapter portfolio · Electrical pack ·
+  future roadmap · pilot + commercial launch plans).
 - [`PRODUCT_PRINCIPLES.md`](PRODUCT_PRINCIPLES.md) — the standing decision rule
   (Platform → Module → Customer) + modularity & coexistence principle.
 - [`ROADMAP.md`](ROADMAP.md) — completed milestones + the formally-tracked
