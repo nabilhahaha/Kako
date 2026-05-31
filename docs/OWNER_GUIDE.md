@@ -2,7 +2,9 @@
 
 Operational guide for the **Platform Owner** and internal staff who run the SaaS.
 For architecture see `ARCHITECTURE.md`; for run/monitor/rollback see
-`MAINTENANCE.md`.
+`MAINTENANCE.md`; for the product decision rule see `PRODUCT_PRINCIPLES.md`
+(Core Platform → Reusable Module → Customer-Specific — build once, reuse
+everywhere, sell many times).
 
 ---
 

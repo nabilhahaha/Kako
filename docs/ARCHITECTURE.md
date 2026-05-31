@@ -5,10 +5,16 @@
 > per-industry forks. Built on Next.js 15 (App Router) + Supabase (Postgres 17,
 > RLS everywhere).
 
+> **Standing rule — `PRODUCT_PRINCIPLES.md`:** VANTORA is a Platform, not a
+> single-industry app. Evaluate every capability as **Core Platform → Reusable
+> Module → Customer-Specific** (prefer leftmost). Build once. Reuse everywhere.
+> Sell many times. The architecture below exists to make that possible.
+
 This is the canonical architecture reference. Companion docs:
-`OWNER_GUIDE.md` (operations), `ROADMAP.md` (what's next), `MAINTENANCE.md`
-(run/monitor/rollback), `ENTITY-FRAMEWORK.md`, `INTEGRATION.md`, `MODULES.md`,
-`BACKUPS.md`, `STAGING.md`, `CONVENTIONS.md`.
+`PRODUCT_PRINCIPLES.md` (the decision rule), `OWNER_GUIDE.md` (operations),
+`ROADMAP.md` (what's next), `MAINTENANCE.md` (run/monitor/rollback),
+`ENTITY-FRAMEWORK.md`, `INTEGRATION.md`, `MODULES.md`, `BACKUPS.md`, `STAGING.md`,
+`CONVENTIONS.md`.
 
 Status legend: ✅ built · 🟡 foundation · 🔜 planned.
 

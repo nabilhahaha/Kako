@@ -3,6 +3,11 @@
 Status: ✅ done · 🟡 foundation · 🔜 planned. See `ARCHITECTURE.md` for the
 system; `OWNER_GUIDE.md` for operations.
 
+> **Every item here is classified per `PRODUCT_PRINCIPLES.md`:** Core Platform →
+> Reusable Module → Customer-Specific (prefer leftmost). Build once. Reuse
+> everywhere. Sell many times. (e.g. Billing = Core Platform; Promotions =
+> FMCG/Sales Module; Commission = Sales Module; Appointments = Scheduling Module.)
+
 ---
 
 ## 1. Completed milestones ✅
