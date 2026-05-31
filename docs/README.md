@@ -46,6 +46,7 @@ to **coexist with an external ERP** (sync only selected modules). See
 - [`ADAPTER-SAP.md`](ADAPTER-SAP.md) — SAP S/4HANA adapter design (B3).
 - [`ADAPTER-SAP-ONPREM.md`](ADAPTER-SAP-ONPREM.md) — SAP On-Prem / ECC file + middleware transport design (B3b).
 - [`ADAPTER-ODOO.md`](ADAPTER-ODOO.md) — Odoo JSON-RPC adapter design (B5).
+- [`ADAPTER-NETSUITE.md`](ADAPTER-NETSUITE.md) — Oracle NetSuite SuiteTalk REST + TBA adapter design (B4).
 - [`API-WEBHOOKS.md`](API-WEBHOOKS.md) — inbound `/api/v1` + outbound webhooks
   reference (integrator-facing).
 - [`SYNC-ENGINE.md`](SYNC-ENGINE.md) — connections, sync jobs, dispatcher.
