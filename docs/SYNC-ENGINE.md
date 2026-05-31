@@ -65,7 +65,11 @@ One schedulable unit on a connection:
 
 ## 6. Transport status
 - ✅ **REST** (`generic_rest`) pull + push.
-- 🔜 **CSV/SFTP** file transport (`csv_sftp` adapter registered; live transport =
-  sub-slice **2C-3**, adds `ssh2-sftp-client`).
+- ✅ **CSV/JSON over SFTP** (`csv_sftp`) pull + push (sub-slice **2C-3 / B1**;
+  `ssh2-sftp-client`, marked a server-external package). File feeds read/write
+  whole files (no modified-since cursor → use `mode = full`).
 - 🔜 **Vendor adapters:** Dynamics 365 BC → SAP S/4HANA → Oracle NetSuite → Odoo
   (see roadmap).
+
+Both transports support **inbound (pull)** and **outbound (push)** per the
+two-way external-compatibility requirement (`INTEGRATION.md` §4b).

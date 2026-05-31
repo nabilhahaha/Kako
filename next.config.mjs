@@ -18,6 +18,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // SFTP transport (sync engine) uses ssh2, which has an optional native binary
+  // that must not be bundled — treat it as a runtime external for server code.
+  serverExternalPackages: ['ssh2', 'ssh2-sftp-client'],
   experimental: {
     // Import Engine uploads .xlsx bytes (base64) to a server action for parsing.
     serverActions: { bodySizeLimit: '15mb' },

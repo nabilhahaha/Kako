@@ -124,6 +124,28 @@ Field Ops while Inventory and Finance sync from SAP. Connectors and the sync
 engine are entity/module-scoped precisely so coexistence is selective and
 adoption is gradual (module-by-module), with no all-or-nothing migration.
 
+### 4b. Two-way external compatibility (standing requirement)
+
+VANTORA must integrate with external software **in both directions**, across
+**three transport classes**, and must do so **even when the customer uses only
+part of VANTORA** (e.g. Sales-only, Inventory-only, Pharmacy, Clinic, Analytics,
+Workflow):
+
+| Transport class | Inbound (into VANTORA) | Outbound (out of VANTORA) | Status |
+|---|---|---|---|
+| **File-based** (CSV/JSON over **SFTP**) | sync pull → ingest | sync push → file write | ✅ B1 |
+| **Modern** (HTTP) | **inbound API** `/api/v1` | **outbound webhooks** | ✅ 2A/2B |
+| **ERP** (SAP/Oracle/Dynamics/Odoo) | adapter pull | adapter push | 🔜 adapters (B2–B5) |
+
+Rules every present and future connector/adapter must preserve:
+- **Both directions** — every adapter supports pull (in) and push (out) via
+  per-entity sync jobs (`direction = in|out`).
+- **Partial-adoption safe** — integration is entity/module-scoped, so a customer
+  running only one module still exchanges data for that module; no dependency on
+  adopting the whole platform.
+- **One framework** — file/API/ERP all flow through the same connection store,
+  sync engine, entity-ingest path, Vault secrets, audit, and RLS.
+
 ---
 
 ## 5. Database schema (plan)

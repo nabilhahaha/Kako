@@ -187,10 +187,10 @@ Azure AD OAuth2).
 
 ## 6. Phased delivery roadmap — DECIDED ORDER (each a reviewable sub-slice)
 
-- **2C-3 — CSV/SFTP transport** *(DECIDED: build **before** the first vendor
-  adapter — file-based integration is common in distribution, FMCG, retail, and
-  legacy enterprise)* — adds the `ssh2-sftp-client` dependency + file pull/push on
-  the existing `csv_sftp` adapter.
+- **2C-3 — CSV/SFTP transport** — ✅ **built (B1)**: `ssh2-sftp-client` (server-
+  external) + file **pull/push** on the `csv_sftp` adapter, wired into the sync
+  dispatcher; CSV + JSON; unit-tested. Pending production apply note: none (no
+  migration; needs `SUPABASE_SERVICE_ROLE_KEY` + `CRON_SECRET` at runtime).
 - **2C-4 — Dynamics 365 Business Central (OData v4)** — first vendor adapter:
   adds the **OAuth2 client-credentials** token helper + OData `$filter modifiedon
   gt` delta; descriptor + runtime + entity mapping presets.
