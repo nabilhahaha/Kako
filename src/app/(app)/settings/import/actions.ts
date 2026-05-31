@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { getEntity, entityUniqueKey, entityDedupeKeys, type ImportMode } from '@/lib/erp/entities';
+import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
+import { validateCustomValue, coerceCustomValue } from '@/lib/erp/custom-fields';
 
 /** ── Import Engine: generic, registry-driven, entity-based ─────────────────
  *  One pipeline for every registered entity. Validation classifies rows as
@@ -38,6 +40,7 @@ export async function validateImport(
   const entity = getEntity(entityKey);
   if (!entity || !entity.fields) return { ok: false, error: 'unknown entity' };
 
+  const customDefs = await getActiveCustomFields(entityKey);
   const issues: RowIssue[] = [];
   const seen = new Map<string, number>();
   const dedupe = entityDedupeKeys(entity);
@@ -58,6 +61,11 @@ export async function validateImport(
       if (v && fld.type === 'email' && !EMAIL_RE.test(v)) add(sev === 'error' ? 'warning' : sev, 'invalid email');
       if (v && fld.type === 'number' && isNaN(Number(v))) add('error', `${fld.labelEn}: invalid number`);
       if (v && fld.type === 'date' && isNaN(Date.parse(v))) add('warning', `${fld.labelEn}: invalid date`);
+    }
+    // Custom fields (validated by their definitions; required even if unmapped).
+    for (const cf of customDefs) {
+      const msg = validateCustomValue(cf, r[cf.key]);
+      if (msg) add('error', msg);
     }
     // Duplicate-within-file detection on the dedupe keys.
     const dk = dedupe.map((k) => (r[k] ?? '').trim().toLowerCase()).filter(Boolean).join('|');
@@ -108,6 +116,7 @@ export async function runImport(
 
   const allowed = new Set(entity.fields.map((f) => f.key));
   const numberKeys = new Set(entity.fields.filter((f) => f.type === 'number').map((f) => f.key));
+  const customDefs = await getActiveCustomFields(entityKey);
   const uniqueKey = entityUniqueKey(entity);
   const nowIso = new Date().toISOString();
 
@@ -125,6 +134,15 @@ export async function runImport(
       const raw = (rows[i][k] ?? '').trim();
       if (raw === '') continue;
       p[k] = numberKeys.has(k) ? Number(raw) : raw;
+    }
+    // Custom field values → the entity row's `custom` jsonb bag.
+    if (customDefs.length > 0) {
+      const customObj: Record<string, unknown> = {};
+      for (const cf of customDefs) {
+        const val = coerceCustomValue(cf, rows[i][cf.key]);
+        if (val !== undefined) customObj[cf.key] = val;
+      }
+      if (Object.keys(customObj).length > 0) p.custom = customObj;
     }
     p.import_job_id = jobId;
 

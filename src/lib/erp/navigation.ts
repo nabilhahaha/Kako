@@ -46,6 +46,7 @@ import {
   FileSpreadsheet,
   FileDown,
   CreditCard,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -274,6 +275,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage' },
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage' },
       { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage' },
+      { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true },
       { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs' },
       { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true },
