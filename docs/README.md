@@ -1,0 +1,56 @@
+# VANTORA Business OS — Documentation Index
+
+> **Powerful like an ERP. Simple like a modern SaaS. Premium enough for enterprise
+> customers across GCC and Arab markets.**
+
+Status legend used across docs: ✅ built · 🟡 partial / foundation · 🔜 planned.
+
+VANTORA is a **multi-tenant, fully modular Business OS**: one shared platform +
+reusable modules, adopted **module-by-module** or as the full platform, and able
+to **coexist with an external ERP** (sync only selected modules). See
+`PRODUCT_PRINCIPLES.md`.
+
+## Product & principles
+- [`PRODUCT_PRINCIPLES.md`](PRODUCT_PRINCIPLES.md) — the standing decision rule
+  (Platform → Module → Customer) + modularity & coexistence principle.
+- [`ROADMAP.md`](ROADMAP.md) — completed milestones + the formally-tracked
+  forward roadmap (reviews + build sub-slices).
+- [`MODULE-CATALOG.md`](MODULE-CATALOG.md) — every module, one page each.
+- [`MODULE-OWNERSHIP-MATRIX.md`](MODULE-OWNERSHIP-MATRIX.md) — system-of-record &
+  ERP-coexistence ownership, per module/entity.
+- [`LICENSING.md`](LICENSING.md) — plans, module entitlement, marketplace,
+  subscriptions.
+
+## Architecture
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — full system architecture.
+- [`PLATFORM-OVERVIEW.md`](PLATFORM-OVERVIEW.md) — one-page platform map.
+- [`ENTITY-FRAMEWORK.md`](ENTITY-FRAMEWORK.md) — the entity registry & contract.
+- [`CONVENTIONS.md`](CONVENTIONS.md) — code conventions.
+- [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) — navy/cyan tokens + shared primitives.
+- [`CUSTOM-FIELDS.md`](CUSTOM-FIELDS.md) — custom fields engine.
+
+## Integration
+- [`INTEGRATION.md`](INTEGRATION.md) — integration architecture (inbound API,
+  webhooks, connectors, sync).
+- [`INTEGRATION-ADAPTERS.md`](INTEGRATION-ADAPTERS.md) — external-ERP adapter
+  roadmap (SAP / Oracle / Dynamics / Odoo).
+- [`API-WEBHOOKS.md`](API-WEBHOOKS.md) — inbound `/api/v1` + outbound webhooks
+  reference (integrator-facing).
+- [`SYNC-ENGINE.md`](SYNC-ENGINE.md) — connections, sync jobs, dispatcher.
+- [`ETA.md`](ETA.md) — Egyptian e-invoicing.
+
+## Operations
+- [`OWNER_GUIDE.md`](OWNER_GUIDE.md) — platform owner / internal staff.
+- [`MAINTENANCE.md`](MAINTENANCE.md) · [`STAGING.md`](STAGING.md) ·
+  [`BACKUPS.md`](BACKUPS.md) — deploy / migrations / staging / backups.
+- [`TESTING.md`](TESTING.md) · [`E2E.md`](E2E.md) — testing.
+
+## Governance
+- [`LEGACY-AUDIT.md`](LEGACY-AUDIT.md) — Keep / Refactor / Archive / Delete audit
+  (findings only; no removals without approval).
+
+---
+
+**Doc maintenance rule:** every feature PR records its Platform/Module/Customer
+classification and updates the affected docs (Module Catalog / API reference /
+roadmap). Capability docs use the status legend so nothing is over-claimed.
