@@ -33,6 +33,8 @@ to **coexist with an external ERP** (sync only selected modules). See
   (R6 review).
 - [`PACK-ELECTRICAL.md`](PACK-ELECTRICAL.md) — Electrical Retail & Wholesale pack
   design (multi-tier pricing / serials / warranty / RMA / supplier returns).
+- [`PACK-ELECTRICAL-B.md`](PACK-ELECTRICAL-B.md) — Electrical pack sub-slice B
+  design (serial numbers / warranty / RMA).
 
 ## Architecture
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — full system architecture.
