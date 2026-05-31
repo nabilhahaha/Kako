@@ -9,7 +9,18 @@
 -- ============================================================================
 
 create extension if not exists pgcrypto;   -- hmac() (extensions schema)
-create extension if not exists pg_net;      -- async HTTP (net schema)
+
+-- pg_net (async HTTP) powers outbound delivery. It's a Supabase extension and is
+-- absent from vanilla Postgres (e.g. the CI integration-test DB), so enabling it
+-- must not hard-fail the migration there — delivery simply stays inactive until
+-- pg_net exists (staging/production have it). erp_webhook_tick references net.*
+-- with deferred name resolution, so it still creates cleanly without pg_net.
+do $$
+begin
+  create extension if not exists pg_net;
+exception when others then
+  raise notice 'pg_net unavailable here; webhook delivery inactive until it is enabled.';
+end $$;
 
 -- ── Subscriptions ────────────────────────────────────────────────────────────
 create table if not exists erp_webhooks (
