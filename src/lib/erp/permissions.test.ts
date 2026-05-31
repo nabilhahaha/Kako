@@ -1,5 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { hasPermission, hasAnyPermission, permissionsForRole, ALL_PERMISSIONS } from './permissions';
+import { hasPermission, hasAnyPermission, permissionsForRole, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_GROUP_LABELS } from './permissions';
+
+describe('permission labels + groups', () => {
+  it('every permission has en/ar labels and a known group label', () => {
+    for (const p of ALL_PERMISSIONS) {
+      const lbl = PERMISSION_LABELS[p];
+      expect(lbl.en.length).toBeGreaterThan(0);
+      expect(lbl.ar.length).toBeGreaterThan(0);
+      expect(PERMISSION_GROUP_LABELS[lbl.group]).toBeDefined();
+    }
+  });
+  it('includes the Electrical pack permission + group', () => {
+    expect(PERMISSION_LABELS['electrical.rma'].group).toBe('electrical');
+    expect(PERMISSION_GROUP_LABELS.electrical.en).toBe('Electrical');
+  });
+});
 
 describe('hasPermission', () => {
   it('super admin holds every permission', () => {

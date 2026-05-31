@@ -35,6 +35,7 @@ export type Permission =
   | 'laundry.manage' // laundry orders, wash workflow, checkout
   | 'market.pos' // supermarket fast cashier (walk-in checkout)
   | 'wholesale.pricing' // wholesale price tiers + per-customer pricing
+  | 'electrical.rma' // RMA / serial / warranty management (Electrical pack)
   | 'field.sales'; // rep app, daily settlement, visit planning (field roles only)
 
 export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; group: string }> = {
@@ -70,6 +71,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'laundry.manage': { en: 'Laundry management (orders/washing/delivery)', ar: 'إدارة المغسلة (طلبات/غسيل/تسليم)', group: 'laundry' },
   'market.pos': { en: 'Fast cashier (supermarket)', ar: 'الكاشير السريع (سوبر ماركت)', group: 'market' },
   'wholesale.pricing': { en: 'Tiered wholesale pricing', ar: 'أسعار الجملة بالمستويات', group: 'wholesale' },
+  'electrical.rma': { en: 'Serials, warranty & RMA', ar: 'الأرقام التسلسلية والضمان والإرجاع', group: 'electrical' },
   'field.sales': { en: 'Field sales (rep app)', ar: 'المبيعات الميدانية (تطبيق المندوب)', group: 'sales' },
 };
 
@@ -88,6 +90,7 @@ export const PERMISSION_GROUP_LABELS: Record<string, { en: string; ar: string }>
   laundry: { en: 'Laundry', ar: 'المغسلة' },
   market: { en: 'Supermarket', ar: 'السوبر ماركت' },
   wholesale: { en: 'Wholesale', ar: 'الجملة' },
+  electrical: { en: 'Electrical', ar: 'الكهربائيات' },
 };
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS) as Permission[];

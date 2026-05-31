@@ -18,6 +18,13 @@ describe('entity registry', () => {
     expect(e?.permission).toBe('purchasing.return');
   });
 
+  it('registers serials / warranty / RMA entities (Electrical pack sub-slice B)', () => {
+    expect(getEntity('product_serial')?.table).toBe('erp_product_serials');
+    expect(getEntity('warranty')?.table).toBe('erp_warranties');
+    expect(getEntity('rma')?.table).toBe('erp_rma');
+    expect(getEntity('rma')?.permission).toBe('electrical.rma');
+  });
+
   it('getEntity + isKnownEntity resolve by key', () => {
     expect(getEntity('customer')?.table).toBe('erp_customers');
     expect(getEntity('not-a-thing')).toBeUndefined();
