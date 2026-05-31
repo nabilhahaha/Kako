@@ -22,6 +22,7 @@ to **coexist with an external ERP** (sync only selected modules). See
   subscriptions (reference).
 - [`R4-LICENSING-BUILD.md`](R4-LICENSING-BUILD.md) — R4 licensing build design (capability modules + entitlement).
 - [`LICENSING-ARCHITECTURE.md`](LICENSING-ARCHITECTURE.md) — target-state licensing & subscription design (R4 review).
+- [`UI-ALIGNMENT-BUILD.md`](UI-ALIGNMENT-BUILD.md) — nav binding + inline role suggestions design (R4B follow-up).
 - [`UI-ALIGNMENT-REVIEW.md`](UI-ALIGNMENT-REVIEW.md) — company-creation / subscription UI alignment to the licensing model (relabel/regroup only).
 - [`MARKETPLACE-STRATEGY.md`](MARKETPLACE-STRATEGY.md) — module / integrations /
   partner / AI marketplace strategy (R5 review).
