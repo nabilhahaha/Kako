@@ -87,5 +87,8 @@ begin
   end if;
 end; $$;
 
-revoke all on function erp_set_default_mapping(uuid) from public;
+-- Supabase default-privileges auto-grant EXECUTE to anon on new public
+-- functions, so revoke anon explicitly (mirrors the project's hardened baseline)
+-- and grant only signed-in users.
+revoke all on function erp_set_default_mapping(uuid) from public, anon;
 grant execute on function erp_set_default_mapping(uuid) to authenticated;
