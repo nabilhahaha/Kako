@@ -63,3 +63,43 @@ separate applications that each must be maintained and can't cross-sell.
 3. Only if neither: a **Customer-specific** need → implement via custom
    fields / dynamic forms / per-company config — no hardcoding.
 4. Record the classification in the feature's plan/PR.
+
+---
+
+## Standing principle: Modularity & coexistence
+
+> **VANTORA is fully modular.** A customer can adopt any module independently or
+> in any combination, and grow into the full platform over time.
+
+Modules (each usable on its own or together): **Sales, CRM, Field Operations,
+Approvals & Workflow, Analytics & Reporting, Trade Spend, Inventory &
+Warehousing, Procurement, Billing, Finance, Integrations.**
+
+The integration architecture **must support both deployment shapes, per module:**
+
+1. **VANTORA as system of record** for a module (e.g. Inventory, Sales, CRM,
+   Workflow, Billing) — VANTORA owns the data; external systems read/subscribe.
+2. **VANTORA alongside an external ERP** (SAP, Oracle, Odoo, Dynamics, …) where
+   **only selected modules/entities are synchronized** — the external system is
+   the source of record for those, VANTORA for the rest.
+
+The role (system-of-record vs synchronized) is decided **per module/entity**, not
+globally — a customer can let VANTORA own CRM + Field Ops while syncing Inventory
+and Finance from SAP. Goal: **gradual, module-by-module adoption** with no
+all-or-nothing migration.
+
+### How this is enforced (must stay true)
+- **Module entitlement is config, not code:** licensing = plan-based module
+  entitlements (`erp_plans` / plan-modules) ∩ per-company enablement (setup
+  wizard / marketplace, `erp_company_modules`). A module runs only if entitled +
+  enabled; disabling one never breaks another.
+- **No hard dependencies between modules.** A module degrades gracefully when a
+  sibling is off (feature-detect, don't assume). Shared needs go to Core Platform
+  primitives both depend on — never a direct module→module coupling.
+- **Integration is entity/module-scoped.** Connections + sync jobs choose *which*
+  entities sync and in which direction (see `INTEGRATION.md`), so external-ERP
+  coexistence is selective by design.
+- **Reflect this in:** the connector/adapter roadmap (selective sync, per-entity
+  source-of-record), licensing architecture (per-module entitlement), the
+  documentation plan (module + coexistence docs), and every future module's
+  design (independently usable, config-gated, no cross-module hardcoding).

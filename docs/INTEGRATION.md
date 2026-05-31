@@ -107,6 +107,23 @@ Template"*). Stored per company, per target entity.
   status updated. Deliveries are retried with backoff and logged.
 - **Sync jobs** — scheduled import/export (external ERP in, accounting/BI out).
 
+### 4a. Modularity & coexistence (standing principle)
+
+VANTORA is **fully modular** (see `PRODUCT_PRINCIPLES.md`): a customer adopts any
+module independently or in combination, and the integration layer supports both
+shapes **per module/entity**:
+
+1. **VANTORA as system of record** — VANTORA owns the data; external systems read
+   via the inbound API or subscribe via webhooks.
+2. **Alongside an external ERP** (SAP/Oracle/Odoo/Dynamics/…) — **only selected
+   entities** sync, with a per-entity source of record; VANTORA owns the rest.
+
+This is configured **per connection + per sync job** (entity, direction,
+mode, conflict policy — see §5/§8), never globally — e.g. VANTORA owns CRM +
+Field Ops while Inventory and Finance sync from SAP. Connectors and the sync
+engine are entity/module-scoped precisely so coexistence is selective and
+adoption is gradual (module-by-module), with no all-or-nothing migration.
+
 ---
 
 ## 5. Database schema (plan)
