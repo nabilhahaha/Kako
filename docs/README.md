@@ -20,6 +20,9 @@ to **coexist with an external ERP** (sync only selected modules). See
 - [`COMMERCIAL-LAUNCH.md`](COMMERCIAL-LAUNCH.md) — **commercial launch package**
   (pricing · packages · licensing · demos · pilots · landing page · pitch deck ·
   GTM · FMCG + Electrical pilot execution plans).
+- [`PILOT-FMCG.md`](PILOT-FMCG.md) — **FMCG Distribution pilot package** (demo
+  company · sample data · routes/warehouses · roles · success criteria · 30-day
+  plan · onboarding checklist).
 - [`PRODUCT_PRINCIPLES.md`](PRODUCT_PRINCIPLES.md) — the standing decision rule
   (Platform → Module → Customer) + modularity & coexistence principle.
 - [`ROADMAP.md`](ROADMAP.md) — completed milestones + the formally-tracked
