@@ -64,6 +64,28 @@ fields + a writer): `customer`, `supplier`, `product`, `service`, `employee`
 `visit`, `ticket`, opening balances, and `custom_entity` later. Because targets
 are entities, every current and future VANTORA module reuses the same engine.
 
+### Engine contract (V1 — built, generic)
+
+The registry descriptor (`src/lib/erp/entities.ts`) declares per importable
+entity: `fields` (key/label/type/required + per-field `severity`), a `uniqueKey`
+(defaults to `external_id`) and `dedupeKeys` for duplicate detection. The engine
+(`settings/import/actions.ts`) is ONE pipeline for all entities:
+
+- **`validateImport(entity, rows)`** → classifies issues as **error / warning /
+  info** and returns `{ issues, errorRows, warningRows, validRows }`. Import
+  proceeds **with warnings** but **never imports rows with errors**.
+- **`runImport(entity, fileName, mapping, rows, mode)`** → `mode` ∈
+  **insert / update / upsert / skip** (matched by the entity unique key). Error
+  rows are skipped; each written record is **stamped for audit**:
+  `import_job_id`, `external_id`, `created_by` / `updated_by`, timestamps. The
+  job (summary + validation/error report) is saved in **Import History**
+  (`erp_import_jobs`).
+- **Same pipeline for every source.** Excel/CSV/JSON (and later API import) parse
+  into the same row shape and pass through the same validate→import path — no
+  source-specific or entity-specific import logic.
+- **Rollback prep.** Every imported record carries `import_job_id`, so a future
+  "undo import by job" is a scoped operation — the structure is in place.
+
 ---
 
 ## 3. Saved mapping templates
