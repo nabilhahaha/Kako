@@ -93,7 +93,7 @@ at a time) and **build sub-slices** (each design→build→verify→PR→prod-ap
 | B1 | **2C-3 CSV/SFTP Transport** | Build | 2C-2 (✅) | High | Low–Med | 1 | ✅ merged |
 | B2 | **Dynamics 365 Business Central adapter** | Build | 2C-1/2C-2, B1 | High | Med (OAuth2 + OData v4) | 2 | ✅ merged |
 | B3a | **SAP S/4HANA Cloud adapter (OData)** | Build | B2 (OData pattern) | High | Med–High | 3 | ✅ merged |
-| R4B | **R4 Licensing Build** (capability modules + entitlement + pack wiring) | Build | R4, UI-ALIGN | High | Med–High | next | 🟡 design in review |
+| R4B | **R4 Licensing Build** (capability modules + entitlement + backfill) | Build | R4, UI-ALIGN | High | Med–High | next | 🟡 built; in review (0095 pending prod apply) |
 | B3b | **SAP on-prem / ECC (file + middleware)** | Build | B1 (file), B3a | High | High | 4 | 🔜 |
 | BU | **UI Alignment Implementation** (finish after R4B) (Core Modules / Industry Packs / Suggested Roles) | Build | UI-ALIGNMENT-REVIEW, R4 | High | Med | after B3a | 🟡 in progress (Setup Wizard + Marketplace grouped; catalog w/ defaults); platform-create + full pack-preselect wiring with R4 |
 | B5 | **Odoo adapter** | Build | framework | Med | Med (JSON-RPC) | 5 | 🔜 |

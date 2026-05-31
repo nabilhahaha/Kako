@@ -1,5 +1,16 @@
 # VANTORA — R4 Licensing Build: design (for review)
 
+> **Status: 🟡 built (migration 0095 NOT yet applied to production).** Done:
+> capability modules as first-class entitlements (`navigation.ts` Module/
+> ALL_MODULES/MODULE_LABELS), catalog classification + `coreModuleDbKey`
+> (finance≙accounting) + `moduleEnabled` helper, Marketplace shows them in the
+> Core group, and migration `0095` (plan seed + **no-regression backfill** +
+> business-type recommendations). **Deferred (next slice):** binding capability
+> modules to specific nav sections/routes (needs new-company setup to enable
+> capability modules first, to avoid any new-tenant regression), inline editable
+> suggested roles, and add-on billing/pricing/metering (separate phase).
+> Rolled-back live verification: every existing tenant retains all modules.
+
 > Implements the approved **Module Licensing & Subscription Architecture**
 > (`LICENSING-ARCHITECTURE.md`). **Design for approval — no build/apply yet.**
 > Additive + idempotent; **no deletions; protected assets unchanged**

@@ -92,16 +92,27 @@ export interface NavSection {
  *  POS and a restaurant doesn't see stock transfers. */
 export type Module =
   | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy' | 'laundry' | 'market' | 'wholesale' | 'distribution'
-  | 'pos' | 'sales_orders' | 'returns' | 'warehousing';
+  | 'pos' | 'sales_orders' | 'returns' | 'warehousing'
+  // Core (capability) modules — first-class licensable entitlements (R4B).
+  | 'crm' | 'workflow' | 'analytics' | 'field_ops' | 'integrations';
 
-/** The modules a subscription PLAN can grant (coarse). */
-export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale', 'distribution'];
+/** The modules a subscription PLAN can grant (coarse). Core capability modules
+ *  are included so they appear in the (grouped) Marketplace and are gateable. */
+export const ALL_MODULES: Module[] = [
+  'crm', 'sales', 'inventory', 'purchasing', 'accounting', 'pos', 'workflow', 'analytics', 'field_ops', 'integrations',
+  'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale', 'distribution',
+];
 
 export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
+  crm: { en: 'CRM', ar: 'إدارة العملاء' },
+  workflow: { en: 'Workflow & Approvals', ar: 'سير العمل والموافقات' },
+  analytics: { en: 'Analytics', ar: 'التحليلات' },
+  field_ops: { en: 'Field Operations', ar: 'العمليات الميدانية' },
+  integrations: { en: 'Integrations', ar: 'التكاملات' },
   sales: { en: 'Sales', ar: 'المبيعات' },
   inventory: { en: 'Inventory', ar: 'المخزون' },
   purchasing: { en: 'Purchasing', ar: 'المشتريات' },
-  accounting: { en: 'Accounting', ar: 'الحسابات' },
+  accounting: { en: 'Finance / Accounting', ar: 'المالية / المحاسبة' },
   hotel: { en: 'Hotel', ar: 'الفندق' },
   clinic: { en: 'Clinic', ar: 'العيادة' },
   restaurant: { en: 'Restaurant / Café', ar: 'المطعم / الكافيه' },

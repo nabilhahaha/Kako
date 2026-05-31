@@ -8,7 +8,7 @@ import { Loader2, Check } from 'lucide-react';
 import {
   ShoppingCart, Boxes, Truck as TruckIcon, Wallet, BedDouble, Stethoscope,
   UtensilsCrossed, Scissors, Pill, WashingMachine, ScanBarcode, Layers,
-  FileText, Undo2, Warehouse, type LucideIcon,
+  FileText, Undo2, Warehouse, Users, ClipboardCheck, BarChart3, Plug, type LucideIcon,
 } from 'lucide-react';
 import { ALL_MODULES, MODULE_LABELS, type Module } from '@/lib/erp/navigation';
 import { classifyModuleKey } from '@/lib/erp/licensing-catalog';
@@ -16,6 +16,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { toggleCompanyModule } from './actions';
 
 const ICONS: Record<Module, LucideIcon> = {
+  crm: Users, workflow: ClipboardCheck, analytics: BarChart3, field_ops: TruckIcon, integrations: Plug,
   sales: ShoppingCart, inventory: Boxes, purchasing: TruckIcon, accounting: Wallet,
   hotel: BedDouble, clinic: Stethoscope, restaurant: UtensilsCrossed, salon: Scissors,
   pharmacy: Pill, laundry: WashingMachine, market: ScanBarcode, wholesale: Layers,
