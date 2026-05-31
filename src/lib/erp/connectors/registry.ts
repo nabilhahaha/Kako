@@ -3,13 +3,14 @@ import { genericRestAdapter } from './generic-rest';
 import { csvSftpAdapter } from './csv-sftp';
 import { dynamicsBcAdapter } from './dynamics-bc';
 import { sapS4Adapter } from './sap-s4';
+import { odooAdapter } from './odoo';
 
 /** ── Connector registry ────────────────────────────────────────────────────
  *  Single source of truth for the adapters a company can connect. Adding a new
- *  system (e.g. Oracle/Odoo) = register its descriptor here; no new screens or
+ *  system (e.g. Oracle) = register its descriptor here; no new screens or
  *  migration. Reference adapters (generic_rest, csv_sftp) prove the framework;
- *  vendor adapters: dynamics_bc (B2), sap_s4 (B3a). */
-const ADAPTERS: ConnectorAdapter[] = [genericRestAdapter, csvSftpAdapter, dynamicsBcAdapter, sapS4Adapter];
+ *  vendor adapters: dynamics_bc (B2), sap_s4 (B3a/B3b), odoo (B5). */
+const ADAPTERS: ConnectorAdapter[] = [genericRestAdapter, csvSftpAdapter, dynamicsBcAdapter, sapS4Adapter, odooAdapter];
 const BY_KEY = new Map(ADAPTERS.map((a) => [a.key, a]));
 
 export function listConnectorAdapters(): ConnectorAdapter[] {

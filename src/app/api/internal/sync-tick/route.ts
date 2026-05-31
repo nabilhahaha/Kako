@@ -7,6 +7,8 @@ import { pullCsvSftp, pushCsvSftp, type SftpAuth, type FileFormat } from '@/lib/
 import { pullDynamicsBc, pushDynamicsBc, bcEntitySet, type BcConfig } from '@/lib/erp/connectors/runtime/dynamics-bc-runtime';
 import { pullSapS4, pushSapS4, sapEntityPath, type SapConfig } from '@/lib/erp/connectors/runtime/sap-s4-runtime';
 import { sapFileFieldMap } from '@/lib/erp/connectors/sap-presets';
+import { pullOdoo, pushOdoo, odooModel, type OdooConfig } from '@/lib/erp/connectors/runtime/odoo-runtime';
+import { odooPreset } from '@/lib/erp/connectors/odoo-presets';
 
 /** ── Sync dispatcher — POST/GET /api/internal/sync-tick ────────────────────
  *  Triggered by Vercel Cron (Authorization: Bearer $CRON_SECRET). Claims due
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
   for (const j of jobs) {
     try {
       const adapter = j.adapter;
-      if (adapter !== 'generic_rest' && adapter !== 'csv_sftp' && adapter !== 'dynamics_bc' && adapter !== 'sap_s4') {
+      if (adapter !== 'generic_rest' && adapter !== 'csv_sftp' && adapter !== 'dynamics_bc' && adapter !== 'sap_s4' && adapter !== 'odoo') {
         await db.rpc('erp_sync_complete', { p_run_id: j.run_id, p_status: 'failed', p_pulled: 0, p_written: 0, p_skipped: 0, p_failed: 0, p_cursor_after: null, p_error: `adapter ${adapter} not supported yet` });
         results.push({ job: j.job_id, status: 'failed', error: 'adapter not supported' });
         continue;
@@ -88,6 +90,9 @@ export async function POST(req: NextRequest) {
       // (B3a; default when unset). File transport reuses the B1 csv_sftp runtime
       // with SAP IDoc field presets (job field_map still overrides).
       const sapIsFile = adapter === 'sap_s4' && String(icfg.transport ?? 'odata') === 'file';
+      const odooCfg = (): OdooConfig => ({
+        baseUrl: String(icfg.base_url ?? ''), database: String(icfg.database ?? ''), username: String(icfg.username ?? ''),
+      });
 
       if (j.direction === 'in') {
         let records: Record<string, unknown>[] = [];
@@ -120,6 +125,19 @@ export async function POST(req: NextRequest) {
             fieldMap: fieldMap ?? sapFileFieldMap(j.entity, 'in'),
           });
           records = pull.records; cursorAfter = null;
+        } else if (adapter === 'odoo') {
+          const model = String((jcfg.model as string) ?? odooModel(j.entity) ?? '');
+          if (!model) throw new Error(`no Odoo model for "${j.entity}"`);
+          const preset = odooPreset(j.entity, 'in');
+          const pull = await pullOdoo({
+            cfg: odooCfg(), model, secret: j.secret ?? '',
+            cursor: j.mode === 'delta' ? j.job_cursor : null,
+            cursorField: (jcfg.cursor_field as string) || 'write_date',
+            fields: (jcfg.fields as string[]) ?? preset?.fields,
+            domain: (jcfg.domain as unknown[]) ?? preset?.domain,
+            fieldMap: fieldMap ?? preset?.fieldMap,
+          });
+          records = pull.records; cursorAfter = pull.cursorAfter;
         } else {
           const path = sapPath();
           if (!path) throw new Error(`no SAP entity path for "${j.entity}"`);
@@ -178,6 +196,13 @@ export async function POST(req: NextRequest) {
             fieldMap: fieldMap ?? sapFileFieldMap(j.entity, 'out'),
           });
           sent = push.sent; cursorAfter = null;
+        } else if (adapter === 'odoo') {
+          const model = String((jcfg.model as string) ?? odooModel(j.entity) ?? '');
+          if (!model) throw new Error(`no Odoo model for "${j.entity}"`);
+          const preset = odooPreset(j.entity, 'out');
+          const push = await pushOdoo({ cfg: odooCfg(), model, secret: j.secret ?? '', records: recs, fieldMap: fieldMap ?? preset?.fieldMap });
+          sent = push.sent; failedCount = push.failed;
+          for (const r of recs) { const u = r.updated_at as string | undefined; if (u && (cursorAfter == null || u > cursorAfter)) cursorAfter = u; }
         } else {
           const path = sapPath();
           if (!path) throw new Error(`no SAP entity path for "${j.entity}"`);
