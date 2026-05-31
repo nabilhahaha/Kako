@@ -95,7 +95,7 @@ at a time) and **build sub-slices** (each design→build→verify→PR→prod-ap
 | B3a | **SAP S/4HANA Cloud adapter (OData)** | Build | B2 (OData pattern) | High | Med–High | 3 | ✅ merged |
 | R4B | **R4 Licensing Build** (capability modules + entitlement + backfill) | Build | R4, UI-ALIGN | High | Med–High | next | 🟡 built; in review (0095 pending prod apply) |
 | B3b | **SAP on-prem / ECC (file + middleware)** | Build | B1 (file), B3a | High | High | 4 | 🔜 |
-| BU | **UI Alignment Implementation** (finish after R4B) (Core Modules / Industry Packs / Suggested Roles) | Build | UI-ALIGNMENT-REVIEW, R4 | High | Med | after B3a | 🟡 in progress (Setup Wizard + Marketplace grouped; catalog w/ defaults); platform-create + full pack-preselect wiring with R4 |
+| BU | **UI Alignment Implementation** (finish after R4B) (Core Modules / Industry Packs / Suggested Roles) | Build | UI-ALIGNMENT-REVIEW, R4 | High | Med | after B3a | 🟡 nav binding (field_ops any-of) + Suggested-Roles step + new-company bridge shipped (code-only, no DB change); universal crm/workflow/analytics/integrations nav gating deferred to a capability-seed slice |
 | B5 | **Odoo adapter** | Build | framework | Med | Med (JSON-RPC) | 5 | 🔜 |
 | B4 | **Oracle NetSuite adapter** | Build | framework | Med | Med–High (TBA OAuth1-HMAC) | 6 | 🔜 |
 

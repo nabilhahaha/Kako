@@ -79,7 +79,7 @@ const REPS_QUESTION: SetupQuestion = {
   titleEn: 'Do you have field sales reps?',
   options: [
     { value: 'no', labelAr: 'لا', labelEn: 'No', disable: ['distribution'] },
-    { value: 'yes', labelAr: 'نعم — عندي مناديب', labelEn: 'Yes — I have reps', descAr: 'يفعّل تطبيق المندوب وخطوط السير والتحصيل.', descEn: 'Enables the rep app, routes, and collection.', enable: ['distribution', 'sales_orders'] },
+    { value: 'yes', labelAr: 'نعم — عندي مناديب', labelEn: 'Yes — I have reps', descAr: 'يفعّل تطبيق المندوب وخطوط السير والتحصيل.', descEn: 'Enables the rep app, routes, and collection.', enable: ['distribution', 'sales_orders', 'field_ops'] },
   ],
 };
 

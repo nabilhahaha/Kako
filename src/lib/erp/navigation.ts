@@ -62,8 +62,11 @@ export interface NavItem {
   perm?: Permission | Permission[];
   /** Finer-grained module gate for this specific item (overrides the section's
    *  module). Lets a section like "المبيعات" hide POS/orders/returns for the
-   *  business types that don't need them. Omit = use the section's module. */
-  module?: Module;
+   *  business types that don't need them. Omit = use the section's module.
+   *  An array = ANY-of (visible if the company has *any* of the listed modules),
+   *  used to bind a capability module alongside a legacy gate without regressing
+   *  tenants that only have the legacy one (e.g. field_ops OR distribution). */
+  module?: Module | Module[];
   /** Only super admins. */
   superAdminOnly?: boolean;
   /** Only the platform owner (the vendor). */
@@ -81,8 +84,9 @@ export interface NavSection {
   title: string;
   items: NavItem[];
   /** Feature module this section belongs to; gated by the company's plan.
-   *  Omit = always available (dashboard, settings, vendor panel). */
-  module?: Module;
+   *  Omit = always available (dashboard, settings, vendor panel). An array =
+   *  ANY-of (visible if the company has any of the listed modules). */
+  module?: Module | Module[];
 }
 
 /** Feature modules that a subscription plan / business type can unlock.
@@ -228,11 +232,11 @@ export const NAV_SECTIONS: NavSection[] = [
     module: 'sales',
     items: [
       { label: 'nav.items.quickSale', href: '/sales/pos', icon: Zap, perm: 'sales.sell', module: 'pos' },
-      { label: 'nav.items.repApp', href: '/rep', icon: Smartphone, perm: 'field.sales', module: 'distribution' },
-      { label: 'nav.items.repSettlement', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'], module: 'distribution' },
+      { label: 'nav.items.repApp', href: '/rep', icon: Smartphone, perm: 'field.sales', module: ['field_ops', 'distribution'] },
+      { label: 'nav.items.repSettlement', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'], module: ['field_ops', 'distribution'] },
       { label: 'nav.items.salesOrders', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell', module: 'sales_orders' },
       { label: 'nav.items.invoices', href: '/sales/invoices', icon: FileText, perm: ['sales.sell', 'sales.collect'] },
-      { label: 'nav.items.journey', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales', module: 'distribution' },
+      { label: 'nav.items.journey', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales', module: ['field_ops', 'distribution'] },
       { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
       { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view' },
       { label: 'nav.items.customers', href: '/customers', icon: Users, perm: 'customers.manage' },
@@ -336,7 +340,13 @@ export function visibleSections(
 
   const elevated = isSuperAdmin;
   const unrestricted = modules.length === 0; // platform owner / legacy tenant
-  const moduleAllowed = (m?: Module) => !m || unrestricted || modules.includes(m);
+  const moduleAllowed = (m?: Module | Module[]) => {
+    if (!m || unrestricted) return true;
+    // Array = ANY-of: the section/item shows if the company has at least one
+    // of the listed modules (so a capability module can be bound alongside a
+    // legacy gate without regressing tenants that only have the legacy one).
+    return Array.isArray(m) ? m.some((x) => modules.includes(x)) : modules.includes(m);
+  };
 
   return NAV_SECTIONS.filter((s) => moduleAllowed(s.module)).map((section) => ({
     ...section,
