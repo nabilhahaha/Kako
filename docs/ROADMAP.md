@@ -93,9 +93,10 @@ at a time) and **build sub-slices** (each design→build→verify→PR→prod-ap
 | B1 | **2C-3 CSV/SFTP Transport** | Build | 2C-2 (✅) | High | Low–Med | 1 | ✅ merged |
 | B2 | **Dynamics 365 Business Central adapter** | Build | 2C-1/2C-2, B1 | High | Med (OAuth2 + OData v4) | 2 | ✅ merged |
 | B3a | **SAP S/4HANA Cloud adapter (OData)** | Build | B2 (OData pattern) | High | Med–High | 3 | ✅ merged |
-| R4B | **R4 Licensing Build** (capability modules + entitlement + backfill) | Build | R4, UI-ALIGN | High | Med–High | next | 🟡 built; in review (0095 pending prod apply) |
-| B3b | **SAP on-prem / ECC (file + middleware)** | Build | B1 (file), B3a | High | High | 4 | 🔜 |
-| BU | **UI Alignment Implementation** (finish after R4B) (Core Modules / Industry Packs / Suggested Roles) | Build | UI-ALIGNMENT-REVIEW, R4 | High | Med | after B3a | 🟡 nav binding (field_ops any-of) + Suggested-Roles step + new-company bridge shipped (code-only, no DB change); universal crm/workflow/analytics/integrations nav gating deferred to a capability-seed slice |
+| R4B | **R4 Licensing Build** (capability modules + entitlement + backfill) | Build | R4, UI-ALIGN | High | Med–High | done | ✅ merged (0095 applied to prod; no-regression verified) |
+| BU | **UI Alignment Implementation** (Core Modules / Industry Packs / Suggested Roles) | Build | UI-ALIGNMENT-REVIEW, R4 | High | Med | done | ✅ merged (#43): field_ops any-of nav binding + new-company bridge + Suggested-Roles step (code-only, no DB change) |
+| B3b | **SAP on-prem / ECC (file + middleware)** | Build | B1 (file), B3a | High | High | 4 | 🟡 design in review (`ADAPTER-SAP-ONPREM.md`) |
+| CSeed | **Capability-seed slice** — universal CRM/Workflow/Analytics/Integrations nav gating (new-company seed bridge) | Build | R4B, BU | Med | Low–Med | after B3b | 🔜 tracked follow-up |
 | B5 | **Odoo adapter** | Build | framework | Med | Med (JSON-RPC) | 5 | 🔜 |
 | B4 | **Oracle NetSuite adapter** | Build | framework | Med | Med–High (TBA OAuth1-HMAC) | 6 | 🔜 |
 
