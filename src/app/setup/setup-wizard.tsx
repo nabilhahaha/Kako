@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import type { SetupProfile } from '@/lib/erp/setup-wizard';
+import { ALL_ROLES } from '@/lib/erp/setup-wizard';
 import { classifyModuleKey } from '@/lib/erp/licensing-catalog';
 import { applySetupProfile, skipSetup } from './actions';
 
@@ -42,6 +43,7 @@ export function SetupWizard({
     return seed;
   });
   const [pending, startTransition] = useTransition();
+  const [showAllRoles, setShowAllRoles] = useState(false);
 
   const isQuestionStep = step < profile.questions.length;
   const isModuleStep = step === profile.questions.length;
@@ -175,6 +177,26 @@ export function SetupWizard({
                   </div>
                 ))}
               </div>
+
+              {/* Secondary option: reveal the full platform role catalog. The
+                  industry-specific set above stays the default experience. */}
+              <button
+                type="button"
+                onClick={() => setShowAllRoles((v) => !v)}
+                className="mt-4 text-sm font-medium text-[#c4b5fd] hover:text-white"
+              >
+                {showAllRoles ? tr('إخفاء كل الأدوار', 'Hide all roles') : tr('عرض كل الأدوار', 'Show all roles')}
+              </button>
+              {showAllRoles && (
+                <div className="mt-3">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/45">{tr('كل الأدوار المتاحة', 'All available roles')}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ALL_ROLES.map((r) => (
+                      <span key={r.en} className="rounded-full border border-white/12 bg-white/10 px-2.5 py-1 text-xs">{ar ? r.ar : r.en}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
 

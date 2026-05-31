@@ -62,6 +62,48 @@ export interface SetupProfile {
 const tog = (module: Module, ar: string, en: string, defaultOn = true): ModuleToggle => ({ module, labelAr: ar, labelEn: en, defaultOn });
 const bi = (ar: string, en: string): Bilingual => ({ ar, en });
 
+/** Electrical Retail & Wholesale suggested roles (display labels for the wizard's
+ *  Suggested-Roles step). Presentation only — the DB still seeds keyed roles via
+ *  erp_seed_company_roles; these are the industry-specific names shown by default
+ *  for the Electrical pack so the demo doesn't surface cross-industry roles. */
+export const ELECTRICAL_ROLES: Bilingual[] = [
+  bi('مدير النظام', 'System Administrator'),
+  bi('المدير العام', 'General Manager'),
+  bi('مدير الفرع', 'Branch Manager'),
+  bi('مدير المبيعات', 'Sales Manager'),
+  bi('مشرف المبيعات', 'Sales Supervisor'),
+  bi('مندوب مبيعات', 'Sales Representative'),
+  bi('مندوب مبيعات المشاريع', 'Projects Sales Representative'),
+  bi('مدير المشتريات', 'Purchasing Manager'),
+  bi('أمين المخزن', 'Warehouse Keeper'),
+  bi('مشرف المخازن', 'Warehouse Supervisor'),
+  bi('محاسب', 'Accountant'),
+  bi('مسؤول الضمان', 'Warranty Officer'),
+  bi('مسؤول المرتجعات', 'RMA Officer'),
+  bi('سائق / مندوب توصيل', 'Driver / Delivery Representative'),
+];
+
+/** The full platform role catalog (display labels) — revealed by the wizard's
+ *  "Show all roles" option so every role stays available even when an industry-
+ *  specific default set is shown. Mirrors the platform's role keys; labels only. */
+export const ALL_ROLES: Bilingual[] = [
+  bi('مدير النظام', 'System Administrator'),
+  bi('مدير', 'Manager'),
+  bi('مشرف', 'Supervisor'),
+  bi('محاسب', 'Accountant'),
+  bi('كاشير', 'Cashier'),
+  bi('مندوب مبيعات', 'Salesman'),
+  bi('سائق', 'Driver'),
+  bi('فني', 'Technician'),
+  bi('طبيب', 'Doctor'),
+  bi('موظف استقبال', 'Receptionist'),
+  bi('أخصائي تجميل', 'Beautician'),
+  bi('تدبير منزلي', 'Housekeeping'),
+  bi('أمين مخزن', 'Warehouse Keeper'),
+  bi('موظف', 'Staff'),
+  bi('مشاهدة فقط', 'Viewer'),
+];
+
 const SIZE_QUESTION: SetupQuestion = {
   id: 'size',
   titleAr: 'حجم نشاطك؟',
@@ -272,7 +314,8 @@ const ELECTRONICS: SetupProfile = {
     tog('distribution', 'مناديب التوزيع', 'Field reps', false),
     tog('wholesale', 'أسعار الجملة بالمستويات', 'Tiered wholesale pricing', false),
   ],
-  roles: [bi('مدير', 'Admin'), bi('كاشير', 'Cashier'), bi('أمين مخزن', 'Inventory Manager'), bi('مندوب', 'Salesman')],
+  // Electrical Retail & Wholesale industry-specific suggested roles (default).
+  roles: ELECTRICAL_ROLES,
   kpis: [bi('مبيعات اليوم', 'Today Sales'), bi('أصناف تحت الحد', 'Low Stock Items'), bi('الإيراد', 'Revenue'), bi('مديونيات العملاء', 'Customer Receivables')],
 };
 

@@ -48,7 +48,12 @@ describe('licensing catalog — role suggestions (approved defaults)', () => {
     expect(PACK_ROLE_SUGGESTIONS.clinic).toEqual(['System Admin', 'Clinic Manager', 'Receptionist', 'Doctor', 'Accountant']);
     expect(PACK_ROLE_SUGGESTIONS.pharmacy).toEqual(['System Admin', 'Pharmacist', 'Cashier', 'Storekeeper', 'Accountant']);
     expect(PACK_ROLE_SUGGESTIONS.distribution).toEqual(['System Admin', 'Sales Manager', 'Sales Supervisor', 'Salesman', 'Warehouse Keeper', 'Driver', 'Accountant']);
-    expect(PACK_ROLE_SUGGESTIONS.electrical).toEqual(['System Admin', 'Branch Manager', 'Cashier', 'Salesman', 'Warehouse Keeper', 'Accountant']);
+    expect(PACK_ROLE_SUGGESTIONS.electrical).toEqual([
+      'System Administrator', 'General Manager', 'Branch Manager', 'Sales Manager',
+      'Sales Supervisor', 'Sales Representative', 'Projects Sales Representative',
+      'Purchasing Manager', 'Warehouse Keeper', 'Warehouse Supervisor', 'Accountant',
+      'Warranty Officer', 'RMA Officer', 'Driver / Delivery Representative',
+    ]);
     expect(PACK_ROLE_SUGGESTIONS.retail).toEqual(['System Admin', 'Branch Manager', 'Cashier', 'Storekeeper']);
   });
 });
