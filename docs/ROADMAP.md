@@ -96,7 +96,7 @@ at a time) and **build sub-slices** (each design→build→verify→PR→prod-ap
 | R4B | **R4 Licensing Build** (capability modules + entitlement + backfill) | Build | R4, UI-ALIGN | High | Med–High | done | ✅ merged (0095 applied to prod; no-regression verified) |
 | BU | **UI Alignment Implementation** (Core Modules / Industry Packs / Suggested Roles) | Build | UI-ALIGNMENT-REVIEW, R4 | High | Med | done | ✅ merged (#43): field_ops any-of nav binding + new-company bridge + Suggested-Roles step (code-only, no DB change) |
 | B3b | **SAP on-prem / ECC (file + middleware)** | Build | B1 (file), B3a | High | High | 4 | 🟡 built; in review (`ADAPTER-SAP-ONPREM.md`); no migration; live SAP+middleware validation pending a pilot |
-| CSeed | **Capability-seed slice** — universal CRM/Workflow/Analytics/Integrations nav gating (new-company seed bridge) | Build | R4B, BU | Med | Low–Med | after B3b | 🔜 tracked follow-up |
+| CSeed | **Capability-seed slice** — universal CRM/Workflow/Analytics nav gating (new-company seed bridge) | Build | R4B, BU | Med | Low–Med | now | 🟡 built, in review (`CAPABILITY-SEED.md`); 0098 rolled-back-verified, pending prod apply |
 | B5 | **Odoo adapter** | Build | framework | Med | Med (JSON-RPC) | 5 | 🟡 built; in review (`ADAPTER-ODOO.md`); no migration; live validation pending a pilot |
 | B4 | **Oracle NetSuite adapter** | Build | framework | Med | Med–High (TBA OAuth1-HMAC) | 6 | 🟡 built; in review (`ADAPTER-NETSUITE.md`); shared oauth1.ts TBA signer; no migration; live validation pending a pilot |
 
@@ -130,7 +130,7 @@ Wholesale ✅, Distribution/FMCG ✅, Hotel ✅** (verticals on the shared core)
 
 | Pack | Status | Notable scope |
 |---|---|---|
-| **Electrical Retail & Wholesale** | 🟡 building (`PACK-ELECTRICAL.md`) | Sub-slice **A ✅ merged** (multi-tier pricing + supplier returns; 0096 in prod); Sub-slice **B 🟡 built, in review** (`PACK-ELECTRICAL-B.md`: serials + warranty + RMA; 0097 rolled-back-verified, pending prod apply). Pack complete when B merges. First pilot target. |
+| **Electrical Retail & Wholesale** | ✅ **complete** | Sub-slice **A ✅** (multi-tier pricing Retail/Semi-wholesale/Wholesale/Project + supplier returns; 0096 in prod) + Sub-slice **B ✅** (serials + warranty + RMA + serialized transfers; 0097 in prod). Full scope delivered; reuses tiers/ledger/transfers/sales-returns. First pilot target — ready. |
 
 Pilot targets (R6): **FMCG Distribution · Electrical Retail & Wholesale ·
 Pharmacy · Clinic** — each with a seeded demo environment.
