@@ -18,6 +18,10 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    // Import Engine uploads .xlsx bytes (base64) to a server action for parsing.
+    serverActions: { bodySizeLimit: '15mb' },
+  },
   async headers() {
     return [{ source: '/(.*)', headers: SECURITY_HEADERS }];
   },
