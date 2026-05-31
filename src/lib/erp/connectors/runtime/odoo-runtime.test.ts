@@ -41,7 +41,7 @@ describe('Odoo runtime (B5)', () => {
     expect(res.records).toEqual([{ external_id: 100, name: 'Acme' }]);
     expect(res.cursorAfter).toBe('2024-02-01 10:00:00');
     // envelope: object.execute_kw(db, uid, key, model, 'search_read', [domain], kwargs)
-    const a = searchArgs as unknown[];
+    const a = searchArgs!;
     expect(a[0]).toBe('acme'); expect(a[1]).toBe(7); expect(a[2]).toBe('key');
     expect(a[3]).toBe('res.partner'); expect(a[4]).toBe('search_read');
     const domain = (a[5] as unknown[][])[0] as unknown[];
