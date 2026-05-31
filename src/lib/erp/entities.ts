@@ -141,6 +141,12 @@ export function listEntities(): EntityDescriptor[] {
 export function listImportableEntities(): EntityDescriptor[] {
   return REGISTRY.filter((e) => e.fields && e.fields.length > 0 && entityCapabilities(e.key).importable);
 }
+/** Entities that can be exported (have a field map + exportable capability).
+ *  The descriptor's `fields` are the exported columns — same business-facing
+ *  shape as import, so an export round-trips back through the Import Engine. */
+export function listExportableEntities(): EntityDescriptor[] {
+  return REGISTRY.filter((e) => e.fields && e.fields.length > 0 && entityCapabilities(e.key).exportable);
+}
 export function getEntity(key: string): EntityDescriptor | undefined {
   return BY_KEY.get(key);
 }

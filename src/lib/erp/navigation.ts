@@ -44,6 +44,7 @@ import {
   Network,
   Upload,
   FileSpreadsheet,
+  FileDown,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -266,6 +267,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users' },
       { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage' },
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage' },
+      { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true },
       { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true },
       { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true },
