@@ -23,6 +23,9 @@ to **coexist with an external ERP** (sync only selected modules). See
 - [`PILOT-FMCG.md`](PILOT-FMCG.md) — **FMCG Distribution pilot package** (demo
   company · sample data · routes/warehouses · roles · success criteria · 30-day
   plan · onboarding checklist).
+- [`PILOT-ELECTRICAL.md`](PILOT-ELECTRICAL.md) — **Electrical Retail & Wholesale
+  pilot package** (multi-tier pricing · serials · warranty · RMA · supplier +
+  customer returns · roles · success criteria · 30-day plan · onboarding).
 - [`PRODUCT_PRINCIPLES.md`](PRODUCT_PRINCIPLES.md) — the standing decision rule
   (Platform → Module → Customer) + modularity & coexistence principle.
 - [`ROADMAP.md`](ROADMAP.md) — completed milestones + the formally-tracked
