@@ -1,322 +1,268 @@
-# VANTORA Business OS — Technical Architecture
+# VANTORA Business OS — Architecture
 
-> **One platform. Multiple industries. Shared core. Dynamic configuration.**
+> One platform, many businesses. A multi-tenant SaaS "Business OS" that adapts
+> per business type through **dynamic configuration on a shared core** — never
+> per-industry forks. Built on Next.js 15 (App Router) + Supabase (Postgres 17,
+> RLS everywhere).
 
-VANTORA is a multi-tenant business management platform (Business OS) built on a
-**single shared codebase and database**. Instead of separate apps per industry,
-every company runs on the same core and is shaped by **dynamic configuration**:
-its business type, enabled modules, roles/permissions, and (on the roadmap)
-organization structure, workflows, dashboards, and custom fields.
+This is the canonical architecture reference. Companion docs:
+`OWNER_GUIDE.md` (operations), `ROADMAP.md` (what's next), `MAINTENANCE.md`
+(run/monitor/rollback), `ENTITY-FRAMEWORK.md`, `INTEGRATION.md`, `MODULES.md`,
+`BACKUPS.md`, `STAGING.md`, `CONVENTIONS.md`.
 
-This document is the canonical reference for the data model, modules,
-permissions, the setup wizard, the marketplace, organization structure,
-workflows, and the forward roadmap. It reflects the system **as built**
-(migrations `0001`–`0076`, 78 `erp_*` tables) and clearly marks what is
-**planned**.
+Status legend: ✅ built · 🟡 foundation · 🔜 planned.
 
 ---
 
-## 1. Stack & conventions
+## 1. High-level system architecture
 
-| Layer | Choice |
+```
+                 ┌──────────────────────────────────────────────┐
+   Browser ──────►  Next.js 15 App Router (Vercel)               │
+   (RTL/LTR)     │   • Server Components + Server Actions         │
+                 │   • Route groups: (app) (auth) (print) (legal) │
+                 │   • /setup /onboarding /platform               │
+                 └───────────────┬───────────────┬───────────────┘
+                                 │ @supabase/ssr  │ Server Actions / Route Handlers
+                                 ▼                ▼
+                 ┌──────────────────────────────────────────────┐
+                 │  Supabase (Postgres 17)                        │
+                 │   • RLS on every table (tenant isolation)      │
+                 │   • SECURITY DEFINER RPCs (guarded writes)     │
+                 │   • Edge Functions (service-role ops)          │
+                 │   • Auth (email/password)                      │
+                 └──────────────────────────────────────────────┘
+   Observability: Sentry (env-gated)   Backups: pg_dump + Supabase PITR
+```
+
+- **Rendering:** React Server Components by default; client components only where
+  interactivity is needed. Mutations go through **Server Actions** (and a few
+  **Route Handlers**, e.g. `/api/export`).
+- **Tenancy boundary:** enforced in the database (RLS), not just the app. The app
+  is a convenience layer; Postgres is the source of truth for who-sees-what.
+- **Two actor planes:**
+  1. **Tenant plane** — companies → branches → users with company roles.
+  2. **Vendor/platform plane** — the Platform Owner + internal staff who operate
+     the SaaS itself (see §8). The two never mix: platform staff belong to no
+     tenant company.
+- **i18n:** custom lightweight `t()` with full **ar/en** parity (enforced by a
+  test), RTL/LTR toggle, cookie-backed locale.
+- **Config over forks:** business types select modules/roles/dashboards from a
+  shared core via DB config; there is no per-industry codebase.
+
+---
+
+## 2. Module map
+
+Route groups under `src/app/`:
+
+| Group / path | Purpose |
 |---|---|
-| Framework | Next.js 15 (App Router, RSC, Server Actions) |
-| Language | TypeScript (strict) |
-| DB / Auth | Supabase (Postgres 17 + GoTrue), Row-Level Security everywhere |
-| Styling | Tailwind + HSL CSS-var theme tokens (violet/blue/cyan brand) |
-| i18n | Custom lightweight `t()` (ar/en, RTL/LTR), cookie-backed |
-| Charts | Recharts | Icons | lucide-react |
-| Tests | Vitest (unit + gated DB integration), Playwright (E2E) |
-| Observability | Sentry (env-gated) |
-| Hosting | Vercel (web) + Supabase (DB) |
+| `(app)/` | Authenticated product shell (sidebar, topbar, command palette). |
+| `(app)/platform/` | Vendor panel: companies, **staff** (`/platform/staff`), audit, drugs. |
+| `(app)/settings/` | Org, users/staff, permissions, marketplace, **import**, **export**, integrations, e-invoice. |
+| `(auth)/`, `auth/`, `login`, `forgot-password`, `reset-password` | Auth flows. |
+| `(print)/print/...` | Print views (invoices, prescriptions, medical record). |
+| `(legal)/`, `privacy`, `terms` | Legal/marketing. |
+| `/`, `promo/[type]` | Unified landing + login modal. |
+| `/onboarding`, `/setup` | Self-serve company creation + Smart Setup Wizard. |
 
-Route groups: `(app)` (authenticated product), `(auth)` (login/register),
-`(print)` (printable documents), `(legal)`, plus top-level `/setup` (wizard),
-`/onboarding`, `/promo/[type]`, and the public landing `/`.
+Feature **modules** (gated by plan ∩ business type): sales, inventory,
+purchasing, accounting, plus verticals — clinic, pharmacy, restaurant, salon,
+laundry, supermarket, wholesale, distribution, hotel. Finer item gates: pos,
+sales_orders, returns, warehousing. See `MODULES.md`.
 
-Naming: every tenant table is prefixed `erp_`. Enum/label maps are bilingual
-`{ en, ar }`. New migrations are additive and append to `supabase/migrations/`.
-
----
-
-## 2. Multi-tenancy — the core invariant
-
-The whole platform rests on **tenant isolation enforced by Postgres RLS**, not
-application code:
-
-- Every tenant row carries a `company_id` (directly or via `branch_id`).
-- RLS policies scope reads/writes to the caller's company using SQL helpers:
-  - `erp_user_company_id()` — the caller's company.
-  - `erp_user_branch_ids()` — the caller's branches.
-  - `erp_is_platform_owner()` / `erp_is_super_admin()` — elevated actors.
-- Privileged cross-cutting operations use **SECURITY DEFINER** functions that
-  re-check the caller (e.g. `erp_apply_setup_modules`, `erp_self_register_company`,
-  `erp_admin_set_password`) — so the app never needs broad table grants.
-
-**Actors**
-- *Platform owner* (the vendor): runs the provider panel; belongs to no tenant.
-- *Super admin*: platform staff (cross-tenant tooling).
-- *Company admin*: a tenant user with branch role `admin` — the company owner.
-- *Tenant users*: branch roles (doctor, cashier, salesman, …) with permissions.
+Cross-cutting **engines** (entity-based, build-once-reuse-everywhere):
+- **Entity Framework** (`src/lib/erp/entities.ts`) — registry of every business
+  object; see `ENTITY-FRAMEWORK.md`.
+- **Import Engine** (`/settings/import`) — Excel/CSV/JSON → any entity, with
+  mapping templates. See `INTEGRATION.md`.
+- **Export Engine** (`/api/export`) — any entity → CSV/Excel/JSON.
+- **Platform Staff** (`/platform/staff`) — vendor internal-staff management (§8).
 
 ---
 
-## 3. Database schema
+## 3. Database architecture
 
-78 `erp_*` tables today. Grouped by domain (✅ = implemented, 🔜 = roadmap):
+Postgres 17 on Supabase. **85 migrations** (`supabase/migrations/0001…0085`),
+all additive and idempotent (`create … if not exists`, `drop policy if exists`).
+~80 `erp_*` tables grouped by domain:
 
-### 3.1 Tenancy & identity ✅
-`erp_companies` · `erp_branches` · `erp_profiles` · `erp_user_branches`
-(membership: user × branch × role) · `erp_audit_logs`
+| Domain | Representative tables |
+|---|---|
+| Tenancy & identity | `erp_companies`, `erp_branches`, `erp_user_branches`, `erp_profiles` |
+| Plans / modules / config | `erp_plans`, `erp_plan_modules`, `erp_company_modules`, `erp_business_type_modules`, `erp_business_type_roles` |
+| Roles / permissions | `erp_roles`, `erp_role_permissions`, `erp_company_roles`, `erp_company_role_permissions` |
+| Catalog & partners | `erp_products_catalog`, `erp_customers`, `erp_suppliers` |
+| Sales / purchasing / returns | `erp_invoices`, `erp_sales_orders`, `erp_purchase_orders`, returns |
+| Inventory / warehousing | stock, transfers, counts, requests, expiry |
+| Accounting | chart of accounts, journals, vouchers (auto-posting triggers) |
+| Distribution / field | routes, journeys, rep targets, settlements |
+| Verticals | clinic, pharmacy, restaurant, salon, laundry, hotel, supermarket |
+| E-invoicing (ETA) | `erp_eta_*` (inert until configured) |
+| **Entity framework** | `erp_entity_notes`, `erp_entity_attachments`, `erp_audit_logs` |
+| **Integration** | `erp_import_jobs`, `erp_import_mappings` |
+| **Platform staff** | `erp_platform_staff`, `erp_platform_role_permissions`, `erp_platform_staff_permissions` |
 
-`erp_companies` key columns: `name`, `name_ar`, `business_type`, `plan_key`,
-`currency`, `is_active`, `subscription_start/end`, `setup_done`.
+**Standard entity fields** (the entity contract): every registry entity carries
+`company_id`, `branch_id` (where applicable), `created_by`, `created_at`,
+`updated_by`, `updated_at`, `status`, `external_id` — added nullable for zero
+breakage. See `ENTITY-FRAMEWORK.md` §1a.
 
-### 3.2 Plans, modules & access config ✅
-`erp_plans` · `erp_plan_modules` (what a plan unlocks) ·
-`erp_company_modules` (**per-company enabled modules** — the dynamic switch) ·
-`erp_business_type_modules` / `erp_business_type_roles` (industry **presets**) ·
-`erp_roles` · `erp_role_permissions` (global defaults) ·
-`erp_company_roles` · `erp_company_role_permissions` (**per-company role config**)
-
-### 3.3 Catalog & partners ✅
-`erp_products_catalog` · `erp_product_categories` · `erp_customers` ·
-`erp_suppliers` · `erp_price_lists` / `erp_price_list_items` ·
-`erp_wholesale_tiers` / `erp_wholesale_prices` / `erp_wholesale_customer_tier`
-
-### 3.4 Sales, purchasing & returns ✅
-`erp_invoices` / `erp_invoice_lines` · `erp_sales_orders` / `_lines` ·
-`erp_sales_returns` / `_lines` · `erp_purchase_orders` / `_lines` ·
-`erp_goods_receipts` / `_lines` · `erp_payments` · `erp_supplier_payments` ·
-`erp_sequences` (document numbering)
-
-### 3.5 Inventory & warehousing ✅
-`erp_warehouses` · `erp_inventory_stock` · `erp_stock_movements` ·
-`erp_transfer_orders` / `_lines` · `erp_stock_requests` / `_lines` ·
-`erp_stock_counts` / `_lines`
-
-### 3.6 Accounting ✅
-`erp_chart_of_accounts` · `erp_journal_entries` / `erp_journal_lines`
-(double-entry) · `erp_account_map` · `erp_cost_centers` ·
-`erp_fiscal_periods` · `erp_bank_accounts` ·
-`erp_payment_vouchers` / `erp_receipt_vouchers`
-
-### 3.7 Distribution / field sales ✅
-`erp_routes` · `erp_rep_targets` (visits/journey plans live on customers +
-sales orders)
-
-### 3.8 Vertical modules ✅
-- Clinic: `erp_patients` · `erp_clinic_visits` · `erp_clinic_appointments` ·
-  `erp_clinic_services` · `erp_clinic_reference` (drug/lab/radiology, pg_trgm)
-- Pharmacy: `erp_pharmacy_dispenses` / `_items`
-- Restaurant: `erp_restaurant_tables` · `erp_restaurant_orders` / `_items`
-- Salon: `erp_salon_services` · `erp_salon_appointments` · `erp_salon_tickets` / `_items`
-- Laundry: `erp_laundry_services` · `erp_laundry_orders` / `_items`
-- Hotel: `erp_rooms` · `erp_bookings`
-- Gaming/services: `erp_work_sessions`
-- Legacy: `erp_visits` (pre-ERP base, retained)
-
-### 3.9 E-invoicing (ETA) ✅ (inert until configured)
-`erp_company_eta_settings` + invoice `eta_*` columns + product `eta_item_code*`
-(see `docs/ETA.md`)
-
-### 3.10 Planned tables 🔜
-`erp_departments` · `erp_teams` · `erp_job_titles` (org structure) ·
-`erp_workflows` / `erp_workflow_steps` / `erp_workflow_instances` ·
-`erp_dashboards` / `erp_dashboard_widgets` · `erp_custom_fields` / `erp_custom_values`
+**Write paths.** Most writes go directly through RLS-scoped tables. Sensitive or
+cross-cutting writes go through **SECURITY DEFINER RPCs** (e.g.
+`erp_apply_setup_modules`, `erp_set_default_mapping`, `erp_admin_set_password`)
+so the privileged step is centralized, gated, and auditable. Migrations and
+service-role edge functions bypass RLS by design.
 
 ---
 
-## 4. Modules (dynamic configuration)
+## 4. Security model
 
-A **module** is a feature area that can be turned on/off per company. The coarse
-set (granted by plans) and finer item-level set:
+Defense in depth, with the database as the final authority.
 
-```
-Coarse (ALL_MODULES): sales, inventory, purchasing, accounting, hotel, clinic,
-  restaurant, salon, pharmacy, laundry, market, wholesale, distribution
-Finer (item-level):   pos, sales_orders, returns, warehousing
-```
-
-**Resolution** (in `src/lib/erp/auth-context.ts`): a tenant's visible modules =
-`company_modules (enabled)` ∩ `plan_modules`. Platform owner/super admin see all.
-The navigation (`src/lib/erp/navigation.ts`) filters sections/items by module
-**and** permission, so screens appear only when both gates pass.
-
-Defaults per industry come from `erp_business_type_modules` (a preset, seeded on
-company creation). The **App Marketplace** and **Setup Wizard** then mutate
-`erp_company_modules` via one guarded RPC.
-
----
-
-## 5. Permissions & roles
-
-Three-layer, per-tenant, granular:
-
-1. **Catalog** — `erp_roles` + `erp_role_permissions` (29 permissions, global
-   defaults). Permissions are dotted capabilities, e.g. `sales.sell`,
-   `inventory.adjust`, `accounting.post`, `clinic.doctor`, `settings.users`.
-2. **Business-type template** — `erp_business_type_roles` enables only the roles
-   that fit the industry (clinic → admin/doctor/receptionist/accountant; FMCG →
-   admin/sales_manager/supervisor/salesman/warehouse).
-3. **Per-company** — `erp_company_roles` (which roles are on) +
-   `erp_company_role_permissions` (the matrix the admin can edit in
-   *Settings → Permissions*). This is authoritative; companies without their own
-   config fall back to the catalog defaults.
-
-Effective permissions for a user = union over their branch roles, resolved per
-the company config. The **planned** dynamic permission model extends each role
-with explicit action verbs per module: *view / create / edit / delete / approve
-/ export / manage-settings* (`erp_company_role_permissions` gains an `action`
-dimension).
+1. **Authentication** — Supabase Auth (email/password). `auth.uid()` is the
+   identity used by every policy and helper.
+2. **Tenant isolation (the core invariant)** — every tenant table is
+   `company_id`-scoped (directly or via `branch_id`) and RLS-enforced. One
+   company can never read or write another's rows. See §6.
+3. **Privilege classes** (mutually checked, never self-grantable):
+   - `is_platform_owner` (vendor apex), `is_super_admin` (global staff override),
+     tenant branch roles, and the **platform-staff** tier (§8).
+   - The `erp_guard_profile_privileges` trigger blocks anyone who is not already
+     a super admin from changing `is_super_admin` / `is_platform_owner` /
+     `is_active` on a profile → **no self-escalation, no creating Owners**.
+4. **SECURITY DEFINER hygiene** — every definer function pins
+   `search_path = public, pg_temp` and **revokes `anon`/`public` EXECUTE**
+   (granting only `authenticated` where it's an RPC). Verified via the Supabase
+   security advisor (target: 0 ERROR; no `anon`-executable app functions).
+5. **No infrastructure secrets in the application database.** DB credentials, the
+   `service_role` key, and infra secrets live only in Vercel/Supabase env +
+   provider dashboards. The app exposes no surface that returns them; the
+   service-role key is used only inside edge functions, never shipped to a
+   client, and no in-app role (including platform staff) can reach it.
+6. **Transport/app hardening** — security headers (HSTS, X-Content-Type-Options,
+   X-Frame-Options, Referrer-Policy, Permissions-Policy) in `next.config.mjs`;
+   Sentry PII scrubbing; server-side permission checks on every gated page/action
+   (not just hidden nav).
 
 ---
 
-## 6. Setup Wizard (Smart onboarding)
+## 5. Permission model
 
-A **non-breaking layer above** the platform. It does not replace presets — it
-**customizes the selected business-type template** based on the user's answers.
+Three layers on the **tenant** plane, plus a parallel **platform** tier.
 
-- Config: `src/lib/erp/setup-wizard.ts` — a declarative `SetupProfile` per
-  business type (and a `GENERIC` profile so *every* type resolves, including
-  Custom). Each profile carries: branching **questions**, toggleable **modules**,
-  suggested **roles** (preview), suggested **dashboard KPIs** (preview).
-- Flow (`/setup`): business questions → required-modules toggles → review
-  (business type / enabled modules / suggested roles / KPIs) → *Create My
-  Workspace*. Premium dark/glass UI, RTL/LTR, responsive, skippable.
-- Persistence: only **modules** are written, via `erp_apply_setup_modules`
-  (SECURITY DEFINER, admin-only, scoped to the caller's company); it also sets
-  `companies.setup_done = true`. Roles are auto-seeded by the DB; dashboards are
-  per-vertical — so those appear as a review/preview.
-- Trigger: the `(app)` layout redirects a fresh company (`setup_done = false`)
-  whose business type has a profile to `/setup`, **once**. Existing companies
-  were backfilled `setup_done = true` (never prompted).
+**Tenant permissions** (`src/lib/erp/permissions.ts`): dotted keys (e.g.
+`sales.sell`, `inventory.view`, `clinic.doctor`, `integrations.manage`). A user's
+effective permissions are the union across their branch roles (all permissions
+for a super admin).
 
----
+1. **Global catalog** — `erp_roles` + `erp_role_permissions` (defaults).
+2. **Business-type templates** — `erp_business_type_roles` seed a new company with
+   the roles its industry needs.
+3. **Per-company overrides** — `erp_company_roles` + `erp_company_role_permissions`
+   let the owner tailor each company independently.
 
-## 7. App Marketplace
-
-*Settings → App Marketplace* (`/settings/marketplace`). The company admin can
-**enable/disable any module at any time** without recreating the workspace —
-each module is shown as an installable "app" card with an Installed badge.
-
-It reuses the **same guarded write path** as the wizard
-(`erp_apply_setup_modules`), so there is one safe place that mutates
-`erp_company_modules`. Nav exposure is gated on the `settings.users` permission;
-the page double-checks the `admin` role.
+**Platform permissions** (`src/lib/erp/platform-permissions.ts`) — the vendor
+tier (§8): granular keys `view_companies`, `create_companies`, `manage_billing`,
+`export_data`, `manage_users`, `access_support_tickets`, `access_audit_logs`;
+internal roles `admin / sales / support / implementation / finance`. The Owner
+holds all implicitly. Defaults live in `erp_platform_role_permissions` (owner-
+editable); per-employee `grant`/`deny` overrides in
+`erp_platform_staff_permissions`. Effective = `role defaults ∪ grants − denies`.
 
 ---
 
-## 8. Organization structure (🔜 planned)
+## 6. RLS strategy
 
-Today: **Companies → Branches → Users (by branch role)**. Planned expansion to a
-full org model on the same core:
+- **Every table has RLS enabled.** No table is left open; reference/lookup tables
+  use an explicit "any authenticated user may read" policy.
+- **Helper functions, not inline SQL.** Policies call stable SECURITY DEFINER
+  helpers so logic is centralized and indexable:
+  `erp_user_company_id()`, `erp_user_branch_ids()`, `erp_is_super_admin()`,
+  `erp_is_platform_owner()`, `erp_is_company_admin(company)`, and (platform tier)
+  `erp_is_platform_staff()`, `erp_platform_has(perm)`.
+- **Read vs write are separable.** Where a table needs different audiences for
+  read and write, policies are split by command (`for select` / `for insert` /
+  `for update` / `for delete`) rather than one `for all`. This is how the
+  platform-staff access (migration `0084`) grants `view_companies` **read** to
+  `erp_companies` without granting writes; `create_companies` adds a separate
+  `insert` policy and `manage_billing` a separate `update` policy.
+- **Additive widening.** New audiences are added as **separate permissive
+  policies** (Postgres OR's them); existing policies are never narrowed, so a
+  migration can't accidentally remove access an actor already had.
+- **Owner/service bypass.** Migrations and edge functions run with the service
+  role (RLS-bypassing) for legitimate cross-tenant operations; everything they do
+  is still funneled through guarded functions and logged.
+- **Caveat — column scope.** RLS can gate a row but not specific columns of an
+  `UPDATE`. Where that matters (e.g. `manage_billing` updating only billing
+  fields) the **server action** restricts the columns and the change is audited.
 
-```
-Company
- └─ Branches
-     └─ Departments        (erp_departments)
-         └─ Teams          (erp_teams)
-             └─ Users  ─ Job title (erp_job_titles) ─ Reporting line (manager_id)
-```
-
-- `erp_departments(company_id, branch_id, name, manager_id)`
-- `erp_teams(department_id, name, lead_id)`
-- `erp_job_titles(company_id, name)` + `erp_user_branches.job_title_id`,
-  `manager_id` for reporting lines.
-- UI: *Settings → Organization* with department/team CRUD and an org chart.
-- All RLS-scoped by `company_id`; reporting lines power workflow routing (§9) and
-  scoped dashboards (§10).
-
----
-
-## 9. Workflows / approvals (🔜 planned)
-
-A per-company **approval engine** configured without code:
-
-- `erp_workflows(company_id, entity, trigger, is_active)` — e.g. approve an
-  invoice over a threshold, a purchase order, a stock transfer, an expense.
-- `erp_workflow_steps(workflow_id, order, approver_type, approver_ref)` —
-  approver types: branch manager, department manager, finance, governance, named
-  role/user; supports **one-step** and **multi-step** chains.
-- `erp_workflow_instances(workflow_id, entity_id, current_step, status)` —
-  runtime state per document, with a final notification step.
-- Resolution uses the org reporting lines (§8). Documents gain a `status` of
-  `pending_approval` while an instance is open.
-- Delivery in stages: (1) schema + config UI + mock runner, (2) wire to real
-  documents (invoices/POs/expenses), (3) notifications.
+Verification practice: every migration is dry-run on a fresh **staging** DB in
+CI, then applied to production and re-verified by **RLS impersonation** (set
+`role authenticated` + `request.jwt.claims`, exercise each persona, roll back).
 
 ---
 
-## 10. Dashboards (scalable, 🔜 dynamic)
+## 7. Audit architecture
 
-Today: each vertical renders a **purpose-built dashboard** (clinic queue,
-restaurant floor, distribution KPIs, …) selected by `resolveHomePath()` and
-gated by modules/permissions — already "different per business type, module, and
-role."
-
-Planned **dynamic** layer:
-- `erp_dashboards(company_id, role, name)` + `erp_dashboard_widgets(dashboard_id,
-  type, config, position)`.
-- A widget catalog (KPI card, chart, list, map) bound to existing report queries.
-- Dashboards vary by **company type · enabled modules · user role · branch ·
-  department**. Setup-wizard KPI suggestions seed the first dashboard.
-
----
-
-## 11. Custom fields / form builder (🔜 planned)
-
-Let admins add fields without code:
-- `erp_custom_fields(company_id, entity, key, label, type, options, required)`.
-- Values stored in a `jsonb custom` column on the target entity (or
-  `erp_custom_values`), rendered dynamically in forms and shown in print/exports.
-- Start with one entity (e.g. products or customers), then generalize.
+- **Single sink:** `erp_audit_logs` (`actor_id`, `actor_email`, `company_id`,
+  `action`, `entity`, `entity_id`, `details` jsonb, `created_at`).
+- **Forge-proof writes:** rows are written only via `erp_log_audit(...)`
+  (SECURITY DEFINER), which stamps `actor_id = auth.uid()` itself — the caller
+  cannot spoof the actor. There is no direct INSERT policy.
+- **Two capture paths:**
+  1. **App-level** — server actions call `logAudit(...)` for business events
+     (company created, subscription renewed, password reset, …).
+  2. **DB-level triggers** — the platform-staff tables fire AFTER triggers that
+     log every staff/role/override change, so **all permission changes are
+     audited regardless of code path**.
+- **Read access:** Platform Owner + global super admin, plus internal staff with
+  `access_audit_logs` (migration `0084`). Records answer *who* did *what*,
+  *when*, and on *which company*.
 
 ---
 
-## 12. Accounting (how money flows)
+## 8. Platform ownership & internal staff (✅ Phases 1–2)
 
-Issuing a sale (or vertical billing) posts a **balanced double-entry** via
-SECURITY DEFINER functions: stock-out + AR/Revenue journal + customer balance in
-one transaction. A deferred constraint enforces `sum(debit) = sum(credit)` on
-`erp_journal_lines`. The chart of accounts, vouchers, fiscal periods, and
-financial reports read off these entries — so every vertical's revenue lands in
-the same books.
+The vendor plane. See `OWNER_GUIDE.md` for operations.
+
+- **Platform Owner** (`erp_profiles.is_platform_owner`) — ultimate control;
+  implicitly every platform permission; the only actor who can grant ownership,
+  edit role→permission maps, and run owner-only tenant controls.
+- **Internal staff** (`erp_platform_staff`, vendor-wide, **no `company_id`**) —
+  employees with a role + granular permissions (§5). Managed by the Owner or a
+  `manage_users` employee.
+- **Escalation guards** (triggers): a non-owner cannot assign a role or grant an
+  override conferring a permission they lack; ownership is unreachable through
+  staff management (it's the guarded profile flag).
+- **Offboarding:** `is_active=false` (+`disabled_at/by`) instantly revokes
+  platform access; the `admin-set-user-active` edge function bans the auth login
+  and revokes sessions. **Customer/tenant data is never touched.** Reversible.
+- **Wired gates:** `/platform/companies` → `view_companies`; create company →
+  `create_companies`; subscription/lifecycle → `manage_billing`; `/platform/audit`
+  → `access_audit_logs`; `/platform/staff` → `manage_users`. Deeper tenant
+  controls (branch/admin provisioning, password reset, modules, permissions)
+  remain **owner-only**.
 
 ---
 
-## 13. Security & operations
+## 9. Accounting (how money flows)
 
-- **RLS** on every tenant table; writes to sensitive config (modules, passwords)
-  only via guarded SECURITY DEFINER functions.
-- **HTTP security headers** (HSTS, nosniff, X-Frame-Options, Referrer-Policy,
-  Permissions-Policy) on every response.
-- **Sentry** error monitoring (env-gated). **PWA** installable shell + offline.
-- **CI**: typecheck + build, unit + DB-integration tests, Playwright smoke,
-  staging-migrate + manual production-migrate, daily backups. See
-  `docs/STAGING.md`, `docs/BACKUPS.md`, `docs/TESTING.md`, `docs/E2E.md`.
-- **i18n**: ar/en with a parity test + a key-usage test (no raw keys reach UI).
+Sales/clinic/POS revenue auto-posts to the double-entry ledger via DB triggers
+(unified revenue posting), against a seeded Egyptian chart of accounts. Customer
+credit limits and aging are enforced/derived in-DB.
 
 ---
 
-## 14. Future roadmap
+## 10. Operations
 
-| Phase | Item | Status |
-|---|---|---|
-| 1 | Dynamic modules + per-company config | ✅ done |
-| 1 | Industry presets + Smart Setup Wizard (all types + Custom) | ✅ done |
-| 1 | App Marketplace (enable/disable anytime) | ✅ done |
-| 1 | Granular per-company permission matrix | ✅ done |
-| 2 | Organization structure (departments / teams / job titles / reporting) | 🔜 |
-| 2 | Dynamic permission **actions** (view/create/edit/delete/approve/export) | 🔜 |
-| 3 | Workflow / approval builder (multi-step) | 🔜 |
-| 3 | Dynamic dashboard builder (widgets per role/branch/department) | 🔜 |
-| 4 | Custom fields / form builder | 🔜 |
-| 4 | AI Business Assistant (reports/sales/inventory Q&A) — env-gated arch | 🔜 |
-| 5 | Data Integration Layer — Excel/CSV import (map/validate/import) + saved templates | 🔜 (see `docs/INTEGRATION.md`) |
-| 5 | External integration — REST API, per-company API keys, webhooks, sync logs | 🔜 (see `docs/INTEGRATION.md`) |
-| Ops | Real staging env + managed backups/PITR; ETA e-invoicing go-live | owner action |
+- **Environments:** production + a Supabase staging branch; CI bootstraps the
+  full migration chain from zero on staging for every PR.
+- **Deploys:** Vercel builds the production branch; migrations are applied to the
+  live DB through the reviewed process (see `MAINTENANCE.md`).
+- **Observability:** Sentry (env-gated; no-op without DSN), environment + release
+  tagging, PII scrubbing.
+- **Backups:** `pg_dump` workflow + Supabase PITR; runbooks in `BACKUPS.md`.
 
-**Guiding principle for every phase:** one shared core, dynamic configuration,
-no per-industry forks, no duplicated logic, nothing hardcoded — so VANTORA
-serves a one-person shop and an enterprise from the same platform.
+See `ROADMAP.md` for what's built vs planned.
