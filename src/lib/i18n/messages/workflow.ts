@@ -11,6 +11,11 @@ export const ar = {
     commentPlaceholder: 'تعليق (اختياري)',
     entity: {
       customer: 'عميل',
+      credit_limit_request: 'طلب حد ائتمان',
+    },
+    creditLimit: {
+      requestLabel: 'حد ائتمان جديد',
+      requestButton: 'طلب تغيير حد الائتمان',
     },
     toast: {
       error: 'حدث خطأ',
@@ -33,6 +38,11 @@ export const en = {
     commentPlaceholder: 'Comment (optional)',
     entity: {
       customer: 'Customer',
+      credit_limit_request: 'Credit limit request',
+    },
+    creditLimit: {
+      requestLabel: 'New credit limit',
+      requestButton: 'Request credit limit change',
     },
     toast: {
       error: 'Something went wrong',

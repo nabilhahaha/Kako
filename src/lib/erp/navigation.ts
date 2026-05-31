@@ -47,6 +47,7 @@ import {
   FileDown,
   CreditCard,
   SlidersHorizontal,
+  GitBranch,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -279,6 +280,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage' },
       { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage' },
       { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields' },
+      { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true },
       { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs' },
       { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true },

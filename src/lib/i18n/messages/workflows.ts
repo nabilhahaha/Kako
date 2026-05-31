@@ -1,0 +1,58 @@
+/** Workflow Builder Lite. ar/en keys identical. */
+export const ar = {
+  workflows: {
+    title: 'مسارات الموافقات',
+    subtitle: 'صمّم مسارات اعتماد متعددة الخطوات (شرطية ومتوازية) لأي وحدة.',
+    noAccess: 'هذه الصفحة تتطلب صلاحية إدارة مسارات الموافقات.',
+    global: 'قالب عام',
+    active: 'مفعّل',
+    inactive: 'معطّل',
+    companyDefs: 'مسارات الشركة',
+    noCompanyDefs: 'لا توجد مسارات خاصة بالشركة بعد.',
+    globalTemplates: 'القوالب العامة',
+    noSteps: 'لا توجد خطوات بعد.',
+    addStep: 'إضافة خطوة',
+    quorum: 'النصاب',
+    thresholdAmount: 'حد المبلغ (أكبر من)',
+    create: {
+      title: 'مسار جديد',
+      key: 'المعرّف',
+      entity: 'الوحدة',
+      nameAr: 'الاسم',
+      submit: 'إنشاء',
+    },
+    step: { name: 'اسم الخطوة', ref: 'الدور/المستخدم' },
+    approver: { company_admin: 'مدير الشركة', role: 'دور', user: 'مستخدم' },
+    mode: { sequential: 'تسلسلي', parallel: 'متوازٍ' },
+    toast: { error: 'حدث خطأ', created: 'تم الإنشاء', saved: 'تم الحفظ', deleted: 'تم الحذف', stepAdded: 'تمت إضافة الخطوة' },
+  },
+};
+
+export const en = {
+  workflows: {
+    title: 'Approval Workflows',
+    subtitle: 'Design multi-step (conditional + parallel) approval workflows for any module.',
+    noAccess: 'This page requires the Manage Approval Workflows permission.',
+    global: 'Global template',
+    active: 'Active',
+    inactive: 'Inactive',
+    companyDefs: 'Company workflows',
+    noCompanyDefs: 'No company-specific workflows yet.',
+    globalTemplates: 'Global templates',
+    noSteps: 'No steps yet.',
+    addStep: 'Add step',
+    quorum: 'Quorum',
+    thresholdAmount: 'Amount threshold (>)',
+    create: {
+      title: 'New workflow',
+      key: 'Key',
+      entity: 'Entity',
+      nameAr: 'Name',
+      submit: 'Create',
+    },
+    step: { name: 'Step name', ref: 'Role / user' },
+    approver: { company_admin: 'Company admin', role: 'Role', user: 'User' },
+    mode: { sequential: 'Sequential', parallel: 'Parallel' },
+    toast: { error: 'Something went wrong', created: 'Created', saved: 'Saved', deleted: 'Deleted', stepAdded: 'Step added' },
+  },
+};

@@ -18,6 +18,22 @@ const HANDLERS: Record<string, Handler> = {
     const supabase = await createClient();
     await supabase.from('erp_customers').update({ is_approved: outcome === 'approved' }).eq('id', recordId);
   },
+
+  // Credit limit approval: on approve, apply the requested limit to the customer;
+  // either way, stamp the request's final status.
+  credit_limit_request: async (recordId, outcome) => {
+    const supabase = await createClient();
+    const { data: req } = await supabase
+      .from('erp_credit_limit_requests')
+      .select('customer_id, requested_limit')
+      .eq('id', recordId)
+      .single();
+    const r = req as { customer_id: string; requested_limit: number } | null;
+    if (r && outcome === 'approved') {
+      await supabase.from('erp_customers').update({ credit_limit: r.requested_limit }).eq('id', r.customer_id);
+    }
+    await supabase.from('erp_credit_limit_requests').update({ status: outcome }).eq('id', recordId);
+  },
 };
 
 export function hasWorkflowHandler(entity: string): boolean {

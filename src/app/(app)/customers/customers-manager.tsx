@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { upsertCustomer, toggleCustomerActive, requestCustomerApproval } from './actions';
+import { upsertCustomer, toggleCustomerActive, requestCustomerApproval, requestCreditLimitChange } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +41,7 @@ export function CustomersManager({
   const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState('');
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
+  const [creditLimitInput, setCreditLimitInput] = useState('');
   const [pending, startTransition] = useTransition();
 
   function onApprove(id: string) {
@@ -205,6 +206,31 @@ export function CustomersManager({
                   </Button>
                 )}
               </div>
+              {current && (
+                <div className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed p-3">
+                  <Field label={t('workflow.creditLimit.requestLabel')}>
+                    <Input
+                      type="number" step="0.01" dir="ltr" className="max-w-[12rem]"
+                      value={creditLimitInput}
+                      onChange={(e) => setCreditLimitInput(e.target.value)}
+                    />
+                  </Field>
+                  <Button
+                    type="button" variant="secondary" disabled={pending}
+                    onClick={async () => {
+                      const amt = parseFloat(creditLimitInput);
+                      if (!Number.isFinite(amt) || amt < 0) return toast.error(t('workflow.toast.error'));
+                      const res = await requestCreditLimitChange(current.id, amt);
+                      if (!res.ok) return toast.error(res.error ?? t('workflow.toast.error'));
+                      toast.success(t('workflow.toast.requested'));
+                      setCreditLimitInput('');
+                      router.refresh();
+                    }}
+                  >
+                    {t('workflow.creditLimit.requestButton')}
+                  </Button>
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>
