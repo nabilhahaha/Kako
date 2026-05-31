@@ -57,30 +57,39 @@ module-aware) gates by **enabled Core Modules + Packs**:
 - **Protected verticals:** their sections keep their existing vertical-module
   gate — untouched.
 
-## 4. Part C — Inline role suggestions (company creation)
-- In the Setup Wizard, replace the static "suggested roles" preview with an
-  **editable list** seeded from `PACK_ROLE_SUGGESTIONS[pack]` (pack via
-  `packForBusinessType`) / `erp_business_type_roles`:
-  - add / rename / remove rows before finishing.
-- On finish, persist the chosen roles as **company roles** (`erp_company_roles`)
-  via a guarded RPC (`erp_apply_suggested_roles`, SECURITY DEFINER, owner/admin,
-  idempotent — skip roles that already exist). 
-- **Remain editable** afterward in Settings → Users/Permissions (existing).
-- Roles are presented as a **separate step** from Modules/Packs (clear
-  separation).
+## 4. Part C — Inline role suggestions (company creation) — REUSE existing
+Roles are **keyed** (`erp_company_roles.role_key`, from the `erp_roles` catalog),
+already seeded per business type from **`erp_business_type_roles`** by the
+existing **`erp_seed_company_roles(company_id)`** RPC (with default permissions
+from `erp_role_permissions`). So we **reuse that entire mechanism** — no new
+role-creation RPC, no free-text roles:
+- **Suggestion source = `erp_business_type_roles`** for the company's business
+  type (the same templates that already drive seeding). `PACK_ROLE_SUGGESTIONS`
+  becomes a **display-label map** (role_key → friendly name, e.g. `warehouse_keeper`
+  → "Storekeeper", `manager` → "Clinic/Branch Manager") so the wizard shows the
+  approved names while persisting catalog `role_key`s.
+- **Wizard "Suggested Roles" step** (separate from Modules/Packs): lists the
+  business-type role_keys (labeled), **toggle enable/disable** before finishing.
+- **Persist by reusing existing paths:** `erp_seed_company_roles` seeds the
+  template roles at creation; the wizard's enable/disable reuses the **existing
+  company-role management action** (the one Settings → Permissions already uses) —
+  no new write path.
+- **Remain editable** afterward in Settings → Permissions/Roles (existing editor).
 
 ## 5. Clear separation (requirement 5)
 Wizard steps: business questions → **Industry Pack** → **Core Modules** →
 **Suggested Roles** → review. Marketplace already groups Core vs Packs. Roles are
 their own step/screen — never mixed with module toggles.
 
-## 6. Migration (small) — `0096`
-- `erp_apply_suggested_roles(p_roles text[])` SECURITY DEFINER (owner/admin guard,
-  pinned search_path, anon-revoked, audited) — inserts missing `erp_company_roles`
-  for the caller's company. (No change to existing roles.)
-- Possibly extend `erp_apply_setup_modules` only if needed to accept the
-  capability keys (it already takes the answers map — likely no change).
-- Additive/idempotent; **no deletions; protected verticals untouched.**
+## 6. Migration — none required (reuse) ✅
+Per goal #4, this slice **reuses existing RPCs** and adds **no migration**:
+- Modules: enabled via the existing **`erp_apply_setup_modules`** RPC (answers map
+  already supports any module key; 0095 already seeded plan/business-type rows).
+- Roles: seeded via the existing **`erp_seed_company_roles`** + managed via the
+  existing role action.
+- Nav binding + wizard grouping + role-label map are **code-only** (no DB change).
+- *(If a business type's recommended capability rows need topping up, that's
+  data already handled by 0095 — no new migration.)*
 
 ## 7. No-regression strategy (summary)
 - Existing tenants: backfilled (0095) → keep everything.
@@ -98,16 +107,29 @@ their own step/screen — never mixed with module toggles.
   guard, audit); advisor 0 ERROR + not anon-executable; cross-company isolation.
 - `tsc`/build/vitest + i18n parity. Production apply held for approval.
 
-## 9. Decisions to confirm (before building)
-1. **Field Ops rebind** — move rep/journey/settlement nav gate from
-   `distribution` to `field_ops` (recommended; both backfilled) — OK?
-2. **Role creation depth** — create role *names* now (assignable, permissions
-   editable later) vs also seed default permissions per role? *(Recommend names
-   now; permissions via existing role editor — keeps the slice safe.)*
-3. **Free-tier nav** — confirm capability modules a tier doesn't include are
-   hidden for **new** companies on that tier (correct entitlement) — acceptable?
-4. **Migration 0096** for `erp_apply_suggested_roles` — OK to add (small,
-   guarded, additive)?
+## 9. Decisions — RESOLVED (recommended defaults + reuse)
+1. **Field Ops rebind** — rep/journey/settlement nav gate `distribution` →
+   `field_ops` (both backfilled for existing; new field/distribution tenants get
+   `field_ops` via the bridge). ✅
+2. **Roles** — **reuse** `erp_business_type_roles` + `erp_seed_company_roles`
+   (keyed roles + default permissions already handled); wizard surfaces them as
+   editable enable/disable with friendly labels; full editing in Settings. **No
+   new role RPC.** ✅
+3. **Free-tier nav** — capability modules a tier doesn't grant are hidden for
+   **new** companies on that tier (correct entitlement); existing tenants keep
+   everything via the 0095 backfill. ✅
+4. **Migration** — **none** (reuse existing RPCs/entitlement). ✅
 
-*(UI Alignment Build design — paused for your review. After approval: build →
-test → rolled-back live verification → draft PR → review package, then B3b.)*
+## 10. What gets built (code-only)
+- `navigation.ts`: bind sections/items to Core Module + Pack keys (per §3);
+  Field Ops rebind. (Permission gates retained.)
+- Setup Wizard: ensure capability modules are in the profile defaults (per plan ∩
+  business-type) so new tenants enable them; add the **Suggested Roles** step
+  (labeled, editable enable/disable) reusing the role action.
+- `licensing-catalog.ts`: role-key → display-label map (the approved names).
+- Tests: `visibleSections` (existing-superset / new-tier / protected verticals);
+  role-label mapping; setup-profile capability inclusion.
+
+*(Final UI Alignment Build design — decisions resolved, no migration, reuse-first.
+On your go-ahead I build it → test → (no prod migration) → draft PR → review,
+then B3b.)*
