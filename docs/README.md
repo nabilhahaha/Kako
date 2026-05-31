@@ -26,6 +26,9 @@ to **coexist with an external ERP** (sync only selected modules). See
 - [`PILOT-ELECTRICAL.md`](PILOT-ELECTRICAL.md) — **Electrical Retail & Wholesale
   pilot package** (multi-tier pricing · serials · warranty · RMA · supplier +
   customer returns · roles · success criteria · 30-day plan · onboarding).
+- [`PRESENTATION.md`](PRESENTATION.md) — **investor & customer presentation deck**
+  (story · problem · solution · modules · packs · ERP integrations · advantage ·
+  pricing · pilot · ROI · FMCG + Electrical use cases).
 - [`PRODUCT_PRINCIPLES.md`](PRODUCT_PRINCIPLES.md) — the standing decision rule
   (Platform → Module → Customer) + modularity & coexistence principle.
 - [`ROADMAP.md`](ROADMAP.md) — completed milestones + the formally-tracked
