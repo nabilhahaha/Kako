@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { getEntity, entityCapabilities } from '@/lib/erp/entities';
 import { toCsv, toJson, toXlsx, type ExportRow } from '@/lib/erp/export-serialize';
+import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
 
 /** ── Generic Export Engine ─────────────────────────────────────────────────
  *  GET /api/export?entity=customer&format=csv|xlsx|json&q=&status=&limit=
@@ -53,7 +54,13 @@ export async function GET(req: NextRequest) {
   const status = (sp.get('status') ?? '').trim();
 
   const supabase = await createClient();
-  let query = supabase.from(entity.table).select(cols.join(',')).limit(limit);
+
+  // Custom fields (Phase A): values live in the row's `custom` jsonb. Include
+  // them as extra columns so export stays custom-field-compatible.
+  const customFields = await getActiveCustomFields(entityKey, supabase);
+  const selectCols = customFields.length > 0 ? [...cols, 'custom'] : cols;
+
+  let query = supabase.from(entity.table).select(selectCols.join(',')).limit(limit);
   query = query.order('created_at', { ascending: false });
   if (status) query = query.eq('status', status);
   if (q && textCols.length > 0) query = query.or(textCols.map((c) => `${c}.ilike.%${q}%`).join(','));
@@ -61,12 +68,24 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  const rows = (data ?? []) as unknown as ExportRow[];
+  // Flatten custom values into top-level columns (arrays → "a|b", objects → JSON).
+  const headers = [...cols, ...customFields.map((f) => f.key)];
+  const rows = ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => {
+    if (customFields.length === 0) return r as ExportRow;
+    const bag = (r.custom as Record<string, unknown>) ?? {};
+    const out: Record<string, unknown> = { ...r };
+    delete out.custom;
+    for (const f of customFields) {
+      const v = bag[f.key];
+      out[f.key] = Array.isArray(v) ? v.join('|') : v != null && typeof v === 'object' ? JSON.stringify(v) : v ?? '';
+    }
+    return out as ExportRow;
+  });
   const stamp = new Date().toISOString().slice(0, 10);
   const base = `${entity.key}-export-${stamp}`;
 
   if (format === 'json') {
-    return new NextResponse(toJson(cols, rows), {
+    return new NextResponse(toJson(headers, rows), {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         'Content-Disposition': `attachment; filename="${base}.json"`,
@@ -76,7 +95,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (format === 'csv') {
-    const body = '﻿' + toCsv(cols, rows); // BOM → Excel reads UTF-8
+    const body = '﻿' + toCsv(headers, rows); // BOM → Excel reads UTF-8
     return new NextResponse(body, {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
@@ -87,7 +106,7 @@ export async function GET(req: NextRequest) {
   }
 
   // xlsx
-  const buf = toXlsx(entity.labelEn || entity.key, cols, rows);
+  const buf = toXlsx(entity.labelEn || entity.key, headers, rows);
   return new NextResponse(new Uint8Array(buf), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

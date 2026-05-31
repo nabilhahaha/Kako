@@ -32,20 +32,44 @@ export default async function ImportPage() {
     );
   }
 
-  const importableEntities: ImportEntity[] = listImportableEntities().map((e) => ({
+  const supabase = await createClient();
+
+  // Custom fields (Phase A) become first-class import targets so they show up in
+  // the mapping step and flow into the entity row's `custom` jsonb on import.
+  const importable = listImportableEntities();
+  const { data: cfRows } = await supabase
+    .from('erp_custom_fields')
+    .select('entity, key, label_ar, label_en, type, required, sort')
+    .in('entity', importable.map((e) => e.key))
+    .eq('is_active', true)
+    .order('sort', { ascending: true });
+  const customByEntity = new Map<string, ImportEntity['fields']>();
+  for (const r of (cfRows as Record<string, unknown>[]) ?? []) {
+    const ent = r.entity as string;
+    const ty = r.type as string;
+    const mapped = ty === 'number' ? 'number' : ty === 'date' ? 'date' : ty === 'boolean' ? 'boolean' : 'text';
+    const list = customByEntity.get(ent) ?? [];
+    list.push({
+      key: r.key as string,
+      labelAr: r.label_ar as string,
+      labelEn: (r.label_en as string) || (r.key as string),
+      type: mapped as 'text' | 'number' | 'date' | 'boolean',
+      required: Boolean(r.required),
+    });
+    customByEntity.set(ent, list);
+  }
+
+  const importableEntities: ImportEntity[] = importable.map((e) => ({
     key: e.key,
     labelAr: e.labelAr,
     labelEn: e.labelEn,
-    fields: (e.fields ?? []).map((f) => ({
-      key: f.key,
-      labelAr: f.labelAr,
-      labelEn: f.labelEn,
-      type: f.type,
-      required: f.required,
-    })),
+    fields: [
+      ...(e.fields ?? []).map((f) => ({
+        key: f.key, labelAr: f.labelAr, labelEn: f.labelEn, type: f.type, required: f.required,
+      })),
+      ...(customByEntity.get(e.key) ?? []),
+    ],
   }));
-
-  const supabase = await createClient();
   const { data: history } = await supabase
     .from('erp_import_jobs')
     .select(
