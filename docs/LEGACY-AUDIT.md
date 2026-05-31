@@ -115,5 +115,17 @@ unreferenced).
 **Not recommended:** deleting any migration, any dependency, or any route/page —
 all are in active, intentional use.
 
+### Protected — never remove (standing constraint)
+The following are **explicitly protected** and out of scope for any cleanup,
+archive, or deletion — ever, unless separately and explicitly authorized:
+- **All medical / clinic features** (clinic module, visits, clinical fields,
+  appointments, doctor/reception flows).
+- **The Egyptian Drug List** and pharmacy dispensing data/features.
+- Any applied migration.
+
+**Execution rule:** **no direct deletions.** Every approved cleanup action ships
+as its **own separate, reviewable PR** (tests added or component split or the
+single unused-file removal) — never bundled, never silent.
+
 > Awaiting your decision on which items (if any) to execute. Removal/refactor
 > happens only after you approve, as separate reviewable PRs.

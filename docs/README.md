@@ -19,7 +19,9 @@ to **coexist with an external ERP** (sync only selected modules). See
 - [`MODULE-OWNERSHIP-MATRIX.md`](MODULE-OWNERSHIP-MATRIX.md) — system-of-record &
   ERP-coexistence ownership, per module/entity.
 - [`LICENSING.md`](LICENSING.md) — plans, module entitlement, marketplace,
-  subscriptions.
+  subscriptions (reference).
+- [`LICENSING-ARCHITECTURE.md`](LICENSING-ARCHITECTURE.md) — target-state
+  licensing & subscription design (R4 review).
 
 ## Architecture
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — full system architecture.
