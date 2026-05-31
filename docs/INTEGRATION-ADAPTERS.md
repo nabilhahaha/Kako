@@ -145,12 +145,26 @@ file/IDoc sub-slice, depends on the customer's landscape).
 
 ---
 
-## 5. Recommended first adapter
+## 5. Adapter priority — DECIDED
 
-**Recommendation: Odoo (JSON-RPC) first**, then **Dynamics 365 Business Central
-(OData v4)**, then **Oracle NetSuite**, then **SAP S/4HANA**.
+**Approved order (demand- and value-driven, overrides the technical-simplicity
+default):**
 
-Rationale:
+1. **Dynamics 365 Business Central** (OData v4)
+2. **SAP S/4HANA** (OData v2/v4; on-prem/ECC via file/middleware)
+3. **Oracle NetSuite** (SuiteTalk REST + TBA)
+4. **Odoo** (JSON-RPC)
+
+**Override rule (standing):** if a real pilot customer requires a specific ERP,
+that customer requirement **overrides** this default order.
+
+> Note: this prioritises commercial value over implementation simplicity. The
+> technical-simplicity ranking (Odoo first) is retained below only as rationale;
+> the **decided build order is the list above**, with **Dynamics 365 Business
+> Central first**.
+
+### (Original technical-simplicity rationale, for reference)
+The lowest-friction-first view was Odoo → Dynamics BC → NetSuite → SAP:
 - **Lowest protocol friction on the proven REST dispatcher** — JSON-RPC is plain
   HTTP/JSON with simple API-key auth (no OAuth dance, no HMAC signing), so it
   validates the *vendor adapter pattern* (model/field mapping, delta, conflict
@@ -171,23 +185,22 @@ Azure AD OAuth2).
 
 ---
 
-## 6. Phased delivery roadmap (each a reviewable sub-slice)
+## 6. Phased delivery roadmap — DECIDED ORDER (each a reviewable sub-slice)
 
-- **2C-3 — CSV/SFTP transport** *(deferred from 2C-2; small, unblocks file-based
-  feeds many ERPs use)* — adds the `ssh2-sftp-client` dependency + file pull/push
-  on the existing `csv_sftp` adapter.
-- **2C-4 — First vendor adapter (recommended: Odoo)** — `odoo` registry
-  descriptor + JSON-RPC runtime (pull/push + field map for
-  partner/product/order/invoice/stock), reusing sync jobs + ingest. Reference
-  proof of the vendor pattern.
-- **2C-5 — Dynamics 365 Business Central (OData v4)** — adds the **OAuth2
-  client-credentials** token helper + OData `$filter` delta; second reference,
-  enterprise-grade.
-- **2C-6 — Oracle NetSuite** — adds the **TBA (OAuth1-HMAC) signing** layer.
-- **2C-7 — SAP S/4HANA** — OData v2/v4; on-prem/ECC handled via the file (SFTP)
+- **2C-3 — CSV/SFTP transport** *(DECIDED: build **before** the first vendor
+  adapter — file-based integration is common in distribution, FMCG, retail, and
+  legacy enterprise)* — adds the `ssh2-sftp-client` dependency + file pull/push on
+  the existing `csv_sftp` adapter.
+- **2C-4 — Dynamics 365 Business Central (OData v4)** — first vendor adapter:
+  adds the **OAuth2 client-credentials** token helper + OData `$filter modifiedon
+  gt` delta; descriptor + runtime + entity mapping presets.
+- **2C-5 — SAP S/4HANA** — OData v2/v4; on-prem/ECC handled via the file (SFTP)
   path + middleware, scoped to the customer's landscape.
+- **2C-6 — Oracle NetSuite** — adds the **TBA (OAuth1-HMAC) signing** layer.
+- **2C-7 — Odoo** — `odoo` descriptor + JSON-RPC runtime.
 
-Each delivers: descriptor + runtime + per-entity mapping presets + docs + tests +
+(Order overridden by a real pilot customer's ERP if one is in play.) Each
+delivers: descriptor + runtime + per-entity mapping presets + docs + tests +
 rolled-back live verification, held for approval before production apply.
 
 ---
@@ -213,16 +226,18 @@ rolled-back live verification, held for approval before production apply.
 
 ---
 
-## 8. Decisions to confirm (before any adapter build)
+## 8. Decisions — RESOLVED
 
-1. **First adapter:** **Odoo** (recommended) — or Dynamics BC if you prefer an
-   OAuth2/OData proof first — or a **specific vendor a real customer needs**.
-2. **CSV/SFTP sub-slice (2C-3) ordering:** before the first vendor adapter
-   (unblocks file feeds + adds the SFTP dep once) or after? *(Recommend before —
-   small and broadly useful.)*
-3. **Confirm the transport boundary:** OData/REST + file (SFTP) only; **no direct
-   RFC/BAPI/SOAP-binary** from our runtime (middleware/file instead) — as
-   previously agreed.
+1. **Build order:** CSV/SFTP (2C-3) **first**, then vendor adapters in the order
+   **Dynamics 365 BC → SAP S/4HANA → Oracle NetSuite → Odoo** — a real pilot
+   customer's ERP overrides.
+2. **Prioritisation basis:** commercial value / customer demand (not only
+   implementation simplicity).
+3. **Coexistence (standing):** ERP may own **Finance / Inventory / Procurement**;
+   VANTORA may own **CRM / Sales / Field Operations / Trade Spend / Approvals /
+   Analytics / Workflow** — ownership remains **configurable per module and per
+   entity** (per sync job).
+4. **Transport boundary:** OData/REST + file (SFTP) only; **no direct
+   RFC/BAPI/SOAP-binary** from our runtime (middleware/file instead).
 
-*(This document is item #1 of 5. Paused here for your review before #2 — Full
-platform documentation plan.)*
+*(Item #1 of 5 — approved. Next: #2 Full platform documentation plan.)*
