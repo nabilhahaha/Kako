@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ACCOUNT_TYPE_LABELS } from '@/lib/erp/constants';
+import { getT } from '@/lib/i18n/server';
 import type { AccountType, ChartOfAccount } from '@/lib/erp/types';
 
 const TYPE_ORDER: AccountType[] = ['asset', 'liability', 'equity', 'revenue', 'expense'];
@@ -23,6 +24,8 @@ export default async function ChartOfAccountsPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t, locale } = await getT();
+
   const supabase = await createClient();
   const { data } = await supabase
     .from('erp_chart_of_accounts')
@@ -34,8 +37,8 @@ export default async function ChartOfAccountsPage() {
   return (
     <div>
       <PageHeader
-        title="شجرة الحسابات"
-        description={`دليل الحسابات المحاسبي (${accounts.length} حساب)`}
+        title={t('accounting.chart.title')}
+        description={t('accounting.chart.description', { count: accounts.length })}
       />
       <div className="grid gap-4 lg:grid-cols-2">
         {TYPE_ORDER.map((type) => {
@@ -46,7 +49,7 @@ export default async function ChartOfAccountsPage() {
           return (
             <Card key={type}>
               <CardContent className="pt-6">
-                <h3 className="mb-3 font-semibold">{ACCOUNT_TYPE_LABELS[type].ar}</h3>
+                <h3 className="mb-3 font-semibold">{ACCOUNT_TYPE_LABELS[type][locale]}</h3>
                 <ul className="space-y-0.5 text-sm">
                   {list.map((a) => {
                     const depth = depthOf(a, byId);
@@ -63,7 +66,7 @@ export default async function ChartOfAccountsPage() {
                           {a.name_ar || a.name}
                         </span>
                         {a.is_system && depth === 0 && (
-                          <Badge variant="outline" className="text-[10px]">رئيسي</Badge>
+                          <Badge variant="outline" className="text-[10px]">{t('accounting.chart.parentBadge')}</Badge>
                         )}
                       </li>
                     );

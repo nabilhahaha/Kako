@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
+import { getT } from '@/lib/i18n/server';
 
 interface OrderInput {
   branch_id: string;
@@ -15,11 +16,12 @@ interface OrderInput {
 export async function createSalesOrder(input: OrderInput): Promise<ActionResult<{ id: string }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
 
-  if (!input.branch_id) return { ok: false, error: 'الفرع مطلوب.' };
-  if (!input.customer_id) return { ok: false, error: 'العميل مطلوب.' };
+  if (!input.branch_id) return { ok: false, error: t('sales.branchRequired') };
+  if (!input.customer_id) return { ok: false, error: t('sales.customerRequired') };
   const lines = input.lines.filter((l) => l.product_id && l.quantity > 0);
-  if (lines.length === 0) return { ok: false, error: 'أضف بنداً واحداً على الأقل.' };
+  if (lines.length === 0) return { ok: false, error: t('sales.atLeastOneLine') };
 
   const supabase = await createClient();
   const totals = computeTotals(lines);
@@ -96,9 +98,10 @@ export async function convertOrderToInvoice(orderId: string): Promise<ActionResu
     .select('*')
     .eq('id', orderId)
     .single();
-  if (oErr || !order) return { ok: false, error: 'الأمر غير موجود.' };
-  if (order.status === 'invoiced') return { ok: false, error: 'هذا الأمر مفوتر بالفعل.' };
-  if (order.status === 'cancelled') return { ok: false, error: 'لا يمكن فوترة أمر ملغي.' };
+  const { t } = await getT();
+  if (oErr || !order) return { ok: false, error: t('sales.orderErrNotFound') };
+  if (order.status === 'invoiced') return { ok: false, error: t('sales.orderErrAlreadyInvoiced') };
+  if (order.status === 'cancelled') return { ok: false, error: t('sales.orderErrCancelledCannotInvoice') };
 
   const { data: lines } = await supabase
     .from('erp_sales_order_lines')

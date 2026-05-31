@@ -9,12 +9,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, Rocket } from 'lucide-react';
 import { BUSINESS_TYPE_LABELS, BUSINESS_TYPES } from '@/lib/erp/subscription';
+import { useI18n } from '@/lib/i18n/provider';
 
 const TRIAL_DAYS = 14;
 const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 export function OnboardingForm() {
+  const { t, locale } = useI18n();
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -25,7 +27,7 @@ export function OnboardingForm() {
     const business_type = String(fd.get('business_type') || 'general');
 
     if (!company_name && !company_name_ar) {
-      toast.error('اسم الشركة مطلوب.');
+      toast.error(t('auth.errCompanyRequired'));
       return;
     }
 
@@ -39,10 +41,10 @@ export function OnboardingForm() {
     });
     setLoading(false);
     if (error) {
-      toast.error(error.message || 'تعذّر إنشاء الشركة.');
+      toast.error(error.message || t('auth.errCompany'));
       return;
     }
-    toast.success('تم إنشاء شركتك وبدأت تجربتك المجانية 🎉');
+    toast.success(t('auth.regSuccess'));
     window.location.href = '/dashboard';
   }
 
@@ -54,27 +56,27 @@ export function OnboardingForm() {
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Rocket className="h-6 w-6" />
             </div>
-            <h1 className="text-xl font-bold">أنشئ شركتك</h1>
+            <h1 className="text-xl font-bold">{t('auth.onbTitle')}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              خطوة أخيرة لبدء تجربتك المجانية ({TRIAL_DAYS} يوم).
+              {t('auth.onbSubtitle', { days: TRIAL_DAYS })}
             </p>
           </div>
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="company_name_ar">اسم الشركة *</Label>
-              <Input id="company_name_ar" name="company_name_ar" placeholder="مثال: شركة كاكو للتوزيع" required />
+              <Label htmlFor="company_name_ar">{t('auth.companyNameAr')}</Label>
+              <Input id="company_name_ar" name="company_name_ar" placeholder={t('auth.companyNameArPh')} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company_name">اسم الشركة (إنجليزي)</Label>
-              <Input id="company_name" name="company_name" dir="ltr" placeholder="Kako Distribution" />
+              <Label htmlFor="company_name">{t('auth.companyNameEn')}</Label>
+              <Input id="company_name" name="company_name" dir="ltr" placeholder={t('auth.companyNameEnPh')} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="business_type">نوع النشاط</Label>
+              <Label htmlFor="business_type">{t('auth.businessType')}</Label>
               <select id="business_type" name="business_type" className={selectCls} defaultValue="general">
-                {BUSINESS_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {BUSINESS_TYPE_LABELS[t]}
+                {BUSINESS_TYPES.map((bt) => (
+                  <option key={bt} value={bt}>
+                    {BUSINESS_TYPE_LABELS[bt][locale]}
                   </option>
                 ))}
               </select>
@@ -82,13 +84,13 @@ export function OnboardingForm() {
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-              إنشاء الشركة وبدء التجربة
+              {t('auth.onbSubmit')}
             </Button>
           </form>
 
           <form action="/auth/signout" method="post" className="text-center">
             <button type="submit" className="text-sm text-muted-foreground hover:underline">
-              تسجيل الخروج
+              {t('auth.onbSignOut')}
             </button>
           </form>
         </CardContent>

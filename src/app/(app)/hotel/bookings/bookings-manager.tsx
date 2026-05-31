@@ -11,6 +11,7 @@ import { Plus, Loader2, LogIn, LogOut, X } from 'lucide-react';
 import { formatNumber } from '@/lib/utils';
 import { createBooking, setBookingStatus, addBookingPayment } from '../actions';
 import { usePrompt } from '@/components/prompt-dialog';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface RoomOption {
   id: string;
@@ -33,11 +34,11 @@ export interface Booking {
   room: { code: string; name: string | null } | null;
 }
 
-const STATUS: Record<string, { label: string; variant: 'success' | 'destructive' | 'warning' | 'secondary' | 'info' }> = {
-  reserved: { label: 'محجوزة', variant: 'info' },
-  checked_in: { label: 'تسجيل دخول', variant: 'success' },
-  checked_out: { label: 'تسجيل خروج', variant: 'secondary' },
-  cancelled: { label: 'ملغاة', variant: 'destructive' },
+const STATUS_VARIANT: Record<string, 'success' | 'destructive' | 'warning' | 'secondary' | 'info'> = {
+  reserved: 'info',
+  checked_in: 'success',
+  checked_out: 'secondary',
+  cancelled: 'destructive',
 };
 
 const selectCls =
@@ -46,13 +47,14 @@ const selectCls =
 export function BookingsManager({ bookings, rooms }: { bookings: Booking[]; rooms: RoomOption[] }) {
   const router = useRouter();
   const prompt = usePrompt();
+  const { t } = useI18n();
   const [pending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) {
     startTransition(async () => {
       const res = await fn();
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
+      if (!res.ok) { toast.error(res.error ?? t('hotel.bookings.errorGeneric')); return; }
       toast.success(ok);
       router.refresh();
     });
@@ -64,8 +66,8 @@ export function BookingsManager({ bookings, rooms }: { bookings: Booking[]; room
     const fd = new FormData(form);
     startTransition(async () => {
       const res = await createBooking(fd);
-      if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
-      toast.success('تم إنشاء الحجز');
+      if (!res.ok) { toast.error(res.error ?? t('hotel.bookings.errorGeneric')); return; }
+      toast.success(t('hotel.bookings.toastCreated'));
       form.reset();
       setAdding(false);
       router.refresh();
@@ -75,17 +77,17 @@ export function BookingsManager({ bookings, rooms }: { bookings: Booking[]; room
   function collect(b: Booking) {
     const remaining = b.total_amount - b.paid_amount;
     prompt({
-      title: 'تحصيل دفعة',
-      message: `${b.guest_name} — المتبقي ${remaining.toLocaleString('ar-EG')} ج.م`,
-      label: 'مبلغ التحصيل',
+      title: t('hotel.bookings.collectTitle'),
+      message: t('hotel.bookings.collectMessage', { name: b.guest_name, remaining: formatNumber(remaining) }),
+      label: t('hotel.bookings.collectLabel'),
       type: 'number',
       defaultValue: remaining > 0 ? String(remaining) : '',
-      confirmText: 'تحصيل',
+      confirmText: t('hotel.bookings.collectConfirm'),
     }).then((raw) => {
       if (raw == null) return;
       const amount = Number(raw);
-      if (!Number.isFinite(amount) || amount <= 0) { toast.error('مبلغ غير صحيح'); return; }
-      run(() => addBookingPayment(b.id, amount), 'تم تسجيل الدفعة');
+      if (!Number.isFinite(amount) || amount <= 0) { toast.error(t('hotel.bookings.errorInvalidAmount')); return; }
+      run(() => addBookingPayment(b.id, amount), t('hotel.bookings.toastPaymentRecorded'));
     });
   }
 
@@ -94,67 +96,69 @@ export function BookingsManager({ bookings, rooms }: { bookings: Booking[]; room
       <div>
         {!adding ? (
           <Button onClick={() => setAdding(true)} disabled={rooms.length === 0}>
-            <Plus className="h-4 w-4" /> حجز جديد
+            <Plus className="h-4 w-4" /> {t('hotel.bookings.newBooking')}
           </Button>
         ) : (
           <Card>
             <CardContent className="pt-6">
               <form onSubmit={onCreate} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <select name="room_id" className={selectCls} required defaultValue="">
-                  <option value="" disabled>اختر الغرفة *</option>
+                  <option value="" disabled>{t('hotel.bookings.selectRoom')}</option>
                   {rooms.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.code}{r.name ? ` — ${r.name}` : ''} ({formatNumber(r.nightly_rate)}/ليلة)
+                      {r.code}{r.name ? ` — ${r.name}` : ''} ({formatNumber(r.nightly_rate)}{t('hotel.bookings.perNight')})
                     </option>
                   ))}
                 </select>
-                <Input name="guest_name" placeholder="اسم النزيل *" required />
-                <Input name="guest_phone" placeholder="هاتف النزيل" dir="ltr" />
+                <Input name="guest_name" placeholder={t('hotel.bookings.placeholderGuestName')} required />
+                <Input name="guest_phone" placeholder={t('hotel.bookings.placeholderGuestPhone')} dir="ltr" />
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">تاريخ الدخول</label>
+                  <label className="text-xs text-muted-foreground">{t('hotel.bookings.labelCheckIn')}</label>
                   <Input name="check_in" type="date" dir="ltr" required />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">تاريخ الخروج</label>
+                  <label className="text-xs text-muted-foreground">{t('hotel.bookings.labelCheckOut')}</label>
                   <Input name="check_out" type="date" dir="ltr" required />
                 </div>
                 <div className="flex items-end gap-2">
                   <Button type="submit" disabled={pending}>
-                    {pending && <Loader2 className="h-4 w-4 animate-spin" />} حفظ
+                    {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('hotel.bookings.save')}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => setAdding(false)}>إلغاء</Button>
+                  <Button type="button" variant="outline" onClick={() => setAdding(false)}>{t('hotel.bookings.cancel')}</Button>
                 </div>
               </form>
             </CardContent>
           </Card>
         )}
         {rooms.length === 0 && (
-          <p className="mt-2 text-sm text-muted-foreground">أضف غرفة أولاً من صفحة الغرف.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('hotel.bookings.noRoomsHint')}</p>
         )}
       </div>
 
       <Card>
         <CardContent className="p-0">
           {bookings.length === 0 ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">لا توجد حجوزات بعد.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('hotel.bookings.empty')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">النزيل</th>
-                    <th className="p-3 text-right font-medium">الغرفة</th>
-                    <th className="p-3 text-center font-medium">الدخول → الخروج</th>
-                    <th className="p-3 text-center font-medium">الليالي</th>
-                    <th className="p-3 text-center font-medium">الإجمالي</th>
-                    <th className="p-3 text-center font-medium">المدفوع</th>
-                    <th className="p-3 text-center font-medium">الحالة</th>
-                    <th className="p-3 text-center font-medium">إجراءات</th>
+                    <th className="p-3 text-start font-medium">{t('hotel.bookings.colGuest')}</th>
+                    <th className="p-3 text-start font-medium">{t('hotel.bookings.colRoom')}</th>
+                    <th className="p-3 text-center font-medium">{t('hotel.bookings.colDates')}</th>
+                    <th className="p-3 text-center font-medium">{t('hotel.bookings.colNights')}</th>
+                    <th className="p-3 text-center font-medium">{t('hotel.bookings.colTotal')}</th>
+                    <th className="p-3 text-center font-medium">{t('hotel.bookings.colPaid')}</th>
+                    <th className="p-3 text-center font-medium">{t('hotel.bookings.colStatus')}</th>
+                    <th className="p-3 text-center font-medium">{t('hotel.bookings.colActions')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bookings.map((b) => {
-                    const st = STATUS[b.status] ?? { label: b.status, variant: 'secondary' as const };
+                    const statusKey = `hotel.bookingStatus.${b.status}` as const;
+                    const label = t(statusKey) !== statusKey ? t(statusKey) : b.status;
+                    const variant = STATUS_VARIANT[b.status] ?? 'secondary';
                     const remaining = b.total_amount - b.paid_amount;
                     return (
                       <tr key={b.id} className="border-b">
@@ -168,31 +172,31 @@ export function BookingsManager({ bookings, rooms }: { bookings: Booking[]; room
                         <td className="p-3 text-center tabular-nums" dir="ltr">{formatNumber(b.total_amount)}</td>
                         <td className="p-3 text-center tabular-nums" dir="ltr">
                           {formatNumber(b.paid_amount)}
-                          {remaining > 0 && <span className="block text-xs text-destructive">باقي {formatNumber(remaining)}</span>}
+                          {remaining > 0 && <span className="block text-xs text-destructive">{t('hotel.bookings.remaining', { amount: formatNumber(remaining) })}</span>}
                         </td>
-                        <td className="p-3 text-center"><Badge variant={st.variant}>{st.label}</Badge></td>
+                        <td className="p-3 text-center"><Badge variant={variant}>{label}</Badge></td>
                         <td className="p-3">
                           <div className="flex flex-wrap items-center justify-center gap-1">
                             {b.status === 'reserved' && (
                               <Button size="sm" variant="secondary" disabled={pending}
-                                onClick={() => run(() => setBookingStatus(b.id, 'checked_in'), 'تم تسجيل الدخول')}>
-                                <LogIn className="h-3.5 w-3.5" /> دخول
+                                onClick={() => run(() => setBookingStatus(b.id, 'checked_in'), t('hotel.bookings.toastCheckedIn'))}>
+                                <LogIn className="h-3.5 w-3.5" /> {t('hotel.bookings.btnCheckIn')}
                               </Button>
                             )}
                             {b.status === 'checked_in' && (
                               <Button size="sm" variant="secondary" disabled={pending}
-                                onClick={() => run(() => setBookingStatus(b.id, 'checked_out'), 'تم تسجيل الخروج')}>
-                                <LogOut className="h-3.5 w-3.5" /> خروج
+                                onClick={() => run(() => setBookingStatus(b.id, 'checked_out'), t('hotel.bookings.toastCheckedOut'))}>
+                                <LogOut className="h-3.5 w-3.5" /> {t('hotel.bookings.btnCheckOut')}
                               </Button>
                             )}
                             {(b.status === 'reserved' || b.status === 'checked_in') && (
                               <>
                                 <Button size="sm" variant="outline" disabled={pending} onClick={() => collect(b)}>
-                                  تحصيل
+                                  {t('hotel.bookings.btnCollect')}
                                 </Button>
                                 <Button size="sm" variant="ghost" disabled={pending}
-                                  onClick={() => run(() => setBookingStatus(b.id, 'cancelled'), 'تم الإلغاء')}>
-                                  <X className="h-3.5 w-3.5" /> إلغاء
+                                  onClick={() => run(() => setBookingStatus(b.id, 'cancelled'), t('hotel.bookings.toastCancelled'))}>
+                                  <X className="h-3.5 w-3.5" /> {t('hotel.bookings.btnCancel')}
                                 </Button>
                               </>
                             )}

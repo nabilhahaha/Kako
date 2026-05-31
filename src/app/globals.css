@@ -13,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 350 78% 35%;
+    --primary: 252 83% 60%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96%;
@@ -22,16 +22,16 @@
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 41 80% 50%;
+    --accent: 187 92% 45%;
     --accent-foreground: 222 47% 11%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 71% 45%;
+    --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 38 88% 52%;
     --warning-foreground: 0 0% 100%;
 
     --info: 217 91% 60%;
@@ -45,7 +45,7 @@
 
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 350 78% 35%;
+    --ring: 252 83% 60%;
 
     --radius: 0.625rem;
   }
@@ -57,19 +57,19 @@
     --card-foreground: 210 40% 98%;
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
-    --primary: 350 70% 50%;
+    --primary: 252 90% 68%;
     --primary-foreground: 0 0% 100%;
     --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217 33% 17%;
     --muted-foreground: 215 20% 65%;
-    --accent: 41 80% 50%;
+    --accent: 187 92% 45%;
     --accent-foreground: 222 47% 11%;
     --destructive: 0 63% 45%;
     --destructive-foreground: 0 0% 100%;
-    --success: 142 71% 45%;
+    --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
+    --warning: 38 88% 52%;
     --warning-foreground: 0 0% 100%;
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
@@ -79,7 +79,7 @@
     --maroon-light: 350 60% 60%;
     --border: 217 33% 20%;
     --input: 217 33% 20%;
-    --ring: 350 70% 50%;
+    --ring: 252 90% 68%;
   }
 }
 
@@ -99,4 +99,28 @@
 /* Numeric tabular alignment for financial figures */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* Login brand-panel ambient motion */
+@keyframes ams-aura {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(24px, -22px) scale(1.12); }
+}
+@keyframes ams-aura-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-28px, 18px) scale(1.18); }
+}
+.ams-aura  { animation: ams-aura 16s ease-in-out infinite; }
+.ams-aura-2 { animation: ams-aura-2 20s ease-in-out infinite; }
+
+@keyframes ams-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ams-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+.ams-fade { animation: ams-fade 0.25s ease both; }
+.ams-pop  { animation: ams-pop 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ams-aura, .ams-aura-2, .ams-fade, .ams-pop { animation: none; }
 }

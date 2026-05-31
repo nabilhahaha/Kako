@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Pencil } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface PromptOptions {
   title: string;
@@ -29,6 +30,7 @@ export function usePrompt(): PromptFn {
 }
 
 export function PromptProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   const [options, setOptions] = useState<PromptOptions | null>(null);
   const [value, setValue] = useState('');
   const resolver = useRef<((v: string | null) => void) | null>(null);
@@ -88,9 +90,9 @@ export function PromptProvider({ children }: { children: React.ReactNode }) {
                   onChange={(e) => setValue(e.target.value)}
                 />
                 <div className="flex justify-start gap-2">
-                  <Button type="submit">{options.confirmText ?? 'تأكيد'}</Button>
+                  <Button type="submit">{options.confirmText ?? t('shared.confirm')}</Button>
                   <Button type="button" variant="outline" onClick={() => settle(null)}>
-                    {options.cancelText ?? 'إلغاء'}
+                    {options.cancelText ?? t('shared.cancel')}
                   </Button>
                 </div>
               </form>

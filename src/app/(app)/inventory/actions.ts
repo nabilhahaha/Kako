@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 /**
  * Manually adjust stock for a product in a warehouse. The signed delta is
@@ -18,10 +19,11 @@ export async function adjustStock(input: {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
 
-  if (!input.warehouse_id) return { ok: false, error: 'المخزن مطلوب.' };
-  if (!input.product_id) return { ok: false, error: 'المنتج مطلوب.' };
+  const { t } = await getT();
+  if (!input.warehouse_id) return { ok: false, error: t('inventory.errorWarehouseRequired') };
+  if (!input.product_id) return { ok: false, error: t('inventory.errorProductRequired') };
   if (!input.delta || input.delta === 0)
-    return { ok: false, error: 'أدخل كمية تسوية غير صفرية (موجبة للإضافة، سالبة للخصم).' };
+    return { ok: false, error: t('inventory.errorDeltaRequired') };
 
   const supabase = await createClient();
   const { error } = await supabase.from('erp_stock_movements').insert({
@@ -30,7 +32,7 @@ export async function adjustStock(input: {
     product_id: input.product_id,
     quantity: input.delta,
     reference_type: 'manual',
-    notes: input.notes?.trim() || 'تسوية يدوية',
+    notes: input.notes?.trim() || t('inventory.defaultAdjustmentNote'),
     created_by: ctx!.userId,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 export type VoucherKind = 'payment' | 'receipt';
 
@@ -29,11 +30,12 @@ export async function createVoucher(
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
 
-  if (!input.branch_id) return { ok: false, error: 'الفرع مطلوب.' };
-  if (!input.account_id) return { ok: false, error: 'الحساب مطلوب.' };
+  const { t } = await getT();
+  if (!input.branch_id) return { ok: false, error: t('accounting.vouchers.errBranchRequired') };
+  if (!input.account_id) return { ok: false, error: t('accounting.vouchers.errAccountRequired') };
   if (!input.party.trim())
-    return { ok: false, error: kind === 'payment' ? 'اسم المستفيد مطلوب.' : 'اسم الدافع مطلوب.' };
-  if (!(input.amount > 0)) return { ok: false, error: 'المبلغ يجب أن يكون أكبر من صفر.' };
+    return { ok: false, error: kind === 'payment' ? t('accounting.vouchers.errPayeeRequired') : t('accounting.vouchers.errPayerRequired') };
+  if (!(input.amount > 0)) return { ok: false, error: t('accounting.vouchers.errAmountPositive') };
 
   const supabase = await createClient();
   const { data: number, error: numErr } = await supabase.rpc('erp_next_number', {

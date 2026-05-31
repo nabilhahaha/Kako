@@ -14,6 +14,7 @@ import { formatCurrency } from '@/lib/utils';
 import type { Branch, PaymentMethod, Supplier } from '@/lib/erp/types';
 import { Plus, Pencil, Loader2, X, Truck, Search, FileText, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
 export function SuppliersManager({
   suppliers,
@@ -23,6 +24,7 @@ export function SuppliersManager({
   branches: Branch[];
 }) {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const [editing, setEditing] = useState<Supplier | null | 'new'>(null);
   const [payFor, setPayFor] = useState<Supplier | null>(null);
   const [query, setQuery] = useState('');
@@ -46,10 +48,10 @@ export function SuppliersManager({
     startTransition(async () => {
       const res = await upsertSupplier(formData);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('suppliers.toastError'));
         return;
       }
-      toast.success(editing === 'new' ? 'تمت إضافة المورد' : 'تم تحديث المورد');
+      toast.success(editing === 'new' ? t('suppliers.toastCreated') : t('suppliers.toastUpdated'));
       setEditing(null);
       router.refresh();
     });
@@ -58,7 +60,7 @@ export function SuppliersManager({
   function onToggle(s: Supplier) {
     startTransition(async () => {
       const res = await toggleSupplierActive(s.id, !s.is_active);
-      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      if (!res.ok) toast.error(res.error ?? t('suppliers.toastError'));
       else router.refresh();
     });
   }
@@ -71,19 +73,19 @@ export function SuppliersManager({
       <div className="flex flex-wrap items-center gap-2">
         {editing === null && (
           <Button onClick={() => setEditing('new')}>
-            <Plus className="h-4 w-4" /> مورد جديد
+            <Plus className="h-4 w-4" /> {t('suppliers.btnNew')}
           </Button>
         )}
         <Badge variant="secondary" className="text-sm">
-          إجمالي المستحق للموردين: {formatCurrency(totalPayable)}
+          {t('suppliers.totalPayable')}: {formatCurrency(totalPayable)}
         </Badge>
         <div className="relative ms-auto">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="بحث…"
-            className="w-56 pr-9"
+            placeholder={t('suppliers.searchPlaceholder')}
+            className="w-56 ps-9"
           />
         </div>
       </div>
@@ -93,7 +95,7 @@ export function SuppliersManager({
           <CardContent className="pt-6">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold">
-                {editing === 'new' ? 'مورد جديد' : `تعديل: ${current?.name_ar || current?.name}`}
+                {editing === 'new' ? t('suppliers.formTitleNew') : t('suppliers.formTitleEdit', { name: current?.name_ar || current?.name || '' })}
               </h3>
               <button onClick={() => setEditing(null)} className="rounded-md p-1 hover:bg-secondary">
                 <X className="h-4 w-4" />
@@ -102,20 +104,20 @@ export function SuppliersManager({
             <form onSubmit={onSubmit} className="space-y-4">
               {current && <input type="hidden" name="id" value={current.id} />}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Field label="كود المورد *"><Input name="code" dir="ltr" defaultValue={current?.code ?? ''} required /></Field>
-                <Field label="الاسم (عربي)"><Input name="name_ar" defaultValue={current?.name_ar ?? ''} /></Field>
-                <Field label="الاسم (إنجليزي) *"><Input name="name" defaultValue={current?.name ?? ''} required /></Field>
-                <Field label="الهاتف"><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} /></Field>
-                <Field label="البريد الإلكتروني"><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} /></Field>
-                <Field label="الرقم الضريبي"><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>
-                <Field label="المدينة"><Input name="city" defaultValue={current?.city ?? ''} /></Field>
-                <Field label="العنوان"><Input name="address" defaultValue={current?.address ?? ''} /></Field>
+                <Field label={t('suppliers.fieldCode')}><Input name="code" dir="ltr" defaultValue={current?.code ?? ''} required /></Field>
+                <Field label={t('suppliers.fieldNameAr')}><Input name="name_ar" defaultValue={current?.name_ar ?? ''} /></Field>
+                <Field label={t('suppliers.fieldNameEn')}><Input name="name" defaultValue={current?.name ?? ''} required /></Field>
+                <Field label={t('suppliers.fieldPhone')}><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} /></Field>
+                <Field label={t('suppliers.fieldEmail')}><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} /></Field>
+                <Field label={t('suppliers.fieldTaxNumber')}><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>
+                <Field label={t('suppliers.fieldCity')}><Input name="city" defaultValue={current?.city ?? ''} /></Field>
+                <Field label={t('suppliers.fieldAddress')}><Input name="address" defaultValue={current?.address ?? ''} /></Field>
               </div>
               <div className="flex gap-2">
                 <Button type="submit" disabled={pending}>
-                  {pending && <Loader2 className="h-4 w-4 animate-spin" />} حفظ
+                  {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('suppliers.btnSave')}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setEditing(null)}>إلغاء</Button>
+                <Button type="button" variant="outline" onClick={() => setEditing(null)}>{t('suppliers.btnCancel')}</Button>
               </div>
             </form>
           </CardContent>
@@ -126,7 +128,7 @@ export function SuppliersManager({
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <Truck className="h-8 w-8" />
-            <p>{suppliers.length === 0 ? 'لا يوجد موردون بعد.' : 'لا توجد نتائج.'}</p>
+            <p>{suppliers.length === 0 ? t('suppliers.emptyNoSuppliers') : t('suppliers.emptyNoResults')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -136,12 +138,12 @@ export function SuppliersManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">الكود</th>
-                    <th className="p-3 text-right font-medium">المورد</th>
-                    <th className="p-3 text-right font-medium">الهاتف</th>
-                    <th className="p-3 text-right font-medium">المدينة</th>
-                    <th className="p-3 text-left font-medium">الرصيد المستحق</th>
-                    <th className="p-3 text-center font-medium">الحالة</th>
+                    <th className="p-3 text-start font-medium">{t('suppliers.colCode')}</th>
+                    <th className="p-3 text-start font-medium">{t('suppliers.colSupplier')}</th>
+                    <th className="p-3 text-start font-medium">{t('suppliers.colPhone')}</th>
+                    <th className="p-3 text-start font-medium">{t('suppliers.colCity')}</th>
+                    <th className="p-3 text-end font-medium">{t('suppliers.colBalance')}</th>
+                    <th className="p-3 text-center font-medium">{t('suppliers.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
@@ -154,23 +156,23 @@ export function SuppliersManager({
                       <td className="p-3 text-muted-foreground">{s.city || '—'}</td>
                       <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(s.balance)}</td>
                       <td className="p-3 text-center">
-                        {s.is_active ? <Badge variant="success">نشط</Badge> : <Badge variant="destructive">موقوف</Badge>}
+                        {s.is_active ? <Badge variant="success">{t('suppliers.statusActive')}</Badge> : <Badge variant="destructive">{t('suppliers.statusInactive')}</Badge>}
                       </td>
                       <td className="p-3">
                         <div className="flex justify-end gap-1">
                           {Number(s.balance) > 0 && (
                             <Button variant="ghost" size="sm" className="text-xs" onClick={() => setPayFor(s)}>
-                              <Wallet className="h-3.5 w-3.5" /> سداد
+                              <Wallet className="h-3.5 w-3.5" /> {t('suppliers.btnPay')}
                             </Button>
                           )}
-                          <Link href={`/suppliers/${s.id}`} className="rounded-md p-1.5 hover:bg-secondary" aria-label="كشف حساب" title="كشف حساب">
+                          <Link href={`/suppliers/${s.id}`} className="rounded-md p-1.5 hover:bg-secondary" aria-label={t('suppliers.ariaStatement')} title={t('suppliers.ariaStatementTitle')}>
                             <FileText className="h-4 w-4" />
                           </Link>
-                          <button onClick={() => setEditing(s)} className="rounded-md p-1.5 hover:bg-secondary" aria-label="تعديل">
+                          <button onClick={() => setEditing(s)} className="rounded-md p-1.5 hover:bg-secondary" aria-label={t('suppliers.ariaEdit')}>
                             <Pencil className="h-4 w-4" />
                           </button>
                           <Button variant="ghost" size="sm" disabled={pending} onClick={() => onToggle(s)} className="text-xs">
-                            {s.is_active ? 'إيقاف' : 'تفعيل'}
+                            {s.is_active ? t('suppliers.btnDeactivate') : t('suppliers.btnActivate')}
                           </Button>
                         </div>
                       </td>
@@ -209,6 +211,7 @@ function SupplierPaymentDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t, locale } = useI18n();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [amount, setAmount] = useState(Number(supplier.balance).toFixed(2));
   const [method, setMethod] = useState<PaymentMethod>('bank_transfer');
@@ -227,10 +230,10 @@ function SupplierPaymentDialog({
         payment_date: date,
       });
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('suppliers.toastError'));
         return;
       }
-      toast.success('تم تسجيل السداد وترحيل القيد');
+      toast.success(t('suppliers.toastPaymentSuccess'));
       onDone();
     });
   }
@@ -240,48 +243,48 @@ function SupplierPaymentDialog({
       <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <CardContent className="space-y-4 pt-6">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">سداد لمورد: {supplier.name_ar || supplier.name}</h3>
+            <h3 className="font-semibold">{t('suppliers.payDialogTitle', { name: supplier.name_ar || supplier.name })}</h3>
             <button onClick={onClose} className="rounded-md p-1 hover:bg-secondary">
               <X className="h-4 w-4" />
             </button>
           </div>
           <p className="text-sm text-muted-foreground">
-            المستحق: <span dir="ltr" className="font-semibold tabular-nums">{formatCurrency(supplier.balance)}</span>
+            {t('suppliers.payDialogAmountDue')} <span dir="ltr" className="font-semibold tabular-nums">{formatCurrency(supplier.balance)}</span>
           </p>
           {branches.length === 0 ? (
-            <p className="text-sm text-warning">أنشئ فرعاً أولاً لتسجيل السداد.</p>
+            <p className="text-sm text-warning">{t('suppliers.payDialogNoBranch')}</p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="الفرع الصارف *">
+              <Field label={t('suppliers.payFieldBranch')}>
                 <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>
                   ))}
                 </select>
               </Field>
-              <Field label="المبلغ *">
+              <Field label={t('suppliers.payFieldAmount')}>
                 <Input type="number" step="0.01" dir="ltr" value={amount} onChange={(e) => setAmount(e.target.value)} />
               </Field>
-              <Field label="طريقة الدفع">
+              <Field label={t('suppliers.payFieldMethod')}>
                 <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                   {PAYMENT_METHOD_OPTIONS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.ar}</option>
+                    <option key={m.value} value={m.value}>{m[locale]}</option>
                   ))}
                 </select>
               </Field>
-              <Field label="رقم المرجع">
+              <Field label={t('suppliers.payFieldRef')}>
                 <Input dir="ltr" value={ref} onChange={(e) => setRef(e.target.value)} />
               </Field>
-              <Field label="التاريخ">
+              <Field label={t('suppliers.payFieldDate')}>
                 <Input type="date" dir="ltr" value={date} onChange={(e) => setDate(e.target.value)} />
               </Field>
             </div>
           )}
           <div className="flex gap-2">
             <Button onClick={submit} disabled={pending || branches.length === 0}>
-              {pending && <Loader2 className="h-4 w-4 animate-spin" />} تأكيد السداد
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('suppliers.btnConfirmPayment')}
             </Button>
-            <Button variant="outline" onClick={onClose}>إلغاء</Button>
+            <Button variant="outline" onClick={onClose}>{t('suppliers.btnCancel')}</Button>
           </div>
         </CardContent>
       </Card>

@@ -135,11 +135,13 @@ export interface Company {
   website: string | null;
   currency: string;
   is_active: boolean;
+  allow_self_users: boolean;
   business_type: BusinessType | null;
   slug: string | null;
   plan_key: string | null;
   subscription_start: string | null;
   subscription_end: string | null;
+  setup_done: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -167,7 +169,49 @@ export interface UserBranch {
   role: BranchRole;
   is_default: boolean;
   reports_to: string | null;
+  department_id: string | null;
+  team_id: string | null;
+  job_title_id: string | null;
   created_at: string;
+}
+
+// ─── Organization Structure ─────────────────────────────────────────────────
+// Generic, business-type-neutral org concepts: departments, teams, job titles
+// and reporting lines. Work for retail, distribution, clinics, manufacturing,
+// services, warehouses and corporate orgs alike. All company-scoped.
+
+export interface Department {
+  id: string;
+  company_id: string;
+  branch_id: string | null;
+  name: string;
+  name_ar: string | null;
+  manager_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Team {
+  id: string;
+  company_id: string;
+  department_id: string | null;
+  name: string;
+  name_ar: string | null;
+  lead_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobTitle {
+  id: string;
+  company_id: string;
+  name: string;
+  name_ar: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Profile {
@@ -231,6 +275,10 @@ export interface ProductCatalog {
   is_active: boolean;
   image_url: string | null;
   description: string | null;
+  /** ETA e-invoicing item code mapping (EGS or GS1) + unit-of-measure code. */
+  eta_item_code: string | null;
+  eta_item_code_type: 'EGS' | 'GS1' | null;
+  eta_unit_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -366,9 +414,19 @@ export interface Invoice {
   paid_amount: number;
   notes: string | null;
   created_by: string | null;
+  eta_status: EtaInvoiceStatus;
+  eta_uuid: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type EtaInvoiceStatus =
+  | 'not_submitted'
+  | 'submitted'
+  | 'valid'
+  | 'invalid'
+  | 'rejected'
+  | 'cancelled';
 
 export interface InvoiceLine {
   id: string;

@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber } from '@/lib/utils';
+import { getT } from '@/lib/i18n/server';
 
 interface ProductRow {
   id: string;
@@ -19,6 +20,7 @@ export default async function LowStockPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
   const supabase = await createClient();
 
   // Products that have a reorder threshold set.
@@ -55,25 +57,25 @@ export default async function LowStockPage() {
   return (
     <div>
       <PageHeader
-        title="تنبيهات نقص المخزون"
-        description="الأصناف التي وصلت أو نزلت تحت حد إعادة الطلب — راجعها للطلب."
+        title={t('inventory.lowStockPageTitle')}
+        description={t('inventory.lowStockPageDescription')}
       />
       <Card>
         <CardContent className="p-0">
           {low.length === 0 ? (
             <p className="p-8 text-center text-sm text-muted-foreground">
-              لا توجد أصناف تحت حد إعادة الطلب. 👍
+              {t('inventory.emptyLowStock')}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">الصنف</th>
-                    <th className="p-3 text-right font-medium">الكود</th>
-                    <th className="p-3 text-center font-medium">المتاح</th>
-                    <th className="p-3 text-center font-medium">حد الطلب</th>
-                    <th className="p-3 text-center font-medium">العجز</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colProduct')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colCode')}</th>
+                    <th className="p-3 text-center font-medium">{t('inventory.colAvailable')}</th>
+                    <th className="p-3 text-center font-medium">{t('inventory.colReorderLevel')}</th>
+                    <th className="p-3 text-center font-medium">{t('inventory.colDeficit')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -88,7 +90,7 @@ export default async function LowStockPage() {
                       <td className="p-3 text-center tabular-nums" dir="ltr">{formatNumber(p.min)}</td>
                       <td className="p-3 text-center">
                         <Badge variant={p.qty <= 0 ? 'destructive' : 'warning'}>
-                          {p.qty <= 0 ? 'نفد' : formatNumber(p.deficit)}
+                          {p.qty <= 0 ? t('inventory.statusOutOfStock') : formatNumber(p.deficit)}
                         </Badge>
                       </td>
                     </tr>

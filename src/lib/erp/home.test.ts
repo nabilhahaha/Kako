@@ -1,0 +1,95 @@
+import { describe, it, expect } from 'vitest';
+import { resolveHomePath } from './home';
+import type { Module } from './navigation';
+import type { Permission } from './permissions';
+
+// Shorthand helpers
+function path(
+  modules: Module[],
+  permissions: Permission[],
+  isPlatformOwner?: boolean,
+): string {
+  return resolveHomePath({ modules, permissions, isPlatformOwner });
+}
+
+describe('resolveHomePath', () => {
+  // ─── Platform owner ─────────────────────────────────────────────────────
+
+  it('routes the platform owner to /platform regardless of modules', () => {
+    expect(path(['sales', 'inventory'], [], true)).toBe('/platform');
+  });
+
+  it('routes the platform owner to /platform even with no modules', () => {
+    expect(path([], [], true)).toBe('/platform');
+  });
+
+  // ─── Clinic module ───────────────────────────────────────────────────────
+
+  it('routes a clinic manager (clinic.manage) to /clinic', () => {
+    expect(path(['clinic'], ['clinic.manage'])).toBe('/clinic');
+  });
+
+  it('routes a clinic doctor (clinic.doctor) to /clinic/doctor', () => {
+    expect(path(['clinic'], ['clinic.doctor'])).toBe('/clinic/doctor');
+  });
+
+  it('routes a clinic receptionist (clinic.reception) to /clinic/reception', () => {
+    expect(path(['clinic'], ['clinic.reception'])).toBe('/clinic/reception');
+  });
+
+  it('falls back to /clinic for a clinic user with no specific role permission', () => {
+    // Has clinic module but none of the three specific perms
+    expect(path(['clinic'], [])).toBe('/clinic');
+  });
+
+  // clinic.manage takes priority over clinic.doctor / clinic.reception
+  it('prefers /clinic over /clinic/doctor when user has both manage + doctor perms', () => {
+    expect(path(['clinic'], ['clinic.manage', 'clinic.doctor'])).toBe('/clinic');
+  });
+
+  // ─── Other verticals ─────────────────────────────────────────────────────
+
+  it('routes restaurant module to /restaurant', () => {
+    expect(path(['restaurant'], [])).toBe('/restaurant');
+  });
+
+  it('routes salon module to /salon', () => {
+    expect(path(['salon'], [])).toBe('/salon');
+  });
+
+  it('routes laundry module to /laundry', () => {
+    expect(path(['laundry'], [])).toBe('/laundry');
+  });
+
+  it('routes pharmacy module to /pharmacy/dispense', () => {
+    expect(path(['pharmacy'], [])).toBe('/pharmacy/dispense');
+  });
+
+  it('routes hotel module to /hotel/bookings', () => {
+    expect(path(['hotel'], [])).toBe('/hotel/bookings');
+  });
+
+  it('routes wholesale module to /wholesale', () => {
+    expect(path(['wholesale'], [])).toBe('/wholesale');
+  });
+
+  // ─── General / retail ────────────────────────────────────────────────────
+
+  it('falls back to /dashboard for general retail (sales + inventory)', () => {
+    expect(path(['sales', 'inventory'], [])).toBe('/dashboard');
+  });
+
+  it('falls back to /dashboard for a user with no modules', () => {
+    expect(path([], [])).toBe('/dashboard');
+  });
+
+  it('falls back to /dashboard for modules not matched by any vertical shortcut', () => {
+    expect(path(['accounting', 'purchasing'], [])).toBe('/dashboard');
+  });
+
+  // ─── Clinic takes priority over other modules ─────────────────────────────
+
+  it('routes to /clinic even when other modules are also present', () => {
+    expect(path(['sales', 'clinic', 'inventory'], ['clinic.doctor'])).toBe('/clinic/doctor');
+  });
+});

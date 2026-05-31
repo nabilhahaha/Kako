@@ -31,10 +31,24 @@ import {
   Clock,
   BedDouble,
   Stethoscope,
+  UtensilsCrossed,
+  ChefHat,
+  LayoutGrid,
+  Scissors,
+  Pill,
+  WashingMachine,
+  Shirt,
+  ScanBarcode,
+  Layers,
+  Target,
+  Network,
+  Upload,
+  FileSpreadsheet,
   type LucideIcon,
 } from 'lucide-react';
 
 export interface NavItem {
+  /** i18n key (dot-path into `nav.items.*`), resolved with `t()` at render. */
   label: string;
   href: string;
   icon: LucideIcon;
@@ -54,6 +68,7 @@ export interface NavItem {
 }
 
 export interface NavSection {
+  /** i18n key (dot-path into `nav.sections.*`), resolved with `t()` at render. */
   title: string;
   items: NavItem[];
   /** Feature module this section belongs to; gated by the company's plan.
@@ -67,110 +82,193 @@ export interface NavSection {
  *  item-level refinements driven by the business type so a clinic doesn't see
  *  POS and a restaurant doesn't see stock transfers. */
 export type Module =
-  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic'
+  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy' | 'laundry' | 'market' | 'wholesale' | 'distribution'
   | 'pos' | 'sales_orders' | 'returns' | 'warehousing';
 
 /** The modules a subscription PLAN can grant (coarse). */
-export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic'];
+export const ALL_MODULES: Module[] = ['sales', 'inventory', 'purchasing', 'accounting', 'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale', 'distribution'];
 
-export const MODULE_LABELS: Record<Module, string> = {
-  sales: 'المبيعات',
-  inventory: 'المخزون',
-  purchasing: 'المشتريات',
-  accounting: 'الحسابات',
-  hotel: 'الفندق',
-  clinic: 'العيادة',
-  pos: 'نقطة البيع',
-  sales_orders: 'أوامر البيع',
-  returns: 'المرتجعات',
-  warehousing: 'إدارة المخازن',
+export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
+  sales: { en: 'Sales', ar: 'المبيعات' },
+  inventory: { en: 'Inventory', ar: 'المخزون' },
+  purchasing: { en: 'Purchasing', ar: 'المشتريات' },
+  accounting: { en: 'Accounting', ar: 'الحسابات' },
+  hotel: { en: 'Hotel', ar: 'الفندق' },
+  clinic: { en: 'Clinic', ar: 'العيادة' },
+  restaurant: { en: 'Restaurant / Café', ar: 'المطعم / الكافيه' },
+  salon: { en: 'Salon', ar: 'الصالون' },
+  pharmacy: { en: 'Pharmacy', ar: 'الصيدلية' },
+  laundry: { en: 'Laundry', ar: 'المغسلة' },
+  market: { en: 'Supermarket', ar: 'السوبر ماركت' },
+  wholesale: { en: 'Wholesale', ar: 'الجملة' },
+  distribution: { en: 'Distribution', ar: 'التوزيع' },
+  pos: { en: 'Point of Sale', ar: 'نقطة البيع' },
+  sales_orders: { en: 'Sales Orders', ar: 'أوامر البيع' },
+  returns: { en: 'Returns', ar: 'المرتجعات' },
+  warehousing: { en: 'Warehouse Management', ar: 'إدارة المخازن' },
 };
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    title: 'لوحة المزوّد',
+    title: 'nav.sections.provider',
     items: [
-      { label: 'نظرة عامة', href: '/platform', icon: LayoutDashboard, platformOwnerOnly: true },
-      { label: 'الشركات والاشتراكات', href: '/platform/companies', icon: Crown, platformOwnerOnly: true },
+      { label: 'nav.items.overview', href: '/platform', icon: LayoutDashboard, platformOwnerOnly: true },
+      { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformOwnerOnly: true },
+      { label: 'nav.items.drugsList', href: '/platform/drugs', icon: Pill, platformOwnerOnly: true },
     ],
   },
   {
-    title: 'الرئيسية',
-    items: [{ label: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard }],
+    title: 'nav.sections.main',
+    items: [{ label: 'nav.items.dashboard', href: '/dashboard', icon: LayoutDashboard }],
   },
   {
-    title: 'الفندق',
+    title: 'nav.sections.hotel',
     module: 'hotel',
     items: [
-      { label: 'الغرف', href: '/hotel/rooms', icon: BedDouble, perm: 'hotel.manage' },
-      { label: 'الحجوزات', href: '/hotel/bookings', icon: CalendarDays, perm: 'hotel.manage' },
+      { label: 'nav.items.hotelRooms', href: '/hotel/rooms', icon: BedDouble, perm: 'hotel.manage' },
+      { label: 'nav.items.hotelBookings', href: '/hotel/bookings', icon: CalendarDays, perm: 'hotel.manage' },
     ],
   },
   {
-    title: 'العيادة',
+    title: 'nav.sections.clinic',
     module: 'clinic',
     items: [
-      { label: 'المرضى', href: '/clinic/patients', icon: Users, perm: 'clinic.manage' },
-      { label: 'الكشوفات', href: '/clinic/visits', icon: Stethoscope, perm: 'clinic.manage' },
+      { label: 'nav.items.clinicDashboard', href: '/clinic', icon: LayoutDashboard, perm: ['clinic.manage', 'clinic.reception', 'clinic.doctor'] },
+      { label: 'nav.items.reception', href: '/clinic/reception', icon: ClipboardCheck, perm: ['clinic.manage', 'clinic.reception'] },
+      { label: 'nav.items.doctor', href: '/clinic/doctor', icon: Stethoscope, perm: ['clinic.manage', 'clinic.doctor'] },
+      { label: 'nav.items.appointments', href: '/clinic/appointments', icon: CalendarClock, perm: ['clinic.manage', 'clinic.reception'] },
+      { label: 'nav.items.patients', href: '/clinic/patients', icon: Users, perm: ['clinic.manage', 'clinic.reception', 'clinic.doctor'] },
+      { label: 'nav.items.visits', href: '/clinic/visits', icon: ClipboardList, perm: 'clinic.manage' },
+      { label: 'nav.items.clinicReports', href: '/clinic/reports', icon: BarChart3, perm: ['clinic.manage', 'reports.view'] },
+      { label: 'nav.items.services', href: '/clinic/services', icon: Tags, perm: 'clinic.manage' },
     ],
   },
   {
-    title: 'المبيعات',
+    title: 'nav.sections.wholesale',
+    module: 'wholesale',
+    items: [
+      { label: 'nav.items.wholesaleOrder', href: '/wholesale/order', icon: FileText, perm: 'wholesale.pricing' },
+      { label: 'nav.items.priceLevels', href: '/wholesale', icon: Layers, perm: 'wholesale.pricing' },
+      { label: 'nav.items.priceList', href: '/wholesale/prices', icon: Tags, perm: 'wholesale.pricing' },
+      { label: 'nav.items.customerLevels', href: '/wholesale/customers', icon: Users, perm: 'wholesale.pricing' },
+    ],
+  },
+  {
+    title: 'nav.sections.market',
+    module: 'market',
+    items: [
+      { label: 'nav.items.cashier', href: '/market/pos', icon: ScanBarcode, perm: 'market.pos' },
+    ],
+  },
+  {
+    title: 'nav.sections.laundry',
+    module: 'laundry',
+    items: [
+      { label: 'nav.items.laundryDashboard', href: '/laundry', icon: LayoutDashboard, perm: 'laundry.manage' },
+      { label: 'nav.items.orders', href: '/laundry/orders', icon: WashingMachine, perm: 'laundry.manage' },
+      { label: 'nav.items.laundryServices', href: '/laundry/services', icon: Shirt, perm: 'laundry.manage' },
+    ],
+  },
+  {
+    title: 'nav.sections.restaurant',
+    module: 'restaurant',
+    items: [
+      { label: 'nav.items.restaurantDashboard', href: '/restaurant', icon: LayoutDashboard, perm: 'restaurant.manage' },
+      { label: 'nav.items.tables', href: '/restaurant/tables', icon: LayoutGrid, perm: 'restaurant.manage' },
+      { label: 'nav.items.restaurantOrders', href: '/restaurant/orders', icon: UtensilsCrossed, perm: 'restaurant.manage' },
+      { label: 'nav.items.kitchen', href: '/restaurant/kitchen', icon: ChefHat, perm: 'restaurant.manage' },
+    ],
+  },
+  {
+    title: 'nav.sections.salon',
+    module: 'salon',
+    items: [
+      { label: 'nav.items.salonDashboard', href: '/salon', icon: LayoutDashboard, perm: 'salon.manage' },
+      { label: 'nav.items.appointments', href: '/salon/appointments', icon: CalendarClock, perm: 'salon.manage' },
+      { label: 'nav.items.tickets', href: '/salon/tickets', icon: Scissors, perm: 'salon.manage' },
+      { label: 'nav.items.services', href: '/salon/services', icon: Tags, perm: 'salon.manage' },
+    ],
+  },
+  {
+    title: 'nav.sections.pharmacy',
+    module: 'pharmacy',
+    items: [
+      { label: 'nav.items.pharmacyDispense', href: '/pharmacy/dispense', icon: Pill, perm: 'pharmacy.dispense' },
+      { label: 'nav.items.expiryNear', href: '/inventory/expiry', icon: CalendarClock, perm: 'pharmacy.dispense' },
+    ],
+  },
+  {
+    title: 'nav.sections.sales',
     module: 'sales',
     items: [
-      { label: 'بيع سريع', href: '/sales/pos', icon: Zap, perm: 'sales.sell', module: 'pos' },
-      { label: 'تطبيق المندوب', href: '/rep', icon: Smartphone, perm: 'field.sales' },
-      { label: 'محاسبة المندوب اليومية', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'] },
-      { label: 'أوامر البيع', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell', module: 'sales_orders' },
-      { label: 'الفواتير', href: '/sales/invoices', icon: FileText, perm: ['sales.sell', 'sales.collect'] },
-      { label: 'خطة الزيارات', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales' },
-      { label: 'مرتجعات المبيعات', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
-      { label: 'تقرير المبيعات', href: '/sales/report', icon: BarChart3, perm: 'reports.view' },
-      { label: 'العملاء', href: '/customers', icon: Users, perm: 'customers.manage' },
+      { label: 'nav.items.quickSale', href: '/sales/pos', icon: Zap, perm: 'sales.sell', module: 'pos' },
+      { label: 'nav.items.repApp', href: '/rep', icon: Smartphone, perm: 'field.sales', module: 'distribution' },
+      { label: 'nav.items.repSettlement', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'], module: 'distribution' },
+      { label: 'nav.items.salesOrders', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell', module: 'sales_orders' },
+      { label: 'nav.items.invoices', href: '/sales/invoices', icon: FileText, perm: ['sales.sell', 'sales.collect'] },
+      { label: 'nav.items.journey', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales', module: 'distribution' },
+      { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
+      { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view' },
+      { label: 'nav.items.customers', href: '/customers', icon: Users, perm: 'customers.manage' },
     ],
   },
   {
-    title: 'المخزون',
+    title: 'nav.sections.distribution',
+    module: 'distribution',
+    items: [
+      { label: 'nav.items.routes', href: '/distribution/routes', icon: Truck, perm: ['reports.view', 'customers.manage'] },
+      { label: 'nav.items.distributionReport', href: '/distribution/report', icon: BarChart3, perm: 'reports.view' },
+      { label: 'nav.items.repTargets', href: '/distribution/targets', icon: Target, perm: 'reports.view' },
+    ],
+  },
+  {
+    title: 'nav.sections.inventory',
     module: 'inventory',
     items: [
-      { label: 'المنتجات', href: '/products', icon: Package, perm: 'inventory.view' },
-      { label: 'أرصدة المخزون', href: '/inventory', icon: Boxes, perm: 'inventory.view' },
-      { label: 'تنبيهات نقص المخزون', href: '/inventory/low-stock', icon: AlertTriangle, perm: 'inventory.view' },
-      { label: 'التحويلات', href: '/inventory/transfers', icon: ArrowLeftRight, perm: 'inventory.transfer', module: 'warehousing' },
-      { label: 'طلبات التحميل', href: '/inventory/requests', icon: ClipboardCheck, perm: ['stock_request.create', 'stock_request.approve'], module: 'warehousing' },
-      { label: 'الجرد', href: '/inventory/count', icon: ClipboardList, perm: 'inventory.count', module: 'warehousing' },
-      { label: 'قرب انتهاء الصلاحية', href: '/inventory/expiry', icon: CalendarClock, perm: 'inventory.view' },
-      { label: 'المخازن', href: '/warehouses', icon: Warehouse, perm: 'inventory.view', module: 'warehousing' },
+      { label: 'nav.items.products', href: '/products', icon: Package, perm: 'inventory.view' },
+      { label: 'nav.items.stock', href: '/inventory', icon: Boxes, perm: 'inventory.view' },
+      { label: 'nav.items.lowStockAlerts', href: '/inventory/low-stock', icon: AlertTriangle, perm: 'inventory.view' },
+      { label: 'nav.items.transfers', href: '/inventory/transfers', icon: ArrowLeftRight, perm: 'inventory.transfer', module: 'warehousing' },
+      { label: 'nav.items.loadRequests', href: '/inventory/requests', icon: ClipboardCheck, perm: ['stock_request.create', 'stock_request.approve'], module: 'warehousing' },
+      { label: 'nav.items.stockCount', href: '/inventory/count', icon: ClipboardList, perm: 'inventory.count', module: 'warehousing' },
+      { label: 'nav.items.expiryNear', href: '/inventory/expiry', icon: CalendarClock, perm: 'inventory.view' },
+      { label: 'nav.items.warehouses', href: '/warehouses', icon: Warehouse, perm: 'inventory.view', module: 'warehousing' },
     ],
   },
   {
-    title: 'المشتريات',
+    title: 'nav.sections.purchasing',
     module: 'purchasing',
     items: [
-      { label: 'الموردين', href: '/suppliers', icon: Truck, perm: 'suppliers.manage' },
-      { label: 'أوامر الشراء', href: '/purchases/orders', icon: Receipt, perm: 'purchasing.manage' },
+      { label: 'nav.items.suppliers', href: '/suppliers', icon: Truck, perm: 'suppliers.manage' },
+      { label: 'nav.items.purchaseOrders', href: '/purchases/orders', icon: Receipt, perm: 'purchasing.manage' },
     ],
   },
   {
-    title: 'الحسابات',
+    title: 'nav.sections.accounting',
     module: 'accounting',
     items: [
-      { label: 'شجرة الحسابات', href: '/accounting/chart', icon: Tags, perm: 'accounting.view' },
-      { label: 'سندات الصرف والقبض', href: '/accounting/vouchers', icon: ReceiptText, perm: 'accounting.post' },
-      { label: 'القيود اليومية', href: '/accounting/journal', icon: Wallet, perm: 'accounting.view' },
-      { label: 'التقارير المالية', href: '/accounting/reports', icon: BarChart3, perm: 'accounting.view' },
-      { label: 'أعمار ديون العملاء', href: '/accounting/aging', icon: Clock, perm: ['accounting.view', 'reports.view'] },
-      { label: 'تصدير البيانات', href: '/exports', icon: Download, perm: ['accounting.view', 'reports.view'] },
+      { label: 'nav.items.chartOfAccounts', href: '/accounting/chart', icon: Tags, perm: 'accounting.view' },
+      { label: 'nav.items.vouchers', href: '/accounting/vouchers', icon: ReceiptText, perm: 'accounting.post' },
+      { label: 'nav.items.journal', href: '/accounting/journal', icon: Wallet, perm: 'accounting.view' },
+      { label: 'nav.items.financialReports', href: '/accounting/reports', icon: BarChart3, perm: 'accounting.view' },
+      { label: 'nav.items.aging', href: '/accounting/aging', icon: Clock, perm: ['accounting.view', 'reports.view'] },
+      { label: 'nav.items.exports', href: '/exports', icon: Download, perm: ['accounting.view', 'reports.view'] },
     ],
   },
   {
-    title: 'الإعدادات',
+    title: 'nav.sections.settings',
     items: [
-      { label: 'الفروع', href: '/settings/branches', icon: Building2, superAdminOnly: true },
-      { label: 'المستخدمون', href: '/settings/users', icon: Users, superAdminOnly: true },
-      { label: 'الصلاحيات', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true },
-      { label: 'سجل التدقيق', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true },
-      { label: 'حسابي', href: '/account', icon: UserCog, showForPlatformOwner: true },
+      { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, superAdminOnly: true },
+      { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true },
+      { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users' },
+      { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true },
+      { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users' },
+      { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users' },
+      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage' },
+      { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage' },
+      { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true },
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true },
+      { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true },
     ],
   },
 ];

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
+import { getT } from '@/lib/i18n/server';
 
 interface POInput {
   branch_id: string;
@@ -15,11 +16,12 @@ interface POInput {
 export async function createPurchaseOrder(input: POInput): Promise<ActionResult<{ id: string }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
 
-  if (!input.branch_id) return { ok: false, error: 'الفرع مطلوب.' };
-  if (!input.supplier_id) return { ok: false, error: 'المورد مطلوب.' };
+  if (!input.branch_id) return { ok: false, error: t('purchases.errBranchRequired') };
+  if (!input.supplier_id) return { ok: false, error: t('purchases.errSupplierRequired') };
   const lines = input.lines.filter((l) => l.product_id && l.quantity > 0);
-  if (lines.length === 0) return { ok: false, error: 'أضف بنداً واحداً على الأقل.' };
+  if (lines.length === 0) return { ok: false, error: t('purchases.errAtLeastOneLine') };
 
   const supabase = await createClient();
   const totals = computeTotals(lines);
@@ -94,7 +96,8 @@ export async function receivePurchaseOrder(
 ): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
-  if (!warehouseId) return { ok: false, error: 'اختر المخزن المستلِم.' };
+  const { t } = await getT();
+  if (!warehouseId) return { ok: false, error: t('purchases.errSelectWarehouse') };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_receive_purchase_order', {

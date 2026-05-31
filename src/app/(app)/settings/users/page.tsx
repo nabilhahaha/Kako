@@ -4,19 +4,22 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Branch, Profile, UserBranch } from '@/lib/erp/types';
+import { getT } from '@/lib/i18n/server';
 import { UsersManager } from './users-manager';
 
 export default async function UsersPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
+
   if (!ctx.isSuperAdmin) {
     return (
       <div>
-        <PageHeader title="المستخدمون" />
+        <PageHeader title={t('settings.users.pageTitle')} />
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            هذه الصفحة متاحة لمدير النظام فقط.
+            {t('settings.users.superAdminOnly')}
           </CardContent>
         </Card>
       </div>
@@ -39,8 +42,8 @@ export default async function UsersPage() {
   return (
     <div>
       <PageHeader
-        title="المستخدمون"
-        description="إدارة المستخدمين وربطهم بالفروع وتحديد الأدوار"
+        title={t('settings.users.pageTitle')}
+        description={t('settings.users.pageDescription')}
       />
       <UsersManager
         currentUserId={ctx.userId}

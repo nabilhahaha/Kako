@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ListSearch } from '@/components/list-search';
 import { createVoucher, postVoucher, cancelVoucher, type VoucherKind } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +16,7 @@ import type { Branch, ChartOfAccount, VoucherStatus } from '@/lib/erp/types';
 import { useConfirm } from '@/components/confirm-dialog';
 import { Plus, Loader2, X, CheckCircle2, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface VoucherRow {
   id: string;
@@ -33,37 +36,37 @@ const STATUS_VARIANT: Record<VoucherStatus, 'secondary' | 'success' | 'default' 
 };
 
 export function VouchersManager({
-  paymentVouchers,
-  receiptVouchers,
+  kind,
+  rows,
+  q,
   accounts,
   branches,
 }: {
-  paymentVouchers: VoucherRow[];
-  receiptVouchers: VoucherRow[];
+  kind: VoucherKind;
+  rows: VoucherRow[];
+  q: string;
   accounts: ChartOfAccount[];
   branches: Branch[];
 }) {
-  const [kind, setKind] = useState<VoucherKind>('payment');
-  const rows = kind === 'payment' ? paymentVouchers : receiptVouchers;
-
+  const { t } = useI18n();
   return (
     <div className="space-y-4">
       <div className="flex w-fit rounded-lg border p-0.5">
-        <button
-          onClick={() => setKind('payment')}
+        <Link
+          href="/accounting/vouchers?kind=payment"
           className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm ${kind === 'payment' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
         >
-          <ArrowUpCircle className="h-4 w-4" /> سندات صرف
-        </button>
-        <button
-          onClick={() => setKind('receipt')}
+          <ArrowUpCircle className="h-4 w-4" /> {t('accounting.vouchers.tabPayment')}
+        </Link>
+        <Link
+          href="/accounting/vouchers?kind=receipt"
           className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm ${kind === 'receipt' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
         >
-          <ArrowDownCircle className="h-4 w-4" /> سندات قبض
-        </button>
+          <ArrowDownCircle className="h-4 w-4" /> {t('accounting.vouchers.tabReceipt')}
+        </Link>
       </div>
 
-      <VoucherSection key={kind} kind={kind} rows={rows} accounts={accounts} branches={branches} />
+      <VoucherSection key={kind} kind={kind} rows={rows} q={q} accounts={accounts} branches={branches} />
     </div>
   );
 }
@@ -71,16 +74,19 @@ export function VouchersManager({
 function VoucherSection({
   kind,
   rows,
+  q,
   accounts,
   branches,
 }: {
   kind: VoucherKind;
   rows: VoucherRow[];
+  q: string;
   accounts: ChartOfAccount[];
   branches: Branch[];
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const { t, locale } = useI18n();
   const [creating, setCreating] = useState(false);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [accountId, setAccountId] = useState('');
@@ -99,7 +105,7 @@ function VoucherSection({
   );
 
   const isPayment = kind === 'payment';
-  const partyLabel = isPayment ? 'المستفيد (المدفوع له)' : 'الدافع (المقبوض منه)';
+  const partyLabel = isPayment ? t('accounting.vouchers.fieldPayee') : t('accounting.vouchers.fieldPayer');
 
   function reset() {
     setCreating(false);
@@ -120,10 +126,10 @@ function VoucherSection({
         notes,
       });
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('accounting.vouchers.toastError'));
         return;
       }
-      toast.success('تم إنشاء السند (مسودة)');
+      toast.success(t('accounting.vouchers.toastCreated'));
       reset();
       router.refresh();
     });
@@ -131,37 +137,37 @@ function VoucherSection({
 
   async function onPost(id: string) {
     const ok = await confirm({
-      title: 'ترحيل السند؟',
-      message: 'سيتم إنشاء القيد المحاسبي وترحيله.',
-      confirmText: 'ترحيل',
+      title: t('accounting.vouchers.confirmPostTitle'),
+      message: t('accounting.vouchers.confirmPostMessage'),
+      confirmText: t('accounting.vouchers.confirmPostBtn'),
     });
     if (!ok) return;
     startTransition(async () => {
       const res = await postVoucher(kind, id);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('accounting.vouchers.toastError'));
         return;
       }
-      toast.success('تم ترحيل السند والقيد');
+      toast.success(t('accounting.vouchers.toastPosted'));
       router.refresh();
     });
   }
 
   async function onCancel(id: string) {
     const ok = await confirm({
-      title: 'إلغاء السند؟',
-      confirmText: 'إلغاء',
-      cancelText: 'تراجع',
+      title: t('accounting.vouchers.confirmCancelTitle'),
+      confirmText: t('accounting.vouchers.confirmCancelBtn'),
+      cancelText: t('accounting.vouchers.confirmCancelBack'),
       destructive: true,
     });
     if (!ok) return;
     startTransition(async () => {
       const res = await cancelVoucher(kind, id);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('accounting.vouchers.toastError'));
         return;
       }
-      toast.success('تم إلغاء السند');
+      toast.success(t('accounting.vouchers.toastCancelled'));
       router.refresh();
     });
   }
@@ -172,7 +178,7 @@ function VoucherSection({
     <div className="space-y-4">
       {!creating && (
         <Button onClick={() => setCreating(true)} disabled={!canCreate}>
-          <Plus className="h-4 w-4" /> {isPayment ? 'سند صرف جديد' : 'سند قبض جديد'}
+          <Plus className="h-4 w-4" /> {isPayment ? t('accounting.vouchers.newPayment') : t('accounting.vouchers.newReceipt')}
         </Button>
       )}
 
@@ -180,75 +186,81 @@ function VoucherSection({
         <Card>
           <CardContent className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">{isPayment ? 'سند صرف جديد' : 'سند قبض جديد'}</h3>
+              <h3 className="font-semibold">{isPayment ? t('accounting.vouchers.formTitlePayment') : t('accounting.vouchers.formTitleReceipt')}</h3>
               <button onClick={reset} className="rounded-md p-1 hover:bg-secondary"><X className="h-4 w-4" /></button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {branches.length > 1 && (
-                <Field label="الفرع *">
+                <Field label={t('accounting.vouchers.fieldBranch')}>
                   <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={selectCls}>
                     {branches.map((b) => <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>)}
                   </select>
                 </Field>
               )}
-              <Field label={partyLabel + ' *'}>
+              <Field label={partyLabel}>
                 <Input value={party} onChange={(e) => setParty(e.target.value)} />
               </Field>
-              <Field label="المبلغ *">
+              <Field label={t('accounting.vouchers.fieldAmount')}>
                 <Input type="number" step="0.01" dir="ltr" value={amount} onChange={(e) => setAmount(e.target.value)} />
               </Field>
-              <Field label={isPayment ? 'حساب المصروف *' : 'حساب الإيراد *'}>
+              <Field label={isPayment ? t('accounting.vouchers.fieldExpenseAccount') : t('accounting.vouchers.fieldRevenueAccount')}>
                 <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className={selectCls}>
-                  <option value="">اختر حساباً…</option>
+                  <option value="">{t('accounting.vouchers.selectAccountPlaceholder')}</option>
                   {preferred.length > 0 && (
-                    <optgroup label={isPayment ? 'المصروفات' : 'الإيرادات'}>
+                    <optgroup label={isPayment ? t('accounting.vouchers.optgroupExpenses') : t('accounting.vouchers.optgroupRevenue')}>
                       {preferred.map((a) => <option key={a.id} value={a.id}>{a.code} · {a.name_ar || a.name}</option>)}
                     </optgroup>
                   )}
-                  <optgroup label="حسابات أخرى">
+                  <optgroup label={t('accounting.vouchers.optgroupOther')}>
                     {others.map((a) => <option key={a.id} value={a.id}>{a.code} · {a.name_ar || a.name}</option>)}
                   </optgroup>
                 </select>
               </Field>
-              <Field label="التاريخ">
+              <Field label={t('accounting.vouchers.fieldDate')}>
                 <Input type="date" dir="ltr" value={date} onChange={(e) => setDate(e.target.value)} />
               </Field>
-              <Field label="ملاحظات">
+              <Field label={t('accounting.vouchers.fieldNotes')}>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
               </Field>
             </div>
             <p className="text-xs text-muted-foreground">
-              عند الترحيل: {isPayment ? 'مدين الحساب المختار / دائن النقدية' : 'مدين النقدية / دائن الحساب المختار'}.
+              {isPayment ? t('accounting.vouchers.postingHintPayment') : t('accounting.vouchers.postingHintReceipt')}
             </p>
             <div className="flex gap-2">
               <Button onClick={onCreate} disabled={pending}>
-                {pending && <Loader2 className="h-4 w-4 animate-spin" />} حفظ
+                {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('accounting.vouchers.save')}
               </Button>
-              <Button variant="outline" onClick={reset}>إلغاء</Button>
+              <Button variant="outline" onClick={reset}>{t('accounting.vouchers.cancel')}</Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {rows.length === 0 ? (
+      {rows.length === 0 && !q ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            لا توجد {isPayment ? 'سندات صرف' : 'سندات قبض'} بعد.
+            {isPayment ? t('accounting.vouchers.emptyPayment') : t('accounting.vouchers.emptyReceipt')}
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardContent className="p-0">
+            <div className="flex flex-wrap items-center gap-2 border-b p-3">
+              <ListSearch placeholder={t('accounting.vouchers.searchPlaceholder')} className="w-64" />
+            </div>
+            {rows.length === 0 ? (
+              <p className="p-8 text-center text-sm text-muted-foreground">{t('accounting.vouchers.noResults')}</p>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">الرقم</th>
-                    <th className="p-3 text-right font-medium">{isPayment ? 'المستفيد' : 'الدافع'}</th>
-                    <th className="p-3 text-right font-medium">الحساب</th>
-                    <th className="p-3 text-right font-medium">التاريخ</th>
-                    <th className="p-3 text-left font-medium">المبلغ</th>
-                    <th className="p-3 text-center font-medium">الحالة</th>
+                    <th className="p-3 text-start font-medium">{t('accounting.vouchers.colNumber')}</th>
+                    <th className="p-3 text-start font-medium">{isPayment ? t('accounting.vouchers.colPayee') : t('accounting.vouchers.colPayer')}</th>
+                    <th className="p-3 text-start font-medium">{t('accounting.vouchers.colAccount')}</th>
+                    <th className="p-3 text-start font-medium">{t('accounting.vouchers.colDate')}</th>
+                    <th className="p-3 text-end font-medium">{t('accounting.vouchers.colAmount')}</th>
+                    <th className="p-3 text-center font-medium">{t('accounting.vouchers.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
@@ -261,17 +273,17 @@ function VoucherSection({
                       <td className="p-3 text-muted-foreground">{formatDate(v.voucher_date)}</td>
                       <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(v.amount)}</td>
                       <td className="p-3 text-center">
-                        <Badge variant={STATUS_VARIANT[v.status]}>{VOUCHER_STATUS_LABELS[v.status].ar}</Badge>
+                        <Badge variant={STATUS_VARIANT[v.status]}>{VOUCHER_STATUS_LABELS[v.status][locale]}</Badge>
                       </td>
                       <td className="p-3">
                         <div className="flex justify-end gap-1">
                           {(v.status === 'draft' || v.status === 'approved') && (
                             <>
                               <Button variant="ghost" size="sm" disabled={pending} onClick={() => onPost(v.id)} className="text-xs">
-                                <CheckCircle2 className="h-3.5 w-3.5" /> ترحيل
+                                <CheckCircle2 className="h-3.5 w-3.5" /> {t('accounting.vouchers.actionPost')}
                               </Button>
                               <Button variant="ghost" size="sm" disabled={pending} onClick={() => onCancel(v.id)} className="text-xs text-destructive">
-                                إلغاء
+                                {t('accounting.vouchers.actionCancel')}
                               </Button>
                             </>
                           )}
@@ -282,6 +294,7 @@ function VoucherSection({
                 </tbody>
               </table>
             </div>
+            )}
           </CardContent>
         </Card>
       )}

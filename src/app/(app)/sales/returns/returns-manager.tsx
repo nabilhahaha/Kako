@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { ListSearch } from '@/components/list-search';
 import { createReturn, completeReturn, cancelReturn } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { RETURN_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 import type { Branch, ErpCustomer, ProductCatalog, ReturnStatus } from '@/lib/erp/types';
 import type { ReturnRow } from './page';
 import { useConfirm } from '@/components/confirm-dialog';
+import { useI18n } from '@/lib/i18n/provider';
 import { Plus, Loader2, X, Undo2, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -38,14 +41,17 @@ export function ReturnsManager({
   customers,
   branches,
   products,
+  q,
 }: {
   returns: ReturnRow[];
   customers: ErpCustomer[];
   branches: Branch[];
   products: ProductCatalog[];
+  q: string;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const { t, locale } = useI18n();
   const [creating, setCreating] = useState(false);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [customerId, setCustomerId] = useState('');
@@ -78,10 +84,10 @@ export function ReturnsManager({
         lines: lines.filter((l) => l.product).map((l) => ({ product_id: l.product!.id, quantity: l.quantity, unit_price: l.unit_price })),
       });
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
-      toast.success('تم إنشاء المرتجع (مسودة)');
+      toast.success(t('sales.returnSuccessCreated'));
       reset();
       router.refresh();
     });
@@ -89,37 +95,37 @@ export function ReturnsManager({
 
   async function onComplete(id: string) {
     const ok = await confirm({
-      title: 'اعتماد المرتجع؟',
-      message: 'سيتم إرجاع البضاعة للمخزون وتسوية حساب العميل وترحيل القيد. لا يمكن التراجع.',
-      confirmText: 'اعتماد',
+      title: t('sales.returnConfirmApproveTitle'),
+      message: t('sales.returnConfirmApproveMsg'),
+      confirmText: t('sales.returnConfirmApproveBtn'),
     });
     if (!ok) return;
     startTransition(async () => {
       const res = await completeReturn(id);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
-      toast.success('تم اعتماد المرتجع وإرجاع البضاعة وتسوية الحساب');
+      toast.success(t('sales.returnSuccessApproved'));
       router.refresh();
     });
   }
 
   async function onCancel(id: string) {
     const ok = await confirm({
-      title: 'إلغاء المرتجع؟',
-      confirmText: 'إلغاء',
-      cancelText: 'تراجع',
+      title: t('sales.returnConfirmCancelTitle'),
+      confirmText: t('sales.returnConfirmCancelBtn'),
+      cancelText: t('sales.btnBack'),
       destructive: true,
     });
     if (!ok) return;
     startTransition(async () => {
       const res = await cancelReturn(id);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
-      toast.success('تم إلغاء المرتجع');
+      toast.success(t('sales.returnSuccessCancelled'));
       router.refresh();
     });
   }
@@ -128,39 +134,39 @@ export function ReturnsManager({
     <div className="space-y-4">
       {!creating && (
         <Button onClick={() => setCreating(true)} disabled={!canCreate}>
-          <Plus className="h-4 w-4" /> مرتجع جديد
+          <Plus className="h-4 w-4" /> {t('sales.returnBtnNew')}
         </Button>
       )}
       {!canCreate && !creating && (
-        <p className="text-sm text-warning">تحتاج فرعاً وعميلاً ومنتجاً واحداً على الأقل.</p>
+        <p className="text-sm text-warning">{t('sales.returnNeedData')}</p>
       )}
 
       {creating && (
         <Card>
           <CardContent className="space-y-4 pt-6">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">مرتجع مبيعات جديد</h3>
+              <h3 className="font-semibold">{t('sales.returnFormTitle')}</h3>
               <button onClick={reset} className="rounded-md p-1 hover:bg-secondary"><X className="h-4 w-4" /></button>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {branches.length > 1 && (
                 <div className="space-y-1">
-                  <Label className="text-xs">الفرع *</Label>
+                  <Label className="text-xs">{t('sales.labelBranchRequired')}</Label>
                   <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={selectCls}>
                     {branches.map((b) => <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>)}
                   </select>
                 </div>
               )}
               <div className="space-y-1">
-                <Label className="text-xs">العميل *</Label>
+                <Label className="text-xs">{t('sales.labelCustomerRequired')}</Label>
                 <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className={selectCls}>
-                  <option value="">اختر عميلاً…</option>
+                  <option value="">{t('sales.placeholderChooseCustomer')}</option>
                   {customers.map((c) => <option key={c.id} value={c.id}>{c.name_ar || c.name}</option>)}
                 </select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">سبب الإرجاع</Label>
-                <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="تالف، قرب انتهاء صلاحية…" />
+                <Label className="text-xs">{t('sales.returnLabelReason')}</Label>
+                <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('sales.returnReasonPlaceholder')} />
               </div>
             </div>
 
@@ -168,10 +174,10 @@ export function ReturnsManager({
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-2 text-right font-medium">المنتج</th>
-                    <th className="p-2 text-center font-medium w-24">الكمية</th>
-                    <th className="p-2 text-center font-medium w-28">سعر الوحدة</th>
-                    <th className="p-2 text-left font-medium w-28">الإجمالي</th>
+                    <th className="p-2 text-start font-medium">{t('sales.returnColProduct')}</th>
+                    <th className="p-2 text-center font-medium w-24">{t('sales.returnColQty')}</th>
+                    <th className="p-2 text-center font-medium w-28">{t('sales.returnColUnitPrice')}</th>
+                    <th className="p-2 text-end font-medium w-28">{t('sales.returnColTotal')}</th>
                     <th className="p-2 w-10"></th>
                   </tr>
                 </thead>
@@ -180,7 +186,7 @@ export function ReturnsManager({
                     <tr key={l.key} className="border-b last:border-0">
                       <td className="p-2">
                         <select value={l.product?.id ?? ''} onChange={(e) => pickProduct(l.key, e.target.value)} className="h-9 w-full min-w-[10rem] rounded-md border border-input bg-background px-2 text-sm">
-                          <option value="">اختر منتجاً…</option>
+                          <option value="">{t('sales.placeholderChooseProduct')}</option>
                           {products.map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name_ar || p.name}</option>)}
                         </select>
                       </td>
@@ -205,43 +211,49 @@ export function ReturnsManager({
             </div>
             <div className="flex items-center justify-between">
               <Button type="button" variant="outline" size="sm" onClick={() => setLines([...lines, newLine()])}>
-                <Plus className="h-4 w-4" /> إضافة بند
+                <Plus className="h-4 w-4" /> {t('sales.returnBtnAddLine')}
               </Button>
               <div className="text-sm font-bold">
-                الإجمالي: <span dir="ltr" className="tabular-nums">{formatCurrency(total)}</span>
+                {t('sales.returnTotal')}: <span dir="ltr" className="tabular-nums">{formatCurrency(total, 'EGP', INTL_LOCALE[locale])}</span>
               </div>
             </div>
 
             <div className="flex gap-2">
               <Button onClick={onCreate} disabled={pending}>
-                {pending && <Loader2 className="h-4 w-4 animate-spin" />} حفظ
+                {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('sales.returnBtnSave')}
               </Button>
-              <Button variant="outline" onClick={reset}>إلغاء</Button>
+              <Button variant="outline" onClick={reset}>{t('sales.btnCancel')}</Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {returns.length === 0 ? (
+      {returns.length === 0 && !q ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <Undo2 className="h-8 w-8" />
-            <p>لا توجد مرتجعات بعد.</p>
+            <p>{t('sales.returnEmpty')}</p>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardContent className="p-0">
+            <div className="flex flex-wrap items-center gap-2 border-b p-3">
+              <ListSearch placeholder={t('sales.returnSearchPlaceholder')} className="w-64" />
+            </div>
+            {returns.length === 0 ? (
+              <p className="p-8 text-center text-sm text-muted-foreground">{t('sales.noResults')}</p>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">رقم المرتجع</th>
-                    <th className="p-3 text-right font-medium">العميل</th>
-                    <th className="p-3 text-right font-medium">السبب</th>
-                    <th className="p-3 text-right font-medium">التاريخ</th>
-                    <th className="p-3 text-left font-medium">القيمة</th>
-                    <th className="p-3 text-center font-medium">الحالة</th>
+                    <th className="p-3 text-start font-medium">{t('sales.returnColNumber')}</th>
+                    <th className="p-3 text-start font-medium">{t('sales.returnColCustomer')}</th>
+                    <th className="p-3 text-start font-medium">{t('sales.returnColReason')}</th>
+                    <th className="p-3 text-start font-medium">{t('sales.returnColDate')}</th>
+                    <th className="p-3 text-end font-medium">{t('sales.returnColValue')}</th>
+                    <th className="p-3 text-center font-medium">{t('sales.returnColStatus')}</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
@@ -251,20 +263,20 @@ export function ReturnsManager({
                       <td className="p-3 font-mono text-xs" dir="ltr">{r.return_number}</td>
                       <td className="p-3 font-medium">{r.customer?.name_ar || r.customer?.name || '—'}</td>
                       <td className="p-3 text-muted-foreground">{r.reason || '—'}</td>
-                      <td className="p-3 text-muted-foreground">{formatDate(r.created_at)}</td>
-                      <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(r.total_amount)}</td>
+                      <td className="p-3 text-muted-foreground">{formatDate(r.created_at, INTL_LOCALE[locale])}</td>
+                      <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(r.total_amount, 'EGP', INTL_LOCALE[locale])}</td>
                       <td className="p-3 text-center">
-                        <Badge variant={STATUS_VARIANT[r.status]}>{RETURN_STATUS_LABELS[r.status].ar}</Badge>
+                        <Badge variant={STATUS_VARIANT[r.status]}>{RETURN_STATUS_LABELS[r.status][locale]}</Badge>
                       </td>
                       <td className="p-3">
                         <div className="flex justify-end gap-1">
                           {(r.status === 'draft' || r.status === 'approved') && (
                             <>
                               <Button variant="ghost" size="sm" disabled={pending} onClick={() => onComplete(r.id)} className="text-xs">
-                                <CheckCircle2 className="h-3.5 w-3.5" /> اعتماد
+                                <CheckCircle2 className="h-3.5 w-3.5" /> {t('sales.returnBtnApprove')}
                               </Button>
                               <Button variant="ghost" size="sm" disabled={pending} onClick={() => onCancel(r.id)} className="text-xs text-destructive">
-                                إلغاء
+                                {t('sales.returnBtnCancel')}
                               </Button>
                             </>
                           )}
@@ -275,6 +287,7 @@ export function ReturnsManager({
                 </tbody>
               </table>
             </div>
+            )}
           </CardContent>
         </Card>
       )}

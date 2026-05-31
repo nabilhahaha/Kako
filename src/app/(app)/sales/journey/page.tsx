@@ -4,10 +4,12 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import type { ErpCustomer, Profile } from '@/lib/erp/types';
 import { JourneyManager } from './journey-manager';
+import { getT } from '@/lib/i18n/server';
 
 export default async function JourneyPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
 
   const supabase = await createClient();
   const [{ data: customers }, { data: profiles }] = await Promise.all([
@@ -18,8 +20,8 @@ export default async function JourneyPage() {
   return (
     <div>
       <PageHeader
-        title="خطة الزيارات"
-        description="تخصيص العملاء للمناديب وأيام الزيارة الأسبوعية"
+        title={t('sales.journeyTitle')}
+        description={t('sales.journeyDescription')}
       />
       <JourneyManager
         customers={(customers as ErpCustomer[]) ?? []}

@@ -26,10 +26,12 @@ import {
   setSubscriptionEnd,
   setCompanyPlan,
   setCompanyModule,
+  setCompanySelfUsers,
   resetUserPassword,
   addBranch,
   onboardAdmin,
 } from '../actions';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface MemberRow {
   userId: string;
@@ -44,12 +46,12 @@ export interface MemberRow {
 const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-const STATE_BADGE = {
-  active: { label: 'نشط', variant: 'success' as const },
-  expiring: { label: 'قارب الانتهاء', variant: 'warning' as const },
-  expired: { label: 'منتهٍ', variant: 'destructive' as const },
-  suspended: { label: 'موقوف', variant: 'destructive' as const },
-  open: { label: 'مفتوح', variant: 'info' as const },
+const STATE_BADGE_VARIANT = {
+  active:    'success' as const,
+  expiring:  'warning' as const,
+  expired:   'destructive' as const,
+  suspended: 'destructive' as const,
+  open:      'info' as const,
 };
 
 function addMonths(base: Date, months: number): string {
@@ -82,6 +84,7 @@ export function CompanyDetail({
   /** Modules currently enabled for this company (overrides the type default). */
   enabledModules?: string[];
 }) {
+  const { t, locale } = useI18n();
   const router = useRouter();
   const prompt = usePrompt();
   const [pending, startTransition] = useTransition();
@@ -96,38 +99,39 @@ export function CompanyDetail({
     });
     startTransition(async () => {
       const res = await setCompanyModule(company.id, m, on);
-      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      if (!res.ok) toast.error(res.error ?? t('platform.company.toastError'));
       router.refresh();
     });
   }
 
   function resetPassword(userId: string, label: string | null) {
     prompt({
-      title: 'تغيير كلمة المرور',
-      message: `كلمة مرور جديدة لـ ${label ?? 'المستخدم'}`,
-      label: 'كلمة المرور الجديدة (٦ أحرف على الأقل)',
+      title: t('platform.company.members.resetPasswordTitle'),
+      message: t('platform.company.members.resetPasswordMessage', { name: label ?? userId }),
+      label: t('platform.company.members.resetPasswordLabel'),
       type: 'password',
-      confirmText: 'تغيير',
+      confirmText: t('platform.company.members.resetPasswordConfirm'),
     }).then((pwd) => {
       if (pwd == null) return;
-      if (pwd.length < 6) { toast.error('كلمة المرور قصيرة جداً.'); return; }
+      if (pwd.length < 6) { toast.error(t('platform.company.members.toastPasswordTooShort')); return; }
       startTransition(async () => {
         const res = await resetUserPassword(userId, pwd);
-        if (!res.ok) { toast.error(res.error ?? 'حدث خطأ'); return; }
-        toast.success('تم تغيير كلمة المرور');
+        if (!res.ok) { toast.error(res.error ?? t('platform.company.toastError')); return; }
+        toast.success(t('platform.company.members.toastPasswordChanged'));
       });
     });
   }
 
   const state = subscriptionState(company);
   const left = daysLeft(company);
-  const badge = STATE_BADGE[state];
+  const badgeVariant = STATE_BADGE_VARIANT[state];
+  const stateLabel = t(`platform.state.${state}`);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     startTransition(async () => {
       const res = await fn();
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('platform.company.toastError'));
         return;
       }
       toast.success(okMsg);
@@ -140,7 +144,7 @@ export function CompanyDetail({
       company.subscription_end && new Date(company.subscription_end) > new Date()
         ? new Date(company.subscription_end)
         : new Date();
-    run(() => setSubscriptionEnd(company.id, addMonths(anchor, months)), 'تم تجديد الاشتراك');
+    run(() => setSubscriptionEnd(company.id, addMonths(anchor, months)), t('platform.company.subscription.toastRenewed'));
   }
 
   function onSubmit(
@@ -155,7 +159,7 @@ export function CompanyDetail({
     startTransition(async () => {
       const res = await fn(fd);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('platform.company.toastError'));
         return;
       }
       toast.success(okMsg);
@@ -181,12 +185,12 @@ export function CompanyDetail({
         <CardContent className="space-y-4 pt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="font-semibold">الاشتراك</span>
-              <Badge variant={badge.variant}>{badge.label}</Badge>
+              <span className="font-semibold">{t('platform.company.subscription.title')}</span>
+              <Badge variant={badgeVariant}>{stateLabel}</Badge>
               {company.subscription_end && (
                 <span className="text-sm text-muted-foreground" dir="ltr">
-                  ينتهي {company.subscription_end}
-                  {left !== null && ` (${left} يوم)`}
+                  {t('platform.company.subscription.expiresOn', { date: company.subscription_end })}
+                  {left !== null && ` ${t('platform.company.subscription.daysRemaining', { n: left })}`}
                 </span>
               )}
             </div>
@@ -195,23 +199,49 @@ export function CompanyDetail({
               size="sm"
               disabled={pending}
               onClick={() =>
-                run(() => setCompanyActive(company.id, !company.is_active), company.is_active ? 'تم الإيقاف' : 'تم التفعيل')
+                run(
+                  () => setCompanyActive(company.id, !company.is_active),
+                  company.is_active
+                    ? t('platform.company.subscription.toastSuspended')
+                    : t('platform.company.subscription.toastActivated'),
+                )
               }
             >
               <Power className="h-4 w-4" />
-              {company.is_active ? 'إيقاف الشركة' : 'تفعيل الشركة'}
+              {company.is_active
+                ? t('platform.company.subscription.suspendCompany')
+                : t('platform.company.subscription.activateCompany')}
             </Button>
           </div>
 
+          <label className="mt-4 flex items-center gap-2 border-t pt-4 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={company.allow_self_users}
+              disabled={pending}
+              onChange={(e) =>
+                run(
+                  () => setCompanySelfUsers(company.id, e.target.checked),
+                  e.target.checked
+                    ? t('platform.company.subscription.toastSelfUsersOn')
+                    : t('platform.company.subscription.toastSelfUsersOff'),
+                )
+              }
+            />
+            {t('platform.company.subscription.selfUsersLabel')}
+            <span className="text-xs text-muted-foreground">{t('platform.company.subscription.selfUsersHint')}</span>
+          </label>
+
           <div className="flex flex-wrap items-end gap-2">
             <Button variant="secondary" size="sm" disabled={pending} onClick={() => renewBy(1)}>
-              <CalendarPlus className="h-4 w-4" /> +شهر
+              <CalendarPlus className="h-4 w-4" /> {t('platform.company.subscription.renewOneMonth')}
             </Button>
             <Button variant="secondary" size="sm" disabled={pending} onClick={() => renewBy(3)}>
-              <CalendarPlus className="h-4 w-4" /> +٣ أشهر
+              <CalendarPlus className="h-4 w-4" /> {t('platform.company.subscription.renewThreeMonths')}
             </Button>
             <Button variant="secondary" size="sm" disabled={pending} onClick={() => renewBy(12)}>
-              <CalendarPlus className="h-4 w-4" /> +سنة
+              <CalendarPlus className="h-4 w-4" /> {t('platform.company.subscription.renewOneYear')}
             </Button>
             <div className="flex items-end gap-2">
               <Input
@@ -224,9 +254,15 @@ export function CompanyDetail({
               <Button
                 size="sm"
                 disabled={pending || !customEnd}
-                onClick={() => customEnd && run(() => setSubscriptionEnd(company.id, customEnd), 'تم تحديث تاريخ الانتهاء')}
+                onClick={() =>
+                  customEnd &&
+                  run(
+                    () => setSubscriptionEnd(company.id, customEnd),
+                    t('platform.company.subscription.toastEndUpdated'),
+                  )
+                }
               >
-                تطبيق
+                {t('platform.company.subscription.applyDate')}
               </Button>
             </div>
           </div>
@@ -239,15 +275,20 @@ export function CompanyDetail({
           <CardContent className="space-y-4 pt-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="flex items-center gap-2 font-semibold">
-                <Gauge className="h-4 w-4" /> الخطة والحدود
+                <Gauge className="h-4 w-4" /> {t('platform.company.plan.title')}
               </h3>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">الخطة</span>
+                <span className="text-sm text-muted-foreground">{t('platform.company.plan.planLabel')}</span>
                 <select
                   className={selectCls + ' w-44'}
                   value={company.plan_key ?? ''}
                   disabled={pending}
-                  onChange={(e) => run(() => setCompanyPlan(company.id, e.target.value), 'تم تحديث الخطة')}
+                  onChange={(e) =>
+                    run(
+                      () => setCompanyPlan(company.id, e.target.value),
+                      t('platform.company.plan.toastUpdated'),
+                    )
+                  }
                 >
                   {plans.map((p) => (
                     <option key={p.key} value={p.key}>
@@ -263,9 +304,9 @@ export function CompanyDetail({
                 max == null ? `${n} / ∞` : `${n} / ${max}`;
               const over = (n: number, max: number | null | undefined) => max != null && n >= max;
               const items: { label: string; used: number; max: number | null | undefined }[] = [
-                { label: 'المستخدمون', used: usage.users, max: plan?.max_users },
-                { label: 'الفروع', used: usage.branches, max: plan?.max_branches },
-                { label: 'المنتجات', used: usage.products, max: plan?.max_products },
+                { label: t('platform.company.plan.metricUsers'), used: usage.users, max: plan?.max_users },
+                { label: t('platform.company.plan.metricBranches'), used: usage.branches, max: plan?.max_branches },
+                { label: t('platform.company.plan.metricProducts'), used: usage.products, max: plan?.max_products },
               ];
               return (
                 <div className="grid grid-cols-3 gap-3">
@@ -282,10 +323,10 @@ export function CompanyDetail({
             })()}
             {modulesByPlan && company.plan_key && (
               <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-                <span className="text-xs text-muted-foreground">الوحدات المتاحة:</span>
+                <span className="text-xs text-muted-foreground">{t('platform.company.plan.availableModules')}</span>
                 {(modulesByPlan[company.plan_key] ?? []).map((m) => (
                   <Badge key={m} variant="secondary">
-                    {MODULE_LABELS[m as Module] ?? m}
+                    {MODULE_LABELS[m as Module]?.[locale] ?? m}
                   </Badge>
                 ))}
               </div>
@@ -299,9 +340,9 @@ export function CompanyDetail({
       <Card>
         <CardContent className="space-y-3 pt-6">
           <div>
-            <h3 className="font-semibold">الوحدات المفعّلة</h3>
+            <h3 className="font-semibold">{t('platform.company.modules.title')}</h3>
             <p className="text-xs text-muted-foreground">
-              تتحكم في الأقسام الظاهرة لهذه الشركة (تُضبط افتراضياً حسب نوع النشاط). الخطة قد تحجب وحدة غير متاحة فيها.
+              {t('platform.company.modules.hint')}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -314,7 +355,7 @@ export function CompanyDetail({
                   disabled={pending}
                   onChange={(e) => toggleModule(m, e.target.checked)}
                 />
-                {MODULE_LABELS[m]}
+                {MODULE_LABELS[m][locale]}
               </label>
             ))}
           </div>
@@ -324,35 +365,38 @@ export function CompanyDetail({
       {/* Company info */}
       <Card>
         <CardContent className="pt-6">
-          <form onSubmit={(e) => onSubmit(e, updateCompany, 'تم حفظ بيانات الشركة')} className="space-y-4">
+          <form
+            onSubmit={(e) => onSubmit(e, updateCompany, t('platform.company.info.toastSaved'))}
+            className="space-y-4"
+          >
             <input type="hidden" name="id" value={company.id} />
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name_ar">اسم الشركة (عربي)</Label>
+                <Label htmlFor="name_ar">{t('platform.company.info.nameArLabel')}</Label>
                 <Input id="name_ar" name="name_ar" defaultValue={company.name_ar ?? ''} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="name">اسم الشركة (إنجليزي) *</Label>
+                <Label htmlFor="name">{t('platform.company.info.nameLabel')}</Label>
                 <Input id="name" name="name" required defaultValue={company.name} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="business_type">نوع النشاط</Label>
+                <Label htmlFor="business_type">{t('platform.company.info.businessTypeLabel')}</Label>
                 <select
                   id="business_type"
                   name="business_type"
                   className={selectCls}
                   defaultValue={company.business_type ?? 'general'}
                 >
-                  {BUSINESS_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {BUSINESS_TYPE_LABELS[t]}
+                  {BUSINESS_TYPES.map((bt) => (
+                    <option key={bt} value={bt}>
+                      {BUSINESS_TYPE_LABELS[bt][locale]}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
-                  <Label htmlFor="subscription_start">بداية الاشتراك</Label>
+                  <Label htmlFor="subscription_start">{t('platform.company.info.subscriptionStartLabel')}</Label>
                   <Input
                     id="subscription_start"
                     name="subscription_start"
@@ -362,7 +406,7 @@ export function CompanyDetail({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="subscription_end">نهاية الاشتراك</Label>
+                  <Label htmlFor="subscription_end">{t('platform.company.info.subscriptionEndLabel')}</Label>
                   <Input
                     id="subscription_end"
                     name="subscription_end"
@@ -375,7 +419,7 @@ export function CompanyDetail({
             </div>
             <Button type="submit" disabled={pending}>
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              حفظ
+              {t('platform.company.info.saveButton')}
             </Button>
           </form>
         </CardContent>
@@ -384,7 +428,7 @@ export function CompanyDetail({
       {/* Branches */}
       <Card>
         <CardContent className="space-y-4 pt-6">
-          <h3 className="font-semibold">الفروع ({branches.length})</h3>
+          <h3 className="font-semibold">{t('platform.company.branches.title', { count: String(branches.length) })}</h3>
           {branches.length > 0 && (
             <div className="divide-y rounded-md border">
               {branches.map((b) => (
@@ -395,25 +439,25 @@ export function CompanyDetail({
                       ({b.code})
                     </span>
                   </span>
-                  {b.is_hq && <Badge variant="secondary">المركز الرئيسي</Badge>}
+                  {b.is_hq && <Badge variant="secondary">{t('platform.company.branches.badgeHq')}</Badge>}
                 </div>
               ))}
             </div>
           )}
           <form
-            onSubmit={(e) => onSubmit(e, addBranch, 'تم إضافة الفرع', true)}
+            onSubmit={(e) => onSubmit(e, addBranch, t('platform.company.branches.toastAdded'), true)}
             className="grid gap-3 sm:grid-cols-4"
           >
             <input type="hidden" name="company_id" value={company.id} />
-            <Input name="code" placeholder="كود الفرع *" dir="ltr" required />
-            <Input name="name" placeholder="اسم الفرع (إنجليزي) *" required />
-            <Input name="name_ar" placeholder="اسم الفرع (عربي)" />
+            <Input name="code" placeholder={t('platform.company.branches.codePlaceholder')} dir="ltr" required />
+            <Input name="name" placeholder={t('platform.company.branches.namePlaceholder')} required />
+            <Input name="name_ar" placeholder={t('platform.company.branches.nameArPlaceholder')} />
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-1 text-sm">
-                <input type="checkbox" name="is_hq" /> رئيسي
+                <input type="checkbox" name="is_hq" /> {t('platform.company.branches.isHqLabel')}
               </label>
               <Button type="submit" size="sm" disabled={pending}>
-                <Plus className="h-4 w-4" /> إضافة
+                <Plus className="h-4 w-4" /> {t('platform.company.branches.addButton')}
               </Button>
             </div>
           </form>
@@ -423,7 +467,7 @@ export function CompanyDetail({
       {/* Users */}
       <Card>
         <CardContent className="space-y-4 pt-6">
-          <h3 className="font-semibold">المستخدمون ({members.length})</h3>
+          <h3 className="font-semibold">{t('platform.company.members.title', { count: String(members.length) })}</h3>
           {members.length > 0 && (
             <div className="divide-y rounded-md border">
               {members.map((m) => (
@@ -443,7 +487,7 @@ export function CompanyDetail({
                       disabled={pending}
                       onClick={() => resetPassword(m.userId, m.fullName || m.email)}
                     >
-                      <KeyRound className="h-3.5 w-3.5" /> كلمة المرور
+                      <KeyRound className="h-3.5 w-3.5" /> {t('platform.company.members.resetPasswordButton')}
                     </Button>
                   </div>
                 </div>
@@ -452,21 +496,21 @@ export function CompanyDetail({
           )}
 
           {branches.length === 0 ? (
-            <p className="text-sm text-muted-foreground">أضف فرعًا أولًا لتتمكن من إنشاء مستخدم.</p>
+            <p className="text-sm text-muted-foreground">{t('platform.company.members.addFirstBranch')}</p>
           ) : (
             <form
-              onSubmit={(e) => onSubmit(e, onboardAdmin, 'تم إنشاء المستخدم', true)}
+              onSubmit={(e) => onSubmit(e, onboardAdmin, t('platform.company.members.toastCreated'), true)}
               className="space-y-3"
             >
               <input type="hidden" name="company_id" value={company.id} />
-              <p className="text-sm font-medium">إنشاء مستخدم جديد للشركة</p>
+              <p className="text-sm font-medium">{t('platform.company.members.newUserTitle')}</p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Input name="full_name" placeholder="الاسم الكامل" />
-                <Input name="email" type="email" placeholder="البريد الإلكتروني *" dir="ltr" required />
-                <Input name="password" type="password" placeholder="كلمة المرور (٦ أحرف على الأقل) *" dir="ltr" required />
+                <Input name="full_name" placeholder={t('platform.company.members.fullNamePlaceholder')} />
+                <Input name="email" type="email" placeholder={t('platform.company.members.emailPlaceholder')} dir="ltr" required />
+                <Input name="password" type="password" placeholder={t('platform.company.members.passwordPlaceholder')} dir="ltr" required />
                 <select name="branch_id" className={selectCls} required defaultValue="">
                   <option value="" disabled>
-                    اختر الفرع *
+                    {t('platform.company.members.branchPlaceholder')}
                   </option>
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>
@@ -484,7 +528,7 @@ export function CompanyDetail({
               </div>
               <Button type="submit" disabled={pending}>
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                إنشاء المستخدم
+                {t('platform.company.members.createUserButton')}
               </Button>
             </form>
           )}

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { PrintButton } from '@/components/print-button';
 import { PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { getT } from '@/lib/i18n/server';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 import type { PaymentMethod, Profile } from '@/lib/erp/types';
 
 const ACTIVE = ['issued', 'paid', 'partially_paid', 'overdue'];
@@ -18,6 +20,7 @@ export default async function SettlementPage({
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t, locale } = await getT();
   const sp = await searchParams;
 
   const date = sp.date || new Date().toISOString().slice(0, 10);
@@ -66,56 +69,56 @@ export default async function SettlementPage({
 
   return (
     <div>
-      <PageHeader title="محاسبة المندوب اليومية" description="تحصيلات ومبيعات المندوب لليوم لتسليمها للكاشير" />
+      <PageHeader title={t('sales.settlementTitle')} description={t('sales.settlementDescription')} />
 
       <Card className="mb-4 print:hidden">
         <CardContent className="pt-6">
           <form method="get" className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">المندوب</label>
+              <label className="text-xs text-muted-foreground">{t('sales.settlementLabelRep')}</label>
               <select name="rep" defaultValue={repId} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                 {reps.map((r) => <option key={r.id} value={r.id}>{r.full_name || r.email}</option>)}
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">التاريخ</label>
+              <label className="text-xs text-muted-foreground">{t('sales.settlementLabelDate')}</label>
               <input type="date" name="date" defaultValue={date} dir="ltr" className="h-10 rounded-md border border-input bg-background px-3 text-sm" />
             </div>
-            <Button type="submit">عرض</Button>
-            <PrintButton label="طباعة الكشف" />
+            <Button type="submit">{t('sales.settlementBtnView')}</Button>
+            <PrintButton label={t('sales.settlementBtnPrint')} />
           </form>
         </CardContent>
       </Card>
 
       <div className="mb-4 rounded-md border p-3 text-sm">
         <div className="flex flex-wrap justify-between gap-2">
-          <span>المندوب: <b>{repName}</b></span>
-          <span>التاريخ: <b>{formatDate(date)}</b></span>
-          <span>عدد الزيارات: <b>{visitCount ?? 0}</b></span>
+          <span>{t('sales.settlementInfoRep')}: <b>{repName}</b></span>
+          <span>{t('sales.settlementInfoDate')}: <b>{formatDate(date, INTL_LOCALE[locale])}</b></span>
+          <span>{t('sales.settlementInfoVisits')}: <b>{visitCount ?? 0}</b></span>
         </div>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="إجمالي المبيعات" value={formatCurrency(salesTotal)} />
-        <Stat label="تحصيل نقدي" value={formatCurrency(cashTotal)} tone="ok" />
-        <Stat label="تحصيل آخر (بنك/شيك)" value={formatCurrency(otherTotal)} />
-        <Stat label="النقدية للكاشير" value={formatCurrency(cashTotal)} tone="warn" big />
+        <Stat label={t('sales.settlementStatTotalSales')} value={formatCurrency(salesTotal, 'EGP', INTL_LOCALE[locale])} />
+        <Stat label={t('sales.settlementStatCash')} value={formatCurrency(cashTotal, 'EGP', INTL_LOCALE[locale])} tone="ok" />
+        <Stat label={t('sales.settlementStatOther')} value={formatCurrency(otherTotal, 'EGP', INTL_LOCALE[locale])} />
+        <Stat label={t('sales.settlementStatCashToCashier')} value={formatCurrency(cashTotal, 'EGP', INTL_LOCALE[locale])} tone="warn" big />
       </div>
 
       <Card>
         <CardContent className="p-0">
-          <h3 className="border-b p-3 font-semibold">تفاصيل التحصيل</h3>
+          <h3 className="border-b p-3 font-semibold">{t('sales.settlementSectionTitle')}</h3>
           {payList.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted-foreground">لا توجد تحصيلات في هذا اليوم.</p>
+            <p className="p-6 text-center text-sm text-muted-foreground">{t('sales.settlementNoCollections')}</p>
           ) : (
             <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-secondary/40 text-muted-foreground">
                 <tr>
-                  <th className="p-2 ps-3 text-right font-medium">الفاتورة</th>
-                  <th className="p-2 text-right font-medium">العميل</th>
-                  <th className="p-2 text-right font-medium">الطريقة</th>
-                  <th className="p-2 pe-3 text-left font-medium">المبلغ</th>
+                  <th className="p-2 ps-3 text-start font-medium">{t('sales.settlementColInvoice')}</th>
+                  <th className="p-2 text-start font-medium">{t('sales.settlementColCustomer')}</th>
+                  <th className="p-2 text-start font-medium">{t('sales.settlementColMethod')}</th>
+                  <th className="p-2 pe-3 text-end font-medium">{t('sales.settlementColAmount')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,15 +126,15 @@ export default async function SettlementPage({
                   <tr key={i} className="border-t">
                     <td className="p-2 ps-3 font-mono text-xs" dir="ltr">{p.invoice?.invoice_number ?? '—'}</td>
                     <td className="p-2">{p.invoice?.customer?.name_ar || p.invoice?.customer?.name || '—'}</td>
-                    <td className="p-2 text-muted-foreground">{PAYMENT_METHOD_LABELS[p.payment_method]?.ar ?? p.payment_method}</td>
-                    <td className="p-2 pe-3 text-left tabular-nums" dir="ltr">{formatCurrency(p.amount)}</td>
+                    <td className="p-2 text-muted-foreground">{PAYMENT_METHOD_LABELS[p.payment_method]?.[locale] ?? p.payment_method}</td>
+                    <td className="p-2 pe-3 text-left tabular-nums" dir="ltr">{formatCurrency(p.amount, 'EGP', INTL_LOCALE[locale])}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="border-t-2 font-bold">
                 <tr>
-                  <td className="p-3" colSpan={3}>الإجمالي المُحصّل</td>
-                  <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(collectedTotal)}</td>
+                  <td className="p-3" colSpan={3}>{t('sales.settlementTotalCollected')}</td>
+                  <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(collectedTotal, 'EGP', INTL_LOCALE[locale])}</td>
                 </tr>
               </tfoot>
             </table>
@@ -141,8 +144,8 @@ export default async function SettlementPage({
       </Card>
 
       <div className="mt-10 flex justify-between text-xs text-muted-foreground print:mt-20">
-        <span>توقيع المندوب: ____________</span>
-        <span>توقيع الكاشير: ____________</span>
+        <span>{t('sales.settlementSignRep')}</span>
+        <span>{t('sales.settlementSignCashier')}</span>
       </div>
     </div>
   );

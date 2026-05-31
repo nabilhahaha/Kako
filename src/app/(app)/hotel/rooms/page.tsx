@@ -3,17 +3,19 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { RoomsManager, type Room } from './rooms-manager';
+import { getT } from '@/lib/i18n/server';
 
 export default async function RoomsPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
 
   if (!ctx.companyId) {
     return (
       <div>
-        <PageHeader title="الغرف" />
+        <PageHeader title={t('hotel.rooms.title')} />
         <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-          إدارة الفندق تتم من داخل حساب الشركة. سجّل الدخول بحساب الفندق لإضافة الغرف والحجوزات.
+          {t('hotel.noCompany')}
         </p>
       </div>
     );
@@ -27,7 +29,7 @@ export default async function RoomsPage() {
 
   return (
     <div>
-      <PageHeader title="الغرف" description="غرف ووحدات الفندق وحالتها." />
+      <PageHeader title={t('hotel.rooms.title')} description={t('hotel.rooms.description')} />
       <RoomsManager rooms={(rooms as Room[]) ?? []} />
     </div>
   );

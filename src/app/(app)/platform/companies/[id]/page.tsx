@@ -7,6 +7,7 @@ import type { Branch, Company, Profile } from '@/lib/erp/types';
 import { CompanyDetail, type MemberRow } from './company-detail';
 import { CompanyPermissions, type CompanyRoleRow } from './company-permissions';
 import { getCompanyUsage, type Plan } from '@/lib/erp/plans';
+import { getT } from '@/lib/i18n/server';
 
 export default async function PlatformCompanyDetailPage({
   params,
@@ -14,16 +15,17 @@ export default async function PlatformCompanyDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
   if (!ctx.isPlatformOwner) {
     return (
       <div>
-        <PageHeader title="لوحة المزوّد" />
+        <PageHeader title={t('platform.overview.title')} />
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            هذه الصفحة متاحة لمالك المنصّة فقط.
+            {t('platform.ownerOnly')}
           </CardContent>
         </Card>
       </div>
@@ -119,7 +121,7 @@ export default async function PlatformCompanyDetailPage({
     <div>
       <PageHeader
         title={(company as Company).name_ar || (company as Company).name}
-        description="إدارة الاشتراك والفروع والمستخدمين والصلاحيات لهذه الشركة"
+        description={t('platform.company.description')}
       />
       <CompanyDetail
         company={company as Company}

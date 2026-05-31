@@ -253,14 +253,14 @@ export const SEQUENCE_TYPE_PREFIXES: Record<SequenceType, string> = {
 
 // ─── Visit Days (journey plan) ──────────────────────────────────────────────
 
-export const VISIT_DAYS: { value: string; ar: string }[] = [
-  { value: 'sat', ar: 'السبت' },
-  { value: 'sun', ar: 'الأحد' },
-  { value: 'mon', ar: 'الإثنين' },
-  { value: 'tue', ar: 'الثلاثاء' },
-  { value: 'wed', ar: 'الأربعاء' },
-  { value: 'thu', ar: 'الخميس' },
-  { value: 'fri', ar: 'الجمعة' },
+export const VISIT_DAYS: { value: string; en: string; ar: string }[] = [
+  { value: 'sat', en: 'Saturday', ar: 'السبت' },
+  { value: 'sun', en: 'Sunday', ar: 'الأحد' },
+  { value: 'mon', en: 'Monday', ar: 'الإثنين' },
+  { value: 'tue', en: 'Tuesday', ar: 'الثلاثاء' },
+  { value: 'wed', en: 'Wednesday', ar: 'الأربعاء' },
+  { value: 'thu', en: 'Thursday', ar: 'الخميس' },
+  { value: 'fri', en: 'Friday', ar: 'الجمعة' },
 ];
 
 export const VISIT_DAY_LABEL: Record<string, string> = Object.fromEntries(

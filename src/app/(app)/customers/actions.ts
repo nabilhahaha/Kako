@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 function num(v: FormDataEntryValue | null): number {
   const n = Number(String(v ?? '').replace(/,/g, ''));
@@ -12,12 +13,13 @@ function num(v: FormDataEntryValue | null): number {
 export async function upsertCustomer(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
 
   const id = String(formData.get('id') || '').trim();
   const code = String(formData.get('code') || '').trim();
   const name = String(formData.get('name') || '').trim();
-  if (!code) return { ok: false, error: 'كود العميل مطلوب.' };
-  if (!name) return { ok: false, error: 'اسم العميل مطلوب.' };
+  if (!code) return { ok: false, error: t('customers.errCodeRequired') };
+  if (!name) return { ok: false, error: t('customers.errNameRequired') };
 
   const branchId = String(formData.get('branch_id') || '').trim();
   const salesmanId = String(formData.get('salesman_id') || '').trim();
@@ -78,7 +80,8 @@ export async function importCustomers(
     }))
     .filter((r) => r.code && r.name);
 
-  if (clean.length === 0) return { ok: false, error: 'لا توجد صفوف صالحة (الكود والاسم مطلوبان).' };
+  const { t } = await getT();
+  if (clean.length === 0) return { ok: false, error: t('customers.errImportNoRows') };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -112,8 +115,9 @@ export async function setCustomerJourney(
 /** Super admin approves a rep-created customer so it can be sold to. */
 export async function approveCustomer(id: string): Promise<ActionResult> {
   const { ctx } = await requireAuth();
-  if (!ctx) return { ok: false, error: 'غير مصرح.' };
-  if (!ctx.isSuperAdmin) return { ok: false, error: 'الاعتماد متاح لمدير النظام فقط.' };
+  const { t } = await getT();
+  if (!ctx) return { ok: false, error: t('customers.errUnauthorized') };
+  if (!ctx.isSuperAdmin) return { ok: false, error: t('customers.errApproveAdminOnly') };
 
   const supabase = await createClient();
   const { error } = await supabase

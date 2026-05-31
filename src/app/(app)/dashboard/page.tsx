@@ -3,10 +3,15 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
+import { GettingStarted } from '@/components/shared/getting-started';
+import { resolveHomePath } from '@/lib/erp/home';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { INVOICE_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { getT } from '@/lib/i18n/server';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 import type { InvoiceStatus } from '@/lib/erp/types';
 import {
   TrendingUp,
@@ -15,7 +20,6 @@ import {
   AlertTriangle,
   Receipt,
   PackageX,
-  type LucideIcon,
 } from 'lucide-react';
 
 const ACTIVE_STATUSES: InvoiceStatus[] = ['issued', 'paid', 'partially_paid', 'overdue'];
@@ -29,47 +33,19 @@ const STATUS_VARIANT: Record<InvoiceStatus, 'secondary' | 'success' | 'default' 
   overdue: 'warning',
 };
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  tone = 'primary',
-  href,
-}: {
-  label: string;
-  value: string;
-  icon: LucideIcon;
-  tone?: 'primary' | 'success' | 'warning' | 'destructive';
-  href?: string;
-}) {
-  const toneCls = {
-    primary: 'bg-primary/10 text-primary',
-    success: 'bg-success/10 text-success',
-    warning: 'bg-warning/10 text-warning',
-    destructive: 'bg-destructive/10 text-destructive',
-  }[tone];
-
-  const body = (
-    <Card className={href ? 'transition-colors hover:border-primary/40' : ''}>
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${toneCls}`}>
-          <Icon className="h-6 w-6" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="truncate text-xl font-bold tabular-nums" dir="ltr">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-  return href ? <Link href={href}>{body}</Link> : body;
-}
-
 export default async function DashboardPage() {
   const ctx = await getUserContext();
   // The vendor has no tenant company; send them to their portfolio overview.
   if (ctx?.isPlatformOwner) redirect('/platform');
+  // A specialised business (clinic, restaurant, …) opens its own home instead of
+  // the general sales dashboard.
+  if (ctx) {
+    const home = resolveHomePath(ctx);
+    if (home !== '/dashboard') redirect(home);
+  }
   const name = ctx?.profile.full_name || ctx?.profile.email || '';
+  const { locale, t } = await getT();
+  const intl = INTL_LOCALE[locale];
 
   const supabase = await createClient();
   const now = new Date();
@@ -135,13 +111,21 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <PageHeader title={`أهلاً ${name} 👋`} description="نظرة عامة على نشاط الشركة" />
+      <PageHeader title={t('dashboard.welcome', { name })} description={t('dashboard.overview')} />
+
+      <GettingStarted
+        steps={[
+          { label: t('dashboard.stepProduct'), href: '/products', done: (products?.length ?? 0) > 0 },
+          { label: t('dashboard.stepCustomer'), href: '/customers', done: (customers?.length ?? 0) > 0 },
+          { label: t('dashboard.stepInvoice'), href: '/sales/invoices', done: recent.length > 0 },
+        ]}
+      />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="مبيعات هذا الشهر" value={formatCurrency(monthSales)} icon={TrendingUp} tone="success" href="/sales/invoices" />
-        <StatCard label="مديونيات العملاء" value={formatCurrency(receivables)} icon={ArrowUpCircle} tone="primary" href="/customers" />
-        <StatCard label="مستحقات الموردين" value={formatCurrency(payables)} icon={ArrowDownCircle} tone="warning" href="/suppliers" />
-        <StatCard label="فواتير متأخرة" value={String(overdue ?? 0)} icon={AlertTriangle} tone="destructive" href="/sales/invoices" />
+        <StatCard label={t('dashboard.monthSales')} value={formatCurrency(monthSales, 'EGP', intl)} icon={TrendingUp} tone="success" href="/sales/invoices" />
+        <StatCard label={t('dashboard.receivables')} value={formatCurrency(receivables, 'EGP', intl)} icon={ArrowUpCircle} tone="primary" href="/customers" />
+        <StatCard label={t('dashboard.payables')} value={formatCurrency(payables, 'EGP', intl)} icon={ArrowDownCircle} tone="warning" href="/suppliers" />
+        <StatCard label={t('dashboard.overdueInvoices')} value={String(overdue ?? 0)} icon={AlertTriangle} tone="destructive" href="/sales/invoices" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -149,12 +133,12 @@ export default async function DashboardPage() {
           <CardContent className="p-0">
             <div className="flex items-center justify-between border-b p-4">
               <h2 className="flex items-center gap-2 font-semibold">
-                <Receipt className="h-4 w-4" /> آخر الفواتير
+                <Receipt className="h-4 w-4" /> {t('dashboard.recentInvoices')}
               </h2>
-              <Link href="/sales/invoices" className="text-xs text-primary hover:underline">عرض الكل</Link>
+              <Link href="/sales/invoices" className="text-xs text-primary hover:underline">{t('common.viewAll')}</Link>
             </div>
             {recent.length === 0 ? (
-              <p className="p-6 text-center text-sm text-muted-foreground">لا توجد فواتير بعد.</p>
+              <p className="p-6 text-center text-sm text-muted-foreground">{t('dashboard.noInvoices')}</p>
             ) : (
               <ul className="divide-y">
                 {recent.map((inv) => (
@@ -164,9 +148,9 @@ export default async function DashboardPage() {
                       <p className="truncate font-medium">{inv.customer?.name_ar || inv.customer?.name || '—'}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="tabular-nums" dir="ltr">{formatCurrency(inv.net_amount)}</span>
-                      <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status].ar}</Badge>
-                      <span className="hidden text-xs text-muted-foreground sm:inline">{formatDate(inv.created_at)}</span>
+                      <span className="tabular-nums" dir="ltr">{formatCurrency(inv.net_amount, 'EGP', intl)}</span>
+                      <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status][locale]}</Badge>
+                      <span className="hidden text-xs text-muted-foreground sm:inline">{formatDate(inv.created_at, intl)}</span>
                     </div>
                   </li>
                 ))}
@@ -179,12 +163,12 @@ export default async function DashboardPage() {
           <CardContent className="p-0">
             <div className="flex items-center justify-between border-b p-4">
               <h2 className="flex items-center gap-2 font-semibold">
-                <PackageX className="h-4 w-4" /> أصناف تحت حد الطلب
+                <PackageX className="h-4 w-4" /> {t('dashboard.lowStock')}
               </h2>
-              <Link href="/products" className="text-xs text-primary hover:underline">المنتجات</Link>
+              <Link href="/products" className="text-xs text-primary hover:underline">{t('dashboard.products')}</Link>
             </div>
             {lowStock.length === 0 ? (
-              <p className="p-6 text-center text-sm text-muted-foreground">لا توجد أصناف تحت حد الطلب.</p>
+              <p className="p-6 text-center text-sm text-muted-foreground">{t('dashboard.noLowStock')}</p>
             ) : (
               <ul className="divide-y">
                 {lowStock.slice(0, 6).map((p) => (

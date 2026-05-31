@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AUDIT_ACTION_LABELS, AUDIT_ENTITY_LABELS } from '@/lib/erp/audit';
 import type { Company } from '@/lib/erp/types';
+import { getT } from '@/lib/i18n/server';
 
 interface AuditRow {
   id: string;
@@ -32,16 +33,17 @@ function fmtTime(iso: string): string {
 }
 
 export default async function AuditLogPage() {
+  const { t, locale } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
   if (!ctx.isPlatformOwner && !ctx.isSuperAdmin) {
     return (
       <div>
-        <PageHeader title="سجل التدقيق" />
+        <PageHeader title={t('platform.audit.title')} />
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            هذه الصفحة متاحة لمالك المنصّة ومدير النظام فقط.
+            {t('platform.ownerOrSuperAdminOnly')}
           </CardContent>
         </Card>
       </div>
@@ -69,24 +71,24 @@ export default async function AuditLogPage() {
   return (
     <div>
       <PageHeader
-        title="سجل التدقيق"
-        description="أحدث ٢٠٠ عملية حساسة على المنصّة (صلاحيات، مستخدمون، شركات، اشتراكات)."
+        title={t('platform.audit.title')}
+        description={t('platform.audit.description')}
       />
       <Card>
         <CardContent className="p-0">
           {rows.length === 0 ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">لا توجد عمليات مسجّلة بعد.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground">{t('platform.audit.empty')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium whitespace-nowrap">الوقت</th>
-                    <th className="p-3 text-right font-medium">المنفّذ</th>
-                    <th className="p-3 text-right font-medium">العملية</th>
-                    <th className="p-3 text-right font-medium">العنصر</th>
-                    <th className="p-3 text-right font-medium">الشركة</th>
-                    <th className="p-3 text-right font-medium">تفاصيل</th>
+                    <th className="p-3 text-start font-medium whitespace-nowrap">{t('platform.audit.thTime')}</th>
+                    <th className="p-3 text-start font-medium">{t('platform.audit.thActor')}</th>
+                    <th className="p-3 text-start font-medium">{t('platform.audit.thAction')}</th>
+                    <th className="p-3 text-start font-medium">{t('platform.audit.thEntity')}</th>
+                    <th className="p-3 text-start font-medium">{t('platform.audit.thCompany')}</th>
+                    <th className="p-3 text-start font-medium">{t('platform.audit.thDetails')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -96,11 +98,11 @@ export default async function AuditLogPage() {
                       <td className="p-3" dir="ltr">{r.actor_email ?? '—'}</td>
                       <td className="p-3">
                         <Badge variant={DESTRUCTIVE.has(r.action) ? 'destructive' : 'secondary'}>
-                          {AUDIT_ACTION_LABELS[r.action] ?? r.action}
+                          {AUDIT_ACTION_LABELS[r.action]?.[locale] ?? r.action}
                         </Badge>
                       </td>
                       <td className="p-3">
-                        {AUDIT_ENTITY_LABELS[r.entity] ?? r.entity}
+                        {AUDIT_ENTITY_LABELS[r.entity]?.[locale] ?? r.entity}
                         {r.entity_id && (
                           <span className="block text-xs text-muted-foreground" dir="ltr">{r.entity_id}</span>
                         )}

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { getT } from '@/lib/i18n/server';
 import type { Branch, ProductCatalog, Warehouse } from '@/lib/erp/types';
 import { InventoryView, type StockRow, type MovementRow } from './inventory-view';
 
@@ -9,6 +10,7 @@ export default async function InventoryPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
   const supabase = await createClient();
   const [{ data: stock }, { data: warehouses }, { data: products }, { data: branches }, { data: movements }] =
     await Promise.all([
@@ -27,7 +29,7 @@ export default async function InventoryPage() {
 
   return (
     <div>
-      <PageHeader title="أرصدة المخزون" description="الأرصدة الحالية لكل صنف في كل مخزن وسجل الحركات" />
+      <PageHeader title={t('inventory.pageTitle')} description={t('inventory.pageDescription')} />
       <InventoryView
         stock={(stock as StockRow[]) ?? []}
         warehouses={(warehouses as Warehouse[]) ?? []}
