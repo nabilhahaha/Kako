@@ -54,8 +54,8 @@ to **coexist with an external ERP** (sync only selected modules). See
 - [`TESTING.md`](TESTING.md) · [`E2E.md`](E2E.md) — testing.
 
 ## Governance
-- [`LEGACY-AUDIT.md`](LEGACY-AUDIT.md) — Keep / Refactor / Archive / Delete audit
-  (findings only; no removals without approval).
+- [`LEGACY-AUDIT.md`](LEGACY-AUDIT.md) — Keep / Refactor / Archive / Delete audit.
+- [`CLEANUP-PLAN.md`](CLEANUP-PLAN.md) — deferred-cleanup execution plan (separate reviewable PRs).
 
 ---
 
