@@ -15,6 +15,7 @@ export type Permission =
   | 'stock_request.create' // rep requests stock from a warehouse
   | 'stock_request.approve' // warehouse keeper / manager approves & loads
   | 'purchasing.manage' // POs, receiving
+  | 'purchasing.return' // supplier (purchase) returns
   | 'suppliers.manage' // suppliers + settlements
   | 'accounting.view' // chart, journal, reports
   | 'accounting.post' // post vouchers / journals
@@ -49,6 +50,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'stock_request.create': { en: 'Request stock loading', ar: 'طلب تحميل بضاعة', group: 'inventory' },
   'stock_request.approve': { en: 'Approve loading requests', ar: 'اعتماد طلبات التحميل', group: 'inventory' },
   'purchasing.manage': { en: 'Purchasing and receiving', ar: 'المشتريات والاستلام', group: 'purchasing' },
+  'purchasing.return': { en: 'Supplier returns', ar: 'مرتجعات المشتريات', group: 'purchasing' },
   'suppliers.manage': { en: 'Suppliers and settlement', ar: 'الموردين والسداد', group: 'purchasing' },
   'accounting.view': { en: 'View accounts and reports', ar: 'عرض الحسابات والتقارير', group: 'accounting' },
   'accounting.post': { en: 'Post journals and vouchers', ar: 'ترحيل القيود والسندات', group: 'accounting' },

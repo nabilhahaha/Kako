@@ -12,6 +12,12 @@ describe('entity registry', () => {
     ]));
   });
 
+  it('registers the supplier-return entity (Electrical pack sub-slice A)', () => {
+    const e = getEntity('purchase_return');
+    expect(e?.table).toBe('erp_purchase_returns');
+    expect(e?.permission).toBe('purchasing.return');
+  });
+
   it('getEntity + isKnownEntity resolve by key', () => {
     expect(getEntity('customer')?.table).toBe('erp_customers');
     expect(getEntity('not-a-thing')).toBeUndefined();

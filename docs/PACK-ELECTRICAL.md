@@ -1,7 +1,16 @@
 # VANTORA — Electrical Retail & Wholesale Pack — Design Review
 
-> Build-track slice **Electrical Pack** — **design for approval, no
-> implementation yet.** First pilot target (per `PLATFORM-REVIEW.md` §14). An
+> **Sub-slice A status: ✅ built (migration 0096 NOT yet applied to production;
+> rolled-back live verification passed — 2 electronics companies, project tiers
+> seeded, purchase_returns table + RPC created, 0 anon grants, 0 residue after
+> rollback).** Sub-slice A = multi-tier pricing seed (retail/semi_wholesale/
+> wholesale/project on existing `erp_wholesale_*`) + supplier/purchase returns
+> (`erp_purchase_returns(+_lines)` + `erp_complete_purchase_return` RPC using the
+> existing `return_out` ledger type) + `purchasing.return` permission +
+> `purchase_return` entity. **Sub-slice B (serials + warranty + RMA) is next.**
+>
+> Build-track slice **Electrical Pack**. First pilot target (per
+> `PLATFORM-REVIEW.md` §14). An
 > **Industry Pack = bundle of Core modules + vertical features on the shared
 > core** — it reuses the existing pricing, inventory ledger, transfers, and
 > returns, and **adds only** the electrical-specific layers. Additive +
