@@ -60,13 +60,28 @@ export const PACK_ROLE_SUGGESTIONS: Record<string, string[]> = {
   retail: ['System Admin', 'Branch Manager', 'Cashier', 'Storekeeper'],
 };
 
-/** Existing module keys that belong to a Core capability (everything else =
- *  an industry/vertical = a Pack). Used to split today's flat module lists. */
-const CORE_MODULE_KEYS = new Set(['sales', 'inventory', 'warehousing', 'purchasing', 'accounting', 'pos']);
+/** DB module keys that belong to a Core capability (everything else = an
+ *  industry/vertical = a Pack). Includes the R4B capability keys. */
+const CORE_MODULE_KEYS = new Set([
+  'sales', 'inventory', 'warehousing', 'purchasing', 'accounting', 'pos',
+  'crm', 'workflow', 'analytics', 'field_ops', 'integrations',
+]);
 
-/** Classify an existing module key into the new grouping. */
+/** Classify a module key into the new grouping. */
 export function classifyModuleKey(key: string): 'core' | 'pack' {
   return CORE_MODULE_KEYS.has(key) ? 'core' : 'pack';
+}
+
+/** Catalog Core-module key → DB module key (only `finance` differs: ≙ accounting). */
+export function coreModuleDbKey(catalogKey: string): string {
+  return catalogKey === 'finance' ? 'accounting' : catalogKey;
+}
+
+/** Is a module enabled for a company (from its loaded enabled-module list)?
+ *  Empty list = unrestricted (legacy/owner) → true. Graceful by design. */
+export function moduleEnabled(enabledModules: readonly string[], moduleKey: string): boolean {
+  if (enabledModules.length === 0) return true;
+  return enabledModules.includes(moduleKey);
 }
 
 /** Map a business-type / vertical key to its Industry Pack key (preselect). */

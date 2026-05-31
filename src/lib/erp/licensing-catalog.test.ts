@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   CORE_MODULES, INDUSTRY_PACKS, PACK_CORE_PRESELECT, PACK_ROLE_SUGGESTIONS,
   classifyModuleKey, packForBusinessType, suggestedRolesForBusinessType,
+  coreModuleDbKey, moduleEnabled,
 } from './licensing-catalog';
 
 describe('licensing catalog — groups', () => {
@@ -53,9 +54,19 @@ describe('licensing catalog — role suggestions (approved defaults)', () => {
 });
 
 describe('licensing catalog — classification + mapping', () => {
-  it('classifies existing module keys into core vs pack', () => {
-    for (const k of ['sales', 'inventory', 'purchasing', 'accounting', 'pos', 'warehousing']) expect(classifyModuleKey(k)).toBe('core');
+  it('classifies module keys into core vs pack (incl. R4B capability keys)', () => {
+    for (const k of ['sales', 'inventory', 'purchasing', 'accounting', 'pos', 'warehousing', 'crm', 'workflow', 'analytics', 'field_ops', 'integrations']) expect(classifyModuleKey(k)).toBe('core');
     for (const k of ['clinic', 'pharmacy', 'restaurant', 'salon', 'laundry', 'hotel', 'market', 'wholesale', 'distribution']) expect(classifyModuleKey(k)).toBe('pack');
+  });
+  it('maps the catalog finance key to the DB accounting key', () => {
+    expect(coreModuleDbKey('finance')).toBe('accounting');
+    expect(coreModuleDbKey('sales')).toBe('sales');
+    expect(coreModuleDbKey('crm')).toBe('crm');
+  });
+  it('moduleEnabled: empty list = unrestricted; otherwise membership', () => {
+    expect(moduleEnabled([], 'crm')).toBe(true);
+    expect(moduleEnabled(['crm', 'sales'], 'crm')).toBe(true);
+    expect(moduleEnabled(['sales'], 'crm')).toBe(false);
   });
   it('maps business types to packs (English + Arabic-agnostic substrings)', () => {
     expect(packForBusinessType('Electrical Retail')).toBe('electrical');
