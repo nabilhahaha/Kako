@@ -38,3 +38,44 @@ describe('navigation — visibleSections', () => {
     for (const s of owner) expect(Array.isArray(s.items)).toBe(true);
   });
 });
+
+describe('navigation — field_ops capability binding (any-of, no regression)', () => {
+  // hrefs of the field-sales items bound to ['field_ops','distribution'].
+  const FIELD_HREFS = ['/rep', '/sales/settlement', '/sales/journey'];
+  const hrefs = (secs: ReturnType<typeof visibleSections>) =>
+    secs.flatMap((s) => s.items.map((i) => i.href));
+  // a field-sales user always has the field.sales perm (+ reports.view for settlement).
+  const fieldPerms = ['sales.sell', 'field.sales', 'reports.view'] as const;
+
+  it('legacy distribution company (no field_ops, e.g. free plan) still sees the rep app', () => {
+    // distribution enabled but NOT field_ops — the any-of gate must keep it visible.
+    const v = visibleSections([...fieldPerms], false, false, ['sales', 'distribution']);
+    for (const h of FIELD_HREFS) expect(hrefs(v)).toContain(h);
+  });
+
+  it('a company with the new field_ops capability (no distribution) also sees the rep app', () => {
+    const v = visibleSections([...fieldPerms], false, false, ['sales', 'field_ops']);
+    for (const h of FIELD_HREFS) expect(hrefs(v)).toContain(h);
+  });
+
+  it('a company with neither field_ops nor distribution does NOT see the field-sales items', () => {
+    const v = visibleSections([...fieldPerms], false, false, ['sales']);
+    for (const h of FIELD_HREFS) expect(hrefs(v)).not.toContain(h);
+  });
+
+  it('field-sales items stay permission-gated even when the module is enabled', () => {
+    // field_ops enabled but the user lacks field.sales -> hidden.
+    const v = visibleSections(['sales.sell'], false, false, ['sales', 'field_ops']);
+    expect(hrefs(v)).not.toContain('/rep');
+  });
+
+  it('no-regression superset: a tenant with sales+field_ops+distribution sees the field-sales items', () => {
+    const v = visibleSections([...fieldPerms], false, false, ['sales', 'field_ops', 'distribution']);
+    for (const h of FIELD_HREFS) expect(hrefs(v)).toContain(h);
+  });
+
+  it('protected verticals are unaffected: clinic section shows for a clinic tenant', () => {
+    const v = visibleSections(['clinic.manage'], false, false, ['clinic']);
+    expect(v.some((s) => s.module === 'clinic')).toBe(true);
+  });
+});

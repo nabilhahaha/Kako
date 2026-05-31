@@ -32,8 +32,8 @@ export function SetupWizard({
   const Arrow = ar ? ArrowLeft : ArrowRight;
   const tr = (a: string, e: string) => (ar ? a : e);
 
-  // Steps: [business questions…] → modules → review.
-  const totalSteps = profile.questions.length + 2;
+  // Steps: [business questions…] → modules → suggested roles → review.
+  const totalSteps = profile.questions.length + 3;
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(() => {
     // Seed module toggles with their defaults so the review reflects them.
@@ -45,6 +45,7 @@ export function SetupWizard({
 
   const isQuestionStep = step < profile.questions.length;
   const isModuleStep = step === profile.questions.length;
+  const isRolesStep = step === profile.questions.length + 1;
   const isReview = step === totalSteps - 1;
 
   function choose(qid: string, value: string) {
@@ -159,6 +160,23 @@ export function SetupWizard({
               </>
             );
           })()}
+
+          {/* ── suggested roles (generated from the industry pack; editable) ── */}
+          {isRolesStep && (
+            <>
+              <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold"><Users className="h-6 w-6 text-[#c4b5fd]" /> {tr('الأدوار المقترحة', 'Suggested roles')}</h1>
+              <p className="mb-5 text-sm text-white/60">{tr('هذه الأدوار تُنشأ تلقائياً حسب نوع نشاطك، وتقدر تعدّلها بالكامل لاحقاً من الإعدادات ← الصلاحيات. اختيار نوع النشاط يقترح فقط.', 'These roles are created automatically for your business type. You can fully edit them later in Settings → Permissions. Business type only suggests them.')}</p>
+              <div className="space-y-2.5">
+                {profile.roles.map((r) => (
+                  <div key={r.en} className="flex items-center gap-3 rounded-xl border border-white/12 bg-white/[0.04] p-4 backdrop-blur">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-[#c4b5fd]"><Users className="h-4 w-4" /></span>
+                    <span className="font-medium">{ar ? r.ar : r.en}</span>
+                    <span className="ms-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success"><Check className="h-3 w-3" /> {tr('سيُضاف', 'Will be added')}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* ── review ── */}
           {isReview && (

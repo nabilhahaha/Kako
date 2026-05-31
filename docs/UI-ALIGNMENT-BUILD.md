@@ -1,9 +1,51 @@
-# VANTORA — UI Alignment Build: Navigation Binding + Inline Role Suggestions (design)
+# VANTORA — UI Alignment Build: Navigation Binding + Inline Role Suggestions
 
-> Deferred R4B follow-up. **Design for approval — no build yet.** Binds the
-> nav to enabled Core Modules + Industry Packs and adds **editable** suggested
-> roles to company creation. Hard constraint: **no tenant (existing or new) loses
-> access**; protected verticals unchanged.
+> Deferred R4B follow-up. Binds the nav to enabled Core Modules + Industry Packs
+> and adds **editable** suggested roles to company creation. Hard constraint:
+> **no tenant (existing or new) loses access**; protected verticals unchanged.
+
+---
+
+## 0. Build status — IMPLEMENTED (code-only; no DB change) ✅
+
+Shipped in this slice (all code-only — **no migration, no new RPC**):
+
+1. **`field_ops` capability nav binding (any-of, regression-proof).** The three
+   field-sales items (`/rep`, `/sales/settlement`, `/sales/journey`) are bound to
+   **`['field_ops','distribution']`** — visible if the company has **either**
+   module. `NavItem.module` / `NavSection.module` now accept `Module | Module[]`
+   and `moduleAllowed` evaluates an array as **ANY-of**.
+   - *Why any-of, not a pure rebind:* `field_ops` is plan-gated to Professional+
+     (migration 0095), while `distribution` is granted on **all** plans (0063). A
+     pure rebind to `field_ops` would have **hidden** the rep app for existing
+     **free/standard** distribution tenants. The any-of gate keeps the legacy
+     `distribution` path working while *also* recognising the new `field_ops`
+     capability → strictly additive, can never hide a previously-shown item.
+2. **New-company bridge (code-only).** The setup wizard's "Do you have field
+   sales reps? → Yes" answer now also enables **`field_ops`** (alongside the
+   existing `distribution`/`sales_orders`), so new field-sales companies populate
+   the capability module. Entitlement is still plan-gated; visibility is covered
+   by the `distribution` arm for free/standard.
+3. **Inline Suggested Roles step.** A dedicated wizard step (separate from the
+   Modules step, before Review) lists the **pack-generated** suggested roles with
+   friendly bilingual labels and a clear note that they are **created
+   automatically and fully editable later in Settings → Permissions**. Roles
+   remain seeded by the existing `erp_seed_company_roles` trigger — **no new write
+   path, no new RPC**.
+4. **Clear separation retained.** Wizard order: business questions → **Modules**
+   (Core vs Industry Pack groups) → **Suggested Roles** → Review. Marketplace
+   already groups Core vs Packs.
+
+**Deferred (needs a follow-up universal capability seed migration — excluded by
+the "no production DB changes" constraint of this slice):** universal nav gating
+of `crm` (Customers), `workflow` (Approvals / Settings→Workflows), `analytics`
+(Reports) and `integrations` (Settings integration items). Binding these today
+would regress **new** companies of business types not seeded with those
+capabilities by 0095 (e.g. `general`, `cafe`, `clothing`), because their plans/
+business-type templates don't yet enable them. Existing tenants are already
+backfilled (0095); the gap is only new-company seeding, which a small additive
+seed migration (or extending the wizard profiles' default toggles) closes safely
+in the next slice.
 
 ---
 
