@@ -21,7 +21,7 @@ export default async function AppLayout({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
-  const { t } = await getT();
+  const { t, locale } = await getT();
 
   // Vendor-side internal employees (platform staff) belong to no tenant company;
   // they run the platform, not a company, so they skip the tenant onboarding /
@@ -115,6 +115,20 @@ export default async function AppLayout({
     if ((overdue.count ?? 0) > 0) notifications.push({ label: t('shell.overdueInvoices'), href: '/sales/invoices', count: overdue.count! });
     if ((clinicAppts.count ?? 0) > 0) notifications.push({ label: t('shell.todayAppointments'), href: '/clinic/appointments', count: clinicAppts.count! });
     if ((salonAppts.count ?? 0) > 0) notifications.push({ label: t('shell.todayAppointments'), href: '/salon/appointments', count: salonAppts.count! });
+  }
+
+  // In-app notification center: surface recent unread notifications in the bell.
+  {
+    const supabase = await createClient();
+    const { data: unread } = await supabase
+      .from('erp_notifications')
+      .select('title_ar, title_en, link')
+      .eq('is_read', false)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    for (const n of (unread as { title_ar: string | null; title_en: string | null; link: string | null }[]) ?? []) {
+      notifications.push({ label: (locale === 'ar' ? n.title_ar : n.title_en) || n.title_ar || n.title_en || 'Notification', href: n.link || '/notifications', count: 1 });
+    }
   }
 
   return (

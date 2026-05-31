@@ -48,6 +48,7 @@ import {
   CreditCard,
   SlidersHorizontal,
   GitBranch,
+  Bell,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -131,6 +132,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'nav.items.dashboard', href: '/dashboard', icon: LayoutDashboard },
       { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck },
+      { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
     ],
   },
   {

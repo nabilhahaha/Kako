@@ -18,12 +18,13 @@ export default async function ApprovalsPage() {
 
   const { data: tasks } = await supabase
     .from('erp_workflow_tasks')
-    .select('id, step_no, assignee_type, assignee_ref, created_at, due_at, instance:erp_workflow_instances!instance_id(entity, record_id, definition_id)')
+    .select('id, step_no, assignee_type, assignee_ref, created_at, due_at, escalated_at, instance:erp_workflow_instances!instance_id(entity, record_id, definition_id)')
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
 
   type Raw = {
     id: string; step_no: number; assignee_type: string; assignee_ref: string | null; created_at: string;
+    due_at: string | null; escalated_at: string | null;
     instance: { entity: string; record_id: string } | { entity: string; record_id: string }[] | null;
   };
   const raw = (tasks as Raw[] | null) ?? [];
@@ -51,6 +52,8 @@ export default async function ApprovalsPage() {
       id: r.id, entity: i?.entity ?? '', recordId: i?.record_id ?? '',
       recordLabel: (i?.entity === 'customer' ? nameById.get(i?.record_id ?? '') : '') || (i?.record_id ?? ''),
       stepNo: r.step_no, createdAt: r.created_at,
+      overdue: r.due_at != null && new Date(r.due_at).getTime() < Date.now(),
+      escalated: r.escalated_at != null,
     };
   });
 
