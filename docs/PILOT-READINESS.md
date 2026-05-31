@@ -149,15 +149,37 @@ hard dependency on an unbuilt vendor adapter.
 | Demo environment | Sales/onboarding | Decide isolated-companies vs separate project (§6) |
 | CSV/SFTP transport | File-based ERP feeds | **B1 — next build** |
 
-## 9. Decisions to confirm
-1. **First pilot vertical(s):** Distribution/FMCG + (Clinic or Pharmacy)? 
-2. **Demo environment:** isolated companies in production vs a separate demo
-   project? *(Recommend isolated demo companies first; separate project if a
-   pilot needs a fully sandboxed playground.)*
-3. **Paid vs free pilot:** run pilots free (manual billing) until R4/gateways, or
-   require a paid subscription from day one?
-4. **Coexistence in first pilot:** require an ERP-sync showcase (needs B1/adapter)
-   or keep first pilots VANTORA-standalone to de-risk?
+## 9. Finalized decisions (approved)
 
-*(Item #6 of the review sequence — the last review item. After approval, the
-**build track** begins with **B1 — CSV/SFTP Transport**.)*
+1. **First pilot targets (4):**
+   - **FMCG Distribution company** (flagship — Field Ops + Sales + Inventory +
+     Trade Spend + Workflow + coexistence).
+   - **Electrical Retail & Wholesale business** (multi-tier pricing, warranty,
+     RMA, serials — see the new pack below).
+   - **Pharmacy** (POS + Inventory + dispensing + **Egyptian Drug List**).
+   - **Clinic** (reception/doctor/appointments/visits + fees→finance).
+2. **Demo environments (4):** Distribution Demo · Electrical Retail Demo ·
+   Pharmacy Demo · Clinic Demo — seeded, role-based, isolated companies.
+3. **Commercial readiness:** platform-first · module-based licensing · industry
+   packs as add-ons · **Integrations as a paid module**.
+4. **Pilot success criteria:**
+   - [ ] Customer onboarding completed.
+   - [ ] Real transactions processed.
+   - [ ] Reporting validated.
+   - [ ] User adoption confirmed.
+   - [ ] **No critical production issues.**
+
+### New tracked industry pack — **Electrical Retail & Wholesale Pack**
+Add to the industry-pack roadmap (see `ROADMAP.md`). Bundles core modules +
+electrical-trade specifics:
+- **Multi-tier pricing:** Retail / Half-Wholesale / Wholesale / **Project
+  pricing** (per customer tier + project quotes).
+- **Warranty tracking** (per item/serial, claim handling).
+- **Returns & RMA** (authorize → receive → resolve; ties to warranty).
+- **Serial number support** (capture/track serials through purchase→sale→service).
+- Core: **Inventory · Purchasing · Accounting/Finance · POS** (+ Sales, CRM).
+- Built on the entity framework + custom fields where possible (no per-customer
+  forks); pricing tiers via the pricing/wholesale module pattern.
+
+*(Item #6 — finalized/approved. The **build track** now begins: **B1 — CSV/SFTP
+Transport**, then **B2 — Dynamics 365 Business Central**.)*
