@@ -13,6 +13,11 @@ import { saveTarget, setTargetStatus, validateTargets, importTargets, type Targe
 
 export interface Target { id: string; period_month: string; dim_type: string; dim_id: string | null; label: string | null; metric: string; target_amount: number; status: string }
 const DIMS = ['company', 'region', 'area', 'branch', 'route', 'rep', 'channel', 'classification', 'customer', 'category', 'subcategory', 'brand', 'sku'];
+const REF_HINT: Record<string, string> = {
+  company: '(leave blank)', region: 'region name', area: 'area name', branch: 'branch code', route: 'route name', rep: 'rep email or full name',
+  channel: 'channel value', classification: 'classification value', customer: 'customer code', category: 'category code or name',
+  subcategory: 'category code or name', brand: 'brand name', sku: 'product code',
+};
 const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
 
 /** Manual entry + CSV import (validate→commit) / export + lifecycle for targets. */
@@ -34,44 +39,47 @@ export function TargetsClient({ month, initial }: { month: string; initial: Targ
   function lifecycle(id: string, status: string) {
     start(async () => { const r = await setTargetStatus(id, status); if (!r.ok) toast.error(r.error ?? t('commercial.saveFailed')); else router.refresh(); });
   }
-  function download(name: string, body: string) {
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], { type: 'text/csv' })); a.download = name; a.click();
+  // multi-sheet XLSX template: a Targets entry sheet + a Reference sheet of valid values
+  async function downloadTemplate() {
+    const XLSX = await import('xlsx');
+    const wb = XLSX.utils.book_new();
+    const m = month.slice(0, 10);
+    const tgt = XLSX.utils.aoa_to_sheet([
+      ['period', 'dim_type', 'dim_ref', 'dim_id', 'metric', 'amount'],
+      [m, 'rep', 'rep@example.com', '', 'value', 100000],
+      [m, 'customer', 'CUST-001', '', 'value', 5000],
+      [m, 'category', 'BEVERAGES', '', 'value', 50000],
+      [m, 'brand', 'Cola Co', '', 'value', 30000],
+      [m, 'sku', 'SKU-001', '', 'quantity', 500],
+    ]);
+    XLSX.utils.book_append_sheet(wb, tgt, 'Targets');
+    const ref = XLSX.utils.aoa_to_sheet([
+      ['dim_type', 'reference (put in dim_ref; leave dim_id blank)'],
+      ...DIMS.map((d) => [d, REF_HINT[d] ?? 'value']),
+      [], ['metric', 'value | quantity'], ['period', 'first day of month, e.g. 2026-03-01'],
+    ]);
+    XLSX.utils.book_append_sheet(wb, ref, 'Reference');
+    XLSX.writeFile(wb, 'targets-template.xlsx');
   }
-  const HEAD = 'period,dim_type,dim_ref,dim_id,metric,amount';
-  function exportCsv() {
-    const lines = initial.map((r) => [r.period_month.slice(0, 10), r.dim_type, r.label ?? '', r.dim_id ?? '', r.metric, r.target_amount].join(','));
-    download(`targets-${month.slice(0, 7)}.csv`, [HEAD, ...lines].join('\n'));
-  }
-  function downloadTemplate() {
-    const ex = [
-      `${month.slice(0, 10)},rep,rep@example.com,,value,100000`,
-      `${month.slice(0, 10)},customer,CUST-001,,value,5000`,
-      `${month.slice(0, 10)},category,BEVERAGES,,value,50000`,
-      `${month.slice(0, 10)},brand,Cola Co,,value,30000`,
-      `${month.slice(0, 10)},sku,SKU-001,,quantity,500`,
-    ];
-    // dim_ref = a friendly id (code/email/name); leave dim_id blank when using dim_ref
-    download('targets-template.csv', [`# ${t('commercial.refHint')}`, HEAD, ...ex].join('\n'));
-  }
-  function parseCsv(text: string): TargetRow[] {
-    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
-    if (lines.length === 0) return [];
-    const header = lines[0].toLowerCase().split(',').map((s) => s.trim());
-    const hasHeader = header.includes('dim_type');
-    const cols = hasHeader ? header : ['period', 'dim_type', 'dim_ref', 'dim_id', 'metric', 'amount'];
-    const at = (parts: string[], name: string) => { const i = cols.indexOf(name); return i >= 0 ? (parts[i] ?? '').trim() : ''; };
-    return lines.slice(hasHeader ? 1 : 0).map((l) => {
-      const p = l.split(',');
-      return {
-        period: at(p, 'period') || month, dim_type: at(p, 'dim_type'), dim_ref: at(p, 'dim_ref') || null,
-        dim_id: at(p, 'dim_id') || null, metric: at(p, 'metric'), amount: Number(at(p, 'amount')) || 0,
-      };
-    });
+  async function exportXlsx() {
+    const XLSX = await import('xlsx');
+    const ws = XLSX.utils.json_to_sheet(initial.map((r) => ({
+      period: r.period_month.slice(0, 10), dim_type: r.dim_type, dim_ref: r.label ?? '', dim_id: r.dim_id ?? '', metric: r.metric, amount: r.target_amount, status: r.status,
+    })));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Targets');
+    XLSX.writeFile(wb, `targets-${month.slice(0, 7)}.xlsx`);
   }
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
-    file.text().then((text) => {
-      const rows = parseCsv(text);
+    file.arrayBuffer().then(async (buf) => {
+      const XLSX = await import('xlsx');
+      const wb = XLSX.read(buf, { type: 'array' });
+      const sheet = wb.Sheets['Targets'] ?? wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { raw: false, defval: '' });
+      const rows: TargetRow[] = json.map((r) => {
+        const get = (k: string) => String(r[k] ?? r[k.toUpperCase()] ?? '').trim();
+        return { period: get('period') || month, dim_type: get('dim_type'), dim_ref: get('dim_ref') || null, dim_id: get('dim_id') || null, metric: get('metric'), amount: Number(get('amount')) || 0 };
+      }).filter((r) => r.dim_type);
       start(async () => {
         const res = await validateTargets(rows);
         if (!res.ok) { toast.error(res.error ?? t('commercial.saveFailed')); return; }
@@ -80,9 +88,11 @@ export function TargetsClient({ month, initial }: { month: string; initial: Targ
     });
     e.target.value = '';
   }
-  function downloadErrors() {
-    const rows = (issues?.issues ?? []).map((i) => [i.row, i.level, i.code, `"${i.message.replace(/"/g, '""')}"`].join(','));
-    download('target-errors.csv', ['row,level,code,message', ...rows].join('\n'));
+  async function downloadErrors() {
+    const XLSX = await import('xlsx');
+    const ws = XLSX.utils.json_to_sheet((issues?.issues ?? []).map((i) => ({ row: i.row, level: i.level, code: i.code, message: i.message })));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Errors');
+    XLSX.writeFile(wb, 'target-errors.xlsx');
   }
   function commitImport() {
     if (!issues) return;
@@ -99,10 +109,10 @@ export function TargetsClient({ month, initial }: { month: string; initial: Targ
     <div className="space-y-3">
       {/* import / export */}
       <div className="flex flex-wrap items-center gap-2">
-        <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={onFile} />
+        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onFile} />
         <Button size="sm" variant="outline" onClick={downloadTemplate}><FileDown className="me-1.5 h-4 w-4" />{t('commercial.template')}</Button>
         <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={pending}><Upload className="me-1.5 h-4 w-4" />{t('commercial.importCsv')}</Button>
-        <Button size="sm" variant="outline" onClick={exportCsv}><Download className="me-1.5 h-4 w-4" />{t('commercial.exportCsv')}</Button>
+        <Button size="sm" variant="outline" onClick={exportXlsx}><Download className="me-1.5 h-4 w-4" />{t('commercial.exportCsv')}</Button>
       </div>
 
       {/* import preview */}
