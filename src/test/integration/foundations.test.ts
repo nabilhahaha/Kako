@@ -51,7 +51,7 @@ describe.skipIf(!hasTestDb)('foundations · workflow engine (company scope)', ()
 
       const submitted = await c.query("select 1 from erp_workflow_events where instance_id=$1 and event='submitted'", [inst]);
       expect(submitted.rowCount).toBe(1);
-      const auditSubmit = await c.query("select 1 from erp_audit_logs where entity='workflow_instance' and entity_id=$1 and workflow_instance_id=$1", [inst]);
+      const auditSubmit = await c.query("select 1 from erp_audit_logs where entity='workflow_instance' and entity_id=$1 and workflow_instance_id=$1::uuid", [inst]);
       expect(auditSubmit.rowCount).toBeGreaterThanOrEqual(1);
 
       await c.query("select erp_workflow_decide($1,'approve',null)", [task.id]);
@@ -59,7 +59,7 @@ describe.skipIf(!hasTestDb)('foundations · workflow engine (company scope)', ()
       expect(after.status).toBe('approved');
       const decided = await c.query("select 1 from erp_workflow_events where instance_id=$1 and event='decided'", [inst]);
       expect(decided.rowCount).toBe(1);
-      const auditApprove = await c.query("select 1 from erp_audit_logs where entity='workflow_task' and action='approve' and workflow_instance_id=$1", [inst]);
+      const auditApprove = await c.query("select 1 from erp_audit_logs where entity='workflow_task' and action='approve' and workflow_instance_id=$1::uuid", [inst]);
       expect(auditApprove.rowCount).toBe(1);
     });
   }, 30_000);
@@ -113,7 +113,9 @@ describe.skipIf(!hasTestDb)('foundations · audit capture (before/after)', () =>
       const cust = (await c.query("insert into erp_customers(company_id, code, name, branch_id) values($1,'C1','Old Name',$2) returning id", [t.company, t.branch])).rows[0].id;
       await actAs(c, t.admin);
       await c.query("update erp_customers set name='New Name' where id=$1", [cust]);
-      const a = (await c.query("select action, change_set, old_value, new_value from erp_audit_logs where entity='customers' and entity_id=$1 order by created_at desc limit 1", [cust])).rows[0];
+      // insert + update share now() within one tx, so select the update row explicitly
+      const a = (await c.query("select action, change_set, old_value, new_value from erp_audit_logs where entity='customers' and entity_id=$1 and action='update' limit 1", [cust])).rows[0];
+      expect(a, 'no update audit row').toBeTruthy();
       expect(a.action).toBe('update');
       expect(a.change_set).toContain('name');
       expect(a.old_value.name).toBe('Old Name');
