@@ -117,4 +117,37 @@ describe.skipIf(!hasTestDb)('FE-5e-1 · alert spine + lifecycle', () => {
       await resetRole(c);
     });
   }, 30_000);
+
+  it('FE-5e-4: note history appends, owner filter narrows, getter is scope-checked', async () => {
+    await withRollback(async (c) => {
+      const company = (await c.query("insert into erp_companies(name) values('FEA4') returning id")).rows[0].id;
+      const branch = (await c.query("insert into erp_branches(company_id, code, name) values($1,'B','Main') returning id", [company])).rows[0].id;
+      const admin = randomUUID(), mgr = randomUUID(), rep = randomUUID(), other = randomUUID();
+      await c.query("insert into auth.users(id,email) values($1,'ad@x'),($2,'mg@x'),($3,'rp@x'),($4,'ot@x')", [admin, mgr, rep, other]);
+      await c.query("insert into erp_user_branches(user_id,branch_id,role,is_default) values($1,$2,'admin',true),($3,$2,'supervisor',true),($4,$2,'supervisor',true)", [admin, branch, mgr, other]);
+      await c.query("insert into erp_user_branches(user_id,branch_id,role,is_default,reports_to) values($1,$2,'rep',true,$3)", [rep, branch, mgr]);
+      await c.query("insert into erp_matrix_role_permissions(company_id, role_key, permission) values($1,'supervisor','field_ops:dashboard')", [company]);
+      const a = await raise(c, company, rep, `rep:${rep}`, { metric: 50 });
+
+      await actAs(c, admin);
+      // lifecycle with notes builds an append-only history
+      await c.query("select erp_fe_alert_assign($1,$2)", [a, mgr]);
+      await c.query("select erp_fe_alert_set_status($1,'in_progress','started review')", [a]);
+      await c.query("select erp_fe_alert_set_status($1,'resolved','re-planned route')", [a]);
+      const got = (await c.query('select erp_fe_alert_get($1) j', [a])).rows[0].j;
+      expect(got.notes.length).toBe(2);                              // two noted transitions
+      expect(got.notes[0].note).toBe('started review');
+      expect(got.notes[1].status).toBe('resolved');
+      expect(got.resolution_note).toBe('re-planned route');
+      // owner filter
+      expect((await c.query('select erp_fe_alerts_list(null,null,null,$1) j', [mgr])).rows[0].j.length).toBe(1);
+      expect((await c.query('select erp_fe_alerts_list(null,null,null,$1) j', [other])).rows[0].j.length).toBe(0);
+      await resetRole(c);
+
+      // getter is scope-checked: another team's supervisor gets null
+      await actAs(c, other);
+      expect((await c.query('select erp_fe_alert_get($1) j', [a])).rows[0].j).toBeNull();
+      await resetRole(c);
+    });
+  }, 30_000);
 });

@@ -108,9 +108,12 @@ export default async function FieldDashboardPage({ searchParams }: { searchParam
     <div className="mx-auto max-w-3xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <PageHeader title={t('field.dashboard.title')} description={t('field.dashboard.today')} />
-        {(ctx.isPlatformOwner || ctx.isSuperAdmin || ctx.topRole === 'admin') && (
-          <Link href="/field/weights" className="text-xs font-medium text-primary hover:underline">{t('field.weights.title')}</Link>
-        )}
+        <div className="flex items-center gap-3">
+          <Link href="/field/alerts" className="text-xs font-medium text-primary hover:underline">{t('field.alerts.title')}</Link>
+          {(ctx.isPlatformOwner || ctx.isSuperAdmin || ctx.topRole === 'admin') && (
+            <Link href="/field/weights" className="text-xs font-medium text-primary hover:underline">{t('field.weights.title')}</Link>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

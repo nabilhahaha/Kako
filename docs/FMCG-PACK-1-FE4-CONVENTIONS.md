@@ -152,3 +152,38 @@ Enforced structurally, server-side:
 **Recommendation:** proceed to a **small online pilot** (1–2 routes, a handful of
 reps) to validate UX/data, in parallel with FE-5; address the photo-upload and
 offline-capture deferrals before a wide rollout.
+
+### FE-5e — Escalations, alerts, digests (implemented)
+
+Management-actionable alert framework. Alerts are a worklist, not a feed.
+
+- **Spine** `erp_fe_alerts` — every alert has owner / status
+  (open→acknowledged→in_progress→resolved/dismissed) / created / due /
+  resolution-note **history** (`notes`) / severity (info|warning|critical) /
+  scope dimensions (region/area/branch/route/rep/customer/sku) / aging
+  (`first_seen_at`/`last_seen_at`/`seen_count`) / `owner_level` +
+  `escalation_level` for multi-tier escalation. `category`/`rule_key` are open
+  text → Commercial pack rules plug in with no schema change.
+- **Idempotent** `erp_fe_alert_raise` — one non-terminal alert per
+  `(rule_key, dedupe_key)` (partial unique index); persisting conditions refresh
+  (cooldown) not duplicate; resolve → recurrence opens a fresh alert.
+- **Detection** `erp_fe_run_alert_rules` (admin/owner, lazy) → five families:
+  coverage (route/rep/area), compliance (geofence excess / repeat), OOS (high
+  customer / repeat SKU / route trend), opportunity (new / high-value /
+  unfollowed), customer risk (missed / declining score / declining coverage).
+  Owner = rep's supervisor (`erp_fe_responsible_manager`, via `reports_to`).
+- **Configurable thresholds** `erp_fe_alert_thresholds` /
+  `erp_fe_threshold(key, company)` — company → global → fallback, no code.
+- **Digests** `erp_fe_digest(kind)` / `erp_fe_digest_run` — scope-aware
+  (built for the calling manager), action-first (open by severity, new since
+  last, overdue, top-risk routes/reps, per-pillar summaries, each with a
+  drill-through href); regional/executive add Top-10 performers.
+- **Reads are scope-aware** (RLS + `erp_fe_alerts_list`/`_summary`/`_get`):
+  managers see only their `erp_fe_team` subtree; lifecycle RPCs are
+  scope-checked. UI: mobile-first inbox `/field/alerts` (status / severity /
+  owner / category filters, quick actions, due+overdue+aging, note history) and
+  digest `/field/alerts/digest`.
+
+> Future: a **Draft/Sandbox/Publish** governance layer should wrap these configs
+> (weights, thresholds, forms, roles, dashboards, workflows) — see
+> `CONFIG-GOVERNANCE-ROADMAP.md`. The scoped resolvers here are the template.
