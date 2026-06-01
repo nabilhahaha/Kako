@@ -1,6 +1,7 @@
 import type { Permission } from './permissions';
 import {
   LayoutDashboard,
+  MapPin,
   Building2,
   Users,
   Package,
@@ -152,6 +153,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'nav.sections.main',
     items: [
       { label: 'nav.items.dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'nav.items.fieldVisits', href: '/field/visits', icon: MapPin, module: 'field_ops' },
       { label: 'nav.items.formsRun', href: '/forms', icon: FileText },
       { label: 'nav.items.requests', href: '/requests', icon: ClipboardCheck, module: 'workflow' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
