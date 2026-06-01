@@ -135,6 +135,7 @@ export const ar = {
     items: {
       overview: 'نظرة عامة',
       companies: 'الشركات والاشتراكات',
+      platformRequests: 'طلبات المنصة',
       billing: 'الفوترة والاشتراكات',
       platformStaff: 'موظفو المنصة',
       drugsList: 'قائمة الأدوية',
@@ -354,6 +355,7 @@ export const en = {
     items: {
       overview: 'Overview',
       companies: 'Companies & Subscriptions',
+      platformRequests: 'Platform Requests',
       billing: 'Billing & Subscriptions',
       platformStaff: 'Platform Staff',
       drugsList: 'Drug List',

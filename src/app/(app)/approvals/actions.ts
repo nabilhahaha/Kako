@@ -29,5 +29,7 @@ export async function decideTask(
     await applyWorkflowOutcome(res.entity, res.record_id, res.status as WorkflowOutcome);
   }
   revalidatePath('/approvals');
+  revalidatePath('/requests');
+  revalidatePath('/platform/requests');
   return { ok: true };
 }

@@ -1,6 +1,8 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { TaskRow } from '../approvals/approvals-manager';
+import { hasPlatformPermission, type PlatformContext } from '@/lib/erp/platform-context';
+import type { PlatformPermission } from '@/lib/erp/platform-permissions';
 
 /** Shared loaders for the Request & Approval Center. The generic workflow engine
  *  (erp_workflow_instances / _tasks / _definitions) is reused as-is; these
@@ -133,4 +135,58 @@ export async function loadRequestHistory(supabase: SupabaseClient, userId: strin
   }
 
   return [...byId.values()].sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
+}
+
+/** Pending PLATFORM-scope tasks the current platform actor can act on (the
+ *  platform inbox). RLS already restricts platform rows to owner/staff; this
+ *  further filters to the steps this actor is authorized for (owner → all;
+ *  staff → platform_staff steps whose required permission they hold). */
+export async function loadPlatformTasks(
+  supabase: SupabaseClient,
+  pctx: PlatformContext,
+): Promise<TaskRow[]> {
+  const { data } = await supabase
+    .from('erp_workflow_tasks')
+    .select('id, step_no, assignee_type, assignee_ref, created_at, due_at, escalated_at, instance:erp_workflow_instances!instance_id(entity, record_id, scope, company_id)')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true });
+
+  type Raw = {
+    id: string; step_no: number; assignee_type: string; assignee_ref: string | null; created_at: string;
+    due_at: string | null; escalated_at: string | null;
+    instance:
+      | { entity: string; record_id: string; scope: string; company_id: string }
+      | { entity: string; record_id: string; scope: string; company_id: string }[]
+      | null;
+  };
+  const raw = (data as Raw[] | null) ?? [];
+  const inst = (r: Raw) => (Array.isArray(r.instance) ? r.instance[0] : r.instance);
+
+  const actionable = raw.filter((r) => {
+    const i = inst(r);
+    if (i?.scope !== 'platform') return false;
+    if (r.assignee_type === 'platform_owner') return pctx.isOwner;
+    if (r.assignee_type === 'platform_staff') return hasPlatformPermission(pctx, (r.assignee_ref ?? '') as PlatformPermission);
+    return false;
+  });
+
+  // Label platform requests by their subject company.
+  const companyIds = actionable.map(inst).map((i) => i?.company_id).filter(Boolean) as string[];
+  const nameById = new Map<string, string>();
+  if (companyIds.length > 0) {
+    const { data: cos } = await supabase.from('erp_companies').select('id, name, name_ar').in('id', companyIds);
+    for (const c of (cos as { id: string; name: string; name_ar: string | null }[]) ?? [])
+      nameById.set(c.id, c.name_ar || c.name);
+  }
+
+  return actionable.map((r) => {
+    const i = inst(r);
+    return {
+      id: r.id, entity: i?.entity ?? '', recordId: i?.record_id ?? '',
+      recordLabel: (i?.company_id ? nameById.get(i.company_id) : '') || (i?.record_id ?? ''),
+      stepNo: r.step_no, createdAt: r.created_at,
+      overdue: r.due_at != null && new Date(r.due_at).getTime() < Date.now(),
+      escalated: r.escalated_at != null,
+    };
+  });
 }
