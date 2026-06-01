@@ -51,8 +51,10 @@ export const ar = {
       title: 'التقاط ميداني', for: 'للعميل', back: 'رجوع', open: 'فتح', noAccess: 'لا تملك صلاحية تنفيذ الالتقاط الميداني.',
       history: 'عمليات الالتقاط الأخيرة', noHistory: 'لا توجد عمليات التقاط بعد', none: 'لا توجد نماذج التقاط متاحة',
       capture: 'التقاط', score: 'الدرجة',
-      kinds: { merchandising: 'العرض والتشغيل', competitor: 'المنافسون', survey: 'استبيانات وقوائم فحص', out_of_stock: 'نفاد المخزون', opportunity: 'الفرص', quick: 'التقاط سريع' },
+      uploading: 'جارٍ رفع الصورة…', uploaded: 'تم رفع الصورة ✓', uploadFailed: 'فشل رفع الصورة',
+      kinds: { merchandising: 'العرض والتشغيل', competitor: 'المنافسون', survey: 'استبيانات وقوائم فحص', out_of_stock: 'نفاد المخزون', opportunity: 'الفرص', quick: 'التقاط سريع', visit: 'زيارة' },
     },
+    evidence: { title: 'الصور والأدلة', none: 'لا توجد صور' },
     route: {
       title: 'خط سيري — اليوم', noPlan: 'لا يوجد خط سير منشور لليوم',
       planned: 'مخطط', visited: 'تمت زيارته', remaining: 'متبقٍ', coverage: 'التغطية',
@@ -122,8 +124,10 @@ export const en = {
       title: 'Field capture', for: 'For', back: 'Back', open: 'Open', noAccess: 'You don’t have permission to perform field capture.',
       history: 'Recent captures', noHistory: 'No captures yet', none: 'No capture forms available',
       capture: 'Capture', score: 'Score',
-      kinds: { merchandising: 'Merchandising', competitor: 'Competitor', survey: 'Surveys & checklists', out_of_stock: 'Out-of-stock', opportunity: 'Opportunities', quick: 'Quick capture' },
+      uploading: 'Uploading photo…', uploaded: 'Photo uploaded ✓', uploadFailed: 'Photo upload failed',
+      kinds: { merchandising: 'Merchandising', competitor: 'Competitor', survey: 'Surveys & checklists', out_of_stock: 'Out-of-stock', opportunity: 'Opportunities', quick: 'Quick capture', visit: 'Visit' },
     },
+    evidence: { title: 'Photos & evidence', none: 'No photos' },
     route: {
       title: 'My Route — Today', noPlan: 'No route published for today',
       planned: 'Planned', visited: 'Visited', remaining: 'Remaining', coverage: 'Coverage',

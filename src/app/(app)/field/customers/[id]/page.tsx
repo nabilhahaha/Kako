@@ -32,19 +32,27 @@ export default async function CustomerFieldProfile({ params }: { params: Promise
   if (!ctx) redirect('/login');
 
   const supabase = await createClient();
-  const [{ data: c360 }, { data: rollup }, { data: timeline }, { data: capRows }, { data: canExec }, { data: scoreRow }] = await Promise.all([
+  const [{ data: c360 }, { data: rollup }, { data: timeline }, { data: capRows }, { data: canExec }, { data: scoreRow }, { data: evRows }] = await Promise.all([
     supabase.rpc('erp_customer_360', { p_customer: id }),
     supabase.rpc('erp_customer_field_360', { p_customer: id }),
     supabase.rpc('erp_fe_customer_visits', { p_customer: id, p_limit: 20 }),
     supabase.from('erp_fe_captures').select('id, kind, score, created_at, erp_form_definitions:form_id(name_ar, name_en)').eq('customer_id', id).order('created_at', { ascending: false }).limit(15),
     supabase.rpc('erp_fe_capture_kinds'),
     supabase.rpc('erp_fe_execution_scores', { p_scope: 'customer', p_id: id }),
+    supabase.rpc('erp_fe_customer_evidence', { p_customer: id, p_limit: 24 }),
   ]);
   if (!c360) notFound();
   const profile = c360 as Customer360;
   const captures = (capRows as CaptureRow[] | null) ?? [];
   const canCapture = ((canExec as string[] | null) ?? []).length > 0;
   const sc = (scoreRow as ExecScores | null) ?? null;
+
+  // Sign evidence paths for display (private bucket).
+  const evidence = (evRows as { id: string; file_path: string; kind: string }[] | null) ?? [];
+  const photos = (await Promise.all(evidence.map(async (e) => {
+    const { data } = await supabase.storage.from('field-evidence').createSignedUrl(e.file_path, 3600);
+    return data?.signedUrl ? { id: e.id, kind: e.kind, url: data.signedUrl } : null;
+  }))).filter((x): x is { id: string; kind: string; url: string } => !!x);
   const r = (rollup as FieldRollup | null) ?? { last_visit_at: null, visits_30d: 0, last_geofence_status: null, last_merch_at: null, last_competitor_price: null, frequency: null, next_due: null, adherence_pct: null, planned_30d: 0, fulfilled_30d: 0 };
   const visits = (timeline as VisitRow[] | null) ?? [];
   const name = profile.master.name || profile.master.name_en || profile.master.code;
@@ -115,6 +123,22 @@ export default async function CustomerFieldProfile({ params }: { params: Promise
                   {cap.score != null && <Badge variant="outline">{t('field.capture.score')}: {cap.score}</Badge>}
                 </span>
               </CardContent></Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* evidence photos (FE-5a) */}
+      {photos.length > 0 && (
+        <div className="mb-4">
+          <h3 className="mb-2 font-semibold">{t('field.evidence.title')}</h3>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {photos.map((p) => (
+              <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="relative block aspect-square overflow-hidden rounded-md border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt={p.kind} className="h-full w-full object-cover" />
+                <span className="absolute inset-x-0 bottom-0 bg-black/50 px-1 py-0.5 text-[10px] text-white">{t(`field.capture.kinds.${p.kind}`) || p.kind}</span>
+              </a>
             ))}
           </div>
         </div>

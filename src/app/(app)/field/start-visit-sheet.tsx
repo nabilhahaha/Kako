@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n/provider';
 import { haversineMeters, geofenceStatus, needsExceptionPhoto, type GeofenceStatus } from '@/lib/erp/geo';
+import { useEvidenceUploader } from '@/components/field/evidence-context';
 
 export interface FeSettings { radiusM: number; mode: 'advisory' | 'blocking'; photoThresholdM: number }
 export interface SheetCustomer { id: string; name: string; lat: number | null; lng: number | null }
@@ -30,6 +31,7 @@ export function StartVisitSheet({ customer, settings, online, busy, onClose, onS
   onClose: () => void; onSubmit: (p: StartPayload) => void | Promise<void>;
 }) {
   const { t } = useI18n();
+  const upload = useEvidenceUploader();
   const [gps, setGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsBusy, setGpsBusy] = useState(false);
   const [reason, setReason] = useState('');
@@ -50,10 +52,17 @@ export function StartVisitSheet({ customer, settings, online, busy, onClose, onS
   }
   async function confirm() {
     if (!gps) return;
+    // Upload the exception photo (if any) to the evidence bucket; fall back to a
+    // local marker (the blob stays queued) when offline / no uploader.
+    let photoMarker: string | null = null;
+    if (photo) {
+      if (upload) { try { photoMarker = await upload(photo as File, 'fe_visit'); } catch { photoMarker = `local:${Date.now()}`; } }
+      else photoMarker = `local:${Date.now()}`;
+    }
     await onSubmit({
       lat: gps.lat, lng: gps.lng, accuracy: gps.accuracy,
       reason: gstatus === 'violation' ? reason.trim() : null,
-      photoMarker: photo ? `local:${Date.now()}` : null, photoBlob: photo,
+      photoMarker, photoBlob: photo,
       geoStatus: gstatus, distanceM: distance,
     });
     reset();

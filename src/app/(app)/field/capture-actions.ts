@@ -60,8 +60,19 @@ export async function submitFieldCapture(input: {
     .insert({ company_id: companyId, visit_id: input.visitId ?? null, customer_id: input.customerId, form_id: input.formId, submission_id: submissionId, kind, score: captureScore(input.values, input.scoreField), created_by: ctx.userId })
     .select('id').single();
   if (capErr) return { ok: false, error: friendlyDbError(capErr) };
+  const captureId = (capRow as { id: string }).id;
+
+  // link uploaded photos (image/attachment fields whose value is a storage path)
+  // as evidence on the capture (Customer 360 photo visibility).
+  for (const f of ruleFields) {
+    if (f.type !== 'image' && f.type !== 'attachment') continue;
+    const v = input.values[f.key];
+    if (typeof v === 'string' && v && !v.startsWith('local:') && v.includes('/')) {
+      await supabase.from('erp_entity_attachments').insert({ entity: 'fe_capture', record_id: captureId, file_name: f.key, file_path: v, mime_type: 'image/jpeg' });
+    }
+  }
 
   revalidatePath('/field/route');
   revalidatePath(`/field/customers/${input.customerId}`);
-  return { ok: true, data: { captureId: (capRow as { id: string }).id, submissionId } };
+  return { ok: true, data: { captureId, submissionId } };
 }

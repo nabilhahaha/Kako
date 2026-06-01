@@ -28,7 +28,8 @@ export default async function CaptureFillPage({ params, searchParams }: { params
   const { t, locale } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
-  if (!ctx.modules.includes('field_ops') || !customer) notFound();
+  const companyId = ctx.company?.id;
+  if (!companyId || !ctx.modules.includes('field_ops') || !customer) notFound();
 
   const supabase = await createClient();
   const { data: form } = await supabase.from('erp_form_definitions').select('id, key, name_ar, name_en, status, module').eq('id', formId).maybeSingle();
@@ -58,7 +59,7 @@ export default async function CaptureFillPage({ params, searchParams }: { params
       <BackLink href={`/field/capture?customer=${customer}${visit ? `&visit=${visit}` : ''}`} label={t('field.capture.back')} />
       <PageHeader title={title} />
       <Card><CardContent className="pt-6">
-        <CaptureFill formId={formId} fields={fields} customerId={customer} visitId={visit ?? null} kind={kind} />
+        <CaptureFill formId={formId} fields={fields} customerId={customer} visitId={visit ?? null} kind={kind} companyId={companyId} />
       </CardContent></Card>
     </div>
   );

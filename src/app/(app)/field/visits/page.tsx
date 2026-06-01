@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { VisitsClient, type ServerVisit, type PickCustomer, type FeSettings } from './visits-client';
+import { EvidenceProvider } from '@/components/field/evidence-context';
 
 /** My Visits — Today (FE-2d). Rep-facing, mobile-first. Loads the rep's visits
  *  for today, the customer picker list and the company geofence settings; the
@@ -66,7 +67,9 @@ export default async function FieldVisitsPage() {
 
   return (
     <div className="mx-auto max-w-md">
-      <VisitsClient visits={visits} customers={customers} settings={settings} />
+      <EvidenceProvider companyId={companyId}>
+        <VisitsClient visits={visits} customers={customers} settings={settings} />
+      </EvidenceProvider>
     </div>
   );
 }

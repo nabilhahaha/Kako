@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { RouteClient, type RouteStop } from './route-client';
 import type { FeSettings } from '../start-visit-sheet';
+import { EvidenceProvider } from '@/components/field/evidence-context';
 
 /** Rep "My Route Today" (FE-3c): today's published plan stops with status,
  *  distance and one-tap Start. */
@@ -52,7 +53,9 @@ export default async function MyRoutePage() {
 
   return (
     <div className="mx-auto max-w-md">
-      <RouteClient stops={stops} settings={settings} routeId={null} offPlanCount={offPlan ?? 0} />
+      <EvidenceProvider companyId={companyId}>
+        <RouteClient stops={stops} settings={settings} routeId={null} offPlanCount={offPlan ?? 0} />
+      </EvidenceProvider>
     </div>
   );
 }

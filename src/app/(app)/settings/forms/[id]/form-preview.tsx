@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { Loader2, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n/provider';
+import { useEvidenceUploader } from '@/components/field/evidence-context';
 import { computeVisibility, validateSubmission, isRequired, type Condition, type Validation, type RuleField } from '@/lib/erp/form-rules';
 import type { FieldType } from '@/lib/erp/form-builder';
 
@@ -82,7 +85,7 @@ export function FieldInput({ f, value, onChange }: { f: PreviewField; value: unk
       );
     }
     case 'attachment': case 'image':
-      return <Input type="file" onChange={(e) => onChange(e.target.files?.[0]?.name ?? '')} />;
+      return <FileField value={value} accept={f.type === 'image' ? 'image/*' : undefined} onChange={onChange} />;
     case 'gps': {
       const [lat = '', lng = ''] = sval.split(',');
       const upd = (la: string, ln: string) => onChange(la || ln ? `${la},${ln}` : '');
@@ -99,4 +102,28 @@ export function FieldInput({ f, value, onChange }: { f: PreviewField; value: unk
         : <Button type="button" variant="outline" size="sm" onClick={() => onChange('signed')}>{t('forms.preview.sign')}</Button>;
     default: return <Input disabled />;
   }
+}
+
+/** File/photo input: uploads to the evidence bucket (storing the path) when an
+ *  uploader is in context; otherwise stores the file name. */
+function FileField({ value, accept, onChange }: { value: unknown; accept?: string; onChange: (v: unknown) => void }) {
+  const { t } = useI18n();
+  const upload = useEvidenceUploader();
+  const [busy, setBusy] = useState(false);
+  const uploaded = typeof value === 'string' && value !== '' && !value.startsWith('local:');
+  return (
+    <div className="space-y-1">
+      <Input type="file" accept={accept} capture={accept ? 'environment' : undefined} disabled={busy} onChange={async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!upload) { onChange(file.name); return; }
+        setBusy(true);
+        try { onChange(await upload(file)); }
+        catch { toast.error(t('field.capture.uploadFailed')); onChange(''); }
+        finally { setBusy(false); }
+      }} />
+      {busy && <p className="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> {t('field.capture.uploading')}</p>}
+      {!busy && uploaded && <p className="flex items-center gap-1 text-xs text-emerald-600"><CheckCircle2 className="h-3 w-3" /> {t('field.capture.uploaded')}</p>}
+    </div>
+  );
 }
