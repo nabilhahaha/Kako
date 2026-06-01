@@ -11,10 +11,17 @@ import { computeVisibility, validateSubmission, isRequired, type RuleField } fro
 import { FieldInput, type PreviewField } from '@/app/(app)/settings/forms/[id]/form-preview';
 import { submitForm } from './actions';
 
+export interface FormSubmitResult { ok: boolean; error?: string; status?: 'pending' | 'approved' }
+
 /** Runtime form renderer (B5): fills, applies live visibility/required/validation
  *  via the shared rules engine, and submits — starting the bound approval
- *  workflow or auto-approving + applying the effect. */
-export function FormFill({ formId, fields, recordId }: { formId: string; fields: PreviewField[]; recordId?: string }) {
+ *  workflow or auto-approving + applying the effect. An optional `submit`
+ *  overrides the default (used by FE-4 field captures). */
+export function FormFill({ formId, fields, recordId, submit: submitOverride, doneLabel }: {
+  formId: string; fields: PreviewField[]; recordId?: string;
+  submit?: (values: Record<string, unknown>, recordId?: string) => Promise<FormSubmitResult>;
+  doneLabel?: string;
+}) {
   const { t, locale } = useI18n();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -35,10 +42,10 @@ export function FormFill({ formId, fields, recordId }: { formId: string; fields:
     setTouched(true);
     if (Object.keys(errors).length > 0) { toast.error(t('formsRun.fixErrors')); return; }
     start(async () => {
-      const res = await submitForm({ formId, values, recordId });
+      const res = submitOverride ? await submitOverride(values, recordId) : await (async () => { const r = await submitForm({ formId, values, recordId }); return { ok: r.ok, error: r.error, status: r.data?.status } as FormSubmitResult; })();
       if (!res.ok) { toast.error(res.error ?? t('formsRun.errors.failed')); return; }
-      setDone(res.data?.status ?? 'approved');
-      toast.success(res.data?.status === 'pending' ? t('formsRun.sentForApproval') : t('formsRun.submitted'));
+      setDone(res.status ?? 'approved');
+      toast.success(res.status === 'pending' ? t('formsRun.sentForApproval') : (doneLabel ?? t('formsRun.submitted')));
       router.refresh();
     });
   }

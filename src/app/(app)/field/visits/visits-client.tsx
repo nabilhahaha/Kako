@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { MapPin, Loader2, CheckCircle2, X, Clock, AlertTriangle, Plus } from 'lucide-react';
+import { MapPin, Loader2, CheckCircle2, X, Clock, AlertTriangle, Plus, ClipboardList } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,7 @@ export interface ServerVisit {
 export interface PickCustomer { id: string; name: string; code: string | null; lat: number | null; lng: number | null }
 
 interface LocalVisit { clientRef: string; customerId: string; customerName: string; status: 'in_progress' | 'completed'; checkinAt: string; geofenceStatus: GeofenceStatus; distanceM: number | null; durationMin: number | null }
-interface Row { key: string; clientRef: string | null; customerId: string; customerName: string; status: string; checkinAt: string | null; geofenceStatus: string | null; distanceM: number | null; durationMin: number | null; pending: boolean }
+interface Row { key: string; clientRef: string | null; visitId: string | null; customerId: string; customerName: string; status: string; checkinAt: string | null; geofenceStatus: string | null; distanceM: number | null; durationMin: number | null; pending: boolean }
 
 function minutesSince(iso: string): number { return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000)); }
 function getPos(): Promise<{ lat: number; lng: number }> {
@@ -48,10 +48,10 @@ export function VisitsClient({ visits, customers, settings }: { visits: ServerVi
     const map = new Map<string, Row>();
     for (const v of visits) {
       const key = v.clientRef ?? v.id;
-      map.set(key, { key, clientRef: v.clientRef, customerId: v.customerId, customerName: v.customerName, status: v.status, checkinAt: v.checkinAt, geofenceStatus: v.geofenceStatus, distanceM: v.distanceM, durationMin: v.durationMin, pending: false });
+      map.set(key, { key, clientRef: v.clientRef, visitId: v.id, customerId: v.customerId, customerName: v.customerName, status: v.status, checkinAt: v.checkinAt, geofenceStatus: v.geofenceStatus, distanceM: v.distanceM, durationMin: v.durationMin, pending: false });
     }
     for (const [ref, lv] of Object.entries(local)) {
-      map.set(ref, { key: ref, clientRef: ref, customerId: lv.customerId, customerName: lv.customerName, status: lv.status, checkinAt: lv.checkinAt, geofenceStatus: lv.geofenceStatus, distanceM: lv.distanceM, durationMin: lv.durationMin, pending: true });
+      map.set(ref, { key: ref, clientRef: ref, visitId: null, customerId: lv.customerId, customerName: lv.customerName, status: lv.status, checkinAt: lv.checkinAt, geofenceStatus: lv.geofenceStatus, distanceM: lv.distanceM, durationMin: lv.durationMin, pending: true });
     }
     const order = (s: string) => (s === 'in_progress' ? 0 : 1);
     return [...map.values()].sort((a, b) => order(a.status) - order(b.status) || (b.checkinAt ?? '').localeCompare(a.checkinAt ?? ''));
@@ -112,9 +112,14 @@ export function VisitsClient({ visits, customers, settings }: { visits: ServerVi
               </div>
             </div>
             {r.status === 'in_progress' && (
-              <Button size="sm" className="h-11 shrink-0 px-4" disabled={endingRef === r.clientRef} onClick={() => endVisit(r)}>
-                {endingRef === r.clientRef ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t('field.visits.endVisit')}
-              </Button>
+              <div className="flex shrink-0 items-center gap-2">
+                <Link href={`/field/capture?customer=${r.customerId}${r.visitId ? `&visit=${r.visitId}` : ''}`}>
+                  <Button size="sm" variant="outline" className="h-11 px-3"><ClipboardList className="h-4 w-4" /></Button>
+                </Link>
+                <Button size="sm" className="h-11 px-4" disabled={endingRef === r.clientRef} onClick={() => endVisit(r)}>
+                  {endingRef === r.clientRef ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t('field.visits.endVisit')}
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>

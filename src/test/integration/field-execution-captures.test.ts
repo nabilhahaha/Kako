@@ -29,27 +29,71 @@ describe.skipIf(!hasTestDb)('FE-4a · seeded capture templates', () => {
   }, 30_000);
 });
 
-describe.skipIf(!hasTestDb)('FE-4a · captures table + RLS', () => {
-  it('a rep records own captures; teammates need field_ops:view', async () => {
+describe.skipIf(!hasTestDb)('FE-4b · capture access is per-type (Permission Matrix)', () => {
+  it('a user granted only fe_competitor:execute sees/does competitor captures only', async () => {
+    await withRollback(async (c) => {
+      const company = (await c.query("insert into erp_companies(name) values('FEPT') returning id")).rows[0].id;
+      const branch = (await c.query("insert into erp_branches(company_id, code, name) values($1,'B','Main') returning id", [company])).rows[0].id;
+      const user = randomUUID();
+      await c.query("insert into auth.users(id,email) values($1,$2)", [user, 'p@fept.local']);
+      await c.query("insert into erp_user_branches(user_id,branch_id,role,is_default) values($1,$2,'promoter',true)", [user, branch]);
+      // company grants ONLY competitor capture to 'promoter'
+      await c.query("insert into erp_matrix_role_permissions(company_id, role_key, permission) values($1,'promoter','fe_competitor:execute')", [company]);
+
+      const cust = (await c.query("insert into erp_customers(company_id, code, name) values($1,'C1','Store') returning id", [company])).rows[0].id;
+      const cForm = (await c.query("select id from erp_form_definitions where key='fe_competitor_capture' and company_id is null")).rows[0].id;
+      const cSub = (await c.query("insert into erp_form_submissions(company_id, form_id, record_id, submitter, status) values($1,$2,$3,$4,'approved') returning id", [company, cForm, cust, user])).rows[0].id;
+
+      await actAs(c, user);
+      expect((await c.query("select erp_fe_capture_kinds() k")).rows[0].k).toEqual(['competitor']);
+      expect((await c.query("select erp_fe_can_capture('competitor') h")).rows[0].h).toBe(true);
+      expect((await c.query("select erp_fe_can_capture('merchandising') h")).rows[0].h).toBe(false);
+
+      // competitor capture allowed
+      const cap = (await c.query("insert into erp_fe_captures(company_id, customer_id, form_id, submission_id, kind, created_by) values($1,$2,$3,$4,'competitor',$5) returning id", [company, cust, cForm, cSub, user])).rows[0].id;
+      expect(cap).toBeTruthy();
+      // merchandising capture denied
+      await c.query('savepoint sp');
+      const denied = await c.query("insert into erp_fe_captures(company_id, customer_id, form_id, submission_id, kind, created_by) values($1,$2,$3,$4,'merchandising',$5)", [company, cust, cForm, cSub, user]).then(() => 'ok').catch(() => 'denied');
+      expect(denied).toBe('denied');
+      await c.query('rollback to savepoint sp');
+      await resetRole(c);
+    });
+  }, 30_000);
+});
+
+describe.skipIf(!hasTestDb)('FE-4a/b · captures are permission-driven (field_ops:execute), not role-driven', () => {
+  it('grants capture by permission; a user without it is denied regardless of role', async () => {
     await withRollback(async (c) => {
       const company = (await c.query("insert into erp_companies(name) values('FECAP') returning id")).rows[0].id;
       const branch = (await c.query("insert into erp_branches(company_id, code, name) values($1,'B','Main') returning id", [company])).rows[0].id;
       const rep = randomUUID(), other = randomUUID();
       await c.query("insert into auth.users(id,email) values($1,$2),($3,$4)", [rep, 'r@fecap.local', other, 'o@fecap.local']);
-      await c.query("insert into erp_user_branches(user_id,branch_id,role,is_default) values($1,$2,'rep',true)", [rep, branch]);
-      await c.query("insert into erp_user_branches(user_id,branch_id,role,is_default) values($1,$2,'cashier',true)", [other, branch]);
+      // two arbitrary role titles; access is decided by the matrix grant, not the title
+      await c.query("insert into erp_user_branches(user_id,branch_id,role,is_default) values($1,$2,'merchandiser',true)", [rep, branch]);
+      await c.query("insert into erp_user_branches(user_id,branch_id,role,is_default) values($1,$2,'auditor',true)", [other, branch]);
+      // company grants field_ops:execute to 'merchandiser' only (Permission Matrix)
+      await c.query("insert into erp_matrix_role_permissions(company_id, role_key, permission) values($1,'merchandiser','field_ops:execute')", [company]);
+
       const cust = (await c.query("insert into erp_customers(company_id, code, name) values($1,'C1','Store') returning id", [company])).rows[0].id;
       const form = (await c.query("select id from erp_form_definitions where key='fe_merchandising_audit' and company_id is null")).rows[0].id;
       const sub = (await c.query("insert into erp_form_submissions(company_id, form_id, record_id, submitter, status) values($1,$2,$3,$4,'approved') returning id", [company, form, cust, rep])).rows[0].id;
 
-      // rep inserts their own capture
+      // merchandiser (granted) can record a capture
       await actAs(c, rep);
+      expect((await c.query("select erp_matrix_has('field_ops','execute') h")).rows[0].h).toBe(true);
       const cap = (await c.query("insert into erp_fe_captures(company_id, customer_id, form_id, submission_id, kind, score, created_by) values($1,$2,$3,$4,'merchandising',8,$5) returning id", [company, cust, form, sub, rep])).rows[0].id;
       expect((await c.query("select count(*)::int n from erp_fe_captures where id=$1", [cap])).rows[0].n).toBe(1);
       await resetRole(c);
 
-      // a cashier (no field_ops:view) cannot see another rep's capture
+      // auditor (NOT granted) is denied writing a capture — purely permission-driven
       await actAs(c, other);
+      expect((await c.query("select erp_matrix_has('field_ops','execute') h")).rows[0].h).toBe(false);
+      await c.query('savepoint sp');
+      const denied = await c.query("insert into erp_fe_captures(company_id, customer_id, form_id, submission_id, kind, created_by) values($1,$2,$3,$4,'merchandising',$5)", [company, cust, form, sub, other]).then(() => 'ok').catch(() => 'denied');
+      expect(denied).toBe('denied');
+      await c.query('rollback to savepoint sp');
+      // and cannot see the merchandiser's capture (no field_ops:view)
       expect((await c.query("select count(*)::int n from erp_fe_captures where id=$1", [cap])).rows[0].n).toBe(0);
       await resetRole(c);
     });

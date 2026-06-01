@@ -30,6 +30,12 @@ export async function submitFieldCapture(input: {
   if (!form) return { ok: false, error: t('formsRun.errors.notFound') };
   if (form.status !== 'active') return { ok: false, error: t('formsRun.errors.notActive') };
 
+  // Per-type, permission-driven (not role-driven): the capture's kind must be
+  // permitted for this user via the Permission Matrix. Checked before any write.
+  const kind = input.kind && (CAPTURE_KINDS as readonly string[]).includes(input.kind) ? input.kind : captureKindFor(form.key);
+  const { data: canCap } = await supabase.rpc('erp_fe_can_capture', { p_kind: kind });
+  if (canCap !== true) return { ok: false, error: t('field.capture.noAccess') };
+
   // server-side validation (authoritative)
   const { data: fieldRows } = await supabase.from('erp_form_fields').select('key, type, required, options, visibility, validation').eq('form_id', input.formId);
   const ruleFields: RuleField[] = ((fieldRows as FieldRow[]) ?? []).map((f) => ({
@@ -49,7 +55,6 @@ export async function submitFieldCapture(input: {
   // run the form effect (emit_fact → raw fact); never fatal
   await applyFormEffect(supabase, submissionId);
 
-  const kind = input.kind && (CAPTURE_KINDS as readonly string[]).includes(input.kind) ? input.kind : captureKindFor(form.key);
   const { data: capRow, error: capErr } = await supabase
     .from('erp_fe_captures')
     .insert({ company_id: companyId, visit_id: input.visitId ?? null, customer_id: input.customerId, form_id: input.formId, submission_id: submissionId, kind, score: captureScore(input.values, input.scoreField), created_by: ctx.userId })
