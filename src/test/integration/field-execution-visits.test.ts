@@ -98,6 +98,31 @@ describe.skipIf(!hasTestDb)('FE-2a · in-geofence visit lifecycle', () => {
   }, 30_000);
 });
 
+describe.skipIf(!hasTestDb)('FE-2b · replay consistency (no duplicate facts/audit on retry)', () => {
+  it('re-syncing start+end leaves exactly one visit, one check-in fact, one completion fact', async () => {
+    await withRollback(async (c) => {
+      const t = await seed(c, 'RPL');
+      const cust = await customerAt(c, t.company, 30.0, 31.0);
+      const ref = randomUUID();
+      await actAs(c, t.rep);
+      // first sync
+      await c.query("select erp_fe_visit_start($1,$2,30,31,5,$3::timestamptz) as r", [ref, cust, CAPTURED]);
+      await c.query("select erp_fe_visit_end($1,30,31,'2026-06-01T08:20:00Z') as r", [ref]);
+      // reconnect/retry: the SAME actions replay
+      const s2 = (await c.query("select erp_fe_visit_start($1,$2,30,31,5,$3::timestamptz) as r", [ref, cust, CAPTURED])).rows[0].r;
+      const e2 = (await c.query("select erp_fe_visit_end($1,30,31,'2026-06-01T08:20:00Z') as r", [ref])).rows[0].r;
+      expect(s2.idempotent).toBe(true);
+      expect(e2.idempotent).toBe(true);
+      await resetRole(c);
+
+      expect((await c.query("select count(*)::int n from erp_fe_visits where client_ref=$1", [ref])).rows[0].n).toBe(1);
+      expect((await c.query("select count(*)::int n from erp_raw_facts where module='field_ops' and event_type='fe_visit_checkin' and customer_id=$1", [cust])).rows[0].n).toBe(1);
+      expect((await c.query("select count(*)::int n from erp_raw_facts where module='field_ops' and event_type='fe_visit_completed' and customer_id=$1", [cust])).rows[0].n).toBe(1);
+      expect((await c.query("select count(*)::int n from erp_audit_logs where entity='fe_visit' and action='checkin' and entity_id=$1", [s2.id])).rows[0].n).toBe(1);
+    });
+  }, 30_000);
+});
+
 describe.skipIf(!hasTestDb)('FE-2a · out-of-geofence (advisory) handling', () => {
   it('records distance, requires a reason, and alerts the manager', async () => {
     await withRollback(async (c) => {
