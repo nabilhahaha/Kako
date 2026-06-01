@@ -60,6 +60,7 @@ export const ar = {
     perf: {
       title: 'الأداء', back: 'العودة للوحة', noAccess: 'لا تملك صلاحية الوصول.', breakdown: 'التفصيل', noData: 'لا توجد بيانات',
       levels: { company: 'الشركة', region: 'الإقليم', area: 'المنطقة', branch: 'الفرع', route: 'خط السير', rep: 'المندوب', customer: 'العميل' },
+      allChannels: 'كل القنوات',
     },
     route: {
       title: 'خط سيري — اليوم', noPlan: 'لا يوجد خط سير منشور لليوم',
@@ -139,6 +140,7 @@ export const en = {
     perf: {
       title: 'Performance', back: 'Back to dashboard', noAccess: 'You don’t have access.', breakdown: 'Breakdown', noData: 'No data',
       levels: { company: 'Company', region: 'Region', area: 'Area', branch: 'Branch', route: 'Route', rep: 'Rep', customer: 'Customer' },
+      allChannels: 'All channels',
     },
     route: {
       title: 'My Route — Today', noPlan: 'No route published for today',

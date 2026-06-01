@@ -74,6 +74,31 @@ excluded from `overall` (no unfair penalty).
 into role-based dashboards + configurable weighting + trends — **no new capture or
 visit code required**.
 
+## 4b. Core rule — Scope-then-Filter (security architecture)
+
+> **Effective Result = User Allowed Scope AND Selected Filters.**
+> A filter can only *narrow*, never *widen*, what a user may see.
+
+Enforced structurally, server-side:
+- **Scope is always-on.** Every field-ops read function applies the caller's
+  hierarchy scope first — `erp_fe_sees_all()` (admin/owner ⇒ all) or
+  `erp_fe_team()` (the caller's `reports_to` subtree). Non-admins are filtered to
+  their team's rep dimension regardless of parameters.
+- **Filters are ANDed after scope** at a single choke point. The perf engine's
+  `erp_fe_perf_caps/_stops` apply `scope AND <filters> AND <drill level>`; the
+  dashboard/trend/score functions do the same. So a supervisor filtering
+  `Channel=Discounter` sees only *their* Discounter customers, never the
+  company's. Filter *option lists* are scope-aware too (`erp_fe_scope_channels`).
+- **Extending dimensions:** add new filters (category / sub-category / SKU /
+  brand / customer classification / channel / customer / route / rep / date) — and
+  the Commercial pack's Actual Sales / Targets / Achievement % / Growth /
+  Commission — at the SAME scoped base layer (after the scope predicate), so they
+  inherit the rule automatically. Never filter before scoping; never let a filter
+  reach rows outside `erp_fe_team()`.
+- **Proven by tests:** team isolation (own scope only; another team's
+  rep/customer id ⇒ empty; admin ⇒ all) and Scope∧Filter (channel filter stays
+  within the supervisor's scope; admin spans the company).
+
 ## 5. Pilot deployment readiness assessment
 
 **Ready for a controlled field pilot (online-first):**

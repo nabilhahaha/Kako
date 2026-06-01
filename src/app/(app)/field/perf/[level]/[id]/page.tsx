@@ -19,9 +19,10 @@ const ALL_LEVELS = ['region', 'area', 'branch', 'route', 'rep', 'customer'];
 /** Generic, configurable drill node (FE-5d-3): coverage / compliance / execution
  *  + component breakdown + trends, and a list of children at the company's next
  *  configured hierarchy level. Works for company/region/area/branch/route/rep/customer. */
-export default async function PerfPage({ params, searchParams }: { params: Promise<{ level: string; id: string }>; searchParams: Promise<{ view?: string }> }) {
+export default async function PerfPage({ params, searchParams }: { params: Promise<{ level: string; id: string }>; searchParams: Promise<{ view?: string; channel?: string }> }) {
   const { level, id } = await params;
-  const { view: viewParam } = await searchParams;
+  const { view: viewParam, channel: channelParam } = await searchParams;
+  const channel = channelParam || null;
   const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
@@ -38,7 +39,11 @@ export default async function PerfPage({ params, searchParams }: { params: Promi
   const nodeId = level === 'company' ? null : id;
 
   const supabase = await createClient();
-  const { data: perfData } = await supabase.rpc('erp_fe_perf', { p_level: level, p_id: nodeId, p_from: iso(from), p_to: iso(today), p_bucket: bucket });
+  const [{ data: perfData }, { data: chOpts }] = await Promise.all([
+    supabase.rpc('erp_fe_perf', { p_level: level, p_id: nodeId, p_from: iso(from), p_to: iso(today), p_bucket: bucket, p_channel: channel }),
+    supabase.rpc('erp_fe_scope_channels'),
+  ]);
+  const channels = (chOpts as string[] | null) ?? [];
   if (!perfData) {
     return <div><PageHeader title={t('field.perf.title')} /><Card><CardContent className="p-8 text-center text-muted-foreground">{t('field.perf.noAccess')}</CardContent></Card></div>;
   }
@@ -54,7 +59,7 @@ export default async function PerfPage({ params, searchParams }: { params: Promi
 
   let children: Child[] = [];
   if (childLevel) {
-    const { data: ch } = await supabase.rpc('erp_fe_perf_children', { p_level: level, p_id: nodeId, p_child_level: childLevel, p_from: iso(from), p_to: iso(today) });
+    const { data: ch } = await supabase.rpc('erp_fe_perf_children', { p_level: level, p_id: nodeId, p_child_level: childLevel, p_from: iso(from), p_to: iso(today), p_channel: channel });
     children = (ch as Child[] | null) ?? [];
   }
 
@@ -68,7 +73,7 @@ export default async function PerfPage({ params, searchParams }: { params: Promi
       <BackLink href="/field/dashboard" label={t('field.perf.back')} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <PageHeader title={title} description={t(`field.perf.levels.${level}`)} />
-        <PerfViewFilter view={view} />
+        <PerfViewFilter view={view} channel={channel} channels={channels} />
       </div>
 
       {/* metrics */}
@@ -109,7 +114,7 @@ export default async function PerfPage({ params, searchParams }: { params: Promi
           <h3 className="mb-2 font-semibold">{t('field.perf.breakdown')} · {t(`field.perf.levels.${childLevel}`)}</h3>
           {children.length === 0 ? <Card><CardContent className="p-4 text-center text-sm text-muted-foreground">{t('field.perf.noData')}</CardContent></Card>
             : <div className="space-y-2">{children.map((ch) => (
-                <Link key={ch.id} href={`/field/perf/${childLevel}/${encodeURIComponent(ch.id)}?view=${view}`}>
+                <Link key={ch.id} href={`/field/perf/${childLevel}/${encodeURIComponent(ch.id)}?view=${view}${channel ? `&channel=${encodeURIComponent(channel)}` : ''}`}>
                   <Card className="transition-colors hover:border-primary"><CardContent className="flex items-center justify-between gap-3 p-3 text-sm">
                     <span className="min-w-0 truncate font-medium">{ch.name}</span>
                     <span className="flex shrink-0 items-center gap-2">
