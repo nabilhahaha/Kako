@@ -32,6 +32,8 @@ export const ar = {
       coveragePct: 'التغطية', compliancePct: 'الالتزام', planned: 'مخطط', visited: 'تمت زيارته', offPlan: 'خارج الخطة',
       byRoute: 'التغطية حسب خط السير', byRep: 'التغطية حسب المندوب',
       missedCustomers: 'عملاء فائتون', dueSoon: 'مستحقون قريبًا', nextDue: 'الاستحقاق التالي', none: 'لا يوجد',
+      execTitle: 'درجة التنفيذ (30 يومًا)', execByRoute: 'التنفيذ حسب خط السير', execByRep: 'التنفيذ حسب المندوب',
+      merch: 'العرض', survey: 'الاستبيان', oos: 'المخزون', opp: 'الفرص',
     },
     profile: {
       title: 'ملف العميل الميداني', back: 'رجوع', rollup: 'ملخص الزيارات',
@@ -101,6 +103,8 @@ export const en = {
       coveragePct: 'Coverage', compliancePct: 'Compliance', planned: 'Planned', visited: 'Visited', offPlan: 'Off-plan',
       byRoute: 'Coverage by route', byRep: 'Coverage by rep',
       missedCustomers: 'Missed customers', dueSoon: 'Due soon', nextDue: 'Next due', none: 'None',
+      execTitle: 'Execution score (30d)', execByRoute: 'Execution by route', execByRep: 'Execution by rep',
+      merch: 'Merch', survey: 'Survey', oos: 'OOS', opp: 'Opp',
     },
     profile: {
       title: 'Customer field profile', back: 'Back', rollup: 'Visit rollup',

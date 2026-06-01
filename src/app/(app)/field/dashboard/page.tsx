@@ -16,6 +16,8 @@ interface Summary {
 interface CovTotals { planned: number; visited: number; missed: number; off_plan: number; coverage_pct: number; compliance_pct: number }
 interface CovResult { totals: CovTotals; groups: { key: string; planned: number; visited: number; missed: number; off_plan: number; coverage_pct: number; compliance_pct: number }[] }
 interface CovLists { missed: { customer: string; customer_id: string; route: string | null; plan_date: string }[]; due_soon: { customer: string; customer_id: string; next_due: string; frequency: string }[] }
+interface ExecScore { merch_compliance: number | null; survey_score: number | null; oos_score: number | null; opportunity_score: number | null; overall: number | null; captures: number }
+interface ExecGroup extends ExecScore { id: string | null; name: string }
 function iso(d: Date): string { return d.toISOString().slice(0, 10); }
 
 /** Manager Field dashboard (FE-2e): today KPIs, prioritized geofence alerts and
@@ -44,14 +46,19 @@ export default async function FieldDashboardPage() {
   const today = new Date();
   const d7 = new Date(today); d7.setDate(d7.getDate() - 6);
   const d30 = new Date(today); d30.setDate(d30.getDate() - 29);
-  const [daily, weekly, monthly, byRoute, byRep, lists] = await Promise.all([
+  const d30ts = new Date(d30); d30ts.setHours(0, 0, 0, 0);
+  const [daily, weekly, monthly, byRoute, byRep, lists, execCo, execRoutes, execReps] = await Promise.all([
     supabase.rpc('erp_fe_coverage', { p_from: iso(today), p_to: iso(today), p_group: 'total' }),
     supabase.rpc('erp_fe_coverage', { p_from: iso(d7), p_to: iso(today), p_group: 'total' }),
     supabase.rpc('erp_fe_coverage', { p_from: iso(d30), p_to: iso(today), p_group: 'total' }),
     supabase.rpc('erp_fe_coverage', { p_from: iso(d30), p_to: iso(today), p_group: 'route' }),
     supabase.rpc('erp_fe_coverage', { p_from: iso(d30), p_to: iso(today), p_group: 'rep' }),
     supabase.rpc('erp_fe_coverage_lists', { p_days: 7 }),
+    supabase.rpc('erp_fe_execution_scores', { p_scope: 'company', p_id: null, p_from: d30ts.toISOString() }),
+    supabase.rpc('erp_fe_execution_scores_by', { p_group: 'route', p_from: d30ts.toISOString() }),
+    supabase.rpc('erp_fe_execution_scores_by', { p_group: 'rep', p_from: d30ts.toISOString() }),
   ]);
+  const exec = { company: execCo.data as ExecScore | null, routes: (execRoutes.data as ExecGroup[] | null) ?? [], reps: (execReps.data as ExecGroup[] | null) ?? [] };
   const cov = {
     daily: (daily.data as CovResult | null)?.totals, weekly: (weekly.data as CovResult | null)?.totals, monthly: (monthly.data as CovResult | null)?.totals,
     byRoute: (byRoute.data as CovResult | null)?.groups ?? [], byRep: (byRep.data as CovResult | null)?.groups ?? [],
@@ -67,6 +74,15 @@ export default async function FieldDashboardPage() {
       <p className="text-2xl font-semibold">{c?.coverage_pct ?? 0}%</p>
       <p className="text-xs text-muted-foreground">{t('field.dashboard.compliancePct')} {c?.compliance_pct ?? 0}% · {c?.visited ?? 0}/{c?.planned ?? 0}</p>
     </CardContent></Card>
+  );
+  // Full component breakdown badges — the score is drillable everywhere.
+  const Breakdown = ({ e }: { e: ExecScore }) => (
+    <span className="flex flex-wrap items-center gap-1.5 text-xs">
+      <Badge variant="outline">{t('field.dashboard.merch')} {e.merch_compliance ?? '—'}</Badge>
+      <Badge variant="outline">{t('field.dashboard.survey')} {e.survey_score ?? '—'}</Badge>
+      <Badge variant="outline">{t('field.dashboard.oos')} {e.oos_score ?? '—'}</Badge>
+      <Badge variant="outline">{t('field.dashboard.opp')} {e.opportunity_score ?? '—'}</Badge>
+    </span>
   );
 
   return (
@@ -112,6 +128,40 @@ export default async function FieldDashboardPage() {
                 </CardContent></Card>}
           </div>
         ))}
+      </div>
+
+      {/* Execution score (company + route + rep), fully drillable */}
+      <div>
+        <h3 className="mb-2 font-semibold">{t('field.dashboard.execTitle')}</h3>
+        {exec.company && exec.company.captures > 0 ? (
+          <Card className="mb-3"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <span className="flex items-center gap-3"><span className="text-3xl font-semibold">{exec.company.overall ?? '—'}</span><span className="text-xs text-muted-foreground">{t('field.score.overall')}</span></span>
+            <Breakdown e={exec.company} />
+          </CardContent></Card>
+        ) : <Card className="mb-3"><CardContent className="p-4 text-center text-sm text-muted-foreground">{t('field.dashboard.none')}</CardContent></Card>}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <h4 className="mb-2 text-sm font-medium text-muted-foreground">{t('field.dashboard.execByRoute')}</h4>
+            {exec.routes.length === 0 ? <Card><CardContent className="p-4 text-center text-sm text-muted-foreground">{t('field.dashboard.none')}</CardContent></Card>
+              : <div className="space-y-2">{exec.routes.map((g, i) => (
+                  <Link key={g.id ?? i} href={g.id ? `/field/plans?route=${g.id}` : '#'}><Card className="transition-colors hover:border-primary"><CardContent className="space-y-1 p-3 text-sm">
+                    <div className="flex items-center justify-between"><span className="min-w-0 truncate font-medium">{g.name}</span><Badge variant="secondary">{g.overall ?? '—'}</Badge></div>
+                    <Breakdown e={g} />
+                  </CardContent></Card></Link>
+                ))}</div>}
+          </div>
+          <div>
+            <h4 className="mb-2 text-sm font-medium text-muted-foreground">{t('field.dashboard.execByRep')}</h4>
+            {exec.reps.length === 0 ? <Card><CardContent className="p-4 text-center text-sm text-muted-foreground">{t('field.dashboard.none')}</CardContent></Card>
+              : <div className="space-y-2">{exec.reps.map((g, i) => (
+                  <Card key={g.id ?? i}><CardContent className="space-y-1 p-3 text-sm">
+                    <div className="flex items-center justify-between"><span className="min-w-0 truncate font-medium">{g.name}</span><Badge variant="secondary">{g.overall ?? '—'}</Badge></div>
+                    <Breakdown e={g} />
+                  </CardContent></Card>
+                ))}</div>}
+          </div>
+        </div>
       </div>
 
       {/* Missed customers + Due soon (drill-through) */}

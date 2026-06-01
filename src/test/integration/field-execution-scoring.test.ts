@@ -55,6 +55,13 @@ describe.skipIf(!hasTestDb)('FE-4c · execution scores', () => {
       // the visit timeline now carries a per-visit overall score
       const tl = (await c.query("select erp_fe_customer_visits($1) as j", [cust])).rows[0].j;
       expect(Number(tl[0].score)).toBe(69);
+
+      // grouped scores (FE-4d) — route + rep lists with full breakdown
+      const byRoute = (await c.query("select erp_fe_execution_scores_by('route') as j")).rows[0].j;
+      const routeRow = byRoute.find((g: { id: string }) => g.id === route);
+      expect(routeRow).toMatchObject({ overall: 69, merch_compliance: 50, survey_score: 80, oos_score: 70, opportunity_score: 75 });
+      const byRepList = (await c.query("select erp_fe_execution_scores_by('rep') as j")).rows[0].j;
+      expect(byRepList.find((g: { id: string }) => g.id === rep)?.overall).toBe(69);
       await resetRole(c);
     });
   }, 30_000);
