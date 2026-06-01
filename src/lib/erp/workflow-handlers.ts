@@ -1,5 +1,7 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
+import * as subscription from './subscription-service';
+import { applyFormEffect } from './form-effects';
 
 /** ── Workflow outcome handlers (the only entity-aware part) ─────────────────
  *  The engine is entity-agnostic; what an approval/rejection DOES to the source
@@ -33,6 +35,96 @@ const HANDLERS: Record<string, Handler> = {
       await supabase.from('erp_customers').update({ credit_limit: r.requested_limit }).eq('id', r.customer_id);
     }
     await supabase.from('erp_credit_limit_requests').update({ status: outcome }).eq('id', recordId);
+  },
+
+  // Subscription change (platform-scope): on approval, apply the requested
+  // change via the CANONICAL subscription service (the final approver is the
+  // platform owner, so the owner-guarded RPCs execute). Stamp the request.
+  subscription_change: async (recordId, outcome) => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('erp_subscription_change_requests')
+      .select('company_id, kind, plan_key, trial_days, end_date')
+      .eq('id', recordId)
+      .single();
+    const r = data as
+      | { company_id: string; kind: string; plan_key: string | null; trial_days: number | null; end_date: string | null }
+      | null;
+    if (r && outcome === 'approved') {
+      const c = r.company_id;
+      if (r.kind === 'plan' && r.plan_key) await subscription.changePlan(supabase, c, r.plan_key);
+      else if (r.kind === 'trial') await subscription.setTrial(supabase, c, r.trial_days ?? 0);
+      else if (r.kind === 'renew' && r.end_date) await subscription.setPeriodEnd(supabase, c, r.end_date);
+      else if (r.kind === 'suspend') await subscription.setStatus(supabase, c, 'suspended');
+      else if (r.kind === 'reactivate') await subscription.setStatus(supabase, c, 'active');
+      else if (r.kind === 'cancel') await subscription.setStatus(supabase, c, 'cancelled');
+    }
+    await supabase.from('erp_subscription_change_requests').update({ status: outcome }).eq('id', recordId);
+  },
+
+  // Onboarding (platform-scope): on approval, provision the tenant via the
+  // canonical subscription service (plan + optional trial → activates) and mark
+  // setup done. Runs as the approving platform owner. Stamp the request.
+  onboarding: async (recordId, outcome) => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('erp_onboarding_requests')
+      .select('company_id, plan_key, trial_days')
+      .eq('id', recordId)
+      .single();
+    const r = data as { company_id: string; plan_key: string | null; trial_days: number | null } | null;
+    if (r && outcome === 'approved') {
+      await subscription.seedSubscription(supabase, {
+        companyId: r.company_id,
+        planKey: r.plan_key || 'standard',
+        currency: 'EGP',
+        interval: 'monthly',
+        trialDays: r.trial_days ?? 0,
+      });
+      await supabase.from('erp_companies').update({ setup_done: true }).eq('id', r.company_id);
+    }
+    await supabase.from('erp_onboarding_requests').update({ status: outcome }).eq('id', recordId);
+  },
+
+  // Module activation (platform-scope): on approval, enable/disable the requested
+  // module via the same entitlement table the Control Center uses. Runs as the
+  // approving platform owner. Stamp the request.
+  module_request: async (recordId, outcome) => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('erp_module_requests')
+      .select('company_id, module_key, enable')
+      .eq('id', recordId)
+      .single();
+    const r = data as { company_id: string; module_key: string; enable: boolean } | null;
+    if (r && outcome === 'approved') {
+      await supabase
+        .from('erp_company_modules')
+        .upsert({ company_id: r.company_id, module: r.module_key, enabled: r.enable }, { onConflict: 'company_id,module' });
+    }
+    await supabase.from('erp_module_requests').update({ status: outcome }).eq('id', recordId);
+  },
+
+  // Dynamic form submission (B5/B6): stamp the submission's final status, run the
+  // whitelisted effect on approval (record_only / update_field(s) / set_gps /
+  // create_customer), and notify the submitter of the outcome. The effect runs
+  // as the approving user (RLS), is self-auditing, and never throws — a failed
+  // effect is logged, not fatal.
+  form_submission: async (recordId, outcome) => {
+    const supabase = await createClient();
+    await supabase.from('erp_form_submissions').update({ status: outcome }).eq('id', recordId);
+    if (outcome === 'approved') await applyFormEffect(supabase, recordId);
+    // Notify the submitter of the decision (in-app, via the notification engine).
+    const { data: sub } = await supabase
+      .from('erp_form_submissions').select('company_id, submitter').eq('id', recordId).single();
+    const s = sub as { company_id: string; submitter: string | null } | null;
+    if (s?.submitter) {
+      await supabase.rpc('erp_notify_send', {
+        p_company: s.company_id, p_user: s.submitter,
+        p_event: outcome === 'approved' ? 'form_approved' : 'form_rejected',
+        p_link: '/forms', p_entity: 'form_submission', p_record_id: recordId,
+      });
+    }
   },
 };
 

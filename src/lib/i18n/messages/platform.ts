@@ -3,6 +3,10 @@ export const ar = {
   platform: {
     // ── shared / access guard ──────────────────────────────────────
     ownerOnly: 'هذه الصفحة متاحة لمالك المنصّة فقط.',
+    requests: {
+      title: 'طلبات المنصة',
+      subtitle: 'الموافقات على مستوى المنصة (الفوترة، الإعداد، التخصيص)',
+    },
     ownerOrSuperAdminOnly: 'هذه الصفحة متاحة لمالك المنصّة ومدير النظام فقط.',
 
     // ── overview page ──────────────────────────────────────────────
@@ -308,6 +312,10 @@ export const en = {
   platform: {
     // ── shared / access guard ──────────────────────────────────────
     ownerOnly: 'This page is available to the platform owner only.',
+    requests: {
+      title: 'Platform Requests',
+      subtitle: 'Platform-level approvals (billing, onboarding, customization)',
+    },
     ownerOrSuperAdminOnly: 'This page is available to the platform owner and super-admin only.',
 
     // ── overview page ──────────────────────────────────────────────

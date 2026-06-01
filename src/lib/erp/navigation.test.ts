@@ -113,9 +113,9 @@ describe('navigation — capability binding (CRM / Workflow / Analytics)', () =>
     expect(hrefs(visibleSections(['customers.manage'], false, false, ['inventory']))).not.toContain('/customers');
   });
 
-  it('Approvals is gated by the workflow module', () => {
-    expect(hrefs(visibleSections([], false, false, ['workflow']))).toContain('/approvals');
-    expect(hrefs(visibleSections([], false, false, ['sales']))).not.toContain('/approvals');
+  it('Requests & Approvals is gated by the workflow module', () => {
+    expect(hrefs(visibleSections([], false, false, ['workflow']))).toContain('/requests');
+    expect(hrefs(visibleSections([], false, false, ['sales']))).not.toContain('/requests');
   });
 
   it('Settings → Workflows needs the workflow module AND workflow.manage', () => {
@@ -133,7 +133,7 @@ describe('navigation — capability binding (CRM / Workflow / Analytics)', () =>
     const v = visibleSections(['customers.manage', 'workflow.manage', 'reports.view'], false, false, ['crm', 'workflow', 'analytics', 'sales']);
     const h = hrefs(v);
     expect(h).toContain('/customers');
-    expect(h).toContain('/approvals');
+    expect(h).toContain('/requests');
     expect(h).toContain('/settings/workflows');
     expect(h).toContain('/sales/report');
   });
@@ -141,6 +141,6 @@ describe('navigation — capability binding (CRM / Workflow / Analytics)', () =>
   it('legacy/unrestricted (empty modules) still shows capability items', () => {
     const v = visibleSections(['customers.manage', 'workflow.manage'], false, false, []);
     expect(hrefs(v)).toContain('/customers');
-    expect(hrefs(v)).toContain('/approvals');
+    expect(hrefs(v)).toContain('/requests');
   });
 });

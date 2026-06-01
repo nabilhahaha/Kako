@@ -39,16 +39,27 @@ import * as billing from './billing';
 import * as customFields from './custom-fields';
 import * as workflow from './workflow';
 import * as workflows from './workflows';
+import * as requests from './requests';
+import * as subscriptionRequest from './subscription-request';
+import * as onboardingRequest from './onboarding-request';
+import * as moduleRequest from './module-request';
+import * as forms from './forms';
+import * as formsRun from './forms-run';
+import * as field from './field';
 import * as notifications from './notifications';
 import * as electrical from './electrical';
+import * as commercial from './commercial';
+import * as governance from './governance';
+import * as scheduler from './scheduler';
+import * as erpsync from './erp-sync';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
   accounting, clinic, restaurant, salon, pharmacy, laundry, hotel, wholesale,
   market, distribution, settings, account, platform, rep, exportsMod,
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
-  importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, notifications,
-  electrical,
+  importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, requests, subscriptionRequest, onboardingRequest, moduleRequest, forms, formsRun, field, notifications,
+  electrical, commercial, governance, scheduler, erpsync,
 ];
 
 type Catalog = Record<string, unknown>;
