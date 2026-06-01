@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { MapPin, Crosshair, Loader2, CheckCircle2, Camera, X, Clock, AlertTriangle, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,11 +22,11 @@ export interface PickCustomer { id: string; name: string; code: string | null; l
 export interface FeSettings { radiusM: number; mode: 'advisory' | 'blocking'; photoThresholdM: number }
 
 interface LocalVisit {
-  clientRef: string; customerName: string; status: 'in_progress' | 'completed';
+  clientRef: string; customerId: string; customerName: string; status: 'in_progress' | 'completed';
   checkinAt: string; geofenceStatus: GeofenceStatus; distanceM: number | null; durationMin: number | null;
 }
 interface Row {
-  key: string; clientRef: string | null; customerName: string; status: string;
+  key: string; clientRef: string | null; customerId: string; customerName: string; status: string;
   checkinAt: string | null; geofenceStatus: string | null; distanceM: number | null; durationMin: number | null; pending: boolean;
 }
 
@@ -62,10 +63,10 @@ export function VisitsClient({ visits, customers, settings }: { visits: ServerVi
     const map = new Map<string, Row>();
     for (const v of visits) {
       const key = v.clientRef ?? v.id;
-      map.set(key, { key, clientRef: v.clientRef, customerName: v.customerName, status: v.status, checkinAt: v.checkinAt, geofenceStatus: v.geofenceStatus, distanceM: v.distanceM, durationMin: v.durationMin, pending: false });
+      map.set(key, { key, clientRef: v.clientRef, customerId: v.customerId, customerName: v.customerName, status: v.status, checkinAt: v.checkinAt, geofenceStatus: v.geofenceStatus, distanceM: v.distanceM, durationMin: v.durationMin, pending: false });
     }
     for (const [ref, lv] of Object.entries(local)) {
-      map.set(ref, { key: ref, clientRef: ref, customerName: lv.customerName, status: lv.status, checkinAt: lv.checkinAt, geofenceStatus: lv.geofenceStatus, distanceM: lv.distanceM, durationMin: lv.durationMin, pending: true });
+      map.set(ref, { key: ref, clientRef: ref, customerId: lv.customerId, customerName: lv.customerName, status: lv.status, checkinAt: lv.checkinAt, geofenceStatus: lv.geofenceStatus, distanceM: lv.distanceM, durationMin: lv.durationMin, pending: true });
     }
     const order = (s: string) => (s === 'in_progress' ? 0 : 1);
     return [...map.values()].sort((a, b) => order(a.status) - order(b.status) || (b.checkinAt ?? '').localeCompare(a.checkinAt ?? ''));
@@ -99,7 +100,7 @@ export function VisitsClient({ visits, customers, settings }: { visits: ServerVi
         { customerId: selected.id, lat: gps.lat, lng: gps.lng, accuracy: gps.accuracy, reason: gstatus === 'violation' ? reason.trim() : null, photo: photo ? `local:${Date.now()}` : null },
         photo ?? undefined,
       );
-      setLocal((p) => ({ ...p, [clientRef]: { clientRef, customerName: selected.name, status: 'in_progress', checkinAt: new Date().toISOString(), geofenceStatus: gstatus, distanceM: distance, durationMin: null } }));
+      setLocal((p) => ({ ...p, [clientRef]: { clientRef, customerId: selected.id, customerName: selected.name, status: 'in_progress', checkinAt: new Date().toISOString(), geofenceStatus: gstatus, distanceM: distance, durationMin: null } }));
       toast.success(t('field.visits.startVisit'));
       resetSheet();
     } finally { setBusy(false); }
@@ -112,7 +113,7 @@ export function VisitsClient({ visits, customers, settings }: { visits: ServerVi
     try { const p = await getPosition(); pos = { lat: p.lat, lng: p.lng }; } catch { /* end even without GPS */ }
     try {
       await enqueueEnd(row.clientRef, pos);
-      setLocal((p) => ({ ...p, [row.clientRef!]: { clientRef: row.clientRef!, customerName: row.customerName, status: 'completed', checkinAt: row.checkinAt ?? new Date().toISOString(), geofenceStatus: (row.geofenceStatus as GeofenceStatus) ?? 'unknown', distanceM: row.distanceM, durationMin: row.checkinAt ? minutesSince(row.checkinAt) : null } }));
+      setLocal((p) => ({ ...p, [row.clientRef!]: { clientRef: row.clientRef!, customerId: row.customerId, customerName: row.customerName, status: 'completed', checkinAt: row.checkinAt ?? new Date().toISOString(), geofenceStatus: (row.geofenceStatus as GeofenceStatus) ?? 'unknown', distanceM: row.distanceM, durationMin: row.checkinAt ? minutesSince(row.checkinAt) : null } }));
       toast.success(t('field.visits.completed'));
     } finally { setEndingRef(null); }
   }
@@ -135,7 +136,7 @@ export function VisitsClient({ visits, customers, settings }: { visits: ServerVi
         <Card key={r.key}>
           <CardContent className="flex items-center justify-between gap-3 p-4">
             <div className="min-w-0">
-              <p className="truncate font-medium">{r.customerName}</p>
+              <Link href={`/field/customers/${r.customerId}`} className="block truncate font-medium hover:underline">{r.customerName}</Link>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                 {r.status === 'in_progress'
                   ? <Badge className="gap-1"><Clock className="h-3 w-3" />{t('field.visits.inProgress')}</Badge>
