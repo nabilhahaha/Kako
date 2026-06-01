@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Plus, Loader2, Search, Pill, ShieldAlert } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { INTL_LOCALE } from '@/lib/i18n/config';
@@ -51,7 +52,7 @@ export function DispenseList({ rows }: { rows: DispenseRow[] }) {
 
       <Card><CardContent className="p-0">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground"><Pill className="h-8 w-8" /><p>{rows.length === 0 ? t('pharmacy.emptyDispenses') : t('pharmacy.noResults')}</p></div>
+          <EmptyState className="border-0" icon={<Pill />} title={rows.length === 0 ? t('pharmacy.emptyDispenses') : t('pharmacy.noResults')} />
         ) : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground"><tr>

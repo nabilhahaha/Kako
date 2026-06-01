@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Plus, Loader2, X, Pencil, Users, Settings } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { upsertTable, createOrder } from '../actions';
@@ -70,7 +71,7 @@ export function TablesFloor({ tables }: { tables: FloorTable[] }) {
       )}
 
       {tables.length === 0 ? (
-        <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">{t('restaurant.tables.empty')}</CardContent></Card>
+        <EmptyState icon={<Users />} title={t('restaurant.tables.empty')} />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {tables.map((tbl) => {

@@ -12,7 +12,7 @@ import { useConfirm } from '@/components/confirm-dialog';
 import { formatNumber, formatDate } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/provider';
 import type { Warehouse } from '@/lib/erp/types';
-import { Plus, Loader2, ClipboardList, ArrowRight, Save, CheckCircle2 } from 'lucide-react';
+import { Plus, Loader2, ClipboardList, ArrowLeft, Save, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface CountRow {
@@ -219,8 +219,8 @@ function CountEditor({
 
   return (
     <div className="space-y-4">
-      <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowRight className="h-4 w-4" /> {t('inventory.backToAllCounts')}
+      <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t('inventory.backToAllCounts')}
       </button>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
