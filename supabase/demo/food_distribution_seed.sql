@@ -41,7 +41,9 @@ from (values
   ('da000000-0000-4000-8000-0000000000a6','rep.jeddah@demo.com','Demo Sales Rep — Jeddah'),
   ('da000000-0000-4000-8000-0000000000ad','rep.dammam@demo.com','Demo Sales Rep — Dammam'),
   ('da000000-0000-4000-8000-0000000000a7','finance.fooddist@demo.com','Demo Finance'),
-  ('da000000-0000-4000-8000-0000000000a8','it.fooddist@demo.com','Demo IT Admin')
+  ('da000000-0000-4000-8000-0000000000a8','it.fooddist@demo.com','Demo IT Admin'),
+  ('da000000-0000-4000-8000-0000000000ae','branchmgr.fooddist@demo.com','Demo Branch Manager — Riyadh'),
+  ('da000000-0000-4000-8000-0000000000af','viewer.fooddist@demo.com','Demo Viewer (read-only)')
 ) u(id,email,full_name)
 on conflict (id) do nothing;
 
@@ -52,7 +54,8 @@ insert into erp_profiles (id, full_name) select id, full_name from (values
   ('da000000-0000-4000-8000-0000000000a4','Demo Supervisor — Riyadh'),('da000000-0000-4000-8000-0000000000ab','Demo Supervisor — Jeddah'),
   ('da000000-0000-4000-8000-0000000000ac','Demo Supervisor — Dammam'),('da000000-0000-4000-8000-0000000000a5','Demo Sales Rep — Riyadh'),
   ('da000000-0000-4000-8000-0000000000a6','Demo Sales Rep — Jeddah'),('da000000-0000-4000-8000-0000000000ad','Demo Sales Rep — Dammam'),
-  ('da000000-0000-4000-8000-0000000000a7','Demo Finance'),('da000000-0000-4000-8000-0000000000a8','Demo IT Admin')
+  ('da000000-0000-4000-8000-0000000000a7','Demo Finance'),('da000000-0000-4000-8000-0000000000a8','Demo IT Admin'),
+  ('da000000-0000-4000-8000-0000000000ae','Demo Branch Manager — Riyadh'),('da000000-0000-4000-8000-0000000000af','Demo Viewer (read-only)')
 ) p(id,full_name) on conflict (id) do update set full_name=excluded.full_name;
 
 -- ── Role assignment + reporting hierarchy (5 FMCG levels across 3 branches) ─
@@ -70,7 +73,9 @@ insert into erp_user_branches (user_id, branch_id, role, is_default, reports_to)
   ('da000000-0000-4000-8000-0000000000a6','da000000-0000-4000-8000-0000000000b2','salesman',   'da000000-0000-4000-8000-0000000000ab'),
   ('da000000-0000-4000-8000-0000000000ad','da000000-0000-4000-8000-0000000000b3','salesman',   'da000000-0000-4000-8000-0000000000ac'),
   ('da000000-0000-4000-8000-0000000000a7','da000000-0000-4000-8000-0000000000b1','accountant', 'da000000-0000-4000-8000-0000000000a1'),
-  ('da000000-0000-4000-8000-0000000000a8','da000000-0000-4000-8000-0000000000b1','admin',      'da000000-0000-4000-8000-0000000000a0')
+  ('da000000-0000-4000-8000-0000000000a8','da000000-0000-4000-8000-0000000000b1','admin',      'da000000-0000-4000-8000-0000000000a0'),
+  ('da000000-0000-4000-8000-0000000000ae','da000000-0000-4000-8000-0000000000b1','manager',    'da000000-0000-4000-8000-0000000000a3'),  -- Branch Manager (Riyadh)
+  ('da000000-0000-4000-8000-0000000000af','da000000-0000-4000-8000-0000000000b1','viewer',     'da000000-0000-4000-8000-0000000000a1')   -- Viewer (read-only)
 ) ub(user_id, branch_id, role, reports_to) on conflict (user_id, branch_id) do update set role=excluded.role, reports_to=excluded.reports_to;
 
 -- company-wide roles span all branches (branch visibility is membership-based)
@@ -86,9 +91,13 @@ insert into erp_user_branches (user_id, branch_id, role, is_default, reports_to)
 -- ── Demo roles + permissions (company-scoped matrix) ───────────────────────
 insert into erp_matrix_role_permissions (company_id, role_key, permission)
 select 'da000000-0000-4000-8000-000000000001', r, p from
-  (values ('company_admin'),('sales_director'),('regional_manager'),('area_manager'),('supervisor'),('sales_rep'),('finance'),('it_admin'),
+  (values ('company_admin'),('sales_director'),('regional_manager'),('area_manager'),('branch_manager'),('supervisor'),('sales_rep'),('finance'),('it_admin'),
           ('manager'),('salesman')) roles(r)
   cross join (values ('field_ops:view'),('field_ops:dashboard'),('customers:view'),('reports:view')) perms(p)
+on conflict do nothing;
+-- read-only viewer: view permissions only
+insert into erp_matrix_role_permissions (company_id, role_key, permission)
+select 'da000000-0000-4000-8000-000000000001','viewer', p from (values ('field_ops:view'),('customers:view'),('reports:view')) perms(p)
 on conflict do nothing;
 
 -- ── Product hierarchy (category → sub-category → brand → SKU) ───────────────
