@@ -88,6 +88,7 @@ export default async function CommercialPage({ searchParams }: { searchParams: P
         <PageHeader title={t('commercial.title')} />
         <div className="flex items-center gap-3">
           <Link href="/commercial/targets" className="text-xs font-medium text-primary hover:underline">{t('commercial.targets')}</Link>
+          <Link href="/commercial/promotions" className="text-xs font-medium text-primary hover:underline">{t('commercial.tpm.link')}</Link>
           <Link href="/commercial/statements" className="text-xs font-medium text-primary hover:underline">{t('commercial.statements')}</Link>
         </div>
       </div>

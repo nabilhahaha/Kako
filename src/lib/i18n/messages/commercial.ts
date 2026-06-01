@@ -24,6 +24,18 @@ export const ar = {
     statementsTitle: 'كشوف العمولات والحوافز', combined: 'الإجمالي المجمّع', commission: 'العمولات', incentive: 'الحوافز',
     rep: 'المندوب', total: 'الإجمالي', plan: 'الخطة', program: 'البرنامج', run: 'احتساب', approveFreeze: 'اعتماد وتجميد', frozen: 'مجمّد',
     payout: 'المبلغ', qualified: 'مؤهل', notQualified: 'غير مؤهل', ran: 'تم احتساب {n}', runFailed: 'تعذّر الاحتساب', period: 'الفترة',
+    tpm: {
+      title: 'العروض الترويجية', link: 'العروض', noAccess: 'لا تملك صلاحية الوصول.', back: 'الأداء التجاري', empty: 'لا توجد عروض',
+      new: 'عرض جديد', name: 'الاسم', type: 'النوع', from: 'من', to: 'إلى', budget: 'الميزانية', cost: 'التكلفة',
+      targetValue: 'مستهدف القيمة', targetQty: 'مستهدف الكمية', save: 'حفظ', saved: 'تم الحفظ ✓', saveFailed: 'تعذّر الحفظ',
+      params: 'الإعدادات (JSON)', paramsHint: 'مثال: {"discount_pct":10}', create: 'إنشاء',
+      cards: { active: 'نشطة', upcoming: 'قادمة', expired: 'منتهية', budget: 'الميزانية', actualSales: 'المبيعات الفعلية', cost: 'التكلفة' },
+      types: { percentage: 'خصم نسبة', fixed_amount: 'خصم ثابت', buy_x_get_y: 'اشترِ X واحصل على Y', quantity: 'كمية (5+1)', mix_match: 'مزج وتوفيق', bundle: 'حزمة', free_gift: 'هدية مجانية' },
+      actions: { approve: 'اعتماد', activate: 'تفعيل', pause: 'إيقاف مؤقت', resume: 'استئناف', expire: 'إنهاء', archive: 'أرشفة' },
+      audience: { title: 'الجمهور المستهدف', add: 'إضافة', remove: 'حذف', ref: 'المرجع', refHint: 'كود/بريد/اسم — أو اتركه فارغًا للشركة' },
+      perf: { title: 'الأداء', refresh: 'تحديث', actualValue: 'قيمة المبيعات', actualQty: 'الكمية', achValue: 'تحقيق القيمة', achQty: 'تحقيق الكمية' },
+      st: { draft: 'مسودة', approved: 'معتمد', active: 'نشط', paused: 'متوقف', expired: 'منتهٍ', archived: 'مؤرشف' },
+    },
   },
 };
 export const en = {
@@ -49,5 +61,17 @@ export const en = {
     statementsTitle: 'Commission & Incentive statements', combined: 'Combined total', commission: 'Commission', incentive: 'Incentive',
     rep: 'Rep', total: 'Total', plan: 'Plan', program: 'Program', run: 'Run', approveFreeze: 'Approve & freeze', frozen: 'Frozen',
     payout: 'Payout', qualified: 'Qualified', notQualified: 'Not qualified', ran: 'Computed {n}', runFailed: 'Run failed', period: 'Period',
+    tpm: {
+      title: 'Promotions', link: 'Promotions', noAccess: 'You don’t have access.', back: 'Commercial', empty: 'No promotions',
+      new: 'New promotion', name: 'Name', type: 'Type', from: 'From', to: 'To', budget: 'Budget', cost: 'Cost',
+      targetValue: 'Target value', targetQty: 'Target qty', save: 'Save', saved: 'Saved ✓', saveFailed: 'Could not save',
+      params: 'Settings (JSON)', paramsHint: 'e.g. {"discount_pct":10}', create: 'Create',
+      cards: { active: 'Active', upcoming: 'Upcoming', expired: 'Expired', budget: 'Budget', actualSales: 'Actual sales', cost: 'Cost' },
+      types: { percentage: 'Percentage discount', fixed_amount: 'Fixed discount', buy_x_get_y: 'Buy X Get Y', quantity: 'Quantity (5+1)', mix_match: 'Mix & Match', bundle: 'Bundle', free_gift: 'Free gift SKU' },
+      actions: { approve: 'Approve', activate: 'Activate', pause: 'Pause', resume: 'Resume', expire: 'Expire', archive: 'Archive' },
+      audience: { title: 'Target audience', add: 'Add', remove: 'Remove', ref: 'Reference', refHint: 'code/email/name — or blank for company' },
+      perf: { title: 'Performance', refresh: 'Refresh', actualValue: 'Actual sales value', actualQty: 'Actual qty', achValue: 'Achievement value', achQty: 'Achievement qty' },
+      st: { draft: 'Draft', approved: 'Approved', active: 'Active', paused: 'Paused', expired: 'Expired', archived: 'Archived' },
+    },
   },
 };
