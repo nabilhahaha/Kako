@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Plus, Loader2, WashingMachine, Bike } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { createOrder } from '../actions';
@@ -81,7 +82,7 @@ export function OrdersList({ orders }: { orders: LaundryOrder[] }) {
       )}
 
       {shown.length === 0 ? (
-        <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">{t('laundry.orders.empty')}</CardContent></Card>
+        <EmptyState icon={<WashingMachine />} title={t('laundry.orders.empty')} />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((o) => {

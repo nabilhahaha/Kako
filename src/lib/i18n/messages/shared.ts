@@ -8,6 +8,7 @@ export const ar = {
     print: 'طباعة',
     prev: 'السابق',
     next: 'التالي',
+    back: 'رجوع',
     statement: {
       empty: 'لا توجد حركات.',
       date: 'التاريخ',
@@ -87,6 +88,7 @@ export const en = {
     print: 'Print',
     prev: 'Previous',
     next: 'Next',
+    back: 'Back',
     statement: {
       empty: 'No transactions.',
       date: 'Date',

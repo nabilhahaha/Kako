@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
+import { Barcode } from 'lucide-react';
 import { formatDate, formatNumber } from '@/lib/utils';
 import { getT } from '@/lib/i18n/server';
 
@@ -42,7 +44,7 @@ export default async function SerialsPage() {
     <div>
       <PageHeader title={t('electrical.serialsTitle')} description={t('electrical.serialsDescription')} />
       {rows.length === 0 ? (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">{t('electrical.serialsEmpty')}</CardContent></Card>
+        <EmptyState icon={<Barcode />} title={t('electrical.serialsEmpty')} />
       ) : (
         <Card>
           <CardContent className="p-0">

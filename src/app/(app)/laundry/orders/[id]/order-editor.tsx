@@ -2,14 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, SlidersHorizontal, Flame, PackageCheck } from 'lucide-react';
+import { SlidersHorizontal, Flame, PackageCheck } from 'lucide-react';
+import { BackLink } from '@/components/shared/back-link';
 import { formatCurrency } from '@/lib/utils';
 import { ServiceTileGrid, QtyStepper, TotalRow, CheckoutFooter } from '@/components/shared/order-editor-kit';
 import { addOrderItem, setItemQty, setOrderStatus, closeOrder, cancelOrder, updateOrderMeta } from '../../actions';
@@ -60,7 +60,7 @@ export function OrderEditor({ order, items, services }: { order: EditorOrder; it
 
   return (
     <div>
-      <Link href="/laundry/orders" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowRight className="h-4 w-4" /> {t('laundry.editor.backLink')}</Link>
+      <BackLink href="/laundry/orders" label={t('laundry.editor.backLink')} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">{order.customer_name || t('laundry.editor.fallbackTitle')}</h1>
         <Badge variant={st.variant}>{st.label}</Badge>

@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
+import { ShieldCheck } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { getT } from '@/lib/i18n/server';
 
@@ -39,7 +41,7 @@ export default async function WarrantiesPage() {
     <div>
       <PageHeader title={t('electrical.warrantyTitle')} description={t('electrical.warrantyDescription')} />
       {rows.length === 0 ? (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">{t('electrical.warrantyEmpty')}</CardContent></Card>
+        <EmptyState icon={<ShieldCheck />} title={t('electrical.warrantyEmpty')} />
       ) : (
         <Card>
           <CardContent className="p-0">

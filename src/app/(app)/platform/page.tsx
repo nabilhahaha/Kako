@@ -33,6 +33,7 @@ const STATE_BADGE_VARIANT: Record<SubscriptionState, StateBadge> = {
   expiring:  { variant: 'warning' },
   expired:   { variant: 'destructive' },
   suspended: { variant: 'destructive' },
+  trial:     { variant: 'info' },
   open:      { variant: 'info' },
 };
 
@@ -88,6 +89,7 @@ export default async function PlatformOverviewPage() {
     expiring: 0,
     expired: 0,
     suspended: 0,
+    trial: 0,
     open: 0,
   };
   for (const c of companyList) tally[subscriptionState(c)] += 1;

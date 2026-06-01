@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
+import { PackageCheck } from 'lucide-react';
 import { formatNumber } from '@/lib/utils';
 import { getT } from '@/lib/i18n/server';
 
@@ -60,13 +62,11 @@ export default async function LowStockPage() {
         title={t('inventory.lowStockPageTitle')}
         description={t('inventory.lowStockPageDescription')}
       />
-      <Card>
-        <CardContent className="p-0">
-          {low.length === 0 ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">
-              {t('inventory.emptyLowStock')}
-            </p>
-          ) : (
+      {low.length === 0 ? (
+        <EmptyState icon={<PackageCheck />} title={t('inventory.emptyLowStock')} />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
@@ -98,9 +98,9 @@ export default async function LowStockPage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
 import { ShoppingBag, Bike, UtensilsCrossed, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/provider';
@@ -37,7 +38,7 @@ export function OrdersList({ orders }: { orders: OpenOrder[] }) {
       </div>
 
       {orders.length === 0 ? (
-        <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">{t('restaurant.orders.empty')}</CardContent></Card>
+        <EmptyState icon={<UtensilsCrossed />} title={t('restaurant.orders.empty')} />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {orders.map((o) => (

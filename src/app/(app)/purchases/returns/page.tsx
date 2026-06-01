@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
+import { PackageX } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { getT } from '@/lib/i18n/server';
 
@@ -40,7 +42,7 @@ export default async function SupplierReturnsPage() {
     <div>
       <PageHeader title={t('electrical.supplierReturnsTitle')} description={t('electrical.supplierReturnsDescription')} />
       {rows.length === 0 ? (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">{t('electrical.supplierReturnsEmpty')}</CardContent></Card>
+        <EmptyState icon={<PackageX />} title={t('electrical.supplierReturnsEmpty')} />
       ) : (
         <Card>
           <CardContent className="p-0">

@@ -9,7 +9,8 @@ import { EntityNotes } from '@/components/entity/entity-notes';
 import { PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { ErpCustomer, Invoice, Payment, PaymentMethod } from '@/lib/erp/types';
-import { ArrowRight, Printer } from 'lucide-react';
+import { Printer } from 'lucide-react';
+import { BackLink } from '@/components/shared/back-link';
 import { buttonVariants } from '@/components/ui/button';
 import { WhatsAppButton } from '@/components/whatsapp-button';
 import { getT } from '@/lib/i18n/server';
@@ -79,9 +80,7 @@ export default async function CustomerStatementPage({
 
   return (
     <div>
-      <Link href="/customers" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowRight className="h-4 w-4" /> {t('customers.stmtBackLink')}
-      </Link>
+      <BackLink href="/customers" label={t('customers.stmtBackLink')} />
       <PageHeader
         title={t('customers.stmtTitle', { name: customerName })}
         description={description}

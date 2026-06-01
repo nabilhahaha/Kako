@@ -10,7 +10,8 @@ import { buttonVariants } from '@/components/ui/button';
 import { formatCurrency, formatDate, ageFromBirthDate } from '@/lib/utils';
 import { getT } from '@/lib/i18n/server';
 import { INTL_LOCALE } from '@/lib/i18n/config';
-import { ArrowRight, Printer, Stethoscope, CalendarClock, AlertTriangle, Plus, Thermometer, Activity, HeartPulse, Weight, CalendarCheck, LineChart as LineChartIcon } from 'lucide-react';
+import { Printer, Stethoscope, CalendarClock, AlertTriangle, Plus, Thermometer, Activity, HeartPulse, Weight, CalendarCheck, LineChart as LineChartIcon } from 'lucide-react';
+import { BackLink } from '@/components/shared/back-link';
 import { VitalsTrend, type VitalsPoint } from './vitals-trend';
 import { type DoctorOption, doctorName } from '../../clinical-ui';
 
@@ -126,9 +127,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div>
-      <Link href="/clinic/patients" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowRight className="h-4 w-4" /> {t('clinic.patientDetail.backLink')}
-      </Link>
+      <BackLink href="/clinic/patients" label={t('clinic.patientDetail.backLink')} />
       <PageHeader
         title={p.name}
         description={meta || undefined}

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Plus, Pencil, Loader2, X, Search, UserRound, AlertTriangle, Printer } from 'lucide-react';
 import { ageFromBirthDate } from '@/lib/utils';
 import { upsertPatient } from '../actions';
@@ -102,10 +103,11 @@ export function PatientsManager({ patients }: { patients: Patient[] }) {
       <Card>
         <CardContent className="p-0">
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
-              <UserRound className="h-8 w-8" />
-              <p>{patients.length === 0 ? t('clinic.patients.emptyAll') : t('clinic.patients.emptySearch')}</p>
-            </div>
+            <EmptyState
+              className="border-0"
+              icon={<UserRound />}
+              title={patients.length === 0 ? t('clinic.patients.emptyAll') : t('clinic.patients.emptySearch')}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
