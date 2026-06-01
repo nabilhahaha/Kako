@@ -324,6 +324,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users' },
       { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users' },
       { label: 'nav.items.governance', href: '/governance', icon: SlidersHorizontal, perm: 'settings.users' },
+      { label: 'nav.items.scheduler', href: '/settings/scheduler', icon: Clock, perm: 'settings.users' },
       { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage' },
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage' },
       { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage' },
