@@ -323,6 +323,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow' },
       { label: 'nav.items.subscriptionRequest', href: '/settings/subscription', icon: CreditCard, perm: 'settings.users' },
       { label: 'nav.items.onboardingRequest', href: '/settings/onboarding', icon: ClipboardCheck, perm: 'settings.users' },
+      { label: 'nav.items.moduleRequest', href: '/settings/module-request', icon: ClipboardCheck, perm: 'settings.users' },
       { label: 'nav.items.designSystem', href: '/design', icon: Palette, superAdminOnly: true },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true },
       { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs' },

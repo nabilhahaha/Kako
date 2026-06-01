@@ -84,6 +84,25 @@ const HANDLERS: Record<string, Handler> = {
     }
     await supabase.from('erp_onboarding_requests').update({ status: outcome }).eq('id', recordId);
   },
+
+  // Module activation (platform-scope): on approval, enable/disable the requested
+  // module via the same entitlement table the Control Center uses. Runs as the
+  // approving platform owner. Stamp the request.
+  module_request: async (recordId, outcome) => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('erp_module_requests')
+      .select('company_id, module_key, enable')
+      .eq('id', recordId)
+      .single();
+    const r = data as { company_id: string; module_key: string; enable: boolean } | null;
+    if (r && outcome === 'approved') {
+      await supabase
+        .from('erp_company_modules')
+        .upsert({ company_id: r.company_id, module: r.module_key, enabled: r.enable }, { onConflict: 'company_id,module' });
+    }
+    await supabase.from('erp_module_requests').update({ status: outcome }).eq('id', recordId);
+  },
 };
 
 export function hasWorkflowHandler(entity: string): boolean {

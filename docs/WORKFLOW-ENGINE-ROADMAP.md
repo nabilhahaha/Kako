@@ -103,7 +103,31 @@ subject-anchored / hierarchical resolvers above.
    - **Goal:** a single, stable schema that BI/AI reporting can target now and as
      modules grow — no future database redesign.
 
+## Platform-Foundation Phase (after Customer Route Ownership, BEFORE FMCG packs)
+
+> Cross-cutting scalability foundations. Recorded now; not started — to run as a
+> dedicated phase so FMCG-specific workflow packs build on a stable base.
+
+1. **Audit Trail Engine** — track every create / update / delete / approval /
+   status change, storing **old value, new value, user, timestamp, approval
+   reference**. Generalizes today's `erp_audit_logs` + `erp_workflow_events` into
+   a uniform, queryable trail across all entities.
+2. **Role & Permission Matrix** — permission-based security (not role-only):
+   granular **view / create / edit / approve / export / admin** permissions per
+   resource, layered on the existing `erp_roles` / company-role matrix.
+3. **Universal Notification Engine** — one centralized notification service,
+   **email first**, with future WhatsApp / SMS / Teams / Push channels (the
+   `erp_notifications.channel` field already anticipates this).
+4. **Raw Data Framework** — standard audit/context fields on every module row
+   (**company, branch, route, customer, user, date, time, status, GPS,
+   attachments, workflow reference**) feeding the Full Raw Data Layer spine;
+   future-ready for analytics, BI and AI.
+5. **Customer 360 Foundation** — a single customer profile aggregating sales,
+   visits, requests, approvals, trade spend, expiry and future modules.
+
 ### Sequencing
-M4(b) Onboarding → M4(c) Module Activation & Integrations → Customer Route
-Ownership → then the remaining enterprise items (Data Update / GPS Correction →
-Raw Data Layer → Cash Customer), each as an additive engine/handler increment.
+M4(b) Onboarding → **M4(c) Module Activation & Integrations** → **Customer Route
+Ownership** → **Platform-Foundation Phase (items 1–5 above)** → FMCG-specific
+workflow packs (Data Update / GPS Correction → Raw Data Layer → Cash Customer →
+HR / Purchasing / Expenses / Discounts / …), each an additive engine/handler
+increment.
