@@ -21,9 +21,11 @@ export interface RawFact {
   // Location
   gpsLat?: number; gpsLng?: number; geofenceResult?: string; locationSource?: string;
   // Financial
-  quantity?: number; amount?: number; cost?: number; grossProfit?: number;
+  quantity?: number; amount?: number; currency?: string; uom?: string; cost?: number; grossProfit?: number;
   // Attachments
   attachmentCount?: number; attachmentType?: string;
+  // Source link (drill-through / idempotency)
+  sourceTable?: string; sourceId?: string;
   // Module-specific extras
   details?: Record<string, unknown>;
 }
@@ -36,8 +38,9 @@ const KEY_MAP: Record<keyof Omit<RawFact, 'details'>, string> = {
   workflowInstanceId: 'workflow_instance_id', requestType: 'request_type', requestStatus: 'request_status',
   approverId: 'approver_id', approvalLevel: 'approval_level',
   gpsLat: 'gps_lat', gpsLng: 'gps_lng', geofenceResult: 'geofence_result', locationSource: 'location_source',
-  quantity: 'quantity', amount: 'amount', cost: 'cost', grossProfit: 'gross_profit',
+  quantity: 'quantity', amount: 'amount', currency: 'currency', uom: 'uom', cost: 'cost', grossProfit: 'gross_profit',
   attachmentCount: 'attachment_count', attachmentType: 'attachment_type',
+  sourceTable: 'source_table', sourceId: 'source_id',
 };
 
 /** Append a standardized analytics fact for a module. company_id / user_id

@@ -25,7 +25,7 @@ export interface Customer360 {
     last_modified_by: string | null; last_modified_at: string | null;
   };
   attachments: { total: number; images: number; documents: number; certifications: number; items: unknown[] };
-  analytics: { module: string; events: number; amount: number | null; quantity: number | null; gross_profit: number | null }[];
+  analytics: { module: string; events: number; amount: number | null; currency: string | null; quantity: number | null; gross_profit: number | null }[];
 }
 
 /** Fetch the composed 360 profile for a customer (null if not found/forbidden). */
