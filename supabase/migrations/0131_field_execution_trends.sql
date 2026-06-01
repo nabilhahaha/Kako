@@ -18,11 +18,11 @@ begin
   if not ((select erp_is_platform_owner()) or (select erp_matrix_has('field_ops','view')) or (select erp_matrix_has('field_ops','dashboard')) or (select erp_is_company_admin(v_company))) then
     raise exception 'forbidden';
   end if;
-  if v_b not in ('day','week') then v_b := 'day'; end if;
+  if v_b not in ('day','week','month') then v_b := 'day'; end if;
 
   with rows as (
     select
-      (case v_b when 'week' then date_trunc('week', p.plan_date)::date else p.plan_date end) as bucket,
+      (case v_b when 'week' then date_trunc('week', p.plan_date)::date when 'month' then date_trunc('month', p.plan_date)::date else p.plan_date end) as bucket,
       (s.status = 'visited') as visited,
       (s.status = 'missed' or (s.status <> 'visited' and p.plan_date < current_date)) as missed,
       (s.status = 'visited' and vi.geofence_status = 'ok' and vi.checkin_at::date = p.plan_date) as compliant
@@ -58,11 +58,11 @@ begin
   if not ((select erp_is_platform_owner()) or (select erp_matrix_has('field_ops','view')) or (select erp_matrix_has('field_ops','dashboard')) or (select erp_is_company_admin(v_company))) then
     raise exception 'forbidden';
   end if;
-  if v_b not in ('day','week') then v_b := 'day'; end if;
+  if v_b not in ('day','week','month') then v_b := 'day'; end if;
 
   with cap as (
     select
-      (case v_b when 'week' then date_trunc('week', c.created_at)::date else c.created_at::date end) as bucket,
+      (case v_b when 'week' then date_trunc('week', c.created_at)::date when 'month' then date_trunc('month', c.created_at)::date else c.created_at::date end) as bucket,
       c.kind, c.score, s.values
     from erp_fe_captures c
     join erp_form_submissions s on s.id = c.submission_id
