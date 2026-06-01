@@ -114,6 +114,17 @@ describe('applyFormEffect (B6 whitelisted effects)', () => {
     expect(calls.updates[0]).toMatchObject({ table: 'erp_customers', payload: { phone: '0199' }, filters: { id: 'cust-7', company_id: 'co1' } });
   });
 
+  it('update_fields writes several allowed columns and skips disallowed ones', async () => {
+    const { client, calls } = makeClient(
+      baseSub({ record_id: 'cust-3', values: { p: '011', a: 'Main St', bad: 'x' } }),
+      { type: 'update_fields', table: 'erp_customers', map: { phone: 'p', address: 'a', credit_limit: 'bad' } },
+    );
+    const r = await applyFormEffect(client, 's1');
+    expect(r.applied).toBe(true);
+    expect(calls.updates[0].payload).toEqual({ phone: '011', address: 'Main St' }); // credit_limit dropped
+    expect(calls.updates[0].filters).toMatchObject({ id: 'cust-3', company_id: 'co1' });
+  });
+
   it('set_gps parses "lat,lng" and writes both columns', async () => {
     const { client, calls } = makeClient(
       baseSub({ record_id: 'cust-9', values: { loc: '30.1,31.2' } }),

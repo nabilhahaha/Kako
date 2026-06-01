@@ -62,6 +62,7 @@ export function FieldInput({ f, value, onChange }: { f: PreviewField; value: unk
     case 'number': return <Input type="number" dir="ltr" value={sval} onChange={(e) => onChange(e.target.value)} />;
     case 'date': return <Input type="date" dir="ltr" value={sval} onChange={(e) => onChange(e.target.value)} />;
     case 'dropdown':
+    case 'entity_ref':
       return (
         <select className={selectCls} value={sval} onChange={(e) => onChange(e.target.value)}>
           <option value="">{t('forms.preview.choose')}</option>

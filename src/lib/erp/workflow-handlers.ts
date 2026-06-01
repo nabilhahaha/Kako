@@ -105,14 +105,26 @@ const HANDLERS: Record<string, Handler> = {
     await supabase.from('erp_module_requests').update({ status: outcome }).eq('id', recordId);
   },
 
-  // Dynamic form submission (B5/B6): stamp the submission's final status, and on
-  // approval run the form's whitelisted effect (record_only / update_field /
-  // set_gps / create_customer). The effect runs as the approving user (RLS), is
-  // self-auditing, and never throws — a failed effect is logged, not fatal.
+  // Dynamic form submission (B5/B6): stamp the submission's final status, run the
+  // whitelisted effect on approval (record_only / update_field(s) / set_gps /
+  // create_customer), and notify the submitter of the outcome. The effect runs
+  // as the approving user (RLS), is self-auditing, and never throws — a failed
+  // effect is logged, not fatal.
   form_submission: async (recordId, outcome) => {
     const supabase = await createClient();
     await supabase.from('erp_form_submissions').update({ status: outcome }).eq('id', recordId);
     if (outcome === 'approved') await applyFormEffect(supabase, recordId);
+    // Notify the submitter of the decision (in-app, via the notification engine).
+    const { data: sub } = await supabase
+      .from('erp_form_submissions').select('company_id, submitter').eq('id', recordId).single();
+    const s = sub as { company_id: string; submitter: string | null } | null;
+    if (s?.submitter) {
+      await supabase.rpc('erp_notify_send', {
+        p_company: s.company_id, p_user: s.submitter,
+        p_event: outcome === 'approved' ? 'form_approved' : 'form_rejected',
+        p_link: '/forms', p_entity: 'form_submission', p_record_id: recordId,
+      });
+    }
   },
 };
 

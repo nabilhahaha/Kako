@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Loader2, Pencil } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
-import { FIELD_TYPES, type FieldType, type FormEffect, type FormEffectType, type SubjectRef } from '@/lib/erp/form-builder';
+import { FIELD_TYPES, REF_ENTITIES, type FieldType, type FormEffect, type FormEffectType, type SubjectRef } from '@/lib/erp/form-builder';
 import type { Condition, ConditionOp, Validation } from '@/lib/erp/form-rules';
 import { FormPreview, type PreviewField } from './form-preview';
 import { updateForm, upsertField, deleteField, reorderFields } from './actions';
@@ -24,7 +24,7 @@ export interface DbForm {
 export interface DbField {
   id: string; key: string; label_ar: string | null; label_en: string | null; help_ar: string | null; help_en: string | null;
   type: FieldType; section: string | null; sort_order: number; required: boolean; options: unknown | null; default_value: string | null;
-  visibility: unknown | null; validation: unknown | null;
+  visibility: unknown | null; validation: unknown | null; config: unknown | null;
 }
 export interface WorkflowOpt { key: string; name_ar: string | null; name_en: string | null }
 
@@ -34,7 +34,7 @@ const COND_OPS: ConditionOp[] = ['eq', 'neq', 'gt', 'lt', 'gte', 'lte', 'in', 'e
 
 // ── Whitelisted effects (B6). Mirrors the server allowlists in form-effects.ts;
 //    the server re-validates, so these are just UI hints. ──
-const EFFECT_TYPES: FormEffectType[] = ['record_only', 'update_field', 'set_gps', 'create_customer'];
+const EFFECT_TYPES: FormEffectType[] = ['record_only', 'update_field', 'update_fields', 'set_gps', 'create_customer'];
 const EFFECT_TABLES = ['erp_customers'];
 const UPDATE_COLUMNS: Record<string, string[]> = { erp_customers: ['name', 'name_ar', 'phone', 'email', 'address', 'city', 'tax_number', 'latitude', 'longitude'] };
 const CUSTOMER_MAP_COLUMNS = ['name', 'name_ar', 'phone', 'email', 'address', 'city', 'tax_number'];
@@ -51,23 +51,24 @@ function toPreview(f: DbField): PreviewField {
 
 interface EditState {
   id?: string; key: string; type: FieldType; labelEn: string; labelAr: string; helpEn: string; helpAr: string;
-  section: string; required: boolean; optionsText: string; defaultValue: string;
+  section: string; required: boolean; optionsText: string; defaultValue: string; refEntity: string;
   visWhen: string; visOp: ConditionOp; visValue: string;
   reqWhen: string; reqOp: ConditionOp; reqValue: string;
   vMin: string; vMax: string; vMinLen: string; vMaxLen: string; vRegex: string;
 }
 const blankEdit = (): EditState => ({
-  key: '', type: 'text', labelEn: '', labelAr: '', helpEn: '', helpAr: '', section: '', required: false, optionsText: '', defaultValue: '',
+  key: '', type: 'text', labelEn: '', labelAr: '', helpEn: '', helpAr: '', section: '', required: false, optionsText: '', defaultValue: '', refEntity: 'customer',
   visWhen: '', visOp: 'eq', visValue: '', reqWhen: '', reqOp: 'eq', reqValue: '', vMin: '', vMax: '', vMinLen: '', vMaxLen: '', vRegex: '',
 });
 function editFrom(f: DbField): EditState {
   const vis = (f.visibility as Condition | null) ?? null;
   const val = (f.validation as Validation | null) ?? null;
   const rw = val?.requiredWhen ?? null;
+  const cfg = (f.config as { entity?: string } | null) ?? null;
   const num = (n: number | undefined) => (n != null ? String(n) : '');
   return {
     id: f.id, key: f.key, type: f.type, labelEn: f.label_en ?? '', labelAr: f.label_ar ?? '', helpEn: f.help_en ?? '', helpAr: f.help_ar ?? '',
-    section: f.section ?? '', required: f.required, defaultValue: f.default_value ?? '',
+    section: f.section ?? '', required: f.required, defaultValue: f.default_value ?? '', refEntity: cfg?.entity ?? 'customer',
     optionsText: parseOptions(f.options).map((o) => `${o.value}|${o.label}`).join('\n'),
     visWhen: vis?.when ?? '', visOp: vis?.op ?? 'eq', visValue: vis?.value != null ? String(vis.value) : '',
     reqWhen: rw?.when ?? '', reqOp: rw?.op ?? 'eq', reqValue: rw?.value != null ? String(rw.value) : '',
@@ -122,11 +123,12 @@ export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbFo
     if (edit.vMinLen !== '') validation.minLen = Number(edit.vMinLen);
     if (edit.vMaxLen !== '') validation.maxLen = Number(edit.vMaxLen);
     if (edit.vRegex.trim()) validation.regex = edit.vRegex.trim();
+    const config = edit.type === 'entity_ref' ? { entity: edit.refEntity } : null;
     start(async () => {
       const res = await upsertField({
         formId: form.id, id: edit.id, key: edit.key, type: edit.type, labelEn: edit.labelEn, labelAr: edit.labelAr,
         helpEn: edit.helpEn, helpAr: edit.helpAr, section: edit.section, required: edit.required, options, defaultValue: edit.defaultValue,
-        visibility, validation: Object.keys(validation).length ? validation : null,
+        visibility, validation: Object.keys(validation).length ? validation : null, config,
       });
       if (!res.ok) { toast.error(res.error ?? t('forms.toast.error')); return; }
       toast.success(t('forms.toast.saved'));
@@ -204,6 +206,30 @@ export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbFo
                     {fieldKeyOpts.map((k) => <option key={k} value={k}>{k}</option>)}
                   </select>
                 </div>
+              </div>
+            )}
+
+            {eff.type === 'update_fields' && (
+              <div className="space-y-2">
+                <div className="space-y-1"><Label>{t('forms.effect.table')}</Label>
+                  <select className={selectCls} value={eff.table ?? ''} disabled={readOnly} onChange={(e) => setEff({ ...eff, table: e.target.value })}>
+                    <option value="">{t('forms.preview.choose')}</option>
+                    {EFFECT_TABLES.map((tb) => <option key={tb} value={tb}>{tb}</option>)}
+                  </select>
+                </div>
+                {eff.table && (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {(UPDATE_COLUMNS[eff.table] ?? []).map((col) => (
+                      <div key={col} className="flex items-center gap-2">
+                        <span className="w-24 shrink-0 font-mono text-xs" dir="ltr">{col}</span>
+                        <select className={selectCls} value={(eff.map ?? {})[col] ?? ''} disabled={readOnly} onChange={(e) => patchMap(col, e.target.value)}>
+                          <option value="">{t('forms.effect.unmapped')}</option>
+                          {fieldKeyOpts.map((k) => <option key={k} value={k}>{k}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -324,6 +350,15 @@ export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbFo
                   <Label>{t('forms.options')}</Label>
                   <textarea className="min-h-20 w-full rounded-md border border-input bg-background p-2 text-sm" dir="ltr" placeholder={'value|Label'} value={edit.optionsText} onChange={(e) => setEdit({ ...edit, optionsText: e.target.value })} />
                   <p className="text-xs text-muted-foreground">{t('forms.optionsHint')}</p>
+                </div>
+              )}
+              {edit.type === 'entity_ref' && (
+                <div className="space-y-1">
+                  <Label>{t('forms.entityRef.entity')}</Label>
+                  <select className={selectCls} value={edit.refEntity} onChange={(e) => setEdit({ ...edit, refEntity: e.target.value })}>
+                    {REF_ENTITIES.map((en) => <option key={en} value={en}>{t(`forms.entityRef.entities.${en}`)}</option>)}
+                  </select>
+                  <p className="text-xs text-muted-foreground">{t('forms.entityRef.hint')}</p>
                 </div>
               )}
 

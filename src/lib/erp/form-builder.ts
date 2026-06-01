@@ -4,22 +4,26 @@
 
 export const FIELD_TYPES = [
   'text', 'number', 'date', 'dropdown', 'multiselect',
-  'attachment', 'image', 'gps', 'signature', 'section',
+  'attachment', 'image', 'gps', 'signature', 'section', 'entity_ref',
 ] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
+
+/** Referenceable entities for the entity_ref picker field. */
+export const REF_ENTITIES = ['customer'] as const;
+export type RefEntity = (typeof REF_ENTITIES)[number];
 
 export type FormStatus = 'draft' | 'active' | 'archived';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
 /** The whitelisted effect applied on approval (B6). Only the safest set is
  *  enabled; higher-risk business effects are deferred to a later phase. */
-export type FormEffectType = 'record_only' | 'update_field' | 'set_gps' | 'create_customer';
+export type FormEffectType = 'record_only' | 'update_field' | 'update_fields' | 'set_gps' | 'create_customer';
 export interface FormEffect {
   type: FormEffectType;
-  table?: string;                  // update_field / set_gps target table
+  table?: string;                  // update_field(s) / set_gps target table
   column?: string;                 // update_field target column
   value_from?: string;             // update_field / set_gps source field key
-  map?: Record<string, string>;    // create_customer: column → source field key
+  map?: Record<string, string>;    // update_fields / create_customer: column → source field key
   [k: string]: unknown;
 }
 
@@ -36,6 +40,7 @@ export interface FormField {
   options: unknown | null;       // choices for dropdown / multiselect
   validation: unknown | null;    // min/max/length/regex/range
   visibility: unknown | null;    // conditional show/hide (workflow condition language)
+  config: unknown | null;        // type-specific config (entity_ref → { entity })
   default_value: string | null;
 }
 

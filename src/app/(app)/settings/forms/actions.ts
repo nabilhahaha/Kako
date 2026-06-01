@@ -71,7 +71,7 @@ export async function cloneForm(sourceId: string, newName: string): Promise<Acti
 
   const { data: fields } = await supabase
     .from('erp_form_fields')
-    .select('key, label_ar, label_en, help_ar, help_en, type, section, sort_order, required, options, validation, visibility, default_value')
+    .select('key, label_ar, label_en, help_ar, help_en, type, section, sort_order, required, options, validation, visibility, config, default_value')
     .eq('form_id', sourceId);
   const rows = ((fields as Record<string, unknown>[]) ?? []).map((f) => ({ ...f, form_id: newId }));
   if (rows.length > 0) await supabase.from('erp_form_fields').insert(rows);

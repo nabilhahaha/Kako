@@ -19,7 +19,7 @@ import type { createClient } from '@/lib/supabase/server';
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
-export const WHITELISTED_EFFECTS = ['record_only', 'update_field', 'set_gps', 'create_customer'] as const;
+export const WHITELISTED_EFFECTS = ['record_only', 'update_field', 'update_fields', 'set_gps', 'create_customer'] as const;
 export type WhitelistedEffect = (typeof WHITELISTED_EFFECTS)[number];
 
 // Safe, non-financial columns only. Financial / credit / pricing columns are
@@ -111,6 +111,35 @@ export async function applyFormEffect(supabase: Client, submissionId: string): P
     if (error) { await audit(supabase, sub, 'form_effect_failed', { type, table, column, error: error.message }); return { applied: false, effect: type, error: error.message }; }
     await audit(supabase, sub, 'form_effect', { type, table, column, record_id: targetId });
     return { applied: true, effect: type, recordId: targetId, detail: `${table}.${column}` };
+  }
+
+  // ── update_fields (multi-column) ──
+  if (type === 'update_fields') {
+    const table = effect.table ?? '';
+    const allowed = UPDATE_FIELD_ALLOW[table];
+    const map = effect.map ?? {};
+    if (!allowed) {
+      await audit(supabase, sub, 'form_effect_rejected', { type, table, reason: 'target_not_allowed' });
+      return { applied: false, effect: type, error: 'target not allowed' };
+    }
+    const targetId = resolveSubjectId(sub, subjectRef);
+    if (!targetId) {
+      await audit(supabase, sub, 'form_effect_rejected', { type, reason: 'no_target_record' });
+      return { applied: false, effect: type, error: 'no target record' };
+    }
+    const payload: Record<string, unknown> = {};
+    for (const [col, fieldKey] of Object.entries(map)) {
+      if (allowed.includes(col)) payload[col] = str(sub.values[fieldKey]);
+    }
+    if (Object.keys(payload).length === 0) {
+      await audit(supabase, sub, 'form_effect_rejected', { type, table, reason: 'no_allowed_columns' });
+      return { applied: false, effect: type, error: 'no allowed columns' };
+    }
+    const { error } = await supabase
+      .from(table).update(payload).eq('id', targetId).eq('company_id', sub.company_id);
+    if (error) { await audit(supabase, sub, 'form_effect_failed', { type, table, error: error.message }); return { applied: false, effect: type, error: error.message }; }
+    await audit(supabase, sub, 'form_effect', { type, table, columns: Object.keys(payload), record_id: targetId });
+    return { applied: true, effect: type, recordId: targetId, detail: `${table}:${Object.keys(payload).join(',')}` };
   }
 
   // ── set_gps ──

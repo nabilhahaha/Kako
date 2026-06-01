@@ -195,6 +195,48 @@ describe.skipIf(!hasTestDb)('FMCG · 3) GPS Correction Request (set_gps, route_o
   }, 30_000);
 });
 
+describe.skipIf(!hasTestDb)('Builder pre-pack · submitter outcome notification', () => {
+  it('erp_notify_send resolves the form_approved template for the submitter', async () => {
+    await withRollback(async (c) => {
+      const t = await seedTenant(c, 'NT');
+      const form = await makeForm(c, t.company, 'p_notify', 'fmcg_new_customer_wf', { type: 'record_only' });
+      await actAs(c, t.admin);
+      const sub = await submit(c, t.company, form, null, t.admin, {});
+      // mirrors the form_submission handler's submitter notification
+      await c.query("select erp_notify_send($1,$2,'form_approved','{}'::jsonb,'/forms','form_submission',$3)", [t.company, t.admin, sub]);
+      await resetRole(c);
+      const n = (await c.query("select title_en, type from erp_notifications where user_id=$1 and record_id=$2", [t.admin, sub])).rows[0];
+      expect(n.type).toBe('form_approved');
+      expect(n.title_en).toBe('Your request was approved');
+    });
+  }, 30_000);
+});
+
+describe.skipIf(!hasTestDb)('Builder pre-pack · entity_ref field type', () => {
+  it('accepts an entity_ref field with config and a field-sourced subject end-to-end', async () => {
+    await withRollback(async (c) => {
+      const t = await seedTenant(c, 'ER');
+      const rep = await addMember(c, t.branch, 'rep', 'rep');
+      const cust = await newCustomer(c, t.company, { name: 'Picked Co', salesman_id: rep });
+      const form = await makeForm(c, t.company, 'p_entity_ref', 'fmcg_customer_update_wf',
+        { type: 'update_field', table: 'erp_customers', column: 'phone', value_from: 'new_phone' },
+        { entity: 'customer', source: 'field', key: 'customer_id' });
+      // entity_ref picker field storing a customer id (with per-field config)
+      await c.query(
+        `insert into erp_form_fields(form_id, key, label_en, type, sort_order, required, config)
+         values($1,'customer_id','Customer','entity_ref',1,true,'{"entity":"customer"}'::jsonb)`,
+        [form],
+      );
+      await actAs(c, t.admin);
+      const sub = await submit(c, t.company, form, null, t.admin, { customer_id: cust, new_phone: 'ER-9' });
+      const inst = (await c.query("select erp_workflow_start('fmcg_customer_update_wf','form_submission',$1,'{}'::jsonb) as id", [sub])).rows[0].id;
+      await resetRole(c);
+      const task = (await c.query("select assignee_ref from erp_workflow_tasks where instance_id=$1", [inst])).rows[0];
+      expect(task.assignee_ref).toBe(rep); // owner resolved from the entity_ref field value
+    });
+  }, 30_000);
+});
+
 describe.skipIf(!hasTestDb)('FMCG · 4) Field-sourced subject (account_owner resolved from a form field)', () => {
   it('resolves the owner from values.customer_id — the generic, reusable path', async () => {
     await withRollback(async (c) => {

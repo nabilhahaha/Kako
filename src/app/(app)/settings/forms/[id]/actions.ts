@@ -53,7 +53,7 @@ export async function upsertField(input: {
   formId: string; id?: string; key: string; type: string; labelEn: string; labelAr?: string;
   helpEn?: string; helpAr?: string; section?: string; required: boolean;
   options?: { value: string; label: string }[]; defaultValue?: string;
-  visibility?: Condition | null; validation?: Validation | null;
+  visibility?: Condition | null; validation?: Validation | null; config?: Record<string, unknown> | null;
 }): Promise<ActionResult> {
   const { t } = await getT();
   if (await requireAdmin()) return { ok: false, error: t('forms.errors.adminOnly') };
@@ -69,6 +69,7 @@ export async function upsertField(input: {
     default_value: input.defaultValue?.trim() || null,
     visibility: input.visibility ?? null,
     validation: input.validation ?? null,
+    config: input.config ?? null,
   };
   if (input.id) {
     const { error } = await supabase.from('erp_form_fields').update(row).eq('id', input.id);

@@ -13,7 +13,7 @@ import type { Condition, Validation } from '@/lib/erp/form-rules';
 interface FieldRow {
   key: string; label_ar: string | null; label_en: string | null; help_ar: string | null; help_en: string | null;
   type: FieldType; section: string | null; sort_order: number; required: boolean;
-  options: unknown | null; default_value: string | null; visibility: unknown | null; validation: unknown | null;
+  options: unknown | null; default_value: string | null; visibility: unknown | null; validation: unknown | null; config: unknown | null;
 }
 
 function parseOptions(raw: unknown): { value: string; label: string }[] {
@@ -40,13 +40,24 @@ export default async function FormFillPage({ params, searchParams }: { params: P
 
   const { data: fieldRows } = await supabase
     .from('erp_form_fields')
-    .select('key, label_ar, label_en, help_ar, help_en, type, section, sort_order, required, options, default_value, visibility, validation')
+    .select('key, label_ar, label_en, help_ar, help_en, type, section, sort_order, required, options, default_value, visibility, validation, config')
     .eq('form_id', id)
     .order('sort_order', { ascending: true });
+  const rows = (fieldRows as FieldRow[]) ?? [];
 
-  const fields: PreviewField[] = ((fieldRows as FieldRow[]) ?? []).map((r) => ({
+  // entity_ref pickers: load the referenced rows (RLS-scoped to the company).
+  // Only 'customer' is supported today; add more as REF_ENTITIES grows.
+  const needsCustomers = rows.some((r) => r.type === 'entity_ref' && ((r.config as { entity?: string } | null)?.entity ?? 'customer') === 'customer');
+  let customerOpts: { value: string; label: string }[] = [];
+  if (needsCustomers) {
+    const { data: custs } = await supabase.from('erp_customers').select('id, name, code').eq('is_active', true).order('name', { ascending: true });
+    customerOpts = ((custs as { id: string; name: string; code: string | null }[]) ?? []).map((cu) => ({ value: cu.id, label: cu.code ? `${cu.name} (${cu.code})` : cu.name }));
+  }
+
+  const fields: PreviewField[] = rows.map((r) => ({
     key: r.key, type: r.type, labelAr: r.label_ar, labelEn: r.label_en, helpAr: r.help_ar, helpEn: r.help_en,
-    section: r.section, required: r.required, options: parseOptions(r.options), defaultValue: r.default_value,
+    section: r.section, required: r.required,
+    options: r.type === 'entity_ref' ? customerOpts : parseOptions(r.options), defaultValue: r.default_value,
     visibility: (r.visibility as Condition | null) ?? null, validation: (r.validation as Validation | null) ?? null,
   }));
 
