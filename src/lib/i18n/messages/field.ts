@@ -41,6 +41,10 @@ export const ar = {
       timeline: 'سجل الزيارات', noVisits: 'لا توجد زيارات', reason: 'السبب', duration: 'المدة',
       frequency: 'التكرار', nextDue: 'الاستحقاق التالي', adherence: 'الالتزام بالتكرار',
     },
+    score: {
+      title: 'درجة التنفيذ', overall: 'الإجمالية', merch: 'الالتزام بالعرض', survey: 'الاستبيان',
+      oos: 'درجة المخزون', opportunities: 'الفرص', value: 'القيمة', visitScore: 'درجة الزيارة',
+    },
     capture: {
       title: 'التقاط ميداني', for: 'للعميل', back: 'رجوع', open: 'فتح', noAccess: 'لا تملك صلاحية تنفيذ الالتقاط الميداني.',
       history: 'عمليات الالتقاط الأخيرة', noHistory: 'لا توجد عمليات التقاط بعد', none: 'لا توجد نماذج التقاط متاحة',
@@ -105,6 +109,10 @@ export const en = {
       ownership: 'Ownership', accountOwner: 'Account owner', routeOwner: 'Route owner',
       timeline: 'Visit history', noVisits: 'No visits yet', reason: 'Reason', duration: 'Duration',
       frequency: 'Frequency', nextDue: 'Next due', adherence: 'Frequency adherence',
+    },
+    score: {
+      title: 'Execution score', overall: 'Overall', merch: 'Merch compliance', survey: 'Survey',
+      oos: 'OOS score', opportunities: 'Opportunities', value: 'Value', visitScore: 'Visit score',
     },
     capture: {
       title: 'Field capture', for: 'For', back: 'Back', open: 'Open', noAccess: 'You don’t have permission to perform field capture.',
