@@ -19,7 +19,7 @@ import type { createClient } from '@/lib/supabase/server';
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
-export const WHITELISTED_EFFECTS = ['record_only', 'update_field', 'update_fields', 'set_gps', 'create_customer'] as const;
+export const WHITELISTED_EFFECTS = ['record_only', 'update_field', 'update_fields', 'set_gps', 'create_customer', 'emit_fact'] as const;
 export type WhitelistedEffect = (typeof WHITELISTED_EFFECTS)[number];
 
 // Safe, non-financial columns only. Financial / credit / pricing columns are
@@ -31,7 +31,7 @@ const GPS_ALLOW: Record<string, [string, string]> = { erp_customers: ['latitude'
 const CUSTOMER_CREATE_ALLOW = ['name', 'name_ar', 'phone', 'email', 'address', 'city', 'tax_number'];
 
 interface Submission { id: string; company_id: string; form_id: string; record_id: string | null; values: Record<string, unknown>; }
-interface Effect { type?: string; table?: string; column?: string; value_from?: string; map?: Record<string, string>; }
+interface Effect { type?: string; table?: string; column?: string; value_from?: string; map?: Record<string, string>; module?: string; event?: string; }
 interface SubjectRef { entity?: string; source?: 'record' | 'field'; key?: string }
 
 export interface EffectResult { applied: boolean; effect: string; recordId?: string | null; detail?: string; error?: string; }
@@ -192,6 +192,31 @@ export async function applyFormEffect(supabase: Client, submissionId: string): P
     await supabase.from('erp_form_submissions').update({ record_id: newId }).eq('id', sub.id);
     await audit(supabase, sub, 'form_effect', { type, customer_id: newId });
     return { applied: true, effect: type, recordId: newId, detail: 'erp_customers' };
+  }
+
+  // ── emit_fact (analytics: append a raw fact) ──
+  if (type === 'emit_fact') {
+    const event = (effect.event ?? '').trim();
+    if (!event) {
+      await audit(supabase, sub, 'form_effect_rejected', { type, reason: 'no_event' });
+      return { applied: false, effect: type, error: 'no event' };
+    }
+    // Build the fact from mapped measures + dimensions. erp_raw_emit maps known
+    // keys to columns (amount, quantity, currency, gps_lat/lng, geofence_result,
+    // route_id, …) and folds the rest into details. customer_id = subject.
+    const fact: Record<string, unknown> = { company_id: sub.company_id };
+    const subjectId = resolveSubjectId(sub, subjectRef);
+    if (subjectId) fact.customer_id = subjectId;
+    for (const [factKey, fieldKey] of Object.entries(effect.map ?? {})) {
+      const v = str(sub.values[fieldKey]);
+      if (v != null) fact[factKey] = v;
+    }
+    const { error } = await supabase.rpc('erp_raw_emit', {
+      p_module: (effect.module ?? 'field_ops').trim() || 'field_ops', p_event_type: event, p_fact: fact,
+    });
+    if (error) { await audit(supabase, sub, 'form_effect_failed', { type, event, error: error.message }); return { applied: false, effect: type, error: error.message }; }
+    await audit(supabase, sub, 'form_effect', { type, event, customer_id: subjectId ?? null });
+    return { applied: true, effect: type, recordId: subjectId ?? sub.record_id, detail: event };
   }
 
   return { applied: false, effect: type, error: 'unhandled effect' };

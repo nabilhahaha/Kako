@@ -17,13 +17,15 @@ export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 /** The whitelisted effect applied on approval (B6). Only the safest set is
  *  enabled; higher-risk business effects are deferred to a later phase. */
-export type FormEffectType = 'record_only' | 'update_field' | 'update_fields' | 'set_gps' | 'create_customer';
+export type FormEffectType = 'record_only' | 'update_field' | 'update_fields' | 'set_gps' | 'create_customer' | 'emit_fact';
 export interface FormEffect {
   type: FormEffectType;
   table?: string;                  // update_field(s) / set_gps target table
   column?: string;                 // update_field target column
   value_from?: string;             // update_field / set_gps source field key
-  map?: Record<string, string>;    // update_fields / create_customer: column → source field key
+  map?: Record<string, string>;    // update_fields / create_customer / emit_fact: target ← source field key
+  module?: string;                 // emit_fact: raw-fact module (e.g. field_ops)
+  event?: string;                  // emit_fact: raw-fact event_type (e.g. fe_merchandising)
   [k: string]: unknown;
 }
 

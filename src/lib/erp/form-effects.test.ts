@@ -18,6 +18,7 @@ function makeClient(submission: Sub, effect: Effect, opts: { insertError?: strin
     updates: [] as { table: string; payload: Record<string, unknown>; filters: Record<string, unknown> }[],
     inserts: [] as { table: string; payload: Record<string, unknown> }[],
     audits: [] as Record<string, unknown>[],
+    emits: [] as Record<string, unknown>[],
   };
   function builder(table: string) {
     const state: { op: string; payload: Record<string, unknown>; filters: Record<string, unknown> } = { op: '', payload: {}, filters: {} };
@@ -49,7 +50,11 @@ function makeClient(submission: Sub, effect: Effect, opts: { insertError?: strin
   }
   const client = {
     from: (table: string) => builder(table),
-    rpc: (fn: string, args: Record<string, unknown>) => { if (fn === 'erp_log_audit') calls.audits.push(args); return Promise.resolve({ data: null, error: null }); },
+    rpc: (fn: string, args: Record<string, unknown>) => {
+      if (fn === 'erp_log_audit') calls.audits.push(args);
+      if (fn === 'erp_raw_emit') calls.emits.push(args);
+      return Promise.resolve({ data: null, error: null });
+    },
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { client: client as any, calls };
@@ -153,6 +158,28 @@ describe('applyFormEffect (B6 whitelisted effects)', () => {
     expect(String(calls.inserts[0].payload.code)).toMatch(/^FRM-/);
     // record_id back-filled onto the submission
     expect(calls.updates.some((u) => u.table === 'erp_form_submissions' && u.payload.record_id === 'cust-new')).toBe(true);
+  });
+
+  it('emit_fact emits a raw fact with mapped measures + subject customer', async () => {
+    const { client, calls } = makeClient(
+      baseSub({ record_id: 'cust-5', values: { price: '12.5', facings: '4', share: '30' } }),
+      { type: 'emit_fact', module: 'field_ops', event: 'fe_merchandising', map: { amount: 'price', quantity: 'facings', shelf_share: 'share' } },
+      { subjectRef: { entity: 'customer', source: 'record' } },
+    );
+    const r = await applyFormEffect(client, 's1');
+    expect(r.applied).toBe(true);
+    expect(calls.emits).toHaveLength(1);
+    expect(calls.emits[0]).toMatchObject({
+      p_module: 'field_ops', p_event_type: 'fe_merchandising',
+      p_fact: { company_id: 'co1', customer_id: 'cust-5', amount: '12.5', quantity: '4', shelf_share: '30' },
+    });
+  });
+
+  it('emit_fact requires an event', async () => {
+    const { client } = makeClient(baseSub({ values: {} }), { type: 'emit_fact', module: 'field_ops', map: {} });
+    const r = await applyFormEffect(client, 's1');
+    expect(r.applied).toBe(false);
+    expect(r.error).toMatch(/event/);
   });
 
   it('create_customer requires a name', async () => {
