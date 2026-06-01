@@ -599,28 +599,6 @@ export function CompanyDetail({
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-2">
-                  <Label htmlFor="subscription_start">{t('platform.company.info.subscriptionStartLabel')}</Label>
-                  <Input
-                    id="subscription_start"
-                    name="subscription_start"
-                    type="date"
-                    dir="ltr"
-                    defaultValue={company.subscription_start ?? ''}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="subscription_end">{t('platform.company.info.subscriptionEndLabel')}</Label>
-                  <Input
-                    id="subscription_end"
-                    name="subscription_end"
-                    type="date"
-                    dir="ltr"
-                    defaultValue={company.subscription_end ?? ''}
-                  />
-                </div>
-              </div>
             </div>
             <Button type="submit" disabled={pending}>
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
