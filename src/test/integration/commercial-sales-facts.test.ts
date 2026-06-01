@@ -55,8 +55,9 @@ describe.skipIf(!hasTestDb)('CP-1 · sales actuals integration', () => {
       const total = (await c.query('select erp_cp_actuals_total($1,$2) j', [FROM, TO])).rows[0].j;
       expect(Number(total.value)).toBe(1700);     // draft 9999 excluded
       expect(Number(total.qty)).toBe(17);
-      expect(total.invoices).toBe(2);
+      expect(total.docs).toBe(2);          // recognized documents (source-aware)
       expect(total.customers).toBe(2);
+      expect(total.source).toBe('invoice'); // default company source
 
       const reps = byKey((await c.query("select erp_cp_actuals($1,$2,'rep') j", [FROM, TO])).rows[0].j);
       expect(Number(reps[s.repA].value)).toBe(1500); expect(Number(reps[s.repA].qty)).toBe(15);
@@ -76,6 +77,26 @@ describe.skipIf(!hasTestDb)('CP-1 · sales actuals integration', () => {
       expect(Number(ch['retail'].value)).toBe(1500); expect(Number(ch['wholesale'].value)).toBe(200);
       const cls = byKey((await c.query("select erp_cp_actuals($1,$2,'classification') j", [FROM, TO])).rows[0].j);
       expect(Number(cls['A'].value)).toBe(1500); expect(Number(cls['B'].value)).toBe(200);
+      await resetRole(c);
+    });
+  }, 30_000);
+
+  it('actuals source is configurable per company (invoices | sales_orders)', async () => {
+    await withRollback(async (c) => {
+      const s = await seed(c);
+      // a confirmed sales order for repA's customer: 3 units / 300
+      const so = (await c.query("insert into erp_sales_orders(branch_id, customer_id, order_number, status, salesman_id, net_amount) values($1,$2,$3,'confirmed'::erp_sales_order_status,$4,300) returning id", [s.branch, s.cA, `SO-${u()}`, s.repA])).rows[0].id;
+      await c.query("insert into erp_sales_order_lines(sales_order_id, product_id, quantity, unit_price, line_total) values($1,$2,3,100,300)", [so, s.p1]);
+      await actAs(c, s.admin);
+      // default = invoices → 1700
+      expect(Number((await c.query('select erp_cp_actuals_total($1,$2) j', [FROM, TO])).rows[0].j.value)).toBe(1700);
+      // switch company to sales_orders → actuals now read the confirmed order (300)
+      await c.query("insert into erp_cp_settings(company_id, actuals_source) values($1,'sales_orders')", [s.company]);
+      const t = (await c.query('select erp_cp_actuals_total($1,$2) j', [FROM, TO])).rows[0].j;
+      expect(Number(t.value)).toBe(300); expect(t.source).toBe('order');
+      // explicit p_source overrides for comparison dashboards
+      expect(Number((await c.query("select erp_cp_actuals_total($1,$2,null,null,null,null,null,null,null,null,'invoice') j", [FROM, TO])).rows[0].j.value)).toBe(1700);
+      expect(Number((await c.query("select erp_cp_actuals_total($1,$2,null,null,null,null,null,null,null,null,'all') j", [FROM, TO])).rows[0].j.value)).toBe(2000); // 1700 + 300
       await resetRole(c);
     });
   }, 30_000);
