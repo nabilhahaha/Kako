@@ -48,6 +48,7 @@ import * as formsRun from './forms-run';
 import * as field from './field';
 import * as notifications from './notifications';
 import * as electrical from './electrical';
+import * as commercial from './commercial';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -55,7 +56,7 @@ const MODULES = [
   market, distribution, settings, account, platform, rep, exportsMod,
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
   importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, requests, subscriptionRequest, onboardingRequest, moduleRequest, forms, formsRun, field, notifications,
-  electrical,
+  electrical, commercial,
 ];
 
 type Catalog = Record<string, unknown>;

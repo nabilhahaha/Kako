@@ -1,0 +1,51 @@
+/** Commercial Performance Pack (CP-6) — manager-facing messages. Keep ar/en in sync. */
+export const ar = {
+  commercial: {
+    title: 'الأداء التجاري', noAccess: 'لا تملك صلاحية الوصول.', month: 'الشهر', source: 'المصدر',
+    sourceInvoice: 'الفواتير', sourceOrder: 'الطلبات', sourceAll: 'الكل (مقارنة)', activeSource: 'المصدر الفعّال',
+    groupBy: 'التجميع حسب', targets: 'المستهدفات', statements: 'كشوف العمولات والحوافز', empty: 'لا توجد بيانات',
+    actualValue: 'القيمة الفعلية', actualQty: 'الكمية الفعلية', targetValue: 'القيمة المستهدفة', targetQty: 'الكمية المستهدفة',
+    achValue: 'تحقيق القيمة %', achQty: 'تحقيق الكمية %', yoyValue: 'نمو القيمة سنويًا %', yoyQty: 'نمو الكمية سنويًا %',
+    ppValue: 'نمو القيمة عن الفترة السابقة %', ppQty: 'نمو الكمية عن الفترة السابقة %',
+    value: 'القيمة', qty: 'الكمية', achievement: 'التحقيق', growthYoy: 'سنوي', growthPp: 'فترة سابقة',
+    topPerformers: 'الأفضل أداءً', bottomPerformers: 'الأضعف أداءً', largestGrowth: 'أكبر نمو', largestDecline: 'أكبر تراجع',
+    dims: { company: 'الشركة', region: 'الإقليم', area: 'المنطقة', branch: 'الفرع', route: 'خط السير', rep: 'المندوب',
+      customer: 'العميل', channel: 'القناة', classification: 'التصنيف', category: 'الفئة', subcategory: 'الفئة الفرعية', brand: 'العلامة', sku: 'الصنف' },
+    // targets
+    targetsTitle: 'إدارة المستهدفات', back: 'الأداء التجاري', addTarget: 'إضافة مستهدف', dimType: 'البُعد', dimId: 'المعرّف', metric: 'المقياس',
+    amount: 'القيمة', status: 'الحالة', save: 'حفظ', saved: 'تم الحفظ ✓', saveFailed: 'تعذّر الحفظ',
+    importCsv: 'استيراد CSV', exportCsv: 'تصدير CSV', importing: 'جارٍ التحقق…', importErrors: 'أخطاء يجب إصلاحها قبل الاستيراد',
+    importOk: 'تم استيراد {n} مستهدفًا', importWarn: 'تحذيرات', rowsValid: 'جاهز للاستيراد', commit: 'تأكيد الاستيراد', cancel: 'إلغاء',
+    metricValue: 'قيمة', metricQty: 'كمية', noTargets: 'لا توجد مستهدفات',
+    st: { draft: 'مسودة', approved: 'معتمد', active: 'نشط', archived: 'مؤرشف' },
+    approve: 'اعتماد', activate: 'تفعيل', archive: 'أرشفة',
+    // statements
+    statementsTitle: 'كشوف العمولات والحوافز', combined: 'الإجمالي المجمّع', commission: 'العمولات', incentive: 'الحوافز',
+    rep: 'المندوب', total: 'الإجمالي', plan: 'الخطة', program: 'البرنامج', run: 'احتساب', approveFreeze: 'اعتماد وتجميد', frozen: 'مجمّد',
+    payout: 'المبلغ', qualified: 'مؤهل', notQualified: 'غير مؤهل', ran: 'تم احتساب {n}', runFailed: 'تعذّر الاحتساب', period: 'الفترة',
+  },
+};
+export const en = {
+  commercial: {
+    title: 'Commercial Performance', noAccess: 'You don’t have access.', month: 'Month', source: 'Source',
+    sourceInvoice: 'Invoices', sourceOrder: 'Orders', sourceAll: 'All (compare)', activeSource: 'Active source',
+    groupBy: 'Group by', targets: 'Targets', statements: 'Statements', empty: 'No data',
+    actualValue: 'Actual Value', actualQty: 'Actual Qty', targetValue: 'Target Value', targetQty: 'Target Qty',
+    achValue: 'Achievement Value %', achQty: 'Achievement Qty %', yoyValue: 'YoY Value Growth %', yoyQty: 'YoY Qty Growth %',
+    ppValue: 'Prior-Period Value Growth %', ppQty: 'Prior-Period Qty Growth %',
+    value: 'Value', qty: 'Qty', achievement: 'Achv', growthYoy: 'YoY', growthPp: 'Prior',
+    topPerformers: 'Top performers', bottomPerformers: 'Bottom performers', largestGrowth: 'Largest growth', largestDecline: 'Largest decline',
+    dims: { company: 'Company', region: 'Region', area: 'Area', branch: 'Branch', route: 'Route', rep: 'Rep',
+      customer: 'Customer', channel: 'Channel', classification: 'Classification', category: 'Category', subcategory: 'Sub-category', brand: 'Brand', sku: 'SKU' },
+    targetsTitle: 'Target management', back: 'Commercial', addTarget: 'Add target', dimType: 'Dimension', dimId: 'ID', metric: 'Metric',
+    amount: 'Amount', status: 'Status', save: 'Save', saved: 'Saved ✓', saveFailed: 'Could not save',
+    importCsv: 'Import CSV', exportCsv: 'Export CSV', importing: 'Validating…', importErrors: 'Errors to fix before import',
+    importOk: 'Imported {n} targets', importWarn: 'Warnings', rowsValid: 'Ready to import', commit: 'Confirm import', cancel: 'Cancel',
+    metricValue: 'value', metricQty: 'quantity', noTargets: 'No targets',
+    st: { draft: 'Draft', approved: 'Approved', active: 'Active', archived: 'Archived' },
+    approve: 'Approve', activate: 'Activate', archive: 'Archive',
+    statementsTitle: 'Commission & Incentive statements', combined: 'Combined total', commission: 'Commission', incentive: 'Incentive',
+    rep: 'Rep', total: 'Total', plan: 'Plan', program: 'Program', run: 'Run', approveFreeze: 'Approve & freeze', frozen: 'Frozen',
+    payout: 'Payout', qualified: 'Qualified', notQualified: 'Not qualified', ran: 'Computed {n}', runFailed: 'Run failed', period: 'Period',
+  },
+};
