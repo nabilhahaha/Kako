@@ -15,6 +15,7 @@ export const ar = {
       customer: 'عميل',
       credit_limit_request: 'طلب حد ائتمان',
       subscription_change: 'تغيير اشتراك',
+      onboarding: 'تهيئة',
     },
     creditLimit: {
       requestLabel: 'حد ائتمان جديد',
@@ -45,6 +46,7 @@ export const en = {
       customer: 'Customer',
       credit_limit_request: 'Credit limit request',
       subscription_change: 'Subscription change',
+      onboarding: 'Onboarding',
     },
     creditLimit: {
       requestLabel: 'New credit limit',

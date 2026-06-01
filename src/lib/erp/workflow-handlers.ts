@@ -60,6 +60,30 @@ const HANDLERS: Record<string, Handler> = {
     }
     await supabase.from('erp_subscription_change_requests').update({ status: outcome }).eq('id', recordId);
   },
+
+  // Onboarding (platform-scope): on approval, provision the tenant via the
+  // canonical subscription service (plan + optional trial → activates) and mark
+  // setup done. Runs as the approving platform owner. Stamp the request.
+  onboarding: async (recordId, outcome) => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('erp_onboarding_requests')
+      .select('company_id, plan_key, trial_days')
+      .eq('id', recordId)
+      .single();
+    const r = data as { company_id: string; plan_key: string | null; trial_days: number | null } | null;
+    if (r && outcome === 'approved') {
+      await subscription.seedSubscription(supabase, {
+        companyId: r.company_id,
+        planKey: r.plan_key || 'standard',
+        currency: 'EGP',
+        interval: 'monthly',
+        trialDays: r.trial_days ?? 0,
+      });
+      await supabase.from('erp_companies').update({ setup_done: true }).eq('id', r.company_id);
+    }
+    await supabase.from('erp_onboarding_requests').update({ status: outcome }).eq('id', recordId);
+  },
 };
 
 export function hasWorkflowHandler(entity: string): boolean {

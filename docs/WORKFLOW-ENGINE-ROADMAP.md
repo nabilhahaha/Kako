@@ -53,3 +53,57 @@ HR (leave), purchasing (PO), expenses, inventory adjustments, discounts,
 user-access / permission-change — each as a workflow definition + outcome
 handler (+ typed table for heavy domains), using the engine and the
 subject-anchored / hierarchical resolvers above.
+
+---
+
+## Platform Roadmap — Enterprise FMCG requirements (approved, queued)
+
+> All built on the existing Workflow & Approval Engine + canonical services.
+> Additive; no engine/architecture redesign.
+
+1. **Customer Route Ownership** — route-based and account-owner-based approvals
+   (see "Queued" above). Core `account_owner` + subject-anchored resolution;
+   Distribution-pack `route_owner` + route-aware routing; graceful fallback;
+   optional per company.
+
+2. **Data Update Requests** — workflow request type for master-data changes:
+   **CR (commercial registration), VAT, National Address, GPS, Contact Details**.
+   Entity `data_update_request` (typed payload: field, old/new value, target
+   record). Approver chain by company config; **approved outcome writes the new
+   value to the master record** via an outcome handler; fully audited.
+
+3. **GPS Correction Workflow** — a focused Data Update flow for customer GPS:
+   field-captured coordinate → approval → **automatic master-data update** of the
+   customer location, with the prior value retained in the audit/event trail.
+
+4. **Cash Customer workflow** — walk-in / non-registered customer handling: a
+   request to transact (or to create a one-off cash customer) routed for approval
+   where company policy requires it; outcome creates/links the cash customer.
+   (Roadmap only; not started.)
+
+5. **Full Raw Data Layer (reusable analytics/AI spine)** — an append-only,
+   module-agnostic fact/event layer so every module writes normalized rows once
+   and analytics/AI read without future redesign.
+   - **Shared dimensional spine (every fact row):** Date & Time · User · Branch ·
+     Route · Supervisor · Salesman · Customer · Channel · Classification · SKU ·
+     UOM · Quantity · Value · Cost · Gross Profit · Returns · Return Reason ·
+     GPS Coordinates · Workflow Status.
+   - **Design:** a normalized fact table (e.g. `erp_raw_facts`) keyed by
+     `module` + `event_type` + `occurred_at`, carrying the spine as typed columns
+     plus a `details` JSONB for module-specific extras; dimension references by id
+     (resolved to the existing customer/route/user/branch/SKU tables) with
+     denormalized snapshots for point-in-time accuracy. Append-only + indexed for
+     time/branch/route/customer/SKU; partition-ready by date.
+   - **Reusable across:** Visits, Merchandising, Inventory, Trade Spend, Old
+     Expiry, Sales Execution, and future modules — each emits raw facts through a
+     thin writer, never its own bespoke analytics schema.
+   - **Workflow-aware:** `workflow_status` on each fact lets approval state flow
+     into analytics (e.g., approved vs pending corrections), tying the engine to
+     reporting.
+   - **Goal:** a single, stable schema that BI/AI reporting can target now and as
+     modules grow — no future database redesign.
+
+### Sequencing
+M4(b) Onboarding → M4(c) Module Activation & Integrations → Customer Route
+Ownership → then the remaining enterprise items (Data Update / GPS Correction →
+Raw Data Layer → Cash Customer), each as an additive engine/handler increment.
