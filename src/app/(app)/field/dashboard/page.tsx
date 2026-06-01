@@ -188,10 +188,12 @@ export default async function FieldDashboardPage({ searchParams }: { searchParam
       <div>
         <h3 className="mb-2 font-semibold">{t('field.dashboard.execTitle')}</h3>
         {exec.company && exec.company.captures > 0 ? (
-          <Card className="mb-3"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <span className="flex items-center gap-3"><span className="text-3xl font-semibold">{exec.company.overall ?? '—'}</span><span className="text-xs text-muted-foreground">{t('field.score.overall')}</span></span>
-            <Breakdown e={exec.company} />
-          </CardContent></Card>
+          <Link href="/field/perf/company/all" className="mb-3 block">
+            <Card className="transition-colors hover:border-primary"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <span className="flex items-center gap-3"><span className="text-3xl font-semibold">{exec.company.overall ?? '—'}</span><span className="text-xs text-muted-foreground">{t('field.score.overall')}</span></span>
+              <span className="flex items-center gap-2"><Breakdown e={exec.company} /><ChevronLeft className="h-4 w-4 text-muted-foreground rtl:rotate-180" /></span>
+            </CardContent></Card>
+          </Link>
         ) : <Card className="mb-3"><CardContent className="p-4 text-center text-sm text-muted-foreground">{t('field.dashboard.none')}</CardContent></Card>}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -199,7 +201,7 @@ export default async function FieldDashboardPage({ searchParams }: { searchParam
             <h4 className="mb-2 text-sm font-medium text-muted-foreground">{t('field.dashboard.execByRoute')}</h4>
             {exec.routes.length === 0 ? <Card><CardContent className="p-4 text-center text-sm text-muted-foreground">{t('field.dashboard.none')}</CardContent></Card>
               : <div className="space-y-2">{exec.routes.map((g, i) => (
-                  <Link key={g.id ?? i} href={g.id ? `/field/route-perf/${g.id}` : '#'}><Card className="transition-colors hover:border-primary"><CardContent className="space-y-1 p-3 text-sm">
+                  <Link key={g.id ?? i} href={g.id ? `/field/perf/route/${g.id}` : '#'}><Card className="transition-colors hover:border-primary"><CardContent className="space-y-1 p-3 text-sm">
                     <div className="flex items-center justify-between"><span className="min-w-0 truncate font-medium">{g.name}</span><span className="flex items-center gap-1"><Badge variant="secondary">{g.overall ?? '—'}</Badge><ChevronLeft className="h-3.5 w-3.5 text-muted-foreground rtl:rotate-180" /></span></div>
                     <Breakdown e={g} />
                   </CardContent></Card></Link>
@@ -209,7 +211,7 @@ export default async function FieldDashboardPage({ searchParams }: { searchParam
             <h4 className="mb-2 text-sm font-medium text-muted-foreground">{t('field.dashboard.execByRep')}</h4>
             {exec.reps.length === 0 ? <Card><CardContent className="p-4 text-center text-sm text-muted-foreground">{t('field.dashboard.none')}</CardContent></Card>
               : <div className="space-y-2">{exec.reps.map((g, i) => (
-                  <Link key={g.id ?? i} href={g.id ? `/field/rep-perf/${g.id}` : '#'}><Card className="transition-colors hover:border-primary"><CardContent className="space-y-1 p-3 text-sm">
+                  <Link key={g.id ?? i} href={g.id ? `/field/perf/rep/${g.id}` : '#'}><Card className="transition-colors hover:border-primary"><CardContent className="space-y-1 p-3 text-sm">
                     <div className="flex items-center justify-between"><span className="min-w-0 truncate font-medium">{g.name}</span><span className="flex items-center gap-1"><Badge variant="secondary">{g.overall ?? '—'}</Badge><ChevronLeft className="h-3.5 w-3.5 text-muted-foreground rtl:rotate-180" /></span></div>
                     <Breakdown e={g} />
                   </CardContent></Card></Link>

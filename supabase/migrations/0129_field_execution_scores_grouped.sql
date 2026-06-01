@@ -53,8 +53,8 @@ begin
     'id', gid, 'name', gname, 'captures', total,
     'merch_compliance', merch, 'survey_score', survey, 'oos_score', oos, 'oos_count', oos_count,
     'opportunity_score', opp, 'opportunity_count', opp_count, 'opportunity_value', pval,
-    'overall', (select round(avg(x)) from (values (merch), (least(100, survey)), (oos), (opp)) as t(x) where x is not null)
-  ) order by (select round(avg(x)) from (values (merch), (least(100, survey)), (oos), (opp)) as t(x) where x is not null) desc nulls last), '[]'::jsonb)
+    'overall', (select round(avg(x)) from (values (merch), (case when survey is null then null else least(100, survey) end), (oos), (opp)) as t(x) where x is not null)
+  ) order by (select round(avg(x)) from (values (merch), (case when survey is null then null else least(100, survey) end), (oos), (opp)) as t(x) where x is not null) desc nulls last), '[]'::jsonb)
   into v from comp where gid is not null;
   return v;
 end; $$;

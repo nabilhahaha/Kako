@@ -62,7 +62,7 @@ begin
   -- simple opportunity score (placeholder; weighting tuned in FE-5): presence-led
   v_opp   := case when v_opp_count > 0 then least(100, 50 + v_opp_count * 25) else null end;
   -- overall = simple average of the available 0–100 components (fully drillable)
-  select round(avg(x)) into v_overall from (values (v_merch), (least(100, v_survey)), (v_oos), (v_opp)) as t(x) where x is not null;
+  select round(avg(x)) into v_overall from (values (v_merch), (case when v_survey is null then null else least(100, v_survey) end), (v_oos), (v_opp)) as t(x) where x is not null;
 
   return jsonb_build_object(
     'scope', coalesce(p_scope, 'company'), 'captures', v_total,

@@ -57,6 +57,10 @@ export const ar = {
       kinds: { merchandising: 'العرض والتشغيل', competitor: 'المنافسون', survey: 'استبيانات وقوائم فحص', out_of_stock: 'نفاد المخزون', opportunity: 'الفرص', quick: 'التقاط سريع', visit: 'زيارة' },
     },
     evidence: { title: 'الصور والأدلة', none: 'لا توجد صور' },
+    perf: {
+      title: 'الأداء', back: 'العودة للوحة', noAccess: 'لا تملك صلاحية الوصول.', breakdown: 'التفصيل', noData: 'لا توجد بيانات',
+      levels: { company: 'الشركة', region: 'الإقليم', area: 'المنطقة', branch: 'الفرع', route: 'خط السير', rep: 'المندوب', customer: 'العميل' },
+    },
     route: {
       title: 'خط سيري — اليوم', noPlan: 'لا يوجد خط سير منشور لليوم',
       planned: 'مخطط', visited: 'تمت زيارته', remaining: 'متبقٍ', coverage: 'التغطية',
@@ -132,6 +136,10 @@ export const en = {
       kinds: { merchandising: 'Merchandising', competitor: 'Competitor', survey: 'Surveys & checklists', out_of_stock: 'Out-of-stock', opportunity: 'Opportunities', quick: 'Quick capture', visit: 'Visit' },
     },
     evidence: { title: 'Photos & evidence', none: 'No photos' },
+    perf: {
+      title: 'Performance', back: 'Back to dashboard', noAccess: 'You don’t have access.', breakdown: 'Breakdown', noData: 'No data',
+      levels: { company: 'Company', region: 'Region', area: 'Area', branch: 'Branch', route: 'Route', rep: 'Rep', customer: 'Customer' },
+    },
     route: {
       title: 'My Route — Today', noPlan: 'No route published for today',
       planned: 'Planned', visited: 'Visited', remaining: 'Remaining', coverage: 'Coverage',

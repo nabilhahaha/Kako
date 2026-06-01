@@ -95,7 +95,7 @@ begin
   )
   select coalesce(jsonb_agg(jsonb_build_object(
     'bucket', to_char(bucket,'YYYY-MM-DD'),
-    'overall', (select round(avg(x)) from (values (merch),(least(100,survey)),(oos),(opp)) t(x) where x is not null),
+    'overall', (select round(avg(x)) from (values (merch),(case when survey is null then null else least(100, survey) end),(oos),(opp)) t(x) where x is not null),
     'merch_compliance', merch, 'survey_score', survey, 'oos_score', oos, 'opportunity_score', opp,
     'merch_count', merch_count, 'competitor_count', competitor_count, 'oos_count', oos_count,
     'opportunity_count', opp_count, 'opportunity_value', opp_value, 'captures', captures
