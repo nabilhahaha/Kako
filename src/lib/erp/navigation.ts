@@ -42,6 +42,10 @@ import {
   Layers,
   Target,
   Network,
+  Cpu,
+  Wrench,
+  PackageCheck,
+  ShieldQuestion,
   Upload,
   FileSpreadsheet,
   FileDown,
@@ -275,6 +279,19 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'nav.items.suppliers', href: '/suppliers', icon: Truck, perm: 'suppliers.manage' },
       { label: 'nav.items.purchaseOrders', href: '/purchases/orders', icon: Receipt, perm: 'purchasing.manage' },
+      { label: 'nav.items.supplierReturns', href: '/purchases/returns', icon: PackageCheck, perm: 'purchasing.return' },
+    ],
+  },
+  {
+    // Electrical Retail & Wholesale pack screens. Gated purely by the
+    // `electrical.rma` permission, which migration 0097 seeds only to the
+    // electronics business type's roles — so this section appears only for the
+    // Electrical pack, never for other verticals. Read-first demo screens.
+    title: 'nav.sections.electrical',
+    items: [
+      { label: 'nav.items.serials', href: '/electrical/serials', icon: Cpu, perm: 'electrical.rma' },
+      { label: 'nav.items.warranties', href: '/electrical/warranties', icon: ShieldQuestion, perm: 'electrical.rma' },
+      { label: 'nav.items.rma', href: '/electrical/rma', icon: Wrench, perm: 'electrical.rma' },
     ],
   },
   {
