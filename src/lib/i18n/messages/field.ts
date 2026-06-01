@@ -36,6 +36,19 @@ export const ar = {
       ownership: 'الملكية', accountOwner: 'مالك الحساب', routeOwner: 'مندوب الخط',
       timeline: 'سجل الزيارات', noVisits: 'لا توجد زيارات', reason: 'السبب', duration: 'المدة',
     },
+    route: {
+      title: 'خط سيري — اليوم', noPlan: 'لا يوجد خط سير منشور لليوم',
+      planned: 'مخطط', visited: 'تمت زيارته', remaining: 'متبقٍ', coverage: 'التغطية',
+      locate: 'تحديد موقعي', start: 'بدء', pending: 'بانتظار', missed: 'فائت', skipped: 'مُتخطى', done: 'تمت',
+      offPlan: 'زيارات خارج الخطة اليوم', priority: 'الأولوية',
+    },
+    plans: {
+      title: 'خطط خطوط السير', noAccess: 'لا تملك صلاحية تخطيط خطوط السير.',
+      route: 'خط السير', date: 'التاريخ', generate: 'توليد من التكرار', publish: 'نشر للمندوب',
+      published: 'منشور', draft: 'مسودة', noStops: 'لا توجد محطات — ولّد الخطة', stops: 'محطات',
+      addCustomer: 'إضافة عميل', skip: 'تخطٍ', unskip: 'استرجاع', up: 'أعلى', down: 'أسفل',
+      priority: 'الأولوية', pickRoute: 'اختر خط السير', generated: 'تم التوليد', publishedOk: 'تم النشر',
+    },
   },
 };
 
@@ -75,6 +88,19 @@ export const en = {
       lastMerch: 'Last merch audit', lastCompetitorPrice: 'Last competitor price', never: '—',
       ownership: 'Ownership', accountOwner: 'Account owner', routeOwner: 'Route owner',
       timeline: 'Visit history', noVisits: 'No visits yet', reason: 'Reason', duration: 'Duration',
+    },
+    route: {
+      title: 'My Route — Today', noPlan: 'No route published for today',
+      planned: 'Planned', visited: 'Visited', remaining: 'Remaining', coverage: 'Coverage',
+      locate: 'Locate me', start: 'Start', pending: 'Pending', missed: 'Missed', skipped: 'Skipped', done: 'Done',
+      offPlan: 'Off-plan visits today', priority: 'Priority',
+    },
+    plans: {
+      title: 'Route Plans', noAccess: 'You don’t have access to route planning.',
+      route: 'Route', date: 'Date', generate: 'Generate from frequency', publish: 'Publish to rep',
+      published: 'Published', draft: 'Draft', noStops: 'No stops — generate the plan', stops: 'stops',
+      addCustomer: 'Add customer', skip: 'Skip', unskip: 'Restore', up: 'Up', down: 'Down',
+      priority: 'Priority', pickRoute: 'Choose a route', generated: 'Generated', publishedOk: 'Published',
     },
   },
 };

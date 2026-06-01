@@ -153,7 +153,9 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'nav.sections.main',
     items: [
       { label: 'nav.items.dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'nav.items.fieldRoute', href: '/field/route', icon: MapPin, module: 'field_ops' },
       { label: 'nav.items.fieldVisits', href: '/field/visits', icon: MapPin, module: 'field_ops' },
+      { label: 'nav.items.fieldPlans', href: '/field/plans', icon: ClipboardList, module: 'field_ops' },
       { label: 'nav.items.fieldDashboard', href: '/field/dashboard', icon: LayoutDashboard, module: 'field_ops' },
       { label: 'nav.items.formsRun', href: '/forms', icon: FileText },
       { label: 'nav.items.requests', href: '/requests', icon: ClipboardCheck, module: 'workflow' },
