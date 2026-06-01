@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Loader2, Pencil } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { FIELD_TYPES, type FieldType } from '@/lib/erp/form-builder';
+import type { Condition, ConditionOp, Validation } from '@/lib/erp/form-rules';
 import { FormPreview, type PreviewField } from './form-preview';
 import { updateForm, upsertField, deleteField, reorderFields } from './actions';
 
@@ -21,11 +22,13 @@ export interface DbForm {
 export interface DbField {
   id: string; key: string; label_ar: string | null; label_en: string | null; help_ar: string | null; help_en: string | null;
   type: FieldType; section: string | null; sort_order: number; required: boolean; options: unknown | null; default_value: string | null;
+  visibility: unknown | null; validation: unknown | null;
 }
 export interface WorkflowOpt { key: string; name_ar: string | null; name_en: string | null }
 
 const selectCls = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 const OPTION_TYPES: FieldType[] = ['dropdown', 'multiselect'];
+const COND_OPS: ConditionOp[] = ['eq', 'neq', 'gt', 'lt', 'gte', 'lte', 'in', 'exists'];
 
 function parseOptions(raw: unknown): { value: string; label: string }[] {
   if (!Array.isArray(raw)) return [];
@@ -33,18 +36,34 @@ function parseOptions(raw: unknown): { value: string; label: string }[] {
 }
 function toPreview(f: DbField): PreviewField {
   return { key: f.key, type: f.type, labelAr: f.label_ar, labelEn: f.label_en, helpAr: f.help_ar, helpEn: f.help_en,
-    section: f.section, required: f.required, options: parseOptions(f.options), defaultValue: f.default_value };
+    section: f.section, required: f.required, options: parseOptions(f.options), defaultValue: f.default_value,
+    visibility: (f.visibility as Condition | null) ?? null, validation: (f.validation as Validation | null) ?? null };
 }
 
 interface EditState {
   id?: string; key: string; type: FieldType; labelEn: string; labelAr: string; helpEn: string; helpAr: string;
   section: string; required: boolean; optionsText: string; defaultValue: string;
+  visWhen: string; visOp: ConditionOp; visValue: string;
+  reqWhen: string; reqOp: ConditionOp; reqValue: string;
+  vMin: string; vMax: string; vMinLen: string; vMaxLen: string; vRegex: string;
 }
-const blankEdit = (): EditState => ({ key: '', type: 'text', labelEn: '', labelAr: '', helpEn: '', helpAr: '', section: '', required: false, optionsText: '', defaultValue: '' });
+const blankEdit = (): EditState => ({
+  key: '', type: 'text', labelEn: '', labelAr: '', helpEn: '', helpAr: '', section: '', required: false, optionsText: '', defaultValue: '',
+  visWhen: '', visOp: 'eq', visValue: '', reqWhen: '', reqOp: 'eq', reqValue: '', vMin: '', vMax: '', vMinLen: '', vMaxLen: '', vRegex: '',
+});
 function editFrom(f: DbField): EditState {
-  return { id: f.id, key: f.key, type: f.type, labelEn: f.label_en ?? '', labelAr: f.label_ar ?? '', helpEn: f.help_en ?? '', helpAr: f.help_ar ?? '',
+  const vis = (f.visibility as Condition | null) ?? null;
+  const val = (f.validation as Validation | null) ?? null;
+  const rw = val?.requiredWhen ?? null;
+  const num = (n: number | undefined) => (n != null ? String(n) : '');
+  return {
+    id: f.id, key: f.key, type: f.type, labelEn: f.label_en ?? '', labelAr: f.label_ar ?? '', helpEn: f.help_en ?? '', helpAr: f.help_ar ?? '',
     section: f.section ?? '', required: f.required, defaultValue: f.default_value ?? '',
-    optionsText: parseOptions(f.options).map((o) => `${o.value}|${o.label}`).join('\n') };
+    optionsText: parseOptions(f.options).map((o) => `${o.value}|${o.label}`).join('\n'),
+    visWhen: vis?.when ?? '', visOp: vis?.op ?? 'eq', visValue: vis?.value != null ? String(vis.value) : '',
+    reqWhen: rw?.when ?? '', reqOp: rw?.op ?? 'eq', reqValue: rw?.value != null ? String(rw.value) : '',
+    vMin: num(val?.min), vMax: num(val?.max), vMinLen: num(val?.minLen), vMaxLen: num(val?.maxLen), vRegex: val?.regex ?? '',
+  };
 }
 
 export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbForm; fields: DbField[]; workflows: WorkflowOpt[]; readOnly: boolean }) {
@@ -73,10 +92,19 @@ export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbFo
     const options = OPTION_TYPES.includes(edit.type)
       ? edit.optionsText.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const [v, ...rest] = l.split('|'); return { value: v.trim(), label: (rest.join('|') || v).trim() }; })
       : undefined;
+    const visibility: Condition | null = edit.visWhen.trim() ? { when: edit.visWhen.trim(), op: edit.visOp, value: edit.visValue } : null;
+    const validation: Validation = {};
+    if (edit.reqWhen.trim()) validation.requiredWhen = { when: edit.reqWhen.trim(), op: edit.reqOp, value: edit.reqValue };
+    if (edit.vMin !== '') validation.min = Number(edit.vMin);
+    if (edit.vMax !== '') validation.max = Number(edit.vMax);
+    if (edit.vMinLen !== '') validation.minLen = Number(edit.vMinLen);
+    if (edit.vMaxLen !== '') validation.maxLen = Number(edit.vMaxLen);
+    if (edit.vRegex.trim()) validation.regex = edit.vRegex.trim();
     start(async () => {
       const res = await upsertField({
         formId: form.id, id: edit.id, key: edit.key, type: edit.type, labelEn: edit.labelEn, labelAr: edit.labelAr,
         helpEn: edit.helpEn, helpAr: edit.helpAr, section: edit.section, required: edit.required, options, defaultValue: edit.defaultValue,
+        visibility, validation: Object.keys(validation).length ? validation : null,
       });
       if (!res.ok) { toast.error(res.error ?? t('forms.toast.error')); return; }
       toast.success(t('forms.toast.saved'));
@@ -175,6 +203,42 @@ export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbFo
                   <p className="text-xs text-muted-foreground">{t('forms.optionsHint')}</p>
                 </div>
               )}
+
+              {edit.type !== 'section' && (
+                <div className="space-y-3 rounded-md border bg-background p-3">
+                  <p className="text-sm font-medium">{t('forms.rules.title')}</p>
+                  <div className="space-y-1">
+                    <Label>{t('forms.rules.showWhen')}</Label>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <Input dir="ltr" placeholder={t('forms.rules.fieldKey')} value={edit.visWhen} onChange={(e) => setEdit({ ...edit, visWhen: e.target.value })} />
+                      <select className={selectCls} value={edit.visOp} onChange={(e) => setEdit({ ...edit, visOp: e.target.value as ConditionOp })}>{COND_OPS.map((o) => <option key={o} value={o}>{o}</option>)}</select>
+                      <Input dir="ltr" placeholder={t('forms.rules.value')} value={edit.visValue} onChange={(e) => setEdit({ ...edit, visValue: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>{t('forms.rules.requiredWhen')}</Label>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <Input dir="ltr" placeholder={t('forms.rules.fieldKey')} value={edit.reqWhen} onChange={(e) => setEdit({ ...edit, reqWhen: e.target.value })} />
+                      <select className={selectCls} value={edit.reqOp} onChange={(e) => setEdit({ ...edit, reqOp: e.target.value as ConditionOp })}>{COND_OPS.map((o) => <option key={o} value={o}>{o}</option>)}</select>
+                      <Input dir="ltr" placeholder={t('forms.rules.value')} value={edit.reqValue} onChange={(e) => setEdit({ ...edit, reqValue: e.target.value })} />
+                    </div>
+                  </div>
+                  {edit.type === 'number' && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="space-y-1"><Label>{t('forms.validation.min')}</Label><Input type="number" dir="ltr" value={edit.vMin} onChange={(e) => setEdit({ ...edit, vMin: e.target.value })} /></div>
+                      <div className="space-y-1"><Label>{t('forms.validation.max')}</Label><Input type="number" dir="ltr" value={edit.vMax} onChange={(e) => setEdit({ ...edit, vMax: e.target.value })} /></div>
+                    </div>
+                  )}
+                  {edit.type === 'text' && (
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <div className="space-y-1"><Label>{t('forms.validation.minLen')}</Label><Input type="number" dir="ltr" value={edit.vMinLen} onChange={(e) => setEdit({ ...edit, vMinLen: e.target.value })} /></div>
+                      <div className="space-y-1"><Label>{t('forms.validation.maxLen')}</Label><Input type="number" dir="ltr" value={edit.vMaxLen} onChange={(e) => setEdit({ ...edit, vMaxLen: e.target.value })} /></div>
+                      <div className="space-y-1"><Label>{t('forms.validation.regex')}</Label><Input dir="ltr" value={edit.vRegex} onChange={(e) => setEdit({ ...edit, vRegex: e.target.value })} /></div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <Button size="sm" disabled={pending} onClick={saveField}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {t('forms.saveField')}</Button>
                 <Button size="sm" variant="outline" onClick={() => setEdit(null)}>{t('forms.cancel')}</Button>

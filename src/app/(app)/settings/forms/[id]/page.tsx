@@ -32,7 +32,7 @@ export default async function FormDesignerPage({ params }: { params: Promise<{ i
 
   const { data: fields } = await supabase
     .from('erp_form_fields')
-    .select('id, key, label_ar, label_en, help_ar, help_en, type, section, sort_order, required, options, default_value')
+    .select('id, key, label_ar, label_en, help_ar, help_en, type, section, sort_order, required, options, default_value, visibility, validation')
     .eq('form_id', id)
     .order('sort_order', { ascending: true });
 

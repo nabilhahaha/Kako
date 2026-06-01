@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { FIELD_TYPES, type FieldType } from '@/lib/erp/form-builder';
+import type { Condition, Validation } from '@/lib/erp/form-rules';
 import { getT } from '@/lib/i18n/server';
 
 async function requireAdmin(): Promise<string | null> {
@@ -41,6 +42,7 @@ export async function upsertField(input: {
   formId: string; id?: string; key: string; type: string; labelEn: string; labelAr?: string;
   helpEn?: string; helpAr?: string; section?: string; required: boolean;
   options?: { value: string; label: string }[]; defaultValue?: string;
+  visibility?: Condition | null; validation?: Validation | null;
 }): Promise<ActionResult> {
   const { t } = await getT();
   if (await requireAdmin()) return { ok: false, error: t('forms.errors.adminOnly') };
@@ -54,6 +56,8 @@ export async function upsertField(input: {
     section: input.section?.trim() || null, required: input.required,
     options: input.options && input.options.length > 0 ? input.options : null,
     default_value: input.defaultValue?.trim() || null,
+    visibility: input.visibility ?? null,
+    validation: input.validation ?? null,
   };
   if (input.id) {
     const { error } = await supabase.from('erp_form_fields').update(row).eq('id', input.id);
