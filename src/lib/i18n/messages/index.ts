@@ -39,6 +39,7 @@ import * as billing from './billing';
 import * as customFields from './custom-fields';
 import * as workflow from './workflow';
 import * as workflows from './workflows';
+import * as requests from './requests';
 import * as notifications from './notifications';
 import * as electrical from './electrical';
 
@@ -47,7 +48,7 @@ const MODULES = [
   accounting, clinic, restaurant, salon, pharmacy, laundry, hotel, wholesale,
   market, distribution, settings, account, platform, rep, exportsMod,
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
-  importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, notifications,
+  importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, requests, notifications,
   electrical,
 ];
 
