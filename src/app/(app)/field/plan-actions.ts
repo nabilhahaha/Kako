@@ -32,6 +32,15 @@ export async function publishPlan(planId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+export async function closePlan(planId: string): Promise<ActionResult> {
+  if (!(await guard())) return { ok: false, error: 'unauthorized' };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_fe_close_plan', { p_plan: planId });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  rev();
+  return { ok: true };
+}
+
 export async function reorderStops(orderedIds: string[]): Promise<ActionResult> {
   if (!(await guard())) return { ok: false, error: 'unauthorized' };
   const supabase = await createClient();

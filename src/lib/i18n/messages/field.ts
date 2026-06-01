@@ -28,6 +28,10 @@ export const ar = {
       violations: 'مخالفات النطاق', alerts: 'تنبيهات بحاجة لمتابعة', noAlerts: 'لا توجد تنبيهات',
       routes: 'حسب خط السير', route: 'خط السير', noRoutes: 'لا توجد زيارات اليوم', viewCustomer: 'عرض العميل',
       min: 'دقيقة', metersFromStore: 'م',
+      coverageTitle: 'التغطية', daily: 'يومي', weekly: 'أسبوعي', monthly: 'شهري',
+      coveragePct: 'التغطية', compliancePct: 'الالتزام', planned: 'مخطط', visited: 'تمت زيارته', offPlan: 'خارج الخطة',
+      byRoute: 'التغطية حسب خط السير', byRep: 'التغطية حسب المندوب',
+      missedCustomers: 'عملاء فائتون', dueSoon: 'مستحقون قريبًا', nextDue: 'الاستحقاق التالي', none: 'لا يوجد',
     },
     profile: {
       title: 'ملف العميل الميداني', back: 'رجوع', rollup: 'ملخص الزيارات',
@@ -35,6 +39,7 @@ export const ar = {
       lastMerch: 'آخر تدقيق رفوف', lastCompetitorPrice: 'آخر سعر منافس', never: 'لا يوجد',
       ownership: 'الملكية', accountOwner: 'مالك الحساب', routeOwner: 'مندوب الخط',
       timeline: 'سجل الزيارات', noVisits: 'لا توجد زيارات', reason: 'السبب', duration: 'المدة',
+      frequency: 'التكرار', nextDue: 'الاستحقاق التالي', adherence: 'الالتزام بالتكرار',
     },
     route: {
       title: 'خط سيري — اليوم', noPlan: 'لا يوجد خط سير منشور لليوم',
@@ -48,6 +53,7 @@ export const ar = {
       published: 'منشور', draft: 'مسودة', noStops: 'لا توجد محطات — ولّد الخطة', stops: 'محطات',
       addCustomer: 'إضافة عميل', skip: 'تخطٍ', unskip: 'استرجاع', up: 'أعلى', down: 'أسفل',
       priority: 'الأولوية', pickRoute: 'اختر خط السير', generated: 'تم التوليد', publishedOk: 'تم النشر',
+      closeDay: 'إغلاق اليوم', closed: 'تم إغلاق اليوم',
     },
   },
 };
@@ -81,6 +87,10 @@ export const en = {
       violations: 'Geofence violations', alerts: 'Alerts needing attention', noAlerts: 'No alerts',
       routes: 'By route', route: 'Route', noRoutes: 'No visits today', viewCustomer: 'View customer',
       min: 'min', metersFromStore: 'm',
+      coverageTitle: 'Coverage', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly',
+      coveragePct: 'Coverage', compliancePct: 'Compliance', planned: 'Planned', visited: 'Visited', offPlan: 'Off-plan',
+      byRoute: 'Coverage by route', byRep: 'Coverage by rep',
+      missedCustomers: 'Missed customers', dueSoon: 'Due soon', nextDue: 'Next due', none: 'None',
     },
     profile: {
       title: 'Customer field profile', back: 'Back', rollup: 'Visit rollup',
@@ -88,6 +98,7 @@ export const en = {
       lastMerch: 'Last merch audit', lastCompetitorPrice: 'Last competitor price', never: '—',
       ownership: 'Ownership', accountOwner: 'Account owner', routeOwner: 'Route owner',
       timeline: 'Visit history', noVisits: 'No visits yet', reason: 'Reason', duration: 'Duration',
+      frequency: 'Frequency', nextDue: 'Next due', adherence: 'Frequency adherence',
     },
     route: {
       title: 'My Route — Today', noPlan: 'No route published for today',
@@ -101,6 +112,7 @@ export const en = {
       published: 'Published', draft: 'Draft', noStops: 'No stops — generate the plan', stops: 'stops',
       addCustomer: 'Add customer', skip: 'Skip', unskip: 'Restore', up: 'Up', down: 'Down',
       priority: 'Priority', pickRoute: 'Choose a route', generated: 'Generated', publishedOk: 'Published',
+      closeDay: 'Close day', closed: 'Day closed',
     },
   },
 };

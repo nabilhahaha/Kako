@@ -9,7 +9,10 @@ import { CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import { getT } from '@/lib/i18n/server';
 import type { Customer360 } from '@/lib/erp/customer-360';
 
-interface FieldRollup { last_visit_at: string | null; visits_30d: number; last_geofence_status: string | null; last_merch_at: string | null; last_competitor_price: number | null }
+interface FieldRollup {
+  last_visit_at: string | null; visits_30d: number; last_geofence_status: string | null; last_merch_at: string | null; last_competitor_price: number | null;
+  frequency: string | null; next_due: string | null; adherence_pct: number | null; planned_30d: number; fulfilled_30d: number;
+}
 interface VisitRow { id: string; status: string; checkin_at: string | null; checkout_at: string | null; geofence_status: string | null; distance_m: number | null; duration_min: number | null; reason: string | null; rep: string | null }
 
 function fmt(iso: string | null): string { return iso ? new Date(iso).toLocaleString() : '—'; }
@@ -31,7 +34,7 @@ export default async function CustomerFieldProfile({ params }: { params: Promise
   ]);
   if (!c360) notFound();
   const profile = c360 as Customer360;
-  const r = (rollup as FieldRollup | null) ?? { last_visit_at: null, visits_30d: 0, last_geofence_status: null, last_merch_at: null, last_competitor_price: null };
+  const r = (rollup as FieldRollup | null) ?? { last_visit_at: null, visits_30d: 0, last_geofence_status: null, last_merch_at: null, last_competitor_price: null, frequency: null, next_due: null, adherence_pct: null, planned_30d: 0, fulfilled_30d: 0 };
   const visits = (timeline as VisitRow[] | null) ?? [];
   const name = profile.master.name || profile.master.name_en || profile.master.code;
 
@@ -51,6 +54,9 @@ export default async function CustomerFieldProfile({ params }: { params: Promise
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label={t('field.profile.visits30d')} value={r.visits_30d} />
         <Stat label={t('field.profile.lastVisit')} value={r.last_visit_at ? fmt(r.last_visit_at) : t('field.profile.never')} />
+        <Stat label={t('field.profile.frequency')} value={r.frequency ?? t('field.profile.never')} />
+        <Stat label={t('field.profile.nextDue')} value={r.next_due ?? t('field.profile.never')} />
+        <Stat label={t('field.profile.adherence')} value={r.adherence_pct != null ? `${r.adherence_pct}% (${r.fulfilled_30d}/${r.planned_30d})` : t('field.profile.never')} />
         <Stat label={t('field.profile.lastCompetitorPrice')} value={r.last_competitor_price != null ? Number(r.last_competitor_price).toFixed(2) : t('field.profile.never')} />
       </div>
 

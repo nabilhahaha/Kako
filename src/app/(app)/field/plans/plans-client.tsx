@@ -3,14 +3,14 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Wand2, Send, ChevronUp, ChevronDown, Ban, RotateCcw, Plus, Loader2 } from 'lucide-react';
+import { Wand2, Send, ChevronUp, ChevronDown, Ban, RotateCcw, Plus, Loader2, CalendarCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
-import { generatePlan, publishPlan, reorderStops, setStopSkipped, setStopPriority, addStop } from '../plan-actions';
+import { generatePlan, publishPlan, closePlan, reorderStops, setStopSkipped, setStopPriority, addStop } from '../plan-actions';
 
 export interface PlanRoute { id: string; name: string; repName: string | null }
 export interface PlanInfo { id: string; status: string }
@@ -75,9 +75,14 @@ export function PlansClient({ routes, selectedRoute, date, plan, stops, customer
         <Card><CardContent className="space-y-3 p-4">
           <div className="flex items-center justify-between">
             <Badge variant={plan.status === 'published' ? 'success' : 'secondary'}>{plan.status === 'published' ? t('field.plans.published') : t('field.plans.draft')} · {stops.filter((s) => s.due).length} {t('field.plans.stops')}</Badge>
-            <Button size="sm" disabled={pending} onClick={() => run(() => publishPlan(plan.id), t('field.plans.publishedOk'))}>
-              <Send className="h-4 w-4" /> {t('field.plans.publish')}
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => closePlan(plan.id), t('field.plans.closed'))}>
+                <CalendarCheck className="h-4 w-4" /> {t('field.plans.closeDay')}
+              </Button>
+              <Button size="sm" disabled={pending} onClick={() => run(() => publishPlan(plan.id), t('field.plans.publishedOk'))}>
+                <Send className="h-4 w-4" /> {t('field.plans.publish')}
+              </Button>
+            </div>
           </div>
 
           {stops.length === 0 && <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">{t('field.plans.noStops')}</p>}

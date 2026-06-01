@@ -13,6 +13,10 @@ interface Summary {
   alerts: { visit_id: string; type: string; customer: string; customer_id: string; distance_m: number | null; reason: string | null; rep: string | null; at: string }[];
   routes: { route: string; route_id: string | null; visits: number; completed: number; violations: number }[];
 }
+interface CovTotals { planned: number; visited: number; missed: number; off_plan: number; coverage_pct: number; compliance_pct: number }
+interface CovResult { totals: CovTotals; groups: { key: string; planned: number; visited: number; missed: number; off_plan: number; coverage_pct: number; compliance_pct: number }[] }
+interface CovLists { missed: { customer: string; customer_id: string; route: string | null; plan_date: string }[]; due_soon: { customer: string; customer_id: string; next_due: string; frequency: string }[] }
+function iso(d: Date): string { return d.toISOString().slice(0, 10); }
 
 /** Manager Field dashboard (FE-2e): today KPIs, prioritized geofence alerts and
  *  route-level visibility. Server-rendered, mobile-friendly. The data seam
@@ -36,8 +40,33 @@ export default async function FieldDashboardPage() {
   const total = s.today.geofence_ok + s.today.geofence_violations;
   const compliance = total > 0 ? Math.round((s.today.geofence_ok / total) * 100) : 100;
 
+  // Coverage windows: daily = today, weekly = last 7d, monthly = last 30d.
+  const today = new Date();
+  const d7 = new Date(today); d7.setDate(d7.getDate() - 6);
+  const d30 = new Date(today); d30.setDate(d30.getDate() - 29);
+  const [daily, weekly, monthly, byRoute, byRep, lists] = await Promise.all([
+    supabase.rpc('erp_fe_coverage', { p_from: iso(today), p_to: iso(today), p_group: 'total' }),
+    supabase.rpc('erp_fe_coverage', { p_from: iso(d7), p_to: iso(today), p_group: 'total' }),
+    supabase.rpc('erp_fe_coverage', { p_from: iso(d30), p_to: iso(today), p_group: 'total' }),
+    supabase.rpc('erp_fe_coverage', { p_from: iso(d30), p_to: iso(today), p_group: 'route' }),
+    supabase.rpc('erp_fe_coverage', { p_from: iso(d30), p_to: iso(today), p_group: 'rep' }),
+    supabase.rpc('erp_fe_coverage_lists', { p_days: 7 }),
+  ]);
+  const cov = {
+    daily: (daily.data as CovResult | null)?.totals, weekly: (weekly.data as CovResult | null)?.totals, monthly: (monthly.data as CovResult | null)?.totals,
+    byRoute: (byRoute.data as CovResult | null)?.groups ?? [], byRep: (byRep.data as CovResult | null)?.groups ?? [],
+  };
+  const cl = (lists.data as CovLists | null) ?? { missed: [], due_soon: [] };
+
   const Kpi = ({ label, value }: { label: string; value: string | number }) => (
     <Card><CardContent className="p-4"><p className="text-2xl font-semibold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></CardContent></Card>
+  );
+  const CovCard = ({ label, c }: { label: string; c?: CovTotals }) => (
+    <Card><CardContent className="p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-2xl font-semibold">{c?.coverage_pct ?? 0}%</p>
+      <p className="text-xs text-muted-foreground">{t('field.dashboard.compliancePct')} {c?.compliance_pct ?? 0}% · {c?.visited ?? 0}/{c?.planned ?? 0}</p>
+    </CardContent></Card>
   );
 
   return (
@@ -51,6 +80,62 @@ export default async function FieldDashboardPage() {
         <Kpi label={t('field.dashboard.covered')} value={s.today.customers_covered} />
         <Kpi label={t('field.dashboard.compliance')} value={`${compliance}%`} />
         <Kpi label={t('field.dashboard.avgDuration')} value={`${s.today.avg_duration_min} ${t('field.dashboard.min')}`} />
+      </div>
+
+      {/* Coverage (daily / weekly / monthly) */}
+      <div>
+        <h3 className="mb-2 font-semibold">{t('field.dashboard.coverageTitle')}</h3>
+        <div className="grid grid-cols-3 gap-3">
+          <CovCard label={t('field.dashboard.daily')} c={cov.daily} />
+          <CovCard label={t('field.dashboard.weekly')} c={cov.weekly} />
+          <CovCard label={t('field.dashboard.monthly')} c={cov.monthly} />
+        </div>
+      </div>
+
+      {/* Coverage by route / rep (30d) */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {([['byRoute', cov.byRoute], ['byRep', cov.byRep]] as const).map(([label, groups]) => (
+          <div key={label}>
+            <h3 className="mb-2 font-semibold">{t(`field.dashboard.${label}`)}</h3>
+            {groups.length === 0 ? <Card><CardContent className="p-4 text-center text-sm text-muted-foreground">{t('field.dashboard.none')}</CardContent></Card>
+              : <Card><CardContent className="divide-y p-0">
+                  {groups.map((g) => (
+                    <div key={g.key} className="flex items-center justify-between gap-2 p-3 text-sm">
+                      <span className="min-w-0 truncate font-medium">{g.key}</span>
+                      <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="secondary">{g.coverage_pct}% {t('field.dashboard.coveragePct')}</Badge>
+                        <Badge variant="outline">{g.compliance_pct}% {t('field.dashboard.compliancePct')}</Badge>
+                        {g.missed > 0 && <Badge variant="outline" className="text-amber-600">{g.missed} {t('field.dashboard.missedCustomers')}</Badge>}
+                      </span>
+                    </div>
+                  ))}
+                </CardContent></Card>}
+          </div>
+        ))}
+      </div>
+
+      {/* Missed customers + Due soon (drill-through) */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <h3 className="mb-2 font-semibold">{t('field.dashboard.missedCustomers')}</h3>
+          {cl.missed.length === 0 ? <Card><CardContent className="p-4 text-center text-sm text-muted-foreground">{t('field.dashboard.none')}</CardContent></Card>
+            : <div className="space-y-2">{cl.missed.map((m, i) => (
+                <Link key={`${m.customer_id}-${i}`} href={`/field/customers/${m.customer_id}`}><Card className="transition-colors hover:border-primary"><CardContent className="flex items-center justify-between gap-2 p-3 text-sm">
+                  <span className="min-w-0"><span className="block truncate font-medium">{m.customer}</span><span className="text-xs text-muted-foreground">{m.route ?? '—'} · {String(m.plan_date).slice(0, 10)}</span></span>
+                  <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180" />
+                </CardContent></Card></Link>
+              ))}</div>}
+        </div>
+        <div>
+          <h3 className="mb-2 font-semibold">{t('field.dashboard.dueSoon')}</h3>
+          {cl.due_soon.length === 0 ? <Card><CardContent className="p-4 text-center text-sm text-muted-foreground">{t('field.dashboard.none')}</CardContent></Card>
+            : <div className="space-y-2">{cl.due_soon.map((d, i) => (
+                <Link key={`${d.customer_id}-${i}`} href={`/field/customers/${d.customer_id}`}><Card className="transition-colors hover:border-primary"><CardContent className="flex items-center justify-between gap-2 p-3 text-sm">
+                  <span className="min-w-0"><span className="block truncate font-medium">{d.customer}</span><span className="text-xs text-muted-foreground">{t('field.dashboard.nextDue')}: {String(d.next_due).slice(0, 10)} · {d.frequency}</span></span>
+                  <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180" />
+                </CardContent></Card></Link>
+              ))}</div>}
+        </div>
       </div>
 
       {/* Prioritized alerts */}
