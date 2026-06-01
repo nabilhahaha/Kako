@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Upload, Download, Plus } from 'lucide-react';
+import { Loader2, Upload, Download, Plus, FileDown } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { saveTarget, setTargetStatus, validateTargets, importTargets, type TargetRow, type TargetIssue } from '../actions';
 
@@ -34,21 +34,44 @@ export function TargetsClient({ month, initial }: { month: string; initial: Targ
   function lifecycle(id: string, status: string) {
     start(async () => { const r = await setTargetStatus(id, status); if (!r.ok) toast.error(r.error ?? t('commercial.saveFailed')); else router.refresh(); });
   }
+  function download(name: string, body: string) {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], { type: 'text/csv' })); a.download = name; a.click();
+  }
+  const HEAD = 'period,dim_type,dim_ref,dim_id,metric,amount';
   function exportCsv() {
-    const head = 'period,dim_type,dim_id,metric,amount,status';
-    const lines = initial.map((r) => [r.period_month.slice(0, 10), r.dim_type, r.dim_id ?? '', r.metric, r.target_amount, r.status].join(','));
-    const blob = new Blob([[head, ...lines].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `targets-${month.slice(0, 7)}.csv`; a.click();
+    const lines = initial.map((r) => [r.period_month.slice(0, 10), r.dim_type, r.label ?? '', r.dim_id ?? '', r.metric, r.target_amount].join(','));
+    download(`targets-${month.slice(0, 7)}.csv`, [HEAD, ...lines].join('\n'));
+  }
+  function downloadTemplate() {
+    const ex = [
+      `${month.slice(0, 10)},rep,rep@example.com,,value,100000`,
+      `${month.slice(0, 10)},customer,CUST-001,,value,5000`,
+      `${month.slice(0, 10)},category,BEVERAGES,,value,50000`,
+      `${month.slice(0, 10)},brand,Cola Co,,value,30000`,
+      `${month.slice(0, 10)},sku,SKU-001,,quantity,500`,
+    ];
+    // dim_ref = a friendly id (code/email/name); leave dim_id blank when using dim_ref
+    download('targets-template.csv', [`# ${t('commercial.refHint')}`, HEAD, ...ex].join('\n'));
+  }
+  function parseCsv(text: string): TargetRow[] {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+    if (lines.length === 0) return [];
+    const header = lines[0].toLowerCase().split(',').map((s) => s.trim());
+    const hasHeader = header.includes('dim_type');
+    const cols = hasHeader ? header : ['period', 'dim_type', 'dim_ref', 'dim_id', 'metric', 'amount'];
+    const at = (parts: string[], name: string) => { const i = cols.indexOf(name); return i >= 0 ? (parts[i] ?? '').trim() : ''; };
+    return lines.slice(hasHeader ? 1 : 0).map((l) => {
+      const p = l.split(',');
+      return {
+        period: at(p, 'period') || month, dim_type: at(p, 'dim_type'), dim_ref: at(p, 'dim_ref') || null,
+        dim_id: at(p, 'dim_id') || null, metric: at(p, 'metric'), amount: Number(at(p, 'amount')) || 0,
+      };
+    });
   }
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
     file.text().then((text) => {
-      const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      const start0 = /period/i.test(lines[0]) ? 1 : 0;
-      const rows: TargetRow[] = lines.slice(start0).map((l) => {
-        const [period, dim_type, dim_id, metric, amount] = l.split(',').map((s) => s.trim());
-        return { period: period || month, dim_type, dim_id: dim_id || null, metric, amount: Number(amount) || 0 };
-      });
+      const rows = parseCsv(text);
       start(async () => {
         const res = await validateTargets(rows);
         if (!res.ok) { toast.error(res.error ?? t('commercial.saveFailed')); return; }
@@ -56,6 +79,10 @@ export function TargetsClient({ month, initial }: { month: string; initial: Targ
       });
     });
     e.target.value = '';
+  }
+  function downloadErrors() {
+    const rows = (issues?.issues ?? []).map((i) => [i.row, i.level, i.code, `"${i.message.replace(/"/g, '""')}"`].join(','));
+    download('target-errors.csv', ['row,level,code,message', ...rows].join('\n'));
   }
   function commitImport() {
     if (!issues) return;
@@ -73,6 +100,7 @@ export function TargetsClient({ month, initial }: { month: string; initial: Targ
       {/* import / export */}
       <div className="flex flex-wrap items-center gap-2">
         <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={onFile} />
+        <Button size="sm" variant="outline" onClick={downloadTemplate}><FileDown className="me-1.5 h-4 w-4" />{t('commercial.template')}</Button>
         <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={pending}><Upload className="me-1.5 h-4 w-4" />{t('commercial.importCsv')}</Button>
         <Button size="sm" variant="outline" onClick={exportCsv}><Download className="me-1.5 h-4 w-4" />{t('commercial.exportCsv')}</Button>
       </div>
@@ -86,6 +114,7 @@ export function TargetsClient({ month, initial }: { month: string; initial: Targ
             {warns.map((i, k) => <div key={k} className="text-xs text-amber-600">#{i.row}: {i.message}</div>)}</>}
           <div className="flex items-center gap-2 pt-1">
             {errors.length === 0 && <Button size="sm" onClick={commitImport} disabled={pending}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : `${t('commercial.commit')} (${issues.rows.length})`}</Button>}
+            {issues.issues.length > 0 && <Button size="sm" variant="outline" onClick={downloadErrors}><FileDown className="me-1 h-3.5 w-3.5" />{t('commercial.downloadErrors')}</Button>}
             <Button size="sm" variant="ghost" onClick={() => setIssues(null)}>{t('commercial.cancel')}</Button>
           </div>
         </CardContent></Card>

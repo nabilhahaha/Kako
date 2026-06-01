@@ -12,7 +12,7 @@ async function ok(): Promise<boolean> {
   return !!ctx?.company?.id;
 }
 
-export interface TargetRow { period: string; dim_type: string; dim_id: string | null; metric: string; amount: number }
+export interface TargetRow { period: string; dim_type: string; dim_id?: string | null; dim_ref?: string | null; metric: string; amount: number }
 export interface TargetIssue { row: number; level: string; code: string; message: string }
 
 /** Validate a batch of target rows (no write) — for the import preview. */
@@ -39,7 +39,7 @@ export async function saveTarget(t: TargetRow & { status?: string }): Promise<Ac
   if (!(await ok())) return { ok: false, error: 'unauthorized' };
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_cp_target_save', {
-    p_period: t.period, p_dim_type: t.dim_type, p_dim_id: t.dim_id, p_metric: t.metric, p_amount: t.amount, p_status: t.status ?? 'draft',
+    p_period: t.period, p_dim_type: t.dim_type, p_dim_id: t.dim_id ?? null, p_metric: t.metric, p_amount: t.amount, p_status: t.status ?? 'draft',
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/commercial/targets');

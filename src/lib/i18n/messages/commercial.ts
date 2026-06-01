@@ -14,6 +14,7 @@ export const ar = {
     // targets
     targetsTitle: 'إدارة المستهدفات', back: 'الأداء التجاري', addTarget: 'إضافة مستهدف', dimType: 'البُعد', dimId: 'المعرّف', metric: 'المقياس',
     amount: 'القيمة', status: 'الحالة', save: 'حفظ', saved: 'تم الحفظ ✓', saveFailed: 'تعذّر الحفظ',
+    template: 'تنزيل القالب', downloadErrors: 'تنزيل الأخطاء', ref: 'المرجع', refHint: 'استخدم كود العميل / بريد المندوب / كود الفئة / كود الصنف / اسم العلامة',
     importCsv: 'استيراد CSV', exportCsv: 'تصدير CSV', importing: 'جارٍ التحقق…', importErrors: 'أخطاء يجب إصلاحها قبل الاستيراد',
     importOk: 'تم استيراد {n} مستهدفًا', importWarn: 'تحذيرات', rowsValid: 'جاهز للاستيراد', commit: 'تأكيد الاستيراد', cancel: 'إلغاء',
     metricValue: 'قيمة', metricQty: 'كمية', noTargets: 'لا توجد مستهدفات',
@@ -39,6 +40,7 @@ export const en = {
       customer: 'Customer', channel: 'Channel', classification: 'Classification', category: 'Category', subcategory: 'Sub-category', brand: 'Brand', sku: 'SKU' },
     targetsTitle: 'Target management', back: 'Commercial', addTarget: 'Add target', dimType: 'Dimension', dimId: 'ID', metric: 'Metric',
     amount: 'Amount', status: 'Status', save: 'Save', saved: 'Saved ✓', saveFailed: 'Could not save',
+    template: 'Download template', downloadErrors: 'Download errors', ref: 'Reference', refHint: 'Use customer code / rep email / category code / SKU / brand name',
     importCsv: 'Import CSV', exportCsv: 'Export CSV', importing: 'Validating…', importErrors: 'Errors to fix before import',
     importOk: 'Imported {n} targets', importWarn: 'Warnings', rowsValid: 'Ready to import', commit: 'Confirm import', cancel: 'Cancel',
     metricValue: 'value', metricQty: 'quantity', noTargets: 'No targets',
