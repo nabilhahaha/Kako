@@ -321,6 +321,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage' },
       { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields' },
       { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow' },
+      { label: 'nav.items.forms', href: '/settings/forms', icon: GitBranch, perm: 'settings.users' },
       { label: 'nav.items.subscriptionRequest', href: '/settings/subscription', icon: CreditCard, perm: 'settings.users' },
       { label: 'nav.items.onboardingRequest', href: '/settings/onboarding', icon: ClipboardCheck, perm: 'settings.users' },
       { label: 'nav.items.moduleRequest', href: '/settings/module-request', icon: ClipboardCheck, perm: 'settings.users' },

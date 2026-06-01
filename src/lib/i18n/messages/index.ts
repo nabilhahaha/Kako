@@ -43,6 +43,7 @@ import * as requests from './requests';
 import * as subscriptionRequest from './subscription-request';
 import * as onboardingRequest from './onboarding-request';
 import * as moduleRequest from './module-request';
+import * as forms from './forms';
 import * as notifications from './notifications';
 import * as electrical from './electrical';
 
@@ -51,7 +52,7 @@ const MODULES = [
   accounting, clinic, restaurant, salon, pharmacy, laundry, hotel, wholesale,
   market, distribution, settings, account, platform, rep, exportsMod,
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
-  importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, requests, subscriptionRequest, onboardingRequest, moduleRequest, notifications,
+  importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, requests, subscriptionRequest, onboardingRequest, moduleRequest, forms, notifications,
   electrical,
 ];
 

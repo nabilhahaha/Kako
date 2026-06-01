@@ -1,0 +1,48 @@
+/** Form & Workflow Builder (designer) messages. Keep ar/en in sync. */
+export const ar = {
+  forms: {
+    title: 'مصمّم النماذج',
+    subtitle: 'أنشئ أنواع طلبات جديدة بدون برمجة — نماذج + قواعد + سير موافقات',
+    adminOnly: 'هذه الصفحة متاحة لمدير الشركة فقط.',
+    newForm: 'نموذج جديد', create: 'إنشاء', cancel: 'إلغاء',
+    nameEn: 'الاسم (إنجليزي)', nameAr: 'الاسم (عربي)', keyOptional: 'المفتاح (اختياري)',
+    myForms: 'نماذجي', emptyMine: 'لا توجد نماذج بعد', design: 'تصميم',
+    templates: 'القوالب الجاهزة', emptyTemplates: 'لا توجد قوالب', clone: 'استنساخ',
+    backToList: 'العودة للنماذج', templateReadonly: 'قالب عام (للقراءة) — استنسخه للتعديل', designSubtitle: 'صمّم الحقول واربط سير الموافقات',
+    formSettings: 'إعدادات النموذج', module: 'الوحدة', targetEntity: 'العنصر المستهدف',
+    workflow: 'سير الموافقات', noWorkflow: 'بدون سير موافقات', statusLabel: 'الحالة', saveSettings: 'حفظ الإعدادات',
+    fields: 'الحقول', addField: 'إضافة حقل', noFields: 'لا توجد حقول بعد',
+    fieldKey: 'المفتاح', fieldType: 'النوع', labelEn: 'التسمية (إنجليزي)', labelAr: 'التسمية (عربي)',
+    helpEn: 'تلميح (إنجليزي)', helpAr: 'تلميح (عربي)', section: 'القسم', required: 'إلزامي',
+    options: 'الخيارات', optionsHint: 'سطر لكل خيار بصيغة value|Label', saveField: 'حفظ الحقل',
+    status: { draft: 'مسودة', active: 'مفعّل', archived: 'مؤرشف' },
+    type: { text: 'نص', number: 'رقم', date: 'تاريخ', dropdown: 'قائمة', multiselect: 'اختيار متعدد', attachment: 'مرفق', image: 'صورة', gps: 'موقع GPS', signature: 'توقيع', section: 'قسم' },
+    preview: { title: 'معاينة مباشرة', empty: 'أضف حقولاً لرؤية المعاينة', choose: 'اختر…', signature: 'مساحة التوقيع' },
+    toast: { error: 'حدث خطأ', created: 'تم إنشاء النموذج', cloned: 'تم الاستنساخ', deleted: 'تم الحذف', saved: 'تم الحفظ' },
+    errors: { unauthorized: 'غير مصرح', adminOnly: 'متاح لمدير الشركة فقط', nameRequired: 'الاسم مطلوب', keyDup: 'المفتاح مستخدم', fieldKeyRequired: 'مفتاح الحقل مطلوب', invalidType: 'نوع غير صالح', fieldKeyDup: 'مفتاح الحقل مستخدم' },
+  },
+};
+
+export const en = {
+  forms: {
+    title: 'Form Designer',
+    subtitle: 'Create new request types with no code — forms + rules + approval workflow',
+    adminOnly: 'This page is available to company admins only.',
+    newForm: 'New form', create: 'Create', cancel: 'Cancel',
+    nameEn: 'Name (English)', nameAr: 'Name (Arabic)', keyOptional: 'Key (optional)',
+    myForms: 'My forms', emptyMine: 'No forms yet', design: 'Design',
+    templates: 'Templates', emptyTemplates: 'No templates', clone: 'Clone',
+    backToList: 'Back to forms', templateReadonly: 'Global template (read-only) — clone it to edit', designSubtitle: 'Design the fields and bind an approval workflow',
+    formSettings: 'Form settings', module: 'Module', targetEntity: 'Target entity',
+    workflow: 'Approval workflow', noWorkflow: 'No workflow', statusLabel: 'Status', saveSettings: 'Save settings',
+    fields: 'Fields', addField: 'Add field', noFields: 'No fields yet',
+    fieldKey: 'Key', fieldType: 'Type', labelEn: 'Label (English)', labelAr: 'Label (Arabic)',
+    helpEn: 'Help (English)', helpAr: 'Help (Arabic)', section: 'Section', required: 'Required',
+    options: 'Options', optionsHint: 'One option per line as value|Label', saveField: 'Save field',
+    status: { draft: 'Draft', active: 'Active', archived: 'Archived' },
+    type: { text: 'Text', number: 'Number', date: 'Date', dropdown: 'Dropdown', multiselect: 'Multi-select', attachment: 'Attachment', image: 'Image', gps: 'GPS', signature: 'Signature', section: 'Section' },
+    preview: { title: 'Live preview', empty: 'Add fields to see the preview', choose: 'Choose…', signature: 'Signature area' },
+    toast: { error: 'Something went wrong', created: 'Form created', cloned: 'Form cloned', deleted: 'Deleted', saved: 'Saved' },
+    errors: { unauthorized: 'Unauthorized', adminOnly: 'Company admins only', nameRequired: 'Name is required', keyDup: 'Key already exists', fieldKeyRequired: 'Field key is required', invalidType: 'Invalid type', fieldKeyDup: 'Field key already exists' },
+  },
+};
