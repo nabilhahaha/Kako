@@ -106,6 +106,30 @@ describe.skipIf(!hasTestDb)('CG-1 · configuration governance', () => {
     });
   }, 30_000);
 
+  it('CG-2 support: impact preview, rollback preview, and audit timeline', async () => {
+    await withRollback(async (c) => {
+      const s = await seed(c);
+      await actAs(c, s.admin);
+      const id = (await c.query(save('beta', { enabled: true }, { kind: 'role', ids: ['salesman'] }, [s.repA]))).rows[0].id;
+      // impact: targets the 'salesman' role → repA + repB
+      const imp = (await c.query("select erp_cfg_impact($1) j", [id])).rows[0].j;
+      expect(imp.affected_users).toBe(2);
+      expect(imp.roles).toContain('salesman');
+      // audit timeline + pilot visibility via change_get
+      await c.query("select erp_cfg_set_state($1,'review')", [id]);
+      await c.query("select erp_cfg_set_state($1,'approved')", [id]);
+      const got = (await c.query("select erp_cfg_change_get($1) j", [id])).rows[0].j;
+      const tl = Object.fromEntries((got.timeline as { event: string; by: string | null; at: string | null }[]).map((e) => [e.event, e]));
+      expect(tl.created.at).not.toBeNull(); expect(tl.reviewed.at).not.toBeNull(); expect(tl.approved.at).not.toBeNull();
+      expect(got.pilot_users.length).toBe(1);                 // pilot visibility
+      // rollback preview before there's any prior published version → removes
+      await c.query("select erp_cfg_publish($1)", [id]);
+      const rp = (await c.query("select erp_cfg_rollback_preview($1) j", [id])).rows[0].j;
+      expect(rp.removes).toBe(true); expect(rp.reverts_to).toBeNull();
+      await resetRole(c);
+    });
+  }, 30_000);
+
   it('conflict validation blocks publish; non-admins cannot govern', async () => {
     await withRollback(async (c) => {
       const s = await seed(c);
