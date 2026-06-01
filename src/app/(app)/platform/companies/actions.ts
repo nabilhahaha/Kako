@@ -7,6 +7,7 @@ import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-co
 import type { PlatformPermission } from '@/lib/erp/platform-permissions';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { checkBranchLimit, checkUserLimit } from '@/lib/erp/plans';
+import * as subscription from '@/lib/erp/subscription-service';
 import { logAudit } from '@/lib/erp/audit';
 import { ALL_MODULES } from '@/lib/erp/navigation';
 import type { BusinessType } from '@/lib/erp/types';
@@ -61,7 +62,6 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
   const slug = rawSlug ? slugify(rawSlug) : slugify(name);
   const btype = String(formData.get('business_type') || 'general') as BusinessType;
   const business_type = BUSINESS_TYPES.includes(btype) ? btype : 'general';
-  const subscription_start = String(formData.get('subscription_start') || '').trim() || null;
   const subscription_end = String(formData.get('subscription_end') || '').trim() || null;
 
   const supabase = await createClient();
@@ -72,8 +72,6 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
       name_ar,
       slug: slug || null,
       business_type,
-      subscription_start,
-      subscription_end,
       currency: 'EGP',
       is_active: true,
       allow_self_users: formData.get('_self') ? formData.has('allow_self_users') : true,
@@ -104,6 +102,14 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
     const roleRows = ((tmpl as { role_key: string }[]) ?? []).map((t) => ({ company_id: newId, role_key: t.role_key, enabled: selectedRoles.includes(t.role_key) }));
     if (roleRows.length > 0) await supabase.from('erp_company_roles').upsert(roleRows, { onConflict: 'company_id,role_key' });
   }
+
+  // Seed the canonical subscription (the single source of truth); the projection
+  // trigger fills the erp_companies subscription cache. Any owner-set expiry from
+  // the create form is applied through the period-end RPC.
+  await subscription.seedSubscription(supabase, {
+    companyId: newId, planKey: 'standard', currency: 'EGP', interval: 'monthly', trialDays: 0,
+  });
+  if (subscription_end) await subscription.setPeriodEnd(supabase, newId, subscription_end);
 
   await logAudit(supabase, {
     action: 'create',
@@ -137,8 +143,8 @@ export async function updateCompany(formData: FormData): Promise<ActionResult> {
       name,
       name_ar: String(formData.get('name_ar') || '').trim() || null,
       business_type,
-      subscription_start: String(formData.get('subscription_start') || '').trim() || null,
-      subscription_end: String(formData.get('subscription_end') || '').trim() || null,
+      // subscription_start / subscription_end are projection-only now (managed via
+      // the Subscription tab → canonical billing record). Not written here.
     })
     .eq('id', id);
 
@@ -166,15 +172,11 @@ export async function setCompanyActive(id: string, isActive: boolean): Promise<A
   const { error: authErr } = await requirePlatformPerm('manage_billing');
   if (authErr) return { ok: false, error: authErr };
 
+  // Canonical write: flip the subscription status; the projection trigger
+  // updates the erp_companies.is_active cache.
   const supabase = await createClient();
-  const { error } = await supabase.from('erp_companies').update({ is_active: isActive }).eq('id', id);
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  await logAudit(supabase, {
-    action: isActive ? 'activate' : 'deactivate',
-    entity: 'company',
-    entityId: id,
-    companyId: id,
-  });
+  const { error } = await subscription.setStatus(supabase, id, isActive ? 'active' : 'suspended');
+  if (error) return { ok: false, error: error.message };
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
@@ -187,13 +189,10 @@ export async function setSubscriptionEnd(id: string, end: string): Promise<Actio
   const { t: tSub } = await getT();
   if (!end) return { ok: false, error: tSub('platform.errors.subscriptionEndRequired') };
 
+  // Canonical write: set the period end; the projection updates the cache.
   const supabase = await createClient();
-  const { error } = await supabase
-    .from('erp_companies')
-    .update({ subscription_end: end, is_active: true })
-    .eq('id', id);
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  await logAudit(supabase, { action: 'renew', entity: 'subscription', entityId: id, details: { end }, companyId: id });
+  const { error } = await subscription.setPeriodEnd(supabase, id, end);
+  if (error) return { ok: false, error: error.message };
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
@@ -299,10 +298,10 @@ export async function setCompanyPlan(id: string, planKey: string): Promise<Actio
   const { t: tPlan } = await getT();
   if (!id || !planKey) return { ok: false, error: tPlan('platform.errors.incompleteData') };
 
+  // Canonical write: change the plan on the subscription; projection updates cache.
   const supabase = await createClient();
-  const { error } = await supabase.from('erp_companies').update({ plan_key: planKey }).eq('id', id);
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  await logAudit(supabase, { action: 'plan_change', entity: 'plan', entityId: id, details: { plan_key: planKey }, companyId: id });
+  const { error } = await subscription.changePlan(supabase, id, planKey);
+  if (error) return { ok: false, error: error.message };
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
@@ -336,27 +335,11 @@ export async function setCompanyTrial(id: string, days: number): Promise<ActionR
   const { t: tTrial } = await getT();
   if (!id) return { ok: false, error: tTrial('platform.errors.companyRequired') };
 
-  let trialEnd: string | null = null;
-  if (days > 0) {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + Math.min(days, 365));
-    trialEnd = d.toISOString().slice(0, 10);
-  }
-
+  // Canonical write: start/end the trial on the subscription; projection updates
+  // erp_companies.trial_ends_at + is_active.
   const supabase = await createClient();
-  const { error } = await supabase
-    .from('erp_companies')
-    .update({ trial_ends_at: trialEnd, ...(trialEnd ? { is_active: true } : {}) })
-    .eq('id', id);
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  await logAudit(supabase, {
-    action: trialEnd ? 'enable' : 'disable',
-    entity: 'company_trial',
-    entityId: id,
-    details: { trial_ends_at: trialEnd },
-    companyId: id,
-  });
+  const { error } = await subscription.setTrial(supabase, id, days);
+  if (error) return { ok: false, error: error.message };
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
