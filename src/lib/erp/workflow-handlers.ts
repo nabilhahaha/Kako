@@ -1,6 +1,7 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import * as subscription from './subscription-service';
+import { applyFormEffect } from './form-effects';
 
 /** ── Workflow outcome handlers (the only entity-aware part) ─────────────────
  *  The engine is entity-agnostic; what an approval/rejection DOES to the source
@@ -102,6 +103,16 @@ const HANDLERS: Record<string, Handler> = {
         .upsert({ company_id: r.company_id, module: r.module_key, enabled: r.enable }, { onConflict: 'company_id,module' });
     }
     await supabase.from('erp_module_requests').update({ status: outcome }).eq('id', recordId);
+  },
+
+  // Dynamic form submission (B5/B6): stamp the submission's final status, and on
+  // approval run the form's whitelisted effect (record_only / update_field /
+  // set_gps / create_customer). The effect runs as the approving user (RLS), is
+  // self-auditing, and never throws — a failed effect is logged, not fatal.
+  form_submission: async (recordId, outcome) => {
+    const supabase = await createClient();
+    await supabase.from('erp_form_submissions').update({ status: outcome }).eq('id', recordId);
+    if (outcome === 'approved') await applyFormEffect(supabase, recordId);
   },
 };
 

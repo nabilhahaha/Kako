@@ -152,6 +152,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'nav.sections.main',
     items: [
       { label: 'nav.items.dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'nav.items.formsRun', href: '/forms', icon: FileText },
       { label: 'nav.items.requests', href: '/requests', icon: ClipboardCheck, module: 'workflow' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
     ],

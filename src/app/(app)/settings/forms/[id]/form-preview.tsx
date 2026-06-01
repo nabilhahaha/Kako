@@ -54,7 +54,7 @@ export function FormPreview({ fields }: { fields: PreviewField[] }) {
   );
 }
 
-function FieldInput({ f, value, onChange }: { f: PreviewField; value: unknown; onChange: (v: unknown) => void }) {
+export function FieldInput({ f, value, onChange }: { f: PreviewField; value: unknown; onChange: (v: unknown) => void }) {
   const { t } = useI18n();
   const sval = typeof value === 'string' ? value : '';
   switch (f.type) {

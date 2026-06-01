@@ -21,6 +21,14 @@ export const ar = {
     rules: { title: 'القواعد والشروط', showWhen: 'يظهر عندما', requiredWhen: 'إلزامي عندما', fieldKey: 'مفتاح الحقل', value: 'القيمة' },
     validation: { min: 'الحد الأدنى', max: 'الحد الأقصى', minLen: 'أقل طول', maxLen: 'أقصى طول', regex: 'نمط (Regex)' },
     err: { required: 'هذا الحقل مطلوب', number: 'رقم غير صالح', min: 'أقل من الحد الأدنى', max: 'أكبر من الحد الأقصى', minLen: 'قصير جداً', maxLen: 'طويل جداً', regex: 'صيغة غير صحيحة', allowed: 'قيمة غير مسموحة' },
+    effect: {
+      title: 'الإجراء عند الاعتماد',
+      hint: 'ما الذي يفعله النظام تلقائياً عند اعتماد الطلب (إجراءات آمنة فقط).',
+      type: 'نوع الإجراء',
+      types: { record_only: 'تسجيل فقط', update_field: 'تحديث حقل', set_gps: 'تعيين موقع GPS', create_customer: 'إنشاء عميل' },
+      table: 'الجدول المستهدف', column: 'العمود', valueFrom: 'القيمة من حقل', gpsField: 'حقل الموقع',
+      mapping: 'ربط الحقول بأعمدة العميل', unmapped: '— غير مرتبط —',
+    },
     wf: {
       title: 'سير الموافقات',
       subtitle: 'اربط النموذج بخطوات موافقة — متسلسلة أو متوازية، بشروط على القيم المُدخلة',
@@ -71,6 +79,14 @@ export const en = {
     rules: { title: 'Rules & conditions', showWhen: 'Show when', requiredWhen: 'Required when', fieldKey: 'field key', value: 'value' },
     validation: { min: 'Min', max: 'Max', minLen: 'Min length', maxLen: 'Max length', regex: 'Pattern (regex)' },
     err: { required: 'This field is required', number: 'Invalid number', min: 'Below minimum', max: 'Above maximum', minLen: 'Too short', maxLen: 'Too long', regex: 'Invalid format', allowed: 'Value not allowed' },
+    effect: {
+      title: 'Effect on approval',
+      hint: 'What the system does automatically once a submission is approved (safe effects only).',
+      type: 'Effect type',
+      types: { record_only: 'Record only', update_field: 'Update a field', set_gps: 'Set GPS location', create_customer: 'Create customer' },
+      table: 'Target table', column: 'Column', valueFrom: 'Value from field', gpsField: 'GPS field',
+      mapping: 'Map fields to customer columns', unmapped: '— Unmapped —',
+    },
     wf: {
       title: 'Approval workflow',
       subtitle: 'Bind this form to approval steps — sequential or parallel, with conditions on submitted values',

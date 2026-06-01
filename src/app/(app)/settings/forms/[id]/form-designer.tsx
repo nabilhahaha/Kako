@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Loader2, Pencil } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
-import { FIELD_TYPES, type FieldType } from '@/lib/erp/form-builder';
+import { FIELD_TYPES, type FieldType, type FormEffect, type FormEffectType } from '@/lib/erp/form-builder';
 import type { Condition, ConditionOp, Validation } from '@/lib/erp/form-rules';
 import { FormPreview, type PreviewField } from './form-preview';
 import { updateForm, upsertField, deleteField, reorderFields } from './actions';
@@ -18,6 +18,7 @@ import { updateForm, upsertField, deleteField, reorderFields } from './actions';
 export interface DbForm {
   id: string; company_id: string | null; key: string; name_ar: string | null; name_en: string | null;
   module: string | null; target_entity: string | null; workflow_key: string | null; status: 'draft' | 'active' | 'archived'; version: number;
+  effect: FormEffect | null;
 }
 export interface DbField {
   id: string; key: string; label_ar: string | null; label_en: string | null; help_ar: string | null; help_en: string | null;
@@ -29,6 +30,13 @@ export interface WorkflowOpt { key: string; name_ar: string | null; name_en: str
 const selectCls = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 const OPTION_TYPES: FieldType[] = ['dropdown', 'multiselect'];
 const COND_OPS: ConditionOp[] = ['eq', 'neq', 'gt', 'lt', 'gte', 'lte', 'in', 'exists'];
+
+// ── Whitelisted effects (B6). Mirrors the server allowlists in form-effects.ts;
+//    the server re-validates, so these are just UI hints. ──
+const EFFECT_TYPES: FormEffectType[] = ['record_only', 'update_field', 'set_gps', 'create_customer'];
+const EFFECT_TABLES = ['erp_customers'];
+const UPDATE_COLUMNS: Record<string, string[]> = { erp_customers: ['name', 'name_ar', 'phone', 'email', 'address', 'city', 'tax_number', 'latitude', 'longitude'] };
+const CUSTOMER_MAP_COLUMNS = ['name', 'name_ar', 'phone', 'email', 'address', 'city', 'tax_number'];
 
 function parseOptions(raw: unknown): { value: string; label: string }[] {
   if (!Array.isArray(raw)) return [];
@@ -78,9 +86,19 @@ export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbFo
     targetEntity: form.target_entity ?? '', workflowKey: form.workflow_key ?? '', status: form.status,
   });
 
+  // ── effect (B6) ──
+  const [eff, setEff] = useState<FormEffect>(() => (form.effect && form.effect.type ? form.effect : { type: 'record_only' }));
+  const fieldKeyOpts = fields.filter((f) => f.type !== 'section').map((f) => f.key);
+  const gpsFieldOpts = fields.filter((f) => f.type === 'gps').map((f) => f.key);
+  const patchMap = (col: string, key: string) => {
+    const map = { ...(eff.map ?? {}) };
+    if (key) map[col] = key; else delete map[col];
+    setEff({ ...eff, map });
+  };
+
   function saveHeader() {
     start(async () => {
-      const res = await updateForm({ id: form.id, ...hdr });
+      const res = await updateForm({ id: form.id, ...hdr, effect: eff });
       if (!res.ok) { toast.error(res.error ?? t('forms.toast.error')); return; }
       toast.success(t('forms.toast.saved'));
       router.refresh();
@@ -148,6 +166,78 @@ export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbFo
               </select>
             </div>
           </div>
+
+          {/* ── Effect on approval (B6) ── */}
+          <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+            <div>
+              <p className="text-sm font-medium">{t('forms.effect.title')}</p>
+              <p className="text-xs text-muted-foreground">{t('forms.effect.hint')}</p>
+            </div>
+            <div className="space-y-1">
+              <Label>{t('forms.effect.type')}</Label>
+              <select className={selectCls} value={eff.type} disabled={readOnly} onChange={(e) => setEff({ type: e.target.value as FormEffectType })}>
+                {EFFECT_TYPES.map((et) => <option key={et} value={et}>{t(`forms.effect.types.${et}`)}</option>)}
+              </select>
+            </div>
+
+            {eff.type === 'update_field' && (
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="space-y-1"><Label>{t('forms.effect.table')}</Label>
+                  <select className={selectCls} value={eff.table ?? ''} disabled={readOnly} onChange={(e) => setEff({ ...eff, table: e.target.value, column: '' })}>
+                    <option value="">{t('forms.preview.choose')}</option>
+                    {EFFECT_TABLES.map((tb) => <option key={tb} value={tb}>{tb}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1"><Label>{t('forms.effect.column')}</Label>
+                  <select className={selectCls} value={eff.column ?? ''} disabled={readOnly || !eff.table} onChange={(e) => setEff({ ...eff, column: e.target.value })}>
+                    <option value="">{t('forms.preview.choose')}</option>
+                    {(UPDATE_COLUMNS[eff.table ?? ''] ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1"><Label>{t('forms.effect.valueFrom')}</Label>
+                  <select className={selectCls} value={eff.value_from ?? ''} disabled={readOnly} onChange={(e) => setEff({ ...eff, value_from: e.target.value })}>
+                    <option value="">{t('forms.preview.choose')}</option>
+                    {fieldKeyOpts.map((k) => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {eff.type === 'set_gps' && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-1"><Label>{t('forms.effect.table')}</Label>
+                  <select className={selectCls} value={eff.table ?? ''} disabled={readOnly} onChange={(e) => setEff({ ...eff, table: e.target.value })}>
+                    <option value="">{t('forms.preview.choose')}</option>
+                    {EFFECT_TABLES.map((tb) => <option key={tb} value={tb}>{tb}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1"><Label>{t('forms.effect.gpsField')}</Label>
+                  <select className={selectCls} value={eff.value_from ?? ''} disabled={readOnly} onChange={(e) => setEff({ ...eff, value_from: e.target.value })}>
+                    <option value="">{t('forms.preview.choose')}</option>
+                    {(gpsFieldOpts.length ? gpsFieldOpts : fieldKeyOpts).map((k) => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {eff.type === 'create_customer' && (
+              <div className="space-y-2">
+                <Label>{t('forms.effect.mapping')}</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {CUSTOMER_MAP_COLUMNS.map((col) => (
+                    <div key={col} className="flex items-center gap-2">
+                      <span className="w-24 shrink-0 font-mono text-xs" dir="ltr">{col}{col === 'name' && <span className="text-destructive"> *</span>}</span>
+                      <select className={selectCls} value={(eff.map ?? {})[col] ?? ''} disabled={readOnly} onChange={(e) => patchMap(col, e.target.value)}>
+                        <option value="">{t('forms.effect.unmapped')}</option>
+                        {fieldKeyOpts.map((k) => <option key={k} value={k}>{k}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {!readOnly && <Button size="sm" disabled={pending} onClick={saveHeader}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {t('forms.saveSettings')}</Button>}
         </CardContent></Card>
 

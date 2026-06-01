@@ -11,11 +11,15 @@ export type FieldType = (typeof FIELD_TYPES)[number];
 export type FormStatus = 'draft' | 'active' | 'archived';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
-/** The whitelisted effect applied on approval (handlers land in B6). */
+/** The whitelisted effect applied on approval (B6). Only the safest set is
+ *  enabled; higher-risk business effects are deferred to a later phase. */
+export type FormEffectType = 'record_only' | 'update_field' | 'set_gps' | 'create_customer';
 export interface FormEffect {
-  type: 'record_only' | 'update_field' | 'create_entity' | 'set_credit_limit' | 'set_gps';
-  target_entity?: string;
-  field?: string;
+  type: FormEffectType;
+  table?: string;                  // update_field / set_gps target table
+  column?: string;                 // update_field target column
+  value_from?: string;             // update_field / set_gps source field key
+  map?: Record<string, string>;    // create_customer: column → source field key
   [k: string]: unknown;
 }
 
