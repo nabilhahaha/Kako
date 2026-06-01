@@ -328,6 +328,89 @@ export async function resetUserPassword(userId: string, newPassword: string): Pr
   return { ok: true };
 }
 
+/** Put a company on a timed trial (days from today), or clear it (days <= 0).
+ *  Independent of the paid subscription_end; an active trial grants access. */
+export async function setCompanyTrial(id: string, days: number): Promise<ActionResult> {
+  const { error: authErr } = await requirePlatformPerm('manage_billing');
+  if (authErr) return { ok: false, error: authErr };
+  const { t: tTrial } = await getT();
+  if (!id) return { ok: false, error: tTrial('platform.errors.companyRequired') };
+
+  let trialEnd: string | null = null;
+  if (days > 0) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + Math.min(days, 365));
+    trialEnd = d.toISOString().slice(0, 10);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('erp_companies')
+    .update({ trial_ends_at: trialEnd, ...(trialEnd ? { is_active: true } : {}) })
+    .eq('id', id);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, {
+    action: trialEnd ? 'enable' : 'disable',
+    entity: 'company_trial',
+    entityId: id,
+    details: { trial_ends_at: trialEnd },
+    companyId: id,
+  });
+  revalidatePath('/platform/companies');
+  revalidatePath(`/platform/companies/${id}`);
+  return { ok: true };
+}
+
+/** Enable / disable a single per-company integration connection (owner toggle).
+ *  Does not create connectors or adapters — only flips an existing one's state. */
+export async function setIntegrationActive(
+  companyId: string,
+  integrationId: string,
+  active: boolean,
+): Promise<ActionResult> {
+  const { error: authErr } = await requirePlatformOwner();
+  if (authErr) return { ok: false, error: authErr };
+  const { t: tInt } = await getT();
+  if (!companyId || !integrationId) return { ok: false, error: tInt('platform.errors.incompleteData') };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('erp_integrations')
+    .update({ is_active: active })
+    .eq('id', integrationId)
+    .eq('company_id', companyId);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, {
+    action: active ? 'enable' : 'disable',
+    entity: 'integration',
+    entityId: integrationId,
+    companyId,
+  });
+  revalidatePath(`/platform/companies/${companyId}`);
+  return { ok: true };
+}
+
+/** Mark a company's onboarding/setup as done or reset it (re-runs setup wizard). */
+export async function setCompanySetupDone(id: string, done: boolean): Promise<ActionResult> {
+  const { error: authErr } = await requirePlatformOwner();
+  if (authErr) return { ok: false, error: authErr };
+  const { t: tSetup } = await getT();
+  if (!id) return { ok: false, error: tSetup('platform.errors.companyRequired') };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from('erp_companies').update({ setup_done: done }).eq('id', id);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, {
+    action: done ? 'enable' : 'disable',
+    entity: 'company_setup',
+    entityId: id,
+    companyId: id,
+  });
+  revalidatePath(`/platform/companies/${id}`);
+  return { ok: true };
+}
+
 /** Enable or disable a feature module for a company (overrides the type default). */
 export async function setCompanyModule(
   companyId: string,

@@ -34,23 +34,44 @@ export function daysLeft(company: Pick<Company, 'subscription_end'>): number | n
   return Math.round((end.getTime() - today.getTime()) / 86_400_000);
 }
 
-/** A company is locked when manually deactivated or its subscription expired. */
+/** A trial date may or may not be present on the partial company shapes passed in. */
+type WithTrial = { trial_ends_at?: string | null };
+
+/** Days remaining on a trial (null = no trial set). */
+export function trialDaysLeft(company: WithTrial): number | null {
+  if (!company.trial_ends_at) return null;
+  const end = new Date(company.trial_ends_at + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((end.getTime() - today.getTime()) / 86_400_000);
+}
+
+/** True while a company is inside an active (non-expired) trial window. */
+export function onActiveTrial(company: WithTrial): boolean {
+  const left = trialDaysLeft(company);
+  return left !== null && left >= 0;
+}
+
+/** A company is locked when manually deactivated, or its subscription expired
+ *  AND it is not inside an active trial window. */
 export function companyLocked(
-  company: Pick<Company, 'is_active' | 'subscription_end'> | null,
+  company: (Pick<Company, 'is_active' | 'subscription_end'> & WithTrial) | null,
 ): boolean {
   if (!company) return false;
   if (!company.is_active) return true;
+  if (onActiveTrial(company)) return false;
   const left = daysLeft(company);
   return left !== null && left < 0;
 }
 
-export type SubscriptionState = 'active' | 'expiring' | 'expired' | 'suspended' | 'open';
+export type SubscriptionState = 'active' | 'expiring' | 'expired' | 'suspended' | 'trial' | 'open';
 
 export function subscriptionState(
-  company: Pick<Company, 'is_active' | 'subscription_end'> | null,
+  company: (Pick<Company, 'is_active' | 'subscription_end'> & WithTrial) | null,
 ): SubscriptionState {
   if (!company) return 'open';
   if (!company.is_active) return 'suspended';
+  if (onActiveTrial(company)) return 'trial';
   const left = daysLeft(company);
   if (left === null) return 'open';
   if (left < 0) return 'expired';
