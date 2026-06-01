@@ -14,6 +14,7 @@ export const ar = {
     entity: {
       customer: 'عميل',
       credit_limit_request: 'طلب حد ائتمان',
+      subscription_change: 'تغيير اشتراك',
     },
     creditLimit: {
       requestLabel: 'حد ائتمان جديد',
@@ -43,6 +44,7 @@ export const en = {
     entity: {
       customer: 'Customer',
       credit_limit_request: 'Credit limit request',
+      subscription_change: 'Subscription change',
     },
     creditLimit: {
       requestLabel: 'New credit limit',

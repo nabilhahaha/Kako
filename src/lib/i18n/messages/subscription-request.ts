@@ -1,0 +1,66 @@
+/** Tenant-side subscription-change request messages. Keep ar/en in sync. */
+export const ar = {
+  subscriptionRequest: {
+    title: 'طلب تغيير الاشتراك',
+    subtitle: 'أرسل طلباً لتغيير خطتك أو اشتراكك — يخضع لاعتماد مزوّد الخدمة',
+    hint: 'يُراجَع الطلب من فريق الفوترة ثم يعتمده مالك المنصّة. يمكنك متابعة الحالة من "الطلبات والموافقات".',
+    adminOnly: 'هذه الصفحة متاحة لمدير الشركة فقط.',
+    submit: 'إرسال الطلب',
+    kindLabel: 'نوع الطلب',
+    planLabel: 'الخطة المطلوبة',
+    planPlaceholder: 'اختر خطة',
+    trialDaysLabel: 'أيام التجربة',
+    endDateLabel: 'تاريخ الانتهاء الجديد',
+    noteLabel: 'ملاحظة',
+    notePlaceholder: 'تفاصيل إضافية (اختياري)',
+    kind: {
+      plan: 'تغيير الخطة',
+      trial: 'فترة تجريبية',
+      renew: 'تجديد / تمديد',
+      suspend: 'إيقاف',
+      reactivate: 'إعادة تفعيل',
+      cancel: 'إلغاء',
+    },
+    toast: { sent: 'تم إرسال الطلب', error: 'تعذّر إرسال الطلب' },
+    errors: {
+      unauthorized: 'غير مصرح',
+      adminOnly: 'متاح لمدير الشركة فقط',
+      invalidKind: 'نوع طلب غير صالح',
+      planRequired: 'اختر الخطة المطلوبة',
+      endRequired: 'حدّد تاريخ الانتهاء',
+    },
+  },
+};
+
+export const en = {
+  subscriptionRequest: {
+    title: 'Request subscription change',
+    subtitle: 'Submit a change to your plan or subscription — subject to provider approval',
+    hint: 'Your request is reviewed by Billing and approved by the platform owner. Track its status under "Requests & Approvals".',
+    adminOnly: 'This page is available to company admins only.',
+    submit: 'Submit request',
+    kindLabel: 'Request type',
+    planLabel: 'Requested plan',
+    planPlaceholder: 'Choose a plan',
+    trialDaysLabel: 'Trial days',
+    endDateLabel: 'New end date',
+    noteLabel: 'Note',
+    notePlaceholder: 'Additional details (optional)',
+    kind: {
+      plan: 'Change plan',
+      trial: 'Trial period',
+      renew: 'Renew / extend',
+      suspend: 'Suspend',
+      reactivate: 'Reactivate',
+      cancel: 'Cancel',
+    },
+    toast: { sent: 'Request submitted', error: 'Could not submit the request' },
+    errors: {
+      unauthorized: 'Unauthorized',
+      adminOnly: 'Company admins only',
+      invalidKind: 'Invalid request type',
+      planRequired: 'Choose the requested plan',
+      endRequired: 'Set the end date',
+    },
+  },
+};

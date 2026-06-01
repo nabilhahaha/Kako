@@ -1,5 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
+import * as subscription from './subscription-service';
 
 /** ── Workflow outcome handlers (the only entity-aware part) ─────────────────
  *  The engine is entity-agnostic; what an approval/rejection DOES to the source
@@ -33,6 +34,31 @@ const HANDLERS: Record<string, Handler> = {
       await supabase.from('erp_customers').update({ credit_limit: r.requested_limit }).eq('id', r.customer_id);
     }
     await supabase.from('erp_credit_limit_requests').update({ status: outcome }).eq('id', recordId);
+  },
+
+  // Subscription change (platform-scope): on approval, apply the requested
+  // change via the CANONICAL subscription service (the final approver is the
+  // platform owner, so the owner-guarded RPCs execute). Stamp the request.
+  subscription_change: async (recordId, outcome) => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('erp_subscription_change_requests')
+      .select('company_id, kind, plan_key, trial_days, end_date')
+      .eq('id', recordId)
+      .single();
+    const r = data as
+      | { company_id: string; kind: string; plan_key: string | null; trial_days: number | null; end_date: string | null }
+      | null;
+    if (r && outcome === 'approved') {
+      const c = r.company_id;
+      if (r.kind === 'plan' && r.plan_key) await subscription.changePlan(supabase, c, r.plan_key);
+      else if (r.kind === 'trial') await subscription.setTrial(supabase, c, r.trial_days ?? 0);
+      else if (r.kind === 'renew' && r.end_date) await subscription.setPeriodEnd(supabase, c, r.end_date);
+      else if (r.kind === 'suspend') await subscription.setStatus(supabase, c, 'suspended');
+      else if (r.kind === 'reactivate') await subscription.setStatus(supabase, c, 'active');
+      else if (r.kind === 'cancel') await subscription.setStatus(supabase, c, 'cancelled');
+    }
+    await supabase.from('erp_subscription_change_requests').update({ status: outcome }).eq('id', recordId);
   },
 };
 
