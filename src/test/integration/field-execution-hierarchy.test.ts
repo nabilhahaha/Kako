@@ -34,7 +34,11 @@ describe.skipIf(!hasTestDb)('FE-5d-3 · perf engine across levels', () => {
       await actAs(c, admin);
       // company node
       const co = (await c.query("select erp_fe_perf('company') as j")).rows[0].j;
-      expect(co.metrics).toMatchObject({ coverage_pct: 100, merch_compliance: 100, oos_score: 70, opportunity_score: 75, overall: 82, captures: 3 });
+      // FE-5c weighted overall (FMCG defaults; survey excluded ⇒ optional, no data):
+      // (cov 100·25 + comp 100·20 + merch 100·20 + oos 70·15 + opp 75·10)/90 = 8300/90 = 92
+      expect(co.metrics).toMatchObject({ coverage_pct: 100, merch_compliance: 100, oos_score: 70, opportunity_score: 75, overall: 92, captures: 3 });
+      // the node carries the drillable breakdown (Component Score × Weight = Contribution)
+      expect((co.breakdown as { component: string }[]).map((r) => r.component)).toContain('coverage');
 
       // region / route nodes resolve the same customer's data
       expect((await c.query("select erp_fe_perf('region','North') as j")).rows[0].j.metrics.merch_compliance).toBe(100);
@@ -45,7 +49,7 @@ describe.skipIf(!hasTestDb)('FE-5d-3 · perf engine across levels', () => {
 
       // children: company → branch, region → route, route → customer
       const branches = (await c.query("select erp_fe_perf_children('company', null, 'branch') as j")).rows[0].j;
-      expect(branches.some((b: { id: string; overall: number }) => b.id === branch && b.overall === 82)).toBe(true);
+      expect(branches.some((b: { id: string; overall: number }) => b.id === branch && b.overall === 92)).toBe(true);
       const routes = (await c.query("select erp_fe_perf_children('region','North','route') as j")).rows[0].j;
       expect(routes.some((r: { id: string }) => r.id === route)).toBe(true);
       const custs = (await c.query("select erp_fe_perf_children('route',$1,'customer') as j", [route])).rows[0].j;

@@ -106,7 +106,12 @@ export default async function FieldDashboardPage({ searchParams }: { searchParam
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <PageHeader title={t('field.dashboard.title')} description={t('field.dashboard.today')} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <PageHeader title={t('field.dashboard.title')} description={t('field.dashboard.today')} />
+        {(ctx.isPlatformOwner || ctx.isSuperAdmin || ctx.topRole === 'admin') && (
+          <Link href="/field/weights" className="text-xs font-medium text-primary hover:underline">{t('field.weights.title')}</Link>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Kpi label={t('field.dashboard.visits')} value={s.today.visits} />

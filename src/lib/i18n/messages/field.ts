@@ -61,6 +61,15 @@ export const ar = {
       title: 'الأداء', back: 'العودة للوحة', noAccess: 'لا تملك صلاحية الوصول.', breakdown: 'التفصيل', noData: 'لا توجد بيانات',
       levels: { company: 'الشركة', region: 'الإقليم', area: 'المنطقة', branch: 'الفرع', route: 'خط السير', rep: 'المندوب', customer: 'العميل' },
       allChannels: 'كل القنوات',
+      scoreBreakdown: 'تفصيل الدرجة الموزونة', component: 'المكوّن', weight: 'الوزن', contribution: 'المساهمة', state: 'الحالة',
+      formula: 'الدرجة × الوزن = المساهمة', noScore: 'لا بيانات',
+    },
+    weights: {
+      title: 'أوزان درجة التنفيذ', description: 'اضبط وزن وحالة كل مكوّن. الدرجة الإجمالية = مجموع (الدرجة × الوزن) ÷ مجموع الأوزان المشاركة.',
+      component: 'المكوّن', weight: 'الوزن', state: 'الحالة', save: 'حفظ الأوزان', saved: 'تم حفظ الأوزان ✓', saveFailed: 'تعذّر الحفظ',
+      usingDefaults: 'تستخدم الأوزان الافتراضية للباقة. الحفظ ينشئ أوزانًا خاصة بشركتك.', total: 'إجمالي الأوزان', noAccess: 'يتطلب صلاحية مدير الشركة.',
+      states: { required: 'إلزامي', optional: 'اختياري', disabled: 'معطّل' },
+      stateHelp: 'إلزامي: غياب البيانات يُحتسب صفرًا. اختياري: يُستبعد عند غياب البيانات. معطّل: لا يشارك إطلاقًا.',
     },
     route: {
       title: 'خط سيري — اليوم', noPlan: 'لا يوجد خط سير منشور لليوم',
@@ -141,6 +150,15 @@ export const en = {
       title: 'Performance', back: 'Back to dashboard', noAccess: 'You don’t have access.', breakdown: 'Breakdown', noData: 'No data',
       levels: { company: 'Company', region: 'Region', area: 'Area', branch: 'Branch', route: 'Route', rep: 'Rep', customer: 'Customer' },
       allChannels: 'All channels',
+      scoreBreakdown: 'Weighted score breakdown', component: 'Component', weight: 'Weight', contribution: 'Contribution', state: 'State',
+      formula: 'Score × Weight = Contribution', noScore: 'No data',
+    },
+    weights: {
+      title: 'Execution score weights', description: 'Tune each component’s weight and state. Overall = Σ(score × weight) ÷ Σ(participating weights).',
+      component: 'Component', weight: 'Weight', state: 'State', save: 'Save weights', saved: 'Weights saved ✓', saveFailed: 'Could not save',
+      usingDefaults: 'Using the industry-pack default weights. Saving creates company-specific weights.', total: 'Total weight', noAccess: 'Requires company admin.',
+      states: { required: 'Required', optional: 'Optional', disabled: 'Disabled' },
+      stateHelp: 'Required: missing data counts as 0. Optional: excluded when no data. Disabled: never participates.',
     },
     route: {
       title: 'My Route — Today', noPlan: 'No route published for today',

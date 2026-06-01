@@ -43,15 +43,38 @@ Every score returns the **full component breakdown** (drillable at all levels).
 | `survey_score` | average of `score` | survey |
 | `oos_score` | `100 − min(100, Σ severity weight)` (high 30 / med 15 / low 5) | out_of_stock |
 | `opportunity_score` | `min(100, 50 + 25·count)` (presence-led placeholder) | opportunity |
-| **`overall`** | simple **average of the available** (non-null) components | — |
+| **`overall`** | **configurable weighted** blend of participating components (FE-5c) | — |
 
-Also returned: `oos_count`, `opportunity_count`, `opportunity_value`, `captures`.
+Also returned: `oos_count`, `opportunity_count`, `opportunity_value`, `captures`,
+and `breakdown` (per-component `Score × Weight = Contribution` + `state`).
 **Scopes:** `customer` / `route` / `rep` / `visit` / `company`. **Filtering:** `from`/`to`
-timestamps (period KPIs). Null components mean "no data for that pillar" and are
-excluded from `overall` (no unfair penalty).
+timestamps (period KPIs).
 
-> FE-5 will replace the simple average with **configurable weights** per component
-> and per industry pack; the function shape (components + overall) stays stable.
+### FE-5c — configurable weighted scoring + component states (implemented)
+
+Weights and states are configurable **without code**, stored in
+`erp_fe_score_weights` and resolved **most-specific-first**:
+`rep override → route override → company default → industry-pack/global default →
+fallback (weight 1, state optional)`. Helpers: `erp_fe_resolve_weights(route,rep)`,
+`erp_fe_resolve_states(route,rep)`; pure `erp_fe_weighted_overall(components,
+weights, states)` and `erp_fe_score_breakdown(...)`; no-code config via
+`erp_fe_save_weights(rows)` (company-admin) surfaced at `/field/weights`.
+
+- **Overall** = `Σ(score·weight) / Σ(weight)` over the **participating** components.
+- **Component state** governs missing data (only for components *present* on a
+  surface, so capture-only scores never get penalised for coverage/compliance):
+  - `required` — missing data counts as **0** (the pillar is mandatory).
+  - `optional` — missing data is **excluded** (no unfair penalty).
+  - `disabled` — **never participates**, even when data exists.
+- **Breakdown** keeps its shape and always shows `Component Score × Weight =
+  Contribution` (+ `state`), drillable at every level — the future hook for
+  achievement %, incentives and commission.
+- **FMCG pack defaults:** Coverage 25 (required), Compliance 20 (required),
+  Merchandising 20, OOS 15, Survey 10, Opportunities 10 (optional). Another
+  company simply saves different weights/states — no code change.
+- **Scope is preserved:** weighting/breakdown is computed at the already-scoped
+  base layer (after `erp_fe_team()` / `erp_fe_sees_all()`), so it never widens
+  what a manager may see (`Effective = Scope AND Filters` still holds).
 
 ## 3. Dashboard KPI & filtering readiness
 

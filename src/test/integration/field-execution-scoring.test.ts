@@ -6,7 +6,9 @@ import { hasTestDb, withRollback, actAs, resetRole } from '../db';
 /**
  * Field Execution (FE-4c) — execution scoring + rollups.
  * Captures: 2 merchandising (1 compliant) → 50%; survey score 80; 1 high-severity
- * OOS → 70; 1 opportunity value 500. Overall = avg(50,80,70) = 67.
+ * OOS → 70; 1 opportunity → 75. FE-5c weighted overall (FMCG pack defaults
+ * merch 20 / oos 15 / survey 10 / opp 10; capture-only ⇒ coverage/compliance
+ * absent) = (50·20+80·10+70·15+75·10)/55 = 3600/55 = 65.
  */
 
 async function capture(c: Client, company: string, cust: string, rep: string, kind: string, values: object, score: number | null, visit: string | null): Promise<void> {
@@ -43,25 +45,30 @@ describe.skipIf(!hasTestDb)('FE-4c · execution scores', () => {
       expect(byCust.opportunity_score).toBe(75);    // 50 + 25*1
       expect(byCust.opportunity_count).toBe(1);
       expect(Number(byCust.opportunity_value)).toBe(500);
-      expect(byCust.overall).toBe(69);              // avg(50,80,70,75)
+      expect(byCust.overall).toBe(65);              // weighted (FMCG pack defaults)
       expect(byCust.captures).toBe(5);
+      // the drillable breakdown carries Component Score × Weight = Contribution
+      const bd = Object.fromEntries((byCust.breakdown as { component: string; score: number | null; contribution: number | null }[]).map((r) => [r.component, r]));
+      expect(bd.merchandising.score).toBe(50);
+      expect(bd.survey.score).toBe(80);
+      expect(bd.merchandising.contribution).toBe(18.2);   // 50·20/55
 
       // rollups by rep + visit return the same composition here, with full breakdown
       const byRep = (await c.query("select erp_fe_execution_scores('rep', $1) as j", [rep])).rows[0].j;
-      expect(byRep).toMatchObject({ overall: 69, merch_compliance: 50, survey_score: 80, oos_score: 70, opportunity_score: 75 });
-      expect((await c.query("select erp_fe_execution_scores('visit', $1) as j", [visit])).rows[0].j.overall).toBe(69);
+      expect(byRep).toMatchObject({ overall: 65, merch_compliance: 50, survey_score: 80, oos_score: 70, opportunity_score: 75 });
+      expect((await c.query("select erp_fe_execution_scores('visit', $1) as j", [visit])).rows[0].j.overall).toBe(65);
       expect((await c.query("select erp_fe_execution_scores('route', $1) as j", [route])).rows[0].j.merch_compliance).toBe(50);
 
       // the visit timeline now carries a per-visit overall score
       const tl = (await c.query("select erp_fe_customer_visits($1) as j", [cust])).rows[0].j;
-      expect(Number(tl[0].score)).toBe(69);
+      expect(Number(tl[0].score)).toBe(65);
 
       // grouped scores (FE-4d) — route + rep lists with full breakdown
       const byRoute = (await c.query("select erp_fe_execution_scores_by('route') as j")).rows[0].j;
       const routeRow = byRoute.find((g: { id: string }) => g.id === route);
-      expect(routeRow).toMatchObject({ overall: 69, merch_compliance: 50, survey_score: 80, oos_score: 70, opportunity_score: 75 });
+      expect(routeRow).toMatchObject({ overall: 65, merch_compliance: 50, survey_score: 80, oos_score: 70, opportunity_score: 75 });
       const byRepList = (await c.query("select erp_fe_execution_scores_by('rep') as j")).rows[0].j;
-      expect(byRepList.find((g: { id: string }) => g.id === rep)?.overall).toBe(69);
+      expect(byRepList.find((g: { id: string }) => g.id === rep)?.overall).toBe(65);
       await resetRole(c);
     });
   }, 30_000);

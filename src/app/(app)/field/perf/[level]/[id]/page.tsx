@@ -10,9 +10,10 @@ import { ChevronLeft } from 'lucide-react';
 import { getT } from '@/lib/i18n/server';
 import { PerfViewFilter } from './perf-filter';
 import { TrendChart, TREND_COLORS } from '@/components/field/trend-chart';
+import { ScoreBreakdown, type BreakdownRow } from '@/components/field/score-breakdown';
 
 interface Metrics { planned: number; visited: number; missed: number; coverage_pct: number; compliance_pct: number; merch_compliance: number | null; survey_score: number | null; oos_score: number | null; oos_count: number; opportunity_score: number | null; opportunity_count: number; opportunity_value: number; merch_count: number; overall: number | null; captures: number }
-interface Perf { level: string; id: string | null; name: string | null; metrics: Metrics; coverage_trend: Record<string, unknown>[]; score_trend: Record<string, unknown>[] }
+interface Perf { level: string; id: string | null; name: string | null; metrics: Metrics; coverage_trend: Record<string, unknown>[]; score_trend: Record<string, unknown>[]; breakdown: BreakdownRow[] }
 interface Child { id: string; name: string; overall: number | null; coverage_pct: number; captures: number }
 const ALL_LEVELS = ['region', 'area', 'branch', 'route', 'rep', 'customer'];
 
@@ -87,6 +88,9 @@ export default async function PerfPage({ params, searchParams }: { params: Promi
         <Stat label={t('field.dashboard.opp')} value={`${m.opportunity_score ?? '—'}${m.opportunity_count > 0 ? ` (${m.opportunity_count})` : ''}`} />
         <Stat label={t('field.capture.kinds.merchandising')} value={m.merch_count} />
       </div>
+
+      {/* weighted score breakdown (FE-5c): Component Score × Weight = Contribution */}
+      <ScoreBreakdown rows={perf.breakdown ?? []} overall={m.overall} t={t} />
 
       {/* trends */}
       <div className="grid gap-4 lg:grid-cols-2">
