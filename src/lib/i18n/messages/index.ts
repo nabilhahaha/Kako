@@ -40,6 +40,7 @@ import * as customFields from './custom-fields';
 import * as workflow from './workflow';
 import * as workflows from './workflows';
 import * as notifications from './notifications';
+import * as electrical from './electrical';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -47,6 +48,7 @@ const MODULES = [
   market, distribution, settings, account, platform, rep, exportsMod,
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
   importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, notifications,
+  electrical,
 ];
 
 type Catalog = Record<string, unknown>;

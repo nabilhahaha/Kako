@@ -6,6 +6,8 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { GettingStarted } from '@/components/shared/getting-started';
 import { resolveHomePath } from '@/lib/erp/home';
+import { hasPermission } from '@/lib/erp/permissions';
+import type { UserContext } from '@/lib/erp/auth-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { INVOICE_STATUS_LABELS } from '@/lib/erp/constants';
@@ -20,9 +22,18 @@ import {
   AlertTriangle,
   Receipt,
   PackageX,
+  Cpu,
+  ShieldQuestion,
+  Wrench,
+  PackageCheck,
 } from 'lucide-react';
 
 const ACTIVE_STATUSES: InvoiceStatus[] = ['issued', 'paid', 'partially_paid', 'overdue'];
+
+/** Electrical pack widgets show only for tenants whose roles grant electrical.rma. */
+function hasElectricalPermission(ctx: UserContext): boolean {
+  return hasPermission(ctx, 'electrical.rma');
+}
 
 const STATUS_VARIANT: Record<InvoiceStatus, 'secondary' | 'success' | 'default' | 'destructive' | 'warning'> = {
   draft: 'secondary',
@@ -51,6 +62,26 @@ export default async function DashboardPage() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const today = now.toISOString().slice(0, 10);
+
+  // Electrical pack widgets: only for tenants whose roles grant electrical.rma
+  // (the Electrical/electronics pack). Cheap head-count queries; skipped otherwise.
+  const showElectrical = !!ctx && hasElectricalPermission(ctx);
+  const electricalStats = showElectrical
+    ? await (async () => {
+        const [serials, warranties, rmas, supplierReturns] = await Promise.all([
+          supabase.from('erp_product_serials').select('id', { count: 'exact', head: true }).eq('status', 'in_stock'),
+          supabase.from('erp_warranties').select('id', { count: 'exact', head: true }).eq('is_void', false).gte('end_date', today),
+          supabase.from('erp_rma').select('id', { count: 'exact', head: true }).not('status', 'in', '("closed","rejected")'),
+          supabase.from('erp_purchase_returns').select('id', { count: 'exact', head: true }),
+        ]);
+        return {
+          serialized: serials.count ?? 0,
+          activeWarranties: warranties.count ?? 0,
+          openRmas: rmas.count ?? 0,
+          supplierReturns: supplierReturns.count ?? 0,
+        };
+      })()
+    : null;
 
   const [
     { data: monthInvoices },
@@ -127,6 +158,15 @@ export default async function DashboardPage() {
         <StatCard label={t('dashboard.payables')} value={formatCurrency(payables, 'EGP', intl)} icon={ArrowDownCircle} tone="warning" href="/suppliers" />
         <StatCard label={t('dashboard.overdueInvoices')} value={String(overdue ?? 0)} icon={AlertTriangle} tone="destructive" href="/sales/invoices" />
       </div>
+
+      {electricalStats && (
+        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard label={t('electrical.widgetActiveWarranties')} value={String(electricalStats.activeWarranties)} icon={ShieldQuestion} tone="success" href="/electrical/warranties" />
+          <StatCard label={t('electrical.widgetOpenRmas')} value={String(electricalStats.openRmas)} icon={Wrench} tone="warning" href="/electrical/rma" />
+          <StatCard label={t('electrical.widgetSerializedProducts')} value={String(electricalStats.serialized)} icon={Cpu} tone="primary" href="/electrical/serials" />
+          <StatCard label={t('electrical.widgetSupplierReturns')} value={String(electricalStats.supplierReturns)} icon={PackageCheck} tone="primary" href="/purchases/returns" />
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>

@@ -80,6 +80,29 @@ describe('navigation — field_ops capability binding (any-of, no regression)', 
   });
 });
 
+describe('navigation — Electrical pack screens (P1, permission-scoped)', () => {
+  const hrefs = (secs: ReturnType<typeof visibleSections>) =>
+    secs.flatMap((s) => s.items.map((i) => i.href));
+  const ELECTRICAL_HREFS = ['/electrical/serials', '/electrical/warranties', '/electrical/rma'];
+
+  it('Electrical screens show only when the user has electrical.rma', () => {
+    const withPerm = visibleSections(['electrical.rma'], false, false, ['sales', 'inventory']);
+    for (const h of ELECTRICAL_HREFS) expect(hrefs(withPerm)).toContain(h);
+  });
+
+  it('a tenant WITHOUT electrical.rma never sees the Electrical screens (pack-scoped)', () => {
+    const noPerm = visibleSections(['sales.sell', 'inventory.view', 'purchasing.manage'], false, false, ['sales', 'inventory', 'purchasing']);
+    for (const h of ELECTRICAL_HREFS) expect(hrefs(noPerm)).not.toContain(h);
+  });
+
+  it('Supplier Returns shows under Purchasing only with purchasing.return', () => {
+    const withPerm = visibleSections(['purchasing.return'], false, false, ['purchasing']);
+    expect(hrefs(withPerm)).toContain('/purchases/returns');
+    const without = visibleSections(['purchasing.manage'], false, false, ['purchasing']);
+    expect(hrefs(without)).not.toContain('/purchases/returns');
+  });
+});
+
 describe('navigation — capability binding (CRM / Workflow / Analytics)', () => {
   const hrefs = (secs: ReturnType<typeof visibleSections>) =>
     secs.flatMap((s) => s.items.map((i) => i.href));
