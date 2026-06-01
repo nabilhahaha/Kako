@@ -48,7 +48,7 @@ export async function cloneForm(sourceId: string, newName: string): Promise<Acti
   const supabase = await createClient();
   const { data: src } = await supabase
     .from('erp_form_definitions')
-    .select('name_ar, module, target_entity, workflow_key, effect')
+    .select('name_ar, module, target_entity, workflow_key, effect, subject_ref')
     .eq('id', sourceId)
     .single();
   const key = `${slug(newName)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -61,6 +61,7 @@ export async function cloneForm(sourceId: string, newName: string): Promise<Acti
       target_entity: (src as { target_entity?: string } | null)?.target_entity ?? null,
       workflow_key: (src as { workflow_key?: string } | null)?.workflow_key ?? null,
       effect: (src as { effect?: unknown } | null)?.effect ?? { type: 'record_only' },
+      subject_ref: (src as { subject_ref?: unknown } | null)?.subject_ref ?? null,
       created_by: ctx.userId,
     })
     .select('id')

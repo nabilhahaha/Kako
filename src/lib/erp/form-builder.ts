@@ -39,6 +39,18 @@ export interface FormField {
   default_value: string | null;
 }
 
+/** Declarative subject resolution: where the form's subject customer comes from.
+ *  Keeps owner-resolution (account_owner / route_owner) generic — the engine
+ *  reads this instead of hard-coding form types.
+ *    source 'record' → submission.record_id is the customer (bound forms)
+ *    source 'field'  → submission.values[key] holds the customer id
+ *    null            → defaults to 'record' (back-compat) */
+export interface SubjectRef {
+  entity?: string;                 // reserved for future subject entities (default 'customer')
+  source: 'record' | 'field';
+  key?: string;                    // field key when source = 'field'
+}
+
 export interface FormDefinition {
   id: string;
   company_id: string | null;     // null = global template
@@ -49,6 +61,7 @@ export interface FormDefinition {
   target_entity: string | null;
   workflow_key: string | null;
   effect: FormEffect;
+  subject_ref: SubjectRef | null;
   status: FormStatus;
   version: number;
   is_latest: boolean;

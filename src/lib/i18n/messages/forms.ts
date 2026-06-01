@@ -29,6 +29,15 @@ export const ar = {
       table: 'الجدول المستهدف', column: 'العمود', valueFrom: 'القيمة من حقل', gpsField: 'حقل الموقع',
       mapping: 'ربط الحقول بأعمدة العميل', unmapped: '— غير مرتبط —',
     },
+    subject: {
+      title: 'العميل موضوع الطلب',
+      hint: 'من أين يُحدَّد العميل لتوجيه الموافقات (مالك الحساب/مندوب الخط) — إعداد عام يصلح لأي نموذج متعلق بالعملاء.',
+      source: 'مصدر العميل',
+      none: 'لا يوجد (طلب غير متعلق بعميل)',
+      record: 'السجل المرتبط (record_id)',
+      field: 'من حقل في النموذج',
+      fieldKey: 'حقل معرّف العميل',
+    },
     wf: {
       title: 'سير الموافقات',
       subtitle: 'اربط النموذج بخطوات موافقة — متسلسلة أو متوازية، بشروط على القيم المُدخلة',
@@ -86,6 +95,15 @@ export const en = {
       types: { record_only: 'Record only', update_field: 'Update a field', set_gps: 'Set GPS location', create_customer: 'Create customer' },
       table: 'Target table', column: 'Column', valueFrom: 'Value from field', gpsField: 'GPS field',
       mapping: 'Map fields to customer columns', unmapped: '— Unmapped —',
+    },
+    subject: {
+      title: 'Subject customer',
+      hint: 'Where the customer is taken from for owner-based routing (account owner / route owner) — generic, reusable for any customer-related form.',
+      source: 'Customer source',
+      none: 'None (not customer-related)',
+      record: 'Bound record (record_id)',
+      field: 'From a form field',
+      fieldKey: 'Customer-id field',
     },
     wf: {
       title: 'Approval workflow',

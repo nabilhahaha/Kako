@@ -32,10 +32,21 @@ const CUSTOMER_CREATE_ALLOW = ['name', 'name_ar', 'phone', 'email', 'address', '
 
 interface Submission { id: string; company_id: string; form_id: string; record_id: string | null; values: Record<string, unknown>; }
 interface Effect { type?: string; table?: string; column?: string; value_from?: string; map?: Record<string, string>; }
+interface SubjectRef { entity?: string; source?: 'record' | 'field'; key?: string }
 
 export interface EffectResult { applied: boolean; effect: string; recordId?: string | null; detail?: string; error?: string; }
 
 function str(v: unknown): string | null { return v == null ? null : String(v); }
+
+/** Resolve the subject row id a record-targeting effect should write to, using
+ *  the form's declarative subject_ref. Mirrors erp_workflow_subject_customer so
+ *  routing and effects always act on the same subject. Default = bound record. */
+function resolveSubjectId(sub: Submission, ref: SubjectRef | null): string | null {
+  const source = ref?.source ?? 'record';
+  if (source === 'field') return str(sub.values[ref?.key ?? '']);
+  if (source === 'record') return sub.record_id;
+  return null;
+}
 
 async function audit(supabase: Client, sub: Submission, action: string, details: Record<string, unknown>) {
   // SECURITY DEFINER; never let an audit failure mask the effect outcome.
@@ -61,10 +72,12 @@ export async function applyFormEffect(supabase: Client, submissionId: string): P
 
   const { data: defRow } = await supabase
     .from('erp_form_definitions')
-    .select('effect')
+    .select('effect, subject_ref')
     .eq('id', sub.form_id)
     .single();
-  const effect = ((defRow as { effect: Effect } | null)?.effect ?? { type: 'record_only' }) as Effect;
+  const def = (defRow as { effect: Effect; subject_ref: SubjectRef | null } | null);
+  const effect = (def?.effect ?? { type: 'record_only' }) as Effect;
+  const subjectRef = def?.subject_ref ?? null;
   const type = effect.type ?? 'record_only';
 
   if (!(WHITELISTED_EFFECTS as readonly string[]).includes(type)) {
@@ -87,16 +100,17 @@ export async function applyFormEffect(supabase: Client, submissionId: string): P
       await audit(supabase, sub, 'form_effect_rejected', { type, table, column, reason: 'target_not_allowed' });
       return { applied: false, effect: type, error: 'target not allowed' };
     }
-    if (!sub.record_id) {
+    const targetId = resolveSubjectId(sub, subjectRef);
+    if (!targetId) {
       await audit(supabase, sub, 'form_effect_rejected', { type, reason: 'no_target_record' });
       return { applied: false, effect: type, error: 'no target record' };
     }
     const value = str(sub.values[effect.value_from ?? '']);
     const { error } = await supabase
-      .from(table).update({ [column]: value }).eq('id', sub.record_id).eq('company_id', sub.company_id);
+      .from(table).update({ [column]: value }).eq('id', targetId).eq('company_id', sub.company_id);
     if (error) { await audit(supabase, sub, 'form_effect_failed', { type, table, column, error: error.message }); return { applied: false, effect: type, error: error.message }; }
-    await audit(supabase, sub, 'form_effect', { type, table, column, record_id: sub.record_id });
-    return { applied: true, effect: type, recordId: sub.record_id, detail: `${table}.${column}` };
+    await audit(supabase, sub, 'form_effect', { type, table, column, record_id: targetId });
+    return { applied: true, effect: type, recordId: targetId, detail: `${table}.${column}` };
   }
 
   // ── set_gps ──
@@ -107,7 +121,8 @@ export async function applyFormEffect(supabase: Client, submissionId: string): P
       await audit(supabase, sub, 'form_effect_rejected', { type, table, reason: 'target_not_allowed' });
       return { applied: false, effect: type, error: 'target not allowed' };
     }
-    if (!sub.record_id) {
+    const targetId = resolveSubjectId(sub, subjectRef);
+    if (!targetId) {
       await audit(supabase, sub, 'form_effect_rejected', { type, reason: 'no_target_record' });
       return { applied: false, effect: type, error: 'no target record' };
     }
@@ -120,10 +135,10 @@ export async function applyFormEffect(supabase: Client, submissionId: string): P
     }
     const [latCol, lngCol] = cols;
     const { error } = await supabase
-      .from(table).update({ [latCol]: lat, [lngCol]: lng }).eq('id', sub.record_id).eq('company_id', sub.company_id);
+      .from(table).update({ [latCol]: lat, [lngCol]: lng }).eq('id', targetId).eq('company_id', sub.company_id);
     if (error) { await audit(supabase, sub, 'form_effect_failed', { type, table, error: error.message }); return { applied: false, effect: type, error: error.message }; }
-    await audit(supabase, sub, 'form_effect', { type, table, record_id: sub.record_id, lat, lng });
-    return { applied: true, effect: type, recordId: sub.record_id, detail: `${lat},${lng}` };
+    await audit(supabase, sub, 'form_effect', { type, table, record_id: targetId, lat, lng });
+    return { applied: true, effect: type, recordId: targetId, detail: `${lat},${lng}` };
   }
 
   // ── create_customer ──

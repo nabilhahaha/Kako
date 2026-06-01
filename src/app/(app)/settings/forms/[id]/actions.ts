@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
-import { FIELD_TYPES, type FieldType, type FormEffect } from '@/lib/erp/form-builder';
+import { FIELD_TYPES, type FieldType, type FormEffect, type SubjectRef } from '@/lib/erp/form-builder';
 import { WHITELISTED_EFFECTS } from '@/lib/erp/form-effects';
 import type { Condition, Validation } from '@/lib/erp/form-rules';
 import { getT } from '@/lib/i18n/server';
@@ -19,10 +19,10 @@ function rev(id: string) {
   revalidatePath(`/settings/forms/${id}`);
 }
 
-/** Update the form header + workflow binding + status + effect. */
+/** Update the form header + workflow binding + status + effect + subject. */
 export async function updateForm(input: {
   id: string; nameEn: string; nameAr?: string; module?: string; targetEntity?: string;
-  workflowKey?: string; status: 'draft' | 'active' | 'archived'; effect?: FormEffect;
+  workflowKey?: string; status: 'draft' | 'active' | 'archived'; effect?: FormEffect; subjectRef?: SubjectRef | null;
 }): Promise<ActionResult> {
   const { t } = await getT();
   if (await requireAdmin()) return { ok: false, error: t('forms.errors.adminOnly') };
@@ -30,11 +30,18 @@ export async function updateForm(input: {
   // Guard: only whitelisted effects may be persisted (higher-risk effects deferred).
   const effect: FormEffect = input.effect && (WHITELISTED_EFFECTS as readonly string[]).includes(input.effect.type)
     ? input.effect : { type: 'record_only' };
+  // Subject source: declarative, validated. null = default (bound record).
+  let subject_ref: SubjectRef | null = null;
+  if (input.subjectRef && (input.subjectRef.source === 'record' || input.subjectRef.source === 'field')) {
+    subject_ref = input.subjectRef.source === 'field'
+      ? { entity: 'customer', source: 'field', key: input.subjectRef.key?.trim() || undefined }
+      : { entity: 'customer', source: 'record' };
+  }
   const supabase = await createClient();
   const { error } = await supabase.from('erp_form_definitions').update({
     name_en: input.nameEn.trim(), name_ar: input.nameAr?.trim() || null,
     module: input.module?.trim() || null, target_entity: input.targetEntity?.trim() || null,
-    workflow_key: input.workflowKey?.trim() || null, status: input.status, effect, updated_at: new Date().toISOString(),
+    workflow_key: input.workflowKey?.trim() || null, status: input.status, effect, subject_ref, updated_at: new Date().toISOString(),
   }).eq('id', input.id);
   if (error) return { ok: false, error: friendlyDbError(error) };
   rev(input.id);

@@ -13,7 +13,7 @@ import { applyFormEffect } from './form-effects';
 interface Sub { id: string; company_id: string; form_id: string; record_id: string | null; values: Record<string, unknown>; }
 interface Effect { type?: string; [k: string]: unknown }
 
-function makeClient(submission: Sub, effect: Effect, opts: { insertError?: string } = {}) {
+function makeClient(submission: Sub, effect: Effect, opts: { insertError?: string; subjectRef?: object | null } = {}) {
   const calls = {
     updates: [] as { table: string; payload: Record<string, unknown>; filters: Record<string, unknown> }[],
     inserts: [] as { table: string; payload: Record<string, unknown> }[],
@@ -38,7 +38,7 @@ function makeClient(submission: Sub, effect: Effect, opts: { insertError?: strin
     };
     function resolve() {
       if (table === 'erp_form_submissions' && state.op === 'select') return Promise.resolve({ data: submission, error: null });
-      if (table === 'erp_form_definitions') return Promise.resolve({ data: { effect }, error: null });
+      if (table === 'erp_form_definitions') return Promise.resolve({ data: { effect, subject_ref: opts.subjectRef ?? null }, error: null });
       if (table === 'erp_customers' && state.op === 'insert') {
         calls.inserts.push({ table, payload: state.payload });
         return Promise.resolve(opts.insertError ? { data: null, error: { message: opts.insertError } } : { data: { id: 'cust-new' }, error: null });
@@ -100,6 +100,18 @@ describe('applyFormEffect (B6 whitelisted effects)', () => {
     const r = await applyFormEffect(client, 's1');
     expect(r.applied).toBe(false);
     expect(r.error).toMatch(/target/);
+  });
+
+  it('update_field resolves the target from a FIELD via subject_ref (generic path)', async () => {
+    // record_id is null; the subject customer id lives in values.customer_id
+    const { client, calls } = makeClient(
+      baseSub({ record_id: null, values: { customer_id: 'cust-7', p: '0199' } }),
+      { type: 'update_field', table: 'erp_customers', column: 'phone', value_from: 'p' },
+      { subjectRef: { entity: 'customer', source: 'field', key: 'customer_id' } },
+    );
+    const r = await applyFormEffect(client, 's1');
+    expect(r.applied).toBe(true);
+    expect(calls.updates[0]).toMatchObject({ table: 'erp_customers', payload: { phone: '0199' }, filters: { id: 'cust-7', company_id: 'co1' } });
   });
 
   it('set_gps parses "lat,lng" and writes both columns', async () => {

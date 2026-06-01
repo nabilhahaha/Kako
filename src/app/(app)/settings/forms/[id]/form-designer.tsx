@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Loader2, Pencil } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
-import { FIELD_TYPES, type FieldType, type FormEffect, type FormEffectType } from '@/lib/erp/form-builder';
+import { FIELD_TYPES, type FieldType, type FormEffect, type FormEffectType, type SubjectRef } from '@/lib/erp/form-builder';
 import type { Condition, ConditionOp, Validation } from '@/lib/erp/form-rules';
 import { FormPreview, type PreviewField } from './form-preview';
 import { updateForm, upsertField, deleteField, reorderFields } from './actions';
@@ -19,6 +19,7 @@ export interface DbForm {
   id: string; company_id: string | null; key: string; name_ar: string | null; name_en: string | null;
   module: string | null; target_entity: string | null; workflow_key: string | null; status: 'draft' | 'active' | 'archived'; version: number;
   effect: FormEffect | null;
+  subject_ref: SubjectRef | null;
 }
 export interface DbField {
   id: string; key: string; label_ar: string | null; label_en: string | null; help_ar: string | null; help_en: string | null;
@@ -88,6 +89,9 @@ export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbFo
 
   // ── effect (B6) ──
   const [eff, setEff] = useState<FormEffect>(() => (form.effect && form.effect.type ? form.effect : { type: 'record_only' }));
+  // ── subject source (generic owner resolution) ──
+  const [subj, setSubj] = useState<SubjectRef | null>(() => form.subject_ref ?? null);
+  const subjSource: 'none' | 'record' | 'field' = subj?.source ?? 'none';
   const fieldKeyOpts = fields.filter((f) => f.type !== 'section').map((f) => f.key);
   const gpsFieldOpts = fields.filter((f) => f.type === 'gps').map((f) => f.key);
   const patchMap = (col: string, key: string) => {
@@ -98,7 +102,7 @@ export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbFo
 
   function saveHeader() {
     start(async () => {
-      const res = await updateForm({ id: form.id, ...hdr, effect: eff });
+      const res = await updateForm({ id: form.id, ...hdr, effect: eff, subjectRef: subj });
       if (!res.ok) { toast.error(res.error ?? t('forms.toast.error')); return; }
       toast.success(t('forms.toast.saved'));
       router.refresh();
@@ -236,6 +240,35 @@ export function FormDesigner({ form, fields, workflows, readOnly }: { form: DbFo
                 </div>
               </div>
             )}
+          </div>
+
+          {/* ── Subject customer (generic owner resolution) ── */}
+          <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+            <div>
+              <p className="text-sm font-medium">{t('forms.subject.title')}</p>
+              <p className="text-xs text-muted-foreground">{t('forms.subject.hint')}</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-1"><Label>{t('forms.subject.source')}</Label>
+                <select className={selectCls} value={subjSource} disabled={readOnly}
+                  onChange={(e) => {
+                    const s = e.target.value as 'none' | 'record' | 'field';
+                    setSubj(s === 'none' ? null : s === 'record' ? { entity: 'customer', source: 'record' } : { entity: 'customer', source: 'field', key: subj?.key });
+                  }}>
+                  <option value="none">{t('forms.subject.none')}</option>
+                  <option value="record">{t('forms.subject.record')}</option>
+                  <option value="field">{t('forms.subject.field')}</option>
+                </select>
+              </div>
+              {subjSource === 'field' && (
+                <div className="space-y-1"><Label>{t('forms.subject.fieldKey')}</Label>
+                  <select className={selectCls} value={subj?.key ?? ''} disabled={readOnly} onChange={(e) => setSubj({ entity: 'customer', source: 'field', key: e.target.value })}>
+                    <option value="">{t('forms.preview.choose')}</option>
+                    {fieldKeyOpts.map((k) => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
 
           {!readOnly && <Button size="sm" disabled={pending} onClick={saveHeader}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {t('forms.saveSettings')}</Button>}

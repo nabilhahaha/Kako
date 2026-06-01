@@ -26,7 +26,7 @@ export default async function FormDesignerPage({ params }: { params: Promise<{ i
   const supabase = await createClient();
   const { data: form } = await supabase
     .from('erp_form_definitions')
-    .select('id, company_id, key, name_ar, name_en, module, target_entity, workflow_key, status, version, effect')
+    .select('id, company_id, key, name_ar, name_en, module, target_entity, workflow_key, status, version, effect, subject_ref')
     .eq('id', id)
     .maybeSingle();
   if (!form) notFound();
