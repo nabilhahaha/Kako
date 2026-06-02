@@ -1,6 +1,12 @@
-# Slice — Pricing Module (separate from customer master) — Design Review
+# Slice — Pricing Module (separate from customer master) — Design + Build (P-a)
 
-> **Design for approval — no build yet.** A standalone **Pricing module**: a
+> **Owner decisions locked (all recommended) — P-a built (migration 0106).**
+> P-a = engine foundation: `erp_price_rules` (dimension-scoped, effective-dated),
+> `erp_price_change_log` (history trigger), and the `erp_resolve_price()` priority
+> resolver, plus the `pricing.manage` permission. **P-b** (management UI +
+> order/invoice integration) and **P-c** (promotion pricing with S5) follow.
+
+> A standalone **Pricing module**: a
 > deterministic price-resolution engine layered over the existing base price +
 > price lists + wholesale tiers, adding customer/segment/channel/branch pricing,
 > effective dates, change history, a promotion-pricing hook (S5), and explicit
