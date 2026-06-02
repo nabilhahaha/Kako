@@ -44,6 +44,7 @@ import * as electrical from './electrical';
 import * as regions from './regions';
 import * as customerData from './customer-data';
 import * as pricing from './pricing';
+import * as attachments from './attachments';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -51,7 +52,7 @@ const MODULES = [
   market, distribution, settings, account, platform, rep, exportsMod,
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
   importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, notifications,
-  electrical, regions, customerData, pricing,
+  electrical, regions, customerData, pricing, attachments,
 ];
 
 type Catalog = Record<string, unknown>;
