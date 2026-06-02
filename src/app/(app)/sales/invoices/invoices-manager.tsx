@@ -431,6 +431,9 @@ function PaymentDialog({
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const [ref, setRef] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  // Stable per-dialog idempotency key — a retry (e.g. lost response) reuses it,
+  // so the payment is never recorded twice.
+  const [idemKey] = useState(() => crypto.randomUUID());
   const [pending, startTransition] = useTransition();
 
   function submit() {
@@ -441,6 +444,7 @@ function PaymentDialog({
         payment_method: method,
         reference_number: ref,
         payment_date: date,
+        idempotency_key: idemKey,
       });
       if (!res.ok) {
         toast.error(res.error ?? t('sales.errorGeneric'));
