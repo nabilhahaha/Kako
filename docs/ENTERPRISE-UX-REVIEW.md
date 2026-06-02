@@ -173,7 +173,11 @@ default, advanced on demand — the pattern already used in Pricing's "show adva
   **Auto-map** button + a manual hint remain; a **required-unmapped gate** blocks
   advancing to preview with a clear count. No schema change (templates already in
   `erp_import_mappings`).
-- **UX-2 (FormSection + customer field grouping)** — next.
+- **UX-2 (FormSection + customer field grouping)** — ✅ built: shared
+  `components/shared/form-section.tsx`; the customer form is now six labeled
+  sections (Identity / Contact / Commercial / Classification / Hierarchy /
+  Location) instead of one flat 24-field grid. Same field names → server action
+  unchanged. Reusable for suppliers/products next.
 - **UX-3, UX-5** — queued per §10/§11; each its own review-first slice.
 
 *(UX-1 is built and verified. The next slice — recommended **UX-4 (import
