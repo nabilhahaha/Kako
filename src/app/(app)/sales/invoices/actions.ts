@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { logPriceOverrides } from '@/lib/erp/pricing-server';
+import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
 import { isEtaConfigured } from '@/lib/eta/config';
@@ -33,14 +34,18 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
 
   const supabase = await createClient();
 
-  // Block selling to customers awaiting admin approval.
+  // Block selling to customers awaiting admin approval, suspended, or blocked
+  // (FP-CS). Collections/returns remain allowed via their own ungated paths.
   const { data: cust } = await supabase
     .from('erp_customers')
-    .select('is_approved, credit_limit, balance')
+    .select('is_approved, credit_limit, balance, customer_status')
     .eq('id', input.customer_id)
     .maybeSingle();
   if (cust && cust.is_approved === false) {
     return { ok: false, error: t('sales.invoiceErrCustomerPending') };
+  }
+  if (cust && statusBlocks((cust as { customer_status?: string }).customer_status, 'invoice')) {
+    return { ok: false, error: t(statusBlockMessageKey((cust as { customer_status?: string }).customer_status)) };
   }
 
   const totals = computeTotals(lines);
@@ -140,9 +145,20 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
 export async function issueInvoice(id: string): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+
+  const supabase = await createClient();
+  // FP-CS: don't issue (stock-out + AR) for a suspended/blocked customer, even
+  // if a draft slipped through before the status changed.
+  const { data: inv } = await supabase.from('erp_invoices').select('customer_id').eq('id', id).maybeSingle();
+  const customerId = (inv as { customer_id?: string } | null)?.customer_id;
+  if (customerId) {
+    const { data: cu } = await supabase.from('erp_customers').select('customer_status').eq('id', customerId).maybeSingle();
+    const st = (cu as { customer_status?: string } | null)?.customer_status;
+    if (statusBlocks(st, 'invoice')) return { ok: false, error: t(statusBlockMessageKey(st)) };
+  }
 
   // Atomic: stock-out + AR/Revenue journal + customer balance in one tx.
-  const supabase = await createClient();
   const { error } = await supabase.rpc('erp_issue_invoice', { p_invoice_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
 

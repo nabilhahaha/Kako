@@ -60,6 +60,7 @@ export function CustomersManager({
   const classes = byKind('classification');
   const channels = byKind('channel');
   const businessTypes = byKind('business_type');
+  const statusReasons = byKind('status_reason');
   const lookupName = (id: string | null) => {
     if (!id) return '';
     const l = lookups.find((x) => x.id === id);
@@ -241,6 +242,7 @@ export function CustomersManager({
                   current={current}
                   parentOptions={customers.filter((c) => c.customer_account_type !== 'branch' && c.id !== current?.id)}
                   businessTypes={businessTypes}
+                  statusReasons={statusReasons}
                   ar={ar}
                   t={t}
                 />
@@ -687,16 +689,19 @@ function HierarchyAccountSection({
   current,
   parentOptions,
   businessTypes,
+  statusReasons,
   ar,
   t,
 }: {
   current: ErpCustomer | null;
   parentOptions: ErpCustomer[];
   businessTypes: CustomerLookup[];
+  statusReasons: CustomerLookup[];
   ar: boolean;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   const [accountType, setAccountType] = useState<string>(current?.customer_account_type ?? 'independent');
+  const [status, setStatus] = useState<string>(current?.customer_status ?? 'active');
   const lkName = (l: CustomerLookup) => (ar ? l.name_ar || l.name : l.name);
   // null = inherit company default; 'true'/'false' = explicit override.
   const reqApprovalDefault =
@@ -729,10 +734,23 @@ function HierarchyAccountSection({
         </select>
       </Field>
       <Field label={t('customers.fieldCustomerStatus')}>
-        <select name="customer_status" defaultValue={current?.customer_status ?? 'active'} className={selectClass}>
+        <select name="customer_status" value={status} onChange={(e) => setStatus(e.target.value)} className={selectClass}>
           {CUSTOMER_STATUSES.map((o) => <option key={o.value} value={o.value}>{ar ? o.ar : o.en}</option>)}
         </select>
       </Field>
+      {status !== 'active' && (
+        <>
+          <Field label={t('customers.fieldStatusReason')}>
+            <select name="status_reason_id" defaultValue={current?.status_reason_id ?? ''} className={selectClass}>
+              <option value="">{t('customers.optionNone')}</option>
+              {statusReasons.map((l) => <option key={l.id} value={l.id}>{lkName(l)}</option>)}
+            </select>
+          </Field>
+          <Field label={t('customers.fieldStatusReasonNote')}>
+            <Input name="status_reason_note" defaultValue={current?.status_reason_note ?? ''} />
+          </Field>
+        </>
+      )}
       <Field label={t('customers.fieldRequiresApproval')}>
         <select name="requires_customer_approval" defaultValue={reqApprovalDefault} className={selectClass}>
           <option value="">{t('customers.optionInherit')}</option>

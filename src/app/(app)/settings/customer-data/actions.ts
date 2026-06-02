@@ -11,7 +11,7 @@ import type { CustomerLookupKind } from '@/lib/erp/types';
  *  configuration). Tenant-scoped via RLS (company_id auto-set). The KINDS are
  *  platform-fixed; the VALUES are tenant-managed. */
 
-const KINDS: CustomerLookupKind[] = ['segment', 'classification', 'channel', 'business_type'];
+const KINDS: CustomerLookupKind[] = ['segment', 'classification', 'channel', 'business_type', 'status_reason'];
 
 async function guard(): Promise<{ ok: true; companyId: string } | { ok: false; error: string }> {
   const { ctx, error } = await requireAuth();

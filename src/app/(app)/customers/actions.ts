@@ -11,6 +11,8 @@ import { isCompanyWide } from '@/lib/erp/scope';
 import { hasPermission } from '@/lib/erp/permissions';
 import { applyWorkflowOutcome, type WorkflowOutcome } from '@/lib/erp/workflow-handlers';
 import { sensitiveChanges } from '@/lib/erp/customer-approval';
+import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
+import { logAudit } from '@/lib/erp/audit';
 
 /** Parse the `custom` JSON bag from a form, validate it against the entity's
  *  active custom-field definitions (server-authoritative), and return the
@@ -82,6 +84,11 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   let salesmanId = String(formData.get('salesman_id') || '').trim();
   const visitDay = String(formData.get('visit_day') || '').trim();
   const accountType = strOrNull(formData.get('customer_account_type')) ?? 'independent';
+  // FP-CS: status + reason (reason only meaningful for non-active states; the DB
+  // also clears it on return to Active).
+  const customerStatus = strOrNull(formData.get('customer_status')) ?? 'active';
+  const reasonId = customerStatus === 'active' ? null : strOrNull(formData.get('status_reason_id'));
+  const reasonNote = customerStatus === 'active' ? null : strOrNull(formData.get('status_reason_note'));
 
   // D1: a scoped Sales Rep creating a customer self-assigns, so it lands in their
   // visibility (S4) and passes the S4b write-scope instead of erroring/vanishing.
@@ -130,12 +137,35 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     payment_type: strOrNull(formData.get('payment_type')),
     is_vat_registered: boolFromCheckbox(formData.get('is_vat_registered')),
     credit_control_enabled: boolFromCheckbox(formData.get('credit_control_enabled')),
-    customer_status: strOrNull(formData.get('customer_status')) ?? 'active',
+    customer_status: customerStatus,
     requires_customer_approval: triBool(formData.get('requires_customer_approval')),
+    status_reason_id: reasonId,
+    status_reason_note: reasonNote,
     custom: cf.custom,
   };
 
   const supabase = await createClient();
+
+  // FP-CS: changing customer_status (suspend / block / activate) requires the
+  // customers.change_status permission. Normal edits that leave status unchanged
+  // are unaffected. New customers default to 'active' (no permission needed).
+  let prevStatus: string | null = null;
+  if (id) {
+    const { data: prev } = await supabase.from('erp_customers').select('customer_status').eq('id', id).maybeSingle();
+    prevStatus = (prev as { customer_status?: string } | null)?.customer_status ?? null;
+  }
+  const statusChanged = id ? customerStatus !== prevStatus : customerStatus !== 'active';
+  if (statusChanged && !hasPermission(ctx, 'customers.change_status')) {
+    return { ok: false, error: t('customers.errStatusDenied') };
+  }
+  const auditStatus = async (recordId: string) => {
+    if (!statusChanged) return;
+    await logAudit(supabase, {
+      action: 'update', entity: 'customer_status', entityId: recordId,
+      details: { previous_status: prevStatus, new_status: customerStatus, reason_id: reasonId, reason_note: reasonNote },
+      companyId: ctx.companyId,
+    });
+  };
 
   // Per-company governance toggle (default off = today's behaviour).
   let requireApproval = false;
@@ -153,6 +183,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
       await supabase.rpc('erp_workflow_start', { p_key: 'customer_onboarding', p_entity: 'customer', p_record_id: (row as { id: string }).id, p_context: {} });
       revalidatePath('/approvals');
     }
+    await auditStatus((row as { id: string }).id);
     revalidatePath('/customers');
     return { ok: true };
   }
@@ -181,6 +212,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
         if (reqErr) return { ok: false, error: friendlyDbError(reqErr) };
         const { error: wfErr } = await supabase.rpc('erp_workflow_start', { p_key: 'customer_update', p_entity: 'customer_change_request', p_record_id: (req as { id: string }).id, p_context: {} });
         if (wfErr) return { ok: false, error: friendlyDbError(wfErr) };
+        await auditStatus(id);
         revalidatePath('/customers');
         revalidatePath('/approvals');
         return { ok: true };
@@ -190,6 +222,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
 
   const { error } = await supabase.from('erp_customers').update(payload).eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
+  await auditStatus(id);
   revalidatePath('/customers');
   return { ok: true };
 }
@@ -249,9 +282,14 @@ export async function setCustomerJourney(
   const { t } = await getT();
   const supabase = await createClient();
   // Approval gate: don't assign a rep/route to a non-approved customer.
-  const { data: c } = await supabase.from('erp_customers').select('is_approved').eq('id', id).maybeSingle();
+  // FP-CS: a blocked customer also can't be (re)assigned to a rep — but only
+  // when actually setting a salesman (clearing/unassigning stays allowed).
+  const { data: c } = await supabase.from('erp_customers').select('is_approved, customer_status').eq('id', id).maybeSingle();
   if (c && (c as { is_approved: boolean }).is_approved === false) {
     return { ok: false, error: t('customers.errNotApproved') };
+  }
+  if (c && salesmanId && statusBlocks((c as { customer_status?: string }).customer_status, 'rep')) {
+    return { ok: false, error: t(statusBlockMessageKey((c as { customer_status?: string }).customer_status)) };
   }
   const { error } = await supabase
     .from('erp_customers')

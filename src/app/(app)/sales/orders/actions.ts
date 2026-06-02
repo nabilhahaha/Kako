@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { logPriceOverrides } from '@/lib/erp/pricing-server';
+import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import { getT } from '@/lib/i18n/server';
 
 interface OrderInput {
@@ -26,14 +27,18 @@ export async function createSalesOrder(input: OrderInput): Promise<ActionResult<
 
   const supabase = await createClient();
 
-  // Consistency with invoicing: don't sell to a customer awaiting approval.
+  // Consistency with invoicing: don't sell to a customer awaiting approval,
+  // suspended, or blocked (FP-CS — collections/returns stay allowed elsewhere).
   const { data: cust } = await supabase
     .from('erp_customers')
-    .select('is_approved')
+    .select('is_approved, customer_status')
     .eq('id', input.customer_id)
     .maybeSingle();
   if (cust && cust.is_approved === false) {
     return { ok: false, error: t('sales.orderErrCustomerPending') };
+  }
+  if (cust && statusBlocks(cust.customer_status, 'order')) {
+    return { ok: false, error: t(statusBlockMessageKey(cust.customer_status)) };
   }
 
   const totals = computeTotals(lines);
