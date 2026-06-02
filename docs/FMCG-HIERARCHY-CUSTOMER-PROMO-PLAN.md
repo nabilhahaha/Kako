@@ -218,8 +218,8 @@ production migration for approval.)*
 | **S2** — Roles (Branch Manager ≠ Admin) | ✅ merged (#60) | Option B, zero regression |
 | **S3** — Expanded customer model | ✅ built (#61) | + **company-managed master data** (segment/class/channel as `erp_customer_lookups`). `docs/SLICE-S3-CUSTOMER-MODEL.md` |
 | **S4a** — Hierarchy scope + RLS (customers + routes) | ✅ built (#62) | scope resolver + RLS; company-wide roles unchanged. `docs/SLICE-S4-SCOPE-RLS.md` |
-| **S4b** — Scope on transactional tables + write-scope | ⏳ design review | `docs/SLICE-S4b-TXN-SCOPE.md` |
-| **Pricing** (own slice) | 📋 next reviewed slice **after S4** | bring design review when S4 complete. see below |
+| **S4b** — Scope on transactional tables + write-scope | ✅ built (#63) | B1; reps/supervisors narrowed; write-scope. **S4 complete.** `docs/SLICE-S4b-TXN-SCOPE.md` |
+| **Pricing** (own slice) | ⏭️ **NEXT** — bring design review now (S4 complete) | see below |
 | **Enterprise UX / Navigation / Grouping review** | 📋 **before pilot rollout** | menu grouping · action-based nav · field ordering/grouping · form & page layouts · workflow simplification · mobile usability |
 | **S3b** — Company-configurable role labels | 🔒 decisions locked; build **after** Pricing + UX | labels over fixed role keys. `docs/SLICE-S3b-ROLE-LABELS.md` |
 | **S5** — Promotions module | 📋 backlog | `erp_promotions` + lifecycle |

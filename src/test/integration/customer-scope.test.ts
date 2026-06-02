@@ -90,4 +90,39 @@ describe.skipIf(!hasTestDb)('S4a · customer hierarchy scope', () => {
       expect(await visible(c, all)).toEqual([custRep]);
     });
   }, 30_000);
+
+  it('S4b · invoices: company-wide keeps branch scope; rep narrows to own customers', async () => {
+    await withRollback(async (c) => {
+      const company = (await c.query("insert into erp_companies(name) values('S4B_TXN') returning id")).rows[0].id;
+      const branchR = (await c.query("insert into erp_branches(company_id, code, name) values ($1,'BR','BR') returning id", [company])).rows[0].id;
+      const branchO = (await c.query("insert into erp_branches(company_id, code, name) values ($1,'BO','BO') returning id", [company])).rows[0].id;
+
+      const admin = await mkUser(c);
+      const rep = await mkUser(c);
+      await assign(c, admin, branchR, 'admin');     // company-wide, assigned to branchR only
+      await assign(c, rep, branchR, 'salesman');     // scoped
+
+      const custRep = await mkCustomer(c, company, 'IC-REP', { branch_id: branchR, salesman_id: rep });
+      const custMate = await mkCustomer(c, company, 'IC-MATE', { branch_id: branchR }); // same branch, not rep's
+      const custO = await mkCustomer(c, company, 'IC-O', { branch_id: branchO });
+
+      const mkInv = async (branch: string, customer: string, no: string) =>
+        (await c.query('insert into erp_invoices(branch_id, customer_id, invoice_number) values ($1,$2,$3) returning id', [branch, customer, no])).rows[0].id;
+      const invRep = await mkInv(branchR, custRep, 'INV-REP');
+      const invMate = await mkInv(branchR, custMate, 'INV-MATE');
+      const invOther = await mkInv(branchO, custO, 'INV-OTHER');
+      const allInv = [invRep, invMate, invOther];
+      const visInv = async () =>
+        (await c.query('select id from erp_invoices where id = any($1::uuid[])', [allInv])).rows.map((r) => r.id).sort();
+
+      // Admin (company-wide) keeps today's branch scope: sees branchR invoices, not branchO.
+      await actAs(c, admin);
+      expect(await visInv()).toEqual([invRep, invMate].sort());
+      await resetRole(c);
+
+      // Rep narrows to their own customer's invoice — NOT the same-branch mate's.
+      await actAs(c, rep);
+      expect(await visInv()).toEqual([invRep]);
+    });
+  }, 30_000);
 });

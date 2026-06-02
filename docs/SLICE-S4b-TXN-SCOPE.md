@@ -1,6 +1,12 @@
-# Slice S4b — Transactional Scope + Write-Scope — Design Review
+# Slice S4b — Transactional Scope + Write-Scope — Design + Build
 
-> **Design for approval — no build yet.** Completes S4: extends the S4a customer
+> **Owner decisions locked (B1 + all recommended) — built (migration 0105).**
+> Company-wide roles keep today's branch-scope (B1, zero change); reps/supervisors
+> narrow to their customers' transactions; write-scope (`WITH CHECK`) added on
+> customers/routes; table set = invoices/orders/returns/payments/visits; branch
+> managers stay branch-level. **S4 is now complete (S4a + S4b).**
+
+> Completes S4: extends the S4a customer
 > scope to **transactional** rows (invoices / orders / returns / payments / visits)
 > for the scoped FMCG roles, and adds **write-scope** (`WITH CHECK`) on customers /
 > routes (deferred from S4a). Reuses the S4a resolver. RLS-enforced; regression
