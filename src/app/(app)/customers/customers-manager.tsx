@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useTransition } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { ListSearch } from '@/components/list-search';
 import { upsertCustomer, toggleCustomerActive, requestCustomerApproval, requestCreditLimitChange } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,8 +37,10 @@ export function CustomersManager({
   canApprove = false,
   customFields = [],
   gov,
-  truncated = false,
-  totalCount,
+  q = '',
+  filterSegment = '',
+  filterClassification = '',
+  filterChannel = '',
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
@@ -48,15 +51,17 @@ export function CustomersManager({
   canApprove?: boolean;
   customFields?: CustomFieldDef[];
   gov?: GovInputs;
-  truncated?: boolean;
-  totalCount?: number;
+  q?: string;
+  filterSegment?: string;
+  filterClassification?: string;
+  filterChannel?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t, locale } = useI18n();
   const [editing, setEditing] = useState<ErpCustomer | null | 'new'>(null);
   const [importing, setImporting] = useState(false);
-  const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<{ segment: string; classification: string; channel: string }>({ segment: '', classification: '', channel: '' });
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [creditLimitInput, setCreditLimitInput] = useState('');
   const [pending, startTransition] = useTransition();
@@ -120,21 +125,16 @@ export function CustomersManager({
     return b ? b.name_ar || b.name : '—';
   };
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return customers.filter((c) => {
-      if (filters.segment && c.segment_id !== filters.segment) return false;
-      if (filters.classification && c.classification_id !== filters.classification) return false;
-      if (filters.channel && c.channel_id !== filters.channel) return false;
-      if (!q) return true;
-      return (
-        c.code.toLowerCase().includes(q) ||
-        c.name.toLowerCase().includes(q) ||
-        (c.name_ar || '').toLowerCase().includes(q) ||
-        (c.phone || '').includes(q)
-      );
-    });
-  }, [customers, query, filters]);
+  // Server-driven filters: update the URL param (resets page) → server re-queries
+  // across the whole table, not just the current page.
+  function setParam(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    params.delete('page');
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -180,12 +180,6 @@ export function CustomersManager({
 
   return (
     <div className="space-y-4">
-      {truncated && (
-        <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
-          <span>{t('customers.listTruncated', { shown: customers.length, total: totalCount ?? customers.length })}</span>
-        </div>
-      )}
       <div className="flex flex-wrap items-center gap-2">
         {editing === null && (
           <Button onClick={() => setEditing('new')}>
@@ -201,27 +195,24 @@ export function CustomersManager({
           {t('customers.totalReceivable')}: {formatCurrency(totalReceivable)}
         </Badge>
         {segments.length > 0 && (
-          <select value={filters.segment} onChange={(e) => setFilters((f) => ({ ...f, segment: e.target.value }))} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+          <select value={filterSegment} onChange={(e) => setParam('segment', e.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
             <option value="">{t('customers.filterAllSegments')}</option>
             {segments.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
           </select>
         )}
         {classes.length > 0 && (
-          <select value={filters.classification} onChange={(e) => setFilters((f) => ({ ...f, classification: e.target.value }))} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+          <select value={filterClassification} onChange={(e) => setParam('classification', e.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
             <option value="">{t('customers.filterAllClasses')}</option>
             {classes.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
           </select>
         )}
         {channels.length > 0 && (
-          <select value={filters.channel} onChange={(e) => setFilters((f) => ({ ...f, channel: e.target.value }))} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+          <select value={filterChannel} onChange={(e) => setParam('channel', e.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
             <option value="">{t('customers.filterAllChannels')}</option>
             {channels.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
           </select>
         )}
-        <div className="relative w-full sm:ms-auto sm:w-auto">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('customers.searchPlaceholder')} className="w-full ps-9 sm:w-64" />
-        </div>
+        <ListSearch placeholder={t('customers.searchPlaceholder')} className="w-full sm:ms-auto sm:w-64" />
       </div>
 
       {editing !== null && (
@@ -393,29 +384,25 @@ export function CustomersManager({
         </Card>
       )}
 
-      {filtered.length === 0 ? (
-        <Card>
-          <CardContent className="p-4">
-            {customers.length === 0 ? (
-              <EmptyState
-                icon={<Users />}
-                title={t('customers.emptyNoCustomers')}
-                description={t('customers.emptyNoCustomersHint')}
-                action={editing === null ? (
-                  <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> {t('customers.btnNew')}</Button>
-                ) : undefined}
-              />
-            ) : (
-              <EmptyState icon={<Search />} title={t('customers.emptyNoResults')} />
-            )}
-          </CardContent>
-        </Card>
+      {customers.length === 0 ? (
+        (q || filterSegment || filterClassification || filterChannel) ? (
+          <EmptyState icon={<Search />} title={t('customers.emptyNoResults')} />
+        ) : (
+          <EmptyState
+            icon={<Users />}
+            title={t('customers.emptyNoCustomers')}
+            description={t('customers.emptyNoCustomersHint')}
+            action={editing === null ? (
+              <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> {t('customers.btnNew')}</Button>
+            ) : undefined}
+          />
+        )
       ) : (
         <Card>
           <CardContent className="p-0">
             {/* Mobile (UX-3): cards instead of a wide horizontal-scroll table */}
             <div className="divide-y sm:hidden">
-              {filtered.map((c) => {
+              {customers.map((c) => {
                 const overLimit = Number(c.credit_limit) > 0 && Number(c.balance) > Number(c.credit_limit);
                 const segClass = [lookupName(c.segment_id), lookupName(c.classification_id)].filter(Boolean).join(' · ');
                 return (
@@ -481,7 +468,7 @@ export function CustomersManager({
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((c) => {
+                  {customers.map((c) => {
                     const overLimit =
                       Number(c.credit_limit) > 0 &&
                       Number(c.balance) > Number(c.credit_limit);

@@ -1,6 +1,6 @@
 # Standard List Architecture (S1) — one reusable list framework
 
-*VANTORA platform · review-first · establishes a single server-pagination + search + sort framework for every large-list screen. No merge, no production migrations.*
+*VANTORA platform · **FINAL / authoritative** — every existing and future large-list screen MUST follow this pattern · review-first. No merge, no production migrations.*
 
 ---
 
@@ -39,6 +39,13 @@ Only **one page** of rows is fetched → list cost is independent of table size 
 | **Mobile-friendly pagination** | `<Pager>` is responsive (prev/next + "x/y"); polish: larger tap targets, compact on mobile |
 | **Export only current filtered results** | a shared `exportList(table, { q, searchCols, sort, filters, columns })` re-applies the **same filters** and streams **all matching rows** (batched via `.range()`), not just the page |
 | **Exact vs estimated count** | `recommendedCountMode` — `exact` ≤ ~100k, `planned` (instant planner estimate) for very large tables |
+
+## 3a. Deep-linking & consistent states (required for every list)
+- **Deep-link / shareable URLs** ✅ — because *all* state (search, filters, sort, page) is in the query string, any filtered/sorted/paged view is a shareable, bookmarkable, back-button-safe deep link. No hidden client state.
+- **Loading state** — app-level `loading.tsx` renders `PageSkeleton`; lists should show a skeleton/spinner on navigation. *(Standard.)*
+- **Error state** — app-level `error.tsx` (Sentry + retry) keeps the shell; server actions return friendly strings (`friendlyDbError`) surfaced via `toast`. *(Standard.)*
+- **Empty vs no-result** — one shared `EmptyState`, message **driven by whether a search/filter is active**: *no results* when `q`/filters are set, *empty (with a "New …" CTA)* when the table is genuinely empty. Rolling out across all entities (Products/Suppliers/Inventory done).
+- **Future saved views / favorite filters** — since a view = a query string, a saved view is just a stored URL. Design: `erp_list_views(id, user_id, company_id, entity, name, params jsonb, is_shared)` + a small picker; tenant-scoped. *(Future-ready, Can-Wait.)*
 
 ## 4. Per-entity plan (current → standard)
 | Entity | Current pattern | Page size | Search cols | Default sort | Count | Status |
