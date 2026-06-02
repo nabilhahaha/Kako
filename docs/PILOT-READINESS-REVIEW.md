@@ -139,8 +139,8 @@ pattern; **not auto-applied** (operator runs it on the demo project). 🟢
 - [x] Import manual-first + per-company templates
 - [x] Mobile nav + card lists (customers/invoices); grouped forms; RTL
 - [x] **Demo dataset** prepared (§5)
-- [x] **Pilot-hardening slice** (§9 #1–#5) — ✅ applied (permissions + validations)
-- [ ] Production migrations `0103–0107` applied to the pilot tenant (held; your go-ahead)
+- [x] **Pilot-hardening slice** (§9 #1–#5 + walkthrough D1/B1) — ✅ applied (permissions + validations)
+- [ ] Production migrations `0103–0108` applied to the pilot tenant (held; your go-ahead)
 - [ ] Demo seed run on the demo project; a quick scripted end-to-end smoke per role
 - [ ] Merge the stack per `docs/PILOT-MERGE-PLAN.md`
 

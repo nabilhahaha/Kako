@@ -22,10 +22,13 @@ All branch off `claude/company-roles-permissions` (which already has S1 #59 + S2
 | 9 | #69 | UX-3 — mobile bottom-nav + card lists | — | ✅ |
 | 10 | #70 | UX-5 — page templates + empty-state CTAs | — | ✅ |
 | 11 | #71 | Pilot Readiness Review + FMCG demo seed (docs/data) | — | ✅ |
-| 12 | #72 | Pilot hardening — permissions + validations | 0107 | ✅ |
+| 12 | #72 | Pilot hardening — permissions + validations (+ walkthrough D1/B1) | 0107, 0108 | ✅ |
+| 13 | #73 | Pilot walkthrough + final Go/No-Go (docs) | — | ✅ |
 
-> Migrations introduced by the stack: **0103, 0104, 0105, 0106, 0107** — all
+> Migrations introduced by the stack: **0103, 0104, 0105, 0106, 0107, 0108** — all
 > additive/idempotent, staging-applied, **held from production**.
+> Walkthrough fixes **D1** (rep self-assigns on customer create) and **B1** (Import
+> access for Sales Director/NSM, migration 0108) are **closed** in #72.
 
 ## 2. Merge order (recommended)
 Merge **bottom-up, one at a time**, into `claude/company-roles-permissions`:
@@ -43,7 +46,7 @@ Merge **bottom-up, one at a time**, into `claude/company-roles-permissions`:
 
 ## 3. Production migration plan (after merge + your go-ahead)
 Apply **in order** to the pilot tenant's project, each rolled-back-verified first
-(the pattern used throughout): `0103 → 0104 → 0105 → 0106 → 0107`.
+(the pattern used throughout): `0103 → 0104 → 0105 → 0106 → 0107 → 0108`.
 - 0103/0104/0105 carry the rolled-back-live evidence in their PRs; re-verify on the
   pilot project before the real apply.
 - None drop or rewrite data; all are `ADD COLUMN IF NOT EXISTS` / additive RLS /
@@ -75,7 +78,27 @@ Apply **in order** to the pilot tenant's project, each rolled-back-verified firs
 - **Trade Spend**
 - UX nice-to-haves: default price list per company; roll card-list to products/orders
 
-## 5. Verdict
-**GO for pilot** once the four §4 hold items are completed. The platform is
-feature-complete for the FMCG pilot, scoped and validated, with the demo data and
-onboarding in place — simple by default, enterprise depth on demand.
+## 5. Pilot deployment checklist (run after merge sign-off)
+Execute top-to-bottom on the **pilot/demo** Supabase project (never production
+until final approval):
+1. **Merge** the stack per §2 (bottom-up, #61 → #73) into `claude/company-roles-permissions`.
+2. **Back up** the pilot project (DB snapshot) before any migration.
+3. **Apply migrations** `0103 → 0108` in order (§3), each rolled-back-verified
+   first; confirm advisors show 0 ERROR after each.
+4. **Smoke the schema** — `erp_customers` new columns present; `erp_customer_lookups`/
+   `erp_price_rules`/`erp_price_change_log` exist; RLS enabled.
+5. **Seed demo data** — run `supabase/demo/fmcg_demo_seed.sql` (and optionally
+   `fmcg_demo_users_and_data.sql`); set `reports_to` + region/area `manager_id` on
+   demo users to demo S4 scope.
+6. **Per-role smoke** (the live walkthrough): sign in as admin · sales_director ·
+   regional_manager · supervisor · salesman and confirm: scoped customer lists,
+   Pricing + Import reachable for leadership, a rep creates a customer (self-assign)
+   + an order + an invoice, price resolves, override audited, mobile cards + bottom nav.
+7. **Sign-off** → only then schedule the **production** migration `0103–0108`
+   (still a separate, guarded, approved step).
+
+## 6. Verdict
+**GO for pilot** once §5 is completed. The platform is feature-complete for the
+FMCG pilot, scoped and validated, with demo data, onboarding, and the walkthrough
+fixes (D1/B1) in place — simple by default, enterprise depth on demand. Production
+migrations remain **on hold** pending your final pilot approval.
