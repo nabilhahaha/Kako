@@ -84,6 +84,15 @@ const REGISTRY: EntityDescriptor[] = [
       f('email', 'البريد', 'Email', { type: 'email' }),
       f('city', 'المدينة', 'City'),
       f('credit_limit', 'حد الائتمان', 'Credit limit', { type: 'number' }),
+      // FMCG hierarchy S3 — scalar customer attributes (segment/classification/
+      // channel/region/area are FK master data set via the form, not imported here).
+      f('cr_number', 'السجل التجاري', 'CR Number'),
+      f('national_address', 'العنوان الوطني', 'National Address'),
+      f('contact_person', 'مسؤول التواصل', 'Contact Person'),
+      f('contact_phone', 'هاتف التواصل', 'Contact Phone'),
+      f('payment_terms_days', 'مدة السداد (يوم)', 'Payment Terms (days)', { type: 'number' }),
+      f('latitude', 'خط العرض', 'Latitude', { type: 'number' }),
+      f('longitude', 'خط الطول', 'Longitude', { type: 'number' }),
       f('external_id', 'المعرّف الخارجي', 'External ID'),
     ],
   },

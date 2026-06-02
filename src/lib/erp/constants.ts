@@ -277,6 +277,19 @@ export const VISIT_DAY_LABEL: Record<string, string> = Object.fromEntries(
   VISIT_DAYS.map((d) => [d.value, d.ar]),
 );
 
+// ─── Customer Master-Data Kinds (FMCG hierarchy S3) ─────────────────────────
+// The KINDS are platform-fixed; the VALUES within each kind are company-managed
+// master data (erp_customer_lookups). Used by the Settings → Customer Data screen
+// and the customer form to drive the per-kind sections / selects.
+
+import type { CustomerLookupKind } from './types';
+
+export const CUSTOMER_LOOKUP_KINDS: { kind: CustomerLookupKind; en: string; ar: string }[] = [
+  { kind: 'segment', en: 'Segment', ar: 'الشريحة' },
+  { kind: 'classification', en: 'Classification', ar: 'التصنيف' },
+  { kind: 'channel', en: 'Channel', ar: 'القناة' },
+];
+
 // ─── Product Unit Labels ────────────────────────────────────────────────────
 
 export const PRODUCT_UNIT_LABELS: Record<string, BilingualLabel> = {

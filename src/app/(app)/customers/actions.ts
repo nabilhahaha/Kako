@@ -34,6 +34,20 @@ function num(v: FormDataEntryValue | null): number {
   return isNaN(n) ? 0 : n;
 }
 
+/** A finite number from a form field, or null when blank/invalid (for optional
+ *  numeric columns like GPS / payment terms). */
+function numOrNull(v: FormDataEntryValue | null): number | null {
+  const s = String(v ?? '').replace(/,/g, '').trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Trimmed string or null. */
+function strOrNull(v: FormDataEntryValue | null): string | null {
+  return String(v ?? '').trim() || null;
+}
+
 export async function upsertCustomer(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
@@ -66,6 +80,21 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     branch_id: branchId || null,
     salesman_id: salesmanId || null,
     visit_day: visitDay || null,
+    // FMCG hierarchy S3 — expanded customer model. FK ids (segment/class/channel
+    // → company master data; region/area → S1 entities) are passed through;
+    // tenant RLS + FK constraints keep them valid (invalid → insert fails).
+    segment_id: strOrNull(formData.get('segment_id')),
+    classification_id: strOrNull(formData.get('classification_id')),
+    channel_id: strOrNull(formData.get('channel_id')),
+    region_id: strOrNull(formData.get('region_id')),
+    area_id: strOrNull(formData.get('area_id')),
+    latitude: numOrNull(formData.get('latitude')),
+    longitude: numOrNull(formData.get('longitude')),
+    payment_terms_days: numOrNull(formData.get('payment_terms_days')),
+    contact_person: strOrNull(formData.get('contact_person')),
+    contact_phone: strOrNull(formData.get('contact_phone')),
+    cr_number: strOrNull(formData.get('cr_number')),
+    national_address: strOrNull(formData.get('national_address')),
     custom: cf.custom,
   };
 

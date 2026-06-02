@@ -317,6 +317,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users' },
       { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users' },
       { label: 'nav.items.regions', href: '/settings/regions', icon: Map, perm: 'settings.branches' },
+      { label: 'nav.items.customerData', href: '/settings/customer-data', icon: Tags, perm: 'settings.custom_fields' },
       { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage' },
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage' },
       { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage' },

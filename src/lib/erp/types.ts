@@ -407,6 +407,40 @@ export interface ErpCustomer {
   visit_day: string | null;
   is_active: boolean;
   is_approved: boolean;
+  // FMCG hierarchy S3 — expanded customer model (all nullable; additive).
+  // segment/classification/channel are FKs into the company-managed
+  // erp_customer_lookups master data; region/area are FKs to S1 entities.
+  segment_id: string | null;
+  classification_id: string | null;
+  channel_id: string | null;
+  region_id: string | null;
+  area_id: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  payment_terms_days: number | null;
+  contact_person: string | null;
+  contact_phone: string | null;
+  cr_number: string | null;
+  national_address: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Company-managed customer master data (FMCG hierarchy S3). The KINDS are
+ *  platform-fixed; the VALUES within each kind are tenant-managed (create / edit
+ *  / disable). Customers reference rows here via segment_id/classification_id/
+ *  channel_id. */
+export type CustomerLookupKind = 'segment' | 'classification' | 'channel';
+
+export interface CustomerLookup {
+  id: string;
+  company_id: string;
+  kind: CustomerLookupKind;
+  code: string;
+  name: string;
+  name_ar: string | null;
+  sort: number;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
