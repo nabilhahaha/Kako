@@ -29,6 +29,16 @@ Use `customer_status` to **stop new business activity** while a customer is Susp
 - **Blocked** = full new-business stop incl. route/rep assignment and credit; collections still allowed.
 - `inactive` (the 4th value) = archival/soft-hidden; excluded from new-business pickers and treated like Suspended for transactions. *(Decision D4.)*
 
+## 2.1 Status reason & change history (NEW)
+
+Capture **why** and **when** a customer was suspended/blocked, so Sales, Finance and Collections all see the context.
+
+- **`status_reason_id`** → a **new company-managed lookup kind `status_reason`** (consistent with segment/channel/business_type — *not* a hard enum). Seeded defaults (company-editable): Over Credit Limit, Outstanding Payments, Compliance Issue, Legal Hold, Management Decision, Temporary Suspension.
+- **`status_reason_note`** (optional free text) — extra context beyond the picked reason.
+- **`status_changed_at`** + **`status_changed_by`** — stamped **automatically** whenever `customer_status` changes (BEFORE-UPDATE trigger → authoritative regardless of code path; `status_changed_by = auth.uid()`).
+
+Reason is **optional** but **strongly encouraged for Suspended/Blocked** (UI nudge; not a hard requirement so collections aren't slowed). When returning to **Active**, the reason is cleared (and the clear is itself stamped + audited).
+
 ## 3. Enforcement — defense in depth
 
 Two layers; the DB layer is authoritative (can't be bypassed), the app layer gives friendly errors and UX.
@@ -67,10 +77,12 @@ This mirrors the FP-0 guard-trigger pattern and guarantees the rule holds even f
 
 ## 4. Schema impact
 
-**Minimal — no new customer column** (`customer_status` shipped in FP-0). Migration **0113** adds:
-- `erp_customer_status(uuid)` helper + the BEFORE-INSERT/UPDATE triggers above.
-- Seed of a new permission `customers.change_status` into `erp_role_permissions` (global) for `admin`, `manager` (+ optionally `accountant`/finance), mirroring how 0109 seeded `customers.approve`. Company overrides inherit via the existing fallback chain.
-- No data backfill (all rows already `active` from FP-0).
+`customer_status` shipped in FP-0. Migration **0113** adds:
+- **Reason + history columns** on `erp_customers`: `status_reason_id uuid → erp_customer_lookups(id)`, `status_reason_note text`, `status_changed_at timestamptz`, `status_changed_by uuid` (all additive/nullable).
+- **`status_reason` lookup kind**: extend the `erp_customer_lookups.kind` CHECK to include `'status_reason'` (drop/recreate, as FP-0 did for `business_type`) + seed defaults via the `erp_seed_company_customer_lookups` fn (CREATE OR REPLACE) so new companies get them.
+- `erp_customer_status(uuid)` helper + the BEFORE-INSERT/UPDATE triggers (§3.3) + a BEFORE-UPDATE trigger that stamps `status_changed_at/by` (and clears the reason on return to Active).
+- Seed a new permission `customers.change_status` into `erp_role_permissions` (global) for `admin`, `manager` (+ optionally `accountant`/finance), mirroring how 0109 seeded `customers.approve`. Company overrides inherit via the existing fallback chain.
+- No data backfill (all rows already `active` from FP-0; reason/history null until first change).
 
 ## 5. Permissions
 
@@ -80,10 +92,10 @@ This mirrors the FP-0 guard-trigger pattern and guarantees the rule holds even f
 
 ## 6. Audit impact
 
-Every status change audited via the existing `logAudit` → `erp_log_audit`:
+Every status change audited via the existing `logAudit` → `erp_log_audit`, including the reason:
 ```
 logAudit(supabase, { action:'update', entity:'customer_status', entityId:id,
-  details:{ previous_status, new_status }, companyId })
+  details:{ previous_status, new_status, reason_id, reason_note }, companyId })
 ```
 Add labels: `AUDIT_ENTITY_LABELS['customer_status']`, and (optional) friendlier `suspend`/`block`/`activate` action labels. Visible in the platform audit viewer.
 
@@ -110,19 +122,20 @@ Add labels: `AUDIT_ENTITY_LABELS['customer_status']`, and (optional) friendlier 
 
 ## 11. Customer 360 (`customers/[id]/page.tsx`)
 
-- **Status badge** in the page header (tone: green active / amber suspended / red blocked), beside the existing actions.
-- A short **restriction banner** when Suspended/Blocked ("New orders/invoices are blocked. Collections remain allowed.") so collectors immediately understand what they can still do.
-- Edit form already has the `customer_status` select (FP-0); it becomes **permission-gated** by `customers.change_status`.
+- **Status block** prominently showing **Status + Status Reason + Last Status Change Date** (and by whom) — the at-a-glance context for Sales/Finance/Collections.
+- Badge tone: green active / amber suspended / red blocked, beside the existing actions.
+- A short **restriction banner** when Suspended/Blocked ("Blocked — reason: Outstanding Payments (since 2026-05-10). New orders/invoices are blocked; collections remain allowed.").
+- Edit form gains a **reason select** (from the `status_reason` lookup) + optional note next to the FP-0 `customer_status` select; the whole status change is **permission-gated** by `customers.change_status`.
 
 ## 12. Recommended implementation approach (single cohesive slice)
 
-1. **DB (0113):** `erp_customer_status` helper + BEFORE-INSERT triggers (orders/invoices/returns) + BEFORE-UPDATE assignment guard + `customers.change_status` permission seed.
+1. **DB (0113):** reason+history columns; `status_reason` lookup kind + seeds; `erp_customer_status` helper; BEFORE-INSERT triggers (orders/invoices/returns); BEFORE-UPDATE assignment guard; BEFORE-UPDATE stamp of `status_changed_at/by` (+ clear reason on Active); `customers.change_status` permission seed.
 2. **Shared logic:** `customer-status.ts` (`statusBlocks` + `assertActionable`) with unit tests for the matrix.
 3. **App gates:** wire the 7 enforcement points (§3.2); explicitly leave payments/collections ungated.
-4. **Permission + audit:** gate status change in `upsertCustomer`; audit every change.
-5. **Customer 360:** status badge + restriction banner.
-6. **i18n:** ar (source) + en for new errors/labels.
-7. **Tests:** integration — block matrix (order/invoice/route/rep rejected when suspended/blocked) **and** payment-allowed-when-blocked; unit — `statusBlocks`.
+4. **Permission + audit:** gate status change in `upsertCustomer`; persist reason/note; audit every change.
+5. **Customer 360:** status + reason + last-change-date block + restriction banner; reason select in the edit form.
+6. **i18n:** ar (source) + en for new errors/labels; `status_reason` manageable in Settings → Customer Data.
+7. **Tests:** integration — block matrix (order/invoice/route/rep rejected when suspended/blocked) **and** payment-allowed-when-blocked, plus `status_changed_at/by` stamped; unit — `statusBlocks`.
 
 All additive, staging-validated, production held. One slice (it's cohesive and small); ship after FP-0 merges or stacked on it.
 
@@ -133,6 +146,7 @@ All additive, staging-validated, production held. One slice (it's cohesive and s
 - **D3.** **Blocked Head Office stops branch new-credit** under shared-HO credit (wired in FP-0c). → **Recommend.**
 - **D4.** **`inactive`** = archived: hidden from new-business pickers, treated like Suspended for transactions. → **Recommend.**
 - **D5.** Enforcement = **DB triggers (authoritative) + app-layer friendly gates**. → **Recommend.**
+- **D6.** **Status reason = company-managed lookup** (`status_reason` kind) + optional note; **optional** field (encouraged, not enforced, for Suspended/Blocked); reason cleared on return to Active. → **Recommend.**
 
 ---
 
