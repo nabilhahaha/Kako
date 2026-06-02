@@ -132,6 +132,13 @@ export const ar = {
       accounting: 'الحسابات',
       settings: 'الإعدادات',
     },
+    groups: {
+      organization: 'المؤسسة',
+      dataFields: 'البيانات والحقول',
+      integrations: 'التكاملات',
+      governance: 'الحوكمة',
+      personal: 'شخصي',
+    },
     items: {
       overview: 'نظرة عامة',
       companies: 'الشركات والاشتراكات',
@@ -352,6 +359,13 @@ export const en = {
       purchasing: 'Purchasing',
       accounting: 'Accounting',
       settings: 'Settings',
+    },
+    groups: {
+      organization: 'Organization',
+      dataFields: 'Data & Fields',
+      integrations: 'Integrations',
+      governance: 'Governance',
+      personal: 'Personal',
     },
     items: {
       overview: 'Overview',

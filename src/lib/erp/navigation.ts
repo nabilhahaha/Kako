@@ -63,6 +63,10 @@ export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Optional subsection label (i18n key into `nav.groups.*`). When set, the
+   *  sidebar renders a small group header above the first item of each group,
+   *  so a long section (e.g. Settings) reads as labeled subsections. */
+  group?: string;
   /** Permission(s) required; visible if the user has ANY. Omit = everyone. */
   perm?: Permission | Permission[];
   /** Finer-grained module gate for this specific item (overrides the section's
@@ -310,24 +314,31 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'nav.sections.settings',
+    // UX-1: items grouped into labeled subsections (Organization / Data & Fields /
+    // Integrations / Governance / Personal), ordered most-used first within each.
     items: [
-      { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, superAdminOnly: true },
-      { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true },
-      { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users' },
-      { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true },
-      { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users' },
-      { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users' },
-      { label: 'nav.items.regions', href: '/settings/regions', icon: Map, perm: 'settings.branches' },
-      { label: 'nav.items.customerData', href: '/settings/customer-data', icon: Tags, perm: 'settings.custom_fields' },
-      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage' },
-      { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage' },
-      { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage' },
-      { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields' },
-      { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow' },
-      { label: 'nav.items.designSystem', href: '/design', icon: Palette, superAdminOnly: true },
-      { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true },
-      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs' },
-      { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true },
+      // ── Organization ──
+      { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, superAdminOnly: true, group: 'nav.groups.organization' },
+      { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.organization' },
+      { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.organization' },
+      { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true, group: 'nav.groups.organization' },
+      { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users', group: 'nav.groups.organization' },
+      { label: 'nav.items.regions', href: '/settings/regions', icon: Map, perm: 'settings.branches', group: 'nav.groups.organization' },
+      { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.organization' },
+      // ── Data & Fields ──
+      { label: 'nav.items.customerData', href: '/settings/customer-data', icon: Tags, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
+      { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
+      // ── Integrations ──
+      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', group: 'nav.groups.integrations' },
+      { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', group: 'nav.groups.integrations' },
+      { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage', group: 'nav.groups.integrations' },
+      // ── Governance ──
+      { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
+      { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.governance' },
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs', group: 'nav.groups.governance' },
+      // ── Personal ──
+      { label: 'nav.items.designSystem', href: '/design', icon: Palette, superAdminOnly: true, group: 'nav.groups.personal' },
+      { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true, group: 'nav.groups.personal' },
     ],
   },
 ];
