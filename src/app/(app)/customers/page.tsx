@@ -29,7 +29,7 @@ export default async function CustomersPage({
 
   const supabase = await createClient();
   // S1: server pagination + search + filters (the standard list pattern).
-  let listQuery = supabase.from('erp_customers').select('*', { count: 'exact' }).order('code');
+  let listQuery = supabase.from('erp_customers').select('*', { count: 'estimated' }).order('code');
   listQuery = applySearch(listQuery, q, ['code', 'name', 'name_ar', 'phone']);
   if (segment) listQuery = listQuery.eq('segment_id', segment);
   if (classification) listQuery = listQuery.eq('classification_id', classification);

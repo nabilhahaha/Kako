@@ -21,7 +21,7 @@ export default async function SuppliersPage({
   const { page, q, pageSize, from, to } = parseListParams(sp);
 
   const supabase = await createClient();
-  let listQuery = supabase.from('erp_suppliers').select('*', { count: 'exact' }).order('code');
+  let listQuery = supabase.from('erp_suppliers').select('*', { count: 'estimated' }).order('code');
   listQuery = applySearch(listQuery, q, ['code', 'name', 'name_ar', 'phone']);
   const [{ data: suppliers, count }, { data: branches }] = await Promise.all([
     listQuery.range(from, to),

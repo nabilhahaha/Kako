@@ -38,7 +38,7 @@ export default async function InventoryPage({
 
   let stockQuery = supabase
     .from('erp_inventory_stock')
-    .select('warehouse_id, product_id, quantity, reserved_qty', { count: 'exact' })
+    .select('warehouse_id, product_id, quantity, reserved_qty', { count: 'estimated' })
     .order('product_id');
   if (warehouse) stockQuery = stockQuery.eq('warehouse_id', warehouse);
   if (productIds) stockQuery = stockQuery.in('product_id', productIds);

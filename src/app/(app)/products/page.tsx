@@ -21,7 +21,7 @@ export default async function ProductsPage({
   const { page, q, pageSize, from, to } = parseListParams(sp);
 
   const supabase = await createClient();
-  let listQuery = supabase.from('erp_products_catalog').select('*', { count: 'exact' }).order('code');
+  let listQuery = supabase.from('erp_products_catalog').select('*', { count: 'estimated' }).order('code');
   listQuery = applySearch(listQuery, q, ['code', 'name', 'name_ar', 'barcode']);
   const [{ data: products, count }, { data: categories }, { data: etaSettings }] = await Promise.all([
     listQuery.range(from, to),
