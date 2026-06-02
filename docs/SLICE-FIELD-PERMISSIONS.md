@@ -61,19 +61,22 @@ created_by/at, updated_by/at
 unique (company_id, entity, field_key)
 ```
 
-### `erp_field_access` — the per-role access matrix (the heart of this slice)
-One row per `(company_id, entity, field_key, role_key)`. **Absent row ⇒ `erp_field_config.default_access` ⇒ registry default.**
+### `erp_field_access` — the per-subject access matrix (the heart of this slice)
+One row per `(company_id, entity, field_key, subject_type, subject_key)`. A **subject** is a **role** *or* a **permission**, so access can be granted by role, by permission, or both. **Absent row ⇒ `erp_field_config.default_access` ⇒ registry default.**
 
 ```
-id          uuid pk
-company_id  uuid -> erp_companies
-entity      text
-field_key   text
-role_key    text -> erp_roles.key
-access      text check (access in ('hidden','view','edit','required'))
+id           uuid pk
+company_id   uuid -> erp_companies
+entity       text
+field_key    text
+subject_type text check (subject_type in ('role','permission'))
+subject_key  text          -- erp_roles.key  OR  a permission key (e.g. 'customers.view_finance')
+access       text check (access in ('hidden','view','edit','required'))
 created_by/at, updated_by/at
-unique (company_id, entity, field_key, role_key)
+unique (company_id, entity, field_key, subject_type, subject_key)
 ```
+
+> **Why role + permission (per your direction):** different companies reuse the same role names with different responsibilities, so access is driven by **role**, **permission**, or **both** — maximum flexibility across FMCG / Retail / Manufacturing. The admin UI stays simple (a single grid; a row can target a role or a permission), while the model is permission-aware from day one.
 
 > Custom-field **definitions** stay in `erp_custom_fields` (type/options/validation untouched). `erp_field_config`/`erp_field_access` add the layout + access *overlay* on top, keyed by `field_key` with `source='custom'`. No duplication of definition data.
 
@@ -85,10 +88,10 @@ unique (company_id, entity, field_key, role_key)
 
 `src/lib/erp/field-access.ts`:
 
-- `resolveFieldAccess(fieldKey, userRoles, configMap, accessMap, isAdmin) -> 'hidden'|'view'|'edit'|'required'`
+- `resolveFieldAccess(fieldKey, userRoles, userPermissions, configMap, accessMap, isAdmin) -> 'hidden'|'view'|'edit'|'required'`
   - Order `hidden(0) < view(1) < edit(2) < required(3)`.
-  - Take the **most-permissive** level across all the user's roles (a user with multiple branch roles gets the highest).
-  - No role row → `field_config.default_access` → registry default (`edit`).
+  - Take the **most-permissive** level across **all** the user's subjects — every role they hold (across branches) **and** every permission they hold. Example: Rep=Hidden, Finance=Editable ⇒ **Editable**.
+  - No matching subject row → `field_config.default_access` → registry default (`edit`).
   - **Admin safety:** company admin / IT admin / platform owner are **never locked out** — clamped to at least `edit` (prevents self-lockout while configuring). Stated rule, configurable later.
 - `applyWriteAccess(input, current, accessByField) -> { data, missingRequired[] }`
   - Drops any field the user can't edit (keeps the old value — mirrors `sensitiveChanges`), and reports empty `required` fields. **This is the real protection.**
@@ -132,13 +135,13 @@ New page `/settings/fields` (permission `settings.fields`, or reuse `settings.cu
 
 Scope = **customer entity only** for the pilot; the registry-based design extends to invoices/orders/suppliers later with no schema change.
 
-## 9. Decisions for your confirmation (with recommended defaults)
+## 9. Decisions — CONFIRMED
 
-1. **Matrix keyed on role** (recommended, matches your Rep/Supervisor/Finance/Admin examples) vs. role **+** permission keys. → *Recommend role for pilot; permission-key override is a small post-pilot add.*
-2. **Read protection = app-layer redaction for pilot**, DB column privileges post-pilot. → *Recommend.*
-3. **Admins never locked out** (always ≥ editable). → *Recommend.*
-4. **Most-permissive merge** when a user holds multiple roles. → *Recommend.*
-5. **Pilot scope = customer entity only.** → *Recommend.*
+1. **Matrix keys on role *and* permission** (subject = role | permission | both). Admin UI stays a single simple grid; model is permission-aware from day one.
+2. **Read protection = app-layer redaction for the pilot.** Hidden fields never returned to the client; visibility enforced server-side before data reaches the UI; write permissions fully enforced; tenant isolation by RLS. DB column-level privileges revisited post-pilot if enterprise customers require it.
+3. **Admins never locked out** — company admin / IT admin / platform owner always ≥ Editable.
+4. **Most-permissive merge** across all of a user's roles **and** permissions: `Hidden < View < Editable < Required`.
+5. **Pilot scope = customer entity only**; design extends to other entities with no schema change.
 
 ---
 
