@@ -132,8 +132,8 @@ customer, else **45**. (This is exactly what the P-a integration test asserts.)
 ## 7. Consolidated issues
 | ID | Severity | Issue | Recommended fix | Blocks pilot? |
 |---|---|---|---|---|
-| B1/E2 | 🟠 | Director/NSM (and reps) can't reach **Import** (`integrations.manage`) | Grant `integrations.manage` to sales leadership **or** run import as Admin/IT | Only the "director imports" journey |
-| D1 | 🟠 | Rep create-customer fails/disappears without **self-assign** | Default `salesman_id = current rep` on create | Reps creating customers |
+| B1/E2 | ✅ **fixed** | Director/NSM couldn't reach **Import** | Granted `integrations.manage` to Sales Director/NSM (migration 0108 + TS) | — |
+| D1 | ✅ **fixed** | Rep create-customer failed/disappeared without **self-assign** | Rep now auto-assigns `salesman_id = self` on create | — |
 | C1 | 🟠 | No **supervisor team roster** screen | Lightweight Supervisor → Team view (post-pilot); workaround = scoped lists | No (usability) |
 | C2 | 🟡 | Supervisor scope needs `reports_to` populated | Set `reports_to` in demo/pilot setup | No |
 | A1 | 🟡 | No "create role" screen (matrix only) | Document; S3b later | No |
@@ -142,21 +142,21 @@ customer, else **45**. (This is exactly what the P-a integration test asserts.)
 | E1 | 🟡 | Bulk customer import can't map segment/region by name | Form-set for pilot; add resolver later | No |
 | — | 🟡 | Mobile cards only on customers/invoices | Roll to products/orders (UX follow-up) | No |
 
-**No 🔴 hard blockers.** Three 🟠 items are worth closing before/early in pilot:
-**B1** (import access) and **D1** (rep self-assign) are tiny, high-value fixes;
-**C1** (team screen) is a post-pilot usability add with a documented workaround.
+**No 🔴 hard blockers.** The two 🟠 fixes (**B1** import access, **D1** rep
+self-assign) are now **closed** in the hardening slice (#72); **C1** (supervisor
+team screen) is a post-pilot usability add with a documented workaround.
 
 ## 8. Final Go / No-Go recommendation
-**GO for pilot — conditional**, with two small pre-pilot fixes recommended:
-1. **D1** — default the rep as salesman on customer create (removes a real rep
-   blocker). *(XS)*
-2. **B1** — decide import ownership: grant `integrations.manage` to sales
-   leadership **or** document import as an Admin/IT task. *(XS / decision)*
-Then the standing hold items from `PILOT-MERGE-PLAN.md` §4: merge the stack, apply
-`0103–0107` to the pilot tenant, run the demo seed, and the live per-role smoke.
+**GO for pilot.** The two pre-pilot fixes are applied:
+1. **D1 ✅** — a Sales Rep now auto-assigns themselves on customer create.
+2. **B1 ✅** — `integrations.manage` granted to Sales Director/NSM (migration 0108)
+   so sales leadership can run Import.
+Remaining are the standing deployment steps in `PILOT-MERGE-PLAN.md` §5: merge the
+stack, apply `0103–0108` to the pilot tenant, run the demo seed, and the live
+per-role smoke — then the production migration on your final approval.
 
 Everything else is polish or post-pilot. The platform is feature-complete, scoped,
 validated, and pilot-appropriate (simple by default, enterprise depth on demand).
 
-*(Walkthrough is code-grounded — no production change. On your nod I'll fold D1 (+
-optionally B1) into the hardening slice, then help execute the merge.)*
+*(Walkthrough is code-grounded — no production change. Production migrations remain
+on hold pending your review of the full stack + demo tenant.)*
