@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requirePermission, requireAnyPermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import { getT } from '@/lib/i18n/server';
 
 /** Create / update a sales route (rep + van + visit day). */
@@ -39,10 +40,14 @@ export async function assignCustomerToRoute(customerId: string, routeId: string 
   if (!ctx.companyId) return { ok: false, error: t('distribution.noCompany') };
   const supabase = await createClient();
   // Approval gate: only approved customers can be assigned to a route.
+  // FP-CS: blocked customers can't be assigned to a route either.
   if (routeId) {
-    const { data: c } = await supabase.from('erp_customers').select('is_approved').eq('id', customerId).maybeSingle();
+    const { data: c } = await supabase.from('erp_customers').select('is_approved, customer_status').eq('id', customerId).maybeSingle();
     if (c && (c as { is_approved: boolean }).is_approved === false) {
       return { ok: false, error: t('distribution.customerNotApproved') };
+    }
+    if (c && statusBlocks((c as { customer_status?: string }).customer_status, 'route')) {
+      return { ok: false, error: t(statusBlockMessageKey((c as { customer_status?: string }).customer_status)) };
     }
   }
   const patch: { route_id: string | null; salesman_id?: string | null; visit_day?: string | null } = { route_id: routeId };

@@ -289,6 +289,7 @@ export const CUSTOMER_LOOKUP_KINDS: { kind: CustomerLookupKind; en: string; ar: 
   { kind: 'classification', en: 'Classification', ar: 'التصنيف' },
   { kind: 'channel', en: 'Channel', ar: 'القناة' },
   { kind: 'business_type', en: 'Business Type', ar: 'نوع النشاط' },
+  { kind: 'status_reason', en: 'Status Reason', ar: 'سبب الحالة' },
 ];
 
 // FP-0: first-class customer hierarchy enums (structural/lifecycle — system-fixed,

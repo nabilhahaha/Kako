@@ -472,6 +472,11 @@ export interface ErpCustomer {
   credit_control_enabled: boolean;
   customer_status: 'active' | 'inactive' | 'suspended' | 'blocked';
   requires_customer_approval: boolean | null; // null = inherit company default
+  // FP-CS: status reason (company-managed lookup) + change history (who/when).
+  status_reason_id: string | null;
+  status_reason_note: string | null;
+  status_changed_at: string | null;
+  status_changed_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -480,7 +485,7 @@ export interface ErpCustomer {
  *  The KINDS are platform-fixed; the VALUES within each kind are tenant-managed
  *  (create / edit / disable). Customers reference rows here via segment_id /
  *  classification_id / channel_id / business_type_id. */
-export type CustomerLookupKind = 'segment' | 'classification' | 'channel' | 'business_type';
+export type CustomerLookupKind = 'segment' | 'classification' | 'channel' | 'business_type' | 'status_reason';
 export type CustomerAccountType = 'head_office' | 'branch' | 'independent';
 export type CustomerStatus = 'active' | 'inactive' | 'suspended' | 'blocked';
 export type CustomerPaymentType = 'cash' | 'credit';

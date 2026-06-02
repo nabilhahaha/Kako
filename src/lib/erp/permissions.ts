@@ -9,6 +9,7 @@ export type Permission =
   | 'sales.return' // create/approve sales returns
   | 'customers.manage'
   | 'customers.approve' // approve/reject customer onboarding + sensitive change requests
+  | 'customers.change_status' // suspend / block / activate customers (FP-CS)
   | 'inventory.view'
   | 'inventory.adjust' // manual stock adjustments / stocktake
   | 'inventory.transfer' // move stock between warehouses
@@ -47,6 +48,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'sales.return': { en: 'Sales returns', ar: 'مرتجعات المبيعات', group: 'sales' },
   'customers.manage': { en: 'Manage customers', ar: 'إدارة العملاء', group: 'sales' },
   'customers.approve': { en: 'Approve customers & changes', ar: 'اعتماد العملاء والتعديلات', group: 'sales' },
+  'customers.change_status': { en: 'Suspend / block customers', ar: 'إيقاف / حظر العملاء', group: 'sales' },
   'inventory.view': { en: 'View stock balances', ar: 'عرض أرصدة المخزون', group: 'inventory' },
   'inventory.adjust': { en: 'Adjust inventory', ar: 'تسوية المخزون', group: 'inventory' },
   'inventory.transfer': { en: 'Transfer between warehouses', ar: 'التحويل بين المخازن', group: 'inventory' },
@@ -110,27 +112,27 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   // Sales Director / NSM: full commercial visibility (no company settings/billing).
   sales_director: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
-    'customers.manage', 'inventory.view', 'reports.view', 'accounting.view',
+    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
     'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
   ],
   national_sales_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
-    'customers.manage', 'inventory.view', 'reports.view', 'accounting.view',
+    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
     'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
   ],
   // Regional / Area: commercial management (no finance posting / settings).
   regional_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
-    'customers.manage', 'inventory.view', 'reports.view', 'stock_request.approve',
+    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
   ],
   area_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
-    'customers.manage', 'inventory.view', 'reports.view', 'stock_request.approve',
+    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
   ],
   // Branch Manager: branch operations (NO settings/billing — distinct from Admin).
   branch_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
-    'customers.manage', 'inventory.view', 'inventory.adjust', 'inventory.transfer',
+    'customers.manage', 'customers.change_status', 'inventory.view', 'inventory.adjust', 'inventory.transfer',
     'inventory.count', 'stock_request.approve', 'purchasing.manage',
     'suppliers.manage', 'reports.view',
   ],
@@ -141,11 +143,11 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   ],
   supervisor: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
-    'customers.manage', 'inventory.view', 'stock_request.approve', 'reports.view',
+    'customers.manage', 'customers.change_status', 'inventory.view', 'stock_request.approve', 'reports.view',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
-    'suppliers.manage', 'sales.collect',
+    'suppliers.manage', 'sales.collect', 'customers.change_status',
   ],
   cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos'],
   salesman: [

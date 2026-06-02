@@ -56,6 +56,8 @@ export const ar = {
     fieldVatRegisteredHint: 'العميل مسجل في ضريبة القيمة المضافة',
     fieldCreditControl: 'الرقابة الائتمانية',
     fieldCreditControlHint: 'تفعيل فحص حد الائتمان لهذا العميل',
+    fieldStatusReason: 'سبب الحالة',
+    fieldStatusReasonNote: 'ملاحظة (اختياري)',
     optionInherit: '— حسب إعداد الشركة —',
     optionYes: 'نعم',
     optionNo: 'لا',
@@ -79,6 +81,12 @@ export const ar = {
     errApproveDenied: 'ليس لديك صلاحية اعتماد العملاء.',
     errRejectReason: 'سبب الرفض مطلوب.',
     errNotApproved: 'هذا العميل غير معتمد بعد، لا يمكن تنفيذ العملية.',
+    errStatusDenied: 'ليس لديك صلاحية تغيير حالة العميل.',
+    errCustomerSuspended: 'العميل موقوف — لا يمكن إنشاء عمليات بيع جديدة (التحصيل مسموح).',
+    errCustomerBlocked: 'العميل محظور — لا يمكن إنشاء عمليات بيع أو تعيينات جديدة (التحصيل مسموح).',
+    statusLabel: 'الحالة',
+    statusSinceLabel: 'منذ',
+    statusCollectionsNote: 'التحصيل والمرتجعات مسموح بها دائماً.',
 
     // ── Table headers ────────────────────────────────────────────────
     colCode: 'الكود',
@@ -211,6 +219,8 @@ export const en = {
     fieldVatRegisteredHint: 'Customer is registered for VAT',
     fieldCreditControl: 'Credit Control',
     fieldCreditControlHint: 'Enforce credit-limit checks for this customer',
+    fieldStatusReason: 'Status Reason',
+    fieldStatusReasonNote: 'Note (optional)',
     optionInherit: '— Company default —',
     optionYes: 'Yes',
     optionNo: 'No',
@@ -234,6 +244,12 @@ export const en = {
     errApproveDenied: 'You don’t have permission to approve customers.',
     errRejectReason: 'A rejection reason is required.',
     errNotApproved: 'This customer is not approved yet — the action is blocked.',
+    errStatusDenied: 'You don’t have permission to change customer status.',
+    errCustomerSuspended: 'Customer is suspended — new sales are blocked (collections remain allowed).',
+    errCustomerBlocked: 'Customer is blocked — new sales and assignments are blocked (collections remain allowed).',
+    statusLabel: 'Status',
+    statusSinceLabel: 'Since',
+    statusCollectionsNote: 'Collections and returns are always allowed.',
 
     // ── Table headers ────────────────────────────────────────────────
     colCode: 'Code',

@@ -6,7 +6,8 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatementTable, type StatementEntry } from '@/components/statement-table';
 import { EntityNotes } from '@/components/entity/entity-notes';
-import { PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
+import { Badge } from '@/components/ui/badge';
+import { PAYMENT_METHOD_LABELS, CUSTOMER_STATUSES } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { ErpCustomer, Invoice, Payment, PaymentMethod } from '@/lib/erp/types';
 import { Printer } from 'lucide-react';
@@ -33,6 +34,22 @@ export default async function CustomerStatementPage({
     .maybeSingle();
   if (!customer) notFound();
   const c = customer as ErpCustomer;
+
+  // FP-CS: resolve the status reason label + who last changed it for the 360 view.
+  let statusReasonName = '';
+  if (c.status_reason_id) {
+    const { data: rl } = await supabase.from('erp_customer_lookups').select('name, name_ar').eq('id', c.status_reason_id).maybeSingle();
+    const r = rl as { name: string; name_ar: string | null } | null;
+    if (r) statusReasonName = locale === 'ar' ? r.name_ar || r.name : r.name;
+  }
+  let statusChangedByName = '';
+  if (c.status_changed_by) {
+    const { data: pf } = await supabase.from('erp_profiles').select('full_name, email').eq('id', c.status_changed_by).maybeSingle();
+    const p = pf as { full_name: string | null; email: string | null } | null;
+    if (p) statusChangedByName = p.full_name || p.email || '';
+  }
+  const statusLabel = CUSTOMER_STATUSES.find((s) => s.value === c.customer_status)?.[locale] ?? c.customer_status;
+  const statusTone = c.customer_status === 'active' ? 'success' : c.customer_status === 'blocked' ? 'destructive' : 'warning';
 
   const { data: invoices } = await supabase
     .from('erp_invoices')
@@ -103,6 +120,26 @@ export default async function CustomerStatementPage({
           </div>
         }
       />
+
+      {/* FP-CS: status + reason + last-change context — Sales/Finance/Collections. */}
+      <div className={`mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border p-3 text-sm ${c.customer_status !== 'active' ? 'border-warning/40 bg-warning/5' : ''}`}>
+        <span className="flex items-center gap-2">
+          <span className="text-muted-foreground">{t('customers.statusLabel')}:</span>
+          <Badge variant={statusTone}>{statusLabel}</Badge>
+        </span>
+        {statusReasonName && (
+          <span><span className="text-muted-foreground">{t('customers.fieldStatusReason')}:</span> {statusReasonName}{c.status_reason_note ? ` — ${c.status_reason_note}` : ''}</span>
+        )}
+        {c.status_changed_at && (
+          <span className="text-muted-foreground">
+            {t('customers.statusSinceLabel')}: <span dir="ltr">{new Date(c.status_changed_at).toLocaleDateString()}</span>
+            {statusChangedByName ? ` · ${statusChangedByName}` : ''}
+          </span>
+        )}
+        {c.customer_status !== 'active' && (
+          <span className="text-xs text-muted-foreground">{t('customers.statusCollectionsNote')}</span>
+        )}
+      </div>
 
       <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
         <Summary label={t('customers.stmtSummaryBalance')} value={formatCurrency(c.balance)} tone={Number(c.balance) > 0 ? 'warn' : 'ok'} />
