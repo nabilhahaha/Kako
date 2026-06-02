@@ -129,6 +129,102 @@ export async function setFieldAccess(
   return { ok: true };
 }
 
+/** Bulk-apply a config patch (hide/show, required, editable/read-only, active)
+ *  to many fields at once. Lockout-checked per field; one audit entry. */
+export async function bulkSetFieldConfig(
+  entity: string,
+  items: Array<{ key: string; source: 'core' | 'custom' }>,
+  patch: { is_active?: boolean; default_access?: AccessLevel },
+): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId, userId } = g;
+  if (items.length === 0) return { ok: true };
+
+  const { data: existing } = await supabase
+    .from('erp_field_config').select('field_key, is_protected').eq('entity', entity);
+  const protMap = new Map<string, boolean>((existing ?? []).map((r) => [(r as { field_key: string }).field_key, (r as { is_protected: boolean }).is_protected]));
+
+  const rows = items.map((it) => ({ company_id: companyId, entity, field_key: it.key, source: it.source, ...patch, updated_by: userId }));
+  for (const it of items) {
+    const isProtected = protMap.get(it.key) ?? isDefaultProtected(entity, it.key);
+    if (configLockoutViolation(isProtected, patch)) return { ok: false, error: 'protected_field_cannot_be_hidden' };
+  }
+  const { error } = await supabase.from('erp_field_config').upsert(rows, { onConflict: 'company_id,entity,field_key' });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: 'update', entity: 'field_config', entityId: `${entity}:*`, details: { bulk: items.map((i) => i.key), patch }, companyId });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** Reset an entity to company defaults: remove all config/access/section rows so
+ *  the engine reverts to the registry (today's behavior). Audited. */
+export async function resetEntityGovernance(entity: string): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId } = g;
+  for (const table of ['erp_field_access', 'erp_field_config', 'erp_field_sections']) {
+    const { error } = await supabase.from(table).delete().eq('entity', entity);
+    if (error) return { ok: false, error: friendlyDbError(error) };
+  }
+  await logAudit(supabase, { action: 'delete', entity: 'field_config', entityId: `${entity}:reset`, details: { reset: true }, companyId });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** Export an entity's full governance config as portable JSON. */
+export async function exportFieldGovernance(entity: string): Promise<ActionResult<{ json: string }>> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase } = g;
+  const strip = (rows: Array<Record<string, unknown>> | null) =>
+    (rows ?? []).map((r) => {
+      const o = { ...r };
+      for (const k of ['id', 'company_id', 'created_at', 'updated_at', 'created_by', 'updated_by']) delete o[k];
+      return o;
+    });
+  const [{ data: config }, { data: access }, { data: sections }] = await Promise.all([
+    supabase.from('erp_field_config').select('*').eq('entity', entity),
+    supabase.from('erp_field_access').select('*').eq('entity', entity),
+    supabase.from('erp_field_sections').select('*').eq('entity', entity),
+  ]);
+  const payload = { entity, version: 1, config: strip(config), access: strip(access), sections: strip(sections) };
+  return { ok: true, data: { json: JSON.stringify(payload, null, 2) } };
+}
+
+/** Import a governance config (replaces the entity's current config). Lockout-
+ *  checked; audited as one entry. */
+export async function importFieldGovernance(entity: string, json: string): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId, userId } = g;
+  let parsed: { config?: Array<Record<string, unknown>>; access?: Array<Record<string, unknown>>; sections?: Array<Record<string, unknown>> };
+  try { parsed = JSON.parse(json); } catch { return { ok: false, error: 'invalid_json' }; }
+
+  for (const c of parsed.config ?? []) {
+    const isProtected = (c.is_protected as boolean | undefined) ?? isDefaultProtected(entity, c.field_key as string);
+    if (configLockoutViolation(isProtected, { is_active: c.is_active as boolean, default_access: c.default_access as AccessLevel })) {
+      return { ok: false, error: 'protected_field_cannot_be_hidden' };
+    }
+  }
+  const stamp = (r: Record<string, unknown>) => ({ ...r, entity, company_id: companyId, updated_by: userId });
+  if (parsed.sections?.length) {
+    const { error } = await supabase.from('erp_field_sections').upsert(parsed.sections.map(stamp), { onConflict: 'company_id,entity,key' });
+    if (error) return { ok: false, error: friendlyDbError(error) };
+  }
+  if (parsed.config?.length) {
+    const { error } = await supabase.from('erp_field_config').upsert(parsed.config.map(stamp), { onConflict: 'company_id,entity,field_key' });
+    if (error) return { ok: false, error: friendlyDbError(error) };
+  }
+  if (parsed.access?.length) {
+    const { error } = await supabase.from('erp_field_access').upsert(parsed.access.map(stamp), { onConflict: 'company_id,entity,field_key,subject_type,subject_key' });
+    if (error) return { ok: false, error: friendlyDbError(error) };
+  }
+  await logAudit(supabase, { action: 'create', entity: 'field_config', entityId: `${entity}:import`, details: { imported: { config: parsed.config?.length ?? 0, access: parsed.access?.length ?? 0, sections: parsed.sections?.length ?? 0 } }, companyId });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
 interface SectionPatch {
   label_ar?: string | null;
   label_en?: string | null;

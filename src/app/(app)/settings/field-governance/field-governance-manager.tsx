@@ -11,14 +11,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { useI18n } from '@/lib/i18n/provider';
 import { PERMISSION_LABELS, type Permission } from '@/lib/erp/permissions';
+import { resolveAccess, type AccessLevel as ResolvedLevel } from '@/lib/erp/field-governance';
 import type { AdminField, FieldGovernanceAdmin } from '@/lib/erp/field-governance-server';
 import {
   setFieldConfig, setFieldAccess, clearFieldAccess,
   setFieldSection, deleteFieldSection, reorderFieldSections, reorderFields,
+  bulkSetFieldConfig, resetEntityGovernance, exportFieldGovernance, importFieldGovernance,
 } from './actions';
 import {
   Briefcase, DollarSign, Scale, Phone, MapPin, CreditCard, Tag, User, Building2,
   FileText, Truck, Package, ChevronUp, ChevronDown, Plus, Trash2, ShieldAlert,
+  Search, Download, Upload, RotateCcw, Eye,
 } from 'lucide-react';
 
 type Section = Record<string, unknown> & { key: string };
@@ -46,6 +49,11 @@ export function FieldGovernanceManager({
   const [sections, setSections] = useState<Section[]>(admin.sections as Section[]);
   const [openAccess, setOpenAccess] = useState<string | null>(null);
   const [newSection, setNewSection] = useState('');
+  const [search, setSearch] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [previewRole, setPreviewRole] = useState('');
+  const [importText, setImportText] = useState<string | null>(null);
   const entity = admin.entity;
 
   // Run a server action, toast result (mapping lockout codes), then apply onOk.
@@ -78,14 +86,16 @@ export function FieldGovernanceManager({
       setFields((prev) => prev.map((x) => (x.key === f.key ? { ...x, config: { ...(x.config ?? {}), ...patch } } : x)));
     });
   }
-  function moveField(idx: number, dir: -1 | 1) {
+  function moveField(key: string, dir: -1 | 1) {
+    const idx = fields.findIndex((f) => f.key === key);
     const j = idx + dir;
-    if (j < 0 || j >= fields.length) return;
+    if (idx < 0 || j < 0 || j >= fields.length) return;
     const next = [...fields];
     [next[idx], next[j]] = [next[j], next[idx]];
     setFields(next);
     run(() => reorderFields(entity, next.map((f) => ({ key: f.key, source: f.source }))), () => {});
   }
+  const filtered = search.trim() !== '' || sectionFilter !== '';
 
   // ── Access matrix helpers ──────────────────────────────────────────────────
   function accessFor(f: AdminField, type: 'role' | 'permission', key: string): string {
@@ -135,17 +145,92 @@ export function FieldGovernanceManager({
   const sectionOpts = sections.map((s) => s.key);
   const usedPerms = (f: AdminField) => new Set(f.access.filter((a) => a.subject_type === 'permission').map((a) => a.subject_key));
 
+  // ── Search + section filter ────────────────────────────────────────────────
+  const visibleFields = fields.filter((f) => {
+    const q = search.trim().toLowerCase();
+    if (q && !f.key.toLowerCase().includes(q) && !(f.labelAr || '').toLowerCase().includes(q) && !(f.labelEn || '').toLowerCase().includes(q)) return false;
+    if (sectionFilter === '__none__') return !cfg(f, 'section');
+    if (sectionFilter) return (cfg(f, 'section') as string) === sectionFilter;
+    return true;
+  });
+
+  // ── Preview as a role (simulate resolved access, read-only) ─────────────────
+  const ACCESS_LABEL: Record<string, string> = {
+    hidden: t('fieldGov.accessHidden'), view: t('fieldGov.accessView'), edit: t('fieldGov.accessEdit'), required: t('fieldGov.accessRequired'),
+  };
+  function previewAccess(f: AdminField): ResolvedLevel {
+    const isAdmin = previewRole === 'admin' || previewRole === 'it_admin';
+    return resolveAccess({
+      defaultAccess: ((cfg(f, 'default_access') as ResolvedLevel) ?? 'edit'),
+      isProtected: f.isProtected,
+      isActive: (cfg(f, 'is_active') as boolean) ?? true,
+      applicable: true,
+      accessRows: f.access.map((a) => ({ subjectType: a.subject_type as 'role' | 'permission', subjectKey: a.subject_key, access: a.access as ResolvedLevel })),
+      userRoles: [previewRole], userPermissions: [], isAdmin,
+    });
+  }
+
+  // ── Bulk actions ───────────────────────────────────────────────────────────
+  function toggleSelect(key: string) {
+    setSelected((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  }
+  function bulkApply(patch: { is_active?: boolean; default_access?: ResolvedLevel }) {
+    const items = fields.filter((f) => selected.has(f.key)).map((f) => ({ key: f.key, source: f.source }));
+    if (items.length === 0) return;
+    run(() => bulkSetFieldConfig(entity, items, patch), () => {
+      setFields((prev) => prev.map((x) => (selected.has(x.key) ? { ...x, config: { ...(x.config ?? {}), ...patch } } : x)));
+      setSelected(new Set());
+    });
+  }
+
+  // ── Reset / export / import ─────────────────────────────────────────────────
+  function resetDefaults() {
+    if (!window.confirm(t('fieldGov.resetConfirm'))) return;
+    run(() => resetEntityGovernance(entity), () => router.refresh());
+  }
+  function doExport() {
+    startTransition(async () => {
+      const res = await exportFieldGovernance(entity);
+      if (!res.ok || !res.data) { toast.error(t('fieldGov.error')); return; }
+      const blob = new Blob([res.data.json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `field-governance-${entity}.json`; a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+  function doImport() {
+    if (importText == null) return;
+    run(() => importFieldGovernance(entity, importText), () => { setImportText(null); router.refresh(); });
+  }
+
   return (
     <div className="space-y-6">
-      {/* Entity selector */}
+      {/* Entity selector + admin tools */}
       <div className="flex flex-wrap items-center gap-3">
         <Label className="text-sm">{t('fieldGov.entity')}</Label>
-        <div className="w-60">
+        <div className="w-52">
           <Select value={entity} disabled={pending} onChange={(e) => router.push(`/settings/field-governance?entity=${e.target.value}`)}>
             {entities.map((en) => <option key={en.key} value={en.key}>{ar ? en.labelAr : en.labelEn}</option>)}
           </Select>
         </div>
+        <Button size="sm" variant="outline" disabled={pending} onClick={doExport}><Download className="h-4 w-4" /> {t('fieldGov.export')}</Button>
+        <Button size="sm" variant="outline" disabled={pending} onClick={() => setImportText('')}><Upload className="h-4 w-4" /> {t('fieldGov.import')}</Button>
+        <Button size="sm" variant="outline" className="text-destructive" disabled={pending} onClick={resetDefaults}><RotateCcw className="h-4 w-4" /> {t('fieldGov.reset')}</Button>
       </div>
+
+      {importText != null && (
+        <Card>
+          <CardContent className="space-y-2 pt-4">
+            <Label className="text-sm">{t('fieldGov.importTitle')}</Label>
+            <textarea value={importText} onChange={(e) => setImportText(e.target.value)} dir="ltr" rows={6} className="w-full rounded-md border border-input bg-background p-2 font-mono text-xs" placeholder='{"config":[],"access":[],"sections":[]}' />
+            <div className="flex gap-2">
+              <Button size="sm" disabled={pending || !importText.trim()} onClick={doImport}>{t('fieldGov.import')}</Button>
+              <Button size="sm" variant="outline" onClick={() => setImportText(null)}>{t('fieldGov.cancel')}</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Sections ─────────────────────────────────────────────── */}
       <Card>
@@ -201,19 +286,65 @@ export function FieldGovernanceManager({
             <h3 className="font-semibold">{t('fieldGov.fieldsTitle')}</h3>
             <p className="text-xs text-muted-foreground">{t('fieldGov.fieldsHint')}</p>
           </div>
+
+          {/* Search · filter by section · preview as role */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-56">
+              <Search className="pointer-events-none absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('fieldGov.searchPlaceholder')} className="ps-8" />
+            </div>
+            <div className="w-44">
+              <Select className={selectCls} value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)}>
+                <option value="">{t('fieldGov.allSections')}</option>
+                <option value="__none__">{t('fieldGov.noSection')}</option>
+                {sectionOpts.map((k) => <option key={k} value={k}>{k}</option>)}
+              </Select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Eye className="h-4 w-4 text-muted-foreground" />
+              <div className="w-44">
+                <Select className={selectCls} value={previewRole} onChange={(e) => setPreviewRole(e.target.value)}>
+                  <option value="">{t('fieldGov.previewOff')}</option>
+                  {admin.roles.map((r) => <option key={r.key} value={r.key}>{ar ? r.name_ar || r.key : r.key}</option>)}
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Bulk action bar */}
+          {selected.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border bg-secondary/30 p-2 text-sm">
+              <span className="font-medium">{t('fieldGov.bulkSelected', { n: selected.size })}</span>
+              <Select className={`${selectCls} w-40`} value="" onChange={(e) => { if (e.target.value) bulkApply({ default_access: e.target.value as ResolvedLevel }); }}>
+                <option value="">{t('fieldGov.bulkSetAccess')}</option>
+                <option value="hidden">{t('fieldGov.accessHidden')}</option>
+                <option value="view">{t('fieldGov.accessView')}</option>
+                <option value="edit">{t('fieldGov.accessEdit')}</option>
+                <option value="required">{t('fieldGov.accessRequired')}</option>
+              </Select>
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => bulkApply({ is_active: true })}>{t('fieldGov.bulkShow')}</Button>
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => bulkApply({ is_active: false })}>{t('fieldGov.bulkHide')}</Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>{t('fieldGov.bulkClear')}</Button>
+            </div>
+          )}
+
           <div className="divide-y rounded-md border">
-            {fields.map((f, i) => (
+            {visibleFields.map((f, i) => (
               <div key={f.key} className="space-y-2 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-medium">{fieldLabel(f)}</span>
-                    <span className="font-mono text-[11px] text-muted-foreground" dir="ltr">{f.key}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <input type="checkbox" checked={selected.has(f.key)} onChange={() => toggleSelect(f.key)} className="h-4 w-4" aria-label={fieldLabel(f)} />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-medium">{fieldLabel(f)}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground" dir="ltr">{f.key}</span>
+                    </span>
                   </span>
                   <div className="flex flex-wrap items-center gap-1">
+                    {previewRole && <Badge variant="outline" className="gap-1"><Eye className="h-3 w-3" /> {ACCESS_LABEL[previewAccess(f)]}</Badge>}
                     <Badge variant="secondary">{f.source === 'custom' ? t('fieldGov.badgeCustom') : t('fieldGov.badgeCore')}</Badge>
                     {f.isProtected && <Badge variant="warning" className="gap-1"><ShieldAlert className="h-3 w-3" /> {t('fieldGov.badgeProtected')}</Badge>}
-                    <Button size="sm" variant="ghost" disabled={pending || i === 0} onClick={() => moveField(i, -1)} aria-label={t('fieldGov.moveUp')}><ChevronUp className="h-4 w-4" /></Button>
-                    <Button size="sm" variant="ghost" disabled={pending || i === fields.length - 1} onClick={() => moveField(i, 1)} aria-label={t('fieldGov.moveDown')}><ChevronDown className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="ghost" disabled={pending || filtered || i === 0} onClick={() => moveField(f.key, -1)} aria-label={t('fieldGov.moveUp')}><ChevronUp className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="ghost" disabled={pending || filtered || i === visibleFields.length - 1} onClick={() => moveField(f.key, 1)} aria-label={t('fieldGov.moveDown')}><ChevronDown className="h-4 w-4" /></Button>
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
