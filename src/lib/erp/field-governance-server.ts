@@ -125,6 +125,7 @@ export interface FieldGovernanceAdmin {
   fields: AdminField[];
   sections: Array<Record<string, unknown>>;
   roles: Array<{ key: string; name_ar: string | null }>;
+  templates: Array<{ id: string; name: string; is_global: boolean }>;
 }
 
 /** Everything the field-governance admin UI needs for one entity. */
@@ -137,11 +138,12 @@ export async function getFieldGovernanceAdmin(
   const custom = (await getActiveCustomFields(entity)).map((c) => ({
     key: c.key, source: 'custom' as const, labelAr: c.label_ar, labelEn: c.label_en ?? c.label_ar,
   }));
-  const [{ data: cfgRows }, { data: accRows }, { data: secRows }, { data: roleRows }] = await Promise.all([
+  const [{ data: cfgRows }, { data: accRows }, { data: secRows }, { data: roleRows }, { data: tplRows }] = await Promise.all([
     supabase.from('erp_field_config').select('*').eq('entity', entity),
     supabase.from('erp_field_access').select('field_key, subject_type, subject_key, access').eq('entity', entity),
     supabase.from('erp_field_sections').select('*').eq('entity', entity).order('sort'),
     supabase.from('erp_roles').select('key, name_ar').order('rank', { ascending: false }),
+    supabase.from('erp_field_templates').select('id, name, is_global').eq('scope_entity', entity).order('created_at', { ascending: false }),
   ]);
   const cfgByKey = new Map<string, Record<string, unknown>>((cfgRows ?? []).map((r) => [(r as { field_key: string }).field_key, r as Record<string, unknown>]));
   const accByKey = new Map<string, Array<{ subject_type: string; subject_key: string; access: string }>>();
@@ -169,5 +171,6 @@ export async function getFieldGovernanceAdmin(
     fields,
     sections: (secRows ?? []) as Array<Record<string, unknown>>,
     roles: (roleRows ?? []) as Array<{ key: string; name_ar: string | null }>,
+    templates: (tplRows ?? []) as Array<{ id: string; name: string; is_global: boolean }>,
   };
 }

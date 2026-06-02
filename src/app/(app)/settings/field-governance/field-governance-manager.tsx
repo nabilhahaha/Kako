@@ -17,6 +17,7 @@ import {
   setFieldConfig, setFieldAccess, clearFieldAccess,
   setFieldSection, deleteFieldSection, reorderFieldSections, reorderFields,
   bulkSetFieldConfig, resetEntityGovernance, exportFieldGovernance, importFieldGovernance,
+  copyEntityConfig, saveAsTemplate, applyTemplate, getFieldGovernanceHistory,
 } from './actions';
 import {
   Briefcase, DollarSign, Scale, Phone, MapPin, CreditCard, Tag, User, Building2,
@@ -37,9 +38,11 @@ const selectCls = 'h-9 text-sm';
 export function FieldGovernanceManager({
   entities,
   admin,
+  isPlatformOwner,
 }: {
   entities: { key: string; labelAr: string; labelEn: string }[];
   admin: FieldGovernanceAdmin;
+  isPlatformOwner: boolean;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -54,6 +57,9 @@ export function FieldGovernanceManager({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewRole, setPreviewRole] = useState('');
   const [importText, setImportText] = useState<string | null>(null);
+  const [templateName, setTemplateName] = useState('');
+  const [templateGlobal, setTemplateGlobal] = useState(false);
+  const [history, setHistory] = useState<Array<{ actor: string | null; action: string; field: string; at: string }> | null>(null);
   const entity = admin.entity;
 
   // Run a server action, toast result (mapping lockout codes), then apply onOk.
@@ -204,6 +210,28 @@ export function FieldGovernanceManager({
     run(() => importFieldGovernance(entity, importText), () => { setImportText(null); router.refresh(); });
   }
 
+  // ── Reuse: copy / templates / history ───────────────────────────────────────
+  function copyFrom(src: string) {
+    if (!src || src === entity) return;
+    if (!window.confirm(t('fieldGov.copyConfirm'))) return;
+    run(() => copyEntityConfig(src, entity), () => router.refresh());
+  }
+  function saveTemplate() {
+    if (!templateName.trim()) return;
+    run(() => saveAsTemplate(entity, templateName.trim(), templateGlobal), () => { setTemplateName(''); setTemplateGlobal(false); router.refresh(); });
+  }
+  function useTemplate(id: string) {
+    if (!id) return;
+    run(() => applyTemplate(id, entity), () => router.refresh());
+  }
+  function loadHistory() {
+    startTransition(async () => {
+      const res = await getFieldGovernanceHistory(entity);
+      if (res.ok && res.data) setHistory(res.data.rows);
+      else toast.error(t('fieldGov.error'));
+    });
+  }
+
   return (
     <div className="space-y-6">
       {/* Entity selector + admin tools */}
@@ -231,6 +259,50 @@ export function FieldGovernanceManager({
           </CardContent>
         </Card>
       )}
+
+      {/* ── Reuse & history (copy / templates / change log) ──────── */}
+      <Card>
+        <CardContent className="space-y-3 pt-6">
+          <h3 className="font-semibold">{t('fieldGov.reuseTitle')}</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">{t('fieldGov.copyFrom')}</Label>
+              <Select className={selectCls} value="" disabled={pending} onChange={(e) => copyFrom(e.target.value)}>
+                <option value="">{t('fieldGov.copyFromPlaceholder')}</option>
+                {entities.filter((en) => en.key !== entity).map((en) => <option key={en.key} value={en.key}>{ar ? en.labelAr : en.labelEn}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">{t('fieldGov.applyTemplate')}</Label>
+              <Select className={selectCls} value="" disabled={pending || admin.templates.length === 0} onChange={(e) => useTemplate(e.target.value)}>
+                <option value="">{admin.templates.length ? t('fieldGov.applyTemplatePlaceholder') : t('fieldGov.noTemplates')}</option>
+                {admin.templates.map((tp) => <option key={tp.id} value={tp.id}>{tp.name}{tp.is_global ? ' ★' : ''}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">{t('fieldGov.saveTemplate')}</Label>
+              <div className="flex items-center gap-1.5">
+                <Input value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder={t('fieldGov.templateName')} className="h-9" />
+                <Button size="sm" variant="outline" disabled={pending || !templateName.trim()} onClick={saveTemplate}>{t('fieldGov.save')}</Button>
+              </div>
+              {isPlatformOwner && (
+                <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" checked={templateGlobal} onChange={(e) => setTemplateGlobal(e.target.checked)} className="h-3.5 w-3.5" /> {t('fieldGov.templateGlobal')}</label>
+              )}
+            </div>
+          </div>
+          <Button size="sm" variant="ghost" disabled={pending} onClick={loadHistory}>{t('fieldGov.historyBtn')}</Button>
+          {history && (
+            <div className="max-h-60 overflow-y-auto rounded-md border text-xs">
+              {history.length === 0 ? <p className="p-2 text-muted-foreground">{t('fieldGov.historyEmpty')}</p> : history.map((h, i) => (
+                <div key={i} className="flex flex-wrap items-center justify-between gap-2 border-b p-2 last:border-0">
+                  <span className="font-mono" dir="ltr">{h.field}</span>
+                  <span className="text-muted-foreground">{h.action} · {h.actor ?? '—'} · <span dir="ltr">{new Date(h.at).toLocaleString()}</span></span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ── Sections ─────────────────────────────────────────────── */}
       <Card>

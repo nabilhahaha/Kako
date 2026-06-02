@@ -42,7 +42,7 @@ export default async function FieldGovernancePage({
   return (
     <div>
       <PageHeader title={t('fieldGov.title')} description={t('fieldGov.description')} />
-      <FieldGovernanceManager entities={entities} admin={admin} />
+      <FieldGovernanceManager entities={entities} admin={admin} isPlatformOwner={ctx.isPlatformOwner} />
     </div>
   );
 }

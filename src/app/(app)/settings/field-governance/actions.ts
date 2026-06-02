@@ -320,3 +320,138 @@ export async function clearFieldAccess(
   revalidatePath('/settings/field-governance');
   return { ok: true };
 }
+
+// ── DFG-2c (Tier A): copy, templates, history ───────────────────────────────
+
+const STRIP_KEYS = ['id', 'company_id', 'created_at', 'updated_at', 'created_by', 'updated_by'];
+function stripRows(rows: Array<Record<string, unknown>> | null): Array<Record<string, unknown>> {
+  return (rows ?? []).map((r) => {
+    const o = { ...r };
+    for (const k of STRIP_KEYS) delete o[k];
+    return o;
+  });
+}
+
+interface Snapshot { config: Array<Record<string, unknown>>; access: Array<Record<string, unknown>>; sections: Array<Record<string, unknown>> }
+
+/** Read an entity's governance as a portable snapshot. companyId scopes the read
+ *  (used by the Platform-Owner cross-company copy). */
+async function readSnapshot(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  entity: string,
+  companyId?: string,
+): Promise<Snapshot> {
+  const q = (tbl: string) => {
+    const base = supabase.from(tbl).select('*').eq('entity', entity);
+    return companyId ? base.eq('company_id', companyId) : base;
+  };
+  const [{ data: config }, { data: access }, { data: sections }] = await Promise.all([q('erp_field_config'), q('erp_field_access'), q('erp_field_sections')]);
+  return { config: stripRows(config), access: stripRows(access), sections: stripRows(sections) };
+}
+
+/** Write a snapshot onto a target entity/company (upsert). Lockout-checked. */
+async function applySnapshot(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  entity: string,
+  companyId: string,
+  snap: Snapshot,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  for (const c of snap.config) {
+    const isProtected = (c.is_protected as boolean | undefined) ?? isDefaultProtected(entity, c.field_key as string);
+    if (configLockoutViolation(isProtected, { is_active: c.is_active as boolean, default_access: c.default_access as AccessLevel })) {
+      return { ok: false, error: 'protected_field_cannot_be_hidden' };
+    }
+  }
+  const stamp = (r: Record<string, unknown>) => ({ ...r, entity, company_id: companyId, updated_by: userId });
+  if (snap.sections.length) {
+    const { error } = await supabase.from('erp_field_sections').upsert(snap.sections.map(stamp), { onConflict: 'company_id,entity,key' });
+    if (error) return { ok: false, error: friendlyDbError(error) };
+  }
+  if (snap.config.length) {
+    const { error } = await supabase.from('erp_field_config').upsert(snap.config.map(stamp), { onConflict: 'company_id,entity,field_key' });
+    if (error) return { ok: false, error: friendlyDbError(error) };
+  }
+  if (snap.access.length) {
+    const { error } = await supabase.from('erp_field_access').upsert(snap.access.map(stamp), { onConflict: 'company_id,entity,field_key,subject_type,subject_key' });
+    if (error) return { ok: false, error: friendlyDbError(error) };
+  }
+  return { ok: true };
+}
+
+/** Copy one entity's governance config onto another entity (same company). */
+export async function copyEntityConfig(srcEntity: string, dstEntity: string): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  if (srcEntity === dstEntity) return { ok: false, error: 'same_entity' };
+  const snap = await readSnapshot(g.supabase, srcEntity);
+  const res = await applySnapshot(g.supabase, dstEntity, g.companyId, snap, g.userId);
+  if (!res.ok) return res;
+  await logAudit(g.supabase, { action: 'create', entity: 'field_config', entityId: `${dstEntity}:copy`, details: { from_entity: srcEntity }, companyId: g.companyId });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** Platform-Owner only: copy an entity's governance from one company to another. */
+export async function copyCompanyConfig(srcCompanyId: string, dstCompanyId: string, entity: string): Promise<ActionResult> {
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
+  if (!ctx.isPlatformOwner) return { ok: false, error: 'platform_owner_only' };
+  const supabase = await createClient();
+  const snap = await readSnapshot(supabase, entity, srcCompanyId);
+  const res = await applySnapshot(supabase, entity, dstCompanyId, snap, ctx.userId);
+  if (!res.ok) return res;
+  await logAudit(supabase, { action: 'create', entity: 'field_config', entityId: `${entity}:copy_company`, details: { from_company: srcCompanyId, to_company: dstCompanyId }, companyId: dstCompanyId });
+  return { ok: true };
+}
+
+/** Save the current entity governance as a reusable template (global = Platform Owner). */
+export async function saveAsTemplate(entity: string, name: string, isGlobal: boolean): Promise<ActionResult> {
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
+  if (!ctx.companyId || !hasPermission(ctx, 'settings.custom_fields')) return { ok: false, error: 'unauthorized' };
+  if (isGlobal && !ctx.isPlatformOwner) return { ok: false, error: 'platform_owner_only' };
+  if (!name.trim()) return { ok: false, error: 'name_required' };
+  const supabase = await createClient();
+  const snap = await readSnapshot(supabase, entity);
+  const { error: insErr } = await supabase.from('erp_field_templates').insert({
+    company_id: isGlobal ? null : ctx.companyId, name: name.trim(), scope_entity: entity, snapshot: snap, is_global: isGlobal, created_by: ctx.userId,
+  });
+  if (insErr) return { ok: false, error: friendlyDbError(insErr) };
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** Apply a saved template onto the current entity. */
+export async function applyTemplate(templateId: string, entity: string): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { data: tpl } = await g.supabase.from('erp_field_templates').select('snapshot').eq('id', templateId).maybeSingle();
+  const snap = (tpl as { snapshot?: Snapshot } | null)?.snapshot;
+  if (!snap) return { ok: false, error: 'template_not_found' };
+  const res = await applySnapshot(g.supabase, entity, g.companyId, snap, g.userId);
+  if (!res.ok) return res;
+  await logAudit(g.supabase, { action: 'create', entity: 'field_config', entityId: `${entity}:template`, details: { template: templateId }, companyId: g.companyId });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+interface HistoryRow { actor: string | null; action: string; field: string; details: unknown; at: string }
+
+/** Recent field-governance change history for an entity (from the audit log). */
+export async function getFieldGovernanceHistory(entity: string): Promise<ActionResult<{ rows: HistoryRow[] }>> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { data } = await g.supabase
+    .from('erp_audit_logs')
+    .select('actor_email, action, entity, entity_id, details, created_at')
+    .in('entity', ['field_config', 'field_access', 'field_section'])
+    .like('entity_id', `${entity}:%`)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  const rows: HistoryRow[] = (data ?? []).map((r) => {
+    const x = r as { actor_email: string | null; action: string; entity_id: string; details: unknown; created_at: string };
+    return { actor: x.actor_email, action: x.action, field: x.entity_id, details: x.details, at: x.created_at };
+  });
+  return { ok: true, data: { rows } };
+}
