@@ -6,7 +6,17 @@
 
 ## 1. Goal
 
-Let each **company build its own customer screen with zero code changes**: every field (core *and* custom) can be configured per role to one of four access levels, reordered, grouped, marked required/sensitive, and shown/hidden — all data-driven, enforced server-side, and audited.
+Let each **company build its own customer screen with zero code changes**: every field (core *and* custom) can be configured to one of four access levels, reordered, grouped, marked required/sensitive, and shown/hidden — all data-driven, enforced server-side, and audited.
+
+**The field engine resolves access along four dimensions:**
+
+```
+effective access  =  Field
+                   × Subject        (role and/or permission)
+                   × Customer type   (context conditions — segment/channel/flags/industry)
+                   × Hierarchy        (Head-Office → Branch inheritance)
+                   × Company config   (per-company layout, active, defaults)
+```
 
 **Four-level access model (per field × per role):**
 
@@ -55,7 +65,9 @@ section       text          -- group key (e.g. 'identity','commercial')
 sort          int           -- ordering across the whole screen
 is_active     bool default true     -- company-wide hide
 is_sensitive  bool default false    -- seeded from SENSITIVE_FIELDS for core
-default_access text default 'edit'   -- baseline for roles w/o an explicit row
+default_access text default 'edit'   -- baseline for subjects w/o an explicit row
+inheritance   text default 'none'   -- 'none' | 'inherit' | 'inherit_locked'  (see §10)
+condition     jsonb                  -- applicability predicate by customer type/context (see §11); null = always
 label_ar text / label_en text       -- optional per-company relabel
 created_by/at, updated_by/at
 unique (company_id, entity, field_key)
@@ -86,15 +98,17 @@ unique (company_id, entity, field_key, subject_type, subject_key)
 
 ## 4. Resolution logic (pure, unit-tested)
 
-`src/lib/erp/field-access.ts`:
+`src/lib/erp/field-access.ts` — `resolveFieldAccess(field, ctx) -> 'hidden'|'view'|'edit'|'required'`, evaluated **per field, per customer record, per user** in this **precedence**:
 
-- `resolveFieldAccess(fieldKey, userRoles, userPermissions, configMap, accessMap, isAdmin) -> 'hidden'|'view'|'edit'|'required'`
-  - Order `hidden(0) < view(1) < edit(2) < required(3)`.
-  - Take the **most-permissive** level across **all** the user's subjects — every role they hold (across branches) **and** every permission they hold. Example: Rep=Hidden, Finance=Editable ⇒ **Editable**.
-  - No matching subject row → `field_config.default_access` → registry default (`edit`).
-  - **Admin safety:** company admin / IT admin / platform owner are **never locked out** — clamped to at least `edit` (prevents self-lockout while configuring). Stated rule, configurable later.
-- `applyWriteAccess(input, current, accessByField) -> { data, missingRequired[] }`
-  - Drops any field the user can't edit (keeps the old value — mirrors `sensitiveChanges`), and reports empty `required` fields. **This is the real protection.**
+1. **Applicability (Customer type / context — §11):** evaluate `field_config.condition` against the record + company context. Not applicable ⇒ **Hidden** (stop).
+2. **Company active:** `is_active=false` ⇒ **Hidden** (stop).
+3. **Subject access (role + permission):** **most-permissive** level across **all** the user's subjects — every role (across branches) **and** every permission held. Order `hidden(0) < view(1) < edit(2) < required(3)`. Example: Rep=Hidden, Finance=Editable ⇒ **Editable**. No matching subject row → `field_config.default_access` → registry default (`edit`).
+4. **Hierarchy inheritance (§10):** on a **branch** customer, `inherit_locked` clamps access to **View** (value forced from the Head Office); `inherit`/`none` leave step 3 unchanged.
+5. **Admin safety:** company admin / IT admin / platform owner are **never locked out** — clamped to ≥ `edit` (overrides steps 3–4; still respects applicability so they don't see truly N/A fields during data entry; the *config* UI always shows every field).
+
+Companion functions:
+- `applyWriteAccess(input, current, accessByField) -> { data, missingRequired[] }` — drops any field the user can't edit (keeps old value — mirrors `sensitiveChanges`), reports empty `required` fields. **This is the real write protection.**
+- `resolveFieldValue(field, record, parentRecord) -> value` — for inherited fields, returns the effective value (parent value when locked, or when the branch left it blank under `inherit`).
 
 ## 5. Enforcement — defense in depth
 
@@ -114,6 +128,52 @@ New page `/settings/fields` (permission `settings.fields`, or reuse `settings.cu
 - **Add / disable** custom fields (existing flow, surfaced here).
 - Every change → `logAudit({ entity:'field_config'|'field_access', action:'update', entityId:'customer:credit_limit', details:{ role_key, from, to } })` → satisfies **#7**.
 
+## 10. Customer hierarchy & field inheritance (NEW — Head Office → Branches)
+
+**Finding:** `erp_customers` has **no** parent/child link today (only geo: Region→Area→Branch→Customer). So a small, additive primitive is required.
+
+**New columns on `erp_customers` (migration 0112, additive, nullable ⇒ zero regression):**
+```
+parent_customer_id  uuid references erp_customers(id)   -- the Head Office; null = standalone/top-level
+is_head_office      bool default false
+```
+Guards: parent must be the **same company**; **single level** for the pilot (Head Office → its direct branch outlets) — multi-level chains are a documented post-pilot item; a branch cannot be its own parent.
+
+**Per-field inheritance policy** (`erp_field_config.inheritance`):
+| Mode | Branch behavior |
+|---|---|
+| `none` (default) | Each customer independent. **No change from today.** |
+| `inherit` | Branch **defaults** to the Head Office value; may override locally (field stays editable per role). |
+| `inherit_locked` | Branch is **forced** to the Head Office value; field renders **View-only** on branch records (admins exempt). |
+
+This directly covers the example — **Credit Limit / Payment Terms / VAT / Classification** set at Head Office and inherited (or locked) for branches, *configurable per company* (default `none`).
+
+- **Read:** `resolveFieldValue` returns the parent value when locked, or the parent value when an `inherit` branch left the field blank.
+- **Write:** `applyWriteAccess` rejects writes to `inherit_locked` fields on branch records (defense in depth).
+- Head Office edits to an inherited field propagate by **reference at read-time** (no row-copy) — branches always reflect the current Head Office value unless overridden.
+
+## 11. Field rules by customer type / context (NEW)
+
+**Finding:** today's conditional engine (`VisibilityRule {when, op, value}`, `isFieldVisible`) only compares one form field to a literal. We **extend** it into a small, reusable predicate evaluated against the **record + company context**, stored in `erp_field_config.condition`.
+
+**Context available to a condition:**
+- Customer attributes: `segment_id`, `classification_id`, `channel_id`, `payment_terms_days`, `balance`, any custom field, plus two **new optional flags** (additive, nullable): `is_vat_registered bool`, `payment_type text ('cash'|'credit')` — these back the named examples cleanly.
+- Company context: `company.business_type` (e.g. `clinic` = healthcare, `wholesale`/`delivery` = FMCG).
+
+**Operators:** `eq, neq, in, gt, lt, is_set, is_true` (superset of today's). A condition may be a single rule or an **AND** of rules (kept simple for pilot).
+
+**The four examples map directly:**
+| Rule | Condition |
+|---|---|
+| Credit Limit only for credit customers | `{ when:'payment_type', op:'eq', value:'credit' }` |
+| Insurance fields only for healthcare | `{ when:'company.business_type', op:'eq', value:'clinic' }` |
+| Route fields only for FMCG distributors | `{ when:'segment_id', op:'in', value:[<distributor lookups>] }` |
+| VAT fields only when VAT registered | `{ when:'is_vat_registered', op:'is_true' }` |
+
+If a condition is false for a record, the field is **not applicable** ⇒ treated as Hidden (step 1 of the resolver) — for everyone, before role/permission is even considered.
+
+> **Backward-compatible:** the existing value-conditional custom-field visibility (`isFieldVisible`) keeps working unchanged; this is the same idea generalized to context and applied to core fields too.
+
 ## 7. Requirement coverage
 
 | # | Requirement | How |
@@ -125,15 +185,18 @@ New page `/settings/fields` (permission `settings.fields`, or reuse `settings.cu
 | 5 | Hide/show dynamically | role-based (this slice) **+** value-conditional (`isFieldVisible`, existing) |
 | 6 | Sensitive-field protection | `is_sensitive` (seeded from `SENSITIVE_FIELDS`) + approval staging |
 | 7 | Audit field-setting changes | `logAudit` on every config/access write |
+| 8 | **Inheritance across customer hierarchy** | `parent_customer_id` + `inheritance` policy (§10) |
+| 9 | **Field rules by customer type / context** | `condition` predicate over record + company context (§11) |
 | — | Add/disable/reorder/configure per company | `/settings/fields` admin UI + `sort`/`is_active`/access grid |
 
 ## 8. Proposed build order (pilot-safe, stacked PRs, each staging-validated)
 
-- **FP-a — Model + resolver + enforcement** (migration 0112 tables/RLS; `field-access.ts` + unit tests; customer save runs `applyWriteAccess`; read redaction). *Zero-config = today's behavior.*
-- **FP-b — Admin configuration UI** (`/settings/fields`, audited).
-- **FP-c — Data-driven customer form** (replace hardcoded sections with layout-driven rendering).
+- **FP-0 — Customer hierarchy primitive** (migration: `parent_customer_id`, `is_head_office`, same-company guard; + optional `is_vat_registered`, `payment_type` flags for §11; minimal "Head Office" picker on the customer form). Additive; nullable ⇒ zero regression.
+- **FP-a — Field engine: model + resolver + enforcement** (field tables + RLS incl. `inheritance` & `condition`; `field-access.ts` resolver covering all 4 dimensions + `applyWriteAccess` + `resolveFieldValue`, unit-tested; customer save enforcement; read redaction; value inheritance). *Zero-config = today's behavior.*
+- **FP-b — Admin configuration UI** (`/settings/fields`: reorder, group, subject×access grid, inheritance mode, simple condition builder, add/disable custom fields — all audited).
+- **FP-c — Data-driven customer form** (render applicable + ordered fields; show inherited/locked values; required markers).
 
-Scope = **customer entity only** for the pilot; the registry-based design extends to invoices/orders/suppliers later with no schema change.
+Scope = **customer entity only** for the pilot; the registry-based design extends to invoices/orders/suppliers later with no schema change. **Customer hierarchy is single-level** for the pilot.
 
 ## 9. Decisions — CONFIRMED
 
@@ -142,6 +205,13 @@ Scope = **customer entity only** for the pilot; the registry-based design extend
 3. **Admins never locked out** — company admin / IT admin / platform owner always ≥ Editable.
 4. **Most-permissive merge** across all of a user's roles **and** permissions: `Hidden < View < Editable < Required`.
 5. **Pilot scope = customer entity only**; design extends to other entities with no schema change.
+
+## 12. New decisions for your confirmation (hierarchy & customer-type — recommended defaults in bold)
+
+6. **Add a single-level customer hierarchy now** (`parent_customer_id` + `is_head_office`); multi-level chains post-pilot. → **Recommend.**
+7. **Three inheritance modes** per field (`none` / `inherit` / `inherit_locked`), default `none`, configurable per company. → **Recommend.**
+8. **Add two optional customer flags** (`is_vat_registered`, `payment_type` cash/credit) to back the type-rule examples; conditions may also reference segment/classification/channel, custom fields, and `company.business_type`. → **Recommend.**
+9. **Resolver precedence** = applicability(type) → company-active → subject(role/permission) → inheritance-lock → admin-safety. → **Recommend.**
 
 ---
 
