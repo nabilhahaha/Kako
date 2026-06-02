@@ -1,10 +1,13 @@
 # Slice — Pricing Module (separate from customer master) — Design + Build (P-a)
 
-> **Owner decisions locked (all recommended) — P-a built (migration 0106).**
-> P-a = engine foundation: `erp_price_rules` (dimension-scoped, effective-dated),
-> `erp_price_change_log` (history trigger), and the `erp_resolve_price()` priority
-> resolver, plus the `pricing.manage` permission. **P-b** (management UI +
-> order/invoice integration) and **P-c** (promotion pricing with S5) follow.
+> **Owner decisions locked (all recommended) — P-a + P-b built.**
+> P-a (migration 0106) = engine foundation: `erp_price_rules` (dimension-scoped,
+> effective-dated), `erp_price_change_log` (history trigger), `erp_resolve_price()`
+> resolver, `pricing.manage` permission. **P-b** = management UI
+> (`/sales/pricing`: Price Rules + Price Lists + Change History), the resolver
+> wired into sales-order/invoice line entry (opt-in, zero-change fallback), and
+> **server-side logged manual price overrides** (audit `override`). **P-c**
+> (promotion pricing with S5) follows.
 
 > A standalone **Pricing module**: a
 > deterministic price-resolution engine layered over the existing base price +

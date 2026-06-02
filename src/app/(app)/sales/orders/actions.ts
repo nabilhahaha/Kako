@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
+import { logPriceOverrides } from '@/lib/erp/pricing-server';
 import { getT } from '@/lib/i18n/server';
 
 interface OrderInput {
@@ -67,6 +68,12 @@ export async function createSalesOrder(input: OrderInput): Promise<ActionResult<
     await supabase.from('erp_sales_orders').delete().eq('id', order.id);
     return { ok: false, error: friendlyDbError(linesErr) };
   }
+
+  // Pricing engine: log any line priced away from the resolved price (audit).
+  await logPriceOverrides(supabase, {
+    companyId: ctx!.companyId, entity: 'sales_order', recordId: order.id,
+    customerId: input.customer_id, branchId: input.branch_id, lines,
+  });
 
   revalidatePath('/sales/orders');
   return { ok: true, data: { id: order.id } };

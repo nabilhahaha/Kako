@@ -245,6 +245,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.repSettlement', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'], module: ['field_ops', 'distribution'] },
       { label: 'nav.items.salesOrders', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell', module: 'sales_orders' },
       { label: 'nav.items.invoices', href: '/sales/invoices', icon: FileText, perm: ['sales.sell', 'sales.collect'] },
+      { label: 'nav.items.pricing', href: '/sales/pricing', icon: Tags, perm: 'pricing.manage' },
       { label: 'nav.items.journey', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales', module: ['field_ops', 'distribution'] },
       { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
       { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view', module: ['analytics', 'sales'] },
