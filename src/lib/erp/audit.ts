@@ -56,6 +56,8 @@ export const AUDIT_ENTITY_LABELS: Record<string, { en: string; ar: string }> = {
   company_role: { en: 'Company role', ar: 'دور شركة' },
   company_role_permission: { en: 'Company role permission', ar: 'صلاحية دور (شركة)' },
   customer_status: { en: 'Customer status', ar: 'حالة العميل' },
+  field_config: { en: 'Field configuration', ar: 'إعداد الحقل' },
+  field_access: { en: 'Field access', ar: 'صلاحية الحقل' },
   subscription: { en: 'Subscription', ar: 'اشتراك' },
   plan: { en: 'Plan', ar: 'خطة' },
   price_override: { en: 'Price override', ar: 'تجاوز السعر' },
