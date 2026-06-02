@@ -8,6 +8,40 @@
 
 ---
 
+## ✅ LOCKED DECISIONS (owner-approved)
+1. **Branch Manager** = a real role, **distinct from Company Admin**. Full FMCG
+   role set:
+   `Sales Director → National Sales Manager (NSM) → Regional Manager → Area
+   Manager → Branch Manager → Supervisor → Sales Rep`, plus **Company Admin,
+   Finance, IT Admin, Viewer**.
+2. **Build Region + Area entities now** (not later). Management spans:
+   NSM → one+ **Regions** · Regional Mgr → one+ **Areas** · Area Mgr → one+
+   **Branches** · Branch Mgr → **one Branch** · Supervisor → **Routes + Reps** ·
+   Rep → **assigned Customers + Routes**.
+3. **Customer fields** (decision 3) — code, name, branch, region, area, route,
+   sales rep, channel, classification, CR number, VAT number, national address,
+   GPS, phone, email, contact person, credit limit, payment terms, status.
+4. **Promotions** = dedicated `erp_promotions` module; **Phase 1** = define,
+   list, activate, pause, resume, expire, performance tracking.
+5. **One slice at a time**, review → validation → rollback verification before
+   the next. Never skip review.
+
+### Revised sequence (Region/Area first — customers + scope depend on them)
+| Slice | Scope | Why this order |
+|---|---|---|
+| **S1** | **Region + Area entities** (+ branch.region/area links) | foundation for customers (geo fields) AND hierarchy scope |
+| **S2** | **Roles** (Director/NSM/Regional/Area/Branch + IT Admin) + reposition `manager`→Branch Manager (branch-scoped, not admin) | needs nothing but the role layer |
+| **S3** | **Expanded customer model** (decision 3 fields, incl. region/area FKs from S1) | depends on S1 |
+| **S4** | **Hierarchy scope + RLS** (NSM→regions, Regional→areas, Area→branches, Branch→branch, Supervisor/Rep→routes/customers) | depends on S1 + S2; the heaviest, RLS-verified |
+| **S5** | **Promotions module** (`erp_promotions` + CRUD/list/activate/pause/resume/expire + performance) | independent; sized as its own build |
+| **S6** | **Promo pricing application** + **FMCG demo-data enrichment** | depends on S3 + S5 |
+
+> Each slice: design review (this format) → build → tsc/test/build → rolled-back
+> live verification → draft PR → review package → approval → merge. No production
+> migration applied without approval.
+
+---
+
 ## Grounding (what exists today)
 - **Roles:** `erp_user_branches.role` is **free-text** (TS `BranchRole` union) →
   new roles are **additive** (no enum migration). `reports_to` already exists on
