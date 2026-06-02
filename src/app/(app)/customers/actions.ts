@@ -58,6 +58,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   const name = String(formData.get('name') || '').trim();
   if (!code) return { ok: false, error: t('customers.errCodeRequired') };
   if (!name) return { ok: false, error: t('customers.errNameRequired') };
+  if (num(formData.get('credit_limit')) < 0) return { ok: false, error: t('customers.errCreditNegative') };
 
   const branchId = String(formData.get('branch_id') || '').trim();
   const salesmanId = String(formData.get('salesman_id') || '').trim();

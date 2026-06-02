@@ -36,7 +36,7 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
   // Block selling to customers awaiting admin approval.
   const { data: cust } = await supabase
     .from('erp_customers')
-    .select('is_approved')
+    .select('is_approved, credit_limit, balance')
     .eq('id', input.customer_id)
     .maybeSingle();
   if (cust && cust.is_approved === false) {
@@ -44,6 +44,41 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
   }
 
   const totals = computeTotals(lines);
+
+  // Credit-limit pre-check: only when a limit is set (limit 0 = unlimited). Catches
+  // over-credit at create instead of failing opaquely later. Raise the limit via
+  // the credit-limit-request workflow.
+  const c = cust as { credit_limit?: number; balance?: number } | null;
+  if (c && Number(c.credit_limit) > 0 && Number(c.balance) + totals.net_amount > Number(c.credit_limit)) {
+    return { ok: false, error: t('sales.errOverCredit') };
+  }
+
+  // Stock pre-check: block a line that exceeds available stock — but only for
+  // products that are actually tracked in this branch (have stock rows), so pilots
+  // that haven't loaded inventory yet can still draft invoices.
+  const { data: whRows } = await supabase.from('erp_warehouses').select('id').eq('branch_id', input.branch_id);
+  const whIds = (whRows ?? []).map((w) => (w as { id: string }).id);
+  if (whIds.length > 0) {
+    const productIds = [...new Set(lines.map((l) => l.product_id))];
+    const { data: stockRows } = await supabase
+      .from('erp_inventory_stock')
+      .select('product_id, quantity, reserved_qty')
+      .in('warehouse_id', whIds)
+      .in('product_id', productIds);
+    const tracked = new Set<string>();
+    const avail = new Map<string, number>();
+    for (const s of (stockRows ?? []) as { product_id: string; quantity: number; reserved_qty: number }[]) {
+      tracked.add(s.product_id);
+      avail.set(s.product_id, (avail.get(s.product_id) ?? 0) + (Number(s.quantity) - Number(s.reserved_qty)));
+    }
+    const want = new Map<string, number>();
+    for (const l of lines) want.set(l.product_id, (want.get(l.product_id) ?? 0) + Number(l.quantity));
+    for (const [pid, qty] of want) {
+      if (tracked.has(pid) && (avail.get(pid) ?? 0) < qty) {
+        return { ok: false, error: t('sales.errInsufficientStock') };
+      }
+    }
+  }
 
   const { data: invNumber, error: numErr } = await supabase.rpc('erp_next_number', {
     p_branch_id: input.branch_id,

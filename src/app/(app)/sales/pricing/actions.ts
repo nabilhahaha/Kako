@@ -48,6 +48,12 @@ export async function upsertPriceRule(formData: FormData): Promise<ActionResult>
   const value = numOrNull(formData.get('value'));
   if (!product_id) return { ok: false, error: 'product required' };
   if (value === null) return { ok: false, error: 'value required' };
+  if (value < 0) return { ok: false, error: 'value must be 0 or greater' };
+  if (scope_type !== 'global' && !scope_id) return { ok: false, error: 'a scope must be selected for this scope type' };
+  if (price_type === 'percent_off' && value > 100) return { ok: false, error: 'percentage must be between 0 and 100' };
+  const vFrom = String(formData.get('valid_from') || '').trim();
+  const vTo = String(formData.get('valid_to') || '').trim();
+  if (vFrom && vTo && vFrom > vTo) return { ok: false, error: 'valid-from must be on or before valid-to' };
 
   const payload = {
     product_id,
