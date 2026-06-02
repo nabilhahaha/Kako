@@ -62,6 +62,16 @@ describe.skipIf(!hasTestDb)('field governance · RLS + admin writes', () => {
       // …but can READ the company's config (forms need the layout).
       expect((await c.query('select id from erp_field_config where id=$1', [cfgId])).rows.length).toBe(1);
       await resetRole(c);
+
+      // Sections (0115): admin writes; tenant-isolated.
+      await actAs(c, A.user);
+      const secId = (await c.query(
+        "insert into erp_field_sections(entity, key, label_en, icon, collapsible) values ('customer','commercial','Commercial','Briefcase',true) returning id",
+      )).rows[0].id;
+      await resetRole(c);
+      await actAs(c, B.user);
+      expect((await c.query('select id from erp_field_sections where id=$1', [secId])).rows.length).toBe(0);
+      await resetRole(c);
     });
   }, 30_000);
 });

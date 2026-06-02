@@ -129,6 +129,79 @@ export async function setFieldAccess(
   return { ok: true };
 }
 
+interface SectionPatch {
+  label_ar?: string | null;
+  label_en?: string | null;
+  description_ar?: string | null;
+  description_en?: string | null;
+  icon?: string | null;
+  collapsible?: boolean;
+  default_collapsed?: boolean;
+  sort?: number;
+}
+
+/** Create / update a section's presentation metadata. */
+export async function setFieldSection(entity: string, key: string, patch: SectionPatch): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId, userId } = g;
+  const { data: existing } = await supabase
+    .from('erp_field_sections').select('*').eq('entity', entity).eq('key', key).maybeSingle();
+  const before = existing as Record<string, unknown> | null;
+  const { error } = await supabase
+    .from('erp_field_sections')
+    .upsert({ company_id: companyId, entity, key, ...patch, updated_by: userId }, { onConflict: 'company_id,entity,key' });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, {
+    action: before ? 'update' : 'create', entity: 'field_section', entityId: `${entity}:${key}`,
+    details: { before, after: { ...patch } }, companyId,
+  });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** Delete a section's presentation metadata (fields keep their `section` key). */
+export async function deleteFieldSection(entity: string, key: string): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId } = g;
+  const { error } = await supabase.from('erp_field_sections').delete().eq('entity', entity).eq('key', key);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: 'delete', entity: 'field_section', entityId: `${entity}:${key}`, details: null, companyId });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** Persist a new section order (sort = position). */
+export async function reorderFieldSections(entity: string, orderedKeys: string[]): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId, userId } = g;
+  for (let i = 0; i < orderedKeys.length; i++) {
+    const { error } = await supabase
+      .from('erp_field_sections')
+      .upsert({ company_id: companyId, entity, key: orderedKeys[i], sort: i, updated_by: userId }, { onConflict: 'company_id,entity,key' });
+    if (error) return { ok: false, error: friendlyDbError(error) };
+  }
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** Persist a new field order (sort = position) for the given fields. */
+export async function reorderFields(entity: string, ordered: Array<{ key: string; source: 'core' | 'custom' }>): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId, userId } = g;
+  for (let i = 0; i < ordered.length; i++) {
+    const { error } = await supabase
+      .from('erp_field_config')
+      .upsert({ company_id: companyId, entity, field_key: ordered[i].key, source: ordered[i].source, sort: i, updated_by: userId }, { onConflict: 'company_id,entity,field_key' });
+    if (error) return { ok: false, error: friendlyDbError(error) };
+  }
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
 /** Remove a subject's explicit access (revert to the field default). */
 export async function clearFieldAccess(
   entity: string,

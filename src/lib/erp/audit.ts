@@ -58,6 +58,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, { en: string; ar: string }> = {
   customer_status: { en: 'Customer status', ar: 'حالة العميل' },
   field_config: { en: 'Field configuration', ar: 'إعداد الحقل' },
   field_access: { en: 'Field access', ar: 'صلاحية الحقل' },
+  field_section: { en: 'Field section', ar: 'قسم الحقول' },
   subscription: { en: 'Subscription', ar: 'اشتراك' },
   plan: { en: 'Plan', ar: 'خطة' },
   price_override: { en: 'Price override', ar: 'تجاوز السعر' },

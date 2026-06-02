@@ -109,3 +109,65 @@ export async function getFieldLayout(
     })
     .sort((a, b) => a.sort - b.sort);
 }
+
+// ── Admin view (DFG-2) ───────────────────────────────────────────────────────
+export interface AdminField {
+  key: string;
+  source: 'core' | 'custom';
+  labelAr: string;
+  labelEn: string;
+  isProtected: boolean;
+  config: Record<string, unknown> | null;
+  access: Array<{ subject_type: string; subject_key: string; access: string }>;
+}
+export interface FieldGovernanceAdmin {
+  entity: string;
+  fields: AdminField[];
+  sections: Array<Record<string, unknown>>;
+  roles: Array<{ key: string; name_ar: string | null }>;
+}
+
+/** Everything the field-governance admin UI needs for one entity. */
+export async function getFieldGovernanceAdmin(
+  supabase: SupabaseClient,
+  entity: string,
+): Promise<FieldGovernanceAdmin> {
+  const desc = getEntity(entity);
+  const core = (desc?.fields ?? []).map((f) => ({ key: f.key, source: 'core' as const, labelAr: f.labelAr, labelEn: f.labelEn }));
+  const custom = (await getActiveCustomFields(entity)).map((c) => ({
+    key: c.key, source: 'custom' as const, labelAr: c.label_ar, labelEn: c.label_en ?? c.label_ar,
+  }));
+  const [{ data: cfgRows }, { data: accRows }, { data: secRows }, { data: roleRows }] = await Promise.all([
+    supabase.from('erp_field_config').select('*').eq('entity', entity),
+    supabase.from('erp_field_access').select('field_key, subject_type, subject_key, access').eq('entity', entity),
+    supabase.from('erp_field_sections').select('*').eq('entity', entity).order('sort'),
+    supabase.from('erp_roles').select('key, name_ar').order('rank', { ascending: false }),
+  ]);
+  const cfgByKey = new Map<string, Record<string, unknown>>((cfgRows ?? []).map((r) => [(r as { field_key: string }).field_key, r as Record<string, unknown>]));
+  const accByKey = new Map<string, Array<{ subject_type: string; subject_key: string; access: string }>>();
+  for (const a of (accRows ?? []) as Array<{ field_key: string; subject_type: string; subject_key: string; access: string }>) {
+    const list = accByKey.get(a.field_key) ?? [];
+    list.push({ subject_type: a.subject_type, subject_key: a.subject_key, access: a.access });
+    accByKey.set(a.field_key, list);
+  }
+  const fields: AdminField[] = [...core, ...custom].map((f) => {
+    const config = cfgByKey.get(f.key) ?? null;
+    return {
+      key: f.key,
+      source: f.source,
+      labelAr: f.labelAr,
+      labelEn: f.labelEn,
+      isProtected: (config?.is_protected as boolean | undefined) ?? isDefaultProtected(entity, f.key),
+      config,
+      access: accByKey.get(f.key) ?? [],
+    };
+  });
+  // Order by config.sort when present, else registry order (stable).
+  fields.sort((a, b) => ((a.config?.sort as number) ?? 1e9) - ((b.config?.sort as number) ?? 1e9));
+  return {
+    entity,
+    fields,
+    sections: (secRows ?? []) as Array<Record<string, unknown>>,
+    roles: (roleRows ?? []) as Array<{ key: string; name_ar: string | null }>,
+  };
+}
