@@ -9,14 +9,42 @@ import { createClient } from '@/lib/supabase/server';
  *  Handlers run as the deciding user (RLS applies). */
 
 export type WorkflowOutcome = 'approved' | 'rejected';
-type Handler = (recordId: string, outcome: WorkflowOutcome) => Promise<void>;
+type Handler = (recordId: string, outcome: WorkflowOutcome, comment?: string | null) => Promise<void>;
 
 const HANDLERS: Record<string, Handler> = {
-  // Customer onboarding: approval marks the customer approved (sellable);
-  // rejection leaves it unapproved.
-  customer: async (recordId, outcome) => {
+  // Customer onboarding: approval marks the customer approved (sellable); rejection
+  // sets the Rejected state + stores the (mandatory) reason. `is_approved` mirrors
+  // approval_status so every existing sales gate keeps working unchanged.
+  customer: async (recordId, outcome, comment) => {
     const supabase = await createClient();
-    await supabase.from('erp_customers').update({ is_approved: outcome === 'approved' }).eq('id', recordId);
+    await supabase
+      .from('erp_customers')
+      .update({
+        approval_status: outcome === 'approved' ? 'approved' : 'rejected',
+        is_approved: outcome === 'approved',
+        rejection_reason: outcome === 'rejected' ? (comment ?? null) : null,
+      })
+      .eq('id', recordId);
+  },
+
+  // Staged sensitive change: on approve APPLY the staged values to the (still
+  // sellable) customer; on reject DISCARD them + store the reason. The customer's
+  // live values were never touched while the change was pending.
+  customer_change_request: async (recordId, outcome, comment) => {
+    const supabase = await createClient();
+    const { data: req } = await supabase
+      .from('erp_customer_change_requests')
+      .select('customer_id, changes')
+      .eq('id', recordId)
+      .single();
+    const r = req as { customer_id: string; changes: Record<string, unknown> } | null;
+    if (r && outcome === 'approved' && r.changes && Object.keys(r.changes).length > 0) {
+      await supabase.from('erp_customers').update(r.changes).eq('id', r.customer_id);
+    }
+    await supabase
+      .from('erp_customer_change_requests')
+      .update({ status: outcome, reason: outcome === 'rejected' ? (comment ?? null) : null, decided_at: new Date().toISOString() })
+      .eq('id', recordId);
   },
 
   // Credit limit approval: on approve, apply the requested limit to the customer;
@@ -40,8 +68,14 @@ export function hasWorkflowHandler(entity: string): boolean {
   return entity in HANDLERS;
 }
 
-/** Apply the per-entity outcome after a workflow completes (no-op if unmapped). */
-export async function applyWorkflowOutcome(entity: string, recordId: string, outcome: WorkflowOutcome): Promise<void> {
+/** Apply the per-entity outcome after a workflow completes (no-op if unmapped).
+ *  `comment` carries the decision note (mandatory on reject for customer flows). */
+export async function applyWorkflowOutcome(
+  entity: string,
+  recordId: string,
+  outcome: WorkflowOutcome,
+  comment?: string | null,
+): Promise<void> {
   const h = HANDLERS[entity];
-  if (h) await h(recordId, outcome);
+  if (h) await h(recordId, outcome, comment);
 }

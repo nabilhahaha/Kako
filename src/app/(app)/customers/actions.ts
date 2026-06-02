@@ -8,6 +8,9 @@ import { validateCustomValues } from '@/lib/erp/form-schema';
 import { coerceCustomValue } from '@/lib/erp/custom-fields';
 import { getT } from '@/lib/i18n/server';
 import { isCompanyWide } from '@/lib/erp/scope';
+import { hasPermission } from '@/lib/erp/permissions';
+import { applyWorkflowOutcome, type WorkflowOutcome } from '@/lib/erp/workflow-handlers';
+import { sensitiveChanges } from '@/lib/erp/customer-approval';
 
 /** Parse the `custom` JSON bag from a form, validate it against the entity's
  *  active custom-field definitions (server-authoritative), and return the
@@ -48,6 +51,7 @@ function numOrNull(v: FormDataEntryValue | null): number | null {
 function strOrNull(v: FormDataEntryValue | null): string | null {
   return String(v ?? '').trim() || null;
 }
+
 
 export async function upsertCustomer(formData: FormData): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
@@ -108,10 +112,59 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   };
 
   const supabase = await createClient();
-  const { error } = id
-    ? await supabase.from('erp_customers').update(payload).eq('id', id)
-    : await supabase.from('erp_customers').insert(payload);
 
+  // Per-company governance toggle (default off = today's behaviour).
+  let requireApproval = false;
+  if (ctx.companyId) {
+    const { data: comp } = await supabase.from('erp_companies').select('customers_require_approval').eq('id', ctx.companyId).maybeSingle();
+    requireApproval = !!(comp as { customers_require_approval?: boolean } | null)?.customers_require_approval;
+  }
+
+  if (!id) {
+    // CREATE: governance ON → Pending (+ start onboarding workflow); else Approved.
+    const createPayload = { ...payload, approval_status: requireApproval ? 'pending' : 'approved', is_approved: !requireApproval };
+    const { data: row, error } = await supabase.from('erp_customers').insert(createPayload).select('id').single();
+    if (error) return { ok: false, error: friendlyDbError(error) };
+    if (requireApproval) {
+      await supabase.rpc('erp_workflow_start', { p_key: 'customer_onboarding', p_entity: 'customer', p_record_id: (row as { id: string }).id, p_context: {} });
+      revalidatePath('/approvals');
+    }
+    revalidatePath('/customers');
+    return { ok: true };
+  }
+
+  // UPDATE: sensitive change on an APPROVED customer → stage it (customer keeps
+  // selling on current values); minor changes apply immediately.
+  if (requireApproval) {
+    const { data: cur } = await supabase
+      .from('erp_customers')
+      .select('approval_status, cr_number, tax_number, credit_limit, channel_id, segment_id, classification_id, payment_terms_days')
+      .eq('id', id)
+      .maybeSingle();
+    const current = cur as Record<string, unknown> | null;
+    if (current && current.approval_status === 'approved') {
+      const changes = sensitiveChanges(payload as unknown as Record<string, unknown>, current);
+      if (Object.keys(changes).length > 0) {
+        const live: Record<string, unknown> = { ...payload };
+        for (const k of Object.keys(changes)) delete live[k]; // don't touch live sensitive values
+        const { error: upErr } = await supabase.from('erp_customers').update(live).eq('id', id);
+        if (upErr) return { ok: false, error: friendlyDbError(upErr) };
+        const { data: req, error: reqErr } = await supabase
+          .from('erp_customer_change_requests')
+          .insert({ customer_id: id, changes, requested_by: ctx.userId })
+          .select('id')
+          .single();
+        if (reqErr) return { ok: false, error: friendlyDbError(reqErr) };
+        const { error: wfErr } = await supabase.rpc('erp_workflow_start', { p_key: 'customer_update', p_entity: 'customer_change_request', p_record_id: (req as { id: string }).id, p_context: {} });
+        if (wfErr) return { ok: false, error: friendlyDbError(wfErr) };
+        revalidatePath('/customers');
+        revalidatePath('/approvals');
+        return { ok: true };
+      }
+    }
+  }
+
+  const { error } = await supabase.from('erp_customers').update(payload).eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/customers');
   return { ok: true };
@@ -169,7 +222,13 @@ export async function setCustomerJourney(
 ): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
   const supabase = await createClient();
+  // Approval gate: don't assign a rep/route to a non-approved customer.
+  const { data: c } = await supabase.from('erp_customers').select('is_approved').eq('id', id).maybeSingle();
+  if (c && (c as { is_approved: boolean }).is_approved === false) {
+    return { ok: false, error: t('customers.errNotApproved') };
+  }
   const { error } = await supabase
     .from('erp_customers')
     .update({ salesman_id: salesmanId || null, visit_day: visitDay || null })
@@ -189,7 +248,7 @@ export async function requestCustomerApproval(id: string): Promise<ActionResult>
   if (!id) return { ok: false, error: t('customers.errUnauthorized') };
 
   const supabase = await createClient();
-  await supabase.from('erp_customers').update({ is_approved: false }).eq('id', id);
+  await supabase.from('erp_customers').update({ is_approved: false, approval_status: 'pending', rejection_reason: null }).eq('id', id);
   const { error } = await supabase.rpc('erp_workflow_start', {
     p_key: 'customer_onboarding', p_entity: 'customer', p_record_id: id, p_context: {},
   });
@@ -229,21 +288,56 @@ export async function requestCreditLimitChange(customerId: string, requestedLimi
   return { ok: true };
 }
 
-/** Super admin approves a rep-created customer so it can be sold to. */
-export async function approveCustomer(id: string): Promise<ActionResult> {
+/** Decide a customer's open onboarding workflow (or fall back to a direct status
+ *  set if none exists), gated by the `customers.approve` permission. Routes the
+ *  decision through the engine so history + outcome handling are consistent. */
+async function decideCustomer(id: string, decision: 'approve' | 'reject', reason?: string): Promise<ActionResult> {
   const { ctx } = await requireAuth();
   const { t } = await getT();
   if (!ctx) return { ok: false, error: t('customers.errUnauthorized') };
-  if (!ctx.isSuperAdmin) return { ok: false, error: t('customers.errApproveAdminOnly') };
+  if (!hasPermission(ctx, 'customers.approve')) return { ok: false, error: t('customers.errApproveDenied') };
+  if (decision === 'reject' && !(reason && reason.trim())) return { ok: false, error: t('customers.errRejectReason') };
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from('erp_customers')
-    .update({ is_approved: true })
-    .eq('id', id);
-  if (error) return { ok: false, error: friendlyDbError(error) };
+  const { data: inst } = await supabase
+    .from('erp_workflow_instances')
+    .select('id')
+    .eq('entity', 'customer').eq('record_id', id).eq('status', 'pending')
+    .order('started_at', { ascending: false }).limit(1).maybeSingle();
+  if (inst) {
+    const { data: task } = await supabase
+      .from('erp_workflow_tasks')
+      .select('id').eq('instance_id', (inst as { id: string }).id).eq('status', 'pending').limit(1).maybeSingle();
+    if (task) {
+      const { data, error } = await supabase.rpc('erp_workflow_decide', {
+        p_task_id: (task as { id: string }).id, p_decision: decision, p_comment: reason ?? null,
+      });
+      if (error) return { ok: false, error: error.message };
+      const res = (data ?? {}) as { final?: boolean; status?: string; entity?: string; record_id?: string };
+      if (res.final && res.entity && res.record_id && (res.status === 'approved' || res.status === 'rejected')) {
+        await applyWorkflowOutcome(res.entity, res.record_id, res.status as WorkflowOutcome, reason ?? null);
+      }
+      revalidatePath('/customers');
+      revalidatePath('/approvals');
+      return { ok: true };
+    }
+  }
+  // No open workflow (legacy/auto-approved) → set the status directly.
+  await supabase.from('erp_customers').update({
+    approval_status: decision === 'approve' ? 'approved' : 'rejected',
+    is_approved: decision === 'approve',
+    rejection_reason: decision === 'reject' ? (reason ?? null) : null,
+  }).eq('id', id);
   revalidatePath('/customers');
   return { ok: true };
+}
+
+export async function approveCustomer(id: string): Promise<ActionResult> {
+  return decideCustomer(id, 'approve');
+}
+
+export async function rejectCustomer(id: string, reason: string): Promise<ActionResult> {
+  return decideCustomer(id, 'reject', reason);
 }
 
 export async function toggleCustomerActive(

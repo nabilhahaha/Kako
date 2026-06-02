@@ -38,6 +38,13 @@ export async function assignCustomerToRoute(customerId: string, routeId: string 
   const ctx = await requireAnyPermission(['reports.view', 'customers.manage']);
   if (!ctx.companyId) return { ok: false, error: t('distribution.noCompany') };
   const supabase = await createClient();
+  // Approval gate: only approved customers can be assigned to a route.
+  if (routeId) {
+    const { data: c } = await supabase.from('erp_customers').select('is_approved').eq('id', customerId).maybeSingle();
+    if (c && (c as { is_approved: boolean }).is_approved === false) {
+      return { ok: false, error: t('distribution.customerNotApproved') };
+    }
+  }
   const patch: { route_id: string | null; salesman_id?: string | null; visit_day?: string | null } = { route_id: routeId };
   if (routeId) {
     const { data: r } = await supabase.from('erp_routes').select('rep_id, visit_day').eq('id', routeId).maybeSingle();

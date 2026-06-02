@@ -1,6 +1,12 @@
-# Slice — Customer Approval Workflow — Design Review (pilot)
+# Slice — Customer Approval Workflow — Design + Build (pilot)
 
-> **Design for approval — decisions locked; no build yet (review-first).** A
+> **✅ Built (migration 0109) — decisions locked; staging-validated; held from
+> production.** Implemented exactly as designed below: create→Pending, mandatory
+> rejection reason + engine history, sales/route/journey gates, **staged** sensitive
+> updates (customer keeps selling on old values), `customers.approve` permission via
+> a new engine **permission** approver type, reusable for update/credit-limit/master-data.
+
+> A
 > pilot-safe customer approval flow: statuses **Draft · Pending · Approved ·
 > Rejected**; Pending/Rejected customers are unusable for sales; **per-company
 > configurable** via permissions; **reusable** for updates / credit-limit / master

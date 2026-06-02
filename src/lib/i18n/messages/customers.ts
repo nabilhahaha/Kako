@@ -62,6 +62,9 @@ export const ar = {
     errImportNoRows: 'لا توجد صفوف صالحة (الكود والاسم مطلوبان).',
     errUnauthorized: 'غير مصرح.',
     errApproveAdminOnly: 'الاعتماد متاح لمدير النظام فقط.',
+    errApproveDenied: 'ليس لديك صلاحية اعتماد العملاء.',
+    errRejectReason: 'سبب الرفض مطلوب.',
+    errNotApproved: 'هذا العميل غير معتمد بعد، لا يمكن تنفيذ العملية.',
 
     // ── Table headers ────────────────────────────────────────────────
     colCode: 'الكود',
@@ -76,6 +79,11 @@ export const ar = {
     statusPending: 'بانتظار الاعتماد',
     statusActive: 'نشط',
     statusInactive: 'موقوف',
+    statusDraft: 'مسودة',
+    statusRejected: 'مرفوض',
+    btnReject: 'رفض',
+    rejectReasonPrompt: 'اكتب سبب الرفض',
+    changePending: 'تغيير بانتظار الاعتماد',
 
     // ── Row actions ───────────────────────────────────────────────────
     btnApprove: 'اعتماد',
@@ -195,6 +203,9 @@ export const en = {
     errImportNoRows: 'No valid rows found (code and name are required).',
     errUnauthorized: 'Unauthorized.',
     errApproveAdminOnly: 'Approval is restricted to system administrators.',
+    errApproveDenied: 'You don’t have permission to approve customers.',
+    errRejectReason: 'A rejection reason is required.',
+    errNotApproved: 'This customer is not approved yet — the action is blocked.',
 
     // ── Table headers ────────────────────────────────────────────────
     colCode: 'Code',
@@ -209,6 +220,11 @@ export const en = {
     statusPending: 'Pending Approval',
     statusActive: 'Active',
     statusInactive: 'Suspended',
+    statusDraft: 'Draft',
+    statusRejected: 'Rejected',
+    btnReject: 'Reject',
+    rejectReasonPrompt: 'Enter a rejection reason',
+    changePending: 'Change pending approval',
 
     // ── Row actions ───────────────────────────────────────────────────
     btnApprove: 'Approve',

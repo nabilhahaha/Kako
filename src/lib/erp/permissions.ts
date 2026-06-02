@@ -8,6 +8,7 @@ export type Permission =
   | 'sales.collect' // record customer payments
   | 'sales.return' // create/approve sales returns
   | 'customers.manage'
+  | 'customers.approve' // approve/reject customer onboarding + sensitive change requests
   | 'inventory.view'
   | 'inventory.adjust' // manual stock adjustments / stocktake
   | 'inventory.transfer' // move stock between warehouses
@@ -45,6 +46,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'sales.collect': { en: 'Collect from customers', ar: 'تحصيل من العملاء', group: 'sales' },
   'sales.return': { en: 'Sales returns', ar: 'مرتجعات المبيعات', group: 'sales' },
   'customers.manage': { en: 'Manage customers', ar: 'إدارة العملاء', group: 'sales' },
+  'customers.approve': { en: 'Approve customers & changes', ar: 'اعتماد العملاء والتعديلات', group: 'sales' },
   'inventory.view': { en: 'View stock balances', ar: 'عرض أرصدة المخزون', group: 'inventory' },
   'inventory.adjust': { en: 'Adjust inventory', ar: 'تسوية المخزون', group: 'inventory' },
   'inventory.transfer': { en: 'Transfer between warehouses', ar: 'التحويل بين المخازن', group: 'inventory' },
