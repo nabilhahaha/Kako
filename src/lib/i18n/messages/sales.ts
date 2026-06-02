@@ -89,6 +89,9 @@ export const ar = {
     invoiceErrNeedLine: 'أضف صنفاً واحداً على الأقل بكمية صحيحة.',
     invoiceErrAmountPositive: 'المبلغ يجب أن يكون أكبر من صفر.',
     invoiceErrCustomerPending: 'هذا العميل بانتظار اعتماد مدير النظام، لا يمكن البيع له بعد.',
+    orderErrCustomerPending: 'هذا العميل بانتظار الاعتماد، لا يمكن إنشاء أمر بيع له بعد.',
+    errOverCredit: 'تجاوز حد الائتمان للعميل. اطلب رفع الحد أو حصّل دفعة أولاً.',
+    errInsufficientStock: 'الكمية غير متوفرة في المخزون لصنف واحد أو أكثر.',
     invoiceWhatsAppReminder: 'تذكير',
     invoiceWhatsAppMsg: 'مرحباً {customer}، نذكّركم بالفاتورة رقم {number} والمبلغ المتبقي {amount}. برجاء السداد. شكراً.',
 
@@ -313,6 +316,9 @@ export const en = {
     invoiceErrNeedLine: 'Add at least one item with a valid quantity.',
     invoiceErrAmountPositive: 'Amount must be greater than zero.',
     invoiceErrCustomerPending: 'This customer is awaiting admin approval and cannot be sold to yet.',
+    orderErrCustomerPending: 'This customer is awaiting approval; a sales order cannot be created yet.',
+    errOverCredit: 'This exceeds the customer’s credit limit. Request a higher limit or collect a payment first.',
+    errInsufficientStock: 'Insufficient stock for one or more items.',
     invoiceWhatsAppReminder: 'Reminder',
     invoiceWhatsAppMsg: 'Hello {customer}, this is a reminder for invoice #{number} with a balance of {amount}. Please settle at your earliest convenience. Thank you.',
 

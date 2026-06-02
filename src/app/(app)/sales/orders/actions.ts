@@ -25,6 +25,17 @@ export async function createSalesOrder(input: OrderInput): Promise<ActionResult<
   if (lines.length === 0) return { ok: false, error: t('sales.atLeastOneLine') };
 
   const supabase = await createClient();
+
+  // Consistency with invoicing: don't sell to a customer awaiting approval.
+  const { data: cust } = await supabase
+    .from('erp_customers')
+    .select('is_approved')
+    .eq('id', input.customer_id)
+    .maybeSingle();
+  if (cust && cust.is_approved === false) {
+    return { ok: false, error: t('sales.orderErrCustomerPending') };
+  }
+
   const totals = computeTotals(lines);
 
   const { data: orderNumber, error: numErr } = await supabase.rpc('erp_next_number', {

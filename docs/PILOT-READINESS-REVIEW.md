@@ -115,16 +115,22 @@ pattern; **not auto-applied** (operator runs it on the demo project). 🟢
 
 ---
 
-## 9. Pilot-hardening punch list (recommended small slice — approve to apply)
-| # | Item | Area | Sev | Effort |
+## 9. Pilot-hardening punch list — ✅ #1–#5 applied (this slice)
+| # | Item | Area | Sev | Status |
 |---|---|---|---|---|
-| 1 | Grant `pricing.manage` (+ `settings.custom_fields`) to `sales_director`/`national_sales_manager` | perms | 🟠 | XS |
-| 2 | `upsertCustomer`: clamp `credit_limit ≥ 0` + friendly FK/email errors | valid. | 🟠 | XS |
-| 3 | `createInvoice`: stock + credit pre-check (warn/block) | valid. | 🟠 | S |
-| 4 | `createSalesOrder`: gate unapproved customers (consistency) | valid. | 🟠 | XS |
-| 5 | `upsertPriceRule`: require `scope_id` for non-global, assert date order, bound percent | valid. | 🟠 | XS |
-| 6 | Default price list auto-created per company (Pricing usable day 1) | onboarding | 🟡 | S |
-| 7 | Roll card-list to products/orders/pricing lists (mobile consistency) | mobile | 🟡 | M |
+| 1 | Grant `pricing.manage` + `settings.custom_fields` to `sales_director`/`national_sales_manager` | perms | 🟠 | ✅ migration 0107 + TS `ROLE_PERMISSIONS` + test |
+| 2 | `upsertCustomer`: reject negative `credit_limit` | valid. | 🟠 | ✅ |
+| 3 | `createInvoice`: credit-limit pre-check (limit > 0) + stock pre-check (tracked products only, so no-inventory pilots can still draft) | valid. | 🟠 | ✅ |
+| 4 | `createSalesOrder`: gate unapproved customers (consistency) | valid. | 🟠 | ✅ |
+| 5 | `upsertPriceRule`: require `scope_id` for non-global, value ≥ 0, percent ≤ 100, date order | valid. | 🟠 | ✅ |
+| 6 | Default price list auto-created per company (Pricing usable day 1) | onboarding | 🟡 | deferred (nice-to-have) |
+| 7 | Roll card-list to products/orders/pricing lists (mobile consistency) | mobile | 🟡 | deferred (nice-to-have) |
+
+> **Design notes (no-regression):** the invoice **stock** check only blocks products
+> that are *already tracked* in the branch (have stock rows), so a pilot that hasn't
+> loaded inventory can still draft. The **credit** check only triggers when a limit
+> is set (`credit_limit > 0`; `0` = unlimited) — raise via the credit-limit-request
+> workflow. Migration **0107** is additive and **held from production**.
 
 ## 10. Go / no-go checklist
 - [x] Onboarding creates company/branch/admin + seeds roles/modules/master data
@@ -133,9 +139,10 @@ pattern; **not auto-applied** (operator runs it on the demo project). 🟢
 - [x] Import manual-first + per-company templates
 - [x] Mobile nav + card lists (customers/invoices); grouped forms; RTL
 - [x] **Demo dataset** prepared (§5)
-- [ ] **Pilot-hardening slice** (§9 #1–#5) — recommended before go-live
-- [ ] Production migrations `0103–0106` applied to the pilot tenant (held; your go-ahead)
+- [x] **Pilot-hardening slice** (§9 #1–#5 + walkthrough D1/B1) — ✅ applied (permissions + validations)
+- [ ] Production migrations `0103–0108` applied to the pilot tenant (held; your go-ahead)
 - [ ] Demo seed run on the demo project; a quick scripted end-to-end smoke per role
+- [ ] Merge the stack per `docs/PILOT-MERGE-PLAN.md`
 
 *(Review complete — no feature code changed. On approval I'll apply the §9
 pilot-hardening slice (small, reviewed) and help sequence the merge + the

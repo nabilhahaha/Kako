@@ -7,6 +7,7 @@ import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
 import { validateCustomValues } from '@/lib/erp/form-schema';
 import { coerceCustomValue } from '@/lib/erp/custom-fields';
 import { getT } from '@/lib/i18n/server';
+import { isCompanyWide } from '@/lib/erp/scope';
 
 /** Parse the `custom` JSON bag from a form, validate it against the entity's
  *  active custom-field definitions (server-authoritative), and return the
@@ -49,8 +50,8 @@ function strOrNull(v: FormDataEntryValue | null): string | null {
 }
 
 export async function upsertCustomer(formData: FormData): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
   const { t } = await getT();
 
   const id = String(formData.get('id') || '').trim();
@@ -58,10 +59,18 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   const name = String(formData.get('name') || '').trim();
   if (!code) return { ok: false, error: t('customers.errCodeRequired') };
   if (!name) return { ok: false, error: t('customers.errNameRequired') };
+  if (num(formData.get('credit_limit')) < 0) return { ok: false, error: t('customers.errCreditNegative') };
 
   const branchId = String(formData.get('branch_id') || '').trim();
-  const salesmanId = String(formData.get('salesman_id') || '').trim();
+  let salesmanId = String(formData.get('salesman_id') || '').trim();
   const visitDay = String(formData.get('visit_day') || '').trim();
+
+  // D1: a scoped Sales Rep creating a customer self-assigns, so it lands in their
+  // visibility (S4) and passes the S4b write-scope instead of erroring/vanishing.
+  const roles = ctx.memberships.map((m) => m.role);
+  if (!id && !salesmanId && !isCompanyWide(roles) && roles.includes('salesman')) {
+    salesmanId = ctx.userId;
+  }
 
   // Custom fields (Dynamic Forms): validated + coerced server-side.
   const cf = await resolveCustom('customer', formData.get('custom'));

@@ -51,6 +51,10 @@ describe('FMCG hierarchy roles (S2)', () => {
       expect(p).toContain('reports.view');
       expect(p).toContain('accounting.view');
       expect(p).not.toContain('settings.users');
+      // Pilot hardening: sales leadership can run Pricing + Customer Data + Import.
+      expect(p).toContain('pricing.manage');
+      expect(p).toContain('settings.custom_fields');
+      expect(p).toContain('integrations.manage');
     }
   });
   it('IT Admin = technical settings only (no selling/finance)', () => {

@@ -58,6 +58,7 @@ export const ar = {
     // ── Validation ───────────────────────────────────────────────────
     errCodeRequired: 'كود العميل مطلوب.',
     errNameRequired: 'الاسم (إنجليزي) مطلوب.',
+    errCreditNegative: 'حد الائتمان لا يمكن أن يكون سالباً.',
     errImportNoRows: 'لا توجد صفوف صالحة (الكود والاسم مطلوبان).',
     errUnauthorized: 'غير مصرح.',
     errApproveAdminOnly: 'الاعتماد متاح لمدير النظام فقط.',
@@ -190,6 +191,7 @@ export const en = {
     // ── Validation ───────────────────────────────────────────────────
     errCodeRequired: 'Customer code is required.',
     errNameRequired: 'Name (English) is required.',
+    errCreditNegative: 'Credit limit cannot be negative.',
     errImportNoRows: 'No valid rows found (code and name are required).',
     errUnauthorized: 'Unauthorized.',
     errApproveAdminOnly: 'Approval is restricted to system administrators.',

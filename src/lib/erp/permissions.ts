@@ -109,12 +109,12 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   sales_director: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'inventory.view', 'reports.view', 'accounting.view',
-    'stock_request.approve',
+    'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
   ],
   national_sales_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'inventory.view', 'reports.view', 'accounting.view',
-    'stock_request.approve',
+    'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
   ],
   // Regional / Area: commercial management (no finance posting / settings).
   regional_manager: [
