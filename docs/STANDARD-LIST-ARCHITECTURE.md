@@ -81,6 +81,46 @@ Only **one page** of rows is fetched → list cost is independent of table size 
 - 🟠 **Should:** Returns, Visits, Approval Requests.
 - 🟢 **Can-Wait:** Routes paging (small), **saved filters** (`erp_list_views`), row virtualization, per-user column/sort preferences.
 
+## 7a. Operational standard (official, for all current & future list entities)
+
+### Recommended default page sizes
+| Tier | Entities | Default | Rationale |
+|---|---|--:|---|
+| Master data | Customers, Products, Suppliers | **25** | dense rows, frequent scan/edit |
+| Transactional | Invoices, Orders, Returns, Approval Requests | **25** | newest-first, status filters |
+| High-volume / wide | Inventory levels, Visits, Stock movements | **50** | compact rows, more per screen |
+| Small config | Routes, lookups | **50 / none** | usually below one page |
+> Override per page; never load unbounded. `pageSize` is a page argument, not hard-coded in the helper.
+
+### Maximum dataset sizes — tested vs designed-for (honest)
+- **Tested in CI / dev:** small fixtures (tens–hundreds of rows) for correctness (RLS, pagination math, search). **No large-scale load test has been run yet.**
+- **Designed-for (architecture target, per the DB Scalability Review):** 250,000 customers, millions of transactions — supported *because only one page is fetched* and order/filter hit the 0110 composite indexes.
+- **Required before claiming the numbers:** the load-testing plan (seed 10 companies × ~25k customers + 12 months of transactions; measure p95 on list/search/sort/paged endpoints with and without `planned` count). **This is a Pilot-Readiness action item, not a completed test.**
+
+### Search behavior — Arabic & English
+- Implementation: `ILIKE '%term%'` across configured columns (incl. `name_ar`), OR-combined; input sanitized of `%,(),*`.
+- **English:** case-insensitive substring (ILIKE folds ASCII case).
+- **Arabic:** matches substrings in `name_ar` (Arabic has no letter case). **Not normalized today:** alef variants (أ/إ/آ/ا), taa-marbuta/haa (ة/ه), and diacritics (tashkeel) are **not** folded — e.g. searching "احمد" won't match "أحمد". 
+- **Recommended upgrade (Can-Wait):** a normalized search column (`unaccent` + Arabic letter folding) or `pg_trgm` GIN index for fuzzy/fast matching at scale. Documented for future; current behavior is exact-substring per stored form.
+
+### Sorting on large datasets
+- Sort columns are **allow-listed** (`parseSort`) — no arbitrary/ user-supplied column ordering.
+- **Sortable columns MUST be indexed** (or part of a composite). Default sorts use indexed columns (`code`, `created_at`) so ordering is an index scan, not a full sort.
+- Sorting on **unindexed or computed** columns (e.g. derived balance) at large scale is discouraged — add an index first, or sort within the page only.
+- Pagination stays correct under sort because `.order()` + `.range()` are applied together server-side.
+
+### Export — limits & batching
+- `exportList` re-applies the **active filters/search/sort** (exports the filtered set, not just the visible page).
+- **Batched** via `.range()` in chunks (recommended **1,000 rows/batch**) and streamed to the file — never loads the whole set into memory.
+- **Hard cap** recommended at **50,000 rows** per export (beyond that, prompt to narrow filters or use a scheduled/async export). Caps protect the request and the browser.
+- Respects RLS + governance redaction (hidden fields excluded from exports).
+
+### Mobile behavior — pagination & filters
+- **Pager:** prev/next + "page x/y" + "from–to / total"; large tap targets; hidden entirely when results fit one page.
+- **Search:** `<ListSearch>` is full-width on mobile (`w-full`), inline on desktop.
+- **Filters:** dropdowns wrap on small screens; recommended enhancement = a **collapsible "Filters" drawer/sheet** on mobile so the toolbar stays clean (Should-Fix polish).
+- **List body:** cards on mobile, table on `sm+` (the Customers pattern) — the standard for dense entities.
+
 ## 8. Recommended execution order
 1. **This slice (done):** framework helper + `<ListSearch>`/`<Pager>` + **Products & Suppliers** references.
 2. **Next:** Customers + Inventory (the high-volume ones) → **S2** per-page redaction.
