@@ -66,6 +66,23 @@ Large forms stay usable via **configurable, orderable sections per company** —
 
 **Optional enhancement (DFG-2, additive — no DFG-1 schema change):** an `erp_field_sections(company_id, entity, key, label_ar, label_en, sort)` table for **explicit bilingual section labels and section-level drag-ordering**. Until then, sections render from the distinct `section` keys ordered by field `sort`.
 
+**Section presentation metadata (DFG-2, additive — no DFG-1 schema change).** An `erp_field_sections` table makes sections first-class with the presentation attributes needed for very large forms (100+ fields):
+```
+erp_field_sections(
+  company_id, entity, key,            -- the section identity (matches field_config.section)
+  label_ar, label_en,                 -- explicit bilingual labels
+  description_ar, description_en,      -- help text shown under the section title
+  icon,                               -- icon name (lucide key) per section
+  collapsible      bool default true, -- can the user fold this section?
+  default_collapsed bool default false,-- initial expanded/collapsed state
+  sort             int                 -- section-level drag-ordering
+)
+```
+- **Icons per section** → `icon`. **Descriptions/help text** → `description_ar/en` (the existing `FormSection` already renders an optional description). **Collapsible** → `collapsible`. **Default expanded/collapsed** → `default_collapsed`.
+- **Backward-compatible:** absent row ⇒ section renders with its key as the label, no icon, expanded, ordered by field `sort` (today's behavior). The table only *enriches* presentation.
+
+**Mobile-friendly rendering (DFG-3 form renderer).** Sections render as a **single-column accordion** on mobile: collapsible cards (honoring `default_collapsed`), one field per row, large tap targets, RTL-aware — so a 100+-field form stays scannable on a phone. On desktop the same sections render as the existing multi-column `FormSection` groups. The renderer is driven entirely by the resolved layout + section metadata, so the **same configuration** produces both.
+
 ## 6. Resolver & enforcement (generic, one implementation)
 
 `src/lib/erp/field-governance.ts` (pure, unit-tested):
