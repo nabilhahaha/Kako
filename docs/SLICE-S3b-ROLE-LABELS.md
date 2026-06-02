@@ -9,6 +9,18 @@
 
 ---
 
+## ✅ Locked owner decisions (build after S4)
+1. **Storage** — add nullable `label_en` / `label_ar` to `erp_company_roles`.
+2. **Scope** — renaming allowed for **all** roles (not just FMCG sales hierarchy).
+3. **Gating** — manage under **Settings → Roles**, `settings.users` permission.
+4. **Sequencing** — **after S4**, then S3b.
+5. **Role labels only** — companies rename existing platform roles; defining
+   brand-new role keys with independent permissions is a **separate future slice**.
+
+The §5 questions below are resolved by the above; kept for context.
+
+---
+
 ## 1. Goal (from owner request)
 Platform maintains the permission model + hierarchy logic; companies rename the
 **visible** role titles to fit their industry. Example map:

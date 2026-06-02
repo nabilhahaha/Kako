@@ -207,3 +207,37 @@ targets, promotions, returns, basic commissions) — internally consistent.
 *(Plan only — nothing built. On your §Decisions answers I'll start with the
 smallest slice, bring its design/verification back per slice, and hold every
 production migration for approval.)*
+
+---
+
+## Program status & reviewed backlog (updated)
+
+| Slice | Status | Notes |
+|---|---|---|
+| **S1** — Region + Area entities | ✅ merged (#59) | `erp_regions`/`erp_areas` + branch links |
+| **S2** — Roles (Branch Manager ≠ Admin) | ✅ merged (#60) | Option B, zero regression |
+| **S3** — Expanded customer model | ✅ built (#61) | + **company-managed master data** (segment/class/channel as `erp_customer_lookups`). `docs/SLICE-S3-CUSTOMER-MODEL.md` |
+| **S4** — Hierarchy scope + RLS | ⏳ design review | the heaviest, RLS-verified. `docs/SLICE-S4-SCOPE-RLS.md` |
+| **S3b** — Company-configurable role labels | 🔒 decisions locked; build **after S4** | labels over fixed role keys. `docs/SLICE-S3b-ROLE-LABELS.md` |
+| **Pricing** (own slice) | 📋 backlog — reviewed slice **after S4** | see below |
+| **S5** — Promotions module | 📋 backlog | `erp_promotions` + lifecycle |
+
+### Future reviewed slice — Pricing (separate module, independent of customer master)
+Owner-requested as its own reviewed slice **after S4**. Pricing is a **standalone
+module**, not part of the customer record. Proposed scope (to be designed
+review-first when reached, additive on top of the existing `erp_price_lists` /
+`erp_price_list_items` / `erp_wholesale_tiers`):
+
+- **Price Lists** + **Price List Items** (per product/UoM).
+- **Customer-specific** pricing · **Channel-specific** · **Segment-specific** ·
+  **Branch-specific** pricing (keys off S3 master data + S1 geo + branches).
+- **Effective dates** (valid_from / valid_to) + **price change history** (audit of
+  every change).
+- **Promotion pricing** (integrates with S5 promotions).
+- **Price priority rules** — deterministic resolution when multiple prices match
+  (e.g. customer > segment > channel > branch > list), the core design question.
+
+> Kept deliberately **separate from the customer master**: customers reference
+> segment/channel/branch; the pricing engine reads those to resolve a price. This
+> slice will get its own design review (model + priority-rule semantics +
+> effective-dating + history) → build → verify → PR, after S4.
