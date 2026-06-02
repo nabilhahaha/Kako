@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { adjustStock } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,11 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/shared/empty-state';
+import { ListSearch } from '@/components/list-search';
+import { Pager } from '@/components/pager';
 import { STOCK_MOVEMENT_TYPE_LABELS } from '@/lib/erp/constants';
 import { formatNumber, formatDate } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, ProductCatalog, StockMovementType, Warehouse } from '@/lib/erp/types';
-import { Boxes, Search, SlidersHorizontal, Loader2, X, History } from 'lucide-react';
+import { Boxes, SlidersHorizontal, Loader2, X, History } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface StockRow {
@@ -37,27 +39,36 @@ export function InventoryView({
   warehouses,
   products,
   movements,
+  q = '',
+  warehouse = '',
+  page = 1,
+  pageSize = 50,
+  total = 0,
 }: {
   stock: StockRow[];
   warehouses: Warehouse[];
   products: ProductCatalog[];
   branches: Branch[];
   movements: MovementRow[];
+  q?: string;
+  warehouse?: string;
+  page?: number;
+  pageSize?: number;
+  total?: number;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t, locale } = useI18n();
   const [tab, setTab] = useState<'levels' | 'movements'>('levels');
-  const [warehouseFilter, setWarehouseFilter] = useState('');
-  const [query, setQuery] = useState('');
   const [adjust, setAdjust] = useState<{ warehouse_id: string; product_id: string } | null>(null);
 
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const whById = useMemo(() => new Map(warehouses.map((w) => [w.id, w])), [warehouses]);
 
+  // Server-paginated page of stock; map for display + sort the page by name.
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return stock
-      .filter((s) => (warehouseFilter ? s.warehouse_id === warehouseFilter : true))
       .map((s) => {
         const p = productById.get(s.product_id);
         const w = whById.get(s.warehouse_id);
@@ -69,11 +80,17 @@ export function InventoryView({
           whName: w ? `${w.code} · ${w.name_ar || w.name}` : '—',
         };
       })
-      .filter((r) =>
-        q ? r.productName.toLowerCase().includes(q) || r.productCode.toLowerCase().includes(q) : true,
-      )
       .sort((a, b) => a.productName.localeCompare(b.productName));
-  }, [stock, warehouseFilter, query, productById, whById]);
+  }, [stock, productById, whById]);
+
+  function setParam(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    params.delete('page');
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }
 
   return (
     <div className="space-y-4">
@@ -96,8 +113,8 @@ export function InventoryView({
         {tab === 'levels' && (
           <>
             <select
-              value={warehouseFilter}
-              onChange={(e) => setWarehouseFilter(e.target.value)}
+              value={warehouse}
+              onChange={(e) => setParam('warehouse', e.target.value)}
               className="h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">{t('inventory.allWarehouses')}</option>
@@ -105,13 +122,10 @@ export function InventoryView({
                 <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
               ))}
             </select>
-            <div className="relative ms-auto">
-              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('inventory.searchProduct')} className="w-56 pe-9" />
-            </div>
+            <ListSearch placeholder={t('inventory.searchProduct')} className="w-full sm:ms-auto sm:w-56" />
             <Button
               variant="outline"
-              onClick={() => setAdjust({ warehouse_id: warehouseFilter || warehouses[0]?.id || '', product_id: '' })}
+              onClick={() => setAdjust({ warehouse_id: warehouse || warehouses[0]?.id || '', product_id: '' })}
               disabled={warehouses.length === 0 || products.length === 0}
             >
               <SlidersHorizontal className="h-4 w-4" /> {t('inventory.adjustStock')}
@@ -124,6 +138,7 @@ export function InventoryView({
         rows.length === 0 ? (
           <EmptyState icon={<Boxes />} title={t('inventory.emptyLevels')} />
         ) : (
+          <>
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -166,6 +181,8 @@ export function InventoryView({
               </div>
             </CardContent>
           </Card>
+          <Pager page={page} pageSize={pageSize} total={total} basePath="/inventory" query={{ q: q || undefined, warehouse: warehouse || undefined }} />
+          </>
         )
       ) : movements.length === 0 ? (
         <Card>
