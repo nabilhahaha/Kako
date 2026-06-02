@@ -217,8 +217,10 @@ production migration for approval.)*
 | **S1** — Region + Area entities | ✅ merged (#59) | `erp_regions`/`erp_areas` + branch links |
 | **S2** — Roles (Branch Manager ≠ Admin) | ✅ merged (#60) | Option B, zero regression |
 | **S3** — Expanded customer model | ✅ built (#61) | + **company-managed master data** (segment/class/channel as `erp_customer_lookups`). `docs/SLICE-S3-CUSTOMER-MODEL.md` |
-| **S4** — Hierarchy scope + RLS | ⏳ design review | the heaviest, RLS-verified. `docs/SLICE-S4-SCOPE-RLS.md` |
+| **S4a** — Hierarchy scope + RLS (customers + routes) | ✅ built (#62) | scope resolver + RLS; company-wide roles unchanged. `docs/SLICE-S4-SCOPE-RLS.md` |
+| **S4b** — Scope on transactional tables + write-scope | 📋 backlog (after S4a) | invoices/orders/visits rep/supervisor narrowing; `WITH CHECK` write-scope |
 | **S3b** — Company-configurable role labels | 🔒 decisions locked; build **after S4** | labels over fixed role keys. `docs/SLICE-S3b-ROLE-LABELS.md` |
+| **Enterprise UX / Navigation / Grouping review** | 📋 backlog — **before pilot rollout** | menu grouping · action-based nav · field ordering/grouping · form & page layouts · workflow simplification · mobile usability |
 | **Pricing** (own slice) | 📋 backlog — reviewed slice **after S4** | see below |
 | **S5** — Promotions module | 📋 backlog | `erp_promotions` + lifecycle |
 

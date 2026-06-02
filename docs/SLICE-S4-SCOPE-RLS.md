@@ -1,6 +1,14 @@
-# Slice S4 — Hierarchy Scope + RLS — Design Review
+# Slice S4 — Hierarchy Scope + RLS — Design + Build (S4a)
 
-> **Design for approval — no build yet.** The substantive, RLS-verified slice:
+> **Owner decisions locked (all recommended) — S4a built (migration 0104).**
+> S4a scopes `erp_customers` + `erp_routes`; transactional tables = S4b.
+> Locked: (1) Finance/Viewer/IT company-wide; (2) multi-role → company-wide if any
+> non-scoped role, else union scoped; (3) reuse single region/area `manager_id`;
+> (4) supervisor = `reports_to` reps + branch customers; (5) match customer's own
+> region/area AND its branch's; (6) **read-scope only** (`WITH CHECK` company-only)
+> — write-scope = S4b; (7) customers + routes only; (8) **RLS** enforcement.
+
+> The substantive, RLS-verified slice:
 > each sales-hierarchy level sees only **their** slice of customers/routes instead
 > of the whole company. Builds on S1 (regions/areas + branch links), S2 (roles +
 > ranks), S3 (`customer.region_id`/`area_id`/`segment_id`…). **Additive; zero
