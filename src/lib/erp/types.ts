@@ -71,10 +71,24 @@ export type SequenceType =
 export type BranchRole =
   | 'admin'
   | 'manager'
+  // FMCG sales hierarchy (S2). Branch Manager is distinct from Company Admin.
+  // Scope (region/area/branch visibility) is enforced in S4.
+  | 'sales_director'
+  | 'national_sales_manager'
+  | 'regional_manager'
+  | 'area_manager'
+  | 'branch_manager'
+  | 'it_admin'
   | 'supervisor'
   | 'accountant'
   | 'cashier'
   | 'salesman'
+  | 'driver'
+  | 'technician'
+  | 'doctor'
+  | 'receptionist'
+  | 'stylist'
+  | 'housekeeping'
   | 'warehouse_keeper'
   | 'staff'
   | 'viewer';
@@ -102,7 +116,19 @@ export type BusinessType =
   | 'clothing'
   | 'restaurant'
   | 'cafe'
-  | 'services';
+  | 'delivery'
+  | 'services'
+  | 'bakery'
+  | 'butchery'
+  | 'herbalist'
+  | 'auto_parts'
+  | 'bookstore'
+  | 'electronics'
+  | 'laundry'
+  | 'workshop'
+  | 'clinic'
+  | 'salon'
+  | 'hotel';
 
 export interface Company {
   id: string;
@@ -117,10 +143,14 @@ export interface Company {
   website: string | null;
   currency: string;
   is_active: boolean;
+  allow_self_users: boolean;
   business_type: BusinessType | null;
   slug: string | null;
+  plan_key: string | null;
   subscription_start: string | null;
   subscription_end: string | null;
+  trial_ends_at: string | null;
+  setup_done: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -137,6 +167,37 @@ export interface Branch {
   email: string | null;
   is_active: boolean;
   is_hq: boolean;
+  /** FMCG geography links (S1; nullable). */
+  region_id: string | null;
+  area_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** FMCG geography — a Region groups Areas; an Area groups Branches (S1). */
+export interface Region {
+  id: string;
+  company_id: string;
+  name: string;
+  name_ar: string | null;
+  manager_id: string | null;
+  sort: number;
+  is_active: boolean;
+  external_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Area {
+  id: string;
+  company_id: string;
+  region_id: string | null;
+  name: string;
+  name_ar: string | null;
+  manager_id: string | null;
+  sort: number;
+  is_active: boolean;
+  external_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -148,7 +209,49 @@ export interface UserBranch {
   role: BranchRole;
   is_default: boolean;
   reports_to: string | null;
+  department_id: string | null;
+  team_id: string | null;
+  job_title_id: string | null;
   created_at: string;
+}
+
+// ─── Organization Structure ─────────────────────────────────────────────────
+// Generic, business-type-neutral org concepts: departments, teams, job titles
+// and reporting lines. Work for retail, distribution, clinics, manufacturing,
+// services, warehouses and corporate orgs alike. All company-scoped.
+
+export interface Department {
+  id: string;
+  company_id: string;
+  branch_id: string | null;
+  name: string;
+  name_ar: string | null;
+  manager_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Team {
+  id: string;
+  company_id: string;
+  department_id: string | null;
+  name: string;
+  name_ar: string | null;
+  lead_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobTitle {
+  id: string;
+  company_id: string;
+  name: string;
+  name_ar: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Profile {
@@ -212,6 +315,10 @@ export interface ProductCatalog {
   is_active: boolean;
   image_url: string | null;
   description: string | null;
+  /** ETA e-invoicing item code mapping (EGS or GS1) + unit-of-measure code. */
+  eta_item_code: string | null;
+  eta_item_code_type: 'EGS' | 'GS1' | null;
+  eta_unit_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -347,9 +454,19 @@ export interface Invoice {
   paid_amount: number;
   notes: string | null;
   created_by: string | null;
+  eta_status: EtaInvoiceStatus;
+  eta_uuid: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type EtaInvoiceStatus =
+  | 'not_submitted'
+  | 'submitted'
+  | 'valid'
+  | 'invalid'
+  | 'rejected'
+  | 'cancelled';
 
 export interface InvoiceLine {
   id: string;

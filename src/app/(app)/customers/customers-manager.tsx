@@ -2,19 +2,23 @@
 
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { upsertCustomer, toggleCustomerActive } from './actions';
+import { upsertCustomer, toggleCustomerActive, requestCustomerApproval, requestCreditLimitChange } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { FieldError } from '@/components/ui/field-error';
 import { formatCurrency } from '@/lib/utils';
 import { VISIT_DAYS } from '@/lib/erp/constants';
 import { importCustomers, approveCustomer } from './actions';
 import type { Branch, ErpCustomer, Profile } from '@/lib/erp/types';
+import type { CustomFieldDef } from '@/lib/erp/custom-fields';
+import { DynamicCustomFields } from '@/components/forms/dynamic-custom-fields';
 import Link from 'next/link';
 import { Plus, Pencil, Loader2, X, Users, Search, AlertTriangle, FileText, Upload, Printer, BadgeCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
 type Rep = Pick<Profile, 'id' | 'full_name' | 'email'>;
 
@@ -23,24 +27,29 @@ export function CustomersManager({
   branches,
   reps,
   isSuperAdmin,
+  customFields = [],
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
   reps: Rep[];
   isSuperAdmin: boolean;
+  customFields?: CustomFieldDef[];
 }) {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const [editing, setEditing] = useState<ErpCustomer | null | 'new'>(null);
   const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState('');
+  const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
+  const [creditLimitInput, setCreditLimitInput] = useState('');
   const [pending, startTransition] = useTransition();
 
   function onApprove(id: string) {
     startTransition(async () => {
       const res = await approveCustomer(id);
-      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      if (!res.ok) toast.error(res.error ?? t('customers.toastError'));
       else {
-        toast.success('تم اعتماد العميل');
+        toast.success(t('customers.toastApproved'));
         router.refresh();
       }
     });
@@ -53,7 +62,7 @@ export function CustomersManager({
   };
 
   const branchName = (id: string | null) => {
-    if (!id) return 'عام';
+    if (!id) return t('customers.branchGeneral');
     const b = branches.find((x) => x.id === id);
     return b ? b.name_ar || b.name : '—';
   };
@@ -73,13 +82,18 @@ export function CustomersManager({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const next: { code?: string; name?: string } = {};
+    if (!String(formData.get('code') ?? '').trim()) next.code = t('customers.errCodeRequired');
+    if (!String(formData.get('name') ?? '').trim()) next.name = t('customers.errNameRequired');
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
     startTransition(async () => {
       const res = await upsertCustomer(formData);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('customers.toastError'));
         return;
       }
-      toast.success(editing === 'new' ? 'تمت إضافة العميل' : 'تم تحديث العميل');
+      toast.success(editing === 'new' ? t('customers.toastCreated') : t('customers.toastUpdated'));
       setEditing(null);
       router.refresh();
     });
@@ -88,7 +102,7 @@ export function CustomersManager({
   function onToggle(c: ErpCustomer) {
     startTransition(async () => {
       const res = await toggleCustomerActive(c.id, !c.is_active);
-      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      if (!res.ok) toast.error(res.error ?? t('customers.toastError'));
       else router.refresh();
     });
   }
@@ -101,20 +115,20 @@ export function CustomersManager({
       <div className="flex flex-wrap items-center gap-2">
         {editing === null && (
           <Button onClick={() => setEditing('new')}>
-            <Plus className="h-4 w-4" /> عميل جديد
+            <Plus className="h-4 w-4" /> {t('customers.btnNew')}
           </Button>
         )}
         {editing === null && (
           <Button variant="outline" onClick={() => setImporting(true)}>
-            <Upload className="h-4 w-4" /> استيراد Excel/CSV
+            <Upload className="h-4 w-4" /> {t('customers.btnImport')}
           </Button>
         )}
         <Badge variant="secondary" className="text-sm">
-          إجمالي المديونية: {formatCurrency(totalReceivable)}
+          {t('customers.totalReceivable')}: {formatCurrency(totalReceivable)}
         </Badge>
-        <div className="relative ms-auto">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث…" className="w-56 pr-9" />
+        <div className="relative w-full sm:ms-auto sm:w-auto">
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('customers.searchPlaceholder')} className="w-full ps-9 sm:w-64" />
         </div>
       </div>
 
@@ -123,7 +137,7 @@ export function CustomersManager({
           <CardContent className="pt-6">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold">
-                {editing === 'new' ? 'عميل جديد' : `تعديل: ${current?.name_ar || current?.name}`}
+                {editing === 'new' ? t('customers.formTitleNew') : t('customers.formTitleEdit', { name: current?.name_ar || current?.name || '' })}
               </h3>
               <button onClick={() => setEditing(null)} className="rounded-md p-1 hover:bg-secondary">
                 <X className="h-4 w-4" />
@@ -132,46 +146,91 @@ export function CustomersManager({
             <form onSubmit={onSubmit} className="space-y-4">
               {current && <input type="hidden" name="id" value={current.id} />}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Field label="كود العميل *"><Input name="code" dir="ltr" defaultValue={current?.code ?? ''} required /></Field>
-                <Field label="الاسم (عربي)"><Input name="name_ar" defaultValue={current?.name_ar ?? ''} /></Field>
-                <Field label="الاسم (إنجليزي) *"><Input name="name" defaultValue={current?.name ?? ''} required /></Field>
-                <Field label="الهاتف"><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} /></Field>
-                <Field label="البريد الإلكتروني"><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} /></Field>
-                <Field label="الرقم الضريبي"><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>
-                <Field label="المدينة"><Input name="city" defaultValue={current?.city ?? ''} /></Field>
-                <Field label="العنوان"><Input name="address" defaultValue={current?.address ?? ''} /></Field>
-                <Field label="حد الائتمان"><Input name="credit_limit" type="number" step="0.01" dir="ltr" defaultValue={current?.credit_limit ?? 0} /></Field>
-                <Field label="الفرع">
+                <Field label={t('customers.fieldCode')}><Input name="code" dir="ltr" defaultValue={current?.code ?? ''} onChange={() => setErrors((x) => ({ ...x, code: undefined }))} /><FieldError>{errors.code}</FieldError></Field>
+                <Field label={t('customers.fieldNameAr')}><Input name="name_ar" defaultValue={current?.name_ar ?? ''} /></Field>
+                <Field label={t('customers.fieldNameEn')}><Input name="name" defaultValue={current?.name ?? ''} onChange={() => setErrors((x) => ({ ...x, name: undefined }))} /><FieldError>{errors.name}</FieldError></Field>
+                <Field label={t('customers.fieldPhone')}><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} /></Field>
+                <Field label={t('customers.fieldEmail')}><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} /></Field>
+                <Field label={t('customers.fieldTaxNumber')}><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>
+                <Field label={t('customers.fieldCity')}><Input name="city" defaultValue={current?.city ?? ''} /></Field>
+                <Field label={t('customers.fieldAddress')}><Input name="address" defaultValue={current?.address ?? ''} /></Field>
+                <Field label={t('customers.fieldCreditLimit')}><Input name="credit_limit" type="number" step="0.01" dir="ltr" defaultValue={current?.credit_limit ?? 0} /></Field>
+                <Field label={t('customers.fieldBranch')}>
                   <select name="branch_id" defaultValue={current?.branch_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">عام (كل الفروع)</option>
+                    <option value="">{t('customers.optionAllBranches')}</option>
                     {branches.map((b) => (
                       <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>
                     ))}
                   </select>
                 </Field>
-                <Field label="المندوب المسؤول">
+                <Field label={t('customers.fieldSalesman')}>
                   <select name="salesman_id" defaultValue={current?.salesman_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">— بدون —</option>
+                    <option value="">{t('customers.optionNoSalesman')}</option>
                     {reps.map((r) => (
                       <option key={r.id} value={r.id}>{r.full_name || r.email}</option>
                     ))}
                   </select>
                 </Field>
-                <Field label="يوم الزيارة">
+                <Field label={t('customers.fieldVisitDay')}>
                   <select name="visit_day" defaultValue={current?.visit_day ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">— بدون —</option>
+                    <option value="">{t('customers.optionNoVisitDay')}</option>
                     {VISIT_DAYS.map((d) => (
-                      <option key={d.value} value={d.value}>{d.ar}</option>
+                      <option key={d.value} value={d.value}>{d[locale]}</option>
                     ))}
                   </select>
                 </Field>
               </div>
+              {/* Dynamic Forms: custom fields appear automatically + submit as `custom` JSON */}
+              <DynamicCustomFields
+                fields={customFields}
+                initial={(current as { custom?: Record<string, unknown> } | null)?.custom ?? {}}
+              />
               <div className="flex gap-2">
                 <Button type="submit" disabled={pending}>
-                  {pending && <Loader2 className="h-4 w-4 animate-spin" />} حفظ
+                  {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('customers.btnSave')}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setEditing(null)}>إلغاء</Button>
+                <Button type="button" variant="outline" onClick={() => setEditing(null)}>{t('customers.btnCancel')}</Button>
+                {current && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={pending}
+                    onClick={async () => {
+                      const res = await requestCustomerApproval(current.id);
+                      if (!res.ok) return toast.error(res.error ?? t('workflow.toast.error'));
+                      toast.success(t('workflow.toast.requested'));
+                      router.refresh();
+                    }}
+                  >
+                    {t('workflow.requestApproval')}
+                  </Button>
+                )}
               </div>
+              {current && (
+                <div className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed p-3">
+                  <Field label={t('workflow.creditLimit.requestLabel')}>
+                    <Input
+                      type="number" step="0.01" dir="ltr" className="max-w-[12rem]"
+                      value={creditLimitInput}
+                      onChange={(e) => setCreditLimitInput(e.target.value)}
+                    />
+                  </Field>
+                  <Button
+                    type="button" variant="secondary" disabled={pending}
+                    onClick={async () => {
+                      const amt = parseFloat(creditLimitInput);
+                      if (!Number.isFinite(amt) || amt < 0) return toast.error(t('workflow.toast.error'));
+                      const res = await requestCreditLimitChange(current.id, amt);
+                      if (!res.ok) return toast.error(res.error ?? t('workflow.toast.error'));
+                      toast.success(t('workflow.toast.requested'));
+                      setCreditLimitInput('');
+                      router.refresh();
+                    }}
+                  >
+                    {t('workflow.creditLimit.requestButton')}
+                  </Button>
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>
@@ -181,22 +240,23 @@ export function CustomersManager({
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
             <Users className="h-8 w-8" />
-            <p>{customers.length === 0 ? 'لا يوجد عملاء بعد.' : 'لا توجد نتائج.'}</p>
+            <p>{customers.length === 0 ? t('customers.emptyNoCustomers') : t('customers.emptyNoResults')}</p>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
+                  {/* sticky-ish header tone + readable density for mobile scroll */}
                   <tr>
-                    <th className="p-3 text-right font-medium">الكود</th>
-                    <th className="p-3 text-right font-medium">العميل</th>
-                    <th className="p-3 text-right font-medium">الفرع</th>
-                    <th className="p-3 text-left font-medium">حد الائتمان</th>
-                    <th className="p-3 text-left font-medium">الرصيد</th>
-                    <th className="p-3 text-center font-medium">الحالة</th>
+                    <th className="p-3 text-start font-medium">{t('customers.colCode')}</th>
+                    <th className="p-3 text-start font-medium">{t('customers.colCustomer')}</th>
+                    <th className="p-3 text-start font-medium">{t('customers.colBranch')}</th>
+                    <th className="p-3 text-end font-medium">{t('customers.colCreditLimit')}</th>
+                    <th className="p-3 text-end font-medium">{t('customers.colBalance')}</th>
+                    <th className="p-3 text-center font-medium">{t('customers.colStatus')}</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
@@ -207,11 +267,11 @@ export function CustomersManager({
                       Number(c.balance) > Number(c.credit_limit);
                     return (
                       <tr key={c.id} className="border-b last:border-0 hover:bg-secondary/30">
-                        <td className="p-3 font-mono text-xs" dir="ltr">{c.code}</td>
+                        <td className="whitespace-nowrap p-3 font-mono text-xs" dir="ltr">{c.code}</td>
                         <td className="p-3 font-medium">{c.name_ar || c.name}</td>
-                        <td className="p-3 text-muted-foreground">{branchName(c.branch_id)}</td>
-                        <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(c.credit_limit)}</td>
-                        <td className="p-3 text-left tabular-nums" dir="ltr">
+                        <td className="whitespace-nowrap p-3 text-muted-foreground">{branchName(c.branch_id)}</td>
+                        <td className="whitespace-nowrap p-3 text-end tabular-nums" dir="ltr">{formatCurrency(c.credit_limit)}</td>
+                        <td className="whitespace-nowrap p-3 text-end tabular-nums" dir="ltr">
                           <span className="inline-flex items-center gap-1">
                             {overLimit && <AlertTriangle className="h-3.5 w-3.5 text-warning" />}
                             {formatCurrency(c.balance)}
@@ -219,31 +279,31 @@ export function CustomersManager({
                         </td>
                         <td className="p-3 text-center">
                           {!c.is_approved ? (
-                            <Badge variant="warning">بانتظار الاعتماد</Badge>
+                            <Badge variant="warning">{t('customers.statusPending')}</Badge>
                           ) : c.is_active ? (
-                            <Badge variant="success">نشط</Badge>
+                            <Badge variant="success">{t('customers.statusActive')}</Badge>
                           ) : (
-                            <Badge variant="destructive">موقوف</Badge>
+                            <Badge variant="destructive">{t('customers.statusInactive')}</Badge>
                           )}
                         </td>
                         <td className="p-3">
                           <div className="flex justify-end gap-1">
                             {!c.is_approved && isSuperAdmin && (
                               <Button variant="ghost" size="sm" disabled={pending} onClick={() => onApprove(c.id)} className="text-xs text-success">
-                                <BadgeCheck className="h-3.5 w-3.5" /> اعتماد
+                                <BadgeCheck className="h-3.5 w-3.5" /> {t('customers.btnApprove')}
                               </Button>
                             )}
-                            <Link href={`/customers/${c.id}`} className="rounded-md p-1.5 hover:bg-secondary" aria-label="كشف حساب" title="كشف حساب">
+                            <Link href={`/customers/${c.id}`} className="rounded-md p-1.5 hover:bg-secondary" aria-label={t('customers.ariaStatement')} title={t('customers.ariaStatement')}>
                               <FileText className="h-4 w-4" />
                             </Link>
-                            <Link href={`/print/statement/${c.id}`} target="_blank" className="rounded-md p-1.5 hover:bg-secondary" aria-label="طباعة كشف" title="طباعة كشف الحساب">
+                            <Link href={`/print/statement/${c.id}`} target="_blank" className="rounded-md p-1.5 hover:bg-secondary" aria-label={t('customers.ariaPrint')} title={t('customers.ariaPrintTitle')}>
                               <Printer className="h-4 w-4" />
                             </Link>
-                            <button onClick={() => setEditing(c)} className="rounded-md p-1.5 hover:bg-secondary" aria-label="تعديل">
+                            <button onClick={() => setEditing(c)} className="rounded-md p-1.5 hover:bg-secondary" aria-label={t('customers.ariaEdit')}>
                               <Pencil className="h-4 w-4" />
                             </button>
                             <Button variant="ghost" size="sm" disabled={pending} onClick={() => onToggle(c)} className="text-xs">
-                              {c.is_active ? 'إيقاف' : 'تفعيل'}
+                              {c.is_active ? t('customers.btnDeactivate') : t('customers.btnActivate')}
                             </Button>
                           </div>
                         </td>
@@ -320,6 +380,7 @@ function ImportDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useI18n();
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [branchId, setBranchId] = useState('');
   const [repId, setRepId] = useState('');
@@ -331,7 +392,7 @@ function ImportDialog({
     const reader = new FileReader();
     reader.onload = () => {
       const parsed = parseCsv(String(reader.result || '')).filter((r) => r.code && r.name);
-      if (parsed.length === 0) toast.error('لم يتم العثور على صفوف صالحة. تأكد من أعمدة code و name.');
+      if (parsed.length === 0) toast.error(t('customers.toastImportNoRows'));
       setRows(parsed);
     };
     reader.readAsText(file, 'utf-8');
@@ -341,10 +402,10 @@ function ImportDialog({
     startTransition(async () => {
       const res = await importCustomers(rows, branchId || null, repId || null);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('customers.toastImportError'));
         return;
       }
-      toast.success(`تم استيراد ${res.data?.count ?? 0} عميل`);
+      toast.success(t('customers.toastImportSuccess', { count: res.data?.count ?? 0 }));
       onDone();
     });
   }
@@ -354,25 +415,25 @@ function ImportDialog({
       <Card className="max-h-[90vh] w-full max-w-lg overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <CardContent className="space-y-4 pt-6">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">استيراد العملاء من Excel/CSV</h3>
+            <h3 className="font-semibold">{t('customers.importTitle')}</h3>
             <button onClick={onClose} className="rounded-md p-1 hover:bg-secondary"><X className="h-4 w-4" /></button>
           </div>
           <p className="text-xs text-muted-foreground">
-            احفظ ملف الإكسيل بصيغة CSV، على أن يحتوي الصف الأول على العناوين:
+            {t('customers.importHint')}
             <span dir="ltr" className="mx-1 font-mono">code, name, name_ar, phone, city, credit_limit</span>
           </p>
           <input type="file" accept=".csv,text/csv" onChange={handleFile} className="block w-full text-sm" />
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="الفرع لكل العملاء">
+            <Field label={t('customers.importFieldBranch')}>
               <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">عام</option>
+                <option value="">{t('customers.importOptGeneral')}</option>
                 {branches.map((b) => <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>)}
               </select>
             </Field>
-            <Field label="المندوب لكل العملاء (اختياري)">
+            <Field label={t('customers.importFieldSalesman')}>
               <select value={repId} onChange={(e) => setRepId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">— بدون —</option>
+                <option value="">{t('customers.importOptNoSalesman')}</option>
                 {reps.map((r) => <option key={r.id} value={r.id}>{r.full_name || r.email}</option>)}
               </select>
             </Field>
@@ -380,7 +441,7 @@ function ImportDialog({
 
           {rows.length > 0 && (
             <div className="rounded-md border">
-              <p className="border-b p-2 text-sm font-medium">معاينة: {rows.length} عميل</p>
+              <p className="border-b p-2 text-sm font-medium">{t('customers.importPreview', { count: rows.length })}</p>
               <div className="max-h-48 overflow-y-auto">
                 <table className="w-full text-xs">
                   <tbody>
@@ -399,9 +460,10 @@ function ImportDialog({
 
           <div className="flex gap-2">
             <Button onClick={doImport} disabled={pending || rows.length === 0}>
-              {pending && <Loader2 className="h-4 w-4 animate-spin" />} استيراد {rows.length > 0 ? `(${rows.length})` : ''}
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />}{' '}
+              {rows.length > 0 ? t('customers.btnImportWithCount', { count: rows.length }) : t('customers.btnImportAction')}
             </Button>
-            <Button variant="outline" onClick={onClose}>إلغاء</Button>
+            <Button variant="outline" onClick={onClose}>{t('customers.btnCancel')}</Button>
           </div>
         </CardContent>
       </Card>

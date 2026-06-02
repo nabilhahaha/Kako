@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface ConfirmOptions {
   title: string;
@@ -25,6 +26,7 @@ export function useConfirm(): ConfirmFn {
 }
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolver = useRef<((v: boolean) => void) | null>(null);
 
@@ -68,10 +70,10 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                   onClick={() => settle(true)}
                   autoFocus
                 >
-                  {options.confirmText ?? 'تأكيد'}
+                  {options.confirmText ?? t('shared.confirm')}
                 </Button>
                 <Button variant="outline" onClick={() => settle(false)}>
-                  {options.cancelText ?? 'إلغاء'}
+                  {options.cancelText ?? t('shared.cancel')}
                 </Button>
               </div>
             </CardContent>

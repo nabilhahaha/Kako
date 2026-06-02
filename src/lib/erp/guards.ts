@@ -1,4 +1,7 @@
+import { redirect } from 'next/navigation';
 import { getUserContext, type UserContext } from './auth-context';
+import type { Module } from './navigation';
+import type { Permission } from './permissions';
 
 export interface ActionResult<T = unknown> {
   ok: boolean;
@@ -24,6 +27,41 @@ export async function requireSuperAdmin(): Promise<
   if (!ctx.isSuperAdmin)
     return { ctx: null, error: 'هذه العملية متاحة لمدير النظام فقط.' };
   return { ctx, error: null };
+}
+
+/**
+ * Page/layout guard: ensure the signed-in user may access a feature module
+ * (unlocked by the company's plan). The platform owner and global super admins
+ * bypass module gating. Redirects instead of returning when access is denied.
+ */
+export async function requireModule(module: Module): Promise<UserContext> {
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+  if (ctx.isPlatformOwner || ctx.isSuperAdmin) return ctx;
+  if (!ctx.modules.includes(module)) redirect(`/upgrade?module=${module}`);
+  return ctx;
+}
+
+/**
+ * Page/layout guard: ensure the user holds a permission (super admins hold
+ * all). Redirects to the dashboard when the permission is missing.
+ */
+export async function requirePermission(perm: Permission): Promise<UserContext> {
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+  if (ctx.isSuperAdmin || ctx.permissions.includes(perm)) return ctx;
+  redirect('/dashboard');
+}
+
+/**
+ * Page/layout guard: ensure the user holds ANY of the given permissions (super
+ * admins hold all). Redirects to the dashboard when none are present.
+ */
+export async function requireAnyPermission(perms: Permission[]): Promise<UserContext> {
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+  if (ctx.isSuperAdmin || perms.some((p) => ctx.permissions.includes(p))) return ctx;
+  redirect('/dashboard');
 }
 
 /** Translate common Postgres errors into friendly Arabic messages. */

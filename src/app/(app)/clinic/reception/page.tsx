@@ -1,0 +1,91 @@
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getUserContext } from '@/lib/erp/auth-context';
+import { requireAnyPermission } from '@/lib/erp/guards';
+import { createClient } from '@/lib/supabase/server';
+import { PageHeader } from '@/components/shared/page-header';
+import { buttonVariants } from '@/components/ui/button';
+import { UserPlus, CalendarClock, Wallet } from 'lucide-react';
+import { AppointmentsManager, type Appointment } from '../appointments/appointments-manager';
+import { ReceptionBilling } from './reception-manager';
+import type { ClinicVisit, PatientOption, DoctorOption, ServiceOption } from '../clinical-ui';
+import { getT } from '@/lib/i18n/server';
+
+export default async function ReceptionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ patient?: string }>;
+}) {
+  await requireAnyPermission(['clinic.manage', 'clinic.reception']);
+  const { t } = await getT();
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+  if (!ctx.companyId) {
+    return (
+      <div>
+        <PageHeader title={t('clinic.reception.title')} />
+        <p className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
+          {t('clinic.reception.noCompany')}
+        </p>
+      </div>
+    );
+  }
+
+  const { patient: initialPatientId } = await searchParams;
+  const supabase = await createClient();
+  const since = new Date();
+  since.setDate(since.getDate() - 1);
+
+  const [{ data: appointments }, { data: patients }, { data: visits }, { data: doctors }, { data: services }] = await Promise.all([
+    supabase
+      .from('erp_clinic_appointments')
+      .select('id, scheduled_at, duration_min, reason, status, doctor_id, patient:erp_patients(name, phone)')
+      .gte('scheduled_at', since.toISOString())
+      .order('scheduled_at', { ascending: true })
+      .limit(200),
+    supabase.from('erp_patients').select('id, name, phone').eq('is_active', true).order('name'),
+    supabase
+      .from('erp_clinic_visits')
+      .select('id, patient_id, doctor_id, visit_date, visit_type, complaint, diagnosis, prescription, tests, fee, paid_amount, status, temperature, blood_pressure, pulse, weight, height, followup_date, patient:erp_patients(name, phone)')
+      .order('visit_date', { ascending: false })
+      .limit(200),
+    supabase.rpc('erp_clinic_doctors'),
+    supabase.from('erp_clinic_services').select('id, name, price').eq('is_active', true).order('name'),
+  ]);
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <PageHeader
+          title={t('clinic.reception.title')}
+          description={t('clinic.reception.description')}
+          action={
+            <Link href="/clinic/patients" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+              <UserPlus className="h-4 w-4" /> {t('clinic.reception.newPatientButton')}
+            </Link>
+          }
+        />
+      </div>
+
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold"><CalendarClock className="h-5 w-5" /> {t('clinic.reception.appointmentsSectionTitle')}</h2>
+        <AppointmentsManager
+          appointments={(appointments as unknown as Appointment[]) ?? []}
+          patients={(patients as PatientOption[]) ?? []}
+          doctors={(doctors as DoctorOption[]) ?? []}
+          initialPatientId={initialPatientId ?? null}
+        />
+      </section>
+
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold"><Wallet className="h-5 w-5" /> {t('clinic.reception.billingSectionTitle')}</h2>
+        <ReceptionBilling
+          visits={(visits as unknown as ClinicVisit[]) ?? []}
+          patients={(patients as PatientOption[]) ?? []}
+          doctors={(doctors as DoctorOption[]) ?? []}
+          services={(services as ServiceOption[]) ?? []}
+        />
+      </section>
+    </div>
+  );
+}

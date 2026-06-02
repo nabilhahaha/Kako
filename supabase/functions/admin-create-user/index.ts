@@ -1,6 +1,8 @@
 // Edge Function: admin-create-user
 // Creates a new auth user (with a profile via the DB trigger) on behalf of a
-// super admin. Requires the service role key, which stays server-side here.
+// super admin OR a company admin/manager. Requires the service role key, which
+// stays server-side here. The new account has no access until the caller
+// assigns it to a branch/role afterwards (RLS-scoped to the caller's company).
 //
 // Deploy:  supabase functions deploy admin-create-user
 // Secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
@@ -44,8 +46,23 @@ Deno.serve(async (req) => {
       .eq('id', caller.id)
       .single();
 
-    if (!callerProfile?.is_super_admin && !callerProfile?.is_platform_owner) {
-      return json({ error: 'هذه العملية متاحة لمدير النظام فقط' }, 403);
+    let allowed = Boolean(
+      callerProfile?.is_super_admin || callerProfile?.is_platform_owner,
+    );
+    // A company admin/manager may also create staff for their own company.
+    // (The new account gains access only once the caller assigns it to one of
+    // their branches afterwards — which RLS scopes to the caller's company.)
+    if (!allowed) {
+      const { data: adminRoles } = await callerClient
+        .from('erp_user_branches')
+        .select('role')
+        .eq('user_id', caller.id)
+        .in('role', ['admin', 'manager']);
+      allowed = Boolean(adminRoles && adminRoles.length > 0);
+    }
+
+    if (!allowed) {
+      return json({ error: 'هذه العملية متاحة لمدير الشركة فقط' }, 403);
     }
 
     // 2. Create the user with the service role.

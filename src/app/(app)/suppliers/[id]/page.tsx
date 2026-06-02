@@ -1,5 +1,4 @@
 import { notFound, redirect } from 'next/navigation';
-import Link from 'next/link';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
@@ -8,7 +7,8 @@ import { StatementTable, type StatementEntry } from '@/components/statement-tabl
 import { PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { PaymentMethod, PurchaseOrder, Supplier, SupplierPayment } from '@/lib/erp/types';
-import { ArrowRight } from 'lucide-react';
+import { BackLink } from '@/components/shared/back-link';
+import { getT } from '@/lib/i18n/server';
 
 export default async function SupplierStatementPage({
   params,
@@ -18,6 +18,7 @@ export default async function SupplierStatementPage({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const { id } = await params;
+  const { t, locale } = await getT();
 
   const supabase = await createClient();
   const { data: supplier } = await supabase
@@ -47,40 +48,45 @@ export default async function SupplierStatementPage({
     ...poList.map((p) => ({
       date: p.updated_at,
       ref: p.po_number,
-      description: 'استلام بضاعة (مشتريات)',
+      description: t('suppliers.stmtDescReceipt'),
       debit: Number(p.net_amount),
       credit: 0,
     })),
     ...payList.map((p) => ({
       date: p.payment_date,
       ref: p.reference_number || '—',
-      description: `سداد (${PAYMENT_METHOD_LABELS[p.payment_method as PaymentMethod]?.ar ?? ''})`,
+      description: t('suppliers.stmtDescPayment', {
+        method: PAYMENT_METHOD_LABELS[p.payment_method as PaymentMethod]?.[locale] ?? '',
+      }),
       debit: 0,
       credit: Number(p.amount),
     })),
   ];
 
+  const supplierName = s.name_ar || s.name;
+  const description = s.phone
+    ? t('suppliers.stmtDescriptionWithPhone', { code: s.code, phone: s.phone })
+    : t('suppliers.stmtDescription', { code: s.code });
+
   return (
     <div>
-      <Link href="/suppliers" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowRight className="h-4 w-4" /> الموردين
-      </Link>
+      <BackLink href="/suppliers" label={t('suppliers.stmtBackLink')} />
       <PageHeader
-        title={`كشف حساب: ${s.name_ar || s.name}`}
-        description={`الكود ${s.code}${s.phone ? ' · ' + s.phone : ''}`}
+        title={t('suppliers.stmtTitle', { name: supplierName })}
+        description={description}
       />
 
       <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Summary label="الرصيد المستحق" value={formatCurrency(s.balance)} tone={Number(s.balance) > 0 ? 'warn' : 'ok'} />
-        <Summary label="مرات الاستلام" value={String(poList.length)} />
-        <Summary label="مرات السداد" value={String(payList.length)} />
+        <Summary label={t('suppliers.stmtSummaryBalance')} value={formatCurrency(s.balance)} tone={Number(s.balance) > 0 ? 'warn' : 'ok'} />
+        <Summary label={t('suppliers.stmtSummaryReceiptCount')} value={String(poList.length)} />
+        <Summary label={t('suppliers.stmtSummaryPaymentCount')} value={String(payList.length)} />
       </div>
 
       <StatementTable
         entries={entries}
-        debitLabel="مستحق (بضاعة)"
-        creditLabel="سداد"
-        emptyText="لا توجد حركات على هذا المورد بعد."
+        debitLabel={t('suppliers.stmtDebitLabel')}
+        creditLabel={t('suppliers.stmtCreditLabel')}
+        emptyText={t('suppliers.stmtEmpty')}
       />
     </div>
   );

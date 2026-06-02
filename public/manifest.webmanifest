@@ -1,16 +1,17 @@
 {
-  "name": "كاكو - إدارة التوزيع",
-  "short_name": "كاكو",
-  "description": "نظام إدارة مبيعات وتوزيع FMCG - تطبيق المندوب",
-  "start_url": "/rep",
+  "name": "VANTORA Business OS",
+  "short_name": "VANTORA",
+  "description": "نظام متكامل لإدارة الأعمال يتأقلم مع نشاطك — عيادات، مطاعم، صالونات، تجارة، وتوزيع.",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
-  "theme_color": "#8f1d2e",
+  "theme_color": "#0f2c52",
   "dir": "rtl",
   "lang": "ar",
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
   ]
 }

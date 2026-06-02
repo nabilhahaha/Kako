@@ -6,8 +6,9 @@ import { setCustomerJourney } from '../../customers/actions';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { VISIT_DAYS, VISIT_DAY_LABEL } from '@/lib/erp/constants';
+import { VISIT_DAYS } from '@/lib/erp/constants';
 import type { ErpCustomer, Profile } from '@/lib/erp/types';
+import { useI18n } from '@/lib/i18n/provider';
 import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -21,6 +22,7 @@ export function JourneyManager({
   reps: Rep[];
 }) {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const [repFilter, setRepFilter] = useState('');
   const [query, setQuery] = useState('');
   const [pending, startTransition] = useTransition();
@@ -46,7 +48,7 @@ export function JourneyManager({
   function update(id: string, salesmanId: string | null, visitDay: string | null) {
     startTransition(async () => {
       const res = await setCustomerJourney(id, salesmanId, visitDay);
-      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      if (!res.ok) toast.error(res.error ?? t('sales.errorGeneric'));
       else router.refresh();
     });
   }
@@ -55,19 +57,19 @@ export function JourneyManager({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <select value={repFilter} onChange={(e) => setRepFilter(e.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-          <option value="">كل المناديب</option>
-          <option value="none">بدون مندوب</option>
+          <option value="">{t('sales.journeyFilterAllReps')}</option>
+          <option value="none">{t('sales.journeyFilterNoRep')}</option>
           {reps.map((r) => <option key={r.id} value={r.id}>{r.full_name || r.email}</option>)}
         </select>
         <div className="relative ms-auto">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث عن عميل…" className="w-56 pr-9" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('sales.journeySearchPlaceholder')} className="w-56 ps-9" />
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {VISIT_DAYS.map((d) => (
-          <Badge key={d.value} variant="secondary">{d.ar}: {dayCounts[d.value] ?? 0}</Badge>
+          <Badge key={d.value} variant="secondary">{d[locale]}: {dayCounts[d.value] ?? 0}</Badge>
         ))}
       </div>
 
@@ -77,10 +79,10 @@ export function JourneyManager({
             <table className="w-full text-sm">
               <thead className="border-b bg-secondary/50 text-muted-foreground">
                 <tr>
-                  <th className="p-3 text-right font-medium">العميل</th>
-                  <th className="p-3 text-right font-medium">المنطقة</th>
-                  <th className="p-3 text-right font-medium">المندوب</th>
-                  <th className="p-3 text-right font-medium">يوم الزيارة</th>
+                  <th className="p-3 text-start font-medium">{t('sales.journeyColCustomer')}</th>
+                  <th className="p-3 text-start font-medium">{t('sales.journeyColArea')}</th>
+                  <th className="p-3 text-start font-medium">{t('sales.journeyColRep')}</th>
+                  <th className="p-3 text-start font-medium">{t('sales.journeyColVisitDay')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -98,7 +100,7 @@ export function JourneyManager({
                         onChange={(e) => update(c.id, e.target.value || null, c.visit_day)}
                         className="h-9 w-40 rounded-md border border-input bg-background px-2 text-sm"
                       >
-                        <option value="">— بدون —</option>
+                        <option value="">{t('sales.journeyNoRepOption')}</option>
                         {reps.map((r) => <option key={r.id} value={r.id}>{r.full_name || r.email}</option>)}
                       </select>
                     </td>
@@ -109,14 +111,14 @@ export function JourneyManager({
                         onChange={(e) => update(c.id, c.salesman_id, e.target.value || null)}
                         className="h-9 w-28 rounded-md border border-input bg-background px-2 text-sm"
                       >
-                        <option value="">— بدون —</option>
-                        {VISIT_DAYS.map((d) => <option key={d.value} value={d.value}>{d.ar}</option>)}
+                        <option value="">{t('sales.journeyNoRepOption')}</option>
+                        {VISIT_DAYS.map((d) => <option key={d.value} value={d.value}>{d[locale]}</option>)}
                       </select>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">لا يوجد عملاء مطابقون.</td></tr>
+                  <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">{t('sales.journeyNoResults')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -124,7 +126,7 @@ export function JourneyManager({
         </CardContent>
       </Card>
       <p className="text-xs text-muted-foreground">
-        ملاحظة: تطبيق المندوب يعرض عملاء اليوم حسب هذه الخطة، ويربط كل زيارة بالفاتورة الناتجة أو يسجّلها كزيارة بدون بيع.
+        {t('sales.journeyNote')}
       </p>
     </div>
   );

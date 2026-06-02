@@ -5,6 +5,8 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { getT } from '@/lib/i18n/server';
+import { INTL_LOCALE } from '@/lib/i18n/config';
 import type { Branch, InvoiceStatus } from '@/lib/erp/types';
 
 const ACTIVE: InvoiceStatus[] = ['issued', 'paid', 'partially_paid', 'overdue'];
@@ -21,6 +23,7 @@ export default async function SalesReportPage({
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t, locale } = await getT();
 
   const sp = await searchParams;
   const from = sp.from || monthStart();
@@ -97,95 +100,99 @@ export default async function SalesReportPage({
 
   return (
     <div>
-      <PageHeader title="تقرير المبيعات" description="ملخص المبيعات حسب الفترة والفرع والأصناف" />
+      <PageHeader title={t('sales.reportTitle')} description={t('sales.reportDescription')} />
 
       <Card className="mb-4">
         <CardContent className="pt-6">
           <form className="flex flex-wrap items-end gap-3" method="get">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">من</label>
+              <label className="text-xs text-muted-foreground">{t('sales.reportLabelFrom')}</label>
               <input type="date" name="from" defaultValue={from} dir="ltr" className="h-10 rounded-md border border-input bg-background px-3 text-sm" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">إلى</label>
+              <label className="text-xs text-muted-foreground">{t('sales.reportLabelTo')}</label>
               <input type="date" name="to" defaultValue={to} dir="ltr" className="h-10 rounded-md border border-input bg-background px-3 text-sm" />
             </div>
             {branchList.length > 1 && (
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">الفرع</label>
+                <label className="text-xs text-muted-foreground">{t('sales.reportLabelBranch')}</label>
                 <select name="branch" defaultValue={branch} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="">كل الفروع</option>
+                  <option value="">{t('sales.reportAllBranches')}</option>
                   {branchList.map((b) => (
                     <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>
                   ))}
                 </select>
               </div>
             )}
-            <Button type="submit">عرض</Button>
+            <Button type="submit">{t('sales.reportBtnView')}</Button>
           </form>
         </CardContent>
       </Card>
 
       <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="إجمالي المبيعات" value={formatCurrency(totalNet)} />
-        <Stat label="عدد الفواتير" value={formatNumber(invList.length)} />
-        <Stat label="المحصّل" value={formatCurrency(totalPaid)} tone="ok" />
-        <Stat label="المتبقي (مديونية)" value={formatCurrency(outstanding)} tone={outstanding > 0 ? 'warn' : 'ok'} />
+        <Stat label={t('sales.reportStatTotalSales')} value={formatCurrency(totalNet, 'EGP', INTL_LOCALE[locale])} />
+        <Stat label={t('sales.reportStatInvoiceCount')} value={formatNumber(invList.length, INTL_LOCALE[locale])} />
+        <Stat label={t('sales.reportStatCollected')} value={formatCurrency(totalPaid, 'EGP', INTL_LOCALE[locale])} tone="ok" />
+        <Stat label={t('sales.reportStatOutstanding')} value={formatCurrency(outstanding, 'EGP', INTL_LOCALE[locale])} tone={outstanding > 0 ? 'warn' : 'ok'} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardContent className="p-0">
-            <h3 className="border-b p-3 font-semibold">المبيعات حسب الفرع</h3>
+            <h3 className="border-b p-3 font-semibold">{t('sales.reportSectionByBranch')}</h3>
             {branchRows.length === 0 ? (
-              <p className="p-6 text-center text-sm text-muted-foreground">لا توجد مبيعات في الفترة.</p>
+              <p className="p-6 text-center text-sm text-muted-foreground">{t('sales.reportNoSalesInPeriod')}</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-secondary/40 text-muted-foreground">
                   <tr>
-                    <th className="p-2 ps-3 text-right font-medium">الفرع</th>
-                    <th className="p-2 text-center font-medium">عدد الفواتير</th>
-                    <th className="p-2 pe-3 text-left font-medium">المبيعات</th>
+                    <th className="p-2 ps-3 text-start font-medium">{t('sales.reportColBranch')}</th>
+                    <th className="p-2 text-center font-medium">{t('sales.reportColInvoiceCount')}</th>
+                    <th className="p-2 pe-3 text-end font-medium">{t('sales.reportColSales')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {branchRows.map((r) => (
                     <tr key={r.id} className="border-t">
                       <td className="p-2 ps-3">{r.name}</td>
-                      <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(r.count)}</td>
-                      <td className="p-2 pe-3 text-left tabular-nums" dir="ltr">{formatCurrency(r.net)}</td>
+                      <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(r.count, INTL_LOCALE[locale])}</td>
+                      <td className="p-2 pe-3 text-left tabular-nums" dir="ltr">{formatCurrency(r.net, 'EGP', INTL_LOCALE[locale])}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-0">
-            <h3 className="border-b p-3 font-semibold">الأصناف الأكثر مبيعاً</h3>
+            <h3 className="border-b p-3 font-semibold">{t('sales.reportSectionTopItems')}</h3>
             {topProducts.length === 0 ? (
-              <p className="p-6 text-center text-sm text-muted-foreground">لا توجد مبيعات في الفترة.</p>
+              <p className="p-6 text-center text-sm text-muted-foreground">{t('sales.reportNoSalesInPeriod')}</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-secondary/40 text-muted-foreground">
                   <tr>
-                    <th className="p-2 ps-3 text-right font-medium">الصنف</th>
-                    <th className="p-2 text-center font-medium">الكمية</th>
-                    <th className="p-2 pe-3 text-left font-medium">القيمة</th>
+                    <th className="p-2 ps-3 text-start font-medium">{t('sales.reportColItem')}</th>
+                    <th className="p-2 text-center font-medium">{t('sales.reportColQty')}</th>
+                    <th className="p-2 pe-3 text-end font-medium">{t('sales.reportColValue')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {topProducts.map((p) => (
                     <tr key={p.id} className="border-t">
                       <td className="p-2 ps-3">{p.name}</td>
-                      <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(p.qty)}</td>
-                      <td className="p-2 pe-3 text-left tabular-nums" dir="ltr">{formatCurrency(p.value)}</td>
+                      <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(p.qty, INTL_LOCALE[locale])}</td>
+                      <td className="p-2 pe-3 text-left tabular-nums" dir="ltr">{formatCurrency(p.value, 'EGP', INTL_LOCALE[locale])}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </CardContent>
         </Card>

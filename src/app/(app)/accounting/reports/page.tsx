@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import type { AccountType } from '@/lib/erp/types';
 import { ReportsView, type AccountAgg, type AgingRow, type MarginRow } from './reports-view';
+import { getT } from '@/lib/i18n/server';
 
 interface LineRow {
   debit: number;
@@ -21,6 +22,7 @@ export default async function ReportsPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
   const supabase = await createClient();
   const { data: postedEntries } = await supabase
     .from('erp_journal_entries')
@@ -123,8 +125,8 @@ export default async function ReportsPage() {
   return (
     <div>
       <PageHeader
-        title="التقارير المالية"
-        description="الميزان وقائمة الدخل والميزانية وأعمار الديون وهامش الربح"
+        title={t('accounting.reports.title')}
+        description={t('accounting.reports.description')}
       />
       <ReportsView accounts={[...byAccount.values()]} aging={aging} margin={margin} />
     </div>

@@ -5,10 +5,15 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatementTable, type StatementEntry } from '@/components/statement-table';
+import { EntityNotes } from '@/components/entity/entity-notes';
 import { PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { ErpCustomer, Invoice, Payment, PaymentMethod } from '@/lib/erp/types';
-import { ArrowRight } from 'lucide-react';
+import { Printer } from 'lucide-react';
+import { BackLink } from '@/components/shared/back-link';
+import { buttonVariants } from '@/components/ui/button';
+import { WhatsAppButton } from '@/components/whatsapp-button';
+import { getT } from '@/lib/i18n/server';
 
 export default async function CustomerStatementPage({
   params,
@@ -18,6 +23,7 @@ export default async function CustomerStatementPage({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const { id } = await params;
+  const { t, locale } = await getT();
 
   const supabase = await createClient();
   const { data: customer } = await supabase
@@ -52,41 +58,69 @@ export default async function CustomerStatementPage({
     ...invList.map((i) => ({
       date: i.created_at,
       ref: i.invoice_number,
-      description: 'فاتورة مبيعات',
+      description: t('customers.stmtDescInvoice'),
       debit: Number(i.net_amount),
       credit: 0,
     })),
     ...payments.map((p) => ({
       date: p.payment_date,
       ref: invNumberById.get(p.invoice_id) ?? '—',
-      description: `تحصيل (${PAYMENT_METHOD_LABELS[p.payment_method as PaymentMethod]?.ar ?? ''})`,
+      description: t('customers.stmtDescCollection', {
+        method: PAYMENT_METHOD_LABELS[p.payment_method as PaymentMethod]?.[locale] ?? '',
+      }),
       debit: 0,
       credit: Number(p.amount),
     })),
   ];
 
+  const customerName = c.name_ar || c.name;
+  const description = c.phone
+    ? t('customers.stmtDescriptionWithPhone', { code: c.code, phone: c.phone })
+    : t('customers.stmtDescription', { code: c.code });
+
   return (
     <div>
-      <Link href="/customers" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowRight className="h-4 w-4" /> العملاء
-      </Link>
+      <BackLink href="/customers" label={t('customers.stmtBackLink')} />
       <PageHeader
-        title={`كشف حساب: ${c.name_ar || c.name}`}
-        description={`الكود ${c.code}${c.phone ? ' · ' + c.phone : ''}`}
+        title={t('customers.stmtTitle', { name: customerName })}
+        description={description}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {Number(c.balance) > 0 && (
+              <WhatsAppButton
+                phone={c.phone}
+                label={t('customers.stmtWhatsAppLabel')}
+                message={t('customers.stmtWhatsAppMsg', {
+                  name: customerName,
+                  amount: formatCurrency(c.balance),
+                })}
+                className="h-9 border px-3"
+              />
+            )}
+            <Link href={`/print/statement/${id}`} target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+              <Printer className="h-4 w-4" /> {t('customers.stmtBtnPrint')}
+            </Link>
+          </div>
+        }
       />
 
       <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Summary label="الرصيد الحالي" value={formatCurrency(c.balance)} tone={Number(c.balance) > 0 ? 'warn' : 'ok'} />
-        <Summary label="حد الائتمان" value={formatCurrency(c.credit_limit)} />
-        <Summary label="عدد الفواتير" value={String(invList.length)} />
+        <Summary label={t('customers.stmtSummaryBalance')} value={formatCurrency(c.balance)} tone={Number(c.balance) > 0 ? 'warn' : 'ok'} />
+        <Summary label={t('customers.stmtSummaryCreditLimit')} value={formatCurrency(c.credit_limit)} />
+        <Summary label={t('customers.stmtSummaryInvoiceCount')} value={String(invList.length)} />
       </div>
 
       <StatementTable
         entries={entries}
-        debitLabel="مدين (عليه)"
-        creditLabel="دائن (تحصيل)"
-        emptyText="لا توجد حركات على هذا العميل بعد."
+        debitLabel={t('customers.stmtDebitLabel')}
+        creditLabel={t('customers.stmtCreditLabel')}
+        emptyText={t('customers.stmtEmpty')}
       />
+
+      {/* Entity Framework — inherited Notes capability (build once, reuse everywhere) */}
+      <div className="mt-6">
+        <EntityNotes entity="customer" recordId={c.id} />
+      </div>
     </div>
   );
 }

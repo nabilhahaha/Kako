@@ -3,6 +3,31 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
+import { validateCustomValues } from '@/lib/erp/form-schema';
+import { coerceCustomValue } from '@/lib/erp/custom-fields';
+import { getT } from '@/lib/i18n/server';
+
+/** Parse the `custom` JSON bag from a form, validate it against the entity's
+ *  active custom-field definitions (server-authoritative), and return the
+ *  coerced bag to store in the row's `custom` jsonb. */
+async function resolveCustom(
+  entity: string,
+  raw: FormDataEntryValue | null,
+): Promise<{ ok: true; custom: Record<string, unknown> } | { ok: false; error: string }> {
+  const defs = await getActiveCustomFields(entity);
+  if (defs.length === 0) return { ok: true, custom: {} };
+  let values: Record<string, unknown> = {};
+  if (raw) { try { values = JSON.parse(String(raw)); } catch { values = {}; } }
+  const { ok, errors } = validateCustomValues(defs, values);
+  if (!ok) return { ok: false, error: Object.values(errors)[0] };
+  const custom: Record<string, unknown> = {};
+  for (const d of defs) {
+    const v = coerceCustomValue(d, values[d.key]);
+    if (v !== undefined) custom[d.key] = v;
+  }
+  return { ok: true, custom };
+}
 
 function num(v: FormDataEntryValue | null): number {
   const n = Number(String(v ?? '').replace(/,/g, ''));
@@ -12,16 +37,22 @@ function num(v: FormDataEntryValue | null): number {
 export async function upsertCustomer(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
 
   const id = String(formData.get('id') || '').trim();
   const code = String(formData.get('code') || '').trim();
   const name = String(formData.get('name') || '').trim();
-  if (!code) return { ok: false, error: 'كود العميل مطلوب.' };
-  if (!name) return { ok: false, error: 'اسم العميل مطلوب.' };
+  if (!code) return { ok: false, error: t('customers.errCodeRequired') };
+  if (!name) return { ok: false, error: t('customers.errNameRequired') };
 
   const branchId = String(formData.get('branch_id') || '').trim();
   const salesmanId = String(formData.get('salesman_id') || '').trim();
   const visitDay = String(formData.get('visit_day') || '').trim();
+
+  // Custom fields (Dynamic Forms): validated + coerced server-side.
+  const cf = await resolveCustom('customer', formData.get('custom'));
+  if (!cf.ok) return { ok: false, error: cf.error };
+
   const payload = {
     code,
     name,
@@ -35,6 +66,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     branch_id: branchId || null,
     salesman_id: salesmanId || null,
     visit_day: visitDay || null,
+    custom: cf.custom,
   };
 
   const supabase = await createClient();
@@ -78,7 +110,8 @@ export async function importCustomers(
     }))
     .filter((r) => r.code && r.name);
 
-  if (clean.length === 0) return { ok: false, error: 'لا توجد صفوف صالحة (الكود والاسم مطلوبان).' };
+  const { t } = await getT();
+  if (clean.length === 0) return { ok: false, error: t('customers.errImportNoRows') };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -109,11 +142,61 @@ export async function setCustomerJourney(
   return { ok: true };
 }
 
+/** Submit a customer for onboarding approval: mark it pending and start the
+ *  generic workflow (an approval task routes to the company admin). */
+export async function requestCustomerApproval(id: string): Promise<ActionResult> {
+  const { error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  if (!id) return { ok: false, error: t('customers.errUnauthorized') };
+
+  const supabase = await createClient();
+  await supabase.from('erp_customers').update({ is_approved: false }).eq('id', id);
+  const { error } = await supabase.rpc('erp_workflow_start', {
+    p_key: 'customer_onboarding', p_entity: 'customer', p_record_id: id, p_context: {},
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/customers');
+  revalidatePath('/approvals');
+  return { ok: true };
+}
+
+/** Request a credit-limit change for a customer: records the request and starts
+ *  the (threshold-based, multi-step) credit_limit_approval workflow. */
+export async function requestCreditLimitChange(customerId: string, requestedLimit: number): Promise<ActionResult> {
+  const { error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  if (!customerId) return { ok: false, error: t('customers.errUnauthorized') };
+  if (!Number.isFinite(requestedLimit) || requestedLimit < 0) return { ok: false, error: t('customers.errImportNoRows') };
+
+  const supabase = await createClient();
+  const { data: cust } = await supabase.from('erp_customers').select('credit_limit').eq('id', customerId).maybeSingle();
+  const current = (cust as { credit_limit: number } | null)?.credit_limit ?? null;
+
+  const { data: req, error: insErr } = await supabase
+    .from('erp_credit_limit_requests')
+    .insert({ customer_id: customerId, current_limit: current, requested_limit: requestedLimit })
+    .select('id')
+    .single();
+  if (insErr) return { ok: false, error: friendlyDbError(insErr) };
+
+  const { error } = await supabase.rpc('erp_workflow_start', {
+    p_key: 'credit_limit_approval', p_entity: 'credit_limit_request',
+    p_record_id: (req as { id: string }).id, p_context: { amount: requestedLimit },
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/customers');
+  revalidatePath('/approvals');
+  return { ok: true };
+}
+
 /** Super admin approves a rep-created customer so it can be sold to. */
 export async function approveCustomer(id: string): Promise<ActionResult> {
   const { ctx } = await requireAuth();
-  if (!ctx) return { ok: false, error: 'غير مصرح.' };
-  if (!ctx.isSuperAdmin) return { ok: false, error: 'الاعتماد متاح لمدير النظام فقط.' };
+  const { t } = await getT();
+  if (!ctx) return { ok: false, error: t('customers.errUnauthorized') };
+  if (!ctx.isSuperAdmin) return { ok: false, error: t('customers.errApproveAdminOnly') };
 
   const supabase = await createClient();
   const { error } = await supabase

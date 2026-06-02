@@ -4,7 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
+import { CalendarCheck } from 'lucide-react';
 import { formatDate, formatNumber } from '@/lib/utils';
+import { getT } from '@/lib/i18n/server';
 
 interface ExpiryRow {
   id: string;
@@ -21,6 +24,7 @@ export default async function ExpiryReportPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
   const supabase = await createClient();
   const horizon = new Date();
   horizon.setDate(horizon.getDate() + WINDOW_DAYS);
@@ -45,15 +49,11 @@ export default async function ExpiryReportPage() {
   return (
     <div>
       <PageHeader
-        title="قرب انتهاء الصلاحية"
-        description={`الدفعات المستلمة التي تنتهي صلاحيتها خلال ${WINDOW_DAYS} يوماً أو انتهت بالفعل`}
+        title={t('inventory.expiryPageTitle')}
+        description={t('inventory.expiryPageDescription', { days: WINDOW_DAYS })}
       />
       {rows.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            لا توجد دفعات قريبة من انتهاء الصلاحية. (تُسجَّل الصلاحية عند استلام أوامر الشراء.)
-          </CardContent>
-        </Card>
+        <EmptyState icon={<CalendarCheck />} title={t('inventory.emptyExpiry')} />
       ) : (
         <Card>
           <CardContent className="p-0">
@@ -61,12 +61,12 @@ export default async function ExpiryReportPage() {
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
-                    <th className="p-3 text-right font-medium">الصنف</th>
-                    <th className="p-3 text-right font-medium">التشغيلة</th>
-                    <th className="p-3 text-right font-medium">المخزن</th>
-                    <th className="p-3 text-center font-medium">الكمية</th>
-                    <th className="p-3 text-right font-medium">تاريخ الصلاحية</th>
-                    <th className="p-3 text-center font-medium">الحالة</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colProduct')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colBatch')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colWarehouse')}</th>
+                    <th className="p-3 text-center font-medium">{t('inventory.colQuantity')}</th>
+                    <th className="p-3 text-start font-medium">{t('inventory.colExpiryDate')}</th>
+                    <th className="p-3 text-center font-medium">{t('inventory.colStatus')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -86,11 +86,11 @@ export default async function ExpiryReportPage() {
                         <td className="p-3" dir="ltr">{formatDate(r.expiry_date)}</td>
                         <td className="p-3 text-center">
                           {expired ? (
-                            <Badge variant="destructive">منتهية ({Math.abs(d)} يوم)</Badge>
+                            <Badge variant="destructive">{t('inventory.statusExpired', { days: Math.abs(d) })}</Badge>
                           ) : soon ? (
-                            <Badge variant="destructive">خلال {d} يوم</Badge>
+                            <Badge variant="destructive">{t('inventory.statusExpiringSoon', { days: d })}</Badge>
                           ) : (
-                            <Badge variant="warning">{d} يوم</Badge>
+                            <Badge variant="warning">{t('inventory.statusExpiringDays', { days: d })}</Badge>
                           )}
                         </td>
                       </tr>

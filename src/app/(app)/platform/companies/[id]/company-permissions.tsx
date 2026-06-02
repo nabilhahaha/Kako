@@ -1,0 +1,236 @@
+'use client';
+
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_GROUP_LABELS, type Permission } from '@/lib/erp/permissions';
+import {
+  setCompanyRoleEnabled,
+  setCompanyRolePermission,
+  addCompanyRole,
+} from './permission-actions';
+import { Plus, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
+
+export interface CompanyRoleRow {
+  key: string;
+  name_ar: string;
+  is_system: boolean;
+  rank: number;
+}
+
+export function CompanyPermissions({
+  companyId,
+  roles,
+  enabledRoles,
+  permsByRole,
+  view = 'permissions',
+}: {
+  companyId: string;
+  roles: CompanyRoleRow[];
+  /** role_keys enabled for this company */
+  enabledRoles: string[];
+  /** company-scoped permissions, per role_key */
+  permsByRole: Record<string, string[]>;
+  /** Which slice to render: the roles list, or the permission matrix. */
+  view?: 'roles' | 'permissions';
+}) {
+  const { t, locale } = useI18n();
+  const router = useRouter();
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newKey, setNewKey] = useState('');
+  const [pending, startTransition] = useTransition();
+
+  const [enabled, setEnabled] = useState<Set<string>>(new Set(enabledRoles));
+  const [matrix, setMatrix] = useState<Record<string, Set<string>>>(
+    Object.fromEntries(roles.map((r) => [r.key, new Set(permsByRole[r.key] ?? [])])),
+  );
+
+  function toggleRole(roleKey: string, on: boolean) {
+    setEnabled((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(roleKey);
+      else next.delete(roleKey);
+      return next;
+    });
+    startTransition(async () => {
+      const res = await setCompanyRoleEnabled(companyId, roleKey, on);
+      if (!res.ok) {
+        toast.error(res.error ?? t('platform.permissions.toastError'));
+      }
+      // Enabling may seed default permissions server-side — refresh to reflect.
+      router.refresh();
+    });
+  }
+
+  function togglePerm(roleKey: string, perm: Permission, on: boolean) {
+    setMatrix((prev) => {
+      const next = { ...prev, [roleKey]: new Set(prev[roleKey] ?? []) };
+      if (on) next[roleKey].add(perm);
+      else next[roleKey].delete(perm);
+      return next;
+    });
+    startTransition(async () => {
+      const res = await setCompanyRolePermission(companyId, roleKey, perm, on);
+      if (!res.ok) {
+        toast.error(res.error ?? t('platform.permissions.toastError'));
+        router.refresh();
+      }
+    });
+  }
+
+  function addRole() {
+    startTransition(async () => {
+      const res = await addCompanyRole(companyId, newName, newKey);
+      if (!res.ok) {
+        toast.error(res.error ?? t('platform.permissions.toastError'));
+        return;
+      }
+      toast.success(t('platform.permissions.toastRoleAdded'));
+      setAdding(false);
+      setNewName('');
+      setNewKey('');
+      router.refresh();
+    });
+  }
+
+  // Group permissions for display.
+  const groups = new Map<string, Permission[]>();
+  for (const p of ALL_PERMISSIONS) {
+    const g = PERMISSION_LABELS[p].group;
+    groups.set(g, [...(groups.get(g) ?? []), p]);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-semibold">{view === 'roles' ? t('platform.permissions.rolesTitle') : t('platform.permissions.title')}</p>
+          <p className="text-xs text-muted-foreground">
+            {view === 'roles' ? t('platform.permissions.rolesDescription') : t('platform.permissions.description')}
+          </p>
+        </div>
+        {!adding ? (
+          <Button size="sm" onClick={() => setAdding(true)}>
+            <Plus className="h-4 w-4" /> {t('platform.permissions.newRole')}
+          </Button>
+        ) : null}
+      </div>
+
+      {adding && (
+        <Card>
+          <CardContent className="flex flex-wrap items-end gap-3 pt-6">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">{t('platform.permissions.roleNameLabel')}</label>
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t('platform.permissions.roleNamePlaceholder')} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">{t('platform.permissions.roleKeyLabel')}</label>
+              <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} dir="ltr" placeholder={t('platform.permissions.roleKeyPlaceholder')} />
+            </div>
+            <Button onClick={addRole} disabled={pending}>
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('platform.permissions.addButton')}
+            </Button>
+            <Button variant="outline" onClick={() => setAdding(false)}>{t('platform.permissions.cancelButton')}</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {view === 'roles' && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {roles.map((r) => (
+                <label key={r.key} className="flex items-center justify-between gap-2 p-3 text-sm">
+                  <span className="font-medium">
+                    {r.name_ar}
+                    {!r.is_system && <span className="ms-2 text-xs text-muted-foreground">{t('platform.permissions.customBadge')}</span>}
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={enabled.has(r.key)}
+                    disabled={pending}
+                    onChange={(e) => toggleRole(r.key, e.target.checked)}
+                  />
+                </label>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {view === 'permissions' && (
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-secondary/50 text-muted-foreground">
+                <tr>
+                  <th className="sticky start-0 bg-secondary/50 p-3 text-start font-medium">{t('platform.permissions.thPermission')}</th>
+                  {roles.map((r) => (
+                    <th key={r.key} className="p-3 text-center font-medium whitespace-nowrap">
+                      <div className="flex flex-col items-center gap-1">
+                        <span>{r.name_ar}</span>
+                        <label className="flex items-center gap-1 text-[11px] font-normal">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 accent-primary"
+                            checked={enabled.has(r.key)}
+                            disabled={pending}
+                            onChange={(e) => toggleRole(r.key, e.target.checked)}
+                          />
+                          {t('platform.permissions.enabledLabel')}
+                        </label>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              {[...groups.entries()].map(([group, perms]) => (
+                <tbody key={group}>
+                  <tr className="border-b bg-secondary/30">
+                    <td colSpan={roles.length + 1} className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                      {PERMISSION_GROUP_LABELS[group]?.[locale] ?? group}
+                    </td>
+                  </tr>
+                  {perms.map((p) => (
+                    <tr key={p} className="border-b">
+                      <td className="sticky start-0 bg-background p-3">{PERMISSION_LABELS[p][locale]}</td>
+                      {roles.map((r) => {
+                        const roleOn = enabled.has(r.key);
+                        const checked = matrix[r.key]?.has(p) ?? false;
+                        return (
+                          <td key={r.key} className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 accent-primary disabled:opacity-40"
+                              checked={checked}
+                              disabled={!roleOn || pending}
+                              onChange={(e) => togglePerm(r.key, p, e.target.checked)}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              ))}
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+      )}
+
+      {view === 'permissions' && (
+        <p className="text-xs text-muted-foreground">
+          {t('platform.permissions.footer')}
+        </p>
+      )}
+    </div>
+  );
+}

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
+import { getT } from '@/lib/i18n/server';
 import type { Branch, ErpCustomer, ProductCatalog } from '@/lib/erp/types';
 import { RepTerminal, type PlanCustomer } from './rep-terminal';
 
@@ -10,6 +11,7 @@ export default async function RepPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  const { t } = await getT();
   const supabase = await createClient();
   const today = new Date();
   const todayCode = DAY_CODES[today.getDay()];
@@ -27,7 +29,9 @@ export default async function RepPage() {
 
   const allCustomers = (customers as ErpCustomer[]) ?? [];
   const van = (vans ?? [])[0];
-  const sourceLabel = van ? `سيارتك (${van.name_ar || van.name})` : 'مخزن الفرع';
+  const sourceLabel = van
+    ? t('rep.sourceLabelVan', { name: van.name_ar || van.name })
+    : t('rep.sourceLabelBranch');
   const status = (session as { status?: string } | null)?.status;
   const dayStatus: 'none' | 'open' | 'closed' = status === 'open' ? 'open' : status === 'closed' ? 'closed' : 'none';
 

@@ -10,9 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
-export function LoginForm() {
+export function LoginForm({ bare = false }: { bare?: boolean }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,26 +28,24 @@ export function LoginForm() {
       password,
     });
     if (error) {
-      toast.error('فشل تسجيل الدخول', {
+      toast.error(t('auth.loginFailed'), {
         description:
           error.message === 'Invalid login credentials'
-            ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة'
+            ? t('auth.loginBadCredentials')
             : error.message,
       });
       setLoading(false);
       return;
     }
-    toast.success('تم تسجيل الدخول بنجاح');
-    router.push('/dashboard');
+    toast.success(t('auth.loginSuccess'));
+    router.push('/');
     router.refresh();
   }
 
-  return (
-    <Card>
-      <CardContent className="pt-6">
+  const form = (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">البريد الإلكتروني</Label>
+            <Label htmlFor="email">{t('auth.email')}</Label>
             <Input
               id="email"
               type="email"
@@ -59,7 +59,7 @@ export function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">كلمة المرور</Label>
+            <Label htmlFor="password">{t('auth.password')}</Label>
             <Input
               id="password"
               type="password"
@@ -74,15 +74,20 @@ export function LoginForm() {
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            تسجيل الدخول
+            {t('auth.loginSubmit')}
           </Button>
           <div className="text-center">
             <Link href="/forgot-password" className="text-sm text-primary hover:underline">
-              نسيت كلمة المرور؟
+              {t('auth.forgotLink')}
             </Link>
           </div>
         </form>
-      </CardContent>
+  );
+
+  if (bare) return form;
+  return (
+    <Card>
+      <CardContent className="pt-6">{form}</CardContent>
     </Card>
   );
 }

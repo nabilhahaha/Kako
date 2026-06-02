@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 interface TransferLineInput {
   product_id: string;
@@ -19,12 +20,13 @@ export async function createTransfer(input: {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
 
+  const { t } = await getT();
   if (!input.from_warehouse_id || !input.to_warehouse_id)
-    return { ok: false, error: 'اختر المخزن المصدر والمخزن الوجهة.' };
+    return { ok: false, error: t('inventory.errorSelectWarehouses') };
   if (input.from_warehouse_id === input.to_warehouse_id)
-    return { ok: false, error: 'لا يمكن التحويل لنفس المخزن.' };
+    return { ok: false, error: t('inventory.errorSameWarehouse') };
   const lines = input.lines.filter((l) => l.product_id && l.quantity > 0);
-  if (lines.length === 0) return { ok: false, error: 'أضف بنداً واحداً على الأقل.' };
+  if (lines.length === 0) return { ok: false, error: t('inventory.errorAtLeastOneLine') };
 
   const supabase = await createClient();
   const { data: trNumber, error: numErr } = await supabase.rpc('erp_next_number', {

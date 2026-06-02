@@ -1,0 +1,76 @@
+/** Custom Fields management. ar/en keys identical. */
+export const ar = {
+  customFields: {
+    title: 'الحقول المخصصة',
+    subtitle: 'عرّف حقولاً إضافية لأي وحدة. تظهر في النماذج والاستيراد والتصدير تلقائياً.',
+    noAccess: 'هذه الصفحة تتطلب صلاحية إدارة الحقول المخصصة.',
+    formSection: 'حقول إضافية',
+    entity: { title: 'اختر الوحدة' },
+    list: {
+      title: 'الحقول الحالية',
+      empty: 'لا توجد حقول مخصصة لهذه الوحدة بعد.',
+      label: 'الاسم',
+      key: 'المعرّف',
+      type: 'النوع',
+      required: 'مطلوب',
+      status: 'الحالة',
+      actions: 'إجراءات',
+    },
+    status: { active: 'مفعّل', inactive: 'معطّل' },
+    form: {
+      title: 'إضافة حقل',
+      labelAr: 'الاسم بالعربية',
+      labelEn: 'الاسم بالإنجليزية',
+      type: 'النوع',
+      required: 'مطلوب',
+      options: 'الخيارات',
+      optionsHint: 'خيار في كل سطر: value أو value|الاسم بالعربية|الاسم بالإنجليزية',
+      submit: 'إضافة الحقل',
+      labelRequired: 'أدخل اسم الحقل بالعربية',
+    },
+    toast: {
+      error: 'حدث خطأ',
+      created: 'تم إنشاء الحقل',
+      saved: 'تم الحفظ',
+      deleted: 'تم حذف الحقل',
+    },
+  },
+};
+
+export const en = {
+  customFields: {
+    title: 'Custom Fields',
+    subtitle: 'Define extra fields for any module. They appear in forms, import, and export automatically.',
+    noAccess: 'This page requires the Manage Custom Fields permission.',
+    formSection: 'Additional fields',
+    entity: { title: 'Choose a module' },
+    list: {
+      title: 'Existing fields',
+      empty: 'No custom fields for this module yet.',
+      label: 'Label',
+      key: 'Key',
+      type: 'Type',
+      required: 'Required',
+      status: 'Status',
+      actions: 'Actions',
+    },
+    status: { active: 'Active', inactive: 'Inactive' },
+    form: {
+      title: 'Add a field',
+      labelAr: 'Label (Arabic)',
+      labelEn: 'Label (English)',
+      type: 'Type',
+      required: 'Required',
+      options: 'Options',
+      optionsHint: 'One per line: value or value|Arabic label|English label',
+      submit: 'Add field',
+      labelRequired: 'Enter the field label (Arabic)',
+    },
+    toast: {
+      error: 'Something went wrong',
+      created: 'Field created',
+      saved: 'Saved',
+      deleted: 'Field deleted',
+    },
+  },
+};

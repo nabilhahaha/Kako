@@ -1,0 +1,610 @@
+/** platform module messages — vendor/provider admin panel. */
+export const ar = {
+  platform: {
+    // ── shared / access guard ──────────────────────────────────────
+    ownerOnly: 'هذه الصفحة متاحة لمالك المنصّة فقط.',
+    ownerOrSuperAdminOnly: 'هذه الصفحة متاحة لمالك المنصّة ومدير النظام فقط.',
+
+    // ── overview page ──────────────────────────────────────────────
+    overview: {
+      title: 'لوحة المزوّد',
+      description: 'نظرة عامة على الشركات المستأجرة وحالة اشتراكاتها',
+      manageCompanies: 'إدارة الشركات',
+      statTotalCompanies: 'إجمالي الشركات',
+      statActive: 'نشطة',
+      statExpiring: 'قاربت الانتهاء',
+      statExpiredSuspended: 'منتهية / موقوفة',
+      statTotalBranches: 'إجمالي الفروع',
+      statTotalUsers: 'إجمالي المستخدمين',
+      // subscriptions card
+      subscriptionsTitle: 'اشتراكات تحتاج متابعة',
+      viewAll: 'عرض الكل',
+      noExpiring: 'لا توجد اشتراكات قاربت على الانتهاء.',
+      daysAgo: 'منذ {n} يوم',
+      daysLeft: '{n} يوم',
+      // recent companies card
+      recentTitle: 'أحدث الشركات',
+      noCompanies: 'لا توجد شركات بعد. أنشئ أول شركة من صفحة الإدارة.',
+      branchCount: 'فرع',
+      userCount: 'مستخدم',
+    },
+
+    // ── subscription state badges ──────────────────────────────────
+    state: {
+      active: 'نشط',
+      expiring: 'قارب الانتهاء',
+      expired: 'منتهٍ',
+      suspended: 'موقوف',
+      trial: 'تجريبي',
+      open: 'مفتوح',
+    },
+
+    // ── companies list page ────────────────────────────────────────
+    companies: {
+      title: 'الشركات والاشتراكات',
+      description: 'إضافة الشركات (المستأجرين)، إدارة اشتراكاتها وقفلها عند الانتهاء',
+      newCompany: 'شركة جديدة',
+      empty: 'لا توجد شركات بعد. أنشئ أول شركة.',
+      // table headers
+      thCompany: 'الشركة',
+      thActivity: 'النشاط',
+      thStatus: 'الحالة',
+      thExpiry: 'الانتهاء',
+      thBranches: 'الفروع',
+      thUsers: 'المستخدمون',
+      daysSuffix: 'يوم',
+      // actions
+      suspend: 'إيقاف',
+      activate: 'تفعيل',
+      manage: 'إدارة',
+      // create form
+      form: {
+        nameArLabel: 'اسم الشركة (عربي)',
+        nameArPlaceholder: 'شركة النور للتوزيع',
+        nameLabel: 'اسم الشركة (إنجليزي) *',
+        namePlaceholder: 'Al Noor Distribution',
+        slugLabel: 'المعرّف (للرابط)',
+        slugPlaceholder: 'al-noor',
+        businessTypeLabel: 'نوع النشاط',
+        subscriptionStartLabel: 'بداية الاشتراك',
+        subscriptionEndLabel: 'نهاية الاشتراك',
+        modulesTitle: 'الموديولات (الوحدات المتاحة للشركة)',
+        modulesHint: 'تتعبّى تلقائياً حسب النشاط — شيل/ضيف اللي تحبه قبل الإنشاء.',
+        rolesTitle: 'الأدوار المتاحة للشركة',
+        rolesHint: 'شيل الأدوار اللي مش محتاجها (تقدر تظبط صلاحيات كل دور بالتفصيل بعد الإنشاء).',
+        selfUsersLabel: 'السماح للشركة بإدارة مستخدميها بنفسها',
+        submitCreate: 'إنشاء الشركة',
+      },
+      // toasts
+      toastCreated: 'تم إنشاء الشركة',
+      toastActivated: 'تم تفعيل الشركة',
+      toastSuspended: 'تم إيقاف الشركة',
+      toastError: 'حدث خطأ',
+    },
+
+    // ── company detail page ────────────────────────────────────────
+    company: {
+      description: 'إدارة الاشتراك والفروع والمستخدمين والصلاحيات لهذه الشركة',
+
+      tabs: {
+        overview: 'نظرة عامة',
+        subscription: 'الاشتراك',
+        users: 'المستخدمون',
+        roles: 'الأدوار',
+        permissions: 'الصلاحيات',
+        modules: 'الوحدات',
+        packs: 'الحزم القطاعية',
+        integrations: 'التكاملات',
+        audit: 'سجل التدقيق',
+      },
+      overview: {
+        users: 'المستخدمون',
+        branches: 'الفروع',
+        products: 'المنتجات',
+        modules: 'الوحدات',
+        expiry: 'انتهاء الاشتراك',
+        trial: 'الفترة التجريبية',
+        onboardingDone: 'اكتمل الإعداد',
+        onboardingPending: 'الإعداد غير مكتمل',
+        onboardingToast: 'تم تحديث حالة الإعداد',
+        resetOnboarding: 'إعادة الإعداد',
+        markOnboarded: 'تعليم كمكتمل',
+      },
+      trial: {
+        title: 'الفترة التجريبية',
+        hint: 'امنح الشركة فترة تجريبية مؤقتة، مستقلة عن الاشتراك المدفوع.',
+        activeUntil: 'تجريبي حتى {date} ({n} يوم)',
+        none: 'لا توجد فترة تجريبية',
+        daysLeft: '{n} يوم متبقٍ',
+        start14: 'تجربة ١٤ يوم',
+        start30: 'تجربة ٣٠ يوم',
+        end: 'إنهاء التجربة',
+        toastStarted: 'بدأت الفترة التجريبية',
+        toastEnded: 'انتهت الفترة التجريبية',
+      },
+      packs: {
+        title: 'الحزم القطاعية',
+        hint: 'فعّل أو أوقف حِزم القطاعات (عيادة، صيدلية، مطعم…) لهذه الشركة.',
+      },
+      integrations: {
+        title: 'التكاملات',
+        hint: 'تحكّم في تكاملات هذه الشركة واتصالاتها الخارجية.',
+        moduleLabel: 'تفعيل وحدة التكاملات',
+        connectionsTitle: 'الاتصالات',
+        noConnections: 'لا توجد اتصالات',
+        active: 'مفعّل',
+        inactive: 'موقوف',
+        disable: 'إيقاف',
+        enable: 'تفعيل',
+        apiKeysTitle: 'مفاتيح API',
+        noApiKeys: 'لا توجد مفاتيح',
+      },
+      audit: {
+        empty: 'لا توجد أحداث',
+        time: 'الوقت',
+        actor: 'المستخدم',
+        action: 'الإجراء',
+        entity: 'العنصر',
+      },
+
+      // subscription card
+      subscription: {
+        title: 'الاشتراك',
+        expiresOn: 'ينتهي {date}',
+        daysRemaining: '({n} يوم)',
+        suspendCompany: 'إيقاف الشركة',
+        activateCompany: 'تفعيل الشركة',
+        selfUsersLabel: 'السماح للشركة بإدارة مستخدميها بنفسها',
+        selfUsersHint: '(لو مقفول، أنت اللي تضيف مستخدمين هذه الشركة)',
+        renewOneMonth: '+شهر',
+        renewThreeMonths: '+٣ أشهر',
+        renewOneYear: '+سنة',
+        applyDate: 'تطبيق',
+        toastRenewed: 'تم تجديد الاشتراك',
+        toastEndUpdated: 'تم تحديث تاريخ الانتهاء',
+        toastSuspended: 'تم الإيقاف',
+        toastActivated: 'تم التفعيل',
+        toastSelfUsersOn: 'الشركة تدير مستخدميها',
+        toastSelfUsersOff: 'المزوّد يدير المستخدمين',
+      },
+
+      // plan & limits card
+      plan: {
+        title: 'الخطة والحدود',
+        planLabel: 'الخطة',
+        availableModules: 'الوحدات المتاحة:',
+        metricUsers: 'المستخدمون',
+        metricBranches: 'الفروع',
+        metricProducts: 'المنتجات',
+        toastUpdated: 'تم تحديث الخطة',
+      },
+
+      // enabled modules card
+      modules: {
+        title: 'الوحدات المفعّلة',
+        hint: 'تتحكم في الأقسام الظاهرة لهذه الشركة (تُضبط افتراضياً حسب نوع النشاط). الخطة قد تحجب وحدة غير متاحة فيها.',
+      },
+
+      // company info form
+      info: {
+        nameArLabel: 'اسم الشركة (عربي)',
+        nameLabel: 'اسم الشركة (إنجليزي) *',
+        businessTypeLabel: 'نوع النشاط',
+        subscriptionStartLabel: 'بداية الاشتراك',
+        subscriptionEndLabel: 'نهاية الاشتراك',
+        saveButton: 'حفظ',
+        toastSaved: 'تم حفظ بيانات الشركة',
+      },
+
+      // branches card
+      branches: {
+        title: 'الفروع ({count})',
+        badgeHq: 'المركز الرئيسي',
+        codePlaceholder: 'كود الفرع *',
+        namePlaceholder: 'اسم الفرع (إنجليزي) *',
+        nameArPlaceholder: 'اسم الفرع (عربي)',
+        isHqLabel: 'رئيسي',
+        addButton: 'إضافة',
+        toastAdded: 'تم إضافة الفرع',
+      },
+
+      // users / members card
+      members: {
+        title: 'المستخدمون ({count})',
+        addFirstBranch: 'أضف فرعًا أولًا لتتمكن من إنشاء مستخدم.',
+        newUserTitle: 'إنشاء مستخدم جديد للشركة',
+        fullNamePlaceholder: 'الاسم الكامل',
+        emailPlaceholder: 'البريد الإلكتروني *',
+        passwordPlaceholder: 'كلمة المرور (٦ أحرف على الأقل) *',
+        branchPlaceholder: 'اختر الفرع *',
+        createUserButton: 'إنشاء المستخدم',
+        toastCreated: 'تم إنشاء المستخدم',
+        // reset password dialog
+        resetPasswordTitle: 'تغيير كلمة المرور',
+        resetPasswordMessage: 'كلمة مرور جديدة لـ {name}',
+        resetPasswordLabel: 'كلمة المرور الجديدة (٦ أحرف على الأقل)',
+        resetPasswordConfirm: 'تغيير',
+        resetPasswordButton: 'كلمة المرور',
+        toastPasswordChanged: 'تم تغيير كلمة المرور',
+        toastPasswordTooShort: 'كلمة المرور قصيرة جداً.',
+      },
+
+      toastError: 'حدث خطأ',
+    },
+
+    // ── roles & permissions panel ──────────────────────────────────
+    permissions: {
+      title: 'الأدوار والصلاحيات',
+      description: 'فعّل الأدوار المطلوبة لهذه الشركة وحدد صلاحيات كل دور. الإعداد مستقل لكل شركة.',
+      rolesTitle: 'الأدوار',
+      rolesDescription: 'فعّل أو أوقف الأدوار المتاحة لهذه الشركة.',
+      customBadge: 'مخصّص',
+      newRole: 'دور جديد',
+      roleNameLabel: 'اسم الدور',
+      roleNamePlaceholder: 'مثال: صيدلي',
+      roleKeyLabel: 'المفتاح (إنجليزي)',
+      roleKeyPlaceholder: 'pharmacist',
+      addButton: 'إضافة',
+      cancelButton: 'إلغاء',
+      enabledLabel: 'مفعّل',
+      thPermission: 'الصلاحية',
+      footer: 'تسري التغييرات على مستخدمي الشركة عند تحديث الصفحة أو إعادة تسجيل الدخول. الأدوار غير المفعّلة لا تمنح أي صلاحية.',
+      toastRoleAdded: 'تمت إضافة الدور لهذه الشركة',
+      toastError: 'حدث خطأ',
+    },
+
+    // ── audit log page ─────────────────────────────────────────────
+    audit: {
+      title: 'سجل التدقيق',
+      description: 'أحدث ٢٠٠ عملية حساسة على المنصّة (صلاحيات، مستخدمون، شركات، اشتراكات).',
+      empty: 'لا توجد عمليات مسجّلة بعد.',
+      thTime: 'الوقت',
+      thActor: 'المنفّذ',
+      thAction: 'العملية',
+      thEntity: 'العنصر',
+      thCompany: 'الشركة',
+      thDetails: 'تفاصيل',
+    },
+
+    // ── drugs (Egyptian drug list) page ────────────────────────────
+    drugs: {
+      title: 'قائمة الأدوية المصرية',
+      description: 'القائمة المرجعية التي تظهر للأطباء في الروشتة (autocomplete). تُحمّل من قاعدة بيانات الأدوية المصرية المفتوحة.',
+      loadedCount: 'عدد الأدوية المحمّلة حالياً',
+      importHint: 'اضغط الزر لتحميل/تحديث القائمة الكاملة (~٢٤٬٨٠٠ دواء) من المصدر المفتوح. العملية تستبدل القائمة الحالية وتستغرق ثوانٍ.',
+      importButton: 'تحميل قائمة الأدوية',
+      updateButton: 'تحديث قائمة الأدوية',
+      readyLabel: 'القائمة جاهزة وتظهر للأطباء في الروشتة.',
+      toastImported: 'تم تحميل {count} دواء',
+      toastError: 'تعذّر التحميل',
+    },
+
+    // ── server-action validation / auth errors ─────────────────────
+    errors: {
+      unauthorized: 'غير مصرح. سجّل الدخول.',
+      ownerRequired: 'لوحة المزوّد متاحة لمالك المنصّة فقط.',
+      permissionsOwnerRequired: 'إدارة صلاحيات الشركات متاحة لمالك المنصّة فقط.',
+      companyNameRequired: 'اسم الشركة (إنجليزي) مطلوب.',
+      slugDuplicate: 'المعرّف (slug) مستخدم بالفعل.',
+      companyRequired: 'الشركة مطلوبة.',
+      subscriptionEndRequired: 'تاريخ الانتهاء مطلوب.',
+      branchCodeRequired: 'كود الفرع مطلوب.',
+      branchNameRequired: 'اسم الفرع مطلوب.',
+      branchCodeDuplicate: 'كود الفرع مستخدم بالفعل في هذه الشركة.',
+      branchRequired: 'اختر الفرع لربط المستخدم به.',
+      emailRequired: 'البريد الإلكتروني مطلوب.',
+      passwordTooShort: 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل.',
+      userCreateFailed: 'تعذّر إنشاء المستخدم. تأكد من نشر دالة admin-create-user.',
+      userIdMissing: 'تعذّر الحصول على معرّف المستخدم.',
+      incompleteData: 'بيانات غير مكتملة.',
+      userRequired: 'المستخدم مطلوب.',
+      roleKeyRequired: 'مفتاح الدور (إنجليزي) مطلوب.',
+      roleNameRequired: 'اسم الدور مطلوب.',
+    },
+  },
+};
+
+export const en = {
+  platform: {
+    // ── shared / access guard ──────────────────────────────────────
+    ownerOnly: 'This page is available to the platform owner only.',
+    ownerOrSuperAdminOnly: 'This page is available to the platform owner and super-admin only.',
+
+    // ── overview page ──────────────────────────────────────────────
+    overview: {
+      title: 'Vendor Panel',
+      description: 'Overview of tenant companies and their subscription status',
+      manageCompanies: 'Manage Companies',
+      statTotalCompanies: 'Total Companies',
+      statActive: 'Active',
+      statExpiring: 'Expiring Soon',
+      statExpiredSuspended: 'Expired / Suspended',
+      statTotalBranches: 'Total Branches',
+      statTotalUsers: 'Total Users',
+      // subscriptions card
+      subscriptionsTitle: 'Subscriptions Needing Attention',
+      viewAll: 'View All',
+      noExpiring: 'No subscriptions expiring soon.',
+      daysAgo: '{n} day(s) ago',
+      daysLeft: '{n} day(s)',
+      // recent companies card
+      recentTitle: 'Recent Companies',
+      noCompanies: 'No companies yet. Create the first one from the management page.',
+      branchCount: 'branch(es)',
+      userCount: 'user(s)',
+    },
+
+    // ── subscription state badges ──────────────────────────────────
+    state: {
+      active: 'Active',
+      expiring: 'Expiring Soon',
+      expired: 'Expired',
+      suspended: 'Suspended',
+      trial: 'Trial',
+      open: 'Open',
+    },
+
+    // ── companies list page ────────────────────────────────────────
+    companies: {
+      title: 'Companies & Subscriptions',
+      description: 'Add tenant companies, manage their subscriptions and lock them on expiry',
+      newCompany: 'New Company',
+      empty: 'No companies yet. Create the first one.',
+      // table headers
+      thCompany: 'Company',
+      thActivity: 'Business Type',
+      thStatus: 'Status',
+      thExpiry: 'Expiry',
+      thBranches: 'Branches',
+      thUsers: 'Users',
+      daysSuffix: 'day(s)',
+      // actions
+      suspend: 'Suspend',
+      activate: 'Activate',
+      manage: 'Manage',
+      // create form
+      form: {
+        nameArLabel: 'Company Name (Arabic)',
+        nameArPlaceholder: 'شركة النور للتوزيع',
+        nameLabel: 'Company Name (English) *',
+        namePlaceholder: 'Al Noor Distribution',
+        slugLabel: 'Identifier (URL slug)',
+        slugPlaceholder: 'al-noor',
+        businessTypeLabel: 'Business Type',
+        subscriptionStartLabel: 'Subscription Start',
+        subscriptionEndLabel: 'Subscription End',
+        modulesTitle: 'Modules (features enabled for this company)',
+        modulesHint: 'Pre-filled based on business type — check/uncheck before creating.',
+        rolesTitle: 'Available Roles for this Company',
+        rolesHint: 'Uncheck any roles not needed (you can fine-tune permissions per role after creation).',
+        selfUsersLabel: 'Allow the company to manage its own users',
+        submitCreate: 'Create Company',
+      },
+      // toasts
+      toastCreated: 'Company created',
+      toastActivated: 'Company activated',
+      toastSuspended: 'Company suspended',
+      toastError: 'An error occurred',
+    },
+
+    // ── company detail page ────────────────────────────────────────
+    company: {
+      description: 'Manage subscription, branches, users, and permissions for this company',
+
+      tabs: {
+        overview: 'Overview',
+        subscription: 'Subscription',
+        users: 'Users',
+        roles: 'Roles',
+        permissions: 'Permissions',
+        modules: 'Modules',
+        packs: 'Industry Packs',
+        integrations: 'Integrations',
+        audit: 'Audit Log',
+      },
+      overview: {
+        users: 'Users',
+        branches: 'Branches',
+        products: 'Products',
+        modules: 'Modules',
+        expiry: 'Subscription ends',
+        trial: 'Trial',
+        onboardingDone: 'Onboarding complete',
+        onboardingPending: 'Onboarding incomplete',
+        onboardingToast: 'Onboarding status updated',
+        resetOnboarding: 'Reset onboarding',
+        markOnboarded: 'Mark as onboarded',
+      },
+      trial: {
+        title: 'Trial period',
+        hint: 'Grant the company a temporary trial, independent of the paid subscription.',
+        activeUntil: 'Trial until {date} ({n} days)',
+        none: 'No trial period',
+        daysLeft: '{n} days left',
+        start14: 'Start 14-day trial',
+        start30: 'Start 30-day trial',
+        end: 'End trial',
+        toastStarted: 'Trial started',
+        toastEnded: 'Trial ended',
+      },
+      packs: {
+        title: 'Industry Packs',
+        hint: 'Enable or disable vertical packs (clinic, pharmacy, restaurant…) for this company.',
+      },
+      integrations: {
+        title: 'Integrations',
+        hint: 'Control this company\'s integrations and external connections.',
+        moduleLabel: 'Enable Integrations module',
+        connectionsTitle: 'Connections',
+        noConnections: 'No connections',
+        active: 'Active',
+        inactive: 'Disabled',
+        disable: 'Disable',
+        enable: 'Enable',
+        apiKeysTitle: 'API keys',
+        noApiKeys: 'No keys',
+      },
+      audit: {
+        empty: 'No events',
+        time: 'Time',
+        actor: 'User',
+        action: 'Action',
+        entity: 'Entity',
+      },
+
+      // subscription card
+      subscription: {
+        title: 'Subscription',
+        expiresOn: 'Expires {date}',
+        daysRemaining: '({n} day(s))',
+        suspendCompany: 'Suspend Company',
+        activateCompany: 'Activate Company',
+        selfUsersLabel: 'Allow company to manage its own users',
+        selfUsersHint: '(If disabled, you add users for this company)',
+        renewOneMonth: '+1 Month',
+        renewThreeMonths: '+3 Months',
+        renewOneYear: '+1 Year',
+        applyDate: 'Apply',
+        toastRenewed: 'Subscription renewed',
+        toastEndUpdated: 'Expiry date updated',
+        toastSuspended: 'Suspended',
+        toastActivated: 'Activated',
+        toastSelfUsersOn: 'Company manages its own users',
+        toastSelfUsersOff: 'Vendor manages users',
+      },
+
+      // plan & limits card
+      plan: {
+        title: 'Plan & Limits',
+        planLabel: 'Plan',
+        availableModules: 'Available modules:',
+        metricUsers: 'Users',
+        metricBranches: 'Branches',
+        metricProducts: 'Products',
+        toastUpdated: 'Plan updated',
+      },
+
+      // enabled modules card
+      modules: {
+        title: 'Enabled Modules',
+        hint: 'Controls which sections are visible to this company (defaults to business type). The plan may restrict unavailable modules.',
+      },
+
+      // company info form
+      info: {
+        nameArLabel: 'Company Name (Arabic)',
+        nameLabel: 'Company Name (English) *',
+        businessTypeLabel: 'Business Type',
+        subscriptionStartLabel: 'Subscription Start',
+        subscriptionEndLabel: 'Subscription End',
+        saveButton: 'Save',
+        toastSaved: 'Company info saved',
+      },
+
+      // branches card
+      branches: {
+        title: 'Branches ({count})',
+        badgeHq: 'Headquarters',
+        codePlaceholder: 'Branch Code *',
+        namePlaceholder: 'Branch Name (English) *',
+        nameArPlaceholder: 'Branch Name (Arabic)',
+        isHqLabel: 'HQ',
+        addButton: 'Add',
+        toastAdded: 'Branch added',
+      },
+
+      // users / members card
+      members: {
+        title: 'Users ({count})',
+        addFirstBranch: 'Add a branch first to create a user.',
+        newUserTitle: 'Create a new user for this company',
+        fullNamePlaceholder: 'Full Name',
+        emailPlaceholder: 'Email *',
+        passwordPlaceholder: 'Password (min. 6 characters) *',
+        branchPlaceholder: 'Select Branch *',
+        createUserButton: 'Create User',
+        toastCreated: 'User created',
+        // reset password dialog
+        resetPasswordTitle: 'Change Password',
+        resetPasswordMessage: 'New password for {name}',
+        resetPasswordLabel: 'New Password (min. 6 characters)',
+        resetPasswordConfirm: 'Change',
+        resetPasswordButton: 'Password',
+        toastPasswordChanged: 'Password changed',
+        toastPasswordTooShort: 'Password is too short.',
+      },
+
+      toastError: 'An error occurred',
+    },
+
+    // ── roles & permissions panel ──────────────────────────────────
+    permissions: {
+      title: 'Roles & Permissions',
+      description: 'Enable required roles for this company and set permissions per role. Settings are independent per company.',
+      rolesTitle: 'Roles',
+      rolesDescription: 'Enable or disable the roles available to this company.',
+      customBadge: 'Custom',
+      newRole: 'New Role',
+      roleNameLabel: 'Role Name',
+      roleNamePlaceholder: 'e.g. Pharmacist',
+      roleKeyLabel: 'Key (English)',
+      roleKeyPlaceholder: 'pharmacist',
+      addButton: 'Add',
+      cancelButton: 'Cancel',
+      enabledLabel: 'Enabled',
+      thPermission: 'Permission',
+      footer: 'Changes take effect for company users on page refresh or re-login. Disabled roles grant no permissions.',
+      toastRoleAdded: 'Role added for this company',
+      toastError: 'An error occurred',
+    },
+
+    // ── audit log page ─────────────────────────────────────────────
+    audit: {
+      title: 'Audit Log',
+      description: 'Latest 200 sensitive operations on the platform (permissions, users, companies, subscriptions).',
+      empty: 'No operations logged yet.',
+      thTime: 'Time',
+      thActor: 'Actor',
+      thAction: 'Action',
+      thEntity: 'Entity',
+      thCompany: 'Company',
+      thDetails: 'Details',
+    },
+
+    // ── drugs (Egyptian drug list) page ────────────────────────────
+    drugs: {
+      title: 'Egyptian Drug List',
+      description: 'Reference list shown to doctors in prescriptions (autocomplete). Loaded from the open Egyptian drug database.',
+      loadedCount: 'Currently loaded drugs',
+      importHint: 'Click to load/update the full list (~24,800 drugs) from the open source. The operation replaces the current list and takes a few seconds.',
+      importButton: 'Load Drug List',
+      updateButton: 'Update Drug List',
+      readyLabel: 'List is ready and visible to doctors in prescriptions.',
+      toastImported: '{count} drugs loaded',
+      toastError: 'Failed to load',
+    },
+
+    // ── server-action validation / auth errors ─────────────────────
+    errors: {
+      unauthorized: 'Unauthorized. Please log in.',
+      ownerRequired: 'Vendor panel is available to the platform owner only.',
+      permissionsOwnerRequired: 'Managing company permissions is available to the platform owner only.',
+      companyNameRequired: 'Company name (English) is required.',
+      slugDuplicate: 'This identifier (slug) is already in use.',
+      companyRequired: 'Company is required.',
+      subscriptionEndRequired: 'Subscription end date is required.',
+      branchCodeRequired: 'Branch code is required.',
+      branchNameRequired: 'Branch name is required.',
+      branchCodeDuplicate: 'Branch code is already used in this company.',
+      branchRequired: 'Select a branch to link the user to.',
+      emailRequired: 'Email is required.',
+      passwordTooShort: 'Password must be at least 6 characters.',
+      userCreateFailed: 'Failed to create user. Make sure the admin-create-user function is deployed.',
+      userIdMissing: 'Failed to retrieve user ID.',
+      incompleteData: 'Incomplete data.',
+      userRequired: 'User is required.',
+      roleKeyRequired: 'Role key (English) is required.',
+      roleNameRequired: 'Role name is required.',
+    },
+  },
+};

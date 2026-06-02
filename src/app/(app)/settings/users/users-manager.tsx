@@ -17,6 +17,7 @@ import { initialsFromName } from '@/lib/utils';
 import type { Branch, Profile, UserBranch } from '@/lib/erp/types';
 import { Plus, Loader2, X, ShieldCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface RoleOption {
   key: string;
@@ -40,6 +41,7 @@ export function UsersManager({
 }: Props) {
   const roleLabel = (key: string) => roles.find((r) => r.key === key)?.name_ar ?? key;
   const router = useRouter();
+  const { t } = useI18n();
   const [adding, setAdding] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -54,10 +56,10 @@ export function UsersManager({
     startTransition(async () => {
       const res = await createUser(formData);
       if (!res.ok) {
-        toast.error(res.error ?? 'حدث خطأ');
+        toast.error(res.error ?? t('settings.genericError'));
         return;
       }
-      toast.success('تم إنشاء المستخدم');
+      toast.success(t('settings.users.toastUserCreated'));
       form.reset();
       setAdding(false);
       refresh();
@@ -73,7 +75,7 @@ export function UsersManager({
     <div className="space-y-4">
       {!adding && (
         <Button onClick={() => setAdding(true)}>
-          <Plus className="h-4 w-4" /> مستخدم جديد
+          <Plus className="h-4 w-4" /> {t('settings.users.newUser')}
         </Button>
       )}
 
@@ -81,7 +83,7 @@ export function UsersManager({
         <Card>
           <CardContent className="pt-6">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold">مستخدم جديد</h3>
+              <h3 className="font-semibold">{t('settings.users.newUserTitle')}</h3>
               <button
                 onClick={() => setAdding(false)}
                 className="rounded-md p-1 hover:bg-secondary"
@@ -92,11 +94,11 @@ export function UsersManager({
             <form onSubmit={onCreate} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
-                  <Label htmlFor="full_name">الاسم</Label>
-                  <Input id="full_name" name="full_name" placeholder="أحمد محمد" />
+                  <Label htmlFor="full_name">{t('settings.users.nameLabel')}</Label>
+                  <Input id="full_name" name="full_name" placeholder={t('settings.users.namePlaceholder')} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">البريد الإلكتروني *</Label>
+                  <Label htmlFor="email">{t('settings.users.emailLabel')}</Label>
                   <Input
                     id="email"
                     name="email"
@@ -107,21 +109,21 @@ export function UsersManager({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">كلمة المرور *</Label>
+                  <Label htmlFor="password">{t('settings.users.passwordLabel')}</Label>
                   <Input
                     id="password"
                     name="password"
                     type="text"
                     dir="ltr"
                     className="text-left"
-                    placeholder="٦ أحرف على الأقل"
+                    placeholder={t('settings.users.passwordPlaceholder')}
                     required
                   />
                 </div>
               </div>
               <Button type="submit" disabled={pending}>
                 {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-                إنشاء المستخدم
+                {t('settings.users.createButton')}
               </Button>
             </form>
           </CardContent>
@@ -181,6 +183,7 @@ function UserCard({
   onChange: () => void;
   startTransition: (cb: () => void) => void;
 }) {
+  const { t } = useI18n();
   const [branchId, setBranchId] = useState('');
   const [role, setRole] = useState<string>('salesman');
   const [reportsTo, setReportsTo] = useState('');
@@ -190,14 +193,14 @@ function UserCard({
 
   function add() {
     if (!branchId) {
-      toast.error('اختر الفرع');
+      toast.error(t('settings.users.toastSelectBranch'));
       return;
     }
     startTransition(async () => {
       const res = await assignBranch(profile.id, branchId, role, showSupervisor ? reportsTo : null);
-      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      if (!res.ok) toast.error(res.error ?? t('settings.genericError'));
       else {
-        toast.success('تم ربط الفرع');
+        toast.success(t('settings.users.toastBranchAssigned'));
         setBranchId('');
         setReportsTo('');
         onChange();
@@ -208,7 +211,7 @@ function UserCard({
   function remove(bid: string) {
     startTransition(async () => {
       const res = await removeAssignment(profile.id, bid);
-      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      if (!res.ok) toast.error(res.error ?? t('settings.genericError'));
       else onChange();
     });
   }
@@ -216,12 +219,12 @@ function UserCard({
   function toggleFlag(flags: { is_active?: boolean; is_super_admin?: boolean }) {
     startTransition(async () => {
       const res = await setUserFlags(profile.id, flags);
-      if (!res.ok) toast.error(res.error ?? 'حدث خطأ');
+      if (!res.ok) toast.error(res.error ?? t('settings.genericError'));
       else onChange();
     });
   }
 
-  const name = profile.full_name || profile.email || 'مستخدم';
+  const name = profile.full_name || profile.email || t('settings.users.fallbackUser');
 
   return (
     <Card>
@@ -236,11 +239,11 @@ function UserCard({
                 <p className="font-semibold">{name}</p>
                 {profile.is_super_admin && (
                   <Badge variant="info">
-                    <ShieldCheck className="mr-1 h-3 w-3" /> مدير النظام
+                    <ShieldCheck className="ms-1 h-3 w-3" /> {t('settings.users.badgeSuperAdmin')}
                   </Badge>
                 )}
                 {!profile.is_active && (
-                  <Badge variant="destructive">موقوف</Badge>
+                  <Badge variant="destructive">{t('settings.users.badgeSuspended')}</Badge>
                 )}
               </div>
               <p dir="ltr" className="text-right text-sm text-muted-foreground">
@@ -259,7 +262,7 @@ function UserCard({
                   toggleFlag({ is_super_admin: !profile.is_super_admin })
                 }
               >
-                {profile.is_super_admin ? 'إلغاء الإدارة' : 'تعيين مدير نظام'}
+                {profile.is_super_admin ? t('settings.users.revokeSuperAdmin') : t('settings.users.setSuperAdmin')}
               </Button>
               <Button
                 size="sm"
@@ -267,7 +270,7 @@ function UserCard({
                 disabled={pending}
                 onClick={() => toggleFlag({ is_active: !profile.is_active })}
               >
-                {profile.is_active ? 'إيقاف' : 'تفعيل'}
+                {profile.is_active ? t('settings.users.deactivate') : t('settings.users.activate')}
               </Button>
             </div>
           )}
@@ -276,10 +279,10 @@ function UserCard({
         {/* Branch assignments */}
         <div className="mt-4 border-t pt-3">
           <p className="mb-2 text-xs font-medium text-muted-foreground">
-            الفروع والأدوار
+            {t('settings.users.branchesAndRoles')}
           </p>
           {assignments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">لا توجد فروع مسندة</p>
+            <p className="text-sm text-muted-foreground">{t('settings.users.noAssignments')}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {assignments.map((a) => (
@@ -295,7 +298,7 @@ function UserCard({
                     onClick={() => remove(a.branch_id)}
                     disabled={pending}
                     className="text-destructive hover:opacity-70"
-                    aria-label="إزالة"
+                    aria-label={t('settings.users.ariaRemove')}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -307,13 +310,13 @@ function UserCard({
           {/* Add assignment */}
           <div className="mt-3 flex flex-wrap items-end gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">الفرع</Label>
+              <Label className="text-xs">{t('settings.users.branchLabel')}</Label>
               <select
                 value={branchId}
                 onChange={(e) => setBranchId(e.target.value)}
                 className="h-9 rounded-md border border-input bg-background px-2 text-sm"
               >
-                <option value="">اختر فرعاً…</option>
+                <option value="">{t('settings.users.branchPlaceholder')}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.code} · {b.name_ar || b.name}
@@ -322,7 +325,7 @@ function UserCard({
               </select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">الدور</Label>
+              <Label className="text-xs">{t('settings.users.roleLabel')}</Label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
@@ -337,13 +340,13 @@ function UserCard({
             </div>
             {showSupervisor && (
               <div className="space-y-1">
-                <Label className="text-xs">يتبع (المشرف/المدير)</Label>
+                <Label className="text-xs">{t('settings.users.reportsToLabel')}</Label>
                 <select
                   value={reportsTo}
                   onChange={(e) => setReportsTo(e.target.value)}
                   className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                 >
-                  <option value="">— بدون —</option>
+                  <option value="">{t('settings.users.reportsToNone')}</option>
                   {allProfiles
                     .filter((u) => u.id !== profile.id)
                     .map((u) => (
@@ -355,7 +358,7 @@ function UserCard({
               </div>
             )}
             <Button size="sm" onClick={add} disabled={pending}>
-              <Plus className="h-4 w-4" /> ربط
+              <Plus className="h-4 w-4" /> {t('settings.users.assignButton')}
             </Button>
           </div>
         </div>

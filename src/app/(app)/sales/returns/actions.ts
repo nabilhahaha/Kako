@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 interface ReturnLineInput {
   product_id: string;
@@ -23,11 +24,12 @@ export async function createReturn(input: {
 }): Promise<ActionResult<{ id: string }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
 
-  if (!input.branch_id) return { ok: false, error: 'الفرع مطلوب.' };
-  if (!input.customer_id) return { ok: false, error: 'العميل مطلوب.' };
+  if (!input.branch_id) return { ok: false, error: t('sales.branchRequired') };
+  if (!input.customer_id) return { ok: false, error: t('sales.customerRequired') };
   const lines = input.lines.filter((l) => l.product_id && l.quantity > 0);
-  if (lines.length === 0) return { ok: false, error: 'أضف بنداً واحداً على الأقل.' };
+  if (lines.length === 0) return { ok: false, error: t('sales.atLeastOneLine') };
 
   const supabase = await createClient();
   const total = round2(lines.reduce((s, l) => s + l.quantity * l.unit_price, 0));

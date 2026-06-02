@@ -3,18 +3,20 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { getT } from '@/lib/i18n/server';
 
 export async function upsertWarehouse(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
 
   const id = String(formData.get('id') || '').trim();
   const branch_id = String(formData.get('branch_id') || '').trim();
   const code = String(formData.get('code') || '').trim().toUpperCase();
   const name = String(formData.get('name') || '').trim();
-  if (!branch_id) return { ok: false, error: 'الفرع مطلوب.' };
-  if (!code) return { ok: false, error: 'كود المخزن مطلوب.' };
-  if (!name) return { ok: false, error: 'اسم المخزن مطلوب.' };
+  if (!branch_id) return { ok: false, error: t('warehouses.errorBranchRequired') };
+  if (!code) return { ok: false, error: t('warehouses.errorCodeRequired') };
+  if (!name) return { ok: false, error: t('warehouses.errorNameRequired') };
 
   const isVan = String(formData.get('is_van') || '') === 'on';
   const assignedTo = String(formData.get('assigned_to') || '').trim();

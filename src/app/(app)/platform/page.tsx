@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,60 +23,32 @@ import {
   Network,
   Users,
   Settings2,
-  type LucideIcon,
 } from 'lucide-react';
+import { getT } from '@/lib/i18n/server';
 
-const STATE_BADGE: Record<SubscriptionState, { label: string; variant: 'success' | 'warning' | 'destructive' | 'secondary' | 'info' }> = {
-  active: { label: 'نشط', variant: 'success' },
-  expiring: { label: 'قارب الانتهاء', variant: 'warning' },
-  expired: { label: 'منتهٍ', variant: 'destructive' },
-  suspended: { label: 'موقوف', variant: 'destructive' },
-  open: { label: 'مفتوح', variant: 'info' },
+type StateBadge = { variant: 'success' | 'warning' | 'destructive' | 'secondary' | 'info' };
+
+const STATE_BADGE_VARIANT: Record<SubscriptionState, StateBadge> = {
+  active:    { variant: 'success' },
+  expiring:  { variant: 'warning' },
+  expired:   { variant: 'destructive' },
+  suspended: { variant: 'destructive' },
+  trial:     { variant: 'info' },
+  open:      { variant: 'info' },
 };
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  tone = 'primary',
-}: {
-  label: string;
-  value: string;
-  icon: LucideIcon;
-  tone?: 'primary' | 'success' | 'warning' | 'destructive';
-}) {
-  const toneCls = {
-    primary: 'bg-primary/10 text-primary',
-    success: 'bg-success/10 text-success',
-    warning: 'bg-warning/10 text-warning',
-    destructive: 'bg-destructive/10 text-destructive',
-  }[tone];
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${toneCls}`}>
-          <Icon className="h-6 w-6" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="truncate text-xl font-bold tabular-nums" dir="ltr">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default async function PlatformOverviewPage() {
+  const { t, locale } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
   if (!ctx.isPlatformOwner) {
     return (
       <div>
-        <PageHeader title="لوحة المزوّد" />
+        <PageHeader title={t('platform.overview.title')} />
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            هذه الصفحة متاحة لمالك المنصّة فقط.
+            {t('platform.ownerOnly')}
           </CardContent>
         </Card>
       </div>
@@ -116,6 +89,7 @@ export default async function PlatformOverviewPage() {
     expiring: 0,
     expired: 0,
     suspended: 0,
+    trial: 0,
     open: 0,
   };
   for (const c of companyList) tally[subscriptionState(c)] += 1;
@@ -135,25 +109,25 @@ export default async function PlatformOverviewPage() {
   return (
     <div>
       <PageHeader
-        title="لوحة المزوّد"
-        description="نظرة عامة على الشركات المستأجرة وحالة اشتراكاتها"
+        title={t('platform.overview.title')}
+        description={t('platform.overview.description')}
         action={
           <Link href="/platform/companies">
             <Button variant="secondary">
               <Settings2 className="h-4 w-4" />
-              إدارة الشركات
+              {t('platform.overview.manageCompanies')}
             </Button>
           </Link>
         }
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="إجمالي الشركات" value={formatNumber(companyList.length)} icon={Building2} />
-        <StatCard label="نشطة" value={formatNumber(tally.active + tally.open)} icon={CheckCircle2} tone="success" />
-        <StatCard label="قاربت الانتهاء" value={formatNumber(tally.expiring)} icon={Clock} tone="warning" />
-        <StatCard label="منتهية / موقوفة" value={formatNumber(tally.expired + tally.suspended)} icon={CircleSlash} tone="destructive" />
-        <StatCard label="إجمالي الفروع" value={formatNumber(totalBranches)} icon={Network} />
-        <StatCard label="إجمالي المستخدمين" value={formatNumber(totalUsers)} icon={Users} />
+        <StatCard label={t('platform.overview.statTotalCompanies')} value={formatNumber(companyList.length)} icon={Building2} />
+        <StatCard label={t('platform.overview.statActive')} value={formatNumber(tally.active + tally.open)} icon={CheckCircle2} tone="success" />
+        <StatCard label={t('platform.overview.statExpiring')} value={formatNumber(tally.expiring)} icon={Clock} tone="warning" />
+        <StatCard label={t('platform.overview.statExpiredSuspended')} value={formatNumber(tally.expired + tally.suspended)} icon={CircleSlash} tone="destructive" />
+        <StatCard label={t('platform.overview.statTotalBranches')} value={formatNumber(totalBranches)} icon={Network} />
+        <StatCard label={t('platform.overview.statTotalUsers')} value={formatNumber(totalUsers)} icon={Users} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -161,18 +135,19 @@ export default async function PlatformOverviewPage() {
           <CardContent className="p-0">
             <div className="flex items-center justify-between border-b p-4">
               <h2 className="flex items-center gap-2 font-semibold">
-                <Clock className="h-4 w-4" /> اشتراكات تحتاج متابعة
+                <Clock className="h-4 w-4" /> {t('platform.overview.subscriptionsTitle')}
               </h2>
-              <Link href="/platform/companies" className="text-xs text-primary hover:underline">عرض الكل</Link>
+              <Link href="/platform/companies" className="text-xs text-primary hover:underline">{t('platform.overview.viewAll')}</Link>
             </div>
             {expiringSoon.length === 0 ? (
               <p className="p-6 text-center text-sm text-muted-foreground">
-                لا توجد اشتراكات قاربت على الانتهاء.
+                {t('platform.overview.noExpiring')}
               </p>
             ) : (
               <ul className="divide-y">
                 {expiringSoon.map(({ company, left, state }) => {
-                  const badge = STATE_BADGE[state];
+                  const badge = STATE_BADGE_VARIANT[state];
+                  const stateLabel = t(`platform.state.${state}`);
                   return (
                     <li key={company.id} className="flex items-center justify-between gap-3 p-3 text-sm">
                       <Link href={`/platform/companies/${company.id}`} className="min-w-0 hover:underline">
@@ -184,10 +159,12 @@ export default async function PlatformOverviewPage() {
                       <div className="flex shrink-0 items-center gap-2">
                         {left !== null && (
                           <span className="text-xs text-muted-foreground" dir="ltr">
-                            {left < 0 ? `منذ ${Math.abs(left)} يوم` : `${left} يوم`}
+                            {left < 0
+                              ? t('platform.overview.daysAgo', { n: Math.abs(left) })
+                              : t('platform.overview.daysLeft', { n: left })}
                           </span>
                         )}
-                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                        <Badge variant={badge.variant}>{stateLabel}</Badge>
                       </div>
                     </li>
                   );
@@ -201,31 +178,33 @@ export default async function PlatformOverviewPage() {
           <CardContent className="p-0">
             <div className="flex items-center justify-between border-b p-4">
               <h2 className="flex items-center gap-2 font-semibold">
-                <Building2 className="h-4 w-4" /> أحدث الشركات
+                <Building2 className="h-4 w-4" /> {t('platform.overview.recentTitle')}
               </h2>
-              <Link href="/platform/companies" className="text-xs text-primary hover:underline">عرض الكل</Link>
+              <Link href="/platform/companies" className="text-xs text-primary hover:underline">{t('platform.overview.viewAll')}</Link>
             </div>
             {recent.length === 0 ? (
               <p className="p-6 text-center text-sm text-muted-foreground">
-                لا توجد شركات بعد. أنشئ أول شركة من صفحة الإدارة.
+                {t('platform.overview.noCompanies')}
               </p>
             ) : (
               <ul className="divide-y">
                 {recent.map((c) => {
-                  const badge = STATE_BADGE[subscriptionState(c)];
+                  const state = subscriptionState(c);
+                  const badge = STATE_BADGE_VARIANT[state];
+                  const stateLabel = t(`platform.state.${state}`);
                   return (
                     <li key={c.id} className="flex items-center justify-between gap-3 p-3 text-sm">
                       <Link href={`/platform/companies/${c.id}`} className="min-w-0 hover:underline">
                         <p className="truncate font-medium">{c.name_ar || c.name}</p>
                         <span className="text-xs text-muted-foreground">
-                          {c.business_type ? BUSINESS_TYPE_LABELS[c.business_type] : '—'}
+                          {c.business_type ? BUSINESS_TYPE_LABELS[c.business_type][locale] : '—'}
                           {' · '}
-                          {formatNumber(branchCount.get(c.id) ?? 0)} فرع
+                          {formatNumber(branchCount.get(c.id) ?? 0)} {t('platform.overview.branchCount')}
                           {' · '}
-                          {formatNumber(usersByCompany.get(c.id)?.size ?? 0)} مستخدم
+                          {formatNumber(usersByCompany.get(c.id)?.size ?? 0)} {t('platform.overview.userCount')}
                         </span>
                       </Link>
-                      <Badge variant={badge.variant}>{badge.label}</Badge>
+                      <Badge variant={badge.variant}>{stateLabel}</Badge>
                     </li>
                   );
                 })}

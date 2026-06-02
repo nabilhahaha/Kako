@@ -4,10 +4,12 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import type { Branch, ErpCustomer, ProductCatalog } from '@/lib/erp/types';
 import { PosTerminal } from './pos-terminal';
+import { getT } from '@/lib/i18n/server';
 
 export default async function PosPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { t } = await getT();
 
   const supabase = await createClient();
   const [{ data: customers }, { data: branches }, { data: products }] = await Promise.all([
@@ -18,7 +20,7 @@ export default async function PosPage() {
 
   return (
     <div>
-      <PageHeader title="بيع سريع" description="إنشاء فاتورة وإصدارها وتحصيلها في خطوة واحدة" />
+      <PageHeader title={t('sales.posTitle')} description={t('sales.posDescription')} />
       <PosTerminal
         customers={(customers as ErpCustomer[]) ?? []}
         branches={(branches as Branch[]) ?? []}

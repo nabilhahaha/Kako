@@ -50,6 +50,60 @@ export async function exportSalesRows(from: string, to: string): Promise<ActionR
   return { ok: true, data: rows };
 }
 
+/** Full customer master list (ignores the date range). */
+export async function exportCustomersRows(): Promise<ActionResult<Row[]>> {
+  const { error } = await requireAuth();
+  if (error) return { ok: false, error };
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('erp_customers')
+    .select('code, name, name_ar, phone, email, city, balance, credit_limit, is_active')
+    .order('code')
+    .limit(RANGE_LIMIT);
+  const rows = ((data as Array<{
+    code: string; name: string; name_ar: string | null; phone: string | null; email: string | null;
+    city: string | null; balance: number; credit_limit: number; is_active: boolean;
+  }>) ?? []).map((c) => ({
+    'الكود': c.code,
+    'الاسم': c.name_ar || c.name,
+    'الاسم (إنجليزي)': c.name,
+    'الهاتف': c.phone ?? '',
+    'البريد': c.email ?? '',
+    'المدينة': c.city ?? '',
+    'الرصيد': Number(c.balance || 0),
+    'حد الائتمان': Number(c.credit_limit || 0),
+    'الحالة': c.is_active ? 'مفعّل' : 'موقوف',
+  }));
+  return { ok: true, data: rows };
+}
+
+/** Full product catalog (ignores the date range). */
+export async function exportProductsRows(): Promise<ActionResult<Row[]>> {
+  const { error } = await requireAuth();
+  if (error) return { ok: false, error };
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('erp_products_catalog')
+    .select('code, name, name_ar, barcode, unit, cost_price, sell_price, min_stock, is_active')
+    .order('code')
+    .limit(RANGE_LIMIT);
+  const rows = ((data as Array<{
+    code: string; name: string; name_ar: string | null; barcode: string | null; unit: string | null;
+    cost_price: number; sell_price: number; min_stock: number; is_active: boolean;
+  }>) ?? []).map((p) => ({
+    'الكود': p.code,
+    'الاسم': p.name_ar || p.name,
+    'الاسم (إنجليزي)': p.name,
+    'الباركود': p.barcode ?? '',
+    'الوحدة': p.unit ?? '',
+    'سعر التكلفة': Number(p.cost_price || 0),
+    'سعر البيع': Number(p.sell_price || 0),
+    'حد الطلب': Number(p.min_stock || 0),
+    'الحالة': p.is_active ? 'مفعّل' : 'موقوف',
+  }));
+  return { ok: true, data: rows };
+}
+
 /** All stock movements in range (raw inventory data). */
 export async function exportInventoryRows(from: string, to: string): Promise<ActionResult<Row[]>> {
   const { error } = await requireAuth();
