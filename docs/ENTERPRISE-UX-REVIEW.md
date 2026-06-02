@@ -1,6 +1,12 @@
 # Enterprise UX / Navigation / Grouping — Review (design, before pilot)
 
-> **Review + design for approval — no implementation yet.** A pilot-readiness UX
+> **Decisions approved (all recommended). UX-1 built; UX-2…UX-5 phased.**
+> UX-1 groups the flat 17-item Settings section into the five approved labeled
+> subsections (Organization / Data & Fields / Integrations / Governance / Personal),
+> ordered most-used first, via an additive `group` on nav items + sidebar
+> subsection headers. No routes/permissions changed.
+
+> A pilot-readiness UX
 > pass over navigation, grouping, forms, pages, workflow, and mobile, plus the
 > **Manual Import Mapping Wizard**. Grounded in the current code. Each
 > recommendation is additive/non-breaking and phased; nothing is built until you
@@ -141,7 +147,30 @@ columns once, reuse next time" helper. No schema change (the table exists).
 7. **No data-model changes** — confirm this review stays presentation-only (the
    import mapping-template table already exists; nothing new required).
 
-*(Review only — nothing built. On your §11 answers I'll take the first UX slice
-through the normal review-first cycle: design → build → tsc/test/build → mobile +
-RTL check → draft PR → approval. The Import Wizard work is mostly polish since the
-engine + per-company templates already exist.)*
+## 12. Additional review lenses (owner) — make it feel simple, keep enterprise depth
+These cut across the phases; the principle is **progressive disclosure** (simple by
+default, advanced on demand — the pattern already used in Pricing's "show advanced").
+- **Navigation simplicity** — UX-1 subsections (done) + collapse non-active vertical
+  packs; a top **"Frequent"** group of the 4–6 most-used links per role.
+- **Action-based menus** — lead each screen with its primary **verb** (New Invoice,
+  Add Customer, Import) as a prominent button; demote secondary actions into an
+  overflow (⋯) menu so rows/toolbars aren't crowded (UX-5).
+- **Page-clutter reduction** — move rarely-used fields/actions behind
+  collapsible "Advanced" sections (UX-2 FormSection supports this); tables show the
+  few decision columns, details on the row's open/expand.
+- **Most-used actions first** — order nav items and toolbar actions by real
+  frequency for the role (rep: Sell/Customers/Visits first; admin: Setup first).
+- **Pilot-user friendliness** — empty states that teach + offer the primary CTA;
+  sensible defaults (branch/date/template); short inline hints; the import
+  "map once, reuse" helper (UX-4).
+
+## 13. Status
+- **UX-1 (Settings/nav grouping)** — ✅ built (this PR): `group` on nav items +
+  sidebar subsection headers + `nav.groups.*` (ar/en). tsc/tests/build clean.
+- **UX-2…UX-5** — queued per §10/§11; each its own review-first slice.
+
+*(UX-1 is built and verified. The next slice — recommended **UX-4 (import
+manual-first)** then **UX-2 (FormSection + customer field grouping)** — proceeds on
+approval through design → build → tsc/test/build → mobile + RTL check → PR. The
+Import Wizard work is mostly polish since the engine + per-company templates already
+exist.)*

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { visibleSections, type Module } from '@/lib/erp/navigation';
 import type { Permission } from '@/lib/erp/permissions';
@@ -50,24 +50,33 @@ export function Sidebar({
           <p className="px-3 py-1 text-xs font-medium text-muted-foreground">
             {t(section.title)}
           </p>
-          {section.items.map((item) => {
+          {section.items.map((item, idx) => {
             const active = item.href === activeHref;
             const Icon = item.icon;
+            // Render a subsection header above the first item of each group
+            // (UX-1: turns a long flat section into labeled subsections).
+            const showGroup = item.group && item.group !== section.items[idx - 1]?.group;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-foreground hover:bg-secondary',
+              <Fragment key={item.href}>
+                {showGroup && (
+                  <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                    {t(item.group!)}
+                  </p>
                 )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{t(item.label)}</span>
-              </Link>
+                <Link
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    active
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-foreground hover:bg-secondary',
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{t(item.label)}</span>
+                </Link>
+              </Fragment>
             );
           })}
         </div>
