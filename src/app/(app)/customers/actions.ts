@@ -52,6 +52,19 @@ function strOrNull(v: FormDataEntryValue | null): string | null {
   return String(v ?? '').trim() || null;
 }
 
+/** Checkbox → boolean (present + 'true' = checked). */
+function boolFromCheckbox(v: FormDataEntryValue | null): boolean {
+  return String(v ?? '') === 'true';
+}
+
+/** Tri-state select ('' = inherit/null, 'true'/'false' = explicit). */
+function triBool(v: FormDataEntryValue | null): boolean | null {
+  const s = String(v ?? '').trim();
+  if (s === 'true') return true;
+  if (s === 'false') return false;
+  return null;
+}
+
 
 export async function upsertCustomer(formData: FormData): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
@@ -68,6 +81,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   const branchId = String(formData.get('branch_id') || '').trim();
   let salesmanId = String(formData.get('salesman_id') || '').trim();
   const visitDay = String(formData.get('visit_day') || '').trim();
+  const accountType = strOrNull(formData.get('customer_account_type')) ?? 'independent';
 
   // D1: a scoped Sales Rep creating a customer self-assigns, so it lands in their
   // visibility (S4) and passes the S4b write-scope instead of erroring/vanishing.
@@ -108,6 +122,16 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     contact_phone: strOrNull(formData.get('contact_phone')),
     cr_number: strOrNull(formData.get('cr_number')),
     national_address: strOrNull(formData.get('national_address')),
+    // FP-0: first-class FMCG hierarchy + master flags. The DB guard trigger
+    // enforces same-company + single-level parent; FK/CHECKs reject bad values.
+    customer_account_type: accountType,
+    parent_customer_id: accountType === 'branch' ? strOrNull(formData.get('parent_customer_id')) : null,
+    business_type_id: strOrNull(formData.get('business_type_id')),
+    payment_type: strOrNull(formData.get('payment_type')),
+    is_vat_registered: boolFromCheckbox(formData.get('is_vat_registered')),
+    credit_control_enabled: boolFromCheckbox(formData.get('credit_control_enabled')),
+    customer_status: strOrNull(formData.get('customer_status')) ?? 'active',
+    requires_customer_approval: triBool(formData.get('requires_customer_approval')),
     custom: cf.custom,
   };
 

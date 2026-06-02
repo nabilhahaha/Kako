@@ -461,15 +461,29 @@ export interface ErpCustomer {
   contact_phone: string | null;
   cr_number: string | null;
   national_address: string | null;
+  // FP-0: first-class FMCG customer hierarchy + master flags (all additive).
+  // parent_customer_id → the Head Office (single level for the pilot);
+  // customer_account_type defaults to 'independent' for existing rows.
+  parent_customer_id: string | null;
+  customer_account_type: 'head_office' | 'branch' | 'independent';
+  business_type_id: string | null;
+  is_vat_registered: boolean | null;
+  payment_type: 'cash' | 'credit' | null;
+  credit_control_enabled: boolean;
+  customer_status: 'active' | 'inactive' | 'suspended' | 'blocked';
+  requires_customer_approval: boolean | null; // null = inherit company default
   created_at: string;
   updated_at: string;
 }
 
-/** Company-managed customer master data (FMCG hierarchy S3). The KINDS are
- *  platform-fixed; the VALUES within each kind are tenant-managed (create / edit
- *  / disable). Customers reference rows here via segment_id/classification_id/
- *  channel_id. */
-export type CustomerLookupKind = 'segment' | 'classification' | 'channel';
+/** Company-managed customer master data (FMCG hierarchy S3 + FP-0 business_type).
+ *  The KINDS are platform-fixed; the VALUES within each kind are tenant-managed
+ *  (create / edit / disable). Customers reference rows here via segment_id /
+ *  classification_id / channel_id / business_type_id. */
+export type CustomerLookupKind = 'segment' | 'classification' | 'channel' | 'business_type';
+export type CustomerAccountType = 'head_office' | 'branch' | 'independent';
+export type CustomerStatus = 'active' | 'inactive' | 'suspended' | 'blocked';
+export type CustomerPaymentType = 'cash' | 'credit';
 
 export interface CustomerLookup {
   id: string;

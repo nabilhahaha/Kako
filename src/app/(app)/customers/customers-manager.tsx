@@ -13,7 +13,7 @@ import { FormSection } from '@/components/shared/form-section';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Attachments } from '@/components/shared/attachments';
 import { formatCurrency } from '@/lib/utils';
-import { VISIT_DAYS } from '@/lib/erp/constants';
+import { VISIT_DAYS, CUSTOMER_ACCOUNT_TYPES, CUSTOMER_STATUSES, CUSTOMER_PAYMENT_TYPES } from '@/lib/erp/constants';
 import { importCustomers, approveCustomer, rejectCustomer } from './actions';
 import type { Area, Branch, CustomerLookup, CustomerLookupKind, ErpCustomer, Profile, Region } from '@/lib/erp/types';
 import type { CustomFieldDef } from '@/lib/erp/custom-fields';
@@ -59,6 +59,7 @@ export function CustomersManager({
   const segments = byKind('segment');
   const classes = byKind('classification');
   const channels = byKind('channel');
+  const businessTypes = byKind('business_type');
   const lookupName = (id: string | null) => {
     if (!id) return '';
     const l = lookups.find((x) => x.id === id);
@@ -209,7 +210,7 @@ export function CustomersManager({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <form onSubmit={onSubmit} className="space-y-4">
+            <form key={current?.id ?? 'new'} onSubmit={onSubmit} className="space-y-4">
               {current && <input type="hidden" name="id" value={current.id} />}
               <div className="space-y-5">
                 {/* UX-2: grouped into labeled sections (Identity / Contact / Commercial / Classification / Hierarchy / Location) */}
@@ -235,6 +236,14 @@ export function CustomersManager({
                   <Field label={t('customers.fieldTaxNumber')}><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>
                   <Field label={t('customers.fieldCrNumber')}><Input name="cr_number" dir="ltr" defaultValue={current?.cr_number ?? ''} /></Field>
                 </FormSection>
+
+                <HierarchyAccountSection
+                  current={current}
+                  parentOptions={customers.filter((c) => c.customer_account_type !== 'branch' && c.id !== current?.id)}
+                  businessTypes={businessTypes}
+                  ar={ar}
+                  t={t}
+                />
 
                 <FormSection title={t('customers.sectionClassification')}>
                   <Field label={t('customers.fieldSegment')}>
@@ -667,5 +676,82 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <Label className="text-xs">{label}</Label>
       {children}
     </div>
+  );
+}
+
+const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
+
+/** FP-0: customer hierarchy + master flags. Keyed by record id in the parent so
+ *  its local state (account type → parent visibility) resets on record switch. */
+function HierarchyAccountSection({
+  current,
+  parentOptions,
+  businessTypes,
+  ar,
+  t,
+}: {
+  current: ErpCustomer | null;
+  parentOptions: ErpCustomer[];
+  businessTypes: CustomerLookup[];
+  ar: boolean;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
+  const [accountType, setAccountType] = useState<string>(current?.customer_account_type ?? 'independent');
+  const lkName = (l: CustomerLookup) => (ar ? l.name_ar || l.name : l.name);
+  // null = inherit company default; 'true'/'false' = explicit override.
+  const reqApprovalDefault =
+    current?.requires_customer_approval == null ? '' : current.requires_customer_approval ? 'true' : 'false';
+  return (
+    <FormSection title={t('customers.sectionAccount')}>
+      <Field label={t('customers.fieldAccountType')}>
+        <select name="customer_account_type" value={accountType} onChange={(e) => setAccountType(e.target.value)} className={selectClass}>
+          {CUSTOMER_ACCOUNT_TYPES.map((o) => <option key={o.value} value={o.value}>{ar ? o.ar : o.en}</option>)}
+        </select>
+      </Field>
+      {accountType === 'branch' && (
+        <Field label={t('customers.fieldParentCustomer')}>
+          <select name="parent_customer_id" defaultValue={current?.parent_customer_id ?? ''} className={selectClass}>
+            <option value="">{t('customers.optionNone')}</option>
+            {parentOptions.map((c) => <option key={c.id} value={c.id}>{c.name_ar || c.name}</option>)}
+          </select>
+        </Field>
+      )}
+      <Field label={t('customers.fieldBusinessType')}>
+        <select name="business_type_id" defaultValue={current?.business_type_id ?? ''} className={selectClass}>
+          <option value="">{t('customers.optionNone')}</option>
+          {businessTypes.map((l) => <option key={l.id} value={l.id}>{lkName(l)}</option>)}
+        </select>
+      </Field>
+      <Field label={t('customers.fieldPaymentType')}>
+        <select name="payment_type" defaultValue={current?.payment_type ?? ''} className={selectClass}>
+          <option value="">{t('customers.optionNone')}</option>
+          {CUSTOMER_PAYMENT_TYPES.map((o) => <option key={o.value} value={o.value}>{ar ? o.ar : o.en}</option>)}
+        </select>
+      </Field>
+      <Field label={t('customers.fieldCustomerStatus')}>
+        <select name="customer_status" defaultValue={current?.customer_status ?? 'active'} className={selectClass}>
+          {CUSTOMER_STATUSES.map((o) => <option key={o.value} value={o.value}>{ar ? o.ar : o.en}</option>)}
+        </select>
+      </Field>
+      <Field label={t('customers.fieldRequiresApproval')}>
+        <select name="requires_customer_approval" defaultValue={reqApprovalDefault} className={selectClass}>
+          <option value="">{t('customers.optionInherit')}</option>
+          <option value="true">{t('customers.optionYes')}</option>
+          <option value="false">{t('customers.optionNo')}</option>
+        </select>
+      </Field>
+      <Field label={t('customers.fieldVatRegistered')}>
+        <label className="flex h-10 items-center gap-2 text-sm">
+          <input type="checkbox" name="is_vat_registered" value="true" defaultChecked={current?.is_vat_registered ?? false} className="h-4 w-4" />
+          {t('customers.fieldVatRegisteredHint')}
+        </label>
+      </Field>
+      <Field label={t('customers.fieldCreditControl')}>
+        <label className="flex h-10 items-center gap-2 text-sm">
+          <input type="checkbox" name="credit_control_enabled" value="true" defaultChecked={current?.credit_control_enabled ?? true} className="h-4 w-4" />
+          {t('customers.fieldCreditControlHint')}
+        </label>
+      </Field>
+    </FormSection>
   );
 }
