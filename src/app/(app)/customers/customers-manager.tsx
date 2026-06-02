@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { FieldError } from '@/components/ui/field-error';
 import { FormSection } from '@/components/shared/form-section';
+import { EmptyState } from '@/components/shared/empty-state';
 import { formatCurrency } from '@/lib/utils';
 import { VISIT_DAYS } from '@/lib/erp/constants';
 import { importCustomers, approveCustomer } from './actions';
@@ -334,9 +335,19 @@ export function CustomersManager({
 
       {filtered.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
-            <Users className="h-8 w-8" />
-            <p>{customers.length === 0 ? t('customers.emptyNoCustomers') : t('customers.emptyNoResults')}</p>
+          <CardContent className="p-4">
+            {customers.length === 0 ? (
+              <EmptyState
+                icon={<Users />}
+                title={t('customers.emptyNoCustomers')}
+                description={t('customers.emptyNoCustomersHint')}
+                action={editing === null ? (
+                  <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> {t('customers.btnNew')}</Button>
+                ) : undefined}
+              />
+            ) : (
+              <EmptyState icon={<Search />} title={t('customers.emptyNoResults')} />
+            )}
           </CardContent>
         </Card>
       ) : (

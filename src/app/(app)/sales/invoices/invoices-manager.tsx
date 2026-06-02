@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LineItemsEditor, newLine, type EditorLine } from '@/components/sales/line-items-editor';
+import { EmptyState } from '@/components/shared/empty-state';
 import { FieldError } from '@/components/ui/field-error';
 import { Tooltip } from '@/components/ui/tooltip';
 import { WhatsAppButton } from '@/components/whatsapp-button';
@@ -240,9 +241,14 @@ export function InvoicesManager({
 
       {invoices.length === 0 && !hasFilter ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
-            <Receipt className="h-8 w-8" />
-            <p>{t('sales.invoiceEmpty')}</p>
+          <CardContent className="p-4">
+            <EmptyState
+              icon={<Receipt />}
+              title={t('sales.invoiceEmpty')}
+              action={canCreate && !creating ? (
+                <Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> {t('sales.invoiceBtnNew')}</Button>
+              ) : undefined}
+            />
           </CardContent>
         </Card>
       ) : (
@@ -267,7 +273,50 @@ export function InvoicesManager({
             {invoices.length === 0 ? (
               <p className="p-8 text-center text-sm text-muted-foreground">{t('sales.noResults')}</p>
             ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile (UX-5): invoice cards instead of a wide table */}
+            <div className="divide-y sm:hidden">
+              {invoices.map((inv) => {
+                const remaining = Number(inv.net_amount) - Number(inv.paid_amount);
+                const canPay = ['issued', 'partially_paid', 'overdue'].includes(inv.status) && remaining > 0.001;
+                return (
+                  <div key={inv.id} className="space-y-2 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{inv.customer?.name_ar || inv.customer?.name || '—'}</p>
+                        <p className="font-mono text-xs text-muted-foreground" dir="ltr">{inv.invoice_number} · {formatDate(inv.created_at, INTL_LOCALE[locale])}</p>
+                      </div>
+                      <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status][locale]}</Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" dir="ltr">
+                      <span>{t('sales.invoiceColNet')}: <span className="tabular-nums text-foreground">{formatCurrency(inv.net_amount, 'EGP', INTL_LOCALE[locale])}</span></span>
+                      <span>{t('sales.invoiceColRemaining')}: <span className="tabular-nums">{formatCurrency(remaining, 'EGP', INTL_LOCALE[locale])}</span></span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Link href={`/print/invoices/${inv.id}`} target="_blank" className="rounded-md p-2 hover:bg-secondary" aria-label={t('sales.invoicePrint')}>
+                        <Printer className="h-4 w-4" />
+                      </Link>
+                      {inv.status === 'draft' && (
+                        <>
+                          <Button variant="ghost" size="sm" disabled={pending} onClick={() => onIssue(inv.id)} className="text-xs">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> {t('sales.invoiceBtnIssue')}
+                          </Button>
+                          <Button variant="ghost" size="sm" disabled={pending} onClick={() => onCancel(inv.id)} className="text-xs text-destructive">
+                            {t('sales.invoiceBtnCancel')}
+                          </Button>
+                        </>
+                      )}
+                      {canPay && (
+                        <Button variant="ghost" size="sm" onClick={() => setPayFor(inv)} className="text-xs">
+                          <Wallet className="h-3.5 w-3.5" /> {t('sales.paymentBtnCollect')}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
@@ -347,6 +396,7 @@ export function InvoicesManager({
                 </tbody>
               </table>
             </div>
+            </>
             )}
           </CardContent>
         </Card>

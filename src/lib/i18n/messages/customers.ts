@@ -90,6 +90,7 @@ export const ar = {
 
     // ── Empty states ──────────────────────────────────────────────────
     emptyNoCustomers: 'لا يوجد عملاء بعد.',
+    emptyNoCustomersHint: 'أضف أول عميل أو استورد قائمة عملائك من Excel/CSV للبدء.',
     emptyNoResults: 'لا توجد نتائج.',
 
     // ── Toast messages ────────────────────────────────────────────────
@@ -221,6 +222,7 @@ export const en = {
 
     // ── Empty states ──────────────────────────────────────────────────
     emptyNoCustomers: 'No customers yet.',
+    emptyNoCustomersHint: 'Add your first customer, or import your customer list from Excel/CSV to get started.',
     emptyNoResults: 'No results found.',
 
     // ── Toast messages ────────────────────────────────────────────────

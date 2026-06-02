@@ -182,8 +182,24 @@ default, advanced on demand — the pattern already used in Pricing's "show adva
   Sell · Inventory · More) replaces the lone FAB; "More" opens the full drawer via
   a shared store; content gets bottom clearance. The **customers list** renders as
   **cards under `sm:`** (no horizontal scroll) with larger touch targets. RTL-safe.
-- **UX-5** — queued per §10/§11; its own review-first slice. (Card-list treatment
-  rolls to invoices/pricing under UX-5.)
+- **UX-5 (Page templates + workflow defaults)** — ✅ built: list **empty states**
+  standardized on the shared `EmptyState` with a **primary-action CTA** (customers
+  → "New Customer", invoices → "New Invoice") so an empty list starts the main task
+  in one tap; the **mobile card-list** treatment rolled to **invoices** (consistent
+  with customers). With UX-2's `FormSection` (form template), the **card-list**
+  (mobile list template), and `EmptyState` (empty template), the three page
+  templates are now shared. Existing workflow defaults reaffirmed: single-branch
+  auto-select on create, price auto-resolve on line entry (P-b), import manual-first
+  default (UX-4). **The pilot UX package (UX-1…UX-5) is complete.**
+
+### Page-template conventions (for new screens)
+- **List:** `PageHeader` + action-based toolbar (primary "New …" verb first) +
+  filters + responsive table that becomes a **card list under `sm:`** +
+  `EmptyState` (with the primary CTA) when empty.
+- **Form:** `FormSection` groups (required-first; advanced behind a toggle).
+- **Detail:** header + summary cards + tabs (as in Pricing).
+- **Defaults:** pre-select the only branch; resolve prices; manual-first import;
+  every empty state offers its next step.
 
 *(UX-1 is built and verified. The next slice — recommended **UX-4 (import
 manual-first)** then **UX-2 (FormSection + customer field grouping)** — proceeds on
