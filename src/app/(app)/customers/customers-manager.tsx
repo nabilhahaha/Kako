@@ -17,6 +17,7 @@ import { VISIT_DAYS, CUSTOMER_ACCOUNT_TYPES, CUSTOMER_STATUSES, CUSTOMER_PAYMENT
 import { importCustomers, approveCustomer, rejectCustomer } from './actions';
 import type { Area, Branch, CustomerLookup, CustomerLookupKind, ErpCustomer, Profile, Region } from '@/lib/erp/types';
 import type { CustomFieldDef } from '@/lib/erp/custom-fields';
+import { resolveLayout, type GovInputs, type AccessLevel } from '@/lib/erp/field-governance';
 import { DynamicCustomFields } from '@/components/forms/dynamic-custom-fields';
 import Link from 'next/link';
 import { Plus, Pencil, Loader2, X, Users, Search, AlertTriangle, FileText, Upload, Printer, BadgeCheck } from 'lucide-react';
@@ -34,6 +35,7 @@ export function CustomersManager({
   areas = [],
   canApprove = false,
   customFields = [],
+  gov,
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
@@ -43,6 +45,7 @@ export function CustomersManager({
   areas?: Area[];
   canApprove?: boolean;
   customFields?: CustomFieldDef[];
+  gov?: GovInputs;
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
@@ -160,6 +163,17 @@ export function CustomersManager({
   const current = editing === 'new' ? null : editing;
   const totalReceivable = customers.reduce((s, x) => s + Number(x.balance || 0), 0);
 
+  // DFG-3: resolve governed access for the record being edited. No governance
+  // configured ⇒ empty map ⇒ acc() returns 'edit' ⇒ form behaves as today.
+  const govLayout: Map<string, AccessLevel> = gov && gov.fields.length
+    ? resolveLayout(gov, (current ?? {}) as unknown as Record<string, unknown>)
+    : new Map();
+  const acc = (k: string): AccessLevel => govLayout.get(k) ?? 'edit';
+  const shown = (k: string) => acc(k) !== 'hidden';
+  const ro = (k: string) => acc(k) === 'view';
+  const req = (k: string) => acc(k) === 'required';
+  const gl = (label: string, required: boolean) => (required ? `${label} *` : label);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -222,20 +236,20 @@ export function CustomersManager({
                 </FormSection>
 
                 <FormSection title={t('customers.sectionContact')}>
-                  <Field label={t('customers.fieldPhone')}><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} /></Field>
-                  <Field label={t('customers.fieldEmail')}><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} /></Field>
-                  <Field label={t('customers.fieldContactPerson')}><Input name="contact_person" defaultValue={current?.contact_person ?? ''} /></Field>
-                  <Field label={t('customers.fieldContactPhone')}><Input name="contact_phone" dir="ltr" defaultValue={current?.contact_phone ?? ''} /></Field>
-                  <Field label={t('customers.fieldAddress')}><Input name="address" defaultValue={current?.address ?? ''} /></Field>
-                  <Field label={t('customers.fieldCity')}><Input name="city" defaultValue={current?.city ?? ''} /></Field>
-                  <Field label={t('customers.fieldNationalAddress')}><Input name="national_address" defaultValue={current?.national_address ?? ''} /></Field>
+                  {shown('phone') && <Field label={gl(t('customers.fieldPhone'), req('phone'))}><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} readOnly={ro('phone')} /></Field>}
+                  {shown('email') && <Field label={gl(t('customers.fieldEmail'), req('email'))}><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} readOnly={ro('email')} /></Field>}
+                  {shown('contact_person') && <Field label={gl(t('customers.fieldContactPerson'), req('contact_person'))}><Input name="contact_person" defaultValue={current?.contact_person ?? ''} readOnly={ro('contact_person')} /></Field>}
+                  {shown('contact_phone') && <Field label={gl(t('customers.fieldContactPhone'), req('contact_phone'))}><Input name="contact_phone" dir="ltr" defaultValue={current?.contact_phone ?? ''} readOnly={ro('contact_phone')} /></Field>}
+                  {shown('address') && <Field label={gl(t('customers.fieldAddress'), req('address'))}><Input name="address" defaultValue={current?.address ?? ''} readOnly={ro('address')} /></Field>}
+                  {shown('city') && <Field label={gl(t('customers.fieldCity'), req('city'))}><Input name="city" defaultValue={current?.city ?? ''} readOnly={ro('city')} /></Field>}
+                  {shown('national_address') && <Field label={gl(t('customers.fieldNationalAddress'), req('national_address'))}><Input name="national_address" defaultValue={current?.national_address ?? ''} readOnly={ro('national_address')} /></Field>}
                 </FormSection>
 
                 <FormSection title={t('customers.sectionCommercial')}>
-                  <Field label={t('customers.fieldCreditLimit')}><Input name="credit_limit" type="number" step="0.01" dir="ltr" defaultValue={current?.credit_limit ?? 0} /></Field>
-                  <Field label={t('customers.fieldPaymentTerms')}><Input name="payment_terms_days" type="number" dir="ltr" defaultValue={current?.payment_terms_days ?? ''} /></Field>
-                  <Field label={t('customers.fieldTaxNumber')}><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>
-                  <Field label={t('customers.fieldCrNumber')}><Input name="cr_number" dir="ltr" defaultValue={current?.cr_number ?? ''} /></Field>
+                  {shown('credit_limit') && <Field label={gl(t('customers.fieldCreditLimit'), req('credit_limit'))}><Input name="credit_limit" type="number" step="0.01" dir="ltr" defaultValue={current?.credit_limit ?? 0} readOnly={ro('credit_limit')} /></Field>}
+                  {shown('payment_terms_days') && <Field label={gl(t('customers.fieldPaymentTerms'), req('payment_terms_days'))}><Input name="payment_terms_days" type="number" dir="ltr" defaultValue={current?.payment_terms_days ?? ''} readOnly={ro('payment_terms_days')} /></Field>}
+                  {shown('tax_number') && <Field label={gl(t('customers.fieldTaxNumber'), req('tax_number'))}><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} readOnly={ro('tax_number')} /></Field>}
+                  {shown('cr_number') && <Field label={gl(t('customers.fieldCrNumber'), req('cr_number'))}><Input name="cr_number" dir="ltr" defaultValue={current?.cr_number ?? ''} readOnly={ro('cr_number')} /></Field>}
                 </FormSection>
 
                 <HierarchyAccountSection
@@ -248,24 +262,24 @@ export function CustomersManager({
                 />
 
                 <FormSection title={t('customers.sectionClassification')}>
-                  <Field label={t('customers.fieldSegment')}>
-                    <select name="segment_id" defaultValue={current?.segment_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  {shown('segment_id') && <Field label={gl(t('customers.fieldSegment'), req('segment_id'))}>
+                    <select name="segment_id" defaultValue={current?.segment_id ?? ''} disabled={ro('segment_id')} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                       <option value="">{t('customers.optionNone')}</option>
                       {segments.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
                     </select>
-                  </Field>
-                  <Field label={t('customers.fieldClassification')}>
-                    <select name="classification_id" defaultValue={current?.classification_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  </Field>}
+                  {shown('classification_id') && <Field label={gl(t('customers.fieldClassification'), req('classification_id'))}>
+                    <select name="classification_id" defaultValue={current?.classification_id ?? ''} disabled={ro('classification_id')} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                       <option value="">{t('customers.optionNone')}</option>
                       {classes.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
                     </select>
-                  </Field>
-                  <Field label={t('customers.fieldChannel')}>
-                    <select name="channel_id" defaultValue={current?.channel_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  </Field>}
+                  {shown('channel_id') && <Field label={gl(t('customers.fieldChannel'), req('channel_id'))}>
+                    <select name="channel_id" defaultValue={current?.channel_id ?? ''} disabled={ro('channel_id')} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                       <option value="">{t('customers.optionNone')}</option>
                       {channels.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
                     </select>
-                  </Field>
+                  </Field>}
                 </FormSection>
 
                 <FormSection title={t('customers.sectionHierarchy')}>

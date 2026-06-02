@@ -55,6 +55,34 @@ One **company-configurable field governance engine**, platform-wide: each compan
 | **Company-level config** | everything keyed by `company_id` |
 | **Audit** | `logAudit` before/after on every config/access write (§8) |
 
+## 5.1 Field grouping / sections (confirmed — already covered)
+
+Large forms stay usable via **configurable, orderable sections per company** — already supported by the DFG-1 schema, no redesign:
+
+- **`erp_field_config.section`** assigns each field to a group (Commercial / Financial / Legal / Contacts / Location / Credit / **any custom section** — the section is just a company-chosen key).
+- **`erp_field_config.sort`** orders fields within a section; **section order is derived** from each section's lowest field `sort` (reordering fields reorders sections).
+- **Composes with everything**: a field's section is independent of `access` / `is_active` / `condition`, so grouping works alongside **visibility, editability, required, custom fields, and conditional visibility** — a field shows in its section only when applicable and not hidden.
+- Custom fields carry a section too (same `section` column, `source='custom'`), so company-defined fields slot into any group.
+
+**Optional enhancement (DFG-2, additive — no DFG-1 schema change):** an `erp_field_sections(company_id, entity, key, label_ar, label_en, sort)` table for **explicit bilingual section labels and section-level drag-ordering**. Until then, sections render from the distinct `section` keys ordered by field `sort`.
+
+**Section presentation metadata (DFG-2, additive — no DFG-1 schema change).** An `erp_field_sections` table makes sections first-class with the presentation attributes needed for very large forms (100+ fields):
+```
+erp_field_sections(
+  company_id, entity, key,            -- the section identity (matches field_config.section)
+  label_ar, label_en,                 -- explicit bilingual labels
+  description_ar, description_en,      -- help text shown under the section title
+  icon,                               -- icon name (lucide key) per section
+  collapsible      bool default true, -- can the user fold this section?
+  default_collapsed bool default false,-- initial expanded/collapsed state
+  sort             int                 -- section-level drag-ordering
+)
+```
+- **Icons per section** → `icon`. **Descriptions/help text** → `description_ar/en` (the existing `FormSection` already renders an optional description). **Collapsible** → `collapsible`. **Default expanded/collapsed** → `default_collapsed`.
+- **Backward-compatible:** absent row ⇒ section renders with its key as the label, no icon, expanded, ordered by field `sort` (today's behavior). The table only *enriches* presentation.
+
+**Mobile-friendly rendering (DFG-3 form renderer).** Sections render as a **single-column accordion** on mobile: collapsible cards (honoring `default_collapsed`), one field per row, large tap targets, RTL-aware — so a 100+-field form stays scannable on a phone. On desktop the same sections render as the existing multi-column `FormSection` groups. The renderer is driven entirely by the resolved layout + section metadata, so the **same configuration** produces both.
+
 ## 6. Resolver & enforcement (generic, one implementation)
 
 `src/lib/erp/field-governance.ts` (pure, unit-tested):

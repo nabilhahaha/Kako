@@ -6,6 +6,8 @@ import { PageHeader } from '@/components/shared/page-header';
 import type { Area, Branch, CustomerLookup, ErpCustomer, Profile, Region } from '@/lib/erp/types';
 import { CustomersManager } from './customers-manager';
 import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
+import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
+import { resolveLayout, type GovInputs } from '@/lib/erp/field-governance';
 import { getT } from '@/lib/i18n/server';
 
 export default async function CustomersPage() {
@@ -25,6 +27,17 @@ export default async function CustomersPage() {
   ]);
   const customFields = await getActiveCustomFields('customer');
 
+  // DFG-3: governance inputs for the form + read redaction. Hidden fields are
+  // nulled out of the rows sent to the client (per-record, role + condition).
+  const gov: GovInputs = await loadGovernanceInputs(supabase, ctx, 'customer');
+  const rows = ((customers as ErpCustomer[]) ?? []).map((c) => {
+    if (gov.fields.length === 0) return c;
+    const layout = resolveLayout(gov, c as unknown as Record<string, unknown>);
+    const o = { ...c } as Record<string, unknown>;
+    for (const [k, a] of layout) if (a === 'hidden') o[k] = null;
+    return o as unknown as ErpCustomer;
+  });
+
   return (
     <div>
       <PageHeader
@@ -32,7 +45,7 @@ export default async function CustomersPage() {
         description={t('customers.pageDescription')}
       />
       <CustomersManager
-        customers={(customers as ErpCustomer[]) ?? []}
+        customers={rows}
         branches={(branches as Branch[]) ?? []}
         reps={(profiles as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []}
         lookups={(lookups as CustomerLookup[]) ?? []}
@@ -40,6 +53,7 @@ export default async function CustomersPage() {
         areas={(areas as Area[]) ?? []}
         canApprove={hasPermission(ctx, 'customers.approve')}
         customFields={customFields}
+        gov={gov}
       />
     </div>
   );
