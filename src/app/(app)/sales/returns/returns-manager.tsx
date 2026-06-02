@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { FormSection } from '@/components/shared/form-section';
 import { RETURN_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { INTL_LOCALE } from '@/lib/i18n/config';
@@ -148,7 +149,7 @@ export function ReturnsManager({
               <h3 className="font-semibold">{t('sales.returnFormTitle')}</h3>
               <button onClick={reset} className="rounded-md p-1 hover:bg-secondary"><X className="h-4 w-4" /></button>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <FormSection title={t('sales.returnDetailsSection')}>
               {branches.length > 1 && (
                 <div className="space-y-1">
                   <Label className="text-xs">{t('sales.labelBranchRequired')}</Label>
@@ -168,7 +169,7 @@ export function ReturnsManager({
                 <Label className="text-xs">{t('sales.returnLabelReason')}</Label>
                 <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('sales.returnReasonPlaceholder')} />
               </div>
-            </div>
+            </FormSection>
 
             <div className="overflow-x-auto rounded-md border">
               <table className="w-full text-sm">
