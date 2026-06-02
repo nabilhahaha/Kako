@@ -17,14 +17,20 @@ export default async function CustomersPage() {
   const { t } = await getT();
 
   const supabase = await createClient();
-  const [{ data: customers }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }] = await Promise.all([
-    supabase.from('erp_customers').select('*').order('code'),
+  // M3 (pilot scale guard): cap the unbounded load + per-row governance redaction
+  // until S1 server pagination lands. `count` is the true total; we fetch at most
+  // CAP rows and tell the UI when the list is truncated.
+  const CAP = 2000;
+  const [{ data: customers, count: customerCount }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }] = await Promise.all([
+    supabase.from('erp_customers').select('*', { count: 'exact' }).order('code').limit(CAP),
     supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
     supabase.from('erp_profiles').select('id, full_name, email').eq('is_active', true),
     supabase.from('erp_customer_lookups').select('*').eq('is_active', true).order('sort').order('name'),
     supabase.from('erp_regions').select('*').eq('is_active', true).order('sort').order('name'),
     supabase.from('erp_areas').select('*').eq('is_active', true).order('sort').order('name'),
   ]);
+  const totalCustomers = customerCount ?? ((customers as ErpCustomer[]) ?? []).length;
+  const truncated = totalCustomers > CAP;
   const customFields = await getActiveCustomFields('customer');
 
   // DFG-3: governance inputs for the form + read redaction. Hidden fields are
@@ -54,6 +60,8 @@ export default async function CustomersPage() {
         canApprove={hasPermission(ctx, 'customers.approve')}
         customFields={customFields}
         gov={gov}
+        truncated={truncated}
+        totalCount={totalCustomers}
       />
     </div>
   );

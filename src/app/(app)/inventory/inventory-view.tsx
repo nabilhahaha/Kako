@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/shared/empty-state';
 import { STOCK_MOVEMENT_TYPE_LABELS } from '@/lib/erp/constants';
 import { formatNumber, formatDate } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/provider';
@@ -121,12 +122,7 @@ export function InventoryView({
 
       {tab === 'levels' ? (
         rows.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
-              <Boxes className="h-8 w-8" />
-              <p>{t('inventory.emptyLevels')}</p>
-            </CardContent>
-          </Card>
+          <EmptyState icon={<Boxes />} title={t('inventory.emptyLevels')} />
         ) : (
           <Card>
             <CardContent className="p-0">

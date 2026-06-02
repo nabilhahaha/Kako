@@ -36,6 +36,8 @@ export function CustomersManager({
   canApprove = false,
   customFields = [],
   gov,
+  truncated = false,
+  totalCount,
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
@@ -46,6 +48,8 @@ export function CustomersManager({
   canApprove?: boolean;
   customFields?: CustomFieldDef[];
   gov?: GovInputs;
+  truncated?: boolean;
+  totalCount?: number;
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
@@ -176,6 +180,12 @@ export function CustomersManager({
 
   return (
     <div className="space-y-4">
+      {truncated && (
+        <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
+          <span>{t('customers.listTruncated', { shown: customers.length, total: totalCount ?? customers.length })}</span>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         {editing === null && (
           <Button onClick={() => setEditing('new')}>

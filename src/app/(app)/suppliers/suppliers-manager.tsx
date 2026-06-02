@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/shared/empty-state';
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, PaymentMethod, Supplier } from '@/lib/erp/types';
@@ -125,12 +126,13 @@ export function SuppliersManager({
       )}
 
       {filtered.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
-            <Truck className="h-8 w-8" />
-            <p>{suppliers.length === 0 ? t('suppliers.emptyNoSuppliers') : t('suppliers.emptyNoResults')}</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<Truck />}
+          title={suppliers.length === 0 ? t('suppliers.emptyNoSuppliers') : t('suppliers.emptyNoResults')}
+          action={suppliers.length === 0 && editing === null ? (
+            <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> {t('suppliers.btnNew')}</Button>
+          ) : undefined}
+        />
       ) : (
         <Card>
           <CardContent className="p-0">

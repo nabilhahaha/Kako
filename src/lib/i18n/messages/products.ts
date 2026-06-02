@@ -67,6 +67,7 @@ export const ar = {
 
     // Empty states
     emptyProducts: 'لا توجد منتجات بعد. أضف أول منتج.',
+    emptyProductsHint: 'أنشئ أول منتج أو استورد كتالوجك للبدء.',
     emptySearch: 'لا توجد نتائج مطابقة.',
 
     // Toasts
@@ -163,6 +164,7 @@ export const en = {
 
     // Empty states
     emptyProducts: 'No products yet. Add the first product.',
+    emptyProductsHint: 'Create your first product or import your catalog to get started.',
     emptySearch: 'No matching results.',
 
     // Toasts

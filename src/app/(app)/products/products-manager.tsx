@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/shared/empty-state';
 import { FieldError } from '@/components/ui/field-error';
 import { PRODUCT_UNIT_OPTIONS, PRODUCT_UNIT_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
@@ -247,12 +248,14 @@ export function ProductsManager({
       )}
 
       {filtered.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
-            <Package className="h-8 w-8" />
-            <p>{products.length === 0 ? t('products.emptyProducts') : t('products.emptySearch')}</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<Package />}
+          title={products.length === 0 ? t('products.emptyProducts') : t('products.emptySearch')}
+          description={products.length === 0 ? t('products.emptyProductsHint') : undefined}
+          action={products.length === 0 && editing === null ? (
+            <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> {t('products.btnNewProduct')}</Button>
+          ) : undefined}
+        />
       ) : (
         <Card>
           <CardContent className="p-0">
