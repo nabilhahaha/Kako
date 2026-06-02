@@ -27,9 +27,20 @@
 
 ## Workstream 1 — Real FMCG sales hierarchy
 
-### Goal
-`Sales Director → Regional Manager → Area Manager → Supervisor → Sales Rep`, with
-**scope** (a manager sees their subtree, not the whole company).
+### Goal (revised — 6 levels, Branch Manager included)
+`Sales Director → Regional Manager → Area Manager → Branch Manager → Supervisor →
+Sales Rep`, with **scope** (a manager sees their level, not the whole company).
+
+**Branch Manager is the keystone level** and the natural first scope tier: it
+maps to the existing **branch** entity (`erp_branches` / `erp_user_branches`),
+so "see everything for my branch" = a trivial, secure **branch-level scope**
+(reuses existing branch RLS — no recursion). It also *is* the existing `manager`
+role (already labeled "Branch Manager") repositioned from admin-level → branch
+ops. Regional/Area sit **above** branches (multi-branch grouping) and are the
+harder scope slice (region entity or `reports_to` subtree). Director = company.
+
+**Scope ladder (build outward-in):** Branch (native/easy) → Area/Regional
+(grouping/harder) → Director (company).
 
 ### Two parts: roles (easy) + scope (the real work)
 
