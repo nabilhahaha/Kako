@@ -13,6 +13,8 @@ import { applyWorkflowOutcome, type WorkflowOutcome } from '@/lib/erp/workflow-h
 import { sensitiveChanges } from '@/lib/erp/customer-approval';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import { logAudit } from '@/lib/erp/audit';
+import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
+import { resolveLayout, applyWriteAccess } from '@/lib/erp/field-governance';
 
 /** Parse the `custom` JSON bag from a form, validate it against the entity's
  *  active custom-field definitions (server-authoritative), and return the
@@ -101,7 +103,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   const cf = await resolveCustom('customer', formData.get('custom'));
   if (!cf.ok) return { ok: false, error: cf.error };
 
-  const payload = {
+  const rawPayload = {
     code,
     name,
     name_ar: String(formData.get('name_ar') || '').trim() || null,
@@ -166,6 +168,24 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
       companyId: ctx.companyId,
     });
   };
+
+  // DFG-3: dynamic field-governance write enforcement (authoritative). With no
+  // governance configured this is a no-op (today's behaviour). Drops fields the
+  // user can't edit (keeps current value) and rejects empty required fields.
+  let payload: Record<string, unknown> = rawPayload;
+  const gov = await loadGovernanceInputs(supabase, ctx, 'customer');
+  if (gov.fields.length > 0) {
+    let currentRow: Record<string, unknown> = {};
+    if (id) {
+      const { data: cur } = await supabase.from('erp_customers').select('*').eq('id', id).maybeSingle();
+      currentRow = (cur as Record<string, unknown>) ?? {};
+    }
+    const layout = resolveLayout(gov, rawPayload as Record<string, unknown>);
+    const resolved = Array.from(layout, ([key, access]) => ({ key, access }));
+    const enforced = applyWriteAccess(resolved, rawPayload as Record<string, unknown>, currentRow);
+    if (enforced.missingRequired.length > 0) return { ok: false, error: t('customers.errRequiredMissing') };
+    payload = enforced.data;
+  }
 
   // Per-company governance toggle (default off = today's behaviour).
   let requireApproval = false;

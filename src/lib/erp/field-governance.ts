@@ -121,6 +121,46 @@ export function accessLockoutViolation(
   return null;
 }
 
+// ── Layout resolution over raw governance inputs (shared client + server) ────
+export interface GovField {
+  key: string;
+  source: FieldSource;
+  isProtected: boolean;
+  defaultAccess: AccessLevel;
+  isActive: boolean;
+  section: string | null;
+  condition: FieldCondition | null;
+  accessRows: AccessRow[];
+}
+export interface GovInputs {
+  fields: GovField[];
+  userRoles: string[];
+  userPermissions: string[];
+  isAdmin: boolean;
+}
+
+/** Resolve every field's access for a record context. Pure → usable in the
+ *  client form (live values) and the server write path (submitted payload). */
+export function resolveLayout(g: GovInputs, recordContext: Record<string, unknown>): Map<string, AccessLevel> {
+  const m = new Map<string, AccessLevel>();
+  for (const f of g.fields) {
+    m.set(
+      f.key,
+      resolveAccess({
+        defaultAccess: f.defaultAccess,
+        isProtected: f.isProtected,
+        isActive: f.isActive,
+        applicable: evaluateCondition(f.condition, recordContext),
+        accessRows: f.accessRows,
+        userRoles: g.userRoles,
+        userPermissions: g.userPermissions,
+        isAdmin: g.isAdmin,
+      }),
+    );
+  }
+  return m;
+}
+
 // ── Write enforcement (the real protection) ──────────────────────────────────
 export interface ResolvedField { key: string; access: AccessLevel }
 

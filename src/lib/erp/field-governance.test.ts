@@ -6,7 +6,9 @@ import {
   applyWriteAccess,
   configLockoutViolation,
   accessLockoutViolation,
+  resolveLayout,
   type AccessRow,
+  type GovInputs,
 } from './field-governance';
 
 const base = {
@@ -89,6 +91,29 @@ describe('field-governance · lockout protection', () => {
     expect(accessLockoutViolation(true, 'role', 'it_admin', 'view')).toBe('protected_field_admin_must_edit');
     expect(accessLockoutViolation(false, 'role', 'salesman', 'hidden')).toBeNull(); // non-admin ok
     expect(accessLockoutViolation(false, 'role', 'admin', 'edit')).toBeNull();
+  });
+});
+
+describe('field-governance · resolveLayout', () => {
+  const gov: GovInputs = {
+    fields: [
+      { key: 'credit_limit', source: 'core', isProtected: false, defaultAccess: 'edit', isActive: true, section: 'commercial',
+        condition: { when: 'payment_type', op: 'eq', value: 'credit' },
+        accessRows: [{ subjectType: 'role', subjectKey: 'salesman', access: 'hidden' }] },
+      { key: 'name', source: 'core', isProtected: true, defaultAccess: 'edit', isActive: true, section: null, condition: null, accessRows: [] },
+    ],
+    userRoles: ['salesman'], userPermissions: [], isAdmin: false,
+  };
+  it('applies conditions + access per record context', () => {
+    // cash customer → credit_limit not applicable → hidden
+    expect(resolveLayout(gov, { payment_type: 'cash' }).get('credit_limit')).toBe('hidden');
+    // credit customer → applicable, but salesman role hides it
+    expect(resolveLayout(gov, { payment_type: 'credit' }).get('credit_limit')).toBe('hidden');
+    // name always editable
+    expect(resolveLayout(gov, {}).get('name')).toBe('edit');
+  });
+  it('empty inputs → empty map (ungoverned = today)', () => {
+    expect(resolveLayout({ fields: [], userRoles: [], userPermissions: [], isAdmin: false }, {}).size).toBe(0);
   });
 });
 

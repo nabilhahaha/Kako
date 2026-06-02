@@ -8,6 +8,8 @@ import {
   type AccessLevel,
   type AccessRow,
   type FieldCondition,
+  type GovInputs,
+  type GovField,
 } from './field-governance';
 import type { UserContext } from './auth-context';
 
@@ -126,6 +128,72 @@ export async function getFieldLayout(
       };
     })
     .sort((a, b) => a.sort - b.sort);
+}
+
+// ── Raw governance inputs for the form (DFG-3, shared client + server) ───────
+interface SnapAccess { field_key: string; subject_type: 'role' | 'permission'; subject_key: string; access: AccessLevel }
+
+/** Build the serializable governance inputs for an entity + current user, from
+ *  the effective source (published snapshot, else live draft). Passed to the
+ *  client form (renders/disables/requires) and reused server-side for write
+ *  enforcement. Empty `fields` ⇒ ungoverned ⇒ form behaves exactly as today. */
+export async function loadGovernanceInputs(
+  supabase: SupabaseClient,
+  ctx: UserContext,
+  entity: string,
+): Promise<GovInputs> {
+  const desc = getEntity(entity);
+  const core = (desc?.fields ?? []).map((f) => ({ key: f.key, source: 'core' as const }));
+  const custom = (await getActiveCustomFields(entity)).map((c) => ({ key: c.key, source: 'custom' as const }));
+  const all = [...core, ...custom];
+
+  const { data: pub } = await supabase
+    .from('erp_field_config_versions').select('snapshot').eq('entity', entity).eq('status', 'published').maybeSingle();
+  const snapshot = (pub as { snapshot?: { config?: ConfigRow[]; access?: SnapAccess[] } } | null)?.snapshot;
+
+  let cfgList: ConfigRow[];
+  let accList: SnapAccess[];
+  if (snapshot) {
+    cfgList = snapshot.config ?? [];
+    accList = snapshot.access ?? [];
+  } else {
+    const [{ data: cfgRows }, { data: accRows }] = await Promise.all([
+      supabase.from('erp_field_config').select('*').eq('entity', entity),
+      supabase.from('erp_field_access').select('field_key, subject_type, subject_key, access').eq('entity', entity),
+    ]);
+    cfgList = (cfgRows ?? []) as ConfigRow[];
+    accList = (accRows ?? []) as SnapAccess[];
+  }
+  // No config at all → ungoverned (empty inputs → resolver yields default 'edit').
+  if (cfgList.length === 0 && accList.length === 0) {
+    return { fields: [], userRoles: [], userPermissions: [], isAdmin: isAdminContext(ctx) };
+  }
+  const cfgByKey = new Map<string, ConfigRow>(cfgList.map((r) => [r.field_key, r]));
+  const accByKey = new Map<string, AccessRow[]>();
+  for (const a of accList) {
+    const list = accByKey.get(a.field_key) ?? [];
+    list.push({ subjectType: a.subject_type, subjectKey: a.subject_key, access: a.access });
+    accByKey.set(a.field_key, list);
+  }
+  const fields: GovField[] = all.map((f) => {
+    const cfg = cfgByKey.get(f.key);
+    return {
+      key: f.key,
+      source: f.source,
+      isProtected: cfg?.is_protected ?? isDefaultProtected(entity, f.key),
+      defaultAccess: cfg?.default_access ?? 'edit',
+      isActive: cfg?.is_active ?? true,
+      section: cfg?.section ?? null,
+      condition: cfg?.condition ?? null,
+      accessRows: accByKey.get(f.key) ?? [],
+    };
+  });
+  return {
+    fields,
+    userRoles: ctx.memberships.map((m) => m.role as string),
+    userPermissions: ctx.permissions as unknown as string[],
+    isAdmin: isAdminContext(ctx),
+  };
 }
 
 // ── Admin view (DFG-2) ───────────────────────────────────────────────────────
