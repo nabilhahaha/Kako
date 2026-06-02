@@ -133,6 +133,27 @@ Existing foundations are noted so we reuse, not rebuild.
 - **Class:** **Must-Have** for commercial onboarding (Nice-to-Have for the pilot).
 - **Notes:** Rollback is the trickiest piece — recommend **staged import + explicit commit** with a stored before-image per changed row (true undo), and an idempotent re-run on the same batch key.
 
+## 16. Customer Onboarding Wizard
+- **Business value:** Guides a brand-new company from **zero setup → go-live** in a single, self-serve flow — slashes implementation time/cost, reduces churn at the riskiest moment (first week), and lets sales demo "live in minutes."
+- **Architecture impact:** **Extends the existing onboarding/setup** (`/onboarding` self-service company creation + `/setup` business-type wizard + `setup_done` flag). This is an **orchestration layer** — a resumable multi-step wizard whose steps each link to capabilities that already exist or are on this roadmap:
+  1. **Company profile** (name, business_type, currency, VAT/CR) — existing company edit.
+  2. **Branch setup** — settings/branches.
+  3. **User setup** — settings/users (invite).
+  4. **Roles & permissions** — settings/permissions matrix.
+  5. **Customers import** — Master Data Import Center (#15).
+  6. **Products import** — Import Center (#15).
+  7. **Routes setup** — distribution/routes.
+  8. **Workflow setup** — Workflow Designer (#14) / activate pre-seeded definitions.
+  9. **Feature flags selection** — Feature Flags (#11) per plan/needs.
+  10. **Validation checklist** — each step reports done/blocked (uses DFG required rules + counts).
+  11. **Go-live readiness score** — a weighted % over the steps (e.g. ≥1 branch, ≥1 admin, customers loaded, products loaded, a sales workflow active, credit policy set) with a clear "what's left" list.
+  - Needs lightweight progress state (`erp_onboarding_progress(company_id, step, status, completed_at)` or extend the `setup` flags) + a scoring function; the heavy lifting is reused from each underlying flow.
+- **Dependencies:** existing setup wizard; **Import Center (#15)**, **Workflow Designer (#14)**, **Feature Flags (#11)**, roles/permissions, branches/users, DFG (validation). A **v1 can ship with the steps that exist today** (profile/branches/users/roles/customers+products import/routes) and progressively fold in workflow/flags as those land.
+- **Complexity:** **L** (orchestration + resumable state + readiness scoring across many flows; each underlying step already exists or is planned).
+- **Recommended phase:** Phase 1–2 (after Import Center + Feature Flags; v1 partial in Phase 1).
+- **Class:** **Must-Have** for commercial onboarding (the pilot uses the existing `/setup` + getting-started checklist).
+- **Relationships:** It is the **front door** that ties together #11 Feature Flags, #14 Workflow Designer, #15 Import Center, the role/permission model, and the dashboard's getting-started checklist — so it should land **after** those foundations (or degrade gracefully to the available steps).
+
 ---
 
 ## Summary
@@ -153,16 +174,18 @@ Existing foundations are noted so we reuse, not rebuild.
 | 10 | Integration Health | M | Nice | 3 | integrations module |
 | 15 | Master Data Import Center | L | Must* | 1–2 | entity registry, DFG, existing import |
 | 14 | Workflow Designer / Approval Builder | L | Must* | 2 | workflow engine, DFG, approvals inbox |
+| 16 | Customer Onboarding Wizard | L | Must* | 1–2 | setup wizard, #11/#14/#15, roles |
 | 13 | AI Assistant | XL | Nice | 4 | global search, registry, perms |
 
-\* Must-Have for commercial onboarding/governance; the pilot runs on the existing per-entity import and the pre-seeded workflows.
+\* Must-Have for commercial onboarding/governance; the pilot runs on the existing `/setup`, per-entity import and pre-seeded workflows.
 
 \* Must-Have for commercial-scale support; read-only first.
 
 ## Recommended execution order (maximize pilot readiness → commercial value)
 1. **Phase 0 — fold into current hardening:** **Quick Actions** + **Saved Views** (cheap, ride on S1; immediate daily-speed wins for the pilot).
 2. **Phase 1 — pre-commercial core:** **Feature Flags** (first — de-risks every later rollout) → **Global Search** → **Notification Center** → **Bulk Actions** → **Master Data Import Center** (onboarding) → start **Command Center (role dashboards)**.
-3. **Phase 2 — trust & differentiation:** finish **Command Center KPIs**, **Workflow Designer / Approval Builder**, **Universal Timeline**, **Data Quality Dashboard**, **Favorites**, **Impersonation (read-only)**.
+3. **Phase 2 — trust & differentiation:** finish **Command Center KPIs**, **Workflow Designer / Approval Builder**, **Customer Onboarding Wizard** (full — ties #11/#14/#15 together), **Universal Timeline**, **Data Quality Dashboard**, **Favorites**, **Impersonation (read-only)**.
+   *(Onboarding Wizard v1 — the steps that exist today — can ship in Phase 1 alongside the Import Center.)*
 4. **Phase 3 — operations at scale:** **Integration Health Dashboard**, full **Impersonation**.
 5. **Phase 4 — flagship differentiator:** **AI Assistant** (on top of Global Search + registry + permissions).
 
