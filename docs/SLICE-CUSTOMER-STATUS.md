@@ -22,11 +22,12 @@ Use `customer_status` to **stop new business activity** while a customer is Susp
 | **Route** assignment | ✅ | ✅ | ❌ |
 | **Rep / customer** assignment (journey) | ✅ | ✅ | ❌ |
 | **Payment / collection** | ✅ | ✅ | ✅ |
+| **Sales return** (credit note) | ✅ | ✅ | ✅ |
 | **Balance** visible · **statement** accessible | ✅ | ✅ | ✅ |
-| Sales **return** (credit note) | ✅ | ✅ *(reduces debt)* | ❌ *(no movement)* |
 
 - **Suspended** = freeze new sales/credit; keep operational links (route/rep) and recover debt.
 - **Blocked** = full new-business stop incl. route/rep assignment and credit; collections still allowed.
+- **Sales returns are always allowed** (every status) — expiry, quality issues, recalls, damages, and stock recovery must work even when a customer is Blocked. Returns *reduce* exposure, so they sit with collections as recovery operations, never new business.
 - `inactive` (the 4th value) = archival/soft-hidden; excluded from new-business pickers and treated like Suspended for transactions. *(Decision D4.)*
 
 ## 2.1 Status reason & change history (NEW)
@@ -59,9 +60,9 @@ Each already reads the customer and most already gate on `is_approved`; the stat
 | 2 | `sales/invoices/actions.ts` · `createInvoice` (existing `is_approved` + credit gate ~L37) | block `invoice` |
 | 3 | `sales/invoices/actions.ts` · `issueInvoice` (~L140, before RPC) | block `invoice` |
 | 4 | `sales/pos/actions.ts` · `quickSale` | inherits via `createInvoice` |
-| 5 | `sales/returns/actions.ts` · `createReturn` | block `return` (Blocked only) |
-| 6 | `customers/actions.ts` · `setCustomerJourney` (existing `is_approved` gate ~L252) | block `rep` |
-| 7 | `distribution/actions.ts` · `assignCustomerToRoute` (existing `is_approved` gate ~L42) | block `route` |
+| 5 | `customers/actions.ts` · `setCustomerJourney` (existing `is_approved` gate ~L252) | block `rep` |
+| 6 | `distribution/actions.ts` · `assignCustomerToRoute` (existing `is_approved` gate ~L42) | block `route` |
+| — | `sales/returns/actions.ts` · `createReturn` | **NO gate** (returns always allowed — recovery/expiry/recall) |
 | — | `sales/invoices/actions.ts` · `recordPayment` / `rep/actions.ts` · `collectPayment` | **NO gate** (collections always allowed) |
 
 ### 3.3 DB-layer safety net (authoritative) — migration 0113
@@ -69,9 +70,8 @@ Each already reads the customer and most already gate on `is_approved`; the stat
 - **BEFORE INSERT triggers** that `RAISE` when the customer is suspended/blocked:
   - `erp_sales_orders` → reject if status ∈ {suspended, blocked}
   - `erp_invoices` → reject if status ∈ {suspended, blocked}
-  - `erp_sales_returns` → reject if status = blocked
 - **BEFORE UPDATE OF `salesman_id`, `route_id` ON `erp_customers`** → reject *setting* an assignment when status = blocked (route/rep block).
-- **No trigger on `erp_payments`** — collections must always succeed.
+- **No trigger on `erp_payments` or `erp_sales_returns`** — collections **and returns** must always succeed (debt + stock recovery).
 
 This mirrors the FP-0 guard-trigger pattern and guarantees the rule holds even for direct SQL / future RPC paths.
 
@@ -113,7 +113,7 @@ Add labels: `AUDIT_ENTITY_LABELS['customer_status']`, and (optional) friendlier 
 
 ## 9. Collection impact
 
-**Explicitly preserved.** No gate on `recordPayment` / `collectPayment`; the Customer 360 statement and printable statement remain fully accessible at any status. An **integration test will assert a payment on a Blocked customer succeeds** (guards against regressions).
+**Explicitly preserved.** No gate on `recordPayment` / `collectPayment` / `createReturn`; the Customer 360 statement and printable statement remain fully accessible at any status. Integration tests will assert that **a payment AND a sales return on a Blocked customer both succeed** (guards against regressions).
 
 ## 10. Approval impact
 
@@ -129,20 +129,20 @@ Add labels: `AUDIT_ENTITY_LABELS['customer_status']`, and (optional) friendlier 
 
 ## 12. Recommended implementation approach (single cohesive slice)
 
-1. **DB (0113):** reason+history columns; `status_reason` lookup kind + seeds; `erp_customer_status` helper; BEFORE-INSERT triggers (orders/invoices/returns); BEFORE-UPDATE assignment guard; BEFORE-UPDATE stamp of `status_changed_at/by` (+ clear reason on Active); `customers.change_status` permission seed.
+1. **DB (0113):** reason+history columns; `status_reason` lookup kind + seeds; `erp_customer_status` helper; BEFORE-INSERT triggers (orders, invoices — **not** returns); BEFORE-UPDATE assignment guard; BEFORE-UPDATE stamp of `status_changed_at/by` (+ clear reason on Active); `customers.change_status` permission seed.
 2. **Shared logic:** `customer-status.ts` (`statusBlocks` + `assertActionable`) with unit tests for the matrix.
 3. **App gates:** wire the 7 enforcement points (§3.2); explicitly leave payments/collections ungated.
 4. **Permission + audit:** gate status change in `upsertCustomer`; persist reason/note; audit every change.
 5. **Customer 360:** status + reason + last-change-date block + restriction banner; reason select in the edit form.
 6. **i18n:** ar (source) + en for new errors/labels; `status_reason` manageable in Settings → Customer Data.
-7. **Tests:** integration — block matrix (order/invoice/route/rep rejected when suspended/blocked) **and** payment-allowed-when-blocked, plus `status_changed_at/by` stamped; unit — `statusBlocks`.
+7. **Tests:** integration — block matrix (order/invoice/route/rep rejected when suspended/blocked) **and** payment-AND-return-allowed-when-blocked, plus `status_changed_at/by` stamped; unit — `statusBlocks`.
 
 All additive, staging-validated, production held. One slice (it's cohesive and small); ship after FP-0 merges or stacked on it.
 
 ## 13. Decisions for your confirmation (recommended in bold)
 
 - **D1.** New permission **`customers.change_status`** (vs reuse `customers.manage`). → **New permission.**
-- **D2.** **Sales returns:** allowed when Suspended (reduces debt), blocked when Blocked. → **As stated.**
+- **D2.** **Sales returns: ALWAYS allowed** (Active/Suspended/Blocked) — expiry, quality, recalls, damages, stock recovery. → **Approved (revised).**
 - **D3.** **Blocked Head Office stops branch new-credit** under shared-HO credit (wired in FP-0c). → **Recommend.**
 - **D4.** **`inactive`** = archived: hidden from new-business pickers, treated like Suspended for transactions. → **Recommend.**
 - **D5.** Enforcement = **DB triggers (authoritative) + app-layer friendly gates**. → **Recommend.**
