@@ -242,8 +242,11 @@ export function ImportWizard({
       setRows(parsed.rows);
       setValidation(null);
       setResult(null);
-      // auto-guess mapping, then let a default template override where it applies
-      autoMap(parsed.headers);
+      // Manual-first (UX-4): no heuristic auto-guess. Fields start UNMAPPED so the
+      // user maps each column explicitly. A saved DEFAULT template (an explicit,
+      // reusable mapping the company saved before) still pre-fills — "map once,
+      // reuse" — and "Auto-map" in the mapping step stays available on demand.
+      setMapping({});
       if (defaultTemplate) applyTemplateMapping(defaultTemplate.mapping, parsed.headers);
       toast.success(t('import.toast.parsed', { count: parsed.rows.length }));
     } catch (e) {
@@ -263,6 +266,12 @@ export function ImportWizard({
       next[f.key] = hit ?? IGNORE;
     }
     setMapping(next);
+  }
+
+  /** Required entity fields the user hasn't mapped yet (manual-first gate). */
+  function unmappedRequiredFields() {
+    if (!entity) return [];
+    return entity.fields.filter((f) => f.required && (!mapping[f.key] || mapping[f.key] === IGNORE));
   }
 
   function downloadTemplate() {
@@ -411,7 +420,11 @@ export function ImportWizard({
       if (rows.length === 0) return toast.error(t('import.toast.uploadFirst'));
       return setStep('mapping');
     }
-    if (step === 'mapping') return setStep('validate');
+    if (step === 'mapping') {
+      const missing = unmappedRequiredFields();
+      if (missing.length > 0) return toast.error(t('import.mapping.unmappedRequired', { count: missing.length }));
+      return setStep('validate');
+    }
     if (step === 'validate') {
       if (!validation) return toast.error(t('import.toast.validateFirst'));
       return setStep('import');
@@ -520,10 +533,22 @@ export function ImportWizard({
                 <h2 className="flex items-center gap-2 text-base font-semibold">
                   <ListChecks className="h-4 w-4" /> {t('import.mapping.title')}
                 </h2>
-                <Button variant="outline" size="sm" onClick={downloadTemplate}>
-                  <FileDown className="h-4 w-4" /> {t('import.mapping.downloadTemplate')}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => autoMap(headers)}>
+                    {t('import.mapping.autoMap')}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={downloadTemplate}>
+                    <FileDown className="h-4 w-4" /> {t('import.mapping.downloadTemplate')}
+                  </Button>
+                </div>
               </div>
+
+              <p className="text-xs text-muted-foreground">{t('import.mapping.manualHint')}</p>
+              {unmappedRequiredFields().length > 0 && (
+                <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+                  {t('import.mapping.unmappedRequired', { count: unmappedRequiredFields().length })}
+                </div>
+              )}
 
               {/* Saved mapping templates: Save / Clone / Share / Default */}
               <div className="space-y-3 rounded-lg border p-4">

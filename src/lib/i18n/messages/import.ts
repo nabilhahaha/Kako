@@ -30,6 +30,9 @@ export const ar = {
       ignore: '— تجاهل —',
       required: 'مطلوب',
       downloadTemplate: 'تنزيل قالب',
+      autoMap: 'مطابقة تلقائية للأعمدة',
+      manualHint: 'اربط كل حقل يدوياً. احفظ الربط كقالب لإعادة استخدامه مع نفس تصدير الـ ERP لاحقاً.',
+      unmappedRequired: 'يوجد {count} حقل مطلوب غير مربوط — يجب ربطها قبل المتابعة.',
     },
     validate: {
       title: 'التحقق والمعاينة',
@@ -170,6 +173,9 @@ export const en = {
       ignore: '— ignore —',
       required: 'Required',
       downloadTemplate: 'Download template',
+      autoMap: 'Auto-map columns',
+      manualHint: 'Map each column manually. Save it as a template to reuse for this ERP export next time.',
+      unmappedRequired: '{count} required field(s) still unmapped — map them before continuing.',
     },
     validate: {
       title: 'Validate & Preview',
