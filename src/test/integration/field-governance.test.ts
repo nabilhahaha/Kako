@@ -72,6 +72,21 @@ describe.skipIf(!hasTestDb)('field governance · RLS + admin writes', () => {
       await actAs(c, B.user);
       expect((await c.query('select id from erp_field_sections where id=$1', [secId])).rows.length).toBe(0);
       await resetRole(c);
+
+      // Versions (0117): one-published invariant + tenant isolation.
+      await actAs(c, A.user);
+      await c.query("insert into erp_field_config_versions(entity, version_no, status, snapshot) values ('customer',1,'published','{}'::jsonb)");
+      // a second 'published' for the same (company, entity) violates the partial unique
+      await c.query('savepoint sp2');
+      let dupFailed = false;
+      try { await c.query("insert into erp_field_config_versions(entity, version_no, status, snapshot) values ('customer',2,'published','{}'::jsonb)"); }
+      catch { dupFailed = true; await c.query('rollback to savepoint sp2'); }
+      expect(dupFailed).toBe(true);
+      await resetRole(c);
+      // B can't see A's versions.
+      await actAs(c, B.user);
+      expect((await c.query("select id from erp_field_config_versions where entity='customer'")).rows.length).toBe(0);
+      await resetRole(c);
     });
   }, 30_000);
 });

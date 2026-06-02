@@ -67,13 +67,31 @@ export async function getFieldLayout(
   const custom = (await getActiveCustomFields(entity)).map((c) => ({ key: c.key, source: 'custom' as const }));
   const all = [...core, ...custom];
 
-  const [{ data: cfgRows }, { data: accRows }] = await Promise.all([
-    supabase.from('erp_field_config').select('*').eq('entity', entity),
-    supabase.from('erp_field_access').select('field_key, subject_type, subject_key, access').eq('entity', entity),
-  ]);
-  const cfgByKey = new Map<string, ConfigRow>((cfgRows ?? []).map((r) => [(r as ConfigRow).field_key, r as ConfigRow]));
+  // DFG-2d (B1): read the PUBLISHED snapshot if one exists; else fall back to the
+  // live (draft) tables → registry defaults. Safe defaults preserved.
+  const { data: pub } = await supabase
+    .from('erp_field_config_versions')
+    .select('snapshot')
+    .eq('entity', entity).eq('status', 'published')
+    .maybeSingle();
+  const snapshot = (pub as { snapshot?: { config?: ConfigRow[]; access?: Array<{ field_key: string; subject_type: 'role' | 'permission'; subject_key: string; access: AccessLevel }> } } | null)?.snapshot;
+
+  let cfgList: ConfigRow[];
+  let accList: Array<{ field_key: string; subject_type: 'role' | 'permission'; subject_key: string; access: AccessLevel }>;
+  if (snapshot) {
+    cfgList = snapshot.config ?? [];
+    accList = snapshot.access ?? [];
+  } else {
+    const [{ data: cfgRows }, { data: accRows }] = await Promise.all([
+      supabase.from('erp_field_config').select('*').eq('entity', entity),
+      supabase.from('erp_field_access').select('field_key, subject_type, subject_key, access').eq('entity', entity),
+    ]);
+    cfgList = (cfgRows ?? []) as ConfigRow[];
+    accList = (accRows ?? []) as typeof accList;
+  }
+  const cfgByKey = new Map<string, ConfigRow>(cfgList.map((r) => [r.field_key, r]));
   const accByKey = new Map<string, AccessRow[]>();
-  for (const a of (accRows ?? []) as Array<{ field_key: string; subject_type: 'role' | 'permission'; subject_key: string; access: AccessLevel }>) {
+  for (const a of accList) {
     const list = accByKey.get(a.field_key) ?? [];
     list.push({ subjectType: a.subject_type, subjectKey: a.subject_key, access: a.access });
     accByKey.set(a.field_key, list);
@@ -126,6 +144,7 @@ export interface FieldGovernanceAdmin {
   sections: Array<Record<string, unknown>>;
   roles: Array<{ key: string; name_ar: string | null }>;
   templates: Array<{ id: string; name: string; is_global: boolean }>;
+  versions: Array<{ id: string; version_no: number; status: string; label: string | null; created_at: string }>;
 }
 
 /** Everything the field-governance admin UI needs for one entity. */
@@ -138,12 +157,13 @@ export async function getFieldGovernanceAdmin(
   const custom = (await getActiveCustomFields(entity)).map((c) => ({
     key: c.key, source: 'custom' as const, labelAr: c.label_ar, labelEn: c.label_en ?? c.label_ar,
   }));
-  const [{ data: cfgRows }, { data: accRows }, { data: secRows }, { data: roleRows }, { data: tplRows }] = await Promise.all([
+  const [{ data: cfgRows }, { data: accRows }, { data: secRows }, { data: roleRows }, { data: tplRows }, { data: verRows }] = await Promise.all([
     supabase.from('erp_field_config').select('*').eq('entity', entity),
     supabase.from('erp_field_access').select('field_key, subject_type, subject_key, access').eq('entity', entity),
     supabase.from('erp_field_sections').select('*').eq('entity', entity).order('sort'),
     supabase.from('erp_roles').select('key, name_ar').order('rank', { ascending: false }),
     supabase.from('erp_field_templates').select('id, name, is_global').eq('scope_entity', entity).order('created_at', { ascending: false }),
+    supabase.from('erp_field_config_versions').select('id, version_no, status, label, created_at').eq('entity', entity).order('version_no', { ascending: false }),
   ]);
   const cfgByKey = new Map<string, Record<string, unknown>>((cfgRows ?? []).map((r) => [(r as { field_key: string }).field_key, r as Record<string, unknown>]));
   const accByKey = new Map<string, Array<{ subject_type: string; subject_key: string; access: string }>>();
@@ -172,5 +192,6 @@ export async function getFieldGovernanceAdmin(
     sections: (secRows ?? []) as Array<Record<string, unknown>>,
     roles: (roleRows ?? []) as Array<{ key: string; name_ar: string | null }>,
     templates: (tplRows ?? []) as Array<{ id: string; name: string; is_global: boolean }>,
+    versions: (verRows ?? []) as Array<{ id: string; version_no: number; status: string; label: string | null; created_at: string }>,
   };
 }

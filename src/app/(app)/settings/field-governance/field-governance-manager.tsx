@@ -18,6 +18,7 @@ import {
   setFieldSection, deleteFieldSection, reorderFieldSections, reorderFields,
   bulkSetFieldConfig, resetEntityGovernance, exportFieldGovernance, importFieldGovernance,
   copyEntityConfig, saveAsTemplate, applyTemplate, getFieldGovernanceHistory,
+  publishFieldGovernance, rollbackToVersion,
 } from './actions';
 import {
   Briefcase, DollarSign, Scale, Phone, MapPin, CreditCard, Tag, User, Building2,
@@ -60,6 +61,7 @@ export function FieldGovernanceManager({
   const [templateName, setTemplateName] = useState('');
   const [templateGlobal, setTemplateGlobal] = useState(false);
   const [history, setHistory] = useState<Array<{ actor: string | null; action: string; field: string; at: string }> | null>(null);
+  const [publishLabel, setPublishLabel] = useState('');
   const entity = admin.entity;
 
   // Run a server action, toast result (mapping lockout codes), then apply onOk.
@@ -232,6 +234,18 @@ export function FieldGovernanceManager({
     });
   }
 
+  // ── Draft / publish / rollback ──────────────────────────────────────────────
+  function doPublish() {
+    run(() => publishFieldGovernance(entity, publishLabel.trim() || undefined), () => { setPublishLabel(''); router.refresh(); });
+  }
+  function doRollback(versionId: string) {
+    if (!window.confirm(t('fieldGov.rollbackConfirm'))) return;
+    run(() => rollbackToVersion(entity, versionId), () => router.refresh());
+  }
+  const STATUS_LABEL: Record<string, string> = {
+    draft: t('fieldGov.vStatusDraft'), published: t('fieldGov.vStatusPublished'), archived: t('fieldGov.vStatusArchived'),
+  };
+
   return (
     <div className="space-y-6">
       {/* Entity selector + admin tools */}
@@ -297,6 +311,39 @@ export function FieldGovernanceManager({
                 <div key={i} className="flex flex-wrap items-center justify-between gap-2 border-b p-2 last:border-0">
                   <span className="font-mono" dir="ltr">{h.field}</span>
                   <span className="text-muted-foreground">{h.action} · {h.actor ?? '—'} · <span dir="ltr">{new Date(h.at).toLocaleString()}</span></span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Draft / Publish / Versions ───────────────────────────── */}
+      <Card>
+        <CardContent className="space-y-3 pt-6">
+          <div>
+            <h3 className="font-semibold">{t('fieldGov.publishTitle')}</h3>
+            <p className="text-xs text-muted-foreground">{t('fieldGov.publishHint')}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input value={publishLabel} onChange={(e) => setPublishLabel(e.target.value)} placeholder={t('fieldGov.publishLabel')} className="h-9 max-w-xs" />
+            <Button size="sm" disabled={pending} onClick={doPublish}>{t('fieldGov.publishBtn')}</Button>
+          </div>
+          {admin.versions.length === 0 ? (
+            <p className="text-xs text-muted-foreground">{t('fieldGov.versionsEmpty')}</p>
+          ) : (
+            <div className="divide-y rounded-md border text-sm">
+              {admin.versions.map((v) => (
+                <div key={v.id} className="flex flex-wrap items-center justify-between gap-2 p-2">
+                  <span className="flex items-center gap-2">
+                    <span className="font-mono">v{v.version_no}</span>
+                    <Badge variant={v.status === 'published' ? 'success' : v.status === 'archived' ? 'secondary' : 'warning'}>{STATUS_LABEL[v.status] ?? v.status}</Badge>
+                    {v.label && <span className="text-xs text-muted-foreground">{v.label}</span>}
+                    <span className="text-xs text-muted-foreground" dir="ltr">{new Date(v.created_at).toLocaleString()}</span>
+                  </span>
+                  {v.status !== 'published' && (
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => doRollback(v.id)}>{t('fieldGov.rollback')}</Button>
+                  )}
                 </div>
               ))}
             </div>

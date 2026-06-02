@@ -455,3 +455,68 @@ export async function getFieldGovernanceHistory(entity: string): Promise<ActionR
   });
   return { ok: true, data: { rows } };
 }
+
+// ── DFG-2d (Tier B): versioning, draft/publish, rollback ────────────────────
+
+/** Publish the current draft (live tables) as a new published version. The prior
+ *  published version is archived (non-destructive). The resolver serves the
+ *  published snapshot from here on. */
+export async function publishFieldGovernance(entity: string, label?: string): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId, userId } = g;
+  const snap = await readSnapshot(supabase, entity);
+
+  const { data: maxRow } = await supabase
+    .from('erp_field_config_versions').select('version_no').eq('entity', entity)
+    .order('version_no', { ascending: false }).limit(1).maybeSingle();
+  const nextNo = ((maxRow as { version_no?: number } | null)?.version_no ?? 0) + 1;
+
+  // Archive the current published (keeps one-published invariant).
+  await supabase.from('erp_field_config_versions').update({ status: 'archived' }).eq('entity', entity).eq('status', 'published');
+
+  const { error } = await supabase.from('erp_field_config_versions').insert({
+    company_id: companyId, entity, version_no: nextNo, status: 'published',
+    snapshot: snap, label: label?.trim() || null, created_by: userId, published_at: new Date().toISOString(),
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: 'create', entity: 'field_config', entityId: `${entity}:publish`, details: { version_no: nextNo, label: label ?? null }, companyId });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** Non-destructive rollback: republish an older version's snapshot as a NEW
+ *  published version and restore it into the live draft. Prior versions retained. */
+export async function rollbackToVersion(entity: string, versionId: string): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId, userId } = g;
+
+  const { data: ver } = await supabase
+    .from('erp_field_config_versions').select('version_no, snapshot').eq('id', versionId).eq('entity', entity).maybeSingle();
+  const row = ver as { version_no: number; snapshot: Snapshot } | null;
+  if (!row) return { ok: false, error: 'version_not_found' };
+
+  // Restore the snapshot into the live draft (clear then apply → exact match).
+  for (const table of ['erp_field_access', 'erp_field_config', 'erp_field_sections']) {
+    const { error } = await supabase.from(table).delete().eq('entity', entity);
+    if (error) return { ok: false, error: friendlyDbError(error) };
+  }
+  const applied = await applySnapshot(supabase, entity, companyId, row.snapshot, userId);
+  if (!applied.ok) return applied;
+
+  // Publish it as a new version (non-destructive — old versions kept).
+  const { data: maxRow } = await supabase
+    .from('erp_field_config_versions').select('version_no').eq('entity', entity)
+    .order('version_no', { ascending: false }).limit(1).maybeSingle();
+  const nextNo = ((maxRow as { version_no?: number } | null)?.version_no ?? 0) + 1;
+  await supabase.from('erp_field_config_versions').update({ status: 'archived' }).eq('entity', entity).eq('status', 'published');
+  const { error } = await supabase.from('erp_field_config_versions').insert({
+    company_id: companyId, entity, version_no: nextNo, status: 'published',
+    snapshot: row.snapshot, label: `rollback → v${row.version_no}`, created_by: userId, published_at: new Date().toISOString(),
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: 'update', entity: 'field_config', entityId: `${entity}:rollback`, details: { to_version: row.version_no, new_version: nextNo }, companyId });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
