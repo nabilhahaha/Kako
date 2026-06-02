@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
 import { cn } from '@/lib/utils';
 import { visibleSections, type Module } from '@/lib/erp/navigation';
 import type { Permission } from '@/lib/erp/permissions';
-import { Menu, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Logo } from '@/components/brand/logo';
 import { useI18n } from '@/lib/i18n/provider';
+import { useMobileNav } from '@/lib/stores/mobile-nav';
 
 export function Sidebar({
   permissions,
@@ -27,7 +28,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const { t } = useI18n();
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useMobileNav();
   // Compute on the client so the icon components never cross the
   // server→client boundary (functions aren't serializable as props).
   const sections = visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules, platformPermissions, isPlatformStaff);
@@ -86,16 +87,7 @@ export function Sidebar({
 
   return (
     <>
-      {/* Mobile toggle */}
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-4 end-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg lg:hidden"
-        aria-label={t('common.menu')}
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-
-      {/* Mobile drawer */}
+      {/* Mobile drawer (opened from the bottom-nav "More" tab) */}
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div

@@ -342,7 +342,57 @@ export function CustomersManager({
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Mobile (UX-3): cards instead of a wide horizontal-scroll table */}
+            <div className="divide-y sm:hidden">
+              {filtered.map((c) => {
+                const overLimit = Number(c.credit_limit) > 0 && Number(c.balance) > Number(c.credit_limit);
+                const segClass = [lookupName(c.segment_id), lookupName(c.classification_id)].filter(Boolean).join(' · ');
+                return (
+                  <div key={c.id} className="space-y-2 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{c.name_ar || c.name}</p>
+                        <p className="font-mono text-xs text-muted-foreground" dir="ltr">{c.code}</p>
+                      </div>
+                      {!c.is_approved ? (
+                        <Badge variant="warning">{t('customers.statusPending')}</Badge>
+                      ) : c.is_active ? (
+                        <Badge variant="success">{t('customers.statusActive')}</Badge>
+                      ) : (
+                        <Badge variant="destructive">{t('customers.statusInactive')}</Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      {segClass && <span>{segClass}</span>}
+                      <span>{branchName(c.branch_id)}</span>
+                      <span dir="ltr" className="inline-flex items-center gap-1 tabular-nums">
+                        {t('customers.colBalance')}: {overLimit && <AlertTriangle className="h-3 w-3 text-warning" />}{formatCurrency(c.balance)}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {!c.is_approved && isSuperAdmin && (
+                        <Button variant="ghost" size="sm" disabled={pending} onClick={() => onApprove(c.id)} className="text-xs text-success">
+                          <BadgeCheck className="h-3.5 w-3.5" /> {t('customers.btnApprove')}
+                        </Button>
+                      )}
+                      <Link href={`/customers/${c.id}`} className="rounded-md p-2 hover:bg-secondary" aria-label={t('customers.ariaStatement')}>
+                        <FileText className="h-4 w-4" />
+                      </Link>
+                      <Link href={`/print/statement/${c.id}`} target="_blank" className="rounded-md p-2 hover:bg-secondary" aria-label={t('customers.ariaPrint')}>
+                        <Printer className="h-4 w-4" />
+                      </Link>
+                      <button onClick={() => setEditing(c)} className="rounded-md p-2 hover:bg-secondary" aria-label={t('customers.ariaEdit')}>
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <Button variant="ghost" size="sm" disabled={pending} onClick={() => onToggle(c)} className="text-xs">
+                        {c.is_active ? t('customers.btnDeactivate') : t('customers.btnActivate')}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full min-w-[820px] text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   {/* sticky-ish header tone + readable density for mobile scroll */}

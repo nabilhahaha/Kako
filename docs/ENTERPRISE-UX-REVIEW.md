@@ -178,7 +178,12 @@ default, advanced on demand — the pattern already used in Pricing's "show adva
   sections (Identity / Contact / Commercial / Classification / Hierarchy /
   Location) instead of one flat 24-field grid. Same field names → server action
   unchanged. Reusable for suppliers/products next.
-- **UX-3, UX-5** — queued per §10/§11; each its own review-first slice.
+- **UX-3 (Mobile)** — ✅ built: a role-aware **bottom tab bar** (Home · Customers ·
+  Sell · Inventory · More) replaces the lone FAB; "More" opens the full drawer via
+  a shared store; content gets bottom clearance. The **customers list** renders as
+  **cards under `sm:`** (no horizontal scroll) with larger touch targets. RTL-safe.
+- **UX-5** — queued per §10/§11; its own review-first slice. (Card-list treatment
+  rolls to invoices/pricing under UX-5.)
 
 *(UX-1 is built and verified. The next slice — recommended **UX-4 (import
 manual-first)** then **UX-2 (FormSection + customer field grouping)** — proceeds on
