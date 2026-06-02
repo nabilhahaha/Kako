@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
 import { createSalesOrder, cancelSalesOrder, convertOrderToInvoice } from './actions';
+import { resolveLinePrice } from '../pricing/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -162,7 +163,12 @@ export function OrdersManager({
               </div>
             </div>
 
-            <LineItemsEditor products={products} lines={lines} onChange={setLines} />
+            <LineItemsEditor
+              products={products}
+              lines={lines}
+              onChange={setLines}
+              priceResolver={customerId ? (productId, qty) => resolveLinePrice({ productId, customerId, branchId, qty }) : undefined}
+            />
 
             <div className="flex gap-2">
               <Button onClick={onCreate} disabled={pending}>

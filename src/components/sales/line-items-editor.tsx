@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
@@ -29,26 +30,41 @@ export function LineItemsEditor({
   lines,
   onChange,
   priceField = 'sell',
+  priceResolver,
 }: {
   products: ProductCatalog[];
   lines: EditorLine[];
   onChange: (lines: EditorLine[]) => void;
   priceField?: 'sell' | 'cost';
+  /** Optional Pricing-engine resolver. When provided (sales orders/invoices with
+   *  a selected customer), the picked product's price is resolved through the
+   *  engine; the user can still override it. Absent → base sell/cost price. */
+  priceResolver?: (productId: string, qty: number) => Promise<number | null>;
 }) {
   const { t, locale } = useI18n();
   const intl = INTL_LOCALE[locale];
+  // Always-fresh handle on lines so an async resolver patch doesn't clobber the
+  // synchronous product pick (stale-closure safety).
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
   function update(key: string, patch: Partial<EditorLine>) {
-    onChange(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+    onChange(linesRef.current.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
   function onPickProduct(key: string, productId: string) {
     const p = products.find((x) => x.id === productId);
-    const price = p ? Number(priceField === 'cost' ? p.cost_price : p.sell_price) : 0;
+    const basePrice = p ? Number(priceField === 'cost' ? p.cost_price : p.sell_price) : 0;
+    const qty = lines.find((l) => l.key === key)?.quantity ?? 1;
     update(key, {
       product_id: productId,
-      unit_price: price,
+      unit_price: basePrice,
       tax_rate: p ? Number(p.tax_rate) : 0,
     });
+    if (productId && priceResolver) {
+      priceResolver(productId, qty).then((resolved) => {
+        if (resolved != null) update(key, { unit_price: resolved });
+      });
+    }
   }
 
   const totals = computeTotals(lines.filter((l) => l.product_id));

@@ -42,6 +42,7 @@ export const AUDIT_ACTION_LABELS: Record<string, { en: string; ar: string }> = {
   deactivate: { en: 'Deactivate', ar: 'إيقاف' },
   renew: { en: 'Renew subscription', ar: 'تجديد اشتراك' },
   plan_change: { en: 'Change plan', ar: 'تغيير الخطة' },
+  override: { en: 'Manual price override', ar: 'تجاوز سعر يدوي' },
 };
 
 export const AUDIT_ENTITY_LABELS: Record<string, { en: string; ar: string }> = {
@@ -56,4 +57,5 @@ export const AUDIT_ENTITY_LABELS: Record<string, { en: string; ar: string }> = {
   company_role_permission: { en: 'Company role permission', ar: 'صلاحية دور (شركة)' },
   subscription: { en: 'Subscription', ar: 'اشتراك' },
   plan: { en: 'Plan', ar: 'خطة' },
+  price_override: { en: 'Price override', ar: 'تجاوز السعر' },
 };

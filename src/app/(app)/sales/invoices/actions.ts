@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
+import { logPriceOverrides } from '@/lib/erp/pricing-server';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
 import { isEtaConfigured } from '@/lib/eta/config';
@@ -85,6 +86,12 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
     await supabase.from('erp_invoices').delete().eq('id', invoice.id);
     return { ok: false, error: friendlyDbError(linesErr) };
   }
+
+  // Pricing engine: log any line priced away from the resolved price (audit).
+  await logPriceOverrides(supabase, {
+    companyId: ctx!.companyId, entity: 'invoice', recordId: invoice.id,
+    customerId: input.customer_id, branchId: input.branch_id, lines,
+  });
 
   revalidatePath('/sales/invoices');
   return { ok: true, data: { id: invoice.id } };

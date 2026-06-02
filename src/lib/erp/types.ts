@@ -390,6 +390,43 @@ export interface PriceListItem {
   updated_at: string;
 }
 
+// Pricing engine (P-a/P-b).
+export type PriceScopeType =
+  | 'customer' | 'segment' | 'channel' | 'tier' | 'branch' | 'region' | 'area' | 'global';
+export type PriceType = 'fixed' | 'percent_off' | 'amount_off';
+
+export interface PriceRule {
+  id: string;
+  company_id: string;
+  product_id: string | null;
+  category_id: string | null;
+  scope_type: PriceScopeType;
+  scope_id: string | null;
+  price_type: PriceType;
+  value: number;
+  min_qty: number;
+  priority: number;
+  valid_from: string | null;
+  valid_to: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PriceChangeLogEntry {
+  id: string;
+  company_id: string;
+  rule_id: string | null;
+  product_id: string | null;
+  scope_type: string | null;
+  scope_id: string | null;
+  price_type: string | null;
+  old_value: number | null;
+  new_value: number | null;
+  changed_by: string | null;
+  changed_at: string;
+}
+
 export interface ErpCustomer {
   id: string;
   code: string;

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
 import { createInvoice, issueInvoice, recordPayment, cancelInvoice, submitInvoiceToEta } from './actions';
+import { resolveLinePrice } from '../pricing/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -219,7 +220,12 @@ export function InvoicesManager({
               </div>
             </div>
 
-            <LineItemsEditor products={products} lines={lines} onChange={(l) => { setLines(l); setErrors((x) => ({ ...x, lines: undefined })); }} />
+            <LineItemsEditor
+              products={products}
+              lines={lines}
+              onChange={(l) => { setLines(l); setErrors((x) => ({ ...x, lines: undefined })); }}
+              priceResolver={customerId ? (productId, qty) => resolveLinePrice({ productId, customerId, branchId, qty }) : undefined}
+            />
             <FieldError>{errors.lines}</FieldError>
 
             <div className="flex gap-2">
