@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { FieldError } from '@/components/ui/field-error';
 import { FormSection } from '@/components/shared/form-section';
 import { EmptyState } from '@/components/shared/empty-state';
+import { Attachments } from '@/components/shared/attachments';
 import { formatCurrency } from '@/lib/utils';
 import { VISIT_DAYS } from '@/lib/erp/constants';
 import { importCustomers, approveCustomer, rejectCustomer } from './actions';
@@ -305,6 +306,7 @@ export function CustomersManager({
                 fields={customFields}
                 initial={(current as { custom?: Record<string, unknown> } | null)?.custom ?? {}}
               />
+              {current && <Attachments entity="customer" recordId={current.id} canManage />}
               <div className="flex gap-2">
                 <Button type="submit" disabled={pending}>
                   {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('customers.btnSave')}

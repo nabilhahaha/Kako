@@ -109,6 +109,14 @@ create table if not exists storage.objects (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+-- Faithful stub of Supabase's storage.foldername(text): splits the object path
+-- on '/' and returns the folder segments (everything except the final filename),
+-- so 0111's storage-RLS policies (which key on (foldername(name))[1] = company)
+-- can be created against the bare CI Postgres just like on real Supabase.
+create or replace function storage.foldername(name text)
+returns text[] language sql immutable as $$
+  select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1];
+$$;
 
 -- Realtime publication that 0001 appends tables to.
 do $$ begin
