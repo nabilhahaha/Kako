@@ -40,6 +40,17 @@ describe('entity registry', () => {
     expect(c.audit).toBe(true);
   });
 
+  it('customer entity exposes the S3 expanded-model scalar fields', () => {
+    const keys = (getEntity('customer')!.fields ?? []).map((f) => f.key);
+    expect(keys).toEqual(expect.arrayContaining([
+      'cr_number', 'national_address', 'contact_person', 'contact_phone',
+      'payment_terms_days', 'latitude', 'longitude',
+    ]));
+    // FK master-data / geo fields are set via the form, not the import map.
+    expect(keys).not.toContain('segment_id');
+    expect(keys).not.toContain('region_id');
+  });
+
   it('unique key defaults to external_id; dedupe keys include it', () => {
     const customer = getEntity('customer')!;
     expect(entityUniqueKey(customer)).toBe('external_id');

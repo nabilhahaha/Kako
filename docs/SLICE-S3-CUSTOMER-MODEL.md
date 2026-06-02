@@ -1,138 +1,107 @@
-# Slice S3 — Expanded Customer Model — Design Review
+# Slice S3 — Expanded Customer Model — Design + Build
 
-> **Design for approval — no build yet.** Adds the FMCG/ERP customer attributes
-> from locked **decision 3**, building on S1's Region/Area entities. **Additive +
-> idempotent** (`ADD COLUMN IF NOT EXISTS`, all nullable/defaulted → zero
-> regression); no RLS change (inherits `erp_customers`); protected verticals
-> untouched. The **data scope** that limits which customers a hierarchy level sees
-> is **S4**, not here.
+> **Owner decisions locked (below) — built on this branch.** Adds the decision-3
+> FMCG/ERP customer attributes, building on S1 (regions/areas) + S2 (roles).
+> **Additive + idempotent** (`ADD COLUMN IF NOT EXISTS`, all nullable → zero
+> regression); no RLS change on `erp_customers`; protected verticals untouched.
+> Hierarchy **scope/visibility** (which customers a level sees) remains **S4**.
 
 ---
 
-## 1. Goal (from locked decision 3)
-Customer fields: *code, name, branch, region, area, route, sales rep, channel,
-classification, CR number, VAT number, national address, GPS, phone, email,
-contact person, credit limit, payment terms, status.* S3 makes `erp_customers`
-carry the FMCG **segmentation + geo + commercial** attributes, wired into the
-form, list filters, and entity registry (import/export/API).
+## ✅ Locked owner decisions
+1. **Price group** — reuse the existing `erp_wholesale_customer_tier` link (no
+   `price_group_id`).
+2. **Region / Area** — FK references to S1 `erp_regions` / `erp_areas` (not free text).
+3. **Segment / Classification / Channel** — **company-managed master data**, not
+   hard-coded platform enums. Each company can create / edit / disable / add its
+   own values; the platform seeds default FMCG examples. (See §3.)
+   - Default seed values — Segment: Retail · Wholesale · Key Account · Distributor.
+     Classification: A · B · C. Channel: Traditional Trade · Modern Trade ·
+     Wholesale · HoReCa · E-Commerce.
+4. **VAT / CR** — reuse `tax_number` = VAT; add `cr_number` + `national_address`.
+5. **ERP id** — reuse `external_id` (no second `external_ref`).
+6. **Scope** — S3 = customer fields only; hierarchy visibility/RLS = S4.
 
-## 2. Grounding — what `erp_customers` already has
-Compiled from migrations 0005 / 0012 / 0015 / 0019 / 0060 / 0062 / 0079 / 0087:
+## 1. Grounding — what `erp_customers` already had (reused, not duplicated)
+`code/name/name_ar/phone/email/address/city`; `tax_number` (=VAT); `credit_limit`
+/`balance`; `branch_id`; `salesman_id`; `visit_day`; `route_id`; `external_id`
+(=ERP id); `is_active`/`is_approved` (=status); `custom` JSONB; price tier via
+`erp_wholesale_customer_tier`. **Missing (added by S3):** segment / classification
+/ channel, region/area links, GPS, payment terms, contact person/phone, CR number,
+national address.
 
-| Already present | Source | Covers decision-3 field |
+## 2. Migration 0103 (additive; next free number after 0102)
+**New table — `erp_customer_lookups`** (company-managed master data):
+`id, company_id, kind ∈ {segment,classification,channel} (CHECK), code, name,
+name_ar, sort, is_active, …`, `UNIQUE(company_id, kind, code)`. RLS + company_id
+trigger + updated_at — same pattern as `erp_regions` (0101). The **KINDS are
+platform-fixed; the VALUES are tenant-managed.**
+
+**New columns on `erp_customers`** (all nullable):
+| Column | Type | Notes |
 |---|---|---|
-| `code`, `name`, `name_ar` | 0005 | code, name |
-| `phone`, `email`, `address`, `city` | 0005 | phone, email |
-| `tax_number` | 0005 | **VAT number** (reuse — no new `vat_number`) |
-| `credit_limit`, `balance` | 0005 | credit limit |
-| `branch_id` → `erp_branches` | 0005 | branch |
-| `is_active` (+ `is_approved`) | 0005 / 0015 | **status** (reuse — no new `status` col) |
-| `salesman_id` → `auth.users` | 0012 | sales rep |
-| `visit_day` | 0012 | (visit scheduling) |
-| `company_id` | 0019 | tenant scope |
-| `route_id` → `erp_routes` | 0062 | route |
-| `external_id` (+ unique per tenant) | 0079 | **ERP coexistence id** (reuse) |
-| `custom` JSONB + custom-fields engine | 0087 | tenant-defined extras |
-| price tier via `erp_wholesale_customer_tier(customer_id→tier_id)` | 0060 | **price group** (link table already exists) |
-| **S1:** `erp_regions`, `erp_areas`, `erp_branches.region_id/area_id` | 0101 | region, area (entities exist; customer not yet linked) |
+| `segment_id` / `classification_id` / `channel_id` | uuid → `erp_customer_lookups` ON DELETE SET NULL | company master data |
+| `region_id` / `area_id` | uuid → `erp_regions` / `erp_areas` ON DELETE SET NULL | S1 entities |
+| `latitude` / `longitude` | numeric(9,6) | GPS |
+| `payment_terms_days` | int | AR terms |
+| `contact_person` / `contact_phone` | text | ordering contact |
+| `cr_number` | text | Commercial Registration (≠ VAT) |
+| `national_address` | text | KSA National Address |
 
-**So the genuinely-missing fields are:** segment, class (A/B/C), channel,
-region/area link **on the customer**, GPS (lat/long), payment terms, contact
-person/phone, CR number, national address. Everything else is **reuse**.
+Indexes on the four FK ids + region/area. **Seeding:** `erp_seed_company_customer_lookups(company_id)`
+inserts the default FMCG values idempotently (guarded on `code`); backfilled for
+existing **wholesale/delivery** companies and seeded for new companies of those
+types via a dedicated `AFTER INSERT ON erp_companies` trigger (the existing
+roles/modules seed trigger is left untouched). Mirrors 0098's field-relevant
+scoping; other companies start empty and add their own.
 
-## 3. Proposed additive columns (migration 0103 — next free number after 0102)
-All `ADD COLUMN IF NOT EXISTS`, nullable, no default that rewrites rows:
+## 3. Why master data (not enums) — decision 3
+A fixed platform enum can't be edited/extended per company. Storing the values in
+`erp_customer_lookups` (FK from the customer) means: rename propagates via FK,
+disable hides a value from pickers without touching existing rows, and each
+company curates its own taxonomy across industries — while the **permission model
+and the three KINDS stay platform-controlled.** Kind-correctness of a customer's
+FK (e.g. `segment_id` points at a `segment` row) is enforced at the app layer (the
+form's selects are kind-scoped); RLS guarantees same-company.
 
-| New column | Type | Purpose / ERP mapping |
-|---|---|---|
-| `segment` | text | FMCG customer type: `retail`/`wholesale`/`key_account`/`distributor` |
-| `classification` | text | ABC value class: `A`/`B`/`C` |
-| `channel` | text | trade channel: `traditional`/`modern`/`horeca`/`wholesale` |
-| `region_id` | uuid → `erp_regions` ON DELETE SET NULL | geo grouping (S1 entity) |
-| `area_id` | uuid → `erp_areas` ON DELETE SET NULL | geo grouping (S1 entity) |
-| `latitude` | numeric(9,6) | GPS — visit mapping / route optimization |
-| `longitude` | numeric(9,6) | GPS |
-| `payment_terms_days` | int | AR terms (common ERP customer attribute) |
-| `contact_person` | text | FMCG ordering contact |
-| `contact_phone` | text | ordering contact phone (distinct from `phone`) |
-| `cr_number` | text | Commercial Registration no. (KSA), distinct from VAT/`tax_number` |
-| `national_address` | text | KSA National Address (short address) |
+## 4. App layer (built)
+- **Settings → Customer Data** (`/settings/customer-data`, gated `settings.custom_fields`):
+  three-panel manager (Segment / Classification / Channel) — add value, edit
+  labels, activate/deactivate. Nav item + `customerData` i18n namespace (ar/en).
+  Server actions: `upsertCustomerLookup` (code immutable on edit → FK-safe),
+  `toggleCustomerLookupActive`.
+- **`ErpCustomer` type** + new `CustomerLookup` type / `CustomerLookupKind`.
+- **Customers form** — segment/class/channel selects (from the company's active
+  lookups), region/area selects (S1), and GPS / contact / payment-terms / CR /
+  national-address inputs. **List** gains segment/class/channel **filters** and a
+  **Segment / Class** column. `upsertCustomer` writes the new fields.
+- **Entity registry** — scalar fields (`cr_number`, `national_address`,
+  `contact_person`, `contact_phone`, `payment_terms_days`, `latitude`,
+  `longitude`) added to the customer import/export map; FK master-data/geo fields
+  are set via the form (like `branch_id`), not the import map.
 
-Indexes (all `IF NOT EXISTS`): `idx_erp_customers_region`, `_area`,
-`_segment`, `_channel` (filters/lookups). FK indexes on `region_id`/`area_id`.
+## 5. Existing-tenant safety
+Additive nullable columns → **0** existing customer rows change; no `erp_customers`
+RLS change; FKs `ON DELETE SET NULL`. The new table is tenant-scoped (RLS). Seeding
+only adds rows for FMCG-type companies and is idempotent. Non-FMCG/protected
+verticals are unaffected (their columns stay null; no lookups seeded).
 
-> `segment`/`classification`/`channel` are stored as **text with app-layer
-> validation** (the same free-text-union pattern the platform already uses for
-> `erp_user_branches.role`) — **no DB enum/CHECK**, so future values are additive
-> with no enum migration. See Decision 3.
+## 6. Verification
+- `tsc` clean · unit suite **292 passed / 10 skipped** (added: registry exposes
+  the S3 scalar fields) · `next build` clean (`/settings/customer-data` compiled).
+- **Rolled-back-live** (staging/prod, then rollback) to run with the review:
+  table + columns + indexes present; defaults seeded for an FMCG tenant; **0
+  existing customer rows changed**; FK insert of segment/region works; `0 residue`
+  after rollback. **Migration 0103 held from production** until approved.
 
-## 4. Reconciliation — every decision-3 field accounted for (nothing dropped/duplicated)
-| Decision-3 field | Handling |
-|---|---|
-| code, name, branch, route, sales rep, phone, email, credit limit | **exist** — reuse |
-| VAT number | **reuse** `tax_number` (no new column) |
-| status | **reuse** `is_active`/`is_approved` (no new column) |
-| ERP id | **reuse** `external_id` (no new `external_ref`) |
-| price group | **reuse** `erp_wholesale_customer_tier` (Decision 1) |
-| region, area | **new FKs** `region_id`/`area_id` → S1 entities |
-| channel, segment, classification | **new** text columns |
-| CR number, national address | **new** `cr_number`, `national_address` |
-| GPS | **new** `latitude`/`longitude` |
-| contact person, payment terms | **new** `contact_person`/`contact_phone`, `payment_terms_days` |
+## 7. Scope discipline
+S3 = customer fields + their master data only. Hierarchy visibility/RLS-by-owner
+= **S4**. Region/Area *entities* came from S1; promotions = S5.
 
-## 5. App layer (after columns land)
-- **`src/lib/erp/types.ts`** — extend `ErpCustomer` with the new optional fields.
-- **`src/lib/erp/entities.ts`** — add the new fields to the `customer` descriptor
-  `fields[]` so import/export/API pick them up automatically (label ar/en each).
-- **`customers-manager.tsx`** — add form inputs (segment/class/channel selects;
-  region/area selects sourced from `erp_regions`/`erp_areas`; GPS, contact,
-  payment-terms, CR, national-address text); add **segment/class/channel filters**
-  + region/area filter on the list; optionally a class badge column.
-- **`customers/actions.ts`** — include new fields in `upsertCustomer` payload and
-  the `select` lists; bulk-import maps them via the entity registry.
-- **i18n** — extend `src/lib/i18n/messages/customers.ts` (ar + en parity) with the
-  new field labels and filter strings.
-
-## 6. Existing-tenant safety (core concern)
-- Purely **additive nullable columns** → **zero** change to any existing customer
-  row; no backfill; no RLS change (inherits `erp_customers` tenant policy).
-- FKs are `ON DELETE SET NULL` (consistent with `branch_id`/`route_id`).
-- Non-FMCG / protected verticals: the columns simply stay null — **no behaviour
-  change**; form additions are optional inputs.
-
-## 7. Verification plan (when built)
-- **Rolled-back live** (staging/prod project, then rollback): all 12 columns +
-  indexes present; **0 existing customer rows changed**; a functional insert
-  setting region_id/area_id/segment/class/channel/GPS succeeds; `0 residue` after
-  rollback; advisors 0 ERROR.
-- `tsc` clean · full unit suite green (+ tests: registry exposes new fields; type
-  shape; i18n ar/en parity) · `next build` clean.
-- **Migration 0103 NOT applied to production** — held for approval.
-
-## 8. Scope discipline
-S3 = **customer fields + form/filter/registry wiring only.** No hierarchy
-visibility/RLS-by-ownership (that's **S4**), no new roles (S2 ✅), no promotions
-(S5). Region/Area **entities** came from S1; S3 only **links customers** to them.
-
-## 9. Decisions to confirm (S3)
-1. **Price group** — **reuse the existing `erp_wholesale_customer_tier` link**
-   (recommended; already drives pricing) vs add a denormalized `price_group_id`
-   on `erp_customers`? *(Recommend reuse — no duplicate source of truth.)*
-2. **Region/Area** — link customers via **FKs to `erp_regions`/`erp_areas`**
-   (recommended; S1 entities) vs light free-text `region`/`area`?
-3. **Enumerated fields** — confirm the value sets and store `segment` /
-   `classification` / `channel` as **text + app validation** (recommended; no enum
-   migration) vs DB `CHECK`/enum. Confirm value lists:
-   segment `retail|wholesale|key_account|distributor`, class `A|B|C`,
-   channel `traditional|modern|horeca|wholesale`.
-4. **VAT / CR** — confirm `tax_number` = **VAT** (reuse) and add a separate
-   `cr_number` (Commercial Registration) + `national_address`? *(Recommend yes.)*
-5. **ERP id** — **reuse existing `external_id`** (recommended) — do **not** add a
-   second `external_ref`?
-6. **Reconfirm scope** — S3 = customer fields only; visibility/scope by hierarchy
-   is **S4**.
-
-*(S3 design — paused for your review + the §9 decisions, especially #1–#3. On
-approval I build the columns → app wiring → tests → rolled-back-live verify →
-draft PR → review package → your approval, holding migration 0103 from production
-until you approve. Then S4 — hierarchy scope + RLS.)*
+## 8. Next
+- **S4** — hierarchy scope + RLS (NSM→regions, Regional→areas, Area→branches,
+  Branch→branch, Supervisor/Rep→routes/customers).
+- **Proposed companion slice (role-label customization)** — company-configurable
+  **display titles** over the platform-fixed role keys/permission templates (e.g.
+  `salesman` → "Medical Rep"). Same master-data-over-fixed-keys pattern as §3.
+  See `docs/SLICE-S3b-ROLE-LABELS.md` (design for review).

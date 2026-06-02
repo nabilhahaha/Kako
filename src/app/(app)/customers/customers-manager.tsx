@@ -12,7 +12,7 @@ import { FieldError } from '@/components/ui/field-error';
 import { formatCurrency } from '@/lib/utils';
 import { VISIT_DAYS } from '@/lib/erp/constants';
 import { importCustomers, approveCustomer } from './actions';
-import type { Branch, ErpCustomer, Profile } from '@/lib/erp/types';
+import type { Area, Branch, CustomerLookup, CustomerLookupKind, ErpCustomer, Profile, Region } from '@/lib/erp/types';
 import type { CustomFieldDef } from '@/lib/erp/custom-fields';
 import { DynamicCustomFields } from '@/components/forms/dynamic-custom-fields';
 import Link from 'next/link';
@@ -26,12 +26,18 @@ export function CustomersManager({
   customers,
   branches,
   reps,
+  lookups = [],
+  regions = [],
+  areas = [],
   isSuperAdmin,
   customFields = [],
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
   reps: Rep[];
+  lookups?: CustomerLookup[];
+  regions?: Region[];
+  areas?: Area[];
   isSuperAdmin: boolean;
   customFields?: CustomFieldDef[];
 }) {
@@ -40,9 +46,21 @@ export function CustomersManager({
   const [editing, setEditing] = useState<ErpCustomer | null | 'new'>(null);
   const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<{ segment: string; classification: string; channel: string }>({ segment: '', classification: '', channel: '' });
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [creditLimitInput, setCreditLimitInput] = useState('');
   const [pending, startTransition] = useTransition();
+
+  const ar = locale === 'ar';
+  const byKind = (kind: CustomerLookupKind) => lookups.filter((l) => l.kind === kind);
+  const segments = byKind('segment');
+  const classes = byKind('classification');
+  const channels = byKind('channel');
+  const lookupName = (id: string | null) => {
+    if (!id) return '';
+    const l = lookups.find((x) => x.id === id);
+    return l ? (ar ? l.name_ar || l.name : l.name) : '';
+  };
 
   function onApprove(id: string) {
     startTransition(async () => {
@@ -69,15 +87,19 @@ export function CustomersManager({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter(
-      (c) =>
+    return customers.filter((c) => {
+      if (filters.segment && c.segment_id !== filters.segment) return false;
+      if (filters.classification && c.classification_id !== filters.classification) return false;
+      if (filters.channel && c.channel_id !== filters.channel) return false;
+      if (!q) return true;
+      return (
         c.code.toLowerCase().includes(q) ||
         c.name.toLowerCase().includes(q) ||
         (c.name_ar || '').toLowerCase().includes(q) ||
-        (c.phone || '').includes(q),
-    );
-  }, [customers, query]);
+        (c.phone || '').includes(q)
+      );
+    });
+  }, [customers, query, filters]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -126,6 +148,24 @@ export function CustomersManager({
         <Badge variant="secondary" className="text-sm">
           {t('customers.totalReceivable')}: {formatCurrency(totalReceivable)}
         </Badge>
+        {segments.length > 0 && (
+          <select value={filters.segment} onChange={(e) => setFilters((f) => ({ ...f, segment: e.target.value }))} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+            <option value="">{t('customers.filterAllSegments')}</option>
+            {segments.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
+          </select>
+        )}
+        {classes.length > 0 && (
+          <select value={filters.classification} onChange={(e) => setFilters((f) => ({ ...f, classification: e.target.value }))} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+            <option value="">{t('customers.filterAllClasses')}</option>
+            {classes.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
+          </select>
+        )}
+        {channels.length > 0 && (
+          <select value={filters.channel} onChange={(e) => setFilters((f) => ({ ...f, channel: e.target.value }))} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+            <option value="">{t('customers.filterAllChannels')}</option>
+            {channels.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
+          </select>
+        )}
         <div className="relative w-full sm:ms-auto sm:w-auto">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('customers.searchPlaceholder')} className="w-full ps-9 sm:w-64" />
@@ -179,6 +219,45 @@ export function CustomersManager({
                     ))}
                   </select>
                 </Field>
+
+                {/* FMCG hierarchy S3 — segmentation (company master data), geo, commercial */}
+                <Field label={t('customers.fieldSegment')}>
+                  <select name="segment_id" defaultValue={current?.segment_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">{t('customers.optionNone')}</option>
+                    {segments.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
+                  </select>
+                </Field>
+                <Field label={t('customers.fieldClassification')}>
+                  <select name="classification_id" defaultValue={current?.classification_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">{t('customers.optionNone')}</option>
+                    {classes.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
+                  </select>
+                </Field>
+                <Field label={t('customers.fieldChannel')}>
+                  <select name="channel_id" defaultValue={current?.channel_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">{t('customers.optionNone')}</option>
+                    {channels.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
+                  </select>
+                </Field>
+                <Field label={t('customers.fieldRegion')}>
+                  <select name="region_id" defaultValue={current?.region_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">{t('customers.optionNone')}</option>
+                    {regions.map((r) => <option key={r.id} value={r.id}>{ar ? r.name_ar || r.name : r.name}</option>)}
+                  </select>
+                </Field>
+                <Field label={t('customers.fieldArea')}>
+                  <select name="area_id" defaultValue={current?.area_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">{t('customers.optionNone')}</option>
+                    {areas.map((a) => <option key={a.id} value={a.id}>{ar ? a.name_ar || a.name : a.name}</option>)}
+                  </select>
+                </Field>
+                <Field label={t('customers.fieldContactPerson')}><Input name="contact_person" defaultValue={current?.contact_person ?? ''} /></Field>
+                <Field label={t('customers.fieldContactPhone')}><Input name="contact_phone" dir="ltr" defaultValue={current?.contact_phone ?? ''} /></Field>
+                <Field label={t('customers.fieldPaymentTerms')}><Input name="payment_terms_days" type="number" dir="ltr" defaultValue={current?.payment_terms_days ?? ''} /></Field>
+                <Field label={t('customers.fieldCrNumber')}><Input name="cr_number" dir="ltr" defaultValue={current?.cr_number ?? ''} /></Field>
+                <Field label={t('customers.fieldNationalAddress')}><Input name="national_address" defaultValue={current?.national_address ?? ''} /></Field>
+                <Field label={t('customers.fieldLatitude')}><Input name="latitude" type="number" step="any" dir="ltr" defaultValue={current?.latitude ?? ''} /></Field>
+                <Field label={t('customers.fieldLongitude')}><Input name="longitude" type="number" step="any" dir="ltr" defaultValue={current?.longitude ?? ''} /></Field>
               </div>
               {/* Dynamic Forms: custom fields appear automatically + submit as `custom` JSON */}
               <DynamicCustomFields
@@ -247,12 +326,13 @@ export function CustomersManager({
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[820px] text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   {/* sticky-ish header tone + readable density for mobile scroll */}
                   <tr>
                     <th className="p-3 text-start font-medium">{t('customers.colCode')}</th>
                     <th className="p-3 text-start font-medium">{t('customers.colCustomer')}</th>
+                    <th className="p-3 text-start font-medium">{t('customers.colSegment')}</th>
                     <th className="p-3 text-start font-medium">{t('customers.colBranch')}</th>
                     <th className="p-3 text-end font-medium">{t('customers.colCreditLimit')}</th>
                     <th className="p-3 text-end font-medium">{t('customers.colBalance')}</th>
@@ -269,6 +349,9 @@ export function CustomersManager({
                       <tr key={c.id} className="border-b last:border-0 hover:bg-secondary/30">
                         <td className="whitespace-nowrap p-3 font-mono text-xs" dir="ltr">{c.code}</td>
                         <td className="p-3 font-medium">{c.name_ar || c.name}</td>
+                        <td className="whitespace-nowrap p-3 text-muted-foreground">
+                          {[lookupName(c.segment_id), lookupName(c.classification_id)].filter(Boolean).join(' · ') || '—'}
+                        </td>
                         <td className="whitespace-nowrap p-3 text-muted-foreground">{branchName(c.branch_id)}</td>
                         <td className="whitespace-nowrap p-3 text-end tabular-nums" dir="ltr">{formatCurrency(c.credit_limit)}</td>
                         <td className="whitespace-nowrap p-3 text-end tabular-nums" dir="ltr">
