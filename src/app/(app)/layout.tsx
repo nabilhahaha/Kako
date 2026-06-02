@@ -3,6 +3,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { getPlatformContext } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/layout/sidebar';
+import { BottomNav } from '@/components/layout/bottom-nav';
 import { TopBar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/layout/command-palette';
 import { ConfirmProvider } from '@/components/confirm-dialog';
@@ -176,8 +177,10 @@ export default async function AppLayout({
               </a>
             </div>
           )}
-          <main className="flex-1 p-4 lg:p-6">{children}</main>
+          {/* pb on mobile keeps content clear of the fixed bottom tab bar (UX-3) */}
+          <main className="flex-1 p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
         </div>
+        <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} />
       </div>
      </PromptProvider>
     </ConfirmProvider>

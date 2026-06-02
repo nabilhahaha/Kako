@@ -139,6 +139,13 @@ export const ar = {
       governance: 'الحوكمة',
       personal: 'شخصي',
     },
+    bottom: {
+      home: 'الرئيسية',
+      customers: 'العملاء',
+      sell: 'بيع',
+      inventory: 'المخزون',
+      more: 'المزيد',
+    },
     items: {
       overview: 'نظرة عامة',
       companies: 'الشركات والاشتراكات',
@@ -366,6 +373,13 @@ export const en = {
       integrations: 'Integrations',
       governance: 'Governance',
       personal: 'Personal',
+    },
+    bottom: {
+      home: 'Home',
+      customers: 'Customers',
+      sell: 'Sell',
+      inventory: 'Inventory',
+      more: 'More',
     },
     items: {
       overview: 'Overview',
