@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { upsertProduct, toggleProductActive, createCategory } from './actions';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/shared/empty-state';
+import { ListSearch } from '@/components/list-search';
 import { FieldError } from '@/components/ui/field-error';
 import { PRODUCT_UNIT_OPTIONS, PRODUCT_UNIT_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { ProductCatalog, ProductCategory } from '@/lib/erp/types';
-import { Plus, Pencil, Loader2, X, Package, Search, Tags } from 'lucide-react';
+import { Plus, Pencil, Loader2, X, Package, Tags } from 'lucide-react';
 import { toast } from 'sonner';
 import { DrugCatalogPicker } from './drug-catalog-picker';
 import { useI18n } from '@/lib/i18n/provider';
@@ -24,17 +25,18 @@ export function ProductsManager({
   categories,
   showDrugCatalog = false,
   etaEnabled = false,
+  q = '',
 }: {
   products: ProductCatalog[];
   categories: ProductCategory[];
   showDrugCatalog?: boolean;
   etaEnabled?: boolean;
+  q?: string;
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const [editing, setEditing] = useState<ProductCatalog | null | 'new'>(null);
   const [showCategory, setShowCategory] = useState(false);
-  const [query, setQuery] = useState('');
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [pending, startTransition] = useTransition();
 
@@ -42,18 +44,6 @@ export function ProductsManager({
     categories.find((c) => c.id === id)?.name_ar ||
     categories.find((c) => c.id === id)?.name ||
     '—';
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        p.code.toLowerCase().includes(q) ||
-        p.name.toLowerCase().includes(q) ||
-        (p.name_ar || '').toLowerCase().includes(q) ||
-        (p.barcode || '').toLowerCase().includes(q),
-    );
-  }, [products, query]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -113,15 +103,7 @@ export function ProductsManager({
           <Tags className="h-4 w-4" /> {t('products.btnCategories').replace('{count}', String(categories.length))}
         </Button>
         {showDrugCatalog && <DrugCatalogPicker />}
-        <div className="relative ms-auto">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('products.searchPlaceholder')}
-            className="w-64 pe-9"
-          />
-        </div>
+        <ListSearch placeholder={t('products.searchPlaceholder')} className="w-full sm:ms-auto sm:w-64" />
       </div>
 
       {showCategory && (
@@ -247,12 +229,12 @@ export function ProductsManager({
         </Card>
       )}
 
-      {filtered.length === 0 ? (
+      {products.length === 0 ? (
         <EmptyState
           icon={<Package />}
-          title={products.length === 0 ? t('products.emptyProducts') : t('products.emptySearch')}
-          description={products.length === 0 ? t('products.emptyProductsHint') : undefined}
-          action={products.length === 0 && editing === null ? (
+          title={q ? t('products.emptySearch') : t('products.emptyProducts')}
+          description={q ? undefined : t('products.emptyProductsHint')}
+          action={!q && editing === null ? (
             <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> {t('products.btnNewProduct')}</Button>
           ) : undefined}
         />
@@ -274,7 +256,7 @@ export function ProductsManager({
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((p) => (
+                  {products.map((p) => (
                     <tr key={p.id} className="border-b last:border-0 hover:bg-secondary/30">
                       <td className="p-3 font-mono text-xs" dir="ltr">{p.code}</td>
                       <td className="p-3 font-medium">{p.name_ar || p.name}</td>

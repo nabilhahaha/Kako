@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { upsertSupplier, toggleSupplierActive, recordSupplierPayment } from './actions';
@@ -10,38 +10,28 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/shared/empty-state';
+import { ListSearch } from '@/components/list-search';
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, PaymentMethod, Supplier } from '@/lib/erp/types';
-import { Plus, Pencil, Loader2, X, Truck, Search, FileText, Wallet } from 'lucide-react';
+import { Plus, Pencil, Loader2, X, Truck, FileText, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n/provider';
 
 export function SuppliersManager({
   suppliers,
   branches,
+  q = '',
 }: {
   suppliers: Supplier[];
   branches: Branch[];
+  q?: string;
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const [editing, setEditing] = useState<Supplier | null | 'new'>(null);
   const [payFor, setPayFor] = useState<Supplier | null>(null);
-  const [query, setQuery] = useState('');
   const [pending, startTransition] = useTransition();
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return suppliers;
-    return suppliers.filter(
-      (s) =>
-        s.code.toLowerCase().includes(q) ||
-        s.name.toLowerCase().includes(q) ||
-        (s.name_ar || '').toLowerCase().includes(q) ||
-        (s.phone || '').includes(q),
-    );
-  }, [suppliers, query]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -80,15 +70,7 @@ export function SuppliersManager({
         <Badge variant="secondary" className="text-sm">
           {t('suppliers.totalPayable')}: {formatCurrency(totalPayable)}
         </Badge>
-        <div className="relative ms-auto">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('suppliers.searchPlaceholder')}
-            className="w-56 ps-9"
-          />
-        </div>
+        <ListSearch placeholder={t('suppliers.searchPlaceholder')} className="w-full sm:ms-auto sm:w-56" />
       </div>
 
       {editing !== null && (
@@ -125,11 +107,11 @@ export function SuppliersManager({
         </Card>
       )}
 
-      {filtered.length === 0 ? (
+      {suppliers.length === 0 ? (
         <EmptyState
           icon={<Truck />}
-          title={suppliers.length === 0 ? t('suppliers.emptyNoSuppliers') : t('suppliers.emptyNoResults')}
-          action={suppliers.length === 0 && editing === null ? (
+          title={q ? t('suppliers.emptyNoResults') : t('suppliers.emptyNoSuppliers')}
+          action={!q && editing === null ? (
             <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> {t('suppliers.btnNew')}</Button>
           ) : undefined}
         />
@@ -150,7 +132,7 @@ export function SuppliersManager({
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((s) => (
+                  {suppliers.map((s) => (
                     <tr key={s.id} className="border-b last:border-0 hover:bg-secondary/30">
                       <td className="p-3 font-mono text-xs" dir="ltr">{s.code}</td>
                       <td className="p-3 font-medium">{s.name_ar || s.name}</td>
