@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/shared/empty-state';
+import { FormSection } from '@/components/shared/form-section';
 import { ListSearch } from '@/components/list-search';
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
@@ -86,15 +87,19 @@ export function SuppliersManager({
             </div>
             <form onSubmit={onSubmit} className="space-y-4">
               {current && <input type="hidden" name="id" value={current.id} />}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Field label={t('suppliers.fieldCode')}><Input name="code" dir="ltr" defaultValue={current?.code ?? ''} required /></Field>
-                <Field label={t('suppliers.fieldNameAr')}><Input name="name_ar" defaultValue={current?.name_ar ?? ''} /></Field>
-                <Field label={t('suppliers.fieldNameEn')}><Input name="name" defaultValue={current?.name ?? ''} required /></Field>
-                <Field label={t('suppliers.fieldPhone')}><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} /></Field>
-                <Field label={t('suppliers.fieldEmail')}><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} /></Field>
-                <Field label={t('suppliers.fieldTaxNumber')}><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>
-                <Field label={t('suppliers.fieldCity')}><Input name="city" defaultValue={current?.city ?? ''} /></Field>
-                <Field label={t('suppliers.fieldAddress')}><Input name="address" defaultValue={current?.address ?? ''} /></Field>
+              <div className="space-y-5">
+                <FormSection title={t('suppliers.sectionIdentity')}>
+                  <Field label={t('suppliers.fieldCode')}><Input name="code" dir="ltr" defaultValue={current?.code ?? ''} required /></Field>
+                  <Field label={t('suppliers.fieldNameAr')}><Input name="name_ar" defaultValue={current?.name_ar ?? ''} /></Field>
+                  <Field label={t('suppliers.fieldNameEn')}><Input name="name" defaultValue={current?.name ?? ''} required /></Field>
+                </FormSection>
+                <FormSection title={t('suppliers.sectionContact')}>
+                  <Field label={t('suppliers.fieldPhone')}><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} /></Field>
+                  <Field label={t('suppliers.fieldEmail')}><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} /></Field>
+                  <Field label={t('suppliers.fieldTaxNumber')}><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>
+                  <Field label={t('suppliers.fieldCity')}><Input name="city" defaultValue={current?.city ?? ''} /></Field>
+                  <Field label={t('suppliers.fieldAddress')}><Input name="address" defaultValue={current?.address ?? ''} /></Field>
+                </FormSection>
               </div>
               <div className="flex gap-2">
                 <Button type="submit" disabled={pending}>

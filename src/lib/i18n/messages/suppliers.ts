@@ -52,6 +52,8 @@ export const ar = {
 
     // ── Empty states ──────────────────────────────────────────────────
     emptyNoSuppliers: 'لا يوجد موردون بعد.',
+    sectionIdentity: 'الهوية',
+    sectionContact: 'بيانات التواصل',
     emptyNoResults: 'لا توجد نتائج.',
 
     // ── Toast messages ────────────────────────────────────────────────
@@ -139,6 +141,8 @@ export const en = {
 
     // ── Empty states ──────────────────────────────────────────────────
     emptyNoSuppliers: 'No suppliers yet.',
+    sectionIdentity: 'Identity',
+    sectionContact: 'Contact',
     emptyNoResults: 'No results found.',
 
     // ── Toast messages ────────────────────────────────────────────────

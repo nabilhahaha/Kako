@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/shared/empty-state';
+import { FormSection } from '@/components/shared/form-section';
 import { ListSearch } from '@/components/list-search';
 import { FieldError } from '@/components/ui/field-error';
 import { PRODUCT_UNIT_OPTIONS, PRODUCT_UNIT_LABELS } from '@/lib/erp/constants';
@@ -153,7 +154,8 @@ export function ProductsManager({
             </div>
             <form onSubmit={onSubmit} className="space-y-4">
               {current && <input type="hidden" name="id" value={current.id} />}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-5">
+                <FormSection title={t('products.sectionIdentity')}>
                 <Field label={t('products.fieldProductCode')}>
                   <Input name="code" dir="ltr" defaultValue={current?.code ?? ''} placeholder={t('products.productCodePlaceholder')} />
                   <FieldError>{errors.code}</FieldError>
@@ -176,6 +178,8 @@ export function ProductsManager({
                   <Input name="name" defaultValue={current?.name ?? ''} onChange={() => setErrors((x) => ({ ...x, name: undefined }))} />
                   <FieldError>{errors.name}</FieldError>
                 </Field>
+                </FormSection>
+                <FormSection title={t('products.sectionPricing')}>
                 <Field label={t('products.fieldUnit')}>
                   <select name="unit" defaultValue={current?.unit ?? 'piece'} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     {PRODUCT_UNIT_OPTIONS.map((u) => (
@@ -195,8 +199,9 @@ export function ProductsManager({
                 <Field label={t('products.fieldMinStock')}>
                   <Input name="min_stock" type="number" step="0.001" dir="ltr" defaultValue={current?.min_stock ?? 0} />
                 </Field>
+                </FormSection>
                 {etaEnabled && (
-                  <>
+                  <FormSection title={t('products.sectionEInvoice')}>
                     <Field label={t('products.fieldEtaCodeType')}>
                       <select name="eta_item_code_type" defaultValue={current?.eta_item_code_type ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                         <option value="">{t('products.etaNone')}</option>
@@ -215,7 +220,7 @@ export function ProductsManager({
                         ))}
                       </select>
                     </Field>
-                  </>
+                  </FormSection>
                 )}
               </div>
               <div className="flex gap-2">
