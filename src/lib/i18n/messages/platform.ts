@@ -35,6 +35,7 @@ export const ar = {
       expiring: 'قارب الانتهاء',
       expired: 'منتهٍ',
       suspended: 'موقوف',
+      trial: 'تجريبي',
       open: 'مفتوح',
     },
 
@@ -84,6 +85,67 @@ export const ar = {
     // ── company detail page ────────────────────────────────────────
     company: {
       description: 'إدارة الاشتراك والفروع والمستخدمين والصلاحيات لهذه الشركة',
+
+      tabs: {
+        overview: 'نظرة عامة',
+        subscription: 'الاشتراك',
+        users: 'المستخدمون',
+        roles: 'الأدوار',
+        permissions: 'الصلاحيات',
+        modules: 'الوحدات',
+        packs: 'الحزم القطاعية',
+        integrations: 'التكاملات',
+        audit: 'سجل التدقيق',
+      },
+      overview: {
+        users: 'المستخدمون',
+        branches: 'الفروع',
+        products: 'المنتجات',
+        modules: 'الوحدات',
+        expiry: 'انتهاء الاشتراك',
+        trial: 'الفترة التجريبية',
+        onboardingDone: 'اكتمل الإعداد',
+        onboardingPending: 'الإعداد غير مكتمل',
+        onboardingToast: 'تم تحديث حالة الإعداد',
+        resetOnboarding: 'إعادة الإعداد',
+        markOnboarded: 'تعليم كمكتمل',
+      },
+      trial: {
+        title: 'الفترة التجريبية',
+        hint: 'امنح الشركة فترة تجريبية مؤقتة، مستقلة عن الاشتراك المدفوع.',
+        activeUntil: 'تجريبي حتى {date} ({n} يوم)',
+        none: 'لا توجد فترة تجريبية',
+        daysLeft: '{n} يوم متبقٍ',
+        start14: 'تجربة ١٤ يوم',
+        start30: 'تجربة ٣٠ يوم',
+        end: 'إنهاء التجربة',
+        toastStarted: 'بدأت الفترة التجريبية',
+        toastEnded: 'انتهت الفترة التجريبية',
+      },
+      packs: {
+        title: 'الحزم القطاعية',
+        hint: 'فعّل أو أوقف حِزم القطاعات (عيادة، صيدلية، مطعم…) لهذه الشركة.',
+      },
+      integrations: {
+        title: 'التكاملات',
+        hint: 'تحكّم في تكاملات هذه الشركة واتصالاتها الخارجية.',
+        moduleLabel: 'تفعيل وحدة التكاملات',
+        connectionsTitle: 'الاتصالات',
+        noConnections: 'لا توجد اتصالات',
+        active: 'مفعّل',
+        inactive: 'موقوف',
+        disable: 'إيقاف',
+        enable: 'تفعيل',
+        apiKeysTitle: 'مفاتيح API',
+        noApiKeys: 'لا توجد مفاتيح',
+      },
+      audit: {
+        empty: 'لا توجد أحداث',
+        time: 'الوقت',
+        actor: 'المستخدم',
+        action: 'الإجراء',
+        entity: 'العنصر',
+      },
 
       // subscription card
       subscription: {
@@ -174,6 +236,9 @@ export const ar = {
     permissions: {
       title: 'الأدوار والصلاحيات',
       description: 'فعّل الأدوار المطلوبة لهذه الشركة وحدد صلاحيات كل دور. الإعداد مستقل لكل شركة.',
+      rolesTitle: 'الأدوار',
+      rolesDescription: 'فعّل أو أوقف الأدوار المتاحة لهذه الشركة.',
+      customBadge: 'مخصّص',
       newRole: 'دور جديد',
       roleNameLabel: 'اسم الدور',
       roleNamePlaceholder: 'مثال: صيدلي',
@@ -275,6 +340,7 @@ export const en = {
       expiring: 'Expiring Soon',
       expired: 'Expired',
       suspended: 'Suspended',
+      trial: 'Trial',
       open: 'Open',
     },
 
@@ -324,6 +390,67 @@ export const en = {
     // ── company detail page ────────────────────────────────────────
     company: {
       description: 'Manage subscription, branches, users, and permissions for this company',
+
+      tabs: {
+        overview: 'Overview',
+        subscription: 'Subscription',
+        users: 'Users',
+        roles: 'Roles',
+        permissions: 'Permissions',
+        modules: 'Modules',
+        packs: 'Industry Packs',
+        integrations: 'Integrations',
+        audit: 'Audit Log',
+      },
+      overview: {
+        users: 'Users',
+        branches: 'Branches',
+        products: 'Products',
+        modules: 'Modules',
+        expiry: 'Subscription ends',
+        trial: 'Trial',
+        onboardingDone: 'Onboarding complete',
+        onboardingPending: 'Onboarding incomplete',
+        onboardingToast: 'Onboarding status updated',
+        resetOnboarding: 'Reset onboarding',
+        markOnboarded: 'Mark as onboarded',
+      },
+      trial: {
+        title: 'Trial period',
+        hint: 'Grant the company a temporary trial, independent of the paid subscription.',
+        activeUntil: 'Trial until {date} ({n} days)',
+        none: 'No trial period',
+        daysLeft: '{n} days left',
+        start14: 'Start 14-day trial',
+        start30: 'Start 30-day trial',
+        end: 'End trial',
+        toastStarted: 'Trial started',
+        toastEnded: 'Trial ended',
+      },
+      packs: {
+        title: 'Industry Packs',
+        hint: 'Enable or disable vertical packs (clinic, pharmacy, restaurant…) for this company.',
+      },
+      integrations: {
+        title: 'Integrations',
+        hint: 'Control this company\'s integrations and external connections.',
+        moduleLabel: 'Enable Integrations module',
+        connectionsTitle: 'Connections',
+        noConnections: 'No connections',
+        active: 'Active',
+        inactive: 'Disabled',
+        disable: 'Disable',
+        enable: 'Enable',
+        apiKeysTitle: 'API keys',
+        noApiKeys: 'No keys',
+      },
+      audit: {
+        empty: 'No events',
+        time: 'Time',
+        actor: 'User',
+        action: 'Action',
+        entity: 'Entity',
+      },
 
       // subscription card
       subscription: {
@@ -414,6 +541,9 @@ export const en = {
     permissions: {
       title: 'Roles & Permissions',
       description: 'Enable required roles for this company and set permissions per role. Settings are independent per company.',
+      rolesTitle: 'Roles',
+      rolesDescription: 'Enable or disable the roles available to this company.',
+      customBadge: 'Custom',
       newRole: 'New Role',
       roleNameLabel: 'Role Name',
       roleNamePlaceholder: 'e.g. Pharmacist',

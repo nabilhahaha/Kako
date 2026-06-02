@@ -1,5 +1,4 @@
 import { notFound, redirect } from 'next/navigation';
-import Link from 'next/link';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
@@ -8,7 +7,7 @@ import { StatementTable, type StatementEntry } from '@/components/statement-tabl
 import { PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { PaymentMethod, PurchaseOrder, Supplier, SupplierPayment } from '@/lib/erp/types';
-import { ArrowRight } from 'lucide-react';
+import { BackLink } from '@/components/shared/back-link';
 import { getT } from '@/lib/i18n/server';
 
 export default async function SupplierStatementPage({
@@ -71,9 +70,7 @@ export default async function SupplierStatementPage({
 
   return (
     <div>
-      <Link href="/suppliers" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowRight className="h-4 w-4" /> {t('suppliers.stmtBackLink')}
-      </Link>
+      <BackLink href="/suppliers" label={t('suppliers.stmtBackLink')} />
       <PageHeader
         title={t('suppliers.stmtTitle', { name: supplierName })}
         description={description}

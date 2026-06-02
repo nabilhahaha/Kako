@@ -141,6 +141,7 @@ export interface Company {
   plan_key: string | null;
   subscription_start: string | null;
   subscription_end: string | null;
+  trial_ends_at: string | null;
   setup_done: boolean | null;
   created_at: string;
   updated_at: string;
@@ -158,6 +159,37 @@ export interface Branch {
   email: string | null;
   is_active: boolean;
   is_hq: boolean;
+  /** FMCG geography links (S1; nullable). */
+  region_id: string | null;
+  area_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** FMCG geography — a Region groups Areas; an Area groups Branches (S1). */
+export interface Region {
+  id: string;
+  company_id: string;
+  name: string;
+  name_ar: string | null;
+  manager_id: string | null;
+  sort: number;
+  is_active: boolean;
+  external_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Area {
+  id: string;
+  company_id: string;
+  region_id: string | null;
+  name: string;
+  name_ar: string | null;
+  manager_id: string | null;
+  sort: number;
+  is_active: boolean;
+  external_id: string | null;
   created_at: string;
   updated_at: string;
 }

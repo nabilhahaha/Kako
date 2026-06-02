@@ -2,14 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, StickyNote, SlidersHorizontal } from 'lucide-react';
+import { StickyNote, SlidersHorizontal } from 'lucide-react';
+import { BackLink } from '@/components/shared/back-link';
 import { formatCurrency } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/provider';
 import { usePrompt } from '@/components/prompt-dialog';
@@ -98,9 +98,7 @@ export function OrderEditor({ order, items, menu }: { order: EditorOrder; items:
 
   return (
     <div>
-      <Link href="/restaurant/orders" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowRight className="h-4 w-4" /> {t('restaurant.editor.backToOrders')}
-      </Link>
+      <BackLink href="/restaurant/orders" label={t('restaurant.editor.backToOrders')} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="flex items-center gap-2 text-2xl font-bold">{title} <Badge variant="secondary">{t(`restaurant.orderType.${order.order_type}`) ?? order.order_type}</Badge></h1>
         {closed && <Badge variant="success">{t('restaurant.editor.statusClosed')}</Badge>}

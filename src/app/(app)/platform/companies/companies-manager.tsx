@@ -35,6 +35,7 @@ const STATE_BADGE_VARIANT: Record<SubscriptionState, StateBadgeVariant> = {
   expiring:  'warning',
   expired:   'destructive',
   suspended: 'destructive',
+  trial:     'info',
   open:      'info',
 };
 

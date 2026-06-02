@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
+import { CalendarCheck } from 'lucide-react';
 import { formatDate, formatNumber } from '@/lib/utils';
 import { getT } from '@/lib/i18n/server';
 
@@ -51,11 +53,7 @@ export default async function ExpiryReportPage() {
         description={t('inventory.expiryPageDescription', { days: WINDOW_DAYS })}
       />
       {rows.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            {t('inventory.emptyExpiry')}
-          </CardContent>
-        </Card>
+        <EmptyState icon={<CalendarCheck />} title={t('inventory.emptyExpiry')} />
       ) : (
         <Card>
           <CardContent className="p-0">

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Plus, Loader2, X, CalendarClock, CheckCircle2, LogIn } from 'lucide-react';
 import { WhatsAppButton } from '@/components/whatsapp-button';
 import { useI18n } from '@/lib/i18n/provider';
@@ -80,7 +81,7 @@ export function SalonAppointments({ appts, staff, services }: { appts: Appt[]; s
 
       <Card><CardContent className="p-0">
         {appts.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground"><CalendarClock className="h-8 w-8" /><p>{t('salon.appointments.emptyList')}</p></div>
+          <EmptyState className="border-0" icon={<CalendarClock />} title={t('salon.appointments.emptyList')} />
         ) : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground"><tr>

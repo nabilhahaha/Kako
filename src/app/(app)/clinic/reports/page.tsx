@@ -149,24 +149,26 @@ function ReportTable({ title, icon, cols, rows, emptyText }: { title: string; ic
         {rows.length === 0 ? (
           <p className="p-6 text-center text-sm text-muted-foreground">{emptyText}</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="border-b bg-secondary/50 text-muted-foreground">
-              <tr>
-                <th className="p-3 text-start font-medium">{cols[0]}</th>
-                <th className="p-3 text-center font-medium">{cols[1]}</th>
-                <th className="p-3 text-end font-medium">{cols[2]}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-b last:border-0">
-                  <td className="p-3 font-medium">{r[0]}</td>
-                  <td className="p-3 text-center tabular-nums">{r[1]}</td>
-                  <td className="p-3 text-left tabular-nums" dir="ltr">{r[2]}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-secondary/50 text-muted-foreground">
+                <tr>
+                  <th className="p-3 text-start font-medium">{cols[0]}</th>
+                  <th className="p-3 text-center font-medium">{cols[1]}</th>
+                  <th className="p-3 text-end font-medium">{cols[2]}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i} className="border-b last:border-0">
+                    <td className="p-3 font-medium">{r[0]}</td>
+                    <td className="p-3 text-center tabular-nums">{r[1]}</td>
+                    <td className="p-3 text-end tabular-nums" dir="ltr">{r[2]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </CardContent>
     </Card>

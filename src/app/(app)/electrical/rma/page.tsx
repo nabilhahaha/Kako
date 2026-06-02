@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
+import { RotateCcw } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { getT } from '@/lib/i18n/server';
 
@@ -43,7 +45,7 @@ export default async function RmaPage() {
     <div>
       <PageHeader title={t('electrical.rmaTitle')} description={t('electrical.rmaDescription')} />
       {rows.length === 0 ? (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">{t('electrical.rmaEmpty')}</CardContent></Card>
+        <EmptyState icon={<RotateCcw />} title={t('electrical.rmaEmpty')} />
       ) : (
         <Card>
           <CardContent className="p-0">

@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Plus, Minus, Trash2, Search, CheckCircle2, X, Printer, Loader2, AlertTriangle } from 'lucide-react';
+import { Plus, Minus, Trash2, Search, CheckCircle2, X, Printer, Loader2, AlertTriangle } from 'lucide-react';
+import { BackLink } from '@/components/shared/back-link';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 import { useI18n } from '@/lib/i18n/provider';
@@ -58,7 +59,7 @@ export function DispenseEditor({ dispense, items, products }: { dispense: Dispen
 
   return (
     <div>
-      <Link href="/pharmacy/dispense" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowRight className="h-4 w-4" /> {t('pharmacy.backToList')}</Link>
+      <BackLink href="/pharmacy/dispense" label={t('pharmacy.backToList')} />
       <div className="mb-4 flex items-center justify-between"><h1 className="text-2xl font-bold">{t('pharmacy.editorTitle')}</h1>{closed && <Badge variant={dispense.status === 'cancelled' ? 'destructive' : 'success'}>{dispense.status === 'cancelled' ? t('pharmacy.badgeCancelled') : t('pharmacy.badgeDone')}</Badge>}</div>
 
       <div className="grid gap-4 lg:grid-cols-5">

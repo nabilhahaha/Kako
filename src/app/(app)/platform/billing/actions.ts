@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requirePlatformOwner } from '@/lib/erp/platform-guards';
 import { isCurrency, toMinor, type BillingInterval, type SubscriptionStatus } from '@/lib/erp/billing';
+import * as subscription from '@/lib/erp/subscription-service';
 
 /** ── Billing administration — owner-only server actions ────────────────────
  *  Thin wrappers over the guarded SECURITY DEFINER RPCs (which also sync the
@@ -40,9 +41,8 @@ export async function subscribeCompany(
   if (!companyId || !planKey || !isCurrency(currency) || !INTERVALS.includes(interval))
     return { ok: false, error: 'invalid input' };
   const supabase = await createClient();
-  const { error: e } = await supabase.rpc('erp_billing_subscribe', {
-    p_company: companyId, p_plan_key: planKey, p_currency: currency,
-    p_interval: interval as BillingInterval, p_trial_days: Math.max(0, Math.floor(trialDays || 0)),
+  const { error: e } = await subscription.seedSubscription(supabase, {
+    companyId, planKey, currency, interval: interval as BillingInterval, trialDays,
   });
   if (e) return { ok: false, error: e.message };
   revalidatePath('/platform/billing');
@@ -54,9 +54,7 @@ export async function setSubscriptionStatus(companyId: string, status: string): 
   if (!ctx) return { ok: false, error };
   if (!companyId || !STATUSES.includes(status)) return { ok: false, error: 'invalid input' };
   const supabase = await createClient();
-  const { error: e } = await supabase.rpc('erp_billing_set_status', {
-    p_company: companyId, p_status: status as SubscriptionStatus,
-  });
+  const { error: e } = await subscription.setStatus(supabase, companyId, status as SubscriptionStatus);
   if (e) return { ok: false, error: e.message };
   revalidatePath('/platform/billing');
   return { ok: true };

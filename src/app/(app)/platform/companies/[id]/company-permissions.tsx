@@ -27,6 +27,7 @@ export function CompanyPermissions({
   roles,
   enabledRoles,
   permsByRole,
+  view = 'permissions',
 }: {
   companyId: string;
   roles: CompanyRoleRow[];
@@ -34,6 +35,8 @@ export function CompanyPermissions({
   enabledRoles: string[];
   /** company-scoped permissions, per role_key */
   permsByRole: Record<string, string[]>;
+  /** Which slice to render: the roles list, or the permission matrix. */
+  view?: 'roles' | 'permissions';
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -106,9 +109,9 @@ export function CompanyPermissions({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-semibold">{t('platform.permissions.title')}</p>
+          <p className="font-semibold">{view === 'roles' ? t('platform.permissions.rolesTitle') : t('platform.permissions.title')}</p>
           <p className="text-xs text-muted-foreground">
-            {t('platform.permissions.description')}
+            {view === 'roles' ? t('platform.permissions.rolesDescription') : t('platform.permissions.description')}
           </p>
         </div>
         {!adding ? (
@@ -137,6 +140,31 @@ export function CompanyPermissions({
         </Card>
       )}
 
+      {view === 'roles' && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {roles.map((r) => (
+                <label key={r.key} className="flex items-center justify-between gap-2 p-3 text-sm">
+                  <span className="font-medium">
+                    {r.name_ar}
+                    {!r.is_system && <span className="ms-2 text-xs text-muted-foreground">{t('platform.permissions.customBadge')}</span>}
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={enabled.has(r.key)}
+                    disabled={pending}
+                    onChange={(e) => toggleRole(r.key, e.target.checked)}
+                  />
+                </label>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {view === 'permissions' && (
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -196,10 +224,13 @@ export function CompanyPermissions({
           </div>
         </CardContent>
       </Card>
+      )}
 
-      <p className="text-xs text-muted-foreground">
-        {t('platform.permissions.footer')}
-      </p>
+      {view === 'permissions' && (
+        <p className="text-xs text-muted-foreground">
+          {t('platform.permissions.footer')}
+        </p>
+      )}
     </div>
   );
 }
