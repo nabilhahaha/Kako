@@ -21,7 +21,7 @@ async function assign(c: Client, userId: string, branchId: string, role: string)
 }
 
 describe.skipIf(!hasTestDb)('customer approval · permission-based decide', () => {
-  it('customers.approve holder decides; non-holder is rejected; helper resolves', async () => {
+  it('customers.approve holder decides; non-holder is rejected', async () => {
     await withRollback(async (c) => {
       const company = (await c.query("insert into erp_companies(name) values('CA_WF') returning id")).rows[0].id;
       const branch = (await c.query("insert into erp_branches(company_id,code,name) values ($1,'HQ','HQ') returning id", [company])).rows[0].id;
@@ -31,13 +31,9 @@ describe.skipIf(!hasTestDb)('customer approval · permission-based decide', () =
       await assign(c, rep, branch, 'salesman');
       const customer = (await c.query("insert into erp_customers(company_id,code,name) values ($1,'CA-1','CA-1') returning id", [company])).rows[0].id;
 
-      // erp_user_has_permission resolves the permission per role.
-      await actAs(c, approver);
-      expect((await c.query("select erp_user_has_permission($1,'customers.approve') as ok", [company])).rows[0].ok).toBe(true);
-      await resetRole(c);
-      await actAs(c, rep);
-      expect((await c.query("select erp_user_has_permission($1,'customers.approve') as ok", [company])).rows[0].ok).toBe(false);
-      await resetRole(c);
+      // (erp_user_has_permission is an internal helper — EXECUTE is revoked from
+      // `authenticated` and it runs inside the SECURITY DEFINER engine; we exercise
+      // it through the real decide path below rather than calling it directly.)
 
       // Start the onboarding workflow (as a company user).
       await actAs(c, approver);
