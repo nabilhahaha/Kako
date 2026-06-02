@@ -41,9 +41,18 @@ describe.skipIf(!hasTestDb)('customer approval · permission-based decide', () =
       await resetRole(c);
       const task = (await c.query("select id from erp_workflow_tasks where instance_id=$1 and status='pending' limit 1", [inst])).rows[0].id;
 
-      // A non-holder cannot decide.
+      // A non-holder cannot decide. The RAISE aborts the transaction, so wrap it
+      // in a SAVEPOINT and roll back to it to keep the rest of the test usable.
       await actAs(c, rep);
-      await expect(c.query("select erp_workflow_decide($1,'approve',null)", [task])).rejects.toThrow();
+      await c.query('savepoint sp_rep');
+      let repBlocked = false;
+      try {
+        await c.query("select erp_workflow_decide($1,'approve',null)", [task]);
+      } catch {
+        repBlocked = true;
+        await c.query('rollback to savepoint sp_rep');
+      }
+      expect(repBlocked).toBe(true);
       await resetRole(c);
 
       // The holder can — instance completes as approved.
