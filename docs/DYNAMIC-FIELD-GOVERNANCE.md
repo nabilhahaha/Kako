@@ -55,6 +55,17 @@ One **company-configurable field governance engine**, platform-wide: each compan
 | **Company-level config** | everything keyed by `company_id` |
 | **Audit** | `logAudit` before/after on every config/access write (§8) |
 
+## 5.1 Field grouping / sections (confirmed — already covered)
+
+Large forms stay usable via **configurable, orderable sections per company** — already supported by the DFG-1 schema, no redesign:
+
+- **`erp_field_config.section`** assigns each field to a group (Commercial / Financial / Legal / Contacts / Location / Credit / **any custom section** — the section is just a company-chosen key).
+- **`erp_field_config.sort`** orders fields within a section; **section order is derived** from each section's lowest field `sort` (reordering fields reorders sections).
+- **Composes with everything**: a field's section is independent of `access` / `is_active` / `condition`, so grouping works alongside **visibility, editability, required, custom fields, and conditional visibility** — a field shows in its section only when applicable and not hidden.
+- Custom fields carry a section too (same `section` column, `source='custom'`), so company-defined fields slot into any group.
+
+**Optional enhancement (DFG-2, additive — no DFG-1 schema change):** an `erp_field_sections(company_id, entity, key, label_ar, label_en, sort)` table for **explicit bilingual section labels and section-level drag-ordering**. Until then, sections render from the distinct `section` keys ordered by field `sort`.
+
 ## 6. Resolver & enforcement (generic, one implementation)
 
 `src/lib/erp/field-governance.ts` (pure, unit-tested):
