@@ -35,6 +35,36 @@ describe('hasAnyPermission', () => {
   });
 });
 
+describe('FMCG hierarchy roles (S2)', () => {
+  it('Branch Manager is distinct from Company Admin (no settings/billing)', () => {
+    const bm = permissionsForRole('branch_manager');
+    expect(bm).not.toContain('settings.users');
+    expect(bm).not.toContain('settings.branches');
+    expect(bm).toContain('sales.sell');
+    expect(bm).toContain('purchasing.manage');
+    // admin still has everything
+    expect(permissionsForRole('admin')).toEqual(ALL_PERMISSIONS);
+  });
+  it('Sales Director / NSM have full commercial visibility (no settings)', () => {
+    for (const r of ['sales_director', 'national_sales_manager'] as const) {
+      const p = permissionsForRole(r);
+      expect(p).toContain('reports.view');
+      expect(p).toContain('accounting.view');
+      expect(p).not.toContain('settings.users');
+    }
+  });
+  it('IT Admin = technical settings only (no selling/finance)', () => {
+    const it = permissionsForRole('it_admin');
+    expect(it).toContain('integrations.manage');
+    expect(it).toContain('workflow.manage');
+    expect(it).not.toContain('sales.sell');
+    expect(it).not.toContain('accounting.post');
+  });
+  it('manager is UNCHANGED (Option B: still all permissions)', () => {
+    expect(permissionsForRole('manager')).toEqual(ALL_PERMISSIONS);
+  });
+});
+
 describe('permissionsForRole', () => {
   it('admin expands to all permissions', () => {
     expect(permissionsForRole('admin')).toEqual(ALL_PERMISSIONS);

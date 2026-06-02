@@ -71,6 +71,14 @@ export type SequenceType =
 export type BranchRole =
   | 'admin'
   | 'manager'
+  // FMCG sales hierarchy (S2). Branch Manager is distinct from Company Admin.
+  // Scope (region/area/branch visibility) is enforced in S4.
+  | 'sales_director'
+  | 'national_sales_manager'
+  | 'regional_manager'
+  | 'area_manager'
+  | 'branch_manager'
+  | 'it_admin'
   | 'supervisor'
   | 'accountant'
   | 'cashier'

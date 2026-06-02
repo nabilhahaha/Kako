@@ -102,6 +102,39 @@ const ALL = '*' as const;
 export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   admin: ALL,
   manager: ALL,
+  // ── FMCG sales hierarchy (S2) — role layer only; scope/visibility is S4 ──
+  // Sales Director / NSM: full commercial visibility (no company settings/billing).
+  sales_director: [
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'customers.manage', 'inventory.view', 'reports.view', 'accounting.view',
+    'stock_request.approve',
+  ],
+  national_sales_manager: [
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'customers.manage', 'inventory.view', 'reports.view', 'accounting.view',
+    'stock_request.approve',
+  ],
+  // Regional / Area: commercial management (no finance posting / settings).
+  regional_manager: [
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'customers.manage', 'inventory.view', 'reports.view', 'stock_request.approve',
+  ],
+  area_manager: [
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'customers.manage', 'inventory.view', 'reports.view', 'stock_request.approve',
+  ],
+  // Branch Manager: branch operations (NO settings/billing — distinct from Admin).
+  branch_manager: [
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'customers.manage', 'inventory.view', 'inventory.adjust', 'inventory.transfer',
+    'inventory.count', 'stock_request.approve', 'purchasing.manage',
+    'suppliers.manage', 'reports.view',
+  ],
+  // IT Admin: integrations / scheduler / governance / technical settings.
+  it_admin: [
+    'integrations.manage', 'settings.custom_fields', 'workflow.manage',
+    'settings.users',
+  ],
   supervisor: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'inventory.view', 'stock_request.approve', 'reports.view',

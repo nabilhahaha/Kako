@@ -29,21 +29,31 @@ export interface BilingualLabel {
 // ─── Branch Role Definitions ────────────────────────────────────────────────
 
 export const BRANCH_ROLES: Record<BranchRole, BilingualLabel> = {
-  admin:            { en: 'Administrator',      ar: 'مدير النظام' },
-  manager:          { en: 'Branch Manager',     ar: 'مدير الفرع' },
-  supervisor:       { en: 'Sales Supervisor',   ar: 'مشرف مبيعات' },
-  accountant:       { en: 'Accountant',         ar: 'محاسب' },
-  cashier:          { en: 'Cashier',            ar: 'أمين الصندوق' },
-  salesman:         { en: 'Salesman',           ar: 'مندوب مبيعات' },
-  driver:           { en: 'Driver / Courier',   ar: 'سائق / مندوب توصيل' },
-  technician:       { en: 'Technician',         ar: 'فني' },
-  doctor:           { en: 'Doctor',             ar: 'طبيب' },
-  receptionist:     { en: 'Receptionist',       ar: 'موظف استقبال' },
-  stylist:          { en: 'Stylist',            ar: 'أخصائي تجميل' },
-  housekeeping:     { en: 'Housekeeping',       ar: 'تدبير منزلي / نظافة' },
-  warehouse_keeper: { en: 'Warehouse Keeper',   ar: 'أمين المخزن' },
-  staff:            { en: 'Staff',              ar: 'موظف' },
-  viewer:           { en: 'Viewer',             ar: 'مشاهد فقط' },
+  admin:                  { en: 'Company Admin',          ar: 'مدير النظام' },
+  // `manager` keeps ALL permissions (Option B; legacy admin-equivalent). The real
+  // Branch Manager is the new `branch_manager` role below, so `manager` is
+  // relabeled to a neutral "Manager" to avoid two "Branch Manager" labels.
+  manager:                { en: 'Manager',                ar: 'مدير' },
+  // FMCG sales hierarchy (S2). Branch Manager is DISTINCT from Company Admin.
+  sales_director:         { en: 'Sales Director',         ar: 'مدير المبيعات' },
+  national_sales_manager: { en: 'National Sales Manager', ar: 'مدير المبيعات الوطني' },
+  regional_manager:       { en: 'Regional Manager',       ar: 'مدير إقليمي' },
+  area_manager:           { en: 'Area Manager',           ar: 'مدير منطقة' },
+  branch_manager:         { en: 'Branch Manager',         ar: 'مدير الفرع' },
+  it_admin:               { en: 'IT Admin',               ar: 'مدير تقنية المعلومات' },
+  supervisor:             { en: 'Sales Supervisor',       ar: 'مشرف مبيعات' },
+  accountant:             { en: 'Finance',                ar: 'المالية' },
+  cashier:                { en: 'Cashier',                ar: 'أمين الصندوق' },
+  salesman:               { en: 'Sales Rep',              ar: 'مندوب مبيعات' },
+  driver:                 { en: 'Driver / Courier',       ar: 'سائق / مندوب توصيل' },
+  technician:             { en: 'Technician',             ar: 'فني' },
+  doctor:                 { en: 'Doctor',                 ar: 'طبيب' },
+  receptionist:           { en: 'Receptionist',           ar: 'موظف استقبال' },
+  stylist:                { en: 'Stylist',                ar: 'أخصائي تجميل' },
+  housekeeping:           { en: 'Housekeeping',           ar: 'تدبير منزلي / نظافة' },
+  warehouse_keeper:       { en: 'Warehouse Keeper',       ar: 'أمين المخزن' },
+  staff:                  { en: 'Staff',                  ar: 'موظف' },
+  viewer:                 { en: 'Viewer',                 ar: 'مشاهد فقط' },
 };
 
 export const BRANCH_ROLE_OPTIONS = Object.entries(BRANCH_ROLES).map(

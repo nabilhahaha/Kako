@@ -30,6 +30,13 @@ export interface UserContext {
 const ROLE_RANK: Record<BranchRole, number> = {
   admin: 8,
   manager: 7,
+  // FMCG sales hierarchy (S2). Director/NSM high; Branch Manager mid; scope = S4.
+  sales_director: 7,
+  national_sales_manager: 7,
+  regional_manager: 6,
+  branch_manager: 6,
+  it_admin: 6,
+  area_manager: 5,
   supervisor: 6,
   accountant: 5,
   doctor: 5,
