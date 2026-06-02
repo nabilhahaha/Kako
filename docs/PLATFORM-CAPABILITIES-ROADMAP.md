@@ -154,6 +154,25 @@ Existing foundations are noted so we reuse, not rebuild.
 - **Class:** **Must-Have** for commercial onboarding (the pilot uses the existing `/setup` + getting-started checklist).
 - **Relationships:** It is the **front door** that ties together #11 Feature Flags, #14 Workflow Designer, #15 Import Center, the role/permission model, and the dashboard's getting-started checklist — so it should land **after** those foundations (or degrade gracefully to the available steps).
 
+## 17. Subscription & Billing Platform
+- **Business value:** The commercialization engine — turns the platform into a sellable SaaS: trials, paid plans, entitlements, limits, dunning, and self-serve upgrades. Directly enables revenue.
+- **Architecture impact:** **A subscription foundation already exists** (`0020_subscriptions`, the `billing` i18n module, `/upgrade`, platform billing, `business_type` on companies). This item formalizes/extends it into a full model:
+  - **Trial management:** trial start/end + grace window; auto-convert or expire → suspension.
+  - **Subscription plans:** plan catalog (tier, price, interval, limits) + per-company subscription record.
+  - **Feature entitlements:** plan → the set of enabled capabilities + quotas (**resolved into Feature Flags**, see below).
+  - **User limits:** max seats per plan, enforced at invite/activation.
+  - **Storage limits:** attachment-storage quota per plan, enforced at upload (ties to the Attachments module, #79/0111).
+  - **Usage tracking:** metered counters (active users, storage bytes, transactions, customers) for limit checks + analytics — a `erp_usage_counters` rollup.
+  - **Billing status:** `trial | active | past_due | suspended | cancelled` on the company; resolved in the app shell.
+  - **Suspension rules:** past-due / trial-expired → graduated degradation (read-only → block new business → block login), with a collections-style grace period — reuses the existing `/upgrade` redirect pattern.
+  - **Upgrade / downgrade workflows:** plan change with proration, **entitlement re-resolution**, and **downgrade guards** (can't drop below current usage — e.g. seats/storage in use).
+  - **Payment provider** integration (Stripe or local gateway) is an **external dependency** (webhooks → billing status); invoices/receipts + dunning emails.
+- **Relationship with Feature Flags (#11):** **Tightly coupled, clean separation.** The **plan/entitlements define _what_ a company is entitled to**; **Feature Flags are the _runtime enforcement_ layer** that reads those entitlements (plan default → company override → platform override). One resolver: `entitlement(company, key) → enabled + limit`. Billing sets entitlements; Flags gate the UI/actions; Usage tracking enforces the numeric limits. Building **Feature Flags first** (Phase 1) means Billing slots in as the entitlement source with no re-plumbing.
+- **Dependencies:** **Feature Flags (#11)** (enforcement), Attachments (storage metering), Users (seat limits), platform admin, audit, external payment provider.
+- **Complexity:** **XL** (plans + proration + metering + dunning + provider integration + suspension UX).
+- **Recommended phase:** Phase 3 (commercialization — after the pilot proves the product and Feature Flags + core capabilities are in place).
+- **Class:** **Must-Have for commercialization** (not needed for the pilot, which runs on the existing trial/subscription scaffolding).
+
 ---
 
 ## Summary
@@ -175,6 +194,7 @@ Existing foundations are noted so we reuse, not rebuild.
 | 15 | Master Data Import Center | L | Must* | 1–2 | entity registry, DFG, existing import |
 | 14 | Workflow Designer / Approval Builder | L | Must* | 2 | workflow engine, DFG, approvals inbox |
 | 16 | Customer Onboarding Wizard | L | Must* | 1–2 | setup wizard, #11/#14/#15, roles |
+| 17 | Subscription & Billing Platform | XL | Must* | 3 | #11 Feature Flags, attachments, users, payment provider |
 | 13 | AI Assistant | XL | Nice | 4 | global search, registry, perms |
 
 \* Must-Have for commercial onboarding/governance; the pilot runs on the existing `/setup`, per-entity import and pre-seeded workflows.
@@ -186,7 +206,7 @@ Existing foundations are noted so we reuse, not rebuild.
 2. **Phase 1 — pre-commercial core:** **Feature Flags** (first — de-risks every later rollout) → **Global Search** → **Notification Center** → **Bulk Actions** → **Master Data Import Center** (onboarding) → start **Command Center (role dashboards)**.
 3. **Phase 2 — trust & differentiation:** finish **Command Center KPIs**, **Workflow Designer / Approval Builder**, **Customer Onboarding Wizard** (full — ties #11/#14/#15 together), **Universal Timeline**, **Data Quality Dashboard**, **Favorites**, **Impersonation (read-only)**.
    *(Onboarding Wizard v1 — the steps that exist today — can ship in Phase 1 alongside the Import Center.)*
-4. **Phase 3 — operations at scale:** **Integration Health Dashboard**, full **Impersonation**.
+4. **Phase 3 — commercialization & operations at scale:** **Subscription & Billing Platform** (entitlements built on the Phase-1 Feature Flags), **Integration Health Dashboard**, full **Impersonation**.
 5. **Phase 4 — flagship differentiator:** **AI Assistant** (on top of Global Search + registry + permissions).
 
 **Rationale:** ship the cheap daily-speed wins now (pilot feel), then the commercial-table-stakes (search, notifications, bulk, role dashboards) with **Feature Flags first** so each capability can roll out safely per company; defer the heavy/sensitive (Impersonation, Integration Health) and the flagship (AI) until the foundations and the load-testing/scalability items are in place.
