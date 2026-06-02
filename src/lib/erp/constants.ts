@@ -282,12 +282,33 @@ export const VISIT_DAY_LABEL: Record<string, string> = Object.fromEntries(
 // master data (erp_customer_lookups). Used by the Settings → Customer Data screen
 // and the customer form to drive the per-kind sections / selects.
 
-import type { CustomerLookupKind } from './types';
+import type { CustomerLookupKind, CustomerAccountType, CustomerStatus, CustomerPaymentType } from './types';
 
 export const CUSTOMER_LOOKUP_KINDS: { kind: CustomerLookupKind; en: string; ar: string }[] = [
   { kind: 'segment', en: 'Segment', ar: 'الشريحة' },
   { kind: 'classification', en: 'Classification', ar: 'التصنيف' },
   { kind: 'channel', en: 'Channel', ar: 'القناة' },
+  { kind: 'business_type', en: 'Business Type', ar: 'نوع النشاط' },
+];
+
+// FP-0: first-class customer hierarchy enums (structural/lifecycle — system-fixed,
+// unlike the company-managed lookups above). Used to drive the customer form.
+export const CUSTOMER_ACCOUNT_TYPES: { value: CustomerAccountType; en: string; ar: string }[] = [
+  { value: 'independent', en: 'Independent', ar: 'مستقل' },
+  { value: 'head_office', en: 'Head Office', ar: 'مركز رئيسي' },
+  { value: 'branch', en: 'Branch', ar: 'فرع' },
+];
+
+export const CUSTOMER_STATUSES: { value: CustomerStatus; en: string; ar: string }[] = [
+  { value: 'active', en: 'Active', ar: 'نشط' },
+  { value: 'inactive', en: 'Inactive', ar: 'غير نشط' },
+  { value: 'suspended', en: 'Suspended', ar: 'موقوف مؤقتًا' },
+  { value: 'blocked', en: 'Blocked', ar: 'محظور' },
+];
+
+export const CUSTOMER_PAYMENT_TYPES: { value: CustomerPaymentType; en: string; ar: string }[] = [
+  { value: 'cash', en: 'Cash', ar: 'نقدي' },
+  { value: 'credit', en: 'Credit', ar: 'آجل' },
 ];
 
 // ─── Product Unit Labels ────────────────────────────────────────────────────
