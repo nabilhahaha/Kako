@@ -126,6 +126,22 @@ const REGISTRY: EntityDescriptor[] = [
     ],
   },
   { key: 'department', table: 'erp_departments', labelAr: 'الأقسام', labelEn: 'Departments', permission: 'settings.users' },
+  {
+    key: 'region', table: 'erp_regions', labelAr: 'المناطق', labelEn: 'Regions', permission: 'settings.branches',
+    fields: [
+      f('name', 'الاسم', 'Name', { required: true }),
+      f('name_ar', 'الاسم بالعربية', 'Name (Arabic)'),
+      f('external_id', 'المعرّف الخارجي', 'External ID'),
+    ],
+  },
+  {
+    key: 'area', table: 'erp_areas', labelAr: 'المناطق الفرعية', labelEn: 'Areas', permission: 'settings.branches',
+    fields: [
+      f('name', 'الاسم', 'Name', { required: true }),
+      f('name_ar', 'الاسم بالعربية', 'Name (Arabic)'),
+      f('external_id', 'المعرّف الخارجي', 'External ID'),
+    ],
+  },
   { key: 'invoice', table: 'erp_invoices', labelAr: 'الفواتير', labelEn: 'Invoices', permission: 'sales.sell' },
   { key: 'order', table: 'erp_sales_orders', labelAr: 'أوامر البيع', labelEn: 'Orders', permission: 'sales.sell' },
   { key: 'visit', table: 'erp_clinic_visits', labelAr: 'الزيارات/الكشوفات', labelEn: 'Visits' },
