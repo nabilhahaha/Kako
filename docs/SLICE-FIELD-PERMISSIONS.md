@@ -128,36 +128,73 @@ New page `/settings/fields` (permission `settings.fields`, or reuse `settings.cu
 - **Add / disable** custom fields (existing flow, surfaced here).
 - Every change → `logAudit({ entity:'field_config'|'field_access', action:'update', entityId:'customer:credit_limit', details:{ role_key, from, to } })` → satisfies **#7**.
 
-## 10. Customer hierarchy & field inheritance (NEW — Head Office → Branches)
+## 10. Customer hierarchy — a first-class FMCG business entity (NEW)
 
-**Finding:** `erp_customers` has **no** parent/child link today (only geo: Region→Area→Branch→Customer). So a small, additive primitive is required.
+**Finding:** `erp_customers` has **no** parent/child link today (only geo: Region→Area→Branch→Customer). The hierarchy is built as a **first-class business relationship** — not merely a field-inheritance helper — and is the single backbone later reused by pricing, trade spend, rebates, promotions, and approvals.
 
-**New columns on `erp_customers` (migration 0112, additive, nullable ⇒ zero regression):**
+### 10.1 Structural model (additive on `erp_customers`, nullable ⇒ zero regression)
 ```
-parent_customer_id  uuid references erp_customers(id)   -- the Head Office; null = standalone/top-level
-is_head_office      bool default false
+parent_customer_id    uuid references erp_customers(id)   -- branch → its Head Office; null = top-level
+customer_account_type text   -- 'head_office' | 'branch' | 'independent'  (canonical; replaces is_head_office)
 ```
-Guards: parent must be the **same company**; **single level** for the pilot (Head Office → its direct branch outlets) — multi-level chains are a documented post-pilot item; a branch cannot be its own parent.
+- **Schema is depth-agnostic** (self-reference) so **multi-level needs no redesign later**; the **app restricts to single level for the pilot** (a `branch` points to a `head_office`/`independent`; a `head_office` has no parent). Cycle/same-company guards enforced.
+- Reusable read helpers (recursive CTE, depth-1 today, depth-N ready): `erp_customer_ancestors(id)`, `erp_customer_descendants(id)`.
 
-**Per-field inheritance policy** (`erp_field_config.inheritance`):
+### 10.2 Customer master flags (additive, nullable, company-configurable)
+| Field | Type | Notes |
+|---|---|---|
+| `is_vat_registered` | bool | backs "VAT fields only when registered" |
+| `payment_type` | text `cash`/`credit` | backs "Credit Limit only for credit customers" |
+| `credit_control_enabled` | bool | turns AR credit checks on/off per customer |
+| `customer_status` | text `active`/`inactive`/`suspended`/`blocked` | lifecycle; `blocked`/`suspended` can gate new sales |
+| `requires_customer_approval` | bool (nullable) | per-customer override of company default; null = inherit |
+| `customer_business_type` | ref/text | Retail/Wholesale/HORECA/Key Account/E-Commerce/Distributor |
+
+> **Reconciliation note:** `customer_business_type` overlaps the existing **company-managed** `segment`/`channel` lookups (which already include retail/wholesale/horeca/ecommerce/key_account/distributor). To stay consistent with the established "master data, not hard-coded enums" principle, the **recommendation** is to model `customer_business_type` as an `erp_customer_lookups` kind (or map to channel/segment) rather than a fixed enum. `customer_account_type`, `customer_status`, `payment_type` stay system enums (structural/lifecycle). *(Decision 10 below.)*
+
+### 10.3 Credit model — shared Head Office vs per-branch
+Company setting `erp_companies.credit_model text default 'per_branch'` (`'shared_head_office' | 'per_branch'`):
+- **`per_branch`** — each customer carries its own `credit_limit`/`balance`; AR & credit checks are per customer (today's behavior).
+- **`shared_head_office`** — the **Head Office** holds the limit; branches draw against the **consolidated** balance. Available credit = `HO.credit_limit − consolidated_balance(HO + all branches)`.
+
+Resolver `erp_customer_available_credit(customer_id)` returns the correct figure for either model, so order-entry credit holds work the same call regardless of company policy.
+
+### 10.4 Branch vs Consolidated AR / Aging / Balance (read models, not stored)
+Computed from transactions via views/functions (no denormalized columns → no drift):
+| Metric | Branch (per customer) | Consolidated (Head Office) |
+|---|---|---|
+| Balance | `erp_customer_balance(id)` | `erp_customer_consolidated_balance(ho_id)` = self + descendants |
+| AR | open invoices for the customer | rolled up over self + descendants |
+| Aging (0-30/31-60/61-90/90+) | `erp_customer_aging(id)` | `erp_customer_consolidated_aging(ho_id)` |
+| Credit limit / available | own limit | shared HO limit & available |
+
+Surfaced **read-only** on the customer screen (a "Group / Branch" toggle on a Head Office record). Same recursive helpers feed all of them.
+
+### 10.5 Field-value inheritance (the original §10, now one consumer of the hierarchy)
+Per-field policy on `erp_field_config.inheritance`:
 | Mode | Branch behavior |
 |---|---|
-| `none` (default) | Each customer independent. **No change from today.** |
-| `inherit` | Branch **defaults** to the Head Office value; may override locally (field stays editable per role). |
-| `inherit_locked` | Branch is **forced** to the Head Office value; field renders **View-only** on branch records (admins exempt). |
+| `none` (default) | Independent — **no change from today.** |
+| `inherit` | Branch **defaults** to the Head Office value; may override locally (editable per role). |
+| `inherit_locked` | Branch **forced** to the Head Office value; renders **View-only** on branches (admins exempt). |
 
-This directly covers the example — **Credit Limit / Payment Terms / VAT / Classification** set at Head Office and inherited (or locked) for branches, *configurable per company* (default `none`).
+- **Read:** `resolveFieldValue` returns the HO value when locked, or when an `inherit` branch left it blank. HO edits propagate by **reference at read-time** (no row-copy).
+- **Write:** `applyWriteAccess` rejects writes to `inherit_locked` fields on branch records.
 
-- **Read:** `resolveFieldValue` returns the parent value when locked, or the parent value when an `inherit` branch left the field blank.
-- **Write:** `applyWriteAccess` rejects writes to `inherit_locked` fields on branch records (defense in depth).
-- Head Office edits to an inherited field propagate by **reference at read-time** (no row-copy) — branches always reflect the current Head Office value unless overridden.
+### 10.6 Designed-in reuse (later slices, no schema redesign)
+The same `parent_customer_id` + helpers serve:
+- **Pricing** — price rules at Head Office cascade to branches.
+- **Trade spend / rebates** — accrue at Head Office, consume/redeem at branches.
+- **Promotions** — eligibility defined at Head Office, applied across branches.
+- **Customer approvals** — approve the Head Office, auto-apply policy to its branches.
+- **Reporting** — consolidated statements/aging by key account.
 
 ## 11. Field rules by customer type / context (NEW)
 
 **Finding:** today's conditional engine (`VisibilityRule {when, op, value}`, `isFieldVisible`) only compares one form field to a literal. We **extend** it into a small, reusable predicate evaluated against the **record + company context**, stored in `erp_field_config.condition`.
 
 **Context available to a condition:**
-- Customer attributes: `segment_id`, `classification_id`, `channel_id`, `payment_terms_days`, `balance`, any custom field, plus two **new optional flags** (additive, nullable): `is_vat_registered bool`, `payment_type text ('cash'|'credit')` — these back the named examples cleanly.
+- Customer attributes: `segment_id`, `classification_id`, `channel_id`, `payment_terms_days`, `balance`, any custom field, plus the **new master flags from §10.2** (`is_vat_registered`, `payment_type`, `credit_control_enabled`, `customer_status`, `customer_account_type`, `customer_business_type`).
 - Company context: `company.business_type` (e.g. `clinic` = healthcare, `wholesale`/`delivery` = FMCG).
 
 **Operators:** `eq, neq, in, gt, lt, is_set, is_true` (superset of today's). A condition may be a single rule or an **AND** of rules (kept simple for pilot).
@@ -191,12 +228,13 @@ If a condition is false for a record, the field is **not applicable** ⇒ treate
 
 ## 8. Proposed build order (pilot-safe, stacked PRs, each staging-validated)
 
-- **FP-0 — Customer hierarchy primitive** (migration: `parent_customer_id`, `is_head_office`, same-company guard; + optional `is_vat_registered`, `payment_type` flags for §11; minimal "Head Office" picker on the customer form). Additive; nullable ⇒ zero regression.
-- **FP-a — Field engine: model + resolver + enforcement** (field tables + RLS incl. `inheritance` & `condition`; `field-access.ts` resolver covering all 4 dimensions + `applyWriteAccess` + `resolveFieldValue`, unit-tested; customer save enforcement; read redaction; value inheritance). *Zero-config = today's behavior.*
-- **FP-b — Admin configuration UI** (`/settings/fields`: reorder, group, subject×access grid, inheritance mode, simple condition builder, add/disable custom fields — all audited).
+- **FP-0 — Customer hierarchy (structural) + master flags** (migration: `parent_customer_id`, `customer_account_type`, same-company/cycle guards, single-level app rule; the §10.2 flags; recursive `ancestors`/`descendants` helpers; `customer_business_type` lookup; minimal Head-Office picker + flags on the customer form). Additive, nullable ⇒ zero regression. **Approved — first to build.**
+- **FP-0c — Credit model + consolidation read layer** (company `credit_model` setting; `erp_customer_balance` / `_consolidated_balance`, `_aging` / `_consolidated_aging`, `available_credit`; Group/Branch view on the customer screen). Read-only rollups; no denormalized columns.
+- **FP-a — Field engine: model + resolver + enforcement** (field tables + RLS incl. `inheritance` & `condition`; `field-access.ts` resolver covering all dimensions + `applyWriteAccess` + `resolveFieldValue`, unit-tested; customer save enforcement; read redaction; value inheritance). *Zero-config = today's behavior.*
+- **FP-b — Admin configuration UI** (`/settings/fields`: reorder, group, subject×access grid, inheritance mode, simple condition builder, add/disable custom fields — audited).
 - **FP-c — Data-driven customer form** (render applicable + ordered fields; show inherited/locked values; required markers).
 
-Scope = **customer entity only** for the pilot; the registry-based design extends to invoices/orders/suppliers later with no schema change. **Customer hierarchy is single-level** for the pilot.
+Scope = **customer entity only** for the pilot; the registry-based design extends to invoices/orders/suppliers later with no schema change. **Customer hierarchy is single-level** for the pilot (schema is depth-N ready).
 
 ## 9. Decisions — CONFIRMED
 
@@ -208,10 +246,16 @@ Scope = **customer entity only** for the pilot; the registry-based design extend
 
 ## 12. New decisions for your confirmation (hierarchy & customer-type — recommended defaults in bold)
 
-6. **Add a single-level customer hierarchy now** (`parent_customer_id` + `is_head_office`); multi-level chains post-pilot. → **Recommend.**
-7. **Three inheritance modes** per field (`none` / `inherit` / `inherit_locked`), default `none`, configurable per company. → **Recommend.**
-8. **Add two optional customer flags** (`is_vat_registered`, `payment_type` cash/credit) to back the type-rule examples; conditions may also reference segment/classification/channel, custom fields, and `company.business_type`. → **Recommend.**
-9. **Resolver precedence** = applicability(type) → company-active → subject(role/permission) → inheritance-lock → admin-safety. → **Recommend.**
+6. **Single-level customer hierarchy** (`parent_customer_id` + `customer_account_type`), schema depth-N ready, app restricted to one level for pilot. → **Confirmed.**
+7. **Three inheritance modes** per field (`none` / `inherit` / `inherit_locked`), default `none`. → **Confirmed.**
+8. **Customer master flags** (§10.2: `is_vat_registered`, `payment_type`, `credit_control_enabled`, `customer_status`, `requires_customer_approval`, `customer_business_type`) — additive, nullable, company-configurable. → **Confirmed.**
+9. **Resolver precedence** = applicability(type) → company-active → subject(role/permission) → inheritance-lock → admin-safety. → **Confirmed.**
+
+### New decisions for your confirmation (first-class hierarchy & credit)
+10. **`customer_business_type` as a company-managed lookup** (consistent with segment/channel) rather than a hard enum; `customer_account_type`/`customer_status`/`payment_type` remain system enums. → **Recommend.**
+11. **Company `credit_model` default = `per_branch`** (today's behavior); `shared_head_office` opt-in. → **Recommend.**
+12. **Consolidated AR/aging/balance/credit as computed read models** (views/functions over transactions), not stored columns. → **Recommend.**
+13. **Build order:** ship **FP-0 (structural + flags)** first, then **FP-0c (credit + consolidation)** as its own staging-validated slice. → **Recommend.**
 
 ---
 
