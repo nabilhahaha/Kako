@@ -130,6 +130,8 @@ New page `/settings/fields` (permission `settings.fields`, or reuse `settings.cu
 
 ## 10. Customer hierarchy — a first-class FMCG business entity (NEW)
 
+> **Authoritative design moved to `docs/SLICE-FMCG-CUSTOMER-HIERARCHY.md`** (FP-0/FP-0c): structural model, credit model, consolidated AR/aging/balance, pricing/trade-spend/approval impact, and the Panda/Lulu example. The summary below is retained for the field-engine’s use of the hierarchy.
+
 **Finding:** `erp_customers` has **no** parent/child link today (only geo: Region→Area→Branch→Customer). The hierarchy is built as a **first-class business relationship** — not merely a field-inheritance helper — and is the single backbone later reused by pricing, trade spend, rebates, promotions, and approvals.
 
 ### 10.1 Structural model (additive on `erp_customers`, nullable ⇒ zero regression)
