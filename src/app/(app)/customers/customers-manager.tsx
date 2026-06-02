@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { FieldError } from '@/components/ui/field-error';
+import { FormSection } from '@/components/shared/form-section';
 import { formatCurrency } from '@/lib/utils';
 import { VISIT_DAYS } from '@/lib/erp/constants';
 import { importCustomers, approveCustomer } from './actions';
@@ -185,79 +186,95 @@ export function CustomersManager({
             </div>
             <form onSubmit={onSubmit} className="space-y-4">
               {current && <input type="hidden" name="id" value={current.id} />}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Field label={t('customers.fieldCode')}><Input name="code" dir="ltr" defaultValue={current?.code ?? ''} onChange={() => setErrors((x) => ({ ...x, code: undefined }))} /><FieldError>{errors.code}</FieldError></Field>
-                <Field label={t('customers.fieldNameAr')}><Input name="name_ar" defaultValue={current?.name_ar ?? ''} /></Field>
-                <Field label={t('customers.fieldNameEn')}><Input name="name" defaultValue={current?.name ?? ''} onChange={() => setErrors((x) => ({ ...x, name: undefined }))} /><FieldError>{errors.name}</FieldError></Field>
-                <Field label={t('customers.fieldPhone')}><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} /></Field>
-                <Field label={t('customers.fieldEmail')}><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} /></Field>
-                <Field label={t('customers.fieldTaxNumber')}><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>
-                <Field label={t('customers.fieldCity')}><Input name="city" defaultValue={current?.city ?? ''} /></Field>
-                <Field label={t('customers.fieldAddress')}><Input name="address" defaultValue={current?.address ?? ''} /></Field>
-                <Field label={t('customers.fieldCreditLimit')}><Input name="credit_limit" type="number" step="0.01" dir="ltr" defaultValue={current?.credit_limit ?? 0} /></Field>
-                <Field label={t('customers.fieldBranch')}>
-                  <select name="branch_id" defaultValue={current?.branch_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">{t('customers.optionAllBranches')}</option>
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label={t('customers.fieldSalesman')}>
-                  <select name="salesman_id" defaultValue={current?.salesman_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">{t('customers.optionNoSalesman')}</option>
-                    {reps.map((r) => (
-                      <option key={r.id} value={r.id}>{r.full_name || r.email}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label={t('customers.fieldVisitDay')}>
-                  <select name="visit_day" defaultValue={current?.visit_day ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">{t('customers.optionNoVisitDay')}</option>
-                    {VISIT_DAYS.map((d) => (
-                      <option key={d.value} value={d.value}>{d[locale]}</option>
-                    ))}
-                  </select>
-                </Field>
+              <div className="space-y-5">
+                {/* UX-2: grouped into labeled sections (Identity / Contact / Commercial / Classification / Hierarchy / Location) */}
+                <FormSection title={t('customers.sectionIdentity')}>
+                  <Field label={t('customers.fieldCode')}><Input name="code" dir="ltr" defaultValue={current?.code ?? ''} onChange={() => setErrors((x) => ({ ...x, code: undefined }))} /><FieldError>{errors.code}</FieldError></Field>
+                  <Field label={t('customers.fieldNameAr')}><Input name="name_ar" defaultValue={current?.name_ar ?? ''} /></Field>
+                  <Field label={t('customers.fieldNameEn')}><Input name="name" defaultValue={current?.name ?? ''} onChange={() => setErrors((x) => ({ ...x, name: undefined }))} /><FieldError>{errors.name}</FieldError></Field>
+                </FormSection>
 
-                {/* FMCG hierarchy S3 — segmentation (company master data), geo, commercial */}
-                <Field label={t('customers.fieldSegment')}>
-                  <select name="segment_id" defaultValue={current?.segment_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">{t('customers.optionNone')}</option>
-                    {segments.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
-                  </select>
-                </Field>
-                <Field label={t('customers.fieldClassification')}>
-                  <select name="classification_id" defaultValue={current?.classification_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">{t('customers.optionNone')}</option>
-                    {classes.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
-                  </select>
-                </Field>
-                <Field label={t('customers.fieldChannel')}>
-                  <select name="channel_id" defaultValue={current?.channel_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">{t('customers.optionNone')}</option>
-                    {channels.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
-                  </select>
-                </Field>
-                <Field label={t('customers.fieldRegion')}>
-                  <select name="region_id" defaultValue={current?.region_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">{t('customers.optionNone')}</option>
-                    {regions.map((r) => <option key={r.id} value={r.id}>{ar ? r.name_ar || r.name : r.name}</option>)}
-                  </select>
-                </Field>
-                <Field label={t('customers.fieldArea')}>
-                  <select name="area_id" defaultValue={current?.area_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">{t('customers.optionNone')}</option>
-                    {areas.map((a) => <option key={a.id} value={a.id}>{ar ? a.name_ar || a.name : a.name}</option>)}
-                  </select>
-                </Field>
-                <Field label={t('customers.fieldContactPerson')}><Input name="contact_person" defaultValue={current?.contact_person ?? ''} /></Field>
-                <Field label={t('customers.fieldContactPhone')}><Input name="contact_phone" dir="ltr" defaultValue={current?.contact_phone ?? ''} /></Field>
-                <Field label={t('customers.fieldPaymentTerms')}><Input name="payment_terms_days" type="number" dir="ltr" defaultValue={current?.payment_terms_days ?? ''} /></Field>
-                <Field label={t('customers.fieldCrNumber')}><Input name="cr_number" dir="ltr" defaultValue={current?.cr_number ?? ''} /></Field>
-                <Field label={t('customers.fieldNationalAddress')}><Input name="national_address" defaultValue={current?.national_address ?? ''} /></Field>
-                <Field label={t('customers.fieldLatitude')}><Input name="latitude" type="number" step="any" dir="ltr" defaultValue={current?.latitude ?? ''} /></Field>
-                <Field label={t('customers.fieldLongitude')}><Input name="longitude" type="number" step="any" dir="ltr" defaultValue={current?.longitude ?? ''} /></Field>
+                <FormSection title={t('customers.sectionContact')}>
+                  <Field label={t('customers.fieldPhone')}><Input name="phone" dir="ltr" defaultValue={current?.phone ?? ''} /></Field>
+                  <Field label={t('customers.fieldEmail')}><Input name="email" type="email" dir="ltr" defaultValue={current?.email ?? ''} /></Field>
+                  <Field label={t('customers.fieldContactPerson')}><Input name="contact_person" defaultValue={current?.contact_person ?? ''} /></Field>
+                  <Field label={t('customers.fieldContactPhone')}><Input name="contact_phone" dir="ltr" defaultValue={current?.contact_phone ?? ''} /></Field>
+                  <Field label={t('customers.fieldAddress')}><Input name="address" defaultValue={current?.address ?? ''} /></Field>
+                  <Field label={t('customers.fieldCity')}><Input name="city" defaultValue={current?.city ?? ''} /></Field>
+                  <Field label={t('customers.fieldNationalAddress')}><Input name="national_address" defaultValue={current?.national_address ?? ''} /></Field>
+                </FormSection>
+
+                <FormSection title={t('customers.sectionCommercial')}>
+                  <Field label={t('customers.fieldCreditLimit')}><Input name="credit_limit" type="number" step="0.01" dir="ltr" defaultValue={current?.credit_limit ?? 0} /></Field>
+                  <Field label={t('customers.fieldPaymentTerms')}><Input name="payment_terms_days" type="number" dir="ltr" defaultValue={current?.payment_terms_days ?? ''} /></Field>
+                  <Field label={t('customers.fieldTaxNumber')}><Input name="tax_number" dir="ltr" defaultValue={current?.tax_number ?? ''} /></Field>
+                  <Field label={t('customers.fieldCrNumber')}><Input name="cr_number" dir="ltr" defaultValue={current?.cr_number ?? ''} /></Field>
+                </FormSection>
+
+                <FormSection title={t('customers.sectionClassification')}>
+                  <Field label={t('customers.fieldSegment')}>
+                    <select name="segment_id" defaultValue={current?.segment_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">{t('customers.optionNone')}</option>
+                      {segments.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
+                    </select>
+                  </Field>
+                  <Field label={t('customers.fieldClassification')}>
+                    <select name="classification_id" defaultValue={current?.classification_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">{t('customers.optionNone')}</option>
+                      {classes.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
+                    </select>
+                  </Field>
+                  <Field label={t('customers.fieldChannel')}>
+                    <select name="channel_id" defaultValue={current?.channel_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">{t('customers.optionNone')}</option>
+                      {channels.map((l) => <option key={l.id} value={l.id}>{ar ? l.name_ar || l.name : l.name}</option>)}
+                    </select>
+                  </Field>
+                </FormSection>
+
+                <FormSection title={t('customers.sectionHierarchy')}>
+                  <Field label={t('customers.fieldBranch')}>
+                    <select name="branch_id" defaultValue={current?.branch_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">{t('customers.optionAllBranches')}</option>
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>{b.name_ar || b.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label={t('customers.fieldRegion')}>
+                    <select name="region_id" defaultValue={current?.region_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">{t('customers.optionNone')}</option>
+                      {regions.map((r) => <option key={r.id} value={r.id}>{ar ? r.name_ar || r.name : r.name}</option>)}
+                    </select>
+                  </Field>
+                  <Field label={t('customers.fieldArea')}>
+                    <select name="area_id" defaultValue={current?.area_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">{t('customers.optionNone')}</option>
+                      {areas.map((a) => <option key={a.id} value={a.id}>{ar ? a.name_ar || a.name : a.name}</option>)}
+                    </select>
+                  </Field>
+                  <Field label={t('customers.fieldSalesman')}>
+                    <select name="salesman_id" defaultValue={current?.salesman_id ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">{t('customers.optionNoSalesman')}</option>
+                      {reps.map((r) => (
+                        <option key={r.id} value={r.id}>{r.full_name || r.email}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label={t('customers.fieldVisitDay')}>
+                    <select name="visit_day" defaultValue={current?.visit_day ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">{t('customers.optionNoVisitDay')}</option>
+                      {VISIT_DAYS.map((d) => (
+                        <option key={d.value} value={d.value}>{d[locale]}</option>
+                      ))}
+                    </select>
+                  </Field>
+                </FormSection>
+
+                <FormSection title={t('customers.sectionLocation')}>
+                  <Field label={t('customers.fieldLatitude')}><Input name="latitude" type="number" step="any" dir="ltr" defaultValue={current?.latitude ?? ''} /></Field>
+                  <Field label={t('customers.fieldLongitude')}><Input name="longitude" type="number" step="any" dir="ltr" defaultValue={current?.longitude ?? ''} /></Field>
+                </FormSection>
               </div>
               {/* Dynamic Forms: custom fields appear automatically + submit as `custom` JSON */}
               <DynamicCustomFields
