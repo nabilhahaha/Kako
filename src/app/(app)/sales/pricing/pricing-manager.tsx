@@ -21,7 +21,12 @@ import {
 
 type Product = Pick<ProductCatalog, 'id' | 'code' | 'name' | 'name_ar'>;
 type Customer = Pick<ErpCustomer, 'id' | 'name' | 'name_ar'>;
-const SCOPE_TYPES: PriceScopeType[] = ['customer', 'segment', 'channel', 'tier', 'branch', 'region', 'area', 'global'];
+// Pilot-first: customer-specific pricing is the primary rule scope (alongside
+// price lists + base). The advanced dimensions stay fully supported by the engine
+// but are revealed on demand to keep day-to-day pricing simple.
+const PRIMARY_SCOPES: PriceScopeType[] = ['customer'];
+const ADVANCED_SCOPES: PriceScopeType[] = ['segment', 'channel', 'tier', 'branch', 'region', 'area', 'global'];
+const SCOPE_TYPES: PriceScopeType[] = [...PRIMARY_SCOPES, ...ADVANCED_SCOPES];
 const inputCls = 'h-9 w-full rounded-md border border-input bg-background px-2 text-sm';
 
 export function PricingManager(props: {
@@ -124,7 +129,9 @@ function RulesSection({
   const { t } = useI18n();
   const [editing, setEditing] = useState<PriceRule | 'new' | null>(null);
   const [scopeType, setScopeType] = useState<PriceScopeType>('customer');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const cur = editing === 'new' ? null : editing;
+  const visibleScopes = showAdvanced ? SCOPE_TYPES : PRIMARY_SCOPES;
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -146,15 +153,21 @@ function RulesSection({
   return (
     <div className="space-y-4">
       {editing === null && (
-        <Button onClick={() => { setEditing('new'); setScopeType('customer'); }}>
+        <Button onClick={() => { setEditing('new'); setScopeType('customer'); setShowAdvanced(false); }}>
           <Plus className="h-4 w-4" /> {t('pricing.btnNewRule')}
         </Button>
       )}
       {editing !== null && (
         <Card><CardContent className="pt-6">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between gap-2">
             <h3 className="font-semibold">{t('pricing.rulesTitle')}</h3>
-            <button onClick={() => setEditing(null)} className="rounded-md p-1 hover:bg-secondary"><X className="h-4 w-4" /></button>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <input type="checkbox" checked={showAdvanced} onChange={(e) => { setShowAdvanced(e.target.checked); if (!e.target.checked) setScopeType('customer'); }} />
+                {t('pricing.showAdvanced')}
+              </label>
+              <button onClick={() => setEditing(null)} className="rounded-md p-1 hover:bg-secondary"><X className="h-4 w-4" /></button>
+            </div>
           </div>
           <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {cur && <input type="hidden" name="id" value={cur.id} />}
@@ -166,7 +179,7 @@ function RulesSection({
             </Field>
             <Field label={t('pricing.fieldScopeType')}>
               <select name="scope_type" value={scopeType} onChange={(e) => setScopeType(e.target.value as PriceScopeType)} className={inputCls}>
-                {SCOPE_TYPES.map((s) => <option key={s} value={s}>{t(`pricing.scope_${s}` as 'pricing.scope_global')}</option>)}
+                {visibleScopes.map((s) => <option key={s} value={s}>{t(`pricing.scope_${s}` as 'pricing.scope_global')}</option>)}
               </select>
             </Field>
             <Field label={t('pricing.fieldScope')}>
@@ -214,7 +227,7 @@ function RulesSection({
                 <td className="p-3 text-center text-xs text-muted-foreground" dir="ltr">{r.valid_from ?? '…'} → {r.valid_to ?? '…'}</td>
                 <td className="p-3 text-center">{r.is_active ? <Badge variant="success">{t('pricing.active')}</Badge> : <Badge variant="secondary">{t('pricing.inactive')}</Badge>}</td>
                 <td className="p-3"><div className="flex justify-end gap-1">
-                  <button onClick={() => { setScopeType(r.scope_type); setEditing(r); }} className="rounded-md p-1.5 hover:bg-secondary" aria-label={t('pricing.btnEdit')}><Pencil className="h-4 w-4" /></button>
+                  <button onClick={() => { setScopeType(r.scope_type); setShowAdvanced(ADVANCED_SCOPES.includes(r.scope_type)); setEditing(r); }} className="rounded-md p-1.5 hover:bg-secondary" aria-label={t('pricing.btnEdit')}><Pencil className="h-4 w-4" /></button>
                   <Button variant="ghost" size="sm" disabled={pending} onClick={() => act(() => togglePriceRuleActive(r.id, !r.is_active))}><Power className="h-3.5 w-3.5" /></Button>
                   <button onClick={async () => { if (await confirm({ title: t('pricing.confirmDelete') })) act(() => deletePriceRule(r.id)); }} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10" aria-label={t('pricing.btnDelete')}><Trash2 className="h-4 w-4" /></button>
                 </div></td>

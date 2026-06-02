@@ -19,6 +19,15 @@
 
 ---
 
+## 0. Pilot prioritization (owner)
+Keep day-to-day pricing **simple for the pilot**: **Base Price · Price Lists ·
+Customer-specific pricing · Effective Dates · Price Change History · Manual
+Override Logging**. The advanced dimensions (segment/channel/tier/branch/region/
+area/global) **remain fully supported by the engine** but are **secondary** —
+the Price Rules form defaults to **Customer** scope and hides the advanced scopes
+behind a **"Show advanced scopes"** toggle. Priority: simplicity, usability, fast
+adoption; add pricing complexity later.
+
 ## 1. Goal (owner request)
 Price Lists · Price List Items · Customer-specific · Channel-specific ·
 Segment-specific · Branch-specific pricing · Effective dates · Price change
