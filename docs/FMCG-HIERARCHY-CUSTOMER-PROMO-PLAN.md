@@ -218,11 +218,17 @@ production migration for approval.)*
 | **S2** — Roles (Branch Manager ≠ Admin) | ✅ merged (#60) | Option B, zero regression |
 | **S3** — Expanded customer model | ✅ built (#61) | + **company-managed master data** (segment/class/channel as `erp_customer_lookups`). `docs/SLICE-S3-CUSTOMER-MODEL.md` |
 | **S4a** — Hierarchy scope + RLS (customers + routes) | ✅ built (#62) | scope resolver + RLS; company-wide roles unchanged. `docs/SLICE-S4-SCOPE-RLS.md` |
-| **S4b** — Scope on transactional tables + write-scope | 📋 backlog (after S4a) | invoices/orders/visits rep/supervisor narrowing; `WITH CHECK` write-scope |
-| **S3b** — Company-configurable role labels | 🔒 decisions locked; build **after S4** | labels over fixed role keys. `docs/SLICE-S3b-ROLE-LABELS.md` |
-| **Enterprise UX / Navigation / Grouping review** | 📋 backlog — **before pilot rollout** | menu grouping · action-based nav · field ordering/grouping · form & page layouts · workflow simplification · mobile usability |
-| **Pricing** (own slice) | 📋 backlog — reviewed slice **after S4** | see below |
+| **S4b** — Scope on transactional tables + write-scope | ⏳ design review | `docs/SLICE-S4b-TXN-SCOPE.md` |
+| **Pricing** (own slice) | 📋 next reviewed slice **after S4** | bring design review when S4 complete. see below |
+| **Enterprise UX / Navigation / Grouping review** | 📋 **before pilot rollout** | menu grouping · action-based nav · field ordering/grouping · form & page layouts · workflow simplification · mobile usability |
+| **S3b** — Company-configurable role labels | 🔒 decisions locked; build **after** Pricing + UX | labels over fixed role keys. `docs/SLICE-S3b-ROLE-LABELS.md` |
 | **S5** — Promotions module | 📋 backlog | `erp_promotions` + lifecycle |
+| **Trade Spend** | ⏸️ deferred (future phase) | not a current priority |
+
+> **Preferred order (owner, updated):** S4a → **S4b** → **Pricing** → Enterprise UX
+> review → **S3b** (role labels). Pricing is a core business capability and comes
+> before cosmetic role-label customization. **Trade Spend is deferred** to a future
+> phase. The Pricing design review is brought back **when S4 is complete**.
 
 ### Future reviewed slice — Pricing (separate module, independent of customer master)
 Owner-requested as its own reviewed slice **after S4**. Pricing is a **standalone
