@@ -13,7 +13,7 @@ import { FormSection } from '@/components/shared/form-section';
 import { EmptyState } from '@/components/shared/empty-state';
 import { formatCurrency } from '@/lib/utils';
 import { VISIT_DAYS } from '@/lib/erp/constants';
-import { importCustomers, approveCustomer } from './actions';
+import { importCustomers, approveCustomer, rejectCustomer } from './actions';
 import type { Area, Branch, CustomerLookup, CustomerLookupKind, ErpCustomer, Profile, Region } from '@/lib/erp/types';
 import type { CustomFieldDef } from '@/lib/erp/custom-fields';
 import { DynamicCustomFields } from '@/components/forms/dynamic-custom-fields';
@@ -31,7 +31,7 @@ export function CustomersManager({
   lookups = [],
   regions = [],
   areas = [],
-  isSuperAdmin,
+  canApprove = false,
   customFields = [],
 }: {
   customers: ErpCustomer[];
@@ -40,7 +40,7 @@ export function CustomersManager({
   lookups?: CustomerLookup[];
   regions?: Region[];
   areas?: Area[];
-  isSuperAdmin: boolean;
+  canApprove?: boolean;
   customFields?: CustomFieldDef[];
 }) {
   const router = useRouter();
@@ -74,6 +74,29 @@ export function CustomersManager({
       }
     });
   }
+
+  function onReject(id: string) {
+    const reason = window.prompt(t('customers.rejectReasonPrompt'));
+    if (!reason || !reason.trim()) return;
+    startTransition(async () => {
+      const res = await rejectCustomer(id, reason.trim());
+      if (!res.ok) toast.error(res.error ?? t('customers.toastError'));
+      else { toast.success(t('customers.toastUpdated')); router.refresh(); }
+    });
+  }
+
+  // 4-state status badge (approval first, then active/suspended for approved).
+  function statusBadge(c: ErpCustomer) {
+    switch (c.approval_status) {
+      case 'draft': return <Badge variant="secondary">{t('customers.statusDraft')}</Badge>;
+      case 'pending': return <Badge variant="warning">{t('customers.statusPending')}</Badge>;
+      case 'rejected': return <Badge variant="destructive">{t('customers.statusRejected')}</Badge>;
+      default: return c.is_active
+        ? <Badge variant="success">{t('customers.statusActive')}</Badge>
+        : <Badge variant="destructive">{t('customers.statusInactive')}</Badge>;
+    }
+  }
+  const needsDecision = (c: ErpCustomer) => c.approval_status === 'pending' || c.approval_status === 'draft' || c.approval_status === 'rejected';
 
   const repName = (id: string | null) => {
     if (!id) return '';
@@ -365,13 +388,7 @@ export function CustomersManager({
                         <p className="truncate font-medium">{c.name_ar || c.name}</p>
                         <p className="font-mono text-xs text-muted-foreground" dir="ltr">{c.code}</p>
                       </div>
-                      {!c.is_approved ? (
-                        <Badge variant="warning">{t('customers.statusPending')}</Badge>
-                      ) : c.is_active ? (
-                        <Badge variant="success">{t('customers.statusActive')}</Badge>
-                      ) : (
-                        <Badge variant="destructive">{t('customers.statusInactive')}</Badge>
-                      )}
+                      {statusBadge(c)}
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       {segClass && <span>{segClass}</span>}
@@ -380,11 +397,19 @@ export function CustomersManager({
                         {t('customers.colBalance')}: {overLimit && <AlertTriangle className="h-3 w-3 text-warning" />}{formatCurrency(c.balance)}
                       </span>
                     </div>
+                    {c.approval_status === 'rejected' && c.rejection_reason && (
+                      <p className="text-xs text-destructive">{c.rejection_reason}</p>
+                    )}
                     <div className="flex flex-wrap items-center gap-1">
-                      {!c.is_approved && isSuperAdmin && (
-                        <Button variant="ghost" size="sm" disabled={pending} onClick={() => onApprove(c.id)} className="text-xs text-success">
-                          <BadgeCheck className="h-3.5 w-3.5" /> {t('customers.btnApprove')}
-                        </Button>
+                      {needsDecision(c) && canApprove && (
+                        <>
+                          <Button variant="ghost" size="sm" disabled={pending} onClick={() => onApprove(c.id)} className="text-xs text-success">
+                            <BadgeCheck className="h-3.5 w-3.5" /> {t('customers.btnApprove')}
+                          </Button>
+                          <Button variant="ghost" size="sm" disabled={pending} onClick={() => onReject(c.id)} className="text-xs text-destructive">
+                            {t('customers.btnReject')}
+                          </Button>
+                        </>
                       )}
                       <Link href={`/customers/${c.id}`} className="rounded-md p-2 hover:bg-secondary" aria-label={t('customers.ariaStatement')}>
                         <FileText className="h-4 w-4" />
@@ -439,20 +464,22 @@ export function CustomersManager({
                           </span>
                         </td>
                         <td className="p-3 text-center">
-                          {!c.is_approved ? (
-                            <Badge variant="warning">{t('customers.statusPending')}</Badge>
-                          ) : c.is_active ? (
-                            <Badge variant="success">{t('customers.statusActive')}</Badge>
-                          ) : (
-                            <Badge variant="destructive">{t('customers.statusInactive')}</Badge>
+                          {statusBadge(c)}
+                          {c.approval_status === 'rejected' && c.rejection_reason && (
+                            <span className="ms-1 text-xs text-destructive" title={c.rejection_reason}>ⓘ</span>
                           )}
                         </td>
                         <td className="p-3">
                           <div className="flex justify-end gap-1">
-                            {!c.is_approved && isSuperAdmin && (
-                              <Button variant="ghost" size="sm" disabled={pending} onClick={() => onApprove(c.id)} className="text-xs text-success">
-                                <BadgeCheck className="h-3.5 w-3.5" /> {t('customers.btnApprove')}
-                              </Button>
+                            {needsDecision(c) && canApprove && (
+                              <>
+                                <Button variant="ghost" size="sm" disabled={pending} onClick={() => onApprove(c.id)} className="text-xs text-success">
+                                  <BadgeCheck className="h-3.5 w-3.5" /> {t('customers.btnApprove')}
+                                </Button>
+                                <Button variant="ghost" size="sm" disabled={pending} onClick={() => onReject(c.id)} className="text-xs text-destructive">
+                                  {t('customers.btnReject')}
+                                </Button>
+                              </>
                             )}
                             <Link href={`/customers/${c.id}`} className="rounded-md p-1.5 hover:bg-secondary" aria-label={t('customers.ariaStatement')} title={t('customers.ariaStatement')}>
                               <FileText className="h-4 w-4" />

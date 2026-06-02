@@ -11,6 +11,7 @@ export const ar = {
     escalated: 'مُصعّدة',
     requestApproval: 'إرسال للاعتماد',
     commentPlaceholder: 'تعليق (اختياري)',
+    rejectReasonRequired: 'سبب الرفض مطلوب.',
     entity: {
       customer: 'عميل',
       credit_limit_request: 'طلب حد ائتمان',
@@ -40,6 +41,7 @@ export const en = {
     escalated: 'Escalated',
     requestApproval: 'Submit for approval',
     commentPlaceholder: 'Comment (optional)',
+    rejectReasonRequired: 'A rejection reason is required.',
     entity: {
       customer: 'Customer',
       credit_limit_request: 'Credit limit request',

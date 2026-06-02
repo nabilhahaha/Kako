@@ -17,6 +17,10 @@ export async function decideTask(
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
   if (decision !== 'approve' && decision !== 'reject') return { ok: false, error: 'invalid decision' };
+  // Rejection reason is mandatory (governance requirement).
+  if (decision === 'reject' && !(comment && comment.trim())) {
+    return { ok: false, error: 'rejection_reason_required' };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('erp_workflow_decide', {
@@ -26,8 +30,9 @@ export async function decideTask(
 
   const res = (data ?? {}) as { final?: boolean; status?: string; entity?: string; record_id?: string };
   if (res.final && res.entity && res.record_id && (res.status === 'approved' || res.status === 'rejected')) {
-    await applyWorkflowOutcome(res.entity, res.record_id, res.status as WorkflowOutcome);
+    await applyWorkflowOutcome(res.entity, res.record_id, res.status as WorkflowOutcome, comment ?? null);
   }
   revalidatePath('/approvals');
+  revalidatePath('/customers');
   return { ok: true };
 }

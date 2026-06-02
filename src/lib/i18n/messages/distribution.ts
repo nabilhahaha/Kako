@@ -7,6 +7,7 @@ export const ar = {
     btnSave: 'حفظ',
     btnCancel: 'إلغاء',
     noCompany: 'يتم من داخل حساب الشركة.',
+    customerNotApproved: 'لا يمكن إضافة عميل غير معتمد إلى خط سير.',
     defaultRepName: 'مندوب',
 
     // ── Routes ───────────────────────────────────────────────────────────────
@@ -80,6 +81,7 @@ export const en = {
     btnSave: 'Save',
     btnCancel: 'Cancel',
     noCompany: 'Available within a company account.',
+    customerNotApproved: 'A non-approved customer can’t be added to a route.',
     defaultRepName: 'Rep',
 
     // ── Routes ───────────────────────────────────────────────────────────────

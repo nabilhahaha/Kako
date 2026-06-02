@@ -23,10 +23,14 @@ export function ApprovalsManager({ tasks }: { tasks: TaskRow[] }) {
   const [comments, setComments] = useState<Record<string, string>>({});
 
   async function decide(id: string, decision: 'approve' | 'reject') {
+    // Rejection reason is mandatory.
+    if (decision === 'reject' && !(comments[id] && comments[id].trim())) {
+      return toast.error(t('workflow.rejectReasonRequired'));
+    }
     setBusy(id);
     try {
       const res = await decideTask(id, decision, comments[id]);
-      if (!res.ok) return toast.error(res.error ?? t('workflow.toast.error'));
+      if (!res.ok) return toast.error(res.error === 'rejection_reason_required' ? t('workflow.rejectReasonRequired') : (res.error ?? t('workflow.toast.error')));
       toast.success(decision === 'approve' ? t('workflow.toast.approved') : t('workflow.toast.rejected'));
     } catch {
       toast.error(t('workflow.toast.error'));

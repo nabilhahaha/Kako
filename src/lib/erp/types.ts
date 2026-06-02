@@ -444,6 +444,8 @@ export interface ErpCustomer {
   visit_day: string | null;
   is_active: boolean;
   is_approved: boolean;
+  approval_status: 'draft' | 'pending' | 'approved' | 'rejected';
+  rejection_reason: string | null;
   // FMCG hierarchy S3 — expanded customer model (all nullable; additive).
   // segment/classification/channel are FKs into the company-managed
   // erp_customer_lookups master data; region/area are FKs to S1 entities.

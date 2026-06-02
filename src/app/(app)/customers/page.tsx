@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import type { Area, Branch, CustomerLookup, ErpCustomer, Profile, Region } from '@/lib/erp/types';
@@ -37,7 +38,7 @@ export default async function CustomersPage() {
         lookups={(lookups as CustomerLookup[]) ?? []}
         regions={(regions as Region[]) ?? []}
         areas={(areas as Area[]) ?? []}
-        isSuperAdmin={ctx.isSuperAdmin}
+        canApprove={hasPermission(ctx, 'customers.approve')}
         customFields={customFields}
       />
     </div>
