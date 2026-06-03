@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { StatCard, type StatTone } from '@/components/shared/stat-card';
 import { BackLink } from '@/components/shared/back-link';
@@ -23,6 +24,7 @@ import {
   Activity,
   ChevronUp,
   ChevronDown,
+  LineChart,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, Company } from '@/lib/erp/types';
@@ -351,6 +353,12 @@ export function Company360(props: Company360Props) {
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Link
+              href={`/platform/companies/${company.id}/analytics`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              <LineChart className="h-4 w-4" /> {t('companyAnalytics.viewAnalytics')}
+            </Link>
             <Button variant="secondary" size="sm" disabled={pending} onClick={() => renewBy(1)}>
               <CalendarPlus className="h-4 w-4" /> {t('platform.company.subscription.renewOneMonth')}
             </Button>
