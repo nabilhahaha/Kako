@@ -1,6 +1,6 @@
 # VANTORA Workspace & Dashboard Engine
 
-**Status:** Specification v1 — _design only_. No implementation, no schema, not merged, not deployed.
+**Status:** Specification v1.1 — _design only_. No implementation, no schema, not merged, not deployed.
 **Scope:** A configurable, persona-based **engine** for home dashboards, navigation, quick actions, and workspace sections — built from reusable widgets, governed like DFG, seeded by Industry Packs, and customizable per company **without code changes**.
 **Authority:** This document is the authoritative reference for all workspace/dashboard/navigation work. It composes with — and reuses — the Authorization Model (`AUTHORIZATION-MODEL.md`) and Dynamic Field Governance (DFG). Deviations require an amendment here first.
 
@@ -265,6 +265,7 @@ Each phase degrades to defaults if later phases aren't present.
 | Authorization | every element gated by capability + scope + module; data RLS-scoped |
 | Config UX | "Workspace Studio" (no-code, versioned, audited, preview-as-persona) |
 | Catalog vs config | widget catalog in code; layouts/personas/nav in data |
+| Onboarding | start from an Industry **Workspace Template** (§18), never an empty workspace; admin customizes after |
 
 ---
 
@@ -273,3 +274,81 @@ Each phase degrades to defaults if later phases aren't present.
 2. **Persona assignment** — derive purely from role, or also allow explicit per-user persona?
 3. **Widget data layer** — per-widget server resolvers (typed, simplest) vs. a generic config-driven query layer (more flexible, heavier).
 4. **Multi-role merge** — primary-persona-only, or merge widgets from all of a user's roles' personas?
+
+---
+
+## 18. Workspace Templates (Industry starter packs)
+
+A **Workspace Template** is the concrete realization of an Industry Pack (§10): a named, versioned bundle of **default personas + navigation + widgets + quick actions** for a business type. Onboarding **always starts from a template**, never an empty workspace; the Company Admin customizes afterward in Workspace Studio.
+
+### 18.1 What a template contains
+```
+WorkspaceTemplate := {
+  key,                 // 'fmcg_distribution', 'pharmacy', 'clinic', 'manufacturing'
+  business_type,       // links to erp_business_type_* (auto-selected at company creation)
+  personas[],          // which personas this vertical ships
+  perPersona: {        // for each persona:
+    home,              // default Home widgets (ordered, sized) from the §4 catalog
+    navigation,        // default menu groups/items
+    quickActions,      // default action shortcuts
+  },
+  version,             // template version (pack updates flow via inherit, §10)
+}
+```
+Templates are **seeded in code/snapshot** (like `erp_field_templates`) and reference only catalog widgets (§4); a widget whose capability/module isn't present degrades gracefully (gap rule, §11). Customizations are stored separately and **inherit** from the template; **reset-to-template** with diff is always available.
+
+### 18.2 Onboarding flow
+```
+Create company → pick business_type → template auto-selected
+  → seed default personas + per-persona Home/Nav/QuickActions
+  → company has a ready, working workspace on first login
+  → admin optionally customizes in Workspace Studio (inherit/override/lock)
+```
+No company ever lands on a blank screen; defaults are productive out of the box.
+
+### 18.3 Example — FMCG Distribution Template
+| Persona | Home widgets | Navigation | Quick Actions |
+|---|---|---|---|
+| Sales Rep | Route Coverage · My Sales · Collections · Target Achievement · Tasks · Calendar | Route/Visits · Orders · Invoices · Customers · Collections · My Stock | Log Visit · New Order · New Invoice · Collect Payment · Request Stock |
+| Supervisor | Team Coverage · Team Sales · Approvals · Top Sales Reps · Alerts | Team · Approvals · Reports | Approve · Review Route |
+| ASM/RSM | Region Sales · Target Achievement · Top Customers · Top Sales Reps · Approvals | Regions · Reports · Approvals | Approve |
+| Warehouse | Stock · Near Expiry · Stock Requests · Transfers | Warehouses · Receiving · Transfers · Adjustments | Receive Stock · Approve Loading · Transfer · Adjust |
+| Finance | Collections · AR aging · Approvals · Alerts | Invoices · Payments · Suppliers · Accounting | Record Payment · Settle Supplier · Post Journal |
+| Owner | Sales · Collections · Stock · Approvals · Top Customers · Alerts | (full) | — |
+
+### 18.4 Example — Pharmacy Template
+| Persona | Home widgets | Navigation | Quick Actions |
+|---|---|---|---|
+| Pharmacist/Cashier | Today's Sales · Stock · **Near Expiry** · Alerts | POS/Dispense · Products · Customers · Stock | New Sale · Dispense · Check Stock |
+| Warehouse | Stock · **Near Expiry** (priority) · Receiving · Expiry Write-offs | Warehouses · Receiving · Adjustments | Receive · Write-off · Adjust |
+| Finance | Collections · Sales · Suppliers | Invoices · Payments · Suppliers | Record Payment · Settle Supplier |
+| Owner | Sales · Stock value · **Near Expiry** · Approvals | (full) | — |
+
+_Pharmacy emphasizes Near-Expiry (regulated) and dispensing._
+
+### 18.5 Example — Clinic Template
+| Persona | Home widgets | Navigation | Quick Actions |
+|---|---|---|---|
+| Reception | Today's Appointments · Queue · Billing · Alerts | Appointments · Patients · Reception · Billing | New Appointment · Register Patient · Check-in · Collect |
+| Doctor | My Queue · Today's Appointments · Tasks | Doctor Queue · Patients · Prescriptions | Start Exam · Prescribe |
+| Finance/Cashier | Collections · Invoices · Reports | Invoices · Payments | Record Payment |
+| Owner/Manager | Visits · Revenue · Appointments · Approvals | (full) | — |
+
+_Clinic is Appointments/Calendar-centric — same engine, different default layout._
+
+### 18.6 Example — Manufacturing Template **(future-dependent)**
+Manufacturing modules (BOM, work orders, production scheduling, costing) are largely a **future vertical**; this template ships the available widgets and records the rest as documented gaps (§11) — it degrades gracefully until those capabilities exist.
+
+| Persona | Home widgets | Navigation | Quick Actions |
+|---|---|---|---|
+| Production **(dep)** | Work Orders · Production Schedule · Material Availability · Tasks | Work Orders · Scheduling · BOM | Start Work Order |
+| Warehouse/Inventory | Stock · Raw Materials · Near Expiry · Transfers | Warehouses · Receiving · Transfers | Receive · Transfer · Adjust |
+| Procurement | Purchase Orders · Suppliers · Approvals | Purchasing · Suppliers · Receipts | New PO · Receive |
+| Finance | Costing **(dep)** · Collections · Suppliers | Accounting · Payments · Suppliers | Post Journal · Settle Supplier |
+| Owner | Production **(dep)** · Stock · Sales · Approvals | (full) | — |
+
+### 18.7 Template lifecycle & extensibility
+- **Shipped per business type**; auto-selected at company creation from the chosen `business_type`.
+- **Versioned**; template updates flow to companies that haven't overridden a given element (`inherit`), preserving company-locked/overridden elements (`inherit_locked`), with an opt-in "adopt template changes" diff (§10).
+- **A new vertical = a new template** (personas + per-persona defaults) composed from the shared widget catalog — **no engine change**.
+- Templates are the onboarding entry point; Workspace Studio (§9) is the customization surface.
