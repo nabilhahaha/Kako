@@ -246,7 +246,39 @@ export function ProductsManager({
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Mobile (UX-3): cards instead of a wide horizontal-scroll table */}
+            <div className="divide-y sm:hidden">
+              {products.map((p) => (
+                <div key={p.id} className="space-y-2 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{p.name_ar || p.name}</p>
+                      <p className="font-mono text-xs text-muted-foreground" dir="ltr">{p.code}</p>
+                    </div>
+                    {p.is_active ? (
+                      <Badge variant="success">{t('products.statusActive')}</Badge>
+                    ) : (
+                      <Badge variant="destructive">{t('products.statusInactive')}</Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span>{catName(p.category_id)}</span>
+                    <span>{PRODUCT_UNIT_LABELS[p.unit]?.[locale] ?? p.unit}</span>
+                    <span dir="ltr" className="tabular-nums">{t('products.colCost')}: {formatCurrency(p.cost_price)}</span>
+                    <span dir="ltr" className="tabular-nums">{t('products.colSell')}: {formatCurrency(p.sell_price)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <button onClick={() => setEditing(p)} className="rounded-md p-2 hover:bg-secondary" aria-label={t('products.ariaEdit')}>
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <Button variant="ghost" size="sm" disabled={pending} onClick={() => onToggle(p)} className="text-xs">
+                      {p.is_active ? t('products.btnDeactivate') : t('products.btnActivate')}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>

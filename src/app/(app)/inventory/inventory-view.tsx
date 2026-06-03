@@ -141,7 +141,34 @@ export function InventoryView({
           <>
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              {/* Mobile (UX-3): cards instead of a wide horizontal-scroll table */}
+              <div className="divide-y sm:hidden">
+                {rows.map((r) => {
+                  const low = r.minStock > 0 && Number(r.quantity) < r.minStock;
+                  return (
+                    <div key={`${r.warehouse_id}-${r.product_id}`} className="space-y-2 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{r.productName}</p>
+                          <p className="font-mono text-xs text-muted-foreground" dir="ltr">{r.productCode}</p>
+                        </div>
+                        {low ? <Badge variant="warning">{t('inventory.statusBelowMin', { min: formatNumber(r.minStock) })}</Badge> : <Badge variant="success">{t('inventory.statusAvailable')}</Badge>}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>{r.whName}</span>
+                        <span dir="ltr" className="tabular-nums">{t('inventory.colAvailable')}: {formatNumber(r.quantity)}</span>
+                        <span dir="ltr" className="tabular-nums">{t('inventory.colReserved')}: {formatNumber(r.reserved_qty)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setAdjust({ warehouse_id: r.warehouse_id, product_id: r.product_id })}>
+                          {t('inventory.adjust')}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="w-full text-sm">
                   <thead className="border-b bg-secondary/50 text-muted-foreground">
                     <tr>

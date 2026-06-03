@@ -123,7 +123,42 @@ export function SuppliersManager({
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Mobile (UX-3): cards instead of a wide horizontal-scroll table */}
+            <div className="divide-y sm:hidden">
+              {suppliers.map((s) => (
+                <div key={s.id} className="space-y-2 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{s.name_ar || s.name}</p>
+                      <p className="font-mono text-xs text-muted-foreground" dir="ltr">{s.code}</p>
+                    </div>
+                    {s.is_active ? <Badge variant="success">{t('suppliers.statusActive')}</Badge> : <Badge variant="destructive">{t('suppliers.statusInactive')}</Badge>}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    {s.phone && <span dir="ltr">{s.phone}</span>}
+                    {s.city && <span>{s.city}</span>}
+                    <span dir="ltr" className="tabular-nums">{t('suppliers.colBalance')}: {formatCurrency(s.balance)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {Number(s.balance) > 0 && (
+                      <Button variant="ghost" size="sm" className="text-xs" onClick={() => setPayFor(s)}>
+                        <Wallet className="h-3.5 w-3.5" /> {t('suppliers.btnPay')}
+                      </Button>
+                    )}
+                    <Link href={`/suppliers/${s.id}`} className="rounded-md p-2 hover:bg-secondary" aria-label={t('suppliers.ariaStatement')}>
+                      <FileText className="h-4 w-4" />
+                    </Link>
+                    <button onClick={() => setEditing(s)} className="rounded-md p-2 hover:bg-secondary" aria-label={t('suppliers.ariaEdit')}>
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <Button variant="ghost" size="sm" disabled={pending} onClick={() => onToggle(s)} className="text-xs">
+                      {s.is_active ? t('suppliers.btnDeactivate') : t('suppliers.btnActivate')}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
