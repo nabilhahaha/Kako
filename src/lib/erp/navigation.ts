@@ -148,6 +148,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'nav.items.overview', href: '/platform', icon: LayoutDashboard, platformOwnerOnly: true },
       { label: 'nav.items.activityFeed', href: '/platform/activity', icon: Activity, platformOwnerOnly: true },
+      { label: 'nav.items.platformAnalytics', href: '/platform/analytics', icon: BarChart3, platformOwnerOnly: true },
       { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformPerm: 'view_companies' },
       { label: 'nav.items.billing', href: '/platform/billing', icon: CreditCard, platformOwnerOnly: true },
       { label: 'nav.items.platformStaff', href: '/platform/staff', icon: UserCog, platformPerm: 'manage_users' },
