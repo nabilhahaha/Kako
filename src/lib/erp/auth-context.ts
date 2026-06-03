@@ -35,6 +35,7 @@ const ROLE_RANK: Record<BranchRole, number> = {
   national_sales_manager: 7,
   regional_manager: 6,
   branch_manager: 6,
+  trade_marketing_manager: 5,
   it_admin: 6,
   area_manager: 5,
   supervisor: 6,

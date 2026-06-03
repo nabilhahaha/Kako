@@ -78,6 +78,7 @@ export type BranchRole =
   | 'regional_manager'
   | 'area_manager'
   | 'branch_manager'
+  | 'trade_marketing_manager' // FMCG trade marketing — pricing & promotions owner
   | 'it_admin'
   | 'supervisor'
   | 'accountant'
