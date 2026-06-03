@@ -1,15 +1,27 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Settings2, Power } from 'lucide-react';
+import { EmptyState } from '@/components/shared/empty-state';
+import { ListToolbar } from '@/components/shared/list-toolbar';
+import {
+  Loader2,
+  Plus,
+  Settings2,
+  Power,
+  Building2,
+  SearchX,
+  ChevronUp,
+  ChevronDown,
+} from 'lucide-react';
 import type { Company } from '@/lib/erp/types';
 import {
   BUSINESS_TYPE_LABELS,
@@ -39,6 +51,20 @@ const STATE_BADGE_VARIANT: Record<SubscriptionState, StateBadgeVariant> = {
   open:      'info',
 };
 
+/** Subtle left-accent border so urgent rows stand out at a glance. */
+const STATE_ACCENT: Partial<Record<SubscriptionState, string>> = {
+  expiring: 'border-s-2 border-s-warning',
+  expired: 'border-s-2 border-s-destructive',
+  suspended: 'border-s-2 border-s-destructive',
+};
+
+type SortKey = 'name' | 'expiry' | 'branches' | 'users' | 'created';
+type SortDir = 'asc' | 'desc';
+type StatusFilter = 'all' | SubscriptionState;
+
+const PAGE_SIZE = 25;
+const STATUS_FILTERS: SubscriptionState[] = ['active', 'expiring', 'expired', 'suspended', 'trial'];
+
 const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -51,6 +77,13 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
   const defaultsFor = (bt: string) => new Set<string>((btDefaults[bt] ?? []).filter((m) => (ALL_MODULES as string[]).includes(m)));
   const [modules, setModules] = useState<Set<string>>(() => defaultsFor('general'));
   const [roles, setRoles] = useState<Set<string>>(() => new Set(btRoles['general'] ?? []));
+
+  // ── list controls (search / filter / sort / paginate) ──────────────
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<StatusFilter>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [page, setPage] = useState(0);
 
   function onBusinessType(bt: string) {
     setBusinessType(bt);
@@ -94,15 +127,91 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
     });
   }
 
+  function onSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+    setPage(0);
+  }
+
+  // Filter → sort → paginate (client-side; only the current page is rendered).
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = rows.filter(({ company }) => {
+      if (q) {
+        const hay = `${company.name ?? ''} ${company.name_ar ?? ''} ${company.slug ?? ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (status !== 'all' && subscriptionState(company) !== status) return false;
+      return true;
+    });
+
+    const dir = sortDir === 'asc' ? 1 : -1;
+    list = [...list].sort((a, b) => {
+      switch (sortKey) {
+        case 'branches':
+          return (a.branches - b.branches) * dir;
+        case 'users':
+          return (a.users - b.users) * dir;
+        case 'expiry': {
+          // Nulls (open-ended) sort last regardless of direction.
+          const av = a.company.subscription_end;
+          const bv = b.company.subscription_end;
+          if (!av && !bv) return 0;
+          if (!av) return 1;
+          if (!bv) return -1;
+          return av.localeCompare(bv) * dir;
+        }
+        case 'created':
+          return (a.company.created_at ?? '').localeCompare(b.company.created_at ?? '') * dir;
+        case 'name':
+        default: {
+          const an = (a.company.name_ar || a.company.name || '').toLowerCase();
+          const bn = (b.company.name_ar || b.company.name || '').toLowerCase();
+          return an.localeCompare(bn) * dir;
+        }
+      }
+    });
+    return list;
+  }, [rows, search, status, sortKey, sortDir]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
+  function SortHeader({ label, k }: { label: string; k: SortKey }) {
+    const active = sortKey === k;
+    return (
+      <th className="p-3 font-medium">
+        <button
+          type="button"
+          onClick={() => onSort(k)}
+          className="inline-flex items-center gap-1 hover:text-foreground"
+        >
+          {label}
+          {active &&
+            (sortDir === 'asc' ? (
+              <ChevronUp className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ))}
+        </button>
+      </th>
+    );
+  }
+
+  const newButton = (
+    <Button onClick={() => setShowForm((s) => !s)} variant={showForm ? 'secondary' : 'default'}>
+      <Plus className="h-4 w-4" />
+      {t('platform.companies.newCompany')}
+    </Button>
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button onClick={() => setShowForm((s) => !s)} variant={showForm ? 'secondary' : 'default'}>
-          <Plus className="h-4 w-4" />
-          {t('platform.companies.newCompany')}
-        </Button>
-      </div>
-
       {showForm && (
         <Card>
           <CardContent className="pt-6">
@@ -182,90 +291,173 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
         </Card>
       )}
 
-      <Card>
-        <CardContent className="p-0">
-          {rows.length === 0 ? (
-            <p className="p-8 text-center text-muted-foreground">{t('platform.companies.empty')}</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr className="text-start">
-                    <th className="p-3 font-medium">{t('platform.companies.thCompany')}</th>
-                    <th className="p-3 font-medium">{t('platform.companies.thActivity')}</th>
-                    <th className="p-3 font-medium">{t('platform.companies.thStatus')}</th>
-                    <th className="p-3 font-medium">{t('platform.companies.thExpiry')}</th>
-                    <th className="p-3 font-medium">{t('platform.companies.thBranches')}</th>
-                    <th className="p-3 font-medium">{t('platform.companies.thUsers')}</th>
-                    <th className="p-3 font-medium"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(({ company, branches, users }) => {
-                    const state = subscriptionState(company);
-                    const left = daysLeft(company);
-                    const badgeVariant = STATE_BADGE_VARIANT[state];
-                    const stateLabel = t(`platform.state.${state}`);
-                    return (
-                      <tr key={company.id} className="border-b last:border-0">
-                        <td className="p-3">
-                          <div className="font-medium">{company.name_ar || company.name}</div>
-                          {company.slug && (
-                            <div dir="ltr" className="text-right text-xs text-muted-foreground">
-                              /{company.slug}
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-3 text-muted-foreground">
-                          {company.business_type
-                            ? BUSINESS_TYPE_LABELS[company.business_type]?.[locale]
-                            : '—'}
-                        </td>
-                        <td className="p-3">
-                          <Badge variant={badgeVariant}>{stateLabel}</Badge>
-                        </td>
-                        <td className="p-3 text-muted-foreground">
-                          {company.subscription_end ? (
-                            <span dir="ltr">
-                              {company.subscription_end}
-                              {left !== null && (
-                                <span className="text-xs"> ({left} {t('platform.companies.daysSuffix')})</span>
-                              )}
-                            </span>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td className="p-3">{branches}</td>
-                        <td className="p-3">{users}</td>
-                        <td className="p-3">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant={company.is_active ? 'outline' : 'default'}
-                              size="sm"
-                              disabled={pending}
-                              onClick={() => onToggleActive(company.id, !company.is_active)}
-                            >
-                              <Power className="h-4 w-4" />
-                              {company.is_active ? t('platform.companies.suspend') : t('platform.companies.activate')}
-                            </Button>
-                            <Link href={`/platform/companies/${company.id}`}>
-                              <Button variant="secondary" size="sm">
-                                <Settings2 className="h-4 w-4" />
-                                {t('platform.companies.manage')}
-                              </Button>
-                            </Link>
-                          </div>
-                        </td>
+      {rows.length === 0 ? (
+        <EmptyState
+          icon={<Building2 />}
+          title={t('platform.companies.empty')}
+          action={
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4" />
+              {t('platform.companies.emptyAction')}
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          <ListToolbar
+            search={search}
+            onSearch={(v) => {
+              setSearch(v);
+              setPage(0);
+            }}
+            placeholder={t('platform.companies.searchPlaceholder')}
+            count={filtered.length}
+            total={rows.length}
+            filters={
+              <Select
+                aria-label={t('platform.companies.thStatus')}
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value as StatusFilter);
+                  setPage(0);
+                }}
+                className="sm:w-44"
+              >
+                <option value="all">{t('platform.companies.filterAll')}</option>
+                {STATUS_FILTERS.map((s) => (
+                  <option key={s} value={s}>
+                    {t(`platform.state.${s}`)}
+                  </option>
+                ))}
+              </Select>
+            }
+            actions={newButton}
+          />
+
+          <Card>
+            <CardContent className="p-0">
+              {filtered.length === 0 ? (
+                <EmptyState
+                  icon={<SearchX />}
+                  title={t('platform.companies.noResults')}
+                  description={t('platform.companies.noResultsHint')}
+                  className="border-0"
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b text-start text-muted-foreground">
+                      <tr className="text-start">
+                        <SortHeader label={t('platform.companies.thCompany')} k="name" />
+                        <th className="p-3 font-medium">{t('platform.companies.thActivity')}</th>
+                        <th className="p-3 font-medium">{t('platform.companies.thStatus')}</th>
+                        <SortHeader label={t('platform.companies.thExpiry')} k="expiry" />
+                        <SortHeader label={t('platform.companies.thCreated')} k="created" />
+                        <SortHeader label={t('platform.companies.thBranches')} k="branches" />
+                        <SortHeader label={t('platform.companies.thUsers')} k="users" />
+                        <th className="p-3 font-medium"></th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {pageRows.map(({ company, branches, users }) => {
+                        const state = subscriptionState(company);
+                        const left = daysLeft(company);
+                        const badgeVariant = STATE_BADGE_VARIANT[state];
+                        const stateLabel = t(`platform.state.${state}`);
+                        const accent = STATE_ACCENT[state] ?? '';
+                        return (
+                          <tr key={company.id} className={`border-b last:border-0 ${accent}`}>
+                            <td className="p-3">
+                              <div className="font-medium">{company.name_ar || company.name}</div>
+                              {company.slug && (
+                                <div dir="ltr" className="text-right text-xs text-muted-foreground">
+                                  /{company.slug}
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-3 text-muted-foreground">
+                              {company.business_type
+                                ? BUSINESS_TYPE_LABELS[company.business_type]?.[locale]
+                                : '—'}
+                            </td>
+                            <td className="p-3">
+                              <Badge variant={badgeVariant}>{stateLabel}</Badge>
+                            </td>
+                            <td className="p-3 text-muted-foreground">
+                              {company.subscription_end ? (
+                                <span dir="ltr">
+                                  {company.subscription_end}
+                                  {left !== null && (
+                                    <span className="text-xs"> ({left} {t('platform.companies.daysSuffix')})</span>
+                                  )}
+                                </span>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                            <td className="p-3 text-muted-foreground">
+                              {company.created_at ? (
+                                <span dir="ltr">{company.created_at.slice(0, 10)}</span>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                            <td className="p-3">{branches}</td>
+                            <td className="p-3">{users}</td>
+                            <td className="p-3">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant={company.is_active ? 'outline' : 'default'}
+                                  size="sm"
+                                  disabled={pending}
+                                  onClick={() => onToggleActive(company.id, !company.is_active)}
+                                >
+                                  <Power className="h-4 w-4" />
+                                  {company.is_active ? t('platform.companies.suspend') : t('platform.companies.activate')}
+                                </Button>
+                                <Link href={`/platform/companies/${company.id}`}>
+                                  <Button variant="secondary" size="sm">
+                                    <Settings2 className="h-4 w-4" />
+                                    {t('platform.companies.manage')}
+                                  </Button>
+                                </Link>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {pageCount > 1 && (
+            <div className="flex items-center justify-between gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={safePage === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                {t('platform.companies.prev')}
+              </Button>
+              <span className="text-sm text-muted-foreground" dir="ltr">
+                {t('platform.companies.pageOf', { page: safePage + 1, pages: pageCount })}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={safePage >= pageCount - 1}
+                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              >
+                {t('platform.companies.next')}
+              </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </>
+      )}
     </div>
   );
 }
