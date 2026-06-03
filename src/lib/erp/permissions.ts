@@ -136,6 +136,11 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'inventory.count', 'stock_request.approve', 'purchasing.manage',
     'suppliers.manage', 'reports.view',
   ],
+  // Trade Marketing Manager (FMCG): pricing & promotions, customer data, reporting
+  // visibility — no selling / inventory ops. Mirrors the 0126 DB seed.
+  trade_marketing_manager: [
+    'reports.view', 'accounting.view', 'pricing.manage', 'customers.manage', 'wholesale.pricing',
+  ],
   // IT Admin: integrations / scheduler / governance / technical settings.
   it_admin: [
     'integrations.manage', 'settings.custom_fields', 'workflow.manage',

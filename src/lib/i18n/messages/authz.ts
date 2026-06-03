@@ -13,6 +13,7 @@ export const ar = {
     tabScope: 'نطاق المستخدم',
     tabLimits: 'حدود الاعتماد',
     tabSections: 'وصول الأقسام',
+    tabOrg: 'الهيكل التنظيمي',
 
     // generic
     saved: 'تم الحفظ',
@@ -101,6 +102,21 @@ export const ar = {
     actSalesReturnApprove: 'اعتماد مرتجعات البيع',
     actSalesOrderDiscount: 'خصم أوامر البيع',
     actSalesInvoiceDiscount: 'خصم الفواتير',
+
+    // E. Organization structure (optional roles + reporting hierarchy)
+    orgTitle: 'الهيكل التنظيمي',
+    orgHint: 'فعّل أو عطّل الأدوار واضبط من يتبع لمن. يحدّد تسلسل التبعية نطاق رؤية البيانات.',
+    orgRolesTitle: 'الأدوار',
+    orgRolesHint: 'فعّل الأدوار التي تحتاجها هذه الشركة. مدير النظام إلزامي ولا يمكن تعطيله.',
+    orgRoleMandatory: 'إلزامي',
+    orgRoleEnabled: 'مُفعّل',
+    orgRoleDisabled: 'مُعطّل',
+    orgHierarchyTitle: 'تسلسل التبعية',
+    orgHierarchyHint: 'يحدّد «يتبع لـ» سلسلة التبعية التي تُشتق منها رؤية الفريق (النطاق).',
+    orgReportsTo: 'يتبع لـ',
+    orgTopLevel: '— (المستوى الأعلى)',
+    orgNoEnabledRoles: 'لا توجد أدوار مُفعّلة قابلة للتسلسل.',
+    orgLoading: 'جارٍ التحميل…',
   },
 };
 
@@ -116,6 +132,7 @@ export const en = {
     tabScope: 'User Scope',
     tabLimits: 'Approval Limits',
     tabSections: 'Section Access',
+    tabOrg: 'Organization',
 
     // generic
     saved: 'Saved',
@@ -204,5 +221,20 @@ export const en = {
     actSalesReturnApprove: 'Approve sales returns',
     actSalesOrderDiscount: 'Sales order discount',
     actSalesInvoiceDiscount: 'Invoice discount',
+
+    // E. Organization structure (optional roles + reporting hierarchy)
+    orgTitle: 'Organization structure',
+    orgHint: 'Enable or disable roles and set who reports to whom. The reporting hierarchy drives data visibility scope.',
+    orgRolesTitle: 'Roles',
+    orgRolesHint: 'Enable the roles this company needs. Company Admin is mandatory and cannot be disabled.',
+    orgRoleMandatory: 'Mandatory',
+    orgRoleEnabled: 'Enabled',
+    orgRoleDisabled: 'Disabled',
+    orgHierarchyTitle: 'Reporting hierarchy',
+    orgHierarchyHint: '“Reports to” defines the downline chain that team visibility (scope) is derived from.',
+    orgReportsTo: 'Reports to',
+    orgTopLevel: '— (top)',
+    orgNoEnabledRoles: 'No enabled roles to arrange in a hierarchy.',
+    orgLoading: 'Loading…',
   },
 };

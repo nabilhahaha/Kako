@@ -40,6 +40,7 @@ export const BRANCH_ROLES: Record<BranchRole, BilingualLabel> = {
   regional_manager:       { en: 'Regional Manager',       ar: 'مدير إقليمي' },
   area_manager:           { en: 'Area Manager',           ar: 'مدير منطقة' },
   branch_manager:         { en: 'Branch Manager',         ar: 'مدير الفرع' },
+  trade_marketing_manager:{ en: 'Trade Marketing Manager', ar: 'مدير التسويق التجاري' },
   it_admin:               { en: 'IT Admin',               ar: 'مدير تقنية المعلومات' },
   supervisor:             { en: 'Sales Supervisor',       ar: 'مشرف مبيعات' },
   accountant:             { en: 'Finance',                ar: 'المالية' },

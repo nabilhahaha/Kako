@@ -235,3 +235,70 @@ export async function loadSectionAccess(entity: string): Promise<ActionResult<Se
     data: { sections: admin.sections, sectionAccess: admin.sectionAccess, roles: admin.roles },
   };
 }
+
+// ── E. Organization Structure (optional roles + reporting hierarchy) ─────────
+// Editable AFTER creation by the Company Admin (or Platform Owner). Roles are
+// optional per company; the reporting hierarchy drives scope via P3
+// (reports_to → erp_user_subtree). Compatible with the rest of the console.
+
+/** Enable or disable a role for the company (add/remove a role). admin can never
+ *  be disabled (it is the owner role). */
+export async function setCompanyRoleEnabled(roleKey: string, enabled: boolean): Promise<ActionResult> {
+  const g = await requireCompanyAdmin();
+  if (!g.ok) return { ok: false, error: g.error };
+  if (roleKey === 'admin' && !enabled) return { ok: false, error: 'cannot_disable_admin' };
+  const { supabase, companyId } = g;
+  const { error } = await supabase
+    .from('erp_company_roles')
+    .upsert({ company_id: companyId, role_key: roleKey, enabled }, { onConflict: 'company_id,role_key' });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: enabled ? 'enable' : 'disable', entity: 'company_role', entityId: roleKey, details: { role_key: roleKey }, companyId });
+  revalidatePath(REVALIDATE);
+  return { ok: true };
+}
+
+/** Set (or clear) a role's reports-to role — company default (branchId null) or a
+ *  per-branch override. Different branches can therefore have different depth. */
+export async function setOrgHierarchy(
+  roleKey: string,
+  reportsToRoleKey: string | null,
+  branchId: string | null = null,
+): Promise<ActionResult> {
+  const g = await requireCompanyAdmin();
+  if (!g.ok) return { ok: false, error: g.error };
+  if (reportsToRoleKey === roleKey) return { ok: false, error: 'cannot_report_to_self' };
+  const { supabase, companyId } = g;
+  const { error } = await supabase
+    .from('erp_org_role_hierarchy')
+    .upsert(
+      { company_id: companyId, role_key: roleKey, reports_to_role_key: reportsToRoleKey, branch_id: branchId },
+      { onConflict: 'company_id,role_key,branch_id' },
+    );
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: 'update', entity: 'org_hierarchy', entityId: roleKey, details: { role_key: roleKey, reports_to_role_key: reportsToRoleKey, branch_id: branchId }, companyId });
+  revalidatePath(REVALIDATE);
+  return { ok: true };
+}
+
+export interface OrgStructureData {
+  roles: Array<{ role_key: string; enabled: boolean }>;
+  hierarchy: Array<{ role_key: string; reports_to_role_key: string | null; branch_id: string | null }>;
+}
+
+/** Current org structure (enabled roles + reporting hierarchy) for the console. */
+export async function loadOrgStructure(): Promise<ActionResult<OrgStructureData>> {
+  const g = await requireCompanyAdmin();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId } = g;
+  const [{ data: roles }, { data: hierarchy }] = await Promise.all([
+    supabase.from('erp_company_roles').select('role_key, enabled').eq('company_id', companyId),
+    supabase.from('erp_org_role_hierarchy').select('role_key, reports_to_role_key, branch_id').eq('company_id', companyId),
+  ]);
+  return {
+    ok: true,
+    data: {
+      roles: (roles ?? []) as OrgStructureData['roles'],
+      hierarchy: (hierarchy ?? []) as OrgStructureData['hierarchy'],
+    },
+  };
+}

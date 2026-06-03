@@ -1,9 +1,12 @@
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { Plus } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Company } from '@/lib/erp/types';
 import type { SubscriptionState } from '@/lib/erp/subscription';
@@ -196,6 +199,16 @@ export default async function PlatformCompaniesPage({
       <PageHeader
         title={t('platform.companies.title')}
         description={t('platform.companies.description')}
+        action={
+          ctx.isPlatformOwner ? (
+            <Link href="/platform/onboarding">
+              <Button>
+                <Plus className="h-4 w-4" />
+                {t('onboarding.newCompany')}
+              </Button>
+            </Link>
+          ) : undefined
+        }
       />
       <Suspense fallback={null}>
         <CompaniesManager
