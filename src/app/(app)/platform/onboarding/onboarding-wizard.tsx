@@ -25,6 +25,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import {
   INDUSTRY_PACK_IDS,
   getIndustryPack,
+  type IndustryPack,
   type IndustryPackId,
 } from '@/lib/erp/industry-packs';
 import {
@@ -33,6 +34,8 @@ import {
   composeOnboarding,
   type PermissionTemplateId,
 } from '@/lib/erp/permission-templates';
+import { resolveHierarchy, validateRoleSelection, isManagerRole } from '@/lib/erp/org-structure';
+import type { BranchRole } from '@/lib/erp/types';
 import { BRANCH_ROLES } from '@/lib/erp/constants';
 import { MODULE_LABELS, type Module } from '@/lib/erp/navigation';
 import {
@@ -46,7 +49,7 @@ import {
 } from './actions';
 
 type Locale = 'ar' | 'en';
-type Step = 'basics' | 'pack' | 'template' | 'review' | 'success';
+type Step = 'basics' | 'pack' | 'org' | 'template' | 'review' | 'success';
 
 interface BasicsState {
   name: string;
@@ -61,7 +64,7 @@ interface BasicsState {
   adminPassword: string;
 }
 
-const STEP_ORDER: Exclude<Step, 'success'>[] = ['basics', 'pack', 'template', 'review'];
+const STEP_ORDER: Exclude<Step, 'success'>[] = ['basics', 'pack', 'org', 'template', 'review'];
 
 // Label helpers — never show raw keys / UUIDs to the user.
 const roleLabel = (key: string, locale: Locale): string =>
@@ -71,6 +74,16 @@ const moduleLabel = (key: string, locale: Locale): string =>
 const capabilityLabel = (key: string, locale: Locale): string =>
   isDenyAllCapability(key) ? GRANULAR_CAPABILITY_LABELS[key][locale] : key;
 const sectionLabel = (entity: string, section: string): string => `${entity} · ${section}`;
+
+// scope dimension → authz dim* i18n label key (reused by Org + Review steps).
+const SCOPE_DIM_KEY: Record<string, string> = {
+  company: 'authz.dimCompany',
+  branch: 'authz.dimBranch',
+  region: 'authz.dimRegion',
+  area: 'authz.dimArea',
+  own_customers: 'authz.dimOwnCustomers',
+  own_team: 'authz.dimOwnTeam',
+};
 
 export function OnboardingWizard() {
   const { t, locale, dir } = useI18n();
@@ -91,23 +104,40 @@ export function OnboardingWizard() {
     adminPassword: '',
   });
   const [packId, setPackId] = useState<IndustryPackId | null>(null);
+  // Optional roles (org structure). Defaults to all of the selected pack's roles.
+  const [selectedRoles, setSelectedRoles] = useState<BranchRole[]>([]);
   const [templateId, setTemplateId] = useState<PermissionTemplateId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<OnboardingResult | null>(null);
 
   const pack = packId ? getIndustryPack(packId) : null;
 
-  // Live preview (client-safe, pure). Recomputes whenever pack OR template
-  // changes — this is what makes the decoupling visible in the UI.
+  // Live preview (client-safe, pure). Recomputes whenever pack, template OR the
+  // chosen role set changes — this is what makes the decoupling visible in the UI.
   const composed = useMemo(
-    () => (pack && templateId ? composeOnboarding(pack, templateId) : null),
-    [pack, templateId],
+    () => (pack && templateId ? composeOnboarding(pack, templateId, selectedRoles) : null),
+    [pack, templateId, selectedRoles],
   );
 
+  // Pick an industry pack → seed the role selection to all of its roles (org step).
+  function selectPack(id: IndustryPackId) {
+    setPackId(id);
+    setSelectedRoles([...(getIndustryPack(id)?.roles ?? [])]);
+  }
+
+  function toggleRole(role: BranchRole) {
+    if (role === 'admin') return; // mandatory — mirror validateRoleSelection
+    setSelectedRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
+    );
+  }
+
+  const rolesValid = validateRoleSelection(selectedRoles).ok;
   const basicsValid = basics.name.trim().length > 0 && basics.adminEmail.trim().length > 0;
   const canNext =
     (step === 'basics' && basicsValid) ||
     (step === 'pack' && !!packId) ||
+    (step === 'org' && rolesValid) ||
     (step === 'template' && !!templateId);
 
   function set<K extends keyof BasicsState>(key: K, value: BasicsState[K]) {
@@ -143,6 +173,7 @@ export function OnboardingWizard() {
         },
         industryPackId: packId,
         permissionTemplateId: templateId,
+        selectedRoles,
       });
       if (!res.ok || !res.data) {
         setError(res.error ?? t('onboarding.errorTitle'));
@@ -167,6 +198,7 @@ export function OnboardingWizard() {
       adminPassword: '',
     });
     setPackId(null);
+    setSelectedRoles([]);
     setTemplateId(null);
     setError(null);
     setResult(null);
@@ -186,7 +218,17 @@ export function OnboardingWizard() {
 
       {step === 'basics' && <BasicsStep basics={basics} set={set} t={t} />}
       {step === 'pack' && (
-        <PackStep packId={packId} onSelect={setPackId} locale={locale} t={t} />
+        <PackStep packId={packId} onSelect={selectPack} locale={locale} t={t} />
+      )}
+      {step === 'org' && pack && (
+        <OrgStep
+          pack={pack}
+          selectedRoles={selectedRoles}
+          onToggle={toggleRole}
+          composed={composed}
+          locale={locale}
+          t={t}
+        />
       )}
       {step === 'template' && (
         <TemplateStep
@@ -204,6 +246,7 @@ export function OnboardingWizard() {
           packId={packId!}
           templateId={templateId!}
           composed={composed}
+          selectedRoles={selectedRoles}
           locale={locale}
           t={t}
         />
@@ -263,6 +306,7 @@ function Stepper({ current, t }: { current: number; t: (k: string, p?: Record<st
   const steps = [
     { key: 'basics', label: t('onboarding.stepBasics') },
     { key: 'pack', label: t('onboarding.stepPack') },
+    { key: 'org', label: t('onboarding.stepOrg') },
     { key: 'template', label: t('onboarding.stepTemplate') },
     { key: 'review', label: t('onboarding.stepReview') },
   ];
@@ -494,7 +538,118 @@ function PackStep({
   );
 }
 
-// ── Step 3: Permission template + live preview ───────────────────────────────
+// ── Step 3: Organization structure (optional roles + reporting hierarchy) ────
+function OrgStep({
+  pack,
+  selectedRoles,
+  onToggle,
+  composed,
+  locale,
+  t,
+}: {
+  pack: IndustryPack;
+  selectedRoles: BranchRole[];
+  onToggle: (role: BranchRole) => void;
+  composed: ReturnType<typeof composeOnboarding> | null;
+  locale: Locale;
+  t: (k: string, p?: Record<string, string | number>) => string;
+}) {
+  const selected = new Set(selectedRoles);
+  // Live reporting hierarchy derived from the current selection.
+  const edges = resolveHierarchy(selectedRoles);
+  const parentOf = new Map<string, BranchRole | null>(
+    edges.map((e) => [e.roleKey, e.reportsToRoleKey] as const),
+  );
+  const recommended = composed?.recommendedScopes ?? {};
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold">{t('onboarding.orgTitle')}</h2>
+        <p className="text-sm text-muted-foreground">{t('onboarding.orgHint')}</p>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Role selection */}
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <div>
+              <h3 className="font-medium">{t('onboarding.orgRolesTitle')}</h3>
+              <p className="text-xs text-muted-foreground">{t('onboarding.orgRolesHint')}</p>
+            </div>
+            <ul className="space-y-1.5">
+              {pack.roles.map((role) => {
+                const isAdmin = role === 'admin';
+                const checked = isAdmin || selected.has(role);
+                return (
+                  <li key={role}>
+                    <label
+                      className={[
+                        'flex cursor-pointer items-center gap-3 rounded-md border p-2.5 transition-colors',
+                        checked ? 'border-primary/40 bg-primary/5' : 'border-input hover:bg-secondary/40',
+                        isAdmin ? 'cursor-not-allowed opacity-90' : '',
+                      ].join(' ')}
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-[var(--primary,#0891b2)]"
+                        checked={checked}
+                        disabled={isAdmin}
+                        onChange={() => onToggle(role)}
+                      />
+                      <span className="flex-1 text-sm font-medium">{roleLabel(role, locale)}</span>
+                      {isAdmin && <Badge variant="secondary">{t('onboarding.orgRoleMandatory')}</Badge>}
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+
+        {/* Reporting hierarchy preview */}
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <div>
+              <h3 className="font-medium">{t('onboarding.orgHierarchyTitle')}</h3>
+              <p className="text-xs text-muted-foreground">{t('onboarding.orgHierarchyHint')}</p>
+            </div>
+            <ul className="space-y-1.5 text-sm">
+              {selectedRoles.map((role) => {
+                const parent = parentOf.get(role) ?? null;
+                const depth = role === 'admin' ? 0 : isManagerRole(role, edges) ? 1 : 2;
+                const scope = recommended[role];
+                return (
+                  <li
+                    key={role}
+                    className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5"
+                    style={{ marginInlineStart: `${depth * 16}px` }}
+                  >
+                    <span className="font-medium text-foreground">{roleLabel(role, locale)}</span>
+                    <span className="text-muted-foreground">{t('onboarding.orgReportsTo')}</span>
+                    <span className="text-muted-foreground">
+                      {parent ? roleLabel(parent, locale) : t('onboarding.orgTopLevel')}
+                    </span>
+                    {scope && (
+                      <Badge variant="outline" className="ms-1">
+                        {t('onboarding.orgRecommendedScope')}: {t(SCOPE_DIM_KEY[scope] ?? 'authz.dimCompany')}
+                      </Badge>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            {!validateRoleSelection(selectedRoles).ok && (
+              <p className="text-xs text-destructive">{t('onboarding.orgAdminRequired')}</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ── Step 4: Permission template + live preview ───────────────────────────────
 function TemplateStep({
   templateId,
   onSelect,
@@ -667,6 +822,7 @@ function ReviewStep({
   packId,
   templateId,
   composed,
+  selectedRoles,
   locale,
   t,
 }: {
@@ -674,6 +830,7 @@ function ReviewStep({
   packId: IndustryPackId;
   templateId: PermissionTemplateId;
   composed: ReturnType<typeof composeOnboarding>;
+  selectedRoles: BranchRole[];
   locale: Locale;
   t: (k: string, p?: Record<string, string | number>) => string;
 }) {
@@ -681,15 +838,12 @@ function ReviewStep({
   const tpl = PERMISSION_TEMPLATES[templateId];
   const adminCreated = basics.adminPassword.length >= 6;
 
-  // scope dimension → authz dim* label key
-  const dimKey: Record<string, string> = {
-    company: 'authz.dimCompany',
-    branch: 'authz.dimBranch',
-    region: 'authz.dimRegion',
-    area: 'authz.dimArea',
-    own_customers: 'authz.dimOwnCustomers',
-    own_team: 'authz.dimOwnTeam',
-  };
+  // scope dimension → authz dim* label key (shared constant)
+  const dimKey = SCOPE_DIM_KEY;
+
+  // The chosen role subset (org structure) — always includes admin via composed.
+  const generatedRoles = composed.payload.roles;
+  void selectedRoles; // chosen subset is reflected via composed (single source of truth)
 
   const hiddenBySection = new Map<string, string[]>();
   for (const r of composed.payload.section_access) {
@@ -755,12 +909,32 @@ function ReviewStep({
 
         <ReviewCard title={t('onboarding.reviewRoles')}>
           <div className="flex flex-wrap gap-1.5">
-            {pack.roles.map((r) => (
+            {generatedRoles.map((r) => (
               <Badge key={r} variant="secondary">
                 {roleLabel(r, locale)}
               </Badge>
             ))}
           </div>
+        </ReviewCard>
+
+        <ReviewCard title={t('onboarding.reviewHierarchy')}>
+          {composed.hierarchy.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t('onboarding.reviewNoHierarchy')}</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {composed.hierarchy.map((e) => (
+                <li key={e.roleKey} className="text-muted-foreground">
+                  <span className="text-foreground">{roleLabel(e.roleKey, locale)}</span>
+                  {' '}
+                  {t('onboarding.orgReportsTo')}
+                  {' '}
+                  {e.reportsToRoleKey
+                    ? roleLabel(e.reportsToRoleKey, locale)
+                    : t('onboarding.orgTopLevel')}
+                </li>
+              ))}
+            </ul>
+          )}
         </ReviewCard>
 
         <ReviewCard title={t('onboarding.reviewLimits')}>

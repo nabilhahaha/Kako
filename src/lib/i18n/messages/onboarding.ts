@@ -11,6 +11,7 @@ export const ar = {
     // stepper
     stepBasics: 'بيانات الشركة',
     stepPack: 'باقة النشاط',
+    stepOrg: 'الهيكل التنظيمي',
     stepTemplate: 'نموذج الصلاحيات',
     stepReview: 'المراجعة',
     stepOf: 'الخطوة {current} من {total}',
@@ -54,7 +55,20 @@ export const ar = {
     packHint: 'تحدّد الباقة شكل النشاط: الوحدات والأدوار والأقسام الحسّاسة. مستقلة عن نموذج الصلاحيات.',
     packModulesRoles: '{modules} وحدة · {roles} دور',
 
-    // step 3 — template
+    // step 3 — org structure (optional roles + reporting hierarchy)
+    orgTitle: 'الهيكل التنظيمي',
+    orgHint: 'اختر الأدوار التي تحتاجها هذه الشركة. الأدوار اختيارية، ويتكيّف تسلسل التبعية تلقائياً مع اختيارك.',
+    orgRolesTitle: 'الأدوار',
+    orgRolesHint: 'كل الأدوار مُحددة افتراضياً. مدير النظام إلزامي ولا يمكن إلغاؤه.',
+    orgRoleMandatory: 'إلزامي',
+    orgHierarchyTitle: 'تسلسل التبعية',
+    orgHierarchyHint: 'يحدّد تسلسل التبعية نطاق البيانات. يمكن ضبط العمق الخاص بكل فرع بعد الإنشاء.',
+    orgReportsTo: 'يتبع لـ',
+    orgTopLevel: 'المستوى الأعلى',
+    orgRecommendedScope: 'النطاق المُوصى به',
+    orgAdminRequired: 'مدير النظام إلزامي لإكمال الإعداد.',
+
+    // step 4 — template
     templateTitle: 'اختر نموذج الصلاحيات',
     templateHint: 'يحدّد النموذج درجة التقييد: القدرات الممنوحة وحدود الاعتماد والأقسام المخفية. يمكن دمج أي نموذج مع أي باقة.',
     previewTitle: 'معاينة مباشرة',
@@ -82,9 +96,11 @@ export const ar = {
     reviewSections: 'وصول الأقسام',
     reviewSectionsHidden: 'مخفية عن: {roles}',
     reviewScopes: 'النطاقات المُوصى بها',
+    reviewHierarchy: 'تسلسل التبعية',
     reviewNoLimits: 'بدون حدود اعتماد.',
     reviewNoSections: 'لا أقسام مخفية.',
     reviewNoScopes: 'بدون نطاقات موصى بها.',
+    reviewNoHierarchy: 'بدون تسلسل تبعية.',
 
     // status / creating
     errorTitle: 'تعذّر إنشاء الشركة',
@@ -116,6 +132,7 @@ export const en = {
     // stepper
     stepBasics: 'Company',
     stepPack: 'Industry Pack',
+    stepOrg: 'Org Structure',
     stepTemplate: 'Permissions',
     stepReview: 'Review',
     stepOf: 'Step {current} of {total}',
@@ -159,7 +176,20 @@ export const en = {
     packHint: 'The pack shapes the vertical: modules, roles and sensitive sections. Independent from the permission template.',
     packModulesRoles: '{modules} modules · {roles} roles',
 
-    // step 3 — template
+    // step 3 — org structure (optional roles + reporting hierarchy)
+    orgTitle: 'Organization structure',
+    orgHint: 'Choose the roles this company needs. Roles are optional, and the reporting hierarchy adapts to your selection automatically.',
+    orgRolesTitle: 'Roles',
+    orgRolesHint: 'All roles are selected by default. Company Admin is mandatory and cannot be removed.',
+    orgRoleMandatory: 'Mandatory',
+    orgHierarchyTitle: 'Reporting hierarchy',
+    orgHierarchyHint: 'Reporting hierarchy drives data scope. Branch-specific depth can be set after creation.',
+    orgReportsTo: 'reports to',
+    orgTopLevel: 'Top level',
+    orgRecommendedScope: 'Recommended scope',
+    orgAdminRequired: 'Company Admin is required to complete setup.',
+
+    // step 4 — template
     templateTitle: 'Select permission template',
     templateHint: 'The template decides how locked-down it is: granted capabilities, approval limits and hidden sections. Any template combines with any pack.',
     previewTitle: 'Live preview',
@@ -187,9 +217,11 @@ export const en = {
     reviewSections: 'Section access',
     reviewSectionsHidden: 'Hidden from: {roles}',
     reviewScopes: 'Recommended scopes',
+    reviewHierarchy: 'Reporting hierarchy',
     reviewNoLimits: 'No approval limits.',
     reviewNoSections: 'No hidden sections.',
     reviewNoScopes: 'No recommended scopes.',
+    reviewNoHierarchy: 'No reporting hierarchy.',
 
     // status / creating
     errorTitle: 'Could not create the company',

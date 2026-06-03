@@ -1,16 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { ShieldCheck, MapPin, Gauge, Layers } from 'lucide-react';
+import { ShieldCheck, MapPin, Gauge, Layers, Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/provider';
 import { CapabilityMatrix } from './capability-matrix';
 import { ScopePanel } from './scope-panel';
 import { LimitsPanel } from './limits-panel';
 import { SectionAccessPanel } from './section-access-panel';
+import { OrgStructurePanel } from './org-structure-panel';
 import type { AuthzConsoleData } from '@/lib/erp/authz-console-server';
 
-type Tab = 'capabilities' | 'scope' | 'limits' | 'sections';
+type Tab = 'capabilities' | 'scope' | 'limits' | 'sections' | 'org';
 
 /** VANTORA Authorization Console — one page, four authorization surfaces.
  *  Mobile-first: the tab strip scrolls horizontally on small screens. */
@@ -29,6 +30,7 @@ export function AuthzConsole({
     { id: 'scope', label: t('authz.tabScope'), icon: MapPin },
     { id: 'limits', label: t('authz.tabLimits'), icon: Gauge },
     { id: 'sections', label: t('authz.tabSections'), icon: Layers },
+    { id: 'org', label: t('authz.tabOrg'), icon: Network },
   ];
 
   return (
@@ -73,6 +75,7 @@ export function AuthzConsole({
       )}
       {tab === 'limits' && <LimitsPanel members={data.members} roles={data.roles} limitRows={data.limitRows} />}
       {tab === 'sections' && <SectionAccessPanel entities={entities} />}
+      {tab === 'org' && <OrgStructurePanel />}
     </div>
   );
 }
