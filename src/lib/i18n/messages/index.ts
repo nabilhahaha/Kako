@@ -48,6 +48,7 @@ import * as attachments from './attachments';
 import * as fieldGovernance from './field-governance';
 import * as activity from './activity';
 import * as analytics from './analytics';
+import * as authz from './authz';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -56,7 +57,7 @@ const MODULES = [
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
   importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, notifications,
   electrical, regions, customerData, pricing, attachments, fieldGovernance,
-  activity, analytics,
+  activity, analytics, authz,
 ];
 
 type Catalog = Record<string, unknown>;

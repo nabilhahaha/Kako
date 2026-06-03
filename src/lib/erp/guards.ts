@@ -2,6 +2,18 @@ import { redirect } from 'next/navigation';
 import { getUserContext, type UserContext } from './auth-context';
 import type { Module } from './navigation';
 import type { Permission } from './permissions';
+import { can as canCapability, canAny as canAnyCapability } from './capabilities';
+
+// ─── Authorization Phase 2 — granular capability resolver (runtime wiring) ────
+//
+// Re-export the pure, client-usable capability resolver from `capabilities.ts`
+// so call sites can import a single granular API from `guards`. These resolve a
+// GRANULAR (`module.resource.action`) or legacy flat key through the alias layer
+// (`expandAliases`), so a granular check passes for any role whose stored flat
+// perms alias-expand to it. Super admins hold everything. This is additive and
+// fully interoperable with `hasPermission`/`requirePermission` (which stay).
+export { can, canAny } from './capabilities';
+export type { CapabilityContext } from './capabilities';
 
 export interface ActionResult<T = unknown> {
   ok: boolean;
@@ -61,6 +73,32 @@ export async function requireAnyPermission(perms: Permission[]): Promise<UserCon
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (ctx.isSuperAdmin || perms.some((p) => ctx.permissions.includes(p))) return ctx;
+  redirect('/dashboard');
+}
+
+/**
+ * Page/layout guard: ensure the user holds a GRANULAR (or legacy flat)
+ * capability, resolved through the alias layer (`expandAliases`). Super admins
+ * hold all. Redirects to the dashboard when the capability is missing. This is
+ * the granular-aware companion to `requirePermission`; cutover-safe because any
+ * role whose flat perms alias-expand to `capability` still passes.
+ */
+export async function requireCapability(capability: string): Promise<UserContext> {
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+  if (canCapability(ctx, capability)) return ctx;
+  redirect('/dashboard');
+}
+
+/**
+ * Page/layout guard: ensure the user holds ANY of the given granular (or legacy
+ * flat) capabilities, resolved through the alias layer. Super admins hold all.
+ * Redirects to the dashboard when none are present.
+ */
+export async function requireAnyCapability(capabilities: string[]): Promise<UserContext> {
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+  if (canAnyCapability(ctx, capabilities)) return ctx;
   redirect('/dashboard');
 }
 

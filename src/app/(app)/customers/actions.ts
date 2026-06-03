@@ -2,13 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireAuth, can, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
 import { validateCustomValues } from '@/lib/erp/form-schema';
 import { coerceCustomValue } from '@/lib/erp/custom-fields';
 import { getT } from '@/lib/i18n/server';
 import { isCompanyWide } from '@/lib/erp/scope';
-import { hasPermission } from '@/lib/erp/permissions';
 import { applyWorkflowOutcome, type WorkflowOutcome } from '@/lib/erp/workflow-handlers';
 import { sensitiveChanges } from '@/lib/erp/customer-approval';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
@@ -157,7 +156,8 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     prevStatus = (prev as { customer_status?: string } | null)?.customer_status ?? null;
   }
   const statusChanged = id ? customerStatus !== prevStatus : customerStatus !== 'active';
-  if (statusChanged && !hasPermission(ctx, 'customers.change_status')) {
+  // authz P2: alias-covered granular capability (customers.change_status → customers.status.change).
+  if (statusChanged && !can(ctx, 'customers.status.change')) {
     return { ok: false, error: t('customers.errStatusDenied') };
   }
   const auditStatus = async (recordId: string) => {
@@ -377,7 +377,8 @@ async function decideCustomer(id: string, decision: 'approve' | 'reject', reason
   const { ctx } = await requireAuth();
   const { t } = await getT();
   if (!ctx) return { ok: false, error: t('customers.errUnauthorized') };
-  if (!hasPermission(ctx, 'customers.approve')) return { ok: false, error: t('customers.errApproveDenied') };
+  // authz P2: alias-covered granular capability (customers.approve → customers.approval.approve).
+  if (!can(ctx, 'customers.approval.approve')) return { ok: false, error: t('customers.errApproveDenied') };
   if (decision === 'reject' && !(reason && reason.trim())) return { ok: false, error: t('customers.errRejectReason') };
 
   const supabase = await createClient();

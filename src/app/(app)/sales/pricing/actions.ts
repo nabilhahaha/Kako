@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
-import { hasPermission } from '@/lib/erp/permissions';
+import { requireAuth, can, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { resolvePrice } from '@/lib/erp/pricing-server';
 
 /** Pricing management (P-b). Rule/list CRUD gated by pricing.manage; the line
@@ -12,7 +11,8 @@ import { resolvePrice } from '@/lib/erp/pricing-server';
 async function guard(): Promise<{ ok: true; companyId: string } | { ok: false; error: string }> {
   const { ctx, error } = await requireAuth();
   if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
-  if (!ctx.companyId || !hasPermission(ctx, 'pricing.manage')) return { ok: false, error: 'unauthorized' };
+  // authz P2: alias-covered granular capability (pricing.manage → pricing.rule.edit).
+  if (!ctx.companyId || !can(ctx, 'pricing.rule.edit')) return { ok: false, error: 'unauthorized' };
   return { ok: true, companyId: ctx.companyId };
 }
 

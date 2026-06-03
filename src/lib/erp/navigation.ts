@@ -337,6 +337,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage', group: 'nav.groups.integrations' },
       // ── Governance ──
+      { label: 'nav.items.authzConsole', href: '/settings/authz', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.governance' },
       { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs', group: 'nav.groups.governance' },
