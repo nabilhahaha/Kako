@@ -27,6 +27,47 @@ export const ar = {
       noCompanies: 'لا توجد شركات بعد. أنشئ أول شركة من صفحة الإدارة.',
       branchCount: 'فرع',
       userCount: 'مستخدم',
+      // KPI strip (cockpit)
+      statTrialVsPaid: 'تجريبي / مدفوع',
+      statExpiringWeek: 'اشتراكات توشك على الانتهاء',
+      statActiveUsers: 'المستخدمون النشطون',
+      // integration health card
+      integrationTitle: 'صحة التكاملات',
+      integrationActiveConnections: 'اتصالات مفعّلة',
+      integrationCompanies: 'شركات بها تكاملات',
+      integrationApiKeys: 'مفاتيح API مفعّلة',
+      integrationSyncJobs: 'مهام مزامنة مفعّلة',
+      integrationFailedRuns: 'تشغيلات مزامنة فاشلة (٧ أيام)',
+      integrationNone: 'لا توجد بيانات تكاملات بعد.',
+      // system alerts card
+      alertsTitle: 'تنبيهات النظام',
+      alertsAllClear: 'كل شيء على ما يرام',
+      alertsAllClearHint: 'لا توجد اشتراكات منتهية أو شركات موقوفة تحتاج انتباهك.',
+      alertExpired: 'اشتراك منتهٍ',
+      alertExpiring: 'اشتراك يوشك على الانتهاء',
+      alertSuspended: 'شركة موقوفة',
+      alertNoModules: 'شركة بدون وحدات مفعّلة',
+      // quick actions card
+      quickActionsTitle: 'إجراءات سريعة',
+      qaNewCompany: 'شركة جديدة',
+      qaInviteStaff: 'دعوة موظف',
+      qaViewAudit: 'سجل التدقيق',
+      qaBilling: 'الفوترة والاشتراكات',
+      // platform attention center
+      attnTitle: 'مركز الانتباه',
+      attnAllClear: 'كل شيء على ما يرام',
+      attnAllClearHint: 'لا توجد إشارات تحتاج انتباهك الآن.',
+      attnDrillDown: 'عرض التفاصيل',
+      attnNever: 'بدون نشاط',
+      attnExpiring: 'اشتراكات توشك على الانتهاء (٧ أيام)',
+      attnPending: 'طلبات موافقة معلّقة',
+      attnNoUsers: 'شركات بدون مستخدمين نشطين',
+      attnNoActivity: 'شركات بدون نشاط (٣٠ يوم)',
+      attnFailedSync: 'تشغيلات مزامنة فاشلة (٧ أيام)',
+      attnAnomaly: 'عمليات حساسة كثيرة (٢٤ ساعة)',
+      // recent audit activity card
+      recentAuditTitle: 'أحدث النشاط',
+      recentAuditEmpty: 'لا يوجد نشاط مسجّل بعد.',
     },
 
     // ── subscription state badges ──────────────────────────────────
@@ -290,7 +331,7 @@ export const ar = {
     // ── audit log page ─────────────────────────────────────────────
     audit: {
       title: 'سجل التدقيق',
-      description: 'أحدث ٢٠٠ عملية حساسة على المنصّة (صلاحيات، مستخدمون، شركات، اشتراكات).',
+      description: 'أحدث العمليات الحساسة على المنصّة (صلاحيات، مستخدمون، شركات، اشتراكات).',
       empty: 'لا توجد عمليات مسجّلة بعد.',
       thTime: 'الوقت',
       thActor: 'المنفّذ',
@@ -298,6 +339,23 @@ export const ar = {
       thEntity: 'العنصر',
       thCompany: 'الشركة',
       thDetails: 'تفاصيل',
+      thSummary: 'الملخّص',
+      // view toggle + timeline
+      viewTable: 'جدول',
+      viewTimeline: 'الخط الزمني',
+      dayToday: 'اليوم',
+      dayYesterday: 'أمس',
+      // client filters
+      searchPlaceholder: 'بحث بالمنفّذ أو المعرّف أو التفاصيل…',
+      filterActionAll: 'كل العمليات',
+      filterEntityAll: 'كل العناصر',
+      filterActorAll: 'كل المنفّذين',
+      filterDateAll: 'كل الفترات',
+      filterDateToday: 'اليوم',
+      filterDate7d: 'آخر ٧ أيام',
+      filterDate30d: 'آخر ٣٠ يوم',
+      noResults: 'لا توجد عمليات مطابقة.',
+      noResultsHint: 'جرّب تعديل البحث أو الفلاتر.',
     },
 
     // ── drugs (Egyptian drug list) page ────────────────────────────
@@ -366,6 +424,47 @@ export const en = {
       noCompanies: 'No companies yet. Create the first one from the management page.',
       branchCount: 'branch(es)',
       userCount: 'user(s)',
+      // KPI strip (cockpit)
+      statTrialVsPaid: 'Trial / Paid',
+      statExpiringWeek: 'Expiring Subscriptions',
+      statActiveUsers: 'Active Users',
+      // integration health card
+      integrationTitle: 'Integration Health',
+      integrationActiveConnections: 'Active connections',
+      integrationCompanies: 'Companies with integrations',
+      integrationApiKeys: 'Active API keys',
+      integrationSyncJobs: 'Active sync jobs',
+      integrationFailedRuns: 'Failed sync runs (7d)',
+      integrationNone: 'No integration data yet.',
+      // system alerts card
+      alertsTitle: 'System Alerts',
+      alertsAllClear: 'All clear',
+      alertsAllClearHint: 'No expired subscriptions or suspended companies need your attention.',
+      alertExpired: 'Expired subscription',
+      alertExpiring: 'Subscription expiring soon',
+      alertSuspended: 'Suspended company',
+      alertNoModules: 'Company with no enabled modules',
+      // quick actions card
+      quickActionsTitle: 'Quick Actions',
+      qaNewCompany: 'New Company',
+      qaInviteStaff: 'Invite Staff',
+      qaViewAudit: 'View Audit',
+      qaBilling: 'Billing & Subscriptions',
+      // platform attention center
+      attnTitle: 'Platform Attention Center',
+      attnAllClear: 'All clear',
+      attnAllClearHint: 'No signals need your attention right now.',
+      attnDrillDown: 'View details',
+      attnNever: 'no activity',
+      attnExpiring: 'Expiring subscriptions (7d)',
+      attnPending: 'Pending approval requests',
+      attnNoUsers: 'Companies with no active users',
+      attnNoActivity: 'Companies inactive 30 days',
+      attnFailedSync: 'Failed sync runs (7d)',
+      attnAnomaly: 'Sensitive actions spike (24h)',
+      // recent audit activity card
+      recentAuditTitle: 'Recent Activity',
+      recentAuditEmpty: 'No activity logged yet.',
     },
 
     // ── subscription state badges ──────────────────────────────────
@@ -629,7 +728,7 @@ export const en = {
     // ── audit log page ─────────────────────────────────────────────
     audit: {
       title: 'Audit Log',
-      description: 'Latest 200 sensitive operations on the platform (permissions, users, companies, subscriptions).',
+      description: 'Latest sensitive operations on the platform (permissions, users, companies, subscriptions).',
       empty: 'No operations logged yet.',
       thTime: 'Time',
       thActor: 'Actor',
@@ -637,6 +736,23 @@ export const en = {
       thEntity: 'Entity',
       thCompany: 'Company',
       thDetails: 'Details',
+      thSummary: 'Summary',
+      // view toggle + timeline
+      viewTable: 'Table',
+      viewTimeline: 'Timeline',
+      dayToday: 'Today',
+      dayYesterday: 'Yesterday',
+      // client filters
+      searchPlaceholder: 'Search actor, entity id or details…',
+      filterActionAll: 'All actions',
+      filterEntityAll: 'All entities',
+      filterActorAll: 'All actors',
+      filterDateAll: 'All time',
+      filterDateToday: 'Today',
+      filterDate7d: 'Last 7 days',
+      filterDate30d: 'Last 30 days',
+      noResults: 'No matching operations.',
+      noResultsHint: 'Try adjusting your search or filters.',
     },
 
     // ── drugs (Egyptian drug list) page ────────────────────────────
