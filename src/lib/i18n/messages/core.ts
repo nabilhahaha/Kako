@@ -148,6 +148,7 @@ export const ar = {
     },
     items: {
       overview: 'نظرة عامة',
+      activityFeed: 'سجل النشاط',
       companies: 'الشركات والاشتراكات',
       billing: 'الفوترة والاشتراكات',
       platformStaff: 'موظفو المنصة',
@@ -384,6 +385,7 @@ export const en = {
     },
     items: {
       overview: 'Overview',
+      activityFeed: 'Activity Feed',
       companies: 'Companies & Subscriptions',
       billing: 'Billing & Subscriptions',
       platformStaff: 'Platform Staff',
