@@ -67,6 +67,70 @@ export const ar = {
     // graceful degradation
     sectionUnavailable: 'البيانات غير متاحة حاليًا.',
   },
+
+  // Per-company operational analytics (platform owner views ONE company) —
+  // read-only aggregates: sales, AR, collections, top customers/products, route
+  // coverage, new vs returning. All amounts in the company's own currency.
+  companyAnalytics: {
+    title: 'تحليلات الشركة',
+    description: 'نظرة تشغيلية على مبيعات الشركة وتحصيلاتها وعملائها ومنتجاتها وتغطية المندوبين.',
+    backToCompany: 'العودة إلى ملف الشركة',
+    viewAnalytics: 'عرض التحليلات',
+    currencyNote: 'كل المبالغ بعملة الشركة ({currency}).',
+
+    // T1 KPIs
+    kpiTitle: 'المؤشرات الرئيسية',
+    kpiSalesMonth: 'مبيعات هذا الشهر',
+    kpiArOutstanding: 'الذمم المدينة القائمة',
+    kpiActiveCustomers: 'العملاء النشطون',
+    kpiCollectionRate: 'معدّل التحصيل',
+    kpiActiveCustomersHint: 'عملاء لديهم فاتورة واحدة على الأقل ضمن النطاق',
+
+    // sales over time
+    salesTitle: 'المبيعات خلال آخر ٦ أشهر',
+    salesSubtitle: 'صافي المبيعات لكل شهر',
+    salesEmpty: 'لا توجد بيانات مبيعات.',
+    salesUnit: 'مبيعات',
+
+    // collections over time
+    collectionsTitle: 'التحصيلات عبر الزمن',
+    collectionsSubtitle: 'المدفوعات المستلمة لكل شهر',
+    collectionsEmpty: 'لا توجد بيانات تحصيل.',
+    collectionsUnit: 'تحصيلات',
+
+    // top customers
+    topCustomersTitle: 'أبرز العملاء',
+    topCustomersSubtitle: 'حسب صافي المبيعات ضمن النطاق',
+    topCustomersEmpty: 'لا يوجد عملاء لعرضهم.',
+
+    // top products
+    topProductsTitle: 'أبرز المنتجات',
+    topProductsSubtitle: 'حسب الإيراد ضمن النطاق',
+    topProductsEmpty: 'لا توجد منتجات لعرضها.',
+
+    // route coverage (FMCG visits)
+    coverageTitle: 'تغطية المندوبين',
+    coverageSubtitle: 'الزيارات والمكالمات المنتجة ومعدّل النجاح ضمن النطاق',
+    coverageEmpty: 'لا توجد بيانات زيارات.',
+    coverageVisits: 'إجمالي الزيارات',
+    coverageProductive: 'مكالمات منتجة',
+    coverageStrikeRate: 'معدّل النجاح',
+    coverageVisitedCustomers: 'عملاء تمت زيارتهم',
+
+    // new vs returning
+    newReturningTitle: 'عملاء جدد مقابل عائدين',
+    newReturningSubtitle: 'العملاء المُنشأون ضمن النطاق مقابل العملاء القائمين النشطين',
+    newReturningEmpty: 'لا يوجد نشاط للعملاء ضمن النطاق.',
+    newCustomers: 'عملاء جدد',
+    returningCustomers: 'عملاء عائدون',
+
+    // units / generic
+    customersUnit: 'عميل',
+    productsUnit: 'منتج',
+    sectionUnavailable: 'البيانات غير متاحة حاليًا.',
+    noBranches: 'لا توجد فروع لهذه الشركة، لذا لا تتوفر تحليلات تشغيلية.',
+    ownerOnly: 'هذه الصفحة متاحة لمالك المنصّة فقط.',
+  },
 } as const;
 
 export const en = {
@@ -124,5 +188,58 @@ export const en = {
     typeUnknown: 'Unspecified',
 
     sectionUnavailable: 'Data is currently unavailable.',
+  },
+
+  companyAnalytics: {
+    title: 'Company Analytics',
+    description: 'An operational view of this company’s sales, collections, customers, products and route coverage.',
+    backToCompany: 'Back to company',
+    viewAnalytics: 'View analytics',
+    currencyNote: 'All amounts are in the company’s currency ({currency}).',
+
+    kpiTitle: 'Headline metrics',
+    kpiSalesMonth: 'Sales this month',
+    kpiArOutstanding: 'AR outstanding',
+    kpiActiveCustomers: 'Active customers',
+    kpiCollectionRate: 'Collection rate',
+    kpiActiveCustomersHint: 'Customers with at least one invoice in the window',
+
+    salesTitle: 'Sales over last 6 months',
+    salesSubtitle: 'Net sales per month',
+    salesEmpty: 'No sales data.',
+    salesUnit: 'sales',
+
+    collectionsTitle: 'Collections over time',
+    collectionsSubtitle: 'Payments received per month',
+    collectionsEmpty: 'No collections data.',
+    collectionsUnit: 'collected',
+
+    topCustomersTitle: 'Top customers',
+    topCustomersSubtitle: 'By net sales within the window',
+    topCustomersEmpty: 'No customers to show.',
+
+    topProductsTitle: 'Top products',
+    topProductsSubtitle: 'By revenue within the window',
+    topProductsEmpty: 'No products to show.',
+
+    coverageTitle: 'Route coverage',
+    coverageSubtitle: 'Visits, productive calls and strike rate within the window',
+    coverageEmpty: 'No visit data.',
+    coverageVisits: 'Total visits',
+    coverageProductive: 'Productive calls',
+    coverageStrikeRate: 'Strike rate',
+    coverageVisitedCustomers: 'Customers visited',
+
+    newReturningTitle: 'New vs returning customers',
+    newReturningSubtitle: 'Customers created in the window vs existing active customers',
+    newReturningEmpty: 'No customer activity in the window.',
+    newCustomers: 'New customers',
+    returningCustomers: 'Returning customers',
+
+    customersUnit: 'customers',
+    productsUnit: 'products',
+    sectionUnavailable: 'Data is currently unavailable.',
+    noBranches: 'This company has no branches, so operational analytics are unavailable.',
+    ownerOnly: 'This page is available to the platform owner only.',
   },
 } as const;
