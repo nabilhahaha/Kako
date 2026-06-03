@@ -1,6 +1,6 @@
 # VANTORA Authorization Model
 
-**Status:** Specification v1.1 — _design only_. No implementation, no schema, not merged, not deployed.
+**Status:** Specification v1.2 — _design only_. No implementation, no schema, not merged, not deployed.
 **Scope:** Tenant (company) authorization. The platform-owner/provider permission tier is separate and out of scope (see §13).
 **Authority:** This document is the authoritative reference for all future authorization work. Code and migrations must conform to it; deviations require an amendment here first.
 
@@ -68,7 +68,8 @@ customers.view                    customers.financials.view
 customers.create                  customers.status.change
 customers.edit.basic              customers.change_request.create
 customers.edit.location           customers.change_request.approve
-customers.approval.approve        customers.export
+customers.delete                  customers.approval.approve
+customers.export
 ```
 
 ### 3.5 Inventory
@@ -253,25 +254,40 @@ The constraint axis unifies *who can approve* with *up to how much*.
 
 ## 10. Audit requirements
 
-All **override administration** is mandatory-audited through the existing `erp_audit_logs` pipeline (feeds Platform → Audit Logs and the per-company Audit tab).
+**Every change to the authorization model is mandatory-audited** — not only per-user overrides, but role→capability grants, scope assignments, and limit/constraint changes. All flow through the existing `erp_audit_logs` pipeline (feeds Platform → Audit Logs and the per-company Audit tab).
 
-**Audit entity:** `user_permission_override` · **Actions:** `grant · deny · revoke · modify`
+### 10.1 Common audit envelope
+Every audited permission change records the same core fields:
 
 | Field | Content |
 |---|---|
-| actor | admin who made the change (email + id) |
-| target_user | user the override applies to |
-| capability | `module.resource.action` key |
-| effect | `grant` / `deny` (+ prior value on `modify` / `revoke`) |
+| actor | who made the change (email + user id) |
+| target | who/what the change applies to (role key, or user id) |
+| subject | the thing changed (`module.resource.action` capability, scope dimension, or constraint type) |
+| before → after | prior value → new value (full reconstruction; `null → x` on create, `x → null` on revoke) |
 | reason | **required** justification (enforced in UI) |
 | company_id, timestamp | tenant + when |
 
-**Rules:**
-- Every create/modify/revoke of an `erp_user_permission_overrides` row writes one audit entry **in the same transaction** — no silent overrides.
-- `modify` / `revoke` capture **before→after** for full reconstruction.
-- Overrides surface in the matrix UI with an "exception" badge showing granting admin, date, and reason.
-- **Optional, config-gated runtime audit:** log when a `deny`/`grant` override actually changed an authorization outcome at action time. Default **off** (volume); enable for high-sensitivity tenants.
-- **Retention:** override audit is part of the audit trail and is **excluded** from the retention purge (consistent with `0119`).
+### 10.2 Audited entities & actions
+| Entity | Covers | Actions |
+|---|---|---|
+| `role_permission` | role → capability grants (`erp_company_role_permissions`) | `grant · revoke` |
+| `role_scope` | per-assignment scope (`erp_role_scope`) | `set · modify · clear` |
+| `role_constraint` | limits/constraints (`erp_role_permission_constraints`) | `set · modify · clear` |
+| `user_permission_override` | per-user grant/deny exceptions (`erp_user_permission_overrides`) | `grant · deny · modify · revoke` |
+
+Worked examples of the `before → after` capture:
+- `role_permission` — *actor* Admin · *target* role `supervisor` · *subject* `sales.return.approve` · `present → absent` · action `revoke`.
+- `role_constraint` — *target* role `regional_manager` · *subject* `discount.max_pct` · `10 → 5` · action `modify`.
+- `role_scope` — *target* assignment (user U, role `branch_manager`) · *subject* `dimension` · `branch[A] → region[R1]` · action `modify`.
+- `user_permission_override` — *target* user U · *subject* `sales.invoice.discount` · `default → deny` · action `deny`.
+
+### 10.3 Rules
+- Every create/modify/revoke of a permission, scope, constraint, or override row writes one audit entry **in the same transaction** — no silent changes.
+- `modify`/`revoke`/`clear` always capture **before→after** for full reconstruction.
+- Overrides also surface in the matrix UI with an "exception" badge showing the granting admin, date, and reason; role/scope/constraint changes are reviewable in the audit log.
+- **Optional, config-gated runtime audit:** log when a `deny`/`grant` override actually changed an authorization *outcome* at action time. Default **off** (volume); enable for high-sensitivity tenants.
+- **Retention:** all permission-change audit is part of the audit trail and is **excluded** from the retention purge (consistent with `0119`).
 
 ---
 
@@ -362,7 +378,8 @@ Production migrations are forward-only; rollback is via PITR (project rule). Eac
 | Scope | per-assignment; dimensions company/branch/region/area/own_customers/own_team |
 | `own_team` depth | transitive (whole subtree), index-friendly |
 | Constraints | first-class axis (discount %, approval amount, credit, price override, return, writeoff); workflow auto-routing |
-| Per-user overrides | grant/deny, exception-only, **deny wins**, mandatory audit |
+| Per-user overrides | grant/deny, exception-only, **deny wins** |
+| Audit scope | **all** permission changes — role permissions, scope, constraints, overrides — with actor/target/before→after/reason/timestamp |
 | Resolution order | Role → Scope → Limits → Overrides |
 | Export | one capability per module; respects scope/limits/DFG; no global export |
 | Field-level | Dynamic Field Governance (existing) |
