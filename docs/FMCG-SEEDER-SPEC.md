@@ -1,6 +1,6 @@
 # FMCG Seeder Specification — "FreshLine Distribution"
 
-**Status:** Specification v1 — _awaiting approval before execution_. **No data has been generated.** Disposable test environment only; no production, no production data.
+**Status:** Specification **v1.1 — APPROVED; decisions locked (§11); execution authorized in a disposable test environment only.** No production data, no production deployment.
 **Purpose:** Define exactly what the Phase 1 Seeder will create so it can be approved before any run. The seeded tenant becomes the durable foundation for UAT, role testing, dashboard/accounting/stock/workflow validation, and performance testing.
 **Authorization:** uses the **current production-equivalent** model exactly as reviewed (flat permission keys, role-based scope RLS). Auth P1 (granular catalog) is delivered separately and is **not** required here.
 **Currency:** **EGP** (tenant base). No SAR/provider FX involved.
@@ -49,23 +49,22 @@ FreshLine Distribution
 
 ---
 
-## 3. Users & roles
-
-Exactly per request, plus one **proposed addition** (flagged) needed to drive warehouse write paths.
+## 3. Users & roles  _(decisions locked)_
 
 | # | Role (current key) | Count | Scope (current RLS) | Purpose |
 |---|---|---|---|---|
 | 1 | `admin` | **1** | company | tenant owner; settings, oversight |
-| 2 | `regional_manager` | **3** | region (1 each) | regional commercial mgmt + approvals (view) |
-| 3 | `supervisor` | **2** | own_team | supervise rep teams (~10 reps each) |
-| 4 | `salesman` | **20** | own_customers (route) | orders/invoices/collections/visits/stock requests |
-| 5 | `accountant` (Finance) | **2** | company | journals, collections, supplier settlement |
-| — | **Total named (per request)** | **28** | | |
-| 6 | `warehouse_keeper` *(proposed)* | **3** | branch/warehouse | receive stock, approve loading, transfers — **required to run warehouse write paths**; 1 per warehouse |
+| 2 | `regional_manager` | **3** | region (1 each) | regional commercial mgmt |
+| 3 | `branch_manager` | **3** | branch (1 each) | branch ops; **approve sales returns** (decision #3) |
+| 4 | `supervisor` | **3** | own_team | supervise rep teams (1 per branch — decision #2) |
+| 5 | `salesman` | **20** | own_customers (route) | orders/invoices/collections/visits/stock requests |
+| 6 | `accountant` (Finance) | **2** | company | journals, collections, supplier settlement |
+| 7 | `warehouse_keeper` | **3** | branch/warehouse | receive stock, approve loading, transfers (1 per warehouse — decision #1) |
+| — | **Total** | **35** | | (28 named per request + 3 supervisors→3rd, +3 branch mgrs, +3 warehouse keepers; reps spread ~7/7/6) |
 
-**Org wiring:** each rep has `reports_to` a supervisor; supervisors/branches sit under a region; `erp_user_branches` populated so scope RLS (`0104/0105`) resolves correctly. The 2 supervisors cover 2 of the 3 branches; the third branch's reps report directly to a regional manager (flagged for your call in §11).
+**Org wiring:** each rep has `reports_to` its branch supervisor; each branch has a `branch_manager` and a `supervisor`; branches sit under regions with a `regional_manager`; `erp_user_branches` populated so scope RLS (`0104/0105`) resolves correctly. With **3 supervisors** (one per branch), every rep team reports cleanly within its branch (decision #2).
 
-> **Not included** (per your list): branch managers. Return-approval routing (a `branch_manager`/workflow concern) is **P4-gated** anyway — see §7. If you want returns *approved* in this run, we add branch managers; otherwise return **effects** are validated and approval routing is deferred.
+> **Return approvals (decision #3):** branch managers approve sales returns via the **real returns-approval path**. Phase 0 confirms whether that path is the dedicated returns-approve action (runnable now) or the generic workflow amount-routing (P4-gated); if the latter, the approval *step* is flagged at Phase 0 while return *effects* still post. Over-limit **discount/writeoff** approval routing remains **P4-gated** and out of this run.
 
 ---
 
@@ -122,15 +121,16 @@ Direct-insert masters: ~30 suppliers across the product categories, with payment
 | Purchase orders | PO create → receipt | ~10 | ~40 |
 | Stock requests → transfers | `stock_request.create` → approve/load → warehouse→rep transfer | ~40 | ~150 |
 | Invoices / orders | sales invoice/order server action (`erp_next_number`, journals) | ~800 | **~5,000** |
-| Sales returns (effects) | return create → stock ↑ / AR ↓ / journal | ~80 | ~500 |
+| Sales returns + **approval** | return create → **branch-manager approve** (decision #3) → stock ↑ / AR ↓ / journal | ~80 | ~500 |
 | Collections | `erp_record_payment` (+ `idempotency_key`, replayed) | ~500 | ~3,000 |
 | Supplier settlements | supplier payment path → AP ↓ | ~10 | ~30 |
 | Visits (route coverage) | visit-logging path (productive subset → invoice) | ~2,000 | **~10,000** |
 | Stocktake adjustments | `inventory.adjust` path | ~5 | ~20 |
 
-**Gated / deferred in this run:**
-- **Approval routing** for over-limit **discounts / returns / writeoffs** is **P4-gated** (needs authz Phase 4 + workflow triggers/handlers). Built approval flows (customer onboarding, change request, credit-limit) are exercised; the others' *effects* are validated, *routing* deferred.
-- **Near-expiry, promotions/trade-spend, tasks/calendar** are documented gaps (no schema) — not generated.
+**Window:** **8 weeks** simulated (decision #4). **Scale:** **Smoke first → Full after smoke passes** (decision #5).
+
+**In scope:** sales-return approvals run with branch managers (decision #3), plus the built approval flows (customer onboarding, change request, credit-limit).
+**Gated / deferred:** over-limit **discount / writeoff** approval routing is **P4-gated** (needs authz Phase 4); **near-expiry, promotions/trade-spend, tasks/calendar** are documented gaps (no schema) — not generated.
 
 ---
 
@@ -151,14 +151,20 @@ UAT · role/scope testing (the persona matrix) · dashboard validation · **acco
 
 ---
 
-## 11. Open decisions (please confirm before execution)
-1. **Warehouse keepers (×3)** — add them (recommended, needed to run receiving/transfer write paths) or route warehouse ops through `admin`?
-2. **Third branch's reps** — report to a supervisor (add a 3rd supervisor) or to a regional manager (keep your "2 supervisors")?
-3. **Branch managers / return approval** — add branch managers so returns are *approved* in-run, or validate return *effects* only and defer approval routing to P4?
-4. **Simulated window** — 8 weeks (default) or another span?
-5. **Scale** — confirm smoke-first, then full (1,000 customers / ~5,000 invoices).
+## 11. Decisions — RESOLVED
+1. **Warehouse keepers (×3)** — ✅ added (1 per warehouse).
+2. **Third branch's reps** — ✅ added a **3rd supervisor** (one supervisor per branch).
+3. **Branch managers / return approval** — ✅ added **3 branch managers**; **return approvals run** in the simulation.
+4. **Simulated window** — ✅ **8 weeks**.
+5. **Scale** — ✅ **Smoke first → Full** after smoke passes.
 
 ---
 
-## 12. Status
-**Awaiting approval. No seeding, no branch DB, no transactions have run.** On approval (and answers to §11), execution begins at Phase 0 (write-path confirmation), then Seeder masters → opening stock → transaction generator, smoke before full.
+## 12. Status & execution prerequisites
+**Approved; decisions locked. No seeding, no branch DB, no transactions have run yet.**
+
+**Execution prerequisite — a disposable database must be provisioned.** The current build container has **no reachable DB** (`TEST_DATABASE_URL` unset; no local Postgres). Both tracks need one:
+- **Track A** (automated assertions): a Postgres reachable via `TEST_DATABASE_URL` with migrations applied.
+- **Track B** (manual UAT): a **Supabase branch DB** (incurs branch cost on the Supabase org) with migrations applied.
+
+On a provisioned disposable DB, execution proceeds: **Phase 0** (write-path confirmation — in progress) → **masters** (direct insert) → **opening stock** (real receipts) → **transaction generator** (real paths) → **Smoke** validation → **Full**. Nothing runs against production.
