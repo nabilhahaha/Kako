@@ -7,8 +7,8 @@ export const ar = {
 
     // ── overview page ──────────────────────────────────────────────
     overview: {
-      title: 'لوحة المزوّد',
-      description: 'نظرة عامة على الشركات المستأجرة وحالة اشتراكاتها',
+      title: 'مركز تحكّم المنصّة',
+      description: 'نظرة تنفيذية على الشركات والإيرادات وصحة المنصّة',
       manageCompanies: 'إدارة الشركات',
       statTotalCompanies: 'إجمالي الشركات',
       statActive: 'نشطة',
@@ -27,6 +27,27 @@ export const ar = {
       noCompanies: 'لا توجد شركات بعد. أنشئ أول شركة من صفحة الإدارة.',
       branchCount: 'فرع',
       userCount: 'مستخدم',
+      // executive cockpit
+      statTrial: 'تجريبية',
+      statAtRisk: 'في خطر',
+      statMrr: 'الإيراد الشهري (MRR)',
+      statArr: 'الإيراد السنوي (ARR)',
+      statActiveUsers: 'المستخدمون النشطون',
+      revenueTitle: 'الإيرادات',
+      revenueAsOf: 'موحّدة إلى {base} · أسعار صرف بتاريخ {date}',
+      mrrNormalized: 'MRR (موحّد)',
+      arrNormalized: 'ARR (موحّد)',
+      breakdownTitle: 'التفصيل حسب العملة (شهري)',
+      noRevenue: 'لا توجد اشتراكات نشطة مُسعّرة بعد.',
+      unrated: 'لا يوجد سعر صرف',
+      indicativeNote: 'أرقام استرشادية — تُحسب من الاشتراكات النشطة المُسعّرة.',
+      unratedNote: 'بعض العملات لا تملك سعر صرف مُعرّف.',
+      statusBreakdownTitle: 'توزيع حالات الاشتراك',
+      actionQueueTitle: 'التنبيهات والإجراءات',
+      noAlerts: 'لا توجد تنبيهات — كل شيء على ما يرام.',
+      alertTrialsEnding: 'تجارب تنتهي خلال ٧ أيام',
+      alertRenewals: 'اشتراكات تحتاج تجديد',
+      alertUnpaid: 'فواتير غير مدفوعة',
     },
 
     // ── subscription state badges ──────────────────────────────────
@@ -312,8 +333,8 @@ export const en = {
 
     // ── overview page ──────────────────────────────────────────────
     overview: {
-      title: 'Vendor Panel',
-      description: 'Overview of tenant companies and their subscription status',
+      title: 'Platform Control Center',
+      description: 'Executive view of companies, revenue and platform health',
       manageCompanies: 'Manage Companies',
       statTotalCompanies: 'Total Companies',
       statActive: 'Active',
@@ -332,6 +353,27 @@ export const en = {
       noCompanies: 'No companies yet. Create the first one from the management page.',
       branchCount: 'branch(es)',
       userCount: 'user(s)',
+      // executive cockpit
+      statTrial: 'Trial',
+      statAtRisk: 'At Risk',
+      statMrr: 'MRR',
+      statArr: 'ARR',
+      statActiveUsers: 'Active Users',
+      revenueTitle: 'Revenue',
+      revenueAsOf: 'Normalized to {base} · FX as of {date}',
+      mrrNormalized: 'MRR (normalized)',
+      arrNormalized: 'ARR (normalized)',
+      breakdownTitle: 'Breakdown by currency (monthly)',
+      noRevenue: 'No active priced subscriptions yet.',
+      unrated: 'no FX rate',
+      indicativeNote: 'Indicative figures — computed from active priced subscriptions.',
+      unratedNote: 'Some currencies have no configured FX rate.',
+      statusBreakdownTitle: 'Subscription status distribution',
+      actionQueueTitle: 'Alerts & actions',
+      noAlerts: 'No alerts — all clear.',
+      alertTrialsEnding: 'Trials ending within 7 days',
+      alertRenewals: 'Subscriptions needing renewal',
+      alertUnpaid: 'Unpaid invoices',
     },
 
     // ── subscription state badges ──────────────────────────────────
