@@ -11,6 +11,7 @@ import {
   accessLockoutViolation,
   type AccessLevel,
   type SubjectType,
+  type SectionAccessLevel,
 } from '@/lib/erp/field-governance';
 
 /**
@@ -123,6 +124,76 @@ export async function setFieldAccess(
     entity: 'field_access',
     entityId: `${entity}:${fieldKey}`,
     details: { subject_type: subjectType, subject_key: subjectKey, before: before?.access ?? null, after: access },
+    companyId,
+  });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** (P5) Set (or change) a role/permission/capability's access to a whole SECTION.
+ *  A section with no rows is visible to everyone (cutover-safe); once it has rows
+ *  it is restricted to subjects granted 'view'. Admins always see every section,
+ *  so no lockout guard is needed. Reuses the settings.custom_fields right. */
+export async function setFieldSectionAccess(
+  entity: string,
+  sectionKey: string,
+  subjectType: SubjectType,
+  subjectKey: string,
+  access: SectionAccessLevel,
+): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId, userId } = g;
+
+  const { data: existing } = await supabase
+    .from('erp_field_section_access')
+    .select('access')
+    .eq('entity', entity).eq('section_key', sectionKey).eq('subject_type', subjectType).eq('subject_key', subjectKey)
+    .maybeSingle();
+  const before = existing as { access: string } | null;
+
+  const { error } = await supabase
+    .from('erp_field_section_access')
+    .upsert(
+      { company_id: companyId, entity, section_key: sectionKey, subject_type: subjectType, subject_key: subjectKey, access, updated_by: userId },
+      { onConflict: 'company_id,entity,section_key,subject_type,subject_key' },
+    );
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  await logAudit(supabase, {
+    action: before ? 'update' : 'create',
+    entity: 'field_section_access',
+    entityId: `${entity}:${sectionKey}`,
+    details: { subject_type: subjectType, subject_key: subjectKey, before: before?.access ?? null, after: access },
+    companyId,
+  });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** (P5) Remove a section access rule (revert that subject to ungoverned). When the
+ *  last rule on a section is removed the section is visible to everyone again. */
+export async function removeFieldSectionAccess(
+  entity: string,
+  sectionKey: string,
+  subjectType: SubjectType,
+  subjectKey: string,
+): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId } = g;
+
+  const { error } = await supabase
+    .from('erp_field_section_access')
+    .delete()
+    .eq('entity', entity).eq('section_key', sectionKey).eq('subject_type', subjectType).eq('subject_key', subjectKey);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  await logAudit(supabase, {
+    action: 'delete',
+    entity: 'field_section_access',
+    entityId: `${entity}:${sectionKey}`,
+    details: { subject_type: subjectType, subject_key: subjectKey },
     companyId,
   });
   revalidatePath('/settings/field-governance');

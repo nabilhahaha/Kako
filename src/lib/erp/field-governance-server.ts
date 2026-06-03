@@ -5,13 +5,45 @@ import { getActiveCustomFields } from './custom-fields-server';
 import {
   resolveAccess,
   evaluateCondition,
+  isSectionAccessible,
   type AccessLevel,
   type AccessRow,
   type FieldCondition,
   type GovInputs,
   type GovField,
+  type SectionAccessRow,
+  type SectionAccessLevel,
 } from './field-governance';
+import { expandAliases } from './capabilities';
 import type { UserContext } from './auth-context';
+
+/** Raw erp_field_section_access row shape (snake_case). */
+interface SectionAccessDbRow {
+  section_key: string;
+  subject_type: 'role' | 'permission' | 'capability';
+  subject_key: string;
+  access: SectionAccessLevel;
+}
+
+/** Index section-access rows by section key (P5). */
+function indexSectionAccess(rows: SectionAccessDbRow[] | null | undefined): Record<string, SectionAccessRow[]> {
+  const map: Record<string, SectionAccessRow[]> = {};
+  for (const r of rows ?? []) {
+    (map[r.section_key] ??= []).push({
+      subjectType: r.subject_type,
+      subjectKey: r.subject_key,
+      access: r.access,
+    });
+  }
+  return map;
+}
+
+/** The current user's effective granular capabilities (P5): legacy flat perms
+ *  expanded through the P1 alias layer, so a 'capability'-subject access row
+ *  matches when the user effectively holds that capability. */
+function userCapabilitiesOf(ctx: UserContext): string[] {
+  return [...expandAliases(ctx.permissions as unknown as string[])];
+}
 
 /** Default protected (identity/critical) fields per entity. Admins are never
  *  locked out of these. '*' applies to every entity unless overridden. */
@@ -99,15 +131,24 @@ export async function getFieldLayout(
     accByKey.set(a.field_key, list);
   }
 
+  // (P5) section-level access: visible sections gate their fields. No rows = no-op.
+  const { data: secAccRows } = await supabase
+    .from('erp_field_section_access')
+    .select('section_key, subject_type, subject_key, access')
+    .eq('entity', entity);
+  const sectionAccess = indexSectionAccess(secAccRows as SectionAccessDbRow[] | null);
+
   const roles = ctx.memberships.map((m) => m.role as string);
   const perms = ctx.permissions as unknown as string[];
+  const caps = userCapabilitiesOf(ctx);
   const admin = isAdminContext(ctx);
 
   return all
     .map((f, idx) => {
       const cfg = cfgByKey.get(f.key);
       const isProtected = cfg?.is_protected ?? isDefaultProtected(entity, f.key);
-      const access = resolveAccess({
+      const section = cfg?.section ?? null;
+      let access = resolveAccess({
         defaultAccess: cfg?.default_access ?? 'edit',
         isProtected,
         isActive: cfg?.is_active ?? true,
@@ -115,12 +156,18 @@ export async function getFieldLayout(
         accessRows: accByKey.get(f.key) ?? [],
         userRoles: roles,
         userPermissions: perms,
+        userCapabilities: caps,
         isAdmin: admin,
       });
+      // (P5) a field in a section the user can't access is hidden (protected fields
+      // for admins are unaffected — admins always pass isSectionAccessible).
+      if (section && !isSectionAccessible(sectionAccess[section], roles, perms, caps, admin)) {
+        access = 'hidden';
+      }
       return {
         key: f.key,
         source: f.source,
-        section: cfg?.section ?? null,
+        section,
         sort: cfg?.sort ?? idx,
         access,
         isSensitive: cfg?.is_sensitive ?? false,
@@ -164,9 +211,16 @@ export async function loadGovernanceInputs(
     cfgList = (cfgRows ?? []) as ConfigRow[];
     accList = (accRows ?? []) as SnapAccess[];
   }
-  // No config at all → ungoverned (empty inputs → resolver yields default 'edit').
-  if (cfgList.length === 0 && accList.length === 0) {
-    return { fields: [], userRoles: [], userPermissions: [], isAdmin: isAdminContext(ctx) };
+  // (P5) section-level access rows participate in governance too.
+  const { data: secAccRows } = await supabase
+    .from('erp_field_section_access')
+    .select('section_key, subject_type, subject_key, access')
+    .eq('entity', entity);
+  const sectionAccess = indexSectionAccess(secAccRows as SectionAccessDbRow[] | null);
+
+  // No governance at all → ungoverned (empty inputs → resolver yields 'edit').
+  if (cfgList.length === 0 && accList.length === 0 && Object.keys(sectionAccess).length === 0) {
+    return { fields: [], userRoles: [], userPermissions: [], userCapabilities: [], sectionAccess: {}, isAdmin: isAdminContext(ctx) };
   }
   const cfgByKey = new Map<string, ConfigRow>(cfgList.map((r) => [r.field_key, r]));
   const accByKey = new Map<string, AccessRow[]>();
@@ -192,6 +246,8 @@ export async function loadGovernanceInputs(
     fields,
     userRoles: ctx.memberships.map((m) => m.role as string),
     userPermissions: ctx.permissions as unknown as string[],
+    userCapabilities: userCapabilitiesOf(ctx),
+    sectionAccess,
     isAdmin: isAdminContext(ctx),
   };
 }
@@ -210,6 +266,8 @@ export interface FieldGovernanceAdmin {
   entity: string;
   fields: AdminField[];
   sections: Array<Record<string, unknown>>;
+  /** (P5) per-section access rows for the section-binding matrix. */
+  sectionAccess: Array<{ section_key: string; subject_type: string; subject_key: string; access: string }>;
   roles: Array<{ key: string; name_ar: string | null }>;
   templates: Array<{ id: string; name: string; is_global: boolean }>;
   versions: Array<{ id: string; version_no: number; status: string; label: string | null; created_at: string }>;
@@ -225,10 +283,11 @@ export async function getFieldGovernanceAdmin(
   const custom = (await getActiveCustomFields(entity)).map((c) => ({
     key: c.key, source: 'custom' as const, labelAr: c.label_ar, labelEn: c.label_en ?? c.label_ar,
   }));
-  const [{ data: cfgRows }, { data: accRows }, { data: secRows }, { data: roleRows }, { data: tplRows }, { data: verRows }] = await Promise.all([
+  const [{ data: cfgRows }, { data: accRows }, { data: secRows }, { data: secAccRows }, { data: roleRows }, { data: tplRows }, { data: verRows }] = await Promise.all([
     supabase.from('erp_field_config').select('*').eq('entity', entity),
     supabase.from('erp_field_access').select('field_key, subject_type, subject_key, access').eq('entity', entity),
     supabase.from('erp_field_sections').select('*').eq('entity', entity).order('sort'),
+    supabase.from('erp_field_section_access').select('section_key, subject_type, subject_key, access').eq('entity', entity),
     supabase.from('erp_roles').select('key, name_ar').order('rank', { ascending: false }),
     supabase.from('erp_field_templates').select('id, name, is_global').eq('scope_entity', entity).order('created_at', { ascending: false }),
     supabase.from('erp_field_config_versions').select('id, version_no, status, label, created_at').eq('entity', entity).order('version_no', { ascending: false }),
@@ -258,6 +317,7 @@ export async function getFieldGovernanceAdmin(
     entity,
     fields,
     sections: (secRows ?? []) as Array<Record<string, unknown>>,
+    sectionAccess: (secAccRows ?? []) as Array<{ section_key: string; subject_type: string; subject_key: string; access: string }>,
     roles: (roleRows ?? []) as Array<{ key: string; name_ar: string | null }>,
     templates: (tplRows ?? []) as Array<{ id: string; name: string; is_global: boolean }>,
     versions: (verRows ?? []) as Array<{ id: string; version_no: number; status: string; label: string | null; created_at: string }>,

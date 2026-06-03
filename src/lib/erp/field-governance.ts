@@ -14,7 +14,9 @@
  */
 
 export type AccessLevel = 'hidden' | 'view' | 'edit' | 'required';
-export type SubjectType = 'role' | 'permission';
+/** A field/section access row is keyed by a SUBJECT: a legacy role, a legacy
+ *  flat permission, or (P5) a granular capability (module.resource.action). */
+export type SubjectType = 'role' | 'permission' | 'capability';
 export type FieldSource = 'core' | 'custom';
 export type InheritanceMode = 'none' | 'inherit' | 'inherit_locked';
 
@@ -45,6 +47,9 @@ export interface ResolveInput {
   accessRows: AccessRow[];
   userRoles: string[];
   userPermissions: string[];
+  /** (P5) The user's effective granular capabilities (expandAliases of perms).
+   *  Matches access rows whose subjectType === 'capability'. Optional → []. */
+  userCapabilities?: string[];
   /** Company admin / IT admin / platform owner. */
   isAdmin: boolean;
 }
@@ -61,14 +66,51 @@ function clampForAdmin(level: AccessLevel, isProtected: boolean): AccessLevel {
 export function resolveAccess(i: ResolveInput): AccessLevel {
   if (!i.applicable) return 'hidden';                 // not applicable for this record/company
   if (!i.isActive) return 'hidden';                   // company disabled (protected stays active by guard)
+  const caps = i.userCapabilities ?? [];
   const matches = i.accessRows.filter(
     (r) =>
       (r.subjectType === 'role' && i.userRoles.includes(r.subjectKey)) ||
-      (r.subjectType === 'permission' && i.userPermissions.includes(r.subjectKey)),
+      (r.subjectType === 'permission' && i.userPermissions.includes(r.subjectKey)) ||
+      (r.subjectType === 'capability' && caps.includes(r.subjectKey)),
   );
   let level: AccessLevel = matches.length ? mostPermissive(matches.map((m) => m.access)) : i.defaultAccess;
   if (i.isAdmin) level = clampForAdmin(level, i.isProtected);
   return level;
+}
+
+// ── Section-level access binding (P5 / DFG field-section binding) ────────────
+/** A section is gated binary: hidden or visible. Subjects mirror field access
+ *  (role / permission / capability). */
+export type SectionAccessLevel = 'hidden' | 'view';
+export interface SectionAccessRow {
+  subjectType: SubjectType;
+  subjectKey: string;
+  access: SectionAccessLevel;
+}
+
+/** Is a section visible to the current user? CUTOVER-SAFE: a section with NO
+ *  access rows is always visible (today's behavior); admins always see every
+ *  section. Once a section HAS rows it becomes restricted — visible only when the
+ *  user matches a row granting 'view' (most-permissive across matches; an explicit
+ *  'hidden' match never grants). A user matching no row of a restricted section is
+ *  hidden. */
+export function isSectionAccessible(
+  rows: SectionAccessRow[] | undefined,
+  userRoles: string[],
+  userPermissions: string[],
+  userCapabilities: string[],
+  isAdmin: boolean,
+): boolean {
+  if (isAdmin) return true;
+  if (!rows || rows.length === 0) return true; // ungoverned section → visible
+  const matches = rows.filter(
+    (r) =>
+      (r.subjectType === 'role' && userRoles.includes(r.subjectKey)) ||
+      (r.subjectType === 'permission' && userPermissions.includes(r.subjectKey)) ||
+      (r.subjectType === 'capability' && userCapabilities.includes(r.subjectKey)),
+  );
+  if (matches.length === 0) return false; // restricted section, user not granted
+  return matches.some((m) => m.access === 'view'); // most-permissive among matches
 }
 
 // ── Conditional applicability (customer-type / context rules) ────────────────
@@ -136,27 +178,40 @@ export interface GovInputs {
   fields: GovField[];
   userRoles: string[];
   userPermissions: string[];
+  /** (P5) expanded granular capabilities; optional → []. */
+  userCapabilities?: string[];
+  /** (P5) per-section access rows, keyed by section key. A field whose section is
+   *  not accessible resolves to 'hidden'. Optional → no section gating. */
+  sectionAccess?: Record<string, SectionAccessRow[]>;
   isAdmin: boolean;
 }
 
 /** Resolve every field's access for a record context. Pure → usable in the
- *  client form (live values) and the server write path (submitted payload). */
+ *  client form (live values) and the server write path (submitted payload).
+ *  (P5) A field in a section the user can't access resolves to 'hidden'. */
 export function resolveLayout(g: GovInputs, recordContext: Record<string, unknown>): Map<string, AccessLevel> {
   const m = new Map<string, AccessLevel>();
+  const caps = g.userCapabilities ?? [];
   for (const f of g.fields) {
-    m.set(
-      f.key,
-      resolveAccess({
-        defaultAccess: f.defaultAccess,
-        isProtected: f.isProtected,
-        isActive: f.isActive,
-        applicable: evaluateCondition(f.condition, recordContext),
-        accessRows: f.accessRows,
-        userRoles: g.userRoles,
-        userPermissions: g.userPermissions,
-        isAdmin: g.isAdmin,
-      }),
-    );
+    let level = resolveAccess({
+      defaultAccess: f.defaultAccess,
+      isProtected: f.isProtected,
+      isActive: f.isActive,
+      applicable: evaluateCondition(f.condition, recordContext),
+      accessRows: f.accessRows,
+      userRoles: g.userRoles,
+      userPermissions: g.userPermissions,
+      userCapabilities: caps,
+      isAdmin: g.isAdmin,
+    });
+    if (
+      f.section &&
+      g.sectionAccess &&
+      !isSectionAccessible(g.sectionAccess[f.section], g.userRoles, g.userPermissions, caps, g.isAdmin)
+    ) {
+      level = 'hidden';
+    }
+    m.set(f.key, level);
   }
   return m;
 }
