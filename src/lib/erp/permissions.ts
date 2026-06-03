@@ -39,7 +39,28 @@ export type Permission =
   | 'wholesale.pricing' // wholesale price tiers + per-customer pricing
   | 'pricing.manage' // Pricing engine: price rules + effective dates + history (Pricing module)
   | 'electrical.rma' // RMA / serial / warranty management (Electrical pack)
-  | 'field.sales'; // rep app, daily settlement, visit planning (field roles only)
+  | 'field.sales' // rep app, daily settlement, visit planning (field roles only)
+  // ── FMCG operations — granular flat permission keys (S5) ──
+  | 'customer.create' // create a new customer (rep/field onboarding)
+  | 'customer.import' // bulk-import customers
+  | 'customer.transfer' // reassign customer ownership (route/salesman/branch)
+  | 'customer.edit' // edit customer master data
+  | 'product.create' // create a new product
+  | 'product.import' // bulk-import products
+  | 'stock.view' // view van/warehouse stock balances
+  | 'stock.adjust' // adjust stock (van/warehouse)
+  | 'stock.transfer' // initiate a stock transfer
+  | 'stock.transfer.approve' // approve a stock transfer
+  | 'user.import' // bulk-import users (onboarding)
+  | 'user.transfer' // reassign user (branch/team/reporting line)
+  | 'route.create' // create a route
+  | 'route.import' // bulk-import routes
+  | 'journey.create' // create a journey plan
+  | 'journey.import' // bulk-import journey plans
+  | 'visit.override_gps' // record a visit outside the allowed GPS radius
+  | 'visit.approve_out_of_route' // approve an out-of-route visit
+  | 'day.close' // close the working day (rep)
+  | 'day.approve_close_exception'; // approve a day-close exception
 
 export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; group: string }> = {
   'sales.sell': { en: 'Selling (invoices/orders/POS)', ar: 'البيع (فواتير/أوامر/نقطة بيع)', group: 'sales' },
@@ -79,6 +100,27 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'pricing.manage': { en: 'Manage pricing (rules, lists, effective dates)', ar: 'إدارة التسعير (قواعد، قوائم، تواريخ السريان)', group: 'sales' },
   'electrical.rma': { en: 'Serials, warranty & RMA', ar: 'الأرقام التسلسلية والضمان والإرجاع', group: 'electrical' },
   'field.sales': { en: 'Field sales (rep app)', ar: 'المبيعات الميدانية (تطبيق المندوب)', group: 'sales' },
+  // ── FMCG operations — granular flat permission keys (S5) ──
+  'customer.create': { en: 'Create customers', ar: 'إنشاء عملاء', group: 'sales' },
+  'customer.import': { en: 'Import customers', ar: 'استيراد العملاء', group: 'sales' },
+  'customer.transfer': { en: 'Transfer customer ownership', ar: 'نقل ملكية العملاء', group: 'sales' },
+  'customer.edit': { en: 'Edit customers', ar: 'تعديل العملاء', group: 'sales' },
+  'product.create': { en: 'Create products', ar: 'إنشاء منتجات', group: 'inventory' },
+  'product.import': { en: 'Import products', ar: 'استيراد المنتجات', group: 'inventory' },
+  'stock.view': { en: 'View stock', ar: 'عرض المخزون', group: 'inventory' },
+  'stock.adjust': { en: 'Adjust stock', ar: 'تسوية المخزون', group: 'inventory' },
+  'stock.transfer': { en: 'Transfer stock', ar: 'تحويل المخزون', group: 'inventory' },
+  'stock.transfer.approve': { en: 'Approve stock transfers', ar: 'اعتماد تحويلات المخزون', group: 'inventory' },
+  'user.import': { en: 'Import users', ar: 'استيراد المستخدمين', group: 'settings' },
+  'user.transfer': { en: 'Transfer users', ar: 'نقل المستخدمين', group: 'settings' },
+  'route.create': { en: 'Create routes', ar: 'إنشاء خطوط السير', group: 'settings' },
+  'route.import': { en: 'Import routes', ar: 'استيراد خطوط السير', group: 'settings' },
+  'journey.create': { en: 'Create journey plans', ar: 'إنشاء خطط الزيارات', group: 'settings' },
+  'journey.import': { en: 'Import journey plans', ar: 'استيراد خطط الزيارات', group: 'settings' },
+  'visit.override_gps': { en: 'Override visit GPS radius', ar: 'تجاوز نطاق GPS للزيارة', group: 'field_ops' },
+  'visit.approve_out_of_route': { en: 'Approve out-of-route visits', ar: 'اعتماد الزيارات خارج خط السير', group: 'field_ops' },
+  'day.close': { en: 'Close the working day', ar: 'إغلاق يوم العمل', group: 'field_ops' },
+  'day.approve_close_exception': { en: 'Approve day-close exceptions', ar: 'اعتماد استثناءات إغلاق اليوم', group: 'field_ops' },
 };
 
 /** Bilingual labels for permission group slugs (used as section headers). */
@@ -97,6 +139,7 @@ export const PERMISSION_GROUP_LABELS: Record<string, { en: string; ar: string }>
   market: { en: 'Supermarket', ar: 'السوبر ماركت' },
   wholesale: { en: 'Wholesale', ar: 'الجملة' },
   electrical: { en: 'Electrical', ar: 'الكهربائيات' },
+  field_ops: { en: 'Field Operations', ar: 'العمليات الميدانية' },
 };
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS) as Permission[];
@@ -114,20 +157,24 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
     'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
+    'customer.transfer', 'route.create', 'journey.create', 'stock.view',
   ],
   national_sales_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
     'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
+    'customer.transfer', 'route.create', 'journey.create', 'stock.view',
   ],
   // Regional / Area: commercial management (no finance posting / settings).
   regional_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
+    'customer.transfer', 'journey.create', 'route.create', 'stock.view',
   ],
   area_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
+    'customer.transfer', 'journey.create', 'route.create', 'stock.view',
   ],
   // Branch Manager: branch operations (NO settings/billing — distinct from Admin).
   branch_manager: [
@@ -135,24 +182,32 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'customers.manage', 'customers.change_status', 'inventory.view', 'inventory.adjust', 'inventory.transfer',
     'inventory.count', 'stock_request.approve', 'purchasing.manage',
     'suppliers.manage', 'reports.view',
+    'customer.transfer', 'customer.create', 'customer.edit', 'route.create', 'journey.create',
+    'stock.adjust', 'stock.transfer.approve', 'visit.approve_out_of_route',
+    'day.approve_close_exception', 'stock.view', 'user.transfer',
   ],
   // IT Admin: integrations / scheduler / governance / technical settings.
   it_admin: [
     'integrations.manage', 'settings.custom_fields', 'workflow.manage',
     'settings.users',
+    'customer.import', 'product.import', 'user.import', 'route.import', 'journey.import',
   ],
   supervisor: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'stock_request.approve', 'reports.view',
+    'visit.approve_out_of_route', 'day.approve_close_exception', 'stock.transfer.approve',
+    'customer.transfer', 'journey.create', 'route.create', 'stock.view',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
     'suppliers.manage', 'sales.collect', 'customers.change_status',
+    'stock.view',
   ],
   cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales',
+    'day.close', 'stock.view', 'stock.transfer', 'customer.create',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
@@ -168,6 +223,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   warehouse_keeper: [
     'inventory.view', 'inventory.adjust', 'inventory.transfer',
     'inventory.count', 'stock_request.approve', 'purchasing.manage',
+    'stock.view', 'stock.adjust', 'stock.transfer', 'stock.transfer.approve',
   ],
   staff: ['inventory.view'],
   viewer: ['reports.view', 'accounting.view', 'inventory.view'],
