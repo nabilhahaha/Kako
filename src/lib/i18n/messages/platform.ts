@@ -70,6 +70,33 @@ export const ar = {
       recentAuditEmpty: 'لا يوجد نشاط مسجّل بعد.',
     },
 
+    // ── global search command palette (⌘K) ─────────────────────────
+    search: {
+      trigger: 'بحث…',
+      placeholder: 'ابحث عن شركة أو مستخدم أو إجراء…',
+      groupCompanies: 'الشركات',
+      groupUsers: 'المستخدمون',
+      groupAudit: 'سجل التدقيق',
+      groupApprovals: 'الموافقات',
+      groupModules: 'الوحدات',
+      groupPacks: 'الحزم القطاعية',
+      groupActions: 'إجراءات سريعة',
+      recent: 'الأخيرة',
+      recentOpened: 'فُتحت مؤخراً',
+      frequent: 'الأكثر فتحاً',
+      approvalPending: 'بانتظار الموافقة',
+      loading: 'جارٍ البحث…',
+      empty: 'لا توجد نتائج',
+      emptyHint: 'جرّب اسم شركة أو بريد مستخدم.',
+      hintType: 'ابدأ الكتابة للبحث في الشركات والمستخدمين والوحدات والمزيد.',
+      close: 'إغلاق',
+      qaNewCompany: 'شركة جديدة',
+      qaInviteStaff: 'دعوة موظف',
+      qaViewAudit: 'سجل التدقيق',
+      qaBilling: 'الفوترة والاشتراكات',
+      qaOverview: 'نظرة عامة على المنصّة',
+    },
+
     // ── subscription state badges ──────────────────────────────────
     state: {
       active: 'نشط',
@@ -398,6 +425,7 @@ export const ar = {
       filterDate30d: 'آخر ٣٠ يوم',
       noResults: 'لا توجد عمليات مطابقة.',
       noResultsHint: 'جرّب تعديل البحث أو الفلاتر.',
+      eventNotInWindow: 'الحدث المطلوب غير موجود في النافذة الحالية.',
     },
 
     // ── drugs (Egyptian drug list) page ────────────────────────────
@@ -507,6 +535,33 @@ export const en = {
       // recent audit activity card
       recentAuditTitle: 'Recent Activity',
       recentAuditEmpty: 'No activity logged yet.',
+    },
+
+    // ── global search command palette (⌘K) ─────────────────────────
+    search: {
+      trigger: 'Search…',
+      placeholder: 'Search companies, users, actions…',
+      groupCompanies: 'Companies',
+      groupUsers: 'Users',
+      groupAudit: 'Audit',
+      groupApprovals: 'Approvals',
+      groupModules: 'Modules',
+      groupPacks: 'Industry Packs',
+      groupActions: 'Quick Actions',
+      recent: 'Recent',
+      recentOpened: 'Recently opened',
+      frequent: 'Frequent',
+      approvalPending: 'Pending approval',
+      loading: 'Searching…',
+      empty: 'No results',
+      emptyHint: 'Try a company name or a user email.',
+      hintType: 'Start typing to search companies, users, modules and more.',
+      close: 'Close',
+      qaNewCompany: 'New Company',
+      qaInviteStaff: 'Invite Staff',
+      qaViewAudit: 'View Audit',
+      qaBilling: 'Billing & Subscriptions',
+      qaOverview: 'Platform Overview',
     },
 
     // ── subscription state badges ──────────────────────────────────
@@ -837,6 +892,7 @@ export const en = {
       filterDate30d: 'Last 30 days',
       noResults: 'No matching operations.',
       noResultsHint: 'Try adjusting your search or filters.',
+      eventNotInWindow: 'Requested event is not in the current window.',
     },
 
     // ── drugs (Egyptian drug list) page ────────────────────────────
