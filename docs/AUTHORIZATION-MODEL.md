@@ -1,8 +1,9 @@
 # VANTORA Authorization Model
 
-**Status:** Specification v1.3 — _design only_. No implementation, no schema, not merged, not deployed.
+**Status:** Specification v1.4 — _design only_. No implementation, no schema, not merged, not deployed.
 **Scope:** Tenant (company) authorization. The platform-owner/provider permission tier is separate and out of scope (see §13).
 **Authority:** This document is the authoritative reference for all future authorization work — both the backend model **and** the permissions UI (§17). Code, migrations, and UI must conform to it; deviations require an amendment here first.
+**Cross-cutting:** Build order, the shared governance vocabulary, and the "no duplicate engines" rule (incl. the Approval Matrix) live in `ARCHITECTURE-ALIGNMENT.md`, which this spec conforms to.
 
 ---
 
@@ -78,6 +79,7 @@ inventory.stock.view      inventory.stock.transfer        inventory.expiry.view
 inventory.stock.adjust    inventory.adjustment.approve    inventory.count
 inventory.export
 ```
+**Dependency note (F4):** `inventory.expiry.view` is **catalogued but dormant** — it gates features (near-expiry alerts, expiry write-offs) that require a **batch/lot + expiry-date schema that does not yet exist**. It expands from the legacy `inventory.view` via aliases (no regression) but carries no behavior until that schema is built; expiry write-offs reuse `inventory.stock.adjust` until a dedicated path is justified. Workspace's near-expiry widget and the Pilot Simulation's near-expiry scenarios share this same precondition. The key is reserved here so its later activation needs no catalog change.
 
 ### 3.6 Templated pattern for every other module
 Each module declares its own `resource.action` tree from the same vocabulary. Representative:
@@ -166,7 +168,9 @@ types: discount.max_pct · approval.max_amount · credit.approve_max ·
 | `writeoff.max_amount` | `sales.payment.writeoff` |
 
 ### 5.3 Evaluation
-At action time the capability must hold **and** every bound constraint must be satisfied by the request. Cross-currency comparisons normalize through the platform FX seam (`getFxRates()`, base SAR) so limits compare apples-to-apples.
+At action time the capability must hold **and** every bound constraint must be satisfied by the request. Cross-currency comparisons normalize so limits compare apples-to-apples.
+
+**Currency base (F1) — tenant-scoped, not provider-scoped.** Limit normalization uses the **tenant's base currency** (each company's configured currency — EGP for current companies), **not** the platform/provider revenue base. The provider FX seam introduced in the Provider Cockpit (`fx-rates.ts`, `getFxRates()`, `FX_BASE_CURRENCY = SAR`) exists for **provider MRR/ARR normalization** and is a *platform-tier* construct (see §13); reusing it for tenant limits would cross the platform↔tenant boundary and apply the wrong base. Tenant limit evaluation therefore reads rates **relative to the company's base currency**. Mechanically this reuses the same *accessor pattern* (a single async FX seam so call sites never inline rates), but the seam must resolve a **per-tenant base** rather than the single global provider base. Each constraint still documents its own currency (§5.1); a constraint stated in the tenant base needs no conversion.
 
 ### 5.4 Over-limit → workflow routing (not hard-fail)
 If a request exceeds the user's limit, it **does not hard-fail** — it routes to the workflow engine, which escalates to the **lowest role whose limit covers the amount**. See §9.
@@ -249,6 +253,16 @@ The constraint axis unifies *who can approve* with *up to how much*.
 - Sequential escalation continues until a covering approver is found.
 - Outcome application uses the existing pluggable `HANDLERS` registry (one handler per entity: customer onboarding, customer change request, credit-limit request, and — new — discount/return/writeoff approvals).
 - Example: a Branch Manager (`return.approve_max_amount = 50,000`) approving an 80,000 return auto-routes to a Regional Manager whose limit ≥ 80,000.
+
+### 9.1 Build dependency (F3) — what the engine needs first
+The workflow engine is built (`erp_workflow_definitions/steps/instances/tasks`, `escalate_to`, `approver_type ∈ {company_admin, user, role, manager, department_head}`), but **two extensions are prerequisites** for amount-based routing, both landing with **Phase 4**:
+1. **Conditional / amount-based triggers.** Today definitions are `trigger = 'manual'` only. Auto-opening an instance *because a request exceeds a limit* requires an amount/condition trigger and "lowest covering approver" step resolution — not yet present.
+2. **New per-entity handlers.** Only `customer`, `customer_change_request`, and `credit_limit_request` handlers exist. **Discount / return / writeoff** approval handlers are **new** and must be registered before those flows can apply outcomes.
+
+Until both exist, only the already-built approval flows (customer onboarding, change request, credit-limit) are executable. Consumers that rely on amount-routing (e.g. the Pilot Simulation's over-limit discount/return/writeoff scenarios) must sequence **after** Phase 4 — see `ARCHITECTURE-ALIGNMENT.md`.
+
+### 9.2 "Approval Matrix" is not a new engine
+What is sometimes called the **Approval Matrix** is **not** a separate system to build. It **is** this constraint axis (§5) × the workflow engine (steps + approver config) — i.e. the configuration/visualization surface over *which role approves up to how much, escalating to whom*. The Limits tab (§17.6) plus per-company workflow step config **are** the matrix. No parallel routing engine, limit store, or approver registry may be introduced (see the "no duplicate engines" rule in `ARCHITECTURE-ALIGNMENT.md`).
 
 ---
 
@@ -353,7 +367,7 @@ Production migrations are forward-only; rollback is via PITR (project rule). Eac
 | **1** | Granular catalog + alias map (code); matrix shows groups; checks accept both keys | none |
 | **2** | Split call-site checks (create / cancel / discount / export …) | none |
 | **3** | Per-assignment scope + RLS predicate swap + transitive `own_team` | migration |
-| **4** | Constraints + workflow amount-routing | migration |
+| **4** | Constraints + workflow amount-routing (incl. conditional/amount triggers + discount/return/writeoff handlers, §9.1) | migration |
 | **5** | DFG field-section binding | none |
 | **6** | Matrix UI redesign | none |
 
@@ -489,3 +503,7 @@ User: Ahmed (Salesman)
 | Field-level | Dynamic Field Governance (existing) |
 | Platform tier | separate, out of scope |
 | Permissions UI | tabs Role→Scope→Limits→Overrides; Module→Resource→Action accordion; tri-state inherit/grant/deny; inherited-vs-overridden visualization; templates; audit visibility (§17) |
+| Limit currency base (F1) | **tenant** base currency (per-company), not the provider SAR revenue seam; same accessor pattern, per-tenant base |
+| `inventory.expiry.view` (F4) | catalogued but **dormant** until batch/lot+expiry schema exists |
+| Workflow amount-routing (F3) | depends on conditional/amount triggers + new discount/return/writeoff handlers (Phase 4) |
+| Approval Matrix | **not** a new engine — it is constraints (§5) × workflow steps; no parallel system |
