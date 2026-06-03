@@ -1,40 +1,32 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { AUDIT_ACTION_LABELS, AUDIT_ENTITY_LABELS } from '@/lib/erp/audit';
 import type { Company } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
+import { AuditLog, type AuditRow } from './audit-log';
+import { DEFAULT_PAGE_SIZE, param, pageNumber, rangeFor, type SearchParams } from '@/lib/list-params';
 
-interface AuditRow {
-  id: string;
-  actor_email: string | null;
-  company_id: string | null;
-  action: string;
-  entity: string;
-  entity_id: string | null;
-  details: Record<string, unknown> | null;
-  created_at: string;
+export type AuditDateFilter = 'all' | 'today' | '7d' | '30d';
+
+/** ISO cutoff for the date filter, or null for "all". */
+function dateCutoff(filter: AuditDateFilter): string | null {
+  if (filter === 'all') return null;
+  const days = filter === 'today' ? 1 : filter === '7d' ? 7 : 30;
+  return new Date(Date.now() - days * 86_400_000).toISOString();
 }
 
-const DESTRUCTIVE = new Set(['delete', 'revoke', 'disable', 'deactivate']);
-
-function fmtTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('ar-EG', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    });
-  } catch {
-    return iso;
-  }
-}
-
-export default async function AuditLogPage() {
-  const { t, locale } = await getT();
+/** Audit log — server filters / sorts / paginates straight from `searchParams`,
+ *  so the view is shareable, refresh-safe and deep-linkable. */
+export default async function AuditLogPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const pctx = await getPlatformContext();
@@ -52,23 +44,67 @@ export default async function AuditLogPage() {
     );
   }
 
+  const sp = (await searchParams) ?? {};
+  const page = pageNumber(sp);
+  const pageSize = DEFAULT_PAGE_SIZE;
+  const q = (param(sp, 'q') ?? '').trim();
+  const action = param(sp, 'action') ?? 'all';
+  const entity = param(sp, 'entity') ?? 'all';
+  const actor = param(sp, 'actor') ?? 'all';
+  const dateRaw = param(sp, 'date');
+  const date: AuditDateFilter =
+    dateRaw === 'today' || dateRaw === '7d' || dateRaw === '30d' ? dateRaw : 'all';
+  const event = param(sp, 'event') ?? null;
+
   const supabase = await createClient();
-  const [{ data: logs }, { data: companies }] = await Promise.all([
+
+  let query = supabase
+    .from('erp_audit_logs')
+    .select('id, actor_email, company_id, action, entity, entity_id, details, created_at', { count: 'exact' })
+    .order('created_at', { ascending: false });
+
+  if (action !== 'all') query = query.eq('action', action);
+  if (entity !== 'all') query = query.eq('entity', entity);
+  if (actor !== 'all') query = query.eq('actor_email', actor);
+  const cutoff = dateCutoff(date);
+  if (cutoff) query = query.gte('created_at', cutoff);
+  if (q) {
+    // search actor_email / entity / entity_id / details text (case-insensitive).
+    const like = `%${q}%`;
+    query = query.or(
+      `actor_email.ilike.${like},entity.ilike.${like},entity_id.ilike.${like},details::text.ilike.${like}`,
+    );
+  }
+
+  const [from, to] = rangeFor(page, pageSize);
+  const [{ data: logs, count }, { data: companies }, distinct] = await Promise.all([
+    query.range(from, to),
+    supabase.from('erp_companies').select('id, name, name_ar'),
+    // Distinct dropdown values from a bounded recent window (cheap; RLS-safe).
     supabase
       .from('erp_audit_logs')
-      .select('id, actor_email, company_id, action, entity, entity_id, details, created_at')
+      .select('action, entity, actor_email')
       .order('created_at', { ascending: false })
-      .limit(200),
-    supabase.from('erp_companies').select('id, name, name_ar'),
+      .limit(1000),
   ]);
 
   const rows = (logs as AuditRow[]) ?? [];
-  const companyName = new Map(
-    ((companies as Pick<Company, 'id' | 'name' | 'name_ar'>[]) ?? []).map((c) => [
-      c.id,
-      c.name_ar || c.name,
-    ]),
-  );
+  const total = count ?? rows.length;
+
+  const companyNames: Record<string, string> = {};
+  for (const c of (companies as Pick<Company, 'id' | 'name' | 'name_ar'>[]) ?? []) {
+    companyNames[c.id] = c.name_ar || c.name;
+  }
+
+  const distinctRows = (distinct.data as { action: string; entity: string; actor_email: string | null }[]) ?? [];
+  const actionOptions = Array.from(new Set(distinctRows.map((r) => r.action))).sort();
+  const entityOptions = Array.from(new Set(distinctRows.map((r) => r.entity))).sort();
+  const actorOptions = Array.from(
+    new Set(distinctRows.map((r) => r.actor_email).filter((e): e is string => !!e)),
+  ).sort();
+
+  // Whether the deep-linked ?event= is on the current page (else: note shown).
+  const eventInPage = event ? rows.some((r) => r.id === event) : true;
 
   return (
     <div>
@@ -76,51 +112,19 @@ export default async function AuditLogPage() {
         title={t('platform.audit.title')}
         description={t('platform.audit.description')}
       />
-      <Card>
-        <CardContent className="p-0">
-          {rows.length === 0 ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">{t('platform.audit.empty')}</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b bg-secondary/50 text-muted-foreground">
-                  <tr>
-                    <th className="p-3 text-start font-medium whitespace-nowrap">{t('platform.audit.thTime')}</th>
-                    <th className="p-3 text-start font-medium">{t('platform.audit.thActor')}</th>
-                    <th className="p-3 text-start font-medium">{t('platform.audit.thAction')}</th>
-                    <th className="p-3 text-start font-medium">{t('platform.audit.thEntity')}</th>
-                    <th className="p-3 text-start font-medium">{t('platform.audit.thCompany')}</th>
-                    <th className="p-3 text-start font-medium">{t('platform.audit.thDetails')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id} className="border-b align-top">
-                      <td className="p-3 whitespace-nowrap text-muted-foreground" dir="ltr">{fmtTime(r.created_at)}</td>
-                      <td className="p-3" dir="ltr">{r.actor_email ?? '—'}</td>
-                      <td className="p-3">
-                        <Badge variant={DESTRUCTIVE.has(r.action) ? 'destructive' : 'secondary'}>
-                          {AUDIT_ACTION_LABELS[r.action]?.[locale] ?? r.action}
-                        </Badge>
-                      </td>
-                      <td className="p-3">
-                        {AUDIT_ENTITY_LABELS[r.entity]?.[locale] ?? r.entity}
-                        {r.entity_id && (
-                          <span className="block text-xs text-muted-foreground" dir="ltr">{r.entity_id}</span>
-                        )}
-                      </td>
-                      <td className="p-3">{r.company_id ? companyName.get(r.company_id) ?? '—' : '—'}</td>
-                      <td className="p-3 text-xs text-muted-foreground" dir="ltr">
-                        {r.details ? JSON.stringify(r.details) : ''}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <Suspense fallback={null}>
+        <AuditLog
+          rows={rows}
+          companyNames={companyNames}
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          filters={{ q, action, entity, actor, date }}
+          options={{ actions: actionOptions, entities: entityOptions, actors: actorOptions }}
+          event={event}
+          eventInPage={eventInPage}
+        />
+      </Suspense>
     </div>
   );
 }

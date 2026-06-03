@@ -63,3 +63,87 @@ export const AUDIT_ENTITY_LABELS: Record<string, { en: string; ar: string }> = {
   plan: { en: 'Plan', ar: 'خطة' },
   price_override: { en: 'Price override', ar: 'تجاوز السعر' },
 };
+
+/** Heuristic set of "destructive / sensitive" actions used by the audit viewer
+ *  and the overview anomaly signal. Kept here so both share one source. */
+export const AUDIT_DESTRUCTIVE_ACTIONS = new Set([
+  'delete', 'revoke', 'disable', 'deactivate', 'grant', 'deny', 'suspend',
+]);
+
+export interface AuditEventLike {
+  actor_email: string | null;
+  action: string;
+  entity: string;
+  entity_id?: string | null;
+  details?: Record<string, unknown> | null;
+  company_id?: string | null;
+}
+
+/** Pull a human-readable label out of an audit `details` blob, trying the most
+ *  common naming keys first. Returns null when nothing useful is present. */
+function detailValue(
+  details: Record<string, unknown> | null | undefined,
+  keys: string[],
+): string | null {
+  if (!details) return null;
+  for (const k of keys) {
+    const v = details[k];
+    if (v === null || v === undefined) continue;
+    if (typeof v === 'object') continue;
+    const s = String(v).trim();
+    if (s) return s;
+  }
+  return null;
+}
+
+/** Build a readable, bilingual sentence describing an audit event, e.g.
+ *  "Admin (a@x.com) granted permission `sales.invoice.create` to role Supervisor".
+ *  Falls back gracefully (action label + entity label) for unknown shapes. */
+export function describeAuditEvent(
+  row: AuditEventLike,
+  opts: {
+    locale: 'en' | 'ar';
+    companyName?: string | null;
+  } = { locale: 'en' },
+): string {
+  const { locale } = opts;
+  const ar = locale === 'ar';
+  const actor = row.actor_email || (ar ? 'مستخدم النظام' : 'A user');
+  const actionLabel = AUDIT_ACTION_LABELS[row.action]?.[locale] ?? row.action;
+  const entityLabel = AUDIT_ENTITY_LABELS[row.entity]?.[locale] ?? row.entity;
+  const company = opts.companyName?.trim() || null;
+
+  const perm = detailValue(row.details, ['permission', 'flag', 'capability', 'module']);
+  const targetRole = detailValue(row.details, ['role', 'role_name', 'role_key', 'to_role']);
+  const targetName = detailValue(row.details, ['name', 'name_ar', 'email', 'title', 'label']);
+  const target = targetName || row.entity_id || null;
+
+  const inCompany = company ? (ar ? ` في ${company}` : ` in ${company}`) : '';
+
+  // Permission grant / revoke / deny — the most security-relevant phrasing.
+  if (perm && (row.action === 'grant' || row.action === 'revoke' || row.action === 'deny')) {
+    const verb = ar
+      ? row.action === 'grant' ? 'منح' : row.action === 'deny' ? 'منع' : 'سحب'
+      : row.action === 'grant' ? 'granted' : row.action === 'deny' ? 'denied' : 'revoked';
+    const roleClause = targetRole
+      ? (ar ? ` للدور ${targetRole}` : ` to role ${targetRole}`)
+      : '';
+    return ar
+      ? `${actor} ${verb} الصلاحية \`${perm}\`${roleClause}${inCompany}`
+      : `${actor} ${verb} permission \`${perm}\`${roleClause}${inCompany}`;
+  }
+
+  // Company lifecycle (suspend / activate / create) reads better without "Company entity".
+  if (row.entity === 'company' && (company || target)) {
+    const subj = company || target;
+    return ar
+      ? `${actor} — ${actionLabel} الشركة ${subj}`
+      : `${actor} — ${actionLabel} company ${subj}`;
+  }
+
+  // Generic: "Actor — Action Entity [target] [in Company]".
+  const targetClause = target ? ` ${target}` : '';
+  return ar
+    ? `${actor} — ${actionLabel} ${entityLabel}${targetClause}${inCompany}`
+    : `${actor} — ${actionLabel} ${entityLabel}${targetClause}${inCompany}`;
+}
