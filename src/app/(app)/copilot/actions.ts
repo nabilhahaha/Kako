@@ -16,6 +16,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext, type UserContext } from '@/lib/erp/auth-context';
 import type { ActionResult } from '@/lib/erp/guards';
+import { liveRoleCapabilities, liveCompanyRules } from '@/lib/erp/copilot/copilot-live-context';
 import { today } from '@/lib/erp/work-session';
 import {
   analyzeAction,
@@ -512,4 +513,27 @@ export async function relevantWhyActions(
     .map((req) => ({ key: req.key, label: locale === 'ar' ? req.label.ar : req.label.en }));
 
   return { ok: true, data: opts };
+}
+
+/** (Dynamic) Explain what a role can do from the company's CURRENT live grants —
+ *  works for brand-new / customized roles because it reads
+ *  erp_company_role_permissions at request time (never the static role template). */
+export async function explainRole(
+  roleKey: string,
+  locale: Locale = 'en',
+): Promise<ActionResult<{ groups: { group: string; items: string[] }[] }>> {
+  const ctx = await getUserContext();
+  if (!ctx || !ctx.companyId) return { ok: false, error: 'unauthorized' };
+  const supabase = await createClient();
+  const groups = await liveRoleCapabilities(supabase, ctx.companyId, roleKey, locale);
+  return { ok: true, data: { groups } };
+}
+
+/** (Dynamic) The company's operational rules phrased with their LIVE values
+ *  (GPS radius, day-close coverage, van auto-approve) from erp_fmcg_settings. */
+export async function companyRules(locale: Locale = 'en'): Promise<ActionResult<string[]>> {
+  const ctx = await getUserContext();
+  if (!ctx || !ctx.companyId) return { ok: false, error: 'unauthorized' };
+  const supabase = await createClient();
+  return { ok: true, data: await liveCompanyRules(supabase, ctx.companyId, locale) };
 }

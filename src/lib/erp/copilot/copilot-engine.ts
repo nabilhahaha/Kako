@@ -164,3 +164,65 @@ export function trainingGuide(key: string, ctx: CopilotContext, locale: 'en' | '
 export function trainingTopics(locale: 'en' | 'ar' = 'en'): { key: string; title: string }[] {
   return Object.values(TRAINING_GUIDES).map((g) => ({ key: g.key, title: pick(g.title, locale) }));
 }
+
+// ── Dynamic (live) capability resolution ─────────────────────────────────────
+// These take the CURRENT runtime permission/module set (resolved live from
+// erp_company_role_permissions / erp_company_modules by copilot-live-context.ts),
+// so answers update automatically when a company changes a role's grants, adds a
+// new role, or disables a module — no hardcoded role assumptions.
+
+/** Human-readable summary of what a permission set can do, grouped. Pass a ROLE's
+ *  live permissions to describe a (possibly brand-new) company role, or a USER's
+ *  effective permissions. Unknown keys (e.g. granular caps not in the flat label
+ *  map) are passed through verbatim so nothing is hidden. */
+export function roleCapabilities(
+  livePermissions: string[],
+  locale: 'en' | 'ar' = 'en',
+): { group: string; items: string[] }[] {
+  const byGroup = new Map<string, string[]>();
+  for (const p of livePermissions) {
+    const l = PERMISSION_LABELS[p as Permission] as Bi & { group?: string } | undefined;
+    const group = l?.group ?? 'other';
+    const label = l ? pick(l, locale) : p;
+    const arr = byGroup.get(group) ?? [];
+    arr.push(label);
+    byGroup.set(group, arr);
+  }
+  return [...byGroup.entries()]
+    .map(([group, items]) => ({ group, items: items.sort() }))
+    .sort((a, b) => a.group.localeCompare(b.group));
+}
+
+/** Can a subject with this LIVE permission/module set perform an action? Pure +
+ *  deterministic — reused for "this role can/can't do X" from current config. */
+export function canDoAction(
+  actionKey: string,
+  livePermissions: string[],
+  liveModules: string[],
+  privileged = false,
+): boolean {
+  const req = ACTION_REQUIREMENTS[actionKey];
+  if (!req) return true;
+  if (privileged) return true;
+  if (req.module && !liveModules.includes(req.module)) return false;
+  if (req.anyPermission && req.anyPermission.length > 0) {
+    return req.anyPermission.some((p) => livePermissions.includes(p));
+  }
+  return true;
+}
+
+/** A company rule phrased with its LIVE value (e.g. GPS radius, min coverage),
+ *  so the answer reflects current company configuration, not a hardcoded default. */
+export function describeCompanyRule(
+  rule: 'gps_radius' | 'min_coverage' | 'van_auto_approve',
+  value: number | null,
+  locale: 'en' | 'ar' = 'en',
+): string {
+  const v = value == null ? (locale === 'ar' ? 'غير محدد' : 'not set') : String(value);
+  const t: Record<typeof rule, Bi> = {
+    gps_radius: { en: `Check-ins must be within ${v} m of the customer.`, ar: `يجب أن يكون تسجيل الوصول ضمن ${v} متر من العميل.` },
+    min_coverage: { en: `You can close the day at ${v}% coverage or above.`, ar: `يمكنك إغلاق اليوم عند تغطية ${v}% أو أعلى.` },
+    van_auto_approve: { en: `Van transfers under ${v} are auto-approved.`, ar: `تحويلات العربة تحت ${v} تُعتمد تلقائيًا.` },
+  };
+  return pick(t[rule], locale);
+}

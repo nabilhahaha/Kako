@@ -8,6 +8,7 @@ import { isDenyAllCapability } from '@/lib/erp/granular-capabilities';
 import { isScopeDimension } from '@/lib/erp/scope';
 import { isLimitAction } from '@/lib/erp/limits';
 import { getFieldGovernanceAdmin } from '@/lib/erp/field-governance-server';
+import { invalidateCompanyCopilotCache } from '@/lib/erp/copilot/copilot-live-context';
 
 /**
  * VANTORA Authorization Console — write API (P3/P4/P6).
@@ -79,6 +80,7 @@ export async function setCompanyCapability(
     details: { role_key: roleKey, capability },
     companyId,
   });
+  invalidateCompanyCopilotCache(companyId);
   revalidatePath(REVALIDATE);
   return { ok: true };
 }
@@ -117,6 +119,7 @@ export async function setUserScope(
     details: { role_key: roleKey, dimension, scope_set: cleanSet },
     companyId,
   });
+  invalidateCompanyCopilotCache(companyId);
   revalidatePath(REVALIDATE);
   return { ok: true };
 }
@@ -142,6 +145,7 @@ export async function removeUserScope(userId: string, roleKey: string): Promise<
     details: { role_key: roleKey },
     companyId,
   });
+  invalidateCompanyCopilotCache(companyId);
   revalidatePath(REVALIDATE);
   return { ok: true };
 }
@@ -186,6 +190,7 @@ export async function setRoleLimit(input: {
     details: { user_id: userId, role_key: roleKey, action: input.action, max_amount: maxAmount, max_percent: maxPercent },
     companyId,
   });
+  invalidateCompanyCopilotCache(companyId);
   revalidatePath(REVALIDATE);
   return { ok: true };
 }
@@ -210,6 +215,7 @@ export async function removeRoleLimit(id: string): Promise<ActionResult> {
     details: { id },
     companyId,
   });
+  invalidateCompanyCopilotCache(companyId);
   revalidatePath(REVALIDATE);
   return { ok: true };
 }
