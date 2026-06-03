@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { FormSection } from '@/components/shared/form-section';
 import { LineItemsEditor, newLine, type EditorLine } from '@/components/sales/line-items-editor';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FieldError } from '@/components/ui/field-error';
@@ -190,7 +191,7 @@ export function InvoicesManager({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <FormSection title={t('sales.invoiceDetailsSection')}>
               {branches.length > 1 && (
                 <div className="space-y-1">
                   <Label className="text-xs">{t('sales.labelBranchRequired')}</Label>
@@ -219,7 +220,7 @@ export function InvoicesManager({
                 <Label className="text-xs">{t('sales.labelNotes')}</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
-            </div>
+            </FormSection>
 
             <LineItemsEditor
               products={products}
@@ -431,6 +432,9 @@ function PaymentDialog({
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const [ref, setRef] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  // Stable per-dialog idempotency key — a retry (e.g. lost response) reuses it,
+  // so the payment is never recorded twice.
+  const [idemKey] = useState(() => crypto.randomUUID());
   const [pending, startTransition] = useTransition();
 
   function submit() {
@@ -441,6 +445,7 @@ function PaymentDialog({
         payment_method: method,
         reference_number: ref,
         payment_date: date,
+        idempotency_key: idemKey,
       });
       if (!res.ok) {
         toast.error(res.error ?? t('sales.errorGeneric'));

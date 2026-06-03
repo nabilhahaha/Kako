@@ -27,6 +27,85 @@ export const ar = {
       noCompanies: 'لا توجد شركات بعد. أنشئ أول شركة من صفحة الإدارة.',
       branchCount: 'فرع',
       userCount: 'مستخدم',
+      // KPI strip (cockpit)
+      statTrialVsPaid: 'تجريبي / مدفوع',
+      statExpiringWeek: 'اشتراكات توشك على الانتهاء',
+      statActiveUsers: 'المستخدمون النشطون',
+      // integration health card
+      integrationTitle: 'صحة التكاملات',
+      integrationActiveConnections: 'اتصالات مفعّلة',
+      integrationCompanies: 'شركات بها تكاملات',
+      integrationApiKeys: 'مفاتيح API مفعّلة',
+      integrationSyncJobs: 'مهام مزامنة مفعّلة',
+      integrationFailedRuns: 'تشغيلات مزامنة فاشلة (٧ أيام)',
+      integrationNone: 'لا توجد بيانات تكاملات بعد.',
+      // system alerts card
+      alertsTitle: 'تنبيهات النظام',
+      alertsAllClear: 'كل شيء على ما يرام',
+      alertsAllClearHint: 'لا توجد اشتراكات منتهية أو شركات موقوفة تحتاج انتباهك.',
+      alertExpired: 'اشتراك منتهٍ',
+      alertExpiring: 'اشتراك يوشك على الانتهاء',
+      alertSuspended: 'شركة موقوفة',
+      alertNoModules: 'شركة بدون وحدات مفعّلة',
+      // quick actions card
+      quickActionsTitle: 'إجراءات سريعة',
+      qaNewCompany: 'شركة جديدة',
+      qaInviteStaff: 'دعوة موظف',
+      qaViewAudit: 'سجل التدقيق',
+      qaBilling: 'الفوترة والاشتراكات',
+      // platform attention center
+      attnTitle: 'مركز الانتباه',
+      attnAllClear: 'كل شيء على ما يرام',
+      attnAllClearHint: 'لا توجد إشارات تحتاج انتباهك الآن.',
+      attnDrillDown: 'عرض التفاصيل',
+      attnNever: 'بدون نشاط',
+      attnExpiring: 'اشتراكات توشك على الانتهاء (٧ أيام)',
+      attnPending: 'طلبات موافقة معلّقة',
+      attnNoUsers: 'شركات بدون مستخدمين نشطين',
+      attnNoActivity: 'شركات بدون نشاط (٣٠ يوم)',
+      attnFailedSync: 'تشغيلات مزامنة فاشلة (٧ أيام)',
+      attnAnomaly: 'عمليات حساسة كثيرة (٢٤ ساعة)',
+      // recent audit activity card
+      recentAuditTitle: 'أحدث النشاط',
+      recentAuditEmpty: 'لا يوجد نشاط مسجّل بعد.',
+      // T1 attention summary (above the fold)
+      attnSummaryTitle: 'يحتاج انتباهك',
+      attnSummaryUrgent: 'عاجل',
+      attnSummaryBlocked: 'معطّل',
+      attnSummaryReview: 'للمراجعة',
+      attnView: 'عرض',
+      // portfolio health line: "{companies} شركة · {expiring} توشك · {blocked} معطّلة"
+      portfolioLine: '{companies} شركة · {expiring} توشك · {blocked} معطّلة',
+      // details disclosure for demoted (T2/T3) content
+      moreDetails: 'مزيد من التفاصيل والمؤشرات',
+      kpiStripTitle: 'مؤشرات المحفظة',
+    },
+
+    // ── global search command palette (⌘K) ─────────────────────────
+    search: {
+      trigger: 'بحث…',
+      placeholder: 'ابحث عن شركة أو مستخدم أو إجراء…',
+      groupCompanies: 'الشركات',
+      groupUsers: 'المستخدمون',
+      groupAudit: 'سجل التدقيق',
+      groupApprovals: 'الموافقات',
+      groupModules: 'الوحدات',
+      groupPacks: 'الحزم القطاعية',
+      groupActions: 'إجراءات سريعة',
+      recent: 'الأخيرة',
+      recentOpened: 'فُتحت مؤخراً',
+      frequent: 'الأكثر فتحاً',
+      approvalPending: 'بانتظار الموافقة',
+      loading: 'جارٍ البحث…',
+      empty: 'لا توجد نتائج',
+      emptyHint: 'جرّب اسم شركة أو بريد مستخدم.',
+      hintType: 'ابدأ الكتابة للبحث في الشركات والمستخدمين والوحدات والمزيد.',
+      close: 'إغلاق',
+      qaNewCompany: 'شركة جديدة',
+      qaInviteStaff: 'دعوة موظف',
+      qaViewAudit: 'سجل التدقيق',
+      qaBilling: 'الفوترة والاشتراكات',
+      qaOverview: 'نظرة عامة على المنصّة',
     },
 
     // ── subscription state badges ──────────────────────────────────
@@ -39,12 +118,44 @@ export const ar = {
       open: 'مفتوح',
     },
 
+    // ── shared list toolbar ────────────────────────────────────────
+    toolbar: {
+      searchPlaceholder: 'بحث…',
+      showing: 'عرض {count} من {total}',
+    },
+
+    // ── shared pagination bar ──────────────────────────────────────
+    pagination: {
+      prev: 'السابق',
+      next: 'التالي',
+      pageOf: 'صفحة {page} من {pages}',
+      total: 'الإجمالي: {total}',
+    },
+
     // ── companies list page ────────────────────────────────────────
     companies: {
       title: 'الشركات والاشتراكات',
       description: 'إضافة الشركات (المستأجرين)، إدارة اشتراكاتها وقفلها عند الانتهاء',
       newCompany: 'شركة جديدة',
       empty: 'لا توجد شركات بعد. أنشئ أول شركة.',
+      emptyAction: 'إضافة شركة',
+      noResults: 'لا توجد نتائج',
+      noResultsHint: 'جرّب تعديل البحث أو الفلتر.',
+      countLabel: 'عرض {count} من {total} شركة',
+      searchPlaceholder: 'بحث بالاسم أو المعرّف…',
+      // filters
+      filterAll: 'كل الحالات',
+      // sorting
+      sortLabel: 'ترتيب حسب',
+      sortName: 'الاسم',
+      sortExpiry: 'تاريخ الانتهاء',
+      sortBranches: 'الفروع',
+      sortUsers: 'المستخدمون',
+      sortCreated: 'تاريخ الإضافة',
+      // pagination
+      prev: 'السابق',
+      next: 'التالي',
+      pageOf: 'صفحة {page} من {pages}',
       // table headers
       thCompany: 'الشركة',
       thActivity: 'النشاط',
@@ -52,6 +163,7 @@ export const ar = {
       thExpiry: 'الانتهاء',
       thBranches: 'الفروع',
       thUsers: 'المستخدمون',
+      thCreated: 'تاريخ الإضافة',
       daysSuffix: 'يوم',
       // actions
       suspend: 'إيقاف',
@@ -109,6 +221,55 @@ export const ar = {
         onboardingToast: 'تم تحديث حالة الإعداد',
         resetOnboarding: 'إعادة الإعداد',
         markOnboarded: 'تعليم كمكتمل',
+      },
+
+      // Company 360 — single-page workspace (rail, KPIs, header, timeline)
+      c360: {
+        backToCompanies: 'الشركات',
+        health: 'مؤشر الصحة',
+        railSummary: 'ملخّص',
+        railSubscription: 'الاشتراك',
+        railUsers: 'المستخدمون',
+        railRoles: 'الأدوار والصلاحيات',
+        railModules: 'الوحدات',
+        railPacks: 'الحزم القطاعية',
+        railIntegrations: 'التكاملات',
+        railUsage: 'الاستخدام',
+        railAudit: 'سجل التدقيق',
+        kpiUsers: 'المستخدمون',
+        kpiActiveUsers: 'المستخدمون النشطون',
+        kpiModules: 'الوحدات المفعّلة',
+        kpiIntegrations: 'التكاملات',
+        kpiApprovals: 'الموافقات المعلّقة',
+        kpiDaysToExpiry: 'أيام حتى الانتهاء',
+        timelineTitle: 'أحداث مهمة',
+        timelineEmpty: 'لا توجد أحداث',
+        viewFullAudit: 'عرض السجل الكامل',
+        // condensed status card (T1)
+        statusTitle: 'الحالة',
+        statusExpiry: 'حتى الانتهاء',
+        statusApprovals: 'موافقات معلّقة',
+        statusUsers: 'المستخدمون',
+        // mobile section collapse
+        expandSection: 'عرض',
+        collapseSection: 'إخفاء',
+      },
+
+      // Company Health Score
+      health: {
+        title: 'مؤشر صحة الشركة',
+        band: {
+          healthy: 'سليمة',
+          at_risk: 'تحتاج متابعة',
+          critical: 'حرجة',
+        },
+        factors: {
+          subscription: 'الاشتراك',
+          activeUsers: 'المستخدمون النشطون',
+          integrations: 'التكاملات',
+          approvals: 'الموافقات',
+          recentActivity: 'النشاط الأخير',
+        },
       },
       trial: {
         title: 'الفترة التجريبية',
@@ -183,6 +344,24 @@ export const ar = {
       modules: {
         title: 'الوحدات المفعّلة',
         hint: 'تتحكم في الأقسام الظاهرة لهذه الشركة (تُضبط افتراضياً حسب نوع النشاط). الخطة قد تحجب وحدة غير متاحة فيها.',
+        on: 'مفعّلة',
+        off: 'موقوفة',
+        inPlan: 'ضمن الخطة',
+        locked: 'خارج الخطة',
+        lockedHint: 'غير متوفرة في خطة الشركة الحالية.',
+        needsHint: 'تعمل بشكل أفضل مع: {modules}',
+        disableWarnTitle: 'إيقاف {module}؟',
+        disableWarnBody: 'هذه الوحدات تعتمد عليها: {modules}. قد تتوقف بعض الشاشات عن الظهور. (تنبيه إرشادي فقط)',
+        disableWarnConfirm: 'إيقاف على أي حال',
+        resetButton: 'إرجاع لإعداد {type} الافتراضي',
+        resetGeneric: 'إرجاع للإعداد الموصى به',
+        resetConfirmTitle: 'إرجاع للإعداد الموصى به؟',
+        resetConfirmBody: 'سيُفعّل: {enable}\nسيُوقف: {disable}',
+        resetConfirmNoChange: 'الوحدات مطابقة للموصى به بالفعل — لا تغيير.',
+        resetConfirm: 'تطبيق',
+        resetDone: 'تم الإرجاع للإعداد الموصى به',
+        resetNone: 'لا توجد توصية لنوع نشاط هذه الشركة',
+        none: '—',
       },
 
       // company info form
@@ -219,6 +398,7 @@ export const ar = {
         branchPlaceholder: 'اختر الفرع *',
         createUserButton: 'إنشاء المستخدم',
         toastCreated: 'تم إنشاء المستخدم',
+        byRoleTitle: 'المستخدمون حسب الدور',
         // reset password dialog
         resetPasswordTitle: 'تغيير كلمة المرور',
         resetPasswordMessage: 'كلمة مرور جديدة لـ {name}',
@@ -251,12 +431,28 @@ export const ar = {
       footer: 'تسري التغييرات على مستخدمي الشركة عند تحديث الصفحة أو إعادة تسجيل الدخول. الأدوار غير المفعّلة لا تمنح أي صلاحية.',
       toastRoleAdded: 'تمت إضافة الدور لهذه الشركة',
       toastError: 'حدث خطأ',
+      // matrix redesign
+      searchPlaceholder: 'بحث في الصلاحيات…',
+      noResults: 'لا توجد صلاحيات مطابقة',
+      selectAllGroup: 'تحديد كل صلاحيات هذه المجموعة لهذا الدور',
+      selectAllColumn: 'تحديد كل الصلاحيات لهذا الدور',
+      roleDisabledTooltip: 'فعّل هذا الدور أولاً',
+      expandAll: 'توسيع الكل',
+      collapseAll: 'طي الكل',
+      noRoles: 'لا توجد أدوار. أضف دوراً للبدء.',
+      // summary-first (T1): role list with permission count; matrix behind "Edit / Advanced"
+      summaryTitle: 'الأدوار',
+      summaryHint: 'ملخّص الصلاحيات لكل دور. افتح «تعديل / متقدّم» لمصفوفة الصلاحيات الكاملة.',
+      summaryFmt: '{granted}/{total} صلاحية',
+      editAdvanced: 'تعديل / متقدّم',
+      backToSummary: 'رجوع للملخّص',
+      roleDisabledSummary: 'الدور موقوف',
     },
 
     // ── audit log page ─────────────────────────────────────────────
     audit: {
       title: 'سجل التدقيق',
-      description: 'أحدث ٢٠٠ عملية حساسة على المنصّة (صلاحيات، مستخدمون، شركات، اشتراكات).',
+      description: 'أحدث العمليات الحساسة على المنصّة (صلاحيات، مستخدمون، شركات، اشتراكات).',
       empty: 'لا توجد عمليات مسجّلة بعد.',
       thTime: 'الوقت',
       thActor: 'المنفّذ',
@@ -264,6 +460,24 @@ export const ar = {
       thEntity: 'العنصر',
       thCompany: 'الشركة',
       thDetails: 'تفاصيل',
+      thSummary: 'الملخّص',
+      // view toggle + timeline
+      viewTable: 'جدول',
+      viewTimeline: 'الخط الزمني',
+      dayToday: 'اليوم',
+      dayYesterday: 'أمس',
+      // client filters
+      searchPlaceholder: 'بحث بالمنفّذ أو المعرّف أو التفاصيل…',
+      filterActionAll: 'كل العمليات',
+      filterEntityAll: 'كل العناصر',
+      filterActorAll: 'كل المنفّذين',
+      filterDateAll: 'كل الفترات',
+      filterDateToday: 'اليوم',
+      filterDate7d: 'آخر ٧ أيام',
+      filterDate30d: 'آخر ٣٠ يوم',
+      noResults: 'لا توجد عمليات مطابقة.',
+      noResultsHint: 'جرّب تعديل البحث أو الفلاتر.',
+      eventNotInWindow: 'الحدث المطلوب غير موجود في النافذة الحالية.',
     },
 
     // ── drugs (Egyptian drug list) page ────────────────────────────
@@ -332,6 +546,85 @@ export const en = {
       noCompanies: 'No companies yet. Create the first one from the management page.',
       branchCount: 'branch(es)',
       userCount: 'user(s)',
+      // KPI strip (cockpit)
+      statTrialVsPaid: 'Trial / Paid',
+      statExpiringWeek: 'Expiring Subscriptions',
+      statActiveUsers: 'Active Users',
+      // integration health card
+      integrationTitle: 'Integration Health',
+      integrationActiveConnections: 'Active connections',
+      integrationCompanies: 'Companies with integrations',
+      integrationApiKeys: 'Active API keys',
+      integrationSyncJobs: 'Active sync jobs',
+      integrationFailedRuns: 'Failed sync runs (7d)',
+      integrationNone: 'No integration data yet.',
+      // system alerts card
+      alertsTitle: 'System Alerts',
+      alertsAllClear: 'All clear',
+      alertsAllClearHint: 'No expired subscriptions or suspended companies need your attention.',
+      alertExpired: 'Expired subscription',
+      alertExpiring: 'Subscription expiring soon',
+      alertSuspended: 'Suspended company',
+      alertNoModules: 'Company with no enabled modules',
+      // quick actions card
+      quickActionsTitle: 'Quick Actions',
+      qaNewCompany: 'New Company',
+      qaInviteStaff: 'Invite Staff',
+      qaViewAudit: 'View Audit',
+      qaBilling: 'Billing & Subscriptions',
+      // platform attention center
+      attnTitle: 'Platform Attention Center',
+      attnAllClear: 'All clear',
+      attnAllClearHint: 'No signals need your attention right now.',
+      attnDrillDown: 'View details',
+      attnNever: 'no activity',
+      attnExpiring: 'Expiring subscriptions (7d)',
+      attnPending: 'Pending approval requests',
+      attnNoUsers: 'Companies with no active users',
+      attnNoActivity: 'Companies inactive 30 days',
+      attnFailedSync: 'Failed sync runs (7d)',
+      attnAnomaly: 'Sensitive actions spike (24h)',
+      // recent audit activity card
+      recentAuditTitle: 'Recent Activity',
+      recentAuditEmpty: 'No activity logged yet.',
+      // T1 attention summary (above the fold)
+      attnSummaryTitle: 'Needs your attention',
+      attnSummaryUrgent: 'Urgent',
+      attnSummaryBlocked: 'Blocked',
+      attnSummaryReview: 'Review',
+      attnView: 'View',
+      // portfolio health line: "{companies} companies · {expiring} expiring · {blocked} blocked"
+      portfolioLine: '{companies} companies · {expiring} expiring · {blocked} blocked',
+      // details disclosure for demoted (T2/T3) content
+      moreDetails: 'More details & metrics',
+      kpiStripTitle: 'Portfolio metrics',
+    },
+
+    // ── global search command palette (⌘K) ─────────────────────────
+    search: {
+      trigger: 'Search…',
+      placeholder: 'Search companies, users, actions…',
+      groupCompanies: 'Companies',
+      groupUsers: 'Users',
+      groupAudit: 'Audit',
+      groupApprovals: 'Approvals',
+      groupModules: 'Modules',
+      groupPacks: 'Industry Packs',
+      groupActions: 'Quick Actions',
+      recent: 'Recent',
+      recentOpened: 'Recently opened',
+      frequent: 'Frequent',
+      approvalPending: 'Pending approval',
+      loading: 'Searching…',
+      empty: 'No results',
+      emptyHint: 'Try a company name or a user email.',
+      hintType: 'Start typing to search companies, users, modules and more.',
+      close: 'Close',
+      qaNewCompany: 'New Company',
+      qaInviteStaff: 'Invite Staff',
+      qaViewAudit: 'View Audit',
+      qaBilling: 'Billing & Subscriptions',
+      qaOverview: 'Platform Overview',
     },
 
     // ── subscription state badges ──────────────────────────────────
@@ -344,12 +637,44 @@ export const en = {
       open: 'Open',
     },
 
+    // ── shared list toolbar ────────────────────────────────────────
+    toolbar: {
+      searchPlaceholder: 'Search…',
+      showing: 'Showing {count} of {total}',
+    },
+
+    // ── shared pagination bar ──────────────────────────────────────
+    pagination: {
+      prev: 'Previous',
+      next: 'Next',
+      pageOf: 'Page {page} of {pages}',
+      total: 'Total: {total}',
+    },
+
     // ── companies list page ────────────────────────────────────────
     companies: {
       title: 'Companies & Subscriptions',
       description: 'Add tenant companies, manage their subscriptions and lock them on expiry',
       newCompany: 'New Company',
       empty: 'No companies yet. Create the first one.',
+      emptyAction: 'Add a company',
+      noResults: 'No matching companies',
+      noResultsHint: 'Try adjusting your search or filter.',
+      countLabel: 'Showing {count} of {total} companies',
+      searchPlaceholder: 'Search by name or slug…',
+      // filters
+      filterAll: 'All statuses',
+      // sorting
+      sortLabel: 'Sort by',
+      sortName: 'Name',
+      sortExpiry: 'Expiry date',
+      sortBranches: 'Branches',
+      sortUsers: 'Users',
+      sortCreated: 'Date added',
+      // pagination
+      prev: 'Previous',
+      next: 'Next',
+      pageOf: 'Page {page} of {pages}',
       // table headers
       thCompany: 'Company',
       thActivity: 'Business Type',
@@ -357,6 +682,7 @@ export const en = {
       thExpiry: 'Expiry',
       thBranches: 'Branches',
       thUsers: 'Users',
+      thCreated: 'Date added',
       daysSuffix: 'day(s)',
       // actions
       suspend: 'Suspend',
@@ -414,6 +740,55 @@ export const en = {
         onboardingToast: 'Onboarding status updated',
         resetOnboarding: 'Reset onboarding',
         markOnboarded: 'Mark as onboarded',
+      },
+
+      // Company 360 — single-page workspace (rail, KPIs, header, timeline)
+      c360: {
+        backToCompanies: 'Companies',
+        health: 'Health',
+        railSummary: 'Summary',
+        railSubscription: 'Subscription',
+        railUsers: 'Users',
+        railRoles: 'Roles & Permissions',
+        railModules: 'Modules',
+        railPacks: 'Industry Packs',
+        railIntegrations: 'Integrations',
+        railUsage: 'Usage',
+        railAudit: 'Audit',
+        kpiUsers: 'Users',
+        kpiActiveUsers: 'Active Users',
+        kpiModules: 'Modules Enabled',
+        kpiIntegrations: 'Integrations',
+        kpiApprovals: 'Open Approvals',
+        kpiDaysToExpiry: 'Days to Expiry',
+        timelineTitle: 'Important Events',
+        timelineEmpty: 'No events',
+        viewFullAudit: 'View full audit',
+        // condensed status card (T1)
+        statusTitle: 'Status',
+        statusExpiry: 'To expiry',
+        statusApprovals: 'Open approvals',
+        statusUsers: 'Users',
+        // mobile section collapse
+        expandSection: 'Show',
+        collapseSection: 'Hide',
+      },
+
+      // Company Health Score
+      health: {
+        title: 'Company Health',
+        band: {
+          healthy: 'Healthy',
+          at_risk: 'At Risk',
+          critical: 'Critical',
+        },
+        factors: {
+          subscription: 'Subscription',
+          activeUsers: 'Active Users',
+          integrations: 'Integrations',
+          approvals: 'Approvals',
+          recentActivity: 'Recent Activity',
+        },
       },
       trial: {
         title: 'Trial period',
@@ -488,6 +863,24 @@ export const en = {
       modules: {
         title: 'Enabled Modules',
         hint: 'Controls which sections are visible to this company (defaults to business type). The plan may restrict unavailable modules.',
+        on: 'On',
+        off: 'Off',
+        inPlan: 'In plan',
+        locked: 'Not in plan',
+        lockedHint: 'Not included in this company’s current plan.',
+        needsHint: 'Works best with: {modules}',
+        disableWarnTitle: 'Disable {module}?',
+        disableWarnBody: 'These rely on it: {modules}. Some screens may stop appearing. (Advisory only)',
+        disableWarnConfirm: 'Disable anyway',
+        resetButton: 'Reset to {type} defaults',
+        resetGeneric: 'Reset to recommended',
+        resetConfirmTitle: 'Reset to recommended setup?',
+        resetConfirmBody: 'Will enable: {enable}\nWill disable: {disable}',
+        resetConfirmNoChange: 'Modules already match the recommended set — nothing to change.',
+        resetConfirm: 'Apply',
+        resetDone: 'Reset to recommended setup',
+        resetNone: 'No recommendation for this company’s business type',
+        none: '—',
       },
 
       // company info form
@@ -524,6 +917,7 @@ export const en = {
         branchPlaceholder: 'Select Branch *',
         createUserButton: 'Create User',
         toastCreated: 'User created',
+        byRoleTitle: 'Users by role',
         // reset password dialog
         resetPasswordTitle: 'Change Password',
         resetPasswordMessage: 'New password for {name}',
@@ -556,12 +950,28 @@ export const en = {
       footer: 'Changes take effect for company users on page refresh or re-login. Disabled roles grant no permissions.',
       toastRoleAdded: 'Role added for this company',
       toastError: 'An error occurred',
+      // matrix redesign
+      searchPlaceholder: 'Search permissions…',
+      noResults: 'No matching permissions',
+      selectAllGroup: 'Toggle all permissions in this group for this role',
+      selectAllColumn: 'Toggle all permissions for this role',
+      roleDisabledTooltip: 'Enable this role first',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all',
+      noRoles: 'No roles yet. Add one to get started.',
+      // summary-first (T1): role list with permission count; matrix behind "Edit / Advanced"
+      summaryTitle: 'Roles',
+      summaryHint: 'Permission summary per role. Open “Edit / Advanced” for the full permission matrix.',
+      summaryFmt: '{granted}/{total} permissions',
+      editAdvanced: 'Edit / Advanced',
+      backToSummary: 'Back to summary',
+      roleDisabledSummary: 'Role disabled',
     },
 
     // ── audit log page ─────────────────────────────────────────────
     audit: {
       title: 'Audit Log',
-      description: 'Latest 200 sensitive operations on the platform (permissions, users, companies, subscriptions).',
+      description: 'Latest sensitive operations on the platform (permissions, users, companies, subscriptions).',
       empty: 'No operations logged yet.',
       thTime: 'Time',
       thActor: 'Actor',
@@ -569,6 +979,24 @@ export const en = {
       thEntity: 'Entity',
       thCompany: 'Company',
       thDetails: 'Details',
+      thSummary: 'Summary',
+      // view toggle + timeline
+      viewTable: 'Table',
+      viewTimeline: 'Timeline',
+      dayToday: 'Today',
+      dayYesterday: 'Yesterday',
+      // client filters
+      searchPlaceholder: 'Search actor, entity id or details…',
+      filterActionAll: 'All actions',
+      filterEntityAll: 'All entities',
+      filterActorAll: 'All actors',
+      filterDateAll: 'All time',
+      filterDateToday: 'Today',
+      filterDate7d: 'Last 7 days',
+      filterDate30d: 'Last 30 days',
+      noResults: 'No matching operations.',
+      noResultsHint: 'Try adjusting your search or filters.',
+      eventNotInWindow: 'Requested event is not in the current window.',
     },
 
     // ── drugs (Egyptian drug list) page ────────────────────────────

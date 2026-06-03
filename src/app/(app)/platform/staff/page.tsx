@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
@@ -48,23 +49,47 @@ export default async function PlatformStaffPage() {
     ((profiles as { id: string; email: string | null; full_name: string | null }[]) ?? []).map((p) => [p.id, p]),
   );
 
+  // ── Last activity ──────────────────────────────────────────────────────────
+  // erp_profiles has no last_sign_in_at, and auth.users is not reachable from
+  // this RLS-scoped client, so we derive "last active" from the most recent
+  // erp_audit_logs entry whose actor_id matches the staff member's profile id
+  // (verified columns: actor_id, created_at in migration 0024). Best-effort: a
+  // query error simply leaves everyone as "Never".
+  const lastActiveByProfile: Record<string, string> = {};
+  if (profileIds.length) {
+    const { data: actorLogs } = await supabase
+      .from('erp_audit_logs')
+      .select('actor_id, created_at')
+      .in('actor_id', profileIds)
+      .order('created_at', { ascending: false })
+      .limit(2000);
+    for (const log of (actorLogs as { actor_id: string | null; created_at: string }[]) ?? []) {
+      if (!log.actor_id) continue;
+      // rows newest-first → first seen per actor is the latest
+      if (!lastActiveByProfile[log.actor_id]) lastActiveByProfile[log.actor_id] = log.created_at;
+    }
+  }
+
   const staffRows: StaffRow[] = raw.map((r) => {
     const p = pById.get(r.profile_id);
     return {
       id: r.id, role: r.role, title: r.title, isActive: r.is_active,
       email: p?.email ?? null, fullName: p?.full_name ?? null,
+      lastActiveAt: lastActiveByProfile[r.profile_id] ?? null,
     };
   });
 
   return (
     <div>
       <PageHeader title={t('platformStaff.title')} description={t('platformStaff.subtitle')} />
-      <StaffManager
-        staff={staffRows}
-        roleDefaults={(rolePerms as RoleDefault[]) ?? []}
-        overrides={(overrides as OverrideRow[]) ?? []}
-        canInvite={ctx.isOwner}
-      />
+      <Suspense fallback={null}>
+        <StaffManager
+          staff={staffRows}
+          roleDefaults={(rolePerms as RoleDefault[]) ?? []}
+          overrides={(overrides as OverrideRow[]) ?? []}
+          canInvite={ctx.isOwner}
+        />
+      </Suspense>
     </div>
   );
 }

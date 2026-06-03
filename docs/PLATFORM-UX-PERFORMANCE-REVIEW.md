@@ -47,9 +47,11 @@ The gaps are concentrated in **a few high-volume list screens** (Customers, Prod
 ## Triage
 
 ### 🔴 Must Fix Before Pilot
-- **M1 — Search + empty state on the Products list.** FMCG SKU volumes make an unbounded, search-less Products screen unusable for reps/admins. Reuse the existing `ListSearch`/in-memory filter + `EmptyState`. *(Lens 4, 6, 11.)*
-- **M2 — Empty states on Suppliers & Inventory** (and a basic search box). First-run pilot screens otherwise render blank/“broken”. Cheap (shared `EmptyState`). *(Lens 6.)*
-- **M3 — Customers-list scale guard.** Unbounded `select('*')` + **per-row governance redaction** is fine at the pilot's ≤~2–3k customers but degrades beyond. Either confirm the pilot book stays under that, or paginate before loading a large customer base (see S1). *(Lens 10, 11.)*
+> **Correction (post-implementation):** code review found Products, Suppliers **and** Inventory **already have** client-side search + empty states — M1/M2 as originally written were inaccurate. Delivered instead (PR #82): the shared/actionable `EmptyState` on those three (consistency + onboarding CTA) and the genuine **M3** customer scale guard.
+
+- **M1 — Products: ✅ already had search + empty.** Delivered the shared `EmptyState` + "New product" CTA. *(Lens 6.)*
+- **M2 — Suppliers & Inventory: ✅ already had search + empty.** Delivered the shared `EmptyState` + CTA. *(Lens 6.)*
+- **M3 — Customers-list scale guard. ✅ DONE (PR #82).** Capped at 2000 + exact count + truncation banner; bounds the unbounded load + per-row redaction until S1. *(Lens 10, 11.)*
 
 ### 🟠 Should Fix Before First Paying Customer
 - **S1 — Uniform server pagination + debounced search** for Customers, Products, Suppliers, Inventory (mirror the Invoices/Orders `.range()` + `ListSearch` pattern). Removes the in-memory ceiling. *(Lens 4, 11.)*

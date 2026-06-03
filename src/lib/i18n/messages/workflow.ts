@@ -1,8 +1,8 @@
-/** Workflow / Approvals. ar/en keys identical. */
+/** Workflow / Approvals (Workflow Inbox). ar/en keys identical. */
 export const ar = {
   workflow: {
-    title: 'الموافقات',
-    subtitle: 'مهام الموافقة المعلّقة الخاصة بك عبر كل الوحدات.',
+    title: 'صندوق الموافقات',
+    subtitle: 'مهام الموافقة المعلّقة الخاصة بك عبر كل الوحدات — راجِعها واعتمِدها أو ارفُضها.',
     empty: 'لا توجد مهام موافقة معلّقة.',
     step: 'الخطوة {n}',
     approve: 'اعتماد',
@@ -14,6 +14,7 @@ export const ar = {
     rejectReasonRequired: 'سبب الرفض مطلوب.',
     entity: {
       customer: 'عميل',
+      customer_change_request: 'طلب تعديل عميل',
       credit_limit_request: 'طلب حد ائتمان',
     },
     creditLimit: {
@@ -25,14 +26,52 @@ export const ar = {
       approved: 'تم الاعتماد',
       rejected: 'تم الرفض',
       requested: 'تم الإرسال للاعتماد',
+      bulkApproved: 'تم اعتماد {n} مهمة',
+      bulkPartial: 'تم اعتماد {ok} من {total}؛ تعذّر اعتماد {failed}.',
+    },
+    // ── Workflow Inbox (Enterprise-Operations Phase 5) ──
+    inbox: {
+      pendingCount: 'بانتظار موافقتك',
+      searchPlaceholder: 'ابحث بالاسم أو النوع…',
+      statusLabel: 'الحالة',
+      statusPending: 'معلّقة',
+      statusApproved: 'معتمدة',
+      statusRejected: 'مرفوضة',
+      statusAll: 'الكل',
+      entityAll: 'كل الأنواع',
+      // Plain-language summary: "<requester> requested approval of <entity> <name>"
+      summary: 'طلب {requester} اعتماد {entity}: {name}',
+      summaryNoRequester: 'طلب اعتماد {entity}: {name}',
+      requestedBy: 'بواسطة {requester}',
+      company: 'الشركة: {name}',
+      age: 'منذ {age}',
+      decidedPending: 'بانتظار القرار',
+      decidedApproved: 'معتمدة',
+      decidedRejected: 'مرفوضة',
+      selectAll: 'تحديد الكل',
+      selectTask: 'تحديد المهمة',
+      bulkApprove: 'اعتماد المحدد ({n})',
+      reasonLabel: 'سبب الرفض',
+      reasonRequiredHint: 'اكتب سبب الرفض قبل المتابعة.',
+      emptyTitle: 'صندوقك فارغ',
+      emptyDescription: 'لا توجد مهام بانتظار موافقتك. عمل رائع!',
+      noResultsTitle: 'لا توجد نتائج',
+      noResultsHint: 'جرّب تعديل البحث أو عوامل التصفية.',
+      decidedAt: 'تقرّرت {time}',
+      justNow: 'الآن',
+      rel: {
+        minutes: 'منذ {n} دقيقة',
+        hours: 'منذ {n} ساعة',
+        days: 'منذ {n} يوم',
+      },
     },
   },
 };
 
 export const en = {
   workflow: {
-    title: 'Approvals',
-    subtitle: 'Your pending approval tasks across all modules.',
+    title: 'Workflow Inbox',
+    subtitle: 'Your pending approval tasks across every module — review and approve or reject.',
     empty: 'No pending approval tasks.',
     step: 'Step {n}',
     approve: 'Approve',
@@ -44,6 +83,7 @@ export const en = {
     rejectReasonRequired: 'A rejection reason is required.',
     entity: {
       customer: 'Customer',
+      customer_change_request: 'Customer change request',
       credit_limit_request: 'Credit limit request',
     },
     creditLimit: {
@@ -55,6 +95,44 @@ export const en = {
       approved: 'Approved',
       rejected: 'Rejected',
       requested: 'Submitted for approval',
+      bulkApproved: 'Approved {n} tasks',
+      bulkPartial: 'Approved {ok} of {total}; {failed} could not be approved.',
+    },
+    // ── Workflow Inbox (Enterprise-Operations Phase 5) ──
+    inbox: {
+      pendingCount: 'Awaiting your approval',
+      searchPlaceholder: 'Search by name or type…',
+      statusLabel: 'Status',
+      statusPending: 'Pending',
+      statusApproved: 'Approved',
+      statusRejected: 'Rejected',
+      statusAll: 'All',
+      entityAll: 'All types',
+      // Plain-language summary: "<requester> requested approval of <entity> <name>"
+      summary: '{requester} requested approval of {entity}: {name}',
+      summaryNoRequester: 'Approval requested for {entity}: {name}',
+      requestedBy: 'by {requester}',
+      company: 'Company: {name}',
+      age: '{age} ago',
+      decidedPending: 'Awaiting decision',
+      decidedApproved: 'Approved',
+      decidedRejected: 'Rejected',
+      selectAll: 'Select all',
+      selectTask: 'Select task',
+      bulkApprove: 'Approve selected ({n})',
+      reasonLabel: 'Rejection reason',
+      reasonRequiredHint: 'Enter a reason before rejecting.',
+      emptyTitle: 'Inbox zero',
+      emptyDescription: 'Nothing is waiting for your approval. Nice work!',
+      noResultsTitle: 'No results',
+      noResultsHint: 'Try adjusting your search or filters.',
+      decidedAt: 'Decided {time}',
+      justNow: 'just now',
+      rel: {
+        minutes: '{n}m ago',
+        hours: '{n}h ago',
+        days: '{n}d ago',
+      },
     },
   },
 };

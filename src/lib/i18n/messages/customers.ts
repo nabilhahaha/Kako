@@ -88,6 +88,7 @@ export const ar = {
     statusLabel: 'الحالة',
     statusSinceLabel: 'منذ',
     statusCollectionsNote: 'التحصيل والمرتجعات مسموح بها دائماً.',
+    listTruncated: 'يتم عرض أول {shown} من {total} عميل. استخدم البحث للوصول للبقية (سيأتي الترقيم الكامل قريباً).',
 
     // ── Table headers ────────────────────────────────────────────────
     colCode: 'الكود',
@@ -252,6 +253,7 @@ export const en = {
     statusLabel: 'Status',
     statusSinceLabel: 'Since',
     statusCollectionsNote: 'Collections and returns are always allowed.',
+    listTruncated: 'Showing the first {shown} of {total} customers. Use search to find others (full pagination coming).',
 
     // ── Table headers ────────────────────────────────────────────────
     colCode: 'Code',

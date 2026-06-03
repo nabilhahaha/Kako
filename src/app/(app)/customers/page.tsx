@@ -3,22 +3,40 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { Pager } from '@/components/pager';
 import type { Area, Branch, CustomerLookup, ErpCustomer, Profile, Region } from '@/lib/erp/types';
 import { CustomersManager } from './customers-manager';
 import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
 import { resolveLayout, type GovInputs } from '@/lib/erp/field-governance';
+import { parseListParams, applySearch } from '@/lib/erp/list-query';
 import { getT } from '@/lib/i18n/server';
 
-export default async function CustomersPage() {
+export default async function CustomersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string; segment?: string; classification?: string; channel?: string }>;
+}) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
   const { t } = await getT();
+  const sp = await searchParams;
+  const { page, q, pageSize, from, to } = parseListParams(sp);
+  const segment = sp.segment ?? '';
+  const classification = sp.classification ?? '';
+  const channel = sp.channel ?? '';
 
   const supabase = await createClient();
-  const [{ data: customers }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }] = await Promise.all([
-    supabase.from('erp_customers').select('*').order('code'),
+  // S1: server pagination + search + filters (the standard list pattern).
+  let listQuery = supabase.from('erp_customers').select('*', { count: 'estimated' }).order('code');
+  listQuery = applySearch(listQuery, q, ['code', 'name', 'name_ar', 'phone']);
+  if (segment) listQuery = listQuery.eq('segment_id', segment);
+  if (classification) listQuery = listQuery.eq('classification_id', classification);
+  if (channel) listQuery = listQuery.eq('channel_id', channel);
+
+  const [{ data: customers, count }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }] = await Promise.all([
+    listQuery.range(from, to),
     supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
     supabase.from('erp_profiles').select('id, full_name, email').eq('is_active', true),
     supabase.from('erp_customer_lookups').select('*').eq('is_active', true).order('sort').order('name'),
@@ -27,8 +45,8 @@ export default async function CustomersPage() {
   ]);
   const customFields = await getActiveCustomFields('customer');
 
-  // DFG-3: governance inputs for the form + read redaction. Hidden fields are
-  // nulled out of the rows sent to the client (per-record, role + condition).
+  // DFG-3 + S2: governance read redaction applied to the CURRENT PAGE only
+  // (≤ pageSize rows) — hidden fields nulled out before reaching the client.
   const gov: GovInputs = await loadGovernanceInputs(supabase, ctx, 'customer');
   const rows = ((customers as ErpCustomer[]) ?? []).map((c) => {
     if (gov.fields.length === 0) return c;
@@ -54,6 +72,17 @@ export default async function CustomersPage() {
         canApprove={hasPermission(ctx, 'customers.approve')}
         customFields={customFields}
         gov={gov}
+        q={q}
+        filterSegment={segment}
+        filterClassification={classification}
+        filterChannel={channel}
+      />
+      <Pager
+        page={page}
+        pageSize={pageSize}
+        total={count ?? 0}
+        basePath="/customers"
+        query={{ q: q || undefined, segment: segment || undefined, classification: classification || undefined, channel: channel || undefined }}
       />
     </div>
   );

@@ -1,18 +1,21 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { adjustStock } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/shared/empty-state';
+import { ListSearch } from '@/components/list-search';
+import { Pager } from '@/components/pager';
 import { STOCK_MOVEMENT_TYPE_LABELS } from '@/lib/erp/constants';
 import { formatNumber, formatDate } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, ProductCatalog, StockMovementType, Warehouse } from '@/lib/erp/types';
-import { Boxes, Search, SlidersHorizontal, Loader2, X, History } from 'lucide-react';
+import { Boxes, SlidersHorizontal, Loader2, X, History } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface StockRow {
@@ -36,27 +39,36 @@ export function InventoryView({
   warehouses,
   products,
   movements,
+  q = '',
+  warehouse = '',
+  page = 1,
+  pageSize = 50,
+  total = 0,
 }: {
   stock: StockRow[];
   warehouses: Warehouse[];
   products: ProductCatalog[];
   branches: Branch[];
   movements: MovementRow[];
+  q?: string;
+  warehouse?: string;
+  page?: number;
+  pageSize?: number;
+  total?: number;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t, locale } = useI18n();
   const [tab, setTab] = useState<'levels' | 'movements'>('levels');
-  const [warehouseFilter, setWarehouseFilter] = useState('');
-  const [query, setQuery] = useState('');
   const [adjust, setAdjust] = useState<{ warehouse_id: string; product_id: string } | null>(null);
 
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const whById = useMemo(() => new Map(warehouses.map((w) => [w.id, w])), [warehouses]);
 
+  // Server-paginated page of stock; map for display + sort the page by name.
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return stock
-      .filter((s) => (warehouseFilter ? s.warehouse_id === warehouseFilter : true))
       .map((s) => {
         const p = productById.get(s.product_id);
         const w = whById.get(s.warehouse_id);
@@ -68,11 +80,17 @@ export function InventoryView({
           whName: w ? `${w.code} · ${w.name_ar || w.name}` : '—',
         };
       })
-      .filter((r) =>
-        q ? r.productName.toLowerCase().includes(q) || r.productCode.toLowerCase().includes(q) : true,
-      )
       .sort((a, b) => a.productName.localeCompare(b.productName));
-  }, [stock, warehouseFilter, query, productById, whById]);
+  }, [stock, productById, whById]);
+
+  function setParam(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    params.delete('page');
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }
 
   return (
     <div className="space-y-4">
@@ -95,8 +113,8 @@ export function InventoryView({
         {tab === 'levels' && (
           <>
             <select
-              value={warehouseFilter}
-              onChange={(e) => setWarehouseFilter(e.target.value)}
+              value={warehouse}
+              onChange={(e) => setParam('warehouse', e.target.value)}
               className="h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">{t('inventory.allWarehouses')}</option>
@@ -104,13 +122,10 @@ export function InventoryView({
                 <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
               ))}
             </select>
-            <div className="relative ms-auto">
-              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('inventory.searchProduct')} className="w-56 pe-9" />
-            </div>
+            <ListSearch placeholder={t('inventory.searchProduct')} className="w-full sm:ms-auto sm:w-56" />
             <Button
               variant="outline"
-              onClick={() => setAdjust({ warehouse_id: warehouseFilter || warehouses[0]?.id || '', product_id: '' })}
+              onClick={() => setAdjust({ warehouse_id: warehouse || warehouses[0]?.id || '', product_id: '' })}
               disabled={warehouses.length === 0 || products.length === 0}
             >
               <SlidersHorizontal className="h-4 w-4" /> {t('inventory.adjustStock')}
@@ -121,16 +136,39 @@ export function InventoryView({
 
       {tab === 'levels' ? (
         rows.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
-              <Boxes className="h-8 w-8" />
-              <p>{t('inventory.emptyLevels')}</p>
-            </CardContent>
-          </Card>
+          <EmptyState icon={<Boxes />} title={t('inventory.emptyLevels')} />
         ) : (
+          <>
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              {/* Mobile (UX-3): cards instead of a wide horizontal-scroll table */}
+              <div className="divide-y sm:hidden">
+                {rows.map((r) => {
+                  const low = r.minStock > 0 && Number(r.quantity) < r.minStock;
+                  return (
+                    <div key={`${r.warehouse_id}-${r.product_id}`} className="space-y-2 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{r.productName}</p>
+                          <p className="font-mono text-xs text-muted-foreground" dir="ltr">{r.productCode}</p>
+                        </div>
+                        {low ? <Badge variant="warning">{t('inventory.statusBelowMin', { min: formatNumber(r.minStock) })}</Badge> : <Badge variant="success">{t('inventory.statusAvailable')}</Badge>}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>{r.whName}</span>
+                        <span dir="ltr" className="tabular-nums">{t('inventory.colAvailable')}: {formatNumber(r.quantity)}</span>
+                        <span dir="ltr" className="tabular-nums">{t('inventory.colReserved')}: {formatNumber(r.reserved_qty)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setAdjust({ warehouse_id: r.warehouse_id, product_id: r.product_id })}>
+                          {t('inventory.adjust')}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="w-full text-sm">
                   <thead className="border-b bg-secondary/50 text-muted-foreground">
                     <tr>
@@ -170,6 +208,8 @@ export function InventoryView({
               </div>
             </CardContent>
           </Card>
+          <Pager page={page} pageSize={pageSize} total={total} basePath="/inventory" query={{ q: q || undefined, warehouse: warehouse || undefined }} />
+          </>
         )
       ) : movements.length === 0 ? (
         <Card>

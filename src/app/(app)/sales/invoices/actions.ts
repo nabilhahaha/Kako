@@ -20,6 +20,7 @@ interface InvoiceInput {
   due_date?: string;
   notes?: string;
   lines: LineInput[];
+  idempotency_key?: string;
 }
 
 export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{ id: string }>> {
@@ -85,6 +86,14 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
     }
   }
 
+  // Idempotency: a retry with the same key returns the already-created invoice
+  // instead of creating a duplicate (the unique index is the race backstop).
+  if (input.idempotency_key) {
+    const { data: existing } = await supabase
+      .from('erp_invoices').select('id').eq('idempotency_key', input.idempotency_key).maybeSingle();
+    if (existing) return { ok: true, data: { id: (existing as { id: string }).id } };
+  }
+
   const { data: invNumber, error: numErr } = await supabase.rpc('erp_next_number', {
     p_branch_id: input.branch_id,
     p_seq_type: 'invoice',
@@ -97,6 +106,7 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
       branch_id: input.branch_id,
       customer_id: input.customer_id,
       invoice_number: invNumber as string,
+      idempotency_key: input.idempotency_key ?? null,
       status: 'draft',
       total_amount: totals.total_amount,
       discount_amount: totals.discount_amount,
@@ -261,6 +271,7 @@ export async function recordPayment(input: {
   payment_method: PaymentMethod;
   reference_number?: string;
   payment_date?: string;
+  idempotency_key?: string;
 }): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
@@ -268,7 +279,7 @@ export async function recordPayment(input: {
   const { t } = await getT();
   if (!(input.amount > 0)) return { ok: false, error: t('sales.invoiceErrAmountPositive') };
 
-  // Atomic: payment row (fires Cash/AR journal + invoice update) + balance.
+  // Atomic + idempotent: a retry with the same key is a no-op (no double payment).
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_record_payment', {
     p_invoice_id: input.invoice_id,
@@ -276,6 +287,7 @@ export async function recordPayment(input: {
     p_method: input.payment_method,
     p_ref: input.reference_number ?? null,
     p_date: input.payment_date ?? null,
+    p_idempotency_key: input.idempotency_key ?? null,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
 

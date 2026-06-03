@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { upsertProduct, toggleProductActive, createCategory } from './actions';
 import { Button } from '@/components/ui/button';
@@ -8,11 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/shared/empty-state';
+import { FormSection } from '@/components/shared/form-section';
+import { ListSearch } from '@/components/list-search';
 import { FieldError } from '@/components/ui/field-error';
 import { PRODUCT_UNIT_OPTIONS, PRODUCT_UNIT_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { ProductCatalog, ProductCategory } from '@/lib/erp/types';
-import { Plus, Pencil, Loader2, X, Package, Search, Tags } from 'lucide-react';
+import { Plus, Pencil, Loader2, X, Package, Tags } from 'lucide-react';
 import { toast } from 'sonner';
 import { DrugCatalogPicker } from './drug-catalog-picker';
 import { useI18n } from '@/lib/i18n/provider';
@@ -23,17 +26,18 @@ export function ProductsManager({
   categories,
   showDrugCatalog = false,
   etaEnabled = false,
+  q = '',
 }: {
   products: ProductCatalog[];
   categories: ProductCategory[];
   showDrugCatalog?: boolean;
   etaEnabled?: boolean;
+  q?: string;
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const [editing, setEditing] = useState<ProductCatalog | null | 'new'>(null);
   const [showCategory, setShowCategory] = useState(false);
-  const [query, setQuery] = useState('');
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [pending, startTransition] = useTransition();
 
@@ -41,18 +45,6 @@ export function ProductsManager({
     categories.find((c) => c.id === id)?.name_ar ||
     categories.find((c) => c.id === id)?.name ||
     '—';
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        p.code.toLowerCase().includes(q) ||
-        p.name.toLowerCase().includes(q) ||
-        (p.name_ar || '').toLowerCase().includes(q) ||
-        (p.barcode || '').toLowerCase().includes(q),
-    );
-  }, [products, query]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -112,15 +104,7 @@ export function ProductsManager({
           <Tags className="h-4 w-4" /> {t('products.btnCategories').replace('{count}', String(categories.length))}
         </Button>
         {showDrugCatalog && <DrugCatalogPicker />}
-        <div className="relative ms-auto">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('products.searchPlaceholder')}
-            className="w-64 pe-9"
-          />
-        </div>
+        <ListSearch placeholder={t('products.searchPlaceholder')} className="w-full sm:ms-auto sm:w-64" />
       </div>
 
       {showCategory && (
@@ -170,7 +154,8 @@ export function ProductsManager({
             </div>
             <form onSubmit={onSubmit} className="space-y-4">
               {current && <input type="hidden" name="id" value={current.id} />}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-5">
+                <FormSection title={t('products.sectionIdentity')}>
                 <Field label={t('products.fieldProductCode')}>
                   <Input name="code" dir="ltr" defaultValue={current?.code ?? ''} placeholder={t('products.productCodePlaceholder')} />
                   <FieldError>{errors.code}</FieldError>
@@ -193,6 +178,8 @@ export function ProductsManager({
                   <Input name="name" defaultValue={current?.name ?? ''} onChange={() => setErrors((x) => ({ ...x, name: undefined }))} />
                   <FieldError>{errors.name}</FieldError>
                 </Field>
+                </FormSection>
+                <FormSection title={t('products.sectionPricing')}>
                 <Field label={t('products.fieldUnit')}>
                   <select name="unit" defaultValue={current?.unit ?? 'piece'} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     {PRODUCT_UNIT_OPTIONS.map((u) => (
@@ -212,8 +199,9 @@ export function ProductsManager({
                 <Field label={t('products.fieldMinStock')}>
                   <Input name="min_stock" type="number" step="0.001" dir="ltr" defaultValue={current?.min_stock ?? 0} />
                 </Field>
+                </FormSection>
                 {etaEnabled && (
-                  <>
+                  <FormSection title={t('products.sectionEInvoice')}>
                     <Field label={t('products.fieldEtaCodeType')}>
                       <select name="eta_item_code_type" defaultValue={current?.eta_item_code_type ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                         <option value="">{t('products.etaNone')}</option>
@@ -232,7 +220,7 @@ export function ProductsManager({
                         ))}
                       </select>
                     </Field>
-                  </>
+                  </FormSection>
                 )}
               </div>
               <div className="flex gap-2">
@@ -246,17 +234,51 @@ export function ProductsManager({
         </Card>
       )}
 
-      {filtered.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
-            <Package className="h-8 w-8" />
-            <p>{products.length === 0 ? t('products.emptyProducts') : t('products.emptySearch')}</p>
-          </CardContent>
-        </Card>
+      {products.length === 0 ? (
+        <EmptyState
+          icon={<Package />}
+          title={q ? t('products.emptySearch') : t('products.emptyProducts')}
+          description={q ? undefined : t('products.emptyProductsHint')}
+          action={!q && editing === null ? (
+            <Button onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> {t('products.btnNewProduct')}</Button>
+          ) : undefined}
+        />
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Mobile (UX-3): cards instead of a wide horizontal-scroll table */}
+            <div className="divide-y sm:hidden">
+              {products.map((p) => (
+                <div key={p.id} className="space-y-2 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{p.name_ar || p.name}</p>
+                      <p className="font-mono text-xs text-muted-foreground" dir="ltr">{p.code}</p>
+                    </div>
+                    {p.is_active ? (
+                      <Badge variant="success">{t('products.statusActive')}</Badge>
+                    ) : (
+                      <Badge variant="destructive">{t('products.statusInactive')}</Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span>{catName(p.category_id)}</span>
+                    <span>{PRODUCT_UNIT_LABELS[p.unit]?.[locale] ?? p.unit}</span>
+                    <span dir="ltr" className="tabular-nums">{t('products.colCost')}: {formatCurrency(p.cost_price)}</span>
+                    <span dir="ltr" className="tabular-nums">{t('products.colSell')}: {formatCurrency(p.sell_price)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <button onClick={() => setEditing(p)} className="rounded-md p-2 hover:bg-secondary" aria-label={t('products.ariaEdit')}>
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <Button variant="ghost" size="sm" disabled={pending} onClick={() => onToggle(p)} className="text-xs">
+                      {p.is_active ? t('products.btnDeactivate') : t('products.btnActivate')}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
@@ -271,7 +293,7 @@ export function ProductsManager({
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((p) => (
+                  {products.map((p) => (
                     <tr key={p.id} className="border-b last:border-0 hover:bg-secondary/30">
                       <td className="p-3 font-mono text-xs" dir="ltr">{p.code}</td>
                       <td className="p-3 font-medium">{p.name_ar || p.name}</td>

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { FormSection } from '@/components/shared/form-section';
 import { LineItemsEditor, newLine, type EditorLine } from '@/components/sales/line-items-editor';
 import { SALES_ORDER_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -137,7 +138,7 @@ export function OrdersManager({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <FormSection title={t('sales.orderDetailsSection')}>
               {branches.length > 1 && (
                 <div className="space-y-1">
                   <Label className="text-xs">{t('sales.labelBranchRequired')}</Label>
@@ -161,7 +162,7 @@ export function OrdersManager({
                 <Label className="text-xs">{t('sales.labelNotes')}</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
-            </div>
+            </FormSection>
 
             <LineItemsEditor
               products={products}
