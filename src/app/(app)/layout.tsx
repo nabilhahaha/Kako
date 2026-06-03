@@ -8,6 +8,7 @@ import { TopBar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/layout/command-palette';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
+import { CopilotFab } from '@/components/copilot/copilot-fab';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
 import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
@@ -181,6 +182,8 @@ export default async function AppLayout({
           <main className="flex-1 p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
         </div>
         <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} />
+        {/* Global Help Copilot — always available, outside page content. */}
+        <CopilotFab />
       </div>
      </PromptProvider>
     </ConfirmProvider>
