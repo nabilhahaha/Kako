@@ -28,9 +28,16 @@
 -- company-scoped tenant where the mapped role is enabled. Idempotent.
 -- ============================================================================
 
--- The least-privilege grant matrix as (role_key, permission) pairs.
-CREATE TEMP TABLE _p6_grants(role_key text, permission text) ON COMMIT DROP;
-INSERT INTO _p6_grants(role_key, permission) VALUES
+-- The least-privilege grant matrix is inlined as a VALUES CTE in each statement
+-- below. (Deliberately NOT a TEMP TABLE: under psql's per-statement autocommit a
+-- CREATE TEMP TABLE ... ON COMMIT DROP is dropped before the next statement runs.
+-- A CTE is correct under both per-statement and single-transaction execution.)
+
+-- (a) GLOBAL defaults — new tenants + tenants that inherit globals. Only seed for
+-- roles that exist in the catalog (defensive).
+INSERT INTO erp_role_permissions (role_key, permission)
+SELECT g.role_key, g.permission
+FROM (VALUES
   ('admin', 'customers.delete'),
   ('admin', 'sales.price.override'),
   ('admin', 'sales.payment.writeoff'),
@@ -46,13 +53,8 @@ INSERT INTO _p6_grants(role_key, permission) VALUES
   ('branch_manager', 'purchasing.po.approve'),
   ('warehouse_keeper', 'inventory.adjustment.approve'),
   ('sales_director', 'sales.price.override'),
-  ('regional_manager', 'sales.price.override');
-
--- (a) GLOBAL defaults — new tenants + tenants that inherit globals. Only seed for
--- roles that exist in the catalog (defensive).
-INSERT INTO erp_role_permissions (role_key, permission)
-SELECT g.role_key, g.permission
-FROM _p6_grants g
+  ('regional_manager', 'sales.price.override')
+) AS g(role_key, permission)
 WHERE EXISTS (SELECT 1 FROM erp_roles r WHERE r.key = g.role_key)
 ON CONFLICT (role_key, permission) DO NOTHING;
 
@@ -62,7 +64,24 @@ ON CONFLICT (role_key, permission) DO NOTHING;
 -- the new authority). Companies without company-scoped config inherit (a).
 INSERT INTO erp_company_role_permissions (company_id, role_key, permission)
 SELECT cr.company_id, g.role_key, g.permission
-FROM _p6_grants g
+FROM (VALUES
+  ('admin', 'customers.delete'),
+  ('admin', 'sales.price.override'),
+  ('admin', 'sales.payment.writeoff'),
+  ('admin', 'purchasing.po.approve'),
+  ('admin', 'inventory.adjustment.approve'),
+  ('admin', 'sales.order.cancel'),
+  ('admin', 'sales.invoice.cancel'),
+  ('admin', 'accounting.voucher.approve'),
+  ('accountant', 'sales.payment.writeoff'),
+  ('accountant', 'sales.invoice.cancel'),
+  ('accountant', 'accounting.voucher.approve'),
+  ('branch_manager', 'sales.order.cancel'),
+  ('branch_manager', 'purchasing.po.approve'),
+  ('warehouse_keeper', 'inventory.adjustment.approve'),
+  ('sales_director', 'sales.price.override'),
+  ('regional_manager', 'sales.price.override')
+) AS g(role_key, permission)
 JOIN erp_company_roles cr ON cr.role_key = g.role_key AND cr.enabled
 ON CONFLICT (company_id, role_key, permission) DO NOTHING;
 
