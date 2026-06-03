@@ -464,21 +464,24 @@ export default async function PlatformOverviewPage() {
   const alerts: Alert[] = [];
   for (const c of companyList) {
     const name = c.name_ar || c.name;
-    const href = `/platform/companies/${c.id}`;
+    const base = `/platform/companies/${c.id}`;
+    // Deep-link to the Company 360 section most relevant to the alert.
+    const subHref = `${base}?tab=subscription#section-subscription`;
+    const modHref = `${base}?tab=modules#section-modules`;
     const state = subscriptionState(c);
     if (state === 'expired') {
-      alerts.push({ id: `exp-${c.id}`, label: t('platform.overview.alertExpired'), company: name, href, severity: 'destructive' });
+      alerts.push({ id: `exp-${c.id}`, label: t('platform.overview.alertExpired'), company: name, href: subHref, severity: 'destructive' });
     } else if (state === 'suspended') {
-      alerts.push({ id: `sus-${c.id}`, label: t('platform.overview.alertSuspended'), company: name, href, severity: 'destructive' });
+      alerts.push({ id: `sus-${c.id}`, label: t('platform.overview.alertSuspended'), company: name, href: subHref, severity: 'destructive' });
     } else if (state === 'expiring') {
       const left = daysLeft(c);
       if (left !== null && left <= 7) {
-        alerts.push({ id: `exg-${c.id}`, label: t('platform.overview.alertExpiring'), company: name, href, severity: 'warning' });
+        alerts.push({ id: `exg-${c.id}`, label: t('platform.overview.alertExpiring'), company: name, href: subHref, severity: 'warning' });
       }
     }
     // 0 enabled modules (only flag active/paid companies — not suspended/expired noise)
     if ((state === 'active' || state === 'trial' || state === 'open') && (enabledModuleCount.get(c.id) ?? 0) === 0) {
-      alerts.push({ id: `mod-${c.id}`, label: t('platform.overview.alertNoModules'), company: name, href, severity: 'warning' });
+      alerts.push({ id: `mod-${c.id}`, label: t('platform.overview.alertNoModules'), company: name, href: modHref, severity: 'warning' });
     }
   }
   // destructive first, capped for the cockpit view

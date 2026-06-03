@@ -176,6 +176,47 @@ export const ar = {
         resetOnboarding: 'إعادة الإعداد',
         markOnboarded: 'تعليم كمكتمل',
       },
+
+      // Company 360 — single-page workspace (rail, KPIs, header, timeline)
+      c360: {
+        backToCompanies: 'الشركات',
+        health: 'مؤشر الصحة',
+        railSummary: 'ملخّص',
+        railSubscription: 'الاشتراك',
+        railUsers: 'المستخدمون',
+        railRoles: 'الأدوار والصلاحيات',
+        railModules: 'الوحدات',
+        railPacks: 'الحزم القطاعية',
+        railIntegrations: 'التكاملات',
+        railUsage: 'الاستخدام',
+        railAudit: 'سجل التدقيق',
+        kpiUsers: 'المستخدمون',
+        kpiActiveUsers: 'المستخدمون النشطون',
+        kpiModules: 'الوحدات المفعّلة',
+        kpiIntegrations: 'التكاملات',
+        kpiApprovals: 'الموافقات المعلّقة',
+        kpiDaysToExpiry: 'أيام حتى الانتهاء',
+        timelineTitle: 'أحداث مهمة',
+        timelineEmpty: 'لا توجد أحداث',
+        viewFullAudit: 'عرض السجل الكامل',
+      },
+
+      // Company Health Score
+      health: {
+        title: 'مؤشر صحة الشركة',
+        band: {
+          healthy: 'سليمة',
+          at_risk: 'تحتاج متابعة',
+          critical: 'حرجة',
+        },
+        factors: {
+          subscription: 'الاشتراك',
+          activeUsers: 'المستخدمون النشطون',
+          integrations: 'التكاملات',
+          approvals: 'الموافقات',
+          recentActivity: 'النشاط الأخير',
+        },
+      },
       trial: {
         title: 'الفترة التجريبية',
         hint: 'امنح الشركة فترة تجريبية مؤقتة، مستقلة عن الاشتراك المدفوع.',
@@ -285,6 +326,7 @@ export const ar = {
         branchPlaceholder: 'اختر الفرع *',
         createUserButton: 'إنشاء المستخدم',
         toastCreated: 'تم إنشاء المستخدم',
+        byRoleTitle: 'المستخدمون حسب الدور',
         // reset password dialog
         resetPasswordTitle: 'تغيير كلمة المرور',
         resetPasswordMessage: 'كلمة مرور جديدة لـ {name}',
@@ -573,6 +615,47 @@ export const en = {
         resetOnboarding: 'Reset onboarding',
         markOnboarded: 'Mark as onboarded',
       },
+
+      // Company 360 — single-page workspace (rail, KPIs, header, timeline)
+      c360: {
+        backToCompanies: 'Companies',
+        health: 'Health',
+        railSummary: 'Summary',
+        railSubscription: 'Subscription',
+        railUsers: 'Users',
+        railRoles: 'Roles & Permissions',
+        railModules: 'Modules',
+        railPacks: 'Industry Packs',
+        railIntegrations: 'Integrations',
+        railUsage: 'Usage',
+        railAudit: 'Audit',
+        kpiUsers: 'Users',
+        kpiActiveUsers: 'Active Users',
+        kpiModules: 'Modules Enabled',
+        kpiIntegrations: 'Integrations',
+        kpiApprovals: 'Open Approvals',
+        kpiDaysToExpiry: 'Days to Expiry',
+        timelineTitle: 'Important Events',
+        timelineEmpty: 'No events',
+        viewFullAudit: 'View full audit',
+      },
+
+      // Company Health Score
+      health: {
+        title: 'Company Health',
+        band: {
+          healthy: 'Healthy',
+          at_risk: 'At Risk',
+          critical: 'Critical',
+        },
+        factors: {
+          subscription: 'Subscription',
+          activeUsers: 'Active Users',
+          integrations: 'Integrations',
+          approvals: 'Approvals',
+          recentActivity: 'Recent Activity',
+        },
+      },
       trial: {
         title: 'Trial period',
         hint: 'Grant the company a temporary trial, independent of the paid subscription.',
@@ -682,6 +765,7 @@ export const en = {
         branchPlaceholder: 'Select Branch *',
         createUserButton: 'Create User',
         toastCreated: 'User created',
+        byRoleTitle: 'Users by role',
         // reset password dialog
         resetPasswordTitle: 'Change Password',
         resetPasswordMessage: 'New password for {name}',

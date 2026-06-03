@@ -368,7 +368,9 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
                         return (
                           <tr key={company.id} className={`border-b last:border-0 ${accent}`}>
                             <td className="p-3">
-                              <div className="font-medium">{company.name_ar || company.name}</div>
+                              <Link href={`/platform/companies/${company.id}`} className="font-medium hover:text-primary hover:underline">
+                                {company.name_ar || company.name}
+                              </Link>
                               {company.slug && (
                                 <div dir="ltr" className="text-right text-xs text-muted-foreground">
                                   /{company.slug}

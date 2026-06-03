@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, CalendarPlus, Power, Save, Gauge, KeyRound, Hourglass, Plug, Boxes, Rocket, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { Loader2, Plus, CalendarPlus, Power, Save, Gauge, KeyRound, Hourglass, Plug, Boxes, Rocket, RotateCcw, CheckCircle2, ChevronDown, ChevronRight, Users as UsersIcon } from 'lucide-react';
 import { EmptyState } from '@/components/shared/empty-state';
 import type { Branch, Company } from '@/lib/erp/types';
 import type { Plan, CompanyUsage } from '@/lib/erp/plans';
@@ -84,6 +84,11 @@ function addMonths(base: Date, months: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** A section is rendered when its key is the active `tab`, OR when `tab === 'all'`
+ *  (the Company 360 stacked layout). Anchors wrap each section for scroll-spy /
+ *  ?tab= back-compat. The exact section JSX is preserved from the per-tab views. */
+type SectionTab = CompanyTabKey | 'all';
+
 export function CompanyDetail({
   tab,
   company,
@@ -97,8 +102,8 @@ export function CompanyDetail({
   integrations = [],
   apiKeys = [],
 }: {
-  /** Which tab's content to render. */
-  tab: CompanyTabKey;
+  /** Which tab's content to render, or 'all' for the stacked 360 layout. */
+  tab: SectionTab;
   company: Company;
   branches: Branch[];
   members: MemberRow[];
@@ -224,11 +229,16 @@ export function CompanyDetail({
           name_ar: BRANCH_ROLES[key].ar,
         }));
 
+  // In the stacked 360 layout we render every section; otherwise only the
+  // active tab. `all` mode wraps each section in an anchor for scroll-spy.
+  const all = tab === 'all';
+  const show = (k: CompanyTabKey) => tab === k || all;
+
   return (
     <div className="space-y-6">
-      {/* ── Overview ───────────────────────────────────────────────── */}
-      {tab === 'overview' && (
-        <Card>
+      {/* ── Summary / Overview ─────────────────────────────────────── */}
+      {show('overview') && (
+        <Card id={all ? 'section-summary' : undefined} className={all ? 'scroll-mt-28' : undefined}>
           <CardContent className="space-y-4 pt-6">
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant={badgeVariant}>{stateLabel}</Badge>
@@ -280,8 +290,8 @@ export function CompanyDetail({
       )}
 
       {/* Subscription */}
-      {tab === 'subscription' && (
-      <Card>
+      {show('subscription') && (
+      <Card id={all ? 'section-subscription' : undefined} className={all ? 'scroll-mt-28' : undefined}>
         <CardContent className="space-y-4 pt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -371,7 +381,7 @@ export function CompanyDetail({
       )}
 
       {/* Trial */}
-      {tab === 'subscription' && (
+      {show('subscription') && (
         <Card>
           <CardContent className="space-y-3 pt-6">
             <h3 className="flex items-center gap-2 font-semibold">
@@ -401,7 +411,7 @@ export function CompanyDetail({
       )}
 
       {/* Plan & limits */}
-      {tab === 'subscription' && plans && plans.length > 0 && (
+      {show('subscription') && plans && plans.length > 0 && (
         <Card>
           <CardContent className="space-y-4 pt-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -468,8 +478,8 @@ export function CompanyDetail({
 
       {/* Modules — core capability sections this company sees (default by
           business type; editable here, still capped by the plan's modules). */}
-      {tab === 'modules' && (
-        <Card>
+      {show('modules') && (
+        <Card id={all ? 'section-modules' : undefined} className={all ? 'scroll-mt-28' : undefined}>
           <CardContent className="space-y-3 pt-6">
             <div>
               <h3 className="font-semibold">{t('platform.company.modules.title')}</h3>
@@ -488,8 +498,8 @@ export function CompanyDetail({
       )}
 
       {/* Industry Packs — vertical modules, grouped from the same entitlements. */}
-      {tab === 'packs' && (
-        <Card>
+      {show('packs') && (
+        <Card id={all ? 'section-packs' : undefined} className={all ? 'scroll-mt-28' : undefined}>
           <CardContent className="space-y-3 pt-6">
             <div>
               <h3 className="flex items-center gap-2 font-semibold"><Boxes className="h-4 w-4" /> {t('platform.company.packs.title')}</h3>
@@ -508,8 +518,8 @@ export function CompanyDetail({
       )}
 
       {/* Integrations — owner module toggle + per-connection enable/disable. */}
-      {tab === 'integrations' && (
-        <Card>
+      {show('integrations') && (
+        <Card id={all ? 'section-integrations' : undefined} className={all ? 'scroll-mt-28' : undefined}>
           <CardContent className="space-y-4 pt-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -567,7 +577,7 @@ export function CompanyDetail({
       )}
 
       {/* Company info */}
-      {tab === 'subscription' && (
+      {show('subscription') && (
       <Card>
         <CardContent className="pt-6">
           <form
@@ -610,8 +620,8 @@ export function CompanyDetail({
       )}
 
       {/* Branches */}
-      {tab === 'users' && (
-      <Card>
+      {show('users') && (
+      <Card id={all ? 'section-users' : undefined} className={all ? 'scroll-mt-28' : undefined}>
         <CardContent className="space-y-4 pt-6">
           <h3 className="font-semibold">{t('platform.company.branches.title', { count: String(branches.length) })}</h3>
           {branches.length > 0 && (
@@ -651,10 +661,15 @@ export function CompanyDetail({
       )}
 
       {/* Users */}
-      {tab === 'users' && (
+      {show('users') && (
       <Card>
         <CardContent className="space-y-4 pt-6">
           <h3 className="font-semibold">{t('platform.company.members.title', { count: String(members.length) })}</h3>
+
+          {/* Related users grouped by role (collapsible). Reuses the already
+              fetched member rows; complements the by-branch list below. */}
+          {members.length > 0 && <MembersByRole members={members} />}
+
           {members.length > 0 && (
             <div className="divide-y rounded-md border">
               {members.map((m) => (
@@ -721,6 +736,52 @@ export function CompanyDetail({
           )}
         </CardContent>
       </Card>
+      )}
+    </div>
+  );
+}
+
+/** Related users grouped by role with per-group counts (collapsible). Built
+ *  purely from the already-fetched member rows — no extra queries. A member
+ *  assigned to multiple branches with the same role is counted once per role. */
+function MembersByRole({ members }: { members: MemberRow[] }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(true);
+
+  // role_key → distinct user ids
+  const byRole = new Map<string, Set<string>>();
+  for (const m of members) {
+    let set = byRole.get(m.role);
+    if (!set) { set = new Set(); byRole.set(m.role, set); }
+    set.add(m.userId);
+  }
+  const groups = [...byRole.entries()]
+    .map(([role, ids]) => ({ role, count: ids.size }))
+    .sort((a, b) => b.count - a.count);
+
+  if (groups.length === 0) return null;
+
+  return (
+    <div className="rounded-md border">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-secondary/30"
+      >
+        {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4 rtl:rotate-180" />}
+        <UsersIcon className="h-4 w-4 text-muted-foreground" />
+        {t('platform.company.members.byRoleTitle')}
+        <span className="text-xs font-normal text-muted-foreground">({groups.length})</span>
+      </button>
+      {open && (
+        <div className="flex flex-wrap gap-2 border-t p-3">
+          {groups.map((g) => (
+            <Badge key={g.role} variant="secondary" className="gap-1">
+              {BRANCH_ROLES[g.role as keyof typeof BRANCH_ROLES]?.ar ?? g.role}
+              <span className="tabular-nums opacity-70" dir="ltr">· {g.count}</span>
+            </Badge>
+          ))}
+        </div>
       )}
     </div>
   );
