@@ -149,6 +149,28 @@ export function capabilitiesFor(perm: Permission): string[] {
   return [...expandAliases([perm])];
 }
 
+// ─── Authorization Phase 2 — migrated call-site registry (cutover safety) ─────
+//
+// The granular capabilities that Phase 2 wired into runtime call sites, each
+// paired with the legacy flat permission the site previously checked. The
+// invariant the cutover test enforces: every granular key here is alias-reachable
+// from its legacy key (so no role that could satisfy the old check loses access,
+// and no orphan/deny-all key was introduced).
+export interface MigratedCallSite {
+  /** Human-locatable call site (file:symbol). */
+  site: string;
+  /** The legacy flat permission previously checked at the site. */
+  legacy: Permission;
+  /** The most-specific alias-covered granular capability now checked. */
+  granular: GranularCapability;
+}
+
+export const MIGRATED_CALL_SITES: readonly MigratedCallSite[] = [
+  { site: 'customers/actions.ts:saveCustomer (status change)', legacy: 'customers.change_status', granular: 'customers.status.change' },
+  { site: 'customers/actions.ts:decideCustomer', legacy: 'customers.approve', granular: 'customers.approval.approve' },
+  { site: 'sales/pricing/actions.ts:guard', legacy: 'pricing.manage', granular: 'pricing.rule.edit' },
+];
+
 /** Sanity helper for tests/tools: legacy keys that have a granular expansion. */
 export const ALIASED_LEGACY_KEYS = Object.keys(CAPABILITY_ALIASES) as Permission[];
 
