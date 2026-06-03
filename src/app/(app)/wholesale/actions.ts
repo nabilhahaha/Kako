@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requirePermission, requireAnyPermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requirePermission, requireAnyPermission, requireModuleAction, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
@@ -19,6 +19,8 @@ export async function wholesaleInvoice(input: {
 }): Promise<ActionResult<{ invoice_id: string; invoice_number: string }>> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(['wholesale.pricing', 'sales.sell']);
+  const modErr = requireModuleAction(ctx, 'wholesale');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('wholesale.noCompany') };
   if (!input.branch_id) return { ok: false, error: t('wholesale.errBranchRequired') };
   if (!input.customer_id) return { ok: false, error: t('wholesale.errCustomerRequired') };
@@ -46,6 +48,8 @@ export async function wholesaleInvoice(input: {
 export async function upsertTier(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('wholesale.pricing');
+  const modErr = requireModuleAction(ctx, 'wholesale');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('wholesale.noCompany') };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
@@ -67,6 +71,8 @@ export async function upsertTier(formData: FormData): Promise<ActionResult> {
 export async function setPrice(tierId: string, productId: string, price: number): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('wholesale.pricing');
+  const modErr = requireModuleAction(ctx, 'wholesale');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('wholesale.noCompany') };
   if (!Number.isFinite(price) || price < 0) return { ok: false, error: t('wholesale.errInvalidPrice') };
   const supabase = await createClient();
@@ -81,6 +87,8 @@ export async function setPrice(tierId: string, productId: string, price: number)
 export async function setCustomerTier(customerId: string, tierId: string | null): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('wholesale.pricing');
+  const modErr = requireModuleAction(ctx, 'wholesale');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('wholesale.noCompany') };
   const supabase = await createClient();
   const { error } = await supabase

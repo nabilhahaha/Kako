@@ -42,6 +42,7 @@ export const AUDIT_ACTION_LABELS: Record<string, { en: string; ar: string }> = {
   deactivate: { en: 'Deactivate', ar: 'إيقاف' },
   renew: { en: 'Renew subscription', ar: 'تجديد اشتراك' },
   plan_change: { en: 'Change plan', ar: 'تغيير الخطة' },
+  trial: { en: 'Set trial', ar: 'تعيين فترة تجريبية' },
   override: { en: 'Manual price override', ar: 'تجاوز سعر يدوي' },
 };
 

@@ -1,5 +1,5 @@
 import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_URL } from './config';
+import { getSupabaseUrl } from './config';
 
 /** Server-only service-role client for the inbound integration API (/api/v1).
  *
@@ -18,7 +18,8 @@ import { SUPABASE_URL } from './config';
 export function createServiceClient(): SupabaseClient {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured');
-  return createSupabaseClient(SUPABASE_URL, key, {
+  // getSupabaseUrl() throws if NEXT_PUBLIC_SUPABASE_URL is unset → fails closed.
+  return createSupabaseClient(getSupabaseUrl(), key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

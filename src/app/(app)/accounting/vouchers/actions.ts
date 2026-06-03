@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireAuth, requireModuleAction, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getT } from '@/lib/i18n/server';
 
 export type VoucherKind = 'payment' | 'receipt';
@@ -29,6 +29,8 @@ export async function createVoucher(
 ): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const modErr = requireModuleAction(ctx!, 'accounting');
+  if (modErr) return modErr;
 
   const { t } = await getT();
   if (!input.branch_id) return { ok: false, error: t('accounting.vouchers.errBranchRequired') };
@@ -68,8 +70,10 @@ export async function createVoucher(
  * Receipt voucher → Debit Cash, Credit chosen account (revenue).
  */
 export async function postVoucher(kind: VoucherKind, id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
+  const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const modErr = requireModuleAction(ctx!, 'accounting');
+  if (modErr) return modErr;
 
   const supabase = await createClient();
   const fn = kind === 'payment' ? 'erp_post_payment_voucher' : 'erp_post_receipt_voucher';
@@ -82,8 +86,10 @@ export async function postVoucher(kind: VoucherKind, id: string): Promise<Action
 }
 
 export async function cancelVoucher(kind: VoucherKind, id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
+  const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const modErr = requireModuleAction(ctx!, 'accounting');
+  if (modErr) return modErr;
 
   const supabase = await createClient();
   const { error } = await supabase

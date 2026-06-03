@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requirePermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requirePermission, requireModuleAction, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getT } from '@/lib/i18n/server';
 
 // Restaurant / café: tables + orders (dine-in / takeaway / delivery) built from
@@ -20,6 +20,8 @@ function revalidate(orderId?: string) {
 export async function upsertTable(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
+  const modErr = requireModuleAction(ctx, 'restaurant');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
@@ -53,6 +55,8 @@ export async function createOrder(input: {
 }): Promise<ActionResult<string>> {
   const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
+  const modErr = requireModuleAction(ctx, 'restaurant');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const type = ['dine_in', 'takeaway', 'delivery'].includes(input.order_type || '') ? input.order_type! : 'dine_in';
   const supabase = await createClient();
@@ -96,6 +100,8 @@ export async function createOrder(input: {
 export async function addOrderItem(orderId: string, productId: string): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
+  const modErr = requireModuleAction(ctx, 'restaurant');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const supabase = await createClient();
   const { data: p } = await supabase
@@ -138,6 +144,8 @@ export async function addOrderItem(orderId: string, productId: string): Promise<
 export async function setItemQty(itemId: string, qty: number, orderId: string): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
+  const modErr = requireModuleAction(ctx, 'restaurant');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const supabase = await createClient();
   if (qty <= 0) {
@@ -154,6 +162,8 @@ export async function setItemQty(itemId: string, qty: number, orderId: string): 
 export async function setItemNotes(itemId: string, notes: string, orderId: string): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
+  const modErr = requireModuleAction(ctx, 'restaurant');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const supabase = await createClient();
   const { error } = await supabase.from('erp_restaurant_order_items').update({ notes: notes.trim() || null }).eq('id', itemId);
@@ -165,6 +175,8 @@ export async function setItemNotes(itemId: string, notes: string, orderId: strin
 export async function setItemKitchenStatus(itemId: string, status: string): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
+  const modErr = requireModuleAction(ctx, 'restaurant');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   if (!['new', 'preparing', 'ready'].includes(status)) return { ok: false, error: t('restaurant.actions.invalidStatus') };
   const supabase = await createClient();
@@ -177,6 +189,8 @@ export async function setItemKitchenStatus(itemId: string, status: string): Prom
 export async function updateOrderMeta(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
+  const modErr = requireModuleAction(ctx, 'restaurant');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const id = String(formData.get('id') || '').trim();
   if (!id) return { ok: false, error: t('restaurant.actions.orderRequired') };
@@ -207,6 +221,8 @@ export async function updateOrderMeta(formData: FormData): Promise<ActionResult>
 export async function closeOrder(orderId: string, paymentMethod = 'cash'): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
+  const modErr = requireModuleAction(ctx, 'restaurant');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_close_restaurant_order', {
@@ -221,6 +237,8 @@ export async function closeOrder(orderId: string, paymentMethod = 'cash'): Promi
 export async function cancelOrder(orderId: string): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('restaurant.manage');
+  const modErr = requireModuleAction(ctx, 'restaurant');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('restaurant.actions.noCompany') };
   const supabase = await createClient();
   const { data: o } = await supabase.from('erp_restaurant_orders').select('table_id, status').eq('id', orderId).maybeSingle();

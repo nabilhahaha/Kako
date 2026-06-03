@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requirePermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requirePermission, requireModuleAction, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getT } from '@/lib/i18n/server';
 
 // Pharmacy dispensing register: a regulatory log (patient / doctor / Rx /
@@ -16,6 +16,8 @@ function revalidate(id?: string) {
 
 export async function createDispense(): Promise<ActionResult<string>> {
   const ctx = await requirePermission('pharmacy.dispense');
+  const modErr = requireModuleAction(ctx, 'pharmacy');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const supabase = await createClient();
@@ -29,6 +31,8 @@ export async function createDispense(): Promise<ActionResult<string>> {
 
 export async function updateDispenseMeta(formData: FormData): Promise<ActionResult> {
   const ctx = await requirePermission('pharmacy.dispense');
+  const modErr = requireModuleAction(ctx, 'pharmacy');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const id = String(formData.get('id') || '').trim();
@@ -50,6 +54,8 @@ export async function updateDispenseMeta(formData: FormData): Promise<ActionResu
 
 export async function addDispenseItem(dispenseId: string, productId: string): Promise<ActionResult> {
   const ctx = await requirePermission('pharmacy.dispense');
+  const modErr = requireModuleAction(ctx, 'pharmacy');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const supabase = await createClient();
@@ -73,6 +79,8 @@ export async function addDispenseItem(dispenseId: string, productId: string): Pr
 
 export async function setItemQty(itemId: string, qty: number, dispenseId: string): Promise<ActionResult> {
   const ctx = await requirePermission('pharmacy.dispense');
+  const modErr = requireModuleAction(ctx, 'pharmacy');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const supabase = await createClient();
@@ -89,6 +97,8 @@ export async function setItemQty(itemId: string, qty: number, dispenseId: string
 
 export async function finalizeDispense(id: string): Promise<ActionResult> {
   const ctx = await requirePermission('pharmacy.dispense');
+  const modErr = requireModuleAction(ctx, 'pharmacy');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const supabase = await createClient();
@@ -100,6 +110,8 @@ export async function finalizeDispense(id: string): Promise<ActionResult> {
 
 export async function cancelDispense(id: string): Promise<ActionResult> {
   const ctx = await requirePermission('pharmacy.dispense');
+  const modErr = requireModuleAction(ctx, 'pharmacy');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('pharmacy.errNoCompany') };
   const supabase = await createClient();

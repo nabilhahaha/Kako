@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireAuth, hasModule, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { hasPermission } from '@/lib/erp/permissions';
 import { resolvePrice } from '@/lib/erp/pricing-server';
 
@@ -13,6 +13,8 @@ async function guard(): Promise<{ ok: true; companyId: string } | { ok: false; e
   const { ctx, error } = await requireAuth();
   if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
   if (!ctx.companyId || !hasPermission(ctx, 'pricing.manage')) return { ok: false, error: 'unauthorized' };
+  // Pricing lives under the Sales module (nav: sales section, no per-item gate).
+  if (!hasModule(ctx, 'sales')) return { ok: false, error: 'unauthorized' };
   return { ok: true, companyId: ctx.companyId };
 }
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requirePermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requirePermission, requireModuleAction, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getT } from '@/lib/i18n/server';
 
 function revalidate(ticketId?: string) {
@@ -16,6 +16,8 @@ function revalidate(ticketId?: string) {
 export async function upsertService(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
+  const modErr = requireModuleAction(ctx, 'salon');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
@@ -44,6 +46,8 @@ export async function upsertService(formData: FormData): Promise<ActionResult> {
 export async function createAppointment(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
+  const modErr = requireModuleAction(ctx, 'salon');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const when = String(formData.get('scheduled_at') || '').trim();
   if (!when) return { ok: false, error: t('salon.errors.appointmentTimeRequired') };
@@ -70,6 +74,8 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
 export async function setAppointmentStatus(id: string, status: string): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
+  const modErr = requireModuleAction(ctx, 'salon');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   if (!['scheduled', 'confirmed', 'arrived', 'done', 'cancelled', 'no_show'].includes(status)) return { ok: false, error: t('salon.errors.invalidStatus') };
   const supabase = await createClient();
@@ -83,6 +89,8 @@ export async function setAppointmentStatus(id: string, status: string): Promise<
 export async function checkInAppointment(appointmentId: string): Promise<ActionResult<string>> {
   const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
+  const modErr = requireModuleAction(ctx, 'salon');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const supabase = await createClient();
   const { data: a } = await supabase
@@ -114,6 +122,8 @@ export async function checkInAppointment(appointmentId: string): Promise<ActionR
 export async function createTicket(input: { stylist_id?: string | null; customer_name?: string; customer_phone?: string }): Promise<ActionResult<string>> {
   const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
+  const modErr = requireModuleAction(ctx, 'salon');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const supabase = await createClient();
   const { data, error } = await supabase.from('erp_salon_tickets').insert({
@@ -131,6 +141,8 @@ export async function createTicket(input: { stylist_id?: string | null; customer
 export async function addTicketItem(ticketId: string, serviceId: string): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
+  const modErr = requireModuleAction(ctx, 'salon');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const supabase = await createClient();
   const { data: s } = await supabase.from('erp_salon_services').select('name, price').eq('id', serviceId).maybeSingle();
@@ -151,6 +163,8 @@ export async function addTicketItem(ticketId: string, serviceId: string): Promis
 export async function setItemQty(itemId: string, qty: number, ticketId: string): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
+  const modErr = requireModuleAction(ctx, 'salon');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const supabase = await createClient();
   if (qty <= 0) {
@@ -167,6 +181,8 @@ export async function setItemQty(itemId: string, qty: number, ticketId: string):
 export async function updateTicketMeta(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
+  const modErr = requireModuleAction(ctx, 'salon');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
   if (!id) return { ok: false, error: t('salon.errors.ticketRequired') };
@@ -186,6 +202,8 @@ export async function updateTicketMeta(formData: FormData): Promise<ActionResult
 export async function closeTicket(ticketId: string, paymentMethod = 'cash'): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('salon.manage');
+  const modErr = requireModuleAction(ctx, 'salon');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('salon.errors.noCompany') };
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_close_salon_ticket', { p_ticket_id: ticketId, p_payment_method: paymentMethod === 'card' ? 'card' : 'cash' });
@@ -197,6 +215,8 @@ export async function closeTicket(ticketId: string, paymentMethod = 'cash'): Pro
 export async function cancelTicket(ticketId: string): Promise<ActionResult> {
   const { t: translate } = await getT();
   const ctx = await requirePermission('salon.manage');
+  const modErr = requireModuleAction(ctx, 'salon');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: translate('salon.errors.noCompany') };
   const supabase = await createClient();
   const { data: t } = await supabase.from('erp_salon_tickets').select('status').eq('id', ticketId).maybeSingle();
