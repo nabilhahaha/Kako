@@ -3,8 +3,10 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ScrollText } from 'lucide-react';
 import { AUDIT_ACTION_LABELS, AUDIT_ENTITY_LABELS } from '@/lib/erp/audit';
 import type { Company } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
@@ -22,9 +24,9 @@ interface AuditRow {
 
 const DESTRUCTIVE = new Set(['delete', 'revoke', 'disable', 'deactivate']);
 
-function fmtTime(iso: string): string {
+function fmtTime(iso: string, locale: 'ar' | 'en'): string {
   try {
-    return new Date(iso).toLocaleString('ar-EG', {
+    return new Date(iso).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-GB', {
       dateStyle: 'short',
       timeStyle: 'short',
     });
@@ -76,11 +78,11 @@ export default async function AuditLogPage() {
         title={t('platform.audit.title')}
         description={t('platform.audit.description')}
       />
-      <Card>
-        <CardContent className="p-0">
-          {rows.length === 0 ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">{t('platform.audit.empty')}</p>
-          ) : (
+      {rows.length === 0 ? (
+        <EmptyState icon={<ScrollText />} title={t('platform.audit.empty')} />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
@@ -96,7 +98,7 @@ export default async function AuditLogPage() {
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id} className="border-b align-top">
-                      <td className="p-3 whitespace-nowrap text-muted-foreground" dir="ltr">{fmtTime(r.created_at)}</td>
+                      <td className="p-3 whitespace-nowrap text-muted-foreground" dir="ltr">{fmtTime(r.created_at, locale)}</td>
                       <td className="p-3" dir="ltr">{r.actor_email ?? '—'}</td>
                       <td className="p-3">
                         <Badge variant={DESTRUCTIVE.has(r.action) ? 'destructive' : 'secondary'}>
@@ -118,9 +120,9 @@ export default async function AuditLogPage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Tag, CreditCard, Receipt, Save, Layers, type LucideIcon } from 'lucide-react';
+import { Tag, CreditCard, Receipt, Save, Layers } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { SectionHeader } from '@/components/shared/section-header';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,21 +30,6 @@ export interface InvoiceRow {
 
 const statusVariant = (s: string): 'success' | 'warning' | 'destructive' | 'secondary' =>
   s === 'active' ? 'success' : s === 'trial' ? 'warning' : s === 'expired' || s === 'suspended' || s === 'cancelled' ? 'destructive' : 'secondary';
-
-/** Premium section header: cyan-tinted icon chip + title + optional hint. */
-function SectionHeader({ icon: Icon, title, hint }: { icon: LucideIcon; title: string; hint?: string }) {
-  return (
-    <div className="flex items-start gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
-        <Icon className="h-4 w-4" />
-      </span>
-      <div className="min-w-0">
-        <h2 className="text-base font-semibold leading-tight">{title}</h2>
-        {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
-      </div>
-    </div>
-  );
-}
 
 export function BillingAdmin({
   plans, prices, subscriptions, companies, invoices,
@@ -204,7 +191,7 @@ export function BillingAdmin({
         <CardContent className="p-6 space-y-4">
           <SectionHeader icon={Layers} title={t('billing.subscriptions.title')} />
           {subscriptions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('billing.subscriptions.empty')}</p>
+            <EmptyState icon={<Layers />} title={t('billing.subscriptions.empty')} />
           ) : (
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full min-w-[720px] text-sm">
@@ -261,7 +248,7 @@ export function BillingAdmin({
         <CardContent className="p-6 space-y-4">
           <SectionHeader icon={Receipt} title={t('billing.invoices.title')} />
           {invoices.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('billing.invoices.empty')}</p>
+            <EmptyState icon={<Receipt />} title={t('billing.invoices.empty')} />
           ) : (
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full min-w-[720px] text-sm">

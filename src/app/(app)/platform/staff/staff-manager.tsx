@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { UserPlus, ShieldCheck, Power, RotateCcw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { SectionHeader } from '@/components/shared/section-header';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -105,10 +107,8 @@ export function StaffManager({
       {/* Invite (owner only) */}
       {canInvite && (
         <Card>
-          <CardContent className="p-6">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold">
-              <UserPlus className="h-4 w-4" /> {t('platformStaff.create.title')}
-            </h2>
+          <CardContent className="space-y-4 p-6">
+            <SectionHeader icon={UserPlus} title={t('platformStaff.create.title')} />
             <form action={onCreate} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-1.5">
                 <Label htmlFor="s-email">{t('platformStaff.create.email')}</Label>
@@ -148,11 +148,9 @@ export function StaffManager({
       {/* Staff list */}
       <Card>
         <CardContent className="p-6 space-y-4">
-          <h2 className="flex items-center gap-2 text-base font-semibold">
-            <ShieldCheck className="h-4 w-4" /> {t('platformStaff.title')}
-          </h2>
+          <SectionHeader icon={ShieldCheck} title={t('platformStaff.title')} />
           {staff.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('platformStaff.empty')}</p>
+            <EmptyState icon={<ShieldCheck />} title={t('platformStaff.empty')} />
           ) : (
             <div className="space-y-4">
               {staff.map((s) => (

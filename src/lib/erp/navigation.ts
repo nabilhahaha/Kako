@@ -149,6 +149,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformPerm: 'view_companies' },
       { label: 'nav.items.billing', href: '/platform/billing', icon: CreditCard, platformOwnerOnly: true },
       { label: 'nav.items.platformStaff', href: '/platform/staff', icon: UserCog, platformPerm: 'manage_users' },
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, platformOwnerOnly: true, platformPerm: 'access_audit_logs' },
       { label: 'nav.items.drugsList', href: '/platform/drugs', icon: Pill, platformOwnerOnly: true },
     ],
   },
@@ -336,7 +337,9 @@ export const NAV_SECTIONS: NavSection[] = [
       // ── Governance ──
       { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.governance' },
-      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs', group: 'nav.groups.governance' },
+      // Audit lives in the Provider section for the platform tier; tenant
+      // super-admins still reach it here under Governance.
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, group: 'nav.groups.governance' },
       // ── Personal ──
       { label: 'nav.items.designSystem', href: '/design', icon: Palette, superAdminOnly: true, group: 'nav.groups.personal' },
       { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true, group: 'nav.groups.personal' },

@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Settings2, Power } from 'lucide-react';
+import { Loader2, Plus, Settings2, Power, Building2 } from 'lucide-react';
+import { EmptyState } from '@/components/shared/empty-state';
 import type { Company } from '@/lib/erp/types';
 import {
   BUSINESS_TYPE_LABELS,
@@ -182,11 +183,11 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
         </Card>
       )}
 
-      <Card>
-        <CardContent className="p-0">
-          {rows.length === 0 ? (
-            <p className="p-8 text-center text-muted-foreground">{t('platform.companies.empty')}</p>
-          ) : (
+      {rows.length === 0 ? (
+        <EmptyState icon={<Building2 />} title={t('platform.companies.empty')} />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b text-muted-foreground">
@@ -263,9 +264,9 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
