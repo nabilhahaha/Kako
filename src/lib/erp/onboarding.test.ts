@@ -9,6 +9,8 @@ import {
 import { DENY_ALL_CAPABILITIES } from './granular-capabilities';
 import { LIMIT_ACTIONS } from './limits';
 import { SCOPE_DIMENSIONS } from './scope';
+import { resolveHierarchy, validateRoleSelection, isManagerRole } from './org-structure';
+import type { BranchRole } from './types';
 
 describe('industry packs', () => {
   it('exposes the seven packs with bilingual labels + a business type', () => {
@@ -105,6 +107,74 @@ describe('composeOnboarding — decoupling (same pack, different security models
     // and the SAME template works across DIFFERENT packs
     const retailStd = composeOnboarding(INDUSTRY_PACKS.retail, 'standard');
     expect(retailStd.payload.roles).not.toEqual(std.payload.roles);
+  });
+});
+
+describe('org structure — reporting hierarchy adapts to optional roles', () => {
+  const parentOf = (edges: { roleKey: string; reportsToRoleKey: string | null }[], r: string) =>
+    edges.find((e) => e.roleKey === r)?.reportsToRoleKey ?? null;
+
+  it('Manager + Salesman ⇒ salesman → manager (shallow)', () => {
+    const edges = resolveHierarchy(['admin', 'manager', 'salesman']);
+    expect(parentOf(edges, 'salesman')).toBe('manager');
+    expect(parentOf(edges, 'manager')).toBe('admin');
+    expect(edges.find((e) => e.roleKey === 'admin')).toBeUndefined(); // admin is the root
+  });
+
+  it('Manager + Supervisor + Salesman ⇒ salesman → supervisor → manager (deeper)', () => {
+    const edges = resolveHierarchy(['admin', 'manager', 'supervisor', 'salesman']);
+    expect(parentOf(edges, 'salesman')).toBe('supervisor');
+    expect(parentOf(edges, 'supervisor')).toBe('manager');
+  });
+
+  it('FMCG full chain resolves end-to-end', () => {
+    const edges = resolveHierarchy([
+      'admin', 'sales_director', 'regional_manager', 'branch_manager', 'supervisor', 'salesman', 'warehouse_keeper', 'accountant',
+    ]);
+    expect(parentOf(edges, 'salesman')).toBe('supervisor');
+    expect(parentOf(edges, 'supervisor')).toBe('branch_manager');
+    expect(parentOf(edges, 'branch_manager')).toBe('regional_manager');
+    expect(parentOf(edges, 'regional_manager')).toBe('sales_director');
+    expect(parentOf(edges, 'sales_director')).toBe('admin');
+    expect(parentOf(edges, 'warehouse_keeper')).toBe('branch_manager'); // functional → line
+    expect(parentOf(edges, 'accountant')).toBe('admin');
+  });
+
+  it('removing supervisor reroutes salesman to the next selected ancestor (variable depth)', () => {
+    const edges = resolveHierarchy(['admin', 'branch_manager', 'salesman']);
+    expect(parentOf(edges, 'salesman')).toBe('branch_manager');
+    expect(parentOf(edges, 'branch_manager')).toBe('admin');
+  });
+
+  it('isManagerRole + validateRoleSelection', () => {
+    const edges = resolveHierarchy(['admin', 'manager', 'salesman']);
+    expect(isManagerRole('manager' as BranchRole, edges)).toBe(true);
+    expect(isManagerRole('salesman' as BranchRole, edges)).toBe(false);
+    expect(validateRoleSelection(['admin', 'salesman']).ok).toBe(true);
+    expect(validateRoleSelection(['salesman']).ok).toBe(false); // admin required
+    expect(validateRoleSelection([]).ok).toBe(false);
+  });
+});
+
+describe('composeOnboarding — optional role selection + hierarchy payload', () => {
+  const fmcg = INDUSTRY_PACKS.fmcg;
+
+  it('narrows to the selected role subset (always keeping admin)', () => {
+    const c = composeOnboarding(fmcg, 'standard', ['branch_manager', 'salesman']);
+    expect(c.payload.roles.sort()).toEqual(['admin', 'branch_manager', 'salesman'].sort());
+    // capabilities only for selected roles
+    expect(Object.keys(c.payload.capabilities).sort()).toEqual(['admin', 'branch_manager'].sort());
+    // hierarchy derived from the subset
+    const sm = c.payload.hierarchy.find((h) => h.role_key === 'salesman');
+    expect(sm?.reports_to_role_key).toBe('branch_manager');
+    expect(c.summary.hierarchy).toBe(c.payload.hierarchy.length);
+  });
+
+  it('full pack (no subset) emits a hierarchy edge for every non-admin role', () => {
+    const c = composeOnboarding(fmcg, 'standard');
+    expect(c.payload.hierarchy.length).toBe(fmcg.roles.length - 1); // all but admin
+    expect(c.recommendedScopes['salesman']).toBe('own_customers');
+    expect(c.recommendedScopes['supervisor']).toBe('own_team');
   });
 });
 

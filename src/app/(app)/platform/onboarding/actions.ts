@@ -8,6 +8,7 @@ import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
 import { getIndustryPack, type IndustryPackId } from '@/lib/erp/industry-packs';
 import { getPermissionTemplate, composeOnboarding, type PermissionTemplateId } from '@/lib/erp/permission-templates';
+import type { BranchRole } from '@/lib/erp/types';
 
 /** Company creation is a PLATFORM-OWNER-ONLY operation. A Company Admin can never
  *  create another company (no tenant path reaches this action). */
@@ -40,6 +41,9 @@ export interface OnboardingInput {
   };
   industryPackId: IndustryPackId;
   permissionTemplateId: PermissionTemplateId;
+  /** Optional subset of the pack's roles to actually enable (org structure).
+   *  When omitted, all of the pack's suggested roles are used. admin is forced. */
+  selectedRoles?: BranchRole[];
 }
 
 export interface OnboardingResult {
@@ -104,8 +108,9 @@ export async function createCompanyOnboarding(input: OnboardingInput): Promise<A
     .single();
   const branchId = (branch as { id: string } | null)?.id ?? null;
 
-  // ── 3. Apply the resolved industry-pack × permission-template, atomically.
-  const composed = composeOnboarding(pack, input.permissionTemplateId);
+  // ── 3. Apply the resolved industry-pack × permission-template (+ chosen role
+  //       set / derived reporting hierarchy), atomically.
+  const composed = composeOnboarding(pack, input.permissionTemplateId, input.selectedRoles);
   const { error: tplErr } = await supabase.rpc('erp_apply_company_template', {
     p_company_id: companyId,
     p_payload: composed.payload,

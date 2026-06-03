@@ -2,6 +2,7 @@ import type { BranchRole } from './types';
 import type { ScopeDimension } from './scope';
 import { DENY_ALL_CAPABILITIES, type DenyAllCapability } from './granular-capabilities';
 import type { IndustryPack } from './industry-packs';
+import { resolveHierarchy, type HierarchyEdge } from './org-structure';
 
 /**
  * Company Onboarding — PERMISSION TEMPLATES (the "how locked down" layer).
@@ -74,8 +75,9 @@ const JUNIOR_ROLES: BranchRole[] = [
  *  non-custom templates). Applied to the created admin; surfaced as guidance for
  *  the rest (scope is per-user, assigned in the Authz Console as users are added). */
 const RECOMMENDED_SCOPE: Partial<Record<BranchRole, ScopeDimension>> = {
-  salesman: 'own_customers',
-  supervisor: 'own_team',
+  salesman: 'own_customers',   // sees only their own customers/visits/orders
+  supervisor: 'own_team',      // sees only their team
+  manager: 'own_team',         // sees assigned direct/indirect users
   branch_manager: 'branch',
   area_manager: 'area',
   regional_manager: 'region',
@@ -173,12 +175,15 @@ function sectionAccessFor(
 }
 
 // ── The composer: industry pack × permission template → apply payload ────────
+interface HierarchyRow { role_key: string; reports_to_role_key: string | null }
+
 export interface OnboardingTemplatePayload {
   modules: string[];
   roles: string[];
   capabilities: Record<string, string[]>;
   limits: LimitRow[];
   section_access: SectionRow[];
+  hierarchy: HierarchyRow[];
 }
 
 export interface ComposedOnboarding {
@@ -186,32 +191,53 @@ export interface ComposedOnboarding {
   payload: OnboardingTemplatePayload;
   /** Recommended per-role scope (applied to admin; guidance for the rest). */
   recommendedScopes: Record<string, ScopeDimension>;
-  summary: { modules: number; roles: number; capabilities: number; limits: number; sectionAccess: number };
+  /** The resolved reporting hierarchy (also surfaced for review). */
+  hierarchy: HierarchyEdge[];
+  summary: { modules: number; roles: number; capabilities: number; limits: number; sectionAccess: number; hierarchy: number };
 }
 
-/** Compose a pack + template into the resolved payload for the apply RPC. Pure —
- *  no DB, fully unit-testable, and the single source of truth for "what gets
- *  applied". The two inputs are independent (no hard coupling). */
-export function composeOnboarding(pack: IndustryPack, templateId: PermissionTemplateId): ComposedOnboarding {
-  const capabilities = capabilitiesFor(templateId, pack.roles);
-  const limits = limitsFor(templateId, pack.roles);
-  const section_access = sectionAccessFor(templateId, pack.roles, pack.sensitiveSections);
+/**
+ * Compose a pack + template into the resolved payload for the apply RPC. Pure —
+ * the single source of truth for "what gets applied". The two inputs are
+ * independent (no hard coupling). `selectedRoles` lets the operator narrow the
+ * pack's suggested roles (optional roles per company); everything is filtered to
+ * the chosen set, and the reporting hierarchy is derived from it.
+ */
+export function composeOnboarding(
+  pack: IndustryPack,
+  templateId: PermissionTemplateId,
+  selectedRoles?: readonly BranchRole[],
+): ComposedOnboarding {
+  // The template SUGGESTS the pack's roles; the operator may narrow them. Keep the
+  // intersection (and always admin) so we never apply a role outside the pack.
+  const chosen = (selectedRoles && selectedRoles.length
+    ? pack.roles.filter((r) => selectedRoles.includes(r))
+    : [...pack.roles]) as BranchRole[];
+  const roles = chosen.includes('admin') ? chosen : (['admin', ...chosen] as BranchRole[]);
+
+  const capabilities = capabilitiesFor(templateId, roles);
+  const limits = limitsFor(templateId, roles);
+  const section_access = sectionAccessFor(templateId, roles, pack.sensitiveSections);
+  const hierarchy = resolveHierarchy(roles);
   const capCount = Object.values(capabilities).reduce((n, a) => n + a.length, 0);
   return {
     payload: {
       modules: pack.modules.map(String),
-      roles: pack.roles.map(String),
+      roles: roles.map(String),
       capabilities,
       limits,
       section_access,
+      hierarchy: hierarchy.map((e) => ({ role_key: e.roleKey, reports_to_role_key: e.reportsToRoleKey })),
     },
-    recommendedScopes: templateId === 'custom' ? {} : recommendedScopes(pack.roles),
+    recommendedScopes: templateId === 'custom' ? {} : recommendedScopes(roles),
+    hierarchy,
     summary: {
       modules: pack.modules.length,
-      roles: pack.roles.length,
+      roles: roles.length,
       capabilities: capCount,
       limits: limits.length,
       sectionAccess: section_access.length,
+      hierarchy: hierarchy.length,
     },
   };
 }
