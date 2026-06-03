@@ -124,6 +124,14 @@ export const ar = {
       showing: 'عرض {count} من {total}',
     },
 
+    // ── shared pagination bar ──────────────────────────────────────
+    pagination: {
+      prev: 'السابق',
+      next: 'التالي',
+      pageOf: 'صفحة {page} من {pages}',
+      total: 'الإجمالي: {total}',
+    },
+
     // ── companies list page ────────────────────────────────────────
     companies: {
       title: 'الشركات والاشتراكات',
@@ -615,6 +623,14 @@ export const en = {
     toolbar: {
       searchPlaceholder: 'Search…',
       showing: 'Showing {count} of {total}',
+    },
+
+    // ── shared pagination bar ──────────────────────────────────────
+    pagination: {
+      prev: 'Previous',
+      next: 'Next',
+      pageOf: 'Page {page} of {pages}',
+      total: 'Total: {total}',
     },
 
     // ── companies list page ────────────────────────────────────────

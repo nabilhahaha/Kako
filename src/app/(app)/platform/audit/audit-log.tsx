@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ScrollText, Table2, GitCommitVertical, ChevronDown, ChevronRight, Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Tooltip } from '@/components/ui/tooltip';
 import { ListToolbar } from '@/components/shared/list-toolbar';
+import { Pagination } from '@/components/shared/pagination';
 import { EmptyState } from '@/components/shared/empty-state';
+import { buildQuery } from '@/lib/list-params';
 import { useI18n } from '@/lib/i18n/provider';
 import {
   AUDIT_ACTION_LABELS, AUDIT_ENTITY_LABELS, AUDIT_DESTRUCTIVE_ACTIONS, describeAuditEvent,
@@ -26,12 +28,23 @@ export interface AuditRow {
   created_at: string;
 }
 
-// NOTE: server-side pagination is a future gap — the page currently fetches a
-// bounded window (see audit/page.tsx limit) and all filtering happens client-side.
-
 const DESTRUCTIVE = AUDIT_DESTRUCTIVE_ACTIONS;
-type DateFilter = 'all' | 'today' | '7d' | '30d';
+export type AuditDateFilter = 'all' | 'today' | '7d' | '30d';
 type ViewMode = 'table' | 'timeline';
+
+export interface AuditListFilters {
+  q: string;
+  action: string;
+  entity: string;
+  actor: string;
+  date: AuditDateFilter;
+}
+
+export interface AuditFilterOptions {
+  actions: string[];
+  entities: string[];
+  actors: string[];
+}
 
 /** Stable day key (local) used to group timeline events. */
 function dayKey(iso: string): string {
@@ -117,23 +130,71 @@ function DetailChips({ details }: { details: Record<string, unknown> | null }) {
 export function AuditLog({
   rows,
   companyNames,
+  total,
+  page,
+  pageSize,
+  filters,
+  options,
+  event,
+  eventInPage,
 }: {
   rows: AuditRow[];
   companyNames: Record<string, string>;
+  total: number;
+  page: number;
+  pageSize: number;
+  filters: AuditListFilters;
+  options: AuditFilterOptions;
+  event: string | null;
+  eventInPage: boolean;
 }) {
   const { t, locale } = useI18n();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState('');
-  const [actionFilter, setActionFilter] = useState('all');
-  const [entityFilter, setEntityFilter] = useState('all');
-  const [actorFilter, setActorFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [navPending, startNav] = useTransition();
+
   // Default to the human-readable Timeline (T1); Table is one tap away (T2).
   const [view, setView] = useState<ViewMode>('timeline');
 
+  // Search box keeps local state for responsive typing; URL updates (debounced).
+  const [searchInput, setSearchInput] = useState(filters.q);
+  useEffect(() => setSearchInput(filters.q), [filters.q]);
+
+  /** Push new list params (preserving an in-page ?event= deep link). */
+  function pushParams(next: Partial<AuditListFilters & { page: number }>) {
+    const merged = {
+      q: filters.q,
+      action: filters.action,
+      entity: filters.entity,
+      actor: filters.actor,
+      date: filters.date,
+      page,
+      ...next,
+    };
+    const query = buildQuery({
+      q: merged.q || undefined,
+      action: merged.action === 'all' ? undefined : merged.action,
+      entity: merged.entity === 'all' ? undefined : merged.entity,
+      actor: merged.actor === 'all' ? undefined : merged.actor,
+      date: merged.date === 'all' ? undefined : merged.date,
+      page: merged.page > 1 ? merged.page : undefined,
+      event: eventInPage && searchParams?.get('event') ? searchParams.get('event')! : undefined,
+    });
+    startNav(() => router.push(`${pathname}${query}`));
+  }
+
+  // Debounce search → URL (~300ms).
+  useEffect(() => {
+    if (searchInput === filters.q) return;
+    const id = window.setTimeout(() => {
+      pushParams({ q: searchInput, page: 1 });
+    }, 300);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
+
   // ── deep-link: ?event={id} (read-only) — auto-expand/highlight/scroll. ──────
-  const deepLinkEvent = searchParams?.get('event') ?? null;
-  // Detail chips are T3: collapsed by default per event; the deep-linked row opens.
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -148,108 +209,61 @@ export function AuditLog({
     });
   }
 
-  // The deep-linked event is present in the current (bounded) window iff a row matches.
-  const deepLinkInWindow = deepLinkEvent ? rows.some((r) => r.id === deepLinkEvent) : true;
-
-  const actions = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.action))).sort(),
-    [rows],
-  );
-  const entities = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.entity))).sort(),
-    [rows],
-  );
-  const actors = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.actor_email).filter((e): e is string => !!e))).sort(),
-    [rows],
-  );
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const now = Date.now();
-    const cutoff =
-      dateFilter === 'today' ? now - 86_400_000
-      : dateFilter === '7d' ? now - 7 * 86_400_000
-      : dateFilter === '30d' ? now - 30 * 86_400_000
-      : null;
-    return rows.filter((r) => {
-      if (actionFilter !== 'all' && r.action !== actionFilter) return false;
-      if (entityFilter !== 'all' && r.entity !== entityFilter) return false;
-      if (actorFilter !== 'all' && r.actor_email !== actorFilter) return false;
-      if (cutoff !== null) {
-        const ts = new Date(r.created_at).getTime();
-        if (Number.isNaN(ts) || ts < cutoff) return false;
-      }
-      if (q) {
-        const hay = `${r.actor_email ?? ''} ${r.entity_id ?? ''} ${r.details ? JSON.stringify(r.details) : ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [rows, search, actionFilter, entityFilter, actorFilter, dateFilter]);
-
-  // Group filtered rows by local day for the timeline view (filtered is already
+  // Group the CURRENT page by local day for the timeline view (rows are already
   // newest-first from the server query).
   const grouped = useMemo(() => {
     const map = new Map<string, AuditRow[]>();
-    for (const r of filtered) {
+    for (const r of rows) {
       const k = dayKey(r.created_at);
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(r);
     }
     return [...map.entries()];
-  }, [filtered]);
+  }, [rows]);
 
-  // On first render with a ?event= present in the window, reset filters so the
-  // row is visible, expand its details, highlight it, then scroll it into view.
+  // On first render with a ?event= on the current page, expand its details,
+  // highlight it, then scroll it into view.
   useEffect(() => {
     if (didDeepLink.current) return;
-    if (!deepLinkEvent || !deepLinkInWindow) return;
+    if (!event || !eventInPage) return;
     didDeepLink.current = true;
-    // Clear filters so the targeted row is not filtered out.
-    setSearch('');
-    setActionFilter('all');
-    setEntityFilter('all');
-    setActorFilter('all');
-    setDateFilter('all');
-    setExpandedRows((prev) => new Set(prev).add(deepLinkEvent));
-    setHighlightId(deepLinkEvent);
-    // Defer scroll until the (now-unfiltered) list has rendered the row.
+    setExpandedRows((prev) => new Set(prev).add(event));
+    setHighlightId(event);
     const id = window.setTimeout(() => {
-      rowRefs.current.get(deepLinkEvent)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      rowRefs.current.get(event)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 60);
     return () => window.clearTimeout(id);
-  }, [deepLinkEvent, deepLinkInWindow]);
+  }, [event, eventInPage]);
 
   return (
     <div className="space-y-4">
       <ListToolbar
-        search={search}
-        onSearch={setSearch}
+        search={searchInput}
+        onSearch={setSearchInput}
         placeholder={t('platform.audit.searchPlaceholder')}
-        count={filtered.length}
-        total={rows.length}
+        count={rows.length}
+        total={total}
         filters={
           <>
-            <Select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} className="h-9 w-auto">
+            <Select value={filters.action} onChange={(e) => pushParams({ action: e.target.value, page: 1 })} className="h-9 w-auto">
               <option value="all">{t('platform.audit.filterActionAll')}</option>
-              {actions.map((a) => (
+              {options.actions.map((a) => (
                 <option key={a} value={a}>{AUDIT_ACTION_LABELS[a]?.[locale] ?? a}</option>
               ))}
             </Select>
-            <Select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="h-9 w-auto">
+            <Select value={filters.entity} onChange={(e) => pushParams({ entity: e.target.value, page: 1 })} className="h-9 w-auto">
               <option value="all">{t('platform.audit.filterEntityAll')}</option>
-              {entities.map((en) => (
+              {options.entities.map((en) => (
                 <option key={en} value={en}>{AUDIT_ENTITY_LABELS[en]?.[locale] ?? en}</option>
               ))}
             </Select>
-            <Select value={actorFilter} onChange={(e) => setActorFilter(e.target.value)} className="h-9 w-auto">
+            <Select value={filters.actor} onChange={(e) => pushParams({ actor: e.target.value, page: 1 })} className="h-9 w-auto">
               <option value="all">{t('platform.audit.filterActorAll')}</option>
-              {actors.map((a) => (
+              {options.actors.map((a) => (
                 <option key={a} value={a}>{a}</option>
               ))}
             </Select>
-            <Select value={dateFilter} onChange={(e) => setDateFilter(e.target.value as DateFilter)} className="h-9 w-auto">
+            <Select value={filters.date} onChange={(e) => pushParams({ date: e.target.value as AuditDateFilter, page: 1 })} className="h-9 w-auto">
               <option value="all">{t('platform.audit.filterDateAll')}</option>
               <option value="today">{t('platform.audit.filterDateToday')}</option>
               <option value="7d">{t('platform.audit.filterDate7d')}</option>
@@ -281,7 +295,7 @@ export function AuditLog({
         }
       />
 
-      {deepLinkEvent && !deepLinkInWindow && (
+      {event && !eventInPage && (
         <div className="flex items-center gap-2 rounded-md border border-info/40 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
           <Info className="h-3.5 w-3.5 shrink-0 text-info" />
           {t('platform.audit.eventNotInWindow')}
@@ -290,11 +304,11 @@ export function AuditLog({
 
       <Card>
         <CardContent className="p-0">
-          {rows.length === 0 ? (
+          {total === 0 && !filters.q && filters.action === 'all' && filters.entity === 'all' && filters.actor === 'all' && filters.date === 'all' ? (
             <div className="p-4">
               <EmptyState icon={<ScrollText />} title={t('platform.audit.empty')} className="border-0" />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : rows.length === 0 ? (
             <div className="p-4">
               <EmptyState
                 icon={<ScrollText />}
@@ -304,7 +318,7 @@ export function AuditLog({
               />
             </div>
           ) : view === 'table' ? (
-            <div className="overflow-x-auto">
+            <div className={`overflow-x-auto ${navPending ? 'opacity-60 transition-opacity' : ''}`}>
               <table className="w-full text-sm">
                 <thead className="border-b bg-secondary/50 text-muted-foreground">
                   <tr>
@@ -317,42 +331,52 @@ export function AuditLog({
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((r) => (
-                    <tr key={r.id} className="border-b align-top">
-                      <td className="whitespace-nowrap p-3 text-muted-foreground">
-                        <Tooltip label={absoluteTime(r.created_at)}>
-                          <span dir="ltr">{relativeTime(r.created_at, locale)}</span>
-                        </Tooltip>
-                      </td>
-                      <td className="max-w-[24rem] p-3">
-                        {describeAuditEvent(r, {
-                          locale,
-                          companyName: r.company_id ? companyNames[r.company_id] ?? null : null,
-                        })}
-                      </td>
-                      <td className="p-3">
-                        <Badge variant={DESTRUCTIVE.has(r.action) ? 'destructive' : 'secondary'}>
-                          {AUDIT_ACTION_LABELS[r.action]?.[locale] ?? r.action}
-                        </Badge>
-                      </td>
-                      <td className="p-3">
-                        {AUDIT_ENTITY_LABELS[r.entity]?.[locale] ?? r.entity}
-                        {r.entity_id && (
-                          <span className="block text-xs text-muted-foreground" dir="ltr">{r.entity_id}</span>
-                        )}
-                      </td>
-                      <td className="p-3">{r.company_id ? companyNames[r.company_id] ?? '—' : '—'}</td>
-                      <td className="p-3">
-                        <DetailChips details={r.details} />
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map((r) => {
+                    const isHighlighted = highlightId === r.id;
+                    return (
+                      <tr
+                        key={r.id}
+                        ref={(el) => {
+                          if (el) rowRefs.current.set(r.id, el);
+                          else rowRefs.current.delete(r.id);
+                        }}
+                        className={`border-b align-top ${isHighlighted ? 'bg-warning/10' : ''}`}
+                      >
+                        <td className="whitespace-nowrap p-3 text-muted-foreground">
+                          <Tooltip label={absoluteTime(r.created_at)}>
+                            <span dir="ltr">{relativeTime(r.created_at, locale)}</span>
+                          </Tooltip>
+                        </td>
+                        <td className="max-w-[24rem] p-3">
+                          {describeAuditEvent(r, {
+                            locale,
+                            companyName: r.company_id ? companyNames[r.company_id] ?? null : null,
+                          })}
+                        </td>
+                        <td className="p-3">
+                          <Badge variant={DESTRUCTIVE.has(r.action) ? 'destructive' : 'secondary'}>
+                            {AUDIT_ACTION_LABELS[r.action]?.[locale] ?? r.action}
+                          </Badge>
+                        </td>
+                        <td className="p-3">
+                          {AUDIT_ENTITY_LABELS[r.entity]?.[locale] ?? r.entity}
+                          {r.entity_id && (
+                            <span className="block text-xs text-muted-foreground" dir="ltr">{r.entity_id}</span>
+                          )}
+                        </td>
+                        <td className="p-3">{r.company_id ? companyNames[r.company_id] ?? '—' : '—'}</td>
+                        <td className="p-3">
+                          <DetailChips details={r.details} />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           ) : (
-            // ── Timeline view: grouped by day, vertical dot + time + sentence ──
-            <div className="p-4">
+            // ── Timeline view: groups the CURRENT page by day ──
+            <div className={`p-4 ${navPending ? 'opacity-60 transition-opacity' : ''}`}>
               {grouped.map(([key, dayRows]) => (
                 <div key={key} className="mb-6 last:mb-0">
                   <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
@@ -419,6 +443,14 @@ export function AuditLog({
           )}
         </CardContent>
       </Card>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        disabled={navPending}
+        onPageChange={(p) => pushParams({ page: p })}
+      />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ListToolbar } from '@/components/shared/list-toolbar';
+import { Pagination } from '@/components/shared/pagination';
 import {
   Loader2,
   Plus,
@@ -31,6 +32,7 @@ import {
   type SubscriptionState,
 } from '@/lib/erp/subscription';
 import { ALL_MODULES, MODULE_LABELS, type Module } from '@/lib/erp/navigation';
+import { buildQuery } from '@/lib/list-params';
 import { createCompany, setCompanyActive } from './actions';
 import { useI18n } from '@/lib/i18n/provider';
 
@@ -58,21 +60,50 @@ const STATE_ACCENT: Partial<Record<SubscriptionState, string>> = {
   suspended: 'border-s-2 border-s-destructive',
 };
 
-type SortKey = 'name' | 'expiry' | 'branches' | 'users' | 'created';
-type SortDir = 'asc' | 'desc';
+/** Server-expressible sorts only. Branch/user counts are derived per-page and
+ *  cannot be sorted server-side cheaply, so those columns keep their values but
+ *  are not sortable here (see report). */
+type SortKey = 'name' | 'expiry' | 'created';
 type StatusFilter = 'all' | SubscriptionState;
+type Dir = 'asc' | 'desc';
 
-const PAGE_SIZE = 25;
+export interface CompanyListFilters {
+  q: string;
+  status: StatusFilter;
+  sort: SortKey;
+  dir: Dir;
+}
+
 const STATUS_FILTERS: SubscriptionState[] = ['active', 'expiring', 'expired', 'suspended', 'trial'];
 
 const selectCls =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { rows: CompanyRow[]; btDefaults: Record<string, string[]>; btRoles: Record<string, string[]>; roleLabels: Record<string, string> }) {
+export function CompaniesManager({
+  rows,
+  total,
+  page,
+  pageSize,
+  filters,
+  btDefaults,
+  btRoles,
+  roleLabels,
+}: {
+  rows: CompanyRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  filters: CompanyListFilters;
+  btDefaults: Record<string, string[]>;
+  btRoles: Record<string, string[]>;
+  roleLabels: Record<string, string>;
+}) {
   const { t, locale } = useI18n();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [showForm, setShowForm] = useState(false);
+  const [navPending, startNav] = useTransition();
 
   // Quick-action deep-link: /platform/companies?new=1 auto-opens the existing
   // create form (read-only trigger of client UI; no write occurs on its own).
@@ -91,12 +122,41 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
   const [modules, setModules] = useState<Set<string>>(() => defaultsFor('general'));
   const [roles, setRoles] = useState<Set<string>>(() => new Set(btRoles['general'] ?? []));
 
-  // ── list controls (search / filter / sort / paginate) ──────────────
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<StatusFilter>('all');
-  const [sortKey, setSortKey] = useState<SortKey>('name');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [page, setPage] = useState(0);
+  // ── URL-persisted list controls ────────────────────────────────────
+  // The search box keeps local state for responsive typing; URL is updated
+  // (debounced) so the view stays shareable / refresh-safe.
+  const [searchInput, setSearchInput] = useState(filters.q);
+  useEffect(() => setSearchInput(filters.q), [filters.q]);
+
+  /** Push new list params, preserving the create-form deep-link if open. */
+  function pushParams(next: Partial<CompanyListFilters & { page: number }>) {
+    const merged = {
+      q: filters.q,
+      status: filters.status,
+      sort: filters.sort,
+      dir: filters.dir,
+      page,
+      ...next,
+    };
+    const query = buildQuery({
+      q: merged.q || undefined,
+      status: merged.status === 'all' ? undefined : merged.status,
+      sort: merged.sort === 'name' ? undefined : merged.sort,
+      dir: merged.dir === 'asc' ? undefined : merged.dir,
+      page: merged.page > 1 ? merged.page : undefined,
+    });
+    startNav(() => router.push(`${pathname}${query}`));
+  }
+
+  // Debounce search → URL (~300ms). Skip while equal to current URL value.
+  useEffect(() => {
+    if (searchInput === filters.q) return;
+    const id = window.setTimeout(() => {
+      pushParams({ q: searchInput, page: 1 });
+    }, 300);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   function onBusinessType(bt: string) {
     setBusinessType(bt);
@@ -141,62 +201,14 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
   }
 
   function onSort(key: SortKey) {
-    if (key === sortKey) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
-    setPage(0);
+    const nextDir: Dir = key === filters.sort && filters.dir === 'asc' ? 'desc' : 'asc';
+    pushParams({ sort: key, dir: nextDir, page: 1 });
   }
 
-  // Filter → sort → paginate (client-side; only the current page is rendered).
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let list = rows.filter(({ company }) => {
-      if (q) {
-        const hay = `${company.name ?? ''} ${company.name_ar ?? ''} ${company.slug ?? ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      if (status !== 'all' && subscriptionState(company) !== status) return false;
-      return true;
-    });
-
-    const dir = sortDir === 'asc' ? 1 : -1;
-    list = [...list].sort((a, b) => {
-      switch (sortKey) {
-        case 'branches':
-          return (a.branches - b.branches) * dir;
-        case 'users':
-          return (a.users - b.users) * dir;
-        case 'expiry': {
-          // Nulls (open-ended) sort last regardless of direction.
-          const av = a.company.subscription_end;
-          const bv = b.company.subscription_end;
-          if (!av && !bv) return 0;
-          if (!av) return 1;
-          if (!bv) return -1;
-          return av.localeCompare(bv) * dir;
-        }
-        case 'created':
-          return (a.company.created_at ?? '').localeCompare(b.company.created_at ?? '') * dir;
-        case 'name':
-        default: {
-          const an = (a.company.name_ar || a.company.name || '').toLowerCase();
-          const bn = (b.company.name_ar || b.company.name || '').toLowerCase();
-          return an.localeCompare(bn) * dir;
-        }
-      }
-    });
-    return list;
-  }, [rows, search, status, sortKey, sortDir]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageRows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   function SortHeader({ label, k }: { label: string; k: SortKey }) {
-    const active = sortKey === k;
+    const active = filters.sort === k;
     return (
       <th className="p-3 font-medium">
         <button
@@ -206,7 +218,7 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
         >
           {label}
           {active &&
-            (sortDir === 'asc' ? (
+            (filters.dir === 'asc' ? (
               <ChevronUp className="h-3.5 w-3.5" />
             ) : (
               <ChevronDown className="h-3.5 w-3.5" />
@@ -222,6 +234,10 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
       {t('platform.companies.newCompany')}
     </Button>
   );
+
+  // No-data (no companies at all and no active filter) vs no-results (filtered).
+  const hasFilter = !!filters.q || filters.status !== 'all';
+  const noData = total === 0 && !hasFilter;
 
   return (
     <div className="space-y-6">
@@ -304,7 +320,7 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
         </Card>
       )}
 
-      {rows.length === 0 ? (
+      {noData ? (
         <EmptyState
           icon={<Building2 />}
           title={t('platform.companies.empty')}
@@ -318,22 +334,16 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
       ) : (
         <>
           <ListToolbar
-            search={search}
-            onSearch={(v) => {
-              setSearch(v);
-              setPage(0);
-            }}
+            search={searchInput}
+            onSearch={setSearchInput}
             placeholder={t('platform.companies.searchPlaceholder')}
-            count={filtered.length}
-            total={rows.length}
+            count={rows.length}
+            total={total}
             filters={
               <Select
                 aria-label={t('platform.companies.thStatus')}
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value as StatusFilter);
-                  setPage(0);
-                }}
+                value={filters.status}
+                onChange={(e) => pushParams({ status: e.target.value as StatusFilter, page: 1 })}
                 className="sm:w-44"
               >
                 <option value="all">{t('platform.companies.filterAll')}</option>
@@ -349,7 +359,7 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
 
           <Card>
             <CardContent className="p-0">
-              {filtered.length === 0 ? (
+              {rows.length === 0 ? (
                 <EmptyState
                   icon={<SearchX />}
                   title={t('platform.companies.noResults')}
@@ -357,7 +367,7 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
                   className="border-0"
                 />
               ) : (
-                <div className="overflow-x-auto">
+                <div className={`overflow-x-auto ${navPending ? 'opacity-60 transition-opacity' : ''}`}>
                   <table className="w-full text-sm">
                     <thead className="border-b text-start text-muted-foreground">
                       <tr className="text-start">
@@ -366,13 +376,13 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
                         <th className="p-3 font-medium">{t('platform.companies.thStatus')}</th>
                         <SortHeader label={t('platform.companies.thExpiry')} k="expiry" />
                         <SortHeader label={t('platform.companies.thCreated')} k="created" />
-                        <SortHeader label={t('platform.companies.thBranches')} k="branches" />
-                        <SortHeader label={t('platform.companies.thUsers')} k="users" />
+                        <th className="p-3 font-medium">{t('platform.companies.thBranches')}</th>
+                        <th className="p-3 font-medium">{t('platform.companies.thUsers')}</th>
                         <th className="p-3 font-medium"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {pageRows.map(({ company, branches, users }) => {
+                      {rows.map(({ company, branches, users }) => {
                         const state = subscriptionState(company);
                         const left = daysLeft(company);
                         const badgeVariant = STATE_BADGE_VARIANT[state];
@@ -448,29 +458,13 @@ export function CompaniesManager({ rows, btDefaults, btRoles, roleLabels }: { ro
             </CardContent>
           </Card>
 
-          {pageCount > 1 && (
-            <div className="flex items-center justify-between gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={safePage === 0}
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-              >
-                {t('platform.companies.prev')}
-              </Button>
-              <span className="text-sm text-muted-foreground" dir="ltr">
-                {t('platform.companies.pageOf', { page: safePage + 1, pages: pageCount })}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={safePage >= pageCount - 1}
-                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-              >
-                {t('platform.companies.next')}
-              </Button>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            disabled={navPending}
+            onPageChange={(p) => pushParams({ page: p })}
+          />
         </>
       )}
     </div>

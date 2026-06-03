@@ -323,7 +323,7 @@ export default async function PlatformOverviewPage() {
         icon: Clock,
         title: t('platform.overview.attnExpiring'),
         count: expiring.length,
-        href: '/platform/companies',
+        href: '/platform/companies?status=expiring',
         items: expiring.slice(0, 3).map((r) =>
           `${r.c.name_ar || r.c.name} · ${t('platform.overview.daysLeft', { n: r.left as number })}`,
         ),
