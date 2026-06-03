@@ -39,12 +39,36 @@ export const ar = {
       open: 'مفتوح',
     },
 
+    // ── shared list toolbar ────────────────────────────────────────
+    toolbar: {
+      searchPlaceholder: 'بحث…',
+      showing: 'عرض {count} من {total}',
+    },
+
     // ── companies list page ────────────────────────────────────────
     companies: {
       title: 'الشركات والاشتراكات',
       description: 'إضافة الشركات (المستأجرين)، إدارة اشتراكاتها وقفلها عند الانتهاء',
       newCompany: 'شركة جديدة',
       empty: 'لا توجد شركات بعد. أنشئ أول شركة.',
+      emptyAction: 'إضافة شركة',
+      noResults: 'لا توجد نتائج',
+      noResultsHint: 'جرّب تعديل البحث أو الفلتر.',
+      countLabel: 'عرض {count} من {total} شركة',
+      searchPlaceholder: 'بحث بالاسم أو المعرّف…',
+      // filters
+      filterAll: 'كل الحالات',
+      // sorting
+      sortLabel: 'ترتيب حسب',
+      sortName: 'الاسم',
+      sortExpiry: 'تاريخ الانتهاء',
+      sortBranches: 'الفروع',
+      sortUsers: 'المستخدمون',
+      sortCreated: 'تاريخ الإضافة',
+      // pagination
+      prev: 'السابق',
+      next: 'التالي',
+      pageOf: 'صفحة {page} من {pages}',
       // table headers
       thCompany: 'الشركة',
       thActivity: 'النشاط',
@@ -52,6 +76,7 @@ export const ar = {
       thExpiry: 'الانتهاء',
       thBranches: 'الفروع',
       thUsers: 'المستخدمون',
+      thCreated: 'تاريخ الإضافة',
       daysSuffix: 'يوم',
       // actions
       suspend: 'إيقاف',
@@ -251,6 +276,15 @@ export const ar = {
       footer: 'تسري التغييرات على مستخدمي الشركة عند تحديث الصفحة أو إعادة تسجيل الدخول. الأدوار غير المفعّلة لا تمنح أي صلاحية.',
       toastRoleAdded: 'تمت إضافة الدور لهذه الشركة',
       toastError: 'حدث خطأ',
+      // matrix redesign
+      searchPlaceholder: 'بحث في الصلاحيات…',
+      noResults: 'لا توجد صلاحيات مطابقة',
+      selectAllGroup: 'تحديد كل صلاحيات هذه المجموعة لهذا الدور',
+      selectAllColumn: 'تحديد كل الصلاحيات لهذا الدور',
+      roleDisabledTooltip: 'فعّل هذا الدور أولاً',
+      expandAll: 'توسيع الكل',
+      collapseAll: 'طي الكل',
+      noRoles: 'لا توجد أدوار. أضف دوراً للبدء.',
     },
 
     // ── audit log page ─────────────────────────────────────────────
@@ -344,12 +378,36 @@ export const en = {
       open: 'Open',
     },
 
+    // ── shared list toolbar ────────────────────────────────────────
+    toolbar: {
+      searchPlaceholder: 'Search…',
+      showing: 'Showing {count} of {total}',
+    },
+
     // ── companies list page ────────────────────────────────────────
     companies: {
       title: 'Companies & Subscriptions',
       description: 'Add tenant companies, manage their subscriptions and lock them on expiry',
       newCompany: 'New Company',
       empty: 'No companies yet. Create the first one.',
+      emptyAction: 'Add a company',
+      noResults: 'No matching companies',
+      noResultsHint: 'Try adjusting your search or filter.',
+      countLabel: 'Showing {count} of {total} companies',
+      searchPlaceholder: 'Search by name or slug…',
+      // filters
+      filterAll: 'All statuses',
+      // sorting
+      sortLabel: 'Sort by',
+      sortName: 'Name',
+      sortExpiry: 'Expiry date',
+      sortBranches: 'Branches',
+      sortUsers: 'Users',
+      sortCreated: 'Date added',
+      // pagination
+      prev: 'Previous',
+      next: 'Next',
+      pageOf: 'Page {page} of {pages}',
       // table headers
       thCompany: 'Company',
       thActivity: 'Business Type',
@@ -357,6 +415,7 @@ export const en = {
       thExpiry: 'Expiry',
       thBranches: 'Branches',
       thUsers: 'Users',
+      thCreated: 'Date added',
       daysSuffix: 'day(s)',
       // actions
       suspend: 'Suspend',
@@ -556,6 +615,15 @@ export const en = {
       footer: 'Changes take effect for company users on page refresh or re-login. Disabled roles grant no permissions.',
       toastRoleAdded: 'Role added for this company',
       toastError: 'An error occurred',
+      // matrix redesign
+      searchPlaceholder: 'Search permissions…',
+      noResults: 'No matching permissions',
+      selectAllGroup: 'Toggle all permissions in this group for this role',
+      selectAllColumn: 'Toggle all permissions for this role',
+      roleDisabledTooltip: 'Enable this role first',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all',
+      noRoles: 'No roles yet. Add one to get started.',
     },
 
     // ── audit log page ─────────────────────────────────────────────
