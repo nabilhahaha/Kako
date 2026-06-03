@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
@@ -81,12 +82,14 @@ export default async function PlatformStaffPage() {
   return (
     <div>
       <PageHeader title={t('platformStaff.title')} description={t('platformStaff.subtitle')} />
-      <StaffManager
-        staff={staffRows}
-        roleDefaults={(rolePerms as RoleDefault[]) ?? []}
-        overrides={(overrides as OverrideRow[]) ?? []}
-        canInvite={ctx.isOwner}
-      />
+      <Suspense fallback={null}>
+        <StaffManager
+          staff={staffRows}
+          roleDefaults={(rolePerms as RoleDefault[]) ?? []}
+          overrides={(overrides as OverrideRow[]) ?? []}
+          canInvite={ctx.isOwner}
+        />
+      </Suspense>
     </div>
   );
 }

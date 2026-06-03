@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   UserPlus, ShieldCheck, Power, RotateCcw, ChevronDown, ChevronRight, Globe, Info, Clock,
@@ -60,7 +61,25 @@ export function StaffManager({
 }) {
   const { t, locale } = useI18n();
   const confirm = useConfirm();
+  const searchParams = useSearchParams();
   const [busy, setBusy] = useState(false);
+
+  // Quick-action deep-link: /platform/staff?invite=1 scrolls to and focuses the
+  // existing invite form (read-only trigger of client UI; no write on its own).
+  const inviteRef = useRef<HTMLFormElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const didAutoInvite = useRef(false);
+  useEffect(() => {
+    if (didAutoInvite.current) return;
+    if (!canInvite) return;
+    if (searchParams?.get('invite') !== '1') return;
+    didAutoInvite.current = true;
+    const id = window.setTimeout(() => {
+      inviteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      emailRef.current?.focus();
+    }, 60);
+    return () => window.clearTimeout(id);
+  }, [searchParams, canInvite]);
   const lbl = (m: { en: string; ar: string }) => (locale === 'ar' ? m.ar : m.en);
 
   // ── search / filters ──────────────────────────────────────────────────────
@@ -230,10 +249,10 @@ export function StaffManager({
             <h2 className="mb-4 flex items-center gap-2 text-base font-semibold">
               <UserPlus className="h-4 w-4" /> {t('platformStaff.create.title')}
             </h2>
-            <form action={onCreate} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <form ref={inviteRef} action={onCreate} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-1.5">
                 <Label htmlFor="s-email">{t('platformStaff.create.email')}</Label>
-                <Input id="s-email" name="email" type="email" required />
+                <Input ref={emailRef} id="s-email" name="email" type="email" required />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="s-name">{t('platformStaff.create.fullName')}</Label>

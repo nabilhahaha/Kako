@@ -21,6 +21,8 @@ import {
   Clock,
   ScrollText,
   Activity,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, Company } from '@/lib/erp/types';
@@ -180,6 +182,24 @@ export function Company360(props: Company360Props) {
   const [pending, startTransition] = useTransition();
   const [active, setActive] = useState<SectionKey>(tabToSection(props.initialSection));
 
+  // ── mobile collapse (<lg): sections collapsed by default, expand on tap ─────
+  // Heavy sections (users, roles, audit) stay collapsed; summary opens by default
+  // (plus any deep-linked section). Desktop ignores this (sections always shown).
+  const [expanded, setExpanded] = useState<Set<SectionKey>>(() => {
+    const init = new Set<SectionKey>(['summary']);
+    const deep = tabToSection(props.initialSection);
+    if (deep) init.add(deep);
+    return init;
+  });
+  function toggleSection(k: SectionKey) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  }
+
   const { company } = props;
   const state = subscriptionState(company);
   const left = daysLeft(company);
@@ -287,10 +307,18 @@ export function Company360(props: Company360Props) {
     audit: t('platform.company.c360.railAudit'),
   };
 
+  const expandLabel = t('platform.company.c360.expandSection');
+  const collapseLabel = t('platform.company.c360.collapseSection');
+
   function scrollTo(k: SectionKey) {
-    const el = document.getElementById(`section-${k}`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Expand the target first (mobile), then scroll — so the jump lands on
+    // open content. Defer the scroll a tick to let the section render.
+    setExpanded((prev) => (prev.has(k) ? prev : new Set(prev).add(k)));
     setActive(k);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`section-${k}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   return (
@@ -363,6 +391,34 @@ export function Company360(props: Company360Props) {
           ))}
         </div>
       </div>
+
+      {/* ── T1: condensed status card (above the fold) ─────────────────────── */}
+      <Card className="mb-4">
+        <CardContent className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">{t('platform.company.health.title')}</p>
+            <p className={`text-lg font-bold ${BAND_RING[health.band]}`} dir="ltr">
+              {health.score} · {t(`platform.company.health.band.${health.band}`)}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">{t('platform.company.c360.statusExpiry')}</p>
+            <p className={`text-lg font-bold tabular-nums ${expiryTone === 'destructive' ? 'text-destructive' : expiryTone === 'warning' ? 'text-warning' : ''}`} dir="ltr">
+              {left == null ? '∞' : left}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">{t('platform.company.c360.statusApprovals')}</p>
+            <p className={`text-lg font-bold tabular-nums ${(props.pendingApprovals ?? 0) > 0 ? 'text-warning' : ''}`} dir="ltr">
+              {props.pendingApprovals == null ? '—' : props.pendingApprovals}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">{t('platform.company.c360.statusUsers')}</p>
+            <p className="text-lg font-bold tabular-nums" dir="ltr">{props.totalUsers}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── KPI strip ──────────────────────────────────────────────────────── */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -448,118 +504,190 @@ export function Company360(props: Company360Props) {
 
           {/* Subscription (+ trial, plan, company info) */}
           <section id="section-subscription" className="scroll-mt-32">
-            <SectionHeader icon={Clock} title={t('platform.company.c360.railSubscription')} />
-            <CompanyDetail
-              tab="subscription"
-              company={props.company}
-              branches={props.branches}
-              members={props.members}
-              companyRoles={props.companyRoles}
-              plans={props.plans}
-              usage={props.usage}
-              modulesByPlan={props.modulesByPlan}
-              enabledModules={props.enabledModules}
-            />
+            <MobileCollapse
+              icon={Clock}
+              title={t('platform.company.c360.railSubscription')}
+              open={expanded.has('subscription')}
+              onToggle={() => toggleSection('subscription')}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+            >
+              <SectionHeader icon={Clock} title={t('platform.company.c360.railSubscription')} />
+              <CompanyDetail
+                tab="subscription"
+                company={props.company}
+                branches={props.branches}
+                members={props.members}
+                companyRoles={props.companyRoles}
+                plans={props.plans}
+                usage={props.usage}
+                modulesByPlan={props.modulesByPlan}
+                enabledModules={props.enabledModules}
+              />
+            </MobileCollapse>
           </section>
 
           {/* Users (branches + members + by-role grouping) */}
           <section id="section-users" className="scroll-mt-32">
-            <SectionHeader icon={UsersIcon} title={t('platform.company.c360.railUsers')} />
-            <CompanyDetail
-              tab="users"
-              company={props.company}
-              branches={props.branches}
-              members={props.members}
-              companyRoles={props.companyRoles}
-              plans={props.plans}
-              usage={props.usage}
-              modulesByPlan={props.modulesByPlan}
-              enabledModules={props.enabledModules}
-            />
+            <MobileCollapse
+              icon={UsersIcon}
+              title={t('platform.company.c360.railUsers')}
+              open={expanded.has('users')}
+              onToggle={() => toggleSection('users')}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+            >
+              <SectionHeader icon={UsersIcon} title={t('platform.company.c360.railUsers')} />
+              <CompanyDetail
+                tab="users"
+                company={props.company}
+                branches={props.branches}
+                members={props.members}
+                companyRoles={props.companyRoles}
+                plans={props.plans}
+                usage={props.usage}
+                modulesByPlan={props.modulesByPlan}
+                enabledModules={props.enabledModules}
+              />
+            </MobileCollapse>
           </section>
 
           {/* Roles & Permissions */}
           <section id="section-roles" className="scroll-mt-32">
-            <SectionHeader icon={UserCheck} title={t('platform.company.c360.railRoles')} />
-            <CompanyPermissions
-              companyId={company.id}
-              roles={props.roles}
-              enabledRoles={props.enabledRoles}
-              permsByRole={props.permsByRole}
-              view="permissions"
-            />
+            <MobileCollapse
+              icon={UserCheck}
+              title={t('platform.company.c360.railRoles')}
+              open={expanded.has('roles')}
+              onToggle={() => toggleSection('roles')}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+            >
+              <SectionHeader icon={UserCheck} title={t('platform.company.c360.railRoles')} />
+              <CompanyPermissions
+                companyId={company.id}
+                roles={props.roles}
+                enabledRoles={props.enabledRoles}
+                permsByRole={props.permsByRole}
+                view="permissions"
+              />
+            </MobileCollapse>
           </section>
 
           {/* Modules */}
           <section id="section-modules" className="scroll-mt-32">
-            <SectionHeader icon={Boxes} title={t('platform.company.c360.railModules')} />
-            <CompanyDetail
-              tab="modules"
-              company={props.company}
-              branches={props.branches}
-              members={props.members}
-              companyRoles={props.companyRoles}
-              plans={props.plans}
-              usage={props.usage}
-              modulesByPlan={props.modulesByPlan}
-              enabledModules={props.enabledModules}
-            />
+            <MobileCollapse
+              icon={Boxes}
+              title={t('platform.company.c360.railModules')}
+              open={expanded.has('modules')}
+              onToggle={() => toggleSection('modules')}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+            >
+              <SectionHeader icon={Boxes} title={t('platform.company.c360.railModules')} />
+              <CompanyDetail
+                tab="modules"
+                company={props.company}
+                branches={props.branches}
+                members={props.members}
+                companyRoles={props.companyRoles}
+                plans={props.plans}
+                usage={props.usage}
+                modulesByPlan={props.modulesByPlan}
+                enabledModules={props.enabledModules}
+              />
+            </MobileCollapse>
           </section>
 
           {/* Industry Packs */}
           <section id="section-packs" className="scroll-mt-32">
-            <SectionHeader icon={Boxes} title={t('platform.company.c360.railPacks')} />
-            <CompanyDetail
-              tab="packs"
-              company={props.company}
-              branches={props.branches}
-              members={props.members}
-              companyRoles={props.companyRoles}
-              plans={props.plans}
-              usage={props.usage}
-              modulesByPlan={props.modulesByPlan}
-              enabledModules={props.enabledModules}
-            />
+            <MobileCollapse
+              icon={Boxes}
+              title={t('platform.company.c360.railPacks')}
+              open={expanded.has('packs')}
+              onToggle={() => toggleSection('packs')}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+            >
+              <SectionHeader icon={Boxes} title={t('platform.company.c360.railPacks')} />
+              <CompanyDetail
+                tab="packs"
+                company={props.company}
+                branches={props.branches}
+                members={props.members}
+                companyRoles={props.companyRoles}
+                plans={props.plans}
+                usage={props.usage}
+                modulesByPlan={props.modulesByPlan}
+                enabledModules={props.enabledModules}
+              />
+            </MobileCollapse>
           </section>
 
           {/* Integrations */}
           <section id="section-integrations" className="scroll-mt-32">
-            <SectionHeader icon={Plug} title={t('platform.company.c360.railIntegrations')} />
-            <CompanyDetail
-              tab="integrations"
-              company={props.company}
-              branches={props.branches}
-              members={props.members}
-              companyRoles={props.companyRoles}
-              plans={props.plans}
-              usage={props.usage}
-              modulesByPlan={props.modulesByPlan}
-              enabledModules={props.enabledModules}
-              integrations={props.integrations}
-              apiKeys={props.apiKeys}
-            />
+            <MobileCollapse
+              icon={Plug}
+              title={t('platform.company.c360.railIntegrations')}
+              open={expanded.has('integrations')}
+              onToggle={() => toggleSection('integrations')}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+            >
+              <SectionHeader icon={Plug} title={t('platform.company.c360.railIntegrations')} />
+              <CompanyDetail
+                tab="integrations"
+                company={props.company}
+                branches={props.branches}
+                members={props.members}
+                companyRoles={props.companyRoles}
+                plans={props.plans}
+                usage={props.usage}
+                modulesByPlan={props.modulesByPlan}
+                enabledModules={props.enabledModules}
+                integrations={props.integrations}
+                apiKeys={props.apiKeys}
+              />
+            </MobileCollapse>
           </section>
 
           {/* Usage — plan limits vs current tallies (read-only) */}
           <section id="section-usage" className="scroll-mt-32">
-            <SectionHeader icon={Activity} title={t('platform.company.c360.railUsage')} />
-            <UsageSection plans={props.plans} company={company} usage={props.usage} />
+            <MobileCollapse
+              icon={Activity}
+              title={t('platform.company.c360.railUsage')}
+              open={expanded.has('usage')}
+              onToggle={() => toggleSection('usage')}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+            >
+              <SectionHeader icon={Activity} title={t('platform.company.c360.railUsage')} />
+              <UsageSection plans={props.plans} company={company} usage={props.usage} />
+            </MobileCollapse>
           </section>
 
           {/* Audit */}
           <section id="section-audit" className="scroll-mt-32">
-            <SectionHeader icon={ScrollText} title={t('platform.company.c360.railAudit')} />
-            <CompanyAudit
-              rows={props.auditRows}
-              locale={locale}
-              labels={{
-                empty: t('platform.company.audit.empty'),
-                time: t('platform.company.audit.time'),
-                actor: t('platform.company.audit.actor'),
-                action: t('platform.company.audit.action'),
-                entity: t('platform.company.audit.entity'),
-              }}
-            />
+            <MobileCollapse
+              icon={ScrollText}
+              title={t('platform.company.c360.railAudit')}
+              open={expanded.has('audit')}
+              onToggle={() => toggleSection('audit')}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+            >
+              <SectionHeader icon={ScrollText} title={t('platform.company.c360.railAudit')} />
+              <CompanyAudit
+                rows={props.auditRows}
+                locale={locale}
+                labels={{
+                  empty: t('platform.company.audit.empty'),
+                  time: t('platform.company.audit.time'),
+                  actor: t('platform.company.audit.actor'),
+                  action: t('platform.company.audit.action'),
+                  entity: t('platform.company.audit.entity'),
+                }}
+              />
+            </MobileCollapse>
           </section>
         </div>
       </div>
@@ -569,9 +697,55 @@ export function Company360(props: Company360Props) {
 
 function SectionHeader({ icon: Icon, title }: { icon: typeof Clock; title: string }) {
   return (
-    <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+    <h2 className="mb-3 hidden items-center gap-2 text-lg font-semibold lg:flex">
       <Icon className="h-5 w-5 text-muted-foreground" /> {title}
     </h2>
+  );
+}
+
+/**
+ * Mobile-first collapsible wrapper. On <lg it renders a tap header (with the
+ * section title) and shows the body only when expanded — heavy sections stay
+ * calm by default. On lg the body is always shown (desktop = expanded). No
+ * capability is removed; everything is one tap away.
+ */
+function MobileCollapse({
+  icon: Icon,
+  title,
+  open,
+  onToggle,
+  expandLabel,
+  collapseLabel,
+  children,
+}: {
+  icon: typeof Clock;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  expandLabel: string;
+  collapseLabel: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      {/* mobile tap header */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="mb-3 flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-start lg:hidden"
+      >
+        <span className="flex items-center gap-2 text-base font-semibold">
+          <Icon className="h-5 w-5 text-muted-foreground" /> {title}
+        </span>
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          {open ? collapseLabel : expandLabel}
+          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </span>
+      </button>
+      {/* body: collapsed on mobile when !open; always shown on lg */}
+      <div className={open ? 'block' : 'hidden lg:block'}>{children}</div>
+    </>
   );
 }
 

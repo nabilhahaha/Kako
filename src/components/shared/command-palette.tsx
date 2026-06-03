@@ -259,6 +259,7 @@ export function CommandPalette() {
   const [approvals, setApprovals] = useState<ApprovalHit[]>([]);
   const [recent, setRecent] = useState<RecentEntry[]>([]);
   const [opened, setOpened] = useState<OpenedCompany[]>([]);
+  const [frequent, setFrequent] = useState<FrequentCompany[]>([]);
   const [active, setActive] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -318,6 +319,7 @@ export function CommandPalette() {
     setActive(0);
     setRecent(readRecent());
     setOpened(readOpenedCompanies());
+    setFrequent(topFrequentCompanies(RECENT_MAX));
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const id = window.setTimeout(() => inputRef.current?.focus(), 0);
@@ -563,10 +565,11 @@ export function CommandPalette() {
         sub: item.sub,
         href: item.href,
       });
-      // Record companies separately for the "Recently opened" group.
+      // Record companies separately for the "Recently opened" + "Frequent" groups.
       if (item.kind === 'company') {
         const id = item.key.slice('company:'.length);
         pushOpenedCompany({ id, name: item.recentLabel });
+        bumpFrequentCompany({ id, name: item.recentLabel });
       }
       setOpen(false);
       router.push(item.href);
@@ -586,6 +589,7 @@ export function CommandPalette() {
   const selectOpenedCompany = useCallback(
     (c: OpenedCompany) => {
       pushOpenedCompany(c);
+      bumpFrequentCompany(c);
       setOpen(false);
       router.push(`/platform/companies/${c.id}`);
     },
@@ -608,9 +612,10 @@ export function CommandPalette() {
 
   if (!open) return null;
 
+  const showFrequent = !hasQuery && frequent.length > 0;
   const showRecent = !hasQuery && recent.length > 0;
   const showOpened = !hasQuery && opened.length > 0;
-  const showHint = !hasQuery && recent.length === 0 && opened.length === 0;
+  const showHint = !hasQuery && recent.length === 0 && opened.length === 0 && frequent.length === 0;
   const noResults = hasQuery && !loading && flat.length === 0;
 
   /* ── render ────────────────────────────────────────────────────────── */
@@ -699,6 +704,29 @@ export function CommandPalette() {
                     </li>
                   );
                 })}
+              </ul>
+            </li>
+          )}
+
+          {/* frequent companies (query empty) — by open-frequency, above recents */}
+          {showFrequent && (
+            <li>
+              <p className="px-2 pb-1 pt-2 text-xs font-medium text-muted-foreground">
+                {t('platform.search.frequent')}
+              </p>
+              <ul>
+                {frequent.map((c) => (
+                  <li key={`frequent:${c.id}`}>
+                    <button
+                      type="button"
+                      onClick={() => selectOpenedCompany({ id: c.id, name: c.name })}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-start text-sm hover:bg-secondary focus-visible:bg-secondary focus-visible:outline-none sm:py-2"
+                    >
+                      <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="flex-1 truncate">{c.name}</span>
+                    </button>
+                  </li>
+                ))}
               </ul>
             </li>
           )}

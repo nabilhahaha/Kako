@@ -68,6 +68,17 @@ export const ar = {
       // recent audit activity card
       recentAuditTitle: 'أحدث النشاط',
       recentAuditEmpty: 'لا يوجد نشاط مسجّل بعد.',
+      // T1 attention summary (above the fold)
+      attnSummaryTitle: 'يحتاج انتباهك',
+      attnSummaryUrgent: 'عاجل',
+      attnSummaryBlocked: 'معطّل',
+      attnSummaryReview: 'للمراجعة',
+      attnView: 'عرض',
+      // portfolio health line: "{companies} شركة · {expiring} توشك · {blocked} معطّلة"
+      portfolioLine: '{companies} شركة · {expiring} توشك · {blocked} معطّلة',
+      // details disclosure for demoted (T2/T3) content
+      moreDetails: 'مزيد من التفاصيل والمؤشرات',
+      kpiStripTitle: 'مؤشرات المحفظة',
     },
 
     // ── global search command palette (⌘K) ─────────────────────────
@@ -226,6 +237,14 @@ export const ar = {
         timelineTitle: 'أحداث مهمة',
         timelineEmpty: 'لا توجد أحداث',
         viewFullAudit: 'عرض السجل الكامل',
+        // condensed status card (T1)
+        statusTitle: 'الحالة',
+        statusExpiry: 'حتى الانتهاء',
+        statusApprovals: 'موافقات معلّقة',
+        statusUsers: 'المستخدمون',
+        // mobile section collapse
+        expandSection: 'عرض',
+        collapseSection: 'إخفاء',
       },
 
       // Company Health Score
@@ -395,6 +414,13 @@ export const ar = {
       expandAll: 'توسيع الكل',
       collapseAll: 'طي الكل',
       noRoles: 'لا توجد أدوار. أضف دوراً للبدء.',
+      // summary-first (T1): role list with permission count; matrix behind "Edit / Advanced"
+      summaryTitle: 'الأدوار',
+      summaryHint: 'ملخّص الصلاحيات لكل دور. افتح «تعديل / متقدّم» لمصفوفة الصلاحيات الكاملة.',
+      summaryFmt: '{granted}/{total} صلاحية',
+      editAdvanced: 'تعديل / متقدّم',
+      backToSummary: 'رجوع للملخّص',
+      roleDisabledSummary: 'الدور موقوف',
     },
 
     // ── audit log page ─────────────────────────────────────────────
@@ -535,6 +561,17 @@ export const en = {
       // recent audit activity card
       recentAuditTitle: 'Recent Activity',
       recentAuditEmpty: 'No activity logged yet.',
+      // T1 attention summary (above the fold)
+      attnSummaryTitle: 'Needs your attention',
+      attnSummaryUrgent: 'Urgent',
+      attnSummaryBlocked: 'Blocked',
+      attnSummaryReview: 'Review',
+      attnView: 'View',
+      // portfolio health line: "{companies} companies · {expiring} expiring · {blocked} blocked"
+      portfolioLine: '{companies} companies · {expiring} expiring · {blocked} blocked',
+      // details disclosure for demoted (T2/T3) content
+      moreDetails: 'More details & metrics',
+      kpiStripTitle: 'Portfolio metrics',
     },
 
     // ── global search command palette (⌘K) ─────────────────────────
@@ -693,6 +730,14 @@ export const en = {
         timelineTitle: 'Important Events',
         timelineEmpty: 'No events',
         viewFullAudit: 'View full audit',
+        // condensed status card (T1)
+        statusTitle: 'Status',
+        statusExpiry: 'To expiry',
+        statusApprovals: 'Open approvals',
+        statusUsers: 'Users',
+        // mobile section collapse
+        expandSection: 'Show',
+        collapseSection: 'Hide',
       },
 
       // Company Health Score
@@ -862,6 +907,13 @@ export const en = {
       expandAll: 'Expand all',
       collapseAll: 'Collapse all',
       noRoles: 'No roles yet. Add one to get started.',
+      // summary-first (T1): role list with permission count; matrix behind "Edit / Advanced"
+      summaryTitle: 'Roles',
+      summaryHint: 'Permission summary per role. Open “Edit / Advanced” for the full permission matrix.',
+      summaryFmt: '{granted}/{total} permissions',
+      editAdvanced: 'Edit / Advanced',
+      backToSummary: 'Back to summary',
+      roleDisabledSummary: 'Role disabled',
     },
 
     // ── audit log page ─────────────────────────────────────────────

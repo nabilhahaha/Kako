@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
@@ -52,7 +53,9 @@ export default async function AuditLogPage() {
         title={t('platform.audit.title')}
         description={t('platform.audit.description')}
       />
-      <AuditLog rows={rows} companyNames={companyNames} />
+      <Suspense fallback={null}>
+        <AuditLog rows={rows} companyNames={companyNames} />
+      </Suspense>
     </div>
   );
 }

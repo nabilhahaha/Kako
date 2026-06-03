@@ -25,7 +25,7 @@ import {
   Building2,
   CheckCircle2,
   Clock,
-  Users,
+  ChevronDown,
   Network,
   Settings2,
   Plug,
@@ -518,11 +518,22 @@ export default async function PlatformOverviewPage() {
         }
       />
 
-      {/* Platform Attention Center — attention-first, ordered by urgency */}
-      <section className="mb-6">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold">
-          <Siren className="h-4 w-4 text-warning" /> {t('platform.overview.attnTitle')}
+      {/* ── T1: Attention summary (above the fold) ─────────────────────────
+          Top ~3 items needing attention, severity-ordered, each labelled
+          urgent/blocked/review with a 1-tap drill-down. Answers
+          "what's urgent / blocked / to do" in ~5s on mobile. */}
+      <section className="mb-4">
+        <h2 className="mb-2 flex items-center gap-2 font-semibold">
+          <Siren className="h-4 w-4 text-warning" /> {t('platform.overview.attnSummaryTitle')}
         </h2>
+        {/* Portfolio health line (one calm line of context). */}
+        <p className="mb-3 text-sm text-muted-foreground" dir="auto">
+          {t('platform.overview.portfolioLine', {
+            companies: formatNumber(companyList.length),
+            expiring: formatNumber(expiringWeek),
+            blocked: formatNumber(tally.expired + tally.suspended),
+          })}
+        </p>
         {attention.length === 0 ? (
           <EmptyState
             icon={<CheckCircle2 />}
@@ -530,8 +541,8 @@ export default async function PlatformOverviewPage() {
             description={t('platform.overview.attnAllClearHint')}
           />
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {attention.map((card) => {
+          <ul className="space-y-2">
+            {attention.slice(0, 3).map((card) => {
               const tone =
                 card.severity === 'destructive'
                   ? 'border-destructive/40 bg-destructive/5'
@@ -544,41 +555,86 @@ export default async function PlatformOverviewPage() {
                   : card.severity === 'warning'
                     ? 'text-warning'
                     : 'text-info';
+              const sevLabel =
+                card.severity === 'destructive'
+                  ? t('platform.overview.attnSummaryBlocked')
+                  : card.severity === 'warning'
+                    ? t('platform.overview.attnSummaryUrgent')
+                    : t('platform.overview.attnSummaryReview');
+              const badgeVariant =
+                card.severity === 'destructive' ? 'destructive' : card.severity === 'warning' ? 'warning' : 'info';
               return (
-                <Card key={card.key} className={tone}>
-                  <CardContent className="space-y-3 p-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2 text-sm font-semibold">
-                        <card.icon className={`h-4 w-4 ${iconTone}`} />
-                        {card.title}
+                <li key={card.key}>
+                  <Link
+                    href={card.href}
+                    className={`flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-secondary/40 ${tone}`}
+                  >
+                    <card.icon className={`h-5 w-5 shrink-0 ${iconTone}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <Badge variant={badgeVariant}>{sevLabel}</Badge>
+                        <span className="truncate text-sm font-semibold">{card.title}</span>
+                        <span className={`ms-auto text-lg font-bold tabular-nums ${iconTone}`} dir="ltr">
+                          {formatNumber(card.count)}
+                        </span>
                       </span>
-                      <span className={`text-2xl font-bold tabular-nums ${iconTone}`} dir="ltr">
-                        {formatNumber(card.count)}
-                      </span>
-                    </div>
-                    {card.items.length > 0 && (
-                      <ul className="space-y-1 text-xs text-muted-foreground">
-                        {card.items.map((it, i) => (
-                          <li key={i} className="truncate">{it}</li>
-                        ))}
-                      </ul>
-                    )}
-                    <Link
-                      href={card.href}
-                      className="inline-block text-xs font-medium text-primary hover:underline"
-                    >
-                      {t('platform.overview.attnDrillDown')}
-                    </Link>
-                  </CardContent>
-                </Card>
+                      {card.items[0] && (
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          {card.items[0]}
+                        </span>
+                      )}
+                    </span>
+                  </Link>
+                </li>
               );
             })}
-          </div>
+            {attention.length > 3 && (
+              <li>
+                <Link
+                  href="/platform/companies"
+                  className="block px-1 text-xs font-medium text-primary hover:underline"
+                >
+                  {t('platform.overview.attnDrillDown')}
+                </Link>
+              </li>
+            )}
+          </ul>
         )}
       </section>
 
-      {/* KPI strip — reflows 1→2→3→5 across breakpoints */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {/* ── Quick actions (compact, kept above the fold) ───────────────────── */}
+      <Card className="mb-6">
+        <CardContent className="p-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {quickActions.map((qa) => (
+              <Link key={qa.href} href={qa.href}>
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  <qa.icon className="h-4 w-4" />
+                  {qa.label}
+                </Button>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── T2/T3: full detail, demoted behind a single expander ───────────
+          Calm default; everything is one tap away. No capability removed —
+          KPI strip, Integration Health, System alerts, Recent Activity and the
+          Expiring/Recent lists all live here. */}
+      <details className="group mb-6 rounded-lg border">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 font-medium">
+          <span className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            {t('platform.overview.moreDetails')}
+          </span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="border-t p-4">
+
+      {/* KPI strip — reflows 1→2→4 across breakpoints (Active Users KPI removed) */}
+      <h3 className="mb-3 text-sm font-medium text-muted-foreground">{t('platform.overview.kpiStripTitle')}</h3>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('platform.overview.statActive')}
           value={formatNumber(activeCompanies)}
@@ -599,11 +655,6 @@ export default async function PlatformOverviewPage() {
           icon={Clock}
           tone={expiringWeek > 0 ? 'warning' : 'primary'}
           href="/platform/companies"
-        />
-        <StatCard
-          label={t('platform.overview.statActiveUsers')}
-          value={formatNumber(totalUsers)}
-          icon={Users}
         />
         <StatCard
           label={t('platform.overview.statTotalBranches')}
@@ -695,25 +746,6 @@ export default async function PlatformOverviewPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Quick actions */}
-      <Card className="mt-6">
-        <CardContent className="p-4">
-          <h2 className="mb-3 flex items-center gap-2 font-semibold">
-            <Zap className="h-4 w-4" /> {t('platform.overview.quickActionsTitle')}
-          </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {quickActions.map((qa) => (
-              <Link key={qa.href} href={qa.href}>
-                <Button variant="outline" className="w-full justify-start">
-                  <qa.icon className="h-4 w-4" />
-                  {qa.label}
-                </Button>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Recent audit activity — human-friendly sentences */}
       <Card className="mt-6">
@@ -852,6 +884,8 @@ export default async function PlatformOverviewPage() {
           </CardContent>
         </Card>
       </div>
+        </div>
+      </details>
     </div>
   );
 }

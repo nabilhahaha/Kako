@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
@@ -78,7 +79,9 @@ export default async function PlatformCompaniesPage() {
         title={t('platform.companies.title')}
         description={t('platform.companies.description')}
       />
-      <CompaniesManager rows={rows} btDefaults={btDefaults} btRoles={btRoles} roleLabels={roleLabels} />
+      <Suspense fallback={null}>
+        <CompaniesManager rows={rows} btDefaults={btDefaults} btRoles={btRoles} roleLabels={roleLabels} />
+      </Suspense>
     </div>
   );
 }

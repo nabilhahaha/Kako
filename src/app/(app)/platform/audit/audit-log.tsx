@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { ScrollText, Table2, GitCommitVertical } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { ScrollText, Table2, GitCommitVertical, ChevronDown, ChevronRight, Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -121,12 +122,34 @@ export function AuditLog({
   companyNames: Record<string, string>;
 }) {
   const { t, locale } = useI18n();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
   const [entityFilter, setEntityFilter] = useState('all');
   const [actorFilter, setActorFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
-  const [view, setView] = useState<ViewMode>('table');
+  // Default to the human-readable Timeline (T1); Table is one tap away (T2).
+  const [view, setView] = useState<ViewMode>('timeline');
+
+  // ── deep-link: ?event={id} (read-only) — auto-expand/highlight/scroll. ──────
+  const deepLinkEvent = searchParams?.get('event') ?? null;
+  // Detail chips are T3: collapsed by default per event; the deep-linked row opens.
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const didDeepLink = useRef(false);
+
+  function toggleRow(id: string) {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // The deep-linked event is present in the current (bounded) window iff a row matches.
+  const deepLinkInWindow = deepLinkEvent ? rows.some((r) => r.id === deepLinkEvent) : true;
 
   const actions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.action))).sort(),
@@ -176,6 +199,27 @@ export function AuditLog({
     }
     return [...map.entries()];
   }, [filtered]);
+
+  // On first render with a ?event= present in the window, reset filters so the
+  // row is visible, expand its details, highlight it, then scroll it into view.
+  useEffect(() => {
+    if (didDeepLink.current) return;
+    if (!deepLinkEvent || !deepLinkInWindow) return;
+    didDeepLink.current = true;
+    // Clear filters so the targeted row is not filtered out.
+    setSearch('');
+    setActionFilter('all');
+    setEntityFilter('all');
+    setActorFilter('all');
+    setDateFilter('all');
+    setExpandedRows((prev) => new Set(prev).add(deepLinkEvent));
+    setHighlightId(deepLinkEvent);
+    // Defer scroll until the (now-unfiltered) list has rendered the row.
+    const id = window.setTimeout(() => {
+      rowRefs.current.get(deepLinkEvent)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
+    return () => window.clearTimeout(id);
+  }, [deepLinkEvent, deepLinkInWindow]);
 
   return (
     <div className="space-y-4">
@@ -236,6 +280,13 @@ export function AuditLog({
           </>
         }
       />
+
+      {deepLinkEvent && !deepLinkInWindow && (
+        <div className="flex items-center gap-2 rounded-md border border-info/40 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
+          <Info className="h-3.5 w-3.5 shrink-0 text-info" />
+          {t('platform.audit.eventNotInWindow')}
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">
@@ -310,8 +361,18 @@ export function AuditLog({
                   <ol className="relative ms-2 border-s ps-5">
                     {dayRows.map((r) => {
                       const destructive = DESTRUCTIVE.has(r.action);
+                      const hasDetails = !!r.details && Object.keys(r.details).length > 0;
+                      const isOpen = expandedRows.has(r.id);
+                      const isHighlighted = highlightId === r.id;
                       return (
-                        <li key={r.id} className="relative mb-4 last:mb-0">
+                        <li
+                          key={r.id}
+                          ref={(el) => {
+                            if (el) rowRefs.current.set(r.id, el);
+                            else rowRefs.current.delete(r.id);
+                          }}
+                          className={`relative mb-4 rounded-md last:mb-0 ${isHighlighted ? 'bg-warning/10 ring-1 ring-warning/40' : ''}`}
+                        >
                           <span
                             className={`absolute -start-[1.4rem] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${destructive ? 'bg-destructive' : 'bg-primary'}`}
                           />
@@ -329,9 +390,25 @@ export function AuditLog({
                               companyName: r.company_id ? companyNames[r.company_id] ?? null : null,
                             })}
                           </p>
-                          <div className="mt-1">
-                            <DetailChips details={r.details} />
-                          </div>
+                          {/* Detail chips are T3 — behind a tap to keep the timeline calm. */}
+                          {hasDetails && (
+                            <div className="mt-1">
+                              <button
+                                type="button"
+                                onClick={() => toggleRow(r.id)}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                                aria-expanded={isOpen}
+                              >
+                                {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" />}
+                                {t('platform.audit.thDetails')}
+                              </button>
+                              {isOpen && (
+                                <div className="mt-1">
+                                  <DetailChips details={r.details} />
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </li>
                       );
                     })}

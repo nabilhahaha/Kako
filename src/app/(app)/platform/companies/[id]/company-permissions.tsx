@@ -14,7 +14,7 @@ import {
   setCompanyRolePermission,
   addCompanyRole,
 } from './permission-actions';
-import { Plus, Loader2, ChevronRight, ChevronDown, SearchX } from 'lucide-react';
+import { Plus, Loader2, ChevronRight, ChevronDown, SearchX, SlidersHorizontal, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n/provider';
 
@@ -49,6 +49,10 @@ export function CompanyPermissions({
   const [pending, startTransition] = useTransition();
 
   const [search, setSearch] = useState('');
+
+  // Summary-first (T1): default to a per-role permission-count list. The full
+  // role×permission matrix (T3/T4) opens via "Edit / Advanced" — preserved, not default.
+  const [mode, setMode] = useState<'summary' | 'matrix'>('summary');
 
   const [enabled, setEnabled] = useState<Set<string>>(new Set(enabledRoles));
   const [matrix, setMatrix] = useState<Record<string, Set<string>>>(
@@ -179,9 +183,19 @@ export function CompanyPermissions({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-semibold">{view === 'roles' ? t('platform.permissions.rolesTitle') : t('platform.permissions.title')}</p>
+          <p className="font-semibold">
+            {view === 'roles'
+              ? t('platform.permissions.rolesTitle')
+              : mode === 'summary'
+                ? t('platform.permissions.summaryTitle')
+                : t('platform.permissions.title')}
+          </p>
           <p className="text-xs text-muted-foreground">
-            {view === 'roles' ? t('platform.permissions.rolesDescription') : t('platform.permissions.description')}
+            {view === 'roles'
+              ? t('platform.permissions.rolesDescription')
+              : mode === 'summary'
+                ? t('platform.permissions.summaryHint')
+                : t('platform.permissions.description')}
           </p>
         </div>
         {!adding ? (
@@ -238,16 +252,70 @@ export function CompanyPermissions({
         </Card>
       )}
 
-      {view === 'permissions' && (
+      {view === 'permissions' && mode === 'summary' && (
+        <Card>
+          <CardContent className="p-0">
+            {roles.length === 0 ? (
+              <EmptyState title={t('platform.permissions.noRoles')} className="border-0" />
+            ) : (
+              <div className="divide-y">
+                {roles.map((r) => {
+                  const roleOn = enabled.has(r.key);
+                  const granted = roleOn ? (matrix[r.key]?.size ?? 0) : 0;
+                  return (
+                    <button
+                      key={r.key}
+                      type="button"
+                      onClick={() => setMode('matrix')}
+                      className="flex w-full items-center justify-between gap-3 p-3 text-start text-sm hover:bg-secondary/30"
+                    >
+                      <span className="min-w-0">
+                        <span className="font-medium">
+                          {r.name_ar}
+                          {!r.is_system && (
+                            <span className="ms-2 text-xs text-muted-foreground">{t('platform.permissions.customBadge')}</span>
+                          )}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2">
+                        {roleOn ? (
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {t('platform.permissions.summaryFmt', { granted, total: ALL_PERMISSIONS.length })}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{t('platform.permissions.roleDisabledSummary')}</span>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground rtl:rotate-180" />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+          <div className="border-t p-3">
+            <Button variant="outline" size="sm" onClick={() => setMode('matrix')}>
+              <SlidersHorizontal className="h-4 w-4" /> {t('platform.permissions.editAdvanced')}
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {view === 'permissions' && mode === 'matrix' && (
         <>
           <ListToolbar
             search={search}
             onSearch={setSearch}
             placeholder={t('platform.permissions.searchPlaceholder')}
             actions={
-              <Button variant="outline" size="sm" onClick={toggleAllGroups}>
-                {allCollapsed ? t('platform.permissions.expandAll') : t('platform.permissions.collapseAll')}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setMode('summary')}>
+                  <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t('platform.permissions.backToSummary')}
+                </Button>
+                <Button variant="outline" size="sm" onClick={toggleAllGroups}>
+                  {allCollapsed ? t('platform.permissions.expandAll') : t('platform.permissions.collapseAll')}
+                </Button>
+              </div>
             }
           />
 
