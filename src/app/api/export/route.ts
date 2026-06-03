@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getEntity, entityCapabilities } from '@/lib/erp/entities';
 import { toCsv, toJson, toXlsx, type ExportRow } from '@/lib/erp/export-serialize';
 import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
+import { rateLimit, clientIp } from '@/lib/erp/rate-limit';
 
 /** ── Generic Export Engine ─────────────────────────────────────────────────
  *  GET /api/export?entity=customer&format=csv|xlsx|json&q=&status=&limit=
@@ -22,6 +23,10 @@ export const dynamic = 'force-dynamic';
 
 const MAX_ROWS = 50000;
 const DEFAULT_LIMIT = 10000;
+// Per-user export throttle (defense-in-depth against bulk-export abuse). In-memory
+// rolling window — see rate-limit.ts for the per-instance limitation.
+const EXPORT_LIMIT = 30;
+const EXPORT_WINDOW_MS = 60_000;
 type Format = 'csv' | 'xlsx' | 'json';
 
 export async function GET(req: NextRequest) {
@@ -29,6 +34,15 @@ export async function GET(req: NextRequest) {
   if (!ctx) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (!hasPermission(ctx, 'integrations.manage'))
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+
+  // Rate limit per authenticated user (fall back to IP if userId is missing).
+  const rlKey = `export:${ctx.userId || clientIp(req.headers)}`;
+  const rl = rateLimit(rlKey, EXPORT_LIMIT, EXPORT_WINDOW_MS);
+  if (!rl.ok)
+    return NextResponse.json(
+      { error: 'rate limited' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
+    );
 
   const sp = req.nextUrl.searchParams;
   const entityKey = sp.get('entity') ?? '';

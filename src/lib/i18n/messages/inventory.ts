@@ -58,6 +58,7 @@ export const ar = {
     errorWarehouseRequired: 'المخزن مطلوب.',
     errorProductRequired: 'المنتج مطلوب.',
     errorDeltaRequired: 'أدخل كمية تسوية غير صفرية (موجبة للإضافة، سالبة للخصم).',
+    errorAdjustForbidden: 'ليس لديك صلاحية لتسوية المخزون.',
     defaultAdjustmentNote: 'تسوية يدوية',
 
     // ── Transfers ──────────────────────────────────────────────────────────────
@@ -280,6 +281,7 @@ export const en = {
     errorWarehouseRequired: 'Warehouse is required.',
     errorProductRequired: 'Product is required.',
     errorDeltaRequired: 'Enter a non-zero adjustment quantity (positive to add, negative to deduct).',
+    errorAdjustForbidden: 'You do not have permission to adjust stock.',
     defaultAdjustmentNote: 'Manual adjustment',
 
     // ── Transfers ──────────────────────────────────────────────────────────────

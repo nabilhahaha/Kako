@@ -177,6 +177,13 @@ export async function setCompanyActive(id: string, isActive: boolean): Promise<A
   const supabase = await createClient();
   const { error } = await subscription.setStatus(supabase, id, isActive ? 'active' : 'suspended');
   if (error) return { ok: false, error: error.message };
+  await logAudit(supabase, {
+    action: isActive ? 'activate' : 'deactivate',
+    entity: 'company',
+    entityId: id,
+    details: { is_active: isActive },
+    companyId: id,
+  });
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
@@ -193,6 +200,13 @@ export async function setSubscriptionEnd(id: string, end: string): Promise<Actio
   const supabase = await createClient();
   const { error } = await subscription.setPeriodEnd(supabase, id, end);
   if (error) return { ok: false, error: error.message };
+  await logAudit(supabase, {
+    action: 'renew',
+    entity: 'subscription',
+    entityId: id,
+    details: { subscription_end: end },
+    companyId: id,
+  });
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
@@ -302,6 +316,13 @@ export async function setCompanyPlan(id: string, planKey: string): Promise<Actio
   const supabase = await createClient();
   const { error } = await subscription.changePlan(supabase, id, planKey);
   if (error) return { ok: false, error: error.message };
+  await logAudit(supabase, {
+    action: 'plan_change',
+    entity: 'subscription',
+    entityId: id,
+    details: { plan_key: planKey },
+    companyId: id,
+  });
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };
@@ -340,6 +361,13 @@ export async function setCompanyTrial(id: string, days: number): Promise<ActionR
   const supabase = await createClient();
   const { error } = await subscription.setTrial(supabase, id, days);
   if (error) return { ok: false, error: error.message };
+  await logAudit(supabase, {
+    action: 'trial',
+    entity: 'subscription',
+    entityId: id,
+    details: { trial_days: days },
+    companyId: id,
+  });
   revalidatePath('/platform/companies');
   revalidatePath(`/platform/companies/${id}`);
   return { ok: true };

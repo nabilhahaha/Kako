@@ -43,6 +43,34 @@ export async function requireModule(module: Module): Promise<UserContext> {
 }
 
 /**
+ * Action-level (non-redirecting) module check. Use inside server actions so a
+ * tenant whose company has a module DISABLED cannot invoke the action directly
+ * (the page-only `requireModule` redirects and is never reached by a direct
+ * action call). The platform owner and global super admins bypass module gating,
+ * mirroring `requireModule`. Module enablement comes from `ctx.modules`, which
+ * `getUserContext` resolves as the intersection of the company's enabled modules
+ * (erp_company_modules) and the plan's modules (erp_plan_modules).
+ */
+export function hasModule(ctx: UserContext, module: Module): boolean {
+  if (ctx.isPlatformOwner || ctx.isSuperAdmin) return true;
+  return ctx.modules.includes(module);
+}
+
+/**
+ * Action guard: returns an error `ActionResult` when the company does not have
+ * `module` enabled, otherwise `null`. Pattern:
+ *   const modErr = requireModuleAction(ctx, 'hotel');
+ *   if (modErr) return modErr;
+ */
+export function requireModuleAction(
+  ctx: UserContext,
+  module: Module,
+): ActionResult<never> | null {
+  if (hasModule(ctx, module)) return null;
+  return { ok: false, error: 'هذه الميزة غير مفعّلة في باقتك.' };
+}
+
+/**
  * Page/layout guard: ensure the user holds a permission (super admins hold
  * all). Redirects to the dashboard when the permission is missing.
  */

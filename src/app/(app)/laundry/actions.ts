@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requirePermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requirePermission, requireModuleAction, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getT } from '@/lib/i18n/server';
 
 // Laundry: a price list + customer orders with a wash workflow
@@ -16,6 +16,8 @@ function revalidate(orderId?: string) {
 
 export async function upsertService(formData: FormData): Promise<ActionResult> {
   const ctx = await requirePermission('laundry.manage');
+  const modErr = requireModuleAction(ctx, 'laundry');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('laundry.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
@@ -37,6 +39,8 @@ export async function upsertService(formData: FormData): Promise<ActionResult> {
 
 export async function createOrder(input: { customer_name?: string; customer_phone?: string; customer_address?: string; is_delivery?: boolean }): Promise<ActionResult<string>> {
   const ctx = await requirePermission('laundry.manage');
+  const modErr = requireModuleAction(ctx, 'laundry');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('laundry.errors.noCompany') };
   const supabase = await createClient();
@@ -55,6 +59,8 @@ export async function createOrder(input: { customer_name?: string; customer_phon
 
 export async function addOrderItem(orderId: string, serviceId: string): Promise<ActionResult> {
   const ctx = await requirePermission('laundry.manage');
+  const modErr = requireModuleAction(ctx, 'laundry');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('laundry.errors.noCompany') };
   const supabase = await createClient();
@@ -75,6 +81,8 @@ export async function addOrderItem(orderId: string, serviceId: string): Promise<
 
 export async function setItemQty(itemId: string, qty: number, orderId: string): Promise<ActionResult> {
   const ctx = await requirePermission('laundry.manage');
+  const modErr = requireModuleAction(ctx, 'laundry');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('laundry.errors.noCompany') };
   const supabase = await createClient();
@@ -91,6 +99,8 @@ export async function setItemQty(itemId: string, qty: number, orderId: string): 
 
 export async function updateOrderMeta(formData: FormData): Promise<ActionResult> {
   const ctx = await requirePermission('laundry.manage');
+  const modErr = requireModuleAction(ctx, 'laundry');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('laundry.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
@@ -116,6 +126,8 @@ export async function updateOrderMeta(formData: FormData): Promise<ActionResult>
 
 export async function setOrderStatus(orderId: string, status: string): Promise<ActionResult> {
   const ctx = await requirePermission('laundry.manage');
+  const modErr = requireModuleAction(ctx, 'laundry');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('laundry.errors.noCompany') };
   if (!['received', 'washing', 'ready'].includes(status)) return { ok: false, error: t('laundry.errors.invalidStatus') };
@@ -128,6 +140,8 @@ export async function setOrderStatus(orderId: string, status: string): Promise<A
 
 export async function closeOrder(orderId: string, paymentMethod = 'cash'): Promise<ActionResult> {
   const ctx = await requirePermission('laundry.manage');
+  const modErr = requireModuleAction(ctx, 'laundry');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('laundry.errors.noCompany') };
   const supabase = await createClient();
@@ -139,6 +153,8 @@ export async function closeOrder(orderId: string, paymentMethod = 'cash'): Promi
 
 export async function cancelOrder(orderId: string): Promise<ActionResult> {
   const ctx = await requirePermission('laundry.manage');
+  const modErr = requireModuleAction(ctx, 'laundry');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('laundry.errors.noCompany') };
   const supabase = await createClient();

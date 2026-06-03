@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireAnyPermission } from '@/lib/erp/guards';
+import { requireAnyPermission, requireModuleAction } from '@/lib/erp/guards';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import type { Permission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
@@ -37,6 +37,8 @@ function vitalsFrom(formData: FormData) {
 export async function upsertPatient(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(ANY_CLINIC);
+  const modErr = requireModuleAction(ctx, 'clinic');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
@@ -87,6 +89,8 @@ async function pickDoctor(
 export async function createVisit(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(ANY_CLINIC);
+  const modErr = requireModuleAction(ctx, 'clinic');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const patient_id = String(formData.get('patient_id') || '').trim();
   if (!patient_id) return { ok: false, error: t('clinic.errors.patientRequired') };
@@ -115,6 +119,8 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
 export async function setVisitStatus(visitId: string, status: string): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(ANY_CLINIC);
+  const modErr = requireModuleAction(ctx, 'clinic');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   if (!['waiting', 'in_progress', 'done', 'cancelled'].includes(status))
     return { ok: false, error: t('clinic.errors.invalidStatus') };
@@ -130,6 +136,8 @@ export async function setVisitStatus(visitId: string, status: string): Promise<A
 export async function updateVisit(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(DOCTOR);
+  const modErr = requireModuleAction(ctx, 'clinic');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
   if (!id) return { ok: false, error: t('clinic.errors.visitRequired') };
@@ -179,6 +187,8 @@ export async function updateVisit(formData: FormData): Promise<ActionResult> {
 export async function recordVisitPayment(visitId: string, amount: number): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(RECEPTION);
+  const modErr = requireModuleAction(ctx, 'clinic');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: t('clinic.errors.invalidAmount') };
   const supabase = await createClient();
@@ -196,6 +206,8 @@ export async function recordVisitPayment(visitId: string, amount: number): Promi
 export async function upsertService(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(['clinic.manage']);
+  const modErr = requireModuleAction(ctx, 'clinic');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const id = String(formData.get('id') || '').trim();
   const name = String(formData.get('name') || '').trim();
@@ -226,6 +238,8 @@ const APPT_STATUSES = ['scheduled', 'confirmed', 'arrived', 'done', 'cancelled',
 export async function createAppointment(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(RECEPTION);
+  const modErr = requireModuleAction(ctx, 'clinic');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const patient_id = String(formData.get('patient_id') || '').trim();
   if (!patient_id) return { ok: false, error: t('clinic.errors.patientRequired') };
@@ -255,6 +269,8 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
 export async function setAppointmentStatus(appointmentId: string, status: string): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(RECEPTION);
+  const modErr = requireModuleAction(ctx, 'clinic');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   if (!APPT_STATUSES.includes(status)) return { ok: false, error: t('clinic.errors.invalidStatus') };
   const supabase = await createClient();
@@ -273,6 +289,8 @@ export async function setAppointmentStatus(appointmentId: string, status: string
 export async function checkInAppointment(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(RECEPTION);
+  const modErr = requireModuleAction(ctx, 'clinic');
+  if (modErr) return modErr;
   if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
   const appointmentId = String(formData.get('appointment_id') || '').trim();
   if (!appointmentId) return { ok: false, error: t('clinic.errors.appointmentRequired') };

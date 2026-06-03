@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { requirePermission, type ActionResult, friendlyDbError } from '@/lib/erp/guards';
+import { requirePermission, requireModuleAction, type ActionResult, friendlyDbError } from '@/lib/erp/guards';
 import { computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { createInvoice, issueInvoice, recordPayment } from '../sales/invoices/actions';
@@ -30,6 +30,8 @@ export async function cashierCheckout(input: {
   payment_method: PaymentMethod;
 }): Promise<ActionResult<{ invoice_id: string; invoice_number: string; net: number }>> {
   const ctx = await requirePermission('market.pos');
+  const modErr = requireModuleAction(ctx, 'market');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('market.errors.noCompany') };
   if (!input.branch_id) return { ok: false, error: t('market.errors.branchRequired') };

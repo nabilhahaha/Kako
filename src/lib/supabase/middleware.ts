@@ -1,15 +1,37 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+import { getSupabaseUrl, getSupabaseAnonKey } from './config';
+import { rateLimit, clientIp } from '@/lib/erp/rate-limit';
 
 const PUBLIC_PATHS = ['/login', '/register', '/auth', '/forgot-password', '/reset-password'];
 
+// Auth endpoints that accept credential POSTs (login / register / password flows).
+// IP-throttled to blunt credential-stuffing / brute-force bursts. Best-effort,
+// in-memory per edge isolate — see rate-limit.ts; a global guarantee needs shared
+// infra (Upstash/Redis).
+const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/reset-password'];
+const AUTH_LIMIT = 10;
+const AUTH_WINDOW_MS = 60_000;
+
 export async function updateSession(request: NextRequest) {
+  // Throttle credential POSTs by client IP before touching Supabase.
+  if (
+    request.method === 'POST' &&
+    AUTH_PATHS.some((p) => request.nextUrl.pathname.startsWith(p))
+  ) {
+    const rl = rateLimit(`auth:${clientIp(request.headers)}`, AUTH_LIMIT, AUTH_WINDOW_MS);
+    if (!rl.ok)
+      return new NextResponse('Too many requests. Please wait and try again.', {
+        status: 429,
+        headers: { 'Retry-After': String(rl.retryAfter) },
+      });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         getAll() {

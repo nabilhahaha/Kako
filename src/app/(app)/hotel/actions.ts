@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requirePermission } from '@/lib/erp/guards';
+import { requirePermission, requireModuleAction } from '@/lib/erp/guards';
 import { friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getT } from '@/lib/i18n/server';
 
@@ -16,6 +16,8 @@ const ROOM_STATUSES = ['available', 'occupied', 'cleaning', 'maintenance'] as co
 
 export async function createRoom(formData: FormData): Promise<ActionResult> {
   const ctx = await requirePermission('hotel.manage');
+  const modErr = requireModuleAction(ctx, 'hotel');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('hotel.noCompanyAction') };
   const code = String(formData.get('code') || '').trim();
@@ -41,7 +43,8 @@ export async function createRoom(formData: FormData): Promise<ActionResult> {
 }
 
 export async function setRoomStatus(roomId: string, status: string): Promise<ActionResult> {
-  await requirePermission('hotel.manage');
+  const modErr = requireModuleAction(await requirePermission('hotel.manage'), 'hotel');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ROOM_STATUSES.includes(status as (typeof ROOM_STATUSES)[number]))
     return { ok: false, error: t('hotel.errors.invalidStatus') };
@@ -55,6 +58,8 @@ export async function setRoomStatus(roomId: string, status: string): Promise<Act
 /** Create a booking. Validates the room is free for the requested dates. */
 export async function createBooking(formData: FormData): Promise<ActionResult> {
   const ctx = await requirePermission('hotel.manage');
+  const modErr = requireModuleAction(ctx, 'hotel');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!ctx.companyId) return { ok: false, error: t('hotel.noCompanyAction') };
   const room_id = String(formData.get('room_id') || '').trim();
@@ -102,7 +107,8 @@ export async function createBooking(formData: FormData): Promise<ActionResult> {
 
 /** Move a booking through its lifecycle and reflect room status. */
 export async function setBookingStatus(bookingId: string, status: string): Promise<ActionResult> {
-  await requirePermission('hotel.manage');
+  const modErr = requireModuleAction(await requirePermission('hotel.manage'), 'hotel');
+  if (modErr) return modErr;
   const { t } = await getT();
   const valid = ['reserved', 'checked_in', 'checked_out', 'cancelled'];
   if (!valid.includes(status)) return { ok: false, error: t('hotel.errors.invalidStatus') };
@@ -130,7 +136,8 @@ export async function setBookingStatus(bookingId: string, status: string): Promi
 
 /** Record a payment against a booking (adds to paid_amount). */
 export async function addBookingPayment(bookingId: string, amount: number): Promise<ActionResult> {
-  await requirePermission('hotel.manage');
+  const modErr = requireModuleAction(await requirePermission('hotel.manage'), 'hotel');
+  if (modErr) return modErr;
   const { t } = await getT();
   if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: t('hotel.errors.invalidAmount') };
   const supabase = await createClient();
