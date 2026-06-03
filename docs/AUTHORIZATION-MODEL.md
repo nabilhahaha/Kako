@@ -1,8 +1,8 @@
 # VANTORA Authorization Model
 
-**Status:** Specification v1.2 — _design only_. No implementation, no schema, not merged, not deployed.
+**Status:** Specification v1.3 — _design only_. No implementation, no schema, not merged, not deployed.
 **Scope:** Tenant (company) authorization. The platform-owner/provider permission tier is separate and out of scope (see §13).
-**Authority:** This document is the authoritative reference for all future authorization work. Code and migrations must conform to it; deviations require an amendment here first.
+**Authority:** This document is the authoritative reference for all future authorization work — both the backend model **and** the permissions UI (§17). Code, migrations, and UI must conform to it; deviations require an amendment here first.
 
 ---
 
@@ -371,7 +371,111 @@ Production migrations are forward-only; rollback is via PITR (project rule). Eac
 
 ---
 
-## 17. Decision log
+## 17. Permissions UI (target UX)
+
+This section is the authoritative reference for the **future** permissions screen (Phase 6, §15). It replaces the current flat role→permission checkbox matrix with a UI that exposes the full model. _Target UX, not yet built._
+
+### 17.1 Top-level flow — Role → Scope → Limits → Overrides
+The editor is organized as four tabs in **resolution order** (§8), so the UI mirrors how a decision is actually made:
+
+```
+┌─ Role: Sales Manager ──────────────────────────────  [ Save ] [ ⋯ ] ┐
+│  ( Permissions )  ( Scope )  ( Limits )  ( Overrides )               │
+└──────────────────────────────────────────────────────────────────────┘
+```
+- **Permissions** — role capabilities (Module → Resource → Action).
+- **Scope** — the data-visibility boundary for this assignment.
+- **Limits** — typed constraints bounding capabilities.
+- **Overrides** — per-user grant/deny exceptions (administered per user, surfaced here for visibility).
+
+### 17.2 Permissions tab — Module → Resource → Action
+Capabilities render as a collapsible accordion: **Module → Resource → Action** (§3), with a per-capability **tri-state** control and group-level select-all.
+
+```
+Search: [ customers ▢ ]          Filter: ( All ) ( Granted ) ( Overridden )
+
+▾ Customers
+    View      ◉ inherit  ○ grant  ○ deny
+    Create    ◉ inherit  ○ grant  ○ deny
+    Edit      ◉ inherit  ○ grant  ○ deny
+    Delete    ○ inherit  ○ grant  ◉ deny        ⛔ overridden
+    Export    ◉ inherit  ○ grant  ○ deny
+    Financials: View   ◉ inherit  ○ grant  ○ deny
+▸ Sales        (Orders · Invoices · Returns · Payments)
+▸ Inventory    (Stock · Adjustments · Expiry)
+```
+
+### 17.3 Tri-state semantics (inherit / grant / deny)
+Each capability control has three states:
+| State | Meaning |
+|---|---|
+| **inherit** | take the role default (or, at user level, the role-resolved value) |
+| **grant** | explicitly allow |
+| **deny** | explicitly forbid — **deny always wins** (§8) |
+
+At **role** level the baseline is the role template; at **user** level the baseline is the resolved role set and grant/deny become **overrides** (§7).
+
+### 17.4 Inherited vs overridden visualization
+- **Inherited** values render muted/greyed with an "inherited" hint.
+- **Overridden** values (anything not `inherit`) render bold with a colored badge — green **grant**, red **deny** — plus an "exception" tag at user level.
+- A **filter** (`All / Granted / Overridden`) and the **search** box let an admin jump straight to what differs from defaults.
+- A per-capability tooltip shows the resolution trace: `role default → override → effective`.
+
+### 17.5 Scope tab — assignment scope UX
+Single-select dimension with contextual pickers (§4):
+```
+Scope for this assignment:
+  ○ Company (all)
+  ◉ Branch        → [✔ Cairo Main] [✔ Giza] [+ add branch]
+  ○ Region / Area → [ pick region/area ]
+  ○ Own customers (salesman_id = user)
+  ○ Own team      (whole reporting subtree)   ⓘ transitive
+```
+Scope is **per-assignment**, so the same role can carry different scopes for different users without cloning the role.
+
+### 17.6 Limits tab — constraints UX
+Typed constraint editors, each bound to the capability it limits (§5), with currency where relevant:
+```
+Discount limit        sales.invoice.discount     max [  5 ] %
+Approval limit        *.approve                  max [ 50,000 ] [SAR ▾]
+Credit approval       customers.change_request   max [100,000 ] [SAR ▾]
+Return approval       sales.return.approve       max [ 50,000 ] [SAR ▾]
+Write-off limit       sales.payment.writeoff     max [  1,000 ] [SAR ▾]
+Price override        sales.price.override       max [  5 ] %
+```
+An inline note explains over-limit behavior: _"Requests above this limit are routed for approval (§9), not blocked."_
+
+### 17.7 Overrides tab — per-user grant/deny
+Lists this user's exceptions on top of their roles, exception-only by design:
+```
+User: Ahmed (Salesman)
+  + Add override
+
+  GRANT  customers.financials.view   reason: "covers VIP accounts"   by Admin · 2026-06-03
+  DENY   sales.invoice.discount       reason: "under review"          by Admin · 2026-06-02
+```
+- Adding an override **requires a reason** (enforced) and writes an audit entry (§10).
+- Deny rows show a "deny wins" hint; grant rows note that scope + limits still apply.
+
+### 17.8 Role templates / presets
+- **Create role from template** — start from a business-type preset (the existing `erp_business_type_roles` seeds) or clone an existing role.
+- **Reset to template** — revert a role's capabilities to its preset, with a diff preview before applying.
+- Presets reduce the need for bespoke roles; scope + limits + overrides absorb the variation.
+
+### 17.9 Audit visibility
+- Each tab surfaces a **"recent changes"** affordance linking to the audit log filtered to this role/user (entities `role_permission`, `role_scope`, `role_constraint`, `user_permission_override` — §10).
+- Override rows show **who/when/why** inline.
+- Any change shows a **before→after** preview on save (mirrors what gets audited).
+
+### 17.10 Principles for the build
+- **Progressive disclosure** — default to the role template; granular controls expand on demand so the screen isn't overwhelming.
+- **Reuse shared primitives** — `SectionHeader`, `FormSection`, `EmptyState`, `ListSearch` (search/filter).
+- **Bilingual + RTL** — all labels via i18n with ar/en parity (existing test gate).
+- **No silent changes** — every mutation is auditable and reason-bearing where required.
+
+---
+
+## 18. Decision log
 | Decision | Choice |
 |---|---|
 | Key convention | `module.resource.action` |
@@ -384,3 +488,4 @@ Production migrations are forward-only; rollback is via PITR (project rule). Eac
 | Export | one capability per module; respects scope/limits/DFG; no global export |
 | Field-level | Dynamic Field Governance (existing) |
 | Platform tier | separate, out of scope |
+| Permissions UI | tabs Role→Scope→Limits→Overrides; Module→Resource→Action accordion; tri-state inherit/grant/deny; inherited-vs-overridden visualization; templates; audit visibility (§17) |
