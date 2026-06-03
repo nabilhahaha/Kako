@@ -1,8 +1,9 @@
 # VANTORA Workspace & Dashboard Engine
 
-**Status:** Specification v1.1 — _design only_. No implementation, no schema, not merged, not deployed.
+**Status:** Specification v1.2 — _design only_. No implementation, no schema, not merged, not deployed.
 **Scope:** A configurable, persona-based **engine** for home dashboards, navigation, quick actions, and workspace sections — built from reusable widgets, governed like DFG, seeded by Industry Packs, and customizable per company **without code changes**.
 **Authority:** This document is the authoritative reference for all workspace/dashboard/navigation work. It composes with — and reuses — the Authorization Model (`AUTHORIZATION-MODEL.md`) and Dynamic Field Governance (DFG). Deviations require an amendment here first.
+**Cross-cutting:** build order, shared governance vocabulary, and the "no duplicate engines" rule live in `ARCHITECTURE-ALIGNMENT.md`. **This engine's capability gating depends on Authorization Model Phase 1** (granular catalog + alias resolver) — see §3 and the build order there.
 
 ---
 
@@ -60,6 +61,8 @@ Widget := {
 - **Limits/DFG:** any sensitive field inside a widget obeys DFG; amount limits (where relevant) follow the authz constraints.
 - **Empty/loading/error** states via shared primitives (`EmptyState`, skeletons).
 
+**Capability-key resolution (F2).** `requiredCapability` values are written in the Authorization Model's **granular** `module.resource.action` form (e.g. `inventory.stock.view`, `sales.payment.collect`). Gating MUST evaluate them through the authz resolver **`expandAliases()` / `can()`**, never by string-equality against today's flat keys. This makes a widget resolve correctly **both before and after** authz Phase 1: pre-Phase-1 the alias layer maps a granular key back to the live flat permission (e.g. `inventory.stock.view` ⊆ `inventory.view`); post-Phase-1 it matches directly. **Consequence:** the engine's gating layer is **built on top of** the authz catalog/alias resolver and must not ship ahead of Authorization Model Phase 1 (build order in `ARCHITECTURE-ALIGNMENT.md`). Where a widget uses a still-flat key (`field.sales`), the same resolver handles it unchanged.
+
 ---
 
 ## 4. Widget catalog (initial reusable set)
@@ -71,7 +74,7 @@ Each maps to a data source, a gating capability, and a module. Items marked **(d
 | Sales | `sales.summary` | `sales.*.view` | sales | Rep, Supervisor, ASM/RSM, Owner |
 | Collections | `collections.summary` | `sales.payment.collect` / `accounting.view` | sales/accounting | Rep, Finance, Owner |
 | Route Coverage | `route.coverage` | `field.sales` | field/sales | Rep, Supervisor, ASM/RSM |
-| Target Achievement **(dep)** | `target.achievement` | `reports.view` | targets | Rep, Supervisor, ASM/RSM, Owner |
+| Target Achievement | `target.achievement` | `reports.view` | sales | Rep, Supervisor, ASM/RSM, Owner |
 | Stock | `inventory.levels` | `inventory.stock.view` | inventory | Warehouse, Branch Mgr, Owner |
 | Near Expiry **(dep)** | `inventory.nearExpiry` | `inventory.expiry.view` | inventory | Warehouse, Branch Mgr |
 | Approvals | `workflow.myApprovals` | (any approve cap) | workflow | Supervisor, ASM/RSM, Finance, Owner |
@@ -82,6 +85,11 @@ Each maps to a data source, a gating capability, and a module. Items marked **(d
 | Top Sales Reps | `sales.topReps` | `reports.view` | sales | Supervisor, ASM/RSM, Owner |
 
 The catalog grows by registration; nothing here is a fixed dashboard — these are parts.
+
+> **Notes on dependencies (F5/F4).**
+> - **Target Achievement is buildable now** — its data source is the existing `erp_rep_targets` table (monthly `target_amount`); only the calc + widget are unbuilt (not the data). It is **not** `(dep)`, and there is **no `targets` module** — it gates on `reports.view` and lives under the `sales` module.
+> - **Near Expiry** and its `inventory.expiry.view` gate remain `(dep)` on a **batch/lot + expiry schema that does not yet exist** (shared precondition with `AUTHORIZATION-MODEL.md` §3.5 and the Pilot Simulation §9.2).
+> - `tasks` has no backing module/schema yet; `calendar.agenda` gates on existing `field.sales` / `clinic.*` but has no dedicated calendar schema (clinic appointments aside) — both remain `(dep)`.
 
 ---
 
@@ -100,6 +108,8 @@ Personas are an **experience archetype**, decoupled from roles so the same role 
 | _Future_ (Clinic Reception, Restaurant Manager, …) | per vertical | shipped by the Industry Pack |
 
 **Derivation:** a user's persona is derived from their primary role via a configurable **role→persona map** (Company Admin editable), with an optional explicit per-user persona override. Multi-role users resolve to a primary persona (highest-rank role) or a merged workspace (governance decides).
+
+> **Persona is layout-only — never an authorization axis (security).** A persona shapes *which widgets/menus/actions are laid out*; it **never grants or widens access**. Authority comes solely from roles, scope, limits, and overrides in the Authorization Model. A widget surfaced by a persona still passes the full authz pipeline (capability → scope → limits → DFG); a persona can only ever show **less** than a user's role allows, never more. Persona must not be implemented as a third RBAC dimension.
 
 ---
 
@@ -148,7 +158,9 @@ Layered, each stage may add/override/lock; later stages cannot override a `locke
 2. COMPANY config    Company Admin edits/locks (Workspace Studio)
 3. PERSONA / ROLE     persona-specific layer (+ multi-role merge)
 4. USER personalization   optional add/hide/reorder (only where not locked)
-5. AUTHORIZATION filter   drop elements failing capability / module / scope;
+5. AUTHORIZATION filter   resolve requiredCapability via expandAliases()/can() (F2);
+                          drop elements failing capability / module / scope;
+                          exclude platformOwnerOnly (provider) elements entirely;
                           widget DATA is RLS-scoped at query time
 6. DFG filter         sensitive fields within widgets obey field governance
 → EFFECTIVE WORKSPACE
@@ -178,7 +190,7 @@ A no-code builder, reusing shared primitives (`SectionHeader`, `FormSection`, `E
 ## 10. Industry Pack compatibility
 
 - A **Pack** ships default Layouts for its business type across personas and surfaces (e.g. **FMCG** → Sales workspace home; **Clinic** → Appointments home) — but both use the **same engine and widget contract**.
-- Packs seed `default` layouts (code/snapshot, like `erp_field_templates`); company customizations are stored separately and **inherit** from the pack.
+- Packs seed `default` layouts (code/snapshot). **Reuse the existing `erp_field_templates` snapshot + `inherit`/`inherit_locked` primitive** — do **not** build a parallel template/snapshot system (see the "no duplicate engines" rule in `ARCHITECTURE-ALIGNMENT.md`). Company customizations are stored separately and **inherit** from the pack.
 - **Pack updates** flow to companies that haven't overridden a given element (`inherit`); company-locked/overridden elements are preserved (`inherit_locked` analog), with an opt-in "adopt pack changes" diff.
 - A vertical adds personas + widgets + a default layout in its pack — **no engine change**.
 
@@ -193,10 +205,10 @@ A no-code builder, reusing shared primitives (`SectionHeader`, `FormSection`, `E
 | **Authorization Model** | widgets/menus/actions gated by capability + scope + module; data RLS-scoped; amount-bearing widgets respect limits |
 | **DFG** | sensitive fields inside widgets obey field governance; the engine *reuses DFG's governance pattern* for layout elements |
 | **Modules** (`erp_business_type_modules`) | a widget/menu requiring a disabled module is unavailable |
-| **Navigation** (`navigation.ts` `NAV_SECTIONS`) | today's static nav becomes the built-in default layer; governance overlays company config |
+| **Navigation** (`navigation.ts` `NAV_SECTIONS`) | today's static nav becomes the built-in default layer; governance overlays company config. **Provider/platform isolation (security):** items marked `platformOwnerOnly` (the provider cockpit nav added in #84) are **excluded from tenant Workspace/Navigation governance** — tenants can never surface, reorder, unlock, or reconfigure them; they live in the separate platform tier (`AUTHORIZATION-MODEL.md` §13) and are resolved outside this engine |
 | **Shared UI** (`StatCard`, `SectionHeader`, `EmptyState`) | widgets are built from existing primitives; the provider cockpit's tiles are an early example of the widget pattern |
 | **i18n** | all titles/labels via ar/en keys with parity (existing test gate) |
-| **Capability gaps** | widgets marked **(dep)** in §4 (targets, near-expiry/lot, tasks) follow the same gap rule as the simulation plan — documented gaps feeding the roadmap, not blockers |
+| **Capability gaps** | widgets marked **(dep)** in §4 (**near-expiry/lot, tasks, calendar**) follow the same gap rule as the simulation plan — documented gaps feeding the roadmap, not blockers. **Target Achievement is no longer a gap** (backed by `erp_rep_targets`; F5) |
 
 ---
 
@@ -266,6 +278,11 @@ Each phase degrades to defaults if later phases aren't present.
 | Config UX | "Workspace Studio" (no-code, versioned, audited, preview-as-persona) |
 | Catalog vs config | widget catalog in code; layouts/personas/nav in data |
 | Onboarding | start from an Industry **Workspace Template** (§18), never an empty workspace; admin customizes after |
+| Capability gating (F2) | resolve `requiredCapability` via authz `expandAliases()`/`can()`; engine depends on authz Phase 1; works pre/post via aliases |
+| Persona (security) | **layout-only, never authorizes** — can show less than a role allows, never more; not a third RBAC axis |
+| Provider nav (security) | `platformOwnerOnly` items excluded from tenant governance entirely |
+| Target Achievement (F5) | not a gap — backed by `erp_rep_targets`; gates on `reports.view`, lives under `sales` (no `targets` module) |
+| Templates (no duplication) | reuse `erp_field_templates` snapshot + inherit/inherit_locked; no parallel template system |
 
 ---
 
