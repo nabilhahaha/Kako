@@ -1,0 +1,61 @@
+/** ── Retail Execution — Perfect Store score (pure, no I/O) ─────────────────
+ *
+ *  "Perfect Store" rolls the execution pillars an outlet is measured on into one
+ *  0..100 score: assortment (MSL compliance), in-store conditions (survey score),
+ *  and price compliance. Any pillar with no data is dropped and the remaining
+ *  weights are renormalised, so a score is always comparable.
+ *
+ *  This is the headline KPI of Pepperi/Repsly/StayinFront/BeatRoute/Salesforce CG
+ *  Cloud "Perfect Store / Perfect Call" programs. Pure + testable.
+ */
+
+export interface PerfectStoreInputs {
+  /** MSL compliance % (assortment.ts). */
+  mslCompliancePct?: number | null;
+  /** Survey score % (survey.ts). */
+  surveyScorePct?: number | null;
+  /** Price-compliance % (optional pillar). */
+  priceCompliancePct?: number | null;
+}
+
+export interface PerfectStoreWeights { msl: number; survey: number; price: number }
+export const DEFAULT_PS_WEIGHTS: PerfectStoreWeights = { msl: 0.5, survey: 0.3, price: 0.2 };
+
+export interface PerfectStoreComponent { key: 'msl' | 'survey' | 'price'; pct: number; weight: number }
+export interface PerfectStoreResult {
+  score: number;                 // 0..100 (0 when no pillar has data)
+  band: PerfectStoreBand;
+  components: PerfectStoreComponent[];
+  hasData: boolean;
+}
+
+export type PerfectStoreBand = 'gold' | 'silver' | 'bronze' | 'none';
+
+/** Gold ≥90, Silver ≥75, Bronze ≥50, else none. */
+export function perfectStoreBand(score: number, hasData = true): PerfectStoreBand {
+  if (!hasData) return 'none';
+  if (score >= 90) return 'gold';
+  if (score >= 75) return 'silver';
+  if (score >= 50) return 'bronze';
+  return 'none';
+}
+
+const clamp = (n: number) => Math.max(0, Math.min(100, n));
+
+/** Weighted Perfect Store score over the pillars that have data. */
+export function perfectStoreScore(
+  inputs: PerfectStoreInputs,
+  weights: PerfectStoreWeights = DEFAULT_PS_WEIGHTS,
+): PerfectStoreResult {
+  const present: PerfectStoreComponent[] = [];
+  if (inputs.mslCompliancePct != null) present.push({ key: 'msl', pct: clamp(inputs.mslCompliancePct), weight: weights.msl });
+  if (inputs.surveyScorePct != null) present.push({ key: 'survey', pct: clamp(inputs.surveyScorePct), weight: weights.survey });
+  if (inputs.priceCompliancePct != null) present.push({ key: 'price', pct: clamp(inputs.priceCompliancePct), weight: weights.price });
+
+  const weightSum = present.reduce((s, c) => s + c.weight, 0);
+  if (present.length === 0 || weightSum === 0) {
+    return { score: 0, band: 'none', components: present, hasData: false };
+  }
+  const score = Math.round(present.reduce((s, c) => s + c.weight * c.pct, 0) / weightSum);
+  return { score, band: perfectStoreBand(score, true), components: present, hasData: true };
+}
