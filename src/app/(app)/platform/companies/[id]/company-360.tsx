@@ -40,6 +40,7 @@ import {
 } from './company-detail';
 import { CompanyPermissions, type CompanyRoleRow } from './company-permissions';
 import { CompanyAudit, type CompanyAuditRow } from './company-audit';
+import { tabToSection, SECTION_ORDER, type SectionKey } from './company-360-section';
 
 /** One curated company event for the Summary timeline (newest-first). */
 export interface TimelineRow {
@@ -79,31 +80,6 @@ export interface Company360Props {
   daysSinceLastActivity: number | null;
   /** Deep-link section to scroll to on mount (mapped from ?tab=). */
   initialSection?: string;
-}
-
-type SectionKey =
-  | 'summary' | 'subscription' | 'users' | 'roles' | 'modules'
-  | 'packs' | 'integrations' | 'usage' | 'audit';
-
-const SECTION_ORDER: SectionKey[] = [
-  'summary', 'subscription', 'users', 'roles', 'modules',
-  'packs', 'integrations', 'usage', 'audit',
-];
-
-/** Maps legacy ?tab= values to the new anchor section (back-compat). */
-export function tabToSection(tab: string | undefined): SectionKey {
-  switch (tab) {
-    case 'overview': return 'summary';
-    case 'subscription': return 'subscription';
-    case 'users': return 'users';
-    case 'roles':
-    case 'permissions': return 'roles';
-    case 'modules': return 'modules';
-    case 'packs': return 'packs';
-    case 'integrations': return 'integrations';
-    case 'audit': return 'audit';
-    default: return 'summary';
-  }
 }
 
 const BAND_BADGE: Record<HealthBand, 'success' | 'warning' | 'destructive'> = {
