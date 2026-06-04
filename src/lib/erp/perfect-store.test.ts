@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { perfectStoreScore, perfectStoreBand, DEFAULT_PS_WEIGHTS } from './perfect-store';
+import { perfectStoreScore, perfectStoreBand, DEFAULT_PS_WEIGHTS, perfectStorePillars, DEFAULT_PILLAR_WEIGHTS } from './perfect-store';
 
 describe('perfect-store · perfectStoreScore', () => {
   it('weights the three pillars (0.5/0.3/0.2)', () => {
@@ -28,6 +28,27 @@ describe('perfect-store · perfectStoreScore', () => {
   it('clamps out-of-range inputs', () => {
     const r = perfectStoreScore({ mslCompliancePct: 150 }, { msl: 1, survey: 0, price: 0 });
     expect(r.score).toBe(100);
+  });
+});
+
+describe('perfect-store · perfectStorePillars (dynamic 5-pillar)', () => {
+  it('weights an arbitrary pillar set and renormalises over present pillars', () => {
+    const r = perfectStorePillars([
+      { key: 'availability', pct: 80, weight: DEFAULT_PILLAR_WEIGHTS.availability },
+      { key: 'assortment', pct: 90, weight: DEFAULT_PILLAR_WEIGHTS.assortment },
+      { key: 'visibility', pct: null, weight: DEFAULT_PILLAR_WEIGHTS.visibility }, // no data → dropped
+      { key: 'pricing', pct: 100, weight: DEFAULT_PILLAR_WEIGHTS.pricing },
+      { key: 'execution', pct: 50, weight: DEFAULT_PILLAR_WEIGHTS.execution },
+    ]);
+    // present weights: 0.25,0.3,0.15,0.1 (sum .8); score=(0.25*80+0.3*90+0.15*100+0.1*50)/.8
+    expect(r.score).toBe(Math.round((20 + 27 + 15 + 5) / 0.8));
+    expect(r.hasData).toBe(true);
+    expect(r.pillars.map((p) => p.key)).toEqual(['availability', 'assortment', 'pricing', 'execution']);
+  });
+  it('no pillar data → 0 / none', () => {
+    const r = perfectStorePillars([{ key: 'availability', pct: null, weight: 1 }]);
+    expect(r.hasData).toBe(false);
+    expect(r.band).toBe('none');
   });
 });
 
