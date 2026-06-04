@@ -58,6 +58,7 @@ import {
   Bell,
   Palette,
   Activity,
+  ListChecks,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -161,6 +162,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'nav.sections.main',
     items: [
       { label: 'nav.items.dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'nav.items.attentionCenter', href: '/attention', icon: ListChecks },
       { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck, module: 'workflow' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
     ],
