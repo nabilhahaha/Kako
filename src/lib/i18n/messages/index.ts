@@ -59,6 +59,7 @@ import * as routeexec from './routeexec';
 import * as salesman from './salesman';
 import * as vanops from './vanops';
 import * as onboarding from './onboarding';
+import * as retail from './retail';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -69,6 +70,7 @@ const MODULES = [
   electrical, regions, customerData, pricing, attachments, fieldGovernance,
   activity, analytics, authz, fmcg, fmcgw1, copilot, attention, home, salesman, routeexec, vanops, inthub,
   onboarding,
+  retail,
 ];
 
 type Catalog = Record<string, unknown>;

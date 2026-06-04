@@ -61,6 +61,7 @@ import {
   ListChecks,
   GraduationCap,
   Rocket,
+  Star,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -285,6 +286,13 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.journeyCompliance', href: '/distribution/journey-compliance', icon: ClipboardCheck, perm: 'reports.view' },
       { label: 'nav.items.repTargets', href: '/distribution/targets', icon: Target, perm: 'reports.view' },
       { label: 'nav.items.targetsAchievement', href: '/distribution/targets-achievement', icon: Target, perm: ['target.view', 'target.manage'] },
+      { label: 'nav.items.assortment', href: '/distribution/assortment', icon: PackageCheck, perm: 'reports.view' },
+      { label: 'nav.items.retailCockpit', href: '/distribution/retail-cockpit', icon: LayoutGrid, perm: 'reports.view' },
+      { label: 'nav.items.mslComplianceDash', href: '/distribution/msl-compliance', icon: PackageCheck, perm: 'reports.view' },
+      { label: 'nav.items.distributionDash', href: '/distribution/distribution-dashboard', icon: Layers, perm: 'reports.view' },
+      { label: 'nav.items.oosDash', href: '/distribution/oos', icon: PackageCheck, perm: 'reports.view' },
+      { label: 'nav.items.perfectStoreDash', href: '/distribution/perfect-store', icon: Target, perm: 'reports.view' },
+      { label: 'nav.items.outletGrading', href: '/distribution/grading', icon: Star, perm: 'reports.view' },
       { label: 'nav.items.returnsAnalysis', href: '/distribution/returns-analysis', icon: Undo2, perm: ['report.aggregate.view', 'reports.view'] },
       { label: 'nav.items.creditRequests', href: '/distribution/credit-requests', icon: CreditCard, perm: ['credit.request.approve', 'credit.request.create'] },
       { label: 'nav.items.salesSummary', href: '/distribution/sales-summary', icon: BarChart3, perm: 'report.aggregate.view' },
@@ -356,6 +364,9 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.unitsOfMeasure', href: '/settings/uom', icon: Layers, perm: 'uom.manage', group: 'nav.groups.dataFields' },
       { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
       { label: 'nav.items.fieldGovernance', href: '/settings/field-governance', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
+      { label: 'nav.items.mslMatrix', href: '/settings/msl', icon: Layers, perm: 'assortment.manage', group: 'nav.groups.dataFields' },
+      { label: 'nav.items.surveys', href: '/settings/surveys', icon: ClipboardCheck, perm: 'survey.manage', group: 'nav.groups.dataFields' },
+      { label: 'nav.items.gradingSetup', href: '/settings/outlet-grades', icon: Star, perm: 'grade.manage', group: 'nav.groups.dataFields' },
       // ── Integrations ──
       { label: 'nav.items.integrationHub', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', group: 'nav.groups.integrations' },
       { label: 'nav.items.customerOnboarding', href: '/settings/onboarding', icon: Rocket, perm: 'integrations.manage', group: 'nav.groups.integrations' },

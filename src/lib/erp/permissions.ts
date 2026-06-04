@@ -73,6 +73,10 @@ export type Permission =
   | 'return.reason.manage' // manage the return-reason catalogue
   | 'credit.request.create' // request a customer credit-limit change
   | 'credit.request.approve' // approve a credit-limit request
+  // ── Retail Execution Core (assortment / surveys) ──
+  | 'assortment.manage' // manage must-stock lists (MSL)
+  | 'survey.manage' // build in-store surveys
+  | 'grade.manage' // manage outlet grading (bands, weights, recompute)
   | 'report.aggregate.view'; // view scale-safe aggregated reports
 
 export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; group: string }> = {
@@ -146,6 +150,9 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'return.reason.manage': { en: 'Manage return reasons', ar: 'إدارة أسباب المرتجعات', group: 'sales' },
   'credit.request.create': { en: 'Request credit-limit change', ar: 'طلب تغيير حد الائتمان', group: 'accounting' },
   'credit.request.approve': { en: 'Approve credit-limit requests', ar: 'اعتماد طلبات حد الائتمان', group: 'accounting' },
+  'assortment.manage': { en: 'Manage assortment / MSL', ar: 'إدارة التشكيلة / القائمة الإلزامية', group: 'field_ops' },
+  'survey.manage': { en: 'Build in-store surveys', ar: 'إنشاء استبيانات نقاط البيع', group: 'field_ops' },
+  'grade.manage': { en: 'Manage outlet grading', ar: 'إدارة تصنيف العملاء', group: 'field_ops' },
   'report.aggregate.view': { en: 'View aggregated reports', ar: 'عرض التقارير المجمّعة', group: 'accounting' },
 };
 
@@ -184,12 +191,14 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
     'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
+    'assortment.manage', 'survey.manage', 'target.view',
   ],
   national_sales_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
     'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
+    'assortment.manage', 'survey.manage', 'target.view',
   ],
   // Regional / Area: commercial management (no finance posting / settings).
   regional_manager: [
