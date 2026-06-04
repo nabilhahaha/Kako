@@ -15,6 +15,8 @@ import { BackLink } from '@/components/shared/back-link';
 import { buttonVariants } from '@/components/ui/button';
 import { WhatsAppButton } from '@/components/whatsapp-button';
 import { getT } from '@/lib/i18n/server';
+import { hasPermission } from '@/lib/erp/permissions';
+import { CreditRequestButton } from './credit-request-button';
 
 export default async function CustomerStatementPage({
   params,
@@ -146,6 +148,13 @@ export default async function CustomerStatementPage({
         <Summary label={t('customers.stmtSummaryCreditLimit')} value={formatCurrency(c.credit_limit)} />
         <Summary label={t('customers.stmtSummaryInvoiceCount')} value={String(invList.length)} />
       </div>
+
+      {/* FMCG Wave 1 — credit-limit change request (credit.request.create). */}
+      {hasPermission(ctx, 'credit.request.create') && (
+        <div className="mb-4">
+          <CreditRequestButton customerId={c.id} currentLimit={Number(c.credit_limit)} />
+        </div>
+      )}
 
       <StatementTable
         entries={entries}

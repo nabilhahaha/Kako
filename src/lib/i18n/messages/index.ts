@@ -50,6 +50,7 @@ import * as activity from './activity';
 import * as analytics from './analytics';
 import * as authz from './authz';
 import * as fmcg from './fmcg';
+import * as fmcgw1 from './fmcgw1';
 import * as copilot from './copilot';
 
 const MODULES = [
@@ -59,7 +60,7 @@ const MODULES = [
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
   importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, notifications,
   electrical, regions, customerData, pricing, attachments, fieldGovernance,
-  activity, analytics, authz, fmcg, copilot,
+  activity, analytics, authz, fmcg, fmcgw1, copilot,
 ];
 
 type Catalog = Record<string, unknown>;
