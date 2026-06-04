@@ -42,6 +42,33 @@ export function perfectStoreBand(score: number, hasData = true): PerfectStoreBan
 
 const clamp = (n: number) => Math.max(0, Math.min(100, n));
 
+/** The Perfect Store pillars (company-configurable; pillars with no data drop out
+ *  and the rest renormalise). Default set mirrors the enterprise "Perfect Store"
+ *  model: Availability, Assortment, Visibility, Pricing, Execution. */
+export interface PerfectStorePillar { key: string; label?: string; pct: number | null; weight: number }
+export interface PerfectStorePillarsResult {
+  score: number;
+  band: PerfectStoreBand;
+  hasData: boolean;
+  pillars: { key: string; label?: string; pct: number; weight: number }[];
+}
+
+/** Weighted score over an arbitrary, dynamic list of pillars. */
+export function perfectStorePillars(pillars: readonly PerfectStorePillar[]): PerfectStorePillarsResult {
+  const present = pillars
+    .filter((p) => p.pct != null && p.weight > 0)
+    .map((p) => ({ key: p.key, label: p.label, pct: clamp(p.pct as number), weight: p.weight }));
+  const weightSum = present.reduce((s, p) => s + p.weight, 0);
+  if (present.length === 0 || weightSum === 0) return { score: 0, band: 'none', hasData: false, pillars: present };
+  const score = Math.round(present.reduce((s, p) => s + p.weight * p.pct, 0) / weightSum);
+  return { score, band: perfectStoreBand(score, true), hasData: true, pillars: present };
+}
+
+/** Default 5-pillar weights for the Perfect Store Foundation (company-overridable). */
+export const DEFAULT_PILLAR_WEIGHTS: Record<string, number> = {
+  availability: 0.25, assortment: 0.3, visibility: 0.2, pricing: 0.15, execution: 0.1,
+};
+
 /** Weighted Perfect Store score over the pillars that have data. */
 export function perfectStoreScore(
   inputs: PerfectStoreInputs,
