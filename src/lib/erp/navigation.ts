@@ -171,6 +171,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.reportsCenter', href: '/reports', icon: FileSpreadsheet, perm: 'reports.view' },
       { label: 'nav.items.territoryHome', href: '/territory', icon: Map, perm: 'reports.view' },
       { label: 'nav.items.coaching', href: '/coaching', icon: GraduationCap, perm: 'field.sales' },
+      { label: 'nav.items.vanStock', href: '/field/stock', icon: Boxes, perm: ['inventory.view', 'field.sales'] },
       { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck, module: 'workflow' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
     ],

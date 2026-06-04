@@ -124,9 +124,20 @@ export async function customerActivity(customerId: string): Promise<ActionResult
     return (data ?? []) as { id: string; amount: number | null; created_at: string }[];
   }, []);
 
+  const returns = await safe(async () => {
+    const { data } = await supabase
+      .from('erp_sales_returns')
+      .select('id, return_number, total_amount, created_at')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    return (data ?? []) as { id: string; return_number: string; total_amount: number | null; created_at: string }[];
+  }, []);
+
   const timeline: TimelineEvent[] = [
     ...invoices.map((i) => ({ date: i.created_at, kind: 'invoice' as const, title: i.invoice_number, amount: i.net_amount, href: `/sales/invoices/${i.id}/print`, status: i.status })),
-    ...payments.map((p) => ({ date: p.created_at, kind: 'payment' as const, title: 'Payment', amount: p.amount })),
+    ...payments.map((p) => ({ date: p.created_at, kind: 'payment' as const, title: 'Payment', amount: p.amount, href: `/collections/${p.id}/receipt` })),
+    ...returns.map((r) => ({ date: r.created_at, kind: 'return' as const, title: r.return_number, amount: r.total_amount, href: `/sales/returns/${r.id}/print` })),
   ];
 
   const overdue = invoices.filter((i) => i.due_date != null && i.due_date < date && ['issued', 'partially_paid', 'overdue'].includes(i.status)).length;
