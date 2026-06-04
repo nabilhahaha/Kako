@@ -1,8 +1,10 @@
 # Production remediation runbooks — index & execution order
 
-> **Status: FINALIZED, documentation only.** No migration has been executed and no
-> production data has been modified. This is the single entry point for the
-> kako-fmcg drift remediation. Prepared `2026-06-04`.
+> **Status: Priority #1 DONE — 2026-06-04.** Migration **`0118` was applied and
+> validated; invoicing is RESTORED**. The remaining 43-migration drift was **NOT**
+> applied and is still open (close later via staging). `0109` not applied; no AI
+> enabled. This is the single entry point for the kako-fmcg drift remediation.
+> Execution record: `EXECUTE-0118.md`.
 
 ## The situation in one line
 

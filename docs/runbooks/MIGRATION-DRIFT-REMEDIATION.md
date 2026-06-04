@@ -1,9 +1,12 @@
 # Production migration package — kako-fmcg drift remediation
 
-> **Status: documentation only. Nothing in this runbook has been executed.**
+> **Status (2026-06-04): partial — only the `0118` hotfix has been applied** (to
+> restore invoicing; see `EXECUTE-0118.md`). **The full drift package in THIS
+> document has NOT been executed.** Remaining open drift = `0099`, `0100`,
+> `0103`–`0117`, `0119`–`0143` (42 migrations) — to be closed later **via staging
+> dry-run first** (§6). Do not run it now.
 > Target database: Supabase project **`nrvydmkxjnctdlaxdhur` (kako-fmcg)** — the
-> live, data-bearing DB behind the Vercel **`kako`** app (41 companies, 123
-> invoices, 55 auth users; last invoice `2026-06-01`).
+> live, data-bearing DB behind the Vercel **`kako`** app.
 >
 > Prepared `2026-06-04`. Read this top-to-bottom before touching production.
 

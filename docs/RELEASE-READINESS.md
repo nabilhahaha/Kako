@@ -5,6 +5,15 @@
 > Audience: release approver + operators. Companion docs: `EXECUTIVE-SUMMARY.md`,
 > `runbooks/HOTFIX-INVOICING.md`, `runbooks/MIGRATION-DRIFT-REMEDIATION.md`.
 
+> **🟢 STATUS UPDATE — 2026-06-04 (post-hotfix):** Migration **`0118` was applied
+> and validated; production invoicing is RESTORED**. **`0109` and the full
+> 43-migration drift package were NOT applied** (remaining drift still open →
+> close later via staging). **No AI enabled** (`COPILOT_AI_ENABLED` OFF). Updated
+> **Platform health: 92/100**; **invoicing gap (was #1/Top-10) is CLOSED**. The
+> scores/gaps below reflect the pre-hotfix snapshot and are superseded by this
+> banner + the Stabilization Report (`STABILIZATION-REPORT.md`). Execution
+> record: `runbooks/EXECUTE-0118.md`.
+
 ---
 
 ## 0. Release at a glance

@@ -1,9 +1,10 @@
 # Hotfix package — restore production invoicing (`0118` + `0109`)
 
-> **Documentation only. Nothing here has been executed. No production migration
-> has been run; no production data has been modified.**
-> Target: Supabase `nrvydmkxjnctdlaxdhur` (**kako-fmcg**) — the live DB behind the
-> Vercel `kako` app. Prepared `2026-06-04`.
+> **✅ EXECUTED — 2026-06-04.** Migration **`0118` was applied to production and
+> validated; invoicing is RESTORED** (see `EXECUTE-0118.md` for the record).
+> **`0109` was NOT applied** (optional/unrelated to invoicing) and **the full
+> drift package was NOT applied.** This package is retained as the planning + the
+> executed `0118` reference. Target: Supabase `nrvydmkxjnctdlaxdhur` (**kako-fmcg**).
 > Companion to `docs/runbooks/MIGRATION-DRIFT-REMEDIATION.md` (full drift picture).
 
 ---

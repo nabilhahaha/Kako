@@ -3,6 +3,15 @@
 > **Documentation only.** No production change, no migration, no new feature is
 > introduced by this document. Prepared `2026-06-04`. Audience: decision-makers.
 
+> **🟢 STATUS UPDATE — 2026-06-04 (post-hotfix):** Migration **`0118` was applied to
+> production and validated**, and **production invoicing is RESTORED** (a real
+> invoice was created successfully; invoices 123 → 124). **`0109` was NOT applied.
+> The full 43-migration drift package was NOT applied** — the remaining drift
+> (`0099`,`0100`,`0103`–`0117`,`0119`–`0143`) is still open and must be closed
+> later via staging. **No AI was enabled** (`COPILOT_AI_ENABLED` stays OFF). This
+> banner supersedes any "broken / pending / not yet applied" wording below, which
+> is retained as the incident record. Execution record: `runbooks/EXECUTE-0118.md`.
+
 ---
 
 ## 1. Current platform health
