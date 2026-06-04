@@ -32,7 +32,7 @@
 
 | # | Severity | Issue | Status |
 | --- | --- | --- | --- |
-| 1 | 🔴 Critical | Invoice creation fails for all tenants (missing `idempotency_key` column) | Fix ready (`0118`), **not yet applied** — awaiting backup + go |
+| 1 | ✅ Resolved | Invoice creation fails for all tenants (missing `idempotency_key` column) | **`0118` applied + validated 2026-06-04; invoicing restored** (123→124) |
 | 2 | 🟠 High | Schema drift: 43 migrations unapplied in production | Remediation package ready; staged plan documented |
 | 3 | 🟢 Resolved (in code) | Mobile "Inventory" tab 404 | Fixed in PR #99; ships on deploy |
 

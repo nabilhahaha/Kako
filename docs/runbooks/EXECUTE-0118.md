@@ -1,9 +1,9 @@
 # Execute 0118 — operator-ready runbook (invoicing hotfix)
 
-> **GATED ON PITR CONFIRMATION (Option A).** Nothing in this runbook runs until
-> the operator confirms PITR is ON in the Supabase dashboard and approves.
-> Scope: migration `0118` ONLY. No `0109`, no full drift, no `db push`, no
-> `migrate-production`. Prepared `2026-06-04`. Source: `HOTFIX-INVOICING.md`.
+> **✅ EXECUTED & VALIDATED — 2026-06-04 (Option A backup gate met).** Migration
+> `0118` was applied to production and validated; invoicing is RESTORED (see §6).
+> Scope was `0118` ONLY — no `0109`, no full drift, no `db push`, no
+> `migrate-production`. This runbook is retained as the execution record.
 
 Target: Supabase project `nrvydmkxjnctdlaxdhur` (kako-fmcg, production).
 
