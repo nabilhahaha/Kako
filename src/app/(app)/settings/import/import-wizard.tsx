@@ -43,6 +43,9 @@ import {
   type MappingTemplate,
 } from './templates-actions';
 import type { ImportMode } from '@/lib/erp/entities';
+import { autoMapHeaders, getSourcePreset } from '@/lib/erp/onboarding-sources';
+
+export interface ImportSource { key: string; labelAr: string; labelEn: string }
 
 /** Base64-encode a File's bytes (chunked, to avoid call-stack limits) for the
  *  server-side .xlsx parser. */
@@ -112,16 +115,23 @@ function downloadCsv(filename: string, rows: string[][]) {
 export function ImportWizard({
   importableEntities,
   history,
+  sources = [],
+  initialEntity,
+  initialSource,
 }: {
   importableEntities: ImportEntity[];
   history: ImportJobRow[];
+  sources?: ImportSource[];
+  initialEntity?: string;
+  initialSource?: string;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState<Step>('entity');
-  const [entityKey, setEntityKey] = useState<string>('');
+  const [step, setStep] = useState<Step>(initialEntity ? 'upload' : 'entity');
+  const [entityKey, setEntityKey] = useState<string>(initialEntity ?? '');
+  const [sourceKey, setSourceKey] = useState<string>(initialSource ?? 'generic');
   const [fileName, setFileName] = useState<string>('');
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
@@ -247,25 +257,30 @@ export function ImportWizard({
       // reusable mapping the company saved before) still pre-fills — "map once,
       // reuse" — and "Auto-map" in the mapping step stays available on demand.
       setMapping({});
-      if (defaultTemplate) applyTemplateMapping(defaultTemplate.mapping, parsed.headers);
+      if (defaultTemplate) {
+        applyTemplateMapping(defaultTemplate.mapping, parsed.headers);
+      } else if (sourceKey !== 'generic' && entity) {
+        // A source-system connector was chosen — auto-map its export columns.
+        applyAutoMap(parsed.headers, entity);
+        const src = sources.find((s) => s.key === sourceKey);
+        toast.success(t('import.mapping.sourceApplied', { source: src ? label(src) : sourceKey }));
+      }
       toast.success(t('import.toast.parsed', { count: parsed.rows.length }));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('import.toast.parseError'));
     }
   }
 
-  /** Case-insensitive guess of header → field by key/labelEn/labelAr. */
-  function autoMap(hdrs: string[]) {
-    if (!entity) return;
-    const norm = (s: string) => s.trim().toLowerCase();
-    const byNorm = new Map(hdrs.map((h) => [norm(h), h]));
+  /** Guess header → field using the selected source connector's column aliases
+   *  (ERPNext / Odoo), falling back to key/labelEn/labelAr matching. */
+  function applyAutoMap(hdrs: string[], ent: ImportEntity) {
+    const mapped = autoMapHeaders(hdrs, ent.fields, getSourcePreset(sourceKey), ent.key);
     const next: Record<string, string> = {};
-    for (const f of entity.fields) {
-      const candidates = [f.key, f.labelEn, f.labelAr].map(norm);
-      const hit = candidates.map((c) => byNorm.get(c)).find(Boolean);
-      next[f.key] = hit ?? IGNORE;
-    }
+    for (const f of ent.fields) next[f.key] = mapped[f.key] ?? IGNORE;
     setMapping(next);
+  }
+  function autoMap(hdrs: string[]) {
+    if (entity) applyAutoMap(hdrs, entity);
   }
 
   /** Required entity fields the user hasn't mapped yet (manual-first gate). */
@@ -504,6 +519,22 @@ export function ImportWizard({
                 <Upload className="h-4 w-4" /> {t('import.upload.title')}
               </h2>
               <p className="text-sm text-muted-foreground">{t('import.upload.hint')}</p>
+              {sources.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="import-source">{t('import.mapping.sourceLabel')}</Label>
+                  <select
+                    id="import-source"
+                    className="h-10 w-full max-w-xs rounded-md border border-input bg-background px-2 text-sm"
+                    value={sourceKey}
+                    onChange={(ev) => setSourceKey(ev.target.value)}
+                  >
+                    {sources.map((s) => (
+                      <option key={s.key} value={s.key}>{label(s)}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">{t('import.mapping.sourceHint')}</p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="import-file">{t('import.upload.fileLabel')}</Label>
                 <Input

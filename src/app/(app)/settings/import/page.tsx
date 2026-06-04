@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { listImportableEntities } from '@/lib/erp/entities';
+import { listSourcePresets } from '@/lib/erp/onboarding-sources';
 import { ImportWizard, type ImportEntity, type ImportJobRow } from './import-wizard';
 
 /** ── Generic Import Engine page ────────────────────────────────────────────
@@ -13,11 +14,16 @@ import { ImportWizard, type ImportEntity, type ImportJobRow } from './import-wiz
  *  recent import history, then hands off to the client wizard. Multi-tenancy and
  *  the integrations.manage permission are enforced here and again server-side in
  *  the import actions. */
-export default async function ImportPage() {
+export default async function ImportPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ entity?: string; source?: string }>;
+}) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
   const { t } = await getT();
+  const sp = (await searchParams) ?? {};
 
   if (!hasPermission(ctx, 'integrations.manage')) {
     return (
@@ -78,12 +84,19 @@ export default async function ImportPage() {
     .order('created_at', { ascending: false })
     .limit(50);
 
+  const sources = listSourcePresets().map((p) => ({ key: p.key, labelAr: p.labelAr, labelEn: p.labelEn }));
+  const initialEntity = sp.entity && importableEntities.some((e) => e.key === sp.entity) ? sp.entity : undefined;
+  const initialSource = sp.source && sources.some((s) => s.key === sp.source) ? sp.source : undefined;
+
   return (
     <div>
       <PageHeader title={t('import.title')} description={t('import.subtitle')} />
       <ImportWizard
         importableEntities={importableEntities}
         history={(history as ImportJobRow[]) ?? []}
+        sources={sources}
+        initialEntity={initialEntity}
+        initialSource={initialSource}
       />
     </div>
   );
