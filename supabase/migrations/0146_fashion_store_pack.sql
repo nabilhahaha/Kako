@@ -583,6 +583,63 @@ END $$;
 REVOKE ALL ON FUNCTION erp_fashion_pay_supplier(UUID,UUID,NUMERIC,TEXT,TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION erp_fashion_pay_supplier(UUID,UUID,NUMERIC,TEXT,TEXT) TO authenticated, service_role;
 
+-- ── Purchase (stock-in + AP; optional cash settlement) ─────────────────────
+-- p_lines = [{product_id, quantity, unit_cost}]. Raises inventory (purchase_in
+-- movements → stock trigger), increases the supplier payable, posts Debit
+-- Inventory(1300) / Credit AP(2100); when p_pay_cash it immediately settles via
+-- erp_fashion_pay_supplier (so AP nets to zero and cash falls).
+CREATE OR REPLACE FUNCTION erp_fashion_purchase(
+  p_branch_id UUID, p_supplier_id UUID, p_warehouse_id UUID, p_lines JSONB, p_pay_cash BOOLEAN DEFAULT false
+)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_co UUID := erp_user_company_id(); v_uid UUID := auth.uid();
+  v_wh UUID := p_warehouse_id; v_total NUMERIC := 0; v_line JSONB; v_qty NUMERIC; v_cost NUMERIC;
+  v_acc_inv UUID; v_acc_ap UUID; v_entry UUID; v_scompany UUID;
+BEGIN
+  IF v_co IS NULL THEN RAISE EXCEPTION 'لا توجد شركة.'; END IF;
+  IF jsonb_typeof(p_lines) <> 'array' OR jsonb_array_length(p_lines) = 0 THEN RAISE EXCEPTION 'أضِف صنفًا واحدًا على الأقل.'; END IF;
+  SELECT company_id INTO v_scompany FROM erp_suppliers WHERE id = p_supplier_id;
+  IF v_scompany IS NULL OR (NOT erp_is_platform_owner() AND v_scompany <> v_co) THEN RAISE EXCEPTION 'المورد غير موجود.'; END IF;
+
+  IF v_wh IS NULL THEN
+    SELECT id INTO v_wh FROM erp_warehouses WHERE branch_id = p_branch_id AND is_active AND NOT is_van ORDER BY code LIMIT 1;
+    IF v_wh IS NULL THEN SELECT id INTO v_wh FROM erp_warehouses WHERE branch_id = p_branch_id AND is_active ORDER BY code LIMIT 1; END IF;
+  END IF;
+  IF v_wh IS NULL THEN RAISE EXCEPTION 'لا يوجد مخزن لهذا الفرع.'; END IF;
+
+  FOR v_line IN SELECT * FROM jsonb_array_elements(p_lines) LOOP
+    v_qty := COALESCE((v_line->>'quantity')::numeric, 0);
+    v_cost := COALESCE((v_line->>'unit_cost')::numeric, 0);
+    IF v_qty > 0 THEN
+      INSERT INTO erp_stock_movements (movement_type, warehouse_id, product_id, quantity, reference_type, reference_id, notes, created_by)
+      VALUES ('purchase_in', v_wh, (v_line->>'product_id')::uuid, abs(v_qty), 'fashion_purchase', NULL, 'شراء', v_uid);
+      v_total := v_total + abs(v_qty) * v_cost;
+    END IF;
+  END LOOP;
+
+  UPDATE erp_suppliers SET balance = balance + v_total WHERE id = p_supplier_id;
+
+  SELECT id INTO v_acc_inv FROM erp_chart_of_accounts WHERE code = '1300' AND is_system LIMIT 1;
+  SELECT id INTO v_acc_ap FROM erp_chart_of_accounts WHERE code = '2100' AND is_system LIMIT 1;
+  IF p_branch_id IS NOT NULL AND v_acc_inv IS NOT NULL AND v_acc_ap IS NOT NULL AND v_total > 0 THEN
+    INSERT INTO erp_journal_entries (entry_number, entry_date, description, reference_type, reference_id, branch_id, status, created_by, posted_by, posted_at)
+    VALUES (erp_next_number(p_branch_id,'journal'), CURRENT_DATE, 'فاتورة شراء', 'fashion_purchase', p_supplier_id, p_branch_id, 'posted', v_uid, v_uid, now())
+    RETURNING id INTO v_entry;
+    INSERT INTO erp_journal_lines (journal_entry_id, account_id, debit, credit) VALUES
+      (v_entry, v_acc_inv, v_total, 0), (v_entry, v_acc_ap, 0, v_total);
+  END IF;
+
+  IF p_pay_cash AND v_total > 0 THEN
+    PERFORM erp_fashion_pay_supplier(p_branch_id, p_supplier_id, v_total, 'cash', 'سداد فوري للشراء');
+  END IF;
+
+  RETURN jsonb_build_object('warehouse_id', v_wh, 'total', v_total, 'paid_cash', p_pay_cash);
+END $$;
+REVOKE ALL ON FUNCTION erp_fashion_purchase(UUID,UUID,UUID,JSONB,BOOLEAN) FROM public;
+GRANT EXECUTE ON FUNCTION erp_fashion_purchase(UUID,UUID,UUID,JSONB,BOOLEAN) TO authenticated, service_role;
+
 -- ── Module / permission / business-type wiring (clothing only) ──────────────
 INSERT INTO erp_role_permissions (role_key, permission) VALUES
   ('admin','fashion.manage'),('manager','fashion.manage'),
