@@ -72,7 +72,7 @@ export function EmptyCard({ text }: { text: string }) {
 /** Resolve a dimension key to a display label (fixed dims localized; dynamic
  *  company lookup kinds shown as their kind, title-cased). */
 export function dimLabel(key: string, t: (k: string) => string): string {
-  const known = ['region', 'area', 'supervisor', 'salesman', 'customer', 'brand', 'sku'];
+  const known = ['region', 'area', 'supervisor', 'salesman', 'customer', 'brand', 'sku', 'grade'];
   if (known.includes(key)) return t(`retail.dash.dims.${key}`);
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }

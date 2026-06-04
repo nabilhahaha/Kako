@@ -76,6 +76,7 @@ export type Permission =
   // ── Retail Execution Core (assortment / surveys) ──
   | 'assortment.manage' // manage must-stock lists (MSL)
   | 'survey.manage' // build in-store surveys
+  | 'grade.manage' // manage outlet grading (bands, weights, recompute)
   | 'report.aggregate.view'; // view scale-safe aggregated reports
 
 export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; group: string }> = {
@@ -151,6 +152,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'credit.request.approve': { en: 'Approve credit-limit requests', ar: 'اعتماد طلبات حد الائتمان', group: 'accounting' },
   'assortment.manage': { en: 'Manage assortment / MSL', ar: 'إدارة التشكيلة / القائمة الإلزامية', group: 'field_ops' },
   'survey.manage': { en: 'Build in-store surveys', ar: 'إنشاء استبيانات نقاط البيع', group: 'field_ops' },
+  'grade.manage': { en: 'Manage outlet grading', ar: 'إدارة تصنيف العملاء', group: 'field_ops' },
   'report.aggregate.view': { en: 'View aggregated reports', ar: 'عرض التقارير المجمّعة', group: 'accounting' },
 };
 
