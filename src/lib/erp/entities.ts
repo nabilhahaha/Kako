@@ -13,6 +13,7 @@
  */
 
 import type { Permission } from './permissions';
+import type { RefSpec, RefFieldDef } from './import-refs';
 
 /** A field on an entity, used by import/export column ↔ field mapping. */
 export interface EntityField {
@@ -25,6 +26,21 @@ export interface EntityField {
   /** Severity if this field fails its check. 'error' blocks import; 'warning'
    *  allows import; 'info' is advisory. Defaults to 'error' for required fields. */
   severity?: 'error' | 'warning' | 'info';
+  /** For `type: 'ref'` fields — how to resolve the human value (code/number) to a
+   *  foreign-key id before insert. A ref field carries a business identifier; the
+   *  import engine batch-resolves it to `ref.column` and strips the `*_ref` key. */
+  ref?: RefSpec;
+}
+
+/** Which audit/stamp columns a backing table actually has. The import engine only
+ *  writes a stamp column when it exists. When `stamps` is omitted the engine uses
+ *  the legacy master-data defaults (all true) for backward compatibility. */
+export interface EntityStamps {
+  importJobId?: boolean;
+  createdBy?: boolean;
+  updatedBy?: boolean;
+  updatedAt?: boolean;
+  custom?: boolean;
 }
 
 /** How the import engine treats rows that match an existing record. */
@@ -58,6 +74,14 @@ export interface EntityDescriptor {
   /** Field keys used to detect duplicates within a file / against existing rows
    *  (defaults to [uniqueKey] or the first required field). */
   dedupeKeys?: string[];
+  /** Entity keys this entity references — used to recommend an import order
+   *  (parents before children) so FK resolution succeeds. E.g. invoice_line
+   *  `dependsOn: ['invoice','product']`. */
+  dependsOn?: string[];
+  /** Audit/stamp columns the backing table supports. Omit for the legacy
+   *  master-data set (all true). Child/transactional tables that lack these
+   *  columns must declare exactly what they have. */
+  stamps?: EntityStamps;
   /** Capability overrides; anything omitted defaults to ON. */
   capabilities?: Partial<EntityCapabilities>;
 }
@@ -203,6 +227,87 @@ const REGISTRY: EntityDescriptor[] = [
   { key: 'product_serial', table: 'erp_product_serials', labelAr: 'الأرقام التسلسلية', labelEn: 'Product Serials', permission: 'inventory.view' },
   { key: 'warranty', table: 'erp_warranties', labelAr: 'الضمانات', labelEn: 'Warranties', permission: 'electrical.rma' },
   { key: 'rma', table: 'erp_rma', labelAr: 'طلبات الإرجاع', labelEn: 'RMA', permission: 'electrical.rma' },
+
+  // ── Import Engine Extension — transactional / child entities (FK-resolved) ──
+  // These tables back high-volume onboarding (invoice lines, collections, opening
+  // stock, warehouses/vans, sales returns). Each references master data via a
+  // `*_ref` field resolved to its FK before insert. `stamps` reflects the exact
+  // audit columns each table has (verified against production) so inserts never
+  // target a missing column. `dependsOn` drives the recommended import order.
+  {
+    key: 'warehouse', table: 'erp_warehouses', labelAr: 'المستودعات / العربات', labelEn: 'Warehouses / Vans',
+    permission: 'integrations.manage', uniqueKey: 'code', dedupeKeys: ['code'],
+    dependsOn: ['branch'], stamps: { updatedAt: true },
+    fields: [
+      f('branch_ref', 'مرجع الفرع (كود)', 'Branch (code)', { type: 'ref', required: true,
+        ref: { table: 'erp_branches', match: ['code', 'external_id'], column: 'branch_id' } }),
+      f('code', 'الكود', 'Code', { required: true }),
+      f('name', 'الاسم', 'Name', { required: true }),
+      f('name_ar', 'الاسم بالعربية', 'Name (Arabic)'),
+      f('location', 'الموقع', 'Location'),
+      f('is_van', 'عربة بيع', 'Is van', { type: 'boolean' }),
+    ],
+  },
+  {
+    key: 'stock', table: 'erp_inventory_stock', labelAr: 'الأرصدة الافتتاحية', labelEn: 'Opening Stock',
+    permission: 'integrations.manage', dedupeKeys: ['warehouse_ref', 'product_ref'],
+    dependsOn: ['warehouse', 'product'], stamps: { updatedAt: true },
+    fields: [
+      f('warehouse_ref', 'مرجع المستودع (كود)', 'Warehouse (code)', { type: 'ref', required: true,
+        ref: { table: 'erp_warehouses', match: ['code'], column: 'warehouse_id' } }),
+      f('product_ref', 'مرجع المنتج (كود/باركود)', 'Product (code/barcode)', { type: 'ref', required: true,
+        ref: { table: 'erp_products_catalog', match: ['code', 'barcode', 'external_id'], column: 'product_id' } }),
+      f('quantity', 'الكمية', 'Quantity', { type: 'number', required: true }),
+      f('reserved_qty', 'الكمية المحجوزة', 'Reserved qty', { type: 'number' }),
+    ],
+  },
+  {
+    key: 'collection', table: 'erp_payments', labelAr: 'التحصيلات', labelEn: 'Collections',
+    permission: 'integrations.manage', dedupeKeys: ['reference_number'],
+    dependsOn: ['invoice'], stamps: {},
+    fields: [
+      f('invoice_ref', 'مرجع الفاتورة (رقم)', 'Invoice (number)', { type: 'ref', required: true,
+        ref: { table: 'erp_invoices', match: ['invoice_number', 'external_id'], column: 'invoice_id' } }),
+      f('amount', 'المبلغ', 'Amount', { type: 'number', required: true }),
+      f('payment_method', 'طريقة الدفع', 'Payment method'),
+      f('reference_number', 'الرقم المرجعي', 'Reference number'),
+      f('payment_date', 'تاريخ الدفع', 'Payment date', { type: 'date' }),
+      f('notes', 'ملاحظات', 'Notes'),
+    ],
+  },
+  {
+    key: 'sales_return', table: 'erp_sales_returns', labelAr: 'مرتجعات المبيعات', labelEn: 'Sales Returns',
+    permission: 'integrations.manage', uniqueKey: 'return_number', dedupeKeys: ['return_number'],
+    dependsOn: ['branch', 'customer', 'invoice'], stamps: { createdBy: true, updatedAt: true },
+    fields: [
+      f('return_number', 'رقم المرتجع', 'Return number', { required: true }),
+      f('branch_ref', 'مرجع الفرع (كود)', 'Branch (code)', { type: 'ref', required: true,
+        ref: { table: 'erp_branches', match: ['code', 'external_id'], column: 'branch_id' } }),
+      f('customer_ref', 'مرجع العميل (كود)', 'Customer (code)', { type: 'ref', required: true,
+        ref: { table: 'erp_customers', match: ['code', 'external_id'], column: 'customer_id' } }),
+      f('invoice_ref', 'مرجع الفاتورة (رقم)', 'Invoice (number)', { type: 'ref',
+        ref: { table: 'erp_invoices', match: ['invoice_number', 'external_id'], column: 'invoice_id' } }),
+      f('total_amount', 'إجمالي المبلغ', 'Total amount', { type: 'number' }),
+      f('reason', 'السبب', 'Reason'),
+      f('status', 'الحالة', 'Status'),
+      f('notes', 'ملاحظات', 'Notes'),
+    ],
+  },
+  {
+    key: 'invoice_line', table: 'erp_invoice_lines', labelAr: 'بنود الفواتير', labelEn: 'Invoice Lines',
+    permission: 'integrations.manage', dedupeKeys: ['invoice_ref', 'product_ref'],
+    dependsOn: ['invoice', 'product'], stamps: {},
+    fields: [
+      f('invoice_ref', 'مرجع الفاتورة (رقم)', 'Invoice (number)', { type: 'ref', required: true,
+        ref: { table: 'erp_invoices', match: ['invoice_number', 'external_id'], column: 'invoice_id' } }),
+      f('product_ref', 'مرجع المنتج (كود/باركود)', 'Product (code/barcode)', { type: 'ref', required: true,
+        ref: { table: 'erp_products_catalog', match: ['code', 'barcode', 'external_id'], column: 'product_id' } }),
+      f('quantity', 'الكمية', 'Quantity', { type: 'number', required: true }),
+      f('unit_price', 'سعر الوحدة', 'Unit price', { type: 'number', required: true }),
+      f('discount_pct', 'نسبة الخصم %', 'Discount %', { type: 'number' }),
+      f('line_total', 'إجمالي البند', 'Line total', { type: 'number' }),
+    ],
+  },
 ];
 
 const BY_KEY = new Map(REGISTRY.map((e) => [e.key, e]));
@@ -246,4 +351,44 @@ export function entityDedupeKeys(e: EntityDescriptor): string[] {
   if (e.dedupeKeys && e.dedupeKeys.length) return e.dedupeKeys;
   const uk = entityUniqueKey(e);
   return uk ? [uk] : [];
+}
+
+/** The entity's foreign-key (`ref`) fields that the engine resolves before insert.
+ *  Only fields that declare BOTH `type:'ref'` and a `ref` spec are returned; a
+ *  `type:'ref'` field without a spec is treated as plain text (legacy behaviour). */
+export function entityRefFields(e: EntityDescriptor): RefFieldDef[] {
+  return (e.fields ?? [])
+    .filter((f): f is EntityField & { ref: RefSpec } => f.type === 'ref' && !!f.ref)
+    .map((f) => ({ key: f.key, labelEn: f.labelEn, required: f.required, ref: f.ref }));
+}
+
+/** Resolve the audit/stamp columns an entity supports. Legacy entities (no
+ *  `stamps`) get the master-data default (all true); entities that declare
+ *  `stamps` get exactly what they declare (unspecified → false). */
+export function entityStamps(e: EntityDescriptor): Required<EntityStamps> {
+  if (!e.stamps) return { importJobId: true, createdBy: true, updatedBy: true, updatedAt: true, custom: true };
+  const s = e.stamps;
+  return {
+    importJobId: !!s.importJobId, createdBy: !!s.createdBy, updatedBy: !!s.updatedBy,
+    updatedAt: !!s.updatedAt, custom: !!s.custom,
+  };
+}
+
+/** Recommend an import order for a set of entity keys: parents (dependencies)
+ *  before children, via a stable topological sort over `dependsOn`. Unknown or
+ *  out-of-set dependencies are ignored; cycles fall back to input order. */
+export function orderEntitiesByDependency(keys: string[]): string[] {
+  const inSet = new Set(keys);
+  const visited = new Set<string>();
+  const result: string[] = [];
+  const visit = (key: string, stack: Set<string>) => {
+    if (visited.has(key) || stack.has(key)) return; // cycle guard
+    stack.add(key);
+    const deps = getEntity(key)?.dependsOn ?? [];
+    for (const d of deps) if (inSet.has(d)) visit(d, stack);
+    stack.delete(key);
+    if (!visited.has(key)) { visited.add(key); result.push(key); }
+  };
+  for (const k of keys) visit(k, new Set());
+  return result;
 }
