@@ -131,8 +131,17 @@ Plus `get_advisors` (security) and `get_advisors` (performance).
 
 ---
 
-## 6. Status
+## 6. Status — ✅ EXECUTED & VALIDATED (`2026-06-04`)
 
-🟡 **WAITING for PITR confirmation (G1) + apply approval (G2).** No
-production-changing step will run before both. On the first unexpected result at
-any step: STOP, collect evidence, recommend rollback, await approval.
+**Result: PASS.** Backup gate met via scheduled physical backup (latest
+`04 Jun 2026 07:39 UTC`, restorable; PITR off — targeted-reverse is the rollback
+path). `0118` applied to `nrvydmkxjnctdlaxdhur` as a recorded migration.
+
+- A1 re-confirm un-applied: idem cols 0/0, indexes 0 ✅
+- A2 apply `0118` (apply_migration): success ✅
+- A3 validation: idem columns 2, unique partial indexes 2, `erp_record_payment` 6-arg=1 / 5-arg=0, counts unchanged (invoices 123, payments 47, customers 52), 0 duplicate keys, RLS on both tables, auth fns intact, migration recorded ✅
+- Advisors: security 78 findings (all WARN, 0 ERROR); performance 0 ERROR; **no new finding** vs baseline — `erp_record_payment`'s 3 WARNs match its `0007` predecessor (SECURITY DEFINER pattern, DB-wide) ✅
+- PostgREST schema cache reloaded; `erp_invoices.idempotency_key` API-visible ✅
+- Rollback: not needed.
+
+Final step (operator): create one real invoice in the app to confirm end-to-end.
