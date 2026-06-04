@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* VANTORA design system — deep navy + premium cyan + white + cool neutrals.
+     Enterprise/GCC-grade, calm and high-contrast. Tokens drive everything. */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 216 52% 12%;            /* deep navy ink */
+
+    --card: 0 0% 100%;
+    --card-foreground: 216 52% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 216 52% 12%;
+
+    --primary: 216 64% 22%;               /* deep navy (brand) */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 32% 95%;             /* subtle cool neutral */
+    --secondary-foreground: 216 48% 18%;
+
+    --muted: 214 32% 95%;
+    --muted-foreground: 215 18% 42%;
+
+    --accent: 190 90% 42%;                /* premium cyan */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 158 64% 36%;               /* emerald */
+    --success-foreground: 0 0% 100%;
+
+    --warning: 36 92% 48%;                /* amber */
+    --warning-foreground: 216 52% 12%;    /* dark text on amber */
+
+    --info: 200 88% 44%;                  /* cyan-blue */
+    --info-foreground: 0 0% 100%;
+
+    --gold: 41 72% 48%;
+    --gold-foreground: 216 52% 12%;
+
+    --maroon: 350 70% 38%;
+    --maroon-light: 350 55% 48%;
+
+    --border: 214 28% 90%;
+    --input: 214 28% 90%;
+    --ring: 190 90% 42%;                  /* cyan focus ring */
+
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 216 46% 8%;             /* deep navy canvas */
+    --foreground: 210 40% 98%;
+    --card: 216 42% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 216 42% 12%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 205 80% 56%;              /* brighter navy-blue for dark */
+    --primary-foreground: 216 60% 10%;
+    --secondary: 215 32% 16%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 215 32% 16%;
+    --muted-foreground: 215 20% 66%;
+    --accent: 190 85% 48%;               /* premium cyan */
+    --accent-foreground: 216 60% 10%;
+    --destructive: 0 63% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 158 60% 44%;
+    --success-foreground: 216 60% 10%;
+    --warning: 36 92% 56%;
+    --warning-foreground: 216 60% 10%;
+    --info: 200 85% 56%;
+    --info-foreground: 216 60% 10%;
+    --gold: 41 72% 56%;
+    --gold-foreground: 216 60% 10%;
+    --maroon: 350 64% 56%;
+    --maroon-light: 350 58% 64%;
+    --border: 215 28% 20%;
+    --input: 215 28% 20%;
+    --ring: 190 85% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Numeric tabular alignment for financial figures */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Login brand-panel ambient motion */
+@keyframes ams-aura {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(24px, -22px) scale(1.12); }
+}
+@keyframes ams-aura-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-28px, 18px) scale(1.18); }
+}
+.ams-aura  { animation: ams-aura 16s ease-in-out infinite; }
+.ams-aura-2 { animation: ams-aura-2 20s ease-in-out infinite; }
+
+@keyframes ams-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ams-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+.ams-fade { animation: ams-fade 0.25s ease both; }
+.ams-pop  { animation: ams-pop 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ams-aura, .ams-aura-2, .ams-fade, .ams-pop { animation: none; }
+}

@@ -1,0 +1,113 @@
+'use server';
+
+import { randomUUID } from 'node:crypto';
+import { createClient } from '@/lib/supabase/server';
+import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission, type Permission } from '@/lib/erp/permissions';
+import { getEntity } from '@/lib/erp/entities';
+import { logAudit } from '@/lib/erp/audit';
+import { ATTACHMENTS_BUCKET, validateAttachment, safeExtension } from '@/lib/erp/attachments';
+
+/** Generic attachments, reusable for any entity. Tenant isolation is enforced by
+ *  RLS on erp_attachments + the storage bucket's company-prefix policy; manage
+ *  rights map to the parent entity's own permission. */
+
+/** The permission that gates attaching/deleting for an entity (registry first,
+ *  then a small map for non-registry workflow entities). */
+function entityPermission(entity: string): Permission | null {
+  const reg = getEntity(entity)?.permission;
+  if (reg) return reg;
+  const fallback: Record<string, Permission> = {
+    customer_change_request: 'customers.manage',
+    credit_limit_request: 'customers.manage',
+    workflow: 'workflow.manage',
+  };
+  return fallback[entity] ?? null;
+}
+
+export interface AttachmentView {
+  id: string;
+  file_name: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  uploaded_by: string | null;
+  created_at: string;
+  url: string | null;
+}
+
+/** Active attachments for a record, each with a short-lived signed URL. */
+export async function listAttachments(entity: string, recordId: string): Promise<AttachmentView[]> {
+  const { ctx } = await requireAuth();
+  if (!ctx || !entity || !recordId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('erp_attachments')
+    .select('id, path, file_name, mime_type, size_bytes, uploaded_by, created_at')
+    .eq('entity', entity).eq('record_id', recordId).is('deleted_at', null)
+    .order('created_at', { ascending: false });
+  const rows = (data ?? []) as (Omit<AttachmentView, 'url'> & { path: string })[];
+  const out: AttachmentView[] = [];
+  for (const r of rows) {
+    const { data: signed } = await supabase.storage.from(ATTACHMENTS_BUCKET).createSignedUrl(r.path, 3600);
+    out.push({ id: r.id, file_name: r.file_name, mime_type: r.mime_type, size_bytes: r.size_bytes, uploaded_by: r.uploaded_by, created_at: r.created_at, url: signed?.signedUrl ?? null });
+  }
+  return out;
+}
+
+export async function uploadAttachment(formData: FormData): Promise<ActionResult<{ id: string }>> {
+  const { ctx } = await requireAuth();
+  if (!ctx) return { ok: false, error: 'unauthorized' };
+  const entity = String(formData.get('entity') || '').trim();
+  const recordId = String(formData.get('record_id') || '').trim();
+  const file = formData.get('file');
+  if (!entity || !recordId || !(file instanceof File)) return { ok: false, error: 'missing' };
+  if (!ctx.companyId) return { ok: false, error: 'no_company' };
+  const perm = entityPermission(entity);
+  if (perm && !hasPermission(ctx, perm)) return { ok: false, error: 'forbidden' };
+
+  const v = validateAttachment({ type: file.type, size: file.size });
+  if (!v.ok) return { ok: false, error: v.error };
+
+  const supabase = await createClient();
+  const path = `${ctx.companyId}/${entity}/${recordId}/${randomUUID()}.${safeExtension(file.type, file.name)}`;
+  const { error: upErr } = await supabase.storage.from(ATTACHMENTS_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+  if (upErr) return { ok: false, error: upErr.message };
+
+  const { data: row, error } = await supabase
+    .from('erp_attachments')
+    .insert({
+      company_id: ctx.companyId, entity, record_id: recordId, bucket: ATTACHMENTS_BUCKET, path,
+      file_name: file.name, mime_type: file.type, size_bytes: file.size, uploaded_by: ctx.userId,
+    })
+    .select('id').single();
+  if (error) {
+    await supabase.storage.from(ATTACHMENTS_BUCKET).remove([path]); // don't orphan the object
+    return { ok: false, error: friendlyDbError(error) };
+  }
+  await logAudit(supabase, { action: 'attachment.upload', entity, entityId: recordId, companyId: ctx.companyId, details: { attachment_id: (row as { id: string }).id, file_name: file.name } });
+  return { ok: true, data: { id: (row as { id: string }).id } };
+}
+
+/** Soft-delete (keeps the object; a retention job purges later). Manage rights =
+ *  the parent entity's permission (locked decision). */
+export async function softDeleteAttachment(id: string): Promise<ActionResult> {
+  const { ctx } = await requireAuth();
+  if (!ctx) return { ok: false, error: 'unauthorized' };
+  const supabase = await createClient();
+  const { data: att } = await supabase
+    .from('erp_attachments')
+    .select('entity, record_id, company_id')
+    .eq('id', id).is('deleted_at', null).maybeSingle();
+  if (!att) return { ok: false, error: 'not_found' };
+  const a = att as { entity: string; record_id: string; company_id: string };
+  const perm = entityPermission(a.entity);
+  if (perm && !hasPermission(ctx, perm)) return { ok: false, error: 'forbidden' };
+
+  const { error } = await supabase
+    .from('erp_attachments')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: ctx.userId })
+    .eq('id', id);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, { action: 'attachment.delete', entity: a.entity, entityId: a.record_id, companyId: a.company_id, details: { attachment_id: id } });
+  return { ok: true };
+}
