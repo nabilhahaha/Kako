@@ -60,6 +60,7 @@ import {
   Activity,
   ListChecks,
   GraduationCap,
+  Lightbulb,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -170,6 +171,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.approvalCenter', href: '/approval-center', icon: ShieldCheck, module: 'workflow' },
       { label: 'nav.items.reportsCenter', href: '/reports', icon: FileSpreadsheet, perm: 'reports.view' },
       { label: 'nav.items.territoryHome', href: '/territory', icon: Map, perm: 'reports.view' },
+      { label: 'nav.items.insights', href: '/insights', icon: Lightbulb, perm: 'reports.view' },
       { label: 'nav.items.coaching', href: '/coaching', icon: GraduationCap, perm: 'field.sales' },
       { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck, module: 'workflow' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
