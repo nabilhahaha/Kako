@@ -134,6 +134,26 @@ FROM (VALUES
 JOIN erp_company_roles cr ON cr.role_key = v.role_key AND cr.enabled
 ON CONFLICT (company_id, role_key, permission) DO NOTHING;
 
+-- (c) Honor the admin/manager = '*' convention in the DB. The TS ROLE_PERMISSIONS
+-- declares admin/manager hold ALL permissions, but the DB only had explicit rows,
+-- so later-added permissions (Wave-0 FMCG + Wave-1) never reached admin/manager —
+-- erp_user_has_perm (DB-driven) would then block company admins. Grant admin +
+-- manager every permission known to any role (the full union), globally and per
+-- enabled company. Additive + idempotent; runs AFTER (a) so Wave-1 keys are in the
+-- union. (A perm granted to no role at all is unused and intentionally excluded.)
+INSERT INTO erp_role_permissions (role_key, permission)
+SELECT r.key, p.permission
+FROM (SELECT 'admin' AS key UNION ALL SELECT 'manager') r
+CROSS JOIN (SELECT DISTINCT permission FROM erp_role_permissions) p
+ON CONFLICT (role_key, permission) DO NOTHING;
+
+INSERT INTO erp_company_role_permissions (company_id, role_key, permission)
+SELECT cr.company_id, cr.role_key, p.permission
+FROM erp_company_roles cr
+CROSS JOIN (SELECT DISTINCT permission FROM erp_role_permissions) p
+WHERE cr.role_key IN ('admin','manager') AND cr.enabled
+ON CONFLICT (company_id, role_key, permission) DO NOTHING;
+
 -- ── Rollback (manual) ────────────────────────────────────────────────────────
 -- DELETE FROM erp_role_permissions WHERE permission IN (
 --   'product.search','pricing.view','uom.manage','target.view','target.manage',
