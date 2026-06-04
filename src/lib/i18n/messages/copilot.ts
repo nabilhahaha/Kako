@@ -62,6 +62,19 @@ export const ar = {
     typePermissionExplain: 'شرح الصلاحية',
     typeWorkflowStatus: 'حالة سير العمل',
     typeQuickHelp: 'مساعدة سريعة',
+
+    // ── Ask Copilot (AI-optional prototype; deterministic by default) ──
+    ask: 'اسأل المساعد',
+    askTitle: 'اسأل المساعد',
+    askDescription: 'اكتب سؤالك بالعربية أو الإنجليزية — يجيب المساعد من دورك وصلاحياتك الحالية.',
+    askPlaceholder: 'مثال: لماذا لا أستطيع إضافة عميل؟',
+    askSend: 'اسأل',
+    askThinking: 'جارٍ التفكير…',
+    askEmpty: 'اكتب سؤالاً للبدء.',
+    askTryThese: 'جرّب هذه الأسئلة:',
+    askDeterministicNote: 'يعمل المساعد بمحرك المساعدة المدمج (بدون ذكاء اصطناعي خارجي).',
+    askErrorEmpty: 'اكتب سؤالاً أولاً.',
+    askError: 'تعذّرت الإجابة. حاول مرة أخرى.',
   },
 };
 
@@ -124,5 +137,18 @@ export const en = {
     typePermissionExplain: 'Permission explain',
     typeWorkflowStatus: 'Workflow status',
     typeQuickHelp: 'Quick help',
+
+    // ── Ask Copilot (AI-optional prototype; deterministic by default) ──
+    ask: 'Ask Copilot',
+    askTitle: 'Ask Copilot',
+    askDescription: 'Type your question in Arabic or English — the assistant answers from your current role and permissions.',
+    askPlaceholder: 'e.g., Why can’t I add a customer?',
+    askSend: 'Ask',
+    askThinking: 'Thinking…',
+    askEmpty: 'Type a question to begin.',
+    askTryThese: 'Try these questions:',
+    askDeterministicNote: 'Powered by the built-in help engine (no external AI).',
+    askErrorEmpty: 'Type a question first.',
+    askError: 'Could not answer. Try again.',
   },
 };
