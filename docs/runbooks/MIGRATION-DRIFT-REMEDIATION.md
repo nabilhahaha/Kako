@@ -32,13 +32,27 @@ invoice is dated `2026-06-01`.
 
 ---
 
-## 1. Two hazards that shape the whole plan
+## 1. Three hazards that shape the whole plan
 
 **Hazard A — `supabase db push` is NOT safe here.**
 The live `supabase_migrations.schema_migrations.version` column uses full
 timestamps (e.g. `20260602001511` for `0101`), while the repo files use `00XX_`
 prefixes. The CLI matches on `version`, so it cannot reliably tell that `0101`
 /`0102` are already applied and may try to **replay** them.
+
+**Hazard A′ — the existing `migrate-production` GitHub workflow is ALSO unsafe
+for this drift.** `.github/workflows/migrate-database.yml`'s manual
+`migrate-production` job is a blind loop:
+`for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done`.
+It consults **nothing** — it re-applies **all 143 files** from `0001`. The
+workflow's own comment says the migrations "are not guaranteed idempotent;
+re-running on a dirty DB may error" and it assumes a **reset** database. Against
+the live DB (already at `0001`–`0098`/`0101`/`0102` with real data) it would
+re-run `0101`'s bare `CREATE POLICY` and **halt mid-run** under `ON_ERROR_STOP`.
+> **Do NOT trigger `migrate-production` for this remediation.** It is built for a
+> fresh/reset target, not incremental drift closure. (CI confirms the full chain
+> *does* apply cleanly to a **fresh** DB — see §7 evidence — which is why it is
+> safe for a reset staging but not for production-as-is.)
 
 **Hazard B — `0101` and `0102` are already applied and `0101` is NOT
 re-runnable.**
@@ -304,7 +318,44 @@ Run the **hotfix slice** after §5; run **everything** after §6.
 | Closes all drift | ❌ | ✅ |
 | Downtime | ~0 (window optional) | ~0 technical; 10–15 min window advised |
 | Rollback | targeted reverse (§3.2) or PITR | **PITR (§3.1)** |
-| Method | explicit apply, **never `db push`** | explicit apply, **never `db push`** |
+| Method | explicit apply, **never `db push`**, **never `migrate-production`** | same |
 | Pre-req | §2 backup | §2 backup **+** branch dry-run (§7) |
 
-*End of package — documentation only; no migrations were applied.*
+---
+
+## 9. Pre-flight gate evidence (verified `2026-06-04`)
+
+Run on `claude/fmcg-bug-hunt` (Wave 1 + bug-hunt hotfix), reproducing the CI jobs
+locally and on a throwaway Postgres 16:
+
+| Gate | Result |
+| --- | --- |
+| `tsc --noEmit` (typecheck) | ✅ 0 errors |
+| `vitest run` (unit/i18n/logic) | ✅ 453 passed, 22 skipped (no-DB) |
+| `setup-test-db.sh` — full chain `0001`→`0143` on a **fresh** DB | ✅ clean apply (benign skip NOTICEs only) |
+| `vitest run src/test/integration` (DB) | ✅ **22 passed** (incl. invoice/payment idempotency, RLS) |
+| `next build` | ✅ success |
+| GitHub Actions: `CI`, `E2E` | ✅ green on the latest commit |
+
+> The fresh-DB full-chain apply proves the migration set is **internally
+> consistent and ordering-clean** — directly de-risking the §6 full path **when
+> run against a reset staging/branch**. It does *not* test replay onto the live
+> partially-migrated DB; that is exactly why §6 applies only the missing files.
+
+## 10. Final recommendation — GO / NO-GO
+
+| Decision | Verdict |
+| --- | --- |
+| **Ship the code (PRs #98 Wave 1, #99 bug-hunt) once review-approved** | **GO** — additive, all gates green, no production DB dependency to merge. |
+| **Restore invoicing on production via the hotfix path (§5: `0118`, then `0109`)** | **GO, with conditions** — take the §2 backup first; apply the two files **explicitly** (never `db push`/`migrate-production`); run the §7 hotfix checklist. `0118` alone clears the live invoice error. |
+| **Full drift closure (§6: `0099`,`0100`,`0103`–`0143`)** | **CONDITIONAL GO** — only after (1) a branch/PITR-copy dry-run of the exact missing-file set, (2) the team picks a `schema_migrations` tracking convention (§6 caveat), and (3) a 10–15 min window for the RLS/authz cutover. |
+| **Using the `migrate-production` workflow as-is, or `supabase db push`, against the live DB** | **NO-GO** — both re-apply already-applied, non-idempotent migrations and will halt mid-run (§1 Hazard A/A′). |
+| **Modifying production data / executing any migration from this session** | **NO-GO / out of scope** — this package is documentation only. |
+
+**Bottom line:** the application changes are green and safe to merge on review.
+Production invoicing can be restored low-risk via the explicit two-file hotfix
+after a backup. Full drift closure is ready to execute but is gated on a staging
+dry-run + a tracking-convention decision — not a blocker for the hotfix.
+
+*End of package — documentation only; no migrations were applied and no
+production data was modified.*
