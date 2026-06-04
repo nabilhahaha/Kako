@@ -125,7 +125,7 @@ export async function customerActivity(customerId: string): Promise<ActionResult
   }, []);
 
   const timeline: TimelineEvent[] = [
-    ...invoices.map((i) => ({ date: i.created_at, kind: 'invoice' as const, title: i.invoice_number, amount: i.net_amount, href: '/sales/invoices', status: i.status })),
+    ...invoices.map((i) => ({ date: i.created_at, kind: 'invoice' as const, title: i.invoice_number, amount: i.net_amount, href: `/sales/invoices/${i.id}/print`, status: i.status })),
     ...payments.map((p) => ({ date: p.created_at, kind: 'payment' as const, title: 'Payment', amount: p.amount })),
   ];
 
