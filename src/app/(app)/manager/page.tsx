@@ -11,6 +11,8 @@ import { nextBestActions } from '@/app/(app)/copilot/actions';
 import { homeSignals } from '@/app/(app)/home-actions';
 import { EMPTY_HOME_SIGNALS } from '@/lib/erp/home-signals-types';
 import { rankAttention, summarizeAttention } from '@/lib/erp/attention';
+import { KpiScorecard } from '@/components/home/kpi-scorecard';
+import { scoreStatus } from '@/lib/erp/scorecard';
 
 const HEALTH_TONE: Record<'good' | 'attention' | 'critical', StatTone> = { good: 'success', attention: 'warning', critical: 'destructive' };
 
@@ -50,6 +52,24 @@ export default async function ManagerHomePage() {
         <StatCard label={t('home.lostCustomers')} value={String(sig.lostCustomers)} icon={TrendingDown} tone={sig.lostCustomers > 0 ? 'warning' : 'success'} href="/customers" />
         <StatCard label={t('home.items')} value={String(summary.itemCount)} icon={ListChecks} tone="info" href="/attention" />
       </div>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('home.scorecards')}</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <KpiScorecard
+            label={t('home.scoreCoverage')}
+            value={sig.coveragePct == null ? '—' : `${Math.round(sig.coveragePct)}%`}
+            achievement={sig.coveragePct == null ? undefined : Math.round(sig.coveragePct)}
+            status={sig.coveragePct == null ? undefined : scoreStatus(Math.round(sig.coveragePct))}
+          />
+          <KpiScorecard
+            label={t('home.health')}
+            value={`${summary.healthScore}%`}
+            achievement={summary.healthScore}
+            status={scoreStatus(summary.healthScore)}
+          />
+        </div>
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('home.attentionFirst')}</h2>

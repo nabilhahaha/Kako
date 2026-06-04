@@ -59,6 +59,7 @@ import {
   Palette,
   Activity,
   ListChecks,
+  GraduationCap,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -168,6 +169,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.attentionCenter', href: '/attention', icon: ListChecks },
       { label: 'nav.items.approvalCenter', href: '/approval-center', icon: ShieldCheck, module: 'workflow' },
       { label: 'nav.items.reportsCenter', href: '/reports', icon: FileSpreadsheet, perm: 'reports.view' },
+      { label: 'nav.items.territoryHome', href: '/territory', icon: Map, perm: 'reports.view' },
+      { label: 'nav.items.coaching', href: '/coaching', icon: GraduationCap, perm: 'field.sales' },
       { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck, module: 'workflow' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
     ],

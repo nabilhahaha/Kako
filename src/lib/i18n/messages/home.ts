@@ -43,6 +43,29 @@ export const ar = {
     // Approval Center
     approvalsTitle: 'مركز الموافقات',
     approvalsSubtitle: 'كل ما ينتظر اعتمادك في مكان واحد.',
+    // Customer 360
+    c360Subtitle: 'ملف العميل الكامل ونشاطه.',
+    balance: 'الرصيد',
+    invoices: 'الفواتير',
+    activity: 'النشاط',
+    noActivity: 'لا يوجد نشاط بعد.',
+    back: 'رجوع',
+    // Territory health
+    territoryTitle: 'صحة المناطق',
+    territorySubtitle: 'تغطية خطوط السير — الأضعف أولاً.',
+    avgCoverage: 'متوسط التغطية',
+    healthyRoutes: 'خطوط جيدة',
+    atRiskRoutes: 'خطوط بحاجة لمتابعة',
+    territoryEmpty: 'لا توجد بيانات تغطية لليوم بعد.',
+    // Visit coaching
+    coachingTitle: 'إرشاد الزيارات',
+    coachingSubtitle: 'نصائح عملية بناءً على أدائك الميداني اليوم.',
+    coachingNote: 'نصائح آلية من محرك الإرشاد المدمج (بدون ذكاء اصطناعي خارجي).',
+    // KPI scorecards
+    scoreSales: 'المبيعات مقابل الهدف',
+    scoreCollection: 'التحصيل',
+    scoreCoverage: 'التغطية',
+    scorecards: 'مؤشرات الأداء',
   },
 };
 
@@ -82,5 +105,28 @@ export const en = {
     descPriceBook: 'Sell prices by unit, quantity and channel.',
     approvalsTitle: 'Approval Center',
     approvalsSubtitle: 'Everything awaiting your approval in one place.',
+    // Customer 360
+    c360Subtitle: 'Full customer profile and activity.',
+    balance: 'Balance',
+    invoices: 'Invoices',
+    activity: 'Activity',
+    noActivity: 'No activity yet.',
+    back: 'Back',
+    // Territory health
+    territoryTitle: 'Territory Health',
+    territorySubtitle: 'Route coverage — lowest first.',
+    avgCoverage: 'Avg coverage',
+    healthyRoutes: 'Healthy routes',
+    atRiskRoutes: 'Routes needing attention',
+    territoryEmpty: 'No coverage data for today yet.',
+    // Visit coaching
+    coachingTitle: 'Visit Coaching',
+    coachingSubtitle: 'Practical tips based on your field performance today.',
+    coachingNote: 'Automated tips from the built-in coaching engine (no external AI).',
+    // KPI scorecards
+    scoreSales: 'Sales vs target',
+    scoreCollection: 'Collection',
+    scoreCoverage: 'Coverage',
+    scorecards: 'Performance scorecards',
   },
 };
