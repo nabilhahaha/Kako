@@ -356,6 +356,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
       { label: 'nav.items.fieldGovernance', href: '/settings/field-governance', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
       // ── Integrations ──
+      { label: 'nav.items.integrationHub', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', group: 'nav.groups.integrations' },
       { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataOnboarding', href: '/settings/data-onboarding', icon: Download, perm: 'integrations.manage', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', group: 'nav.groups.integrations' },
