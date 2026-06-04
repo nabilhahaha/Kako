@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils';
 import type { Permission } from '@/lib/erp/permissions';
 import { useMobileNav } from '@/lib/stores/mobile-nav';
 import { useI18n } from '@/lib/i18n/provider';
-import { Home, Users, Zap, Boxes, Menu, type LucideIcon } from 'lucide-react';
+import { Menu } from 'lucide-react';
+import { BOTTOM_NAV_TABS } from './bottom-nav-tabs';
 
 /** Mobile bottom tab bar (UX-3): always-visible quick access to the most-used
  *  destinations for the role, so field/cashier users reach key screens in one tap
@@ -22,16 +23,11 @@ export function BottomNav({
   const pathname = usePathname();
   const { t } = useI18n();
   const setOpen = useMobileNav((s) => s.setOpen);
-  const can = (p: Permission) => isSuperAdmin || permissions.includes(p);
+  const can = (p?: Permission) => !p || isSuperAdmin || permissions.includes(p);
 
-  const tabs: { href: string; icon: LucideIcon; label: string }[] = [
-    { href: '/dashboard', icon: Home, label: t('nav.bottom.home') },
-  ];
-  if (can('customers.manage')) tabs.push({ href: '/customers', icon: Users, label: t('nav.bottom.customers') });
-  if (can('sales.sell')) tabs.push({ href: '/sales/invoices', icon: Zap, label: t('nav.bottom.sell') });
-  if (can('inventory.view')) tabs.push({ href: '/inventory/products', icon: Boxes, label: t('nav.bottom.inventory') });
-
-  const visible = tabs.slice(0, 4);
+  const visible = BOTTOM_NAV_TABS.filter((tab) => can(tab.perm))
+    .map((tab) => ({ href: tab.href, icon: tab.icon, label: t(tab.labelKey) }))
+    .slice(0, 4);
   const cols = visible.length + 1;
 
   return (
