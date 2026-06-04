@@ -162,7 +162,12 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'nav.sections.main',
     items: [
       { label: 'nav.items.dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'nav.items.todayHome', href: '/today', icon: MapPin, perm: 'field.sales' },
+      { label: 'nav.items.supervisorHome', href: '/supervisor', icon: Users, perm: ['visit.approve_out_of_route', 'day.approve_close_exception'] },
+      { label: 'nav.items.managerHome', href: '/manager', icon: BarChart3, perm: 'reports.view' },
       { label: 'nav.items.attentionCenter', href: '/attention', icon: ListChecks },
+      { label: 'nav.items.approvalCenter', href: '/approval-center', icon: ShieldCheck, module: 'workflow' },
+      { label: 'nav.items.reportsCenter', href: '/reports', icon: FileSpreadsheet, perm: 'reports.view' },
       { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck, module: 'workflow' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
     ],

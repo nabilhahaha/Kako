@@ -53,6 +53,7 @@ import * as fmcg from './fmcg';
 import * as fmcgw1 from './fmcgw1';
 import * as copilot from './copilot';
 import * as attention from './attention';
+import * as home from './home';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -61,7 +62,7 @@ const MODULES = [
   warehouses, upgrade, landing, marketplace, organization, integrations, entity,
   importMsgs, dataExport, platformStaff, billing, customFields, workflow, workflows, notifications,
   electrical, regions, customerData, pricing, attachments, fieldGovernance,
-  activity, analytics, authz, fmcg, fmcgw1, copilot, attention,
+  activity, analytics, authz, fmcg, fmcgw1, copilot, attention, home,
 ];
 
 type Catalog = Record<string, unknown>;

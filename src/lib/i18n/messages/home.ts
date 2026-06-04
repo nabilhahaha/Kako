@@ -1,0 +1,86 @@
+/** Role homes & centers (Manager / Supervisor / Today / Reports / Approval).
+ *  ar = source of truth; en mirrors EXACTLY (i18n parity test enforces this). */
+export const ar = {
+  home: {
+    // Manager
+    managerTitle: 'لوحة المدير',
+    managerSubtitle: 'نظرة قرار سريعة — الأهم أولاً.',
+    // Supervisor
+    supervisorTitle: 'لوحة المشرف',
+    supervisorSubtitle: 'فريقك اليوم وما يحتاج تدخّلك الآن.',
+    // Today (salesman)
+    todayTitle: 'اليوم',
+    todaySubtitle: 'خط سيرك ومهامك لهذا اليوم.',
+    greeting: 'أهلاً {name} 👋',
+    startJourney: 'ابدأ / تابع خط السير',
+    quickActions: 'إجراءات سريعة',
+    // Shared sections
+    attentionFirst: 'الأهم أولاً',
+    needsYouNow: 'يحتاج تدخّلك الآن',
+    quickNav: 'تنقّل سريع',
+    open: 'فتح',
+    emptyAttention: 'لا شيء يحتاج انتباهك الآن. عمل رائع!',
+    // KPI labels
+    health: 'مؤشر الصحة',
+    urgent: 'عاجل',
+    items: 'بنود تحتاج إجراء',
+    salesMtd: 'مبيعات الشهر',
+    overdue: 'فواتير متأخرة',
+    lostCustomers: 'عملاء متوقّفون',
+    coverage: 'التغطية',
+    // Reports Center
+    reportsTitle: 'مركز التقارير',
+    reportsSubtitle: 'كل تقاريرك في مكان واحد.',
+    grpSalesCollection: 'المبيعات والتحصيل',
+    grpFieldRoute: 'الميدان وخطوط السير',
+    descSalesSummary: 'مؤشرات المبيعات والتحصيل والتغطية حسب الفرع.',
+    descJourneyCompliance: 'التغطية والزيارات ومخالفات GPS لكل مندوب.',
+    descReturnsAnalysis: 'المرتجعات مجمّعة حسب السبب خلال فترة.',
+    descTargets: 'الأهداف ونسبة الإنجاز والمعدل المطلوب.',
+    descCreditRequests: 'مراجعة واعتماد طلبات حد الائتمان.',
+    descVanRecon: 'تسوية أرصدة العربات والفروقات.',
+    descPriceBook: 'أسعار البيع حسب الوحدة والكمية والقناة.',
+    // Approval Center
+    approvalsTitle: 'مركز الموافقات',
+    approvalsSubtitle: 'كل ما ينتظر اعتمادك في مكان واحد.',
+  },
+};
+
+export const en = {
+  home: {
+    managerTitle: 'Manager Home',
+    managerSubtitle: 'Decision-speed overview — what matters first.',
+    supervisorTitle: 'Supervisor Home',
+    supervisorSubtitle: "Your team today and what needs you now.",
+    todayTitle: 'Today',
+    todaySubtitle: 'Your route and tasks for today.',
+    greeting: 'Hi {name} 👋',
+    startJourney: 'Start / Continue Journey',
+    quickActions: 'Quick actions',
+    attentionFirst: 'Attention first',
+    needsYouNow: 'Needs you now',
+    quickNav: 'Quick navigation',
+    open: 'Open',
+    emptyAttention: 'Nothing needs your attention right now. Great job!',
+    health: 'Health score',
+    urgent: 'Urgent',
+    items: 'Items needing action',
+    salesMtd: 'Sales (MTD)',
+    overdue: 'Overdue invoices',
+    lostCustomers: 'Lost customers',
+    coverage: 'Coverage',
+    reportsTitle: 'Reports Center',
+    reportsSubtitle: 'All your reports in one place.',
+    grpSalesCollection: 'Sales & Collection',
+    grpFieldRoute: 'Field & Route',
+    descSalesSummary: 'Sales, collection and coverage KPIs by branch.',
+    descJourneyCompliance: 'Coverage, visits and GPS flags per rep.',
+    descReturnsAnalysis: 'Returns grouped by reason over a period.',
+    descTargets: 'Targets, achievement % and required run-rate.',
+    descCreditRequests: 'Review and approve credit-limit requests.',
+    descVanRecon: 'Reconcile van balances and variances.',
+    descPriceBook: 'Sell prices by unit, quantity and channel.',
+    approvalsTitle: 'Approval Center',
+    approvalsSubtitle: 'Everything awaiting your approval in one place.',
+  },
+};
