@@ -60,7 +60,20 @@ export type Permission =
   | 'visit.override_gps' // record a visit outside the allowed GPS radius
   | 'visit.approve_out_of_route' // approve an out-of-route visit
   | 'day.close' // close the working day (rep)
-  | 'day.approve_close_exception'; // approve a day-close exception
+  | 'day.approve_close_exception' // approve a day-close exception
+  // ── FMCG Value Acceleration Wave 1 ──
+  | 'product.search' // search the product catalogue (paginated, tenant-safe)
+  | 'pricing.view' // view price lists / resolved prices
+  | 'uom.manage' // manage product units of measure + conversions
+  | 'target.view' // view targets & achievement
+  | 'target.manage' // create/import targets
+  | 'reconciliation.view' // view van reconciliations
+  | 'reconciliation.manage' // compute/record van reconciliation
+  | 'reconciliation.approve' // settle/approve a van reconciliation
+  | 'return.reason.manage' // manage the return-reason catalogue
+  | 'credit.request.create' // request a customer credit-limit change
+  | 'credit.request.approve' // approve a credit-limit request
+  | 'report.aggregate.view'; // view scale-safe aggregated reports
 
 export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; group: string }> = {
   'sales.sell': { en: 'Selling (invoices/orders/POS)', ar: 'البيع (فواتير/أوامر/نقطة بيع)', group: 'sales' },
@@ -121,6 +134,19 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'visit.approve_out_of_route': { en: 'Approve out-of-route visits', ar: 'اعتماد الزيارات خارج خط السير', group: 'field_ops' },
   'day.close': { en: 'Close the working day', ar: 'إغلاق يوم العمل', group: 'field_ops' },
   'day.approve_close_exception': { en: 'Approve day-close exceptions', ar: 'اعتماد استثناءات إغلاق اليوم', group: 'field_ops' },
+  // ── FMCG Value Acceleration Wave 1 ──
+  'product.search': { en: 'Search products', ar: 'البحث عن المنتجات', group: 'inventory' },
+  'pricing.view': { en: 'View pricing', ar: 'عرض التسعير', group: 'sales' },
+  'uom.manage': { en: 'Manage units of measure', ar: 'إدارة وحدات القياس', group: 'inventory' },
+  'target.view': { en: 'View targets & achievement', ar: 'عرض الأهداف والإنجاز', group: 'field_ops' },
+  'target.manage': { en: 'Manage targets', ar: 'إدارة الأهداف', group: 'field_ops' },
+  'reconciliation.view': { en: 'View van reconciliation', ar: 'عرض تسوية العربة', group: 'inventory' },
+  'reconciliation.manage': { en: 'Run van reconciliation', ar: 'تنفيذ تسوية العربة', group: 'inventory' },
+  'reconciliation.approve': { en: 'Approve van reconciliation', ar: 'اعتماد تسوية العربة', group: 'inventory' },
+  'return.reason.manage': { en: 'Manage return reasons', ar: 'إدارة أسباب المرتجعات', group: 'sales' },
+  'credit.request.create': { en: 'Request credit-limit change', ar: 'طلب تغيير حد الائتمان', group: 'accounting' },
+  'credit.request.approve': { en: 'Approve credit-limit requests', ar: 'اعتماد طلبات حد الائتمان', group: 'accounting' },
+  'report.aggregate.view': { en: 'View aggregated reports', ar: 'عرض التقارير المجمّعة', group: 'accounting' },
 };
 
 /** Bilingual labels for permission group slugs (used as section headers). */
