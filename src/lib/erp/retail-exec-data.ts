@@ -60,6 +60,16 @@ export async function loadRetailExecData(
   // never breaks names). reports_to references a profile id.
   const hierR = await safe<Row[]>(async () => (await supabase.from('erp_profiles').select('id, reports_to')).data ?? [], [] as Row[]);
 
+  // Outlet grade as a dynamic dimension (latest grade per customer). Reuses the
+  // grading engine's history so grade drills inside every dashboard for free.
+  const [gradesR, gradeHistR] = await Promise.all([
+    safe<Row[]>(async () => (await supabase.from('erp_outlet_grades').select('id, code, name, name_ar')).data ?? [], [] as Row[]),
+    safe<Row[]>(async () => (await supabase.from('erp_outlet_grade_history').select('customer_id, grade_id, computed_at').order('computed_at', { ascending: false }).limit(5000)).data ?? [], [] as Row[]),
+  ]);
+  const gradeLabel = new Map(gradesR.map((r) => [s(r.id), (opts.locale === 'ar' && r.name_ar ? s(r.name_ar) : s(r.code) || s(r.name))]));
+  const gradeByCustomer = new Map<string, string>();
+  for (const r of gradeHistR) { const c = s(r.customer_id); if (!gradeByCustomer.has(c) && r.grade_id) gradeByCustomer.set(c, s(r.grade_id)); }
+
   // Sold products + commercial value per outlet.
   const invoiceIds = invoicesR.map((r) => s(r.id));
   const linesR = invoiceIds.length > 0
@@ -118,6 +128,8 @@ export async function loadRetailExecData(
       if (supId) { dims.supervisor = { id: supId, label: profileName.get(supId) ?? '—' }; dimKeys.add('supervisor'); }
     }
     dims.customer = { id, label: name }; dimKeys.add('customer');
+    const gid = gradeByCustomer.get(id);
+    if (gid) { dims.grade = { id: gid, label: gradeLabel.get(gid) ?? '—' }; dimKeys.add('grade'); }
     const lookupIds = [c.segment_id, c.classification_id, c.channel_id].filter(Boolean).map(s).concat(attrsByCustomer.get(id) ?? []);
     for (const lid of lookupIds) {
       const meta = lookupMeta.get(lid); if (!meta) continue;
@@ -156,7 +168,7 @@ export async function loadRetailExecData(
 
   const ready = policies.length > 0 || metrics.some((m) => m.hasMsl);
   // Stable dimension order: people/geo first, then dynamic lookup kinds.
-  const fixedOrder = ['region', 'area', 'supervisor', 'salesman', 'customer'];
+  const fixedOrder = ['region', 'area', 'supervisor', 'salesman', 'grade', 'customer'];
   const outletDimensions = [
     ...fixedOrder.filter((k) => dimKeys.has(k)),
     ...[...dimKeys].filter((k) => !fixedOrder.includes(k)).sort(),
