@@ -111,7 +111,7 @@ export interface NavSection {
  *  item-level refinements driven by the business type so a clinic doesn't see
  *  POS and a restaurant doesn't see stock transfers. */
 export type Module =
-  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy' | 'laundry' | 'market' | 'wholesale' | 'distribution'
+  | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy' | 'laundry' | 'market' | 'wholesale' | 'distribution' | 'fashion'
   | 'pos' | 'sales_orders' | 'returns' | 'warehousing'
   // Core (capability) modules — first-class licensable entitlements (R4B).
   | 'crm' | 'workflow' | 'analytics' | 'field_ops' | 'integrations';
@@ -120,7 +120,7 @@ export type Module =
  *  are included so they appear in the (grouped) Marketplace and are gateable. */
 export const ALL_MODULES: Module[] = [
   'crm', 'sales', 'inventory', 'purchasing', 'accounting', 'pos', 'workflow', 'analytics', 'field_ops', 'integrations',
-  'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale', 'distribution',
+  'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale', 'distribution', 'fashion',
 ];
 
 export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
@@ -142,6 +142,7 @@ export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
   market: { en: 'Supermarket', ar: 'السوبر ماركت' },
   wholesale: { en: 'Wholesale', ar: 'الجملة' },
   distribution: { en: 'Distribution', ar: 'التوزيع' },
+  fashion: { en: 'Fashion Store', ar: 'متجر الملابس' },
   pos: { en: 'Point of Sale', ar: 'نقطة البيع' },
   sales_orders: { en: 'Sales Orders', ar: 'أوامر البيع' },
   returns: { en: 'Returns', ar: 'المرتجعات' },
@@ -253,6 +254,25 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'nav.items.pharmacyDispense', href: '/pharmacy/dispense', icon: Pill, perm: 'pharmacy.dispense' },
       { label: 'nav.items.expiryNear', href: '/inventory/expiry', icon: CalendarClock, perm: 'pharmacy.dispense' },
+    ],
+  },
+  {
+    // Fashion Store pack — a single self-contained, plain-language section so a
+    // clothing-store owner sees ONLY these screens (FMCG/clinic/etc. sections are
+    // gated by their own modules, which a clothing company never enables). Each
+    // item gates on a `fashion.*` permission seeded only to the clothing roles.
+    title: 'nav.sections.fashion',
+    module: 'fashion',
+    items: [
+      { label: 'nav.items.fashionDashboard', href: '/fashion', icon: LayoutDashboard, perm: ['fashion.manage', 'fashion.sell', 'fashion.inventory'] },
+      { label: 'nav.items.fashionSell', href: '/fashion/sell', icon: ScanBarcode, perm: 'fashion.sell' },
+      { label: 'nav.items.fashionProducts', href: '/fashion/products', icon: Shirt, perm: 'fashion.inventory' },
+      { label: 'nav.items.fashionInventory', href: '/fashion/inventory', icon: Boxes, perm: 'fashion.inventory' },
+      { label: 'nav.items.fashionCustomers', href: '/fashion/customers', icon: Users, perm: ['fashion.sell', 'fashion.installments'] },
+      { label: 'nav.items.fashionInstallments', href: '/fashion/installments', icon: CreditCard, perm: 'fashion.installments' },
+      { label: 'nav.items.fashionSuppliers', href: '/fashion/suppliers', icon: Truck, perm: 'fashion.purchase' },
+      { label: 'nav.items.fashionCashbox', href: '/fashion/cashbox', icon: Wallet, perm: 'fashion.cashbox' },
+      { label: 'nav.items.fashionReports', href: '/fashion/reports', icon: BarChart3, perm: 'fashion.reports' },
     ],
   },
   {

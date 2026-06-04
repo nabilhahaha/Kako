@@ -10,7 +10,7 @@ import { Loader2, Check, Lock, RotateCcw, Info } from 'lucide-react';
 import {
   ShoppingCart, Boxes, Truck as TruckIcon, Wallet, BedDouble, Stethoscope,
   UtensilsCrossed, Scissors, Pill, WashingMachine, ScanBarcode, Layers,
-  FileText, Undo2, Warehouse, Users, ClipboardCheck, BarChart3, Plug, type LucideIcon,
+  FileText, Undo2, Warehouse, Users, ClipboardCheck, BarChart3, Plug, Shirt, type LucideIcon,
 } from 'lucide-react';
 import { ALL_MODULES, MODULE_LABELS, type Module } from '@/lib/erp/navigation';
 import {
@@ -28,7 +28,7 @@ const ICONS: Record<Module, LucideIcon> = {
   sales: ShoppingCart, inventory: Boxes, purchasing: TruckIcon, accounting: Wallet,
   hotel: BedDouble, clinic: Stethoscope, restaurant: UtensilsCrossed, salon: Scissors,
   pharmacy: Pill, laundry: WashingMachine, market: ScanBarcode, wholesale: Layers,
-  distribution: TruckIcon, pos: ScanBarcode, sales_orders: FileText, returns: Undo2,
+  distribution: TruckIcon, fashion: Shirt, pos: ScanBarcode, sales_orders: FileText, returns: Undo2,
   warehousing: Warehouse,
 };
 
