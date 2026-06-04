@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { Wallet, AlertTriangle, Receipt } from 'lucide-react';
+import { Wallet, AlertTriangle, Receipt, FileText, Boxes, User } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
 import { formatCurrency } from '@/lib/utils';
@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { BackLink } from '@/components/shared/back-link';
 import { ActivityTimeline } from '@/components/home/activity-timeline';
+import { QuickNav, type QuickLink } from '@/components/home/home-widgets';
 import { customerActivity } from '@/app/(app)/home-actions';
 
 // Customer 360 — a record overview + unified activity timeline (invoices +
@@ -32,6 +33,16 @@ export default async function Customer360Page({ params }: { params: Promise<{ id
         <StatCard label={t('home.overdue')} value={String(data.overdue)} icon={AlertTriangle} tone={data.overdue > 0 ? 'destructive' : 'success'} />
         <StatCard label={t('home.invoices')} value={String(data.invoiceCount)} icon={Receipt} tone="info" />
       </div>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('salesman.actions')}</h2>
+        <QuickNav links={[
+          { label: t('salesman.actNewInvoice'), href: '/sales/invoices', icon: Receipt },
+          { label: t('salesman.actPrintStatement'), href: `/customers/${id}/statement/print`, icon: FileText },
+          { label: t('salesman.actStock'), href: '/inventory', icon: Boxes },
+          { label: t('salesman.actCustomer'), href: `/customers/${id}`, icon: User },
+        ] satisfies QuickLink[]} />
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('home.activity')}</h2>
