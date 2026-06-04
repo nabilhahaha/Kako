@@ -44,7 +44,12 @@ describe.skipIf(!hasTestDb)('invoice idempotency (0118)', () => {
 
       await mkInvoice('INV-1', key);
       // A retry that reuses the SAME key must be rejected by uq_erp_invoices_idem.
+      // The duplicate-key error aborts the surrounding transaction, so guard it
+      // with a SAVEPOINT and roll back to it to keep the connection usable for
+      // the assertions below (Postgres: "current transaction is aborted" otherwise).
+      await c.query('savepoint dup');
       await expect(mkInvoice('INV-2', key)).rejects.toThrow(/duplicate key|unique/i);
+      await c.query('rollback to savepoint dup');
 
       // Two NULL-key invoices must both succeed (partial index excludes NULLs) —
       // proves the column is additive and doesn't constrain ordinary inserts.
