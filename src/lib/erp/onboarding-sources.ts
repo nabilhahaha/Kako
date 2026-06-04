@@ -46,6 +46,9 @@ const ERPNEXT: SourcePreset = {
       email: ['Email Id', 'email_id', 'Email'],
       city: ['City', 'city'],
       credit_limit: ['Credit Limit', 'credit_limit'],
+      cr_number: ['Tax ID', 'tax_id'],
+      contact_person: ['Customer Primary Contact', 'customer_primary_contact'],
+      payment_terms_days: ['Payment Terms', 'payment_terms'],
     },
     supplier: {
       external_id: ['ID', 'name', 'Supplier'],
@@ -62,6 +65,12 @@ const ERPNEXT: SourcePreset = {
       unit: ['Default Unit of Measure', 'stock_uom'],
       sell_price: ['Standard Selling Rate', 'standard_rate'],
       cost_price: ['Valuation Rate', 'valuation_rate'],
+      brand: ['Brand', 'brand'],
+    },
+    warehouse: {
+      name: ['Warehouse Name', 'warehouse_name'],
+      code: ['Warehouse', 'ID', 'name'],
+      branch_ref: ['Branch', 'branch', 'Company'],
     },
   },
 };
@@ -93,6 +102,11 @@ const ODOO: SourcePreset = {
       unit: ['Unit of Measure', 'uom_id'],
       sell_price: ['Sales Price', 'list_price'],
       cost_price: ['Cost', 'standard_price'],
+    },
+    warehouse: {
+      name: ['Name', 'name'],
+      code: ['Short Name', 'code'],
+      branch_ref: ['Company', 'company_id'],
     },
   },
 };

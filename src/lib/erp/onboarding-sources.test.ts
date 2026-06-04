@@ -56,6 +56,33 @@ describe('onboarding-sources · autoMapHeaders', () => {
     expect(m.name).toBe('Customer Name');
   });
 
+  it('maps ERPNext extra customer fields (Tax ID → cr_number, Payment Terms)', () => {
+    const fields = [
+      ...customerFields,
+      { key: 'cr_number', labelEn: 'CR Number', labelAr: 'السجل التجاري' },
+      { key: 'payment_terms_days', labelEn: 'Payment Terms (days)', labelAr: 'مدة السداد' },
+    ];
+    const m = autoMapHeaders(['Tax ID', 'Payment Terms'], fields, getSourcePreset('erpnext'), 'customer');
+    expect(m.cr_number).toBe('Tax ID');
+    expect(m.payment_terms_days).toBe('Payment Terms');
+  });
+
+  it('maps warehouse exports for ERPNext (Warehouse Name) and Odoo (Short Name → code)', () => {
+    const whFields = [
+      { key: 'name', labelEn: 'Name', labelAr: 'الاسم' },
+      { key: 'code', labelEn: 'Code', labelAr: 'الكود' },
+      { key: 'branch_ref', labelEn: 'Branch (code)', labelAr: 'مرجع الفرع' },
+    ];
+    const erp = autoMapHeaders(['Warehouse Name', 'Branch'], whFields, getSourcePreset('erpnext'), 'warehouse');
+    expect(erp.name).toBe('Warehouse Name');
+    expect(erp.branch_ref).toBe('Branch');
+
+    const odoo = autoMapHeaders(['Name', 'Short Name', 'Company'], whFields, getSourcePreset('odoo'), 'warehouse');
+    expect(odoo.name).toBe('Name');
+    expect(odoo.code).toBe('Short Name');
+    expect(odoo.branch_ref).toBe('Company');
+  });
+
   it('returns only confident matches (unmatched fields omitted)', () => {
     const m = autoMapHeaders(['Whatever'], customerFields);
     expect(m).toEqual({});
