@@ -82,6 +82,9 @@ export const ar = {
     // Server-action errors
     errorNoItems: 'لم يتم اختيار أي صنف.',
     errorNameRequired: 'اسم المنتج مطلوب.',
+    errorNoPermission: 'ليس لديك صلاحية لتعديل المنتجات.',
+    errorCodeTaken: 'كود الصنف (SKU) مستخدم بالفعل.',
+    errorBarcodeTaken: 'الباركود مستخدم بالفعل لصنف آخر.',
     errorCategoryRequired: 'كود واسم التصنيف مطلوبان.',
 
     // Drug catalog picker
@@ -182,6 +185,9 @@ export const en = {
     // Server-action errors
     errorNoItems: 'No items selected.',
     errorNameRequired: 'Product name is required.',
+    errorNoPermission: 'You do not have permission to edit products.',
+    errorCodeTaken: 'This product code (SKU) is already in use.',
+    errorBarcodeTaken: 'This barcode is already used by another product.',
     errorCategoryRequired: 'Category code and name are required.',
 
     // Drug catalog picker

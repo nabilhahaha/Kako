@@ -1,6 +1,8 @@
-import { requireModule } from '@/lib/erp/guards';
+import { requireAnyModule } from '@/lib/erp/guards';
 
 export default async function ProductsModuleLayout({ children }: { children: React.ReactNode }) {
-  await requireModule('inventory');
+  // The product catalog backs both the generic Inventory module and the Fashion
+  // store pack (variants are catalog rows), so a clothing tenant may edit here too.
+  await requireAnyModule(['inventory', 'fashion']);
   return <>{children}</>;
 }

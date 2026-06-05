@@ -299,6 +299,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.invoices', href: '/sales/invoices', icon: FileText, perm: 'fashion.sell' },
       { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'fashion.sell' },
       { label: 'nav.items.fashionProducts', href: '/fashion/products', icon: Shirt, perm: 'fashion.inventory' },
+      { label: 'nav.items.products', href: '/products', icon: Package, perm: 'fashion.inventory' },
       { label: 'nav.items.fashionInventory', href: '/fashion/inventory', icon: Boxes, perm: 'fashion.inventory' },
       { label: 'nav.items.stockCount', href: '/inventory/count', icon: ClipboardList, perm: 'fashion.inventory' },
       { label: 'nav.items.stockAdjustments', href: '/inventory/adjustments', icon: SlidersHorizontal, perm: 'fashion.inventory' },
