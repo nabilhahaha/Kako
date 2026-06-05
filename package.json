@@ -20,6 +20,8 @@
     "offline:verify": "node scripts/offline/verify.mjs",
     "offline:backup": "node scripts/offline/backup.mjs",
     "offline:restore": "node scripts/offline/restore.mjs",
+    "offline:update": "node scripts/offline/update.mjs",
+    "offline:rollback": "node scripts/offline/rollback.mjs",
     "offline:cert": "node scripts/offline/recovery-cert.mjs"
   },
   "dependencies": {

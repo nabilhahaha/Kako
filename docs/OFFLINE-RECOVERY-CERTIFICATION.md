@@ -4,8 +4,8 @@
 
 - Edition: `retail`
 - OS / environment: `linux x64` (logic certification in Linux CI container; on-hardware macOS/Windows runs are part of P1/P2)
-- Build: `9ecb9b0`
-- Timestamp: `2026-06-05T22:41:36.014Z`
+- Build: `0a5ce88`
+- Timestamp: `2026-06-05T23:01:54.061Z`
 - Restore path: physical `pg_restore` (custom-format dump)
 
 ## Procedure
