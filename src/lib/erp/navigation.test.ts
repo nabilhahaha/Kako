@@ -79,6 +79,26 @@ describe('navigation — visibleSections', () => {
     expect(titles('general')).toContain('nav.sections.main');
     expect(titles(null)).toContain('nav.sections.main');
   });
+
+  it('Retail Mode hides platform/enterprise admin from a single-store tenant', () => {
+    // A clothing tenant super-admin (store owner) — strongest visibility.
+    const hrefs = (bt: string | null) =>
+      visibleSections(['fashion.manage'], true, false, ['fashion'], [], false, bt).flatMap((s) => s.items.map((i) => i.href));
+    const retail = hrefs('clothing');
+    // hidden in Retail Mode
+    for (const h of ['/settings/permissions', '/settings/organization', '/settings/regions', '/settings/marketplace',
+                     '/settings/audit-log', '/platform/audit', '/settings/einvoice', '/settings/authz',
+                     '/settings/custom-fields', '/settings/field-governance']) {
+      expect(retail, `retail should hide ${h}`).not.toContain(h);
+    }
+    // kept in Retail Mode (store-safe Settings)
+    expect(retail).toContain('/settings/users');
+    expect(retail).toContain('/settings/branches');
+    // non-retail (FMCG) tenant super-admin still sees the full admin set (no regression)
+    const fmcg = hrefs('general');
+    expect(fmcg).toContain('/settings/permissions');
+    expect(fmcg).toContain('/settings/regions');
+  });
 });
 
 describe('navigation — field_ops capability binding (any-of, no regression)', () => {

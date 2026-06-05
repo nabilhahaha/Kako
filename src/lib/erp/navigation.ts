@@ -455,6 +455,25 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
+// ── Retail Mode ──────────────────────────────────────────────────────────────
+// A single-store retail tenant (e.g. a clothing shop) must NOT see platform /
+// enterprise administration: Permission Control, Organization Structure, Regions,
+// Marketplace, the tenant/global Audit Centers, e-invoice, integrations, and the
+// FMCG data-governance tools. The platform/provider panel is already gated by
+// `platformOwnerOnly`. So for these business types the Settings section is
+// curated down to a store-safe allowlist; everything else stays available to
+// platform/system admins on non-retail (FMCG/enterprise) tenants — additive,
+// no behaviour change for other verticals.
+export const RETAIL_BUSINESS_TYPES = new Set<string>(['clothing']);
+const RETAIL_SETTINGS_ALLOW = new Set<string>([
+  '/settings/branches', // Store Information (the store/branch profile)
+  '/settings/staff',    // Users (team)
+  '/settings/users',    // Users (tenant super admin)
+  '/settings/printer',  // Printer settings (when present)
+  '/settings/backup',   // Backup (when present)
+  '/account',           // My Account
+]);
+
 /** Filter nav by the user's effective permissions / super-admin status and the
  *  feature modules unlocked by the company's plan. An empty `modules` list means
  *  "no module restriction" (safe fallback for platform owner / legacy tenants). */
@@ -494,6 +513,7 @@ export function visibleSections(
   // FMCG "control center" (Dashboard / Attention / Notifications) is irrelevant
   // clutter there, so it is dropped for the clothing business type only.
   const suppressGenericMain = businessType === 'clothing';
+  const retailMode = businessType ? RETAIL_BUSINESS_TYPES.has(businessType) : false;
 
   return NAV_SECTIONS
     .filter((s) => moduleAllowed(s.module))
@@ -501,6 +521,11 @@ export function visibleSections(
     .map((section) => ({
     ...section,
     items: section.items.filter((item) => {
+      // Retail Mode: hide platform/enterprise admin from a single-store tenant —
+      // the Settings section is curated to a store-safe allowlist (Store Info,
+      // Users, Printer, Backup, My Account). Permission Control, Org Structure,
+      // Regions, Audit Centers, e-invoice, integrations, governance are dropped.
+      if (retailMode && section.title === 'nav.sections.settings' && !RETAIL_SETTINGS_ALLOW.has(item.href)) return false;
       // Vendor-scoped items never belong to a tenant. `platformOwnerOnly` is the
       // owner-only flag; `platformPerm` marks an item gated by a *platform*
       // permission (e.g. Companies & subscriptions, Platform employees) — these
