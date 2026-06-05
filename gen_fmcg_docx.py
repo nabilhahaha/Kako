@@ -55,7 +55,9 @@ doc.add_page_break()
 
 # ── CONTENTS ──
 h1('Contents')
-toc=['0. Scope & Reuse','1. Sales Hierarchy (7 roles)','2. Customer Structure','3. Route Execution',
+toc=['0. Scope & Reuse','Part II — Enterprise RTM: Distributor Model & DSD',
+ 'Part II — Executive Dashboards (C-level)',
+ '1. Sales Hierarchy (7 roles)','2. Customer Structure','3. Route Execution',
  '4. Perfect Store (RED)','5. Trade Marketing (TPM)','6. Van Sales','7. Distribution KPIs',
  '8. Near-Expiry & Returns','9. Customer Data Governance (KSA)','10. Security & Permissions',
  '11. Database Design','12. Mobile-First Field App','13. Saudi Arabia Localization',
@@ -85,11 +87,74 @@ table(['Capability','In VANTORA today','This pack adds'],
   ['Saudi localization','bilingual','VAT 15%, ZATCA/Fatoora, CR, VAT no., National Address']],
  widths=[1.9,1.3,3.3])
 
+# ── PART II ──
+doc.add_page_break()
+h1('Part II — Enterprise Route-to-Market: Distributor Model & DSD')
+para('A dual-model RTM platform: the same tenant can run Direct Store Delivery (DSD), the Distributor '
+ '(indirect) model, or a Hybrid — across multiple brands, principals, and distributors by region — for '
+ 'all field-force types (distributor sales force, company sales force, van sales, merchandisers, Key '
+ 'Accounts).')
+fig(f'{D}/fmcg_rtm.png','Figure 2 — Dual operating model: DSD (direct) and Distributor (indirect), with sell-in (primary) vs sell-out (secondary).', 6.7)
+para('Company mode (role in the value chain): Manufacturer / Brand-Owner (owns brands → direct and/or '
+ 'via distributors), Distributor (represents principals → sells to outlets), or Hybrid (both). '
+ 'Per-region / per-country go-to-market is set independently, so the same company can run direct sales '
+ 'in one region and distributor sales in another:')
+table(['GTM (per region)','Chain','Sell-in (primary)','Sell-out (secondary)','Example'],
+ [['Direct (DSD)','Company → Outlet','— (direct)','Company → Outlet (the sale)','Riyadh: own van/sales force; Key Accounts'],
+  ['Distributor','Principal → Distributor → Outlet','Principal → Distributor','Distributor → Outlet','Eastern Province: appointed distributor'],
+  ['Hybrid','both','both','both','Modern Trade direct + Traditional Trade via distributor']],
+ widths=[1.2,1.7,1.3,1.3,1.0], fs=7.7)
+para('Principals, Brands & Distributors (multi-brand / multi-principal / multi-distributor):', b=True)
+bl(['Principal — a brand owner; the tenant may OWN brands (acts as principal) and/or REPRESENT principals (acts as distributor) → multi-principal.',
+ 'Brand — belongs to a principal; products map brand → principal → multi-brand. All sales/targets/spend/KPIs slice by brand & principal.',
+ 'Distributor — a partner with contract, credit, assigned territories/regions/channels, price list, optional linked tenant; multiple distributors by region with exclusivity rules.'])
+para('Sell-in vs Sell-out & Secondary Sales (core measurement):', b=True)
+bl(['Sell-in (primary): Principal → Distributor — depletion into channel; basis for distributor targets, rebates, trade-spend funding.',
+ 'Sell-out (secondary): Distributor → Outlet — true market demand; basis for ND/WD, coverage, availability, SOS, Perfect Store.',
+ 'Stock-in-trade = Σ sell-in − Σ sell-out per distributor/SKU → prevents channel loading; feeds forecasting.',
+ 'Secondary capture: (a) distributor runs the same pack; (b) secondary-sales ingestion (governed data-share); (c) principal’s own merchandisers capture availability/SOS.'])
+para('Distributor management, targets, rebates & trade spend:', b=True)
+bl(['Distributor management — onboarding, contracts, price lists, credit, performance scorecards, status (audited).',
+ 'Distributor targets — primary (sell-in) & secondary (sell-out) per distributor × brand × SKU × period; cascaded; rolled up.',
+ 'Rebate programs — volume / value / growth / mix / slab / display-linked; accrued on qualifying sales; approval + credit-note settlement; audited.',
+ 'Trade spend allocated & tracked per distributor (and brand/channel/principal); ROI/ROTS by distributor.',
+ 'Key Account Management (KAM) — Modern Trade / national chains managed direct (banner→chain→store, JBP, listing, planograms), parallel to distributors for Traditional Trade.'])
+para('Multi-tenant linkage & isolation:', b=True)
+bl(['Single-tenant — one company runs DSD and/or models distributors as partner entities + ingested secondary data; all rows scoped by company_id (standard RLS).',
+ 'Connected tenants (enterprise) — principal and distributor are separate VANTORA tenants linked by a consented, scoped, audited data-share over the integrations/sync layer. No cross-tenant RLS is opened; full tenant isolation preserved.'])
+para('Distributor inventory, coverage, scorecards & profitability:', b=True)
+bl(['Distributor inventory — stock-on-hand per distributor/SKU → days-of-cover, OOS, stock-in-trade.',
+ 'Distributor coverage — outlets covered ÷ universe in territory; productive coverage.',
+ 'Distributor scorecard — periodic composite (sell-in vs sell-out, coverage, ND/WD, target %, OTIF/fill-rate, claim & rebate status, Perfect-Store, receivables ageing) → ranked league table.',
+ 'Distributor profitability — gross-to-net: revenue (sell-in) − COGS − trade spend − rebates − logistics → margin & ROI by distributor/brand/region.'])
+para('Strategic planning — JBP, agreements, budgets, growth & market share:', b=True)
+bl(['Annual Joint Business Plans (JBP) — per distributor/key account: volume & value targets, growth, trade-spend envelope, activity calendar, agreed KPIs; reviewed quarterly.',
+ 'Distributor agreements — terms, exclusivity, margins, payment terms, SLAs, period.',
+ 'Trade-spend budgets — annual by brand/channel/distributor/region, phased to the activity calendar; commitments vs actuals; ROI/ROTS.',
+ 'Growth targets — YoY by brand/region/distributor. Market-share tracking — share % & trend (panel import or estimated from ND/WD & SOS).',
+ 'Regional performance — consolidated region/country P&L, coverage, growth, share, target attainment.'])
+para('KPIs roll up: outlet (secondary) → distributor → territory → channel → brand → principal → national, with sell-in vs sell-out reconciliation.', it=True)
+
+# ── EXECUTIVE DASHBOARDS ──
+h1('Part II — Executive Dashboards (C-level)')
+para('Role-scoped, read-only strategic dashboards over the rollups — no live heavy scans; drill-down '
+ 'respects role scope. Built for enterprise FMCG operating across multiple regions and countries '
+ '(region → country → area → territory → route; per-region mode & GTM; per-country localization; '
+ 'currency-normalized group consolidation).')
+fig(f'{D}/fmcg_execdash.png','Figure 3 — C-level executive dashboards fed by the distribution rollup layer.', 6.6)
+table(['Persona','Focus KPIs'],
+ [['CEO','Revenue & growth (vs target/LY), market share & trend, gross-to-net margin, region/country performance, top risks'],
+  ['Commercial Director','Sell-in vs sell-out, distributor scorecards & profitability, JBP attainment, channel & brand mix, receivables'],
+  ['Sales Director','Coverage, ND/WD, strike rate, productivity, target attainment by region/area/rep, Perfect-Store'],
+  ['Trade Marketing Director','Trade-spend vs budget, ROI/ROTS, promotion & display effectiveness, listing, claims, activity calendar'],
+  ['Supply Chain Director','Fill-rate / OTIF, distributor inventory & days-of-cover, stock-in-trade, near/old expiry & write-offs, forecast vs actual']],
+ widths=[1.9,4.6])
+
 # ── 1 ──
 h1('1. Sales Hierarchy (7 roles)')
 para('Reuses VANTORA roles + per-branch reporting lines and region/area/route scope. Targets cascade '
  'down; achievement and approvals roll up. Scope determines data visibility and approval authority.')
-fig(f'{D}/fmcg_hierarchy.png','Figure 2 — FMCG sales hierarchy: scope & approval authority.', 6.6)
+fig(f'{D}/fmcg_hierarchy.png','Figure 4 — FMCG sales hierarchy: scope & approval authority.', 6.6)
 
 # ── 2 ──
 h1('2. Customer Structure')
@@ -182,7 +247,9 @@ table(['Group','Permission keys'],
   ['Perfect Store','field.sales, visit.override_gps, visit.approve_out_of_route, audit.capture, assortment.manage, grade.manage, planogram.manage'],
   ['Trade marketing','trade.promo/display/listing/budget.manage, trade.claim.create/approve'],
   ['Near/old expiry','expiry.manage, returns.claim.create/approve, inventory.adjustment.approve'],
-  ['Targets / analytics','target.view/manage, reports.view, report.aggregate.view, reconciliation.view/manage/approve']],
+  ['Targets / analytics','target.view/manage, reports.view, report.aggregate.view, reconciliation.view/manage/approve'],
+  ['Distributor / RTM','principal.manage, brand.manage, distributor.manage, distributor.target.manage, secondary.ingest, rebate.scheme.manage, rebate.accrual.approve, keyaccount.manage'],
+  ['Strategy / Executive','exec.dashboard.view, jbp.manage, agreement.manage, growth.target.manage, market.share.manage, distributor.scorecard.view']],
  widths=[1.4,5.1])
 para('Role × approval authority (key):', b=True)
 table(['Capability','Merch','Sales/Van','Supervisor','Area','Regional','NSM'],
@@ -203,7 +270,7 @@ para('All approvals + sensitive mutations are written to erp_audit_logs via erp_
 h1('11. Database Design')
 para('All new tables company_id-scoped; RLS company_id = erp_user_company_id() OR erp_is_platform_owner(); '
  'created_by/updated_by/created_at; audited mutations.')
-fig(f'{D}/fmcg_erd.png','Figure 3 — FMCG pack entity-relationship overview.', 6.6)
+fig(f'{D}/fmcg_erd.png','Figure 5 — FMCG pack entity-relationship overview.', 6.6)
 table(['Table group','Purpose'],
  [['channels / customer_profile / customer_change_requests','channel master, FMCG+KSA attributes, CDG governance'],
   ['journey_plans / journey_stops / beats / accompaniments','PJP, planned visits, day beat, route-riding evals'],
@@ -212,7 +279,12 @@ table(['Table group','Purpose'],
   ['promotions / promo_lines / listing_fees / displays / display_contracts','trade mechanics'],
   ['trade_budgets / trade_spend / activity_calendar / claims / claim_lines','spend + claims lifecycle'],
   ['expiry_batches / return_claims / return_claim_lines','near/old expiry + returns'],
-  ['targets / daily_rollup','targets + pre-aggregated KPIs']],
+  ['targets / daily_rollup','targets + pre-aggregated KPIs (by brand/principal/distributor/territory)'],
+  ['principals / brands / distributors / distributor_territories','RTM master: multi-brand, multi-principal, multi-distributor by region'],
+  ['distributor_targets / secondary_sales / channel_stock','sell-in & sell-out targets; secondary transactions; stock-in-trade'],
+  ['rebate_schemes / _accruals / _settlements / key_accounts','rebate programs lifecycle; Key Account Management'],
+  ['operating_modes / distributor_inventory / distributor_scorecards','company mode + per-region GTM; distributor stock; scorecards'],
+  ['distributor_agreements / jbp / growth_targets / market_share','contracts; Joint Business Plans; growth & market share']],
  widths=[3.0,3.5])
 para('Index strategy: every FK indexed; composite (company_id, created_at DESC) and (route_id/salesman, '
  'date) on high-volume tables; partial indexes for hot predicates; RLS auth wrapped in (SELECT …). '
@@ -280,7 +352,7 @@ bl(['Pre-sell vs van-sell (or hybrid) default per channel — model supports bot
 # ── APPENDIX ──
 doc.add_page_break()
 h1('Appendix — Workflow Diagrams')
-fig(f'{D}/fmcg_workflows.png','Figure 4 — Key FMCG operational workflows (van-sales day cycle, visit & merchandising, trade promotion & claims, near/old expiry, customer data governance).', 6.5)
+fig(f'{D}/fmcg_workflows.png','Figure 6 — Key FMCG operational workflows (van-sales day cycle, visit & merchandising, trade promotion & claims, near/old expiry, customer data governance).', 6.5)
 
 end=doc.add_paragraph(); end.alignment=WD_ALIGN_PARAGRAPH.CENTER
 r=end.add_run('— End of design document —'); r.italic=True; r.font.color.rgb=RGBColor(0x88,0x88,0x88)

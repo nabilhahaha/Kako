@@ -120,6 +120,60 @@ def hierarchy():
     ax.text(cx,ys[0]+1.25,'Targets cascade DOWN  ·  Achievement & approvals roll UP',fontsize=8.5,color=CYAN,fontweight='bold',ha='center')
     save(fig,'fmcg_hierarchy.png')
 
+# 5. RTM OPERATING MODELS (DSD + Distributor + multi-entity)
+def rtm():
+    fig,ax=plt.subplots(figsize=(11.4,8.2)); ax.axis('off'); ax.set_xlim(0,23); ax.set_ylim(0,16)
+    ax.text(11.5,15.4,'Enterprise Route-to-Market — Dual Operating Model',fontsize=13,color=NAVY,fontweight='bold',ha='center')
+    # Panel 1: DSD (top)
+    ax.text(0.6,13.7,'A. Direct Store Delivery (DSD)  —  Company → Customer',fontsize=10.5,color=GREEN,fontweight='bold')
+    box(ax,3.5,12.2,3.6,1.2,'COMPANY\n(own sales/van force)',fc='#ECFDF3',ec=GREEN,fs=8.6)
+    box(ax,11.5,12.2,3.4,1.2,'OUTLETS',fc=FILL,ec=NAVY,fs=9)
+    box(ax,18.5,12.2,4.2,1.2,'KEY ACCOUNTS\n(Modern Trade / JBP)',fc='#F5F3FF',ec=PUR,fs=8.2)
+    arr(ax,(5.3,12.2),(9.8,12.2),color=GREEN); ax.text(7.5,12.7,'Sell-out (direct sale)',fontsize=7.6,color=GREY,ha='center',fontstyle='italic')
+    arr(ax,(5.3,12.0),(16.4,12.0),color=PUR,lw=1.2); ax.text(13.5,11.5,'direct / Key Accounts',fontsize=7.2,color=PUR,ha='center',fontstyle='italic')
+    ax.plot([0.4,22.6],[10.9,10.9],color='#DDD',lw=1)
+    # Panel 2: Distributor (bottom)
+    ax.text(0.6,10.2,'B. Distributor (Indirect) Model  —  Principal → Distributor → Customer',fontsize=10.5,color=CYAN,fontweight='bold')
+    box(ax,4.2,8.6,4.6,1.5,'PRINCIPAL / BRAND OWNER\nBrands B1·B2·B3 (multi-brand)\nmulti-principal',fc=LIGHT,ec=CYAN,fs=8.0)
+    dists=[('DISTRIBUTOR — North',11.0,6.2),('DISTRIBUTOR — Central',16.0,6.2),('DISTRIBUTOR — South',21.0,6.2)]
+    for t,x,y in dists: box(ax,x,y,4.0,1.2,t,fc=FILL,ec=NAVY,fs=7.8)
+    for t,x,y in dists:
+        arr(ax,(6.5,8.4),(x-1.2,y+0.7),color=NAVY,lw=1.4)
+    ax.text(8.0,7.9,'Sell-in (primary)',fontsize=8.0,color=NAVY,ha='center',fontstyle='italic',fontweight='bold')
+    # outlets row
+    for t,x,y in dists:
+        box(ax,x,2.6,4.0,1.1,'OUTLETS',fc=FILL,ec=GREY,fs=8.5)
+        arr(ax,(x,y-0.6),(x,3.2),color=CYAN,lw=1.5)
+    ax.text(16.0,4.6,'Sell-out (secondary)  =  true market demand → ND/WD, coverage, SOS, Perfect Store',fontsize=8.0,color=CYAN,ha='center',fontstyle='italic',fontweight='bold')
+    # secondary data-share back to principal (dashed)
+    a=FancyArrowPatch((11.0,5.6),(5.0,7.8),arrowstyle='-|>',mutation_scale=11,lw=1.3,color=AMBER,linestyle=(0,(4,2)),shrinkA=4,shrinkB=4); ax.add_patch(a)
+    ax.text(6.6,5.9,'Secondary-sales ingestion\n(governed data-share, audited)',fontsize=7.2,color=AMBER,ha='center',fontstyle='italic')
+    ax.text(11.5,1.2,'Operating mode set per region/country (Manufacturer / Distributor / Hybrid) · stock-in-trade = Σ sell-in − Σ sell-out · full tenant isolation preserved',
+            fontsize=7.6,color=GREY,ha='center',fontstyle='italic')
+    save(fig,'fmcg_rtm.png')
+
+# 6. EXECUTIVE DASHBOARDS (C-level)
+def execdash():
+    fig,ax=plt.subplots(figsize=(11.8,7.0)); ax.axis('off'); ax.set_xlim(0,24); ax.set_ylim(0,13)
+    ax.text(12,12.3,'Executive Dashboards — Role-Scoped Strategic Views',fontsize=13,color=NAVY,fontweight='bold',ha='center')
+    personas=[
+      ('CEO','Revenue & growth\nMarket share & trend\nGross-to-net margin\nRegion/country P&L',CYAN,'#EAF6F9'),
+      ('Commercial\nDirector','Sell-in vs sell-out\nDistributor scorecards\n& profitability · JBP\nChannel/brand mix',NAVY,FILL),
+      ('Sales\nDirector','Coverage · ND/WD\nStrike rate · productivity\nTarget attainment\nPerfect Store',NAVY,FILL),
+      ('Trade Marketing\nDirector','Trade spend vs budget\nROI / ROTS\nPromo/display effect\nListing · claims',AMBER,'#FFF7E6'),
+      ('Supply Chain\nDirector','Fill-rate / OTIF\nDistributor inventory\nStock-in-trade\nExpiry · forecast vs actual',PUR,'#F5F3FF'),
+    ]
+    n=len(personas); x0,x1=0.8,23.2; w=4.0
+    xs=[x0+w/2+i*((x1-x0-w)/(n-1)) for i in range(n)]
+    for i,(t,k,ec,fc) in enumerate(personas):
+        box(ax,xs[i],9.6,w,1.5,t,fc=fc,ec=ec,fs=10.0)
+        box(ax,xs[i],6.7,w,2.5,k,fc='white',ec=GREY,fs=7.8,tc=NAVY)
+        arr(ax,(xs[i],4.7),(xs[i],5.4),color=NAVY,lw=1.4)
+    box(ax,12,3.4,21.5,1.7,'Distribution Rollups (daily / period)\nsell-in · sell-out · secondary · coverage · ND/WD · trade spend · market share · gross-to-net · region/country',fc=LIGHT,ec=CYAN,fs=8.6)
+    box(ax,12,1.1,21.5,1.0,'Pre-aggregated · role-scoped · no live cross-tenant scans · drill-down respects scope',fc=FILL,ec=GREY,fs=8.0,tc=GREY)
+    arr(ax,(12,2.55),(12,2.1),color=GREY,lw=1.2,style='-|>')
+    save(fig,'fmcg_execdash.png')
+
 print('Generating FMCG diagrams...')
-arch(); erd(); workflows(); hierarchy()
+arch(); erd(); workflows(); hierarchy(); rtm(); execdash()
 print('Done.')
