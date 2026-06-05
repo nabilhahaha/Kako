@@ -165,6 +165,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformPerm: 'view_companies', group: 'nav.groups.providerTenants' },
       // ── Catalog ──
       { label: 'nav.items.plansCatalog', href: '/platform/plans', icon: Layers, platformOwnerOnly: true, group: 'nav.groups.providerCatalog' },
+      { label: 'nav.items.rolesCatalog', href: '/platform/roles', icon: ShieldCheck, platformOwnerOnly: true, group: 'nav.groups.providerCatalog' },
       // ── Billing ──
       { label: 'nav.items.billing', href: '/platform/billing', icon: CreditCard, platformOwnerOnly: true, group: 'nav.groups.providerBilling' },
       // ── Team & Access ──
