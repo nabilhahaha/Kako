@@ -212,12 +212,65 @@ export async function openCashbox(formData: FormData): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function closeCashbox(sessionId: string, counted: number): Promise<ActionResult> {
+export async function closeCashbox(sessionId: string, counted: number, notes?: string, final = true): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('fashion.cashbox');
   if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
   const supabase = await createClient();
-  const { error } = await supabase.rpc('erp_fashion_close_cashbox', { p_session_id: sessionId, p_counted: counted });
+  const { error } = await supabase.rpc('erp_fashion_close_cashbox', {
+    p_session_id: sessionId, p_counted: counted, p_notes: notes?.trim() || null, p_final: final,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidate();
+  return { ok: true };
+}
+
+// ─── Re-open a closing — manager (fashion.manage) only, audited with a reason ──
+export async function reopenCashbox(sessionId: string, reason: string): Promise<ActionResult> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.manage');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  if (!reason.trim()) return { ok: false, error: t('fashion.errors.required') };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_fashion_reopen_cashbox', { p_session_id: sessionId, p_reason: reason.trim() });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidate();
+  return { ok: true };
+}
+
+// ─── Owner cash (withdrawal / deposit) — owner/admin only ─────────────────────
+export async function ownerCash(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.manage');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  const direction = String(formData.get('direction') || '');
+  if (direction !== 'withdrawal' && direction !== 'deposit') return { ok: false, error: t('fashion.errors.required') };
+  const branchId = await resolveBranch(ctx.companyId, String(formData.get('branch_id') || '') || null);
+  if (!branchId) return { ok: false, error: t('fashion.errors.noBranch') };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_fashion_owner_cash', {
+    p_branch_id: branchId, p_direction: direction,
+    p_amount: Number(formData.get('amount') || 0),
+    p_note: String(formData.get('note') || '').trim() || null,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidate();
+  return { ok: true };
+}
+
+// ─── Cash adjustment (signed correction, audited) — owner/admin only ──────────
+export async function cashAdjust(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.manage');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  const branchId = await resolveBranch(ctx.companyId, String(formData.get('branch_id') || '') || null);
+  if (!branchId) return { ok: false, error: t('fashion.errors.noBranch') };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_fashion_cash_adjust', {
+    p_branch_id: branchId,
+    p_amount: Number(formData.get('amount') || 0),
+    p_note: String(formData.get('note') || '').trim() || null,
+  });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidate();
   return { ok: true };
