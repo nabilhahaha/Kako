@@ -55,6 +55,21 @@ export async function requireModule(module: Module): Promise<UserContext> {
 }
 
 /**
+ * Page/layout guard: ensure the user holds ANY of the given feature modules.
+ * Used by trees shared across verticals — e.g. the inventory operations pages
+ * (count/adjustments/movements/variance) serve both the generic `inventory`
+ * module and the `fashion` store pack, so either entitlement may enter.
+ * Platform owner / super admins bypass. Redirects when none are present.
+ */
+export async function requireAnyModule(modules: Module[]): Promise<UserContext> {
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+  if (ctx.isPlatformOwner || ctx.isSuperAdmin) return ctx;
+  if (!modules.some((m) => ctx.modules.includes(m))) redirect(`/upgrade?module=${modules[0]}`);
+  return ctx;
+}
+
+/**
  * Page/layout guard: ensure the user holds a permission. The platform owner (the
  * vendor) and global super admins hold everything — consistent with
  * `requireModule` — so a permission gate never blocks the apex tiers. Redirects
