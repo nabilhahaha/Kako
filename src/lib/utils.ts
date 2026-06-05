@@ -39,6 +39,23 @@ export function formatDate(
   }).format(d);
 }
 
+/** Date + time (short), e.g. for invoice timestamps. Locale-aware; '—' if absent. */
+export function formatDateTime(
+  value: string | Date | null | undefined,
+  locale = 'ar-EG',
+) {
+  if (!value) return '—';
+  const d = typeof value === 'string' ? new Date(value) : value;
+  if (isNaN(d.getTime())) return '—';
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
+}
+
 /** Whole-years age from a birth date (string or Date). Returns null if absent/invalid. */
 export function ageFromBirthDate(value: string | Date | null | undefined): number | null {
   if (!value) return null;

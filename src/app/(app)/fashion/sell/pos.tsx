@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n/provider';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,7 +15,7 @@ import type { Locale } from '@/lib/i18n/config';
 import { cartTotals, variantUnitPrice, type SaleType } from '@/lib/fashion/pricing';
 import { buildSchedule, financedAmount, type InstallmentFrequency } from '@/lib/fashion/installments';
 import { checkout } from '../actions';
-import { Trash2, Plus, Minus } from 'lucide-react';
+import { Trash2, Plus, Minus, Printer, FileDown } from 'lucide-react';
 
 interface Item { product_id: string; code: string; name: string; barcode: string; cash_price: number; installment_price: number }
 interface Customer { id: string; name: string; phone: string | null }
@@ -31,7 +32,10 @@ export function Pos({ items, customers, locale }: { items: Item[]; customers: Cu
   const [down, setDown] = useState(0);
   const [count, setCount] = useState(3);
   const [freq, setFreq] = useState<InstallmentFrequency>('monthly');
+  const [lastSale, setLastSale] = useState<{ id: string; number: string } | null>(null);
+  const [focusSignal, setFocusSignal] = useState(0);
   const money = (n: number) => formatCurrency(n, 'EGP', INTL_LOCALE[locale]);
+  const newSale = () => { setLastSale(null); setFocusSignal((n) => n + 1); };
 
   function addItem(it: Item) {
     setCart((c) => {
@@ -59,7 +63,9 @@ export function Pos({ items, customers, locale }: { items: Item[]; customers: Cu
       });
       if (res.ok && res.data) {
         toast.success(`${t('fashion.sell.done')} · ${res.data.invoiceNumber}`);
+        setLastSale({ id: res.data.invoiceId, number: res.data.invoiceNumber });
         setCart([]); setDiscount(0); setDown(0); setCustomerId('');
+        setFocusSignal((n) => n + 1); // return the cursor to the scan field
         router.refresh();
       } else toast.error(res.error || 'Error');
     });
@@ -68,10 +74,41 @@ export function Pos({ items, customers, locale }: { items: Item[]; customers: Cu
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <div className="space-y-3">
+        {lastSale && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-success/40 bg-success/10 p-2 text-sm">
+            <span className="min-w-0 truncate">
+              {t('fashion.sell.done')} · <span className="font-mono" dir="ltr">{lastSale.number}</span>
+            </span>
+            <span className="flex shrink-0 flex-wrap items-center gap-1">
+              <Link
+                href={`/print/fashion/invoice/${lastSale.id}`}
+                target="_blank"
+                className="inline-flex items-center gap-1 rounded-md bg-success/20 px-2 py-1 text-xs font-medium hover:bg-success/30"
+              >
+                <Printer className="h-3.5 w-3.5" /> {t('fashion.invoices.print')}
+              </Link>
+              <Link
+                href={`/print/fashion/invoice/${lastSale.id}?print=1`}
+                target="_blank"
+                className="inline-flex items-center gap-1 rounded-md bg-success/20 px-2 py-1 text-xs font-medium hover:bg-success/30"
+              >
+                <FileDown className="h-3.5 w-3.5" /> {t('fashion.invoices.savePdf')}
+              </Link>
+              <button
+                type="button"
+                onClick={newSale}
+                className="inline-flex items-center gap-1 rounded-md bg-success/20 px-2 py-1 text-xs font-medium hover:bg-success/30"
+              >
+                <Plus className="h-3.5 w-3.5" /> {t('fashion.sell.newSale')}
+              </button>
+            </span>
+          </div>
+        )}
         <div>
           <ProductSearchBox
             items={items}
             autoFocus
+            focusSignal={focusSignal}
             placeholder={t('fashion.sell.searchPlaceholder')}
             onSelect={addItem}
             onNoMatch={() => toast.error(t('fashion.errors.notFound'))}

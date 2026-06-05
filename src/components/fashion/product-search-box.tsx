@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,7 @@ export function ProductSearchBox<T extends SearchableProduct>({
   autoFocus = false,
   limit = 8,
   onNoMatch,
+  focusSignal,
   className,
 }: {
   items: readonly T[];
@@ -35,6 +36,8 @@ export function ProductSearchBox<T extends SearchableProduct>({
   limit?: number;
   /** Called when Enter is pressed but nothing matched (e.g. unknown barcode). */
   onNoMatch?: (query: string) => void;
+  /** Changing this number re-focuses the input (e.g. after a sale completes). */
+  focusSignal?: number;
   className?: string;
 }) {
   const { t } = useI18n();
@@ -43,6 +46,12 @@ export function ProductSearchBox<T extends SearchableProduct>({
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
+
+  // Re-focus the scan field on demand (the cashier's cursor returns here after
+  // charging a sale or starting a new one, keeping the workflow keyboard-first).
+  useEffect(() => {
+    if (focusSignal !== undefined) inputRef.current?.focus();
+  }, [focusSignal]);
 
   const results = searchProducts(items, query, limit);
   const open = focused && query.trim().length > 0;

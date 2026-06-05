@@ -295,6 +295,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'nav.items.fashionDashboard', href: '/fashion', icon: LayoutDashboard, perm: ['fashion.manage', 'fashion.sell', 'fashion.inventory'] },
       { label: 'nav.items.fashionSell', href: '/fashion/sell', icon: ScanBarcode, perm: 'fashion.sell' },
+      { label: 'nav.items.fashionInvoices', href: '/fashion/invoices', icon: Receipt, perm: ['fashion.sell', 'fashion.reports'] },
       { label: 'nav.items.fashionProducts', href: '/fashion/products', icon: Shirt, perm: 'fashion.inventory' },
       { label: 'nav.items.fashionInventory', href: '/fashion/inventory', icon: Boxes, perm: 'fashion.inventory' },
       { label: 'nav.items.fashionCustomers', href: '/fashion/customers', icon: Users, perm: ['fashion.sell', 'fashion.installments'] },
