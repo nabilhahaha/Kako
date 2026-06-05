@@ -9,11 +9,15 @@ import { getT } from '@/lib/i18n/server';
  * Start a stock count for a warehouse: snapshots the current system quantity
  * of every active product (counted defaults to system until edited).
  */
-export async function createStockCount(warehouseId: string): Promise<ActionResult<{ id: string }>> {
+export async function createStockCount(
+  warehouseId: string,
+  countType: 'opening' | 'monthly' | 'spot' = 'monthly',
+): Promise<ActionResult<{ id: string }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
   const { t } = await getT();
   if (!warehouseId) return { ok: false, error: t('inventory.errorSelectWarehouse') };
+  const type = (['opening', 'monthly', 'spot'] as const).includes(countType) ? countType : 'monthly';
 
   const supabase = await createClient();
   const { data: wh } = await supabase
@@ -31,7 +35,7 @@ export async function createStockCount(warehouseId: string): Promise<ActionResul
 
   const { data: count, error: cErr } = await supabase
     .from('erp_stock_counts')
-    .insert({ warehouse_id: warehouseId, count_number: number as string, status: 'draft', counted_by: ctx!.userId })
+    .insert({ warehouse_id: warehouseId, count_number: number as string, status: 'draft', count_type: type, counted_by: ctx!.userId })
     .select('id')
     .single();
   if (cErr) return { ok: false, error: friendlyDbError(cErr) };

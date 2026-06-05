@@ -61,6 +61,7 @@ import * as vanops from './vanops';
 import * as onboarding from './onboarding';
 import * as retail from './retail';
 import * as fashion from './fashion';
+import * as ops from './ops';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -73,6 +74,7 @@ const MODULES = [
   onboarding,
   retail,
   fashion,
+  ops,
 ];
 
 type Catalog = Record<string, unknown>;
