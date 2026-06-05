@@ -139,6 +139,11 @@ export const ar = {
       integrations: 'التكاملات',
       governance: 'الحوكمة',
       personal: 'شخصي',
+      providerOverview: 'نظرة عامة',
+      providerTenants: 'الشركات',
+      providerBilling: 'الفوترة',
+      providerTeam: 'الفريق والصلاحيات',
+      providerReference: 'بيانات مرجعية',
     },
     bottom: {
       home: 'الرئيسية',
@@ -422,6 +427,11 @@ export const en = {
       integrations: 'Integrations',
       governance: 'Governance',
       personal: 'Personal',
+      providerOverview: 'Overview',
+      providerTenants: 'Tenants',
+      providerBilling: 'Billing',
+      providerTeam: 'Team & Access',
+      providerReference: 'Reference Data',
     },
     bottom: {
       home: 'Home',

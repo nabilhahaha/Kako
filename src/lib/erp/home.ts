@@ -8,10 +8,23 @@ import type { Module } from './navigation';
  */
 export function resolveHomePath(ctx: {
   isPlatformOwner?: boolean;
+  /** The tenant company the user belongs to. A vendor-tier user (platform owner
+   *  / platform staff) has none — they must NOT be routed into a tenant vertical
+   *  home: they hold ALL_MODULES by default, which would otherwise pick a vertical
+   *  and, for staff, bounce off that vertical's permission guard into a redirect
+   *  loop. */
+  companyId?: string | null;
   modules: Module[];
   permissions: Permission[];
 }): string {
+  // The vendor platform owner runs the platform, not a tenant store.
   if (ctx.isPlatformOwner) return '/platform';
+
+  // A user explicitly tied to NO tenant company (platform staff / orphaned) has
+  // no vertical home — land them on the neutral dashboard. `companyId` is present
+  // on UserContext so all real callers pass it; when omitted (legacy/test callers
+  // that pass only modules) the original module-based routing is preserved.
+  if (ctx.companyId === null) return '/dashboard';
 
   const has = (m: Module) => ctx.modules.includes(m);
   const can = (p: Permission) => ctx.permissions.includes(p);

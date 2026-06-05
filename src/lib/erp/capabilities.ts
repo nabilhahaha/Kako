@@ -123,23 +123,26 @@ export function expandAliases(perms: readonly string[]): Set<string> {
 
 export interface CapabilityContext {
   isSuperAdmin: boolean;
+  /** The vendor platform owner — an apex tier that holds every capability,
+   *  consistent with super admins and `requireModule`. Optional so pure
+   *  client/test callers can omit it (treated as false). */
+  isPlatformOwner?: boolean;
   permissions: readonly string[];
 }
 
 /**
  * Whether the user holds a capability — granular (`module.resource.action`) or
- * legacy flat — resolving through the alias layer. Super admins hold all.
- * This is the granular-aware companion to `hasPermission`; it is intentionally
- * additive and is not yet wired into existing call sites (that is Phase 2).
+ * legacy flat — resolving through the alias layer. The platform owner and super
+ * admins hold all. This is the granular-aware companion to `hasPermission`.
  */
 export function can(ctx: CapabilityContext, capability: string): boolean {
-  if (ctx.isSuperAdmin) return true;
+  if (ctx.isSuperAdmin || ctx.isPlatformOwner) return true;
   return expandAliases(ctx.permissions).has(capability);
 }
 
-/** Whether the user holds ANY of the given capabilities. Super admins: yes. */
+/** Whether the user holds ANY of the given capabilities. Platform owner / super admins: yes. */
 export function canAny(ctx: CapabilityContext, capabilities: readonly string[]): boolean {
-  if (ctx.isSuperAdmin) return true;
+  if (ctx.isSuperAdmin || ctx.isPlatformOwner) return true;
   const eff = expandAliases(ctx.permissions);
   return capabilities.some((c) => eff.has(c));
 }

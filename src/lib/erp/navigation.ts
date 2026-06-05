@@ -152,14 +152,24 @@ export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
 export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'nav.sections.provider',
+    // Grouped like a modern SaaS admin (Stripe / Vercel / GitHub org): Overview,
+    // Tenants, Billing, Team & Access, Reference Data. Each item keeps its
+    // vendor-scope gate (platformOwnerOnly or a granular platformPerm) so staff
+    // see only their slice and tenants see none of it.
     items: [
-      { label: 'nav.items.overview', href: '/platform', icon: LayoutDashboard, platformOwnerOnly: true },
-      { label: 'nav.items.activityFeed', href: '/platform/activity', icon: Activity, platformOwnerOnly: true },
-      { label: 'nav.items.platformAnalytics', href: '/platform/analytics', icon: BarChart3, platformOwnerOnly: true },
-      { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformPerm: 'view_companies' },
-      { label: 'nav.items.billing', href: '/platform/billing', icon: CreditCard, platformOwnerOnly: true },
-      { label: 'nav.items.platformStaff', href: '/platform/staff', icon: UserCog, platformPerm: 'manage_users' },
-      { label: 'nav.items.drugsList', href: '/platform/drugs', icon: Pill, platformOwnerOnly: true },
+      // ── Overview ──
+      { label: 'nav.items.overview', href: '/platform', icon: LayoutDashboard, platformOwnerOnly: true, group: 'nav.groups.providerOverview' },
+      { label: 'nav.items.activityFeed', href: '/platform/activity', icon: Activity, platformOwnerOnly: true, group: 'nav.groups.providerOverview' },
+      { label: 'nav.items.platformAnalytics', href: '/platform/analytics', icon: BarChart3, platformOwnerOnly: true, group: 'nav.groups.providerOverview' },
+      // ── Tenants ──
+      { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformPerm: 'view_companies', group: 'nav.groups.providerTenants' },
+      // ── Billing ──
+      { label: 'nav.items.billing', href: '/platform/billing', icon: CreditCard, platformOwnerOnly: true, group: 'nav.groups.providerBilling' },
+      // ── Team & Access ──
+      { label: 'nav.items.platformStaff', href: '/platform/staff', icon: UserCog, platformPerm: 'manage_users', group: 'nav.groups.providerTeam' },
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, platformPerm: 'access_audit_logs', showForPlatformOwner: true, group: 'nav.groups.providerTeam' },
+      // ── Reference Data ──
+      { label: 'nav.items.drugsList', href: '/platform/drugs', icon: Pill, platformOwnerOnly: true, group: 'nav.groups.providerReference' },
     ],
   },
   {
@@ -399,7 +409,9 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.copilotAnalytics', href: '/platform/copilot-analytics', icon: HelpCircle, perm: 'settings.users', showForPlatformOwner: true, group: 'nav.groups.governance' },
       { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.governance' },
-      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs', group: 'nav.groups.governance' },
+      // Tenant super-admins reach the audit log here; the platform owner/staff
+      // see it under the Platform → Team & Access group (no duplicate).
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, group: 'nav.groups.governance' },
       // ── Personal ──
       { label: 'nav.items.designSystem', href: '/design', icon: Palette, superAdminOnly: true, group: 'nav.groups.personal' },
       { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true, group: 'nav.groups.personal' },

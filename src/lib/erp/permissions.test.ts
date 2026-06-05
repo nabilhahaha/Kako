@@ -50,6 +50,10 @@ describe('hasPermission', () => {
     expect(hasPermission(ctx, 'sales.sell')).toBe(true);
     expect(hasPermission(ctx, 'clinic.manage')).toBe(false);
   });
+  it('the platform owner (vendor apex tier) holds every permission', () => {
+    expect(hasPermission({ isSuperAdmin: false, isPlatformOwner: true, permissions: [] }, 'clinic.manage')).toBe(true);
+    expect(hasAnyPermission({ isSuperAdmin: false, isPlatformOwner: true, permissions: [] }, ['hotel.manage'])).toBe(true);
+  });
 });
 
 describe('hasAnyPermission', () => {
