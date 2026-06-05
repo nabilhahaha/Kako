@@ -167,13 +167,16 @@ BEGIN
     INTO v_in, v_out, v_adj, v_cash, v_exp, v_owd, v_odp
     FROM erp_cash_movements WHERE session_id = p_session_id;
 
-  -- Non-cash tender for the daily report (by payment method, this session window)
+  -- Non-cash tender for the daily report (by payment method, this session window).
+  -- erp_invoices is scoped by branch (not company), so resolve company via branch.
   SELECT
     COALESCE(SUM(p.amount) FILTER (WHERE p.payment_method = 'credit_card'), 0),
     COALESCE(SUM(p.amount) FILTER (WHERE p.payment_method = 'bank_transfer'), 0)
     INTO v_card, v_xfer
-    FROM erp_payments p JOIN erp_invoices i ON i.id = p.invoice_id
-    WHERE i.company_id = s.company_id
+    FROM erp_payments p
+    JOIN erp_invoices i ON i.id = p.invoice_id
+    JOIN erp_branches bb ON bb.id = i.branch_id
+    WHERE bb.company_id = s.company_id
       AND (s.branch_id IS NULL OR i.branch_id = s.branch_id)
       AND p.created_at >= s.opened_at;
 
