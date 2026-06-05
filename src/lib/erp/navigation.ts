@@ -163,6 +163,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.platformAnalytics', href: '/platform/analytics', icon: BarChart3, platformOwnerOnly: true, group: 'nav.groups.providerOverview' },
       // ── Tenants ──
       { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformPerm: 'view_companies', group: 'nav.groups.providerTenants' },
+      // ── Catalog ──
+      { label: 'nav.items.plansCatalog', href: '/platform/plans', icon: Layers, platformOwnerOnly: true, group: 'nav.groups.providerCatalog' },
       // ── Billing ──
       { label: 'nav.items.billing', href: '/platform/billing', icon: CreditCard, platformOwnerOnly: true, group: 'nav.groups.providerBilling' },
       // ── Team & Access ──

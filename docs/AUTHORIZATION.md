@@ -195,8 +195,11 @@ No tenant account sees any `/platform/*` item; no account sees an "Out of Plan"/
 - **Tenant isolation:** unchanged. Verified — pure owner: 61 profiles / 44 companies; tenant cashier: 4 profiles / 1 company.
 - **Rollback:** re‑run the three `ALTER POLICY` statements without the `OR (SELECT erp_is_platform_owner())` clause.
 
+### ✅ Applied — Plans & Modules editor (migration 0150 + new platform page)
+- Built `/platform/plans` (owner‑only): manage plans, plan module entitlements (with **impact preview**), and business‑type templates. RLS already owner‑gated; every write audited. See `docs/PLATFORM-PLANS-MODULES.md`.
+
 ### Remaining gaps / recommendations
 
-1. **No platform‑side UI** for: Plans editor, Modules/Industry‑Packs catalog, global Roles & Permissions, Feature flags (no system exists), Platform Settings, "View as company"/impersonation. Per‑company role/module/plan management already exists in the Company‑360 page.
+1. **Remaining platform‑side UI** for: Plans editor, Modules/Industry‑Packs catalog, global Roles & Permissions, Feature flags (no system exists), Platform Settings, "View as company"/impersonation. Per‑company role/module/plan management already exists in the Company‑360 page.
 3. **Code vs DB divergence:** `ROLE_PERMISSIONS` in `permissions.ts` maps `admin`/`manager` → ALL, but DB `erp_role_permissions` seeds 35/29. Runtime uses the DB; the code map is used for tests/seeding only. Consider reconciling to avoid confusion.
 4. **Permission naming overlaps** (`inventory.* vs stock.*`, `customers.manage vs customer.*`) are intentional legacy aliases resolved via `expandAliases`; recommend documenting rather than renaming (rename is high‑risk across seeds/guards/tests).
