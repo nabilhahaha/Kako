@@ -1,0 +1,61 @@
+# ============================================================================
+# Offline release — OS × EDITION build matrix (P6)
+# ----------------------------------------------------------------------------
+# Proves brand separation works with NO core fork: the same codebase builds four
+# branded editions per OS, each derived from the edition descriptor. Manual
+# dispatch (signing secrets required); not part of PR CI.
+# ============================================================================
+name: offline-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      editions:
+        description: "Comma-separated editions to build"
+        default: "retail,pharmacy,restaurant,fmcg"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest]
+        edition: [retail, pharmacy, restaurant, fmcg]
+    runs-on: ${{ matrix.os }}
+    env:
+      KAKO_OFFLINE: "1"
+      KAKO_EDITION: ${{ matrix.edition }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+
+      # Guard: editions must not fork the core (no per-edition literals leak).
+      - run: npx vitest run src/lib/edition/editions.test.ts
+
+      - name: Build + sign (macOS)
+        if: runner.os == 'macOS'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: bash scripts/release/mac.sh
+
+      - name: Build + sign (Windows)
+        if: runner.os == 'Windows'
+        env:
+          SIGN_PFX: ${{ secrets.SIGN_PFX_PATH }}
+          SIGN_PFX_PASSWORD: ${{ secrets.SIGN_PFX_PASSWORD }}
+        run: pwsh scripts/release/windows.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vantora-${{ matrix.edition }}-${{ matrix.os }}
+          path: |
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+          if-no-files-found: ignore

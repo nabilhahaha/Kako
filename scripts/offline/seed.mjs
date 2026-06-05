@@ -63,6 +63,10 @@ ON CONFLICT (company_id, module) DO UPDATE SET enabled = true;
 INSERT INTO erp_branches (id, company_id, code, name, is_hq, is_active)
 VALUES ('${branchId}', '${companyId}', 'MAIN', 'Main Branch', true, true);
 
+-- Default (non-van) warehouse — required for stock + POS checkout.
+INSERT INTO erp_warehouses (branch_id, code, name, is_van, is_active)
+VALUES ('${branchId}', 'WH', 'Main Warehouse', false, true);
+
 -- Bind the admin to the branch (default) so erp_user_company_id() resolves.
 INSERT INTO erp_user_branches (user_id, branch_id, role, is_default)
 VALUES ('${userId}', '${branchId}', 'owner', true);
