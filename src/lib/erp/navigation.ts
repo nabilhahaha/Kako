@@ -43,6 +43,9 @@ import {
   Layers,
   Target,
   Network,
+  Store,
+  Printer,
+  Database,
   Map,
   MapPin,
   Cpu,
@@ -416,6 +419,9 @@ export const NAV_SECTIONS: NavSection[] = [
     // Integrations / Governance / Personal), ordered most-used first within each.
     items: [
       // ── Organization ──
+      { label: 'nav.items.storeInfo', href: '/settings/store', icon: Store, perm: ['settings.users', 'fashion.manage'], group: 'nav.groups.organization' },
+      { label: 'nav.items.printerSettings', href: '/settings/printer', icon: Printer, perm: ['settings.users', 'fashion.manage'], group: 'nav.groups.organization' },
+      { label: 'nav.items.backup', href: '/settings/backup', icon: Database, perm: ['settings.users', 'fashion.manage'], group: 'nav.groups.organization' },
       { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.organization' },
@@ -466,11 +472,12 @@ export const NAV_SECTIONS: NavSection[] = [
 // no behaviour change for other verticals.
 export const RETAIL_BUSINESS_TYPES = new Set<string>(['clothing']);
 const RETAIL_SETTINGS_ALLOW = new Set<string>([
-  '/settings/branches', // Store Information (the store/branch profile)
+  '/settings/store',    // Store Information (retail store profile)
+  '/settings/branches', // (branches — also store-safe)
   '/settings/staff',    // Users (team)
   '/settings/users',    // Users (tenant super admin)
-  '/settings/printer',  // Printer settings (when present)
-  '/settings/backup',   // Backup (when present)
+  '/settings/printer',  // Printer settings
+  '/settings/backup',   // Backup
   '/account',           // My Account
 ]);
 

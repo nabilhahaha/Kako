@@ -94,6 +94,10 @@ describe('navigation — visibleSections', () => {
     // kept in Retail Mode (store-safe Settings)
     expect(retail).toContain('/settings/users');
     expect(retail).toContain('/settings/branches');
+    // the dedicated retail Settings pages are visible
+    expect(retail).toContain('/settings/store');
+    expect(retail).toContain('/settings/printer');
+    expect(retail).toContain('/settings/backup');
     // non-retail (FMCG) tenant super-admin still sees the full admin set (no regression)
     const fmcg = hrefs('general');
     expect(fmcg).toContain('/settings/permissions');
