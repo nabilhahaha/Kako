@@ -1,5 +1,30 @@
 import { describe, it, expect } from 'vitest';
-import { hasPermission, hasAnyPermission, permissionsForRole, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_GROUP_LABELS } from './permissions';
+import { hasPermission, hasAnyPermission, permissionsForRole, applyFashionUmbrella, FASHION_UMBRELLA, ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_GROUP_LABELS, type Permission } from './permissions';
+
+describe('applyFashionUmbrella — fashion.manage implies the full store', () => {
+  it('expands fashion.manage to all granular fashion.* permissions', () => {
+    const out = applyFashionUmbrella(['fashion.manage']);
+    for (const p of FASHION_UMBRELLA) expect(out).toContain(p);
+    expect(out).toContain('fashion.manage');
+  });
+  it('a clothing manager with only fashion.manage can reach POS/products/etc.', () => {
+    const out = applyFashionUmbrella(['fashion.manage', 'customers.manage']);
+    expect(out).toContain('fashion.sell');       // POS
+    expect(out).toContain('fashion.inventory');  // products + inventory
+    expect(out).toContain('fashion.installments');
+    expect(out).toContain('fashion.cashbox');
+    expect(out).toContain('fashion.reports');
+    expect(out).toContain('customers.manage');   // unrelated perms untouched
+  });
+  it('is a no-op without fashion.manage (no unrelated changes)', () => {
+    const perms: Permission[] = ['sales.sell', 'inventory.view'];
+    expect(applyFashionUmbrella(perms)).toEqual(perms);
+  });
+  it('does not duplicate when sub-permissions are already present', () => {
+    const out = applyFashionUmbrella(['fashion.manage', 'fashion.sell']);
+    expect(out.filter((p) => p === 'fashion.sell')).toHaveLength(1);
+  });
+});
 
 describe('permission labels + groups', () => {
   it('every permission has en/ar labels and a known group label', () => {

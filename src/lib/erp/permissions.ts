@@ -77,7 +77,15 @@ export type Permission =
   | 'assortment.manage' // manage must-stock lists (MSL)
   | 'survey.manage' // build in-store surveys
   | 'grade.manage' // manage outlet grading (bands, weights, recompute)
-  | 'report.aggregate.view'; // view scale-safe aggregated reports
+  | 'report.aggregate.view' // view scale-safe aggregated reports
+  // ── Fashion Store pack (clothing vertical) ──
+  | 'fashion.manage' // full fashion-store management (owner) — implies all below
+  | 'fashion.sell' // POS cash + installment sales, customers, returns
+  | 'fashion.inventory' // styles/variants, stock in/out, transfers, counts, labels
+  | 'fashion.purchase' // suppliers, purchases (cash/credit), supplier payments
+  | 'fashion.installments' // installment plans, schedules, collections, statement
+  | 'fashion.cashbox' // open/close cash box, record expenses
+  | 'fashion.reports'; // fashion sales / inventory / profit / balances reports
 
 export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; group: string }> = {
   'sales.sell': { en: 'Selling (invoices/orders/POS)', ar: 'البيع (فواتير/أوامر/نقطة بيع)', group: 'sales' },
@@ -154,6 +162,14 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'survey.manage': { en: 'Build in-store surveys', ar: 'إنشاء استبيانات نقاط البيع', group: 'field_ops' },
   'grade.manage': { en: 'Manage outlet grading', ar: 'إدارة تصنيف العملاء', group: 'field_ops' },
   'report.aggregate.view': { en: 'View aggregated reports', ar: 'عرض التقارير المجمّعة', group: 'accounting' },
+  // ── Fashion Store pack ──
+  'fashion.manage': { en: 'Fashion store management', ar: 'إدارة متجر الملابس', group: 'fashion' },
+  'fashion.sell': { en: 'Fashion sales (POS / installments)', ar: 'مبيعات المتجر (كاشير / تقسيط)', group: 'fashion' },
+  'fashion.inventory': { en: 'Fashion products & inventory', ar: 'منتجات ومخزون المتجر', group: 'fashion' },
+  'fashion.purchase': { en: 'Fashion suppliers & purchases', ar: 'موردو ومشتريات المتجر', group: 'fashion' },
+  'fashion.installments': { en: 'Installment plans & collection', ar: 'خطط التقسيط والتحصيل', group: 'fashion' },
+  'fashion.cashbox': { en: 'Cash box & expenses', ar: 'الصندوق والمصروفات', group: 'fashion' },
+  'fashion.reports': { en: 'Fashion reports', ar: 'تقارير المتجر', group: 'fashion' },
 };
 
 /** Bilingual labels for permission group slugs (used as section headers). */
@@ -173,6 +189,7 @@ export const PERMISSION_GROUP_LABELS: Record<string, { en: string; ar: string }>
   wholesale: { en: 'Wholesale', ar: 'الجملة' },
   electrical: { en: 'Electrical', ar: 'الكهربائيات' },
   field_ops: { en: 'Field Operations', ar: 'العمليات الميدانية' },
+  fashion: { en: 'Fashion Store', ar: 'متجر الملابس' },
 };
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS) as Permission[];
@@ -236,9 +253,9 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
     'suppliers.manage', 'sales.collect', 'customers.change_status',
-    'stock.view',
+    'stock.view', 'fashion.reports', 'fashion.cashbox', 'fashion.installments', 'fashion.purchase',
   ],
-  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos'],
+  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos', 'fashion.sell', 'fashion.installments', 'fashion.cashbox'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales',
@@ -259,6 +276,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'inventory.view', 'inventory.adjust', 'inventory.transfer',
     'inventory.count', 'stock_request.approve', 'purchasing.manage',
     'stock.view', 'stock.adjust', 'stock.transfer', 'stock.transfer.approve',
+    'fashion.inventory', 'fashion.purchase',
   ],
   staff: ['inventory.view'],
   viewer: ['reports.view', 'accounting.view', 'inventory.view'],
@@ -283,4 +301,24 @@ export function hasAnyPermission(ctx: PermissionContext, perms: Permission[]): b
 export function permissionsForRole(role: BranchRole): Permission[] {
   const set = ROLE_PERMISSIONS[role];
   return set === ALL ? [...ALL_PERMISSIONS] : set;
+}
+
+// ─── Fashion Store owner umbrella ─────────────────────────────────────────────
+/** The granular Fashion capabilities implied by holding `fashion.manage`. */
+export const FASHION_UMBRELLA: Permission[] = [
+  'fashion.sell', 'fashion.inventory', 'fashion.purchase',
+  'fashion.installments', 'fashion.cashbox', 'fashion.reports',
+];
+
+/**
+ * `fashion.manage` is the Fashion Store OWNER UMBRELLA: holding it implies the
+ * full granular `fashion.*` set, so a clothing owner/manager reaches the entire
+ * store (POS, products, inventory, customers, installments, suppliers, cash box,
+ * reports) with a single permission. Applied once at permission resolution, so
+ * nav visibility, page guards, server actions and the bottom nav all agree.
+ * No effect on non-fashion permissions.
+ */
+export function applyFashionUmbrella(perms: Permission[]): Permission[] {
+  if (!perms.includes('fashion.manage')) return perms;
+  return [...new Set([...perms, ...FASHION_UMBRELLA])];
 }

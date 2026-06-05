@@ -16,6 +16,9 @@ export function resolveHomePath(ctx: {
   const has = (m: Module) => ctx.modules.includes(m);
   const can = (p: Permission) => ctx.permissions.includes(p);
 
+  // Fashion Store (clothing): the store dashboard is home — no generic dashboard.
+  if (has('fashion')) return '/fashion';
+
   // Clinic: route to the role-specific screen.
   if (has('clinic')) {
     if (can('clinic.manage')) return '/clinic';

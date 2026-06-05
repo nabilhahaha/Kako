@@ -47,6 +47,16 @@ describe('resolveHomePath', () => {
     expect(path(['clinic'], ['clinic.manage', 'clinic.doctor'])).toBe('/clinic');
   });
 
+  // ─── Fashion Store (clothing) ─────────────────────────────────────────────
+
+  it('routes the fashion module to /fashion (the store home, not the generic dashboard)', () => {
+    expect(path(['fashion'], ['fashion.manage'])).toBe('/fashion');
+  });
+
+  it('routes a clothing user to /fashion even with no other modules', () => {
+    expect(path(['fashion'], [])).toBe('/fashion');
+  });
+
   // ─── Other verticals ─────────────────────────────────────────────────────
 
   it('routes restaurant module to /restaurant', () => {

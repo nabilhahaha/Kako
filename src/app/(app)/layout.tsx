@@ -144,6 +144,7 @@ export default async function AppLayout({
           modules={ctx.modules}
           platformPermissions={platformPermissions}
           isPlatformStaff={isPlatformStaff}
+          businessType={ctx.company?.business_type ?? null}
         />
         <Sidebar
           permissions={ctx.permissions}
@@ -152,6 +153,7 @@ export default async function AppLayout({
           modules={ctx.modules}
           platformPermissions={platformPermissions}
           isPlatformStaff={isPlatformStaff}
+          businessType={ctx.company?.business_type ?? null}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
@@ -181,7 +183,7 @@ export default async function AppLayout({
           {/* pb on mobile keeps content clear of the fixed bottom tab bar (UX-3) */}
           <main className="flex-1 p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
         </div>
-        <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} />
+        <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} modules={ctx.modules} businessType={ctx.company?.business_type ?? null} />
         {/* Global Help Copilot — always available, outside page content. */}
         <CopilotFab />
       </div>

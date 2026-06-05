@@ -11,9 +11,9 @@ describe('licensing catalog — groups', () => {
       'crm', 'sales', 'inventory', 'purchasing', 'finance', 'pos', 'workflow', 'analytics', 'field_ops', 'integrations',
     ]);
   });
-  it('has the 9 Industry Packs incl. Electrical Retail & Wholesale (first-class)', () => {
+  it('has the Industry Packs incl. Electrical Retail & Wholesale and Fashion (first-class)', () => {
     expect(INDUSTRY_PACKS.map((p) => p.key)).toEqual([
-      'clinic', 'pharmacy', 'distribution', 'retail', 'electrical', 'restaurant', 'hotel', 'salon', 'laundry',
+      'clinic', 'pharmacy', 'distribution', 'retail', 'electrical', 'restaurant', 'hotel', 'salon', 'laundry', 'fashion',
     ]);
     expect(INDUSTRY_PACKS.find((p) => p.key === 'electrical')?.labelEn).toBe('Electrical Retail & Wholesale');
   });
@@ -77,6 +77,7 @@ describe('licensing catalog — classification + mapping', () => {
     expect(packForBusinessType('Electrical Retail')).toBe('electrical');
     expect(packForBusinessType('clinic')).toBe('clinic');
     expect(packForBusinessType('Supermarket')).toBe('retail');
+    expect(packForBusinessType('clothing')).toBe('fashion');
     expect(packForBusinessType('unknown trade')).toBeUndefined();
   });
   it('suggests roles via the pack', () => {

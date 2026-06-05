@@ -36,6 +36,7 @@ export const INDUSTRY_PACKS: CatalogItem[] = [
   { key: 'hotel', labelEn: 'Hotel', labelAr: 'الفندق' },
   { key: 'salon', labelEn: 'Salon', labelAr: 'الصالون' },
   { key: 'laundry', labelEn: 'Laundry', labelAr: 'المغسلة' },
+  { key: 'fashion', labelEn: 'Fashion Store', labelAr: 'متجر الملابس' },
 ];
 
 /** Pack → recommended Core Modules (preselect defaults; fully editable). */
@@ -49,6 +50,7 @@ export const PACK_CORE_PRESELECT: Record<string, string[]> = {
   hotel: ['sales', 'inventory', 'purchasing', 'finance', 'workflow'],
   salon: ['sales', 'pos', 'crm'],
   laundry: ['sales', 'pos', 'workflow'],
+  fashion: ['sales', 'inventory', 'purchasing', 'finance', 'pos'],
 };
 
 /** Pack → suggested roles (seed; fully editable after suggestion). */
@@ -58,6 +60,7 @@ export const PACK_ROLE_SUGGESTIONS: Record<string, string[]> = {
   distribution: ['System Admin', 'Sales Manager', 'Sales Supervisor', 'Salesman', 'Warehouse Keeper', 'Driver', 'Accountant'],
   electrical: ['System Administrator', 'General Manager', 'Branch Manager', 'Sales Manager', 'Sales Supervisor', 'Sales Representative', 'Projects Sales Representative', 'Purchasing Manager', 'Warehouse Keeper', 'Warehouse Supervisor', 'Accountant', 'Warranty Officer', 'RMA Officer', 'Driver / Delivery Representative'],
   retail: ['System Admin', 'Branch Manager', 'Cashier', 'Storekeeper'],
+  fashion: ['System Admin', 'Salesperson', 'Storekeeper', 'Accountant'],
 };
 
 /** ── Display-only UI content (NO licensing logic) ──────────────────────────
@@ -78,6 +81,7 @@ export const MODULE_DESCRIPTIONS: Record<string, { en: string; ar: string }> = {
   analytics:    { en: 'Dashboards and reports across your data.', ar: 'لوحات المعلومات والتقارير على بياناتك.' },
   field_ops:    { en: 'Mobile app for reps and drivers in the field.', ar: 'تطبيق ميداني للمندوبين والسائقين.' },
   integrations: { en: 'Connect external systems and APIs.', ar: 'ربط الأنظمة الخارجية وواجهات البرمجة.' },
+  fashion:      { en: 'Clothing store: variants, barcodes, cash & installment sales.', ar: 'متجر ملابس: مقاسات وألوان وباركود وبيع نقدي وتقسيط.' },
   // Item-level refinements
   sales_orders: { en: 'Multi-step orders before invoicing.', ar: 'طلبات متعددة الخطوات قبل الفوترة.' },
   returns:      { en: 'Handle customer returns and refunds.', ar: 'معالجة مرتجعات العملاء والاستردادات.' },
@@ -134,7 +138,7 @@ export function classifyModuleKey(key: string): 'core' | 'pack' {
  *  here — they have no own DB module. Kept local to keep this catalog free of the
  *  icon-bearing navigation import. */
 const DB_MODULE_KEYS = new Set([
-  'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale', 'distribution',
+  'hotel', 'clinic', 'restaurant', 'salon', 'pharmacy', 'laundry', 'market', 'wholesale', 'distribution', 'fashion',
 ]);
 
 /** Catalog Core-module key → DB module key (only `finance` differs: ≙ accounting). */
@@ -160,6 +164,7 @@ export function packForBusinessType(businessType: string): string | undefined {
   if (bt.includes('hotel')) return 'hotel';
   if (bt.includes('salon')) return 'salon';
   if (bt.includes('laundry')) return 'laundry';
+  if (bt.includes('clothing') || bt.includes('fashion') || bt.includes('apparel') || bt.includes('boutique')) return 'fashion';
   if (bt.includes('retail') || bt.includes('market') || bt.includes('supermarket') || bt.includes('wholesale')) return 'retail';
   return undefined;
 }

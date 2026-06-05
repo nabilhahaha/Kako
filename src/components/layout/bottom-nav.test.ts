@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { BOTTOM_NAV_TABS } from './bottom-nav-tabs';
+import { BOTTOM_NAV_TABS, resolveBottomNavTabs, type BottomNavTab } from './bottom-nav-tabs';
+import type { Permission } from '@/lib/erp/permissions';
+import type { Module } from '@/lib/erp/navigation';
 
 /**
  * Regression guard for the mobile bottom-nav "Inventory" 404 (BUG HUNT sprint):
@@ -21,10 +23,12 @@ function routeExists(href: string): boolean {
 }
 
 describe('bottom-nav — route integrity', () => {
-  it('the inventory tab points at the real stock route, not the dead /inventory/products', () => {
-    const inv = BOTTOM_NAV_TABS.find((t) => t.labelKey === 'nav.bottom.inventory');
-    expect(inv?.href).toBe('/inventory');
-    expect(inv?.href).not.toBe('/inventory/products');
+  it('the inventory tab(s) point at real stock routes, not the dead /inventory/products', () => {
+    const invs = BOTTOM_NAV_TABS.filter((t) => t.labelKey === 'nav.bottom.inventory');
+    expect(invs.length).toBeGreaterThan(0);
+    for (const inv of invs) expect(inv.href).not.toBe('/inventory/products');
+    // the generic (non-fashion) inventory tab is the real stock route
+    expect(invs.some((t) => t.href === '/inventory')).toBe(true);
   });
 
   it('every bottom-nav tab resolves to an existing App Router page', () => {
@@ -37,5 +41,113 @@ describe('bottom-nav — route integrity', () => {
     const home = BOTTOM_NAV_TABS.find((t) => t.href === '/dashboard');
     expect(home?.perm).toBeUndefined();
     expect(BOTTOM_NAV_TABS.filter((t) => t.href !== '/dashboard').every((t) => !!t.perm)).toBe(true);
+  });
+});
+
+// ── Option A: module-aware Sell routing (clothing → Fashion POS) ──────────────
+describe('bottom-nav — module-aware Sell routing', () => {
+  const sellTabs = (tabs: BottomNavTab[]) => tabs.filter((t) => t.labelKey === 'nav.bottom.sell');
+  const P = (...p: Permission[]) => p;
+  const M = (...m: Module[]) => m;
+
+  it('fashion-only clothing company → Sell opens /fashion/sell, never generic Sales', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('fashion.sell', 'customers.manage'), isSuperAdmin: false,
+      modules: M('fashion', 'pos', 'warehousing'), businessType: 'clothing',
+    });
+    const sell = sellTabs(r);
+    expect(sell).toHaveLength(1);
+    expect(sell[0].href).toBe('/fashion/sell');
+    // gated by the ENABLED `fashion` module ⇒ no `requireModule('sales')` upgrade redirect
+    expect(sell[0].module).toBe('fashion');
+    expect(r.some((t) => t.href === '/sales/invoices')).toBe(false);
+  });
+
+  it('generic sales company → Sell opens /sales/invoices', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('sales.sell'), isSuperAdmin: false,
+      modules: M('sales', 'inventory'), businessType: 'general',
+    });
+    const sell = sellTabs(r);
+    expect(sell).toHaveLength(1);
+    expect(sell[0].href).toBe('/sales/invoices');
+  });
+
+  it('mixed clothing company (sales + fashion) → ONE Sell tab, prefers Fashion POS', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('sales.sell', 'fashion.sell'), isSuperAdmin: false,
+      modules: M('sales', 'fashion'), businessType: 'clothing',
+    });
+    expect(sellTabs(r)).toHaveLength(1);
+    expect(sellTabs(r)[0].href).toBe('/fashion/sell');
+  });
+
+  it('non-clothing company with both modules → prefers generic Sales (by business type)', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('sales.sell', 'fashion.sell'), isSuperAdmin: false,
+      modules: M('sales', 'fashion'), businessType: 'general',
+    });
+    expect(sellTabs(r)).toHaveLength(1);
+    expect(sellTabs(r)[0].href).toBe('/sales/invoices');
+  });
+
+  it('never renders two Sell tabs, regardless of business type', () => {
+    for (const bt of ['clothing', 'general', null]) {
+      const r = resolveBottomNavTabs({
+        permissions: P('sales.sell', 'fashion.sell'), isSuperAdmin: false,
+        modules: M('sales', 'fashion'), businessType: bt,
+      });
+      expect(sellTabs(r).length).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('a company without sales OR fashion modules shows no Sell tab', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('sales.sell', 'fashion.sell'), isSuperAdmin: false,
+      modules: M('inventory'), businessType: 'clothing',
+    });
+    expect(sellTabs(r)).toHaveLength(0);
+  });
+
+  it('empty modules (platform owner / legacy) is unrestricted and yields one Sell tab', () => {
+    const r = resolveBottomNavTabs({ permissions: [], isSuperAdmin: true, modules: [], businessType: null });
+    expect(sellTabs(r)).toHaveLength(1);
+  });
+});
+
+describe('bottom-nav — Customers & Inventory tabs are Fashion-aware', () => {
+  const hrefs = (tabs: BottomNavTab[], label: string) => tabs.filter((t) => t.labelKey === label).map((t) => t.href);
+  const P = (...p: Permission[]) => p;
+  const M = (...m: Module[]) => m;
+  // a clothing manager via the fashion.manage umbrella holds the granular fashion.* perms
+  const CLOTHING = { permissions: P('fashion.sell', 'fashion.inventory'), isSuperAdmin: false, modules: M('fashion'), businessType: 'clothing' };
+  const GENERIC = { permissions: P('customers.manage', 'inventory.view'), isSuperAdmin: false, modules: M('sales', 'inventory'), businessType: 'general' };
+
+  it('clothing → Customers opens /fashion/customers (never generic /customers)', () => {
+    const r = resolveBottomNavTabs(CLOTHING);
+    expect(hrefs(r, 'nav.bottom.customers')).toEqual(['/fashion/customers']);
+    expect(r.some((t) => t.href === '/customers')).toBe(false);
+  });
+  it('clothing → Inventory opens /fashion/inventory (never generic /inventory upgrade screen)', () => {
+    const r = resolveBottomNavTabs(CLOTHING);
+    expect(hrefs(r, 'nav.bottom.inventory')).toEqual(['/fashion/inventory']);
+    expect(r.some((t) => t.href === '/inventory')).toBe(false);
+  });
+  it('generic company keeps /customers and /inventory', () => {
+    const r = resolveBottomNavTabs(GENERIC);
+    expect(hrefs(r, 'nav.bottom.customers')).toEqual(['/customers']);
+    expect(hrefs(r, 'nav.bottom.inventory')).toEqual(['/inventory']);
+  });
+  it('never shows two tabs for the same group', () => {
+    for (const ctx of [CLOTHING, GENERIC]) {
+      const r = resolveBottomNavTabs(ctx);
+      expect(hrefs(r, 'nav.bottom.customers').length).toBeLessThanOrEqual(1);
+      expect(hrefs(r, 'nav.bottom.inventory').length).toBeLessThanOrEqual(1);
+    }
+  });
+  it('generic inventory tab no longer leaks to a tenant lacking the inventory module', () => {
+    // salon-style tenant: has inventory.view perm but no inventory module → tab hidden (no upgrade screen)
+    const r = resolveBottomNavTabs({ permissions: P('inventory.view', 'customers.manage'), isSuperAdmin: false, modules: M('salon', 'sales'), businessType: 'salon' });
+    expect(r.some((t) => t.href === '/inventory')).toBe(false);
   });
 });
