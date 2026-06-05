@@ -196,6 +196,40 @@ export async function collectInstallment(scheduleId: string, amount: number, met
   return { ok: true };
 }
 
+/** Flexible collection — pay MORE or LESS than the scheduled amount. Under-pay
+ *  leaves a partial balance; over-pay waterfalls onto the next installments and
+ *  any excess is kept as an advance. Reduces the customer balance (invoice or
+ *  migrated plan) and audits the collection. */
+export async function collectInstallmentFlex(scheduleId: string, amount: number, method = 'cash'): Promise<ActionResult<{ advance: number; planCompleted: boolean }>> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.installments');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  if (!(amount > 0)) return { ok: false, error: t('fashion.installments.errAmount') };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('erp_collect_installment_flex', {
+    p_schedule_id: scheduleId, p_amount: amount, p_method: method,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidate();
+  const d = data as { advance?: number; plan_completed?: boolean } | null;
+  return { ok: true, data: { advance: Number(d?.advance ?? 0), planCompleted: Boolean(d?.plan_completed) } };
+}
+
+/** Manually set the per-installment amounts of an active plan (instead of equal
+ *  split). Reconciles to the financed amount unless allowMismatch. Audited. */
+export async function setInstallmentAmounts(planId: string, amounts: number[], allowMismatch = false): Promise<ActionResult> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.installments');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_set_installment_amounts', {
+    p_plan_id: planId, p_amounts: amounts, p_allow_mismatch: allowMismatch,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidate();
+  return { ok: true };
+}
+
 // ─── Cash box ────────────────────────────────────────────────────────────────
 export async function openCashbox(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
