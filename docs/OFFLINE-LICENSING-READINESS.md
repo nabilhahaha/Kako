@@ -1,6 +1,8 @@
-# Offline Licensing — Readiness Report
+# Offline Licensing — FINAL Report
 
-**Status:** licensing core implemented and fully unit-verified (26 tests). The
+**Status:** licensing core implemented and fully unit-verified (26 tests); the
+offline activation gate (`/activate`) + install server action are wired and
+build-verified (404 on cloud). The
 app is **verify-only** (embeds the public key); signing lives only on the
 licensing server. v1 enforces a single terminal, but the document + verifier
 carry the full commercial model so expansion is server-side issuance, not an app
@@ -53,11 +55,18 @@ re-checks the cap + its seat at every launch.
 - Seat reconciliation for chains/multi-terminal is a server concern (the device
   only knows its own license); periodic online re-validation reconciles.
 
+## Activation UI (wired)
+
+- `src/app/activate/page.tsx` (offline-only, 404 on cloud) + `activate-form.tsx`
+  shows the device fingerprint (from the Tauri `device_fingerprint` command),
+  accepts the pasted signed license, and calls `installLicenseAction` →
+  `installLicense` (verify + store). Build-verified.
+
 ## Pending (hardware)
 
-- Raw device-fingerprint collection is the Tauri shell's job
-  (`src-tauri/src/fingerprint.rs`, scaffolded): macOS `IOPlatformUUID`, Windows
-  `MachineGuid` + SMBIOS UUID. The Node salt/hash/verify layer is done + tested.
-- The activation UI (key entry, request/activation codes, seat usage) is wired in
-  the P1 runtime spike.
+- Raw device-fingerprint collection runs in the Tauri shell
+  (`src-tauri/src/fingerprint.rs`): macOS `IOPlatformUUID`, Windows `MachineGuid`
+  + SMBIOS UUID — compiled on the targets. The Node salt/hash/verify layer is
+  done + tested.
 - Embed the production public key via `KAKO_LICENSE_PUBLIC_KEY` at build time.
+- Set `KAKO_REQUIRE_LICENSE=1` to enforce at launch.
