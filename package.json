@@ -12,7 +12,12 @@
     "test": "vitest run",
     "test:db": "vitest run src/test/integration",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "offline:db": "node scripts/offline/db.mjs",
+    "offline:migrate": "node scripts/offline/migrate.mjs",
+    "offline:seed": "node scripts/offline/seed.mjs",
+    "offline:bootstrap": "node scripts/offline/bootstrap.mjs",
+    "offline:verify": "node scripts/offline/verify.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.55.0",
