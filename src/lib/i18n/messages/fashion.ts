@@ -32,7 +32,7 @@ export const ar = {
     dashboard: {
       title: 'لوحة المتجر',
       description: 'نظرة سريعة على نشاط المتجر اليوم.',
-      newSale: 'بيع جديد',
+      newSale: 'نقطة البيع',
       statSalesToday: 'مبيعات اليوم',
       statCashToday: 'نقدية اليوم',
       statDueToday: 'أقساط مستحقة اليوم',
@@ -85,7 +85,7 @@ export const ar = {
       seasons: 'المواسم',
     },
     sell: {
-      title: 'بيع جديد',
+      title: 'نقطة البيع',
       description: 'امسح الباركود لإضافة الأصناف ثم اختر نقدي أو تقسيط.',
       scanPlaceholder: 'امسح الباركود أو الكود…',
       cart: 'السلة',
@@ -227,7 +227,7 @@ export const en = {
     dashboard: {
       title: 'Store Dashboard',
       description: "Quick overview of today's store activity.",
-      newSale: 'New Sale',
+      newSale: 'POS',
       statSalesToday: "Today's Sales",
       statCashToday: "Today's Cash",
       statDueToday: 'Installments Due Today',
@@ -280,7 +280,7 @@ export const en = {
       seasons: 'Seasons',
     },
     sell: {
-      title: 'New Sale',
+      title: 'Point of Sale',
       description: 'Scan barcodes to add items, then choose Cash or Installment.',
       scanPlaceholder: 'Scan barcode or SKU…',
       cart: 'Cart',
