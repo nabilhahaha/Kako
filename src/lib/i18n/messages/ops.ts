@@ -129,6 +129,17 @@ export const ar = {
     age31_60: '31–60 يوم',
     age61_90: '61–90 يوم',
     age90: 'أكثر من 90 يوم',
+
+    // ── Barcode label printing ───────────────────────────────────────
+    lblTitle: 'طباعة ملصقات الباركود',
+    lblDescription: 'طباعة ملصقات باركود/سعر/مقاس للأصناف — دفعات، مناسبة للطابعات الحرارية',
+    lblSearch: 'بحث عن صنف…',
+    lblSource: 'مصدر الباركود',
+    lblSourceBarcode: 'الباركود',
+    lblSourceSku: 'كود الصنف (SKU)',
+    lblShowPrice: 'إظهار السعر',
+    lblPrint: 'طباعة الملصقات',
+    lblNoProducts: 'لا توجد أصناف مطابقة.',
   },
 };
 
@@ -252,5 +263,15 @@ export const en = {
     age31_60: '31–60 days',
     age61_90: '61–90 days',
     age90: '90+ days',
+
+    lblTitle: 'Barcode Label Printing',
+    lblDescription: 'Print barcode/price/size labels for products — batch, thermal-printer friendly',
+    lblSearch: 'Search a product…',
+    lblSource: 'Barcode source',
+    lblSourceBarcode: 'Barcode',
+    lblSourceSku: 'SKU (code)',
+    lblShowPrice: 'Show price',
+    lblPrint: 'Print labels',
+    lblNoProducts: 'No matching products.',
   },
 };
