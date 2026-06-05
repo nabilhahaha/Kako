@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
@@ -57,6 +58,7 @@ export default async function InvoicesPage({
         q={q}
         status={status}
         etaEnabled={etaEnabled}
+        canVoid={hasPermission(ctx, 'sales.void')}
       />
       <Pager
         page={page}

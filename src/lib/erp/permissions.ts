@@ -7,6 +7,7 @@ export type Permission =
   | 'sales.discount' // apply line discounts
   | 'sales.collect' // record customer payments
   | 'sales.return' // create/approve sales returns
+  | 'sales.void' // manager-only: void/cancel an issued (unpaid) invoice
   | 'customers.manage'
   | 'customers.approve' // approve/reject customer onboarding + sensitive change requests
   | 'customers.change_status' // suspend / block / activate customers (FP-CS)
@@ -92,6 +93,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'sales.discount': { en: 'Grant discounts', ar: 'منح خصومات', group: 'sales' },
   'sales.collect': { en: 'Collect from customers', ar: 'تحصيل من العملاء', group: 'sales' },
   'sales.return': { en: 'Sales returns', ar: 'مرتجعات المبيعات', group: 'sales' },
+  'sales.void': { en: 'Void invoices', ar: 'إبطال الفواتير', group: 'sales' },
   'customers.manage': { en: 'Manage customers', ar: 'إدارة العملاء', group: 'sales' },
   'customers.approve': { en: 'Approve customers & changes', ar: 'اعتماد العملاء والتعديلات', group: 'sales' },
   'customers.change_status': { en: 'Suspend / block customers', ar: 'إيقاف / حظر العملاء', group: 'sales' },
@@ -204,14 +206,14 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   // ── FMCG sales hierarchy (S2) — role layer only; scope/visibility is S4 ──
   // Sales Director / NSM: full commercial visibility (no company settings/billing).
   sales_director: [
-    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return', 'sales.void',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
     'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
     'assortment.manage', 'survey.manage', 'target.view',
   ],
   national_sales_manager: [
-    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return', 'sales.void',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
     'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
@@ -219,18 +221,18 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   ],
   // Regional / Area: commercial management (no finance posting / settings).
   regional_manager: [
-    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return', 'sales.void',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
   ],
   area_manager: [
-    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return', 'sales.void',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
   ],
   // Branch Manager: branch operations (NO settings/billing — distinct from Admin).
   branch_manager: [
-    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return', 'sales.void',
     'customers.manage', 'customers.change_status', 'inventory.view', 'inventory.adjust', 'inventory.transfer',
     'inventory.count', 'stock_request.approve', 'purchasing.manage',
     'suppliers.manage', 'reports.view',
@@ -245,7 +247,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'customer.import', 'product.import', 'user.import', 'route.import', 'journey.import',
   ],
   supervisor: [
-    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
+    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return', 'sales.void',
     'customers.manage', 'customers.change_status', 'inventory.view', 'stock_request.approve', 'reports.view',
     'visit.approve_out_of_route', 'day.approve_close_exception', 'stock.transfer.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
