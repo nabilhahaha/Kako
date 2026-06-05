@@ -52,8 +52,9 @@ permissions, roles, audit logging, architecture). Method: 3 parallel code audits
   no nav section/item gates on it (surfaced via `integrations.manage` permission
   in Settings). Now **guarded by a pinned test** (`architecture-integrity.test.ts`)
   so no *new* module can be silently orphaned.
-- **`pos` plan gap** — `pos` is plan-gateable but in no plan → effectively always
-  off for tenants. Product decision needed.
+- **`pos` plan gap** — ✅ RESOLVED (migration 0156): `pos` added to the paid plans
+  (grantable via the Plans & Modules editor) + enabled by default for `general`
+  retail. Extending generic POS to other retail verticals is owner-managed.
 - **Naming**: `accounting` module is `finance` in the licensing catalog (bridged
   by `coreModuleDbKey`); `market` module is labeled "Supermarket"; `field_ops` vs
   `distribution` boundary is blurry. Rename is high-risk across seeds/guards/tests
@@ -89,6 +90,6 @@ permissions, roles, audit logging, architecture). Method: 3 parallel code audits
 | `erp_supplier_payments` cross-tenant | High | ✅ Fixed (0151) |
 | Org actions unaudited / weak guard | Medium | ✅ Fixed |
 | `integrations` orphan module | Low | Documented + test-guarded |
-| `pos` plan gap | Low | Documented (product decision) |
+| `pos` plan gap | Low | ✅ Fixed (0156) |
 | Naming debt (finance/market/field_ops) | Low | Documented |
 | Bottom-nav vendor scoping | Low | Documented |
