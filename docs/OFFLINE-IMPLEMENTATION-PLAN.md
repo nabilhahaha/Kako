@@ -9,6 +9,41 @@
 
 **Fixed rules:** one shared offline architecture · one shared codebase · local PostgreSQL 17 · local Next.js server · Tauri shell · local auth · backup/restore · offline license activation · no internet dependency after activation.
 
+**Design‑ahead requirements (added at approval, must shape the architecture from P0):**
+1. **Multi‑store / commercial licensing prepared from day one** — even though v1 ships single‑store, the license model, schema, and verification are designed so we can later issue licenses **per customer**, **per device**, **limit terminal count**, sell **paid upgrades**, and gate by **edition** — *without re‑architecting* (see "Licensing model — forward design" below and P4).
+2. **Edition / brand separation** — the same offline core must be exportable as **VANTORA Retail**, **VANTORA Pharmacy**, **VANTORA Restaurant**, **VANTORA FMCG** by configuration only, **never** by forking the core (see "Edition & branding abstraction" below).
+3. **Recovery Certification** — a dedicated certification phase after P5 (`P5C`) that proves full data‑loss recovery and emits a signed‑off report.
+4. **Commercial readiness review** — before the project closes, publish sizing, capacity limits, terminal limits, and recommended selling/support models (see "Commercial Readiness Review" at the end).
+
+---
+
+## Edition & branding abstraction (affects P0, P4, P6)
+
+**Goal:** one offline core; many branded editions, switched by config — no core forks.
+
+- **Single source of edition config:** `src/lib/edition/editions.ts` (new) defines an `Edition` descriptor: `id` (`retail|pharmacy|restaurant|fmcg`), `brand` (`"VANTORA Retail"` …), `businessType` (maps to the existing module gate, e.g. `clothing` → `fashion`), `enabledModules`, `featureFlags`, `defaultSeed`, and **assets** (app name, icons, splash, accent color, receipt header defaults, license `productCode`).
+- **Build‑time selection:** `KAKO_EDITION=retail|pharmacy|restaurant|fmcg` (env) chosen at package time; the Tauri bundle, app id, icons, and installer name derive from the edition descriptor. One CI matrix axis = edition.
+- **Runtime behavior unchanged:** module/permission gating, nav `businessType` filtering, and RLS already exist — editions just **select** which existing modules/business_type are active. Pharmacy/Restaurant/FMCG verticals reuse the same gating mechanism the current `clothing→fashion` retail path already uses; net‑new vertical *features* are out of scope for the offline project (this phase only guarantees the **packaging/branding seam** is clean).
+- **License ↔ edition binding:** the signed license carries `edition` + `productCode`; the app refuses to run an edition the license wasn't issued for (ties requirement 1 ↔ 2).
+- **No core fork rule (enforced):** a lint/test (`edition.test.ts`) asserts there are **no edition‑name string literals** scattered in app code — everything reads from the edition descriptor — so a new brand is "add a descriptor + assets," not a code change.
+
+---
+
+## Licensing model — forward design (single‑store now, multi‑store/terminal later)
+
+The P4 implementation ships **single‑terminal activation**, but the **license format and verifier are designed for the full commercial model now** so later steps are additive:
+
+| Capability | v1 (shipped) | Designed‑in for later (no re‑architecture) |
+|---|---|---|
+| Per‑customer license | 1 customer | `customerId` claim already in the signed license |
+| Per‑device activation | 1 device (fingerprint‑bound) | license holds an array of `activations[]`; verifier already device‑aware |
+| Terminal/seat limit | `maxTerminals = 1` | `maxTerminals = N`; activation refused past the cap; seat transfer/deactivate |
+| Paid upgrades | n/a | license `tier`/`validUntil` + a re‑issue/upgrade flow (online or air‑gapped code) |
+| Edition‑based licensing | retail only | `edition` + `productCode` claims (ties to branding abstraction) |
+| Multi‑store (chain) | n/a | optional `storeGroupId`; per‑store sub‑licenses under one customer |
+
+These are **claims/fields in the signed license + checks in `verify.ts`** — present in the schema from P4 even when the enforced value is 1. This is the explicit "prepare so we can later…" requirement.
+
 ---
 
 ## Key architectural decision (affects every phase): the offline data gateway
@@ -38,11 +73,12 @@ This is the single biggest decision: it keeps **one shared codebase** (same page
 
 **Files expected to change / add**
 - `src/lib/offline/runtime.ts` (new) — mode detection (`KAKO_OFFLINE=1`), resolve per‑OS paths (data dir, binaries, ports, secrets), single‑instance lock.
+- `src/lib/edition/editions.ts` (new) — **edition descriptors** (retail/pharmacy/restaurant/fmcg → brand, businessType, modules, assets, license productCode); `currentEdition()` reads `KAKO_EDITION` (defaults to `retail`). Wired now so seed + branding + license all read one source.
 - `src/lib/offline/config.ts` (new) — local config (ports, PG creds from OS secret store, JWT secret, license path).
 - `scripts/offline/db.(ts|sh)` (new) — `initdb` / `start` / `stop` / `health` / `pg_dump` wrappers around bundled `pg_ctl`/`pg_isready`.
 - `scripts/offline/migrate.ts` (new) — **migration runner**: applies `supabase/migrations/00xx_*.sql` in order, tracked in a local `schema_migrations` table (idempotent; our migrations already are).
 - `scripts/offline/bootstrap.ts` (new) — first‑run: initdb → start → migrate‑to‑head → seed.
-- `scripts/offline/seed.ts` (new) — **local company seed** (one `erp_companies` row, business_type `clothing`, default warehouse/branch) + **local admin seed** (admin user + role).
+- `scripts/offline/seed.ts` (new) — **local company seed** (one `erp_companies` row with `business_type` from the **edition descriptor**, default warehouse/branch) + **local admin seed** (admin user + role). Seed is edition‑driven, not hard‑coded to retail.
 - `src/lib/supabase/server.ts`, `src/lib/supabase/client.ts` (edit) — when offline, point at the local gateway URL + use the local JWT.
 - `next.config.mjs` (edit) — `output: 'standalone'` for packaging.
 - `package.json` (edit) — `offline:bootstrap`, `offline:db`, `offline:dev` scripts.
@@ -154,29 +190,45 @@ This is the single biggest decision: it keeps **one shared codebase** (same page
 
 ---
 
-## Phase P4 — Licensing (offline‑verifiable)
+## Phase P4 — Licensing (offline‑verifiable, multi‑store/terminal/edition‑ready)
 
-**Goal:** signed license, device fingerprint, online + air‑gapped activation, transfer — verified fully offline at every launch.
+**Goal:** signed license, device fingerprint, online + air‑gapped activation, transfer — verified fully offline at every launch. **v1 enforces single‑terminal**, but the **license format + verifier carry the full commercial model** (per‑customer, per‑device, terminal cap, paid upgrade, edition) so later steps are config/data‑only, never re‑architecture.
+
+**License document (signed) — fields present from v1**
+```
+{ licenseId, customerId, edition, productCode,          // who + what edition/brand
+  tier, issuedAt, validUntil,                           // paid upgrade / expiry
+  maxTerminals,        // enforced = 1 in v1, N later
+  activations: [ { deviceFingerprint, activatedAt } ],  // per‑device seats
+  storeGroupId?,       // reserved for multi‑store chains
+  features: { ... },   // edition/tier feature flags
+  signature }          // Ed25519 over the canonical payload
+```
 
 **Files expected to change / add**
-- `src/lib/license/verify.ts` (new) — verify the signed license (embedded public key), enforce edition/expiry/feature flags.
+- `src/lib/license/types.ts` (new) — the license schema above (full model now; v1 just caps `maxTerminals=1`).
+- `src/lib/license/verify.ts` (new) — verify signature (embedded Ed25519 public key); enforce `edition`+`productCode` match the running edition, `validUntil`, `features`, and **`activations.length ≤ maxTerminals`**; bind this device's fingerprint to a seat.
+- `src/lib/license/activate.ts` (new) — claim a seat (add fingerprint to `activations`), **transfer/deactivate** a seat, **upgrade** (consume a re‑issued/upgrade token online or air‑gapped) — all written to the stored license + re‑verified.
 - `src-tauri/src/fingerprint.rs` (new) — device fingerprint (macOS `IOPlatformUUID`; Windows `MachineGuid`+SMBIOS UUID+disk serial), normalized to a salted hash.
-- `src/app/(offline)/activate/*` (new) — activation UI: key entry, **Request Code** display, **Activation Code** entry (air‑gapped), online activate button.
+- `src/app/(offline)/activate/*` (new) — activation UI: key entry, **Request Code** display, **Activation Code** entry (air‑gapped), online activate button; shows edition/seat usage (`x of maxTerminals`).
 - `src/lib/license/store.ts` (new) — persist the signed license file in the app data dir (+ OS secret store for the secret).
-- `licensing-server/` (separate service, out of the app bundle) — issues signed, device‑bound licenses; **planning artifact only here**.
+- `licensing-server/` (separate service, out of the app bundle) — issues signed, device‑bound, **edition‑/terminal‑/customer‑scoped** licenses and upgrade tokens; **planning artifact only here** (the offline app only *verifies*, never *issues*).
 
 **Risks**
-- Fingerprint drift (disk swap) → false lockout → fuzzy match (tolerate one component change) + easy re‑activation.
-- Clock tampering → store last‑seen time; detect rollback.
+- Fingerprint drift (disk swap) → false lockout → fuzzy match (tolerate one component change) + easy re‑activation/seat transfer.
+- Clock tampering → store last‑seen time; detect rollback (protects `validUntil`/upgrade gating).
 - Air‑gapped UX friction → short, scannable Request/Activation codes (QR + text).
+- **Over‑designing v1** → ship with `maxTerminals=1` *enforced*; multi‑terminal stays dormant‑but‑present so we don't accidentally sell seats we haven't tested.
+- Seat‑cap enforcement offline (no central server) → each device's stored license tracks its own seat; chain/multi‑terminal reconciliation deferred to the (online) licensing server + periodic re‑validation.
 
 **Tests**
-- Unit: signature verify (valid/expired/tampered); fingerprint hashing per‑OS (mock inputs).
-- Integration: online activation round‑trip (stub server) → license stored → offline launch passes; air‑gapped request→response cycle; transfer (deactivate frees a seat).
-- Negative: tampered license rejected; wrong‑device license rejected.
+- Unit: signature verify (valid/expired/tampered); edition/productCode mismatch rejected; **`maxTerminals` cap** (1 passes, 2nd device on a 1‑seat license refused; on a mocked N‑seat license, N pass and N+1 refused); fingerprint hashing per‑OS (mock inputs).
+- Integration: online activation round‑trip (stub server) → license stored → offline launch passes; air‑gapped request→response cycle; **transfer** (deactivate frees a seat, re‑activate elsewhere); **upgrade** token raises `tier`/`maxTerminals`/`validUntil` and re‑verifies.
+- Negative: tampered license rejected; wrong‑device license rejected; wrong‑edition license rejected.
 
 **Acceptance criteria**
-- A fresh install activates online **or** air‑gapped, then launches with **no network**; license survives reboot; transfer works.
+- A fresh install activates online **or** air‑gapped, then launches with **no network**; license survives reboot; transfer works; the running build refuses a license issued for a different edition.
+- The verifier **honors `maxTerminals`** (proven at 1 and at a mocked N) and exposes seat usage — so multi‑terminal/paid‑upgrade/edition licensing is a server‑side issuance change, not an app re‑architecture.
 
 **Rollback plan**
 - Licensing gate is a feature flag (`KAKO_REQUIRE_LICENSE`); can ship the spike with it off. Revert = remove `src/lib/license` + activation UI + the Rust fingerprint module.
@@ -211,6 +263,45 @@ This is the single biggest decision: it keeps **one shared codebase** (same page
 
 ---
 
+## Phase P5C — Recovery Certification (gate after P5, before packaging)
+
+**Goal:** *prove*, on the real local stack, that a store can survive total data loss — not just that backup/restore "ran." This phase is a **certification gate**: P6 packaging does not start until the certification report is signed off.
+
+**Procedure (run on both OS: macOS ASi + Windows)**
+1. **Create real sample data** — customer + supplier (each with an opening balance), product (with stock), a cash invoice, an installment contract (with at least one collected payment), and an inventory adjustment. Record **before** counts + balances.
+2. **Create backup** — full local backup (JSON snapshot **and** physical `pg_dump -Fc`).
+3. **Simulate loss** — destructive event on a *copy* of the data dir (drop/truncate or full data‑dir wipe) to emulate disk failure/corruption.
+4. **Restore** — restore from the backup (preview → confirm → apply for JSON; `pg_restore`/data‑dir swap for physical).
+5. **Verify (all must match before):**
+   - record **counts** (customers, suppliers, products, invoices, installments, adjustments),
+   - **customer balances** and **supplier balances**,
+   - **inventory quantities** per product/warehouse,
+   - **installment** contracts + schedules + paid amounts,
+   - **customer statements** (line‑by‑line + closing balance),
+   - **supplier statements** (line‑by‑line + closing balance).
+6. **Emit certification report** — `docs/OFFLINE-RECOVERY-CERTIFICATION.md` with before/after tables, per‑check PASS/FAIL, OS + edition + build hash, timestamp, and a signed‑off line. Any FAIL blocks the gate.
+
+**Files expected to change / add**
+- `scripts/offline/recovery-cert.ts` (new) — orchestrates create → backup → simulate‑loss → restore → verify; diffs before/after; renders the report. Re‑uses the P5 engine and the existing disaster‑recovery simulation, extended with the **statement/balance/installment** assertions above.
+- `docs/OFFLINE-RECOVERY-CERTIFICATION.md` (new, generated) — the certification artifact.
+- `src/lib/erp/__tests__/recovery-cert.test.ts` (new) — automated assertion harness used by the script (and CI‑runnable against the local stack).
+
+**Risks**
+- A "restore ran" false‑positive that misses a financial mismatch → certification asserts **balances/statements/quantities**, not just row counts.
+- Cross‑OS restore divergence → run the full matrix on both OS; cross‑OS JSON restore (W↔M) included.
+- Physical vs logical restore differences → certify **both** restore paths.
+
+**Tests**
+- The certification script *is* the test; it must end PASS on both OS for every check, twice (JSON path and physical path).
+
+**Acceptance criteria**
+- A green `OFFLINE-RECOVERY-CERTIFICATION.md` on both OS: every before/after check matches (counts, balances, inventory qty, installments, customer + supplier statements), for both restore paths. **No FAIL anywhere.** This is the hard gate into P6.
+
+**Rollback plan**
+- Pure verification + a generated doc; nothing to roll back. A failed certification simply blocks packaging and sends the relevant defect back to P5.
+
+---
+
 ## Phase P6 — Installer / Packaging
 
 **Goal:** signed, notarized installers for macOS (ASi first) and Windows, with tray/menu‑bar and correct startup.
@@ -220,7 +311,7 @@ This is the single biggest decision: it keeps **one shared codebase** (same page
 - `src-tauri/entitlements.plist` (new) — hardened‑runtime entitlements for macOS.
 - `scripts/release/mac.sh` (new) — Developer ID **signing of the app AND every bundled binary** → `notarytool` → staple.
 - `scripts/release/windows.ps1` (new) — EV **code‑sign** installer + sidecar `.exe`s.
-- `.github/workflows/offline-release.yml` (new) — CI matrix (macos‑14 arm64, windows‑latest) building/signing artifacts.
+- `.github/workflows/offline-release.yml` (new) — CI matrix **(OS × edition)**: {macos‑14 arm64, windows‑latest} × {retail, pharmacy, restaurant, fmcg}, building/signing per‑edition artifacts from the **edition descriptor** (app id, name, icons, productCode) — proving brand separation works with no core fork.
 - `package.json` (edit) — `release:mac`, `release:win`.
 
 **Risks**
@@ -271,6 +362,28 @@ This is the single biggest decision: it keeps **one shared codebase** (same page
 ## Cross‑phase notes
 - **One migration chain** (`supabase/migrations`) is the source of truth for cloud and offline; CI already builds the DB from it (`supabase/ci/setup-test-db.sh`).
 - Everything offline is **gated by `KAKO_OFFLINE`** so the cloud build/tests are never affected (the web app and PR #123 stay green).
-- The **build order is P0 → P1 (macOS ASi) → P2 (Windows) in parallel → P3 → P4 → P5 → P6 → P7**, but P0+P1 are the first deliverable so it can be tested directly on the dev Mac.
+- **One core, many editions** (`KAKO_EDITION`) and **one license format** (full commercial model, single‑terminal enforced in v1) are wired from P0/P4 so brand + multi‑store/terminal expansion is config/issuance, not a refactor.
+- The **build order is P0 → P1 (macOS ASi) → P2 (Windows) in parallel → P3 → P4 → P5 → P5C (certification gate) → P6 → P7**, but P0+P1 are the first deliverable so it can be tested directly on the dev Mac.
+
+---
+
+## Commercial Readiness Review (publish before the Offline project closes)
+
+A required deliverable before sign‑off: `docs/OFFLINE-COMMERCIAL-READINESS.md`, populated with **measured** numbers from the P5C/P6 builds (the figures below are **planning estimates** to be confirmed, not final specs).
+
+| Item | Planning estimate (to be confirmed on real builds) | How it will be measured |
+|---|---|---|
+| **Installer size** | ~120–180 MB per edition (Tauri shell + Postgres 17 + PostgREST + Node standalone server, compressed) | size of the signed DMG / EXz on the P6 build |
+| **RAM usage (idle/active)** | ~250–400 MB idle, ~500–800 MB during POS/reporting (Postgres + PostgREST + Node + WebView) | `Activity Monitor` / `Task Manager` on the P1/P2 spike |
+| **Disk growth / year** | ~0.5–2 GB/yr for a typical single store (≈50–300 invoices/day incl. indexes + retained backups before prune) | extrapolate from a seeded year of synthetic data |
+| **Supported products** | tens of thousands comfortably (100k+ feasible) on local Postgres 17 with existing indexes | load test in P5C harness |
+| **Supported invoices** | hundreds of thousands → low millions over the device's life (bounded by disk, not engine) | load test + disk‑growth model |
+| **Supported customers** | tens of thousands comfortably | load test |
+| **Single‑terminal limit** | **1 active terminal** (`maxTerminals=1`, enforced in v1) | P4 verifier test |
+| **Multi‑terminal limit** | designed‑in (`maxTerminals=N`, seat‑capped); LAN shared‑DB topology documented as a later option | P4 mocked‑N test; topology note |
+| **Recommended selling model** | per‑customer license, per‑device activation, edition‑based pricing, annual maintenance/upgrade tier; chains via per‑store sub‑licenses | maps 1:1 to license claims (P4) |
+| **Recommended support model** | offline‑first support: built‑in backup + one‑click restore + recovery certification as the safety net; remote assist via exported diagnostics bundle; update/rollback channel (P7); air‑gapped activation for no‑internet sites | derived from P5/P5C/P7 |
+
+**Acceptance for closing the project:** `OFFLINE-COMMERCIAL-READINESS.md` published with the estimate column **replaced by measured values** from the signed P6 builds on both OS, alongside a green `OFFLINE-RECOVERY-CERTIFICATION.md`.
 
 **Next step after approval:** implement **P0 (Shared Offline Core)** and the **macOS spike (P1)** first.
