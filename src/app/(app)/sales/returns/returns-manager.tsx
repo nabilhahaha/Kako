@@ -442,6 +442,7 @@ function ExchangeCard({
   onDone: () => void;
 }) {
   const { t, locale } = useI18n();
+  const confirm = useConfirm();
   const [customerId, setCustomerId] = useState('');
   const [invoiceId, setInvoiceId] = useState('');
   const [invoiceOptions, setInvoiceOptions] = useState<{ id: string; invoice_number: string }[]>([]);
@@ -471,6 +472,8 @@ function ExchangeCard({
     });
   }
   function submit() {
+    confirm({ title: t('sales.exchSubmit'), message: t('sales.exchConfirmMsg'), confirmText: t('sales.exchSubmit') }).then((ok) => {
+    if (!ok) return;
     startTransition(async () => {
       const res = await createExchange({
         invoice_id: invoiceId, returned_product_id: returnedProduct, return_qty: returnQty,
@@ -481,6 +484,7 @@ function ExchangeCard({
       toast.success(t('sales.exchSuccess', { diff: formatCurrency(diff, 'EGP', INTL_LOCALE[locale]) }));
       setReturnedProduct(''); setNewProduct(''); setReturnQty(1); setNewQty(1); setNewPrice(0);
       onDone();
+    });
     });
   }
 

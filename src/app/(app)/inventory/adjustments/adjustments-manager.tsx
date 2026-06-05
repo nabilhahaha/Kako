@@ -78,6 +78,8 @@ export function AdjustmentsManager({
       toast.error(t('ops.adjQty'));
       return;
     }
+    confirm({ title: t('ops.adjConfirmTitle'), message: t('ops.adjConfirmMsg', { qty: q }), confirmText: t('ops.adjSubmit') }).then((ok) => {
+    if (!ok) return;
     startTransition(async () => {
       const res = await postAdjustment(warehouseId, productId, q, reason.trim() || null);
       if (!res.ok) {
@@ -89,6 +91,7 @@ export function AdjustmentsManager({
       setReason('');
       setProductId('');
       router.refresh();
+    });
     });
   }
 

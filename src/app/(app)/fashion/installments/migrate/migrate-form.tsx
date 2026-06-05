@@ -52,6 +52,8 @@ export function MigrateForm({
     const cnt = Number(count);
     if (!(rem > 0)) { toast.error(t('ops.imRemaining')); return; }
     if (!(cnt >= 1)) { toast.error(t('ops.imRemainingCount')); return; }
+    confirm({ title: t('ops.imSubmit'), message: t('ops.imConfirmMsg'), confirmText: t('ops.imSubmit') }).then((ok) => {
+    if (!ok) return;
     startTransition(async () => {
       const res = await importInstallmentContract({
         customerId,
@@ -68,6 +70,7 @@ export function MigrateForm({
       toast.success(t('ops.imToastDone', { count: res.data?.count ?? cnt }));
       setCustomerId(''); setTotal(''); setRemaining(''); setCount(''); setReference(''); setFirstDue(''); setContractDate('');
       router.refresh();
+    });
     });
   }
 

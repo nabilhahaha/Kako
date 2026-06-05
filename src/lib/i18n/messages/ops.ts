@@ -13,6 +13,8 @@ export const ar = {
     adjQty: 'كمية التسوية (+ زيادة / − عجز)',
     adjReason: 'السبب',
     adjSubmit: 'ترحيل التسوية',
+    adjConfirmTitle: 'تأكيد تسوية المخزون',
+    adjConfirmMsg: 'سيتم ترحيل تسوية بكمية {qty} على المخزون.',
     adjPending: 'بانتظار اعتماد المدير',
     adjStatus: 'الحالة',
     adjValue: 'القيمة',
@@ -84,6 +86,8 @@ export const ar = {
     obSupDebit: 'دفعة مقدمة للمورد (لنا)',
     obToastSaved: 'تم حفظ الرصيد الافتتاحي',
     obToastReversed: 'تم عكس الرصيد الافتتاحي',
+    obConfirmMsg: 'سيتم تطبيق الرصيد الافتتاحي على رصيد الحساب.',
+    imConfirmMsg: 'سيتم ترحيل عقد التقسيط وإضافة المتبقي على رصيد العميل.',
     obExisting: 'الأرصدة الافتتاحية الحالية',
 
     // ── Installment migration ────────────────────────────────────────
@@ -153,6 +157,8 @@ export const en = {
     adjQty: 'Adjustment qty (+ increase / − shortage)',
     adjReason: 'Reason',
     adjSubmit: 'Post adjustment',
+    adjConfirmTitle: 'Confirm stock adjustment',
+    adjConfirmMsg: 'A stock adjustment of {qty} will be posted.',
     adjPending: 'Awaiting manager approval',
     adjStatus: 'Status',
     adjValue: 'Value',
@@ -221,6 +227,8 @@ export const en = {
     obSupDebit: 'Advance to supplier (receivable)',
     obToastSaved: 'Opening balance saved',
     obToastReversed: 'Opening balance reversed',
+    obConfirmMsg: 'The opening balance will be applied to the account balance.',
+    imConfirmMsg: 'The contract will be migrated and the remaining amount added to the customer balance.',
     obExisting: 'Current opening balances',
 
     imTitle: 'Migrate Existing Installment Contracts',

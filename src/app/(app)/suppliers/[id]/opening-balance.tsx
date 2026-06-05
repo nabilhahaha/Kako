@@ -48,12 +48,15 @@ export function SupplierOpeningBalance({
   function onSave() {
     const a = Number(amount);
     if (!(a >= 0)) { toast.error(t('ops.obAmount')); return; }
+    confirm({ title: t('ops.obSave'), message: t('ops.obConfirmMsg'), confirmText: t('ops.obSave') }).then((ok) => {
+    if (!ok) return;
     startTransition(async () => {
       const res = await setSupplierOpeningBalance(supplierId, a, type, asOf || null, note.trim() || null);
       if (!res.ok) { toast.error(res.error ?? ''); return; }
       toast.success(t('ops.obToastSaved'));
       setAmount(''); setNote('');
       router.refresh();
+    });
     });
   }
 

@@ -152,6 +152,32 @@ export async function toggleProductActive(
   return { ok: true };
 }
 
+/** Check whether a product can be hard-deleted (no stock, no history). */
+export async function checkProductDeletable(id: string): Promise<ActionResult<{ canDelete: boolean; reasons: string[] }>> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  if (!canAny(ctx!, PRODUCT_MANAGE)) return { ok: false, error: (await getT()).t('products.errorNoPermission') };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('erp_product_delete_check', { p_id: id });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  const d = data as { can_delete?: boolean; reasons?: string[] } | null;
+  return { ok: true, data: { canDelete: Boolean(d?.can_delete), reasons: (d?.reasons as string[]) ?? [] } };
+}
+
+/** Hard-delete a product — only when it has zero stock AND no transactional
+ *  history (the RPC re-checks and blocks otherwise; use archive/deactivate). */
+export async function deleteProduct(id: string): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  if (!canAny(ctx!, PRODUCT_MANAGE)) return { ok: false, error: t('products.errorNoPermission') };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_delete_product', { p_id: id });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath('/products');
+  return { ok: true };
+}
+
 export async function createCategory(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
