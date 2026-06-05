@@ -76,6 +76,13 @@ permissions, roles, audit logging, architecture). Method: 3 parallel code audits
 ## Migrations
 - **0151** `erp_supplier_payments` RLS scope fix (reversible; rollback in file).
 
+## Roadmap execution (post-audit)
+- **#1 Global Roles & Permissions UI** — ✅ `/platform/roles` (migration 0152: owner write access to the role catalog). Create/rename/clone/delete, grouped permission editor, danger flags, role compare. `role-admin.ts` (+8 tests).
+- **#2 View As Company** — ✅ `/platform/companies/[id]/view-as`: read-only per-role tenant experience preview (no impersonation / no RLS change). Audited.
+- **#3 Tenant Audit Viewer** — ✅ `/settings/audit-log` (migration 0153: company-admin read of own audit log). Closes the tenant self-audit gap.
+- **#4 Integrations Module UI** — ⏸️ **deferred (needs approval)**. Evidence: `integrations.manage` is held only via `it_admin` + 4 custom configs; only 6/44 companies have the module; integrations is in 3 (paid) plans. Forcing a nav module-gate would REMOVE integration settings from free-plan/perm-holding tenants — a tenant-facing functionality removal. The orphan is documented + test-guarded (`architecture-integrity.test.ts` allowlist). Recommended path: backfill `integrations` company-module from plan entitlement, then gate — as an approved, announced change.
+- **#5 Architecture cleanup** — ✅ Extracted the duplicated module-gate logic (`visibleSections` + `resolveBottomNavTabs`) into one shared, tested `isModuleGateOpen(modules, gate)` in `navigation.ts`. Behavior-preserving (all nav/bottom-nav tests green) + 4 new unit tests.
+
 ## Residual risk register
 | Risk | Severity | Status |
 |------|----------|--------|

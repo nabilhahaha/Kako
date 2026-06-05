@@ -149,6 +149,22 @@ export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
   warehousing: { en: 'Warehouse Management', ar: 'إدارة المخازن' },
 };
 
+/**
+ * Whether a feature gate is open for a company with the given enabled `modules`.
+ * The single source of truth for module gating, shared by the sidebar
+ * (`visibleSections`) and the mobile bottom nav (`resolveBottomNavTabs`).
+ *  - no gate → always open
+ *  - empty `modules` → unrestricted (platform owner / legacy tenant)
+ *  - array gate → ANY-of (open if the company has at least one listed module), so
+ *    a capability module can be bound alongside a legacy gate without regressing
+ *    tenants that only have the legacy one.
+ */
+export function isModuleGateOpen(modules: Module[], gate?: Module | Module[]): boolean {
+  if (!gate) return true;
+  if (modules.length === 0) return true;
+  return Array.isArray(gate) ? gate.some((g) => modules.includes(g)) : modules.includes(gate);
+}
+
 export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'nav.sections.provider',
@@ -456,14 +472,7 @@ export function visibleSections(
   }
 
   const elevated = isSuperAdmin;
-  const unrestricted = modules.length === 0; // platform owner / legacy tenant
-  const moduleAllowed = (m?: Module | Module[]) => {
-    if (!m || unrestricted) return true;
-    // Array = ANY-of: the section/item shows if the company has at least one
-    // of the listed modules (so a capability module can be bound alongside a
-    // legacy gate without regressing tenants that only have the legacy one).
-    return Array.isArray(m) ? m.some((x) => modules.includes(x)) : modules.includes(m);
-  };
+  const moduleAllowed = (m?: Module | Module[]) => isModuleGateOpen(modules, m);
 
   // A clothing storefront's home IS the Fashion section (+ Settings). The generic
   // FMCG "control center" (Dashboard / Attention / Notifications) is irrelevant
