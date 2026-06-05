@@ -1,151 +1,206 @@
-# Offline Edition — Architecture Plan (design only)
+# Offline Edition — Architecture Plan (cross‑platform: Windows + macOS)
 
 **Status:** planning / design. **No implementation in this document.**
-**Goal:** run the Retail Edition (Fashion/POS store) fully on a single Windows PC with **no internet dependency**, while keeping one codebase with the cloud (SaaS) edition.
+**Goal:** run the Retail Edition (Fashion/POS store) fully on a single desktop — **Windows or macOS** — with **no internet dependency after activation**, from **one shared codebase**.
 
-Current cloud stack (for reference): Next.js 15 (App Router, server components + server actions), Supabase Postgres 17 + RLS, pg_cron (scheduled backups), a per‑company multi‑tenant model. The retail tenant uses business_type `clothing` → `fashion` module.
+**Target platforms**
+1. **Windows 10/11 64‑bit** (x64)
+2. **macOS Apple Silicon** (arm64, M1+)
+3. **macOS Intel** (x86_64) — supported if feasible (see §I / §H)
+
+**Invariant principles (unchanged across OS)**
+- One shared codebase (Next.js app + the existing SQL/RPC/migration layer).
+- **Local PostgreSQL** (reuse the entire cloud SQL layer — RPCs, triggers, migrations 0001→0173).
+- Local app runtime (Node server for the Next.js app), served on `127.0.0.1`.
+- **No internet dependency after activation.**
+- Same Retail Edition features; **same backup/restore engine** (`erp_snapshot_company` / `erp_create_backup` / restore‑preview‑apply) — already proven by the disaster‑recovery simulation.
+
+> Why local PostgreSQL (not SQLite): reuse ~25 `plpgsql` RPCs, triggers, RLS, `jsonb`, `pg_cron`, and the idempotent migration chain with near‑zero rewrite. This is the single biggest risk reducer and the reason the architecture is identical on both OSes at the data layer.
+
+The architecture is a **3‑process local stack** on every platform:
+`[Desktop shell + tray/menu bar]` → spawns → `[Node: Next.js server @127.0.0.1:<port>]` → connects → `[bundled PostgreSQL @127.0.0.1:<pgport>]`.
+Only the **packaging, service management, and code‑signing** differ per OS.
 
 ---
 
-## 1. SQLite vs PostgreSQL for local deployment
+## A) Packaging approach
 
-| Dimension | **PostgreSQL (embedded/local service)** | **SQLite (embedded file)** |
+| | **Tauri** (Rust shell) | **Electron** (Chromium+Node shell) | **Native browser + local service** |
+|---|---|---|---|
+| Installer size | ~3–10 MB shell (+ sidecars) | ~120–180 MB (+ sidecars) | smallest (no shell) |
+| Runtime | OS WebView (WebView2 / WKWebView) | Bundled Chromium | OS browser |
+| Bundling Node + Postgres | **Sidecars** (external binaries) | Sidecars (Node is built‑in; PG is a sidecar) | Both as OS services |
+| Native tray / menu bar | ✅ both OS | ✅ both OS | ❌ (no native chrome) |
+| Auto‑update | ✅ built‑in signed updater | ✅ electron‑updater (mature) | DIY |
+| Code‑sign / notarize | ✅ documented, must sign each sidecar | ✅ electron‑builder automates | must sign service + installer |
+| Security surface | Smaller (Rust, no Node in shell) | Larger (Node in renderer unless hardened) | App is "just a web page" → weak device integration |
+| Team familiarity | Rust glue (small) | Pure JS/TS | Pure JS/TS |
+| UX (kiosk/native window, single instance, deep‑links) | ✅ | ✅ | ❌ relies on a browser tab |
+
+**Native browser + local service** is rejected for v1: no native window/menu‑bar/tray, fragile "is the tab open?" UX, weak peripheral/printer integration, and the user can close the browser and "lose" the POS. (It remains a fallback dev mode.)
+
+### Recommendation: **Tauri** (primary), **Electron** as the documented fallback.
+- The **heavy lifting is identical** for both shells — Postgres and the Next.js Node server run as **sidecar child processes** either way — so the shell choice mainly affects **size, native integration, updater, and signing ergonomics**.
+- Tauri wins on **installer size** (matters for offline USB installs), **smaller security surface**, **native tray/menu bar on both OS**, and a **built‑in signed updater**; macOS notarization + Windows signing are well documented.
+- **Choose Electron instead if** the team wants a **single JS toolchain** and maximal ecosystem maturity (electron‑builder automates Windows + DMG/PKG + notarization + auto‑update in one config). It's the lower‑velocity‑risk option.
+- **Decision:** start on **Tauri**; keep an Electron escape hatch — if Node‑sidecar packaging or per‑binary notarization causes friction, switching is low cost because the app/DB layers are shell‑agnostic.
+
+---
+
+## B) Local PostgreSQL (bundle + manage, per platform)
+
+We ship **PostgreSQL 17 binaries** (match the cloud major version so dumps/migrations are byte‑compatible). The app **never** assumes a system Postgres; it runs its own private instance on a **non‑standard loopback port** to avoid clashing with any existing install.
+
+**Per‑platform binaries**
+- **Windows x64:** bundle the official EDB Windows binaries (`postgres.exe`, `initdb.exe`, `pg_ctl.exe`, `pg_dump.exe`, `pg_isready.exe`).
+- **macOS Apple Silicon (arm64):** bundle native arm64 PG binaries (EDB macOS arm64, or repackage Postgres.app's binaries).
+- **macOS Intel (x86_64):** bundle x86_64 PG binaries. Ship a **universal app** carrying both arch slices, **or** two architecture‑specific installers; pick the slice at install/runtime. (Do **not** rely on Rosetta for the DB — ship native arm64 for ASi.)
+
+| | Windows | macOS (ASi + Intel) |
 |---|---|---|
-| Compatibility with current schema | **Native** — same DDL, RPCs (plpgsql), triggers, RLS, `jsonb`, sequences, `pg_cron` | Requires rewriting all `plpgsql` RPCs (we have ~25: checkout, void, returns, exchange, installments, analytics, backups…), triggers, and RLS → large port |
-| RLS / multi‑tenant | Yes (but a single store needs only company‑scoping, not full RLS) | No RLS — enforce scope in app |
-| Concurrency | Multiple cashiers/terminals on a LAN | Single‑writer; fine for **one** terminal, risky for multi‑terminal |
-| Footprint / ops | Heavier (a Windows service, ~200MB) | Tiny (one file, zero service) |
-| Backup/restore | `pg_dump`/file copy; our snapshot RPC works as‑is | Copy the `.sqlite` file |
-| Effort to reach parity | **Low–medium** (reuse SQL) | **High** (port every RPC/trigger) |
+| **Data directory** | `%PROGRAMDATA%\KakoRetail\db` (all‑users) or `%LOCALAPPDATA%\KakoRetail\db` (per‑user) | `~/Library/Application Support/KakoRetail/db` (per‑user) |
+| **Binaries location** | app `resources\pgsql\bin` | app bundle `Contents/Resources/pgsql/bin` (signed + hardened‑runtime) |
+| **Service / daemon** | A **Windows Service** (via NSSM/sc.exe) **or** a shell‑managed child process with autostart | A per‑user **LaunchAgent** (`~/Library/LaunchAgents/com.kako.retail.db.plist`) **or** a shell‑managed child process. Prefer LaunchAgent (no root). LaunchDaemon only if multi‑user/system‑wide is required. |
+| **Startup** | `initdb` on first run → `pg_ctl start`; run migrations to head; then start the Node server | same sequence; first run `initdb`, start, migrate, then app |
+| **Shutdown** | `pg_ctl stop -m fast` on app/tray quit + service stop | `pg_ctl stop -m fast` on quit / LaunchAgent unload |
+| **Port binding** | `listen_addresses = '127.0.0.1'`, a **dynamic free port** picked at first run and persisted (default base 54329); never 5432 | same — loopback only, dynamic port persisted |
+| **Health check** | `pg_isready -h 127.0.0.1 -p <port>` then `SELECT 1` with bounded retry/backoff; surface status in tray | identical; status in menu bar |
+| **Auth (offline)** | `scram-sha-256` local role + a generated password stored in the app's secure store (Windows Credential Manager) | same, secret in macOS Keychain |
 
-### Recommendation
-**Embedded PostgreSQL** (bundled `postgresql` binaries run as a local Windows service on `127.0.0.1`). Rationale:
-- **Reuse the entire existing SQL layer** — RPCs, triggers, the analytics/backup functions, the migration chain (0001→0173) — with near‑zero rewrite. This is the single biggest risk‑reducer.
-- Supports a **2–3 terminal LAN** store later (one PC as the “server”, others as clients) without re‑architecting.
-- `pg_cron` → local scheduled backups already work.
-
-> SQLite remains a fallback **only** if we must ship an ultra‑light single‑terminal build and accept a full SQL port. Not recommended for v1.
-
-### Deployment shape (recommended)
-- **App:** package the Next.js app as a local server (Node runtime) started by the installer, served at `http://localhost:<port>`, opened in the default browser **or** wrapped in a thin desktop shell (Tauri/Electron) for a native window + tray.
-- **DB:** bundled Postgres service, data dir under `%PROGRAMDATA%\KakoRetail\db`.
-- **Auth offline:** replace Supabase Auth with a **local auth** (bcrypt users table + a signed local session cookie). `auth.uid()`/`erp_user_company_id()` are re‑pointed to a local session function. Single company seeded at install.
+**Cross‑cutting**
+- Replace Supabase Auth with **local auth** (a users table + bcrypt + a signed local session); re‑point `auth.uid()` / `erp_user_company_id()` to a local‑session function. A single company is seeded at install, so scoping is trivial.
+- `pg_cron` runs locally for scheduled backups (already wired). If bundling `pg_cron` on macOS is awkward, fall back to an **app‑level scheduler** (the shell triggers `erp_create_backup` on a timer) — same effect.
+- Backups: keep the loopback‑only, single‑instance, lock‑file guard so two app copies can't fight over one data dir.
 
 ---
 
-## 2. Windows installer
+## C) Installer strategy
 
-- **Installer:** MSI/EXE via **Inno Setup** or **WiX** (or Tauri's bundler if we use a Tauri shell).
-- **Bundles:** the app (Node + built `.next`), the Postgres binaries, a first‑run bootstrap that (a) `initdb`s the data dir, (b) starts the service, (c) runs the migration chain, (d) seeds the company + admin user + a license check.
-- **Services:** register Postgres + the app as Windows services (auto‑start) via `sc.exe`/NSSM; a **system‑tray** app for start/stop/status/backup‑now.
-- **Ports:** bind to `127.0.0.1` only by default; LAN mode opens the chosen port via a firewall rule the installer adds on explicit opt‑in.
-- **Uninstall:** keep the DB data dir + backups by default (ask before deleting).
-- **Code signing:** sign the installer + binaries (EV cert) to avoid SmartScreen warnings.
+### Windows
+- **EXE/MSI** installer (Tauri NSIS/WiX, or electron‑builder). EV **code‑signing** of the installer + all bundled `.exe` sidecars (Postgres + Node) to clear **SmartScreen**.
+- **Windows Service** (NSSM/sc.exe) for Postgres (+ optionally the Node server) so the POS starts at boot; or shell‑managed child processes with a Startup shortcut.
+- **System‑tray app:** start/stop/status, Backup Now, open POS, check‑for‑updates.
+- Adds a localhost firewall rule only on explicit **LAN opt‑in**; default is loopback‑only.
+- Uninstall keeps `db` + `backups` by default (ask before deleting).
 
----
-
-## 3. Licensing model
-
-- **Per‑device perpetual license + optional annual support/updates** (typical for offline POS), or **annual subscription** with a grace period. Recommend **per‑device license key** tied to a hardware fingerprint.
-- **License key:** a signed token (Ed25519/RSA) issued by our licensing server, embedding: license id, edition, device‑binding flag, issue/expiry, feature flags (e.g. number of terminals).
-- **Validation:** the app verifies the signature **offline** with an embedded public key (no server call needed to run). Expiry/feature‑gating enforced locally.
-- **Anti‑piracy (pragmatic, not DRM‑heavy):** bind to a hardware fingerprint (motherboard/disk serial hash); allow N re‑activations; tamper‑evident, not unbreakable.
+### macOS
+- **DMG** (drag‑to‑Applications, simplest) **or** **PKG** (needed if installing a LaunchDaemon/system component). Recommend **DMG + per‑user LaunchAgent** (no root) for a single‑user store; PKG only if system‑wide.
+- **Developer ID Application** signing + **hardened runtime** + **entitlements**, then **notarization** (`notarytool`) + **stapling**. **Every bundled executable** (Postgres binaries, Node, helper tools) must be signed with hardened runtime, or **Gatekeeper** kills them.
+- **Menu‑bar app** (the Tauri/Electron tray equivalent): start/stop/status, Backup Now, open POS, updates.
+- Entitlements likely needed: allow‑unsigned‑executable‑memory only if required by the JS engine; disable library validation only if a sidecar needs it; file‑access entitlements for chosen backup folders.
+- Universal build (arm64 + x86_64) or two arch‑specific DMGs.
 
 ---
 
-## 4. Offline activation
+## D) Licensing
 
-- **Online activation (preferred when available):** enter key → app contacts licensing server once → server returns a signed, device‑bound license file stored locally. Subsequent launches are 100% offline.
-- **Fully offline activation (air‑gapped):**
-  1. App shows a **Request Code** (hardware fingerprint + key).
-  2. Customer sends it to us (phone/WhatsApp/email).
-  3. We return an **Activation Code** (signed license file / short code).
-  4. App verifies the signature offline and activates.
-- **Reactivation/transfer:** a deactivate flow frees a seat; new device requests a fresh activation. Store a small local audit of activations.
-
----
-
-## 5. Local backups
-
-- **Reuse the existing model directly:** `erp_create_backup()` + `erp_snapshot_company()` already produce a self‑contained JSON snapshot per company — works unchanged on local Postgres.
-- **Scheduling:** local `pg_cron` runs `erp_run_scheduled_backups()` daily; the Settings → Backup UI already exposes frequency/retention/Backup‑Now/download.
-- **Storage targets:** write backups to (a) the local DB (`erp_backups`, retained), and (b) a **file** under `%PROGRAMDATA%\KakoRetail\backups\` (plus optional copy to a chosen folder / USB / network share).
-- **Belt‑and‑braces:** also schedule a nightly `pg_dump` (full physical backup) alongside the JSON logical snapshot — physical is the fastest full recovery, JSON is portable/inspectable.
-- **Encryption:** optional AES‑256 of backup files with a store passphrase.
+- **Signed license file** (Ed25519/RSA): issued by our licensing server, embeds license id, edition, device‑binding, issue/expiry, feature flags (e.g. # terminals). Verified **offline** with an embedded public key — no server call to run.
+- **Activation flows (both OS):**
+  - **Online:** enter key → one server round‑trip → receive a device‑bound signed license file stored locally → thereafter 100% offline.
+  - **Offline / air‑gapped:** app shows a **Request Code** (device fingerprint + key) → customer relays it → we return an **Activation Code** (signed license) → verified offline.
+- **Activation transfer:** a deactivate flow frees a seat (writes a local + server‑side, when online, deactivation record); the new device requests a fresh activation. Allow N self‑service re‑activations.
+- **Device fingerprint — platform differences (normalize to one salted hash):**
+  - **Windows:** registry `MachineGuid` + SMBIOS system UUID (WMI `Win32_ComputerSystemProduct.UUID`) + primary disk serial → hash.
+  - **macOS:** `IOPlatformUUID` / hardware UUID (IORegistry) + model identifier → hash. (Do **not** use the MAC address — it changes/randomizes.)
+  - Store fingerprint salt in the license; tolerate one component changing (e.g. disk swap) before requiring re‑activation, to avoid false lockouts.
+- Pragmatic stance: signed, device‑bound, offline‑verifiable = **deterrence**, not unbreakable DRM. Clock‑tamper tolerance: store last‑seen time to detect rollback.
 
 ---
 
-## 6. Restore strategy
+## E) Backup / Restore
 
-- **Logical (data) restore:** the **already‑built** restore preview/apply (new/existing/conflict/skip, non‑destructive, explicit confirm) works locally as‑is — this is the everyday "recover a record / migrate data" path. (Proven by the disaster‑recovery simulation.)
-- **Full physical restore (catastrophic):** stop the service → replace the data dir from a `pg_dump`/file backup → restart → run any pending migrations. Wrapped in a one‑click "Restore from full backup" tray action with confirmation.
-- **Cross‑machine restore (PC replacement):** copy the latest backup file → install on the new PC → restore. Same flow as cloud→offline migration (§8).
-- **Integrity:** verify snapshot `meta.version`/checksum before applying; keep the last good backup before overwriting.
+Two complementary layers (both OS, identical engine):
+- **Logical JSON backup** — the existing `erp_snapshot_company` / `erp_create_backup`; portable, inspectable, **platform‑agnostic** (the restore preview/apply already handles new/existing/conflict/skip, non‑destructive).
+- **Physical PostgreSQL backup** — nightly `pg_dump -Fc` (custom format) for fastest full recovery; also OS‑agnostic as long as the **PG major version matches**.
 
----
+**Targets (selectable, both OS):**
+- **Local folder** — Windows `%PROGRAMDATA%\KakoRetail\backups`; macOS `~/Library/Application Support/KakoRetail/backups`.
+- **External drive** — Windows drive letter; macOS `/Volumes/<drive>` (needs removable‑volume permission / Full Disk Access on recent macOS).
+- **Network share** — SMB on both (Windows UNC `\\server\share`; macOS `/Volumes/<mount>`); credentials stored in the OS secret store.
+- Optional AES‑256 encryption with a store passphrase; default: also keep one **off‑machine** copy (loud reminder if none configured).
 
-## 7. Update strategy
+**Cross‑machine restore matrix** — use **logical JSON** or **`pg_dump` custom format** (both portable). **Never** copy the raw `PGDATA` directory across OSes (it is platform/arch‑specific).
 
-- **App updates:** ship a new installer; a tray "Check for updates" pulls a signed update package (when online) or applies a provided update file (offline). Updater stops services, swaps the app build, **runs the migration chain to head**, restarts. Always backup (full `pg_dump`) before migrating.
-- **Migrations:** the linear `supabase/migrations/000x_*.sql` chain is the source of truth; the local bootstrap/updater applies any not‑yet‑applied files (tracked in a local `schema_migrations`). Our migrations are already **idempotent**, which de‑risks re‑runs.
-- **Rollback:** keep the pre‑update full backup + the previous app build for one‑click rollback.
-- **Channels:** stable (default) vs. early; offline customers stay on stable and update on their schedule.
+| Scenario | Mechanism | Notes |
+|---|---|---|
+| **Windows → Windows** | JSON restore, or `pg_dump`/`pg_restore`, or (same‑version) data‑dir copy | data‑dir copy OK only same OS + same PG version |
+| **macOS → macOS** | JSON restore, or `pg_dump`/`pg_restore`, or (same‑version) data‑dir copy | data‑dir copy OK only same OS + same PG version |
+| **Windows → macOS** | **JSON restore** (preferred) or `pg_restore` of the custom dump | **no data‑dir copy**; same PG major version |
+| **macOS → Windows** | **JSON restore** (preferred) or `pg_restore` of the custom dump | **no data‑dir copy**; same PG major version |
 
----
-
-## 8. Data migration: cloud → offline
-
-1. **Export from cloud:** Settings → Backup → Download (existing JSON snapshot) — or a richer export job for very large books.
-2. **Install offline edition** → bootstrap creates the local company.
-3. **Import:** the restore preview/apply ingests the cloud snapshot (master data + inventory + invoices/installments insert‑missing). Show the same new/existing/conflict/skip preview before applying.
-4. **Reconcile:** verify counts + balances; print a migration report (before/after counts) — same pattern as the disaster‑recovery report.
-5. **Cutover:** mark the cloud tenant read‑only (or export‑and‑freeze) to avoid divergence; from then on the store is offline‑authoritative.
-
-> **Offline → cloud (future sync):** out of scope for v1. If later needed, add a change‑log (outbox) table + a one‑way push, or a CRDT/last‑write‑wins sync layer. Designing for an `updated_at`/`id`‑keyed merge now keeps that door open.
+> Guarantee cross‑OS portability by pinning the **same PostgreSQL major version** in every build and treating **logical JSON** as the canonical interchange format. The disaster‑recovery simulation already proves the JSON path restores all six entity types + inventory levels.
 
 ---
 
-## 9. Hardware requirements (single‑terminal store)
+## F) Updates
 
+- **Per‑OS update packages:** Windows EXE/MSI delta or full; macOS DMG/PKG (signed + notarized). Tauri's signed updater / electron‑updater handle download + verify when online.
+- **Offline update file:** a signed `.update` bundle the customer applies from USB; the app verifies the signature offline before applying.
+- **Update sequence (both OS):** stop Node + Postgres → **take a full `pg_dump` backup (mandatory pre‑update)** → swap the app build + (if changed) PG binaries → **run the migration chain to head** (idempotent) → restart → health‑check.
+- **Rollback:** keep the previous app build + the pre‑update full backup; one‑click "Roll back last update" restores both. Migrations are forward‑only, so rollback = restore the pre‑update dump into the prior binaries.
+- **Channels:** stable (default for stores) vs early; offline customers update on their own schedule.
+
+---
+
+## G) Hardware requirements
+
+### Windows
 | | Minimum | Recommended |
 |---|---|---|
-| OS | Windows 10/11 64‑bit | Windows 11 64‑bit |
-| CPU | Dual‑core 2.0GHz | Quad‑core |
+| OS | Windows 10 64‑bit | Windows 11 64‑bit |
+| CPU | Dual‑core 2.0 GHz | Quad‑core |
 | RAM | 4 GB | 8 GB |
-| Disk | 5 GB free (SSD advised) | 20 GB SSD (room for years of backups) |
-| Peripherals | Thermal printer (80/58mm) + USB/Bluetooth barcode scanner | + cash drawer, label printer |
-| Backup media | — | External drive / USB / NAS for off‑machine backup copies |
+| Disk | 5 GB free (SSD advised) | 20 GB SSD |
+| Peripherals | Thermal printer (80/58 mm) + barcode scanner | + cash drawer, label printer |
+| Backup | — | External drive / NAS for off‑machine copies |
 
-LAN (multi‑terminal): the "server" PC gets 8–16 GB RAM + SSD + wired LAN; clients are thin browsers pointing at the server.
-
----
-
-## 10. Risks & recommendations
-
-| Risk | Impact | Mitigation |
+### macOS
+| | Minimum | Recommended |
 |---|---|---|
-| **Auth/RLS rewrite** (Supabase Auth → local) | Medium | Keep RPCs; re‑implement only `auth.uid()` / `erp_user_company_id()` as local‑session functions; single company simplifies scoping |
-| **No off‑machine backups** → disk failure = total loss | **High** | Default nightly copy to USB/NAS; loud UI reminder; physical `pg_dump` + logical JSON |
-| **Bundling Postgres on Windows** (service mgmt, ports, perms) | Medium | Use proven binaries + NSSM; bind localhost; thorough first‑run bootstrap + health checks |
-| **Update/migration on a live store** | Medium | Always full backup pre‑update; idempotent migrations; one‑click rollback to prior build + backup |
-| **License piracy / clock tampering** | Low–med | Signed device‑bound license, offline verify; accept it's deterrence, not DRM |
-| **Code‑signing / SmartScreen** | Low | EV cert; sign installer + binaries |
-| **Schema drift cloud vs offline** | Medium | Single migration chain is the source of truth for both editions; CI builds the DB from it (already in place) |
-| **Multi‑terminal write conflicts** (if LAN) | Medium | Postgres handles it; keep SQLite off the table for multi‑terminal |
-| **Large backup size** (JSON of full history) | Low | Retention pruning (built); add `pg_dump` for full; optional compression |
+| OS | macOS 12 Monterey | macOS 14+ |
+| Chip | **Apple Silicon M1** (preferred) or Intel Core i5 (2019+) | Apple Silicon M2/M3 |
+| RAM | 8 GB | 16 GB |
+| Disk | 8 GB free (SSD) | 20 GB SSD |
+| Peripherals | USB/Bluetooth thermal printer + scanner (verify macOS driver support) | + cash drawer |
+| Backup | — | External drive (grant removable‑volume permission) / NAS |
 
-### Headline recommendations
-1. **Embedded PostgreSQL**, not SQLite — reuse the whole SQL/RPC/migration layer; biggest risk reducer.
-2. **Reuse the v1.1 backup/restore** as the offline backup + cloud→offline migration engine (already proven by the disaster‑recovery simulation).
-3. **Offline‑verifiable signed licenses** with online + air‑gapped activation.
-4. **Two‑layer backups** (logical JSON + physical `pg_dump`), with **default off‑machine copies**.
-5. **One migration chain, two editions**; idempotent migrations + pre‑update full backup + rollback.
-6. Wrap in a **tray app / thin desktop shell** for start/stop/status/backup; sign everything.
+LAN multi‑terminal (either OS): the "server" machine gets 16 GB RAM + SSD + wired LAN; other terminals are thin browsers pointed at it.
 
 ---
 
-## Suggested phasing (when approved)
-- **P0 – Spike:** bundle Postgres + Node app on Windows; bootstrap + run migrations; local auth; POS happy path offline.
-- **P1 – Installer + licensing:** Inno/WiX installer, signed; offline + air‑gapped activation; tray app.
-- **P2 – Backup/restore hardening:** physical `pg_dump`, off‑machine copies, one‑click restore; cloud→offline migration wizard reusing the restore preview.
-- **P3 – Updates:** signed update packages, migrate‑to‑head with backup + rollback; (optional) LAN multi‑terminal.
+## H) Risks
+
+| Risk | Platform | Impact | Mitigation |
+|---|---|---|---|
+| **Postgres bundling complexity** (arch slices, per‑binary signing) | macOS | **High** | Ship native arm64 + x86_64; **sign + hardened‑runtime + notarize every bundled binary**; automate in CI |
+| Permissions & **notarization** of helper executables | macOS | High | `notarytool` + staple; entitlements; test on a clean machine (no dev tools) |
+| **Antivirus / SmartScreen** flags unsigned `.exe` | Windows | Med‑High | EV code‑sign installer + all sidecars; build reputation; submit to MS if needed |
+| **Gatekeeper** quarantines the app/sidecars | macOS | High | Full Developer ID signing + notarization + stapling; DMG also notarized |
+| **Local service failure** (PG won't start / port taken / corrupt data dir) | both | High | Health check + auto‑retry; dynamic port; lock file; "repair" action (re‑init from last backup); clear tray status + logs |
+| **Backup location permissions** (external/network) | both | Med | macOS removable‑volume / Full Disk Access prompts; Windows UNC creds; verify write before scheduling; warn if target unwritable |
+| **Cross‑platform restore issues** (PG version mismatch, data‑dir non‑portability) | both | Med | Pin one PG major version; canonical **JSON**/`pg_restore` interchange; **block** raw data‑dir copy across OS in the UI |
+| **Auth/RLS rewrite** (Supabase Auth → local) | both | Med | Keep RPCs; re‑implement only `auth.uid()`/`erp_user_company_id()`; single company simplifies it |
+| **No off‑machine backup** → disk failure = total loss | both | High | Default off‑machine copy; loud reminder; two‑layer (JSON + `pg_dump`) |
+| **Update on a live store** | both | Med | Mandatory pre‑update full backup; idempotent migrations; one‑click rollback |
+| **macOS peripheral drivers** (some thermal printers/cash drawers are Windows‑first) | macOS | Med | Certify a supported hardware list before macOS GA |
+| License false‑lockout (hardware change) | both | Low‑Med | Fuzzy fingerprint (tolerate one component change); easy re‑activation |
+
+---
+
+## I) Recommendation (clear answers)
+
+1. **Electron or Tauri?** → **Tauri** for v1 (smaller installers for USB/offline installs, native tray/menu bar on both OS, smaller security surface, built‑in signed updater, good Windows‑signing + macOS‑notarization story). **Keep Electron as a documented fallback** — if Node‑sidecar packaging or per‑binary notarization proves painful, switch with low cost because Postgres + the Next.js server are shell‑agnostic sidecars either way.
+
+2. **Same architecture on Windows and macOS?** → **Yes — the same logical architecture** (desktop shell + Node Next.js sidecar + bundled PostgreSQL sidecar + local auth + the same DB/migrations/backup engine). **Only the OS‑specific layers differ:** packaging (EXE/MSI vs DMG/PKG), service management (Windows Service vs LaunchAgent), signing (EV cert + SmartScreen vs Developer ID + notarization + Gatekeeper), and fingerprint sources. This keeps **one shared codebase** with thin per‑OS adapters.
+
+3. **macOS in v1 or v1.1?** → **Windows ships first (v1); macOS in v1.1.** Reasons: larger retail install base on Windows, simpler signing, and a smaller hardware/driver matrix to certify. macOS adds real work (universal/arch binaries, hardened‑runtime + notarization of every bundled executable, peripheral‑driver certification). Prove the Windows offline stack end‑to‑end, then port to macOS — **Apple Silicon first**, **Intel only if the hardware/driver matrix justifies it** (ASi is the strategic target; Intel is "if feasible").
+
+4. **Safest rollout plan**
+   - **P0 – Cross‑platform spike (Windows):** Tauri shell + Node Next.js sidecar + bundled PG; first‑run bootstrap (initdb → migrate → seed company → local auth); POS happy path offline.
+   - **P1 – Windows installer + licensing:** signed EXE/MSI, tray app, online + air‑gapped activation, signed license, fingerprint.
+   - **P2 – Windows backup/restore hardening + pilot:** physical `pg_dump`, off‑machine copies, one‑click restore, update‑with‑backup‑and‑rollback; run a small store pilot; certify Windows peripherals.
+   - **P3 – macOS Apple Silicon (v1.1):** universal/arm64 build, Developer ID signing + notarization of app **and every bundled binary**, DMG + LaunchAgent + menu‑bar app; verify the cross‑OS **JSON restore** path (W↔M) on real machines; certify macOS peripherals.
+   - **P4 – macOS Intel (if feasible) + LAN multi‑terminal:** x86_64 slice; optional "server PC + thin clients" mode.
+   - **Throughout:** one migration chain (CI already builds the DB from it), mandatory pre‑update backups, and the v1.1 backup/restore as the offline **and** cloud→offline migration engine.
+
+**No offline implementation started — design/planning only, as instructed.**
