@@ -416,13 +416,14 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.mslMatrix', href: '/settings/msl', icon: Layers, perm: 'assortment.manage', group: 'nav.groups.dataFields' },
       { label: 'nav.items.surveys', href: '/settings/surveys', icon: ClipboardCheck, perm: 'survey.manage', group: 'nav.groups.dataFields' },
       { label: 'nav.items.gradingSetup', href: '/settings/outlet-grades', icon: Star, perm: 'grade.manage', group: 'nav.groups.dataFields' },
-      // ── Integrations ──
-      { label: 'nav.items.integrationHub', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.customerOnboarding', href: '/settings/onboarding', icon: Rocket, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.dataOnboarding', href: '/settings/data-onboarding', icon: Download, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage', group: 'nav.groups.integrations' },
+      // ── Integrations ── (gated by the `integrations` plan-capability module so
+      //     the entitlement chain Plan → Company module → Nav is consistent)
+      { label: 'nav.items.integrationHub', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.customerOnboarding', href: '/settings/onboarding', icon: Rocket, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.dataOnboarding', href: '/settings/data-onboarding', icon: Download, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       // ── Governance ──
       { label: 'nav.items.authzConsole', href: '/settings/authz', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.tenantAudit', href: '/settings/audit-log', icon: ScrollText, perm: 'settings.users', group: 'nav.groups.governance' },

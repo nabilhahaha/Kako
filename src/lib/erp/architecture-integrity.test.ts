@@ -61,9 +61,9 @@ describe('architecture — orphan-module guard (documents the known invisible mo
   // for a documented few (capability modules surfaced via permissions/settings,
   // not a section). Pinning the set means a NEWLY-orphaned module fails the test
   // and must be either gated in nav or added here with a reason.
-  const KNOWN_UNGATED: Module[] = [
-    'integrations', // surfaced under Settings (gated by integrations.manage perm), not a module-gated nav section
-  ];
+  // As of migration 0154 + nav gating, `integrations` is a real module gate too,
+  // so the allowlist is empty: every licensable module now has a nav surface.
+  const KNOWN_UNGATED: Module[] = [];
 
   it('no module is silently orphaned (ungated) beyond the documented allowlist', () => {
     const ungated = (ALL_MODULES as Module[]).filter((m) => !navModules.has(m));
