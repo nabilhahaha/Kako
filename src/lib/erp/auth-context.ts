@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type { Branch, BranchRole, Company, Profile } from './types';
 import { ALL_PERMISSIONS, applyFashionUmbrella, type Permission } from './permissions';
@@ -56,7 +57,7 @@ const ROLE_RANK: Record<BranchRole, number> = {
  * Loads the signed-in user's profile and branch memberships.
  * Returns null when there is no authenticated session.
  */
-export async function getUserContext(): Promise<UserContext | null> {
+async function resolveUserContext(): Promise<UserContext | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -210,5 +211,13 @@ export async function getUserContext(): Promise<UserContext | null> {
     modules,
   };
 }
+
+/**
+ * Request-memoized: React `cache()` dedupes resolution within a single server
+ * request, so the layout + page + child server components (and a server action)
+ * each reuse ONE resolution instead of re-running the several auth/membership/
+ * module queries. No cross-request caching — the cache lifetime is the request.
+ */
+export const getUserContext = cache(resolveUserContext);
 
 export { ROLE_RANK };

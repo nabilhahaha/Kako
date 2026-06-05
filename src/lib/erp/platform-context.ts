@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import {
   expandPlatformPermissions,
@@ -21,7 +22,7 @@ export interface PlatformContext {
   permissions: PlatformPermission[];
 }
 
-export async function getPlatformContext(): Promise<PlatformContext | null> {
+async function resolvePlatformContext(): Promise<PlatformContext | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,6 +45,11 @@ export async function getPlatformContext(): Promise<PlatformContext | null> {
   const permissions = expandPlatformPermissions(Array.isArray(perms) ? (perms as string[]) : []);
   return { userId: user.id, isOwner, isStaff, role, permissions };
 }
+
+/** Request-memoized (React `cache()`): one resolution per server request, reused
+ *  across the layout/page/components, instead of re-querying profile + staff +
+ *  permissions each time. No cross-request caching. */
+export const getPlatformContext = cache(resolvePlatformContext);
 
 export function hasPlatformPermission(
   ctx: Pick<PlatformContext, 'isOwner' | 'permissions'> | null,
