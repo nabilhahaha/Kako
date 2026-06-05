@@ -23,10 +23,12 @@ function routeExists(href: string): boolean {
 }
 
 describe('bottom-nav — route integrity', () => {
-  it('the inventory tab points at the real stock route, not the dead /inventory/products', () => {
-    const inv = BOTTOM_NAV_TABS.find((t) => t.labelKey === 'nav.bottom.inventory');
-    expect(inv?.href).toBe('/inventory');
-    expect(inv?.href).not.toBe('/inventory/products');
+  it('the inventory tab(s) point at real stock routes, not the dead /inventory/products', () => {
+    const invs = BOTTOM_NAV_TABS.filter((t) => t.labelKey === 'nav.bottom.inventory');
+    expect(invs.length).toBeGreaterThan(0);
+    for (const inv of invs) expect(inv.href).not.toBe('/inventory/products');
+    // the generic (non-fashion) inventory tab is the real stock route
+    expect(invs.some((t) => t.href === '/inventory')).toBe(true);
   });
 
   it('every bottom-nav tab resolves to an existing App Router page', () => {
@@ -110,5 +112,42 @@ describe('bottom-nav — module-aware Sell routing', () => {
   it('empty modules (platform owner / legacy) is unrestricted and yields one Sell tab', () => {
     const r = resolveBottomNavTabs({ permissions: [], isSuperAdmin: true, modules: [], businessType: null });
     expect(sellTabs(r)).toHaveLength(1);
+  });
+});
+
+describe('bottom-nav — Customers & Inventory tabs are Fashion-aware', () => {
+  const hrefs = (tabs: BottomNavTab[], label: string) => tabs.filter((t) => t.labelKey === label).map((t) => t.href);
+  const P = (...p: Permission[]) => p;
+  const M = (...m: Module[]) => m;
+  // a clothing manager via the fashion.manage umbrella holds the granular fashion.* perms
+  const CLOTHING = { permissions: P('fashion.sell', 'fashion.inventory'), isSuperAdmin: false, modules: M('fashion'), businessType: 'clothing' };
+  const GENERIC = { permissions: P('customers.manage', 'inventory.view'), isSuperAdmin: false, modules: M('sales', 'inventory'), businessType: 'general' };
+
+  it('clothing → Customers opens /fashion/customers (never generic /customers)', () => {
+    const r = resolveBottomNavTabs(CLOTHING);
+    expect(hrefs(r, 'nav.bottom.customers')).toEqual(['/fashion/customers']);
+    expect(r.some((t) => t.href === '/customers')).toBe(false);
+  });
+  it('clothing → Inventory opens /fashion/inventory (never generic /inventory upgrade screen)', () => {
+    const r = resolveBottomNavTabs(CLOTHING);
+    expect(hrefs(r, 'nav.bottom.inventory')).toEqual(['/fashion/inventory']);
+    expect(r.some((t) => t.href === '/inventory')).toBe(false);
+  });
+  it('generic company keeps /customers and /inventory', () => {
+    const r = resolveBottomNavTabs(GENERIC);
+    expect(hrefs(r, 'nav.bottom.customers')).toEqual(['/customers']);
+    expect(hrefs(r, 'nav.bottom.inventory')).toEqual(['/inventory']);
+  });
+  it('never shows two tabs for the same group', () => {
+    for (const ctx of [CLOTHING, GENERIC]) {
+      const r = resolveBottomNavTabs(ctx);
+      expect(hrefs(r, 'nav.bottom.customers').length).toBeLessThanOrEqual(1);
+      expect(hrefs(r, 'nav.bottom.inventory').length).toBeLessThanOrEqual(1);
+    }
+  });
+  it('generic inventory tab no longer leaks to a tenant lacking the inventory module', () => {
+    // salon-style tenant: has inventory.view perm but no inventory module → tab hidden (no upgrade screen)
+    const r = resolveBottomNavTabs({ permissions: P('inventory.view', 'customers.manage'), isSuperAdmin: false, modules: M('salon', 'sales'), businessType: 'salon' });
+    expect(r.some((t) => t.href === '/inventory')).toBe(false);
   });
 });

@@ -31,14 +31,18 @@ export const BOTTOM_NAV_TABS: BottomNavTab[] = [
   { href: '/dashboard', icon: Home, labelKey: 'nav.bottom.home' },
   // Field loop: the salesman's "Today" home (only shown to field reps).
   { href: '/today', icon: MapPin, labelKey: 'nav.bottom.today', perm: 'field.sales' },
-  { href: '/customers', icon: Users, labelKey: 'nav.bottom.customers', perm: 'customers.manage' },
+  // ── Customers (mutually-exclusive group 'customers') ──
+  { href: '/fashion/customers', icon: Users, labelKey: 'nav.bottom.customers', perm: 'fashion.sell', module: 'fashion', group: 'customers' },
+  { href: '/customers', icon: Users, labelKey: 'nav.bottom.customers', perm: 'customers.manage', module: 'sales', group: 'customers' },
   // ── Sell (mutually-exclusive group 'sell') ──
   // Fashion shops sell from the Fashion POS; everyone else from generic Sales.
   // The resolver shows only one, gated by the enabled module so a fashion-only
   // clothing company never lands on the `sales`-module-gated upgrade screen.
   { href: '/fashion/sell', icon: ScanBarcode, labelKey: 'nav.bottom.sell', perm: 'fashion.sell', module: 'fashion', group: 'sell' },
   { href: '/sales/invoices', icon: Zap, labelKey: 'nav.bottom.sell', perm: 'sales.sell', module: 'sales', group: 'sell' },
-  { href: '/inventory', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'inventory.view' },
+  // ── Inventory (mutually-exclusive group 'inventory') ──
+  { href: '/fashion/inventory', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'fashion.inventory', module: 'fashion', group: 'inventory' },
+  { href: '/inventory', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'inventory.view', module: 'inventory', group: 'inventory' },
 ];
 
 export interface BottomNavContext {
@@ -57,10 +61,11 @@ export interface BottomNavContext {
  * mutually-exclusive groups collapsed to the single most-specific route for the
  * company's business type. Pure (no JSX / hooks) so the routing is unit-tested.
  *
- * Group preference: `clothing` companies prefer the Fashion POS (`/fashion/sell`)
- * for the "sell" group; everyone else prefers generic Sales (`/sales/invoices`).
- * A candidate only survives if its module is enabled, so fashion-only shops get
- * the Fashion POS and never the generic (un-entitled) Sales route.
+ * Group preference: `clothing` companies prefer the Fashion route (`/fashion/*`)
+ * for every mutually-exclusive group (sell, customers, inventory); everyone else
+ * prefers the generic route. A candidate only survives if its module is enabled,
+ * so fashion-only shops get the Fashion screens and never a generic (un-entitled)
+ * route's upgrade screen.
  */
 export function resolveBottomNavTabs(
   ctx: BottomNavContext,
@@ -70,18 +75,17 @@ export function resolveBottomNavTabs(
   const hasModule = (m?: Module) => !m || ctx.modules.length === 0 || ctx.modules.includes(m);
   const candidates = tabs.filter((t) => can(t.perm) && hasModule(t.module));
 
-  // Most-specific route per mutually-exclusive group, by business type.
+  // Within a mutually-exclusive group, clothing prefers the Fashion route; every
+  // other business type prefers the generic route.
   const prefersFashion = ctx.businessType === 'clothing';
-  const groupPreferred: Record<string, string | undefined> = {
-    sell: prefersFashion ? '/fashion/sell' : '/sales/invoices',
-  };
+  const isFashionRoute = (href: string) => href.startsWith('/fashion/');
 
   const chosen = new Map<string, string>(); // group -> chosen href
   for (const t of candidates) {
     const g = t.group;
     if (!g || chosen.has(g)) continue;
     const group = candidates.filter((c) => c.group === g);
-    const pick = group.find((c) => c.href === groupPreferred[g]) ?? group[0];
+    const pick = group.find((c) => isFashionRoute(c.href) === prefersFashion) ?? group[0];
     chosen.set(g, pick.href);
   }
   return candidates.filter((t) => !t.group || chosen.get(t.group) === t.href);
