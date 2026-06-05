@@ -89,8 +89,23 @@ export function ProductsManager({
       const chk = await checkProductDeletable(p.id);
       if (!chk.ok || !chk.data) { toast.error(chk.error ?? t('products.toastError')); return; }
       if (!chk.data.canDelete) {
-        const reasons = chk.data.reasons.map((r) => t(`products.delReason.${r}` as 'products.delReason.stock')).join('، ');
-        toast.error(t('products.delBlocked', { reasons }));
+        // Show EXACTLY why deletion is blocked (with counts), then offer archive.
+        const d = chk.data.details;
+        const lines: string[] = [];
+        if (Number(d.stock) !== 0) lines.push('• ' + t('products.delDetail.stock', { n: Number(d.stock) }));
+        if (Number(d.invoices) > 0) lines.push('• ' + t('products.delDetail.invoices', { n: Number(d.invoices) }));
+        if (Number(d.returns) > 0) lines.push('• ' + t('products.delDetail.returns', { n: Number(d.returns) }));
+        if (Number(d.exchanges) > 0) lines.push('• ' + t('products.delDetail.exchanges', { n: Number(d.exchanges) }));
+        if (Number(d.movements) > 0) lines.push('• ' + t('products.delDetail.movements', { n: Number(d.movements) }));
+        if (Number(d.counts) > 0) lines.push('• ' + t('products.delDetail.counts', { n: Number(d.counts) }));
+        if (Number(d.adjustments) > 0) lines.push('• ' + t('products.delDetail.adjustments', { n: Number(d.adjustments) }));
+        const archive = await confirm({
+          title: t('products.delBlockedTitle'),
+          message: `${t('products.delBlockedIntro')}\n${lines.join('\n')}\n\n${t('products.delArchiveHint')}`,
+          confirmText: p.is_active ? t('products.delArchiveBtn') : t('products.btnCancel'),
+          cancelText: t('products.delCloseBtn'),
+        });
+        if (archive && p.is_active) onToggle(p);
         return;
       }
       const ok = await confirm({

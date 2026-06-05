@@ -152,16 +152,22 @@ export async function toggleProductActive(
   return { ok: true };
 }
 
-/** Check whether a product can be hard-deleted (no stock, no history). */
-export async function checkProductDeletable(id: string): Promise<ActionResult<{ canDelete: boolean; reasons: string[] }>> {
+export type ProductDeleteDetails = {
+  stock?: number; invoices?: number; returns?: number; exchanges?: number;
+  movements?: number; counts?: number; adjustments?: number;
+};
+
+/** Check whether a product can be hard-deleted (no stock, no history), with the
+ *  EXACT dependency counts so the UI can explain why archive is required. */
+export async function checkProductDeletable(id: string): Promise<ActionResult<{ canDelete: boolean; reasons: string[]; details: ProductDeleteDetails }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
   if (!canAny(ctx!, PRODUCT_MANAGE)) return { ok: false, error: (await getT()).t('products.errorNoPermission') };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('erp_product_delete_check', { p_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
-  const d = data as { can_delete?: boolean; reasons?: string[] } | null;
-  return { ok: true, data: { canDelete: Boolean(d?.can_delete), reasons: (d?.reasons as string[]) ?? [] } };
+  const d = data as { can_delete?: boolean; reasons?: string[]; details?: ProductDeleteDetails } | null;
+  return { ok: true, data: { canDelete: Boolean(d?.can_delete), reasons: (d?.reasons as string[]) ?? [], details: (d?.details as ProductDeleteDetails) ?? {} } };
 }
 
 /** Hard-delete a product — only when it has zero stock AND no transactional

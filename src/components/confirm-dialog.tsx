@@ -60,7 +60,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 <div>
                   <h3 className="font-semibold">{options.title}</h3>
                   {options.message && (
-                    <p className="mt-1 text-sm text-muted-foreground">{options.message}</p>
+                    <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{options.message}</p>
                   )}
                 </div>
               </div>
