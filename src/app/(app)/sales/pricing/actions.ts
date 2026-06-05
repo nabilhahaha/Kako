@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, can, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { resolvePrice } from '@/lib/erp/pricing-server';
+import { logAudit } from '@/lib/erp/audit';
 
 /** Pricing management (P-b). Rule/list CRUD gated by pricing.manage; the line
  *  resolver is available to any authenticated seller. Tenant-scoped via RLS. */
@@ -93,6 +94,8 @@ export async function deletePriceRule(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.from('erp_price_rules').delete().eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
+  // Audit destructive pricing change (revenue-affecting).
+  await logAudit(supabase, { action: 'delete', entity: 'price_rule', entityId: id, companyId: g.companyId });
   revalidatePath('/sales/pricing');
   return { ok: true };
 }
