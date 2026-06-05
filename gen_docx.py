@@ -58,6 +58,12 @@ def p(txt, bold=False, italic=False):
 def bullets(items):
     for it in items:
         doc.add_paragraph(it, style='List Bullet')
+def figure(path, caption, width=6.4):
+    doc.add_picture(path, width=Inches(width))
+    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+    cap = doc.add_paragraph(); cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = cap.add_run(caption); r.italic = True; r.font.size = Pt(8.5); r.font.color.rgb = RGBColor(0x66,0x66,0x66)
+    doc.add_paragraph()
 
 # ════════════════════════════ TITLE PAGE ════════════════════════════
 ttl = doc.add_paragraph(); ttl.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -84,6 +90,9 @@ toc = [
  '14. Existing Pages / Routes','15. Migrations Applied','16. Tests & Verification Status',
  '17. Scalability Review Summary','18. PR / Branch Structure','19. Remaining Technical Debt',
  '20. Recommended Next Development Phase',
+ '21. Architecture Diagram','22. Database ERD Overview','23. Workflow Maps',
+ '24. Module Dependency Map','25. Future Industry Packs',
+ '26. Final Architecture Readiness Assessment','27. Executive CTO Summary',
 ]
 for t in toc:
     par = doc.add_paragraph(); run = par.add_run(t); run.font.size = Pt(10.5)
@@ -460,6 +469,137 @@ add_table(['Phase','Action'],
   ['C. Scale-readiness (trigger-based)','(company_id, created_at) composite indexes; retention + monthly range-partitioning of high-volume tables; platform-analytics rollup tables; read replica for reporting.'],
   ['D. Customer-facing product','Self-serve plan/upgrade flows on the entitlement model; tenant-facing dashboards & reporting on the rollup foundation.']],
  widths=[1.8,4.7])
+
+# ════════════════════════════ 21. ARCHITECTURE DIAGRAM ════════════════════════════
+doc.add_page_break()
+h1('21. Architecture Diagram')
+p('The diagram below shows VANTORA’s governance-to-runtime control flow. The Platform Owner defines '
+  'plans, modules, roles, and permissions (governance); companies and their users then operate strictly '
+  'within those entitlements (runtime); and Row-Level Security enforces tenant isolation at the database '
+  '— the hard boundary that one tenant can never cross into another.')
+figure('docs/diagrams/arch.png', 'Figure 1 — Governance & control flow: vendor defines → runtime enforces.', 4.7)
+
+# ════════════════════════════ 22. ERD ════════════════════════════
+doc.add_page_break()
+h1('22. Database ERD Overview')
+p('A high-level view of the core entities and their ownership chains. COMPANIES is the tenancy hub: '
+  'every operational record ultimately traces back to a company, which is the basis for Row-Level '
+  'Security. Cardinalities use 1—* (one-to-many) and *—* (many-to-many via a link table).')
+figure('docs/diagrams/erd.png', 'Figure 2 — Entity relationship overview (ownership chains).', 6.5)
+p('Primary ownership chains:', bold=True)
+bullets([
+ 'Company → Branches → Users (a user’s role is assigned per branch via erp_user_branches).',
+ 'Plan → Company; Plan ⇄ Modules and Company ⇄ Modules → effective modules = the intersection.',
+ 'Company → Roles ⇄ Permissions (company-scoped config, falling back to global defaults).',
+ 'Company → Customers / Suppliers / Products; Customer → Invoices; Product ⇄ Invoice lines; Product → Inventory.',
+ 'Company → Audit Logs; Company → Billing (subscriptions, invoices, payments).',
+])
+
+# ════════════════════════════ 23. WORKFLOWS ════════════════════════════
+doc.add_page_break()
+h1('23. Workflow Maps')
+p('Operational flows for the platform’s most important processes — onboarding, identity, entitlement, '
+  'and governance.')
+figure('docs/diagrams/workflows.png', 'Figure 3 — Operational workflow maps (seven flows).', 6.4)
+
+# ════════════════════════════ 24. MODULE DEPENDENCY MAP ════════════════════════════
+doc.add_page_break()
+h1('24. Module Dependency Map')
+p('Modules build on shared capabilities. "Depends on" means a module needs — or works best alongside — '
+  'another to function. Core capabilities (shown in cyan) are the foundation; industry verticals and '
+  'item-level refinements layer on top. The advisory dependency hints also drive UI warnings before a '
+  'depended-on module is disabled.')
+figure('docs/diagrams/deps.png', 'Figure 4 — Module dependency map.', 6.4)
+add_table(['Module', 'Depends on / works best with'],
+ [['sales (core)','customers, products, inventory, accounting (revenue posting)'],
+  ['pos','sales, inventory'],
+  ['sales_orders / returns','sales'],
+  ['warehousing','inventory'],
+  ['market (supermarket)','sales, inventory'],
+  ['wholesale','sales (price tiers)'],
+  ['restaurant','sales'],
+  ['distribution','sales, field_ops (journey planning, MSL / trade-marketing, perfect-store)'],
+  ['fashion','sales, inventory (+ installments & cash box as built-in sub-features)']],
+ widths=[1.9,4.6])
+
+# ════════════════════════════ 25. FUTURE INDUSTRY PACKS ════════════════════════════
+doc.add_page_break()
+h1('25. Future Industry Packs')
+p('VANTORA’s pack model layers industry-specific modules on the shared commerce/accounting foundation. '
+  'The packs below are built or planned; each lists the core modules it reuses, the modules/features '
+  'unique to it, and its target customer profile.')
+add_table(['Pack', 'Core modules used', 'Unique modules / features', 'Target customer'],
+ [['FMCG Distribution','sales, inventory, accounting, field_ops','routes, journey compliance, MSL matrix, perfect-store, outlet grading','Distributors / wholesalers with van sales & retail execution'],
+  ['Clinic','crm, sales, accounting','reception, doctor queue, appointments, patients, visits, services, drug reference','Clinics & polyclinics'],
+  ['Pharmacy','sales, inventory, purchasing, accounting, pos','dispensing, near-expiry tracking','Pharmacies / drugstores'],
+  ['Restaurant','sales, inventory, accounting','tables, orders, kitchen display','Restaurants & cafés'],
+  ['Hotel','accounting','rooms, bookings','Hotels / guesthouses'],
+  ['Salon','sales, accounting','appointments, tickets, services','Salons & spas'],
+  ['Laundry','sales, accounting','orders, services','Laundries / dry cleaners'],
+  ['Fashion','sales, inventory','variants, fashion POS, installments, cash box, store reports','Clothing & footwear retail'],
+  ['Retail (general)','sales, inventory, accounting, pos','generic counter POS','General retail shops'],
+  ['Wholesale','sales, inventory','price tiers, wholesale orders','Wholesalers / B2B sellers']],
+ widths=[1.4,1.7,2.0,1.6])
+
+# ════════════════════════════ 26. READINESS ASSESSMENT ════════════════════════════
+doc.add_page_break()
+h1('26. Final Architecture Readiness Assessment')
+figure('docs/diagrams/scores.png', 'Figure 5 — Architecture readiness scores (out of 10).', 5.9)
+add_table(['Dimension', 'Score', 'Basis'],
+ [['Security','9.0 / 10','RLS on all 129 tables; isolation verified (reads + writes); one historical leak fixed; guards consistent across the apex tier.'],
+  ['Tenant Isolation','9.0 / 10','company_id scoping everywhere; no permissive tenant policies; sensitive tables (audit/billing/staff) tightly scoped.'],
+  ['Governance','9.0 / 10','Unified authorization; all sensitive mutations audited; tenant + vendor audit viewers; CI architecture/authz/schema guards.'],
+  ['Maintainability','8.0 / 10','Shared gating helpers; typed catalogs; thorough docs; minor naming debt remains.'],
+  ['Production Readiness','8.5 / 10','Green CI; migrations apply cleanly to staging; clean two-PR split; reversible migrations.'],
+  ['Scalability','7.5 / 10','FK coverage 100%, per-query RLS, request memoization done; partitioning/rollups/replica deferred (trigger-based).'],
+  ['Current Maturity (overall)','8.5 / 10','Production-grade core; remaining work is the customer-facing product surface + trigger-based scale.']],
+ widths=[1.9,1.0,3.6])
+
+# ════════════════════════════ 27. CTO SUMMARY ════════════════════════════
+doc.add_page_break()
+h1('27. Executive CTO Summary')
+p('What VANTORA is.', bold=True)
+p('A production-grade, multi-tenant SaaS ERP that runs many businesses of different industries from a '
+  'single codebase and database, with strict per-tenant isolation, a five-layer entitlement model '
+  '(Plan → Module → Permission → UI → Guard), and a vendor control center for administering the whole '
+  'platform. Built on Next.js (App Router) and Supabase (Postgres + RLS + Auth + Storage).')
+p('What is already complete.', bold=True)
+bullets([
+ 'Authorization & isolation: RLS on all 129 tables, verified for reads and writes; consistent apex tier; '
+ 'every sensitive mutation audited; tenant and vendor audit viewers.',
+ 'Platform control center: company 360 (suspend/activate, plan/trial, modules, users), Plans & Modules '
+ 'editor (with impact preview), Global Roles & Permissions, View-As-Company, billing, staff, audit.',
+ 'Tenant experiences: clean, business-type-specific navigation for fashion, clinic, restaurant, '
+ 'pharmacy, salon, laundry, hotel, wholesale, FMCG distribution, and general retail.',
+ 'Entitlement consistency: every licensable module has a navigation surface; integrations and POS are '
+ 'real plan-gated capabilities; clothing normalized to fashion-only.',
+ 'Scalability foundations: 100% FK index coverage, per-query RLS auth, request-memoized auth context, '
+ 'and a CI schema-health guard.',
+ 'Documentation + a clean two-PR split (#121 Fashion, #122 Governance) that preserves all history.',
+])
+p('What remains.', bold=True)
+bullets([
+ 'Trigger-based scale work: (company_id, created_at) composite indexes, retention policies, monthly '
+ 'range-partitioning of high-volume tables, platform-analytics rollups, and a read replica.',
+ 'A deliberate naming-reconciliation pass (finance↔accounting; market labeled "Supermarket").',
+ 'Minor cleanups: move copilot-analytics out of the vendor namespace; finalize field_ops / POS '
+ 'defaults per business type.',
+ 'Customer-facing product surface: self-serve plan/upgrade flows and tenant dashboards.',
+])
+p('What should be built next.', bold=True)
+bullets([
+ 'Land #121 then #122 to main; confirm the Supabase transaction pooler for serverless connections.',
+ 'Catalog (plans/roles/modules) short-TTL caching; the naming pass; per-vertical default finalization.',
+ 'Begin the customer-facing self-serve plan/upgrade experience on top of the entitlement model.',
+])
+p('Required before onboarding paying customers.', bold=True)
+bullets([
+ 'Confirm production connection pooling (transaction pooler) and backup/PITR posture.',
+ 'Define and enable retention for audit logs and notifications (legal + growth).',
+ 'End-to-end validation of billing/subscription flows.',
+ 'A final security pass and a load smoke-test at expected pilot volume.',
+ 'Support and incident runbooks; on-call and monitoring in place.',
+])
 
 doc.add_paragraph()
 end = doc.add_paragraph(); end.alignment = WD_ALIGN_PARAGRAPH.CENTER
