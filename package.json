@@ -17,7 +17,10 @@
     "offline:migrate": "node scripts/offline/migrate.mjs",
     "offline:seed": "node scripts/offline/seed.mjs",
     "offline:bootstrap": "node scripts/offline/bootstrap.mjs",
-    "offline:verify": "node scripts/offline/verify.mjs"
+    "offline:verify": "node scripts/offline/verify.mjs",
+    "offline:backup": "node scripts/offline/backup.mjs",
+    "offline:restore": "node scripts/offline/restore.mjs",
+    "offline:cert": "node scripts/offline/recovery-cert.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.55.0",
