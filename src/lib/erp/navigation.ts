@@ -46,6 +46,7 @@ import {
   Store,
   Printer,
   Database,
+  TrendingUp,
   Map,
   MapPin,
   Cpu,
@@ -318,6 +319,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.fashionCashbox', href: '/fashion/cashbox', icon: Wallet, perm: 'fashion.cashbox', group: 'nav.groups.finance' },
       { label: 'nav.items.fashionExpenses', href: '/fashion/expenses', icon: Receipt, perm: ['fashion.cashbox', 'fashion.reports'], group: 'nav.groups.finance' },
       { label: 'nav.items.fashionReports', href: '/fashion/reports', icon: BarChart3, perm: 'fashion.reports', group: 'nav.groups.finance' },
+      { label: 'nav.items.retailAnalytics', href: '/fashion/analytics', icon: TrendingUp, perm: 'fashion.reports', group: 'nav.groups.finance' },
     ],
   },
   {
