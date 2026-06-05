@@ -53,7 +53,36 @@ export default async function StatementPrintPage({
   }
   const numById = new Map(invList.map((i) => [i.id, i.invoice_number]));
 
+  // Opening balance + sales returns + installment collections (additive).
+  const { data: openingRows } = await supabase
+    .from('erp_customer_opening_balances')
+    .select('balance_type, amount, as_of_date, applied_to_balance')
+    .eq('customer_id', id)
+    .eq('status', 'active');
+  const openings = (openingRows as { balance_type: string; amount: number; as_of_date: string; applied_to_balance: boolean }[]) ?? [];
+
+  const { data: returnRows } = await supabase
+    .from('erp_sales_returns')
+    .select('return_number, total_amount, created_at, status')
+    .eq('customer_id', id)
+    .neq('status', 'draft')
+    .neq('status', 'cancelled');
+  const returns = (returnRows as { return_number: string; total_amount: number; created_at: string }[]) ?? [];
+
+  const { data: planRows } = await supabase.from('erp_installment_plans').select('id').eq('customer_id', id);
+  const planIds = (planRows as { id: string }[] | null)?.map((p) => p.id) ?? [];
+  let instPayments: { amount: number; paid_at: string }[] = [];
+  if (planIds.length > 0) {
+    const { data } = await supabase.from('erp_installment_payments').select('amount, paid_at').in('plan_id', planIds);
+    instPayments = (data as { amount: number; paid_at: string }[]) ?? [];
+  }
+
   const entries: Entry[] = [
+    ...openings
+      .filter((o) => o.applied_to_balance && (o.balance_type === 'debit' || o.balance_type === 'credit'))
+      .map((o) => ({ date: o.as_of_date, ref: '—', desc: 'رصيد افتتاحي',
+        debit: o.balance_type === 'debit' ? Number(o.amount) : 0,
+        credit: o.balance_type === 'credit' ? Number(o.amount) : 0 })),
     ...invList.map((i) => ({ date: i.created_at, ref: i.invoice_number, desc: 'فاتورة', debit: Number(i.net_amount), credit: 0 })),
     ...payments.map((p) => ({
       date: p.payment_date,
@@ -62,6 +91,8 @@ export default async function StatementPrintPage({
       debit: 0,
       credit: Number(p.amount),
     })),
+    ...instPayments.map((p) => ({ date: p.paid_at, ref: '—', desc: 'تحصيل قسط', debit: 0, credit: Number(p.amount) })),
+    ...returns.map((r) => ({ date: r.created_at, ref: r.return_number, desc: 'مرتجع مبيعات', debit: 0, credit: Number(r.total_amount) })),
   ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   let running = 0;
