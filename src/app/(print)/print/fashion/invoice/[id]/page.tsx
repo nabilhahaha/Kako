@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getT } from '@/lib/i18n/server';
 import { InvoicePrintActions } from '@/components/fashion/invoice-print-actions';
 import { Barcode39 } from '@/components/fashion/barcode';
+import { loadPrintSettings } from '@/lib/erp/print-settings';
 import { INVOICE_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from '@/lib/utils';
 import { INTL_LOCALE } from '@/lib/i18n/config';
@@ -88,10 +89,22 @@ export default async function FashionInvoicePrintPage({
   const remaining = Number(inv.net_amount) - Number(inv.paid_amount);
   const statusLabel = INVOICE_STATUS_LABELS[inv.status as InvoiceStatus]?.[locale] ?? inv.status;
 
+  // Printer Settings (Settings → Printer): paper width, header/footer, logo, tax.
+  const ps = await loadPrintSettings(supabase, ctx.companyId);
+  const isThermal = ps.receipt_paper !== 'A4';
+  const pageSize = ps.receipt_paper === 'A4' ? 'A4' : ps.receipt_paper; // 80mm | 58mm
+
   return (
-    <div className="space-y-6 text-sm">
-      {/* A4 margins; thermal printers use their own paper width. */}
-      <style>{`@media print { @page { margin: 8mm; } }`}</style>
+    <div
+      className={`mx-auto ${isThermal ? 'space-y-3 text-xs' : 'space-y-6 text-sm'}`}
+      style={isThermal ? { maxWidth: ps.receipt_paper } : undefined}
+    >
+      <style>{`@media print { @page { size: ${pageSize} auto; margin: ${isThermal ? '3mm' : '8mm'}; } }`}</style>
+
+      {/* Custom receipt header (Printer Settings) */}
+      {ps.receipt_header && (
+        <p className="whitespace-pre-line text-center text-[11px] font-semibold text-gray-700">{ps.receipt_header}</p>
+      )}
 
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="space-y-2">
@@ -118,14 +131,16 @@ export default async function FashionInvoicePrintPage({
       {/* Header: logo + company vs. invoice meta */}
       <div className="flex items-start justify-between border-b pb-4">
         <div className="flex items-start gap-3">
-          {company?.logo_url && (
+          {ps.show_logo && company?.logo_url && (
             <Image src={company.logo_url} alt={companyName} width={56} height={56} className="h-14 w-14 rounded object-contain" unoptimized />
           )}
           <div>
-            <h1 className="text-xl font-bold">{companyName}</h1>
+            <h1 className={isThermal ? 'text-base font-bold' : 'text-xl font-bold'}>{companyName}</h1>
             {company?.address && <p className="text-xs text-gray-600">{company.address}</p>}
             {company?.phone && <p className="text-xs text-gray-600" dir="ltr">{company.phone}</p>}
-            <p className="text-xs text-gray-600">{t('fashion.invoices.vatNumber')}: {company?.tax_number || t('fashion.invoices.vatPlaceholder')}</p>
+            {ps.show_tax_number && (
+              <p className="text-xs text-gray-600">{t('fashion.invoices.vatNumber')}: {company?.tax_number || t('fashion.invoices.vatPlaceholder')}</p>
+            )}
           </div>
         </div>
         <div className="text-end">
@@ -139,7 +154,7 @@ export default async function FashionInvoicePrintPage({
       </div>
 
       {/* Customer + branch */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className={`grid gap-4 ${isThermal ? 'grid-cols-1' : 'grid-cols-2'}`}>
         <div>
           <h3 className="mb-1 font-semibold">{t('fashion.invoices.customer')}</h3>
           <p>{customerName}</p>
@@ -244,7 +259,7 @@ export default async function FashionInvoicePrintPage({
       {inv.notes && <p className="border-t pt-2 text-xs text-gray-600">{t('fashion.invoices.notes')}: {inv.notes}</p>}
 
       {/* Signature placeholders */}
-      <div className="grid grid-cols-2 gap-8 pt-8 text-xs text-gray-600">
+      <div className={`grid gap-8 pt-8 text-xs text-gray-600 ${isThermal ? 'grid-cols-1' : 'grid-cols-2'}`}>
         <div className="text-center">
           <div className="mb-1 h-10 border-b border-gray-400"></div>
           {t('fashion.invoices.cashierSignature')}
@@ -256,7 +271,7 @@ export default async function FashionInvoicePrintPage({
       </div>
 
       <div className="border-t pt-3 text-center text-[11px] text-gray-500">{t('fashion.invoices.returnPolicy')}</div>
-      <div className="pt-2 text-center text-xs text-gray-500">{t('fashion.invoices.thanks')}</div>
+      <div className="whitespace-pre-line pt-2 text-center text-xs text-gray-500">{ps.receipt_footer || t('fashion.invoices.thanks')}</div>
     </div>
   );
 }

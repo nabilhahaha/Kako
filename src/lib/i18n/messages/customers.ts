@@ -4,6 +4,8 @@ export const ar = {
   customers: {
     // ── Page / PageHeader ────────────────────────────────────────────
     pageTitle: 'العملاء',
+    statementsTitle: 'كشوف حسابات العملاء',
+    statementsDescription: 'ابحث عن عميل لفتح كشف حسابه أو طباعته PDF.',
     pageDescription: 'قاعدة بيانات العملاء وحدود الائتمان والأرصدة وخطة الزيارات',
 
     // ── Toolbar ──────────────────────────────────────────────────────
@@ -169,6 +171,8 @@ export const en = {
   customers: {
     // ── Page / PageHeader ────────────────────────────────────────────
     pageTitle: 'Customers',
+    statementsTitle: 'Customer Statements',
+    statementsDescription: 'Search a customer to open or print (PDF) their statement.',
     pageDescription: 'Customer database — credit limits, balances, and visit schedule',
 
     // ── Toolbar ──────────────────────────────────────────────────────
