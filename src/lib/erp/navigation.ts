@@ -296,6 +296,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.fashionDashboard', href: '/fashion', icon: LayoutDashboard, perm: ['fashion.manage', 'fashion.sell', 'fashion.inventory'] },
       { label: 'nav.items.fashionSell', href: '/fashion/sell', icon: ScanBarcode, perm: 'fashion.sell' },
       { label: 'nav.items.fashionInvoices', href: '/fashion/invoices', icon: Receipt, perm: ['fashion.sell', 'fashion.reports'] },
+      { label: 'nav.items.invoices', href: '/sales/invoices', icon: FileText, perm: 'fashion.sell' },
+      { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'fashion.sell' },
       { label: 'nav.items.fashionProducts', href: '/fashion/products', icon: Shirt, perm: 'fashion.inventory' },
       { label: 'nav.items.fashionInventory', href: '/fashion/inventory', icon: Boxes, perm: 'fashion.inventory' },
       { label: 'nav.items.stockCount', href: '/inventory/count', icon: ClipboardList, perm: 'fashion.inventory' },
