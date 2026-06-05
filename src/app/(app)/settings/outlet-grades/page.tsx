@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
@@ -10,6 +11,7 @@ import { GradeManager, type GradeData } from './grade-manager';
 async function safe<T>(fn: () => Promise<T>, fb: T): Promise<T> { try { return await fn(); } catch { return fb; } }
 
 export default async function OutletGradesPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!hasPermission(ctx, 'grade.manage')) redirect('/dashboard');

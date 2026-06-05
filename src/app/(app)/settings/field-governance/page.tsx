@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
@@ -17,6 +18,7 @@ export default async function FieldGovernancePage({
 }: {
   searchParams: Promise<{ entity?: string }>;
 }) {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const { t } = await getT();

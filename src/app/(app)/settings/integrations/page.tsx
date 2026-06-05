@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
@@ -12,6 +13,7 @@ import { Upload, Plug, KeyRound, Webhook, ScrollText, ArrowRight } from 'lucide-
  *  (see docs/INTEGRATION.md); this page is a safe, permission-gated placeholder
  *  that previews them without any live processing. Gated on integrations.manage. */
 export default async function IntegrationsPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const { t } = await getT();

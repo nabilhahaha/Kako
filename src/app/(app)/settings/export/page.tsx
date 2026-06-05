@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
@@ -13,6 +14,7 @@ import { ExportPanel, type ExportEntity } from './export-panel';
  *  off to the client panel. The actual download is a permission-checked,
  *  company-scoped route handler (/api/export). No entity-specific screens. */
 export default async function ExportPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 

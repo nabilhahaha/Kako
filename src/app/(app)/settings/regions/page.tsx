@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
@@ -11,6 +12,7 @@ import { RegionsManager } from './regions-manager';
 /** Settings → Regions & Areas (FMCG hierarchy S1). Org-structure management,
  *  gated on settings.branches. Entities + branch links only; scope = S4. */
 export default async function RegionsPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const { t } = await getT();

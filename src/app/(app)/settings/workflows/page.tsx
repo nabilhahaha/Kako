@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
@@ -11,6 +12,7 @@ import { WorkflowBuilder, type WfDefinition, type WfStep } from './workflow-buil
  *  Company admins build approval workflows (definitions + steps) on the generic
  *  engine. Global templates are shown read-only. */
 export default async function WorkflowsPage() {
+  await requireNonRetailAdmin();
   const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { redirect } from 'next/navigation';
 import { Upload, Database, Plug, KeyRound, Webhook, ScrollText, ArrowRight, Activity, CheckCircle2, XCircle, Layers, type LucideIcon } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
@@ -31,6 +32,7 @@ const STATUS_VARIANT: Record<string, 'secondary' | 'success' | 'warning' | 'dest
 interface JobRow extends ImportJobLike { id: string; target_entity: string | null; file_name: string | null; created_at: string }
 
 export default async function IntegrationHubPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const allowed = ctx.isPlatformOwner || ctx.isSuperAdmin || hasPermission(ctx, 'integrations.manage') || ctx.memberships.some((m) => m.role === 'admin');
