@@ -26,6 +26,12 @@ export const ar = {
     // shared / generic
     unauthorized: 'غير مصرح.',
     unauthorizedLogin: 'غير مصرح. سجّل الدخول.',
+    audit: {
+      title: 'سجل التدقيق',
+      description: 'سجل بأهم الإجراءات داخل شركتك: من فعل ماذا ومتى.',
+      adminOnly: 'سجل التدقيق متاح لمديري الشركة فقط.',
+      empty: 'لا توجد أحداث مسجّلة بعد.',
+    },
     genericError: 'حدث خطأ',
     save: 'حفظ',
     cancel: 'إلغاء',
@@ -228,6 +234,12 @@ export const en = {
     // shared / generic
     unauthorized: 'Unauthorized.',
     unauthorizedLogin: 'Unauthorized. Please sign in.',
+    audit: {
+      title: 'Audit Log',
+      description: 'A trail of the important actions in your company: who did what, and when.',
+      adminOnly: 'The audit log is available to company admins only.',
+      empty: 'No events recorded yet.',
+    },
     genericError: 'An error occurred',
     save: 'Save',
     cancel: 'Cancel',

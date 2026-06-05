@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { isKnownEntity } from '@/lib/erp/entities';
+import { logAudit } from '@/lib/erp/audit';
 
 /** ── Entity Framework: generic Notes actions ───────────────────────────────
  *
@@ -65,6 +66,7 @@ export async function deleteEntityNote(id: string): Promise<Result> {
   const supabase = await createClient();
   const { error } = await supabase.from('erp_entity_notes').delete().eq('id', id);
   if (error) return { ok: false, error: error.message };
+  await logAudit(supabase, { action: 'delete', entity: 'entity_note', entityId: id, companyId: ctx.companyId });
   revalidatePath('/', 'layout');
   return { ok: true };
 }

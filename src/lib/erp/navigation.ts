@@ -149,17 +149,46 @@ export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
   warehousing: { en: 'Warehouse Management', ar: 'إدارة المخازن' },
 };
 
+/**
+ * Whether a feature gate is open for a company with the given enabled `modules`.
+ * The single source of truth for module gating, shared by the sidebar
+ * (`visibleSections`) and the mobile bottom nav (`resolveBottomNavTabs`).
+ *  - no gate → always open
+ *  - empty `modules` → unrestricted (platform owner / legacy tenant)
+ *  - array gate → ANY-of (open if the company has at least one listed module), so
+ *    a capability module can be bound alongside a legacy gate without regressing
+ *    tenants that only have the legacy one.
+ */
+export function isModuleGateOpen(modules: Module[], gate?: Module | Module[]): boolean {
+  if (!gate) return true;
+  if (modules.length === 0) return true;
+  return Array.isArray(gate) ? gate.some((g) => modules.includes(g)) : modules.includes(gate);
+}
+
 export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'nav.sections.provider',
+    // Grouped like a modern SaaS admin (Stripe / Vercel / GitHub org): Overview,
+    // Tenants, Billing, Team & Access, Reference Data. Each item keeps its
+    // vendor-scope gate (platformOwnerOnly or a granular platformPerm) so staff
+    // see only their slice and tenants see none of it.
     items: [
-      { label: 'nav.items.overview', href: '/platform', icon: LayoutDashboard, platformOwnerOnly: true },
-      { label: 'nav.items.activityFeed', href: '/platform/activity', icon: Activity, platformOwnerOnly: true },
-      { label: 'nav.items.platformAnalytics', href: '/platform/analytics', icon: BarChart3, platformOwnerOnly: true },
-      { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformPerm: 'view_companies' },
-      { label: 'nav.items.billing', href: '/platform/billing', icon: CreditCard, platformOwnerOnly: true },
-      { label: 'nav.items.platformStaff', href: '/platform/staff', icon: UserCog, platformPerm: 'manage_users' },
-      { label: 'nav.items.drugsList', href: '/platform/drugs', icon: Pill, platformOwnerOnly: true },
+      // ── Overview ──
+      { label: 'nav.items.overview', href: '/platform', icon: LayoutDashboard, platformOwnerOnly: true, group: 'nav.groups.providerOverview' },
+      { label: 'nav.items.activityFeed', href: '/platform/activity', icon: Activity, platformOwnerOnly: true, group: 'nav.groups.providerOverview' },
+      { label: 'nav.items.platformAnalytics', href: '/platform/analytics', icon: BarChart3, platformOwnerOnly: true, group: 'nav.groups.providerOverview' },
+      // ── Tenants ──
+      { label: 'nav.items.companies', href: '/platform/companies', icon: Crown, platformPerm: 'view_companies', group: 'nav.groups.providerTenants' },
+      // ── Catalog ──
+      { label: 'nav.items.plansCatalog', href: '/platform/plans', icon: Layers, platformOwnerOnly: true, group: 'nav.groups.providerCatalog' },
+      { label: 'nav.items.rolesCatalog', href: '/platform/roles', icon: ShieldCheck, platformOwnerOnly: true, group: 'nav.groups.providerCatalog' },
+      // ── Billing ──
+      { label: 'nav.items.billing', href: '/platform/billing', icon: CreditCard, platformOwnerOnly: true, group: 'nav.groups.providerBilling' },
+      // ── Team & Access ──
+      { label: 'nav.items.platformStaff', href: '/platform/staff', icon: UserCog, platformPerm: 'manage_users', group: 'nav.groups.providerTeam' },
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, platformPerm: 'access_audit_logs', showForPlatformOwner: true, group: 'nav.groups.providerTeam' },
+      // ── Reference Data ──
+      { label: 'nav.items.drugsList', href: '/platform/drugs', icon: Pill, platformOwnerOnly: true, group: 'nav.groups.providerReference' },
     ],
   },
   {
@@ -387,19 +416,23 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.mslMatrix', href: '/settings/msl', icon: Layers, perm: 'assortment.manage', group: 'nav.groups.dataFields' },
       { label: 'nav.items.surveys', href: '/settings/surveys', icon: ClipboardCheck, perm: 'survey.manage', group: 'nav.groups.dataFields' },
       { label: 'nav.items.gradingSetup', href: '/settings/outlet-grades', icon: Star, perm: 'grade.manage', group: 'nav.groups.dataFields' },
-      // ── Integrations ──
-      { label: 'nav.items.integrationHub', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.customerOnboarding', href: '/settings/onboarding', icon: Rocket, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.dataOnboarding', href: '/settings/data-onboarding', icon: Download, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage', group: 'nav.groups.integrations' },
+      // ── Integrations ── (gated by the `integrations` plan-capability module so
+      //     the entitlement chain Plan → Company module → Nav is consistent)
+      { label: 'nav.items.integrationHub', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.customerOnboarding', href: '/settings/onboarding', icon: Rocket, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.dataOnboarding', href: '/settings/data-onboarding', icon: Download, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       // ── Governance ──
       { label: 'nav.items.authzConsole', href: '/settings/authz', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.governance' },
+      { label: 'nav.items.tenantAudit', href: '/settings/audit-log', icon: ScrollText, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.copilotAnalytics', href: '/platform/copilot-analytics', icon: HelpCircle, perm: 'settings.users', showForPlatformOwner: true, group: 'nav.groups.governance' },
       { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.governance' },
-      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, showForPlatformOwner: true, platformPerm: 'access_audit_logs', group: 'nav.groups.governance' },
+      // Tenant super-admins reach the audit log here; the platform owner/staff
+      // see it under the Platform → Team & Access group (no duplicate).
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, group: 'nav.groups.governance' },
       // ── Personal ──
       { label: 'nav.items.designSystem', href: '/design', icon: Palette, superAdminOnly: true, group: 'nav.groups.personal' },
       { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true, group: 'nav.groups.personal' },
@@ -440,14 +473,7 @@ export function visibleSections(
   }
 
   const elevated = isSuperAdmin;
-  const unrestricted = modules.length === 0; // platform owner / legacy tenant
-  const moduleAllowed = (m?: Module | Module[]) => {
-    if (!m || unrestricted) return true;
-    // Array = ANY-of: the section/item shows if the company has at least one
-    // of the listed modules (so a capability module can be bound alongside a
-    // legacy gate without regressing tenants that only have the legacy one).
-    return Array.isArray(m) ? m.some((x) => modules.includes(x)) : modules.includes(m);
-  };
+  const moduleAllowed = (m?: Module | Module[]) => isModuleGateOpen(modules, m);
 
   // A clothing storefront's home IS the Fashion section (+ Settings). The generic
   // FMCG "control center" (Dashboard / Attention / Notifications) is irrelevant

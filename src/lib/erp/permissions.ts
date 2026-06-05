@@ -284,17 +284,20 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
 
 export interface PermissionContext {
   isSuperAdmin: boolean;
+  /** The vendor platform owner — apex tier, holds every permission (consistent
+   *  with super admins and `requireModule`). Optional for legacy/test callers. */
+  isPlatformOwner?: boolean;
   permissions: Permission[];
 }
 
-/** Whether the user holds a permission. Super admins hold all. */
+/** Whether the user holds a permission. Platform owner / super admins hold all. */
 export function hasPermission(ctx: PermissionContext, perm: Permission): boolean {
-  return ctx.isSuperAdmin || ctx.permissions.includes(perm);
+  return ctx.isSuperAdmin || ctx.isPlatformOwner === true || ctx.permissions.includes(perm);
 }
 
-/** Whether the user holds ANY of the given permissions (super admins: yes). */
+/** Whether the user holds ANY of the given permissions (platform owner / super admins: yes). */
 export function hasAnyPermission(ctx: PermissionContext, perms: Permission[]): boolean {
-  return ctx.isSuperAdmin || perms.some((p) => ctx.permissions.includes(p));
+  return ctx.isSuperAdmin || ctx.isPlatformOwner === true || perms.some((p) => ctx.permissions.includes(p));
 }
 
 /** Resolve the concrete permission list for a role (expands '*'). */

@@ -1,5 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { visibleSections, ALL_MODULES, MODULE_LABELS } from './navigation';
+import { visibleSections, ALL_MODULES, MODULE_LABELS, isModuleGateOpen } from './navigation';
+
+describe('isModuleGateOpen — shared module-gate helper (sidebar + bottom nav)', () => {
+  it('no gate is always open', () => {
+    expect(isModuleGateOpen(['sales'], undefined)).toBe(true);
+  });
+  it('empty modules = unrestricted (platform owner / legacy)', () => {
+    expect(isModuleGateOpen([], 'fashion')).toBe(true);
+    expect(isModuleGateOpen([], ['crm', 'sales'])).toBe(true);
+  });
+  it('single-module gate checks membership', () => {
+    expect(isModuleGateOpen(['fashion'], 'fashion')).toBe(true);
+    expect(isModuleGateOpen(['sales'], 'fashion')).toBe(false);
+  });
+  it('array gate is ANY-of', () => {
+    expect(isModuleGateOpen(['sales'], ['crm', 'sales'])).toBe(true);
+    expect(isModuleGateOpen(['inventory'], ['crm', 'sales'])).toBe(false);
+  });
+});
 
 describe('navigation — module labels', () => {
   it('every module has ar + en labels', () => {

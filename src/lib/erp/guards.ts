@@ -55,24 +55,27 @@ export async function requireModule(module: Module): Promise<UserContext> {
 }
 
 /**
- * Page/layout guard: ensure the user holds a permission (super admins hold
- * all). Redirects to the dashboard when the permission is missing.
+ * Page/layout guard: ensure the user holds a permission. The platform owner (the
+ * vendor) and global super admins hold everything — consistent with
+ * `requireModule` — so a permission gate never blocks the apex tiers. Redirects
+ * to the dashboard when the permission is missing.
  */
 export async function requirePermission(perm: Permission): Promise<UserContext> {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
-  if (ctx.isSuperAdmin || ctx.permissions.includes(perm)) return ctx;
+  if (ctx.isSuperAdmin || ctx.isPlatformOwner || ctx.permissions.includes(perm)) return ctx;
   redirect('/dashboard');
 }
 
 /**
- * Page/layout guard: ensure the user holds ANY of the given permissions (super
- * admins hold all). Redirects to the dashboard when none are present.
+ * Page/layout guard: ensure the user holds ANY of the given permissions. The
+ * platform owner and super admins hold all. Redirects to the dashboard when none
+ * are present.
  */
 export async function requireAnyPermission(perms: Permission[]): Promise<UserContext> {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
-  if (ctx.isSuperAdmin || perms.some((p) => ctx.permissions.includes(p))) return ctx;
+  if (ctx.isSuperAdmin || ctx.isPlatformOwner || perms.some((p) => ctx.permissions.includes(p))) return ctx;
   redirect('/dashboard');
 }
 

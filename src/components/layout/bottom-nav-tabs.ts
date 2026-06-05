@@ -1,5 +1,5 @@
 import type { Permission } from '@/lib/erp/permissions';
-import type { Module } from '@/lib/erp/navigation';
+import { isModuleGateOpen, type Module } from '@/lib/erp/navigation';
 import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, type LucideIcon } from 'lucide-react';
 
 /** A candidate bottom-nav tab. `href` must resolve to a real route, `labelKey`
@@ -72,8 +72,7 @@ export function resolveBottomNavTabs(
   tabs: BottomNavTab[] = BOTTOM_NAV_TABS,
 ): BottomNavTab[] {
   const can = (p?: Permission) => !p || ctx.isSuperAdmin || ctx.permissions.includes(p);
-  const hasModule = (m?: Module) => !m || ctx.modules.length === 0 || ctx.modules.includes(m);
-  const candidates = tabs.filter((t) => can(t.perm) && hasModule(t.module));
+  const candidates = tabs.filter((t) => can(t.perm) && isModuleGateOpen(ctx.modules, t.module));
 
   // Within a mutually-exclusive group, clothing prefers the Fashion route; every
   // other business type prefers the generic route.

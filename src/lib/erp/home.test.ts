@@ -23,6 +23,17 @@ describe('resolveHomePath', () => {
     expect(path([], [], true)).toBe('/platform');
   });
 
+  // ─── Platform staff / no-company users (redirect-loop guard) ──────────────
+
+  it('routes a no-company user (platform staff) to /dashboard, never a vertical', () => {
+    // Platform staff hold ALL_MODULES by default but belong to no company; without
+    // the companyId===null guard they would route to /fashion and bounce off its
+    // permission guard back to /dashboard in an infinite loop.
+    expect(
+      resolveHomePath({ companyId: null, modules: ['fashion', 'clinic', 'hotel'], permissions: [] }),
+    ).toBe('/dashboard');
+  });
+
   // ─── Clinic module ───────────────────────────────────────────────────────
 
   it('routes a clinic manager (clinic.manage) to /clinic', () => {

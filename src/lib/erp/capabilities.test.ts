@@ -113,6 +113,12 @@ describe('granular resolution from current roles', () => {
     const ctx = { isSuperAdmin: true, permissions: [] as string[] };
     for (const g of GRANULAR_CAPABILITIES) expect(can(ctx, g)).toBe(true);
   });
+
+  it('the platform owner (vendor apex tier) holds every granular capability', () => {
+    const ctx = { isSuperAdmin: false, isPlatformOwner: true, permissions: [] as string[] };
+    for (const g of GRANULAR_CAPABILITIES) expect(can(ctx, g)).toBe(true);
+    expect(canAny(ctx, ['fashion.sell'])).toBe(true);
+  });
 });
 
 describe('export transition rule', () => {
