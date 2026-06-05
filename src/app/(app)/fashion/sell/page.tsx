@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { getT } from '@/lib/i18n/server';
 import { requirePermission } from '@/lib/erp/guards';
-import { Pos } from './pos';
+import { PosWorkspace } from './pos-workspace';
 
 interface VariantRow {
   installment_price: number;
@@ -37,7 +37,7 @@ export default async function FashionSellPage() {
   return (
     <div>
       <PageHeader title={t('fashion.sell.title')} description={t('fashion.sell.description')} />
-      <Pos items={items} customers={(customers as never) ?? []} locale={locale} />
+      <PosWorkspace items={items} customers={(customers as never) ?? []} locale={locale} />
     </div>
   );
 }

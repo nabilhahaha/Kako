@@ -215,6 +215,31 @@ export async function collectInstallmentFlex(scheduleId: string, amount: number,
   return { ok: true, data: { advance: Number(d?.advance ?? 0), planCompleted: Boolean(d?.plan_completed) } };
 }
 
+/** Load a customer's balance + active installment plans (for in-POS collection). */
+export async function loadCustomerInstallments(customerId: string): Promise<ActionResult<{
+  balance: number;
+  plans: { id: string; financed_amount: number; status: string; schedule: { id: string; seq_no: number; due_date: string; amount: number; paid_amount: number; status: string }[] }[];
+}>> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.installments');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  if (!customerId) return { ok: false, error: t('fashion.errors.required') };
+  const supabase = await createClient();
+  const [{ data: cust }, { data: plans, error }] = await Promise.all([
+    supabase.from('erp_customers').select('balance').eq('id', customerId).maybeSingle(),
+    supabase
+      .from('erp_installment_plans')
+      .select('id, financed_amount, status, schedule:erp_installment_schedule(id, seq_no, due_date, amount, paid_amount, status)')
+      .eq('customer_id', customerId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false }),
+  ]);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  const list = ((plans as unknown as { id: string; financed_amount: number; status: string; schedule: { id: string; seq_no: number; due_date: string; amount: number; paid_amount: number; status: string }[] }[]) ?? [])
+    .map((p) => ({ ...p, schedule: [...(p.schedule ?? [])].sort((a, b) => a.seq_no - b.seq_no) }));
+  return { ok: true, data: { balance: Number((cust as { balance?: number } | null)?.balance ?? 0), plans: list } };
+}
+
 /** Manually set the per-installment amounts of an active plan (instead of equal
  *  split). Reconciles to the financed amount unless allowMismatch. Audited. */
 export async function setInstallmentAmounts(planId: string, amounts: number[], allowMismatch = false): Promise<ActionResult> {
