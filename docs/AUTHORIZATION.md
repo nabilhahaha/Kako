@@ -186,9 +186,17 @@ No tenant account sees any `/platform/*` item; no account sees an "Out of Plan"/
 
 ---
 
-## 7. Known gaps / recommendations (not yet implemented)
+## 7. Governance changelog & remaining gaps
 
-1. **RLS on `erp_profiles`** grants cross‑tenant SELECT/UPDATE to `is_super_admin` only, **not** `is_platform_owner`. Masked today (both owners are also super‑admins) but a *pure* platform owner / staff could not read tenant users. Recommend adding `erp_is_platform_owner()` to the profiles SELECT policy (DB migration — see report).
-2. **No platform‑side UI** for: Plans editor, Modules/Industry‑Packs catalog, global Roles & Permissions, Feature flags (no system exists), Platform Settings, "View as company"/impersonation. Per‑company role/module/plan management already exists in the Company‑360 page.
+### ✅ Applied — `erp_profiles` RLS apex consistency (migration 0149)
+- **Change:** added `erp_is_platform_owner()` to the `erp_profiles` SELECT, UPDATE, and DELETE policies.
+- **Before:** only `is_super_admin` (+ self + branch‑mates) could read; only super admin (+ self) could update/delete. A *pure* platform owner (`is_platform_owner=true`, `is_super_admin=false`) saw only itself.
+- **After:** the platform owner reads/updates/deletes any profile — consistent with its existing cross‑tenant access to companies/customers/modules/roles.
+- **Tenant isolation:** unchanged. Verified — pure owner: 61 profiles / 44 companies; tenant cashier: 4 profiles / 1 company.
+- **Rollback:** re‑run the three `ALTER POLICY` statements without the `OR (SELECT erp_is_platform_owner())` clause.
+
+### Remaining gaps / recommendations
+
+1. **No platform‑side UI** for: Plans editor, Modules/Industry‑Packs catalog, global Roles & Permissions, Feature flags (no system exists), Platform Settings, "View as company"/impersonation. Per‑company role/module/plan management already exists in the Company‑360 page.
 3. **Code vs DB divergence:** `ROLE_PERMISSIONS` in `permissions.ts` maps `admin`/`manager` → ALL, but DB `erp_role_permissions` seeds 35/29. Runtime uses the DB; the code map is used for tests/seeding only. Consider reconciling to avoid confusion.
 4. **Permission naming overlaps** (`inventory.* vs stock.*`, `customers.manage vs customer.*`) are intentional legacy aliases resolved via `expandAliases`; recommend documenting rather than renaming (rename is high‑risk across seeds/guards/tests).
