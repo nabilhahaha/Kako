@@ -302,3 +302,23 @@ export function permissionsForRole(role: BranchRole): Permission[] {
   const set = ROLE_PERMISSIONS[role];
   return set === ALL ? [...ALL_PERMISSIONS] : set;
 }
+
+// ─── Fashion Store owner umbrella ─────────────────────────────────────────────
+/** The granular Fashion capabilities implied by holding `fashion.manage`. */
+export const FASHION_UMBRELLA: Permission[] = [
+  'fashion.sell', 'fashion.inventory', 'fashion.purchase',
+  'fashion.installments', 'fashion.cashbox', 'fashion.reports',
+];
+
+/**
+ * `fashion.manage` is the Fashion Store OWNER UMBRELLA: holding it implies the
+ * full granular `fashion.*` set, so a clothing owner/manager reaches the entire
+ * store (POS, products, inventory, customers, installments, suppliers, cash box,
+ * reports) with a single permission. Applied once at permission resolution, so
+ * nav visibility, page guards, server actions and the bottom nav all agree.
+ * No effect on non-fashion permissions.
+ */
+export function applyFashionUmbrella(perms: Permission[]): Permission[] {
+  if (!perms.includes('fashion.manage')) return perms;
+  return [...new Set([...perms, ...FASHION_UMBRELLA])];
+}

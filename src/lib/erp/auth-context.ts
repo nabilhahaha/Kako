@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Branch, BranchRole, Company, Profile } from './types';
-import { ALL_PERMISSIONS, type Permission } from './permissions';
+import { ALL_PERMISSIONS, applyFashionUmbrella, type Permission } from './permissions';
 import { ALL_MODULES, type Module } from './navigation';
 
 export interface BranchMembership {
@@ -154,6 +154,10 @@ export async function getUserContext(): Promise<UserContext | null> {
       }
     }
   }
+
+  // Fashion Store: `fashion.manage` is the owner umbrella → it implies the full
+  // granular fashion.* set, so a clothing manager/owner reaches the whole store.
+  permissions = applyFashionUmbrella(permissions);
 
   // Feature modules: the owner / super admin see everything. A tenant sees the
   // intersection of (a) the modules its business type / company enables and
