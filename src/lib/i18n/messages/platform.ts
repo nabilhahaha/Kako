@@ -575,6 +575,16 @@ export const ar = {
       errSystemRole: 'لا يمكن حذف دور نظامي.',
     },
 
+    // ── View As Company (tenant experience preview) ────────────────
+    viewAs: {
+      title: 'عرض كما تراه الشركة',
+      subtitle: 'تجربة المستخدم لكل دور في «{company}» (للعرض فقط).',
+      back: 'رجوع إلى الشركة',
+      modules: 'الوحدات الفعّالة',
+      sidebar: 'القائمة الجانبية',
+      noRoles: 'لا توجد أدوار مفعّلة لعرضها.',
+    },
+
     // ── server-action validation / auth errors ─────────────────────
     errors: {
       unauthorized: 'غير مصرح. سجّل الدخول.',
@@ -1174,6 +1184,16 @@ export const en = {
       errNameRequired: 'Role name is required.',
       errKey: 'Role key is invalid or already used.',
       errSystemRole: 'A system role cannot be deleted.',
+    },
+
+    // ── View As Company (tenant experience preview) ────────────────
+    viewAs: {
+      title: 'View as Company',
+      subtitle: 'The per-role experience for “{company}” (read-only preview).',
+      back: 'Back to company',
+      modules: 'Effective modules',
+      sidebar: 'Sidebar',
+      noRoles: 'No enabled roles to preview.',
     },
 
     // ── server-action validation / auth errors ─────────────────────

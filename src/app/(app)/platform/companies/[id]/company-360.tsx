@@ -25,6 +25,7 @@ import {
   ChevronUp,
   ChevronDown,
   LineChart,
+  Eye,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, Company } from '@/lib/erp/types';
@@ -334,6 +335,12 @@ export function Company360(props: Company360Props) {
               className={buttonVariants({ variant: 'outline', size: 'sm' })}
             >
               <LineChart className="h-4 w-4" /> {t('companyAnalytics.viewAnalytics')}
+            </Link>
+            <Link
+              href={`/platform/companies/${company.id}/view-as`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              <Eye className="h-4 w-4" /> {t('platform.viewAs.title')}
             </Link>
             <Button variant="secondary" size="sm" disabled={pending} onClick={() => renewBy(1)}>
               <CalendarPlus className="h-4 w-4" /> {t('platform.company.subscription.renewOneMonth')}

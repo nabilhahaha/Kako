@@ -43,6 +43,7 @@ export const AUDIT_ACTION_LABELS: Record<string, { en: string; ar: string }> = {
   renew: { en: 'Renew subscription', ar: 'تجديد اشتراك' },
   plan_change: { en: 'Change plan', ar: 'تغيير الخطة' },
   override: { en: 'Manual price override', ar: 'تجاوز سعر يدوي' },
+  view: { en: 'View', ar: 'اطّلاع' },
 };
 
 export const AUDIT_ENTITY_LABELS: Record<string, { en: string; ar: string }> = {
