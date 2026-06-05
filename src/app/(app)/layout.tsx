@@ -144,6 +144,7 @@ export default async function AppLayout({
           modules={ctx.modules}
           platformPermissions={platformPermissions}
           isPlatformStaff={isPlatformStaff}
+          businessType={ctx.company?.business_type ?? null}
         />
         <Sidebar
           permissions={ctx.permissions}
@@ -152,6 +153,7 @@ export default async function AppLayout({
           modules={ctx.modules}
           platformPermissions={platformPermissions}
           isPlatformStaff={isPlatformStaff}
+          businessType={ctx.company?.business_type ?? null}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar

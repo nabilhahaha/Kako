@@ -37,6 +37,30 @@ describe('navigation — visibleSections', () => {
     // tenant-operational; owner items are platform-flagged — assert no crash + sections present
     for (const s of owner) expect(Array.isArray(s.items)).toBe(true);
   });
+
+  it('vendor-scoped items (platformPerm) never leak to a tenant', () => {
+    // A privileged tenant (super admin) and a plain admin tenant must NOT see the
+    // vendor panel items "Companies & subscriptions" / "Platform employees" — they
+    // carry only a platformPerm (no tenant perm) and previously fell through.
+    for (const sup of [true, false]) {
+      const hrefs = visibleSections(['settings.users'], sup, false, ['sales']).flatMap((s) =>
+        s.items.map((i) => i.href),
+      );
+      expect(hrefs).not.toContain('/platform/companies');
+      expect(hrefs).not.toContain('/platform/staff');
+    }
+  });
+
+  it('clothing storefront hides the generic FMCG "main" control center', () => {
+    const titles = (bt: string | null) =>
+      visibleSections(['fashion.manage'], false, false, ['fashion'], [], false, bt).map((s) => s.title);
+    // clothing → no generic main section (Dashboard / Attention / Notifications)
+    expect(titles('clothing')).not.toContain('nav.sections.main');
+    expect(titles('clothing')).toContain('nav.sections.fashion');
+    // other business types keep the main section (no regression)
+    expect(titles('general')).toContain('nav.sections.main');
+    expect(titles(null)).toContain('nav.sections.main');
+  });
 });
 
 describe('navigation — field_ops capability binding (any-of, no regression)', () => {

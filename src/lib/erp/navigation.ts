@@ -417,6 +417,7 @@ export function visibleSections(
   modules: Module[] = [],
   platformPermissions: string[] = [],
   isPlatformStaff = false,
+  businessType: string | null = null,
 ): NavSection[] {
   const has = (perm: Permission | Permission[]) =>
     Array.isArray(perm) ? perm.some((p) => permissions.includes(p)) : permissions.includes(perm);
@@ -448,10 +449,23 @@ export function visibleSections(
     return Array.isArray(m) ? m.some((x) => modules.includes(x)) : modules.includes(m);
   };
 
-  return NAV_SECTIONS.filter((s) => moduleAllowed(s.module)).map((section) => ({
+  // A clothing storefront's home IS the Fashion section (+ Settings). The generic
+  // FMCG "control center" (Dashboard / Attention / Notifications) is irrelevant
+  // clutter there, so it is dropped for the clothing business type only.
+  const suppressGenericMain = businessType === 'clothing';
+
+  return NAV_SECTIONS
+    .filter((s) => moduleAllowed(s.module))
+    .filter((s) => !(suppressGenericMain && s.title === 'nav.sections.main'))
+    .map((section) => ({
     ...section,
     items: section.items.filter((item) => {
-      if (item.platformOwnerOnly) return false; // vendor-only, hidden from tenants
+      // Vendor-scoped items never belong to a tenant. `platformOwnerOnly` is the
+      // owner-only flag; `platformPerm` marks an item gated by a *platform*
+      // permission (e.g. Companies & subscriptions, Platform employees) — these
+      // carry no tenant `perm`, so without this guard they leaked to every tenant
+      // via the `!item.perm` allow below.
+      if (item.platformOwnerOnly || item.platformPerm) return false;
       // finer per-item module gate (e.g. POS / sales orders / warehousing)
       if (!moduleAllowed(item.module)) return false;
       if (item.superAdminOnly) return elevated;
