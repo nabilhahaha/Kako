@@ -203,3 +203,13 @@ No tenant account sees any `/platform/*` item; no account sees an "Out of Plan"/
 1. **Remaining platform‑side UI** for: Plans editor, Modules/Industry‑Packs catalog, global Roles & Permissions, Feature flags (no system exists), Platform Settings, "View as company"/impersonation. Per‑company role/module/plan management already exists in the Company‑360 page.
 3. **Code vs DB divergence:** `ROLE_PERMISSIONS` in `permissions.ts` maps `admin`/`manager` → ALL, but DB `erp_role_permissions` seeds 35/29. Runtime uses the DB; the code map is used for tests/seeding only. Consider reconciling to avoid confusion.
 4. **Permission naming overlaps** (`inventory.* vs stock.*`, `customers.manage vs customer.*`) are intentional legacy aliases resolved via `expandAliases`; recommend documenting rather than renaming (rename is high‑risk across seeds/guards/tests).
+5. **`/platform/copilot-analytics` namespace smell:** this page is intentionally shared with company admins (per‑company, gated by `settings.users`) but lives under the vendor `/platform/` namespace. Recommend moving it to a tenant namespace (e.g. `/insights/copilot`) so `/platform/*` is strictly vendor‑only. Guarded by `navigation-routes.test.ts` (allowlisted).
+6. **`pos` plan‑gating gap:** `pos` is plan‑gateable (`ALL_MODULES`) but listed in **no** plan, so it is effectively always off for tenants. Decide whether `pos` should be a real plan module or removed from `ALL_MODULES`.
+7. **Code↔DB role divergence is harmless today:** `permissionsForRole` is unused at runtime and `ROLE_PERMISSIONS` only feeds a copilot hint — not security gating. Documented (item 3 above); no action required unless the copilot hint accuracy matters.
+
+### Regression guards (lock-in)
+- `navigation-routes.test.ts`: no dead sidebar links · every provider item vendor‑scoped · no `/platform/*` leak to a non‑privileged tenant.
+- `navigation.test.ts`: vendor‑scoped (`platformPerm`) items never leak to tenants; clothing drops the generic `main` section.
+- `permissions.test.ts` / `capabilities.test.ts`: platform owner is an apex tier across `hasPermission` / `can`.
+- `home.test.ts`: no‑company users never route into a tenant vertical (loop guard).
+- `plan-admin.test.ts`: plan validation + module impact preview.
