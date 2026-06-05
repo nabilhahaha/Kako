@@ -278,8 +278,11 @@ DECLARE v_co UUID := erp_user_company_id(); v_id UUID;
 BEGIN
   SELECT id INTO v_id FROM erp_customers WHERE company_id = v_co AND code = 'WALKIN' LIMIT 1;
   IF v_id IS NULL THEN
-    INSERT INTO erp_customers (company_id, code, name, name_ar, branch_id, credit_limit, balance, is_active, is_approved, approval_status)
-    VALUES (v_co, 'WALKIN', 'Walk-in Customer', 'عميل نقدي', p_branch_id, 0, 0, true, true, 'approved')
+    -- Only base erp_customers columns. `approval_status` belongs to a separate
+    -- (customer-approval) migration that may not be applied in every environment;
+    -- the base `is_approved` flag is sufficient for the walk-in cash customer.
+    INSERT INTO erp_customers (company_id, code, name, name_ar, branch_id, credit_limit, balance, is_active, is_approved)
+    VALUES (v_co, 'WALKIN', 'Walk-in Customer', 'عميل نقدي', p_branch_id, 0, 0, true, true)
     RETURNING id INTO v_id;
   END IF;
   RETURN v_id;

@@ -253,10 +253,13 @@ export async function createCustomer(formData: FormData): Promise<ActionResult> 
   const supabase = await createClient();
   const code = 'C' + Date.now().toString(36).toUpperCase();
   const { error } = await supabase.from('erp_customers').insert({
+    // Only base erp_customers columns — `approval_status` is added by a separate
+    // (customer-approval) migration that may not be applied; `is_approved` is the
+    // base flag and is sufficient for a fashion walk-in/registered customer.
     company_id: ctx.companyId, code, name,
     phone: String(formData.get('phone') || '').trim() || null,
     branch_id: branchId, credit_limit: 0, balance: 0,
-    is_active: true, is_approved: true, approval_status: 'approved',
+    is_active: true, is_approved: true,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidate();
