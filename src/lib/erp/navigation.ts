@@ -302,6 +302,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.fashionInstallments', href: '/fashion/installments', icon: CreditCard, perm: 'fashion.installments' },
       { label: 'nav.items.fashionSuppliers', href: '/fashion/suppliers', icon: Truck, perm: 'fashion.purchase' },
       { label: 'nav.items.fashionCashbox', href: '/fashion/cashbox', icon: Wallet, perm: 'fashion.cashbox' },
+      { label: 'nav.items.fashionExpenses', href: '/fashion/expenses', icon: Receipt, perm: ['fashion.cashbox', 'fashion.reports'] },
       { label: 'nav.items.fashionReports', href: '/fashion/reports', icon: BarChart3, perm: 'fashion.reports' },
     ],
   },

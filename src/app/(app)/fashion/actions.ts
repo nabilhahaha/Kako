@@ -283,12 +283,18 @@ export async function addExpense(formData: FormData): Promise<ActionResult> {
   const branchId = await resolveBranch(ctx.companyId, String(formData.get('branch_id') || '') || null);
   if (!branchId) return { ok: false, error: t('fashion.errors.noBranch') };
   const supabase = await createClient();
+  const str = (k: string) => String(formData.get(k) || '').trim() || null;
   const { error } = await supabase.rpc('erp_fashion_add_expense', {
     p_branch_id: branchId,
-    p_category: String(formData.get('category') || '').trim() || null,
+    p_category: str('category'),
     p_amount: Number(formData.get('amount') || 0),
     p_paid_from: String(formData.get('paid_from') || 'cash'),
-    p_note: String(formData.get('note') || '').trim() || null,
+    p_note: str('note'),
+    p_description: str('description'),
+    p_payment_method: str('payment_method'),
+    p_paid_by: str('paid_by'),
+    p_attachment_url: str('attachment_url'),
+    p_expense_date: str('expense_date'),
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidate();
