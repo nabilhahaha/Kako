@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { Permission } from '@/lib/erp/permissions';
+import type { Module } from '@/lib/erp/navigation';
 import { useMobileNav } from '@/lib/stores/mobile-nav';
 import { useI18n } from '@/lib/i18n/provider';
 import { Menu } from 'lucide-react';
-import { BOTTOM_NAV_TABS } from './bottom-nav-tabs';
+import { resolveBottomNavTabs } from './bottom-nav-tabs';
 
 /** Mobile bottom tab bar (UX-3): always-visible quick access to the most-used
  *  destinations for the role, so field/cashier users reach key screens in one tap
@@ -16,16 +17,21 @@ import { BOTTOM_NAV_TABS } from './bottom-nav-tabs';
 export function BottomNav({
   permissions,
   isSuperAdmin,
+  modules = [],
+  businessType = null,
 }: {
   permissions: Permission[];
   isSuperAdmin: boolean;
+  /** Company's enabled feature modules (gates module-specific tabs). */
+  modules?: Module[];
+  /** Company business type (picks the most specific route per group). */
+  businessType?: string | null;
 }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const setOpen = useMobileNav((s) => s.setOpen);
-  const can = (p?: Permission) => !p || isSuperAdmin || permissions.includes(p);
 
-  const visible = BOTTOM_NAV_TABS.filter((tab) => can(tab.perm))
+  const visible = resolveBottomNavTabs({ permissions, isSuperAdmin, modules, businessType })
     .map((tab) => ({ href: tab.href, icon: tab.icon, label: t(tab.labelKey) }))
     .slice(0, 4);
   const cols = visible.length + 1;
