@@ -22,3 +22,14 @@ export const SUPABASE_URL =
 export const SUPABASE_ANON_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
   (OFFLINE_BUILD ? '' : 'sb_publishable_DtpmoBXjf4sQWpXSJddJ-A_eM3q7kHo');
+
+// Cookie options for the @supabase/ssr clients. The offline desktop edition is
+// served over PLAIN HTTP (http://127.0.0.1:54331) inside WKWebView; a `Secure`
+// cookie is silently dropped on http, which would mean the browser sets the auth
+// session but the server never receives it → getUser() is null → login never
+// reaches the dashboard. So for an http origin we force secure:false. For the
+// cloud (https) build we leave the library defaults (secure cookies).
+const IS_HTTP_LOCAL = SUPABASE_URL.startsWith('http://');
+export const SUPABASE_COOKIE_OPTIONS = IS_HTTP_LOCAL
+  ? { secure: false as const, sameSite: 'lax' as const, path: '/' }
+  : undefined;

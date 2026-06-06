@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_COOKIE_OPTIONS } from './config';
 
 // '/activate' must be public: the offline license gate redirects un-licensed
 // devices here, and an un-activated device has no session yet — without this it
@@ -14,6 +14,7 @@ export async function updateSession(request: NextRequest) {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     {
+      cookieOptions: SUPABASE_COOKIE_OPTIONS,
       cookies: {
         getAll() {
           return request.cookies.getAll();
