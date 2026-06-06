@@ -18,3 +18,10 @@ next-env.d.ts
 *.sw?
 *.log
 .claude/worktrees/
+
+# Tauri updater signing key material — NEVER commit. The private key lives only
+# in the CI secret TAURI_SIGNING_PRIVATE_KEY; the public key is embedded in
+# src-tauri/tauri.conf.json. See docs/offline/auto-update.md §8.
+src-tauri/.tauri-private-key.pem
+src-tauri/.tauri-private-key.pem.pub
+*.tauri-private-key*

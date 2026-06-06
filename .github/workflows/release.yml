@@ -1,0 +1,158 @@
+# ============================================================================
+# Offline Edition — signed auto-update release
+# ----------------------------------------------------------------------------
+# Builds, signs, and publishes the desktop app + Tauri updater manifests on a
+# version tag. Channel is inferred from the tag: `v*-beta.*` → beta, else stable.
+#
+# Per-arch artifacts are uploaded to the VERSION release (e.g. `v1.4.0`); the
+# updater manifests are uploaded to a per-channel ROLLING release
+# (`updates-stable` / `updates-beta`) that the app polls at a stable URL — see
+# docs/offline/auto-update.md §5/§9. The manifest's artifact `url` points back at
+# the versioned download.
+#
+# ── Required secrets ────────────────────────────────────────────────────────
+#   TAURI_SIGNING_PRIVATE_KEY            Ed25519 updater private key (from
+#                                        `tauri signer generate`). REQUIRED.
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD   Passphrase for the key. REQUIRED
+#                                        (set to "" if the key has none).
+#
+# ── Apple signing/notarization (needed before the FIRST shippable macOS
+#    release; absent → tauri skips signing, build still succeeds) ─────────────
+#   APPLE_SIGNING_IDENTITY   e.g. "Developer ID Application: ACME (TEAMID)"
+#   APPLE_CERTIFICATE        base64 of the .p12 Developer ID cert
+#   APPLE_CERTIFICATE_PASSWORD
+#   APPLE_ID                 Apple account email (notarization)
+#   APPLE_PASSWORD           app-specific password (notarization)
+#   APPLE_TEAM_ID            10-char team id
+# ============================================================================
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # create releases + upload assets
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  channel:
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.detect.outputs.channel }}
+    steps:
+      - id: detect
+        # `v1.4.0-beta.2` → beta ; `v1.4.0` → stable.
+        run: |
+          if [[ "${{ github.ref_name }}" == *-beta.* ]]; then
+            echo "channel=beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: channel
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-14, target: aarch64-apple-darwin, os: darwin, arch: aarch64 }
+          - { runner: macos-13, target: x86_64-apple-darwin,  os: darwin, arch: x86_64 }
+          # Windows is schema-ready; uncomment to build (also add the windows
+          # platform key in the manifest + an NSIS/MSI artifact path below).
+          # - { runner: windows-latest, target: x86_64-pc-windows-msvc, os: windows, arch: x86_64 }
+    runs-on: ${{ matrix.runner }}
+    env:
+      KAKO_OFFLINE: "1"
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      # Apple signing/notarization — empty when secrets are unset → tauri skips it.
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify version sync matches tag
+        # Tag v1.4.0 must match package.json/tauri.conf/Cargo version 1.4.0.
+        run: |
+          TAG="${{ github.ref_name }}"
+          node scripts/sync-version.mjs --check
+          PKG="$(node -p "require('./package.json').version")"
+          if [[ "v$PKG" != "$TAG" ]]; then
+            echo "✗ tag $TAG does not match package.json v$PKG"; exit 1
+          fi
+
+      - name: Build + sign (Tauri)
+        # beforeBuildCommand (`npm run build`) runs the Next build; tauri signs the
+        # updater artifact when TAURI_SIGNING_PRIVATE_KEY[_PASSWORD] are present.
+        run: npm run tauri -- build --target ${{ matrix.target }}
+
+      - name: Locate artifact + signature
+        id: art
+        shell: bash
+        run: |
+          BUNDLE="src-tauri/target/${{ matrix.target }}/release/bundle"
+          # macOS updater artifact is the .app.tar.gz (+ .sig) under bundle/macos.
+          TARBALL="$(find "$BUNDLE/macos" -maxdepth 1 -name '*.app.tar.gz' | head -1)"
+          if [[ -z "$TARBALL" ]]; then echo "✗ no .app.tar.gz found in $BUNDLE/macos"; exit 1; fi
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+          echo "sig=$TARBALL.sig" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$TARBALL")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact to version release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          prerelease: ${{ needs.channel.outputs.channel == 'beta' }}
+          files: |
+            ${{ steps.art.outputs.tarball }}
+            ${{ steps.art.outputs.sig }}
+          fail_on_unmatched_files: true
+
+      - name: Generate updater manifest
+        shell: bash
+        run: |
+          DL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.art.outputs.name }}"
+          node scripts/release/generate-manifest.mjs \
+            --version "$(node -p "require('./package.json').version")" \
+            --channel "${{ needs.channel.outputs.channel }}" \
+            --os "${{ matrix.os }}" \
+            --arch "${{ matrix.arch }}" \
+            --url "$DL" \
+            --sig-file "${{ steps.art.outputs.sig }}" \
+            --notes-file "RELEASE_NOTES.md" \
+            --out "latest-${{ matrix.os }}-${{ matrix.arch }}.json"
+
+      - name: Publish manifest to rolling channel release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: updates-${{ needs.channel.outputs.channel }}
+          prerelease: ${{ needs.channel.outputs.channel == 'beta' }}
+          name: "Auto-update manifest (${{ needs.channel.outputs.channel }})"
+          body: "Rolling updater manifests for the ${{ needs.channel.outputs.channel }} channel. Updated automatically on each release."
+          files: latest-${{ matrix.os }}-${{ matrix.arch }}.json
+          fail_on_unmatched_files: true
