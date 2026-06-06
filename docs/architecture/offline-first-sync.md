@@ -362,3 +362,45 @@ Known follow-up (P4): the inventory-counts review path passes no `baseVersion` y
 cloud row genuinely diverges via the optimistic check — fine for the pilot's
 single-counter flow; wire `baseVersion` from the local mirror when multi-device count
 editing lands.
+
+## 18. Offline-safe UX layer (browser) — implemented behind `KAKO_SYNC`
+The sync *engine* keeps writes durable; this layer makes the *experience* offline-safe
+so a dropped connection never shows a generic error or blanks a usable page. All of it
+is inert with the flag off (production unchanged).
+
+- **Offline-aware error boundary** (`src/app/(app)/error.tsx`): when a failure looks
+  like connectivity (navigator offline, or a fetch/RSC/Server-Action network error) it
+  degrades to a friendly "You're offline" card instead of the generic error, skips the
+  Sentry report, and **auto-recovers** by calling `reset()` on the `online` event. With
+  the flag off it behaves exactly as before.
+- **Non-blocking offline banner + nav guard** (`src/components/sync/offline-shell.tsx`):
+  `OfflineBanner` shows a slim notice (with the pending count) while the loaded page stays
+  usable underneath; `OfflineNavGuard` intercepts internal link navigations while offline
+  so the destination's failing server fetch can't trip the boundary — the user keeps the
+  current page. Both read the existing `SyncStatusStore` (Online · Pending · Syncing ·
+  Synced · Sync-failed) — requirement-7 state is surfaced by the `SyncBadge` + banner.
+- **Offline-safe writes** (`src/lib/sync/web/submit-offline.ts`): `submitOffline({action,
+  mutation})` runs the cloud action; on a network rejection it journals the mutation to
+  the outbox (client-generated pk for inserts) and returns a synthetic offline-success —
+  the orchestrator replays it on reconnect. Flag-off is an exact passthrough (real
+  network errors still surface as today). Wired as the reference into the **order** flows:
+  - [x] POS checkout (`market/pos/cashier-terminal.tsx`)
+  - [x] Wholesale order (`wholesale/order/wholesale-order.tsx`)
+  Remaining write flows stay non-fatal via the error-boundary backstop; upgrading them to
+  `submitOffline` is mechanical and tracked below.
+
+**⚠ Architectural caveat (offline-created records):** journaled offline writes land in the
+cloud **`sync_rows` mirror** on reconnect. Until the mirror→business-tables reconciliation
+(§15 P3) is built, an offline-created order syncs to the mirror but does **not** yet
+materialize as an `erp_invoices` row / appear in business reports. The order flows are
+wired because they are append-only and the highest-value offline case; **financial and
+inventory flows are intentionally left on the graceful backstop** (non-fatal, retry on
+reconnect) rather than writing to an unreconciled mirror. Finishing reconciliation is the
+gate before rolling `submitOffline` out to invoices/returns/payments/inventory.
+
+**Validation (§9 scenarios):** engine-level coverage in `web/scenario.test.ts`
+(offline create → refresh persistence → reconnect drain → sync) and
+`web/submit-offline.test.ts` (online journal · flag-off passthrough · offline journal with
+client pk · genuine-error rethrow); status states in `web/status.test.ts`. Real-browser
+pass on the preview (page loaded → disconnect → navigate → create → refresh → reconnect →
+auto-sync) is the remaining manual gate, with `KAKO_SYNC` enabled on the preview.
