@@ -162,3 +162,51 @@ export function makeReconcileHandlers(db: Db): Record<string, ReconcileHandler> 
 
 /** Entities the worker attempts to reconcile (hybrid-policy offline-queue set). */
 export const RECONCILABLE_ENTITIES = ['customers', 'orders'];
+
+// ── Operator-console reads/actions (tenant-scoped) ───────────────────────────
+
+export interface ReconcileLedgerRow {
+  entity: string; pk: string; status: string; business_id: string | null;
+  attempts: number; last_error: string | null; reason: string | null;
+  next_attempt_at: string; updated_at: string;
+}
+export interface ReconcileOverview {
+  counts: Record<string, number>;
+  attention: ReconcileLedgerRow[];   // failed / skipped, newest first
+  recentLog: { entity: string; pk: string; status: string; error: string | null; at: string }[];
+}
+
+/** Status counts + the records needing attention + a recent audit tail, for one company. */
+export async function fetchReconcileOverview(db: Db, companyId: string): Promise<ReconcileOverview> {
+  const { data: rows } = await db.from('sync_reconcile' as never)
+    .select('entity,pk,status,business_id,attempts,last_error,reason,next_attempt_at,updated_at')
+    .eq('company_id', companyId);
+  const ledger = (rows ?? []) as unknown as ReconcileLedgerRow[];
+  const counts: Record<string, number> = {};
+  for (const r of ledger) counts[r.status] = (counts[r.status] ?? 0) + 1;
+  const attention = ledger
+    .filter((r) => r.status === 'failed' || r.status === 'skipped')
+    .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
+    .slice(0, 100);
+  const { data: log } = await db.from('sync_reconcile_log' as never)
+    .select('entity,pk,status,error,at').eq('company_id', companyId)
+    .order('at', { ascending: false }).limit(50);
+  return { counts, attention, recentLog: (log ?? []) as ReconcileOverview['recentLog'] };
+}
+
+/** Load one mirror record (the materialization source) for an on-demand retry. */
+export async function loadMirrorRecord(db: Db, companyId: string, entity: string, pk: string): Promise<MirrorRecord | null> {
+  const { data } = await db.from('sync_rows' as never)
+    .select('company_id,entity,pk,data,deleted')
+    .eq('company_id', companyId).eq('entity', entity).eq('pk', pk).maybeSingle();
+  if (!data) return null;
+  const r = data as { company_id: string; entity: string; pk: string; data: Record<string, unknown> | null; deleted: boolean };
+  return { companyId: r.company_id, entity: r.entity, pk: r.pk, data: r.data ?? {}, deleted: !!r.deleted };
+}
+
+/** Clear the backoff/attempt counter so an operator retry gets a fresh cycle. */
+export async function resetForRetry(db: Db, companyId: string, entity: string, pk: string): Promise<void> {
+  await db.from('sync_reconcile' as never)
+    .update({ attempts: 0, status: 'pending', next_attempt_at: new Date().toISOString(), reason: 'manual-retry' } as never)
+    .eq('company_id', companyId).eq('entity', entity).eq('pk', pk);
+}

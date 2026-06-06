@@ -76,6 +76,41 @@ export function reconcileBackoffMs(attempt: number): number {
 const key = (r: MirrorRecord) => ({ companyId: r.companyId, entity: r.entity, pk: r.pk });
 
 /**
+ * Reconcile a single mirror record. Exactly-once (done short-circuit), idempotent
+ * handler, retry/backoff with dead-letter. Shared by the batch loop and the
+ * operator console's on-demand retry.
+ */
+export async function reconcileOne(
+  deps: ReconcileDeps,
+  handlers: Record<string, ReconcileHandler>,
+  rec: MirrorRecord,
+  now: number = Date.now(),
+): Promise<ReconcileOutcome> {
+  const state = await deps.getState(rec);
+  if (state?.status === 'done') return { ...key(rec), status: 'done', alreadyDone: true };
+
+  const handler = handlers[rec.entity];
+  if (!handler) {
+    // No materializer for this entity yet — park it visibly, don't fake done.
+    await deps.markSkipped(rec, 'no-handler');
+    return { ...key(rec), status: 'skipped', reason: 'no-handler' };
+  }
+
+  const attempts = (state?.attempts ?? 0) + 1;
+  try {
+    const { businessId } = await handler.materialize(rec);
+    await deps.markDone(rec, businessId, attempts);
+    return { ...key(rec), status: 'done', businessId };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    const deadLetter = attempts >= RECONCILE_MAX_ATTEMPTS;
+    const nextAttemptAt = deadLetter ? Number.MAX_SAFE_INTEGER : now + reconcileBackoffMs(attempts);
+    await deps.markFailed(rec, attempts, error, nextAttemptAt, deadLetter);
+    return { ...key(rec), status: 'failed', deadLetter, error };
+  }
+}
+
+/**
  * Process a due batch. Each record is independent: a failure on one is recorded
  * (retriable) and never blocks the rest, and never partially duplicates.
  */
@@ -85,40 +120,8 @@ export async function reconcile(
   opts: { limit?: number; now?: number } = {},
 ): Promise<ReconcileOutcome[]> {
   const now = opts.now ?? Date.now();
-  const limit = opts.limit ?? 100;
-  const batch = await deps.due(limit);
+  const batch = await deps.due(opts.limit ?? 100);
   const outcomes: ReconcileOutcome[] = [];
-
-  for (const rec of batch) {
-    // Exactly-once: an already-materialized record is a no-op.
-    const state = await deps.getState(rec);
-    if (state?.status === 'done') {
-      outcomes.push({ ...key(rec), status: 'done', alreadyDone: true });
-      continue;
-    }
-
-    const handler = handlers[rec.entity];
-    if (!handler) {
-      // No materializer for this entity yet (e.g. financial flows pending the
-      // session-decoupling work) — park it visibly, don't pretend it's done.
-      await deps.markSkipped(rec, 'no-handler');
-      outcomes.push({ ...key(rec), status: 'skipped', reason: 'no-handler' });
-      continue;
-    }
-
-    const attempts = (state?.attempts ?? 0) + 1;
-    try {
-      const { businessId } = await handler.materialize(rec);
-      await deps.markDone(rec, businessId, attempts);
-      outcomes.push({ ...key(rec), status: 'done', businessId });
-    } catch (e) {
-      const error = e instanceof Error ? e.message : String(e);
-      const deadLetter = attempts >= RECONCILE_MAX_ATTEMPTS;
-      const nextAttemptAt = deadLetter ? Number.MAX_SAFE_INTEGER : now + reconcileBackoffMs(attempts);
-      await deps.markFailed(rec, attempts, error, nextAttemptAt, deadLetter);
-      outcomes.push({ ...key(rec), status: 'failed', deadLetter, error });
-    }
-  }
-
+  for (const rec of batch) outcomes.push(await reconcileOne(deps, handlers, rec, now));
   return outcomes;
 }

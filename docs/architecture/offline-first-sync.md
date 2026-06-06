@@ -505,3 +505,11 @@ and re-asserted defensively in `0003_idempotency_guards.sql`. Battery results:
   | Stock delta | exactly one sale (98→96); invoices=1, payments=1, paid=100 |
 `createInvoiceCore` now catches the 23505 race-loss and returns the winner's invoice, so a
 concurrent worker resolves on the first pass instead of failing into a retry.
+
+**Operator console.** The admin Sync console (`settings/sync`, behind KAKO_SYNC, admin-only)
+gains a reconciliation panel: status counts (done/pending/failed/skipped), the attention
+queue (failed + dead-lettered with `last_error`/attempts), and **on-demand retry** per record
+or "retry all". Reads via `GET /api/sync/reconcile/status`; retries via
+`POST /api/sync/reconcile/retry` — both tenant-scoped + admin-gated — which reset the backoff
+and re-run `reconcileOne` immediately (orders re-run under cashier impersonation). The cron
+route stays the unattended path; the console is the manual operator surface.
