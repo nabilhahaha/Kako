@@ -44,6 +44,20 @@ export function getSyncStore(): Promise<WebLocalStore> {
   return getStore();
 }
 
+/**
+ * Build a plain sync payload from a form's scalar fields. Skips File values
+ * (attachments) and any `omit` keys (e.g. the pk field). Keeps the write-seam
+ * call-sites terse and uniform for the FormData-based flows.
+ */
+export function formPayload(fd: FormData, omit: readonly string[] = []): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  fd.forEach((value, key) => {
+    if (omit.includes(key)) return;
+    if (typeof value === 'string') out[key] = value;
+  });
+  return out;
+}
+
 export interface MutationInput {
   entity: string;
   op: SyncOp;

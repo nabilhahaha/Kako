@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
 import { createReturn, completeReturn, cancelReturn, loadCustomerInvoices, loadReturnableLines, createExchange } from './actions';
+import { recordMutation } from '@/lib/sync/web/write-seam';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -128,10 +129,18 @@ export function ReturnsManager({
         reason,
         lines: lines.filter((l) => l.product).map((l) => ({ product_id: l.product!.id, quantity: l.quantity, unit_price: l.unit_price })),
       });
-      if (!res.ok) {
+      if (!res.ok || !res.data) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
+      // Local-first journal (sales_returns = append-only). No-op unless KAKO_SYNC.
+      void recordMutation({
+        entity: 'sales_returns', op: 'insert', pk: res.data.id,
+        payload: {
+          return_id: res.data.id, branch_id: branchId, customer_id: customerId, invoice_id: invoiceId || null, reason,
+          lines: lines.filter((l) => l.product).map((l) => ({ product_id: l.product!.id, quantity: l.quantity, unit_price: l.unit_price })),
+        },
+      });
       toast.success(t('sales.returnSuccessCreated'));
       reset();
       router.refresh();
@@ -153,6 +162,8 @@ export function ReturnsManager({
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
+      // Status transition on the append-only return document. No-op unless KAKO_SYNC.
+      void recordMutation({ entity: 'sales_returns', op: 'update', pk: id, payload: { return_id: id, status: 'completed', refund_method: method } });
       toast.success(t('sales.returnSuccessApproved'));
       setCompleteFor(null);
       router.refresh();

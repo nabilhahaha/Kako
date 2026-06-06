@@ -10,6 +10,10 @@ describe('entity sync policy (§14 matrix)', () => {
     expect(entityKind('products')).toBe('last-write-wins');
     expect(entityKind('settings')).toBe('last-write-wins');
     expect(entityKind('inventory_counts')).toBe('review');
+    // Financial ledger documents are append-only (§14 immutable ledger events).
+    expect(entityKind('sales_invoices')).toBe('append-only');
+    expect(entityKind('sales_returns')).toBe('append-only');
+    expect(entityKind('customer_payments')).toBe('append-only');
   });
 
   it('defaults unknown entities to deterministic LWW', () => {

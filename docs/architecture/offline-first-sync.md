@@ -326,22 +326,39 @@ loss). Pure conflict + engine conflict covered by P0 tests.
   badge + cloud backup; server apply (exactly-once + §14) tested.
 - **P3 (done):** local-first write-seam (`recordMutation`) + inventory review UI
   + Sync console (`/settings/sync`). All behind `KAKO_SYNC`.
-- **P4 (next):** apply the reviewed migration; real-cloud fault-injection; finish
-  the write-seam call-site rollout (checklist §17); Windows packaging parity.
+- **P4 (in progress):** reviewed migration validated on an isolated Supabase branch
+  (server contract: exactly-once, LWW, conflict park+resolve, monotonic pull cursor,
+  RLS, cloud-backup snapshot — all green; branch torn down, production untouched);
+  write-seam call-site rollout complete (checklist §17); remaining: real-cloud
+  fault-injection on a preview deploy and Windows packaging parity.
 
 ## 17. Write-seam call-site rollout (checklist)
-`recordMutation()` is the local-first seam (no-op unless `KAKO_SYNC`). Wired as
-the proven reference:
+`recordMutation()` is the local-first seam (no-op unless `KAKO_SYNC`). Each call-site
+fires after the server action succeeds, with a reliable pk + representative payload.
 - [x] POS checkout (`market/pos/cashier-terminal.tsx`) — orders / append-only
 - [x] Wholesale order (`wholesale/order/wholesale-order.tsx`) — orders / append-only
+- [x] customers create/update (`customers/customers-manager.tsx`) — field-merge
+      (`upsertCustomer` now returns the new id on create; update uses the form id)
+- [x] products: style + variant create (`fashion/products/products-manager.tsx`) — LWW
+      (`createVariant` now returns the catalog product id)
+- [x] settings save (`settings/store/store-form.tsx`) — LWW (pk = company id)
+- [x] visits create (`clinic/visits/visits-manager.tsx`) — append-only
+      (`createVisit` now returns the new visit id)
+- [x] inventory counts finalize (`inventory/count/stock-count-manager.tsx`) — review workflow
+- [x] sales invoices create + issue (`sales/invoices/invoices-manager.tsx`) — append-only (`sales_invoices`)
+- [x] sales returns create + complete (`sales/returns/returns-manager.tsx`) — append-only (`sales_returns`)
+- [x] collections / customer payments (`sales/invoices` PaymentDialog) — append-only
+      (`customer_payments`; pk = the dialog's stable idempotency key)
 
-Remaining (mechanical; wire after the migration is applied so each can be
-validated against the real cloud — each needs a reliable pk + representative
-payload, so do them with eyes on the flow, not blind):
-- [ ] customers create/update (`customers/customers-manager.tsx`) — field-merge
-      (note: `upsertCustomer` should return the new id for create)
-- [ ] products create/update — LWW
-- [ ] settings save — LWW
-- [ ] visits — append-only
-- [ ] inventory counts submission — review workflow
-- [ ] sales invoices / returns, collections, etc. — per §14
+New entity keys added to the §14 policy registry (`src/lib/sync/policy.ts`), all
+**append-only** as immutable ledger documents: `sales_invoices`, `sales_returns`,
+`customer_payments`.
+
+Helper: `formPayload(formData, omit)` (in `web/write-seam.ts`) builds a sync payload
+from a form's scalar fields (skips File attachments and the pk field); unit-tested.
+
+Known follow-up (P4): the inventory-counts review path passes no `baseVersion` yet
+(the client doesn't track `sync_version`), so the server only parks a count when the
+cloud row genuinely diverges via the optimistic check — fine for the pilot's
+single-counter flow; wire `baseVersion` from the local mirror when multi-device count
+editing lands.

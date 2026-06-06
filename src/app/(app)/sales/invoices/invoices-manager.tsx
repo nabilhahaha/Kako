@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
 import { createInvoice, issueInvoice, recordPayment, cancelInvoice, voidInvoice, submitInvoiceToEta } from './actions';
+import { recordMutation } from '@/lib/sync/web/write-seam';
 import { resolveLinePrice } from '../pricing/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -113,10 +114,19 @@ export function InvoicesManager({
           tax_rate: l.tax_rate,
         })),
       });
-      if (!res.ok) {
+      if (!res.ok || !res.data) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
+      // Local-first journal (sales_invoices = append-only). No-op unless KAKO_SYNC.
+      void recordMutation({
+        entity: 'sales_invoices', op: 'insert', pk: res.data.id,
+        payload: {
+          invoice_id: res.data.id, branch_id: branchId, customer_id: customerId,
+          due_date: dueDate, notes,
+          lines: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price, discount_pct: l.discount_pct, tax_rate: l.tax_rate })),
+        },
+      });
       toast.success(t('sales.invoiceSuccessCreated'));
       reset();
       router.refresh();
@@ -136,6 +146,8 @@ export function InvoicesManager({
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
+      // Status transition on the append-only invoice document. No-op unless KAKO_SYNC.
+      void recordMutation({ entity: 'sales_invoices', op: 'update', pk: id, payload: { invoice_id: id, status: 'issued' } });
       toast.success(t('sales.invoiceSuccessIssued'));
       router.refresh();
     });
@@ -515,6 +527,12 @@ function PaymentDialog({
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
+      // Local-first journal (customer_payments = append-only). The stable idemKey is
+      // both the server idempotency key and the sync pk. No-op unless KAKO_SYNC.
+      void recordMutation({
+        entity: 'customer_payments', op: 'insert', pk: idemKey,
+        payload: { invoice_id: invoice.id, amount: Number(amount), payment_method: method, reference_number: ref, payment_date: date, idempotency_key: idemKey },
+      });
       toast.success(t('sales.paymentSuccess'));
       onDone();
     });

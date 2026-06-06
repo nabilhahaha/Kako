@@ -69,7 +69,7 @@ function triBool(v: FormDataEntryValue | null): boolean | null {
 }
 
 
-export async function upsertCustomer(formData: FormData): Promise<ActionResult> {
+export async function upsertCustomer(formData: FormData): Promise<ActionResult<{ id: string }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
   const { t } = await getT();
@@ -205,7 +205,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     }
     await auditStatus((row as { id: string }).id);
     revalidatePath('/customers');
-    return { ok: true };
+    return { ok: true, data: { id: (row as { id: string }).id } };
   }
 
   // UPDATE: sensitive change on an APPROVED customer → stage it (customer keeps
@@ -235,7 +235,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
         await auditStatus(id);
         revalidatePath('/customers');
         revalidatePath('/approvals');
-        return { ok: true };
+        return { ok: true, data: { id } };
       }
     }
   }
@@ -244,7 +244,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   if (error) return { ok: false, error: friendlyDbError(error) };
   await auditStatus(id);
   revalidatePath('/customers');
-  return { ok: true };
+  return { ok: true, data: { id } };
 }
 
 interface ImportRow {

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WebLocalStore } from './web-store';
-import { recordMutation, setSyncStore, clearSyncStore } from './write-seam';
+import { recordMutation, setSyncStore, clearSyncStore, formPayload } from './write-seam';
 
 const dbName = () => `kako-seam-${Math.random().toString(36).slice(2)}`;
 
@@ -31,5 +31,22 @@ describe('local-first write seam', () => {
     expect(outbox).toHaveLength(1);
     expect(outbox[0]).toMatchObject({ entity: 'orders', op: 'insert', pk: 'o1', status: 'pending', clientOpId: id });
     store.close();
+  });
+});
+
+describe('formPayload', () => {
+  it('captures scalar fields, skips Files and omitted keys', () => {
+    const fd = new FormData();
+    fd.set('id', 'cust-1');
+    fd.set('name', 'Acme');
+    fd.set('credit_limit', '5000');
+    fd.set('logo', new File(['x'], 'logo.png', { type: 'image/png' }));
+    expect(formPayload(fd, ['id'])).toEqual({ name: 'Acme', credit_limit: '5000' });
+  });
+
+  it('keeps all string fields when nothing is omitted', () => {
+    const fd = new FormData();
+    fd.set('a', '1'); fd.set('b', '2');
+    expect(formPayload(fd)).toEqual({ a: '1', b: '2' });
   });
 });

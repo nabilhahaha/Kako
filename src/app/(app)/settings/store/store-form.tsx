@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { updateStore } from './actions';
+import { recordMutation, formPayload } from '@/lib/sync/web/write-seam';
 import { useI18n } from '@/lib/i18n/provider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,10 @@ export function StoreForm({ company }: { company: Company | null }) {
     start(async () => {
       const res = await updateStore(fd);
       if (!res.ok) { toast.error(res.error ?? ''); return; }
+      // Local-first journal (settings = LWW, keyed by the company id). No-op unless KAKO_SYNC.
+      if (company?.id) {
+        void recordMutation({ entity: 'settings', op: 'update', pk: company.id, payload: formPayload(fd) });
+      }
       toast.success(t('settings.store.saved'));
       router.refresh();
     });

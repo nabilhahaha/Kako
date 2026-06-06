@@ -84,7 +84,7 @@ async function pickDoctor(
   return userId;
 }
 
-export async function createVisit(formData: FormData): Promise<ActionResult> {
+export async function createVisit(formData: FormData): Promise<ActionResult<{ id: string }>> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(ANY_CLINIC);
   if (!ctx.companyId) return { ok: false, error: t('clinic.errors.noCompany') };
@@ -93,7 +93,7 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
   const fee = Number(formData.get('fee') || 0);
 
   const supabase = await createClient();
-  const { error } = await supabase.from('erp_clinic_visits').insert({
+  const { data: row, error } = await supabase.from('erp_clinic_visits').insert({
     company_id: ctx.companyId,
     patient_id,
     doctor_id: await pickDoctor(supabase, formData, ctx.userId),
@@ -105,11 +105,11 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
     fee: Number.isFinite(fee) && fee >= 0 ? fee : 0,
     status: 'waiting',
     ...vitalsFrom(formData),
-  });
+  }).select('id').single();
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/clinic/visits');
   revalidatePath('/clinic');
-  return { ok: true };
+  return { ok: true, data: { id: (row as { id: string }).id } };
 }
 
 export async function setVisitStatus(visitId: string, status: string): Promise<ActionResult> {

@@ -16,6 +16,12 @@ const REGISTRY: Record<string, EntitySyncKind> = {
   visits: 'append-only',
   orders: 'append-only',
   audit_logs: 'append-only',
+  // Financial ledger documents (§14 "immutable ledger events"): once created they
+  // are never merged in place — status transitions (issue/complete) just carry the
+  // latest authoritative image, and corrections are new compensating documents.
+  sales_invoices: 'append-only',
+  sales_returns: 'append-only',
+  customer_payments: 'append-only',
   customers: 'field-merge',
   products: 'last-write-wins',
   settings: 'last-write-wins',

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createStockCount, saveStockCount, finalizeStockCount, cancelStockCount } from './actions';
+import { recordMutation } from '@/lib/sync/web/write-seam';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -210,6 +211,11 @@ function CountEditor({
           toast.error(res.error ?? t('inventory.toastError'));
           return;
         }
+        // Local-first journal (inventory_counts = review workflow). No-op unless KAKO_SYNC.
+        void recordMutation({
+          entity: 'inventory_counts', op: 'update', pk: count.id,
+          payload: { status: 'completed', lines: payload, shortage, surplus },
+        });
         toast.success(t('inventory.toastCountFinalized'));
         router.push('/inventory/count');
       });

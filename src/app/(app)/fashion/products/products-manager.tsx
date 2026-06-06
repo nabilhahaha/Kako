@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createStyle, createVariant, upsertFashionLookup } from '../actions';
+import { recordMutation, formPayload } from '@/lib/sync/web/write-seam';
 import { Plus, Shirt, Tag } from 'lucide-react';
 
 interface Opt { id: string; name: string; name_ar?: string | null; code?: string }
@@ -26,12 +27,22 @@ export function ProductsManager(props: {
   const [pending, start] = useTransition();
   const [openStyle, setOpenStyle] = useState<string | null>(null);
 
-  const submit = (fn: (fd: FormData) => Promise<{ ok: boolean; error?: string }>, form: HTMLFormElement) =>
+  const submit = (
+    fn: (fd: FormData) => Promise<{ ok: boolean; error?: string; data?: unknown }>,
+    form: HTMLFormElement,
+    record?: (fd: FormData, data: unknown) => void,
+  ) =>
     start(async () => {
-      const res = await fn(new FormData(form));
-      if (res.ok) { toast.success(t('fashion.products.saved')); form.reset(); router.refresh(); }
+      const fd = new FormData(form);
+      const res = await fn(fd);
+      if (res.ok) { record?.(fd, res.data); toast.success(t('fashion.products.saved')); form.reset(); router.refresh(); }
       else toast.error(res.error || 'Error');
     });
+
+  // products = LWW. The new product/style id is the sync pk. No-op unless KAKO_SYNC.
+  const recordProduct = (fd: FormData, pk: string | undefined) => {
+    if (pk) void recordMutation({ entity: 'products', op: 'insert', pk, payload: formPayload(fd) });
+  };
 
   const sizeName = (id: string | null) => props.sizes.find((s) => s.id === id)?.name ?? '—';
   const colorName = (id: string | null) => props.colors.find((c) => c.id === id)?.name ?? '—';
@@ -56,7 +67,7 @@ export function ProductsManager(props: {
       {/* New style */}
       <Card><CardContent className="p-4">
         <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold"><Shirt className="h-4 w-4" /> {t('fashion.products.newStyle')}</h2>
-        <form onSubmit={(e) => { e.preventDefault(); submit(createStyle, e.currentTarget); }} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <form onSubmit={(e) => { e.preventDefault(); submit(createStyle, e.currentTarget, (fd, data) => recordProduct(fd, data as string | undefined)); }} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <Input name="name" placeholder={t('fashion.products.namePlaceholder')} required />
           <select name="category_id" className="h-9 rounded-md border bg-background px-2 text-sm"><option value="">{t('fashion.products.category')}</option>{props.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
           <select name="brand_id" className="h-9 rounded-md border bg-background px-2 text-sm"><option value="">{t('fashion.products.brand')}</option>{props.brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
@@ -102,7 +113,7 @@ export function ProductsManager(props: {
                     </table>
                   </div>
                 )}
-                <form onSubmit={(e) => { e.preventDefault(); submit(createVariant, e.currentTarget); }} className="grid items-end gap-2 rounded-md border p-2 sm:grid-cols-3 lg:grid-cols-7">
+                <form onSubmit={(e) => { e.preventDefault(); submit(createVariant, e.currentTarget, (fd, data) => recordProduct(fd, (data as { id?: string } | undefined)?.id)); }} className="grid items-end gap-2 rounded-md border p-2 sm:grid-cols-3 lg:grid-cols-7">
                   <input type="hidden" name="style_id" value={style.id} />
                   <label className="text-xs">{t('fashion.products.size')}<select name="size_id" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"><option value="">—</option>{props.sizes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
                   <label className="text-xs">{t('fashion.products.color')}<select name="color_id" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"><option value="">—</option>{props.colors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>

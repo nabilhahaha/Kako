@@ -14,6 +14,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { usePrompt } from '@/components/prompt-dialog';
 import { useConfirm } from '@/components/confirm-dialog';
 import { createVisit, updateVisit, setVisitStatus, recordVisitPayment } from '../actions';
+import { recordMutation, formPayload } from '@/lib/sync/web/write-seam';
 import {
   type ClinicVisit as Visit,
   type PatientOption,
@@ -76,12 +77,19 @@ export function VisitsManager({
     });
   }
 
-  function submitForm(e: React.FormEvent<HTMLFormElement>, fn: (fd: FormData) => Promise<{ ok: boolean; error?: string }>, ok: string, after: () => void) {
+  function submitForm(
+    e: React.FormEvent<HTMLFormElement>,
+    fn: (fd: FormData) => Promise<{ ok: boolean; error?: string; data?: unknown }>,
+    ok: string,
+    after: () => void,
+    record?: (fd: FormData, data: unknown) => void,
+  ) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     startTransition(async () => {
       const res = await fn(fd);
       if (!res.ok) { toast.error(res.error ?? t('clinic.visits.toastError')); return; }
+      record?.(fd, res.data);
       toast.success(ok);
       after();
       router.refresh();
@@ -112,7 +120,11 @@ export function VisitsManager({
         ) : (
           <Card>
             <CardContent className="pt-6">
-              <form onSubmit={(e) => submitForm(e, createVisit, t('clinic.visits.toastRegistered'), () => setAdding(false))} className="space-y-4">
+              <form onSubmit={(e) => submitForm(e, createVisit, t('clinic.visits.toastRegistered'), () => setAdding(false), (fd, data) => {
+                // Local-first journal (visits = append-only). No-op unless KAKO_SYNC.
+                const id = (data as { id?: string } | undefined)?.id;
+                if (id) void recordMutation({ entity: 'visits', op: 'insert', pk: id, payload: formPayload(fd) });
+              })} className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-1">
                     <Label>{t('clinic.visits.fieldPatient')}</Label>
