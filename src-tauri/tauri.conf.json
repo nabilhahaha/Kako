@@ -6,13 +6,14 @@
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../.next/standalone",
+    "frontendDist": "shell",
     "devUrl": "http://127.0.0.1:54331"
   },
   "app": {
     "windows": [
       {
         "title": "VANTORA",
+        "url": "http://127.0.0.1:54331",
         "width": 1280,
         "height": 800,
         "minWidth": 1024,
