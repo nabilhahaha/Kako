@@ -49,7 +49,7 @@
       "binaries/node"
     ],
     "resources": [
-      "resources/migrations/**",
+      "resources/migrations/*",
       "resources/postgrest.conf.template"
     ],
     "macOS": {

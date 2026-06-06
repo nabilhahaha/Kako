@@ -1,3 +1,10 @@
 target/
 gen/
+# Build-staged resources (copied in by scripts/offline/macos/fetch-binaries.sh
+# from supabase/migrations + scripts/offline + the downloaded PG tree). Sources
+# of truth live elsewhere; these are produced per build.
 resources/pgsql/
+resources/migrations/
+resources/scripts/
+resources/next-standalone/
+resources/ci/
