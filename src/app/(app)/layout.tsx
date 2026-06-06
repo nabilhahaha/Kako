@@ -10,6 +10,8 @@ import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { CopilotFab } from '@/components/copilot/copilot-fab';
 import { TauriLinkInterceptor } from '@/components/tauri-link-interceptor';
+import { SyncProvider } from '@/components/sync/sync-provider';
+import { SyncBadge } from '@/components/sync/sync-badge';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
 import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
@@ -137,6 +139,7 @@ export default async function AppLayout({
   return (
     <ConfirmProvider>
      <PromptProvider>
+      <SyncProvider>
       <div className="flex min-h-screen bg-secondary/30">
         <CommandPalette
           permissions={ctx.permissions}
@@ -189,7 +192,12 @@ export default async function AppLayout({
         <CopilotFab />
         {/* Desktop shell: route new-tab/external links that WKWebView ignores. */}
         <TauriLinkInterceptor />
+        {/* Sync status (renders only when KAKO_SYNC is enabled). */}
+        <div className="print:hidden fixed bottom-3 left-3 z-40">
+          <SyncBadge />
+        </div>
       </div>
+      </SyncProvider>
      </PromptProvider>
     </ConfirmProvider>
   );
