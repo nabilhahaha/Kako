@@ -58,13 +58,17 @@ chmod +x "$RES/pgsql/bin/postgrest"
 # Postgres + tools live in resources/pgsql WITH their dylib tree (relocatable via
 # @loader_path); they are NOT externalBin (a single copied file breaks linkage).
 
-# ── App scripts + the supabase tree into resources (run by the bundled node) ─
+# ── App scripts + the migration sources into resources (run by bundled node) ─
 # Layout mirrors the repo so scripts/offline/lib.mjs resolves REPO_ROOT/supabase.
-echo "  · offline scripts + supabase → resources"
+# Only migrations + ci are staged (what migrate.mjs reads) — NOT supabase/functions
+# (Deno edge functions with https:// imports that would break the Next typecheck,
+# and are cloud-only) or demo data.
+echo "  · offline scripts + supabase migrations/ci → resources"
 rm -rf "$RES/scripts" "$RES/supabase"
-mkdir -p "$RES/scripts/offline"
+mkdir -p "$RES/scripts/offline" "$RES/supabase/migrations" "$RES/supabase/ci"
 cp -R "$ROOT/scripts/offline/." "$RES/scripts/offline/"
-cp -R "$ROOT/supabase" "$RES/supabase"
+cp -R "$ROOT/supabase/migrations/." "$RES/supabase/migrations/"
+cp -R "$ROOT/supabase/ci/." "$RES/supabase/ci/"
 
 echo "✓ staged:"
 ls -1 "$BIN" | sed 's/^/    binaries\//'
