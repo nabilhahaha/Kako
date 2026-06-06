@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Printer, FileDown } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
+import { printDocument } from '@/lib/erp/print';
 
 /** Print toolbar for the fashion invoice (hidden on the printed page itself).
  *  Both actions use the browser print pipeline: "Print" sends to a printer,
@@ -18,17 +19,17 @@ export function InvoicePrintActions({ autoPrint = false }: { autoPrint?: boolean
     if (autoPrint && !fired.current) {
       fired.current = true;
       // Defer so the page (logo/images) has painted before the dialog opens.
-      const id = setTimeout(() => window.print(), 350);
+      const id = setTimeout(() => printDocument(), 350);
       return () => clearTimeout(id);
     }
   }, [autoPrint]);
 
   return (
     <div className="flex gap-2 print:hidden">
-      <Button onClick={() => window.print()}>
+      <Button onClick={() => printDocument()}>
         <Printer className="h-4 w-4" /> {t('fashion.invoices.print')}
       </Button>
-      <Button variant="outline" onClick={() => window.print()} title={t('fashion.invoices.savePdfHint')}>
+      <Button variant="outline" onClick={() => printDocument()} title={t('fashion.invoices.savePdfHint')}>
         <FileDown className="h-4 w-4" /> {t('fashion.invoices.savePdf')}
       </Button>
     </div>

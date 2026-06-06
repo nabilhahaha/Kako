@@ -116,6 +116,15 @@ fn device_fingerprint() -> Result<String, String> {
     fingerprint::collect().map_err(|e| e.to_string())
 }
 
+/// Open the native print dialog for the calling webview. JS `window.print()` is
+/// a silent no-op inside the macOS WKWebView the shell uses, so the frontend
+/// calls this command (see src/lib/erp/print.ts) to get a working print dialog
+/// in the desktop build; the browser keeps using `window.print()` directly.
+#[tauri::command]
+fn print_webview(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.print().map_err(|e| e.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -123,6 +132,7 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             device_fingerprint,
+            print_webview,
             updater::get_current_version,
             updater::get_channel,
             updater::set_channel,

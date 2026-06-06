@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Printer, ArrowLeft } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { printDocument } from '@/lib/erp/print';
 
 /** Sticky print/back action bar — hidden in the printed output (`print:hidden`). */
 export function PrintBar({
@@ -21,7 +22,7 @@ export function PrintBar({
         <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
         {backLabel}
       </Link>
-      <Button onClick={() => window.print()} className="gap-1.5">
+      <Button onClick={() => printDocument()} className="gap-1.5">
         <Printer className="h-4 w-4" />
         {printLabel}
       </Button>
