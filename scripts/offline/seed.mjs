@@ -26,8 +26,38 @@ function alreadySeeded() {
   return psqlScalar('SELECT count(*)::int FROM erp_companies;') !== '0';
 }
 
+// Repair installs seeded with the legacy branch role 'owner'. The app's
+// BranchRole type, ROLE_RANK, and the role-permission tables do NOT know
+// 'owner', so such a user logs in with topRole=viewer and ZERO permissions and
+// is bounced from every gated home — i.e. login never reaches the dashboard.
+// 'admin' is the cloud-equivalent company-owner role (rank 8, provisioned by the
+// company triggers). Offline-only + idempotent (no-op once converted).
+// Also flips erp_companies.setup_done → true: it defaults to false, and the
+// (app) layout sends a company admin to /setup while false. The offline store is
+// already provisioned here, so mark onboarding complete or the (now-admin) user
+// lands on the wizard instead of the dashboard. Both updates idempotent.
+function ensureOfflineProvisioned() {
+  psql(`
+    UPDATE erp_user_branches SET role = 'admin' WHERE role = 'owner';
+    UPDATE erp_companies SET setup_done = true WHERE setup_done = false;
+  `);
+}
+
+// Print the offline login so operators always know the test account, even when
+// the company already exists and the seed itself is skipped.
+function printCredentials() {
+  const email = psqlScalar("SELECT email FROM erp_local_users WHERE is_active ORDER BY email LIMIT 1;") || adminEmail;
+  const pw = env.KAKO_OFFLINE_ADMIN_PASSWORD ? '(set via KAKO_OFFLINE_ADMIN_PASSWORD)' : "admin (default)";
+  log(`offline login →  email: ${email}   password: ${pw}`);
+}
+
 function seed() {
-  if (alreadySeeded()) { log('company already present — seed skipped (single-tenant offline)'); return; }
+  ensureOfflineProvisioned();
+  if (alreadySeeded()) {
+    log('company already present — seed skipped (single-tenant offline)');
+    printCredentials();
+    return;
+  }
 
   const userId = randomUUID();
   const companyId = randomUUID();
@@ -47,8 +77,10 @@ VALUES ('${userId}', '${esc(adminEmail)}', 'authenticated', 'authenticated',
         jsonb_build_object('full_name', 'Administrator'), now());
 
 -- Company; insert triggers seed default roles + modules (+ clothing perms).
-INSERT INTO erp_companies (id, name, business_type, is_active)
-VALUES ('${companyId}', '${esc(companyName)}', '${businessType}', true);
+-- setup_done=true: this seed fully provisions the store, so skip the /setup
+-- onboarding wizard (the (app) layout would otherwise redirect the admin there).
+INSERT INTO erp_companies (id, name, business_type, is_active, setup_done)
+VALUES ('${companyId}', '${esc(companyName)}', '${businessType}', true, true);
 
 -- Retail (clothing) edition: enable ONLY the fashion module, matching the cloud
 -- retail provisioning (migration 0147 does this for clothing companies).
@@ -68,8 +100,10 @@ INSERT INTO erp_warehouses (branch_id, code, name, is_van, is_active)
 VALUES ('${branchId}', 'WH', 'Main Warehouse', false, true);
 
 -- Bind the admin to the branch (default) so erp_user_company_id() resolves.
+-- Role MUST be 'admin' (the cloud company-owner role the app + permission tables
+-- recognize); 'owner' is unknown to BranchRole/ROLE_RANK → zero permissions.
 INSERT INTO erp_user_branches (user_id, branch_id, role, is_default)
-VALUES ('${userId}', '${branchId}', 'owner', true);
+VALUES ('${userId}', '${branchId}', 'admin', true);
 
 -- Local credential (bcrypt via pgcrypto); the offline auth service verifies it.
 INSERT INTO erp_local_users (id, email, password_hash, company_id, is_active)
@@ -80,6 +114,7 @@ VALUES ('${userId}', '${esc(adminEmail)}',
 COMMIT;
 `);
   log(`seeded company "${companyName}" + admin ${adminEmail}`);
+  printCredentials();
 }
 
 try {
