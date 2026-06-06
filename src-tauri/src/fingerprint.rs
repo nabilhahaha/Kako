@@ -14,15 +14,29 @@ use serde_json::json;
 pub fn collect() -> Result<String, String> {
     #[cfg(target_os = "macos")]
     {
-        let platform_uuid = mac_platform_uuid().unwrap_or_default();
-        return Ok(json!({ "platformUuid": platform_uuid }).to_string());
+        // AU-7: fail loudly rather than return an empty UUID. An empty string is
+        // a falsy "strong id" on the Node side (collision risk + opaque later
+        // failure), so surface the collection failure at the shell boundary.
+        let platform_uuid = mac_platform_uuid().filter(|s| !s.trim().is_empty());
+        return match platform_uuid {
+            Some(uuid) => Ok(json!({ "platformUuid": uuid }).to_string()),
+            None => Err("could not read IOPlatformUUID (ioreg)".to_string()),
+        };
     }
 
     #[cfg(target_os = "windows")]
     {
-        let machine_guid = win_machine_guid().unwrap_or_default();
-        let smbios = win_smbios_uuid().unwrap_or_default();
-        return Ok(json!({ "machineGuid": machine_guid, "smbiosUuid": smbios }).to_string());
+        let machine_guid = win_machine_guid().filter(|s| !s.trim().is_empty());
+        let smbios = win_smbios_uuid().filter(|s| !s.trim().is_empty());
+        // Require at least one strong identifier.
+        if machine_guid.is_none() && smbios.is_none() {
+            return Err("could not read a strong Windows device id (MachineGuid/SMBIOS)".to_string());
+        }
+        return Ok(json!({
+            "machineGuid": machine_guid.unwrap_or_default(),
+            "smbiosUuid": smbios.unwrap_or_default(),
+        })
+        .to_string());
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]

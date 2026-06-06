@@ -9,6 +9,8 @@ import { CommandPalette } from '@/components/layout/command-palette';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { CopilotFab } from '@/components/copilot/copilot-fab';
+import { TauriLinkInterceptor } from '@/components/tauri-link-interceptor';
+import { LicenseGate } from '@/components/license-gate';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
 import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
@@ -186,6 +188,10 @@ export default async function AppLayout({
         <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} modules={ctx.modules} businessType={ctx.company?.business_type ?? null} />
         {/* Global Help Copilot — always available, outside page content. */}
         <CopilotFab />
+        {/* Desktop shell: route new-tab/external links that WKWebView ignores. */}
+        <TauriLinkInterceptor />
+        {/* Desktop shell: enforce a valid, device-bound license (offline only). */}
+        <LicenseGate />
       </div>
      </PromptProvider>
     </ConfirmProvider>

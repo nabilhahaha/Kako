@@ -20,12 +20,27 @@ export function ActivateForm() {
   const [pending, start] = useTransition();
 
   useEffect(() => {
-    const inv = window.__TAURI__?.core?.invoke;
-    if (inv) inv<string>('device_fingerprint').then((fp) => setFingerprint(fp)).catch(() => setFingerprint('unavailable'));
+    // AU-6: the Tauri IPC bridge may not be injected at first paint in WKWebView.
+    // Poll briefly for `window.__TAURI__` instead of giving up after one read.
+    let cancelled = false;
+    let tries = 0;
+    const tryFetch = () => {
+      if (cancelled) return;
+      const inv = window.__TAURI__?.core?.invoke;
+      if (inv) {
+        inv<string>('device_fingerprint')
+          .then((fp) => { if (!cancelled) setFingerprint(fp); })
+          .catch(() => { if (!cancelled) setFingerprint('unavailable'); });
+        return;
+      }
+      if (tries++ < 25) setTimeout(tryFetch, 200); // ~5s of readiness polling
+    };
+    tryFetch();
+    return () => { cancelled = true; };
   }, []);
 
   function onActivate() {
-    start(async () => setResult(await installLicenseAction(license)));
+    start(async () => setResult(await installLicenseAction(license, fingerprint)));
   }
 
   return (

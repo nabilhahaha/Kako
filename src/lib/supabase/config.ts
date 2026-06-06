@@ -8,8 +8,17 @@
 // shipped in the client bundle of every Supabase app. Data is protected by
 // Row Level Security, not by hiding this key. The secret service-role key is
 // NOT here (it lives only in the Edge Function's managed environment).
+// OFFLINE GUARD (AU-5): in the offline desktop edition the app must NEVER reach
+// the cloud project. If the offline build is misconfigured (NEXT_PUBLIC_* not
+// injected at build time) we fall back to the LOCAL app origin, not the cloud
+// literal — so a paying offline customer's auth can never leak to the cloud.
+const OFFLINE_BUILD = process.env.KAKO_OFFLINE === '1' || process.env.KAKO_OFFLINE === 'true';
+const LOCAL_ORIGIN = 'http://127.0.0.1:54331';
+
 export const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://nrvydmkxjnctdlaxdhur.supabase.co';
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  (OFFLINE_BUILD ? LOCAL_ORIGIN : 'https://nrvydmkxjnctdlaxdhur.supabase.co');
 
 export const SUPABASE_ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'sb_publishable_DtpmoBXjf4sQWpXSJddJ-A_eM3q7kHo';
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  (OFFLINE_BUILD ? '' : 'sb_publishable_DtpmoBXjf4sQWpXSJddJ-A_eM3q7kHo');
