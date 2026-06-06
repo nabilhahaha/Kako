@@ -22,6 +22,7 @@ export const ar = {
     offlinePending: '{count} في انتظار المزامنة',
     offlineNavBlocked: 'هذه الصفحة غير متاحة دون اتصال. ستفتح عند عودة الاتصال.',
     offlineSaved: 'تم الحفظ محلياً — ستتم المزامنة عند عودة الاتصال.',
+    offlineRequiresOnline: 'تتطلب هذه العملية اتصالاً بالإنترنت. يُرجى المحاولة عند عودة الاتصال.',
   },
   brand: {
     tagline: 'عيادات، مطاعم، صيدليات، صالونات، ومحلات — كل نشاط بأدواته، في مكان واحد محترف وآمن.',
@@ -342,6 +343,7 @@ export const en = {
     offlinePending: '{count} waiting to sync',
     offlineNavBlocked: 'That page isn’t available offline. It’ll open when you reconnect.',
     offlineSaved: 'Saved locally — it’ll sync when you’re back online.',
+    offlineRequiresOnline: 'This action needs an internet connection. Please try again when you’re back online.',
   },
   brand: {
     tagline: 'Clinics, restaurants, pharmacies, salons, and shops — every business with its own tools, in one professional, secure place.',

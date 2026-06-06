@@ -379,24 +379,39 @@ is inert with the flag off (production unchanged).
   so the destination's failing server fetch can't trip the boundary — the user keeps the
   current page. Both read the existing `SyncStatusStore` (Online · Pending · Syncing ·
   Synced · Sync-failed) — requirement-7 state is surfaced by the `SyncBadge` + banner.
-- **Offline-safe writes** (`src/lib/sync/web/submit-offline.ts`): `submitOffline({action,
-  mutation})` runs the cloud action; on a network rejection it journals the mutation to
-  the outbox (client-generated pk for inserts) and returns a synthetic offline-success —
-  the orchestrator replays it on reconnect. Flag-off is an exact passthrough (real
-  network errors still surface as today). Wired as the reference into the **order** flows:
-  - [x] POS checkout (`market/pos/cashier-terminal.tsx`)
-  - [x] Wholesale order (`wholesale/order/wholesale-order.tsx`)
-  Remaining write flows stay non-fatal via the error-boundary backstop; upgrading them to
-  `submitOffline` is mechanical and tracked below.
+- **Offline-safe writes** (`src/lib/sync/web/submit-offline.ts`):
+  - `submitOffline({action, mutation})` — runs the cloud action; on a network rejection it
+    journals the mutation to the outbox (client-generated pk for inserts) and returns a
+    synthetic offline-success, so the orchestrator replays it on reconnect.
+  - `submitOnlineOnly(action)` — for flows that must NOT happen offline: on a network
+    rejection it returns a non-fatal `{ ok:false, offline:true }` (caller shows a
+    "reconnect to save" toast, keeps the form) and journals **nothing**.
+  - Both are exact passthroughs when the flag is off (real network errors surface as today).
+
+**Owner's hybrid policy (operational continuity without risking financial integrity):**
+
+| Offline-queue + auto-sync (`submitOffline`) | Require online (`submitOnlineOnly`) |
+|---|---|
+| POS checkout — `market/pos/cashier-terminal.tsx` | Official invoices create/issue — `sales/invoices` |
+| Wholesale order — `wholesale/order/wholesale-order.tsx` | Customer payments / collections — `sales/invoices` PaymentDialog |
+| Customer create/update — `customers/customers-manager.tsx` | Financial returns create/complete — `sales/returns` |
+| Clinic visit register — `clinic/visits/visits-manager.tsx` | Stock-count finalize (stock-affecting) — `inventory/count` |
+| GPS visit check-in — `field/journey/journey-screen.tsx` | Attachments/photos upload — `components/shared/attachments.tsx` † |
+| Field survey observations — `field/survey/[customerId]` (`survey_response`) | |
+
+† Photos are binary uploads to Supabase Storage; the JSON outbox can't carry file bytes
+yet, so uploads are require-online for now. A **blob-capable outbox** (store the file in
+IndexedDB, replay the multipart upload on reconnect) is the follow-up to make photos truly
+offline-queue.
 
 **⚠ Architectural caveat (offline-created records):** journaled offline writes land in the
 cloud **`sync_rows` mirror** on reconnect. Until the mirror→business-tables reconciliation
-(§15 P3) is built, an offline-created order syncs to the mirror but does **not** yet
-materialize as an `erp_invoices` row / appear in business reports. The order flows are
-wired because they are append-only and the highest-value offline case; **financial and
-inventory flows are intentionally left on the graceful backstop** (non-fatal, retry on
-reconnect) rather than writing to an unreconciled mirror. Finishing reconciliation is the
-gate before rolling `submitOffline` out to invoices/returns/payments/inventory.
+(§15 P3) is built, an offline-created order/visit/customer/survey syncs to the mirror but
+does **not** yet materialize as the corresponding `erp_*` row / appear in business reports.
+The offline-queue set was chosen precisely because those entities are append-only / low-risk
+operational captures; **financial + stock-affecting flows are require-online** so no money or
+inventory movement is ever recorded into an unreconciled mirror. Building the reconciliation
+worker is the gate before the offline-created operational records become fully "real".
 
 **Validation (§9 scenarios):** engine-level coverage in `web/scenario.test.ts`
 (offline create → refresh persistence → reconnect drain → sync) and

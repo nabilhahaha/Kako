@@ -14,6 +14,7 @@ describe('entity sync policy (§14 matrix)', () => {
     expect(entityKind('sales_invoices')).toBe('append-only');
     expect(entityKind('sales_returns')).toBe('append-only');
     expect(entityKind('customer_payments')).toBe('append-only');
+    expect(entityKind('survey_response')).toBe('append-only');
   });
 
   it('defaults unknown entities to deterministic LWW', () => {

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useI18n } from '@/lib/i18n/provider';
 import { scoreSurvey, type SurveyQuestion, type SurveyAnswers } from '@/lib/erp/survey';
 import { submitSurveyResponse } from '@/app/(app)/settings/surveys/actions';
+import { submitOffline } from '@/lib/sync/web/submit-offline';
 
 export interface ExecSurvey { id: string; name: string; name_ar: string | null; questions: SurveyQuestion[] }
 
@@ -32,7 +33,14 @@ export function SurveyForm({ customerId, surveys }: { customerId: string; survey
     if (!survey) return;
     setBusy(true);
     try {
-      const res = await submitSurveyResponse({ surveyId: survey.id, customerId, answers });
+      // Field observations are offline-queue (hybrid policy): online → submit + journal;
+      // offline → queue the response locally (client pk) and sync on reconnect.
+      const localId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `local-${Date.now()}`;
+      const res = await submitOffline<{ score: number }>({
+        action: () => submitSurveyResponse({ surveyId: survey.id, customerId, answers }),
+        mutation: () => ({ entity: 'survey_response', op: 'insert', pk: localId, payload: { survey_id: survey.id, customer_id: customerId, answers } }),
+      });
+      if (res.offline) { toast.success(t('common.offlineSaved')); setAnswers({}); return; }
       if (!res.ok || !res.data) { toast.error(res.error ?? t('retail.survey.submitError')); return; }
       toast.success(t('retail.survey.submitted', { score: res.data.score }));
       setAnswers({});

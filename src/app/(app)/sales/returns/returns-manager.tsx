@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
 import { createReturn, completeReturn, cancelReturn, loadCustomerInvoices, loadReturnableLines, createExchange } from './actions';
 import { recordMutation } from '@/lib/sync/web/write-seam';
+import { submitOnlineOnly } from '@/lib/sync/web/submit-offline';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -122,13 +123,15 @@ export function ReturnsManager({
 
   function onCreate() {
     startTransition(async () => {
-      const res = await createReturn({
+      // Financial returns REQUIRE online connectivity (hybrid policy).
+      const res = await submitOnlineOnly(() => createReturn({
         branch_id: branchId,
         customer_id: customerId,
         invoice_id: invoiceId || null,
         reason,
         lines: lines.filter((l) => l.product).map((l) => ({ product_id: l.product!.id, quantity: l.quantity, unit_price: l.unit_price })),
-      });
+      }));
+      if (res.offline) { toast.error(t('common.offlineRequiresOnline')); return; }
       if (!res.ok || !res.data) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
@@ -157,7 +160,8 @@ export function ReturnsManager({
     const id = completeFor.id;
     const method = refundMethod;
     startTransition(async () => {
-      const res = await completeReturn(id, method);
+      const res = await submitOnlineOnly(() => completeReturn(id, method));
+      if (res.offline) { toast.error(t('common.offlineRequiresOnline')); return; }
       if (!res.ok) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;

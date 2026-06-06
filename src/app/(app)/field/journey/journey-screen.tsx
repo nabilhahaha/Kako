@@ -31,6 +31,7 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { submitOffline } from '@/lib/sync/web/submit-offline';
 
 interface CheckInResult {
   visit_id?: string;
@@ -144,14 +145,34 @@ export function JourneyScreen({
     setBusyId(stop.customer_id);
     try {
       const loc = await getDeviceLocation();
-      const res = await checkInVisit({
-        customerId: stop.customer_id,
-        lat: loc?.latitude ?? null,
-        lng: loc?.longitude ?? null,
-        workSessionId: data.workSessionId,
-        reason: opts.reason ?? null,
-        force: opts.force ?? false,
+      // Visit check-in is offline-queue (hybrid policy): GPS is captured on-device;
+      // online → server geofence + journal; offline → queue the check-in and sync later.
+      const localId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `local-${Date.now()}`;
+      const res = await submitOffline({
+        action: () => checkInVisit({
+          customerId: stop.customer_id,
+          lat: loc?.latitude ?? null,
+          lng: loc?.longitude ?? null,
+          workSessionId: data.workSessionId,
+          reason: opts.reason ?? null,
+          force: opts.force ?? false,
+        }),
+        mutation: (d) => ({
+          entity: 'visits', op: 'insert',
+          pk: (d as { visit_id?: string } | null)?.visit_id ?? localId,
+          payload: {
+            customer_id: stop.customer_id, latitude: loc?.latitude ?? null, longitude: loc?.longitude ?? null,
+            work_session_id: data.workSessionId, reason: opts.reason ?? null,
+            checked_in_at: Date.now(), ...(d ? {} : { offline: true }),
+          },
+        }),
       });
+      if (res.offline) {
+        // Captured locally; the server will validate geofence/route on sync.
+        setVisited((prev) => new Set(prev).add(stop.customer_id));
+        toast.success(t('common.offlineSaved'));
+        return;
+      }
       if (!res.ok) {
         toast.error(res.error || t('fmcg.error'));
         return;

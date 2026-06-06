@@ -16,6 +16,8 @@ const REGISTRY: Record<string, EntitySyncKind> = {
   visits: 'append-only',
   orders: 'append-only',
   audit_logs: 'append-only',
+  // Field observations (merchandising/audit surveys) — append-only captures.
+  survey_response: 'append-only',
   // Financial ledger documents (§14 "immutable ledger events"): once created they
   // are never merged in place — status transitions (issue/complete) just carry the
   // latest authoritative image, and corrections are new compensating documents.

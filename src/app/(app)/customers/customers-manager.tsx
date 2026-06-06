@@ -4,7 +4,8 @@ import { useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
 import { upsertCustomer, toggleCustomerActive, requestCustomerApproval, requestCreditLimitChange } from './actions';
-import { recordMutation, formPayload } from '@/lib/sync/web/write-seam';
+import { formPayload } from '@/lib/sync/web/write-seam';
+import { submitOffline } from '@/lib/sync/web/submit-offline';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -146,20 +147,24 @@ export function CustomersManager({
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     startTransition(async () => {
-      const res = await upsertCustomer(formData);
+      // Customers = offline-queue (hybrid policy): online → upsert + journal;
+      // offline → journal locally (client pk for a new record) and sync later.
+      const isNew = editing === 'new';
+      const formId = String(formData.get('id') ?? '');
+      const localId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `local-${Date.now()}`;
+      const res = await submitOffline<{ id: string }>({
+        action: () => upsertCustomer(formData),
+        mutation: (data) => {
+          const pk = data?.id ?? (formId || localId);
+          return { entity: 'customers', op: isNew ? 'insert' : 'update', pk, payload: formPayload(formData, ['id']) };
+        },
+      });
+      if (res.offline) { toast.success(t('common.offlineSaved')); setEditing(null); return; }
       if (!res.ok) {
         toast.error(res.error ?? t('customers.toastError'));
         return;
       }
-      // Local-first journal (customers = field-merge). No-op unless KAKO_SYNC.
-      const customerId = res.data?.id ?? String(formData.get('id') ?? '');
-      if (customerId) {
-        void recordMutation({
-          entity: 'customers', op: editing === 'new' ? 'insert' : 'update',
-          pk: customerId, payload: formPayload(formData, ['id']),
-        });
-      }
-      toast.success(editing === 'new' ? t('customers.toastCreated') : t('customers.toastUpdated'));
+      toast.success(isNew ? t('customers.toastCreated') : t('customers.toastUpdated'));
       setEditing(null);
       router.refresh();
     });

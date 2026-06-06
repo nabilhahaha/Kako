@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
 import { createInvoice, issueInvoice, recordPayment, cancelInvoice, voidInvoice, submitInvoiceToEta } from './actions';
 import { recordMutation } from '@/lib/sync/web/write-seam';
+import { submitOnlineOnly } from '@/lib/sync/web/submit-offline';
 import { resolveLinePrice } from '../pricing/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -101,7 +102,9 @@ export function InvoicesManager({
     if (Object.keys(next).length > 0) return;
 
     startTransition(async () => {
-      const res = await createInvoice({
+      // Official invoices REQUIRE online connectivity (hybrid policy): block
+      // gracefully offline rather than creating an unreconciled financial doc.
+      const res = await submitOnlineOnly(() => createInvoice({
         branch_id: branchId,
         customer_id: customerId,
         due_date: dueDate,
@@ -113,7 +116,8 @@ export function InvoicesManager({
           discount_pct: l.discount_pct,
           tax_rate: l.tax_rate,
         })),
-      });
+      }));
+      if (res.offline) { toast.error(t('common.offlineRequiresOnline')); return; }
       if (!res.ok || !res.data) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
@@ -141,7 +145,8 @@ export function InvoicesManager({
     });
     if (!ok) return;
     startTransition(async () => {
-      const res = await issueInvoice(id);
+      const res = await submitOnlineOnly(() => issueInvoice(id));
+      if (res.offline) { toast.error(t('common.offlineRequiresOnline')); return; }
       if (!res.ok) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
@@ -515,20 +520,22 @@ function PaymentDialog({
 
   function submit() {
     startTransition(async () => {
-      const res = await recordPayment({
+      // Payments REQUIRE online connectivity (hybrid policy): block gracefully
+      // offline rather than recording money movement into an unreconciled mirror.
+      const res = await submitOnlineOnly(() => recordPayment({
         invoice_id: invoice.id,
         amount: Number(amount),
         payment_method: method,
         reference_number: ref,
         payment_date: date,
         idempotency_key: idemKey,
-      });
+      }));
+      if (res.offline) { toast.error(t('common.offlineRequiresOnline')); return; }
       if (!res.ok) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
-      // Local-first journal (customer_payments = append-only). The stable idemKey is
-      // both the server idempotency key and the sync pk. No-op unless KAKO_SYNC.
+      // Mirror the payment on success (idemKey doubles as the sync pk). No-op unless KAKO_SYNC.
       void recordMutation({
         entity: 'customer_payments', op: 'insert', pk: idemKey,
         payload: { invoice_id: invoice.id, amount: Number(amount), payment_method: method, reference_number: ref, payment_date: date, idempotency_key: idemKey },

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createStockCount, saveStockCount, finalizeStockCount, cancelStockCount } from './actions';
 import { recordMutation } from '@/lib/sync/web/write-seam';
+import { submitOnlineOnly } from '@/lib/sync/web/submit-offline';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -206,12 +207,14 @@ function CountEditor({
     }).then((ok) => {
       if (!ok) return;
       startTransition(async () => {
-        const res = await finalizeStockCount(count.id, payload);
+        // Finalizing a count is stock-affecting → REQUIRES online (hybrid policy).
+        const res = await submitOnlineOnly(() => finalizeStockCount(count.id, payload));
+        if (res.offline) { toast.error(t('common.offlineRequiresOnline')); return; }
         if (!res.ok) {
           toast.error(res.error ?? t('inventory.toastError'));
           return;
         }
-        // Local-first journal (inventory_counts = review workflow). No-op unless KAKO_SYNC.
+        // Mirror the finalized count on success (review workflow). No-op unless KAKO_SYNC.
         void recordMutation({
           entity: 'inventory_counts', op: 'update', pk: count.id,
           payload: { status: 'completed', lines: payload, shortage, surplus },

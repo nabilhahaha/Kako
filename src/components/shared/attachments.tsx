@@ -7,6 +7,7 @@ import { Paperclip, Upload, Trash2, Download, Loader2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { ALLOWED_EXTENSIONS } from '@/lib/erp/attachments';
 import { listAttachments, uploadAttachment, softDeleteAttachment, type AttachmentView } from '@/app/(app)/attachments/actions';
+import { submitOnlineOnly } from '@/lib/sync/web/submit-offline';
 
 /** Reusable attachments panel for any entity record (customer, invoice, order,
  *  customer_change_request, workflow…). Tenant isolation + manage rights are
@@ -47,7 +48,11 @@ export function Attachments({
     fd.set('record_id', recordId);
     fd.set('file', file);
     startTransition(async () => {
-      const res = await uploadAttachment(fd);
+      // File bytes can't ride the JSON sync outbox yet (blob-capable outbox is a
+      // follow-up), so uploads need connectivity — fail gracefully offline rather
+      // than dropping the file or tripping the error boundary.
+      const res = await submitOnlineOnly(() => uploadAttachment(fd));
+      if (res.offline) { toast.error(t('common.offlineRequiresOnline')); return; }
       if (!res.ok) { toast.error(uploadErr(res.error ?? '')); return; }
       toast.success(t('attachments.uploaded'));
       refresh();

@@ -58,3 +58,22 @@ export async function submitOffline<T>(opts: SubmitOfflineOptions<T>): Promise<O
     return { ok: true, offline: true };
   }
 }
+
+/**
+ * For flows that must NOT be performed offline (payments, official invoices,
+ * financial returns, stock-affecting / financial adjustments — owner's hybrid
+ * policy). Runs the action online; if the network is unreachable it returns a
+ * non-fatal `{ ok:false, offline:true }` (so the caller shows a "reconnect to
+ * save" message and keeps the user's form) instead of throwing into the error
+ * boundary. Nothing is journaled — no unreconciled financial data is created.
+ * Flag-off is an exact passthrough.
+ */
+export async function submitOnlineOnly<T>(action: () => Promise<ActionLike<T>>): Promise<OfflineSafeResult<T>> {
+  if (!isSyncEnabledClient()) return action();
+  try {
+    return await action();
+  } catch (e) {
+    if (!isNetworkError(e)) throw e;
+    return { ok: false, offline: true };
+  }
+}
