@@ -58,12 +58,13 @@ export function StockCountManager({
   const { t } = useI18n();
   const confirm = useConfirm();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id ?? '');
+  const [countType, setCountType] = useState<'opening' | 'monthly' | 'spot'>('monthly');
   const [pending, startTransition] = useTransition();
 
   function onCreate() {
     if (!warehouseId) return;
     startTransition(async () => {
-      const res = await createStockCount(warehouseId);
+      const res = await createStockCount(warehouseId, countType);
       if (!res.ok || !res.data) {
         toast.error(res.error ?? t('inventory.toastError'));
         return;
@@ -94,6 +95,14 @@ export function StockCountManager({
             {warehouses.map((w) => (
               <option key={w.id} value={w.id}>{w.code} · {w.name_ar || w.name}</option>
             ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">{t('ops.countTypeLabel')}</label>
+          <select value={countType} onChange={(e) => setCountType(e.target.value as 'opening' | 'monthly' | 'spot')} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="opening">{t('ops.countOpening')}</option>
+            <option value="monthly">{t('ops.countMonthly')}</option>
+            <option value="spot">{t('ops.countSpot')}</option>
           </select>
         </div>
         <Button onClick={onCreate} disabled={pending || warehouses.length === 0}>

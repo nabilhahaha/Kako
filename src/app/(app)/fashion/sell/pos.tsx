@@ -1,19 +1,21 @@
 'use client';
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n/provider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ProductSearchBox } from '@/components/fashion/product-search-box';
 import { formatCurrency } from '@/lib/utils';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 import type { Locale } from '@/lib/i18n/config';
 import { cartTotals, variantUnitPrice, type SaleType } from '@/lib/fashion/pricing';
 import { buildSchedule, financedAmount, type InstallmentFrequency } from '@/lib/fashion/installments';
 import { checkout } from '../actions';
-import { ScanBarcode, Trash2, Plus, Minus } from 'lucide-react';
+import { Trash2, Plus, Minus, Printer, FileDown } from 'lucide-react';
 
 interface Item { product_id: string; code: string; name: string; barcode: string; cash_price: number; installment_price: number }
 interface Customer { id: string; name: string; phone: string | null }
@@ -30,14 +32,10 @@ export function Pos({ items, customers, locale }: { items: Item[]; customers: Cu
   const [down, setDown] = useState(0);
   const [count, setCount] = useState(3);
   const [freq, setFreq] = useState<InstallmentFrequency>('monthly');
-  const scanRef = useRef<HTMLInputElement>(null);
+  const [lastSale, setLastSale] = useState<{ id: string; number: string } | null>(null);
+  const [focusSignal, setFocusSignal] = useState(0);
   const money = (n: number) => formatCurrency(n, 'EGP', INTL_LOCALE[locale]);
-
-  const byCode = useMemo(() => {
-    const m = new Map<string, Item>();
-    for (const it of items) { if (it.barcode) m.set(it.barcode.toLowerCase(), it); m.set(it.code.toLowerCase(), it); }
-    return m;
-  }, [items]);
+  const newSale = () => { setLastSale(null); setFocusSignal((n) => n + 1); };
 
   function addItem(it: Item) {
     setCart((c) => {
@@ -45,15 +43,6 @@ export function Pos({ items, customers, locale }: { items: Item[]; customers: Cu
       if (i >= 0) { const n = [...c]; n[i] = { ...n[i], quantity: n[i].quantity + 1 }; return n; }
       return [...c, { ...it, quantity: 1 }];
     });
-  }
-  function scan(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const q = (scanRef.current?.value || '').trim().toLowerCase();
-    if (!q) return;
-    const hit = byCode.get(q) ?? items.find((it) => it.name.toLowerCase().includes(q));
-    if (hit) { addItem(hit); if (scanRef.current) scanRef.current.value = ''; }
-    else toast.error(t('fashion.errors.notFound'));
-    scanRef.current?.focus();
   }
   const setQty = (id: string, d: number) => setCart((c) => c.flatMap((l) => l.product_id === id ? (l.quantity + d <= 0 ? [] : [{ ...l, quantity: l.quantity + d }]) : [l]));
   const removeLine = (id: string) => setCart((c) => c.filter((l) => l.product_id !== id));
@@ -74,7 +63,9 @@ export function Pos({ items, customers, locale }: { items: Item[]; customers: Cu
       });
       if (res.ok && res.data) {
         toast.success(`${t('fashion.sell.done')} · ${res.data.invoiceNumber}`);
+        setLastSale({ id: res.data.invoiceId, number: res.data.invoiceNumber });
         setCart([]); setDiscount(0); setDown(0); setCustomerId('');
+        setFocusSignal((n) => n + 1); // return the cursor to the scan field
         router.refresh();
       } else toast.error(res.error || 'Error');
     });
@@ -83,12 +74,48 @@ export function Pos({ items, customers, locale }: { items: Item[]; customers: Cu
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <div className="space-y-3">
-        <form onSubmit={scan}>
-          <div className="relative">
-            <ScanBarcode className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-            <Input ref={scanRef} autoFocus placeholder={t('fashion.sell.scanPlaceholder')} className="h-12 ps-10 text-base" />
+        {lastSale && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-success/40 bg-success/10 p-2 text-sm">
+            <span className="min-w-0 truncate">
+              {t('fashion.sell.done')} · <span className="font-mono" dir="ltr">{lastSale.number}</span>
+            </span>
+            <span className="flex shrink-0 flex-wrap items-center gap-1">
+              <Link
+                href={`/print/fashion/invoice/${lastSale.id}`}
+                target="_blank"
+                className="inline-flex items-center gap-1 rounded-md bg-success/20 px-2 py-1 text-xs font-medium hover:bg-success/30"
+              >
+                <Printer className="h-3.5 w-3.5" /> {t('fashion.invoices.print')}
+              </Link>
+              <Link
+                href={`/print/fashion/invoice/${lastSale.id}?print=1`}
+                target="_blank"
+                className="inline-flex items-center gap-1 rounded-md bg-success/20 px-2 py-1 text-xs font-medium hover:bg-success/30"
+              >
+                <FileDown className="h-3.5 w-3.5" /> {t('fashion.invoices.savePdf')}
+              </Link>
+              <button
+                type="button"
+                onClick={newSale}
+                className="inline-flex items-center gap-1 rounded-md bg-success/20 px-2 py-1 text-xs font-medium hover:bg-success/30"
+              >
+                <Plus className="h-3.5 w-3.5" /> {t('fashion.sell.newSale')}
+              </button>
+            </span>
           </div>
-        </form>
+        )}
+        <div>
+          <ProductSearchBox
+            items={items}
+            autoFocus
+            focusSignal={focusSignal}
+            placeholder={t('fashion.sell.searchPlaceholder')}
+            onSelect={addItem}
+            onNoMatch={() => toast.error(t('fashion.errors.notFound'))}
+            renderMeta={(it) => <span className="font-mono text-sm tabular-nums">{money(it.cash_price)}</span>}
+          />
+          <p className="mt-1 px-1 text-xs text-muted-foreground">{t('fashion.sell.searchHint')}</p>
+        </div>
         <Card><CardContent className="p-3">
           {cart.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">{t('fashion.sell.emptyCart')}</p> : (
             <div className="space-y-2">{cart.map((l) => {

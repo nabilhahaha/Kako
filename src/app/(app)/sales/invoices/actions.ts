@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireAuth, can, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { logPriceOverrides } from '@/lib/erp/pricing-server';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
@@ -308,5 +308,29 @@ export async function cancelInvoice(id: string): Promise<ActionResult> {
     .eq('status', 'draft');
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/sales/invoices');
+  return { ok: true };
+}
+
+/**
+ * Void an ISSUED (unpaid, un-returned) invoice. Manager-only (`sales.void`) and a
+ * reason is mandatory. The RPC reverses stock, the AR/Revenue journal, the
+ * customer balance, and any unpaid installment plan, preserves the invoice as
+ * 'cancelled' with a void trail, and writes an audit log. Paid/returned invoices
+ * are blocked by the RPC and must be reversed via the returns/refund workflow.
+ */
+export async function voidInvoice(id: string, reason: string): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  if (!can(ctx!, 'sales.void')) return { ok: false, error: t('sales.voidErrNoPermission') };
+  if (!reason || !reason.trim()) return { ok: false, error: t('sales.voidErrReasonRequired') };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_void_invoice', { p_invoice_id: id, p_reason: reason.trim() });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  revalidatePath('/sales/invoices');
+  revalidatePath('/customers');
+  revalidatePath('/inventory');
   return { ok: true };
 }

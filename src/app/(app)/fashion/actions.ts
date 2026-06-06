@@ -196,6 +196,65 @@ export async function collectInstallment(scheduleId: string, amount: number, met
   return { ok: true };
 }
 
+/** Flexible collection — pay MORE or LESS than the scheduled amount. Under-pay
+ *  leaves a partial balance; over-pay waterfalls onto the next installments and
+ *  any excess is kept as an advance. Reduces the customer balance (invoice or
+ *  migrated plan) and audits the collection. */
+export async function collectInstallmentFlex(scheduleId: string, amount: number, method = 'cash'): Promise<ActionResult<{ advance: number; planCompleted: boolean }>> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.installments');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  if (!(amount > 0)) return { ok: false, error: t('fashion.installments.errAmount') };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('erp_collect_installment_flex', {
+    p_schedule_id: scheduleId, p_amount: amount, p_method: method,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidate();
+  const d = data as { advance?: number; plan_completed?: boolean } | null;
+  return { ok: true, data: { advance: Number(d?.advance ?? 0), planCompleted: Boolean(d?.plan_completed) } };
+}
+
+/** Load a customer's balance + active installment plans (for in-POS collection). */
+export async function loadCustomerInstallments(customerId: string): Promise<ActionResult<{
+  balance: number;
+  plans: { id: string; financed_amount: number; status: string; schedule: { id: string; seq_no: number; due_date: string; amount: number; paid_amount: number; status: string }[] }[];
+}>> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.installments');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  if (!customerId) return { ok: false, error: t('fashion.errors.required') };
+  const supabase = await createClient();
+  const [{ data: cust }, { data: plans, error }] = await Promise.all([
+    supabase.from('erp_customers').select('balance').eq('id', customerId).maybeSingle(),
+    supabase
+      .from('erp_installment_plans')
+      .select('id, financed_amount, status, schedule:erp_installment_schedule(id, seq_no, due_date, amount, paid_amount, status)')
+      .eq('customer_id', customerId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false }),
+  ]);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  const list = ((plans as unknown as { id: string; financed_amount: number; status: string; schedule: { id: string; seq_no: number; due_date: string; amount: number; paid_amount: number; status: string }[] }[]) ?? [])
+    .map((p) => ({ ...p, schedule: [...(p.schedule ?? [])].sort((a, b) => a.seq_no - b.seq_no) }));
+  return { ok: true, data: { balance: Number((cust as { balance?: number } | null)?.balance ?? 0), plans: list } };
+}
+
+/** Manually set the per-installment amounts of an active plan (instead of equal
+ *  split). Reconciles to the financed amount unless allowMismatch. Audited. */
+export async function setInstallmentAmounts(planId: string, amounts: number[], allowMismatch = false): Promise<ActionResult> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.installments');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_set_installment_amounts', {
+    p_plan_id: planId, p_amounts: amounts, p_allow_mismatch: allowMismatch,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidate();
+  return { ok: true };
+}
+
 // ─── Cash box ────────────────────────────────────────────────────────────────
 export async function openCashbox(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
@@ -212,12 +271,65 @@ export async function openCashbox(formData: FormData): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function closeCashbox(sessionId: string, counted: number): Promise<ActionResult> {
+export async function closeCashbox(sessionId: string, counted: number, notes?: string, final = true): Promise<ActionResult> {
   const { t } = await getT();
   const ctx = await requirePermission('fashion.cashbox');
   if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
   const supabase = await createClient();
-  const { error } = await supabase.rpc('erp_fashion_close_cashbox', { p_session_id: sessionId, p_counted: counted });
+  const { error } = await supabase.rpc('erp_fashion_close_cashbox', {
+    p_session_id: sessionId, p_counted: counted, p_notes: notes?.trim() || null, p_final: final,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidate();
+  return { ok: true };
+}
+
+// ─── Re-open a closing — manager (fashion.manage) only, audited with a reason ──
+export async function reopenCashbox(sessionId: string, reason: string): Promise<ActionResult> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.manage');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  if (!reason.trim()) return { ok: false, error: t('fashion.errors.required') };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_fashion_reopen_cashbox', { p_session_id: sessionId, p_reason: reason.trim() });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidate();
+  return { ok: true };
+}
+
+// ─── Owner cash (withdrawal / deposit) — owner/admin only ─────────────────────
+export async function ownerCash(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.manage');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  const direction = String(formData.get('direction') || '');
+  if (direction !== 'withdrawal' && direction !== 'deposit') return { ok: false, error: t('fashion.errors.required') };
+  const branchId = await resolveBranch(ctx.companyId, String(formData.get('branch_id') || '') || null);
+  if (!branchId) return { ok: false, error: t('fashion.errors.noBranch') };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_fashion_owner_cash', {
+    p_branch_id: branchId, p_direction: direction,
+    p_amount: Number(formData.get('amount') || 0),
+    p_note: String(formData.get('note') || '').trim() || null,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidate();
+  return { ok: true };
+}
+
+// ─── Cash adjustment (signed correction, audited) — owner/admin only ──────────
+export async function cashAdjust(formData: FormData): Promise<ActionResult> {
+  const { t } = await getT();
+  const ctx = await requirePermission('fashion.manage');
+  if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
+  const branchId = await resolveBranch(ctx.companyId, String(formData.get('branch_id') || '') || null);
+  if (!branchId) return { ok: false, error: t('fashion.errors.noBranch') };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_fashion_cash_adjust', {
+    p_branch_id: branchId,
+    p_amount: Number(formData.get('amount') || 0),
+    p_note: String(formData.get('note') || '').trim() || null,
+  });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidate();
   return { ok: true };
@@ -230,12 +342,18 @@ export async function addExpense(formData: FormData): Promise<ActionResult> {
   const branchId = await resolveBranch(ctx.companyId, String(formData.get('branch_id') || '') || null);
   if (!branchId) return { ok: false, error: t('fashion.errors.noBranch') };
   const supabase = await createClient();
+  const str = (k: string) => String(formData.get(k) || '').trim() || null;
   const { error } = await supabase.rpc('erp_fashion_add_expense', {
     p_branch_id: branchId,
-    p_category: String(formData.get('category') || '').trim() || null,
+    p_category: str('category'),
     p_amount: Number(formData.get('amount') || 0),
     p_paid_from: String(formData.get('paid_from') || 'cash'),
-    p_note: String(formData.get('note') || '').trim() || null,
+    p_note: str('note'),
+    p_description: str('description'),
+    p_payment_method: str('payment_method'),
+    p_paid_by: str('paid_by'),
+    p_attachment_url: str('attachment_url'),
+    p_expense_date: str('expense_date'),
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidate();

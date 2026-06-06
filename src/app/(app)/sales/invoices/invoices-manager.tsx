@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
-import { createInvoice, issueInvoice, recordPayment, cancelInvoice, submitInvoiceToEta } from './actions';
+import { createInvoice, issueInvoice, recordPayment, cancelInvoice, voidInvoice, submitInvoiceToEta } from './actions';
 import { resolveLinePrice } from '../pricing/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,7 @@ import type { InvoiceRow } from './page';
 import { useConfirm } from '@/components/confirm-dialog';
 import { useI18n } from '@/lib/i18n/provider';
 import Link from 'next/link';
-import { Plus, Loader2, X, Receipt, CheckCircle2, Wallet, Printer } from 'lucide-react';
+import { Plus, Loader2, X, Receipt, CheckCircle2, Wallet, Printer, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STATUS_VARIANT: Record<InvoiceStatus, 'secondary' | 'success' | 'default' | 'destructive' | 'warning'> = {
@@ -44,6 +44,7 @@ export function InvoicesManager({
   q,
   status,
   etaEnabled = false,
+  canVoid = false,
 }: {
   invoices: InvoiceRow[];
   customers: ErpCustomer[];
@@ -52,6 +53,7 @@ export function InvoicesManager({
   q: string;
   status: string;
   etaEnabled?: boolean;
+  canVoid?: boolean;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -63,6 +65,8 @@ export function InvoicesManager({
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<EditorLine[]>([newLine()]);
   const [payFor, setPayFor] = useState<InvoiceRow | null>(null);
+  const [voidFor, setVoidFor] = useState<InvoiceRow | null>(null);
+  const [voidReason, setVoidReason] = useState('');
   const [errors, setErrors] = useState<{ customer?: string; lines?: string }>({});
   const [pending, startTransition] = useTransition();
 
@@ -165,6 +169,27 @@ export function InvoicesManager({
         return;
       }
       toast.success(t('sales.invoiceSuccessCancelled'));
+      router.refresh();
+    });
+  }
+
+  function onVoid() {
+    if (!voidFor) return;
+    if (!voidReason.trim()) {
+      toast.error(t('sales.voidErrReasonRequired'));
+      return;
+    }
+    const id = voidFor.id;
+    const reason = voidReason.trim();
+    startTransition(async () => {
+      const res = await voidInvoice(id, reason);
+      if (!res.ok) {
+        toast.error(res.error ?? t('sales.errorGeneric'));
+        return;
+      }
+      toast.success(t('sales.voidSuccess'));
+      setVoidFor(null);
+      setVoidReason('');
       router.refresh();
     });
   }
@@ -312,6 +337,11 @@ export function InvoicesManager({
                           <Wallet className="h-3.5 w-3.5" /> {t('sales.paymentBtnCollect')}
                         </Button>
                       )}
+                      {canVoid && ['issued', 'overdue'].includes(inv.status) && Number(inv.paid_amount) === 0 && (
+                        <Button variant="ghost" size="sm" disabled={pending} onClick={() => { setVoidReason(''); setVoidFor(inv); }} className="text-xs text-destructive">
+                          <Ban className="h-3.5 w-3.5" /> {t('sales.voidBtn')}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );
@@ -389,6 +419,11 @@ export function InvoicesManager({
                                 </Button>
                               </>
                             )}
+                            {canVoid && ['issued', 'overdue'].includes(inv.status) && Number(inv.paid_amount) === 0 && (
+                              <Button variant="ghost" size="sm" disabled={pending} onClick={() => { setVoidReason(''); setVoidFor(inv); }} className="text-xs text-destructive">
+                                <Ban className="h-3.5 w-3.5" /> {t('sales.voidBtn')}
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -412,6 +447,35 @@ export function InvoicesManager({
             router.refresh();
           }}
         />
+      )}
+
+      {voidFor && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={() => !pending && setVoidFor(null)}>
+          <div className="w-full max-w-md rounded-t-xl bg-card p-5 shadow-xl sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-1 flex items-center gap-2 font-semibold text-destructive">
+              <Ban className="h-4 w-4" /> {t('sales.voidTitle')}
+            </div>
+            <p className="mb-3 text-sm text-muted-foreground">
+              {t('sales.voidConfirmMsg', { number: voidFor.invoice_number })}
+            </p>
+            <Label htmlFor="void-reason" className="text-xs text-muted-foreground">{t('sales.voidReasonLabel')}</Label>
+            <textarea
+              id="void-reason"
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              rows={3}
+              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+              placeholder={t('sales.voidReasonPlaceholder')}
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" disabled={pending} onClick={() => setVoidFor(null)}>{t('sales.btnBack')}</Button>
+              <Button variant="destructive" disabled={pending || !voidReason.trim()} onClick={onVoid} className="gap-1.5">
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+                {t('sales.voidBtn')}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

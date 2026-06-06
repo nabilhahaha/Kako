@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
@@ -12,6 +13,7 @@ import {
 } from './organization-manager';
 
 export default async function OrganizationPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
@@ -13,6 +14,7 @@ import { CustomFieldsManager, type CfEntity } from './custom-fields-manager';
  *  Per-company, per-entity field definitions. Values live in the entity row's
  *  `custom` jsonb; these definitions drive import/export + Dynamic Forms. */
 export default async function CustomFieldsPage() {
+  await requireNonRetailAdmin();
   const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');

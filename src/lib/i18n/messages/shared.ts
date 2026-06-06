@@ -1,6 +1,12 @@
 /** shared module messages (cross-cutting UI components). Keep ar/en in sync. */
 export const ar = {
   shared: {
+    statementSearch: {
+      search: 'ابحث بالاسم أو الكود أو الهاتف…',
+      none: 'لا توجد نتائج.',
+      open: 'كشف الحساب',
+      printPdf: 'طباعة / PDF',
+    },
     whatsapp: 'واتساب',
     confirm: 'تأكيد',
     cancel: 'إلغاء',
@@ -81,6 +87,12 @@ export const ar = {
 
 export const en = {
   shared: {
+    statementSearch: {
+      search: 'Search by name, code, or phone…',
+      none: 'No results.',
+      open: 'Statement',
+      printPdf: 'Print / PDF',
+    },
     whatsapp: 'WhatsApp',
     confirm: 'Confirm',
     cancel: 'Cancel',

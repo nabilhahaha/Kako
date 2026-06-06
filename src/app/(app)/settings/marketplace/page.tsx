@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
@@ -11,6 +12,7 @@ import { MarketplaceManager } from './marketplace-manager';
  *  without recreating the workspace. Reads the current company_modules state and
  *  presents every coarse module as an installable "app". */
 export default async function MarketplacePage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const { t } = await getT();

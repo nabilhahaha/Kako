@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
@@ -14,6 +15,7 @@ import { MslManager, type MslData } from './msl-manager';
 async function safe<T>(fn: () => Promise<T>, fb: T): Promise<T> { try { return await fn(); } catch { return fb; } }
 
 export default async function MslPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!hasPermission(ctx, 'assortment.manage')) redirect('/dashboard');

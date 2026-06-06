@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
@@ -26,6 +27,7 @@ export default async function AuditLogPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  await requireNonRetailAdmin();
   const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');

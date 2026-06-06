@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { redirect } from 'next/navigation';
 import {
   Rocket, Upload, ListChecks, History, Undo2, Bookmark, Plug, ArrowRight,
@@ -25,6 +26,7 @@ const STATUS_VARIANT: Record<OnboardingStatus, 'secondary' | 'success' | 'warnin
 };
 
 export default async function OnboardingPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!hasPermission(ctx, 'integrations.manage')) redirect('/dashboard');

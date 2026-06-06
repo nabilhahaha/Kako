@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext, type UserContext } from './auth-context';
-import type { Module } from './navigation';
+import { RETAIL_BUSINESS_TYPES, type Module } from './navigation';
 import type { Permission } from './permissions';
 import { can as canCapability, canAny as canAnyCapability } from './capabilities';
 
@@ -30,6 +30,24 @@ export async function requireAuth(): Promise<
   return { ctx, error: null };
 }
 
+/**
+ * Retail Mode hardening: platform/enterprise administration (Permission Control,
+ * Audit Centers, Organization Structure, Regions, Marketplace, e-Invoice,
+ * Governance, Custom Fields, Workflows…) must be unreachable by a single-store
+ * retail tenant — even by direct URL / deep link / refresh. The page-level
+ * companion to the Retail-Mode nav curation. The platform owner (vendor) is
+ * always allowed; non-retail (FMCG/enterprise) tenants are unaffected. A retail
+ * tenant is bounced to their store home.
+ */
+export async function requireNonRetailAdmin(): Promise<UserContext> {
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+  if (ctx.isPlatformOwner) return ctx;
+  const businessType = ctx.company?.business_type ?? null;
+  if (businessType && RETAIL_BUSINESS_TYPES.has(businessType)) redirect('/fashion');
+  return ctx;
+}
+
 /** Ensure the user is a super admin. */
 export async function requireSuperAdmin(): Promise<
   { ctx: UserContext; error: null } | { ctx: null; error: string }
@@ -51,6 +69,21 @@ export async function requireModule(module: Module): Promise<UserContext> {
   if (!ctx) redirect('/login');
   if (ctx.isPlatformOwner || ctx.isSuperAdmin) return ctx;
   if (!ctx.modules.includes(module)) redirect(`/upgrade?module=${module}`);
+  return ctx;
+}
+
+/**
+ * Page/layout guard: ensure the user holds ANY of the given feature modules.
+ * Used by trees shared across verticals — e.g. the inventory operations pages
+ * (count/adjustments/movements/variance) serve both the generic `inventory`
+ * module and the `fashion` store pack, so either entitlement may enter.
+ * Platform owner / super admins bypass. Redirects when none are present.
+ */
+export async function requireAnyModule(modules: Module[]): Promise<UserContext> {
+  const ctx = await getUserContext();
+  if (!ctx) redirect('/login');
+  if (ctx.isPlatformOwner || ctx.isSuperAdmin) return ctx;
+  if (!modules.some((m) => ctx.modules.includes(m))) redirect(`/upgrade?module=${modules[0]}`);
   return ctx;
 }
 

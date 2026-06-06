@@ -12,7 +12,19 @@
     "test": "vitest run",
     "test:db": "vitest run src/test/integration",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "offline:db": "node scripts/offline/db.mjs",
+    "offline:migrate": "node scripts/offline/migrate.mjs",
+    "offline:seed": "node scripts/offline/seed.mjs",
+    "offline:bootstrap": "node scripts/offline/bootstrap.mjs",
+    "offline:verify": "node scripts/offline/verify.mjs",
+    "offline:backup": "node scripts/offline/backup.mjs",
+    "offline:restore": "node scripts/offline/restore.mjs",
+    "offline:update": "node scripts/offline/update.mjs",
+    "offline:rollback": "node scripts/offline/rollback.mjs",
+    "offline:cert": "node scripts/offline/recovery-cert.mjs",
+    "offline:anon-key": "node scripts/offline/anon-key.mjs",
+    "offline:dev-stack": "node scripts/offline/dev-stack.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.55.0",

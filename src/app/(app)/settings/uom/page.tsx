@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
@@ -7,6 +8,7 @@ import { getT } from '@/lib/i18n/server';
 import { UomManager } from './uom-manager';
 
 export default async function UomPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const { t } = await getT();

@@ -1,6 +1,8 @@
-import { requireModule } from '@/lib/erp/guards';
+import { requireAnyModule } from '@/lib/erp/guards';
 
 export default async function CustomersModuleLayout({ children }: { children: React.ReactNode }) {
-  await requireModule('sales');
+  // Shared by the generic sales module and the Fashion store pack (statements +
+  // opening balances), so a clothing tenant can reach them too.
+  await requireAnyModule(['sales', 'fashion']);
   return <>{children}</>;
 }

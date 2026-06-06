@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
@@ -22,6 +23,7 @@ interface AuditRow extends AuditEventLike {
  *  RLS (migration 0153) restricts rows to the caller's company + company-admin;
  *  we also gate the page by the settings.users permission. Read-only. */
 export default async function SettingsAuditLogPage() {
+  await requireNonRetailAdmin();
   const { t, locale } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');

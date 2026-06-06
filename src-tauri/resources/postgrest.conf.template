@@ -1,0 +1,18 @@
+# PostgREST config template (P1/P2). start-gateway.mjs renders this with the
+# offline port + the local JWT secret, then launches postgrest as a sidecar.
+# PostgREST is exactly what Supabase runs under the hood, so supabase-js
+# .from()/.rpc() + RLS work unchanged against it.
+
+db-uri = "postgres://authenticator@127.0.0.1:${PG_PORT}/${PG_DB}"
+db-schemas = "public"
+db-anon-role = "anon"
+
+# HS256 secret shared with the local issuer (src/lib/offline/jwt.ts). A JWT with
+# role=authenticated + sub=<user id> drives auth.uid()/RLS exactly like cloud.
+jwt-secret = "${JWT_SECRET}"
+
+server-host = "127.0.0.1"
+server-port = ${PGRST_PORT}
+
+# Loopback only; the gateway never listens off-box.
+db-pool = 10

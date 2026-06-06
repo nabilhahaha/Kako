@@ -15,6 +15,10 @@ const SECURITY_HEADERS = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Offline edition runs the app as a bundled Node sidecar inside the Tauri
+  // shell, which needs the self-contained standalone server. Gated on
+  // KAKO_OFFLINE so the cloud build output is unchanged.
+  output: process.env.KAKO_OFFLINE ? 'standalone' : undefined,
   eslint: {
     ignoreDuringBuilds: true,
   },

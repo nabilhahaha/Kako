@@ -1,0 +1,75 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "//": "Tauri v2 shell for the Offline Edition. App name / identifier / icons are overridden per EDITION at build time by scripts/release/* (which read src/lib/edition/editions.ts). The window points at the local Next.js server (a sidecar) once the stack is healthy.",
+  "productName": "VANTORA Retail",
+  "version": "0.1.0",
+  "identifier": "com.vantora.retail",
+  "build": {
+    "//": "The frontend is the Next.js Node server run as a sidecar, not a static bundle. beforeBuildCommand builds the standalone Next server; the window loads the local app URL at runtime.",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../.next/standalone",
+    "devUrl": "http://127.0.0.1:54331"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "VANTORA Retail",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "resizable": true,
+        "//": "Window is created hidden and shown by main.rs only after the local stack reports healthy (avoids a flash of a dead page).",
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "trayIcon": {
+      "iconPath": "icons/tray.png",
+      "tooltip": "VANTORA Retail"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "//": "macOS DMG + Windows NSIS/WiX. The three sidecars (postgres, postgrest, node) ship as externalBin, suffixed per target triple by Tauri.",
+    "targets": ["dmg", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/postgres",
+      "binaries/postgrest",
+      "binaries/node"
+    ],
+    "resources": [
+      "resources/migrations/**",
+      "resources/postgrest.conf.template"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "12.0",
+      "//": "entitlements + hardened runtime are applied during signing (scripts/release/mac.sh). EVERY bundled binary must be signed + notarized or Gatekeeper kills the sidecars.",
+      "entitlements": "entitlements.plist"
+    },
+    "windows": {
+      "//": "code-signing handled in scripts/release/windows.ps1; SmartScreen reputation builds over time on a new EV cert.",
+      "nsis": {
+        "installMode": "perMachine"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "//": "Signed updater (P7). endpoints + pubkey filled in at release time; pre-update DB backup is taken by src/lib/offline/update.ts before applying.",
+      "active": false,
+      "endpoints": ["https://updates.example.com/{{target}}/{{arch}}/{{current_version}}"],
+      "pubkey": ""
+    }
+  }
+}

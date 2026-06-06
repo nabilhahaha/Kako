@@ -4,6 +4,8 @@ export const ar = {
   suppliers: {
     // ── Page / PageHeader ────────────────────────────────────────────
     pageTitle: 'الموردين',
+    statementsTitle: 'كشوف حسابات الموردين',
+    statementsDescription: 'ابحث عن مورد لفتح كشف حسابه أو طباعته PDF.',
     pageDescription: 'بيانات الموردين وأرصدتهم المستحقة والسداد',
 
     // ── Toolbar ──────────────────────────────────────────────────────
@@ -93,6 +95,8 @@ export const en = {
   suppliers: {
     // ── Page / PageHeader ────────────────────────────────────────────
     pageTitle: 'Suppliers',
+    statementsTitle: 'Supplier Statements',
+    statementsDescription: 'Search a supplier to open or print (PDF) their statement.',
     pageDescription: 'Supplier records, outstanding payables, and payment history',
 
     // ── Toolbar ──────────────────────────────────────────────────────

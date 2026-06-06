@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
@@ -39,6 +40,7 @@ interface JobRow {
 }
 
 export default async function DataOnboardingPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const { t, locale } = await getT();

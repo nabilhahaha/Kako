@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requireNonRetailAdmin } from '@/lib/erp/guards';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
@@ -11,6 +12,7 @@ import { CustomerDataManager } from './customer-data-manager';
 /** Settings → Customer Data (FMCG hierarchy S3). Company-managed master data for
  *  customer Segment / Classification / Channel. Gated on settings.custom_fields. */
 export default async function CustomerDataPage() {
+  await requireNonRetailAdmin();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const { t } = await getT();

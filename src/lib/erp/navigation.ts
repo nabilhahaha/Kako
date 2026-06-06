@@ -43,6 +43,10 @@ import {
   Layers,
   Target,
   Network,
+  Store,
+  Printer,
+  Database,
+  TrendingUp,
   Map,
   MapPin,
   Cpu,
@@ -293,15 +297,29 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'nav.sections.fashion',
     module: 'fashion',
     items: [
-      { label: 'nav.items.fashionDashboard', href: '/fashion', icon: LayoutDashboard, perm: ['fashion.manage', 'fashion.sell', 'fashion.inventory'] },
-      { label: 'nav.items.fashionSell', href: '/fashion/sell', icon: ScanBarcode, perm: 'fashion.sell' },
-      { label: 'nav.items.fashionProducts', href: '/fashion/products', icon: Shirt, perm: 'fashion.inventory' },
-      { label: 'nav.items.fashionInventory', href: '/fashion/inventory', icon: Boxes, perm: 'fashion.inventory' },
-      { label: 'nav.items.fashionCustomers', href: '/fashion/customers', icon: Users, perm: ['fashion.sell', 'fashion.installments'] },
-      { label: 'nav.items.fashionInstallments', href: '/fashion/installments', icon: CreditCard, perm: 'fashion.installments' },
-      { label: 'nav.items.fashionSuppliers', href: '/fashion/suppliers', icon: Truck, perm: 'fashion.purchase' },
-      { label: 'nav.items.fashionCashbox', href: '/fashion/cashbox', icon: Wallet, perm: 'fashion.cashbox' },
-      { label: 'nav.items.fashionReports', href: '/fashion/reports', icon: BarChart3, perm: 'fashion.reports' },
+      { label: 'nav.items.fashionDashboard', href: '/fashion', icon: LayoutDashboard, perm: ['fashion.manage', 'fashion.sell', 'fashion.inventory'], group: 'nav.groups.storePos' },
+      { label: 'nav.items.fashionSell', href: '/fashion/sell', icon: ScanBarcode, perm: 'fashion.sell', group: 'nav.groups.storePos' },
+      { label: 'nav.items.fashionInvoices', href: '/fashion/invoices', icon: Receipt, perm: ['fashion.sell', 'fashion.reports'], group: 'nav.groups.storePos' },
+      { label: 'nav.items.invoices', href: '/sales/invoices', icon: FileText, perm: 'fashion.sell', group: 'nav.groups.storePos' },
+      { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'fashion.sell', group: 'nav.groups.storePos' },
+      { label: 'nav.items.fashionProducts', href: '/fashion/products', icon: Shirt, perm: 'fashion.inventory', group: 'nav.groups.productsInventory' },
+      { label: 'nav.items.productEditing', href: '/products', icon: Package, perm: 'fashion.inventory', group: 'nav.groups.productsInventory' },
+      { label: 'nav.items.fashionInventory', href: '/fashion/inventory', icon: Boxes, perm: 'fashion.inventory', group: 'nav.groups.productsInventory' },
+      { label: 'nav.items.stockCount', href: '/inventory/count', icon: ClipboardList, perm: 'fashion.inventory', group: 'nav.groups.productsInventory' },
+      { label: 'nav.items.stockAdjustments', href: '/inventory/adjustments', icon: SlidersHorizontal, perm: 'fashion.inventory', group: 'nav.groups.productsInventory' },
+      { label: 'nav.items.stockMovements', href: '/inventory/movements', icon: Activity, perm: 'fashion.inventory', group: 'nav.groups.productsInventory' },
+      { label: 'nav.items.varianceReport', href: '/inventory/variance', icon: FileText, perm: 'fashion.inventory', group: 'nav.groups.productsInventory' },
+      { label: 'nav.items.barcodeLabels', href: '/inventory/labels', icon: ScanBarcode, perm: 'fashion.inventory', group: 'nav.groups.productsInventory' },
+      { label: 'nav.items.fashionCustomers', href: '/fashion/customers', icon: Users, perm: ['fashion.sell', 'fashion.installments'], group: 'nav.groups.customersInstallments' },
+      { label: 'nav.items.customerStatement', href: '/customers/statements', icon: FileText, perm: ['fashion.sell', 'fashion.installments'], group: 'nav.groups.customersInstallments' },
+      { label: 'nav.items.fashionInstallments', href: '/fashion/installments', icon: CreditCard, perm: 'fashion.installments', group: 'nav.groups.customersInstallments' },
+      { label: 'nav.items.installmentMigration', href: '/fashion/installments/migrate', icon: FileText, perm: 'fashion.installments', group: 'nav.groups.customersInstallments' },
+      { label: 'nav.items.fashionSuppliers', href: '/fashion/suppliers', icon: Truck, perm: 'fashion.purchase', group: 'nav.groups.suppliersPurchasing' },
+      { label: 'nav.items.supplierStatement', href: '/suppliers/statements', icon: FileText, perm: 'fashion.purchase', group: 'nav.groups.suppliersPurchasing' },
+      { label: 'nav.items.fashionCashbox', href: '/fashion/cashbox', icon: Wallet, perm: 'fashion.cashbox', group: 'nav.groups.finance' },
+      { label: 'nav.items.fashionExpenses', href: '/fashion/expenses', icon: Receipt, perm: ['fashion.cashbox', 'fashion.reports'], group: 'nav.groups.finance' },
+      { label: 'nav.items.fashionReports', href: '/fashion/reports', icon: BarChart3, perm: 'fashion.reports', group: 'nav.groups.finance' },
+      { label: 'nav.items.retailAnalytics', href: '/fashion/analytics', icon: TrendingUp, perm: 'fashion.reports', group: 'nav.groups.finance' },
     ],
   },
   {
@@ -357,6 +375,10 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.transfers', href: '/inventory/transfers', icon: ArrowLeftRight, perm: 'inventory.transfer', module: 'warehousing' },
       { label: 'nav.items.loadRequests', href: '/inventory/requests', icon: ClipboardCheck, perm: ['stock_request.create', 'stock_request.approve'], module: 'warehousing' },
       { label: 'nav.items.stockCount', href: '/inventory/count', icon: ClipboardList, perm: 'inventory.count', module: 'warehousing' },
+      { label: 'nav.items.stockAdjustments', href: '/inventory/adjustments', icon: SlidersHorizontal, perm: 'inventory.count' },
+      { label: 'nav.items.stockMovements', href: '/inventory/movements', icon: Activity, perm: 'inventory.view' },
+      { label: 'nav.items.varianceReport', href: '/inventory/variance', icon: FileText, perm: 'inventory.view' },
+      { label: 'nav.items.barcodeLabels', href: '/inventory/labels', icon: ScanBarcode, perm: 'inventory.view' },
       { label: 'nav.items.expiryNear', href: '/inventory/expiry', icon: CalendarClock, perm: 'inventory.view' },
       { label: 'nav.items.warehouses', href: '/warehouses', icon: Warehouse, perm: 'inventory.view', module: 'warehousing' },
       { label: 'nav.items.vanReconciliation', href: '/field/van-reconciliation', icon: PackageCheck, perm: ['reconciliation.view', 'reconciliation.manage', 'reconciliation.approve'], module: ['field_ops', 'distribution'] },
@@ -401,6 +423,9 @@ export const NAV_SECTIONS: NavSection[] = [
     // Integrations / Governance / Personal), ordered most-used first within each.
     items: [
       // ── Organization ──
+      { label: 'nav.items.storeInfo', href: '/settings/store', icon: Store, perm: ['settings.users', 'fashion.manage'], group: 'nav.groups.organization' },
+      { label: 'nav.items.printerSettings', href: '/settings/printer', icon: Printer, perm: ['settings.users', 'fashion.manage'], group: 'nav.groups.organization' },
+      { label: 'nav.items.backup', href: '/settings/backup', icon: Database, perm: ['settings.users', 'fashion.manage'], group: 'nav.groups.organization' },
       { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.organization' },
@@ -439,6 +464,26 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
 ];
+
+// ── Retail Mode ──────────────────────────────────────────────────────────────
+// A single-store retail tenant (e.g. a clothing shop) must NOT see platform /
+// enterprise administration: Permission Control, Organization Structure, Regions,
+// Marketplace, the tenant/global Audit Centers, e-invoice, integrations, and the
+// FMCG data-governance tools. The platform/provider panel is already gated by
+// `platformOwnerOnly`. So for these business types the Settings section is
+// curated down to a store-safe allowlist; everything else stays available to
+// platform/system admins on non-retail (FMCG/enterprise) tenants — additive,
+// no behaviour change for other verticals.
+export const RETAIL_BUSINESS_TYPES = new Set<string>(['clothing']);
+const RETAIL_SETTINGS_ALLOW = new Set<string>([
+  '/settings/store',    // Store Information (retail store profile)
+  '/settings/branches', // (branches — also store-safe)
+  '/settings/staff',    // Users (team)
+  '/settings/users',    // Users (tenant super admin)
+  '/settings/printer',  // Printer settings
+  '/settings/backup',   // Backup
+  '/account',           // My Account
+]);
 
 /** Filter nav by the user's effective permissions / super-admin status and the
  *  feature modules unlocked by the company's plan. An empty `modules` list means
@@ -479,6 +524,7 @@ export function visibleSections(
   // FMCG "control center" (Dashboard / Attention / Notifications) is irrelevant
   // clutter there, so it is dropped for the clothing business type only.
   const suppressGenericMain = businessType === 'clothing';
+  const retailMode = businessType ? RETAIL_BUSINESS_TYPES.has(businessType) : false;
 
   return NAV_SECTIONS
     .filter((s) => moduleAllowed(s.module))
@@ -486,6 +532,11 @@ export function visibleSections(
     .map((section) => ({
     ...section,
     items: section.items.filter((item) => {
+      // Retail Mode: hide platform/enterprise admin from a single-store tenant —
+      // the Settings section is curated to a store-safe allowlist (Store Info,
+      // Users, Printer, Backup, My Account). Permission Control, Org Structure,
+      // Regions, Audit Centers, e-invoice, integrations, governance are dropped.
+      if (retailMode && section.title === 'nav.sections.settings' && !RETAIL_SETTINGS_ALLOW.has(item.href)) return false;
       // Vendor-scoped items never belong to a tenant. `platformOwnerOnly` is the
       // owner-only flag; `platformPerm` marks an item gated by a *platform*
       // permission (e.g. Companies & subscriptions, Platform employees) — these

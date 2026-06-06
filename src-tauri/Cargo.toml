@@ -1,0 +1,29 @@
+[package]
+name = "kako-offline"
+version = "0.1.0"
+description = "VANTORA Offline Edition desktop shell (cross-platform)"
+edition = "2021"
+rust-version = "1.77"
+
+# Scaffolding for P1 (macOS Apple Silicon first) + P2 (Windows). Builds on the
+# target machine with the Tauri toolchain; this Linux CI container does not
+# build it (no toolchain), which is expected per the program's environment plan.
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-updater = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.9"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+winreg = "0.52"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

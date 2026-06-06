@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { upsertProduct, toggleProductActive, createCategory } from './actions';
+import { upsertProduct, toggleProductActive, createCategory, checkProductDeletable, deleteProduct } from './actions';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +16,7 @@ import { FieldError } from '@/components/ui/field-error';
 import { PRODUCT_UNIT_OPTIONS, PRODUCT_UNIT_LABELS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { ProductCatalog, ProductCategory } from '@/lib/erp/types';
-import { Plus, Pencil, Loader2, X, Package, Tags } from 'lucide-react';
+import { Plus, Pencil, Loader2, X, Package, Tags, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DrugCatalogPicker } from './drug-catalog-picker';
 import { useI18n } from '@/lib/i18n/provider';
@@ -36,10 +37,18 @@ export function ProductsManager({
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState<ProductCatalog | null | 'new'>(null);
   const [showCategory, setShowCategory] = useState(false);
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [pending, startTransition] = useTransition();
+  const editRef = useRef<HTMLDivElement>(null);
+
+  // Bring the edit/new form into view — it renders above a long product list, so
+  // clicking "Edit" on a lower row would otherwise scroll nothing into sight.
+  useEffect(() => {
+    if (editing !== null) editRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [editing]);
 
   const catName = (id: string | null) =>
     categories.find((c) => c.id === id)?.name_ar ||
@@ -70,6 +79,49 @@ export function ProductsManager({
       const res = await toggleProductActive(p.id, !p.is_active);
       if (!res.ok) toast.error(res.error ?? t('products.toastError'));
       else router.refresh();
+    });
+  }
+
+  // Safe delete: pre-check dependencies; if blocked, explain and suggest archive;
+  // otherwise confirm (destructive) before the hard delete.
+  function onDelete(p: ProductCatalog) {
+    startTransition(async () => {
+      const chk = await checkProductDeletable(p.id);
+      if (!chk.ok || !chk.data) { toast.error(chk.error ?? t('products.toastError')); return; }
+      if (!chk.data.canDelete) {
+        // Show EXACTLY why deletion is blocked (with counts), then offer archive.
+        const d = chk.data.details;
+        const lines: string[] = [];
+        if (Number(d.stock) !== 0) lines.push('• ' + t('products.delDetail.stock', { n: Number(d.stock) }));
+        if (Number(d.invoices) > 0) lines.push('• ' + t('products.delDetail.invoices', { n: Number(d.invoices) }));
+        if (Number(d.returns) > 0) lines.push('• ' + t('products.delDetail.returns', { n: Number(d.returns) }));
+        if (Number(d.exchanges) > 0) lines.push('• ' + t('products.delDetail.exchanges', { n: Number(d.exchanges) }));
+        if (Number(d.movements) > 0) lines.push('• ' + t('products.delDetail.movements', { n: Number(d.movements) }));
+        if (Number(d.counts) > 0) lines.push('• ' + t('products.delDetail.counts', { n: Number(d.counts) }));
+        if (Number(d.adjustments) > 0) lines.push('• ' + t('products.delDetail.adjustments', { n: Number(d.adjustments) }));
+        const archive = await confirm({
+          title: t('products.delBlockedTitle'),
+          message: `${t('products.delBlockedIntro')}\n${lines.join('\n')}\n\n${t('products.delArchiveHint')}`,
+          confirmText: p.is_active ? t('products.delArchiveBtn') : t('products.btnCancel'),
+          cancelText: t('products.delCloseBtn'),
+        });
+        if (archive && p.is_active) onToggle(p);
+        return;
+      }
+      const ok = await confirm({
+        title: t('products.delConfirmTitle', { name: p.name_ar || p.name }),
+        message: t('products.delConfirmMsg'),
+        confirmText: t('products.delConfirmBtn'),
+        cancelText: t('products.btnCancel'),
+        destructive: true,
+      });
+      if (!ok) return;
+      startTransition(async () => {
+        const res = await deleteProduct(p.id);
+        if (!res.ok) { toast.error(res.error ?? t('products.toastError')); return; }
+        toast.success(t('products.delSuccess'));
+        router.refresh();
+      });
     });
   }
 
@@ -140,6 +192,7 @@ export function ProductsManager({
       )}
 
       {editing !== null && (
+        <div ref={editRef}>
         <Card>
           <CardContent className="pt-6">
             <div className="mb-4 flex items-center justify-between">
@@ -152,7 +205,8 @@ export function ProductsManager({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <form onSubmit={onSubmit} className="space-y-4">
+            {/* key remounts the form per product so uncontrolled defaultValues refresh */}
+            <form key={current?.id ?? 'new'} onSubmit={onSubmit} className="space-y-4">
               {current && <input type="hidden" name="id" value={current.id} />}
               <div className="space-y-5">
                 <FormSection title={t('products.sectionIdentity')}>
@@ -232,6 +286,7 @@ export function ProductsManager({
             </form>
           </CardContent>
         </Card>
+        </div>
       )}
 
       {products.length === 0 ? (
@@ -274,6 +329,9 @@ export function ProductsManager({
                     <Button variant="ghost" size="sm" disabled={pending} onClick={() => onToggle(p)} className="text-xs">
                       {p.is_active ? t('products.btnDeactivate') : t('products.btnActivate')}
                     </Button>
+                    <button onClick={() => onDelete(p)} disabled={pending} className="rounded-md p-2 text-destructive hover:bg-destructive/10" aria-label={t('products.btnDelete')}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -316,6 +374,9 @@ export function ProductsManager({
                           <Button variant="ghost" size="sm" disabled={pending} onClick={() => onToggle(p)} className="text-xs">
                             {p.is_active ? t('products.btnDeactivate') : t('products.btnActivate')}
                           </Button>
+                          <button onClick={() => onDelete(p)} disabled={pending} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10" aria-label={t('products.btnDelete')}>
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>

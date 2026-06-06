@@ -2,8 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireAuth, canAny, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
+
+/** Who may create/edit products — the product-manage capability across the
+ *  generic Inventory module and the Fashion store pack. */
+const PRODUCT_MANAGE = ['product.create', 'fashion.inventory', 'inventory.adjust'];
 
 function num(v: FormDataEntryValue | null): number {
   const n = Number(String(v ?? '').replace(/,/g, ''));
@@ -39,9 +44,11 @@ export async function addDrugsToProducts(
 }
 
 export async function upsertProduct(formData: FormData): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
+  const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
   const { t } = await getT();
+  // Protect product master data — only inventory/fashion product managers may edit.
+  if (!canAny(ctx!, PRODUCT_MANAGE)) return { ok: false, error: t('products.errorNoPermission') };
 
   const id = String(formData.get('id') || '').trim();
   let code = String(formData.get('code') || '').trim();
@@ -51,13 +58,27 @@ export async function upsertProduct(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient();
   // Auto-generate a sequential code (P00001, P00002, …) when left blank.
   if (!code) code = await nextProductCode(supabase);
+  const barcode = String(formData.get('barcode') || '').trim() || null;
+
+  // SKU + barcode uniqueness (RLS scopes the check to the company). Exclude self
+  // on edit. A duplicate barcode would break POS scan resolution.
+  const dupCode = supabase.from('erp_products_catalog').select('id').eq('code', code).limit(1);
+  if (id) dupCode.neq('id', id);
+  const { data: codeHit } = await dupCode;
+  if (codeHit && codeHit.length > 0) return { ok: false, error: t('products.errorCodeTaken') };
+  if (barcode) {
+    const dupBc = supabase.from('erp_products_catalog').select('id').eq('barcode', barcode).limit(1);
+    if (id) dupBc.neq('id', id);
+    const { data: bcHit } = await dupBc;
+    if (bcHit && bcHit.length > 0) return { ok: false, error: t('products.errorBarcodeTaken') };
+  }
 
   const categoryId = String(formData.get('category_id') || '').trim();
   const payload = {
     code,
     name,
     name_ar: String(formData.get('name_ar') || '').trim() || null,
-    barcode: String(formData.get('barcode') || '').trim() || null,
+    barcode,
     category_id: categoryId || null,
     unit: String(formData.get('unit') || 'piece'),
     cost_price: num(formData.get('cost_price')),
@@ -69,11 +90,22 @@ export async function upsertProduct(formData: FormData): Promise<ActionResult> {
     eta_unit_type: String(formData.get('eta_unit_type') || '').trim() || null,
   };
 
-  const { error } = id
-    ? await supabase.from('erp_products_catalog').update(payload).eq('id', id)
-    : await supabase.from('erp_products_catalog').insert(payload);
+  const { data: saved, error } = id
+    ? await supabase.from('erp_products_catalog').update(payload).eq('id', id).select('id').maybeSingle()
+    : await supabase.from('erp_products_catalog').insert(payload).select('id').maybeSingle();
 
   if (error) return { ok: false, error: friendlyDbError(error) };
+
+  // Audit every edit. Historical invoice lines are NOT touched — they snapshot
+  // price/qty at sale time — so a price/cost/code change never alters past invoices.
+  await logAudit(supabase, {
+    action: id ? 'product.updated' : 'product.created',
+    entity: 'erp_products_catalog',
+    entityId: (saved as { id?: string } | null)?.id ?? id ?? null,
+    details: { code, name, barcode, cost_price: payload.cost_price, sell_price: payload.sell_price, category_id: payload.category_id },
+    companyId: ctx!.companyId,
+  });
+
   revalidatePath('/products');
   return { ok: true };
 }
@@ -97,14 +129,56 @@ export async function toggleProductActive(
   id: string,
   isActive: boolean,
 ): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
+  const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  if (!canAny(ctx!, PRODUCT_MANAGE)) return { ok: false, error: t('products.errorNoPermission') };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from('erp_products_catalog')
     .update({ is_active: isActive })
     .eq('id', id);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  // Deactivating a product hides it from new sales but keeps it on historical
+  // invoices (which reference it by id) — non-destructive + reversible (re-activate).
+  await logAudit(supabase, {
+    action: isActive ? 'product.activated' : 'product.deactivated',
+    entity: 'erp_products_catalog',
+    entityId: id,
+    companyId: ctx!.companyId,
+  });
+  revalidatePath('/products');
+  return { ok: true };
+}
+
+export type ProductDeleteDetails = {
+  stock?: number; invoices?: number; returns?: number; exchanges?: number;
+  movements?: number; counts?: number; adjustments?: number;
+};
+
+/** Check whether a product can be hard-deleted (no stock, no history), with the
+ *  EXACT dependency counts so the UI can explain why archive is required. */
+export async function checkProductDeletable(id: string): Promise<ActionResult<{ canDelete: boolean; reasons: string[]; details: ProductDeleteDetails }>> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  if (!canAny(ctx!, PRODUCT_MANAGE)) return { ok: false, error: (await getT()).t('products.errorNoPermission') };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('erp_product_delete_check', { p_id: id });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  const d = data as { can_delete?: boolean; reasons?: string[]; details?: ProductDeleteDetails } | null;
+  return { ok: true, data: { canDelete: Boolean(d?.can_delete), reasons: (d?.reasons as string[]) ?? [], details: (d?.details as ProductDeleteDetails) ?? {} } };
+}
+
+/** Hard-delete a product — only when it has zero stock AND no transactional
+ *  history (the RPC re-checks and blocks otherwise; use archive/deactivate). */
+export async function deleteProduct(id: string): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  if (!canAny(ctx!, PRODUCT_MANAGE)) return { ok: false, error: t('products.errorNoPermission') };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('erp_delete_product', { p_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath('/products');
   return { ok: true };
