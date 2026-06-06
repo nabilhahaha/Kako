@@ -1,12 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "//": "Tauri v2 shell for the Offline Edition. App name / identifier / icons are overridden per EDITION at build time by scripts/release/* (which read src/lib/edition/editions.ts). The window points at the local Next.js server (a sidecar) once the stack is healthy.",
   "productName": "VANTORA Retail",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.0",
   "identifier": "com.vantora.retail",
   "build": {
-    "//": "The frontend is the Next.js Node server run as a sidecar, not a static bundle. beforeBuildCommand builds the standalone Next server; the window loads the local app URL at runtime.",
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../.next/standalone",
     "devUrl": "http://127.0.0.1:54331"
@@ -20,7 +18,6 @@
         "minWidth": 1024,
         "minHeight": 640,
         "resizable": true,
-        "//": "Window is created hidden and shown by main.rs only after the local stack reports healthy (avoids a flash of a dead page).",
         "visible": false
       }
     ],
@@ -34,8 +31,10 @@
   },
   "bundle": {
     "active": true,
-    "//": "macOS DMG + Windows NSIS/WiX. The three sidecars (postgres, postgrest, node) ship as externalBin, suffixed per target triple by Tauri.",
-    "targets": ["dmg", "nsis"],
+    "targets": [
+      "dmg",
+      "nsis"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -54,11 +53,9 @@
     ],
     "macOS": {
       "minimumSystemVersion": "12.0",
-      "//": "entitlements + hardened runtime are applied during signing (scripts/release/mac.sh). EVERY bundled binary must be signed + notarized or Gatekeeper kills the sidecars.",
       "entitlements": "entitlements.plist"
     },
     "windows": {
-      "//": "code-signing handled in scripts/release/windows.ps1; SmartScreen reputation builds over time on a new EV cert.",
       "nsis": {
         "installMode": "perMachine"
       }
@@ -66,10 +63,14 @@
   },
   "plugins": {
     "updater": {
-      "//": "Signed updater (P7). endpoints + pubkey filled in at release time; pre-update DB backup is taken by src/lib/offline/update.ts before applying.",
-      "active": false,
-      "endpoints": ["https://updates.example.com/{{target}}/{{arch}}/{{current_version}}"],
-      "pubkey": ""
+      "active": true,
+      "endpoints": [
+        "https://github.com/nabilhahaha/Kako/releases/download/updates-stable/latest-{{target}}-{{arch}}.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE2NEQ5Q0Q0RkE1RUQ3NEYKUldSUDExNzYxSnhORnJLSFhvSXh1SDM1bkxENmxDZEVlNkU3RzQydnVJTTArSDBBT1lQT2psVm8K",
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }
