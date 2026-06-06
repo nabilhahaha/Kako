@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ScanBarcode, Plus, Minus, Trash2, Loader2, ShoppingCart } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { openPrintView } from '@/lib/erp/print';
+import { recordMutation } from '@/lib/sync/web/write-seam';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { cashierCheckout } from '../actions';
 import { useI18n } from '@/lib/i18n/provider';
@@ -73,6 +74,16 @@ export function CashierTerminal({ branches, products }: { branches: BranchOption
         lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: Number(l.product.sell_price), discount_pct: 0, tax_rate: 0 })),
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('market.pos.errorCheckout')); return; }
+      // Local-first journal of the sale (append-only). No-op unless KAKO_SYNC is
+      // on; the cloud write above remains the system of record when it's off.
+      void recordMutation({
+        entity: 'orders', op: 'insert', pk: res.data.invoice_id,
+        payload: {
+          invoice_id: res.data.invoice_id, branch_id: branchId, payment_method: method,
+          net: res.data.net,
+          lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: Number(l.product.sell_price) })),
+        },
+      });
       const ch = method === 'cash' && paidNum > 0 ? paidNum - res.data.net : 0;
       toast.success(ch > 0 ? t('market.pos.toastSaleWithChange', { change: ch.toLocaleString(INTL_LOCALE[locale]) }) : t('market.pos.toastSaleComplete'));
       setCart([]); setPaid('');

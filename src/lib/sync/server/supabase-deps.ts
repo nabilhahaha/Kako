@@ -54,10 +54,45 @@ export function makeApplyDeps(db: Db, companyId: string): ApplyDeps {
       if (error) throw new Error(error.message);
       return { version: (data as { version: number }).version ?? row.version };
     },
-    async flagReview(op) {
-      await db.rpc('sync_flag_review', { p_company_id: companyId, p_entity: op.entity, p_pk: op.pk, p_client_op_id: op.clientOpId });
+    async flagReview(op, remote) {
+      await db.rpc('sync_flag_review', {
+        p_company_id: companyId, p_entity: op.entity, p_pk: op.pk, p_client_op_id: op.clientOpId,
+        p_base_version: op.baseVersion ?? null, p_proposed: op.payload,
+        p_remote_version: remote?.version ?? 0, p_remote: remote?.data ?? {},
+      });
     },
   };
+}
+
+import type { ReviewItem } from './review';
+
+interface ReviewRow {
+  id: number; company_id: string; entity: string; pk: string; client_op_id: string;
+  base_version: number | null; proposed: Record<string, unknown>;
+  remote_version: number; remote: Record<string, unknown>;
+}
+
+/** Open (unresolved) inventory-count conflicts for a company. */
+export async function fetchOpenReviews(db: Db, companyId: string): Promise<ReviewItem[]> {
+  const { data } = await db.from('sync_review' as never).select('*')
+    .eq('company_id', companyId).is('resolved_at', null).order('created_at', { ascending: true });
+  return ((data ?? []) as unknown as ReviewRow[]).map((r) => ({
+    id: r.id, companyId: r.company_id, entity: r.entity, pk: r.pk, clientOpId: r.client_op_id,
+    baseVersion: r.base_version, proposed: r.proposed, remoteVersion: r.remote_version, remote: r.remote,
+  }));
+}
+
+export async function fetchReview(db: Db, companyId: string, id: number): Promise<ReviewItem | null> {
+  const { data } = await db.from('sync_review' as never).select('*')
+    .eq('company_id', companyId).eq('id', id).maybeSingle();
+  if (!data) return null;
+  const r = data as unknown as ReviewRow;
+  return { id: r.id, companyId: r.company_id, entity: r.entity, pk: r.pk, clientOpId: r.client_op_id, baseVersion: r.base_version, proposed: r.proposed, remoteVersion: r.remote_version, remote: r.remote };
+}
+
+export async function markReviewResolved(db: Db, companyId: string, id: number, resolution: string): Promise<void> {
+  await db.from('sync_review' as never).update({ resolved_at: new Date().toISOString(), resolution } as never)
+    .eq('company_id', companyId).eq('id', id);
 }
 
 export function makePullDeps(db: Db, companyId: string): PullDeps {

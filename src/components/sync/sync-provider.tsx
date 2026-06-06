@@ -29,11 +29,15 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           import('@/lib/sync/policy'),
         ]);
       if (closed) return;
+      const { setSyncStore, clearSyncStore } = await import('@/lib/sync/web/write-seam');
       const store = await WebLocalStore.open();
       const engine = new SyncEngine(store, new WebTransport(), { policyFor: clientPolicyFor });
       const orch = new SyncOrchestrator(store, engine, syncStatusStore, { entities: SYNC_ENTITIES });
+      // Share this store with the write-seam so app mutations land in the same
+      // outbox and can nudge an immediate sync.
+      setSyncStore(store, () => { void orch.syncNow(); });
       await orch.start();
-      stop = () => { orch.stop(); store.close(); };
+      stop = () => { orch.stop(); clearSyncStore(); store.close(); };
     })().catch((e) => console.error('sync provider init failed', e));
 
     return () => { closed = true; stop?.(); };
