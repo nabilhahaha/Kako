@@ -72,13 +72,22 @@ export interface LicenseCheck { ok: boolean; reason?: string }
 /**
  * Launch-time license check for the offline edition (AU-1). Returns ok only when
  * a stored license verifies (signature, edition, expiry, seat cap) AND is bound
- * to this device. The cloud build is never gated here. Fail-closed: any missing/
- * tampered/unbound license returns ok:false so the UI can redirect to /activate.
+ * to this device. The cloud build is never gated here.
+ *
+ * Licensing is VENDOR-OPT-IN: it is enforced only when the build bakes
+ * KAKO_LICENSE_PUBLIC_KEY. Without a configured public key there is nothing to
+ * verify signatures against, so enforcement is DISABLED (ok:true) rather than
+ * locking the user out — a build with no key is a build the vendor chose not to
+ * license-gate. To enable enforcement, set KAKO_LICENSE_PUBLIC_KEY at build time
+ * (see scripts/offline/build-app.mjs / the release workflow).
+ *
+ * When enforcement IS on, this is fail-closed: missing / tampered / unbound
+ * licenses return ok:false so the UI redirects to /activate.
  */
 export async function checkDeviceLicense(deviceFingerprint: string): Promise<LicenseCheck> {
   if (!isOffline()) return { ok: true };
   const publicKey = process.env.KAKO_LICENSE_PUBLIC_KEY;
-  if (!publicKey) return { ok: false, reason: 'no-public-key-configured' };
+  if (!publicKey) return { ok: true }; // licensing not configured → not enforced
 
   let lic: SignedLicense | null;
   try { lic = loadLicense(publicKey); } catch { return { ok: false, reason: 'tampered' }; }

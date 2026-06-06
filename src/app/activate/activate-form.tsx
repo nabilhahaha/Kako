@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { installLicenseAction, type ActivateResult } from './actions';
@@ -18,6 +19,7 @@ export function ActivateForm() {
   const [license, setLicense] = useState('');
   const [result, setResult] = useState<ActivateResult | null>(null);
   const [pending, start] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     // AU-6: the Tauri IPC bridge may not be injected at first paint in WKWebView.
@@ -40,7 +42,12 @@ export function ActivateForm() {
   }, []);
 
   function onActivate() {
-    start(async () => setResult(await installLicenseAction(license, fingerprint)));
+    start(async () => {
+      const res = await installLicenseAction(license, fingerprint);
+      setResult(res);
+      // On success, proceed to login (activation precedes login).
+      if (res.ok) setTimeout(() => { router.replace('/login'); router.refresh(); }, 1200);
+    });
   }
 
   return (
