@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WebLocalStore } from './web-store';
 import { setSyncStore, clearSyncStore } from './write-seam';
-import { submitOffline, isNetworkError } from './submit-offline';
+import { submitOffline, submitOnlineOnly, isNetworkError } from './submit-offline';
 
 const dbName = () => `kako-submit-${Math.random().toString(36).slice(2)}`;
 
@@ -75,5 +75,38 @@ describe('submitOffline', () => {
       action: () => Promise.reject(new Error('boom: null pointer')),
       mutation: () => null,
     })).rejects.toThrow(/boom/);
+  });
+});
+
+describe('submitOnlineOnly (require-online flows)', () => {
+  const prev = process.env.NEXT_PUBLIC_KAKO_SYNC;
+  let onLine = true;
+  beforeEach(() => {
+    onLine = true;
+    Object.defineProperty(globalThis, 'navigator', { value: { get onLine() { return onLine; } }, configurable: true });
+  });
+  afterEach(() => { process.env.NEXT_PUBLIC_KAKO_SYNC = prev; });
+
+  it('flag ON, offline: returns non-fatal { ok:false, offline:true } (no throw, no journal)', async () => {
+    process.env.NEXT_PUBLIC_KAKO_SYNC = '1';
+    onLine = false;
+    const res = await submitOnlineOnly(() => Promise.reject(new Error('Failed to fetch')));
+    expect(res).toEqual({ ok: false, offline: true });
+  });
+
+  it('flag ON, online success: passes the result through', async () => {
+    process.env.NEXT_PUBLIC_KAKO_SYNC = '1';
+    const res = await submitOnlineOnly(async () => ({ ok: true, data: { id: 'p1' } }));
+    expect(res).toEqual({ ok: true, data: { id: 'p1' } });
+  });
+
+  it('flag OFF: passthrough — network rejection propagates', async () => {
+    process.env.NEXT_PUBLIC_KAKO_SYNC = '0';
+    await expect(submitOnlineOnly(() => Promise.reject(new Error('Failed to fetch')))).rejects.toThrow(/failed to fetch/i);
+  });
+
+  it('flag ON: a genuine (non-network) error still surfaces', async () => {
+    process.env.NEXT_PUBLIC_KAKO_SYNC = '1';
+    await expect(submitOnlineOnly(() => Promise.reject(new Error('boom')))).rejects.toThrow(/boom/);
   });
 });
