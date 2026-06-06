@@ -95,20 +95,57 @@ fn setup_offline_env(app: &tauri::AppHandle) {
     }
 }
 
-/// Poll the local app server until it answers (or time out).
+/// One real health probe: GET /api/health and require HTTP 200 + `"ok":true`.
+/// A bare TCP accept is NOT enough — the Next server accepts connections before
+/// PostgREST/Postgres are reachable, so we must confirm the DB-backed route
+/// actually answers OK (RT-2). Dependency-free HTTP/1.0 over TcpStream.
+fn health_ok() -> bool {
+    use std::io::{Read, Write};
+    let Ok(mut sock) = std::net::TcpStream::connect(("127.0.0.1", APP_PORT)) else {
+        return false;
+    };
+    let _ = sock.set_read_timeout(Some(Duration::from_secs(3)));
+    let _ = sock.set_write_timeout(Some(Duration::from_secs(3)));
+    let req = format!(
+        "GET /api/health HTTP/1.0\r\nHost: 127.0.0.1:{APP_PORT}\r\nConnection: close\r\n\r\n"
+    );
+    if sock.write_all(req.as_bytes()).is_err() {
+        return false;
+    }
+    let mut buf = String::new();
+    if sock.read_to_string(&mut buf).is_err() {
+        return false;
+    }
+    let head = buf.split("\r\n\r\n").next().unwrap_or("");
+    let status_200 = head.starts_with("HTTP/1.1 200") || head.starts_with("HTTP/1.0 200");
+    let ok_body = buf.contains("\"ok\":true") || buf.contains("\"ok\": true");
+    status_200 && ok_body
+}
+
+/// Poll /api/health until it reports OK (or time out).
 fn wait_healthy(max: Duration) -> bool {
     let start = std::time::Instant::now();
-    let url = format!("http://127.0.0.1:{APP_PORT}/api/health");
     while start.elapsed() < max {
-        if std::net::TcpStream::connect(("127.0.0.1", APP_PORT)).is_ok() {
-            // A TCP accept is enough to flip the window on; the app's own
-            // /api/health (added in P1) is the deeper check.
-            let _ = &url;
+        if health_ok() {
             return true;
         }
         thread::sleep(Duration::from_millis(300));
     }
     false
+}
+
+/// Surface a fatal startup failure to the user instead of leaving a hidden
+/// window (RT-5). Shows a native error dialog, then exits.
+#[cfg(not(debug_assertions))]
+fn fatal_startup(app: &tauri::AppHandle, msg: &str) -> ! {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+    app.dialog()
+        .message(msg)
+        .title("VANTORA — startup failed")
+        .kind(MessageDialogKind::Error)
+        .blocking_show();
+    app.exit(1);
+    std::process::exit(1);
 }
 
 #[tauri::command]
@@ -130,6 +167,9 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             device_fingerprint,
             print_webview,
@@ -180,10 +220,20 @@ fn main() {
                 // and just health-gate the already-running app server.
                 #[cfg(not(debug_assertions))]
                 {
-                    if let Err(e) = run_offline_script(&handle, "bootstrap.mjs") {
-                        eprintln!("offline bootstrap failed: {e}");
+                    // RT-5: a failed/non-zero bootstrap means the DB is not
+                    // initialized/migrated — do NOT start the gateway against a
+                    // broken stack and silently hang; fail visibly.
+                    match run_offline_script(&handle, "bootstrap.mjs") {
+                        Ok(status) if status.success() => {}
+                        Ok(status) => fatal_startup(
+                            &handle,
+                            &format!("Database setup did not complete (exit {:?}).\nPlease relaunch; if this persists, contact support.", status.code()),
+                        ),
+                        Err(e) => fatal_startup(&handle, &format!("Could not run database setup: {e}")),
                     }
-                    let _ = run_offline_script(&handle, "start-gateway.mjs");
+                    if let Err(e) = run_offline_script(&handle, "start-gateway.mjs") {
+                        fatal_startup(&handle, &format!("Could not start the local services: {e}"));
+                    }
                 }
                 if wait_healthy(Duration::from_secs(60)) {
                     if let Some(win) = handle.get_webview_window("main") {
@@ -192,6 +242,11 @@ fn main() {
                     }
                 } else {
                     eprintln!("local stack did not become healthy in time");
+                    #[cfg(not(debug_assertions))]
+                    fatal_startup(
+                        &handle,
+                        "The application did not finish starting in time.\nPlease relaunch; if this persists, contact support.",
+                    );
                 }
             });
             Ok(())
