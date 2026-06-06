@@ -128,12 +128,11 @@ fn main() {
         .setup(|app| {
             let handle = app.handle().clone();
 
-            // Offline edition: inject the bundled-resource runtime env (PG tree,
-            // Next server, local data-layer secret/anon key) before anything boots.
+            // Inject the bundled-resource runtime env (PG tree, Next server,
+            // local data-layer secret/anon key) before anything boots. This is
+            // the offline edition, so the local stack always applies.
             #[cfg(not(debug_assertions))]
-            if mode::uses_local_stack() {
-                setup_offline_env(&handle);
-            }
+            setup_offline_env(&handle);
 
             // Silent background update check on launch (no UI unless an update is
             // found). Runs on the async runtime, independent of the health gate.
