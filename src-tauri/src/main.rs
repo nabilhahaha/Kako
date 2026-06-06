@@ -30,12 +30,16 @@ use tauri::{Emitter, Manager, RunEvent};
 
 const APP_PORT: u16 = 54331;
 
-/// Resolve the bundled node binary (Tauri places externalBin next to the app).
+/// Resolve the bundled node binary. Tauri places externalBin sidecars NEXT TO
+/// the main executable (Contents/MacOS/node on macOS), not under Resources — so
+/// resolve relative to the current exe. Falls back to a `node` on PATH.
 #[cfg(not(debug_assertions))]
-fn node_sidecar(app: &tauri::AppHandle) -> std::path::PathBuf {
-    app.path()
-        .resolve("binaries/node", tauri::path::BaseDirectory::Resource)
-        .unwrap_or_else(|_| std::path::PathBuf::from("node"))
+fn node_sidecar(_app: &tauri::AppHandle) -> std::path::PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("node")))
+        .filter(|p| p.exists())
+        .unwrap_or_else(|| std::path::PathBuf::from("node"))
 }
 
 /// Run an offline lifecycle script (scripts/offline/<name>.mjs) with the bundled
