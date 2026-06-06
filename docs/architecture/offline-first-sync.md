@@ -267,10 +267,61 @@ so pushed rows reference valid cloud FKs).
 - **P3:** Windows packaging to parity (automate sidecar fetch, sign, CI leg).
 - **P4:** conflict-policy registry per entity + audit of resolutions; pilot.
 
-## 14. Open decisions (need owner input)
-1. Outbox capture: **DB triggers (recommended)** vs data-layer wrapper.
-2. Cloud transport: extend `/api/v1/[entity]` vs a dedicated `/api/sync` batch
-   endpoint (recommended for cursors + batching).
-3. Identity reconciliation in online mode (local vs cloud user ids) — needs the
-   auth model finalized.
-4. Which entities are append-only vs LWW vs merge (the §8 matrix is a proposal).
+## 14. Decisions (LOCKED by owner)
+1. **Outbox capture:** DB triggers (server/desktop Postgres). In the *browser*
+   online edition the capture is the client write-seam (`WebLocalStore.enqueue`)
+   that records every mutation locally-first into the IndexedDB outbox.
+2. **Cloud transport:** dedicated **`/api/sync`** endpoint (`/push` + `/pull`),
+   batched + cursor-based.
+3. **Identity reconciliation:** the **cloud User ID is the source of truth**;
+   local rows reference cloud user/company ids so pushed rows carry valid FKs.
+4. **Entity conflict matrix:** Visits = append-only · Orders = append-only ·
+   Audit logs = append-only · Customers = field-merge · Products = LWW (cloud
+   wins) · Settings = LWW (cloud wins) · Inventory counts = conflict-review
+   workflow.
+
+## 15. Online (web) edition — implemented (behind `KAKO_SYNC`, inert)
+
+Online-first, offline-safe: writes go to a durable local outbox first; a
+background orchestrator mirrors them to the cloud whenever connectivity allows.
+Imported only when `KAKO_SYNC` is enabled — current online app is unchanged.
+
+**Modules (`src/lib/sync/web/`):**
+- `client-op-id.ts` — stable per-op idempotency key (uuid), reused across retries
+  → exactly-once effect on the server.
+- `idb.ts` + `web-store.ts` — `WebLocalStore` (IndexedDB): durable outbox, local
+  mirror of synced rows, pull cursors. Survives refresh / browser close / restart.
+  A **unique index on `clientOpId`** is the first anti-duplicate guard;
+  `reclaimInflight()` recovers work interrupted mid-push. Implements the engine's
+  `LocalStore`; `enqueue()` is the write-seam.
+- `status.ts` — five-state badge (**Online · Offline · Syncing · Synced · Sync
+  failed**): pure `deriveStatus` + a `useSyncExternalStore`-compatible store.
+- `transport.ts` — `WebTransport` → `POST /api/sync/push` + `GET /api/sync/pull`.
+- `orchestrator.ts` — connectivity (navigator.onLine + online/offline) +
+  automatic backoff-retrying push/pull; publishes status; drains on reconnect.
+  Connectivity/timers injectable for tests.
+- `backup.ts` — local backup/export of the outbox + synced-row mirror with
+  metadata (timestamp, user, company, entity, sync status, operation id).
+
+**No-duplicates (defence in depth):** (a) unique `clientOpId` index in the
+outbox; (b) engine `dedupeByClientOpId` per batch; (c) server `/api/sync` dedupe
+on `client_op_id` (UNIQUE) — designed, applied in P2.
+
+**Server `/api/sync` + migration — DESIGNED, NOT APPLIED (needs review, §7):**
+`sync_ingest(client_op_id uuid PK, entity, pk, applied_at)` for server-side
+exactly-once; per-entity apply per the §14 matrix; cursor = monotonic seq. No
+migration is run in this PR.
+
+**Validation → tests (`src/lib/sync/web/*.test.ts`, all green):** offline
+create/update (durable pending) · browser-refresh persistence (reopen DB) ·
+reconnect sync · retry-without-duplicates incl. **lost-ACK** (row count stays 1) ·
+failed-sync recovery (backoff→success) · push-time conflict (server-wins, no
+loss). Pure conflict + engine conflict covered by P0 tests.
+
+## 16. Phased rollout (updated)
+- **P0 (done):** design + pure core + tests.
+- **P1 (this PR):** browser durable outbox + status + transport + orchestrator +
+  backup + full client-side validation scenario — behind `KAKO_SYNC`, inert.
+- **P2:** `/api/sync` endpoint + migration under review; wire write-seam +
+  orchestrator + status badge into the app; fault-injection vs the real cloud.
+- **P3:** Windows packaging parity. **P4:** per-entity conflict registry + pilot.
