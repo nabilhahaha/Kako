@@ -43,6 +43,25 @@ describe('server applyPush — exactly-once + §14 conflict matrix', () => {
     expect(r[0]).toMatchObject({ status: 'ok', version: 1 });
   });
 
+  it('financial ledger keys (sales_invoices/returns/payments) are append-only: insert then status-update never conflict', async () => {
+    for (const entity of ['sales_invoices', 'sales_returns', 'customer_payments']) {
+      const d = new FakeDeps();
+      // Create the document.
+      const created = await applyPush([op({ clientOpId: `${entity}-A`, entity, pk: 'doc1', op: 'insert', payload: { status: 'draft' } })], d, 1);
+      expect(created[0]).toMatchObject({ status: 'ok', version: 1 });
+      // A later status transition (issue/complete) carries the latest image and is
+      // applied authoritatively — append-only never parks or rejects as a conflict.
+      const updated = await applyPush([op({ clientOpId: `${entity}-B`, entity, pk: 'doc1', op: 'update', payload: { status: 'issued' } })], d, 2);
+      expect(updated[0].status).toBe('ok');
+      expect(d.rows.get(`${entity}|doc1`)!.data).toEqual({ status: 'issued' });
+      expect(d.reviews).toHaveLength(0);
+      // Replay of the create (lost ack) is a no-op — exactly-once.
+      const replay = await applyPush([op({ clientOpId: `${entity}-A`, entity, pk: 'doc1', op: 'insert', payload: { status: 'draft' } })], d, 3);
+      expect(replay[0].status).toBe('ok');
+      expect(d.commits).toBe(2); // create + status update only
+    }
+  });
+
   it('LWW: cloud-newer ⇒ conflict (no overwrite); client-newer ⇒ applied', async () => {
     const d = new FakeDeps();
     d.rows.set('products|p1', { entity: 'products', pk: 'p1', version: 5, updatedAt: 1000, origin: 'cloud', deleted: false, data: { price: 9 } });
