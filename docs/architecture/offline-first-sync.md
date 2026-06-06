@@ -320,8 +320,28 @@ loss). Pure conflict + engine conflict covered by P0 tests.
 
 ## 16. Phased rollout (updated)
 - **P0 (done):** design + pure core + tests.
-- **P1 (this PR):** browser durable outbox + status + transport + orchestrator +
+- **P1 (done):** browser durable outbox + status + transport + orchestrator +
   backup + full client-side validation scenario — behind `KAKO_SYNC`, inert.
-- **P2:** `/api/sync` endpoint + migration under review; wire write-seam +
-  orchestrator + status badge into the app; fault-injection vs the real cloud.
-- **P3:** Windows packaging parity. **P4:** per-entity conflict registry + pilot.
+- **P2 (done):** `/api/sync` push/pull/backup + review-only migration + status
+  badge + cloud backup; server apply (exactly-once + §14) tested.
+- **P3 (done):** local-first write-seam (`recordMutation`) + inventory review UI
+  + Sync console (`/settings/sync`). All behind `KAKO_SYNC`.
+- **P4 (next):** apply the reviewed migration; real-cloud fault-injection; finish
+  the write-seam call-site rollout (checklist §17); Windows packaging parity.
+
+## 17. Write-seam call-site rollout (checklist)
+`recordMutation()` is the local-first seam (no-op unless `KAKO_SYNC`). Wired as
+the proven reference:
+- [x] POS checkout (`market/pos/cashier-terminal.tsx`) — orders / append-only
+- [x] Wholesale order (`wholesale/order/wholesale-order.tsx`) — orders / append-only
+
+Remaining (mechanical; wire after the migration is applied so each can be
+validated against the real cloud — each needs a reliable pk + representative
+payload, so do them with eyes on the flow, not blind):
+- [ ] customers create/update (`customers/customers-manager.tsx`) — field-merge
+      (note: `upsertCustomer` should return the new id for create)
+- [ ] products create/update — LWW
+- [ ] settings save — LWW
+- [ ] visits — append-only
+- [ ] inventory counts submission — review workflow
+- [ ] sales invoices / returns, collections, etc. — per §14

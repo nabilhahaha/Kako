@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Search, Trash2, Loader2, FileText } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { openPrintView } from '@/lib/erp/print';
+import { recordMutation } from '@/lib/sync/web/write-seam';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { wholesaleInvoice } from '../actions';
 import { useI18n } from '@/lib/i18n/provider';
@@ -72,6 +73,15 @@ export function WholesaleOrder({ branches, customers, products, tierPrices }: { 
         lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: l.price, discount_pct: 0, tax_rate: 0 })),
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('wholesale.toastIssueFailed')); return; }
+      // Local-first journal (orders = append-only). No-op unless KAKO_SYNC is on.
+      void recordMutation({
+        entity: 'orders', op: 'insert', pk: res.data.invoice_id,
+        payload: {
+          invoice_id: res.data.invoice_id, invoice_number: res.data.invoice_number,
+          branch_id: branchId, customer_id: customerId, payment_method: method, collect,
+          lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: l.price })),
+        },
+      });
       toast.success(t('wholesale.toastInvoiceIssued', { number: res.data.invoice_number }));
       setCart([]); setCustomerId('');
       openPrintView(`/print/receipt/${res.data.invoice_id}`);
