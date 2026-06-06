@@ -42,12 +42,12 @@ scripts/release/mac.sh
 
 ## 4. Output
 ```
-src-tauri/target/release/bundle/dmg/VANTORA Retail_0.1.0_aarch64.dmg
+src-tauri/target/release/bundle/dmg/VANTORA_0.1.0_aarch64.dmg
 ```
 
 ## 5. Verify on a CLEAN Mac (no dev tools)
 ```bash
-spctl -a -vvv "/Applications/VANTORA Retail.app"   # → accepted, source=Notarized Developer ID
+spctl -a -vvv "/Applications/VANTORA.app"   # → accepted, source=Notarized Developer ID
 ```
 - Double-click the DMG → drag to Applications → launch: **no Gatekeeper prompt**.
 - App boots the local stack, you can log in and make a cash + installment sale,

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "VANTORA Retail",
+  "productName": "VANTORA",
   "version": "0.1.0-beta.0",
-  "identifier": "com.vantora.retail",
+  "identifier": "com.vantora.offline",
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "npm run build",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "VANTORA Retail",
+        "title": "VANTORA",
         "width": 1280,
         "height": 800,
         "minWidth": 1024,
@@ -26,7 +26,7 @@
     },
     "trayIcon": {
       "iconPath": "icons/tray.png",
-      "tooltip": "VANTORA Retail"
+      "tooltip": "VANTORA"
     }
   },
   "bundle": {

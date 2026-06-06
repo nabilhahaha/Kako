@@ -37,12 +37,12 @@ pwsh scripts\release\windows.ps1
 
 ## 4. Output
 ```
-src-tauri\target\release\bundle\nsis\VANTORA Retail_0.1.0_x64-setup.exe
+src-tauri\target\release\bundle\nsis\VANTORA_0.1.0_x64-setup.exe
 ```
 
 ## 5. Verify on a CLEAN Windows machine
 ```powershell
-Get-AuthenticodeSignature ".\VANTORA Retail_0.1.0_x64-setup.exe"   # → Valid
+Get-AuthenticodeSignature ".\VANTORA_0.1.0_x64-setup.exe"   # → Valid
 ```
 - Run the installer: with an EV cert there is **no SmartScreen block** (a new
   standard cert may show SmartScreen until reputation builds — expected).
