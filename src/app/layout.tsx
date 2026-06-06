@@ -3,6 +3,7 @@ import { IBM_Plex_Sans_Arabic } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
+import { LicenseGate } from '@/components/license-gate';
 import { getLocale } from '@/lib/i18n/server';
 import { LOCALE_DIR } from '@/lib/i18n/config';
 
@@ -51,7 +52,11 @@ export default async function RootLayout({
       <body className={`${arabic.variable} font-arabic antialiased`}>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <ServiceWorkerRegister />
-        <Providers locale={locale}>{children}</Providers>
+        <Providers locale={locale}>
+          {/* Offline desktop: enforce activation BEFORE login (vendor-opt-in). */}
+          <LicenseGate />
+          {children}
+        </Providers>
       </body>
     </html>
   );

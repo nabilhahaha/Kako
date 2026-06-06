@@ -1,6 +1,8 @@
-// Builds a CSV from rows of objects and triggers a browser download.
-// Prepends a UTF-8 BOM so Excel renders Arabic correctly.
-export function downloadCsv(filename: string, rows: Record<string, unknown>[]) {
+import { saveTextFile } from '@/lib/erp/save-file';
+
+// Builds the CSV text from rows of objects. Prepends a UTF-8 BOM so Excel
+// renders Arabic correctly.
+export function buildCsv(rows: Record<string, unknown>[]): string {
   const headers = rows.length ? Object.keys(rows[0]) : [];
   const esc = (v: unknown) => {
     const s = v === null || v === undefined ? '' : String(v);
@@ -10,13 +12,12 @@ export function downloadCsv(filename: string, rows: Record<string, unknown>[]) {
     headers.join(','),
     ...rows.map((r) => headers.map((h) => esc(r[h])).join(',')),
   ];
-  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  return '﻿' + lines.join('\r\n');
+}
+
+// Save a CSV. Uses the native Save dialog inside the Tauri desktop shell (where
+// browser blob-downloads are a no-op) and the browser download otherwise.
+export function downloadCsv(filename: string, rows: Record<string, unknown>[]) {
+  const name = filename.endsWith('.csv') ? filename : `${filename}.csv`;
+  return saveTextFile(name, buildCsv(rows), 'text/csv;charset=utf-8');
 }

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useI18n } from '@/lib/i18n/provider';
 import { formatCurrency } from '@/lib/utils';
+import { printDocument } from '@/lib/erp/print';
 import { Printer, Search, Plus, Minus } from 'lucide-react';
 
 export interface LabelProduct {
@@ -71,7 +72,7 @@ export function LabelPrinter({ products }: { products: LabelProduct[] }) {
               <input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} />
               {t('ops.lblShowPrice')}
             </label>
-            <Button onClick={() => window.print()} disabled={totalLabels === 0} className="gap-1.5">
+            <Button onClick={() => printDocument()} disabled={totalLabels === 0} className="gap-1.5">
               <Printer className="h-4 w-4" /> {t('ops.lblPrint')} {totalLabels > 0 ? `(${totalLabels})` : ''}
             </Button>
           </CardContent>

@@ -44,4 +44,30 @@ describe('offline jwt (HS256, Supabase-shaped)', () => {
     expect(verifyToken(SECRET, 'not-a-jwt').ok).toBe(false);
     expect(verifyToken(SECRET, 'a.b').ok).toBe(false);
   });
+
+  // Regression — offline session persistence (AU-3). The refresh grant presents
+  // the prior (expired) access token; it must verify by SIGNATURE so a fresh
+  // token can be re-minted instead of forcing re-login after the 12h lapse.
+  it('ignoreExpiry verifies an expired-but-authentic token (refresh path)', () => {
+    const now = 1_700_000_000;
+    const token = mintToken(SECRET, { sub: 'u1', company_id: 'c1', email: 'a@b.c' }, 60, now);
+    // Long past expiry:
+    const expired = verifyToken(SECRET, token, now + 86_400);
+    expect(expired.ok).toBe(false);
+    if (!expired.ok) expect(expired.reason).toBe('expired');
+
+    const refreshed = verifyToken(SECRET, token, now + 86_400, { ignoreExpiry: true });
+    expect(refreshed.ok).toBe(true);
+    if (refreshed.ok) {
+      expect(refreshed.claims.sub).toBe('u1');
+      expect(refreshed.claims.company_id).toBe('c1');
+    }
+  });
+
+  it('ignoreExpiry STILL rejects a bad signature (no security bypass)', () => {
+    const token = mintToken(SECRET, { sub: 'u1' }, 60, 1_700_000_000);
+    const res = verifyToken('a-totally-different-secret-value-here-1234', token, undefined, { ignoreExpiry: true });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe('bad-signature');
+  });
 });

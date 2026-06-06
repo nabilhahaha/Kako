@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { formatDateTime } from '@/lib/utils';
+import { saveTextFile } from '@/lib/erp/save-file';
 import {
   exportBackup, createBackupNow, updateBackupSchedule, downloadStoredBackup,
   restorePreview, restoreApply, type RestorePreview,
@@ -20,12 +21,9 @@ export interface StoredBackup { id: string; kind: 'manual' | 'scheduled'; create
 
 const RESTORE_ROWS = ['products', 'customers', 'suppliers', 'inventory', 'invoices', 'installments'] as const;
 
+// Native Save dialog in the desktop shell; browser download on the web (DF-3).
 function downloadJson(filename: string, json: string) {
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
+  return saveTextFile(filename, json, 'application/json');
 }
 
 export function BackupManager({

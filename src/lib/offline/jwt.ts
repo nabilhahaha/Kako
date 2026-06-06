@@ -70,8 +70,18 @@ export type VerifyResult =
   | { ok: true; claims: SupabaseClaims }
   | { ok: false; reason: 'malformed' | 'bad-signature' | 'expired' };
 
-/** Verify signature + expiry and return the claims. */
-export function verifyToken(secret: string, token: string, now: number = Math.floor(Date.now() / 1000)): VerifyResult {
+/** Verify signature + expiry and return the claims.
+ *
+ *  `opts.ignoreExpiry` verifies the signature but skips the `exp` check — used
+ *  ONLY by the refresh-token grant, where the presented token is expected to be
+ *  expired (it is the prior access token) yet its signature still proves
+ *  identity, so a fresh token can be re-minted. Never use it for access checks. */
+export function verifyToken(
+  secret: string,
+  token: string,
+  now: number = Math.floor(Date.now() / 1000),
+  opts: { ignoreExpiry?: boolean } = {},
+): VerifyResult {
   const parts = token.split('.');
   if (parts.length !== 3) return { ok: false, reason: 'malformed' };
   const [head, body, sig] = parts;
@@ -85,6 +95,8 @@ export function verifyToken(secret: string, token: string, now: number = Math.fl
   } catch {
     return { ok: false, reason: 'malformed' };
   }
-  if (typeof claims.exp === 'number' && now >= claims.exp) return { ok: false, reason: 'expired' };
+  if (!opts.ignoreExpiry && typeof claims.exp === 'number' && now >= claims.exp) {
+    return { ok: false, reason: 'expired' };
+  }
   return { ok: true, claims };
 }

@@ -1,8 +1,11 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_COOKIE_OPTIONS } from './config';
 
-const PUBLIC_PATHS = ['/login', '/register', '/auth', '/forgot-password', '/reset-password'];
+// '/activate' must be public: the offline license gate redirects un-licensed
+// devices here, and an un-activated device has no session yet — without this it
+// would be a login↔license deadlock (AU-4).
+const PUBLIC_PATHS = ['/login', '/register', '/auth', '/activate', '/forgot-password', '/reset-password'];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -11,6 +14,7 @@ export async function updateSession(request: NextRequest) {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     {
+      cookieOptions: SUPABASE_COOKIE_OPTIONS,
       cookies: {
         getAll() {
           return request.cookies.getAll();

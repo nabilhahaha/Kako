@@ -37,10 +37,20 @@ function renderPostgrestConf() {
   return out;
 }
 
+/** Persist a child PID so shutdown.mjs can terminate it on app exit (RT-3). */
+function writePid(name, pid) {
+  fs.mkdirSync(paths.runDir, { recursive: true });
+  fs.writeFileSync(path.join(paths.runDir, `${name}.pid`), String(pid));
+}
+
 function startPostgrest(confPath) {
   log(`postgrest on 127.0.0.1:${ports.postgrest}`);
-  const p = spawn(pgTool('postgrest', env), [confPath], { stdio: 'inherit', env });
-  p.on('exit', (code) => log(`postgrest exited (${code})`));
+  // detached + unref so the child OUTLIVES this launcher process (which exits
+  // immediately — see below), and so it has its own process group for clean
+  // signalling from shutdown.mjs.
+  const p = spawn(pgTool('postgrest', env), [confPath], { stdio: 'inherit', env, detached: true });
+  writePid('postgrest', p.pid);
+  p.unref();
   return p;
 }
 
@@ -49,9 +59,14 @@ function startNext() {
   const serverJs = env.KAKO_NEXT_SERVER || path.resolve('.next/standalone/server.js');
   const p = spawn(process.execPath, [serverJs], {
     stdio: 'inherit',
+    // RT-4: the standalone server resolves `.next`/`public` relative to cwd.
+    // Launched from Finder the cwd is `/`, so pin it to the server's own dir.
+    cwd: path.dirname(serverJs),
     env: { ...env, PORT: String(ports.app), HOSTNAME: '127.0.0.1' },
+    detached: true,
   });
-  p.on('exit', (code) => log(`next server exited (${code})`));
+  writePid('next', p.pid);
+  p.unref();
   return p;
 }
 
@@ -59,6 +74,12 @@ try {
   const conf = renderPostgrestConf();
   startPostgrest(conf);
   startNext();
+  // RT-1: this launcher is invoked SYNCHRONOUSLY by the Rust shell
+  // (Command::status()). The children are detached + unref'd above, so we exit
+  // now and return control to the shell, which then health-gates and shows the
+  // window. (Previously this process stayed alive for the gateway's lifetime,
+  // so the shell blocked here forever and the window never appeared.)
+  process.exit(0);
 } catch (e) {
   process.stderr.write(`✗ gateway start failed: ${e.message}\n`);
   process.exit(1);
