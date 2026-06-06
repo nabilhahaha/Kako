@@ -35,35 +35,38 @@ trap 'rm -rf "$TMP"' EXIT
 
 echo "› staging sidecars for $TRIPLE (pg=$PG_VERSION pgrst=$PGRST_VERSION node=$NODE_VERSION)"
 
-# ── Node ────────────────────────────────────────────────────────────────────
+# ── Node (the only externalBin sidecar; runs the offline lifecycle scripts) ──
 echo "  · node"
 curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-${NODE_ARCH}.tar.gz" -o "$TMP/node.tgz"
 tar -xzf "$TMP/node.tgz" -C "$TMP"
 cp "$TMP/node-${NODE_VERSION}-darwin-${NODE_ARCH}/bin/node" "$BIN/node-$TRIPLE"
+chmod +x "$BIN/node-$TRIPLE"
 
-# ── PostgREST ─────────────────────────────────────────────────────────────────
-echo "  · postgrest"
-curl -fsSL "https://github.com/PostgREST/postgrest/releases/download/${PGRST_VERSION}/postgrest-${PGRST_VERSION}-macos-${PGRST_ARCH}.tar.xz" -o "$TMP/pgrst.tar.xz"
-tar -xJf "$TMP/pgrst.tar.xz" -C "$TMP"
-cp "$TMP/postgrest" "$BIN/postgrest-$TRIPLE"
-
-# ── PostgreSQL 17 (full relocatable tree) ────────────────────────────────────
+# ── PostgreSQL 17 (full relocatable tree → resources/pgsql) ──────────────────
 echo "  · postgresql (full tree → resources/pgsql)"
 curl -fsSL "https://github.com/theseus-rs/postgresql-binaries/releases/download/${PG_VERSION}/postgresql-${PG_VERSION}-${PG_ARCH}-apple-darwin.tar.gz" -o "$TMP/pg.tgz"
 rm -rf "$RES/pgsql"; mkdir -p "$RES/pgsql"
 tar -xzf "$TMP/pg.tgz" -C "$RES/pgsql" --strip-components=1
-# externalBin launcher = the postgres binary from the bundled tree (KAKO_PG_BIN
-# points at resources/pgsql/bin for the rest of the tools at runtime).
-cp "$RES/pgsql/bin/postgres" "$BIN/postgres-$TRIPLE"
 
-chmod +x "$BIN/node-$TRIPLE" "$BIN/postgrest-$TRIPLE" "$BIN/postgres-$TRIPLE"
+# ── PostgREST → into the PG bin dir (KAKO_PG_BIN resolves it at runtime) ──────
+echo "  · postgrest → resources/pgsql/bin"
+curl -fsSL "https://github.com/PostgREST/postgrest/releases/download/${PGRST_VERSION}/postgrest-${PGRST_VERSION}-macos-${PGRST_ARCH}.tar.xz" -o "$TMP/pgrst.tar.xz"
+tar -xJf "$TMP/pgrst.tar.xz" -C "$TMP"
+cp "$TMP/postgrest" "$RES/pgsql/bin/postgrest"
+chmod +x "$RES/pgsql/bin/postgrest"
 
-# ── App scripts + migrations into resources (run by the bundled node) ────────
-echo "  · offline scripts + migrations → resources"
-mkdir -p "$RES/scripts/offline" "$RES/migrations"
+# Postgres + tools live in resources/pgsql WITH their dylib tree (relocatable via
+# @loader_path); they are NOT externalBin (a single copied file breaks linkage).
+
+# ── App scripts + the supabase tree into resources (run by the bundled node) ─
+# Layout mirrors the repo so scripts/offline/lib.mjs resolves REPO_ROOT/supabase.
+echo "  · offline scripts + supabase → resources"
+rm -rf "$RES/scripts" "$RES/supabase"
+mkdir -p "$RES/scripts/offline"
 cp -R "$ROOT/scripts/offline/." "$RES/scripts/offline/"
-cp -R "$ROOT/supabase/migrations/." "$RES/migrations/"
+cp -R "$ROOT/supabase" "$RES/supabase"
 
 echo "✓ staged:"
 ls -1 "$BIN" | sed 's/^/    binaries\//'
-echo "    resources/pgsql/bin/{initdb,postgres,pg_ctl,psql,...}"
+echo "    resources/pgsql/bin/{initdb,postgres,pg_ctl,psql,postgrest,...}"
+echo "    resources/{scripts/offline,supabase/{migrations,ci}}"

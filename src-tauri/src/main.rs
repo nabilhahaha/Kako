@@ -51,6 +51,46 @@ fn run_offline_script(app: &tauri::AppHandle, script: &str) -> std::io::Result<s
     Command::new(node).arg(script_path).status()
 }
 
+/// Inject the runtime env the offline scripts + the bundled Next server need,
+/// resolved from bundled resources, BEFORE any script/sidecar runs so children
+/// inherit it: the bundled PostgreSQL tree (KAKO_PG_BIN), the standalone Next
+/// server (KAKO_NEXT_SERVER), the PostgREST config template, and the local
+/// data-layer (the per-build JWT secret + anon key written by build-app.mjs, and
+/// the gateway URL). Release-only; dev runs the stack out-of-band.
+#[cfg(not(debug_assertions))]
+fn setup_offline_env(app: &tauri::AppHandle) {
+    use tauri::path::BaseDirectory::Resource;
+    let res = |p: &str| app.path().resolve(p, Resource);
+
+    std::env::set_var("KAKO_OFFLINE", "1");
+    std::env::set_var("NEXT_PUBLIC_SUPABASE_URL", format!("http://127.0.0.1:{APP_PORT}"));
+    if let Ok(p) = res("resources/pgsql/bin") {
+        std::env::set_var("KAKO_PG_BIN", p);
+    }
+    if let Ok(p) = res("resources/next-standalone/server.js") {
+        std::env::set_var("KAKO_NEXT_SERVER", p);
+    }
+    if let Ok(p) = res("resources/postgrest.conf.template") {
+        std::env::set_var("KAKO_PGRST_TEMPLATE", p);
+    }
+    if let Ok(p) = res("resources/offline-jwt-secret.txt") {
+        if let Ok(s) = std::fs::read_to_string(&p) {
+            let s = s.trim();
+            if !s.is_empty() {
+                std::env::set_var("KAKO_OFFLINE_JWT_SECRET", s);
+            }
+        }
+    }
+    if let Ok(p) = res("resources/anon-key.txt") {
+        if let Ok(k) = std::fs::read_to_string(&p) {
+            let k = k.trim();
+            if !k.is_empty() {
+                std::env::set_var("NEXT_PUBLIC_SUPABASE_ANON_KEY", k);
+            }
+        }
+    }
+}
+
 /// Poll the local app server until it answers (or time out).
 fn wait_healthy(max: Duration) -> bool {
     let start = std::time::Instant::now();
@@ -87,6 +127,13 @@ fn main() {
         ])
         .setup(|app| {
             let handle = app.handle().clone();
+
+            // Offline edition: inject the bundled-resource runtime env (PG tree,
+            // Next server, local data-layer secret/anon key) before anything boots.
+            #[cfg(not(debug_assertions))]
+            if mode::uses_local_stack() {
+                setup_offline_env(&handle);
+            }
 
             // Silent background update check on launch (no UI unless an update is
             // found). Runs on the async runtime, independent of the health gate.

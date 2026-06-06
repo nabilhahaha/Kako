@@ -5,7 +5,7 @@
   "identifier": "com.vantora.offline",
   "build": {
     "beforeDevCommand": "",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "node scripts/offline/build-app.mjs",
     "frontendDist": "shell",
     "devUrl": "http://127.0.0.1:54331"
   },
@@ -46,13 +46,16 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/postgres",
-      "binaries/postgrest",
       "binaries/node"
     ],
     "resources": [
-      "resources/migrations/*",
-      "resources/postgrest.conf.template"
+      "resources/pgsql/**/*",
+      "resources/supabase/**/*",
+      "resources/scripts/**/*",
+      "resources/next-standalone/**/*",
+      "resources/postgrest.conf.template",
+      "resources/offline-jwt-secret.txt",
+      "resources/anon-key.txt"
     ],
     "macOS": {
       "minimumSystemVersion": "12.0",

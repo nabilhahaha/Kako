@@ -6,5 +6,8 @@ gen/
 resources/pgsql/
 resources/migrations/
 resources/scripts/
+resources/supabase/
 resources/next-standalone/
 resources/ci/
+resources/offline-jwt-secret.txt
+resources/anon-key.txt
