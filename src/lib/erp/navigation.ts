@@ -426,6 +426,10 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.storeInfo', href: '/settings/store', icon: Store, perm: ['settings.users', 'fashion.manage'], group: 'nav.groups.organization' },
       { label: 'nav.items.printerSettings', href: '/settings/printer', icon: Printer, perm: ['settings.users', 'fashion.manage'], group: 'nav.groups.organization' },
       { label: 'nav.items.backup', href: '/settings/backup', icon: Database, perm: ['settings.users', 'fashion.manage'], group: 'nav.groups.organization' },
+      // Platform-level desktop auto-update control. Gated by the generic
+      // settings-admin permission only — NOT any industry module (the Offline
+      // Edition is industry-agnostic; see docs/offline/auto-update.md §11).
+      { label: 'nav.items.updates', href: '/settings/updates', icon: Download, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.organization' },
@@ -482,6 +486,7 @@ const RETAIL_SETTINGS_ALLOW = new Set<string>([
   '/settings/users',    // Users (tenant super admin)
   '/settings/printer',  // Printer settings
   '/settings/backup',   // Backup
+  '/settings/updates',  // Updates (Offline Edition auto-update)
   '/account',           // My Account
 ]);
 

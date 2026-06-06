@@ -1,6 +1,30 @@
 /** settings module messages. */
 export const ar = {
   settings: {
+    updates: {
+      title: 'التحديثات',
+      description: 'تحقق من تحديثات التطبيق وثبّتها، واختر قناة الإصدار.',
+      currentVersion: 'الإصدار الحالي',
+      latestVersion: 'أحدث إصدار',
+      channel: 'قناة الإصدار',
+      channelStable: 'مستقر',
+      channelBeta: 'تجريبي (beta)',
+      checkNow: 'تحقق الآن',
+      checking: 'جارٍ التحقق…',
+      install: 'تثبيت التحديث',
+      installing: 'جارٍ التثبيت…',
+      upToDate: 'محدّث',
+      updateAvailable: 'يتوفر تحديث',
+      releaseNotes: 'ملاحظات الإصدار',
+      noNotes: 'لا توجد ملاحظات لهذا الإصدار.',
+      notInApp: 'تتوفر التحديثات داخل تطبيق سطح المكتب فقط.',
+      mustUpdate: 'هذا الإصدار لم يعد مدعومًا. يلزم التحديث للمتابعة.',
+      majorBackupNote: 'هذا تحديث رئيسي؛ سيتم إنشاء نسخة احتياطية من بياناتك تلقائيًا قبل التثبيت.',
+      channelSaved: 'تم حفظ قناة الإصدار',
+      channelSaveFailed: 'تعذّر حفظ قناة الإصدار',
+      checkFailed: 'تعذّر التحقق من التحديثات',
+      installFailed: 'تعذّر تثبيت التحديث',
+    },
     store: {
       title: 'بيانات المتجر',
       description: 'اسم المتجر وبيانات التواصل والبيانات الضريبية.',
@@ -307,6 +331,30 @@ export const ar = {
 
 export const en = {
   settings: {
+    updates: {
+      title: 'Updates',
+      description: 'Check for and install app updates, and choose a release channel.',
+      currentVersion: 'Current version',
+      latestVersion: 'Latest version',
+      channel: 'Release channel',
+      channelStable: 'Stable',
+      channelBeta: 'Beta',
+      checkNow: 'Check now',
+      checking: 'Checking…',
+      install: 'Install update',
+      installing: 'Installing…',
+      upToDate: 'Up to date',
+      updateAvailable: 'Update available',
+      releaseNotes: 'Release notes',
+      noNotes: 'No notes for this release.',
+      notInApp: 'Updates are only available inside the desktop app.',
+      mustUpdate: 'This version is no longer supported. Updating is required to continue.',
+      majorBackupNote: 'This is a major update; your data will be backed up automatically before it installs.',
+      channelSaved: 'Release channel saved',
+      channelSaveFailed: 'Could not save the release channel',
+      checkFailed: 'Could not check for updates',
+      installFailed: 'Could not install the update',
+    },
     store: {
       title: 'Store Information',
       description: 'Your store name, contact details, and tax information.',

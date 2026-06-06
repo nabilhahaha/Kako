@@ -1,7 +1,7 @@
 {
   "name": "kako-fmcg",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.0-beta.0",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -24,13 +24,17 @@
     "offline:rollback": "node scripts/offline/rollback.mjs",
     "offline:cert": "node scripts/offline/recovery-cert.mjs",
     "offline:anon-key": "node scripts/offline/anon-key.mjs",
-    "offline:dev-stack": "node scripts/offline/dev-stack.mjs"
+    "offline:dev-stack": "node scripts/offline/dev-stack.mjs",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.55.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
     "@tanstack/react-query": "^5.62.7",
+    "@tauri-apps/api": "^2.1.1",
+    "@tauri-apps/plugin-process": "^2.2.0",
+    "@tauri-apps/plugin-updater": "^2.6.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -49,6 +53,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "@tauri-apps/cli": "^2.11.2",
     "@types/node": "^22.10.5",
     "@types/pg": "^8.20.0",
     "@types/react": "^19.0.2",
