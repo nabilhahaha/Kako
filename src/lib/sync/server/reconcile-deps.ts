@@ -8,6 +8,11 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ReconcileDeps, MirrorRecord, ReconcileHandler } from './reconcile';
+import { cashierCheckoutCore } from '@/lib/erp/sales/cashier-core';
+import { wholesaleInvoiceCore, type CoreCtx, type Translate } from '@/lib/erp/sales/invoice-core';
+import type { LineInput } from '@/lib/erp/sales-calc';
+import type { PaymentMethod } from '@/lib/erp/types';
+import { createUserScopedClient } from './impersonate';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any>;
@@ -89,6 +94,49 @@ function singleTableHandler(db: Db, spec: SingleTableSpec): ReconcileHandler {
   };
 }
 
+// Orders (POS cash sale + wholesale invoice) → real erp_invoices via the SAME
+// audited cores the online path uses (numbering / stock-out / AR / payment all in
+// their DB RPCs). Idempotent on the mirror pk (createInvoiceCore dedupes on
+// idempotency_key; erp_record_payment dedupes on its key) and resumable after a
+// partial failure. Online-created sales are mirrored too (pk = real invoice id,
+// no `offline` flag) — those are already real, so we confirm and mark done.
+function ordersHandler(db: Db): ReconcileHandler {
+  const t: Translate = (k) => k; // worker context: surface the message key for last_error
+  return {
+    async materialize(rec: MirrorRecord) {
+      const p = rec.data as Record<string, unknown>;
+
+      if (p.offline !== true) {
+        const { data: inv } = await db.from('erp_invoices' as never).select('id').eq('id', rec.pk).maybeSingle();
+        return { businessId: (inv as { id: string } | null)?.id ?? rec.pk };
+      }
+
+      const ctx: CoreCtx = { userId: String(p.created_by ?? ''), companyId: rec.companyId };
+      if (!ctx.userId) throw new Error('reconcile(orders): missing created_by on offline order');
+      const branch_id = String(p.branch_id ?? '');
+      const payment_method = (p.payment_method ?? 'cash') as PaymentMethod;
+      const lines: LineInput[] = ((p.lines as Record<string, unknown>[]) ?? []).map((l) => ({
+        product_id: String(l.product_id), quantity: Number(l.quantity), unit_price: Number(l.unit_price), discount_pct: 0, tax_rate: 0,
+      }));
+
+      // Run the audited cores AS the originating cashier (auth.uid()=created_by):
+      // same branch authority, RLS, and audit attribution as the online sale.
+      const userDb = createUserScopedClient(ctx.userId);
+
+      if (p.customer_id) {
+        const res = await wholesaleInvoiceCore(userDb, ctx, t,
+          { branch_id, customer_id: String(p.customer_id), lines, collect: !!p.collect, payment_method },
+          { idempotencyKey: rec.pk });
+        if (!res.ok || !res.data) throw new Error(res.error ?? 'wholesale reconcile failed');
+        return { businessId: res.data.invoice_id };
+      }
+      const res = await cashierCheckoutCore(userDb, ctx, t, { branch_id, lines, payment_method }, { idempotencyKey: rec.pk });
+      if (!res.ok || !res.data) throw new Error(res.error ?? 'pos reconcile failed');
+      return { businessId: res.data.invoice_id };
+    },
+  };
+}
+
 /**
  * Build the entity→handler registry. Column maps are intentionally a conservative
  * allow-list of stable business columns (validated against the live schema); extra
@@ -105,10 +153,12 @@ export function makeReconcileHandlers(db: Db): Record<string, ReconcileHandler> 
         tax_number: 'tax_number', credit_limit: 'credit_limit',
       },
     }),
+    // Orders → invoices via the audited cores (branch-validated end-to-end).
+    orders: ordersHandler(db),
     // visits / survey_response handlers are added the same way once their column
     // maps are validated against erp_clinic_visits / erp_survey_responses.
   };
 }
 
 /** Entities the worker attempts to reconcile (hybrid-policy offline-queue set). */
-export const RECONCILABLE_ENTITIES = ['customers'];
+export const RECONCILABLE_ENTITIES = ['customers', 'orders'];

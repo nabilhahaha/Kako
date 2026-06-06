@@ -20,7 +20,7 @@ export interface BranchOption { id: string; name: string; name_ar: string | null
 
 interface Line { product: CashierProduct; qty: number }
 
-export function CashierTerminal({ branches, products }: { branches: BranchOption[]; products: CashierProduct[] }) {
+export function CashierTerminal({ branches, products, userId }: { branches: BranchOption[]; products: CashierProduct[]; userId: string }) {
   const { t, locale } = useI18n();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [query, setQuery] = useState('');
@@ -82,7 +82,7 @@ export function CashierTerminal({ branches, products }: { branches: BranchOption
           entity: 'orders', op: 'insert', pk: data?.invoice_id ?? localId,
           payload: {
             invoice_id: data?.invoice_id ?? localId, branch_id: branchId, payment_method: method,
-            net: data?.net ?? cartNet,
+            net: data?.net ?? cartNet, created_by: userId,
             lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: Number(l.product.sell_price) })),
             ...(data ? {} : { offline: true }),
           },

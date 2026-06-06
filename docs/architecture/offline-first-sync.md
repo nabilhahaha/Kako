@@ -467,9 +467,26 @@ cloud:** offline customer materialized into `erp_customers`; replay produced **n
 duplicate**; `done` excluded from the due feed; failed-past-backoff re-claimed; dead-letter
 parked; audit row written.
 
-**Orders/invoices (financial):** the order flows are offline-queue, but invoice
-materialization reuses the app's session-coupled `createInvoice/issueInvoice/recordPayment`
-(numbering, stock, accounting) — it must **not** be re-implemented in SQL. The handler is
-intentionally not yet registered (records park `skipped:no-handler`, visible + retriable);
-enabling it needs a small, reviewed context-injection so that audited financial logic runs
-in the service-role worker. Tracked as the next reconciliation step.
+**Orders/invoices (financial) — implemented + branch-validated.** Offline POS + wholesale
+orders materialize into real `erp_invoices` through the **exact same audited logic** as the
+online path. No accounting/stock/numbering was re-implemented:
+- `createInvoice/issueInvoice/recordPayment` and `cashierCheckout/wholesaleInvoice` were
+  split into session-decoupled **cores** (`src/lib/erp/sales/{invoice,cashier}-core.ts`);
+  the server actions are now thin session wrappers over them. All money movement stays in
+  the DB RPCs `erp_next_number` / `erp_issue_invoice` (stock-out + AR/Revenue journal +
+  balance) / `erp_record_payment`.
+- **Idempotency:** `createInvoiceCore` dedupes on `idempotency_key = mirror pk`;
+  `erp_record_payment` dedupes on the same uuid; the checkout is **resumable** (issues only
+  a still-`draft` invoice) so a retry after a partial failure continues without duplicating.
+- **Identity / audit:** `erp_issue_invoice` gates on `auth.uid()` for branch access and
+  stamps `created_by` on stock movements, so the worker runs **as the originating cashier**
+  (`createUserScopedClient` mints a short-lived JWT from the `created_by` captured in the
+  offline payload). RLS still applies — strictly safer than a service-role bypass and it
+  preserves audit attribution. Online-created sales are mirrored too (pk = real invoice id,
+  no `offline` flag) — the handler confirms and marks those done without re-creating.
+- **Validated end-to-end on an isolated branch** (then torn down): offline POS order → 2 @ 50
+  → invoice `INV-…-000001` issued+`paid`; stock `100 → 98` with one `sale_out` movement
+  attributed to the cashier; one journal entry; cash-customer balance nets to 0; one payment
+  row (100.00). **Replay (same pk): 1 invoice, stock still 98, paid still 100, 1 movement,
+  1 journal — a complete no-op.** Requires `SUPABASE_JWT_SECRET`; if unset the handler fails
+  closed (records stay retriable, never wrong data).

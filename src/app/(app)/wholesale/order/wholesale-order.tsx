@@ -22,7 +22,7 @@ interface Line { product: WProduct; qty: number; price: number }
 
 const selectCls = 'h-10 rounded-md border border-input bg-background px-2 text-sm';
 
-export function WholesaleOrder({ branches, customers, products, tierPrices }: { branches: BranchOpt[]; customers: WCustomer[]; products: WProduct[]; tierPrices: Record<string, number> }) {
+export function WholesaleOrder({ branches, customers, products, tierPrices, userId }: { branches: BranchOpt[]; customers: WCustomer[]; products: WProduct[]; tierPrices: Record<string, number>; userId: string }) {
   const { t } = useI18n();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [customerId, setCustomerId] = useState('');
@@ -80,7 +80,7 @@ export function WholesaleOrder({ branches, customers, products, tierPrices }: { 
           entity: 'orders', op: 'insert', pk: data?.invoice_id ?? localId,
           payload: {
             invoice_id: data?.invoice_id ?? localId, invoice_number: data?.invoice_number ?? null,
-            branch_id: branchId, customer_id: customerId, payment_method: method, collect,
+            branch_id: branchId, customer_id: customerId, payment_method: method, collect, created_by: userId,
             lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: l.price })),
             ...(data ? {} : { offline: true }),
           },
