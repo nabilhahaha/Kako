@@ -419,3 +419,57 @@ worker is the gate before the offline-created operational records become fully "
 client pk · genuine-error rethrow); status states in `web/status.test.ts`. Real-browser
 pass on the preview (page loaded → disconnect → navigate → create → refresh → reconnect →
 auto-sync) is the remaining manual gate, with `KAKO_SYNC` enabled on the preview.
+
+## 19. Reconciliation worker — `sync_rows` → business tables (resolves the §18 caveat)
+Closes the loop: offline-created operational records in the mirror become **real**
+business rows automatically after sync. Behind `KAKO_SYNC`; migration `0002` is
+review-only (under `docs/`).
+
+**Architecture.** A pure engine (`src/lib/sync/server/reconcile.ts`) over an injected
+`ReconcileDeps` + a per-entity `ReconcileHandler` registry — same testable shape as
+`applyPush`. Backed by migration `0002_sync_reconcile.sql`:
+- `sync_reconcile` — per-(company,entity,pk) ledger: `status` (pending/done/failed/
+  skipped), `business_id`, `attempts`, `last_error`, `reason`, `next_attempt_at`. PK
+  makes processing exactly-once and is the **clear status** surface (RLS-guarded read).
+- `sync_reconcile_log` — append-only **audit trail** of every attempt.
+- `sync_reconcile_due(entities, limit)` — claims mirror rows with no ledger row, or
+  `failed`/`pending` past their backoff (ordered by mirror `seq`).
+- `sync_reconcile_mark(...)` — atomic ledger upsert + audit-log append.
+Wired to Supabase in `reconcile-deps.ts`; driven by the cron route
+`/api/sync/reconcile` (service-role, `CRON_SECRET`, 404 when the flag is off),
+scheduled every 15 min in `vercel.json`.
+
+**Materialization.** Single-table operational entities use the **offline client uuid as
+the business row id** (`upsert … on conflict (id) do nothing`), so a replay — or a crash
+between materialize and `markDone` — can never double-create. Reference handler:
+`customers` → `erp_customers` (validated end-to-end on an isolated branch). `visits`,
+`survey_response` follow the same column-mapped pattern once their maps are confirmed.
+
+**Flow.**
+```
+cron → reconcile():
+  due(entities, N) ──> for each mirror record:
+     ledger 'done'?  ──yes──> skip (exactly-once)
+        │no
+     handler? ──no──> markSkipped('no-handler')      (parked, visible, retriable)
+        │yes
+     materialize(rec)  (idempotent: id = offline uuid)
+        ├─ ok    → markDone(businessId)               → erp_* row + ledger 'done' + log
+        └─ throw → markFailed(attempt, backoff)        retry … → dead-letter at attempt 6
+```
+
+**Failure handling.** Per-record isolation (one failure never blocks the batch);
+capped exponential backoff (30s·2ⁿ, max 1h) via `next_attempt_at`; **dead-letter** to a
+visible terminal `failed` (`reason='dead-letter'`, parked far-future) after 6 attempts —
+never silently dropped; every attempt audited. No-handler entities are parked `skipped`
+(not faked done) so adding a handler later resumes them. **Branch-validated on real
+cloud:** offline customer materialized into `erp_customers`; replay produced **no
+duplicate**; `done` excluded from the due feed; failed-past-backoff re-claimed; dead-letter
+parked; audit row written.
+
+**Orders/invoices (financial):** the order flows are offline-queue, but invoice
+materialization reuses the app's session-coupled `createInvoice/issueInvoice/recordPayment`
+(numbering, stock, accounting) — it must **not** be re-implemented in SQL. The handler is
+intentionally not yet registered (records park `skipped:no-handler`, visible + retriable);
+enabling it needs a small, reviewed context-injection so that audited financial logic runs
+in the service-role worker. Tracked as the next reconciliation step.
