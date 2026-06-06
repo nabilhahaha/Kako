@@ -9,8 +9,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ReconcileDeps, MirrorRecord, ReconcileHandler } from './reconcile';
 import { cashierCheckoutCore } from '@/lib/erp/sales/cashier-core';
-import { wholesaleInvoiceCore, type CoreCtx, type Translate } from '@/lib/erp/sales/invoice-core';
-import type { LineInput } from '@/lib/erp/sales-calc';
+import { createInvoiceCore, wholesaleInvoiceCore, type CoreCtx, type Translate } from '@/lib/erp/sales/invoice-core';
+import { computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { createUserScopedClient } from './impersonate';
 
@@ -48,8 +48,8 @@ export function makeReconcileDeps(db: Db, entities: string[]): ReconcileDeps {
       const row = data as { status: 'pending' | 'done' | 'failed' | 'skipped'; attempts: number };
       return { status: row.status, attempts: row.attempts };
     },
-    async markDone(rec, businessId, attempts) {
-      await mark(db, rec, 'done', businessId, attempts, null, null, new Date().toISOString());
+    async markDone(rec, businessId, attempts, note) {
+      await mark(db, rec, 'done', businessId, attempts, null, note ?? null, new Date().toISOString());
     },
     async markFailed(rec, attempts, error, nextAttemptAt, deadLetter) {
       const next = deadLetter ? FAR_FUTURE() : new Date(nextAttemptAt).toISOString();
@@ -124,8 +124,22 @@ function ordersHandler(db: Db): ReconcileHandler {
       const userDb = createUserScopedClient(ctx.userId);
 
       if (p.customer_id) {
+        const customerId = String(p.customer_id);
+        // Credit policy: a field sale is never rejected for over-credit. If the
+        // customer exceeded their limit before this synced, materialize a flagged
+        // draft and DEFER issue/posting to a human credit review.
+        const net = computeTotals(lines).net_amount;
+        const { data: cust } = await userDb.from('erp_customers').select('credit_limit,balance').eq('id', customerId).maybeSingle();
+        const cl = cust as { credit_limit?: number; balance?: number } | null;
+        const overCredit = !!cl && Number(cl.credit_limit) > 0 && Number(cl.balance) + net > Number(cl.credit_limit);
+        if (overCredit) {
+          const created = await createInvoiceCore(userDb, ctx, t,
+            { branch_id, customer_id: customerId, lines, idempotency_key: rec.pk, allow_over_credit: true, requires_credit_review: true });
+          if (!created.ok || !created.data) throw new Error(created.error ?? 'credit-review create failed');
+          return { businessId: created.data.id, note: 'credit-review' };
+        }
         const res = await wholesaleInvoiceCore(userDb, ctx, t,
-          { branch_id, customer_id: String(p.customer_id), lines, collect: !!p.collect, payment_method },
+          { branch_id, customer_id: customerId, lines, collect: !!p.collect, payment_method },
           { idempotencyKey: rec.pk });
         if (!res.ok || !res.data) throw new Error(res.error ?? 'wholesale reconcile failed');
         return { businessId: res.data.invoice_id };

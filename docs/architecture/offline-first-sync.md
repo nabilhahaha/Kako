@@ -506,6 +506,27 @@ and re-asserted defensively in `0003_idempotency_guards.sql`. Battery results:
 `createInvoiceCore` now catches the 23505 race-loss and returns the winner's invoice, so a
 concurrent worker resolves on the first pass instead of failing into a retry.
 
+**Business policies for offline orders (owner-set).**
+1. **Stale price — use the price captured at order creation.** The offline payload carries each
+   line's `unit_price` from when the rep made the sale; the cores materialize with those captured
+   prices and never re-resolve against the live catalog. Branch-validated: an order captured at
+   50/unit produced a line total of 100 even after the catalog was bumped to 999.
+2. **Credit limit — sync, never silently reject.** If the customer exceeded their credit limit
+   before the order synced, the handler materializes the invoice as a **draft flagged
+   `requires_credit_review=true`** (column added in `0004_invoice_credit_review.sql`), **skips
+   issue/posting**, and records `reason='credit-review'` on the ledger (surfaced in the console).
+   Finance reviews and issues it — the sale is captured, never dropped. Within-limit orders run
+   the normal issue+pay flow. (Online sales still block over-credit at create, unchanged.)
+   Branch-validated: over-limit → `draft / review=true` (not issued); within-limit → `paid`.
+
+**Parallel-load soak (branch-validated, then torn down).** Four concurrent workers (separate
+DB connections, one branch each) materialized 50 distinct POS sales apiece = **200 invoices /
+200 payments / 0 duplicate pks**, with per-warehouse stock exactly accounted (no lost updates
+under concurrent decrements). A **6-way same-pk collision** (six simultaneous workers on the
+identical order) resolved to **exactly one** invoice, payment, and stock movement — the other
+five clean no-ops. Confirms the unique-index backstops + `FOR UPDATE`/idempotent RPCs hold
+under real concurrency.
+
 **Operator console.** The admin Sync console (`settings/sync`, behind KAKO_SYNC, admin-only)
 gains a reconciliation panel: status counts (done/pending/failed/skipped), the attention
 queue (failed + dead-lettered with `last_error`/attempts), and **on-demand retry** per record

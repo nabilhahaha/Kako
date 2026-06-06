@@ -30,6 +30,11 @@ export interface InvoiceCoreInput {
   notes?: string;
   lines: LineInput[];
   idempotency_key?: string;
+  // Offline-reconciliation credit policy: a sale already made in the field is
+  // never rejected for over-credit — it is materialized and flagged for review
+  // instead. Online callers leave these unset (over-credit still blocks at create).
+  allow_over_credit?: boolean;
+  requires_credit_review?: boolean;
 }
 
 /** Insert a draft invoice + lines (numbering via erp_next_number). Idempotent on
@@ -52,7 +57,9 @@ export async function createInvoiceCore(
 
   const totals = computeTotals(lines);
   const c = cust as { credit_limit?: number; balance?: number } | null;
-  if (c && Number(c.credit_limit) > 0 && Number(c.balance) + totals.net_amount > Number(c.credit_limit)) {
+  // Over-credit blocks online; offline reconciliation passes allow_over_credit and
+  // flags the invoice for review instead of rejecting a sale that already happened.
+  if (!input.allow_over_credit && c && Number(c.credit_limit) > 0 && Number(c.balance) + totals.net_amount > Number(c.credit_limit)) {
     return { ok: false, error: t('sales.errOverCredit') };
   }
 
@@ -96,6 +103,7 @@ export async function createInvoiceCore(
       total_amount: totals.total_amount, discount_amount: totals.discount_amount,
       tax_amount: totals.tax_amount, net_amount: totals.net_amount,
       due_date: input.due_date || null, notes: input.notes?.trim() || null, created_by: ctx.userId,
+      requires_credit_review: input.requires_credit_review ?? false,
     }).select('id').single();
   if (invErr) {
     // Concurrency backstop: if we lost the race on the idempotency key (uq_erp_invoices_idem,

@@ -39,7 +39,8 @@ export interface ReconcileState {
 /** Materializes one mirror record into the business tables, idempotently,
  *  returning the resulting business row id (or null if nothing was created). */
 export interface ReconcileHandler {
-  materialize(rec: MirrorRecord): Promise<{ businessId: string | null }>;
+  // `note` (optional) records a business outcome on the ledger, e.g. 'credit-review'.
+  materialize(rec: MirrorRecord): Promise<{ businessId: string | null; note?: string }>;
 }
 
 export interface ReconcileDeps {
@@ -47,7 +48,7 @@ export interface ReconcileDeps {
   due(limit: number): Promise<MirrorRecord[]>;
   /** Current ledger state for a record, or null if never seen. */
   getState(rec: MirrorRecord): Promise<ReconcileState | null>;
-  markDone(rec: MirrorRecord, businessId: string | null, attempts: number): Promise<void>;
+  markDone(rec: MirrorRecord, businessId: string | null, attempts: number, note?: string): Promise<void>;
   markFailed(rec: MirrorRecord, attempts: number, error: string, nextAttemptAt: number, deadLetter: boolean): Promise<void>;
   markSkipped(rec: MirrorRecord, reason: string): Promise<void>;
 }
@@ -98,9 +99,9 @@ export async function reconcileOne(
 
   const attempts = (state?.attempts ?? 0) + 1;
   try {
-    const { businessId } = await handler.materialize(rec);
-    await deps.markDone(rec, businessId, attempts);
-    return { ...key(rec), status: 'done', businessId };
+    const { businessId, note } = await handler.materialize(rec);
+    await deps.markDone(rec, businessId, attempts, note);
+    return { ...key(rec), status: 'done', businessId, reason: note };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
     const deadLetter = attempts >= RECONCILE_MAX_ATTEMPTS;
