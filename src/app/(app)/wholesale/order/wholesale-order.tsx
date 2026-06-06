@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, Trash2, Loader2, FileText } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { openPrintView } from '@/lib/erp/print';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { wholesaleInvoice } from '../actions';
 import { useI18n } from '@/lib/i18n/provider';
@@ -73,7 +74,7 @@ export function WholesaleOrder({ branches, customers, products, tierPrices }: { 
       if (!res.ok || !res.data) { toast.error(res.error ?? t('wholesale.toastIssueFailed')); return; }
       toast.success(t('wholesale.toastInvoiceIssued', { number: res.data.invoice_number }));
       setCart([]); setCustomerId('');
-      window.open(`/print/receipt/${res.data.invoice_id}`, '_blank');
+      openPrintView(`/print/receipt/${res.data.invoice_id}`);
     });
   }
 

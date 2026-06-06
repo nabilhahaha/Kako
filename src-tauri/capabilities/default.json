@@ -9,6 +9,18 @@
     "shell:allow-spawn",
     "updater:default",
     "process:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "dialog:default",
+    "fs:default",
+    "opener:default",
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [
+        { "path": "$HOME/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DESKTOP/**" }
+      ]
+    }
   ]
 }

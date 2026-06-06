@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScanBarcode, Plus, Minus, Trash2, Loader2, ShoppingCart } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { openPrintView } from '@/lib/erp/print';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { cashierCheckout } from '../actions';
 import { useI18n } from '@/lib/i18n/provider';
@@ -75,7 +76,7 @@ export function CashierTerminal({ branches, products }: { branches: BranchOption
       const ch = method === 'cash' && paidNum > 0 ? paidNum - res.data.net : 0;
       toast.success(ch > 0 ? t('market.pos.toastSaleWithChange', { change: ch.toLocaleString(INTL_LOCALE[locale]) }) : t('market.pos.toastSaleComplete'));
       setCart([]); setPaid('');
-      window.open(`/print/receipt/${res.data.invoice_id}`, '_blank');
+      openPrintView(`/print/receipt/${res.data.invoice_id}`);
     });
   }
 

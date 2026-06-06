@@ -35,3 +35,18 @@ export async function printDocument(): Promise<void> {
   }
   window.print();
 }
+
+/**
+ * Open a print/receipt route. In the desktop shell, `window.open(_, '_blank')`
+ * is a no-op (WKWebView opens no new window), so navigate the SAME window to the
+ * route (the print pages carry a print:hidden Back control). In the browser,
+ * keep the familiar new-tab behavior. (DF-1)
+ */
+export function openPrintView(path: string): void {
+  const inTauri = typeof window !== 'undefined' && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
+  if (inTauri) {
+    window.location.assign(path);
+  } else {
+    window.open(path, '_blank');
+  }
+}
