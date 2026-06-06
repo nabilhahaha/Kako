@@ -97,7 +97,16 @@ export async function createInvoiceCore(
       tax_amount: totals.tax_amount, net_amount: totals.net_amount,
       due_date: input.due_date || null, notes: input.notes?.trim() || null, created_by: ctx.userId,
     }).select('id').single();
-  if (invErr) return { ok: false, error: friendlyDbError(invErr) };
+  if (invErr) {
+    // Concurrency backstop: if we lost the race on the idempotency key (uq_erp_invoices_idem,
+    // 23505), the winner's invoice already exists → return it instead of failing.
+    if ((invErr as { code?: string }).code === '23505' && input.idempotency_key) {
+      const { data: won } = await supabase
+        .from('erp_invoices').select('id').eq('idempotency_key', input.idempotency_key).maybeSingle();
+      if (won) return { ok: true, data: { id: (won as { id: string }).id } };
+    }
+    return { ok: false, error: friendlyDbError(invErr) };
+  }
 
   const lineRows = lines.map((l) => {
     const cl = computeLine(l);

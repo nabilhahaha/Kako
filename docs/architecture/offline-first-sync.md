@@ -490,3 +490,18 @@ online path. No accounting/stock/numbering was re-implemented:
   row (100.00). **Replay (same pk): 1 invoice, stock still 98, paid still 100, 1 movement,
   1 journal — a complete no-op.** Requires `SUPABASE_JWT_SECRET`; if unset the handler fails
   closed (records stay retriable, never wrong data).
+
+**Concurrency / race hardening (branch-validated, then torn down).** The integrity backstops
+are **partial unique indexes** — `uq_erp_invoices_idem` and `uq_erp_payments_idem`
+(`(idempotency_key) where idempotency_key is not null`) — confirmed present in the live schema
+and re-asserted defensively in `0003_idempotency_guards.sql`. Battery results:
+  | Scenario | Outcome |
+  |---|---|
+  | Concurrent worker / duplicate retry | dedup → returns existing invoice, no insert |
+  | Double-issue (stock) | blocked — `erp_issue_invoice` `FOR UPDATE` + status≠draft guard |
+  | Double-pay (RPC) | idempotent no-op |
+  | Replay attack (raw dup invoice) | **blocked by `uq_erp_invoices_idem` (23505)** |
+  | Double-submit (raw dup payment) | **blocked by `uq_erp_payments_idem` (23505)** |
+  | Stock delta | exactly one sale (98→96); invoices=1, payments=1, paid=100 |
+`createInvoiceCore` now catches the 23505 race-loss and returns the winner's invoice, so a
+concurrent worker resolves on the first pass instead of failing into a retry.
