@@ -17,9 +17,9 @@ set -euo pipefail
 
 ARCH="${1:-arm64}"
 case "$ARCH" in
-  arm64)  TRIPLE="aarch64-apple-darwin"; NODE_ARCH="arm64"; PG_ARCH="aarch64"; PGRST_ARCH="aarch64" ;;
-  x86_64) TRIPLE="x86_64-apple-darwin";  NODE_ARCH="x64";   PG_ARCH="x86_64";  PGRST_ARCH="x86-64" ;;
-  *) echo "unknown arch $ARCH (use arm64|x86_64)"; exit 2 ;;
+  arm64|aarch64) TRIPLE="aarch64-apple-darwin"; NODE_ARCH="arm64"; PG_ARCH="aarch64"; PGRST_ARCH="aarch64" ;;
+  x86_64|x64)    TRIPLE="x86_64-apple-darwin";  NODE_ARCH="x64";   PG_ARCH="x86_64";  PGRST_ARCH="x86-64" ;;
+  *) echo "unknown arch $ARCH (use arm64|aarch64|x86_64)"; exit 2 ;;
 esac
 
 PG_VERSION="${KAKO_PG_VERSION:-17.10.0}"

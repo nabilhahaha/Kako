@@ -106,6 +106,12 @@ jobs:
             echo "✗ tag $TAG does not match package.json v$PKG"; exit 1
           fi
 
+      - name: Stage offline sidecars
+        # Downloads + stages the relocatable PostgreSQL 17 / PostgREST / Node
+        # binaries the offline edition bundles (they are gitignored, not in the
+        # repo). No-op for a future online-only build (it has no sidecars).
+        run: bash scripts/offline/macos/fetch-binaries.sh ${{ matrix.arch }}
+
       - name: Build + sign (Tauri)
         # beforeBuildCommand (`npm run build`) runs the Next build; tauri signs the
         # updater artifact when TAURI_SIGNING_PRIVATE_KEY[_PASSWORD] are present.
