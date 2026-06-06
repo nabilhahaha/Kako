@@ -12,7 +12,7 @@ import { cashierCheckoutCore } from '@/lib/erp/sales/cashier-core';
 import { createInvoiceCore, wholesaleInvoiceCore, type CoreCtx, type Translate } from '@/lib/erp/sales/invoice-core';
 import { computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
-import { createUserScopedClient } from './impersonate';
+import { createImpersonatedClient } from './impersonate';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any>;
@@ -121,7 +121,8 @@ function ordersHandler(db: Db): ReconcileHandler {
 
       // Run the audited cores AS the originating cashier (auth.uid()=created_by):
       // same branch authority, RLS, and audit attribution as the online sale.
-      const userDb = createUserScopedClient(ctx.userId);
+      // Short-lived, single-use, audit-logged impersonation token.
+      const userDb = await createImpersonatedClient(db, { userId: ctx.userId, companyId: rec.companyId, entity: rec.entity, pk: rec.pk });
 
       if (p.customer_id) {
         const customerId = String(p.customer_id);

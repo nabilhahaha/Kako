@@ -480,10 +480,22 @@ online path. No accounting/stock/numbering was re-implemented:
   a still-`draft` invoice) so a retry after a partial failure continues without duplicating.
 - **Identity / audit:** `erp_issue_invoice` gates on `auth.uid()` for branch access and
   stamps `created_by` on stock movements, so the worker runs **as the originating cashier**
-  (`createUserScopedClient` mints a short-lived JWT from the `created_by` captured in the
-  offline payload). RLS still applies — strictly safer than a service-role bypass and it
-  preserves audit attribution. Online-created sales are mirrored too (pk = real invoice id,
-  no `offline` flag) — the handler confirms and marks those done without re-creating.
+  (impersonation from the `created_by` captured in the offline payload). RLS still applies —
+  strictly safer than a service-role bypass and it preserves audit attribution. Online-created
+  sales are mirrored too (pk = real invoice id, no `offline` flag) — the handler confirms and
+  marks those done without re-creating.
+- **Impersonation hardening (`impersonate.ts`, `mintReconcileToken`):** tokens are
+  **short-lived** (60s TTL), **rotated** (a fresh token + unique `jti` minted per operation,
+  never cached/reused), **scoped** (`iss=kako-reconcile`, `purpose` claim), and **audited** —
+  `createImpersonatedClient` writes a `sync_impersonation_log` row (user, entity/pk, jti,
+  issued/expires) **before** the token is used (migration `0005`; unique `jti` = replay guard).
+  **Fail-closed:** no `SUPABASE_JWT_SECRET` → throw (record stays retriable); an expired/absent
+  token → `auth.uid()` null → branch access denied → no write. The raw token is never logged.
+  Validated: 7 mint unit tests (structure, 60s TTL, jti rotation, signature/secret-rotation,
+  past-expiry, no-secret throw, metadata↔claims); branch checks — audit row written, duplicate
+  jti blocked, absent/expired identity denied branch access, token cannot exceed the user's
+  branch grants. (Rotating the project JWT secret requires updating `SUPABASE_JWT_SECRET` in
+  lockstep so minted tokens stay verifiable.)
 - **Validated end-to-end on an isolated branch** (then torn down): offline POS order → 2 @ 50
   → invoice `INV-…-000001` issued+`paid`; stock `100 → 98` with one `sale_out` movement
   attributed to the cashier; one journal entry; cash-customer balance nets to 0; one payment
