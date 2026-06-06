@@ -1728,7 +1728,7 @@ dependencies = [
 
 [[package]]
 name = "kako-offline"
-version = "0.1.0-beta.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "core-foundation 0.9.4",
  "libc",
