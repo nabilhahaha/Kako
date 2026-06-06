@@ -22,7 +22,9 @@
     "offline:restore": "node scripts/offline/restore.mjs",
     "offline:update": "node scripts/offline/update.mjs",
     "offline:rollback": "node scripts/offline/rollback.mjs",
-    "offline:cert": "node scripts/offline/recovery-cert.mjs"
+    "offline:cert": "node scripts/offline/recovery-cert.mjs",
+    "offline:anon-key": "node scripts/offline/anon-key.mjs",
+    "offline:dev-stack": "node scripts/offline/dev-stack.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.55.0",
