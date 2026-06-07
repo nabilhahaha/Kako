@@ -85,3 +85,6 @@ columns). No new tables, columns, or migrations.
 Use `erp_events` only ✓ · no business logic changes (best-effort, post-success,
 swallows errors) ✓ · no UI ✓ · no Workflow Builder ✓ · full audit (every event on
 the bus with actor + payload) ✓ · full tenant isolation (RLS + company-scoped emit) ✓.
+
+---
+*Status, completed/remaining components, known risks, technical debt, Builder prerequisites, and the future roadmap are tracked centrally in `WORKFLOW_ENGINE_STATUS.md`.*

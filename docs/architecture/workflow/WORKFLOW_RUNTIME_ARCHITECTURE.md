@@ -115,3 +115,6 @@ a failed `StepResult`; never crash the run).
   → engine; `evalCondition` → `erp_workflow_condition_met`; `audit` → `emitEvent`) and a
   tick driver (`erp_workflow_tick` companion) that resumes `waiting`/retry/approved runs.
   Then — only then — the Workflow Builder UI.
+
+---
+*Status, completed/remaining components, known risks, technical debt, Builder prerequisites, and the future roadmap are tracked centrally in `WORKFLOW_ENGINE_STATUS.md`.*

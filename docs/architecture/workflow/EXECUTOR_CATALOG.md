@@ -64,3 +64,6 @@ supabase adapter (`runtime-deps.ts`) provides the real effects.
 - Per-type config forms should mirror each executor's `validate` so invalid steps
   can't be saved.
 - Branching UI maps to `next_on_success` / `next_on_failure` (+ condition success/failure).
+
+---
+*Status, completed/remaining components, known risks, technical debt, Builder prerequisites, and the future roadmap are tracked centrally in `WORKFLOW_ENGINE_STATUS.md`.*

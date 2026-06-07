@@ -69,3 +69,6 @@ How domain events flow from producers, through the bus, to consumers and workflo
 - The Builder must surface the **event catalog** (this map) as the trigger picker (event_type + `trigger_config` filter editor).
 - It must show **producer coverage** (which events actually fire) so users don't build triggers for non-emitted events.
 - It writes `erp_workflow_definitions.trigger_event` / `trigger_config`; the dispatcher already consumes these.
+
+---
+*Status, completed/remaining components, known risks, technical debt, Builder prerequisites, and the future roadmap are tracked centrally in `WORKFLOW_ENGINE_STATUS.md`.*
