@@ -1,7 +1,7 @@
-# VANTORA — Sales Foundation Architecture (Proposal)
+# VANTORA — Sales Foundation Architecture (Approved)
 
-**Status:** Architecture only — **no code, no migrations, no implementation, no
-branches.** Architecture review first.
+**Status:** ✅ **APPROVED & frozen** — architecture only; **no code, no migrations,
+no implementation** yet. Implementation planning deferred.
 **Goal:** a generic, industry-neutral **order-to-cash (O2C)** foundation with
 **first-class FMCG distribution** (route sales, van sales, trade promotions,
 customer classification, territory coverage, collections) — reused across all
@@ -165,5 +165,5 @@ second sales engine; no per-industry fork.
 6. **First consumer flow:** route visit → van sale → day-close reconciliation →
    AR/cash posting as the end-to-end FMCG validation against Inventory + Finance.
 
-*Architecture only — no code, migrations, implementation, or branches. Awaiting
-architecture review/approval before any implementation.*
+*Architecture **APPROVED & frozen** — no code, migrations, implementation, or
+branches. Implementation planning deferred until requested.*
