@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { snapshotRepDay, type RepDayKpiRow } from './snapshot';
+import { snapshotRepDay, snapshotReps, type RepDayKpiRow } from './snapshot';
 import type { CoverageGateway } from './gateway';
 import type { VisitFact } from './kpi';
 
@@ -38,5 +38,39 @@ describe('rep-day KPI snapshot service', () => {
     expect(saved!.coveragePct).toBeCloseTo(66.7, 1);
     // the persisted row carries no salesmanId/date duplication issues
     expect(saved).not.toHaveProperty('salesmanId', undefined);
+  });
+
+  describe('snapshotReps (scheduler batch)', () => {
+    const cov: CoverageGateway = { async loadPlannedCustomers() { return ['A', 'B']; }, async loadVisits() { return [v('A', true), v('B')]; } };
+
+    it('snapshots every rep in the batch and counts them', async () => {
+      const saved: RepDayKpiRow[] = [];
+      const snap = { async upsertRepDayKpi(row: RepDayKpiRow) { saved.push(row); } };
+      const reps = [
+        { companyId: 'co1', branchId: 'b1', salesmanId: 'r1' },
+        { companyId: 'co1', branchId: 'b1', salesmanId: 'r2' },
+      ];
+      const r = await snapshotReps(cov, snap, reps, '2026-06-07');
+      expect(r).toEqual({ snapshotted: 2, skipped: false });
+      expect(saved.map((s) => s.salesmanId)).toEqual(['r1', 'r2']);
+    });
+
+    it('is a no-op (skipped) when KAKO_DISTRIBUTION is off', async () => {
+      delete process.env.KAKO_DISTRIBUTION;
+      const snap = { async upsertRepDayKpi() { throw new Error('should not be called'); } };
+      const r = await snapshotReps(cov, snap, [{ companyId: 'c', branchId: 'b', salesmanId: 'r' }], '2026-06-07');
+      expect(r).toEqual({ snapshotted: 0, skipped: true });
+    });
+
+    it('continues the batch when one rep fails (best-effort)', async () => {
+      let calls = 0;
+      const snap = { async upsertRepDayKpi() { calls++; if (calls === 1) throw new Error('boom'); } };
+      const reps = [
+        { companyId: 'c', branchId: 'b', salesmanId: 'r1' },
+        { companyId: 'c', branchId: 'b', salesmanId: 'r2' },
+      ];
+      const r = await snapshotReps(cov, snap, reps, '2026-06-07');
+      expect(r.snapshotted).toBe(1); // r1 failed, r2 succeeded
+    });
   });
 });
