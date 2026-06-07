@@ -10,6 +10,22 @@ export const ar = {
     customerNotApproved: 'لا يمكن إضافة عميل غير معتمد إلى خط سير.',
     defaultRepName: 'مندوب',
 
+    // ── Coverage / supervisor KPI dashboard ──────────────────────────────────
+    coverageTitle: 'التغطية ومتابعة المشرف',
+    coverageDescription: 'تغطية خط السير والالتزام ومعدل النجاح لكل مندوب.',
+    coverageEmpty: 'لا توجد مؤشرات محفوظة لهذا اليوم بعد.',
+    coverageAsOf: 'حتى تاريخ',
+    kpiCoverage: 'التغطية',
+    kpiAdherence: 'الالتزام بالخطة',
+    kpiStrikeRate: 'معدل النجاح',
+    kpiVisited: 'تمت زيارتهم',
+    kpiMissed: 'لم تتم زيارتهم',
+    colRep: 'المندوب',
+    colPlanned: 'المخطط',
+    colVisited: 'تمت الزيارة',
+    colCoverage: 'التغطية',
+    colStrike: 'النجاح',
+
     // ── Routes ───────────────────────────────────────────────────────────────
     routesTitle: 'خطوط السير / المناطق',
     routesDescription: 'جمّع عملاءك تحت خط سير بمندوب وعربية ويوم زيارة.',
@@ -83,6 +99,22 @@ export const en = {
     noCompany: 'Available within a company account.',
     customerNotApproved: 'A non-approved customer can’t be added to a route.',
     defaultRepName: 'Rep',
+
+    // ── Coverage / supervisor KPI dashboard ──────────────────────────────────
+    coverageTitle: 'Coverage & Supervisor Monitoring',
+    coverageDescription: 'Route coverage, plan adherence, and strike rate per rep.',
+    coverageEmpty: 'No saved KPIs for this day yet.',
+    coverageAsOf: 'As of',
+    kpiCoverage: 'Coverage',
+    kpiAdherence: 'Plan adherence',
+    kpiStrikeRate: 'Strike rate',
+    kpiVisited: 'Visited',
+    kpiMissed: 'Missed',
+    colRep: 'Rep',
+    colPlanned: 'Planned',
+    colVisited: 'Visited',
+    colCoverage: 'Coverage',
+    colStrike: 'Strike',
 
     // ── Routes ───────────────────────────────────────────────────────────────
     routesTitle: 'Routes / Territories',
