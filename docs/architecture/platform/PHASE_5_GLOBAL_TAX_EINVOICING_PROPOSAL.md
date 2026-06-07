@@ -12,6 +12,11 @@ commercial onboarding in KSA/Egypt).
 **Revision (rev 2):** expanded per review to explicitly cover the **legal-entity dimension
 (§3.1)**, **multiple VAT registrations per company (§3.2)**, **effective-dated tax rules
 (§3.3)**, and the **country-pack versioning strategy (§2.1)**.
+**Revision (rev 3):** **document-level tax treatment (§1A)** — tax treatment is resolved
+**per document**, not from customer master alone, so the same customer can receive mixed
+tax/non-tax documents on the same day; adds the document-tax-profile catalog + treatment
+resolution entities to the data model (§5) and country examples (§1A.5). _(Amendment to
+the frozen baseline; design-only, pending review.)_
 
 ## 0. Principles (inherited from Phases 1–4, non-negotiable)
 - **Platform-wide, not FMCG-specific.** Tax is a *core* capability used by every
@@ -68,6 +73,89 @@ fully unit-testable before any DB.
 - **Tax Posting Integration** — the **existing Phase-1 poster** books the GL legs (Dr/Cr
   Output/Input VAT) under distinct reference types; the tax ledger is the sub-ledger.
 - **Audit Trail** — `erp_audit_logs` for every config + submission + adjustment.
+
+---
+
+## 1A. Document-Level Tax Treatment (rev 3 — Phase 5A Core)
+
+**Principle: tax treatment is a property of the DOCUMENT, not the customer.** A customer
+is not "a tax customer" or "a non-tax customer"; the *same* customer can legitimately
+receive a tax invoice, a non-tax invoice, a credit note, and a receipt **on the same
+day**. The engine therefore resolves tax treatment **per document at creation time** and
+**stamps it on the document** — it is never inferred solely from customer master data.
+
+### 1A.1 Resolution hierarchy (cascade, most-specific wins)
+```
+Company → Legal Entity → Customer → Document Type → [Document Tax Treatment]
+```
+- A **default treatment** is configured at each level; resolution walks the chain and the
+  **most specific match wins**, with a **per-document override** at creation (a user/flow
+  may set the document's tax profile explicitly within what the legal entity/registration
+  permits).
+- The resolved treatment is **persisted on the document** (`document_tax_profile_id` +
+  effective tax-point date) so it is immutable history — re-prints/credit-notes reuse it.
+- This removes the "customer-level conflict": because treatment is per document, two
+  documents for the same customer on the same day can carry different profiles **without
+  any configuration change** — they simply resolve/override to different profiles.
+- Effective-dating (§3.3) and registration selection (§3.2) still apply *given* the chosen
+  profile (the profile decides *whether/how* tax applies; codes/rates decide the amounts).
+
+### 1A.2 Document tax profiles (the supported set)
+A platform catalog of **document tax profiles**, each with a tax behaviour + compliance
+class the country packs key off:
+
+| Profile | Taxable? | Notes |
+|---------|----------|-------|
+| Tax Invoice | yes (standard) | full tax invoice; e-invoice/clearance per pack |
+| Simplified Tax Invoice | yes | B2C/POS simplified; QR per pack (e.g. ZATCA P1) |
+| Non-Tax Invoice | no | commercial doc with no tax lines (out-of-scope/unregistered flow) |
+| Credit Note | no-tax | adjustment without tax (mirrors a non-tax invoice) |
+| Debit Note | no-tax | adjustment without tax |
+| Tax Credit Note | yes | tax-bearing CN referencing a tax invoice; pack-reported |
+| Tax Debit Note | yes | tax-bearing DN referencing a tax invoice; pack-reported |
+| Receipt | no-tax | payment receipt, no tax |
+| Tax Receipt | yes | tax-bearing receipt (e.g. ETA e-receipt for cash sales) |
+| Out Of Scope | excluded | outside VAT scope; not reported as taxable |
+| Zero Rated | yes @ 0% | reportable, inputs recoverable |
+| Exempt | no tax | no tax, no input recovery |
+
+Profiles map to the engine's tax **kind** (§1.1) + a **compliance class** (`e_invoice`,
+`e_receipt`, `simplified`, `none`). The catalog is platform-owned; packs extend the
+compliance mapping, never the customer master.
+
+### 1A.3 Mixed tax/non-tax documents, same customer, same day
+Because the document carries its own profile:
+- Customer C, on 2026-06-07, can receive: a **Tax Invoice** (14% VAT, ETA e-invoice), a
+  **Non-Tax Invoice** (out-of-scope service), a **Tax Credit Note** (correcting an earlier
+  tax invoice), and a **Receipt** — each resolved/overridden independently, each ledgered
+  and (where taxable) submitted under its own profile. **No conflict, no per-customer
+  toggle.**
+- The tax ledger and reports filter by profile/kind, so non-tax and out-of-scope documents
+  never pollute the VAT return; taxable profiles net correctly.
+
+### 1A.4 Country packs key off the DOCUMENT profile (not customer master)
+The `TaxCompliancePack` (§2) receives the **resolved document tax profile** and decides
+compliance from it:
+- profile → whether to generate an e-invoice / e-receipt / simplified doc, which schema,
+  whether clearance vs reporting, which validations, and the statutory document type code.
+- Customer master only contributes inputs to *resolution* (e.g. registered vs not); it is
+  **never** the sole determinant of compliance. A pack reads `document_tax_profile` first.
+
+### 1A.5 Country examples
+- **Egypt (ETA):** `Tax Invoice` → ETA **e-invoice** (full, signed JSON, document type
+  `I`); `Tax Receipt` → ETA **e-receipt** (B2C cash); `Non-Tax Invoice`/`Out Of Scope` →
+  internal doc, **not** sent to ETA; `Tax Credit Note`/`Tax Debit Note` → ETA `C`/`D`
+  referencing the original. Same customer can get an e-invoice and an internal non-tax
+  invoice the same day — the pack acts only on the taxable profiles.
+- **Saudi (ZATCA):** `Tax Invoice` (B2B) → **standard** invoice → **Clearance** (Phase 2,
+  signed UBL XML + UUID/PIH); `Simplified Tax Invoice` (B2C) → **Reporting** + **QR**
+  (Phase 1); `Tax Credit/Debit Note` → corresponding note cleared/reported; `Exempt`/`Zero
+  Rated` carried with the correct category code. The B2B vs B2C clearance-vs-reporting
+  split is driven by the **profile**, not the customer record.
+- **UAE (FTA):** `Tax Invoice` (5% VAT) and `Simplified Tax Invoice` (B2C) reported on the
+  VAT return; `Zero Rated` (e.g. exports) and `Exempt` (e.g. certain financial services)
+  carried distinctly; `Out Of Scope` excluded. E-invoicing readiness keys off the profile
+  when the FTA mandate activates.
 
 ---
 
@@ -209,12 +297,28 @@ only tax legs — it never changes core posting logic (the Augment guarantee fro
     supply × txn type → tax code/group; priority; **effective_from/to**; data-driven like posting rules)
   - `erp_product_tax_categories`, `erp_customer_tax_profiles`, `erp_supplier_tax_profiles`
   - All resolution is **as-of the document tax point** (§3.3); changes are new effective-dated rows, never in-place edits.
+- **ERP Document Tax Treatment (rev 3 — §1A)**
+  - `erp_document_tax_profiles` (code, name, tax_kind `standard|zero|exempt|out_of_scope|none`,
+    compliance_class `e_invoice|e_receipt|simplified|none`, is_taxable, is_note,
+    requires_original_ref) — platform catalog of the 12 profiles (Tax Invoice, Simplified
+    Tax Invoice, Non-Tax Invoice, Credit Note, Debit Note, Tax Credit Note, Tax Debit Note,
+    Receipt, Tax Receipt, Out Of Scope, Zero Rated, Exempt).
+  - `erp_document_tax_treatments` (scope_level `company|legal_entity|customer|document_type`,
+    scope_id, document_type, document_tax_profile_id, is_default, **effective_from/to**) —
+    the **cascade resolution** rows (Company → Legal Entity → Customer → Document Type);
+    most-specific wins; per-document override permitted within the registration's allowed set.
+  - **Document stamp:** sales/AR/note documents carry `document_tax_profile_id` (+ resolved
+    tax-point date) — the immutable per-document treatment (additive nullable column on the
+    existing document tables; resolved at creation, never from customer master alone).
 - **ERP Tax Transactions**
   - `erp_tax_document_lines` (per source line: base, tax_code, rate, tax_amount, kind,
-    inclusive flag) — the computed breakdown attached to invoices/bills/notes
+    inclusive flag, **document_tax_profile_id**) — the computed breakdown attached to
+    invoices/bills/notes, tagged with the resolved document profile
 - **ERP Tax Ledger**
-  - `erp_tax_ledger` (legal_entity, period, direction output|input, tax_code, base, tax,
-    reference_type, reference_id, status) — the returns/reconciliation source
+  - `erp_tax_ledger` (legal_entity, registration, period, direction output|input, tax_code,
+    base, tax, **document_tax_profile_id**, reference_type, reference_id, status) — the
+    returns/reconciliation source; profile lets non-tax/out-of-scope docs be excluded from
+    the VAT return cleanly
 - **ERP Country Compliance**
   - `erp_tax_submissions` (legal_entity, pack, **pack_version + schema_version (pinned, §2.1)**,
     document ref, payload ref, uuid/hash, signature ref, status lifecycle
@@ -241,7 +345,7 @@ sector defaults/config → industry pack.**
 ## 7. Roadmap (phased, each flag-gated, reviewed)
 | Sub-phase | Scope | Depends on |
 |-----------|-------|------------|
-| **5A — Global Tax Engine** | Pure engine + **legal-entity dimension (§3.1)** + **multi-registration (§3.2)** + **effective-dated codes/rules (§3.3)** + tax data model + ledger + generic VAT report + posting integration + audit. | Phase-1 poster (done). |
+| **5A — Global Tax Engine** | Pure engine + **document-tax-profile catalog + treatment resolution (§1A)** + **legal-entity dimension (§3.1)** + **multi-registration (§3.2)** + **effective-dated codes/rules (§3.3)** + tax data model + ledger + generic VAT report + posting integration + audit. | Phase-1 poster (done). |
 | **5B — Country Pack Framework** | `TaxCompliancePack` interface + registry + **pack-versioning + version pinning (§2.1)** + submission lifecycle model + secrets handling + health surface. | 5A. |
 | **5C — Egypt ETA Pack** | e-invoice/e-receipt JSON, signature, submission API, validation, code mappings (extends existing ETA tables). | 5A, 5B. |
 | **5D — Saudi ZATCA Pack** | Phase 1 (QR) + Phase 2 (UBL XML, UUID/PIH, CSID, clearance/reporting). | 5A, 5B. |
