@@ -1,213 +1,175 @@
-# VANTORA — Workflow Platform V1 Architecture Review
+# VANTORA — Workflow Platform V1 Architecture Review (Complete)
 
-**Scope:** Independent architecture review of Workflow Platform V1 (Engine +
-Runtime + Event Bus + Builder Phase 1 + Canvas Phase 2). **Review only — no code
-changes, no new modules.** Findings are grounded in the shipped implementation
-(PR #125).
+**Scope:** Full, code-grounded architecture review of Workflow Platform V1 (Engine
++ Runtime + Event Bus + Builder Phase 1 + Canvas Phase 2), PR #125.
+**Mode:** **Review only — no fixes implemented, no modules started.**
+**Focus areas:** scalability, performance, event-bus growth, runtime scaling, tick
+reliability, multi-tenant isolation, audit growth, SmartSync interaction, long-term
+maintainability, production-grade readiness.
 
-**Verdict (summary):** The platform is well-architected and faithful to "one
-engine, one runtime, one builder." It is **pilot/early-production ready behind its
-gates**, but **three reliability gaps** (inline best-effort dispatch, tick
-concurrency claiming, and actor-less run resumption) plus event-log retention
-should be closed before it is considered **production-grade at scale**. None
-require a redesign — all are additive hardening.
-
----
-
-## 1. Architecture Strengths
-
-- **True single engine.** Nodes/forms both serialize to the same
-  `erp_workflow_steps`; execution lives only in `advanceRun` + the executor
-  registry. No parallel runtimes — the core invariant holds in code.
-- **Pure, testable runtime.** `advanceRun` is a pure state machine over injected
-  deps; `condition-eval` is a **safe interpreter (no `eval`)**; 71 engine tests +
-  graph round-trip identity.
-- **Immutable versioning + instance pinning.** Publish snapshots to
-  `erp_workflow_definition_versions`; `erp_workflow_instances.workflow_version`
-  pins running instances — auditable "what ran when."
-- **Security-by-construction.** Tick runs **impersonated** as the run's starter
-  (RLS preserved, no privilege escalation); `api_call` is **deny-by-default**
-  behind `erp_workflow_egress_rules`; `update_record` is table-allow-listed; every
-  result is audited.
-- **Offline-aware emission.** `recordEvent` fires after commit and is
-  reconciliation-aware, so offline-first mutations still trigger workflows.
-- **Clean extensibility surface.** New module = new catalog events + allow-list
-  entries + authored definitions; the engine never changes.
-- **Two UX surfaces, one model.** Forms and canvas are interchangeable; the canvas
-  is strictly visual (`0181` metadata the runtime never reads).
+**Overall verdict:** Architecturally sound and faithful to "one engine, one
+runtime, one builder." **Pilot-ready behind its gates.** Reaching **production-grade
+at scale** requires closing a small set of **delivery/execution-guarantee** gaps
+(at-least-once start, run claiming, idempotent effects, actor-less resumption) and
+**unbounded-growth** gaps (event bus + audit retention/partitioning). All are
+additive — no redesign.
 
 ---
 
-## 2. Architecture Weaknesses
+## A. Evidence base (verified in code)
 
-1. **Inline, best-effort dispatch (highest priority).** `recordEvent` persists the
-   event then dispatches **synchronously in the user's request and swallows all
-   errors**. If dispatch fails after the domain mutation commits, the event row
-   exists but **no workflow starts**, with no retry. Workflow *start* is therefore
-   **not at-least-once**. (Resumption of already-started runs *is* covered by the
-   tick.)
-2. **Dispatch on the write path.** Fan-out + `erp_workflow_start` runs inside the
-   originating mutation's request, adding latency to high-volume entities (orders,
-   invoices) and coupling business latency to workflow complexity.
-3. **No event-bus retention/partitioning.** `erp_events` is append-only and grows
-   unbounded; high event volume needs retention/partitioning (confirm coverage by
-   `0119_retention_cleanup`).
-4. **Config-as-JSON in the builder.** Automated-step config is free-form JSON
-   validated only server-side (per-field inspector forms are the queued follow-up).
-5. **Limited parallel-approval surface.** Quorum exists in the engine; builder UI
-   is thin.
-
----
-
-## 3. Technical Debt
-
-- **N+1 writes** in `saveGraph` (per-row "park step_no" loop), `saveLayout`, and
-  `copyStepsRemapped` — fine for ≤ dozens of steps, O(N) round-trips otherwise.
-  Candidate for a single bulk RPC.
-- **Swallowed failures = observability blind spots.** `recordEvent` logs to
-  `console.error` only; no metrics/dead-letter for missed dispatch, egress denials,
-  or tick errors.
-- **Egress rules have no admin UI** (data-layer managed).
-- **Tick summary is returned but not persisted** — no run/SLA metrics store.
-- **Canvas not load-tested** beyond modest graphs.
+- **Emission/dispatch:** `recordEvent` persists to `erp_events` then dispatches
+  **inline, in-request, best-effort (errors swallowed)**.
+- **Dedup/idempotency:** `uq_erp_events_dedupe (company_id, dedupe_key)` partial
+  unique; `uq_wf_instance_active` + `on conflict do nothing` guard duplicate
+  *starts*; **step side-effects are not idempotent**.
+- **Tick:** Vercel cron `*/5 * * * *` → `/api/internal/workflow-tick` (CRON_SECRET,
+  service role), `BATCH=100`, impersonates the run's starter; **actor-less runs
+  skipped**; **no row claiming/`SKIP LOCKED`** in `listDueRuns`.
+- **Event bus indexing:** `(company_id, seq)`, `(company_id, entity, record_id)`,
+  `(company_id, event_type, occurred_at)`, branch FK cover, dedupe partial unique.
+- **Retention (`0119`):** cleans `erp_notifications`, completed
+  `erp_workflow_tasks`/`erp_workflow_instances`; **does NOT include `erp_events`**;
+  **`erp_audit_logs` intentionally retained ("archive later")**. No retention cron
+  observed in `vercel.json` (only sync-tick, reconcile, workflow-tick).
+- **Audit indexing:** `erp_audit_logs` indexed on `created_at`, `company_id`,
+  `(company_id, created_at)`.
 
 ---
 
-## 4. Performance Risks
+## B. Findings by severity
 
-- **Write-path latency** from inline dispatch (see §2.2).
-- **Tick batch ceiling:** `BATCH=100` every 5 min ⇒ ~1.2k delayed-run resumptions/
-  hour and up to ~5-min timer granularity — coarse for SLA-sensitive or bursty
-  timers.
-- **N+1 batch saves** on large graphs / template clones.
-- **Canvas rendering** untested at 100+ nodes (React Flow is capable but
-  unverified here).
+### 🔴 Critical (close before production scale)
 
----
+- **C1 — Workflow start is not at-least-once.** Dispatch is inline and swallows
+  errors; if it fails after the domain commit, the event persists but **no instance
+  starts**, with no retry/sweep. Approvals can silently never begin.
+  *Areas: performance, runtime scaling, SmartSync.*
+- **C2 — Due-run processing has no concurrency guard.** `listDueRuns` lacks
+  `FOR UPDATE SKIP LOCKED`/lease. Overlapping ticks (cron retry, manual + cron)
+  can process the same run twice; combined with **C3** this **double-fires side
+  effects** (notifications/api_call/update_record).
+  *Areas: scalability, tick reliability, runtime scaling.*
+- **C3 — Side-effecting steps are not idempotent.** No per-(instance, step, attempt)
+  effect key. At-least-once delivery (the correct target) is therefore unsafe today
+  for `notification`/`api_call`/`update_record`.
+  *Areas: runtime scaling, production readiness.*
 
-## 5. Scalability Risks
+### 🟠 Medium (address during hardening)
 
-- **Tick concurrency / double-processing.** `listDueRuns` selects due runs with **no
-  row claiming/locking** (`FOR UPDATE SKIP LOCKED` or a `claimed_at`). Overlapping
-  tick invocations (cron retry, manual + cron) could process the same run twice.
-  Idempotency partly protects start (`uq_wf_instance_active`), but step side
-  effects (notify/api_call) are **not idempotent** — at-least-once execution could
-  double-fire effects.
-- **Single-stream tick** processes sequentially; no sharding/queue for high run
-  volume.
-- **Unbounded `erp_events`** growth (see §2.3).
+- **M1 — `erp_events` grows unbounded.** Well-indexed but excluded from `0119`
+  retention; high event volume bloats the bus and slows feed/dispatch scans.
+  *Areas: event-bus growth, scalability.*
+- **M2 — Audit growth is unbounded by design.** `erp_audit_logs` is intentionally
+  retained with archival deferred and **no partitioning**; workflows add
+  per-step audit rows, accelerating growth. Needs an archival/partitioning plan.
+  *Areas: audit growth, scalability.*
+- **M3 — Actor-less runs never resume.** Event-triggered runs without `started_by`
+  are skipped by the tick (no safe identity). Without a **per-tenant system
+  principal**, system-initiated delayed/escalated workflows stall.
+  *Areas: multi-tenant isolation, tick reliability.*
+- **M4 — Dispatch on the write path.** Fan-out + `erp_workflow_start` run inside the
+  originating mutation's request → latency coupling on hot entities
+  (orders/invoices) and **reconciliation bursts** dispatch synchronously on the
+  reconcile request. *Areas: performance, SmartSync.*
+- **M5 — Retention job scheduling unconfirmed.** `0119` cleanup function exists but
+  no cron entry was observed; if unscheduled, "bounded growth" is not actually
+  enforced. *Areas: scalability, maintainability.*
+- **M6 — Tick throughput/granularity ceiling.** `BATCH=100` every 5 min ⇒ ~1.2k
+  resumptions/hour and ~5-min timer granularity — coarse for SLA timers and bursty
+  load; single sequential stream, no sharding. *Areas: scalability, performance.*
+- **M7 — Observability blind spots.** Swallowed dispatch failures, egress denials,
+  and tick errors have no metrics/dead-letter; tick summary not persisted.
+  *Areas: production readiness, maintainability.*
 
----
+### 🟡 Low (quality / future-proofing)
 
-## 6. Multi-Tenant Risks
-
-- **Strong baseline:** RLS via `erp_user_company_id()`/`erp_is_company_admin()`/
-  `erp_is_platform_owner()`, all policies `(select auth.uid())`; tick **always
-  impersonates** the run's tenant user.
-- **Risk — actor-less runs are skipped.** Event-triggered runs without a
-  `started_by` are **not resumed** by the tick (no safe identity to impersonate).
-  Without a defined **system service principal per tenant**, system-initiated
-  delayed/escalated workflows can stall. (Correctness/operability gap.)
-- **Global templates** are intentionally cross-tenant (read-only); confirm
-  `erp_workflow_egress_rules` are **tenant-scoped** so one tenant cannot use
-  another's approved connectors.
-
----
-
-## 7. Security Risks
-
-- **Good:** `CRON_SECRET` gate on the tick; service role only server-side;
-  deny-by-default egress mitigates SSRF; impersonation is purpose-scoped; condition
-  DSL is non-`eval`.
-- **Watch:**
-  - `api_call` **headers/body may carry secrets**; ensure they are not logged in
-    audit payloads and are referenced via a secret store, not inline literals.
-  - **Swallowed dispatch errors** could mask a security-relevant failure (e.g., an
-    approval workflow silently not starting) — needs alerting.
-  - Egress rules need **change-audit + admin UI** to prevent quiet allow-list
-    widening.
-  - Confirm `update_record` allow-list cannot target sensitive tables (auth,
-    billing) and that patches are column-scoped.
-
----
-
-## 8. SmartSync Impact
-
-- **Builder is online-only** (correct); **runtime is event-driven**, so
-  offline-reconciled records trigger workflows on sync.
-- **Risk — reconciliation bursts.** A batch of reconciled mutations each call
-  `recordEvent` → **inline dispatch on the reconcile request**, which can spike
-  latency/load and start many workflows synchronously. An async dispatch sweep
-  (see §11.1) would absorb this far better.
-- **Ordering:** events dispatch in reconcile order; cross-record ordering guarantees
-  are not defined — acceptable for independent approvals, but document it.
+- **L1 — N+1 writes** in `saveGraph` (per-row step_no parking), `saveLayout`,
+  `copyStepsRemapped`; fine for small graphs, O(N) round-trips otherwise.
+- **L2 — Canvas not load-tested** beyond modest graphs (100+ nodes unverified).
+- **L3 — Builder config is free-form JSON** (server-validated only; per-field forms
+  queued).
+- **L4 — Egress rules lack an admin UI / change-audit**; verify they are
+  tenant-scoped and that `update_record`/egress allow-lists exclude sensitive
+  tables. (Enforcement itself is correct: deny-by-default + table allow-list.)
+- **L5 — Cross-record event ordering** is reconcile-order, not guaranteed; fine for
+  independent approvals but should be documented.
+- **L6 — Parallel-approval quorum** has thin builder UI surface.
 
 ---
 
-## 9. Future Extensibility
+## C. Focus-area assessment
 
-- **High.** New verbs = one executor in the shared registry (`validate` + audited
-  `execute`); new triggers = catalog events (incl. future **timer/cron "events"**);
-  **sub-workflows** can be a node that emits a start event (composition, not a
-  sub-engine). Versioning/templates/simulation already generalize.
-- **Constraint to preserve:** keep the executor set closed and central; resist
-  module-local runners (guardrails in the Reuse Strategy).
-
----
-
-## 10. Reuse Opportunities (per module — no new engines)
-
-- **CRM:** lifecycle/visit follow-ups on existing `customer.*` / `visit.*` events
-  — zero new code.
-- **Finance:** credit/trade-spend/invoice-void/payment-exception approvals via
-  existing + a few new events; `api_call` to finance connectors (egress-governed).
-- **Inventory:** near-expiry, transfer approval, count-review on `stock_transfer.*`
-  + new `inventory.*` events; `delay` reminders.
-- **Procurement:** purchase-request/PO/supplier-onboarding via new `purchase.*`
-  events; `task` + `api_call`.
-- **HR:** leave/expense/onboarding via new `hr.*` events; `escalation` + SLA.
-- **Governance:** policy sign-off, SoD gates, audit routing, attestations; immutable
-  versioning *is* the audit trail.
-- **Service:** ticket routing/escalation/SLA via new `ticket.*` events.
-- **Common enabler/risk:** every module above relies on **reliable event
-  dispatch** — which is exactly the §11.1 gap. Fixing it unblocks all reuse at
-  production scale.
-
----
-
-## 11. What to improve before "production-grade"
-
-Ordered by priority (all additive — no redesign):
-
-1. **Make workflow start at-least-once.** Add dispatch tracking to `erp_events`
-   (e.g., `dispatched_at`/status) and a **tick sweep that dispatches undispatched
-   events**, decoupling dispatch from the user request path. Closes §2.1, §4.1,
-   §8 burst risk in one move.
-2. **Claim due runs safely.** `FOR UPDATE SKIP LOCKED` or a `claimed_at` lease in
-   `listDueRuns` to prevent double-processing (§5.1) — important because step
-   effects are not idempotent.
-3. **Define per-tenant system principals** so actor-less, event-triggered runs
-   resume on the tick (§6 gap).
-4. **Idempotency for side-effecting steps** (notification/api_call/update_record):
-   an effect key per (instance, step, attempt) to make at-least-once safe.
-5. **Event retention/partitioning** for `erp_events` (confirm/extend `0119`).
-6. **Observability:** metrics + dead-letter for swallowed dispatch failures, egress
-   denials, tick errors; persist tick/SLA summaries.
-7. **Replace N+1 batch saves** with a bulk `saveGraph` RPC.
-8. **Tighter/dynamic tick cadence** (or a queue) for SLA-sensitive timers.
-9. **Per-field inspector forms** + client-side config shape hints (queued).
-10. **Egress-rules admin UI + secret handling**; verify `update_record`/egress
-    allow-lists exclude sensitive targets and are tenant-scoped.
-11. **Load-test** the canvas (100+ nodes) and the tick under high run volume.
+1. **Scalability** — Engine schema + event indexes are solid; ceilings are the
+   unbounded `erp_events`/audit (M1/M2), sequential tick with no sharding/claiming
+   (C2/M6), and N+1 batch saves (L1).
+2. **Performance** — Read paths are indexed and fast. The real cost is
+   **inline dispatch on writes** (M4) and tick batch granularity (M6).
+3. **Event Bus growth** — Good indexing + dedup; **missing retention** (M1) is the
+   gap. Recommend time-partitioning + retention/archival of `erp_events`.
+4. **Workflow runtime scaling** — Pure runtime scales horizontally in principle,
+   but the **single cron stream + no claiming** (C2) caps concurrency and risks
+   double-execution (C3). A claim-based queue unlocks parallel workers.
+5. **Tick scheduling reliability** — Authenticated, isolated, impersonated — good.
+   Risks: overlap without locking (C2), actor-less skips (M3), coarse cadence (M6),
+   and no persisted tick metrics (M7).
+6. **Multi-tenant isolation** — Strong: RLS everywhere, `(select auth.uid())`, tick
+   always impersonates. Gaps: system-principal absence (M3); verify egress rules
+   are tenant-scoped (L4).
+7. **Audit growth** — Indexed and intentionally retained, but **no partitioning/
+   archival** and workflow steps amplify volume (M2).
+8. **SmartSync interaction** — Emission is reconciliation-aware (correct); risk is
+   **synchronous dispatch bursts on reconcile** (M4/C1) and undocumented ordering
+   (L5). An async sweep (R1) absorbs bursts cleanly.
+9. **Long-term maintainability** — High: single engine, closed executor set, pure
+   modules, strong tests (894 suite / 71 engine), clear docs. Watch: observability
+   (M7), N+1 patterns (L1), and keeping the executor set central (guardrail).
+10. **Production-grade readiness** — **Conditional.** Ready for gated pilots now;
+    production-grade after C1–C3 + M1/M3 are closed and retention/observability are
+    in place.
 
 ---
 
-## Closing
+## D. Immediate recommendations (pre-production-scale; additive, no redesign)
 
-The foundations are sound and the "one engine" discipline is real in the code.
-The path to production-grade is **hardening the event-delivery and tick-execution
-guarantees** (items 1–4) plus retention/observability — not architectural change.
-Recommend addressing §11.1–§11.4 before any module track depends on workflow at
-production scale.
+- **R1 (C1, M4, SmartSync):** Make start at-least-once — add a `dispatched_at`/
+  status to `erp_events` and a **tick sweep that dispatches undispatched events**,
+  moving fan-out off the request path.
+- **R2 (C2):** Claim due runs with `FOR UPDATE SKIP LOCKED` (or a `claimed_at`
+  lease) so overlapping ticks/workers never double-process.
+- **R3 (C3):** Add a per-(instance, step, attempt) **effect-idempotency key** so
+  notification/api_call/update_record are safe under at-least-once.
+- **R4 (M3):** Define **per-tenant system service principals** so actor-less,
+  event-triggered runs resume under correct RLS.
+- **R5 (M1, M5):** Add `erp_events` retention/partitioning and **confirm the `0119`
+  cleanup job is actually scheduled** (cron entry).
+- **R6 (M7):** Minimal observability — counters/dead-letter for dispatch failures,
+  egress denials, tick errors; persist tick/SLA summaries.
 
-*Review only — no code was changed and no new module was started.*
+## E. Future recommendations (scale & richness)
+
+- **F1:** Move the runtime to a **claim-based queue with parallel workers** (builds
+  on R2) for high run volume; dynamic batch / tighter cadence for SLA timers (M6).
+- **F2:** **Partition + archive** `erp_audit_logs` (and `erp_events`) by month;
+  cold-storage export for compliance (M2).
+- **F3:** **Bulk `saveGraph` RPC** to remove N+1 (L1); virtualize/cap canvas nodes
+  (L2).
+- **F4:** **Egress-rules admin UI + change-audit + secret references** for
+  `api_call` (L4).
+- **F5:** **Timer/cron triggers** as first-class catalog "events"; **sub-workflow**
+  nodes via event composition.
+- **F6:** Per-field inspector forms + client config schema hints (L3); richer
+  parallel-approval/quorum UI (L6).
+- **F7:** Workflow analytics (cycle time, bottleneck steps, SLA breach rates).
+
+---
+
+## F. Conclusion
+
+The platform's foundations are strong and the single-engine discipline is real in
+the code. The route to production-grade is **strengthening delivery and execution
+guarantees** (R1–R4) and **bounding append-only growth with observability**
+(R5–R6) — not architectural change. Recommend completing the Immediate set before
+any module track depends on workflow at production scale.
+
+*Review only — no code changed, no module started. Awaiting approval.*
