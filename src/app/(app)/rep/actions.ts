@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getT } from '@/lib/i18n/server';
 import { recordPayment } from '../sales/invoices/actions';
@@ -214,14 +215,15 @@ export async function collectPayment(input: {
   if (!res.ok) return { ok: false, error: res.error };
 
   const supabase = await createClient();
-  await supabase.from('erp_visits').insert({
+  const { data: visit } = await supabase.from('erp_visits').insert({
     branch_id: input.branch_id,
     customer_id: input.customer_id,
     salesman_id: ctx.userId,
     invoice_id: input.invoice_id,
     no_sale: false,
     notes: t('rep.notesDebtCollection'),
-  });
+  }).select('id').single();
+  if (visit) await emitDomainEvent({ eventType: EVENT.VISIT_COMPLETED, entity: 'visit', recordId: (visit as { id: string }).id });
 
   revalidatePath('/rep');
   return { ok: true, data: { invoice_id: input.invoice_id } };

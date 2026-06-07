@@ -1,5 +1,13 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
+import { emitDomainEvent, EVENT, type EventType } from '@/lib/events/producer';
+
+/** Entities that emit an `*.approved` domain event when their workflow outcome is
+ *  approved (catalog-typed; reuses the event-producer backbone). */
+const APPROVED_EVENT: Record<string, EventType> = {
+  customer: EVENT.CUSTOMER_APPROVED,
+  order: EVENT.ORDER_APPROVED,
+};
 
 /** ── Workflow outcome handlers (the only entity-aware part) ─────────────────
  *  The engine is entity-agnostic; what an approval/rejection DOES to the source
@@ -78,4 +86,8 @@ export async function applyWorkflowOutcome(
 ): Promise<void> {
   const h = HANDLERS[entity];
   if (h) await h(recordId, outcome, comment);
+  // Emit the entity's `*.approved` domain event on approval (flag-gated backbone).
+  if (outcome === 'approved' && APPROVED_EVENT[entity]) {
+    await emitDomainEvent({ eventType: APPROVED_EVENT[entity], entity, recordId });
+  }
 }

@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, type ActionResult, friendlyDbError } from '@/lib/erp/guards';
 import { repDayBlocked } from '@/lib/erp/work-session';
 import type { LineInput } from '@/lib/erp/sales-calc';
@@ -53,13 +54,14 @@ export async function quickSale(input: {
 
   const supabase = await createClient();
   // Log the visit (journey execution), linked to the invoice.
-  await supabase.from('erp_visits').insert({
+  const { data: posVisit } = await supabase.from('erp_visits').insert({
     branch_id: input.branch_id,
     customer_id: input.customer_id,
     salesman_id: ctx.userId,
     invoice_id: invoiceId,
     no_sale: false,
-  });
+  }).select('id').single();
+  if (posVisit) await emitDomainEvent({ eventType: EVENT.VISIT_COMPLETED, entity: 'visit', recordId: (posVisit as { id: string }).id });
 
   const { data } = await supabase
     .from('erp_invoices')
@@ -81,13 +83,14 @@ export async function logNoSaleVisit(input: {
   if (authErr || !ctx) return { ok: false, error: authErr ?? t('sales.posErrUnauthorized') };
 
   const supabase = await createClient();
-  const { error } = await supabase.from('erp_visits').insert({
+  const { data: noSaleVisit, error } = await supabase.from('erp_visits').insert({
     branch_id: input.branch_id,
     customer_id: input.customer_id,
     salesman_id: ctx.userId,
     no_sale: true,
     notes: input.notes?.trim() || null,
-  });
+  }).select('id').single();
   if (error) return { ok: false, error: friendlyDbError(error) };
+  if (noSaleVisit) await emitDomainEvent({ eventType: EVENT.VISIT_COMPLETED, entity: 'visit', recordId: (noSaleVisit as { id: string }).id });
   return { ok: true };
 }
