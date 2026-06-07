@@ -35,10 +35,25 @@ export interface RunPatch {
   completedAt?: number | null;
 }
 
+/** C3 — optional effect-idempotency ledger. When absent (default), behavior is
+ *  exactly V1. `begin` returns a non-null StepResult to REUSE (skip execution);
+ *  null means "proceed to execute, then settle". Applied only to side-effecting
+ *  step types. Keeps the runtime pure — the DB ledger lives behind these deps. */
+export interface EffectLedger {
+  begin(run: RunState, step: RuntimeStep): Promise<StepResult | null>;
+  settle(run: RunState, step: RuntimeStep, result: StepResult): Promise<void>;
+}
+
+/** Side-effecting step types guarded by the effect ledger (C3). Pure/branch steps
+ *  (condition, reject) and engine-idempotent ones (approval pause, delay) are not. */
+const EFFECTFUL_STEPS = new Set<string>(['notification', 'task', 'update_record', 'api_call', 'escalation']);
+
 export interface RuntimeDeps {
   exec: ExecutorDeps;
   /** Persist a patch and return the updated run state. */
   persist(run: RunState, patch: RunPatch): Promise<RunState>;
+  /** Optional effect-idempotency ledger (V1.1 C3); unset = V1 behavior. */
+  effectLedger?: EffectLedger;
 }
 
 function backoff(attempt: number): number {
@@ -87,10 +102,21 @@ export async function advanceRun(deps: RuntimeDeps, runIn: RunState, steps: Runt
     }
 
     let result: StepResult;
-    try {
-      result = await executor.execute({ run, step, deps: deps.exec });
-    } catch (e) {
-      result = { status: 'failed', error: e instanceof Error ? e.message : String(e), retryable: true };
+    // C3: for side-effecting steps, consult the idempotency ledger. A non-null
+    // begin() result means this effect already ran (reuse it, don't re-fire);
+    // null means we claimed it — execute, then settle. Absent ledger = V1.
+    const ledger = deps.effectLedger && EFFECTFUL_STEPS.has(step.stepType) ? deps.effectLedger : null;
+    let cached: StepResult | null = null;
+    if (ledger) { try { cached = await ledger.begin(run, step); } catch { cached = null; } }
+    if (cached) {
+      result = cached;
+    } else {
+      try {
+        result = await executor.execute({ run, step, deps: deps.exec });
+      } catch (e) {
+        result = { status: 'failed', error: e instanceof Error ? e.message : String(e), retryable: true };
+      }
+      if (ledger) { try { await ledger.settle(run, step, result); } catch { /* ledger is best-effort */ } }
     }
     executed.push(step.id);
     run = await recordStep(deps, run, step, result);   // audit + history + output merge

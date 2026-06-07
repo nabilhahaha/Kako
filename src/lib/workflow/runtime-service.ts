@@ -70,3 +70,18 @@ export async function listDueRuns(db: Db, limit = 100): Promise<{ id: string; st
     .order('next_action_at', { ascending: true }).limit(limit);
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({ id: String(r.id), startedBy: (r.started_by as string) ?? null }));
 }
+
+/** C2 — single-flight claim of due runs via erp_workflow_claim_due_runs
+ *  (FOR UPDATE SKIP LOCKED + lease). Two concurrent callers get disjoint sets. */
+export async function claimDueRuns(db: Db, limit = 100, leaseSeconds = 300, worker: string | null = null): Promise<{ id: string; startedBy: string | null }[]> {
+  const { data, error } = await db.rpc('erp_workflow_claim_due_runs', { p_limit: limit, p_lease_seconds: leaseSeconds, p_worker: worker });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({ id: String(r.id), startedBy: (r.started_by as string) ?? null }));
+}
+
+/** Release a claim after processing so the run is promptly reclaimable at its
+ *  next due time (lease expiry is the crash-recovery fallback). Best-effort. */
+export async function releaseRun(db: Db, id: string): Promise<void> {
+  await db.from('erp_workflow_instances' as never)
+    .update({ claimed_at: null, claim_expires_at: null, claimed_by: null } as never).eq('id', id);
+}

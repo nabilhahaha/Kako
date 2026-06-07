@@ -11,12 +11,13 @@
 // ============================================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ExecutorDeps, RunState, RuntimeStep } from './executors/types';
+import type { ExecutorDeps, RunState, RuntimeStep, StepResult } from './executors/types';
 import { UPDATE_RECORD_ALLOWLIST } from './executors/types';
-import type { RunPatch, RuntimeDeps } from './runtime';
+import type { RunPatch, RuntimeDeps, EffectLedger } from './runtime';
 import { evalCondition } from './condition-eval';
 import { emitEvent } from './events';
 import { hostFromUrl, isEgressAllowed, type EgressRule } from './egress';
+import { WF_EFFECT_IDEMPOTENCY } from './flags';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any>;
@@ -167,6 +168,36 @@ export function makeRuntimeDeps(db: Db, opts: RuntimeDepsOpts): RuntimeDeps {
         if (error) throw new Error(error.message);
       }
       return applyPatchToRun(run, patch);
+    },
+    // C3 (flagged): effect-idempotency ledger; absent when the flag is off (V1).
+    ...(WF_EFFECT_IDEMPOTENCY() ? { effectLedger: makeEffectLedger(db) } : {}),
+  };
+}
+
+/** C3 — claim-execute-commit ledger over erp_workflow_step_effects. Keyed by
+ *  (instance, step, attempt): the winner of the unique-claim executes + settles;
+ *  a repeat reuses the settled result, and an in-flight row is skipped (no
+ *  re-fire). Effectively-once per attempt. Best-effort: unknown errors fall back
+ *  to executing (never blocks the run). */
+function makeEffectLedger(db: Db): EffectLedger {
+  return {
+    async begin(run: RunState, step: RuntimeStep): Promise<StepResult | null> {
+      const attempt = run.attempts;
+      const { error } = await db.from('erp_workflow_step_effects' as never).insert({
+        company_id: run.companyId, instance_id: run.id, step_id: step.id, attempt, status: 'pending',
+      } as never);
+      if (!error) return null;                                   // claimed → execute
+      if ((error as { code?: string }).code !== '23505') return null; // unknown → proceed (best-effort)
+      const { data } = await db.from('erp_workflow_step_effects' as never)
+        .select('status,result').eq('instance_id', run.id).eq('step_id', step.id).eq('attempt', attempt).maybeSingle();
+      const row = data as { status?: string; result?: StepResult } | null;
+      if (row?.status === 'done' && row.result) return row.result; // reuse settled result
+      return { status: 'completed' };                             // in-flight → skip re-fire
+    },
+    async settle(run: RunState, step: RuntimeStep, result: StepResult): Promise<void> {
+      await db.from('erp_workflow_step_effects' as never)
+        .update({ status: 'done', result, settled_at: new Date().toISOString() } as never)
+        .eq('instance_id', run.id).eq('step_id', step.id).eq('attempt', run.attempts);
     },
   };
 }

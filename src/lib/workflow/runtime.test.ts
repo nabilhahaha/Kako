@@ -110,3 +110,40 @@ describe('workflow runtime — advanceRun', () => {
     expect(Array.isArray((out.run.context as { __steps?: unknown[] }).__steps)).toBe(true);
   });
 });
+
+// ── C3: effect-idempotency ledger hook ───────────────────────────────────────
+describe('workflow runtime — effect ledger (C3)', () => {
+  it('skips execution + reuses the cached result when begin() returns one', async () => {
+    const exec = execDeps();
+    const steps = [step({ id: 's1', stepNo: 1, stepType: 'notification', config: { channel: 'e', template: 't' } })];
+    const begin = vi.fn(async () => ({ status: 'completed' as const }));   // already ran
+    const settle = vi.fn(async () => {});
+    const deps: RuntimeDeps = { ...runtimeDeps(exec), effectLedger: { begin, settle } };
+    const out = await advanceRun(deps, run(), steps);
+    expect(out.state).toBe('completed');
+    expect(begin).toHaveBeenCalledOnce();
+    expect(exec.notify).not.toHaveBeenCalled();   // effect NOT re-fired
+    expect(settle).not.toHaveBeenCalled();        // cached path does not settle
+  });
+
+  it('claims (begin→null), executes, then settles for a side-effecting step', async () => {
+    const exec = execDeps();
+    const steps = [step({ id: 's1', stepNo: 1, stepType: 'notification', config: { channel: 'e', template: 't' } })];
+    const begin = vi.fn(async () => null);        // claimed → execute
+    const settle = vi.fn(async () => {});
+    const deps: RuntimeDeps = { ...runtimeDeps(exec), effectLedger: { begin, settle } };
+    const out = await advanceRun(deps, run(), steps);
+    expect(out.state).toBe('completed');
+    expect(exec.notify).toHaveBeenCalledOnce();   // executed once
+    expect(settle).toHaveBeenCalledOnce();        // and settled
+  });
+
+  it('does NOT consult the ledger for non-effectful steps (condition)', async () => {
+    const exec = execDeps({ evalCondition: () => true });
+    const steps = [step({ id: 's1', stepNo: 1, stepType: 'condition', condition: { x: 1 } })];
+    const begin = vi.fn(async () => null);
+    const deps: RuntimeDeps = { ...runtimeDeps(exec), effectLedger: { begin, settle: vi.fn(async () => {}) } };
+    await advanceRun(deps, run(), steps);
+    expect(begin).not.toHaveBeenCalled();
+  });
+});
