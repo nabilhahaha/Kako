@@ -6,6 +6,13 @@ no UI/UX regressions.
 
 | PR | Date | Change | Flag | Migration | Gates |
 |----|------|--------|------|-----------|-------|
+| #158 | 2026-06-07 | **Phase 2 readiness report** + end-to-end & multi-company DB tests (PO→GRN→bill→match→AP→GL) | — | none | green |
+| #157 | 2026-06-07 | Phase 2 — AP sub-ledger + supplier-invoice GL (Augment: Dr GR-IR/Cr AP) | `KAKO_PURCHASING`/`KAKO_FINANCE` (OFF) | `0191` additive | green |
+| #156 | 2026-06-07 | Phase 2 — matching service (PO/GRN/invoice → hold/approve) | `KAKO_PURCHASING` (OFF) | none | green |
+| #155 | 2026-06-07 | Phase 2 — supplier invoice (bill) data model | `KAKO_PURCHASING` (OFF) | `0190` additive | green |
+| #154 | 2026-06-07 | Phase 2 — 3-way match engine (pure) + kickoff plan | `KAKO_PURCHASING` (OFF) | none | green |
+| #153 | 2026-06-07 | **Phase 1 FREEZE** — final consolidated sign-off | — | none | green |
+| #152 | 2026-06-07 | Country Compliance & E-Invoicing — architecture & backlog doc | — | none | green |
 | #151 | 2026-06-07 | **Phase 1 readiness report** (Finance + Inventory complete, staging-ready) | — | none | — |
 | #150 | 2026-06-07 | Role Template Governance & Company Role Overrides — architecture & backlog doc | — | none | green |
 | #149 | 2026-06-07 | GL wiring — inventory/COGS Augment legs: seed rules + orchestrator + `goods.received` event + end-to-end DB tests (receipt→Inventory→GL, sale→COGS→GL). Dropped cost-center from COGS leg (FK-safety) after the e2e test caught an invalid `cost_center_id`. | `KAKO_FINANCE` (OFF) | additive (seed) | green |
