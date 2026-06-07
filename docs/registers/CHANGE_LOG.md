@@ -6,6 +6,10 @@ no UI/UX regressions.
 
 | PR | Date | Change | Flag | Migration | Gates |
 |----|------|--------|------|-----------|-------|
+| #167 | 2026-06-07 | Phase 3 — FMCG KPI & collections closure note | — | none | green |
+| #166 | 2026-06-07 | Phase 3 — rep-day KPI snapshot service (compute→upsert) | `KAKO_DISTRIBUTION` (OFF) | none | green |
+| #165 | 2026-06-07 | Phase 3 — persisted rep-day KPI snapshot model | `KAKO_DISTRIBUTION` (OFF) | `0193` additive | green |
+| #164 | 2026-06-07 | Phase 3 — coverage KPI read-model service (reuses journey/visits) | n/a (read-only) | none | green |
 | #163 | 2026-06-07 | **Phase 3 readiness report** + collections settlement e2e & multi-company tests | — | none | green |
 | #162 | 2026-06-07 | Phase 3 — coverage / journey-adherence KPI engine (pure) | n/a (read-only) | none | green |
 | #161 | 2026-06-07 | Phase 3 — collection settlement service | `KAKO_DISTRIBUTION` (OFF) | none | green |
