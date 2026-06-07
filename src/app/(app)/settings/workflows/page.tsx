@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
-import { WorkflowBuilder, type WfDefinition, type WfStep } from './workflow-builder';
+import { WorkflowBuilder, type WfDefinition, type WfStep, type WfVersion } from './workflow-builder';
 
 /** ── Workflow Builder Lite (workflow.manage) ───────────────────────────────
  *  Company admins build approval workflows (definitions + steps) on the generic
@@ -27,9 +27,13 @@ export default async function WorkflowsPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: defs }, { data: steps }] = await Promise.all([
-    supabase.from('erp_workflow_definitions').select('id, company_id, key, entity, name_ar, name_en, is_active').order('key'),
-    supabase.from('erp_workflow_steps').select('id, definition_id, step_no, name_ar, name_en, approver_type, approver_ref, mode, required_approvals, condition').order('step_no'),
+  // select('*') keeps the page resilient if the Builder migrations (0176–0180) are
+  // not yet applied (e.g. before the guarded prod apply): unknown columns are simply
+  // absent rather than erroring.
+  const [{ data: defs }, { data: steps }, { data: versions }] = await Promise.all([
+    supabase.from('erp_workflow_definitions').select('*').order('key'),
+    supabase.from('erp_workflow_steps').select('*').order('step_no'),
+    supabase.from('erp_workflow_definition_versions').select('id, definition_id, version, published_at, published_by').order('version', { ascending: false }),
   ]);
 
   return (
@@ -38,7 +42,9 @@ export default async function WorkflowsPage() {
       <WorkflowBuilder
         definitions={(defs as WfDefinition[]) ?? []}
         steps={(steps as WfStep[]) ?? []}
+        versions={(versions as WfVersion[]) ?? []}
         companyId={ctx.companyId}
+        userId={ctx.userId}
       />
     </div>
   );
