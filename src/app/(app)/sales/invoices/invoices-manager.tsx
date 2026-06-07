@@ -329,7 +329,10 @@ export function InvoicesManager({
                         <p className="truncate font-medium">{inv.customer?.name_ar || inv.customer?.name || '—'}</p>
                         <p className="font-mono text-xs text-muted-foreground" dir="ltr">{inv.invoice_number} · {formatDate(inv.created_at, INTL_LOCALE[locale])}</p>
                       </div>
-                      <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status][locale]}</Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status][locale]}</Badge>
+                        {inv.requires_credit_review && <Badge variant="destructive">{t('sales.creditReviewBadge')}</Badge>}
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" dir="ltr">
                       <span>{t('sales.invoiceColNet')}: <span className="tabular-nums text-foreground">{formatCurrency(inv.net_amount, 'EGP', INTL_LOCALE[locale])}</span></span>
@@ -391,7 +394,10 @@ export function InvoicesManager({
                         <td className="p-3 text-left tabular-nums text-success" dir="ltr">{formatCurrency(inv.paid_amount, 'EGP', INTL_LOCALE[locale])}</td>
                         <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(remaining, 'EGP', INTL_LOCALE[locale])}</td>
                         <td className="p-3 text-center">
-                          <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status][locale]}</Badge>
+                          <div className="flex flex-col items-center gap-1">
+                            <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status][locale]}</Badge>
+                            {inv.requires_credit_review && <Badge variant="destructive">{t('sales.creditReviewBadge')}</Badge>}
+                          </div>
                         </td>
                         <td className="p-3">
                           <div className="flex justify-end gap-1">
