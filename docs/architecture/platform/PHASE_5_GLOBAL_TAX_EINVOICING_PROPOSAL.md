@@ -1,8 +1,12 @@
 # VANTORA — Phase 5: Global Tax & E-Invoicing Framework (Architecture Proposal)
 
-**Status:** 🔵 **Architecture review / design proposal only — NO implementation, NO
-migrations, NO code.** Formalizes and supersedes the earlier backlog capture
-`COUNTRY_COMPLIANCE_EINVOICING_ARCHITECTURE.md` into a phased, platform-wide framework.
+**Status:** 🧊 **APPROVED — FROZEN BASELINE (2026-06-07).** This document is the approved
+Phase 5 architecture baseline; changes require a new architecture review. Implementation
+proceeds against this baseline starting with Phase 5A (see
+`docs/phases/PHASE_5A_IMPLEMENTATION_ROADMAP.md`). Formalizes and supersedes the earlier
+backlog capture `COUNTRY_COMPLIANCE_EINVOICING_ARCHITECTURE.md` into a phased,
+platform-wide framework. (Approved with rev-2 additions: §3.1 legal entity, §3.2 multiple
+VAT registrations, §3.3 effective-dated tax rules, §2.1 country-pack versioning.)
 **Classification:** Platform Foundation Capability · **Priority: High** (precedes
 commercial onboarding in KSA/Egypt).
 **Revision (rev 2):** expanded per review to explicitly cover the **legal-entity dimension
