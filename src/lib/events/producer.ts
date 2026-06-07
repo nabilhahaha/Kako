@@ -12,6 +12,7 @@
 
 import { recordEvent, type RecordEventInput } from '@/lib/workflow/emit';
 import { EVENT, type EventType } from '@/lib/workflow/event-types';
+import { projectOnEvent } from '@/lib/search/live';
 
 const on = (v: string | undefined): boolean => v === '1' || v === 'true';
 
@@ -30,8 +31,10 @@ export interface DomainEventInput extends Omit<RecordEventInput, 'eventType'> {
 export async function emitDomainEvent(input: DomainEventInput): Promise<void> {
   if (!EVENTS_ENABLED()) return;
   try {
-    await recordEvent(input);
+    await recordEvent(input);                              // Workflow runtime + bus
   } catch {
     // recordEvent already swallows; this is a belt-and-braces guard.
   }
+  // Search-live incremental indexing (independently gated by KAKO_SEARCH_LIVE).
+  await projectOnEvent(input.entity, input.recordId ?? null);
 }

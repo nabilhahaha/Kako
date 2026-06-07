@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getT } from '@/lib/i18n/server';
 
@@ -77,6 +78,7 @@ export async function completeTransfer(id: string): Promise<ActionResult> {
   const { error } = await supabase.rpc('erp_complete_transfer', { p_transfer_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  await emitDomainEvent({ eventType: EVENT.STOCK_TRANSFER_COMPLETED, entity: 'stock_transfer', recordId: id });
   revalidatePath('/inventory/transfers');
   revalidatePath('/inventory');
   return { ok: true };
