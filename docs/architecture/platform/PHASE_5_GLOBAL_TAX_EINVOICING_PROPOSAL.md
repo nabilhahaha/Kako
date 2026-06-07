@@ -5,6 +5,9 @@ migrations, NO code.** Formalizes and supersedes the earlier backlog capture
 `COUNTRY_COMPLIANCE_EINVOICING_ARCHITECTURE.md` into a phased, platform-wide framework.
 **Classification:** Platform Foundation Capability · **Priority: High** (precedes
 commercial onboarding in KSA/Egypt).
+**Revision (rev 2):** expanded per review to explicitly cover the **legal-entity dimension
+(§3.1)**, **multiple VAT registrations per company (§3.2)**, **effective-dated tax rules
+(§3.3)**, and the **country-pack versioning strategy (§2.1)**.
 
 ## 0. Principles (inherited from Phases 1–4, non-negotiable)
 - **Platform-wide, not FMCG-specific.** Tax is a *core* capability used by every
@@ -85,6 +88,31 @@ interface TaxCompliancePack {
 - Packs are **flag-gated** (`KAKO_TAX_<CC>`); core tax can run (compute+ledger+GL)
   without any pack (generic VAT), packs add e-invoicing/clearance/statutory forms.
 
+### 2.1 Country-pack versioning strategy (explicit)
+Tax authorities change formats and rules on their own cadence (ZATCA phases, ETA schema
+revisions, rate changes, new validations). Packs must evolve **without breaking already-
+issued documents or in-flight tenants**.
+- **Each pack is versioned** (semver-style `pack_version`, e.g. `zatca@2.3.0`), and each
+  capability inside it — **serializer schema**, **validation ruleset**, **signature
+  profile**, **submission endpoint** — carries its own version. A pack registers
+  *multiple* concurrent versions; the core keeps them side-by-side.
+- **Documents pin the version used.** Every submission records the `pack_version` (and
+  serializer/schema version) it was generated with, stored on `erp_tax_submissions`. A
+  reprint/retry/credit-note of an old document **regenerates with the pinned version**, so
+  history is reproducible and audit-stable.
+- **Per-tenant adopted version + effective date.** A legal entity is pinned to a pack
+  version with an `effective_from`; the active version is resolved **as-of the document tax
+  point** (ties into §3.3 effective dating). An authority mandate date is modelled as the
+  `effective_from` of the new version.
+- **Adoption is explicit + audited**, not automatic: publishing `zatca@2.4.0` does **not**
+  retroactively change existing tenants; an admin (or a scheduled mandate date) adopts it.
+  Mirrors the field-config / role-template version-adoption pattern already in VANTORA.
+- **Backward-compatibility window:** the core retains prior pack versions for as long as
+  open documents may need regeneration/amendment; deprecation is a documented, dated step.
+- **Capability negotiation:** a pack version advertises which features it supports
+  (clearance vs reporting, e-receipt, CN/DN), so the orchestrator degrades gracefully and
+  never calls an unsupported capability.
+
 ### Initial packs
 | Pack | Scope |
 |------|-------|
@@ -98,15 +126,56 @@ interface TaxCompliancePack {
 ---
 
 ## 3. Multi-Tenant Design
-- **Different country/regime per company** — company tax profile selects the active pack
-  + regime; resolution is per-company, RLS-scoped.
-- **Multiple legal entities** — a `legal_entity` dimension under company (a company may
-  have entities in different jurisdictions); tax registration, ledger, and returns are
-  per legal entity. (New `erp_legal_entities`; existing data defaults to a primary entity
-  — additive, no redesign.)
-- **Future countries without schema redesign** — tax codes/groups/rules + packs are
-  **data + providers**, not schema. The data model (below) is country-agnostic.
-- All tax tables company/entity-scoped via RLS (`erp_user_company_id()` + entity).
+
+### 3.1 Legal Entity dimension (explicit)
+A company may operate **multiple legal entities** (e.g. an EG SAE + a KSA LLC under one
+VANTORA tenant). Tax is computed, ledgered, reported, and submitted **per legal entity** —
+the legal entity, not the company, is the taxpayer.
+- New additive table **`erp_legal_entities`** (id, company_id, name, country, base_currency,
+  default flag, status). Branches/warehouses optionally map to a legal entity
+  (`erp_branches.legal_entity_id`, nullable additive).
+- **Backfill-safe:** every existing company gets one **primary legal entity**; existing
+  branches map to it. No behaviour change; no redesign — purely additive.
+- The active **country pack + regime is chosen per legal entity** (an EG entity uses the
+  ETA pack; a KSA entity uses ZATCA) — so one tenant can run several regimes at once.
+- RLS: all tax tables scoped by `company_id` **and** `legal_entity_id`.
+
+### 3.2 Multiple VAT registrations per company (explicit)
+A legal entity (and therefore a company) may hold **more than one tax registration** —
+e.g. VAT + excise registrations, a group/branch registration, or registrations in
+multiple jurisdictions for cross-border trade.
+- New additive table **`erp_tax_registrations`** (id, company_id, legal_entity_id, country,
+  regime, tax_kind `vat|excise|withholding|…`, registration_number, status,
+  effective_from/to, is_default). **One legal entity → many registrations.**
+- A transaction resolves to the registration by **(legal entity, country/place of supply,
+  tax kind)**; the chosen registration stamps the tax-ledger entry and the e-invoice
+  payload (the number printed on the document).
+- Returns/reporting are produced **per registration per period** (the statutory filing
+  unit), not merely per company.
+- Guards: unique active registration per (legal_entity, country, tax_kind) window;
+  overlapping effective windows rejected.
+
+### 3.3 Effective-dated tax rules (explicit)
+Every tax artefact is **effective-dated** so rate changes and rule changes are handled
+without mutating history (e.g. KSA VAT 5%→15%, or an exemption introduced mid-year).
+- `erp_tax_codes`, `erp_tax_rules`, `erp_tax_groups`, and `erp_tax_registrations` all carry
+  **`effective_from` / `effective_to`** (NULL = open-ended).
+- **Resolution is as-of the document tax-point date** (invoice/supply date), never "now":
+  the engine selects the code/rule whose window contains the tax point. A back-dated
+  invoice gets the rate that was in force then; a credit note inherits the **original**
+  document's tax point.
+- **No in-place edits** to a live rate — a change is a **new effective-dated row**; the old
+  row is retained for audit + recomputation. (Same versioning philosophy as field-config
+  versions and role-template versions.)
+- Overlap/gap validation per (scope, tax kind); a uniqueness guard prevents two codes
+  being in force for the same scope at the same instant.
+
+### 3.4 Future countries without schema redesign
+Tax codes/groups/rules + registrations + packs are **data + providers**, not schema —
+adding a country is registering a pack + seeding its codes/rules. The data model is
+country-agnostic. New regimes, rates, and even new tax *kinds* (e.g. withholding) are
+additive rows, not migrations to existing tables.
+
 
 ---
 
@@ -128,12 +197,14 @@ only tax legs — it never changes core posting logic (the Augment guarantee fro
 > Names/shapes are a proposal for the review; no migration is created here.
 
 - **ERP Tax Configuration**
-  - `erp_tax_codes` (company_id, code, name, kind, rate, is_recoverable, effective_from/to)
-  - `erp_tax_groups` + `erp_tax_group_members` (compound/multi-rate sets)
+  - `erp_legal_entities` (company_id, name, country, base_currency, is_default, status) — the taxpayer dimension (§3.1)
+  - `erp_tax_registrations` (legal_entity_id, country, regime, tax_kind, registration_number, is_default, **effective_from/to**) — many per entity (§3.2)
+  - `erp_tax_codes` (company_id, code, name, kind, rate, is_recoverable, **effective_from/to**)
+  - `erp_tax_groups` + `erp_tax_group_members` (compound/multi-rate sets, **effective_from/to**)
   - `erp_tax_rules` (resolution: product category × customer/supplier profile × place of
-    supply × txn type → tax code/group; priority; data-driven like posting rules)
+    supply × txn type → tax code/group; priority; **effective_from/to**; data-driven like posting rules)
   - `erp_product_tax_categories`, `erp_customer_tax_profiles`, `erp_supplier_tax_profiles`
-  - `erp_legal_entities` (+ tax registration numbers per entity)
+  - All resolution is **as-of the document tax point** (§3.3); changes are new effective-dated rows, never in-place edits.
 - **ERP Tax Transactions**
   - `erp_tax_document_lines` (per source line: base, tax_code, rate, tax_amount, kind,
     inclusive flag) — the computed breakdown attached to invoices/bills/notes
@@ -141,9 +212,10 @@ only tax legs — it never changes core posting logic (the Augment guarantee fro
   - `erp_tax_ledger` (legal_entity, period, direction output|input, tax_code, base, tax,
     reference_type, reference_id, status) — the returns/reconciliation source
 - **ERP Country Compliance**
-  - `erp_tax_submissions` (legal_entity, pack, document ref, payload ref, uuid/hash,
-    signature ref, status lifecycle draft→generated→signed→submitted→cleared|rejected,
-    authority response) — extends the existing ETA status concept generically
+  - `erp_tax_submissions` (legal_entity, pack, **pack_version + schema_version (pinned, §2.1)**,
+    document ref, payload ref, uuid/hash, signature ref, status lifecycle
+    draft→generated→signed→submitted→cleared|rejected, authority response) — extends the
+    existing ETA status concept generically; the pinned version makes reprints/amendments reproducible
   - secrets/certs in KMS/vault, never in DB
 
 All RLS company/entity-scoped, FK-covered, additive; audit via `erp_audit_logs`.
@@ -165,8 +237,8 @@ sector defaults/config → industry pack.**
 ## 7. Roadmap (phased, each flag-gated, reviewed)
 | Sub-phase | Scope | Depends on |
 |-----------|-------|------------|
-| **5A — Global Tax Engine** | Pure engine + tax data model + ledger + generic VAT report + posting integration + audit. | Phase-1 poster (done). |
-| **5B — Country Pack Framework** | `TaxCompliancePack` interface + registry + submission lifecycle model + secrets handling + health surface. | 5A. |
+| **5A — Global Tax Engine** | Pure engine + **legal-entity dimension (§3.1)** + **multi-registration (§3.2)** + **effective-dated codes/rules (§3.3)** + tax data model + ledger + generic VAT report + posting integration + audit. | Phase-1 poster (done). |
+| **5B — Country Pack Framework** | `TaxCompliancePack` interface + registry + **pack-versioning + version pinning (§2.1)** + submission lifecycle model + secrets handling + health surface. | 5A. |
 | **5C — Egypt ETA Pack** | e-invoice/e-receipt JSON, signature, submission API, validation, code mappings (extends existing ETA tables). | 5A, 5B. |
 | **5D — Saudi ZATCA Pack** | Phase 1 (QR) + Phase 2 (UBL XML, UUID/PIH, CSID, clearance/reporting). | 5A, 5B. |
 | **5E — GCC Expansion** | UAE FTA, Bahrain NBR, Oman OTA, Kuwait readiness. | 5A, 5B. |
