@@ -402,6 +402,7 @@ async function decideCustomer(id: string, decision: 'approve' | 'reject', reason
       const res = (data ?? {}) as { final?: boolean; status?: string; entity?: string; record_id?: string };
       if (res.final && res.entity && res.record_id && (res.status === 'approved' || res.status === 'rejected')) {
         await applyWorkflowOutcome(res.entity, res.record_id, res.status as WorkflowOutcome, reason ?? null);
+        if (res.status === 'approved') await emitDomainEvent({ eventType: EVENT.CUSTOMER_APPROVED, entity: 'customer', recordId: id });
       }
       revalidatePath('/customers');
       revalidatePath('/approvals');
@@ -414,6 +415,7 @@ async function decideCustomer(id: string, decision: 'approve' | 'reject', reason
     is_approved: decision === 'approve',
     rejection_reason: decision === 'reject' ? (reason ?? null) : null,
   }).eq('id', id);
+  if (decision === 'approve') await emitDomainEvent({ eventType: EVENT.CUSTOMER_APPROVED, entity: 'customer', recordId: id });
   revalidatePath('/customers');
   return { ok: true };
 }
