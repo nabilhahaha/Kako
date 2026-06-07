@@ -6,9 +6,10 @@ Workflow Builder authors workflows for the **single existing engine + runtime**
 `erp_workflow_definitions` + `erp_workflow_steps`** — it introduces **no new engine,
 no new runtime, no duplicate execution logic** (ADR-007).
 
-> Status: proposed for architecture review. Nothing here is built. Prerequisites in
-> `WORKFLOW_ENGINE_STATUS.md` (Phase A) must land before publishing builder-made
-> workflows that mix approval + automated steps.
+> Status: **APPROVED & finalized** (2026-06-07) with 3 requirements incorporated (§14).
+> Nothing is built yet. Engine prerequisites in `WORKFLOW_ENGINE_STATUS.md` (Phase A —
+> `resumeRun` wiring, tick impersonation + `api_call` egress allow-list) must land before
+> publishing builder-made workflows that mix approval + automated steps.
 
 ## 1. Principles
 - **One engine, one runtime, one builder.** The Builder writes definitions/steps;
@@ -34,13 +35,56 @@ Reuses existing tables (0088 + 0176/0177/0178). The Builder reads/writes:
 
 **Proposed additive migration (Builder phase — NOT now), `0179_workflow_publishing.sql`:**
 - `erp_workflow_definitions`: `status text default 'draft' CHECK (draft|published|archived)`,
-  `published_at timestamptz`, `published_by uuid`. (`is_active` retained for back-compat;
-  `status` becomes the lifecycle source of truth.)
-- `erp_workflow_definition_versions` (immutable publish snapshots): `id, company_id,
-  definition_id, version, snapshot(jsonb = definition + steps), published_by, published_at`.
-  Lets in-flight runs keep executing the version they started on while a new draft is edited.
+  `published_at timestamptz`, `published_by uuid`; **`visibility text default 'company'
+  CHECK (global|company|private)`** + **`owner_id uuid`** (template tier, §2c);
+  `latest_version int` (the current published version pointer). (`is_active` retained for
+  back-compat; `status` becomes the lifecycle source of truth.)
+- **`erp_workflow_definition_versions`** (immutable publish snapshots): `id, company_id,
+  definition_id, version, snapshot(jsonb = definition + ordered steps), published_by,
+  published_at`. Append-only; rows are **never updated or deleted** (immutability, §2b).
+- **`erp_workflow_instances.workflow_version int`** — the version an instance is **pinned**
+  to at start (§2b). (Column exists conceptually on the legacy runs model; added here to
+  instances if absent. FK-covered.)
 - RLS + FK covering indexes per platform conventions (schema-health invariant).
-No new engine/run tables. No change to instances/tasks beyond what 0176–0178 added.
+No new engine/run tables. No change to engine RPCs.
+
+### 2b. Versioning & immutability (Requirement 1 — explicit)
+- **Immutable versions.** Publishing snapshots the full definition + ordered steps into
+  `erp_workflow_definition_versions(version)` and bumps `latest_version`. Snapshot rows are
+  append-only — editing a workflow never mutates a published version; it creates a new draft
+  that publishes as `version+1`.
+- **Instances pin their version.** At start the dispatcher/runtime resolves the **latest
+  published** version and writes `erp_workflow_instances.workflow_version`. The runtime
+  loader (`runtime-service.loadRun`) reads the **step graph from that version's snapshot**,
+  not from the live editable `erp_workflow_steps` — so a run **continues on the version it
+  started with** even while the definition is edited/republished.
+- **New instances use the latest published version only.** `listDefinitionsForEvent` /
+  `planWorkflowsForEvent` match only `status='published'` definitions and resolve
+  `latest_version`; drafts never dispatch. Archived definitions stop matching but in-flight
+  runs on their pinned version still complete.
+- **Engine reuse:** `erp_workflow_start` continues to create the instance; the only change is
+  setting `workflow_version` + loading steps from the snapshot. No second engine.
+
+### 2c. Template model (Requirement 2 — explicit)
+Three tiers, expressed via `erp_workflow_definitions.visibility` + `company_id` + `owner_id`
+(no separate template tables — templates ARE definitions):
+
+| Tier | `visibility` | `company_id` | `owner_id` | Who sees it | Who can edit/publish |
+|---|---|---|---|---|---|
+| **Global template** | `global` | `NULL` | `NULL` | every company (fallback) | platform owner only |
+| **Company template** | `company` | the tenant | `NULL` | everyone in the company | company workflow-admins (`workflow.manage`) |
+| **Private template** | `private` | the tenant | creating user | only `owner_id` (+ platform owner) | the owner |
+
+- **Resolution / precedence (matching an event or key):** company-specific **published**
+  definition wins over a global template of the same `key` (extends the existing
+  `selectTriggeredDefinitions` company-over-global rule); private templates resolve only for
+  their owner. This reuses the existing definitions resolution — no new lookup engine.
+- **Promotion path:** private → company (publish to the company) → (platform owner) global.
+  Promotion clones the definition with a new `visibility`; immutable versions are preserved.
+- **RLS:** read = `global OR company_id=erp_user_company_id() OR (private AND owner_id=auth.uid())`;
+  write = platform owner (global) / company workflow-admin (company) / owner (private).
+- The seed `customer_onboarding` (today `company_id IS NULL`) is a **global template** under
+  this model — back-compatible.
 
 ## 3. Builder services (server, reuse-first)
 - **DefinitionService** — list/get/create/clone/update/archive drafts; `version` bump on publish.
@@ -50,12 +94,14 @@ No new engine/run tables. No change to instances/tasks beyond what 0176–0178 a
   trigger validity (`trigger_event` ∈ catalog, `trigger_config` parses);
   `condition` parses (`condition-eval`); graph checks (≥1 step, branch targets exist,
   no cycle via `MAX_CHAIN` reachability, terminal reachable, approval steps have approver).
-- **PublishService** — validate → snapshot to `..._versions` → set `status='published'`,
-  bump `version`. Drafts never dispatch; only published definitions match in
-  `listDefinitionsForEvent`.
-- **SimulationService (dry-run)** — runs the **pure** runtime (`advanceRun`) against a
-  sample event/context with a **mock `ExecutorDeps`** (no real side effects) to preview
-  the path/branches/pauses. Reuses the exact runtime — zero parallel simulator logic.
+- **PublishService** — **gate: must pass validation AND at least one simulation** (§4a) →
+  snapshot to `..._versions` → set `status='published'`, bump `latest_version`. Drafts never
+  dispatch; only published definitions match in `listDefinitionsForEvent`.
+- **SimulationService (dry-run, §4a)** — runs the **pure** runtime (`advanceRun`) over the
+  draft's steps with a **read-only `ExecutorDeps`**: reads **real data** (real records for
+  condition/context evaluation, real definition/steps) but **all side effects are mocked** —
+  no `erp_workflow_instances`/`_tasks` row, no `update_record`/`api_call`/`notify`/`audit`
+  write, no event emitted. Reuses the exact runtime — zero parallel simulator logic.
 - **CatalogService** — exposes the event catalog (`EVENT_*`, producer coverage) and the
   executor catalog (step types + config schema + validation) to drive the palette/pickers.
 
@@ -68,6 +114,26 @@ No new engine/run tables. No change to instances/tasks beyond what 0176–0178 a
 - `POST /workflows/:id/simulate` `{ event, context }` → `{ trace, finalState }`
 - `GET /workflow-catalog` → `{ events, producerCoverage, stepTypes }`
 All tenant-scoped, permission-gated (§10), versioned, audited (§11).
+
+## 4a. Simulation mode (Requirement 3 — explicit, must exist before Publish)
+- **Purpose:** dry-run a draft against **real data** to preview the exact execution path
+  (steps taken, branches, pauses, terminal state, per-step results) **without creating any
+  workflow run or side effect**.
+- **Real data, read-only:** the simulation builds the run context from a chosen **real**
+  subject record (e.g., a real customer/invoice) + a sample/real event; condition steps read
+  real values. The injected `ExecutorDeps` is a **read-only/mock** variant:
+  - `evalCondition` → real (pure) · reads (loadRun, record lookups) → real, read-only.
+  - `notify/createTask/updateRecord/httpCall/escalate/ensureApprovalTask/audit` → **no-ops
+    that record "would do X"** into the returned trace. `approvalDecision` → simulated input.
+  - `persist` → **in-memory only** (never touches `erp_workflow_instances`).
+- **No runs, no writes, no events:** nothing is inserted/updated; the bus receives nothing.
+  Idempotent + side-effect-free, so it can be run repeatedly against production data safely.
+- **Output:** `{ trace: stepResult[], finalState, contextDelta }` — the same shape the live
+  runtime produces, because it **is** the live runtime (`advanceRun`) with mock deps.
+- **Publish gate:** `PublishService` requires a recorded successful validation + simulation
+  for the draft version before flipping `status='published'`.
+- **Security:** simulation requires the authoring permission; reads obey RLS (the simulator
+  cannot read another tenant's data); `api_call`/`update_record` never fire during simulation.
 
 ## 5. Trigger model
 - **Modes:** `manual` (started by an action/UI) or **event-triggered** (`trigger_event`
@@ -138,13 +204,20 @@ All tenant-scoped, permission-gated (§10), versioned, audited (§11).
   LWW config and could ride the existing mirror — but the recommendation is **online-only
   config** to avoid stale/conflicting workflow logic in the field.
 
-## 14. What review must approve
-1. Reuse-only model (no new engine/runtime/simulator) ✔ by design.
-2. Proposed `0179` publishing/versioning migration (status + version snapshots).
-3. Draft→publish→version lifecycle (runs bind to published version).
-4. Authoring permission (`workflow.manage`) + global-template gating.
-5. Simulation via the real runtime + mock deps.
-6. Builder is online-only config (SmartSync stance).
+## 14. Review outcome — APPROVED (with 3 requirements, now incorporated)
+Architecture **approved**. The three review requirements are addressed explicitly:
+
+| # | Requirement | Where addressed |
+|---|---|---|
+| 1 | Immutable versioning; running instances stay on their start version; new instances use latest published | **§2b** (+ `0179`: `definition_versions` append-only, `instances.workflow_version` pin, `latest_version`) |
+| 2 | Templates: Global / Company / Private | **§2c** (+ `0179`: `visibility`, `owner_id`; RLS + precedence) |
+| 3 | Simulation before Publish; dry-run on real data, no runs created | **§4a** (+ §3 read-only deps; PublishService gate) |
+
+Also approved by design: reuse-only model (no new engine/runtime/simulator), authoring
+permission (`workflow.manage`) + global-template gating, Builder is online-only config.
+
+**Finalized.** UI implementation may proceed against THIS document; any deviation requires a
+doc update + re-approval (Constitution Art. 49 / ADR).
 
 ## 15. Explicitly out of scope (this doc)
 Any UI/component design, drag-and-drop library choice, screen layouts — deferred until
