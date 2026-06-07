@@ -14,6 +14,7 @@ const step = (over: Partial<RuntimeStep> = {}): RuntimeStep => ({
 const deps = (over: Partial<ExecutorDeps> = {}): ExecutorDeps => ({
   now: () => 1000,
   ensureApprovalTask: vi.fn(async () => {}),
+  approvalDecision: vi.fn(async () => null),
   notify: vi.fn(async () => {}),
   createTask: vi.fn(async () => ({ taskId: 't1' })),
   updateRecord: vi.fn(async () => {}),
@@ -32,11 +33,18 @@ describe('step executor registry', () => {
     );
   });
 
-  it('approval: ensures a task and pauses', async () => {
+  it('approval: ensures a task and pauses when undecided', async () => {
     const d = deps(); const s = step({ stepType: 'approval', approverType: 'company_admin' });
     const r = await getExecutor('approval')!.execute(ctx(s, d));
     expect(r.status).toBe('paused');
     expect(d.ensureApprovalTask).toHaveBeenCalledOnce();
+  });
+  it('approval: advances (resume) when already approved/rejected', async () => {
+    const s = step({ stepType: 'approval', approverType: 'company_admin' });
+    const approved = await getExecutor('approval')!.execute(ctx(s, deps({ approvalDecision: async () => 'approved' })));
+    expect(approved).toMatchObject({ status: 'completed', branch: 'success' });
+    const rejected = await getExecutor('approval')!.execute(ctx(s, deps({ approvalDecision: async () => 'rejected' })));
+    expect(rejected).toMatchObject({ status: 'completed', branch: 'failure' });
   });
   it('approval: validate requires approver_type', () => {
     expect(getExecutor('approval')!.validate(step({ stepType: 'approval' }))).toHaveLength(1);

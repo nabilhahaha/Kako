@@ -18,8 +18,12 @@ const approval: StepExecutor = {
   type: 'approval',
   validate: (s) => (s.approverType ? [] : ['approval step requires approver_type']),
   execute: async ({ run, step, deps }) => {
+    // Resume-aware: if the task is already decided, advance; else create + pause.
+    const decision = await deps.approvalDecision(run, step);
+    if (decision === 'approved') return ok({ branch: 'success', output: { approval: 'approved' } });
+    if (decision === 'rejected') return ok({ branch: 'failure', output: { approval: 'rejected' } });
     await deps.ensureApprovalTask(run, step);
-    return { status: 'paused' }; // resumed by erp_workflow_decide → runtime.resume
+    return { status: 'paused' }; // resumed by resumeRun() once the task is decided
   },
 };
 

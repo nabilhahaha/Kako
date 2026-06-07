@@ -72,6 +72,8 @@ export interface ExecutorDeps {
   now(): number;
   /** Ensure the approval task(s) for an approval step exist (reuses the engine). */
   ensureApprovalTask(run: RunState, step: RuntimeStep): Promise<void>;
+  /** Latest human decision for this step's task: 'approved' | 'rejected' | null (still pending). */
+  approvalDecision(run: RunState, step: RuntimeStep): Promise<'approved' | 'rejected' | null>;
   /** Send a notification (reuses Notification OS / erp_notify). */
   notify(input: { run: RunState; channel: string; template: string; to: string; vars: Record<string, unknown> }): Promise<void>;
   /** Create a generic task. */

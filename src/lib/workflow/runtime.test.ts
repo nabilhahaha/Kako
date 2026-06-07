@@ -6,6 +6,7 @@ function execDeps(over: Partial<ExecutorDeps> = {}): ExecutorDeps {
   return {
     now: () => 1000,
     ensureApprovalTask: vi.fn(async () => {}),
+    approvalDecision: vi.fn(async () => null),
     notify: vi.fn(async () => {}),
     createTask: vi.fn(async () => ({ taskId: 't1' })),
     updateRecord: vi.fn(async () => {}),
