@@ -6,6 +6,11 @@ no UI/UX regressions.
 
 | PR | Date | Change | Flag | Migration | Gates |
 |----|------|--------|------|-----------|-------|
+| #163 | 2026-06-07 | **Phase 3 readiness report** + collections settlement e2e & multi-company tests | — | none | green |
+| #162 | 2026-06-07 | Phase 3 — coverage / journey-adherence KPI engine (pure) | n/a (read-only) | none | green |
+| #161 | 2026-06-07 | Phase 3 — collection settlement service | `KAKO_DISTRIBUTION` (OFF) | none | green |
+| #160 | 2026-06-07 | Phase 3 — collection receipt + multi-invoice settlement model | `KAKO_DISTRIBUTION` (OFF) | `0192` additive | green |
+| #159 | 2026-06-07 | Phase 3 — collection settlement (payment allocation) engine (pure) + plan | `KAKO_DISTRIBUTION` (OFF) | none | green |
 | #158 | 2026-06-07 | **Phase 2 readiness report** + end-to-end & multi-company DB tests (PO→GRN→bill→match→AP→GL) | — | none | green |
 | #157 | 2026-06-07 | Phase 2 — AP sub-ledger + supplier-invoice GL (Augment: Dr GR-IR/Cr AP) | `KAKO_PURCHASING`/`KAKO_FINANCE` (OFF) | `0191` additive | green |
 | #156 | 2026-06-07 | Phase 2 — matching service (PO/GRN/invoice → hold/approve) | `KAKO_PURCHASING` (OFF) | none | green |
