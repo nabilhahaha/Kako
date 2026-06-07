@@ -52,3 +52,35 @@ export async function snapshotRepDay(
   });
   return { snapshotted: true, kpis };
 }
+
+export interface RepScope {
+  companyId: string;
+  branchId: string;
+  salesmanId: string;
+}
+
+export interface BatchSnapshotResult {
+  snapshotted: number;
+  skipped: boolean; // true when KAKO_DISTRIBUTION is off
+}
+
+/** Snapshot a batch of reps for a date (the scheduler core). No-op when the flag
+ *  is off. Best-effort per rep — one failure does not abort the batch. */
+export async function snapshotReps(
+  coverageGw: CoverageGateway,
+  snapshotGw: SnapshotGateway,
+  reps: RepScope[],
+  date: string,
+): Promise<BatchSnapshotResult> {
+  if (!DISTRIBUTION_ENABLED()) return { snapshotted: 0, skipped: true };
+  let snapshotted = 0;
+  for (const rep of reps) {
+    try {
+      const res = await snapshotRepDay(coverageGw, snapshotGw, { ...rep, date });
+      if (res.snapshotted) snapshotted++;
+    } catch {
+      // best-effort: skip a failing rep, continue the batch
+    }
+  }
+  return { snapshotted, skipped: false };
+}
