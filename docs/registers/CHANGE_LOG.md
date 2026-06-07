@@ -6,6 +6,11 @@ no UI/UX regressions.
 
 | PR | Date | Change | Flag | Migration | Gates |
 |----|------|--------|------|-----------|-------|
+| #172 | 2026-06-07 | Phase 3.x — Offline-sync foundation doc + Phase 3.x readiness note | — | none | green |
+| #171 | 2026-06-07 | Phase 3.x — van load manifest model | `KAKO_DISTRIBUTION` (OFF) | `0194` additive | green |
+| #170 | 2026-06-07 | Phase 3.x — wire goods.received + customer.approved events | `KAKO_EVENTS` (OFF) | none | green |
+| #169 | 2026-06-07 | Phase 3.x — rep KPI scorecard + snapshot scheduler (cron) | `KAKO_DISTRIBUTION` (OFF) | none | green |
+| #168 | 2026-06-07 | Phase 3.x — Coverage & Supervisor Monitoring dashboard | `KAKO_DISTRIBUTION` (OFF/inert) | none | green |
 | #167 | 2026-06-07 | Phase 3 — FMCG KPI & collections closure note | — | none | green |
 | #166 | 2026-06-07 | Phase 3 — rep-day KPI snapshot service (compute→upsert) | `KAKO_DISTRIBUTION` (OFF) | none | green |
 | #165 | 2026-06-07 | Phase 3 — persisted rep-day KPI snapshot model | `KAKO_DISTRIBUTION` (OFF) | `0193` additive | green |
