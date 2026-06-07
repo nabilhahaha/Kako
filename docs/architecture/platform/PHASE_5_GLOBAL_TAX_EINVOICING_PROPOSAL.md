@@ -15,13 +15,15 @@ commercial onboarding in KSA/Egypt).
 **Revision (rev 3):** **document-level tax treatment (§1A)** — tax treatment is resolved
 **per document**, not from customer master alone, so the same customer can receive mixed
 tax/non-tax documents on the same day; adds the document-tax-profile catalog + treatment
-resolution entities to the data model (§5) and country examples (§1A.5). _(Amendment to
-the frozen baseline; design-only, pending review.)_
+resolution entities to the data model (§5) and country examples (§1A.5). _(**Approved**
+2026-06-07 — part of the official baseline.)_
 **Revision (rev 4):** **Tax Determination Rules Engine (§1B)** — automatically determines
 the document tax profile + treatment from transaction inputs (no manual per-document
 selection), with a deterministic rule priority, multi-tenant + effective-dated + pack-
 versioned rules; adds `erp_tax_determination_rules` to the data model (§5) and a 5A
-milestone (M4c). _(Amendment to the frozen baseline; design-only, pending review.)_
+milestone (M4c). _(**Approved** 2026-06-07 — part of the official baseline.)_
+**Phase 5A: GREENLIT for implementation (2026-06-07)** — execution order M1→M6 per
+`docs/phases/PHASE_5A_IMPLEMENTATION_ROADMAP.md`.
 
 ## 0. Principles (inherited from Phases 1–4, non-negotiable)
 - **Platform-wide, not FMCG-specific.** Tax is a *core* capability used by every
