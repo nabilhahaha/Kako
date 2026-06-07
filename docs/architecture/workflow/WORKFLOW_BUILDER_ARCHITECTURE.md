@@ -33,7 +33,7 @@ Reuses existing tables (0088 + 0176/0177/0178). The Builder reads/writes:
   approver_type/ref, mode, required_approvals, condition(jsonb), sla_hours, escalate_to,
   next_on_success, next_on_failure`. This is the executable graph.
 
-**Proposed additive migration (Builder phase — NOT now), `0179_workflow_publishing.sql`:**
+**Proposed additive migration (Builder phase — NOT now), `0180_workflow_publishing.sql`:**
 - `erp_workflow_definitions`: `status text default 'draft' CHECK (draft|published|archived)`,
   `published_at timestamptz`, `published_by uuid`; **`visibility text default 'company'
   CHECK (global|company|private)`** + **`owner_id uuid`** (template tier, §2c);
@@ -209,8 +209,8 @@ Architecture **approved**. The three review requirements are addressed explicitl
 
 | # | Requirement | Where addressed |
 |---|---|---|
-| 1 | Immutable versioning; running instances stay on their start version; new instances use latest published | **§2b** (+ `0179`: `definition_versions` append-only, `instances.workflow_version` pin, `latest_version`) |
-| 2 | Templates: Global / Company / Private | **§2c** (+ `0179`: `visibility`, `owner_id`; RLS + precedence) |
+| 1 | Immutable versioning; running instances stay on their start version; new instances use latest published | **§2b** (+ `0180`: `definition_versions` append-only, `instances.workflow_version` pin, `latest_version`) |
+| 2 | Templates: Global / Company / Private | **§2c** (+ `0180`: `visibility`, `owner_id`; RLS + precedence) |
 | 3 | Simulation before Publish; dry-run on real data, no runs created | **§4a** (+ §3 read-only deps; PublishService gate) |
 
 Also approved by design: reuse-only model (no new engine/runtime/simulator), authoring

@@ -104,6 +104,7 @@ const apiCall: StepExecutor = {
       url: str(step.config.url),
       headers: (step.config.headers as Record<string, string>) ?? undefined,
       body: step.config.body,
+      connector: (step.config.connector as string) ?? null,
     });
     if (res.status >= 500) return fail(`api_call ${res.status}`, true);       // retryable
     if (res.status >= 400) return fail(`api_call ${res.status}`, false);      // permanent

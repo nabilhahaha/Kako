@@ -72,7 +72,11 @@ function clientForToken(token: string): SupabaseClient {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any>;
 
-export interface ImpersonationContext { userId: string; companyId: string; entity: string; pk: string }
+export interface ImpersonationContext {
+  userId: string; companyId: string; entity: string; pk: string;
+  /** Distinguishes the use-site in the audit log (e.g. workflow vs reconcile). */
+  purpose?: string;
+}
 
 /**
  * Mint + audit-log + return a client acting AS the originating user. The audit
@@ -83,7 +87,7 @@ export async function createImpersonatedClient(db: Db, ctx: ImpersonationContext
   const minted = mintReconcileToken(ctx.userId);
   const { error } = await db.from('sync_impersonation_log' as never).insert({
     company_id: ctx.companyId, impersonated_user: ctx.userId, entity: ctx.entity, pk: ctx.pk,
-    jti: minted.jti, purpose: RECONCILE_TOKEN_PURPOSE,
+    jti: minted.jti, purpose: ctx.purpose ?? RECONCILE_TOKEN_PURPOSE,
     issued_at: new Date(minted.issuedAt * 1000).toISOString(),
     expires_at: new Date(minted.expiresAt * 1000).toISOString(),
   } as never);

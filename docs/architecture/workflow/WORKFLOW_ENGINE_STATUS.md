@@ -70,7 +70,10 @@ Companion docs: `EVENT_CATALOG.md`, `EVENT_DEPENDENCY_MAP.md`, `EXECUTOR_CATALOG
 Foundation complete and stopped for **architecture review**. No Builder UI until approved.
 
 ## Future roadmap
-- **Phase A (pre-Builder prerequisites):** wire `resumeRun` into the approval-decision path; per-actor impersonation in the tick + `api_call` egress allow-list (enable `update_record`/`api_call` safely in prod).
+- **Phase A (pre-Builder prerequisites) — DONE** (see `PHASE_A_COMPLETION_REPORT.md`):
+  `resumeRun` wiring (`erp_workflow_decide_runtime` + `decideTask` routing); per-actor tick
+  impersonation; `api_call` egress allow-list (approved connectors + domains, audited).
+  Migration `0179`.
 - **Phase B (Workflow Builder):** visual definition/step editor, trigger picker, condition builder, step palette, simulate/dry-run, publish + versioning. Architecture: `WORKFLOW_BUILDER_ARCHITECTURE.md`.
 - **Phase C (consumers):** background event-bus consumer + projections; real Notification OS delivery; generic task model; converge the two condition evaluators; reconcile-worker emission.
 - **Phase D (intelligence/ecosystem):** workflow analytics KPIs, AI step/condition suggestions, marketplace workflow packs (Marketplace OS).

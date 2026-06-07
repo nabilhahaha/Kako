@@ -5,7 +5,8 @@
 // (CRON_SECRET) + service role. No-op until a workflow with automated steps exists.
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
-import { advanceInstance, listDueRuns } from '@/lib/workflow/runtime-service';
+import { advanceInstance, listDueRuns, loadRun } from '@/lib/workflow/runtime-service';
+import { createImpersonatedClient } from '@/lib/sync/server/impersonate';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,12 +30,21 @@ export async function POST(req: NextRequest) {
   try { const { error } = await db.rpc('erp_workflow_tick'); if (error) engineTick = error.message; }
   catch (e) { engineTick = e instanceof Error ? e.message : String(e); }
 
-  // 2) Generalized runtime: advance due (delay/retry) runs.
+  // 2) Generalized runtime: advance due (delay/retry) runs AS the originating
+  //    user (impersonation → RLS applies, tenant isolation preserved). Runs with
+  //    no actor are skipped (cannot impersonate safely) for an operator to handle.
   const due = await listDueRuns(db, BATCH);
-  const results: { id: string; state?: string; error?: string }[] = [];
+  const results: { id: string; state?: string; error?: string; skipped?: string }[] = [];
   for (const r of due) {
     try {
-      const outcome = await advanceInstance(db, r.id);   // service-role; see runtime ADR for impersonation follow-up
+      if (!r.startedBy) { results.push({ id: r.id, skipped: 'no-actor' }); continue; }
+      const loaded = await loadRun(db, r.id);
+      if (!loaded) { results.push({ id: r.id, skipped: 'missing' }); continue; }
+      const userDb = await createImpersonatedClient(db, {
+        userId: r.startedBy, companyId: loaded.run.companyId, entity: 'workflow_run', pk: r.id,
+        purpose: 'workflow-runtime',
+      });
+      const outcome = await advanceInstance(userDb, r.id);
       results.push({ id: r.id, state: outcome?.state });
     } catch (e) {
       results.push({ id: r.id, error: e instanceof Error ? e.message : String(e) });

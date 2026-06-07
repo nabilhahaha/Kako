@@ -16,6 +16,7 @@ import { UPDATE_RECORD_ALLOWLIST } from './executors/types';
 import type { RunPatch, RuntimeDeps } from './runtime';
 import { evalCondition } from './condition-eval';
 import { emitEvent } from './events';
+import { hostFromUrl, isEgressAllowed, type EgressRule } from './egress';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any>;
@@ -114,7 +115,21 @@ export function makeRuntimeDeps(db: Db, opts: RuntimeDepsOpts): RuntimeDeps {
       void companyId; // tenant already enforced by RLS under the impersonated client
     },
 
-    async httpCall({ method, url, headers, body }) {
+    async httpCall({ method, url, headers, body, connector }) {
+      // Egress allow-list (Phase A): approved domains + connectors only, per company.
+      const host = hostFromUrl(url);
+      const { data: ruleRows } = await db.from('erp_workflow_egress_rules' as never)
+        .select('domain,connector_key,is_active').eq('company_id', opts.companyId).eq('is_active', true);
+      const rules: EgressRule[] = ((ruleRows ?? []) as Record<string, unknown>[])
+        .map((r) => ({ domain: String(r.domain), connectorKey: (r.connector_key as string) ?? null, isActive: true }));
+      if (!isEgressAllowed(host, connector ?? null, rules)) {
+        await emitEvent(db, {
+          companyId: opts.companyId, source: 'workflow', actorId: opts.actorId,
+          eventType: 'workflow.egress.denied', entity: 'workflow_api_call', recordId: null,
+          payload: { host, connector: connector ?? null, url },
+        }).catch(() => {});
+        return { status: 403, body: { error: 'egress_denied', host } }; // → api_call executor: failed, non-retryable
+      }
       const res = await fetch(url, {
         method, headers: { 'content-type': 'application/json', ...(headers ?? {}) },
         body: body != null && method !== 'GET' ? JSON.stringify(body) : undefined,

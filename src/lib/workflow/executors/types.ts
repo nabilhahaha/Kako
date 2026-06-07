@@ -80,8 +80,9 @@ export interface ExecutorDeps {
   createTask(input: { run: RunState; title: string; assigneeType: string; assigneeRef: string | null; dueAt: number | null }): Promise<{ taskId: string }>;
   /** Update a business record (table allow-list enforced by the executor). */
   updateRecord(input: { table: string; id: string; patch: Record<string, unknown>; companyId: string }): Promise<void>;
-  /** Outbound HTTP (api_call). */
-  httpCall(input: { method: string; url: string; headers?: Record<string, string>; body?: unknown }): Promise<{ status: number; body: unknown }>;
+  /** Outbound HTTP (api_call). Egress is allow-listed (approved domains + connectors)
+   *  by the adapter; a denied call returns status 403 (non-retryable) — never fires. */
+  httpCall(input: { method: string; url: string; headers?: Record<string, string>; body?: unknown; connector?: string | null }): Promise<{ status: number; body: unknown }>;
   /** Escalate (reuses the engine's escalation/notify). */
   escalate(run: RunState, step: RuntimeStep): Promise<void>;
   /** Evaluate a condition over the run context (reuses condition semantics). */
