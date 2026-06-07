@@ -12,6 +12,38 @@ import type { WorkflowStepType } from '@/lib/workflow/types';
 const STEP_TYPES = ['approval', 'reject', 'notification', 'task', 'update_record', 'api_call', 'delay', 'escalation', 'condition'];
 const STEP_COLS = 'id,step_no,step_type,name,config,approver_type,approver_ref,sla_hours,escalate_to,condition,next_on_success,next_on_failure';
 
+type Db = Awaited<ReturnType<typeof createClient>>;
+
+/** Copy steps into a new definition, remapping branch targets (old step id →
+ *  new step id) so success/failure branches survive a clone/restore. */
+async function copyStepsRemapped(supabase: Db, sourceSteps: Record<string, unknown>[], newDefId: string): Promise<void> {
+  const oldIdToStepNo = new Map<string, number>();
+  for (const st of sourceSteps) oldIdToStepNo.set(String(st.id), Number(st.step_no));
+  // pass 1: insert with branches nulled, capturing step_no → new id.
+  const newIdByStepNo = new Map<number, string>();
+  for (const st of sourceSteps) {
+    const { data } = await supabase.from('erp_workflow_steps').insert({
+      definition_id: newDefId, step_no: st.step_no, step_type: st.step_type, name: st.name,
+      config: st.config ?? {}, condition: st.condition, approver_type: st.approver_type, approver_ref: st.approver_ref,
+      sla_hours: st.sla_hours, escalate_to: st.escalate_to, next_on_success: null, next_on_failure: null,
+    }).select('id').single();
+    if (data) newIdByStepNo.set(Number(st.step_no), (data as { id: string }).id);
+  }
+  // pass 2: remap branch targets to the freshly inserted ids.
+  const mapTarget = (oldId: unknown): string | null => {
+    if (!oldId) return null;
+    const sn = oldIdToStepNo.get(String(oldId));
+    return sn != null ? newIdByStepNo.get(sn) ?? null : null;
+  };
+  for (const st of sourceSteps) {
+    const newId = newIdByStepNo.get(Number(st.step_no));
+    if (!newId) continue;
+    const ns = mapTarget(st.next_on_success);
+    const nf = mapTarget(st.next_on_failure);
+    if (ns || nf) await supabase.from('erp_workflow_steps').update({ next_on_success: ns, next_on_failure: nf }).eq('id', newId);
+  }
+}
+
 function rowToRuntimeStep(r: Record<string, unknown>): RuntimeStep {
   return {
     id: String(r.id), stepNo: Number(r.step_no), stepType: String(r.step_type ?? 'approval') as WorkflowStepType,
@@ -227,8 +259,9 @@ export async function archiveDefinition(id: string, archived: boolean): Promise<
   return { ok: true };
 }
 
-/** Clone a definition (template use / version restore) into a new DRAFT. */
-export async function cloneDefinition(id: string, visibility: 'company' | 'private' = 'company'): Promise<Result<{ id: string }>> {
+/** Clone a definition (template use / save-as-template) into a new DRAFT.
+ *  Visibility 'global' is RLS-gated to the platform owner. */
+export async function cloneDefinition(id: string, visibility: 'company' | 'private' | 'global' = 'company'): Promise<Result<{ id: string }>> {
   const { ctx, error } = await guard();
   if (!ctx) return { ok: false, error };
   const supabase = await createClient();
@@ -237,20 +270,53 @@ export async function cloneDefinition(id: string, visibility: 'company' | 'priva
   const s = src as Record<string, unknown>;
   const newKey = `${String(s.key)}-copy-${Math.random().toString(36).slice(2, 6)}`;
   const { data: created, error: cErr } = await supabase.from('erp_workflow_definitions').insert({
-    company_id: ctx.companyId, key: newKey, entity: s.entity, name_ar: s.name_ar, name_en: s.name_en, description: s.description,
+    company_id: visibility === 'global' ? null : ctx.companyId, key: newKey, entity: s.entity,
+    name_ar: s.name_ar, name_en: s.name_en, description: s.description,
     trigger: s.trigger ?? 'manual', trigger_event: s.trigger_event, trigger_config: s.trigger_config ?? {},
     status: 'draft', visibility, owner_id: visibility === 'private' ? ctx.userId : null, created_by: ctx.userId,
   }).select('id').single();
   if (cErr) return { ok: false, error: cErr.message };
   const newId = (created as { id: string }).id;
   const { data: steps } = await supabase.from('erp_workflow_steps').select(STEP_COLS).eq('definition_id', id).order('step_no');
-  for (const st of ((steps ?? []) as Record<string, unknown>[])) {
-    await supabase.from('erp_workflow_steps').insert({
-      definition_id: newId, step_no: st.step_no, step_type: st.step_type, name: st.name, config: st.config ?? {},
-      condition: st.condition, approver_type: st.approver_type, approver_ref: st.approver_ref,
-      sla_hours: st.sla_hours, escalate_to: st.escalate_to, next_on_success: null, next_on_failure: null,
-    });
-  }
+  await copyStepsRemapped(supabase, (steps ?? []) as Record<string, unknown>[], newId);
+  revalidatePath('/settings/workflows');
+  return { ok: true, data: { id: newId } };
+}
+
+/** Promote a template up a tier: private → company, or company → global
+ *  (global is RLS-gated to the platform owner). */
+export async function promoteDefinition(id: string, to: 'company' | 'global'): Promise<Result> {
+  const { ctx, error } = await guard();
+  if (!ctx) return { ok: false, error };
+  const supabase = await createClient();
+  const patch: Record<string, unknown> = { visibility: to, owner_id: null, updated_at: new Date().toISOString(), updated_by: ctx.userId };
+  if (to === 'global') patch.company_id = null;
+  const { error: err } = await supabase.from('erp_workflow_definitions').update(patch).eq('id', id);
+  if (err) return { ok: false, error: err.message };
+  revalidatePath('/settings/workflows');
+  return { ok: true };
+}
+
+/** Restore a past immutable version into a new editable DRAFT (from its snapshot). */
+export async function restoreVersion(definitionId: string, version: number): Promise<Result<{ id: string }>> {
+  const { ctx, error } = await guard();
+  if (!ctx) return { ok: false, error };
+  const supabase = await createClient();
+  const { data: ver } = await supabase.from('erp_workflow_definition_versions')
+    .select('snapshot').eq('definition_id', definitionId).eq('version', version).maybeSingle();
+  if (!ver) return { ok: false, error: 'version not found' };
+  const snap = (ver as { snapshot?: { definition?: Record<string, unknown>; steps?: Record<string, unknown>[] } }).snapshot ?? {};
+  const d = snap.definition ?? {};
+  const srcSteps = snap.steps ?? [];
+  const newKey = `${String(d.key ?? 'workflow')}-v${version}-${Math.random().toString(36).slice(2, 6)}`;
+  const { data: created, error: cErr } = await supabase.from('erp_workflow_definitions').insert({
+    company_id: ctx.companyId, key: newKey, entity: d.entity, name_ar: d.name_ar, name_en: d.name_en, description: d.description,
+    trigger: d.trigger ?? 'manual', trigger_event: d.trigger_event, trigger_config: d.trigger_config ?? {},
+    status: 'draft', visibility: 'company', created_by: ctx.userId,
+  }).select('id').single();
+  if (cErr) return { ok: false, error: cErr.message };
+  const newId = (created as { id: string }).id;
+  await copyStepsRemapped(supabase, srcSteps, newId);
   revalidatePath('/settings/workflows');
   return { ok: true, data: { id: newId } };
 }

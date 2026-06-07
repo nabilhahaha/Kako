@@ -11,9 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
 import { EVENT } from '@/lib/workflow/event-types';
 import {
-  createDefinition, deleteStep, setDefinitionActive, deleteDefinition,
+  createDefinition, deleteStep, deleteDefinition,
   updateDefinition, upsertStep, validateDefinition, publishDefinition,
   archiveDefinition, cloneDefinition, simulateDefinition,
+  promoteDefinition, restoreVersion,
 } from './actions';
 
 // Phase-1 forms-based builder over the SINGLE engine (no canvas, no drag-&-drop,
@@ -65,6 +66,8 @@ export function WorkflowBuilder({
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
+  const [mode, setMode] = useState<'workflows' | 'templates'>('workflows');
+  const [cloneVis, setCloneVis] = useState<'company' | 'private' | 'global'>('company');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [nd, setNd] = useState({ key: '', entity: 'credit_limit_request', name_ar: '', name_en: '' });
@@ -120,8 +123,16 @@ export function WorkflowBuilder({
           </div>
         </CardContent></Card>
 
+        {/* View toggle: Workflows · Templates */}
+        <div className="flex gap-1.5">
+          <Button size="sm" variant={mode === 'workflows' ? 'default' : 'outline'} onClick={() => setMode('workflows')}>{t('workflows.viewWorkflows')}</Button>
+          <Button size="sm" variant={mode === 'templates' ? 'default' : 'outline'} onClick={() => setMode('templates')}>{t('workflows.viewTemplates')}</Button>
+        </div>
+
+        {mode === 'templates' && <TemplatesView definitions={visible} userId={userId} busy={busy} run={run} open={open} nameOf={nameOf} stepsOf={stepsOf} t={t} />}
+
         {/* List with filter chips + search */}
-        <Card><CardContent className="p-6 space-y-4">
+        {mode === 'workflows' && <Card><CardContent className="p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-1.5">
               {STATUS_FILTERS.map((f) => (
@@ -152,7 +163,7 @@ export function WorkflowBuilder({
               ))}
             </div>
           )}
-        </CardContent></Card>
+        </CardContent></Card>}
       </div>
     );
   }
@@ -190,7 +201,13 @@ export function WorkflowBuilder({
             {status === 'archived'
               ? <Button size="sm" variant="outline" disabled={busy || !editable} onClick={() => run(async () => archiveDefinition(def.id, false), t('workflows.toast.saved'))}><Power className="me-1 h-3.5 w-3.5" />{t('workflows.unarchive')}</Button>
               : <Button size="sm" variant="outline" disabled={busy || !editable} onClick={() => run(async () => archiveDefinition(def.id, true), t('workflows.toast.archived'))}><Archive className="me-1 h-3.5 w-3.5" />{t('workflows.archive')}</Button>}
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => run(async () => cloneDefinition(def.id, 'company'), t('workflows.toast.cloned'))}><Copy className="me-1 h-3.5 w-3.5" />{t('workflows.clone')}</Button>
+            <select className="h-8 rounded-md border border-input bg-background px-2 text-xs" value={cloneVis} onChange={(e) => setCloneVis(e.target.value as 'company' | 'private' | 'global')}>
+              {['company', 'private', 'global'].map((v) => <option key={v} value={v}>{t(`workflows.visibility.${v}`)}</option>)}
+            </select>
+            <Button size="sm" variant="outline" disabled={busy} onClick={async () => {
+              const res = await run(async () => cloneDefinition(def.id, cloneVis), t('workflows.toast.cloned'));
+              if (res.ok && res.data?.id) open(res.data.id);
+            }}><Copy className="me-1 h-3.5 w-3.5" />{t('workflows.saveAsTemplate')}</Button>
             <Button size="sm" variant="outline" disabled={busy || !editable} onClick={() => run(async () => deleteDefinition(def.id).then((r) => { if (r.ok) setSelectedId(null); return r; }), t('workflows.toast.deleted'))}><Trash2 className="h-3.5 w-3.5" /></Button>
           </div>
         </div>
@@ -211,7 +228,7 @@ export function WorkflowBuilder({
       {tab === 'overview' && <OverviewTab def={def} editable={editable && !published} busy={busy} run={run} t={t} />}
       {tab === 'trigger' && <TriggerTab def={def} editable={editable && !published} busy={busy} run={run} t={t} />}
       {tab === 'steps' && <StepsTab def={def} steps={defSteps} editable={editable && !published} busy={busy} run={run} t={t} locale={locale} />}
-      {tab === 'versions' && <VersionsTab versions={versionsOf(def.id)} t={t} />}
+      {tab === 'versions' && <VersionsTab definitionId={def.id} versions={versionsOf(def.id)} busy={busy} run={run} open={open} t={t} />}
       {tab === 'simulate' && <SimulateTab def={def} busy={busy} run={run} t={t} sim={sim} setSim={setSim} />}
     </div>
   );
@@ -421,17 +438,26 @@ function StepsTab({ def, steps, editable, busy, run, t, locale }: { def: WfDefin
   );
 }
 
-// ── Versions tab ──────────────────────────────────────────────────────────────
-function VersionsTab({ versions, t }: { versions: WfVersion[]; t: T }) {
+// ── Versions tab (immutable history + restore-as-draft) ───────────────────────
+function VersionsTab({ definitionId, versions, busy, run, open, t }: { definitionId: string; versions: WfVersion[]; busy: boolean; run: Runner; open: (id: string) => void; t: T }) {
   return (
     <Card><CardContent className="p-6 space-y-3">
       <h3 className="flex items-center gap-2 text-sm font-medium"><History className="h-4 w-4" />{t('workflows.tab.versions')}</h3>
       {versions.length === 0 ? <p className="text-sm text-muted-foreground">{t('workflows.noVersions')}</p> : (
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-start text-muted-foreground"><th className="py-1 text-start">{t('workflows.version')}</th><th className="py-1 text-start">{t('workflows.publishedAt')}</th></tr></thead>
+          <thead><tr className="border-b text-start text-muted-foreground"><th className="py-1 text-start">{t('workflows.version')}</th><th className="py-1 text-start">{t('workflows.publishedAt')}</th><th className="py-1 text-end"></th></tr></thead>
           <tbody>
             {versions.map((v) => (
-              <tr key={v.id} className="border-b"><td className="py-1.5">v{v.version}</td><td className="py-1.5 text-muted-foreground">{v.published_at ? new Date(v.published_at).toLocaleString() : '—'}</td></tr>
+              <tr key={v.id} className="border-b">
+                <td className="py-1.5">v{v.version}</td>
+                <td className="py-1.5 text-muted-foreground">{v.published_at ? new Date(v.published_at).toLocaleString() : '—'}</td>
+                <td className="py-1.5 text-end">
+                  <Button size="sm" variant="outline" disabled={busy} onClick={async () => {
+                    const res = await run(async () => restoreVersion(definitionId, v.version), t('workflows.toast.restored'));
+                    if (res.ok && res.data?.id) open(res.data.id);
+                  }}>{t('workflows.restoreAsDraft')}</Button>
+                </td>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -471,6 +497,47 @@ function SimulateTab({ def, busy, run, t, sim, setSim }: { def: WfDefinition; bu
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </CardContent></Card>
+  );
+}
+
+// ── Templates view (Global · Company · Private) ───────────────────────────────
+function TemplatesView({ definitions, userId, busy, run, open, nameOf, stepsOf, t }: {
+  definitions: WfDefinition[]; userId: string; busy: boolean; run: Runner; open: (id: string) => void;
+  nameOf: (d: WfDefinition) => string; stepsOf: (id: string) => WfStep[]; t: T;
+}) {
+  const [tab, setTab] = useState<'global' | 'company' | 'private'>('global');
+  const TABS: ('global' | 'company' | 'private')[] = ['global', 'company', 'private'];
+  const list = definitions.filter((d) => visOf(d) === tab && (tab !== 'private' || !d.owner_id || d.owner_id === userId));
+  return (
+    <Card><CardContent className="p-6 space-y-4">
+      <div className="flex flex-wrap gap-1 border-b">
+        {TABS.map((tb) => (
+          <button key={tb} className={`px-3 py-1.5 text-sm ${tab === tb ? 'border-b-2 border-primary font-medium' : 'text-muted-foreground'}`} onClick={() => setTab(tb)}>{t(`workflows.visibility.${tb}`)}</button>
+        ))}
+      </div>
+      {list.length === 0 ? <p className="text-sm text-muted-foreground">{t('workflows.noTemplates')}</p> : (
+        <div className="space-y-2">
+          {list.map((d) => (
+            <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+              <button className="flex flex-wrap items-center gap-2 text-start" onClick={() => open(d.id)}>
+                <span className="font-medium">{nameOf(d)}</span>
+                <span className="font-mono text-xs text-muted-foreground" dir="ltr">{d.key} · {d.entity}</span>
+                <StatusBadge status={statusOf(d)} t={t} />
+                <span className="text-xs text-muted-foreground">{stepsOf(d.id).length} · {t('workflows.tab.steps')}</span>
+              </button>
+              <div className="flex gap-1">
+                <Button size="sm" disabled={busy} onClick={async () => {
+                  const res = await run(async () => cloneDefinition(d.id, 'company'), t('workflows.toast.cloned'));
+                  if (res.ok && res.data?.id) open(res.data.id);
+                }}><Copy className="me-1 h-3.5 w-3.5" />{t('workflows.useTemplate')}</Button>
+                {tab === 'private' && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(async () => promoteDefinition(d.id, 'company'), t('workflows.toast.promoted'))}>{t('workflows.promoteToCompany')}</Button>}
+                {tab === 'company' && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(async () => promoteDefinition(d.id, 'global'), t('workflows.toast.promoted'))}>{t('workflows.promoteToGlobal')}</Button>}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </CardContent></Card>
