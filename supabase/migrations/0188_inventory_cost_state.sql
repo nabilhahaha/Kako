@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS erp_inventory_cost_layers (
 CREATE INDEX IF NOT EXISTS idx_inv_cost_layers_fifo
   ON erp_inventory_cost_layers (warehouse_id, product_id, received_at)
   WHERE remaining_qty > 0;
+-- covering indexes for the FK columns not led by the composite above (schema-health invariant)
+CREATE INDEX IF NOT EXISTS idx_inv_cost_layers_product  ON erp_inventory_cost_layers (product_id);
+CREATE INDEX IF NOT EXISTS idx_inv_cost_layers_movement ON erp_inventory_cost_layers (source_movement_id);
 
 -- ── Standard costs (effective-dated, per warehouse+product) ──────────────────
 CREATE TABLE IF NOT EXISTS erp_standard_costs (
@@ -62,6 +65,8 @@ CREATE TABLE IF NOT EXISTS erp_standard_costs (
 );
 CREATE INDEX IF NOT EXISTS idx_standard_costs_lookup
   ON erp_standard_costs (warehouse_id, product_id, effective_from DESC);
+-- covering index for the product_id FK (composite above is led by warehouse_id)
+CREATE INDEX IF NOT EXISTS idx_standard_costs_product ON erp_standard_costs (product_id);
 
 -- ── Valued cost on each movement (additive, nullable) ────────────────────────
 ALTER TABLE erp_stock_movements ADD COLUMN IF NOT EXISTS unit_cost  numeric(18,4);
