@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { logPriceOverrides } from '@/lib/erp/pricing-server';
@@ -91,6 +92,7 @@ export async function createSalesOrder(input: OrderInput): Promise<ActionResult<
     customerId: input.customer_id, branchId: input.branch_id, lines,
   });
 
+  await emitDomainEvent({ eventType: EVENT.ORDER_CREATED, entity: 'order', recordId: order.id });
   revalidatePath('/sales/orders');
   return { ok: true, data: { id: order.id } };
 }
