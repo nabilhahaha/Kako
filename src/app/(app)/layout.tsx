@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { BottomNav } from '@/components/layout/bottom-nav';
 import { TopBar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/layout/command-palette';
+import { SEARCH_ENABLED } from '@/lib/search/flags';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { CopilotFab } from '@/components/copilot/copilot-fab';
@@ -145,6 +146,7 @@ export default async function AppLayout({
           platformPermissions={platformPermissions}
           isPlatformStaff={isPlatformStaff}
           businessType={ctx.company?.business_type ?? null}
+          recordsSearch={SEARCH_ENABLED()}
         />
         <Sidebar
           permissions={ctx.permissions}
