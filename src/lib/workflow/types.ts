@@ -12,7 +12,7 @@ export type EventSource = 'app' | 'workflow' | 'integration' | 'sync' | 'system'
 /** Generic workflow step kinds (erp_workflow_steps.step_type). Existing rows
  *  default to 'approval' — the engine's current behavior is unchanged. */
 export type WorkflowStepType =
-  | 'condition' | 'approval' | 'task' | 'notification'
+  | 'condition' | 'approval' | 'reject' | 'task' | 'notification'
   | 'api_call' | 'update_record' | 'delay' | 'escalation';
 
 export type WorkflowInstanceStatus =
