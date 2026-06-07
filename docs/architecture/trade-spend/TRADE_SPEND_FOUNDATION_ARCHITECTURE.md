@@ -1,7 +1,7 @@
-# VANTORA — Trade Spend Foundation Architecture (Proposal)
+# VANTORA — Trade Spend Foundation Architecture (Approved)
 
-**Status:** Architecture only — **no code, no migrations, no implementation, no
-branches.** Architecture review first.
+**Status:** ✅ **APPROVED & frozen** — architecture only; **no code, no migrations,
+no implementation** yet. Implementation planning deferred.
 **Goal:** a generic, **FMCG-first-class trade-spend / commercial-investment**
 foundation — budgets, customer agreements, listing/visibility fees, promotion
 planning → execution, claims, accruals, settlement/deductions and ROI — built as a
@@ -142,5 +142,5 @@ no parallel pricing engine.
 6. **First consumer flow:** plan promo (budget check) → execute discount at sale →
    accrue → claim → settle via credit note → ROI — end-to-end across Sales + Finance.
 
-*Architecture only — no code, migrations, implementation, or branches. Awaiting
-architecture review/approval before any implementation.*
+*Architecture **APPROVED & frozen** — no code, migrations, implementation, or
+branches. Implementation planning deferred until requested.*
