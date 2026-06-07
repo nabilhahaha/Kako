@@ -1,7 +1,7 @@
-# VANTORA — Purchasing Foundation Architecture (Proposal)
+# VANTORA — Purchasing Foundation Architecture (Approved)
 
-**Status:** Architecture only — **no code, no migrations, no implementation, no
-branches.** Architecture review first.
+**Status:** ✅ **APPROVED & frozen** — architecture only; **no code, no migrations,
+no implementation** yet. Implementation planning deferred.
 **Goal:** a generic, industry-neutral **procure-to-pay (P2P)** foundation —
 Purchase Request → RFQ → PO → Goods Receipt → supplier invoice → payment, plus
 returns, supplier pricing and landed cost — reused across all verticals.
@@ -156,5 +156,5 @@ multi-tenancy. No second purchasing engine; no per-industry fork.
 6. **First consumer flow:** PO → GRN → three-way match → AP → payment as the
    end-to-end validation against Inventory + Finance.
 
-*Architecture only — no code, migrations, implementation, or branches. Awaiting
-architecture review/approval before any implementation.*
+*Architecture **APPROVED & frozen** — no code, migrations, implementation, or
+branches. Implementation planning deferred until requested.*
