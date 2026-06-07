@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { requireAuth, can, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { type LineInput } from '@/lib/erp/sales-calc';
 import { createInvoiceCore, issueInvoiceCore, recordPaymentCore } from '@/lib/erp/sales/invoice-core';
+import { recordEvent } from '@/lib/workflow/emit';
+import { EVENT } from '@/lib/workflow/event-types';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
 import { isEtaConfigured } from '@/lib/eta/config';
@@ -43,7 +45,10 @@ export async function issueInvoice(id: string): Promise<ActionResult> {
   const { t } = await getT();
   const supabase = await createClient();
   const res = await issueInvoiceCore(supabase, t, id);
-  if (res.ok) { revalidatePath('/sales/invoices'); revalidatePath('/customers'); }
+  if (res.ok) {
+    await recordEvent({ eventType: EVENT.INVOICE_ISSUED, entity: 'invoice', recordId: id });
+    revalidatePath('/sales/invoices'); revalidatePath('/customers');
+  }
   return res;
 }
 
@@ -148,7 +153,10 @@ export async function recordPayment(input: {
   const { t } = await getT();
   const supabase = await createClient();
   const res = await recordPaymentCore(supabase, t, input);
-  if (res.ok) { revalidatePath('/sales/invoices'); revalidatePath('/customers'); }
+  if (res.ok) {
+    await recordEvent({ eventType: EVENT.PAYMENT_RECEIVED, entity: 'payment', recordId: input.idempotency_key ?? input.invoice_id, payload: { invoice_id: input.invoice_id, amount: input.amount, payment_method: input.payment_method } });
+    revalidatePath('/sales/invoices'); revalidatePath('/customers');
+  }
   return res;
 }
 
@@ -185,6 +193,7 @@ export async function voidInvoice(id: string, reason: string): Promise<ActionRes
   const { error } = await supabase.rpc('erp_void_invoice', { p_invoice_id: id, p_reason: reason.trim() });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  await recordEvent({ eventType: EVENT.INVOICE_VOIDED, entity: 'invoice', recordId: id, payload: { reason: reason.trim() } });
   revalidatePath('/sales/invoices');
   revalidatePath('/customers');
   revalidatePath('/inventory');

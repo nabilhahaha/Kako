@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getT } from '@/lib/i18n/server';
+import { recordEvent } from '@/lib/workflow/emit';
+import { EVENT } from '@/lib/workflow/event-types';
 
 interface ReturnLineInput {
   product_id: string;
@@ -95,6 +97,7 @@ export async function completeReturn(
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  await recordEvent({ eventType: EVENT.RETURN_APPROVED, entity: 'return', recordId: id, payload: { refund_method: refundMethod } });
   revalidatePath('/sales/returns');
   revalidatePath('/customers');
   revalidatePath('/inventory');

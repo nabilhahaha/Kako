@@ -5,6 +5,8 @@ import { requireAuth, type ActionResult } from '@/lib/erp/guards';
 import { hasPermission } from '@/lib/erp/permissions';
 import { today } from '@/lib/erp/work-session';
 import type { JourneySortMode } from '@/lib/erp/journey-sort';
+import { recordEvent } from '@/lib/workflow/emit';
+import { EVENT } from '@/lib/workflow/event-types';
 
 /** ── FMCG field-execution server actions ───────────────────────────────────
  *  Thin, permission-gated wrappers over the validated 0128–0134 RPCs. Each
@@ -160,6 +162,11 @@ export async function checkInVisit(input: CheckInInput): Promise<ActionResult> {
     p_force: input.force ?? false,
   });
   if (rpcErr) return { ok: false, error: rpcErr.message };
+  // A blocked check-in is not a completed visit (needs reason/override first).
+  const v = (data ?? {}) as { visit_id?: string; blocked?: boolean };
+  if (v.visit_id && !v.blocked) {
+    await recordEvent({ eventType: EVENT.VISIT_COMPLETED, entity: 'visit', recordId: v.visit_id, payload: { customer_id: input.customerId, work_session_id: input.workSessionId } });
+  }
   return { ok: true, data };
 }
 

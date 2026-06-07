@@ -10,6 +10,8 @@ import { getT } from '@/lib/i18n/server';
 import { isCompanyWide } from '@/lib/erp/scope';
 import { applyWorkflowOutcome, type WorkflowOutcome } from '@/lib/erp/workflow-handlers';
 import { sensitiveChanges } from '@/lib/erp/customer-approval';
+import { recordEvent } from '@/lib/workflow/emit';
+import { EVENT } from '@/lib/workflow/event-types';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import { logAudit } from '@/lib/erp/audit';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
@@ -204,6 +206,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult<{
       revalidatePath('/approvals');
     }
     await auditStatus((row as { id: string }).id);
+    await recordEvent({ eventType: EVENT.CUSTOMER_CREATED, entity: 'customer', recordId: (row as { id: string }).id, branchId: branchId || null, payload: { code, name, requires_approval: requireApproval } });
     revalidatePath('/customers');
     return { ok: true, data: { id: (row as { id: string }).id } };
   }
@@ -233,6 +236,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult<{
         const { error: wfErr } = await supabase.rpc('erp_workflow_start', { p_key: 'customer_update', p_entity: 'customer_change_request', p_record_id: (req as { id: string }).id, p_context: {} });
         if (wfErr) return { ok: false, error: friendlyDbError(wfErr) };
         await auditStatus(id);
+        await recordEvent({ eventType: EVENT.CUSTOMER_UPDATED, entity: 'customer', recordId: id, branchId: branchId || null, payload: { staged: true } });
         revalidatePath('/customers');
         revalidatePath('/approvals');
         return { ok: true, data: { id } };
@@ -243,6 +247,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult<{
   const { error } = await supabase.from('erp_customers').update(payload).eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
   await auditStatus(id);
+  await recordEvent({ eventType: EVENT.CUSTOMER_UPDATED, entity: 'customer', recordId: id, branchId: branchId || null });
   revalidatePath('/customers');
   return { ok: true, data: { id } };
 }
@@ -399,6 +404,7 @@ async function decideCustomer(id: string, decision: 'approve' | 'reject', reason
       const res = (data ?? {}) as { final?: boolean; status?: string; entity?: string; record_id?: string };
       if (res.final && res.entity && res.record_id && (res.status === 'approved' || res.status === 'rejected')) {
         await applyWorkflowOutcome(res.entity, res.record_id, res.status as WorkflowOutcome, reason ?? null);
+        if (res.status === 'approved') await recordEvent({ eventType: EVENT.CUSTOMER_APPROVED, entity: 'customer', recordId: id });
       }
       revalidatePath('/customers');
       revalidatePath('/approvals');
@@ -411,6 +417,7 @@ async function decideCustomer(id: string, decision: 'approve' | 'reject', reason
     is_approved: decision === 'approve',
     rejection_reason: decision === 'reject' ? (reason ?? null) : null,
   }).eq('id', id);
+  if (decision === 'approve') await recordEvent({ eventType: EVENT.CUSTOMER_APPROVED, entity: 'customer', recordId: id });
   revalidatePath('/customers');
   return { ok: true };
 }
