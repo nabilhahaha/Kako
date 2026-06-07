@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { getT } from '@/lib/i18n/server';
+import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 
 interface POInput {
   branch_id: string;
@@ -110,6 +111,10 @@ export async function receivePurchaseOrder(
     })),
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
+
+  // Goods received → bus (no-op unless KAKO_EVENTS; non-fatal). Drives the Phase-1
+  // inventory GL leg + downstream consumers when the engine path is enabled.
+  await emitDomainEvent({ eventType: EVENT.GOODS_RECEIVED, entity: 'goods_receipt', recordId: poId, payload: { warehouseId } });
 
   revalidatePath('/purchases/orders');
   revalidatePath('/suppliers');
