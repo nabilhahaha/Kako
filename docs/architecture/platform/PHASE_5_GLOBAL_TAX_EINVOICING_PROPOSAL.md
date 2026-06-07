@@ -17,6 +17,11 @@ commercial onboarding in KSA/Egypt).
 tax/non-tax documents on the same day; adds the document-tax-profile catalog + treatment
 resolution entities to the data model (§5) and country examples (§1A.5). _(Amendment to
 the frozen baseline; design-only, pending review.)_
+**Revision (rev 4):** **Tax Determination Rules Engine (§1B)** — automatically determines
+the document tax profile + treatment from transaction inputs (no manual per-document
+selection), with a deterministic rule priority, multi-tenant + effective-dated + pack-
+versioned rules; adds `erp_tax_determination_rules` to the data model (§5) and a 5A
+milestone (M4c). _(Amendment to the frozen baseline; design-only, pending review.)_
 
 ## 0. Principles (inherited from Phases 1–4, non-negotiable)
 - **Platform-wide, not FMCG-specific.** Tax is a *core* capability used by every
@@ -156,6 +161,76 @@ compliance from it:
   VAT return; `Zero Rated` (e.g. exports) and `Exempt` (e.g. certain financial services)
   carried distinctly; `Out Of Scope` excluded. E-invoicing readiness keys off the profile
   when the FTA mandate activates.
+
+---
+
+## 1B. Tax Determination Rules Engine (rev 4 — Phase 5A Core)
+
+**Objective:** eliminate manual tax-profile selection on every document. Given a
+transaction context, the engine **automatically determines** the correct tax treatment
+(the document tax profile of §1A and the codes/rates of §1). Manual override (§1A.1)
+remains possible but is the exception, not the rule. Pure, deterministic, data-driven —
+the same "rules are data, not code" pattern as the posting-rule engine.
+
+### 1B.1 Determination inputs
+A rule is matched against the transaction context:
+`country`, `legal_entity`, `vat_registration`, `customer_type`, `customer_classification`,
+`channel`, `document_type`, `product_tax_code`, `product_category`, `transaction_type`
+(e.g. domestic/export/import/intra-GCC), and the **effective date** (tax point). Any input
+may be a wildcard (rule applies regardless of that dimension).
+
+### 1B.2 Determination outputs
+A matched rule resolves:
+`tax_profile` (one of the §1A.2 profiles) · `vat_treatment`
+(standard/zero/exempt/out_of_scope/reverse_charge) · `tax_code` · `tax_rate` (or "from tax
+code, as-of date") · `compliance_requirement` (`e_invoice|e_receipt|simplified|none`) ·
+`country_pack` (which pack handles it) · `reporting_category` (the box/category on the
+statutory return).
+
+### 1B.3 Rule priority (deterministic)
+When multiple rules match, the **most specific wins** via a fixed specificity order, with
+an explicit numeric `priority` as the final tiebreaker:
+```
+Country → Legal Entity → VAT Registration → Document Type → Customer Type
+       → Customer Classification → Channel → Product Tax Code → Product Category
+       → Transaction Type   (then explicit priority, then rule id for total order)
+```
+- Specificity is scored (a non-wildcard match on a higher dimension outranks lower ones),
+  so determination is **deterministic and explainable** (the engine returns *which* rule
+  fired + why — an audit/debug "trace").
+- A platform **default rule set** ships per country pack (sensible statutory defaults);
+  per-company rules override (multi-tenant, §1B.5).
+
+### 1B.4 Country examples
+| Context | Determined output |
+|---------|-------------------|
+| Saudi · Retail/B2C customer · Sales Invoice | **Simplified Tax Invoice** · standard 15% · ZATCA **reporting** + QR |
+| Saudi · B2B customer (registered) · Sales Invoice | **Standard Tax Invoice** · standard 15% · ZATCA **clearance** (signed XML) |
+| Any GCC · Export transaction | **Zero Rated** (0%) · reporting category "exports" |
+| Any · Out-of-scope transaction | **Non-Tax Document** · `out_of_scope` · no submission |
+| Egypt · B2B · Sales Invoice | **Tax Invoice** 14% · ETA **e-invoice** (type `I`) |
+| Egypt · B2C cash · POS sale | **Tax Receipt** · ETA **e-receipt** |
+| UAE · B2C · Sales Invoice | **Simplified Tax Invoice** 5% · FTA reporting |
+| UAE · designated-zone/export | **Zero Rated** · reporting category per FTA |
+
+### 1B.5 Multi-tenant
+Rules are **per company** (and may target a legal entity/registration), RLS-scoped;
+editing one tenant's rules never affects another. Platform/pack defaults (company_id NULL)
+are overridden by company rows — same override model as posting rules.
+
+### 1B.6 Effective-dated & versioned
+- Each rule is **effective-dated** (`effective_from/to`); determination uses the rule set
+  **as-of the document tax point** (§3.3), so a future VAT-rate change is a new rule row
+  and historical transactions are untouched.
+- Rules carry a **`pack_version`** binding (§2.1), so a regulatory change ships as a new
+  pack version + rule set, adopted per tenant on its effective date — no edits to live rules.
+
+### 1B.7 How it fits
+Determination runs **before** computation: `determine(ctx, asOf) → {profile, treatment,
+tax_code, rate, compliance, pack, reporting_category}` → the document is stamped with the
+profile (§1A) → `computeTax` (§1.2) produces the amounts → the ledger/report tag the
+reporting_category → the resolved pack handles compliance. Pure resolver; fully testable
+before any DB.
 
 ---
 
@@ -310,6 +385,14 @@ only tax legs — it never changes core posting logic (the Augment guarantee fro
   - **Document stamp:** sales/AR/note documents carry `document_tax_profile_id` (+ resolved
     tax-point date) — the immutable per-document treatment (additive nullable column on the
     existing document tables; resolved at creation, never from customer master alone).
+  - `erp_tax_determination_rules` (rev 4 — §1B): company_id (NULL = platform/pack default),
+    match inputs (country, legal_entity_id, vat_registration_id, customer_type,
+    customer_classification, channel, document_type, product_tax_code, product_category,
+    transaction_type — each nullable = wildcard), **outputs** (document_tax_profile_id,
+    vat_treatment, tax_code, tax_rate_source, compliance_requirement, country_pack,
+    reporting_category), `priority`, **`effective_from/to`**, **`pack_version`**, is_active.
+    Determination = most-specific-match as-of tax point (§1B.3); the fired rule id is
+    recorded on the document for audit/explainability.
 - **ERP Tax Transactions**
   - `erp_tax_document_lines` (per source line: base, tax_code, rate, tax_amount, kind,
     inclusive flag, **document_tax_profile_id**) — the computed breakdown attached to
@@ -345,7 +428,7 @@ sector defaults/config → industry pack.**
 ## 7. Roadmap (phased, each flag-gated, reviewed)
 | Sub-phase | Scope | Depends on |
 |-----------|-------|------------|
-| **5A — Global Tax Engine** | Pure engine + **document-tax-profile catalog + treatment resolution (§1A)** + **legal-entity dimension (§3.1)** + **multi-registration (§3.2)** + **effective-dated codes/rules (§3.3)** + tax data model + ledger + generic VAT report + posting integration + audit. | Phase-1 poster (done). |
+| **5A — Global Tax Engine** | Pure engine + **document-tax-profile catalog + treatment resolution (§1A)** + **tax determination rules engine (§1B)** + **legal-entity dimension (§3.1)** + **multi-registration (§3.2)** + **effective-dated codes/rules (§3.3)** + tax data model + ledger + generic VAT report + posting integration + audit. | Phase-1 poster (done). |
 | **5B — Country Pack Framework** | `TaxCompliancePack` interface + registry + **pack-versioning + version pinning (§2.1)** + submission lifecycle model + secrets handling + health surface. | 5A. |
 | **5C — Egypt ETA Pack** | e-invoice/e-receipt JSON, signature, submission API, validation, code mappings (extends existing ETA tables). | 5A, 5B. |
 | **5D — Saudi ZATCA Pack** | Phase 1 (QR) + Phase 2 (UBL XML, UUID/PIH, CSID, clearance/reporting). | 5A, 5B. |

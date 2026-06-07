@@ -50,6 +50,15 @@ all effective-dated, company-scoped RLS, FK-covered. No seed (config is per tena
 exhaustive tests incl. **same-customer-same-day mixed tax/non-tax** scenarios. Feeds M6
 (service stamps the profile) and the country packs (which key compliance off the profile).
 
+**M4c — Tax determination rules engine (rev 4, §1B)** *(pure resolver + additive migration + pack defaults seed)*
+`erp_tax_determination_rules` (match inputs → outputs, priority, effective-dated, pack_version,
+company-overridable) + pure `determineTax(ctx, asOf)` that returns the document tax profile +
+treatment + tax_code/rate + compliance + pack + reporting_category, **most-specific-wins**
+with an explainable trace (which rule fired). Exhaustive tests for the §1B.4 country
+examples (KSA B2B clearance vs B2C simplified, export zero-rated, out-of-scope non-tax,
+EG e-invoice vs e-receipt, UAE). Runs **before** M4b stamping/M6 compute. Platform/pack
+default rule sets seeded; per-company overrides.
+
 **M5 — Tax transactions + tax ledger** *(additive migration)*
 `erp_tax_document_lines` (computed breakdown per source line) + `erp_tax_ledger`
 (legal_entity, registration, period, direction output|input, tax_code, base, tax,
@@ -104,7 +113,8 @@ isolation; effective-dated rate-change scenario. Then the 5A readiness checkpoin
 | M8 VAT report read-model | S | low |
 | M9 e2e + readiness | M | med |
 | M4b document tax profiles + resolution (rev 3) | S–M | med (cascade + mixed-day correctness) |
-| **Total 5A** | **~Medium-High** (≈10 increments) | concentrated in M1/M3/M5; +M4b document-profile resolution |
+| M4c tax determination rules engine (rev 4) | **M** | med (deterministic priority + explainability) |
+| **Total 5A** | **~Medium-High** (≈11 increments) | concentrated in M1/M3/M5; +M4b/M4c determination |
 
 Rough order-of-magnitude: comparable to Phase 2 (Purchasing) in increment count, with
 extra care on tax-correctness tests.
