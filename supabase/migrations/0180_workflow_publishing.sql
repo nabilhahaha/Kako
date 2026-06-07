@@ -58,16 +58,16 @@ DROP POLICY IF EXISTS erp_wf_def_read ON erp_workflow_definitions;
 CREATE POLICY erp_wf_def_read ON erp_workflow_definitions FOR SELECT USING (
   erp_is_platform_owner()
   OR visibility = 'global'
-  OR (company_id = erp_user_company_id() AND (visibility <> 'private' OR owner_id = auth.uid()))
+  OR (company_id = erp_user_company_id() AND (visibility <> 'private' OR owner_id = (select auth.uid())))
 );
 DROP POLICY IF EXISTS erp_wf_def_write ON erp_workflow_definitions;
 CREATE POLICY erp_wf_def_write ON erp_workflow_definitions FOR ALL USING (
   erp_is_platform_owner()
-  OR (visibility = 'private' AND owner_id = auth.uid() AND company_id = erp_user_company_id())
+  OR (visibility = 'private' AND owner_id = (select auth.uid()) AND company_id = erp_user_company_id())
   OR (visibility = 'company' AND company_id IS NOT NULL AND erp_is_company_admin(company_id))
 ) WITH CHECK (
   erp_is_platform_owner()
-  OR (visibility = 'private' AND owner_id = auth.uid() AND company_id = erp_user_company_id())
+  OR (visibility = 'private' AND owner_id = (select auth.uid()) AND company_id = erp_user_company_id())
   OR (visibility = 'company' AND company_id IS NOT NULL AND erp_is_company_admin(company_id))
 );
 
