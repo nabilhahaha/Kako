@@ -6,6 +6,8 @@ no UI/UX regressions.
 
 | PR | Date | Change | Flag | Migration | Gates |
 |----|------|--------|------|-----------|-------|
+| #149 | 2026-06-07 | GL wiring — inventory/COGS Augment legs: seed rules + orchestrator + `goods.received` event + end-to-end DB tests (receipt→Inventory→GL, sale→COGS→GL). Dropped cost-center from COGS leg (FK-safety) after the e2e test caught an invalid `cost_center_id`. | `KAKO_FINANCE` (OFF) | additive (seed) | green |
+| #148 | 2026-06-07 | Inventory costing state tables + costing service | `KAKO_INVENTORY_COSTING` (OFF) | additive | green |
 | #146 | 2026-06-07 | Data Portability & Backup — architecture & backlog doc | — | none | green |
 | #145 | 2026-06-07 | Inventory costing engine core (FIFO/Weighted-Avg/Standard), pure | `KAKO_INVENTORY_COSTING` (OFF) | none | green |
 | #144 | 2026-06-07 | Posting consumer/poster (event → journal entry) | `KAKO_FINANCE` (OFF) | additive | green |

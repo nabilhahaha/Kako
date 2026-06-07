@@ -17,6 +17,7 @@ export const EVENT = {
   RETURN_APPROVED: 'return.approved',
   VISIT_COMPLETED: 'visit.completed',
   STOCK_TRANSFER_COMPLETED: 'stock_transfer.completed',
+  GOODS_RECEIVED: 'goods.received',
 } as const;
 
 export type EventType = typeof EVENT[keyof typeof EVENT];
@@ -34,4 +35,5 @@ export const EVENT_ENTITY: Record<EventType, string> = {
   'return.approved': 'return',
   'visit.completed': 'visit',
   'stock_transfer.completed': 'stock_transfer',
+  'goods.received': 'goods_receipt',
 };
