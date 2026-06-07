@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, can, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
 import { validateCustomValues } from '@/lib/erp/form-schema';
@@ -204,6 +205,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
       revalidatePath('/approvals');
     }
     await auditStatus((row as { id: string }).id);
+    await emitDomainEvent({ eventType: EVENT.CUSTOMER_CREATED, entity: 'customer', recordId: (row as { id: string }).id });
     revalidatePath('/customers');
     return { ok: true };
   }
@@ -243,6 +245,7 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   const { error } = await supabase.from('erp_customers').update(payload).eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
   await auditStatus(id);
+  await emitDomainEvent({ eventType: EVENT.CUSTOMER_UPDATED, entity: 'customer', recordId: id });
   revalidatePath('/customers');
   return { ok: true };
 }

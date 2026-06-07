@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { logPriceOverrides } from '@/lib/erp/pricing-server';
@@ -172,6 +173,7 @@ export async function issueInvoice(id: string): Promise<ActionResult> {
   const { error } = await supabase.rpc('erp_issue_invoice', { p_invoice_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  await emitDomainEvent({ eventType: EVENT.INVOICE_ISSUED, entity: 'invoice', recordId: id });
   revalidatePath('/sales/invoices');
   revalidatePath('/customers');
   return { ok: true };
@@ -291,6 +293,7 @@ export async function recordPayment(input: {
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  await emitDomainEvent({ eventType: EVENT.PAYMENT_RECEIVED, entity: 'payment', recordId: input.invoice_id, payload: { amount: input.amount, method: input.payment_method } });
   revalidatePath('/sales/invoices');
   revalidatePath('/customers');
   return { ok: true };
