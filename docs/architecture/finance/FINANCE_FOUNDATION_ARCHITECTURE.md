@@ -1,7 +1,7 @@
-# VANTORA — Finance Foundation Architecture (Proposal)
+# VANTORA — Finance Foundation Architecture (Approved)
 
-**Status:** Architecture only — **no code, no migrations, no implementation
-branches.** Architecture review first.
+**Status:** ✅ **APPROVED** — architecture only; **no code, no migrations, no
+implementation** yet. Next: implementation planning review.
 **Goal:** a **generic, industry-neutral double-entry finance foundation** that
 serves distribution, retail, manufacturing, clinics, pharmacies, services and
 future verticals — one ledger, one posting engine, reused everywhere.
@@ -60,6 +60,20 @@ COA with system accounts.
   campaign) as optional line tags — without new line columns per dimension
   (a `dimensions jsonb` or a dimension-tag table).
 - Cost-center hierarchy (parent) + allocation rules (future, Budgeting-adjacent).
+
+> **Future note — generic analytical-dimensions framework (no redesign).** Cost
+> center is the **first** analytic dimension, but the design stays open for a
+> **generic dimensions framework** — branch, project, department, campaign, channel,
+> salesperson, fund, etc. — added later **without redesign**. The mechanism: journal
+> lines carry their analytic tags in a normalized, dimension-agnostic shape (a
+> `dimensions` map / a line-dimension tag table keyed by *dimension type → value*),
+> with a per-company **dimension registry** (which dimensions exist, are required,
+> and which accounts they apply to). Cost center then becomes simply the first
+> registered dimension rather than a special column. Posting rules already derive
+> per-line attributes, so a new dimension is **configuration** (register it + map it
+> in rules), not an engine or schema redesign. Reporting groups/filters by any
+> dimension uniformly. This is explicitly reserved now so cost centers never become
+> a one-off that blocks the broader framework.
 
 ---
 
@@ -150,6 +164,27 @@ The integration seam is the **event bus** (reuse — see §10), not point-to-poi
 
 ---
 
+## 8A. Inventory Valuation — FIFO / Weighted Average / Standard Cost (reviewed)
+
+The foundation supports all three methods (concurrently, per item) **without
+redesign**, because **the GL is amount-agnostic**: it posts a *valued cost it is
+handed* via posting rules; the valuation method lives in an **inventory costing
+layer**, not the ledger.
+- **Separation:** the inventory domain owns cost state (FIFO cost layers, moving-
+  average state, standard-cost master + variance config) and emits a **movement
+  event carrying the already-valued cost** (+ variance breakdown for standard cost);
+  the posting engine subscribes and posts. The GL stores only the posted effect.
+- **FIFO / Weighted Average:** same two-line posting (`Dr COGS / Cr Inventory`) with
+  a different computed number — no posting-shape change.
+- **Standard Cost:** a richer **rule template** adds variance lines (e.g. `Dr
+  Inventory @ standard / Cr GR-IR @ actual / PPV @ difference`; usage/efficiency
+  variances on issue) → handled by rule **configuration, not engine code**.
+- **Why no redesign:** posting-rules-as-data (§7) + account-key indirection
+  (`inventory.asset/cogs/ppv/usage_variance/revaluation`) + events-as-seam (§8) mean
+  a method is chosen in the costing layer and posted through the unchanged journal
+  engine. Recosting / standard-cost rolls / period-end revaluation / LCNRV write-
+  downs are ordinary rule-driven adjusting entries (Workflow-approved).
+
 ## 9. Multi-tenant considerations
 
 - **Tenant scoping standardized:** finance entities scoped by `company_id` (COA,
@@ -239,5 +274,6 @@ discoverability via Search. No second ledger; no per-industry fork.
 6. **Phasing:** which depends-on module (AR/AP/GL reporting) is the first consumer
    to validate the foundation against?
 
-*Architecture only — no code, migrations, or implementation branches. Awaiting
-architecture review/approval before any implementation.*
+*Architecture **APPROVED** (incl. the analytical-dimensions future note and the
+inventory-valuation review). No code, migrations, or implementation yet — next step
+is the **implementation planning review**. Stopping there.*
