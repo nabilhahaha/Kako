@@ -23,6 +23,7 @@ export default async function MarketPosPage() {
       <CashierTerminal
         branches={(branches as BranchOption[]) ?? []}
         products={(products as CashierProduct[]) ?? []}
+        userId={ctx.userId}
       />
     </div>
   );

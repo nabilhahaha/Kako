@@ -7,6 +7,8 @@ import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc
 import { logPriceOverrides } from '@/lib/erp/pricing-server';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import { getT } from '@/lib/i18n/server';
+import { recordEvent } from '@/lib/workflow/emit';
+import { EVENT } from '@/lib/workflow/event-types';
 
 interface OrderInput {
   branch_id: string;
@@ -91,6 +93,7 @@ export async function createSalesOrder(input: OrderInput): Promise<ActionResult<
     customerId: input.customer_id, branchId: input.branch_id, lines,
   });
 
+  await recordEvent({ eventType: EVENT.ORDER_CREATED, entity: 'order', recordId: order.id, branchId: input.branch_id, payload: { customer_id: input.customer_id, net_amount: totals.net_amount } });
   revalidatePath('/sales/orders');
   return { ok: true, data: { id: order.id } };
 }

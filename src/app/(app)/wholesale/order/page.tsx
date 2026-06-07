@@ -38,6 +38,7 @@ export default async function WholesaleOrderPage() {
         customers={wcustomers}
         products={wproducts}
         tierPrices={tierPrices}
+        userId={ctx.userId}
       />
     </div>
   );

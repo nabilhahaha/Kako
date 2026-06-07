@@ -10,6 +10,9 @@ import { getT } from '@/lib/i18n/server';
 
 export interface InvoiceRow extends Invoice {
   customer: { name: string; name_ar: string | null; phone: string | null } | null;
+  // Set by offline-order reconciliation when the customer was over their credit
+  // limit at sync time (column present only on pilot DBs with migration 0004).
+  requires_credit_review?: boolean | null;
 }
 
 const PAGE_SIZE = 20;

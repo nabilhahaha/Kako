@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
 import { createInvoice, issueInvoice, recordPayment, cancelInvoice, voidInvoice, submitInvoiceToEta } from './actions';
+import { recordMutation } from '@/lib/sync/web/write-seam';
+import { submitOnlineOnly } from '@/lib/sync/web/submit-offline';
 import { resolveLinePrice } from '../pricing/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,7 +102,9 @@ export function InvoicesManager({
     if (Object.keys(next).length > 0) return;
 
     startTransition(async () => {
-      const res = await createInvoice({
+      // Official invoices REQUIRE online connectivity (hybrid policy): block
+      // gracefully offline rather than creating an unreconciled financial doc.
+      const res = await submitOnlineOnly(() => createInvoice({
         branch_id: branchId,
         customer_id: customerId,
         due_date: dueDate,
@@ -112,11 +116,21 @@ export function InvoicesManager({
           discount_pct: l.discount_pct,
           tax_rate: l.tax_rate,
         })),
-      });
-      if (!res.ok) {
+      }));
+      if (res.offline) { toast.error(t('common.offlineRequiresOnline')); return; }
+      if (!res.ok || !res.data) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
+      // Local-first journal (sales_invoices = append-only). No-op unless KAKO_SYNC.
+      void recordMutation({
+        entity: 'sales_invoices', op: 'insert', pk: res.data.id,
+        payload: {
+          invoice_id: res.data.id, branch_id: branchId, customer_id: customerId,
+          due_date: dueDate, notes,
+          lines: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price, discount_pct: l.discount_pct, tax_rate: l.tax_rate })),
+        },
+      });
       toast.success(t('sales.invoiceSuccessCreated'));
       reset();
       router.refresh();
@@ -131,11 +145,14 @@ export function InvoicesManager({
     });
     if (!ok) return;
     startTransition(async () => {
-      const res = await issueInvoice(id);
+      const res = await submitOnlineOnly(() => issueInvoice(id));
+      if (res.offline) { toast.error(t('common.offlineRequiresOnline')); return; }
       if (!res.ok) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
+      // Status transition on the append-only invoice document. No-op unless KAKO_SYNC.
+      void recordMutation({ entity: 'sales_invoices', op: 'update', pk: id, payload: { invoice_id: id, status: 'issued' } });
       toast.success(t('sales.invoiceSuccessIssued'));
       router.refresh();
     });
@@ -312,7 +329,10 @@ export function InvoicesManager({
                         <p className="truncate font-medium">{inv.customer?.name_ar || inv.customer?.name || '—'}</p>
                         <p className="font-mono text-xs text-muted-foreground" dir="ltr">{inv.invoice_number} · {formatDate(inv.created_at, INTL_LOCALE[locale])}</p>
                       </div>
-                      <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status][locale]}</Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status][locale]}</Badge>
+                        {inv.requires_credit_review && <Badge variant="destructive">{t('sales.creditReviewBadge')}</Badge>}
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" dir="ltr">
                       <span>{t('sales.invoiceColNet')}: <span className="tabular-nums text-foreground">{formatCurrency(inv.net_amount, 'EGP', INTL_LOCALE[locale])}</span></span>
@@ -374,7 +394,10 @@ export function InvoicesManager({
                         <td className="p-3 text-left tabular-nums text-success" dir="ltr">{formatCurrency(inv.paid_amount, 'EGP', INTL_LOCALE[locale])}</td>
                         <td className="p-3 text-left tabular-nums" dir="ltr">{formatCurrency(remaining, 'EGP', INTL_LOCALE[locale])}</td>
                         <td className="p-3 text-center">
-                          <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status][locale]}</Badge>
+                          <div className="flex flex-col items-center gap-1">
+                            <Badge variant={STATUS_VARIANT[inv.status]}>{INVOICE_STATUS_LABELS[inv.status][locale]}</Badge>
+                            {inv.requires_credit_review && <Badge variant="destructive">{t('sales.creditReviewBadge')}</Badge>}
+                          </div>
                         </td>
                         <td className="p-3">
                           <div className="flex justify-end gap-1">
@@ -503,18 +526,26 @@ function PaymentDialog({
 
   function submit() {
     startTransition(async () => {
-      const res = await recordPayment({
+      // Payments REQUIRE online connectivity (hybrid policy): block gracefully
+      // offline rather than recording money movement into an unreconciled mirror.
+      const res = await submitOnlineOnly(() => recordPayment({
         invoice_id: invoice.id,
         amount: Number(amount),
         payment_method: method,
         reference_number: ref,
         payment_date: date,
         idempotency_key: idemKey,
-      });
+      }));
+      if (res.offline) { toast.error(t('common.offlineRequiresOnline')); return; }
       if (!res.ok) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
       }
+      // Mirror the payment on success (idemKey doubles as the sync pk). No-op unless KAKO_SYNC.
+      void recordMutation({
+        entity: 'customer_payments', op: 'insert', pk: idemKey,
+        payload: { invoice_id: invoice.id, amount: Number(amount), payment_method: method, reference_number: ref, payment_date: date, idempotency_key: idemKey },
+      });
       toast.success(t('sales.paymentSuccess'));
       onDone();
     });

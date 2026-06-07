@@ -10,6 +10,9 @@ import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { CopilotFab } from '@/components/copilot/copilot-fab';
 import { TauriLinkInterceptor } from '@/components/tauri-link-interceptor';
+import { SyncProvider } from '@/components/sync/sync-provider';
+import { SyncBadge } from '@/components/sync/sync-badge';
+import { OfflineBanner, OfflineNavGuard } from '@/components/sync/offline-shell';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
 import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
@@ -137,6 +140,7 @@ export default async function AppLayout({
   return (
     <ConfirmProvider>
      <PromptProvider>
+      <SyncProvider>
       <div className="flex min-h-screen bg-secondary/30">
         <CommandPalette
           permissions={ctx.permissions}
@@ -181,6 +185,8 @@ export default async function AppLayout({
               </a>
             </div>
           )}
+          {/* Non-blocking offline notice (renders only when KAKO_SYNC is on). */}
+          <OfflineBanner />
           {/* pb on mobile keeps content clear of the fixed bottom tab bar (UX-3) */}
           <main className="flex-1 p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
         </div>
@@ -189,7 +195,14 @@ export default async function AppLayout({
         <CopilotFab />
         {/* Desktop shell: route new-tab/external links that WKWebView ignores. */}
         <TauriLinkInterceptor />
+        {/* Keep offline navigations on the current page (only when KAKO_SYNC is on). */}
+        <OfflineNavGuard />
+        {/* Sync status (renders only when KAKO_SYNC is enabled). */}
+        <div className="print:hidden fixed bottom-3 left-3 z-40">
+          <SyncBadge />
+        </div>
       </div>
+      </SyncProvider>
      </PromptProvider>
     </ConfirmProvider>
   );

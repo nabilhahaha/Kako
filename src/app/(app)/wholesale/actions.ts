@@ -3,13 +3,15 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requirePermission, requireAnyPermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
-import { computeTotals, type LineInput } from '@/lib/erp/sales-calc';
+import { type LineInput } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
-import { createInvoice, issueInvoice, recordPayment } from '../sales/invoices/actions';
+import { wholesaleInvoiceCore } from '@/lib/erp/sales/invoice-core';
 
 /** Create a wholesale invoice with per-line prices (tier-prefilled or edited),
- *  optionally collecting cash now; otherwise it's a credit (آجل) sale. */
+ *  optionally collecting cash now; otherwise it's a credit (آجل) sale. The logic
+ *  lives in wholesaleInvoiceCore so the reconciliation worker replays an offline
+ *  order through the same audited path. */
 export async function wholesaleInvoice(input: {
   branch_id: string;
   customer_id: string;
@@ -19,28 +21,10 @@ export async function wholesaleInvoice(input: {
 }): Promise<ActionResult<{ invoice_id: string; invoice_number: string }>> {
   const { t } = await getT();
   const ctx = await requireAnyPermission(['wholesale.pricing', 'sales.sell']);
-  if (!ctx.companyId) return { ok: false, error: t('wholesale.noCompany') };
-  if (!input.branch_id) return { ok: false, error: t('wholesale.errBranchRequired') };
-  if (!input.customer_id) return { ok: false, error: t('wholesale.errCustomerRequired') };
-  const lines = input.lines.filter((l) => l.product_id && l.quantity > 0);
-  if (lines.length === 0) return { ok: false, error: t('wholesale.errAtLeastOneItem') };
-
-  const created = await createInvoice({ branch_id: input.branch_id, customer_id: input.customer_id, lines });
-  if (!created.ok || !created.data) return { ok: false, error: created.error };
-  const invoiceId = created.data.id;
-
-  const issued = await issueInvoice(invoiceId);
-  if (!issued.ok) return { ok: false, error: t('wholesale.errIssueFailed', { detail: issued.error ?? '' }) };
-
-  if (input.collect) {
-    const net = computeTotals(lines).net_amount;
-    const paid = await recordPayment({ invoice_id: invoiceId, amount: net, payment_method: input.payment_method });
-    if (!paid.ok) return { ok: false, error: t('wholesale.errCollectFailed', { detail: paid.error ?? '' }) };
-  }
-
   const supabase = await createClient();
-  const { data } = await supabase.from('erp_invoices').select('invoice_number').eq('id', invoiceId).single();
-  return { ok: true, data: { invoice_id: invoiceId, invoice_number: (data as { invoice_number?: string } | null)?.invoice_number ?? '' } };
+  const res = await wholesaleInvoiceCore(supabase, { userId: ctx.userId, companyId: ctx.companyId }, t, input);
+  if (res.ok) revalidatePath('/wholesale');
+  return res;
 }
 
 export async function upsertTier(formData: FormData): Promise<ActionResult> {

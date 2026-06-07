@@ -14,6 +14,8 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { usePrompt } from '@/components/prompt-dialog';
 import { useConfirm } from '@/components/confirm-dialog';
 import { createVisit, updateVisit, setVisitStatus, recordVisitPayment } from '../actions';
+import { formPayload } from '@/lib/sync/web/write-seam';
+import { submitOffline } from '@/lib/sync/web/submit-offline';
 import {
   type ClinicVisit as Visit,
   type PatientOption,
@@ -76,7 +78,12 @@ export function VisitsManager({
     });
   }
 
-  function submitForm(e: React.FormEvent<HTMLFormElement>, fn: (fd: FormData) => Promise<{ ok: boolean; error?: string }>, ok: string, after: () => void) {
+  function submitForm(
+    e: React.FormEvent<HTMLFormElement>,
+    fn: (fd: FormData) => Promise<{ ok: boolean; error?: string; data?: unknown }>,
+    ok: string,
+    after: () => void,
+  ) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     startTransition(async () => {
@@ -84,6 +91,25 @@ export function VisitsManager({
       if (!res.ok) { toast.error(res.error ?? t('clinic.visits.toastError')); return; }
       toast.success(ok);
       after();
+      router.refresh();
+    });
+  }
+
+  // Registering a visit is offline-queue (hybrid policy): online → create + journal;
+  // offline → journal a client-id visit locally and sync it on reconnect.
+  function submitVisit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const localId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `local-${Date.now()}`;
+    startTransition(async () => {
+      const res = await submitOffline<{ id: string }>({
+        action: () => createVisit(fd),
+        mutation: (data) => ({ entity: 'visits', op: 'insert', pk: data?.id ?? localId, payload: formPayload(fd) }),
+      });
+      if (res.offline) { toast.success(t('common.offlineSaved')); setAdding(false); return; }
+      if (!res.ok) { toast.error(res.error ?? t('clinic.visits.toastError')); return; }
+      toast.success(t('clinic.visits.toastRegistered'));
+      setAdding(false);
       router.refresh();
     });
   }
@@ -112,7 +138,7 @@ export function VisitsManager({
         ) : (
           <Card>
             <CardContent className="pt-6">
-              <form onSubmit={(e) => submitForm(e, createVisit, t('clinic.visits.toastRegistered'), () => setAdding(false))} className="space-y-4">
+              <form onSubmit={submitVisit} className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-1">
                     <Label>{t('clinic.visits.fieldPatient')}</Label>

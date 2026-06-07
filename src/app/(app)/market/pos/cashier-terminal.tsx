@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ScanBarcode, Plus, Minus, Trash2, Loader2, ShoppingCart } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { openPrintView } from '@/lib/erp/print';
+import { submitOffline } from '@/lib/sync/web/submit-offline';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { cashierCheckout } from '../actions';
 import { useI18n } from '@/lib/i18n/provider';
@@ -19,7 +20,7 @@ export interface BranchOption { id: string; name: string; name_ar: string | null
 
 interface Line { product: CashierProduct; qty: number }
 
-export function CashierTerminal({ branches, products }: { branches: BranchOption[]; products: CashierProduct[] }) {
+export function CashierTerminal({ branches, products, userId }: { branches: BranchOption[]; products: CashierProduct[]; userId: string }) {
   const { t, locale } = useI18n();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [query, setQuery] = useState('');
@@ -65,14 +66,36 @@ export function CashierTerminal({ branches, products }: { branches: BranchOption
     if (cart.length === 0) return;
     if (!branchId) { toast.error(t('market.pos.errorSelectBranch')); return; }
     startTransition(async () => {
-      const res = await cashierCheckout({
-        branch_id: branchId,
-        payment_method: method,
-        // Shelf prices are final (tax-inclusive), so the charged net matches the
-        // displayed cart total — no separate VAT added on top.
-        lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: Number(l.product.sell_price), discount_pct: 0, tax_rate: 0 })),
+      const cartNet = cart.reduce((s, l) => s + l.qty * Number(l.product.sell_price), 0);
+      // Offline-safe (orders = append-only): online → cloud write + journal; offline →
+      // journal a client-id sale to the outbox and sync it on reconnect, never throwing.
+      const localId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `local-${Date.now()}`;
+      const res = await submitOffline<{ invoice_id: string; net: number }>({
+        action: () => cashierCheckout({
+          branch_id: branchId,
+          payment_method: method,
+          // Shelf prices are final (tax-inclusive), so the charged net matches the
+          // displayed cart total — no separate VAT added on top.
+          lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: Number(l.product.sell_price), discount_pct: 0, tax_rate: 0 })),
+        }),
+        mutation: (data) => ({
+          entity: 'orders', op: 'insert', pk: data?.invoice_id ?? localId,
+          payload: {
+            invoice_id: data?.invoice_id ?? localId, branch_id: branchId, payment_method: method,
+            net: data?.net ?? cartNet, created_by: userId,
+            lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: Number(l.product.sell_price) })),
+            ...(data ? {} : { offline: true }),
+          },
+        }),
       });
-      if (!res.ok || !res.data) { toast.error(res.error ?? t('market.pos.errorCheckout')); return; }
+      if (!res.ok) { toast.error(res.error ?? t('market.pos.errorCheckout')); return; }
+      if (res.offline) {
+        // Sale captured locally; it will sync (and a receipt becomes printable) on reconnect.
+        toast.success(t('common.offlineSaved'));
+        setCart([]); setPaid('');
+        return;
+      }
+      if (!res.data) { toast.error(t('market.pos.errorCheckout')); return; }
       const ch = method === 'cash' && paidNum > 0 ? paidNum - res.data.net : 0;
       toast.success(ch > 0 ? t('market.pos.toastSaleWithChange', { change: ch.toLocaleString(INTL_LOCALE[locale]) }) : t('market.pos.toastSaleComplete'));
       setCart([]); setPaid('');

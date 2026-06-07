@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Search, Trash2, Loader2, FileText } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { openPrintView } from '@/lib/erp/print';
+import { submitOffline } from '@/lib/sync/web/submit-offline';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { wholesaleInvoice } from '../actions';
 import { useI18n } from '@/lib/i18n/provider';
@@ -21,7 +22,7 @@ interface Line { product: WProduct; qty: number; price: number }
 
 const selectCls = 'h-10 rounded-md border border-input bg-background px-2 text-sm';
 
-export function WholesaleOrder({ branches, customers, products, tierPrices }: { branches: BranchOpt[]; customers: WCustomer[]; products: WProduct[]; tierPrices: Record<string, number> }) {
+export function WholesaleOrder({ branches, customers, products, tierPrices, userId }: { branches: BranchOpt[]; customers: WCustomer[]; products: WProduct[]; tierPrices: Record<string, number>; userId: string }) {
   const { t } = useI18n();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [customerId, setCustomerId] = useState('');
@@ -67,11 +68,31 @@ export function WholesaleOrder({ branches, customers, products, tierPrices }: { 
     if (!branchId) { toast.error(t('wholesale.toastChooseBranch')); return; }
     if (cart.length === 0) return;
     startTransition(async () => {
-      const res = await wholesaleInvoice({
-        branch_id: branchId, customer_id: customerId, collect, payment_method: method,
-        lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: l.price, discount_pct: 0, tax_rate: 0 })),
+      // Offline-safe (orders = append-only): online → cloud write + journal; offline →
+      // journal a client-id order to the outbox and sync it on reconnect, never throwing.
+      const localId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `local-${Date.now()}`;
+      const res = await submitOffline<{ invoice_id: string; invoice_number: string }>({
+        action: () => wholesaleInvoice({
+          branch_id: branchId, customer_id: customerId, collect, payment_method: method,
+          lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: l.price, discount_pct: 0, tax_rate: 0 })),
+        }),
+        mutation: (data) => ({
+          entity: 'orders', op: 'insert', pk: data?.invoice_id ?? localId,
+          payload: {
+            invoice_id: data?.invoice_id ?? localId, invoice_number: data?.invoice_number ?? null,
+            branch_id: branchId, customer_id: customerId, payment_method: method, collect, created_by: userId,
+            lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.qty, unit_price: l.price })),
+            ...(data ? {} : { offline: true }),
+          },
+        }),
       });
-      if (!res.ok || !res.data) { toast.error(res.error ?? t('wholesale.toastIssueFailed')); return; }
+      if (!res.ok) { toast.error(res.error ?? t('wholesale.toastIssueFailed')); return; }
+      if (res.offline) {
+        toast.success(t('common.offlineSaved'));
+        setCart([]); setCustomerId('');
+        return;
+      }
+      if (!res.data) { toast.error(t('wholesale.toastIssueFailed')); return; }
       toast.success(t('wholesale.toastInvoiceIssued', { number: res.data.invoice_number }));
       setCart([]); setCustomerId('');
       openPrintView(`/print/receipt/${res.data.invoice_id}`);

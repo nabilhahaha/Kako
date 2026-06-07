@@ -72,7 +72,7 @@ export async function createStyle(formData: FormData): Promise<ActionResult<stri
   return { ok: true, data: (data as { id: string }).id };
 }
 
-export async function createVariant(formData: FormData): Promise<ActionResult> {
+export async function createVariant(formData: FormData): Promise<ActionResult<{ id: string }>> {
   const { t } = await getT();
   const ctx = await requirePermission('fashion.inventory');
   if (!ctx.companyId) return { ok: false, error: t('fashion.errors.noCompany') };
@@ -139,7 +139,7 @@ export async function createVariant(formData: FormData): Promise<ActionResult> {
     }
   }
   revalidate();
-  return { ok: true };
+  return { ok: true, data: { id: productId } };
 }
 
 // ─── Sale (cash / installment) ───────────────────────────────────────────────
