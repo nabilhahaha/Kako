@@ -6,6 +6,13 @@ no UI/UX regressions.
 
 | PR | Date | Change | Flag | Migration | Gates |
 |----|------|--------|------|-----------|-------|
+| #180 | 2026-06-07 | **Phase 4 readiness checkpoint** (Trade Spend complete) | — | none | green |
+| #179 | 2026-06-07 | Phase 4 — trade-spend summary read-model + dashboard | `KAKO_TRADE_SPEND` (OFF/inert) | none | green |
+| #178 | 2026-06-07 | Phase 4 — GL integration (Augment: trade.accrual/trade.claim) | `KAKO_FINANCE` (OFF) | `0196` seed | green |
+| #177 | 2026-06-07 | Phase 4 — ROI foundation engine (pure) | n/a (read-only) | none | green |
+| #176 | 2026-06-07 | Phase 4 — trade-spend data model | `KAKO_TRADE_SPEND` (OFF) | `0195` additive | green |
+| #175 | 2026-06-07 | Phase 4 — claims/deductions settlement engine (pure) | `KAKO_TRADE_SPEND` (OFF) | none | green |
+| #174 | 2026-06-07 | Phase 4 — accrual engine (pure) + kickoff plan | `KAKO_TRADE_SPEND` (OFF) | none | green |
 | #172 | 2026-06-07 | Phase 3.x — Offline-sync foundation doc + Phase 3.x readiness note | — | none | green |
 | #171 | 2026-06-07 | Phase 3.x — van load manifest model | `KAKO_DISTRIBUTION` (OFF) | `0194` additive | green |
 | #170 | 2026-06-07 | Phase 3.x — wire goods.received + customer.approved events | `KAKO_EVENTS` (OFF) | none | green |
