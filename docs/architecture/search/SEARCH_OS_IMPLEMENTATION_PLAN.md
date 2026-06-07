@@ -68,11 +68,71 @@ Not built in V1.
 
 ---
 
+## 1A. Added search capabilities (per review)
+
+All six are **in V1** and fold into the unified index — no new engine, mostly the
+existing `identifiers[]` / `href` columns + provider config + query classification.
+
+### 1A.1 Categorized results (P1 read contract)
+The `search()` response is **grouped by `entity_type`** (Customers, Orders,
+Invoices, Returns, Visits, Products, Suppliers, Workflows, Attachments, Users),
+each category carrying its top-N hits + a total count + a "see all in {category}"
+scope link. Categories render in a configurable order (entity prior); empty
+categories are omitted. The palette shows category headers; a `?type=` filter
+scopes to one category (reuses the same service). Defined in P1, populated as
+providers come online (P1 core five, P2 the rest).
+
+### 1A.2 Code-based search
+Every code-bearing entity contributes its code(s) to `identifiers[]`:
+- Customers/Suppliers/Products: `code`; Products also `sku`.
+- Orders/Invoices/Returns: `order_number` / `invoice_number` / `return_number`
+  (document "codes").
+An **exact** identifier match is the strongest ranking signal (see §5 ranking) —
+typing/pasting a code jumps that record to the top of its category and overall.
+
+### 1A.3 Barcode search
+Products contribute `barcode` to `identifiers[]` (normalized: trim, strip
+separators). Query classification (§1A.7) detects a barcode-shaped token (long
+digit string / EAN-UPC pattern) and does an **exact `identifiers @> {barcode}`
+lookup first** → the matching product is returned top, suitable for a scan-to-find
+flow. Trigram prefix on `identifiers` supports partial barcode typeahead.
+
+### 1A.4 Phone search
+Customers (and Suppliers where present) contribute `phone`/`mobile`, **normalized**
+(digits only, with and without country prefix) into `identifiers[]`. A phone-shaped
+query matches exactly/prefix regardless of formatting. (Phone is display-safe;
+RLS + permission gates still apply.)
+
+### 1A.5 VAT / CR search (where applicable)
+Egyptian identifiers, confirmed on `erp_customers` (and suppliers where present):
+**VAT = `tax_number`**, **CR (Commercial Registration) = `cr_number`**. Both are
+added to `identifiers[]` for customers/suppliers (only for entities that have them
+— "where applicable"). Exact/prefix identifier match, same boost as codes.
+
+### 1A.6 Deep-link navigation from results
+Each **provider** declares a `href` route template; the projector materializes the
+concrete `href` per document (e.g. `/customers/{id}`, `/sales/invoices?focus={id}`,
+`/products/{id}`, `/suppliers/{id}`, `/wholesale/order?id={id}`, …). Every result
+carries its `href`; selecting a result (click or ⌘K-Enter) **navigates directly**
+to the record/screen. Routes are validated against the app router at build time
+(no dead links); permission is re-checked on the destination page (source RLS).
+
+### 1A.7 Query classification (supporting 1A.2–1A.5)
+A lightweight, deterministic classifier in the query service inspects the raw query:
+- all-digits / EAN-UPC length → **barcode/phone/VAT/CR exact-or-prefix** identifier
+  lookup first, then FTS/trigram as fallback;
+- token matching a known code pattern → identifier lookup;
+- otherwise → FTS (`websearch_to_tsquery`) + trigram.
+Identifier hits are merged **above** lexical hits (exact > prefix > lexical). No NLP
+— pure pattern rules; semantic stays out of V1.
+
+---
+
 ## 2. Migrations (all additive)
 
 | ID | Phase | Contents |
 |---|---|---|
-| **S1** `erp_search_documents` | P1 | table: `id`, `entity_type`, `entity_id`, `company_id`(FK→erp_companies), `branch_id`(FK→erp_branches), `title`, `subtitle`, `body`, `trgm_text`, `permission_key`, `metadata jsonb`, `search_vector tsvector`, `updated_at`. **No `embedding` column in V1.** Indexes: `GIN(search_vector)`, `GIN(trgm_text gin_trgm_ops)`, covering indexes for `company_id` + `branch_id` FKs, `UNIQUE(entity_type, entity_id)`. **RLS** tenant policy (`company_id = erp_user_company_id()` / platform owner) using `(select auth.uid())`. `search_vector` maintained by a `BEFORE INSERT/UPDATE` trigger using `to_tsvector('simple', unaccent(weighted text))` (A/B/C/D weights). `enable extension unaccent`. |
+| **S1** `erp_search_documents` | P1 | table: `id`, `entity_type`, `entity_id`, `company_id`(FK→erp_companies), `branch_id`(FK→erp_branches), `title`, `subtitle`, `body`, `trgm_text`, **`identifiers text[]`** (normalized codes/barcodes/phones/VAT/CR/doc-numbers — see §1A), **`href text`** (deep-link route), `permission_key`, `metadata jsonb`, `search_vector tsvector`, `updated_at`. **No `embedding` column in V1.** Indexes: `GIN(search_vector)`, `GIN(trgm_text gin_trgm_ops)`, **`GIN(identifiers)`** (exact/`@>` identifier lookup) **+ `GIN(identifiers gin_trgm_ops)` via an expression** for prefix typeahead, covering indexes for `company_id` + `branch_id` FKs, `UNIQUE(entity_type, entity_id)`. **RLS** tenant policy (`company_id = erp_user_company_id()` / platform owner) using `(select auth.uid())`. `search_vector` maintained by a `BEFORE INSERT/UPDATE` trigger using `to_tsvector('simple', unaccent(weighted text))` (A/B/C/D weights). `enable extension unaccent`. |
 | **S2** `erp_search_index_state` | P1/P2 | projector checkpoint: `(scope/key, last_seq bigint, updated_at)` so the reconcile sweep resumes from the last processed `erp_events.seq`. RLS/owner as appropriate. |
 | **(TS, not a migration)** | P2 | extend `event-types.ts` catalog with new entity events; add `recordEvent` producer calls. |
 
@@ -143,6 +203,14 @@ manual step. Instant rollback = unset the flag (additive schema stays inert).
 - **Functional:** backfill populates; (P2) a mutation reflects within seconds +
   reconcile repairs injected drift; (P3) Arabic + English queries return relevant,
   correctly-ranked results; latency targets met.
+- **Added-capability tests (§1A):**
+  - **Categorized results:** response groups by `entity_type` with correct per-
+    category counts + `?type=` scope filter.
+  - **Identifier search:** exact code / barcode / phone (formatting-agnostic) /
+    VAT (`tax_number`) / CR (`cr_number`) returns the right record **top of
+    results**; partial = prefix typeahead.
+  - **Deep-link:** every result's `href` resolves to a valid route (build-time
+    check) and navigates to the correct record; destination re-checks permission.
 - Flags default OFF verified (no behavior change when unset).
 
 ---
