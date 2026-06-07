@@ -1,7 +1,7 @@
-# VANTORA — Inventory Foundation Architecture (Proposal)
+# VANTORA — Inventory Foundation Architecture (Approved)
 
-**Status:** Architecture only — **no code, no migrations, no implementation, no
-branches.** Architecture review first.
+**Status:** ✅ **APPROVED & frozen** — architecture only; **no code, no migrations,
+no implementation** yet. Implementation planning deferred.
 **Goal:** a **generic, industry-neutral inventory foundation** (distribution,
 retail, manufacturing, clinics, pharmacies, services, future verticals) — one stock
 ledger, one costing layer, reused everywhere; the **costing layer** that the
@@ -187,5 +187,5 @@ multi-tenancy. No second stock engine; no per-industry fork.
 6. **First consumer:** validate the foundation against which flow first — purchase
    receipt → COGS on sale (perpetual) is the natural end-to-end test with Finance.
 
-*Architecture only — no code, migrations, implementation, or branches. Awaiting
-architecture review/approval before any implementation.*
+*Architecture **APPROVED & frozen** — no code, migrations, implementation, or
+branches. Implementation planning deferred until requested.*
