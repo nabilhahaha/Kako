@@ -22,7 +22,7 @@ function makeGateway(opts?: { posted?: Set<string>; unmappedKeys?: Set<string> }
       id: 'r-cogs', companyId: null, sourceEvent: 'invoice.cogs', name: 'Sale — cost of goods sold',
       priority: 100, isActive: true,
       lines: [
-        { side: 'debit', accountKey: 'cogs', amountSource: 'cogs', costCenterSource: 'branch', sortOrder: 0 },
+        { side: 'debit', accountKey: 'cogs', amountSource: 'cogs', sortOrder: 0 },
         { side: 'credit', accountKey: 'inventory', amountSource: 'cogs', sortOrder: 1 },
       ],
     },
@@ -70,7 +70,7 @@ describe('inventory GL orchestrator (Augment legs)', () => {
     const e = f.entries[0];
     expect(e.referenceType).toBe('invoice_cogs');
     expect(e.lines).toEqual([
-      { accountId: 'acc-cogs', debit: 85, credit: 0, costCenterId: 'b1' },
+      { accountId: 'acc-cogs', debit: 85, credit: 0, costCenterId: null },
       { accountId: 'acc-inventory', debit: 0, credit: 85, costCenterId: null },
     ]);
   });

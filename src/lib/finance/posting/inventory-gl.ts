@@ -46,7 +46,6 @@ export async function postCostedMovementGl(gw: PostingGateway, input: CostedMove
     description: input.description,
     context: {
       amounts: { [spec.amountKey]: input.amount },
-      costCenters: { branch: input.branchId },
     },
   });
 }

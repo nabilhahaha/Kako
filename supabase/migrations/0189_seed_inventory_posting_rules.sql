@@ -46,8 +46,12 @@ BEGIN
     VALUES (NULL, 'invoice.cogs', 'Sale — cost of goods sold', 100, true)
     RETURNING id INTO v_rule_id;
 
-    INSERT INTO erp_posting_rule_lines (rule_id, company_id, side, account_key, amount_source, cost_center_source, sort_order) VALUES
-      (v_rule_id, NULL, 'debit',  'cogs',      'cogs', 'branch', 0),
-      (v_rule_id, NULL, 'credit', 'inventory', 'cogs', NULL,     1);
+    -- No cost-center dimension yet: erp_journal_lines.cost_center_id FKs to the
+    -- cost-centers table, and a branch→cost-center mapping is out of Phase-1 scope.
+    -- The entry is balanced and correct without it; cost-center analytics is a
+    -- later enhancement (a per-company rule override can add it).
+    INSERT INTO erp_posting_rule_lines (rule_id, company_id, side, account_key, amount_source, sort_order) VALUES
+      (v_rule_id, NULL, 'debit',  'cogs',      'cogs', 0),
+      (v_rule_id, NULL, 'credit', 'inventory', 'cogs', 1);
   END IF;
 END $$;
