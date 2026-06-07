@@ -10,6 +10,16 @@ export const ar = {
     customerNotApproved: 'لا يمكن إضافة عميل غير معتمد إلى خط سير.',
     defaultRepName: 'مندوب',
 
+    // ── Trade spend dashboard ────────────────────────────────────────────────
+    tsTitle: 'الإنفاق التجاري',
+    tsDescription: 'الالتزامات المستحقة والمطالبات والعائد على العروض الترويجية.',
+    tsEmpty: 'لا توجد عروض ترويجية بعد.',
+    tsAccrued: 'إجمالي المستحق',
+    tsClaimed: 'إجمالي المطالبات',
+    tsOpenLiability: 'الالتزام المفتوح',
+    tsCapUtil: 'استخدام السقف',
+    tsActivePromos: 'عروض نشطة',
+
     // ── Coverage / supervisor KPI dashboard ──────────────────────────────────
     coverageTitle: 'التغطية ومتابعة المشرف',
     coverageDescription: 'تغطية خط السير والالتزام ومعدل النجاح لكل مندوب.',
@@ -99,6 +109,16 @@ export const en = {
     noCompany: 'Available within a company account.',
     customerNotApproved: 'A non-approved customer can’t be added to a route.',
     defaultRepName: 'Rep',
+
+    // ── Trade spend dashboard ────────────────────────────────────────────────
+    tsTitle: 'Trade Spend',
+    tsDescription: 'Accrued liability, claims, and promotion ROI.',
+    tsEmpty: 'No promotions yet.',
+    tsAccrued: 'Total accrued',
+    tsClaimed: 'Total claimed',
+    tsOpenLiability: 'Open liability',
+    tsCapUtil: 'Cap utilisation',
+    tsActivePromos: 'Active promotions',
 
     // ── Coverage / supervisor KPI dashboard ──────────────────────────────────
     coverageTitle: 'Coverage & Supervisor Monitoring',
