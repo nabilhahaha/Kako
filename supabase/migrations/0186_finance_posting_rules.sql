@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS erp_posting_rule_lines (
   created_at         timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_posting_rule_lines_rule ON erp_posting_rule_lines (rule_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_posting_rule_lines_company ON erp_posting_rule_lines (company_id);
 
 ALTER TABLE erp_posting_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE erp_posting_rule_lines ENABLE ROW LEVEL SECURITY;
