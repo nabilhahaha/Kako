@@ -1,7 +1,7 @@
-# VANTORA — CRM Foundation Architecture (Proposal)
+# VANTORA — CRM Foundation Architecture (Approved)
 
-**Status:** Architecture only — **no code, no migrations, no implementation, no
-branches.** Architecture review first.
+**Status:** ✅ **APPROVED & frozen** — architecture only; **no code, no migrations,
+no implementation** yet. Implementation planning deferred.
 **Goal:** a generic, industry-neutral **CRM foundation** (accounts, contacts,
 leads, opportunities/pipeline, a unified activity timeline, cases, campaigns) that
 sits *on top of* the existing customer/field/sales primitives and serves every
@@ -138,5 +138,5 @@ per-industry CRM fork.
 6. **First consumer flow:** lead → qualify → opportunity → win → sales quote/order as
    the end-to-end CRM↔Sales validation.
 
-*Architecture only — no code, migrations, implementation, or branches. Awaiting
-architecture review/approval before any implementation.*
+*Architecture **APPROVED & frozen** — no code, migrations, implementation, or
+branches. Implementation planning deferred until requested.*
