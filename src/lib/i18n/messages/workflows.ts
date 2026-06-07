@@ -31,6 +31,7 @@ export const ar = {
     restoreAsDraft: 'استعادة كمسودة',
     publishedReadOnly: 'المسار منشور وغير قابل للتعديل — انسخه إلى مسودة جديدة للتعديل.',
     validationPassed: 'التحقّق ناجح — جاهز للنشر.',
+    validationFailed: 'فشل التحقّق — صحّح الأخطاء قبل النشر.',
     nameEn: 'الاسم (إنجليزي)',
     visibilityLabel: 'النطاق',
     description: 'الوصف',
@@ -80,7 +81,15 @@ export const ar = {
     filter: { all: 'الكل', draft: 'مسودة', published: 'منشور', archived: 'مؤرشف' },
     status: { draft: 'مسودة', published: 'منشور', archived: 'مؤرشف' },
     visibility: { global: 'عام', company: 'الشركة', private: 'خاص' },
-    tab: { overview: 'نظرة عامة', trigger: 'المُشغِّل', steps: 'الخطوات', versions: 'الإصدارات', simulate: 'محاكاة' },
+    tab: { overview: 'نظرة عامة', trigger: 'المُشغِّل', steps: 'الخطوات', canvas: 'لوحة العمل', versions: 'الإصدارات', simulate: 'محاكاة' },
+    canvas: {
+      addNode: 'إضافة عقدة', autoLayout: 'ترتيب تلقائي', save: 'حفظ', fit: 'ملاءمة العرض',
+      undo: 'تراجع', redo: 'إعادة', unsaved: 'تغييرات غير محفوظة',
+      inspector: 'الخصائص', noSelection: 'اختر عقدة لتحرير خصائصها.',
+      hint: 'اسحب العقد، وصِّل بينها (✓ نجاح، ✗ فشل)، واحذف بمفتاح Delete.',
+      triggerHint: 'المُشغِّل هو تعريف المسار نفسه؛ يُحفظ مع اللوحة.',
+      applyHint: 'تُطبَّق التعديلات عند الحفظ.',
+    },
     stepType: {
       approval: 'موافقة', reject: 'رفض', notification: 'إشعار', task: 'مهمة',
       update_record: 'تحديث سجل', api_call: 'استدعاء API', delay: 'انتظار', escalation: 'تصعيد', condition: 'شرط',
@@ -96,7 +105,7 @@ export const ar = {
       escalation: '{ "escalate_to": "..." }',
       condition: '{ "all": [ { "field": "amount", "op": "gt", "value": 1000 } ] }',
     },
-    toast: { error: 'حدث خطأ', created: 'تم الإنشاء', saved: 'تم الحفظ', deleted: 'تم الحذف', stepAdded: 'تمت إضافة الخطوة', cloned: 'تم النسخ', archived: 'تمت الأرشفة', validated: 'تم التحقّق', published: 'تم النشر', simulated: 'تمت المحاكاة', promoted: 'تمت الترقية', restored: 'تمت الاستعادة' },
+    toast: { error: 'حدث خطأ', created: 'تم الإنشاء', saved: 'تم الحفظ', deleted: 'تم الحذف', stepAdded: 'تمت إضافة الخطوة', cloned: 'تم النسخ', archived: 'تمت الأرشفة', validated: 'تم التحقّق', published: 'تم النشر', simulated: 'تمت المحاكاة', promoted: 'تمت الترقية', restored: 'تمت الاستعادة', graphSaved: 'تم حفظ اللوحة' },
   },
 };
 
@@ -132,6 +141,7 @@ export const en = {
     restoreAsDraft: 'Restore as draft',
     publishedReadOnly: 'This workflow is published and read-only — clone it to a new draft to edit.',
     validationPassed: 'Validation passed — ready to publish.',
+    validationFailed: 'Validation failed — fix the errors before publishing.',
     nameEn: 'Name (English)',
     visibilityLabel: 'Visibility',
     description: 'Description',
@@ -181,7 +191,15 @@ export const en = {
     filter: { all: 'All', draft: 'Draft', published: 'Published', archived: 'Archived' },
     status: { draft: 'Draft', published: 'Published', archived: 'Archived' },
     visibility: { global: 'Global', company: 'Company', private: 'Private' },
-    tab: { overview: 'Overview', trigger: 'Trigger', steps: 'Steps', versions: 'Versions', simulate: 'Simulate' },
+    tab: { overview: 'Overview', trigger: 'Trigger', steps: 'Steps', canvas: 'Canvas', versions: 'Versions', simulate: 'Simulate' },
+    canvas: {
+      addNode: 'Add node', autoLayout: 'Auto layout', save: 'Save', fit: 'Fit to view',
+      undo: 'Undo', redo: 'Redo', unsaved: 'Unsaved changes',
+      inspector: 'Properties', noSelection: 'Select a node to edit its properties.',
+      hint: 'Drag nodes, connect them (✓ success, ✗ failure), delete with the Delete key.',
+      triggerHint: 'The trigger is the definition itself; it is saved with the canvas.',
+      applyHint: 'Edits are applied on save.',
+    },
     stepType: {
       approval: 'Approval', reject: 'Reject', notification: 'Notification', task: 'Task',
       update_record: 'Update record', api_call: 'API call', delay: 'Delay', escalation: 'Escalation', condition: 'Condition',
@@ -197,6 +215,6 @@ export const en = {
       escalation: '{ "escalate_to": "..." }',
       condition: '{ "all": [ { "field": "amount", "op": "gt", "value": 1000 } ] }',
     },
-    toast: { error: 'Something went wrong', created: 'Created', saved: 'Saved', deleted: 'Deleted', stepAdded: 'Step added', cloned: 'Cloned', archived: 'Archived', validated: 'Validated', published: 'Published', simulated: 'Simulated', promoted: 'Promoted', restored: 'Restored' },
+    toast: { error: 'Something went wrong', created: 'Created', saved: 'Saved', deleted: 'Deleted', stepAdded: 'Step added', cloned: 'Cloned', archived: 'Archived', validated: 'Validated', published: 'Published', simulated: 'Simulated', promoted: 'Promoted', restored: 'Restored', graphSaved: 'Canvas saved' },
   },
 };

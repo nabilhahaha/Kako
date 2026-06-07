@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { GitBranch, Plus, Trash2, Power, Globe, Lock, Building2, CheckCircle2, AlertTriangle, Rocket, Archive, Copy, FlaskConical, History, Pencil } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,6 +27,7 @@ export interface WfDefinition {
   status?: string | null; version?: number | null; latest_version?: number | null;
   visibility?: string | null; owner_id?: string | null; description?: string | null;
   trigger_event?: string | null; trigger_config?: Record<string, unknown> | null; published_at?: string | null;
+  canvas_meta?: { viewport?: { x: number; y: number; zoom: number }; trigger?: { x: number; y: number }; notes?: string } | null;
 }
 export interface WfStep {
   id: string; definition_id: string; step_no: number;
@@ -35,6 +37,7 @@ export interface WfStep {
   condition: Record<string, unknown> | null;
   sla_hours?: number | null; escalate_to?: string | null;
   next_on_success?: string | null; next_on_failure?: string | null;
+  ui_position?: { x: number; y: number } | null;
 }
 export interface WfVersion {
   id: string; definition_id: string; version: number;
@@ -47,7 +50,11 @@ const MODES = ['sequential', 'parallel'];
 const EVENTS = Object.values(EVENT);
 const STATUS_FILTERS = ['all', 'draft', 'published', 'archived'] as const;
 type StatusFilter = typeof STATUS_FILTERS[number];
-type Tab = 'overview' | 'trigger' | 'steps' | 'versions' | 'simulate';
+type Tab = 'overview' | 'trigger' | 'steps' | 'canvas' | 'versions' | 'simulate';
+
+// Canvas is a client-only island (React Flow has no SSR); lazy-loaded so the
+// Phase-1 forms path is unaffected.
+const WorkflowCanvas = dynamic(() => import('./workflow-canvas'), { ssr: false, loading: () => <div className="p-6 text-sm text-muted-foreground">…</div> });
 
 const statusOf = (d: WfDefinition): string =>
   d.status ?? (d.is_active ? 'published' : 'draft');
@@ -174,7 +181,7 @@ export function WorkflowBuilder({
   const published = status === 'published';
   const editable = def.company_id === companyId || (def.company_id === null);
   const defSteps = stepsOf(def.id);
-  const TABS: Tab[] = ['overview', 'trigger', 'steps', 'versions', 'simulate'];
+  const TABS: Tab[] = ['overview', 'trigger', 'steps', 'canvas', 'versions', 'simulate'];
 
   return (
     <div className="space-y-4">
@@ -228,6 +235,7 @@ export function WorkflowBuilder({
       {tab === 'overview' && <OverviewTab def={def} editable={editable && !published} busy={busy} run={run} t={t} />}
       {tab === 'trigger' && <TriggerTab def={def} editable={editable && !published} busy={busy} run={run} t={t} />}
       {tab === 'steps' && <StepsTab def={def} steps={defSteps} editable={editable && !published} busy={busy} run={run} t={t} locale={locale} />}
+      {tab === 'canvas' && <WorkflowCanvas def={def} steps={defSteps} />}
       {tab === 'versions' && <VersionsTab definitionId={def.id} versions={versionsOf(def.id)} busy={busy} run={run} open={open} t={t} />}
       {tab === 'simulate' && <SimulateTab def={def} busy={busy} run={run} t={t} sim={sim} setSim={setSim} />}
     </div>

@@ -6,6 +6,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { validateWorkflow, type BuilderDefinition } from '@/lib/workflow/builder/validation';
 import { simulateWorkflow, type SimulationResult } from '@/lib/workflow/builder/simulate';
+import type { StepPatch } from '@/lib/workflow/builder/graph-model';
 import type { RuntimeStep } from '@/lib/workflow/executors/types';
 import type { WorkflowStepType } from '@/lib/workflow/types';
 
@@ -336,4 +337,82 @@ export async function simulateDefinition(input: {
     definitionId: input.definitionId, entity: input.entity, recordId: input.recordId, context, approvals: input.approvals,
   });
   return { ok: true, data: sim };
+}
+
+// ── Phase 2 canvas: VISUAL-ONLY persistence (no execution / runtime / rules) ──
+
+interface CanvasMeta { viewport?: { x: number; y: number; zoom: number }; trigger?: { x: number; y: number }; notes?: string }
+
+/** Persist node positions + canvas metadata only. Pure presentation — the
+ *  runtime never reads these. Allowed regardless of status (layout is visual). */
+export async function saveLayout(definitionId: string, positions: { id: string; ui_position: { x: number; y: number } }[], canvasMeta?: CanvasMeta): Promise<Result> {
+  const { ctx, error } = await guard();
+  if (!ctx) return { ok: false, error };
+  const supabase = await createClient();
+  for (const p of positions) {
+    await supabase.from('erp_workflow_steps').update({ ui_position: p.ui_position }).eq('id', p.id).eq('definition_id', definitionId);
+  }
+  if (canvasMeta) await supabase.from('erp_workflow_definitions').update({ canvas_meta: canvasMeta }).eq('id', definitionId);
+  revalidatePath('/settings/workflows');
+  return { ok: true };
+}
+
+/** Batch-persist the canvas graph to the SAME step rows the runtime executes.
+ *  This is persistence only — it reuses the engine schema and then the existing
+ *  validateWorkflow; it contains no execution, runtime, or business logic.
+ *  Draft-only (published definitions are immutable — clone to edit). */
+export async function saveGraph(input: {
+  definitionId: string; steps: StepPatch[]; deletedIds?: string[]; canvasMeta?: CanvasMeta;
+}): Promise<Result<{ errors: string[] }>> {
+  const { ctx, error } = await guard();
+  if (!ctx) return { ok: false, error };
+  const supabase = await createClient();
+
+  const { data: defRow } = await supabase.from('erp_workflow_definitions').select('status,entity,trigger_event,trigger_config').eq('id', input.definitionId).maybeSingle();
+  if (!defRow) return { ok: false, error: 'not found' };
+  const def = defRow as Record<string, unknown>;
+  if (def.status === 'published') return { ok: false, error: 'published workflows are immutable — clone to a new draft to edit' };
+
+  for (const s of input.steps) {
+    if (!STEP_TYPES.includes(s.step_type)) return { ok: false, error: `invalid step_type '${s.step_type}'` };
+  }
+
+  // 1. Park every existing row at a DISTINCT temp step_no (negative) so the
+  //    1..N target range is free and there is no transient unique collision.
+  const { data: before } = await supabase.from('erp_workflow_steps').select('id').eq('definition_id', input.definitionId);
+  const existingIds = ((before ?? []) as { id: string }[]).map((r) => r.id);
+  for (let i = 0; i < existingIds.length; i++) {
+    await supabase.from('erp_workflow_steps').update({ step_no: -(i + 1) }).eq('id', existingIds[i]);
+  }
+
+  // 2. Upsert incoming steps (branches included; next_on_* are plain uuids, no FK).
+  const keepIds = new Set(input.steps.map((s) => s.id));
+  if (input.steps.length) {
+    const rows = input.steps.map((s) => ({
+      id: s.id, definition_id: input.definitionId, step_no: s.step_no, step_type: s.step_type,
+      name: s.name, config: s.config ?? {}, condition: s.condition,
+      approver_type: s.approver_type, approver_ref: s.approver_ref, sla_hours: s.sla_hours, escalate_to: s.escalate_to,
+      next_on_success: s.next_on_success, next_on_failure: s.next_on_failure, ui_position: s.ui_position,
+    }));
+    const { error: upErr } = await supabase.from('erp_workflow_steps').upsert(rows, { onConflict: 'id' });
+    if (upErr) return { ok: false, error: upErr.message };
+  }
+
+  // 3. Delete any prior rows no longer present (still parked at a negative step_no).
+  const toDelete = existingIds.filter((id) => !keepIds.has(id));
+  if (toDelete.length) {
+    const { error: delErr } = await supabase.from('erp_workflow_steps').delete().in('id', toDelete);
+    if (delErr) return { ok: false, error: delErr.message };
+  }
+
+  // 4. Canvas metadata (visual-only).
+  if (input.canvasMeta) await supabase.from('erp_workflow_definitions').update({ canvas_meta: input.canvasMeta }).eq('id', input.definitionId);
+
+  // 5. Validate via the EXISTING validator (no duplicate rules).
+  const { data: freshSteps } = await supabase.from('erp_workflow_steps').select(STEP_COLS).eq('definition_id', input.definitionId).order('step_no');
+  const bd: BuilderDefinition = { entity: String(def.entity), triggerEvent: (def.trigger_event as string) ?? null, triggerConfig: (def.trigger_config as Record<string, unknown>) ?? {} };
+  const errors = validateWorkflow(bd, ((freshSteps ?? []) as Record<string, unknown>[]).map(rowToRuntimeStep));
+
+  revalidatePath('/settings/workflows');
+  return { ok: true, data: { errors } };
 }
