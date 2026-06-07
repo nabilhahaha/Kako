@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS erp_events (
 CREATE INDEX IF NOT EXISTS idx_erp_events_feed         ON erp_events (company_id, seq);
 CREATE INDEX IF NOT EXISTS idx_erp_events_entity       ON erp_events (company_id, entity, record_id);
 CREATE INDEX IF NOT EXISTS idx_erp_events_type         ON erp_events (company_id, event_type, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_erp_events_branch       ON erp_events (branch_id);   -- FK covering index (schema-health invariant)
 CREATE UNIQUE INDEX IF NOT EXISTS uq_erp_events_dedupe ON erp_events (company_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
 
 -- multi-tenant auto-fill + RLS (same pattern as the rest of the platform)
@@ -60,6 +61,7 @@ ALTER TABLE erp_workflow_definitions ADD COLUMN IF NOT EXISTS branch_id      UUI
 ALTER TABLE erp_workflow_definitions ADD COLUMN IF NOT EXISTS created_by     UUID;
 ALTER TABLE erp_workflow_definitions ADD COLUMN IF NOT EXISTS updated_by     UUID;
 CREATE INDEX IF NOT EXISTS idx_erp_wf_def_trigger ON erp_workflow_definitions (company_id, trigger_event) WHERE trigger_event IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_erp_wf_def_branch  ON erp_workflow_definitions (branch_id);   -- FK covering index
 
 -- ─── 3. Extend erp_workflow_steps — generic step types + builder branching ───
 -- Existing rows are approval steps → default 'approval' keeps current behaviour.
@@ -79,10 +81,12 @@ END $$;
 -- ─── 4. Extend erp_workflow_instances — event provenance + branch-awareness ──
 ALTER TABLE erp_workflow_instances ADD COLUMN IF NOT EXISTS branch_id        UUID REFERENCES erp_branches(id) ON DELETE SET NULL;
 ALTER TABLE erp_workflow_instances ADD COLUMN IF NOT EXISTS trigger_event_id UUID REFERENCES erp_events(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS idx_erp_wf_inst_event ON erp_workflow_instances (trigger_event_id) WHERE trigger_event_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_erp_wf_inst_event  ON erp_workflow_instances (trigger_event_id) WHERE trigger_event_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_erp_wf_inst_branch ON erp_workflow_instances (branch_id);   -- FK covering index
 
 -- ─── 5. Extend erp_workflow_tasks — branch-awareness ─────────────────────────
 ALTER TABLE erp_workflow_tasks ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES erp_branches(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_erp_wf_tasks_branch ON erp_workflow_tasks (branch_id);   -- FK covering index
 
 -- Down (manual): drop table erp_events; drop the ADD COLUMNs above; drop constraint
 --                erp_workflow_steps_step_type_chk. (No existing logic was changed.)
