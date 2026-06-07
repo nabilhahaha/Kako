@@ -35,7 +35,7 @@ describe.skipIf(!hasTestDb)('finance · erp_post_journal_entry', () => {
         { account_id: b, debit: 0, credit: 100 },
       ]);
       const { rows: [r] } = await c.query(
-        "select erp_post_journal_entry($1, current_date, 'itest', 'itest_doc', 'doc-1', $2::jsonb) as entry",
+        "select erp_post_journal_entry($1, current_date, 'itest', 'itest_doc', gen_random_uuid(), $2::jsonb) as entry",
         [branchId, lines],
       );
       expect(r.entry).toBeTruthy();
@@ -63,7 +63,7 @@ describe.skipIf(!hasTestDb)('finance · erp_post_journal_entry', () => {
         { account_id: b, debit: 0, credit: 90 }, // unbalanced
       ]);
       await expect(
-        c.query("select erp_post_journal_entry($1, current_date, 'itest', 'itest_doc', 'doc-2', $2::jsonb)", [branchId, lines]),
+        c.query("select erp_post_journal_entry($1, current_date, 'itest', 'itest_doc', gen_random_uuid(), $2::jsonb)", [branchId, lines]),
       ).rejects.toThrow(/unbalanced/i);
     });
   }, 30_000);
@@ -72,7 +72,7 @@ describe.skipIf(!hasTestDb)('finance · erp_post_journal_entry', () => {
     await withRollback(async (c) => {
       const { branchId } = await seedCompanyBranch(c);
       await expect(
-        c.query("select erp_post_journal_entry($1, current_date, 'itest', 'itest_doc', 'doc-3', '[]'::jsonb)", [branchId]),
+        c.query("select erp_post_journal_entry($1, current_date, 'itest', 'itest_doc', gen_random_uuid(), '[]'::jsonb)", [branchId]),
       ).rejects.toThrow(/no lines/i);
     });
   }, 30_000);

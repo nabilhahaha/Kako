@@ -22,7 +22,7 @@ CREATE OR REPLACE FUNCTION erp_post_journal_entry(
   p_entry_date     date,
   p_description    text,
   p_reference_type text,
-  p_reference_id   text,
+  p_reference_id   uuid,       -- erp_journal_entries.reference_id is uuid (source-doc PK)
   p_lines          jsonb       -- [{account_id, debit, credit, cost_center_id?, description?}]
 ) RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -72,5 +72,5 @@ BEGIN
   RETURN v_entry;
 END $$;
 
-REVOKE ALL ON FUNCTION erp_post_journal_entry(uuid, date, text, text, text, jsonb) FROM public;
-GRANT EXECUTE ON FUNCTION erp_post_journal_entry(uuid, date, text, text, text, jsonb) TO authenticated;
+REVOKE ALL ON FUNCTION erp_post_journal_entry(uuid, date, text, text, uuid, jsonb) FROM public;
+GRANT EXECUTE ON FUNCTION erp_post_journal_entry(uuid, date, text, text, uuid, jsonb) TO authenticated;
