@@ -75,6 +75,30 @@ describe('step executor registry', () => {
     expect(exec.validate(step({ stepType: 'update_record', config: { table: 'erp_customer_change_requests', patch: { status: 'approved' } } }))).toEqual([]);
   });
 
+  it('update_record: applies a DYNAMIC patch + target id from the run context', async () => {
+    const exec = getExecutor('update_record')!;
+    // Generic apply: read an approved change set + target id from the seeded context.
+    const cfg = { table: 'erp_customers', patch_from_context: 'changes', id_from_context: 'customer_id' };
+    expect(exec.validate(step({ stepType: 'update_record', config: cfg }))).toEqual([]); // dynamic-only is valid
+    const d = deps();
+    const s = step({ stepType: 'update_record', config: cfg });
+    const dynRun: RunState = { ...run, recordId: 'ccr1', context: { changes: { phone: '055', route_id: 'r7' }, customer_id: 'c9' } };
+    const r = await exec.execute({ run: dynRun, step: s, deps: d });
+    expect(r.status).toBe('completed');
+    expect(d.updateRecord).toHaveBeenCalledWith(expect.objectContaining({
+      table: 'erp_customers', id: 'c9', patch: { phone: '055', route_id: 'r7' },
+    }));
+  });
+
+  it('update_record: skips gracefully when the context patch is absent/empty', async () => {
+    const exec = getExecutor('update_record')!;
+    const s = step({ stepType: 'update_record', config: { table: 'erp_customers', patch_from_context: 'changes' } });
+    const d = deps();
+    const r = await exec.execute({ run: { ...run, context: {} }, step: s, deps: d });
+    expect(r.status).toBe('completed');
+    expect(d.updateRecord).not.toHaveBeenCalled();
+  });
+
   it('api_call: 2xx completes, 5xx is retryable, 4xx is permanent', async () => {
     const exec = getExecutor('api_call')!;
     const s = step({ stepType: 'api_call', config: { url: 'https://x', method: 'POST' } });

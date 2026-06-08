@@ -68,6 +68,12 @@ const createTask: StepExecutor = {
 };
 
 // — Update Record (table allow-listed for security) —
+// Patch sources (composable): a STATIC config.patch, and/or a DYNAMIC patch read
+// from the run context (config.patch_from_context — the run context is seeded from
+// the trigger payload, e.g. an APPROVED, already-governed change set). The target
+// id is config.id, else a context key (config.id_from_context, e.g. the subject's
+// customer_id), else the run's subject record. Generic + reusable across entities
+// (customer / supplier / product / route …) — no entity-specific executor.
 const updateRecord: StepExecutor = {
   type: 'update_record',
   validate: (s) => {
@@ -75,15 +81,28 @@ const updateRecord: StepExecutor = {
     const table = str(s.config.table);
     if (!table) e.push('update_record requires config.table');
     else if (!UPDATE_RECORD_ALLOWLIST.has(table)) e.push(`table '${table}' is not allow-listed for update_record`);
-    if (!s.config.patch || typeof s.config.patch !== 'object') e.push('update_record requires config.patch object');
+    const hasStatic = s.config.patch != null && typeof s.config.patch === 'object';
+    const hasDynamic = typeof s.config.patch_from_context === 'string' && !!s.config.patch_from_context;
+    if (!hasStatic && !hasDynamic) e.push('update_record requires config.patch object or config.patch_from_context');
     return e;
   },
   execute: async ({ run, step, deps }) => {
     const table = str(step.config.table);
-    // id source: explicit config.id, else the run's subject record.
-    const id = str(step.config.id) || run.recordId;
+    // Compose the patch: static config.patch ← merged with the dynamic context patch.
+    let patch: Record<string, unknown> = { ...((step.config.patch as Record<string, unknown>) ?? {}) };
+    const fromKey = str(step.config.patch_from_context);
+    if (fromKey) {
+      const dyn = run.context[fromKey];
+      if (dyn == null) return ok({ output: { updated_table: table, skipped: 'no_context_patch' } });
+      if (typeof dyn !== 'object' || Array.isArray(dyn)) return fail(`update_record: context '${fromKey}' is not a patch object`);
+      patch = { ...patch, ...(dyn as Record<string, unknown>) };
+    }
+    // id source: explicit config.id → a context key → the run's subject record.
+    const idFromCtx = str(step.config.id_from_context);
+    const id = str(step.config.id) || (idFromCtx ? str(run.context[idFromCtx]) : '') || run.recordId;
     if (!id) return fail('update_record: no target id');
-    await deps.updateRecord({ table, id, patch: step.config.patch as Record<string, unknown>, companyId: run.companyId });
+    if (Object.keys(patch).length === 0) return ok({ output: { updated_table: table, updated_id: id, skipped: 'empty_patch' } });
+    await deps.updateRecord({ table, id, patch, companyId: run.companyId });
     return ok({ output: { updated_table: table, updated_id: id } });
   },
 };
