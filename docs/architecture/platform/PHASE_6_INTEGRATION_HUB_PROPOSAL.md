@@ -72,14 +72,50 @@ credentials (encrypted), per-company `field_map` on `erp_sync_jobs`, per-company
 (`erp_sync_jobs` cron/cursor). Phase 6 keeps this; the marketplace adds per-company
 **enable/disable** + entitlement (tie to plan/module).
 
-## 4. Mapping Engine (goal 4)
-- Reuse the **entity registry** (`entities.ts`) + `field_map`. Phase 6 adds a first-class,
-  reusable **mapping model + resolver** per entity: customer / product / invoice / order /
-  tax / warehouse — bidirectional (external↔VANTORA), with value transforms + a
-  **code-cross-reference table** (`erp_integration_xref`: external_id ↔ internal_id per
-  connection + entity) so re-syncs are stable and idempotent.
-- Tax mapping integrates with the Phase-5 tax codes/profiles; product/customer/warehouse
-  map to existing masters. Pure mapping resolver (testable) + a mapping UI.
+## 4. Universal Entity Mapping Platform (goal 4) — connector-agnostic, any entity
+A **platform-wide** mapping capability (NOT connector-specific, NOT a fixed entity list).
+It maps **any** VANTORA entity — current or future custom entities — reusing the entity
+registry (`entities.ts`) as the source of mappable entities.
+
+**Scope (examples, not a closed list):** customer, supplier, product, brand, category,
+warehouse, branch, route, territory, salesman, user, role, tax_code, tax_group,
+price_list, payment_term, uom, sales_order, invoice, credit_note, debit_note, return,
+collection, payment, purchase_order, transfer, stock_transaction, trade_spend, promotion,
+claim, deduction, perfect_store, msl, oos, visit, journey_plan, approval_workflow, **and
+any future entity** (entity key is an open string, not a union — see `registry.ts`
+`MappableEntity`).
+
+**Capabilities (the engine, all reusable by every connector + module):**
+- **Field mapping** — external field → VANTORA field (per entity), bidirectional.
+- **Entity mapping** — external record → VANTORA record + the `erp_integration_xref`
+  cross-reference (external_id ↔ internal_id per connection + entity) for idempotent re-sync.
+- **Lookup mapping** — resolve a foreign reference (e.g. external customer code → internal
+  customer id) via xref or a natural key.
+- **Value translation tables** — coded value maps (e.g. external `STATUS=1` → `active`;
+  external tax class → VANTORA tax_code), per (entity, field), company-scoped + versioned.
+- **Data transformations** — pure transforms (trim/case/number/date/currency/split/concat/
+  unit-convert), composable.
+- **Validation rules** — required / type / regex / range / referential (xref exists) per
+  field, producing structured issues (reuses the import-validation pattern).
+- **Default values** — per field when source is null/missing.
+- **Conditional mapping** — `when <predicate> then <mapping>` (e.g. branch by document type).
+- **Multi-step mapping pipelines** — an ordered pipeline (extract → translate → transform →
+  default → validate → resolve-refs → emit) defined as **data**, executed by a pure engine.
+
+**Data model (proposal):** `erp_entity_mappings` (company, entity, source system, version,
+status), `erp_entity_mapping_fields` (field map + transform + default + condition),
+`erp_value_translations` (entity, field, from→to, company-scoped), reusing
+`erp_integration_xref` for id resolution. All company-RLS, effective/versioned, additive.
+
+**Engine:** a **pure mapping pipeline executor** (`applyMapping(spec, record) →
+{record, issues}`) — fully unit-testable, no DB, no connector knowledge — consumed by
+every connector runtime AND by any module needing import/transform. Tax mapping uses the
+Phase-5 tax codes/profiles; masters map to existing tables. **Platform capability first;
+connectors are just callers.**
+
+**ERP Mapping Studio (UI):** a visual admin tool over this engine to map any entity's
+fields/lookups/value-tables/transforms/conditions between an external system and VANTORA —
+reusable across all connectors (no connector-specific screens).
 
 ## 5. Monitoring (goal 5)
 A unified **Integration Health** read-model + dashboard over `erp_sync_runs` /
