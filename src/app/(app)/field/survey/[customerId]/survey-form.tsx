@@ -11,14 +11,17 @@ import { Label } from '@/components/ui/label';
 import { useI18n } from '@/lib/i18n/provider';
 import { scoreSurvey, type SurveyQuestion, type SurveyAnswers } from '@/lib/erp/survey';
 import { submitSurveyResponse } from '@/app/(app)/settings/surveys/actions';
+import { useOnlineStatus } from '@/lib/offline-sync/use-network';
+import { enqueue } from '@/lib/offline-sync/client';
 
 export interface ExecSurvey { id: string; name: string; name_ar: string | null; questions: SurveyQuestion[] }
 
 const selectCls = 'h-10 w-full rounded-md border border-input bg-background px-2 text-sm';
 
-export function SurveyForm({ customerId, surveys }: { customerId: string; surveys: ExecSurvey[] }) {
+export function SurveyForm({ customerId, surveys, offlineEnabled = false }: { customerId: string; surveys: ExecSurvey[]; offlineEnabled?: boolean }) {
   const { t, locale } = useI18n();
   const router = useRouter();
+  const online = useOnlineStatus();
   const [surveyId, setSurveyId] = useState(surveys[0]?.id ?? '');
   const [answers, setAnswers] = useState<SurveyAnswers>({});
   const [busy, setBusy] = useState(false);
@@ -32,6 +35,13 @@ export function SurveyForm({ customerId, surveys }: { customerId: string; survey
     if (!survey) return;
     setBusy(true);
     try {
+      // OFFLINE: queue the response (scored + inserted server-side on sync).
+      if (offlineEnabled && !online) {
+        await enqueue('survey', 'create', { surveyId: survey.id, customerId, answers }, { entityId: customerId });
+        toast.success(t('retail.survey.queuedOffline'));
+        setAnswers({});
+        return;
+      }
       const res = await submitSurveyResponse({ surveyId: survey.id, customerId, answers });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('retail.survey.submitError')); return; }
       toast.success(t('retail.survey.submitted', { score: res.data.score }));

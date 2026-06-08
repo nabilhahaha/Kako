@@ -93,10 +93,12 @@ describe('offline-sync/apply (safe server whitelist)', () => {
     expect(isApplicable('visit_checkin', 'update')).toBe(false);
     expect(isApplicable('collection', 'create')).toBe(true);
     expect(isApplicable('collection', 'delete')).toBe(false);
+    expect(isApplicable('survey', 'create')).toBe(true);
     expect(isApplicable('invoice', 'create')).toBe(false);
     expect(applicableEntities()).toContain('van_expense');
     expect(applicableEntities()).toContain('visit_checkin');
     expect(applicableEntities()).toContain('collection');
+    expect(applicableEntities()).toContain('survey');
   });
 
   it('mapVisitVerdict ranks blocked > gps_violation > out_of_route > valid', async () => {

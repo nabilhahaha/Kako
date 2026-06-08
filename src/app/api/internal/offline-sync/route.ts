@@ -3,7 +3,9 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { MOBILE_ENABLED, isApplicable, dedupeMutations, mapVisitVerdict, type OfflineMutation, type SyncStatus, type Verdict } from '@/lib/offline-sync';
 import { collectPayment } from '@/app/(app)/rep/actions';
+import { submitSurveyResponse } from '@/app/(app)/settings/surveys/actions';
 import type { PaymentMethod } from '@/lib/erp/types';
+import type { SurveyAnswers } from '@/lib/erp/survey';
 
 // Offline sync intake — POST /api/internal/offline-sync. Receives a batch of
 // queued field mutations from the PWA, records each EXACTLY-ONCE in
@@ -144,6 +146,17 @@ async function applyMutation(db: Db, companyId: string, m: OfflineMutation): Pro
       payment_method: (p.paymentMethod as PaymentMethod) ?? 'cash',
       idempotency_key: m.idempotencyKey,
       payment_date: p.paymentDate,
+    });
+    return res.ok ? { ok: true, verdict: 'accepted' } : { ok: false, reason: res.error, verdict: 'rejected' };
+  }
+
+  // Survey response: reuse submitSurveyResponse (scores server-side, RLS insert,
+  // field.sales/survey.manage gated). Exactly-once is handled by the intake layer.
+  if (m.entity === 'survey' && m.operation === 'create') {
+    const p = m.payload as { surveyId?: string; customerId?: string; visitId?: string | null; answers?: SurveyAnswers };
+    if (!p.surveyId || !p.customerId) return { ok: false, reason: 'missing survey ids', verdict: 'rejected' };
+    const res = await submitSurveyResponse({
+      surveyId: p.surveyId, customerId: p.customerId, visitId: p.visitId ?? null, answers: p.answers ?? {},
     });
     return res.ok ? { ok: true, verdict: 'accepted' } : { ok: false, reason: res.error, verdict: 'rejected' };
   }

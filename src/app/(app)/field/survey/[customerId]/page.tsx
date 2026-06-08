@@ -5,6 +5,7 @@ import { getT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
+import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { SurveyForm, type ExecSurvey } from './survey-form';
 
 async function safe<T>(fn: () => Promise<T>, fb: T): Promise<T> { try { return await fn(); } catch { return fb; } }
@@ -30,7 +31,7 @@ export default async function FieldSurveyPage({ params }: { params: Promise<{ cu
       {(surveys as unknown[]).length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">{t('retail.survey.noActive')}</CardContent></Card>
       ) : (
-        <SurveyForm customerId={customerId} surveys={surveys as ExecSurvey[]} />
+        <SurveyForm customerId={customerId} surveys={surveys as ExecSurvey[]} offlineEnabled={MOBILE_ENABLED()} />
       )}
     </div>
   );
