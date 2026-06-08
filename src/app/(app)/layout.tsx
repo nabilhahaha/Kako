@@ -10,6 +10,8 @@ import { SEARCH_ENABLED } from '@/lib/search/flags';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { CopilotFab } from '@/components/copilot/copilot-fab';
+import { OfflineStatusBar } from '@/components/layout/offline-status-bar';
+import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
 import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
@@ -168,6 +170,7 @@ export default async function AppLayout({
             }))}
             notifications={notifications}
           />
+          {MOBILE_ENABLED() && <OfflineStatusBar />}
           {state === 'expiring' && left !== null && (
             <div className="flex flex-wrap items-center gap-2 border-b bg-warning/15 px-4 py-2 text-sm text-warning-foreground lg:px-6">
               <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
