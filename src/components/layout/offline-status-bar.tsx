@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Wifi, WifiOff, UploadCloud, Clock, AlertTriangle } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { useOnlineStatus } from '@/lib/offline-sync/use-network';
-import { syncNow, pendingCount } from '@/lib/offline-sync/client';
+import { syncNow, pendingCount, failedCount } from '@/lib/offline-sync/client';
 
 /** Best-effort one-shot geolocation (resolves null if denied/unavailable). */
 function getPosition(): Promise<{ lat: number; lng: number } | null> {
@@ -32,9 +32,10 @@ export function OfflineStatusBar() {
   const online = useOnlineStatus();
   const [pending, setPending] = useState(0);
   const [conflicts, setConflicts] = useState(0);
+  const [failed, setFailed] = useState(0);
   const [syncing, setSyncing] = useState(false);
 
-  const refresh = useCallback(async () => { setPending(await pendingCount()); }, []);
+  const refresh = useCallback(async () => { setPending(await pendingCount()); setFailed(await failedCount()); }, []);
 
   useEffect(() => {
     refresh();
@@ -60,7 +61,7 @@ export function OfflineStatusBar() {
   useEffect(() => { if (online && pending > 0) doSync(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [online]);
 
   // Stay out of the way when there's nothing to show.
-  if (online && pending === 0 && conflicts === 0) return null;
+  if (online && pending === 0 && conflicts === 0 && failed === 0) return null;
 
   return (
     <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-1.5 text-xs lg:px-6 ${online ? 'bg-warning/10 text-warning-foreground' : 'bg-destructive/10 text-destructive'}`}>
@@ -76,6 +77,11 @@ export function OfflineStatusBar() {
       {conflicts > 0 && (
         <span className="inline-flex items-center gap-1 text-destructive">
           <AlertTriangle className="h-3.5 w-3.5" /> {t('distribution.oflConflicts')}: {conflicts}
+        </span>
+      )}
+      {failed > 0 && (
+        <span className="inline-flex items-center gap-1 text-destructive">
+          <AlertTriangle className="h-3.5 w-3.5" /> {t('distribution.oflFailed')}: {failed}
         </span>
       )}
       {online && pending > 0 && (

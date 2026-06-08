@@ -15,7 +15,23 @@ const STORE = 'mutations';
 const DEVICE_KEY = 'vantora-device-id';
 const SEQ_KEY = 'vantora-client-seq';
 
-type StoredMutation = OfflineMutation & { localStatus: 'pending' | 'synced' | 'conflict' | 'rejected' };
+type StoredMutation = OfflineMutation & {
+  localStatus: 'pending' | 'synced' | 'conflict' | 'rejected' | 'failed';
+  attempts?: number;          // transient-failure retry count
+  nextAttemptAt?: string | null; // ISO — earliest time to retry (backoff)
+};
+
+// Retry policy: bounded exponential backoff, then dead-letter (localStatus
+// 'failed') so a poison mutation can't loop forever — it's surfaced for review.
+export const MAX_SYNC_ATTEMPTS = 6;
+const BACKOFF_BASE_MS = 2000;
+const BACKOFF_CAP_MS = 5 * 60 * 1000;
+
+/** Backoff before retry N (1-based): 2s,4s,8s,…capped at 5m. Pure (testable). */
+export function nextBackoffMs(attempt: number): number {
+  const a = Math.max(1, attempt);
+  return Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS * 2 ** (a - 1));
+}
 
 function hasIDB(): boolean {
   return typeof window !== 'undefined' && typeof window.indexedDB !== 'undefined';
@@ -66,7 +82,7 @@ export async function enqueue(entity: string, operation: SyncOperation, payload:
     userId: '',
     entity, entityId: opts.entityId ?? null, operation, payload,
     clientSeq: nextSeq(), clientTs: new Date().toISOString(), baseVersion: opts.baseVersion ?? null,
-    localStatus: 'pending',
+    localStatus: 'pending', attempts: 0, nextAttemptAt: null,
   };
   await tx('readwrite', (s) => s.put(m));
   return m.idempotencyKey;
@@ -76,16 +92,38 @@ function getAll(): Promise<StoredMutation[]> {
   return tx<StoredMutation[]>('readonly', (s) => s.getAll());
 }
 
-/** Pending (unsynced) mutations, ordered + deduped. */
+/** Pending mutations that are DUE (past their backoff window), ordered + deduped. */
 export async function listPending(): Promise<OfflineMutation[]> {
   if (!hasIDB()) return [];
   const all = await getAll();
-  return dedupeMutations(all.filter((m) => m.localStatus === 'pending'));
+  const now = Date.now();
+  const due = all.filter((m) => m.localStatus === 'pending' && (!m.nextAttemptAt || Date.parse(m.nextAttemptAt) <= now));
+  return dedupeMutations(due);
 }
 
-/** Count of pending mutations. */
+/** Count of pending (due) mutations. */
 export async function pendingCount(): Promise<number> {
   return (await listPending()).length;
+}
+
+/** Count of dead-lettered mutations (exhausted retries) — surfaced for review. */
+export async function failedCount(): Promise<number> {
+  if (!hasIDB()) return 0;
+  return (await getAll()).filter((m) => m.localStatus === 'failed').length;
+}
+
+/** Bump retry state for a batch left unresolved by a transient failure (network
+ *  or 5xx): increment attempts + set the next backoff window, or dead-letter. */
+async function bumpAttempts(batch: OfflineMutation[]): Promise<void> {
+  for (const m of batch) {
+    const cur = await tx<StoredMutation | undefined>('readonly', (s) => s.get(m.idempotencyKey));
+    if (!cur || cur.localStatus !== 'pending') continue;
+    const attempts = (cur.attempts ?? 0) + 1;
+    cur.attempts = attempts;
+    if (attempts >= MAX_SYNC_ATTEMPTS) { cur.localStatus = 'failed'; cur.nextAttemptAt = null; }
+    else cur.nextAttemptAt = new Date(Date.now() + nextBackoffMs(attempts)).toISOString();
+    await tx('readwrite', (s) => s.put(cur));
+  }
 }
 
 /** Per-mutation server outcome, surfaced so screens can reconcile their UI
@@ -120,9 +158,12 @@ export async function syncNow(meta: { appVersion?: string; platform?: string; la
         body: JSON.stringify({ deviceId: getDeviceId(), ...meta, mutations: batch }),
       });
     } catch {
+      // Network drop mid-flight: not a retry-consuming failure (we're offline).
       return { synced, conflicts, rejected, offline: true, results };
     }
-    if (!res.ok) break;
+    // Transient server failure (5xx) or auth/flag (4xx): consume a retry attempt
+    // with backoff so the batch isn't hammered, and dead-letter after the cap.
+    if (!res.ok) { await bumpAttempts(batch); break; }
     const data = (await res.json()) as { results?: SyncResultItem[] };
     for (const r of data.results ?? []) {
       results.push(r);

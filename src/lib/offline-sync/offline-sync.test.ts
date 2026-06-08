@@ -111,6 +111,18 @@ describe('offline-sync/apply (safe server whitelist)', () => {
   });
 });
 
+describe('offline-sync/client (retry backoff)', () => {
+  it('nextBackoffMs is exponential and capped at 5m', async () => {
+    const { nextBackoffMs, MAX_SYNC_ATTEMPTS } = await import('./client');
+    expect(nextBackoffMs(1)).toBe(2000);
+    expect(nextBackoffMs(2)).toBe(4000);
+    expect(nextBackoffMs(3)).toBe(8000);
+    expect(nextBackoffMs(20)).toBe(5 * 60 * 1000);   // capped
+    expect(nextBackoffMs(0)).toBe(2000);             // guards attempt<1
+    expect(MAX_SYNC_ATTEMPTS).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe('offline-sync/media (image fit math)', () => {
   it('fitDimensions caps the long edge and preserves aspect ratio', async () => {
     const { fitDimensions } = await import('./media');
