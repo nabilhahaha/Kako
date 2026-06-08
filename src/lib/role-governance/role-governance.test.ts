@@ -4,7 +4,7 @@ import {
   resolveScopeFilter, isVisible, applyScope, type UserPosition, type ScopedRecord,
   resolveApprovalAuthority, type ApprovalRule,
   canPerform, resolveFieldAccess, canEditField, visibleSections,
-  isGrantActive, activeGrants, type TemporaryGrant,
+  isGrantActive, activeGrants, partitionGrantKeys, type TemporaryGrant,
 } from './index';
 
 const pos: UserPosition = { userId: 'U1', teamUserIds: ['U2'], areaId: 'A1', regionId: 'R1', branchId: 'B1', companyId: 'CO1' };
@@ -91,5 +91,15 @@ describe('temporary access (effective-dated, auto-expiry)', () => {
     expect(isGrantActive(grants[1], '2026-06-15T00:00:00Z')).toBe(false);
     expect(activeGrants(grants, 'U1', '2026-06-15T00:00:00Z')).toEqual(['acting_supervisor']);
     expect(activeGrants(grants, 'U1', '2026-12-15T00:00:00Z')).toEqual([]);
+  });
+
+  it('partitionGrantKeys splits permission keys from role keys (deduped)', () => {
+    const allPerms = ['reports.view', 'sales.collect', 'inventory.view'];
+    const { perms, roleKeys } = partitionGrantKeys(
+      ['reports.view', 'acting_supervisor', 'sales.collect', 'reports.view', 'finance_review'],
+      allPerms,
+    );
+    expect(perms.sort()).toEqual(['reports.view', 'sales.collect']);
+    expect(roleKeys.sort()).toEqual(['acting_supervisor', 'finance_review']);
   });
 });

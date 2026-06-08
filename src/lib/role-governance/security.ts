@@ -56,3 +56,17 @@ export function isGrantActive(g: TemporaryGrant, now: string): boolean {
 export function activeGrants(grants: readonly TemporaryGrant[], userId: string, now: string): string[] {
   return grants.filter((g) => g.userId === userId && isGrantActive(g, now)).map((g) => g.grant);
 }
+
+/** Split active grant keys into direct permission keys vs role keys (which must
+ *  be expanded to their permissions). Deduped. Pure — used by the enforcement
+ *  wiring in getUserContext. `allPermissions` is the permission allowlist. */
+export function partitionGrantKeys(
+  keys: readonly string[],
+  allPermissions: readonly string[],
+): { perms: string[]; roleKeys: string[] } {
+  const permSet = new Set(allPermissions);
+  const perms: string[] = [];
+  const roleKeys: string[] = [];
+  for (const k of new Set(keys)) (permSet.has(k) ? perms : roleKeys).push(k);
+  return { perms, roleKeys };
+}
