@@ -14,6 +14,7 @@ export const APPLY_WHITELIST: Record<string, readonly SyncOperation[]> = {
   van_expense: ['create'],
   visit_checkin: ['create'],
   collection: ['create'],
+  survey: ['create'],
 };
 
 /** True when an (entity, operation) is on the safe auto-apply whitelist. Pure. */
