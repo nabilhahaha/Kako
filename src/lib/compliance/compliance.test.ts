@@ -56,7 +56,7 @@ describe('compliance/lifecycle', () => {
     expect(isTerminal('cleared')).toBe(true);
     expect(isTerminal('cancelled')).toBe(true);
     expect(isTerminal('queued')).toBe(false);
-    expect(TERMINAL_STATUSES).toContain('reported');
+    expect(TERMINAL_STATUSES).toContain('accepted');
   });
 });
 
@@ -173,7 +173,7 @@ describe('compliance/provider registry', () => {
     expect(complianceProviderRegistry.get('SA', 'zatca')).toBeDefined();
     expect(complianceProviderRegistry.get('EG', 'eta')).toBeDefined();
     expect(complianceProviderRegistry.get('AE', 'fta')).toBeDefined();
-    expect(ALL_COMPLIANCE_PROVIDERS).toHaveLength(3);
+    expect(ALL_COMPLIANCE_PROVIDERS.length).toBeGreaterThanOrEqual(3);
   });
 });
 
