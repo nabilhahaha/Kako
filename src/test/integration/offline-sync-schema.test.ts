@@ -29,4 +29,31 @@ describe.skipIf(!hasTestDb)('offline-sync · schema', () => {
       for (const o of ['create', 'update', 'delete']) expect(chk.rows[0].d).toContain(`'${o}'`);
     } finally { await c.end().catch(() => {}); }
   });
+
+  it('0234 adds verdict + result columns for the server validation outcome', async () => {
+    const c = await connect();
+    try {
+      const { rows } = await c.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name='erp_offline_mutations' AND column_name IN ('verdict','result') ORDER BY 1`);
+      expect(rows.map((r) => r.column_name)).toEqual(['result', 'verdict']);
+    } finally { await c.end().catch(() => {}); }
+  });
+
+  it('erp_check_in_visit gains optional capture-time params (backdating), online arity preserved', async () => {
+    const c = await connect();
+    try {
+      // Exactly one function, now 8-arg with the two trailing params defaulted —
+      // so legacy 6-arg (online) calls still resolve unambiguously.
+      const { rows } = await c.query(`
+        SELECT pg_get_function_identity_arguments(p.oid) AS args, pg_get_function_arguments(p.oid) AS full
+        FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+        WHERE n.nspname='public' AND p.proname='erp_check_in_visit'`);
+      expect(rows.length).toBe(1);
+      expect(rows[0].args).toContain('timestamp with time zone');
+      expect(rows[0].args).toContain('date');
+      // The new params carry DEFAULTs (so 6-arg online callers are unchanged).
+      expect(rows[0].full).toContain('DEFAULT NULL');
+    } finally { await c.end().catch(() => {}); }
+  });
 });

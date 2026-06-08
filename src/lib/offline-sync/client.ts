@@ -88,19 +88,30 @@ export async function pendingCount(): Promise<number> {
   return (await listPending()).length;
 }
 
-export interface SyncOutcome { synced: number; conflicts: number; rejected: number; offline?: boolean }
+/** Per-mutation server outcome, surfaced so screens can reconcile their UI
+ *  (e.g. the journey list moves a stop from "Pending Validation" to its verdict). */
+export interface SyncResultItem {
+  idempotencyKey: string;
+  entity: string;
+  entityId: string | null;
+  status: SyncStatus;
+  verdict?: string | null;
+}
+
+export interface SyncOutcome { synced: number; conflicts: number; rejected: number; offline?: boolean; results: SyncResultItem[] }
 
 /**
  * Drain the queue: POST batches to the intake route and mark each mutation by the
  * server's result. Removes applied/rejected; flags conflicts for review.
  */
 export async function syncNow(meta: { appVersion?: string; platform?: string; lat?: number; lng?: number } = {}): Promise<SyncOutcome> {
-  if (!hasIDB()) return { synced: 0, conflicts: 0, rejected: 0 };
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return { synced: 0, conflicts: 0, rejected: 0, offline: true };
+  if (!hasIDB()) return { synced: 0, conflicts: 0, rejected: 0, results: [] };
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return { synced: 0, conflicts: 0, rejected: 0, offline: true, results: [] };
   const pending = await listPending();
-  if (pending.length === 0) return { synced: 0, conflicts: 0, rejected: 0 };
+  if (pending.length === 0) return { synced: 0, conflicts: 0, rejected: 0, results: [] };
 
   let synced = 0, conflicts = 0, rejected = 0;
+  const results: SyncResultItem[] = [];
   for (const batch of batchMutations(pending, 100)) {
     let res: Response;
     try {
@@ -109,11 +120,12 @@ export async function syncNow(meta: { appVersion?: string; platform?: string; la
         body: JSON.stringify({ deviceId: getDeviceId(), ...meta, mutations: batch }),
       });
     } catch {
-      return { synced, conflicts, rejected, offline: true };
+      return { synced, conflicts, rejected, offline: true, results };
     }
     if (!res.ok) break;
-    const data = (await res.json()) as { results?: { idempotencyKey: string; status: SyncStatus }[] };
+    const data = (await res.json()) as { results?: SyncResultItem[] };
     for (const r of data.results ?? []) {
+      results.push(r);
       if (r.status === 'applied') { await tx('readwrite', (s) => s.delete(r.idempotencyKey)); synced++; }
       else if (r.status === 'rejected') { await tx('readwrite', (s) => s.delete(r.idempotencyKey)); rejected++; }
       else if (r.status === 'conflict') {
@@ -123,5 +135,5 @@ export async function syncNow(meta: { appVersion?: string; platform?: string; la
       }
     }
   }
-  return { synced, conflicts, rejected };
+  return { synced, conflicts, rejected, results };
 }
