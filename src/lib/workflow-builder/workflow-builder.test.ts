@@ -11,7 +11,7 @@ const def = (over: Partial<TemplateDefinition> = {}): TemplateDefinition => ({
   trigger: 'manual',
   steps: [
     { stepNo: 1, stepType: 'approval', name: 'Review', approverType: 'role', approverRef: 'supervisor', mode: 'sequential', requiredApprovals: 1, slaHours: 24, escalateTo: 'manager', config: {} },
-    { stepNo: 2, stepType: 'notification', name: 'Notify', approverType: 'system', approverRef: null, mode: 'sequential', requiredApprovals: 0, slaHours: null, escalateTo: null, config: {} },
+    { stepNo: 2, stepType: 'notification', name: 'Notify', approverType: 'system', approverRef: null, mode: 'sequential', requiredApprovals: 0, slaHours: null, escalateTo: null, config: { channel: 'in_app', template: 'x' } },
   ],
   ...over,
 });
