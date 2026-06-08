@@ -83,3 +83,13 @@ describe('offline-sync/conflict (policy-driven)', () => {
     expect(plan.rejected.map((r) => r.idempotencyKey)).toEqual(['c']);
   });
 });
+
+describe('offline-sync/apply (safe server whitelist)', () => {
+  it('only whitelisted (entity, op) auto-apply', async () => {
+    const { isApplicable, applicableEntities } = await import('./apply');
+    expect(isApplicable('van_expense', 'create')).toBe(true);
+    expect(isApplicable('van_expense', 'delete')).toBe(false);
+    expect(isApplicable('invoice', 'create')).toBe(false);
+    expect(applicableEntities()).toContain('van_expense');
+  });
+});

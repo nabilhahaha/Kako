@@ -203,6 +203,24 @@ export const ar = {
     slColDemand: 'الطلب المتوقع',
     slColStock: 'رصيد العربة',
     slColSuggested: 'المقترح',
+
+    // ── Field Offline Mode (Phase 7B mobile client) ───────────────────────────
+    oflTitle: 'الوضع دون اتصال',
+    oflDescription: 'قائمة المزامنة المحلية وحالة الشبكة والجهاز والتقاط المصروفات دون اتصال.',
+    oflDisabled: 'وحدة تطبيق الميدان غير مفعّلة.',
+    oflOnline: 'متصل',
+    oflOffline: 'غير متصل',
+    oflBattery: 'البطارية',
+    oflPending: 'بانتظار المزامنة',
+    oflConflicts: 'تعارضات',
+    oflSyncNow: 'مزامنة الآن',
+    oflSyncing: 'جارٍ المزامنة…',
+    oflSyncedMsg: 'تمت مزامنة العمليات.',
+    oflAddExpenseTitle: 'تسجيل مصروف (يعمل دون اتصال)',
+    oflAmount: 'المبلغ',
+    oflNotes: 'ملاحظات',
+    oflQueue: 'إضافة للقائمة',
+    oflQueuedMsg: 'تمت الإضافة للقائمة المحلية.',
   },
 };
 
@@ -409,5 +427,23 @@ export const en = {
     slColDemand: 'Projected demand',
     slColStock: 'Van stock',
     slColSuggested: 'Suggested',
+
+    // ── Field Offline Mode (Phase 7B mobile client) ───────────────────────────
+    oflTitle: 'Offline Mode',
+    oflDescription: 'Local sync queue, network + device status, and offline expense capture.',
+    oflDisabled: 'Mobile Field App module is not enabled.',
+    oflOnline: 'Online',
+    oflOffline: 'Offline',
+    oflBattery: 'Battery',
+    oflPending: 'Pending sync',
+    oflConflicts: 'Conflicts',
+    oflSyncNow: 'Sync now',
+    oflSyncing: 'Syncing…',
+    oflSyncedMsg: 'Mutations synced.',
+    oflAddExpenseTitle: 'Record expense (works offline)',
+    oflAmount: 'Amount',
+    oflNotes: 'Notes',
+    oflQueue: 'Queue',
+    oflQueuedMsg: 'Queued locally.',
   },
 };
