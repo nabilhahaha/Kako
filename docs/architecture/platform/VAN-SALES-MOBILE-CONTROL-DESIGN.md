@@ -209,13 +209,13 @@ Everything in this spine is **offline-first**: each transaction is written local
 
 ## 4. Screen list (by role)
 
-**Salesman (phone):** Today/Home · Start-Day (Load Confirm, Cash Float) · Journey List · Map · Customer 360 · Sell (Product Search/Cart, Tender, Credit-check modal) · Invoice Done (Print/Share) · Collect (Outstanding list, Tender, Cheque capture, Receipt) · Return (Condition, Reason, Photo) · Van Stock (live) · Transfer (send/receive) · End-Day (Count, Settlement) · My Reports · Sync/Queue.
+**Salesman (phone):** Today/Home · Start-Day (Load Confirm, Cash Float) · **Stock Request** (request lines + suggested/avg-daily, urgent) · **New Customer** (intake: name/phone/CR-VAT/national-address, GPS, storefront photos, channel/classification/route suggestion, notes) · Journey List · Map · Customer 360 · Sell (Product Search/Cart, Tender, Credit-check modal) · Invoice Done (Print/Share) · Collect (Outstanding list, Tender, Cheque capture, Receipt) · Return (Condition, Reason, Photo) · Van Stock (live) · **Load Confirmation** (accept/reject/variance) · Transfer (send/receive) · End-Day (Count, Settlement) · My Requests & Status · My Reports · Sync/Queue.
 
 **Supervisor:** Exceptions Inbox · Approval detail (credit / variance / out-of-route / day-close / customer-update) · Team Today board · Salesman Day card · Coverage/Route compliance · Collections follow-up · Old-expiry follow-up · **Route Riding** (Start Ride, Criteria Scorecard, Coaching Notes, Action Plan) · **Merchandising Audit** (survey form, photo capture, score) · Reports.
 
 **Cashier:** Settlements queue · Settlement detail (by mode) · Cheque register · Cash report · Daily close · Variance review.
 
-**Warehouse:** Loads (create/issue) · Load detail + variance · Returns receiving · Transfer approvals · Van reconciliation · Variance investigation · Reports.
+**Warehouse:** Loads board (approved · pending prep · prepared · dispatched · pending confirmation · rejected · variance) · Load detail + variance · Picking/Dispatch list · Returns receiving · Transfer approvals · Van reconciliation · Variance investigation · Reports.
 
 **Area/Regional Manager:** Area/Region dashboard · Team performance · Supervisor performance · Route-riding & coaching analysis · Merchandising compliance · Coverage/Distribution · Collections/Overdue · Approvals/escalations · Reports.
 
@@ -255,6 +255,9 @@ Everything in this spine is **offline-first**: each transaction is written local
 - **No bespoke "exceptions" table.** Credit overrides, variance approvals, transfer approvals are **workflow tasks** on the existing engine (don't duplicate workflow logic). The 8F form/workflow pattern (just shipped) is the template.
 - **Credit-overdue behavior = `erp_credit_block_rules`** (already supports warn/approve/block). **Credit invoice with no due date:** make `due_date` optional for credit tender (terms-derived or open); a small invoice-logic change, not a new table.
 - **Daily salesman summary = a query/view,** not a stored table (compute from invoices+collections+expenses for the day); add a materialized rollup later only if perf requires.
+- **Stock request & load = the existing `erp_stock_requests` (0011) extended** (`origin`, per-line `approved_qty` + audited before/after) driven by a **configurable workflow chain** + the load-confirmation handshake (`erp_van_load_confirmations`) + **ledger posting (`erp_stock_movements`) only on confirmation.** No parallel loading system; no direct stock movement without an approved/confirmed transaction.
+- **New customer = a draft `erp_customers` row** (`approval_status='pending'` / `is_active=false`) created via a new-outlet intake form (form-builder, governed) + the **onboarding workflow** (reuse 0088); activated by `update_record` on approval. No new customer table.
+- **Approval chains = per-company workflow definitions** (Workflow Builder 8A), role-based steps, N configurable — **no approval-config table, no hardcoded users, no separate approval system.**
 
 **Genuinely NEW (the real gaps):**
 
@@ -287,15 +290,96 @@ All via `erp_workflow_start` / event dispatch + `update_record` (incl. the gener
 
 ---
 
+## 6A. Approval-driven field operations (one engine, configurable, role-based)
+
+**Law:** every important field action runs on the **single VANTORA workflow engine** — **no separate Van Sales approval system.** All of them reuse the **8F pattern already shipped**:
+
+```
+Form (form-builder, governed)  →  intake/change-request row (the workflow subject)
+  →  domain event (offline-queued, started on sync)  →  workflow (N role-based steps)
+  →  governed apply (update_record / activate)  →  notify  →  full audit trail
+```
+
+**Configurability (per company, no hardcoding):**
+- Approval **chains are workflow definitions** edited via the existing **Workflow Builder (8A)** — each company chooses **how many steps** and **which role** approves each. A **global default** definition ships; a tenant **clones + edits** it.
+- Approval steps are **role-based** (`approver_type='role'`, `approver_ref=<role key>`) — **never hardcoded users**. Reassignment/escalation/SLA reuse the engine.
+- **Offline-first:** submissions queue and **start on sync** (the #259 operational-completeness pattern). **Idempotent**, exactly-once.
+- **Audited:** every step in `erp_audit_logs` + the run's step history; before/after captured on data changes (8F `__audit`).
+
+**Approvals surface in the correct role dashboard** (all read the *same* workflow tasks, filtered by role/assignment — one source of truth):
+
+| Role | Sees |
+|---|---|
+| Salesman | **My requests** + live status (submitted / approved / rejected / changes-requested) |
+| Supervisor | **Approvals pending for my team** (+ adjust authority where granted) |
+| Area / Regional Manager | **Escalations + approvals** routed to me |
+| Warehouse | **Stock approvals** (load/transfer) + prepare/confirm tasks |
+| Cashier | **Cash settlement approvals** |
+| Admin | **Workflow configuration** (definitions, steps, roles, SLAs) |
+
+### The field-approval flows (all on the one engine)
+1. **New Customer Creation** — salesman submits a new-outlet **intake form** (name, phone, CR/VAT, national address, **GPS**, **storefront photos**, channel/classification/route suggestion, notes). Creates a **draft customer** (`erp_customers`, `is_active=false` / `approval_status='pending'`). Flow: salesman submit → supervisor review → **Approve / Reject / Request changes** → on approve the customer **becomes active** (governed `update_record`); on reject stays draft/inactive. Reuses the seeded **customer onboarding** workflow (0088) + form-builder. Full audit.
+2. **Customer Data Update** — **already shipped (8F).** Salesman requests changes (phone/GPS/CR/VAT/national address/channel/classification/route) → supervisor **or** data-admin approval **per company config** → approved changes apply through the governed workflow path.
+3. **Route Riding Report** — supervisor submits (salesman, route, customers visited, execution score, coaching notes, action plan) → **Area Manager review if configured** → **action plan tracked until closed** (reuses `erp_route_rides` + workflow).
+4. **Merchandising Issue** — supervisor *or* salesman records (customer, photo, issue type, competitor activity, display/availability/price issue) → assigned **owner reviews** → action taken → **closed with audit** (reuses surveys/forms + workflow + `field.attach_media`).
+5. **Stock / Cash Variance** — salesman/warehouse records (shortage/excess, reason, evidence) → warehouse/cashier review → supervisor approval → **responsibility assigned** → **no automatic deduction without approval** (reuses `erp_van_variances` + workflow).
+
+---
+
+## 6B. Van Stock Request, Supervisor Adjustment & Load Approval Workflow
+
+A core FMCG loading loop, fully on the existing engine + ledger. **No direct stock movement without an auditable approved/confirmed transaction.**
+
+### Entities (reuse-first)
+- **`erp_stock_requests` (+ `_lines`)** — reuse/extend the existing stock-request entity (0011) as the request **and** load header. Header: salesman_id, warehouse_id, requested_date, **origin** (`salesman` | `supervisor_direct`), urgent flag, status, notes. Line: product_id, **requested_qty**, **approved_qty**, reason, plus decision context (current van stock, avg daily sales, suggested qty — from **Suggested Loads 0233** when available).
+- **Approval chain = workflow definition** (configurable per company — no new config table). Role-based steps; the engine routes.
+- **`erp_van_load_manifests` (0194)** — what warehouse prepares/dispatches (the physical load).
+- **`erp_van_load_confirmations` (+ `_lines`)** — the salesman accept/reject/**accept-with-variance** handshake; **only confirmed qty posts to van stock.**
+- **`erp_van_variances`** — variance workflow (no auto-deduction).
+- **`erp_stock_movements`** — the **ledger**; van stock posts here only on confirmation; reversals only via controlled adjustment workflow.
+- **Audit** — every adjustment preserves **before/after** (original_qty, adjusted_qty, adjusted_by, timestamp, reason) via `erp_audit_logs` (8F `__audit` shape).
+
+### 1) Salesman stock request (mobile)
+Request line shows **current van stock**, **avg daily sales**, **suggested qty** (0233) to make typing minimal; urgent flag; reason/notes. Submit → starts the configurable approval workflow (offline-queued, starts on sync).
+
+### 2) Supervisor adjustment authority (audited)
+At the supervisor step the supervisor may: **approve as-is**, **reject**, **add item**, **remove item**, **increase qty**, **reduce qty**, **split request**, **send back to salesman for clarification**. **Any quantity change requires a reason.** Each line keeps `requested_qty` immutable and records `approved_qty` + an **audited before/after** (original, adjusted, by, timestamp, reason). "Send back" returns the run to the salesman (a clarification step) without losing history.
+
+### 3) Configurable approval chain (no hardcoding)
+The chain is a **per-company workflow definition** (Workflow Builder). The four example companies are just different definitions of the **same** engine:
+
+| Company | Chain (role-based steps) |
+|---|---|
+| A | Salesman request → **Supervisor** → Warehouse load → Salesman confirm |
+| B | Salesman request → **Supervisor** → **Area Manager** → Warehouse load → Salesman confirm |
+| C | Salesman request → **Supervisor** → **Warehouse approval** → Salesman confirm |
+| D | Salesman request → **Supervisor** → **Area Manager** → **Warehouse approval** → Salesman confirm |
+
+Warehouse **prepares the load only after all required approvals**.
+
+### 4) Supervisor direct load assignment
+Supervisor creates a load for any salesman on the team (origin `supervisor_direct`): select salesman + warehouse + items/qty + reason → optional **Area Manager** / **Warehouse** approval per company config → salesman gets a **load confirmation task**. **Supervisor-created loads never auto-enter van stock**; salesman confirmation is required **unless** the company explicitly enables auto-confirmation (**disabled by default**, `erp_van_sales_settings`).
+
+### 5) Salesman load confirmation
+**Accept full** / **Reject full** / **Accept with variance** (short, extra, damaged, wrong item, expiry). Variance → creates `erp_van_variances` → warehouse review → supervisor review if configured → responsibility assigned → **stock posts only the confirmed/approved qty** (ledger `transfer_in`).
+
+### 6) Warehouse execution (desktop)
+Dashboard states: **approved load requests · pending preparation · prepared · dispatched · pending salesman confirmation · rejected · variance cases.** Warehouse **cannot finalize a load into van stock until salesman confirmation is complete**, unless company policy allows **forced closure with approval** (`erp_van_sales_settings` + a supervisor/manager approval step).
+
+### Status lifecycle
+`draft → submitted → under_approval → approved → preparing → prepared → dispatched → awaiting_confirmation → confirmed → closed` (with `rejected` / `sent_back` / `variance_review` branches). Ledger posting happens **only** at `confirmed`.
+
+---
+
 ## 7. Reports list
 
 Reuse the **export engine** (`/api/export`, CSV/XLSX/JSON) + **van-accounting** lib + **route-intel** snapshots (0232); printable via browser print + **PDF/WhatsApp share**; ZATCA-compliant invoice template.
 
-- **Salesman:** daily sales summary · cash sales · credit sales · collections · stock balance · returns · shortages/excess.
+- **Salesman:** daily sales summary · cash sales · credit sales · collections · stock balance · returns · shortages/excess · **stock requests: requested vs approved vs received qty · pending loads · rejected loads · load variance history**.
 - **Cashier:** cash sales · collections · expected cash · actual received · variance · per-salesman settlement · cheque register.
-- **Warehouse:** loaded stock · confirmed received · sold · returned · closing · variance · items to receive.
-- **Supervisor:** sales by customer · distribution · coverage · journey-plan compliance · overdue-sold-to · returns · cash/stock variance · salesman performance · **route-riding scorecards & coaching/action-plan status** · **merchandising audit scores (availability / share-of-shelf / POSM / pricing compliance)**.
-- **Area/Regional Manager:** region/area sales · coverage · distribution · collections · overdue/aging · team productivity · **supervisor performance** · **route-riding & coaching analysis** (trend, weakest criteria, open action plans) · **merchandising compliance** (audit-score trend, OOS, share-of-shelf, pricing) · approval monitoring.
+- **Warehouse:** loaded stock · confirmed received · sold · returned · closing · variance · items to receive · **approved load list · picking list · dispatch list · confirmation status · variance report**.
+- **Supervisor:** sales by customer · distribution · coverage · journey-plan compliance · overdue-sold-to · returns · cash/stock variance · salesman performance · **route-riding scorecards & coaching/action-plan status** · **merchandising audit scores (availability / share-of-shelf / POSM / pricing compliance)** · **stock requests by salesman · approved/rejected/modified (adjusted qty) · pending approvals · load performance by route/salesman**.
+- **Area/Regional Manager:** region/area sales · coverage · distribution · collections · overdue/aging · team productivity · **supervisor performance** · **route-riding & coaching analysis** (trend, weakest criteria, open action plans) · **merchandising compliance** (audit-score trend, OOS, share-of-shelf, pricing) · **stock-request trends · supervisor adjustments · rejected requests · shortage/excess trends · warehouse service level** · approval monitoring.
 
 Aging buckets (**current · 1–30 · 31–60 · 61–90 · 90+**) computed from invoice dates vs payment status (no new table; a shared `aging()` helper).
 
@@ -359,6 +443,11 @@ Every PR: additive, `KAKO_VAN_SALES`-gated (default OFF), multi-tenant RLS, audi
 20. ZATCA e-invoice compliance (Saudi tenants) + integration tests.
 21. Offline conflict review queue + numbering hardening.
 22. Performance (daily rollups if needed) + pilot readiness checkpoint.
+
+### Approval-driven flows (fold into the phases above; each = one small PR on the existing engine)
+- **Phase B — Stock request & load approval (§6B):** ⓐ Salesman stock request (extend `erp_stock_requests`, reuse Suggested Loads 0233 for suggested/avg-daily) + **configurable approval chain** (workflow def, role-based, N steps). ⓑ **Supervisor adjustment authority** (add/remove/±qty/split/send-back, reason-required, **audited before/after**). ⓒ **Supervisor direct load** (origin `supervisor_direct`, no auto-confirm by default). ⓓ **Warehouse load execution** (prepare/dispatch states, reuse `erp_van_load_manifests`). ⓔ **Salesman load confirmation** (`erp_van_load_confirmations`, accept/reject/variance) → **ledger post on confirm only**.
+- **Phase C — New Customer Creation (§6A.1):** draft `erp_customers` via new-outlet intake form (GPS + storefront photos) → onboarding approval → activate.
+- The remaining §6A flows (Customer-data update [shipped], Route-riding report, Merchandising issue, Stock/cash variance) ride the **same engine** as the 8F customer-data-update — each a thin intake form + a configurable workflow definition.
 
 ---
 
