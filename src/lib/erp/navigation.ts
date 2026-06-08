@@ -334,6 +334,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.vanAccounting', href: '/distribution/van-accounting', icon: Wallet, perm: 'reports.view' },
       { label: 'nav.items.fieldSync', href: '/distribution/field-sync', icon: Smartphone, perm: 'reports.view' },
       { label: 'nav.items.perfectStoreScores', href: '/distribution/perfect-store-scores', icon: Star, perm: 'reports.view' },
+      { label: 'nav.items.territoryIntel', href: '/distribution/territory-intel', icon: Activity, perm: 'reports.view' },
       { label: 'nav.items.distributionReport', href: '/distribution/report', icon: BarChart3, perm: 'reports.view' },
       { label: 'nav.items.journeyCompliance', href: '/distribution/journey-compliance', icon: ClipboardCheck, perm: 'reports.view' },
       { label: 'nav.items.repTargets', href: '/distribution/targets', icon: Target, perm: 'reports.view' },
