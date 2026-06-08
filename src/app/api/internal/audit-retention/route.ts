@@ -5,6 +5,7 @@
 // (CRON_SECRET) + service role. Daily pg_dump backups cover archival.
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { log, alert } from '@/lib/observability';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,7 +30,11 @@ async function handle(req: NextRequest) {
   }
 
   const { data, error } = await db.rpc('erp_purge_audit_logs', { p_keep_days: Math.floor(keepDays) });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    await alert('audit_retention.failed', 'critical', { route: 'audit-retention', error: error.message });
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  log.info('audit_retention.swept', { keepDays: Math.floor(keepDays), deleted: data ?? 0 });
   return NextResponse.json({ ok: true, keepDays: Math.floor(keepDays), deleted: data ?? 0 });
 }
 
