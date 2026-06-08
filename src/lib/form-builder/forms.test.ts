@@ -27,6 +27,17 @@ describe('form-builder/forms · seeded catalog', () => {
     }
   });
 
+  it('declares a workflow binding that opens a customer change request', () => {
+    const wf = customerDataUpdateForm().workflow;
+    expect(wf).toEqual({
+      changeRequestTable: 'erp_customer_change_requests',
+      targetIdField: 'customer_id',
+      changeEntity: 'customer_change_request',
+      eventType: 'customer_change_request.submitted',
+      reasonField: 'reason',
+    });
+  });
+
   it('FMCG master-data fields use dynamic per-tenant option sources (not static)', () => {
     const byKey = new Map(allFields(customerDataUpdateForm()).map((f) => [f.key, f]));
     expect(byKey.get('classification_id')!.optionsSource).toEqual({ lookup: 'classification' });

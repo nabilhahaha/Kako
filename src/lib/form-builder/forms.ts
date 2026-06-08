@@ -23,6 +23,13 @@ export interface SeededForm {
  *  by code). Contact fields bind to the customer entity's governed fields. */
 export function customerDataUpdateForm(): FormDefinition {
   return {
+    workflow: {
+      changeRequestTable: 'erp_customer_change_requests',
+      targetIdField: 'customer_id',
+      changeEntity: 'customer_change_request',
+      eventType: 'customer_change_request.submitted',
+      reasonField: 'reason',
+    },
     sections: [
       {
         key: 'identity',
