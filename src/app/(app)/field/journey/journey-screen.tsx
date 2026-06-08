@@ -29,8 +29,12 @@ import {
   ShieldAlert,
   Flag,
   X,
+  CloudOff,
+  Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useOnlineStatus } from '@/lib/offline-sync/use-network';
+import { enqueue, syncNow } from '@/lib/offline-sync/client';
 
 interface CheckInResult {
   visit_id?: string;
@@ -59,11 +63,20 @@ const SORT_MODES: JourneySortMode[] = ['nearest', 'manual', 'optimized', 'hybrid
 export function JourneyScreen({
   data,
   canOverrideGps,
+  offlineEnabled = false,
 }: {
   data: TodayJourneyData;
   canOverrideGps: boolean;
+  /** KAKO_MOBILE: when on, a check-in made while offline is queued (Pending
+   *  Validation) and replayed through the same RPC on reconnect. */
+  offlineEnabled?: boolean;
 }) {
   const { t, locale } = useI18n();
+  const online = useOnlineStatus();
+  // Stops captured offline, awaiting server validation. Keyed by customer →
+  // 'pending' (queued) | 'blocked' | 'exception'. Deliberately SEPARATE from the
+  // `visited` set so they DON'T count toward coverage/KPIs until validated.
+  const [pendingVisits, setPendingVisits] = useState<Record<string, string>>({});
 
   const [origin, setOrigin] = useState<LatLng | null>(null);
   const [locating, setLocating] = useState(true);
@@ -102,6 +115,43 @@ export function JourneyScreen({
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
     );
   }, []);
+
+  // Drain the offline queue when connectivity returns, then reconcile each stop's
+  // local state from the SERVER verdict: valid / out_of_route / gps_violation →
+  // counts as a real visit; blocked → stays pending (needs approval); rejected →
+  // a sync exception the rep can retry. Only validated visits join `visited`.
+  useEffect(() => {
+    if (!offlineEnabled || !online) return;
+    let cancelled = false;
+    (async () => {
+      const r = await syncNow({
+        appVersion: 'pwa',
+        platform: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 60) : 'web',
+      });
+      if (cancelled || r.results.length === 0) return;
+      const validated: string[] = [];
+      setPendingVisits((prev) => {
+        const next = { ...prev };
+        for (const item of r.results) {
+          if (item.entity !== 'visit_checkin' || !item.entityId) continue;
+          if (item.status === 'applied' && item.verdict && item.verdict !== 'blocked') {
+            validated.push(item.entityId);
+            delete next[item.entityId];
+          } else if (item.status === 'applied' && item.verdict === 'blocked') {
+            next[item.entityId] = 'blocked';
+          } else if (item.status === 'rejected') {
+            next[item.entityId] = 'exception';
+          }
+        }
+        return next;
+      });
+      if (validated.length > 0) {
+        setVisited((prev) => { const s = new Set(prev); validated.forEach((id) => s.add(id)); return s; });
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online, offlineEnabled]);
 
   const name = (s: JourneyStopRow) =>
     (locale === 'ar' ? s.customer_name_ar || s.customer_name : s.customer_name) || s.customer_code || '—';
@@ -144,6 +194,29 @@ export function JourneyScreen({
     setBusyId(stop.customer_id);
     try {
       const loc = await getDeviceLocation();
+
+      // OFFLINE PATH: queue the check-in (with captured GPS + local timestamp/day)
+      // for later validation. It is NOT counted toward coverage until the server
+      // replays the SAME compliance RPC on sync and returns a verdict.
+      if (offlineEnabled && !online) {
+        const now = new Date();
+        await enqueue('visit_checkin', 'create', {
+          customerId: stop.customer_id,
+          lat: loc?.latitude ?? null,
+          lng: loc?.longitude ?? null,
+          workSessionId: data.workSessionId,
+          reason: opts.reason ?? null,
+          force: opts.force ?? false,
+          checkInAt: now.toISOString(),
+          visitDate: localDay(now),
+        }, { entityId: stop.customer_id });
+        setPendingVisits((p) => ({ ...p, [stop.customer_id]: 'pending' }));
+        setBlockedStop(null);
+        setReason('');
+        toast.info(t('fmcg.queuedOffline'));
+        return;
+      }
+
       const res = await checkInVisit({
         customerId: stop.customer_id,
         lat: loc?.latitude ?? null,
@@ -301,6 +374,13 @@ export function JourneyScreen({
           {ordered.map((stop, idx) => {
             const isVisited = visited.has(stop.customer_id);
             const isBlocked = blockedStop?.stop.customer_id === stop.customer_id;
+            const pendingVerdict = pendingVisits[stop.customer_id];
+            const isPending = !isVisited && !!pendingVerdict;
+            const pendingLabel = pendingVerdict === 'blocked'
+              ? t('fmcg.blockedPending')
+              : pendingVerdict === 'exception'
+                ? t('fmcg.syncException')
+                : t('fmcg.pendingValidation');
             return (
               <li key={stop.customer_id}>
                 <Card className={isVisited ? 'opacity-70' : ''}>
@@ -313,6 +393,19 @@ export function JourneyScreen({
                           </span>
                           <span className="truncate font-semibold">{name(stop)}</span>
                           {isVisited && <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />}
+                          {isPending && (
+                            <Badge
+                              variant={pendingVerdict === 'exception' ? 'destructive' : 'warning'}
+                              className="gap-1 whitespace-nowrap"
+                            >
+                              {pendingVerdict === 'exception'
+                                ? <AlertTriangle className="h-3 w-3" />
+                                : pendingVerdict === 'blocked'
+                                  ? <ShieldAlert className="h-3 w-3" />
+                                  : <Clock className="h-3 w-3" />}
+                              {pendingLabel}
+                            </Badge>
+                          )}
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {stop.sequence > 0 && (
@@ -342,7 +435,7 @@ export function JourneyScreen({
                     {!isBlocked ? (
                       <Button
                         className="mt-3 w-full"
-                        disabled={busyId === stop.customer_id || isVisited}
+                        disabled={busyId === stop.customer_id || isVisited || (isPending && pendingVerdict !== 'exception')}
                         onClick={() => doCheckIn(stop)}
                       >
                         {busyId === stop.customer_id ? (
@@ -352,6 +445,10 @@ export function JourneyScreen({
                         ) : isVisited ? (
                           <>
                             <CheckCircle2 className="h-4 w-4" /> {t('fmcg.checkedIn')}
+                          </>
+                        ) : isPending && pendingVerdict !== 'exception' ? (
+                          <>
+                            <CloudOff className="h-4 w-4" /> {t('fmcg.queuedLabel')}
                           </>
                         ) : (
                           <>
@@ -497,6 +594,13 @@ export function JourneyScreen({
       )}
     </div>
   );
+}
+
+/** Device-LOCAL calendar day (YYYY-MM-DD) — sent with an offline check-in so the
+ *  visit lands on the day it happened, not the (possibly later) sync day. */
+function localDay(d: Date): string {
+  const z = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
 }
 
 function Summary({ label, value }: { label: string; value: string | number }) {

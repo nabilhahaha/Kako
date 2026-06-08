@@ -89,7 +89,19 @@ describe('offline-sync/apply (safe server whitelist)', () => {
     const { isApplicable, applicableEntities } = await import('./apply');
     expect(isApplicable('van_expense', 'create')).toBe(true);
     expect(isApplicable('van_expense', 'delete')).toBe(false);
+    expect(isApplicable('visit_checkin', 'create')).toBe(true);
+    expect(isApplicable('visit_checkin', 'update')).toBe(false);
     expect(isApplicable('invoice', 'create')).toBe(false);
     expect(applicableEntities()).toContain('van_expense');
+    expect(applicableEntities()).toContain('visit_checkin');
+  });
+
+  it('mapVisitVerdict ranks blocked > gps_violation > out_of_route > valid', async () => {
+    const { mapVisitVerdict } = await import('./apply');
+    expect(mapVisitVerdict({})).toBe('valid');
+    expect(mapVisitVerdict({ out_of_route: true })).toBe('out_of_route');
+    expect(mapVisitVerdict({ violation: true })).toBe('gps_violation');
+    expect(mapVisitVerdict({ violation: true, out_of_route: true })).toBe('gps_violation');
+    expect(mapVisitVerdict({ blocked: true, violation: true })).toBe('blocked');
   });
 });

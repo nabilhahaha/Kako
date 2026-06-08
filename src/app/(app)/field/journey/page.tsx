@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
+import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { loadTodayJourney } from '../actions';
 import { JourneyScreen } from './journey-screen';
 
@@ -50,6 +51,7 @@ export default async function FieldJourneyPage() {
     <JourneyScreen
       data={result.data}
       canOverrideGps={hasPermission(ctx, 'visit.override_gps')}
+      offlineEnabled={MOBILE_ENABLED()}
     />
   );
 }
