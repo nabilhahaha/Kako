@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import type { Branch, BranchRole, Company, Profile } from './types';
 import { ALL_PERMISSIONS, applyFashionUmbrella, type Permission } from './permissions';
 import { ALL_MODULES, type Module } from './navigation';
+import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys } from '@/lib/role-governance';
+import { log } from '@/lib/observability';
 
 export interface BranchMembership {
   branch: Branch;
@@ -159,6 +161,52 @@ async function resolveUserContext(): Promise<UserContext | null> {
   // Fashion Store: `fashion.manage` is the owner umbrella → it implies the full
   // granular fashion.* set, so a clothing manager/owner reaches the whole store.
   permissions = applyFashionUmbrella(permissions);
+
+  // Temporary-access enforcement (Step 2, flag-gated KAKO_TEMP_ACCESS_ENFORCEMENT,
+  // default OFF). GRANT-ONLY: union a user's ACTIVE temporary grants (effective
+  // window + not expired) into their effective permissions. Company-isolated (RLS
+  // + explicit company filter), audited via the structured log. No deny rules, no
+  // RLS/visibility/approval changes. Super admins already hold everything.
+  if (!superAdmin && companyId && TEMP_ACCESS_ENFORCEMENT_ENABLED()) {
+    const nowIso = new Date().toISOString();
+    const { data: grantRows } = await supabase
+      .from('erp_temporary_access_grants')
+      .select('grant_key')
+      .eq('company_id', companyId)
+      .eq('user_id', user.id)
+      .is('expired_at', null)
+      .lte('effective_from', nowIso)
+      .gte('effective_to', nowIso);
+    const keys = [...new Set((grantRows ?? []).map((r) => r.grant_key as string))];
+    if (keys.length > 0) {
+      const { perms, roleKeys } = partitionGrantKeys(keys, ALL_PERMISSIONS);
+      const granted = new Set<Permission>(perms as Permission[]);
+      // Expand any granted ROLE keys → permissions (company config authoritative,
+      // else global defaults — mirrors the user's own role resolution above).
+      if (roleKeys.length > 0) {
+        const { data: cRows } = await supabase
+          .from('erp_company_role_permissions')
+          .select('role_key, permission')
+          .eq('company_id', companyId)
+          .in('role_key', roleKeys);
+        const rolesWithCompany = new Set((cRows ?? []).map((r) => r.role_key as string));
+        for (const r of cRows ?? []) granted.add(r.permission as Permission);
+        const globalRoles = roleKeys.filter((rk) => !rolesWithCompany.has(rk));
+        if (globalRoles.length > 0) {
+          const { data: gRows } = await supabase
+            .from('erp_role_permissions')
+            .select('permission')
+            .in('role_key', globalRoles);
+          for (const r of gRows ?? []) granted.add(r.permission as Permission);
+        }
+      }
+      const added = [...granted].filter((p) => !permissions.includes(p));
+      if (added.length > 0) {
+        permissions = [...new Set([...permissions, ...granted])];
+        log.info('temp_access.applied', { userId: user.id, companyId, grants: keys, added });
+      }
+    }
+  }
 
   // Feature modules: the owner / super admin see everything. A tenant sees the
   // intersection of (a) the modules its business type / company enables and
