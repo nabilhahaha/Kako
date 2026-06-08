@@ -59,6 +59,30 @@ Researched: SalesBuzz, In2Distribution, Bizom, FieldAssist, Botree, Ivy/Infor DS
 - 50-chart vanity dashboards → **actionable exceptions first**.
 - Partial RTL / non-ZATCA invoices → **full RTL + compliant bilingual invoice** from the start.
 
+### 1b. Benchmark extension — field execution, customer lifecycle & approvals
+
+Researched across Bizom, FieldAssist, Botree, Ivy/Infor DSD, Pepperi, Repsly, StayinFront, SAP DSD, SalesBuzz, Mirnah RoutePro. Per area: what's standard → the best idea we adopt → **how VANTORA does it simpler** (reusing existing engines).
+
+| Area | Industry standard | Best idea we adopt | VANTORA (reuse) |
+|---|---|---|---|
+| **Supervisor route riding** | Mostly live-tracking side-effect; structured ride scoring is rare | Purpose-built "work-with" linked to the rep's *actual* visit; short tap-rating rubric; auto coaching note | `erp_route_rides` + `erp_route_ride_criteria` (0212); supervisor field mode, **never** the rep's check-in |
+| **Merchandising audits** | Most mature (FieldAssist Perfect Store, Bizom AI) | **Outlet-mission-driven** audits per channel/class; split availability / share-of-shelf / planogram / POSM / competitor; roll up to one score | Surveys engine + **Perfect Store (0231)**; seeded survey template; photos via `field.attach_media` |
+| **New customer creation** | Geo-tagged + photo (Botree); OTP emerging | **Live non-editable GPS + storefront photo + OTP**; channel/class at creation; **duplicate guard** (phone + geo-radius) | New-outlet intake form (form-builder, governed) → draft `erp_customers` |
+| **New customer approval** | Provisional → approval before sellable (BeatRoute, Botree) | **Provisional status, sell-blocked**; tiered: supervisor=legitimacy, back-office=KYC/credit; auto-approve clean | Onboarding workflow (0088) + configurable steps; status chip + reason on reject |
+| **Customer onboarding** | Lifecycle stages (Pepperi) | Visible **status pipeline** (Lead→Created→Pending→KYC→Credit→Active); each stage unlocks capability | Customer `approval_status` + workflow + entity timeline (0228) |
+| **Master-data updates** | SAP MDG change-request governance | Field edits = **change requests** for governed fields (before/after, geo, audit); direct only for low-risk | **Shipped (8F)** — form → change request → approval → governed apply |
+| **Field approvals (all types)** | Dynamic routing, escalation (SalesBuzz, CPQ) | **One unified approval inbox**; threshold auto-routing + SLA; **"held order" so the rep keeps selling**; offline-queued one-tap | One workflow engine + role dashboards (§6A); the 8F pattern |
+| **Visit quality scoring** | Perfect Store/Call composite (FieldAssist) | **Objective task-completion** ("completeness ring"), geofence + dwell guard; separate Perfect Call vs Perfect Store; auto-scored | Surveys/Perfect Store (0231) + visit compliance (0234) |
+| **Coaching notes & action plans** | Thin across majors (a real gap) | **Closed loop**: each work-with spawns ≤3 tracked actions, owner+due, revisited next time; trend scores | `erp_route_rides` + workflow follow-up; **differentiator** |
+| **Display/availability/pricing** | Universal | Three fast checks: **availability tap-grid**, **price pre-fill + deviation flag**, display photo; auto-raise exceptions | Survey question types (yes/no, count, rating, photo) |
+| **Photo proof / IR** | IR mature (FieldAssist IRIS, StayinFront on-device) | Standard **geo+time-stamped photo proof** everywhere; **on-device IR with instant feedback** where ROI justifies (fix shelf before leaving); before/after | `field.attach_media` now; IR as a later optional layer |
+| **Geo-validation** | GPS check-in standard | **Multi-signal**: geofence, mock-location/spoof detection, **non-editable live GPS** for creation, impossible-speed flags; reason-coded override (not hard-block on weak signal) | Reuse visit GPS/compliance (0234) + capture accuracy |
+| **Exception management** | Detect→alert→assign→close (YooBic, FieldPie) | **Auto-raised** from field data (OOS focus SKU, price-out-of-band, near-expiry); owner+deadline; **closure needs proof**; SLA escalation | Workflow tasks + notifications + audit (§6A) |
+
+**Best ideas we adopt (shortlist):** outlet-mission visits · completeness-ring quality · one unified approval inbox · provisional new-outlet + tiered approval · duplicate guard · field-edits-as-change-requests · purpose-built work-with · **closed-loop coaching** · on-device IR with instant feedback · pre-filled price confirm + availability grid · multi-signal geo-validation · auto-raised exceptions with proof-verified closure.
+
+**Incumbent weaknesses we deliberately fix:** coaching is an afterthought (→ closed loop) · approvals scattered & block the order (→ one inbox + "held order") · bloated audits (→ minimal, channel-specific, confirm-don't-retype) · IR delivered too late (→ on-device/instant) · GPS over-trusted/editable (→ signal-stacking) · dirty master data / weak outlet governance (→ OTP + duplicate-radius + tiered approval + change-request governance, rep stays unblocked via provisional status + fast SLAs).
+
 ---
 
 ## 2. Personas & Role-Based UX
@@ -318,7 +342,7 @@ Form (form-builder, governed)  →  intake/change-request row (the workflow subj
 | Admin | **Workflow configuration** (definitions, steps, roles, SLAs) |
 
 ### The field-approval flows (all on the one engine)
-1. **New Customer Creation** — salesman submits a new-outlet **intake form** (name, phone, CR/VAT, national address, **GPS**, **storefront photos**, channel/classification/route suggestion, notes). Creates a **draft customer** (`erp_customers`, `is_active=false` / `approval_status='pending'`). Flow: salesman submit → supervisor review → **Approve / Reject / Request changes** → on approve the customer **becomes active** (governed `update_record`); on reject stays draft/inactive. Reuses the seeded **customer onboarding** workflow (0088) + form-builder. Full audit.
+1. **New Customer Creation** — salesman submits a new-outlet **intake form** (name, phone, CR/VAT, national address, **GPS**, **storefront photos**, channel/classification/route suggestion, notes). Creates a **draft customer** (`erp_customers`, `is_active=false` / `approval_status='pending'`). Flow: salesman submit → supervisor review → **Approve / Reject / Request changes** → on approve the customer **becomes active** (governed `update_record`); on reject stays draft/inactive. Reuses the seeded **customer onboarding** workflow (0088) + form-builder. Full audit. **Guardrails:** live **non-editable GPS**, storefront photo, optional **OTP** phone verification, and a **duplicate guard** (phone + geo-radius) at creation; the rep stays **unblocked** (provisional/draft) while approval runs (fast SLA).
 2. **Customer Data Update** — **already shipped (8F).** Salesman requests changes (phone/GPS/CR/VAT/national address/channel/classification/route) → supervisor **or** data-admin approval **per company config** → approved changes apply through the governed workflow path.
 3. **Route Riding Report** — supervisor submits (salesman, route, customers visited, execution score, coaching notes, action plan) → **Area Manager review if configured** → **action plan tracked until closed** (reuses `erp_route_rides` + workflow).
 4. **Merchandising Issue** — supervisor *or* salesman records (customer, photo, issue type, competitor activity, display/availability/price issue) → assigned **owner reviews** → action taken → **closed with audit** (reuses surveys/forms + workflow + `field.attach_media`).
