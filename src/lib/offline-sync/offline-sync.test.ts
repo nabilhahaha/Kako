@@ -108,3 +108,13 @@ describe('offline-sync/apply (safe server whitelist)', () => {
     expect(mapVisitVerdict({ blocked: true, violation: true })).toBe('blocked');
   });
 });
+
+describe('offline-sync/media (image fit math)', () => {
+  it('fitDimensions caps the long edge and preserves aspect ratio', async () => {
+    const { fitDimensions } = await import('./media');
+    expect(fitDimensions(800, 600, 1280)).toEqual({ width: 800, height: 600 });   // smaller → unchanged
+    expect(fitDimensions(4000, 3000, 1280)).toEqual({ width: 1280, height: 960 }); // landscape capped
+    expect(fitDimensions(3000, 4000, 1280)).toEqual({ width: 960, height: 1280 }); // portrait capped
+    expect(fitDimensions(0, 0, 1280)).toEqual({ width: 1, height: 1 });            // guards div-by-zero
+  });
+});

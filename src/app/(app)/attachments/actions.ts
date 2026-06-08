@@ -60,15 +60,29 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
   const entity = String(formData.get('entity') || '').trim();
   const recordId = String(formData.get('record_id') || '').trim();
   const file = formData.get('file');
+  // Device-generated id of a queued offline photo — makes the upload idempotent.
+  const clientRef = String(formData.get('client_ref') || '').trim() || null;
   if (!entity || !recordId || !(file instanceof File)) return { ok: false, error: 'missing' };
   if (!ctx.companyId) return { ok: false, error: 'no_company' };
+
+  // Authorization: the entity's own manage permission, OR — for a field rep
+  // attaching an IMAGE to a visit/customer they're servicing — 'field.attach_media'.
   const perm = entityPermission(entity);
-  if (perm && !hasPermission(ctx, perm)) return { ok: false, error: 'forbidden' };
+  const isFieldMedia = file.type.startsWith('image/') && (entity === 'visit' || entity === 'customer') && hasPermission(ctx, 'field.attach_media');
+  if (perm && !hasPermission(ctx, perm) && !isFieldMedia) return { ok: false, error: 'forbidden' };
 
   const v = validateAttachment({ type: file.type, size: file.size });
   if (!v.ok) return { ok: false, error: v.error };
 
   const supabase = await createClient();
+
+  // Idempotent retry: a media upload re-sent after a lost response is a no-op.
+  if (clientRef) {
+    const { data: dup } = await supabase
+      .from('erp_attachments').select('id').eq('company_id', ctx.companyId).eq('client_ref', clientRef).maybeSingle();
+    if (dup) return { ok: true, data: { id: (dup as { id: string }).id } };
+  }
+
   const path = `${ctx.companyId}/${entity}/${recordId}/${randomUUID()}.${safeExtension(file.type, file.name)}`;
   const { error: upErr } = await supabase.storage.from(ATTACHMENTS_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
   if (upErr) return { ok: false, error: upErr.message };
@@ -78,6 +92,7 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
     .insert({
       company_id: ctx.companyId, entity, record_id: recordId, bucket: ATTACHMENTS_BUCKET, path,
       file_name: file.name, mime_type: file.type, size_bytes: file.size, uploaded_by: ctx.userId,
+      client_ref: clientRef,
     })
     .select('id').single();
   if (error) {
