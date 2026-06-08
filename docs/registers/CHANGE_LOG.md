@@ -6,6 +6,16 @@ no UI/UX regressions.
 
 | PR | Date | Change | Flag | Migration | Gates |
 |----|------|--------|------|-----------|-------|
+| #191 | 2026-06-08 | **Phase 5A readiness checkpoint** (Global Tax Engine Core complete) | — | none | green |
+| #190 | 2026-06-08 | Phase 5A M6 — country pack framework foundation (pure) | `KAKO_TAX` (OFF) | none | green |
+| #189 | 2026-06-08 | Phase 5A M5 — tax GL posting integration (Augment) | `KAKO_FINANCE` (OFF) | `0201` seed | green |
+| #188 | 2026-06-08 | Phase 5A M4c — tax determination rules engine | `KAKO_TAX` (OFF) | `0200` additive | green |
+| #187 | 2026-06-08 | Phase 5A M4b — document-level taxation cascade | `KAKO_TAX` (OFF) | `0199` additive | green |
+| #186 | 2026-06-08 | Phase 5A M4a — document tax profile catalog (12 seeded) | `KAKO_TAX` (OFF) | `0198` additive | green |
+| #185 | 2026-06-08 | Phase 5A M3 — tax ledger + VAT return report | `KAKO_TAX` (OFF) | `0197` additive | green |
+| #184 | 2026-06-08 | Phase 5A M2 — tax groups / multi-rate (pure) | `KAKO_TAX` (OFF) | none | green |
+| #183 | 2026-06-08 | Phase 5A M1 — core VAT calculation engine (pure) | `KAKO_TAX` (OFF) | none | green |
+| #181,#182 | 2026-06-07 | Phase 5 Global Tax framework — approved frozen baseline (rev 1–4) + 5A roadmap | — | none | green |
 | #180 | 2026-06-07 | **Phase 4 readiness checkpoint** (Trade Spend complete) | — | none | green |
 | #179 | 2026-06-07 | Phase 4 — trade-spend summary read-model + dashboard | `KAKO_TRADE_SPEND` (OFF/inert) | none | green |
 | #178 | 2026-06-07 | Phase 4 — GL integration (Augment: trade.accrual/trade.claim) | `KAKO_FINANCE` (OFF) | `0196` seed | green |
