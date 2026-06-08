@@ -66,3 +66,68 @@ export function isDue(nextAttemptAt: Date | null | undefined, now: Date): boolea
   if (!nextAttemptAt) return true;
   return nextAttemptAt.getTime() <= now.getTime();
 }
+
+// ── Failure classification ────────────────────────────────────────────────
+/** How a submission failure is categorised — drives retry vs hold decisions. */
+export type FailureClass = 'transient' | 'rate_limit' | 'auth' | 'validation' | 'permanent';
+
+export interface FailureSignal {
+  httpStatus?: number;
+  code?: string;          // provider/authority error code
+  message?: string;
+  /** Set when the failure is a network/timeout/connection error. */
+  network?: boolean;
+}
+
+/**
+ * Classify a failure into a retry policy class. Pure + conservative: unknown →
+ * 'permanent' (held for manual review rather than retried blindly).
+ */
+export function classifyFailure(sig: FailureSignal): FailureClass {
+  if (sig.network) return 'transient';
+  const s = sig.httpStatus;
+  if (s === 429) return 'rate_limit';
+  if (s === 401 || s === 403) return 'auth';
+  if (s === 400 || s === 409 || s === 422) return 'validation';
+  if (s !== undefined && s >= 500) return 'transient';
+  const code = (sig.code ?? '').toLowerCase();
+  if (/timeout|temporar|unavailable|throttl/.test(code)) return 'transient';
+  if (/auth|cert|credential|token/.test(code)) return 'auth';
+  if (/valid|schema|business|format/.test(code)) return 'validation';
+  return 'permanent';
+}
+
+/** Only transient + rate-limited failures are auto-retried. Pure. */
+export function isRetryable(cls: FailureClass): boolean {
+  return cls === 'transient' || cls === 'rate_limit';
+}
+
+/**
+ * Plan the step after a classified failure: auto-retry/dead-letter for retryable
+ * classes, else hold (no auto-retry; needs the fix-and-resubmit path). Pure.
+ */
+export function planFailure(
+  cls: FailureClass,
+  attemptsSoFar: number,
+  now: Date,
+  policy: RetryPolicy = DEFAULT_RETRY_POLICY,
+): RetryPlan & { class: FailureClass; held: boolean } {
+  if (!isRetryable(cls)) {
+    return { action: 'dead_letter', attempts: attemptsSoFar + 1, nextAttemptAt: null, class: cls, held: true };
+  }
+  return { ...planRetry(attemptsSoFar, now, policy), class: cls, held: false };
+}
+
+export interface ResubmissionPlan {
+  attempts: number;
+  nextAttemptAt: Date;
+  deadLetteredAt: null;
+}
+
+/**
+ * Manual resubmission: reset a rejected/failed/dead-lettered item back into the
+ * queue (fresh attempt budget, due now, dead-letter cleared). Pure.
+ */
+export function planResubmission(now: Date): ResubmissionPlan {
+  return { attempts: 0, nextAttemptAt: now, deadLetteredAt: null };
+}

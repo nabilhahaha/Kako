@@ -37,8 +37,9 @@ export interface ProviderHealth {
   status: HealthStatus;
 }
 
-const PENDING: ComplianceStatus[] = ['draft', 'generated', 'signed', 'queued'];
-const ACCEPTED: ComplianceStatus[] = ['cleared', 'reported'];
+const PENDING: ComplianceStatus[] = ['draft', 'generated', 'signed', 'validated', 'queued'];
+const IN_FLIGHT: ComplianceStatus[] = ['submitting', 'submitted'];
+const ACCEPTED: ComplianceStatus[] = ['cleared', 'reported', 'accepted', 'accepted_with_warning'];
 
 function emptyCounts(): SubmissionCounts {
   return { total: 0, pending: 0, inFlight: 0, accepted: 0, rejected: 0, failed: 0, deadLettered: 0 };
@@ -47,7 +48,7 @@ function emptyCounts(): SubmissionCounts {
 function tally(counts: SubmissionCounts, status: ComplianceStatus): void {
   counts.total += 1;
   if (PENDING.includes(status)) counts.pending += 1;
-  else if (status === 'submitting') counts.inFlight += 1;
+  else if (IN_FLIGHT.includes(status)) counts.inFlight += 1;
   else if (ACCEPTED.includes(status)) counts.accepted += 1;
   else if (status === 'rejected') counts.rejected += 1;
   else if (status === 'failed') counts.failed += 1;
