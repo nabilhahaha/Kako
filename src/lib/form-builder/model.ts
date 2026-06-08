@@ -6,6 +6,15 @@
 
 import type { CustomFieldType } from '@/lib/erp/custom-fields';
 
+/** A dynamic option source for select/multiselect — resolved SERVER-SIDE into
+ *  `options` before render (per-tenant master data; keeps the engine pure + the
+ *  field a governed select). One of `lookup` (erp_customer_lookups.kind) or
+ *  `table` (a master table like erp_routes). */
+export interface FormOptionSource {
+  lookup?: 'segment' | 'classification' | 'channel';
+  table?: string;
+}
+
 /** A field in a form (typed; reuses CustomFieldType + a yes/no + rating for parity
  *  with surveys). `governanceKey` binds to the field-governance layer at render. */
 export interface FormField {
@@ -15,6 +24,9 @@ export interface FormField {
   type: CustomFieldType | 'yesno' | 'rating';
   required?: boolean;
   options?: { value: string; label?: string; labelAr?: string }[];
+  /** Dynamic master-data options resolved server-side (FMCG classification /
+   *  channel / segment / route). Mutually exclusive with static `options`. */
+  optionsSource?: FormOptionSource;
   max?: number;                    // rating/number cap
   governanceKey?: string;          // resolves through field-governance (no bypass)
   // Conditional visibility: show this field only when another field matches.
@@ -48,7 +60,7 @@ export function validateFormDefinition(def: FormDefinition): string[] {
     if (!f.key) problems.push('field with empty key');
     if (keys.has(f.key)) problems.push(`duplicate field key '${f.key}'`);
     keys.add(f.key);
-    if ((f.type === 'select' || f.type === 'multiselect') && (!f.options || f.options.length === 0)) {
+    if ((f.type === 'select' || f.type === 'multiselect') && (!f.options || f.options.length === 0) && !f.optionsSource) {
       problems.push(`field '${f.key}' (${f.type}) requires options`);
     }
   }

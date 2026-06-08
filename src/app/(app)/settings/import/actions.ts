@@ -68,10 +68,13 @@ async function buildRefMaps(
     for (const col of rf.ref.match) {
       for (let i = 0; i < distinct.length; i += REF_QUERY_CHUNK) {
         const chunk = distinct.slice(i, i + REF_QUERY_CHUNK);
-        const { data, error } = await supabase
+        let query = supabase
           .from(rf.ref.table)
           .select(`id, ${col}`)
           .in(col, chunk);
+        // Discriminated shared table (e.g. erp_customer_lookups by kind).
+        for (const [fk, fv] of Object.entries(rf.ref.filter ?? {})) query = query.eq(fk, fv);
+        const { data, error } = await query;
         if (error || !data) continue; // a missing optional match column shouldn't abort resolution
         for (const row of data as unknown as Record<string, unknown>[]) {
           const key = String(row[col] ?? '').trim().toLowerCase();

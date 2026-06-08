@@ -29,8 +29,13 @@ describe.skipIf(!hasTestDb)('form-builder 8F-2 · customer data update seed', ()
       const schema = ver.rows[0].schema as FormDefinition;
       expect(validateFormDefinition(schema)).toEqual([]);
       const keys = schema.sections.flatMap((s) => s.fields.map((f) => f.key));
-      expect(keys).toContain('reason');
-      expect(keys).toContain('national_address');
+      // FMCG master-data coverage (0242): identity, contacts, classification/route, GPS.
+      for (const k of ['cr_number', 'tax_number', 'national_address', 'phone', 'classification_id', 'channel_id', 'segment_id', 'route_id', 'latitude', 'longitude', 'documents', 'reason']) {
+        expect(keys).toContain(k);
+      }
+      // Dynamic selects carry an optionsSource (resolved per tenant at render).
+      const channel = schema.sections.flatMap((s) => s.fields).find((f) => f.key === 'channel_id');
+      expect(channel?.optionsSource).toEqual({ lookup: 'channel' });
     } finally { await c.end().catch(() => {}); }
   });
 

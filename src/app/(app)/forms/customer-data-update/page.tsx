@@ -5,6 +5,7 @@ import { getT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
 import { resolveLayout, type AccessLevel } from '@/lib/erp/field-governance';
+import { resolveFormOptions } from '@/lib/form-builder/options-server';
 import { PageHeader } from '@/components/shared/page-header';
 import { FORM_BUILDER_ENABLED, customerDataUpdateForm, type FormDefinition } from '@/lib/form-builder';
 import { CustomerDataUpdateRunner } from './runner';
@@ -38,6 +39,9 @@ export default async function CustomerDataUpdatePage() {
     return schema && Array.isArray(schema.sections) && schema.sections.length ? schema : customerDataUpdateForm();
   }, customerDataUpdateForm());
 
+  // Resolve dynamic master-data options (classification/channel/segment/route).
+  const renderedDef = await safe<FormDefinition>(() => resolveFormOptions(supabase, def), def);
+
   // Resolve the customer entity's governed layout through the SINGLE path and pass
   // the serializable access map to the client renderer.
   const accessByGovKey = await safe<Record<string, AccessLevel>>(async () => {
@@ -48,7 +52,7 @@ export default async function CustomerDataUpdatePage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t('formBuilder.cduTitle')} description={t('formBuilder.cduDescription')} />
-      <CustomerDataUpdateRunner def={def} accessByGovKey={accessByGovKey} />
+      <CustomerDataUpdateRunner def={renderedDef} accessByGovKey={accessByGovKey} />
     </div>
   );
 }

@@ -5,16 +5,37 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
 import { resolveLayout, type AccessLevel } from '@/lib/erp/field-governance';
+import { getEntity } from '@/lib/erp/entities';
+import { resolveFormOptions } from '@/lib/form-builder/options-server';
 import {
   FORM_BUILDER_ENABLED,
+  allFields,
   validateFormResponse,
   validateGovernedResponse,
   applyFormGovernance,
   scoreFormResponse,
   type FormDefinition,
+  type FormAnswers,
   type SubmitFormInput,
   type SubmitFormResult,
 } from '@/lib/form-builder';
+
+/** Load the prior (before) values of the governed, entity-backed fields, so the
+ *  immutable response carries a before/after audit delta for the approver. Only
+ *  columns that exist on the entity registry are read (no arbitrary select). */
+async function loadBeforeSnapshot(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  entity: string,
+  recordId: string,
+  boundKeys: string[],
+): Promise<Record<string, unknown> | null> {
+  const desc = getEntity(entity);
+  if (!desc?.table) return null;
+  const safeCols = boundKeys.filter((k) => (desc.fields ?? []).some((f) => f.key === k));
+  if (safeCols.length === 0) return null;
+  const { data } = await supabase.from(desc.table).select(safeCols.join(',')).eq('id', recordId).maybeSingle();
+  return (data as Record<string, unknown> | null) ?? null;
+}
 
 /** ── Form Builder (8F-2) — response submission (server) ─────────────────────
  *  The SINGLE write path for a form response, reused by the online renderer AND
@@ -57,7 +78,9 @@ export async function submitFormResponse(input: SubmitFormInput): Promise<Submit
   if (verErr) return { ok: false, error: verErr.message };
   if (!ver) return { ok: false, error: 'no published version' };
   const verRow = ver as { version: number; schema: FormDefinition };
-  const def = (verRow.schema ?? { sections: [] }) as FormDefinition;
+  // Resolve dynamic master-data options (per tenant) so select validation runs
+  // against the same live set the renderer showed — the single options path.
+  const def = await resolveFormOptions(supabase, (verRow.schema ?? { sections: [] }) as FormDefinition);
 
   // Governance: resolve the bound entity's field layout for this user + record
   // through the SINGLE path. No entity → empty map → every field 'edit'.
@@ -82,6 +105,20 @@ export async function submitFormResponse(input: SubmitFormInput): Promise<Submit
     return { ok: false, error: 'validation', problems: missingRequired.map((k) => `'${k}' is required`) };
   }
 
+  // Before/After audit: snapshot the prior entity values for the bound fields the
+  // user actually changed, stored inside the immutable response (reserved __audit).
+  const stored: FormAnswers = { ...answers };
+  if (entity && input.recordId) {
+    const boundKeys = allFields(def)
+      .filter((f) => f.governanceKey && f.key in answers)
+      .map((f) => f.governanceKey!);
+    const before = await loadBeforeSnapshot(supabase, entity, input.recordId, boundKeys);
+    if (before) {
+      const after = Object.fromEntries(boundKeys.filter((k) => k in before).map((k) => [k, answers[k]]));
+      stored.__audit = { before, after };
+    }
+  }
+
   const score = scoreFormResponse(def, answers);
   const { data, error } = await supabase
     .from('erp_form_responses')
@@ -91,7 +128,7 @@ export async function submitFormResponse(input: SubmitFormInput): Promise<Submit
       version: verRow.version,
       entity,
       record_id: input.recordId ?? null,
-      answers,
+      answers: stored,
       score,
       created_by: ctx.userId,
     })
