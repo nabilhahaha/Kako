@@ -9,6 +9,8 @@ import { simulateWorkflow, type SimulationResult } from '@/lib/workflow/builder/
 import type { StepPatch } from '@/lib/workflow/builder/graph-model';
 import type { RuntimeStep } from '@/lib/workflow/executors/types';
 import type { WorkflowStepType } from '@/lib/workflow/types';
+import { WORKFLOW_BUILDER_ENABLED, validateTemplateDefinition, templateToRows, type TemplateDefinition } from '@/lib/workflow-builder';
+import { logAudit } from '@/lib/erp/audit';
 
 const STEP_TYPES = ['approval', 'reject', 'notification', 'task', 'update_record', 'api_call', 'delay', 'escalation', 'condition'];
 const STEP_COLS = 'id,step_no,step_type,name,config,approver_type,approver_ref,sla_hours,escalate_to,condition,next_on_success,next_on_failure';
@@ -415,4 +417,72 @@ export async function saveGraph(input: {
 
   revalidatePath('/settings/workflows');
   return { ok: true, data: { errors } };
+}
+
+// ── 8A Workflow Builder: instantiate a catalog template into a draft definition ──
+
+export interface TemplateListItem {
+  id: string; code: string; nameAr: string; nameEn: string; category: string; entity: string; isGlobal: boolean;
+}
+
+/** Active templates visible to the tenant (global seeds + own). Gated on workflow.manage. */
+export async function listWorkflowTemplates(): Promise<TemplateListItem[]> {
+  const { ctx } = await guard();
+  if (!ctx) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('erp_workflow_templates')
+    .select('id, company_id, code, name_en, name_ar, category, entity, is_active')
+    .eq('is_active', true)
+    .order('category');
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id), code: String(r.code), nameAr: String(r.name_ar), nameEn: String(r.name_en),
+    category: String(r.category), entity: String(r.entity), isGlobal: r.company_id == null,
+  }));
+}
+
+/** Clone a catalog template into a NEW DRAFT definition (+ steps) owned by the
+ *  tenant, reusing the existing engine tables via the pure templateToRows mapper.
+ *  Audited. The draft can then be reviewed/edited/published like any definition. */
+export async function instantiateTemplate(templateId: string): Promise<Result<{ id: string }>> {
+  const { ctx, error } = await guard();
+  if (!ctx) return { ok: false, error };
+  if (!WORKFLOW_BUILDER_ENABLED()) return { ok: false, error: 'workflow builder disabled' };
+  const supabase = await createClient();
+
+  const { data: tpl } = await supabase
+    .from('erp_workflow_templates')
+    .select('code, name_ar, name_en, definition')
+    .eq('id', templateId).maybeSingle();
+  if (!tpl) return { ok: false, error: 'template not found' };
+  const t = tpl as { code: string; name_ar: string; name_en: string; definition: TemplateDefinition };
+
+  const problems = validateTemplateDefinition(t.definition);
+  if (problems.length) return { ok: false, error: `invalid template: ${problems.join('; ')}` };
+
+  const key = `${t.code}-${Math.random().toString(36).slice(2, 6)}`;
+  const { definition, steps } = templateToRows(t.definition, {
+    companyId: ctx.companyId!, key, nameAr: t.name_ar, nameEn: t.name_en,
+  });
+
+  const { data: created, error: cErr } = await supabase
+    .from('erp_workflow_definitions')
+    .insert({ ...definition, status: 'draft', visibility: 'company', created_by: ctx.userId })
+    .select('id').single();
+  if (cErr) return { ok: false, error: cErr.message };
+  const newId = (created as { id: string }).id;
+
+  const stepRows = steps.map((s) => ({ ...s, definition_id: newId }));
+  const { error: sErr } = await supabase.from('erp_workflow_steps').insert(stepRows);
+  if (sErr) {
+    await supabase.from('erp_workflow_definitions').delete().eq('id', newId); // don't orphan
+    return { ok: false, error: sErr.message };
+  }
+
+  await logAudit(supabase, {
+    action: 'workflow.template.instantiate', entity: 'workflow_definition', entityId: newId,
+    companyId: ctx.companyId!, details: { template_code: t.code, steps: steps.length },
+  });
+  revalidatePath('/settings/workflows');
+  return { ok: true, data: { id: newId } };
 }
