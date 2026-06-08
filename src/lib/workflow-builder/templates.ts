@@ -71,6 +71,14 @@ export function validateTemplateDefinition(def: TemplateDefinition): string[] {
     if ((s.approverType === 'role' || s.approverType === 'user') && !s.approverRef) {
       problems.push(`step ${s.stepNo} (${s.approverType}) missing approverRef`);
     }
+    // Mirror the engine executors' requirements so a template stays instantiable +
+    // publishable: notification needs channel+template; condition needs an expression.
+    if (s.stepType === 'notification' && (!s.config?.channel || !s.config?.template)) {
+      problems.push(`notification step ${s.stepNo} requires config.channel + config.template`);
+    }
+    if (s.stepType === 'condition' && (!s.config || Object.keys(s.config).length === 0)) {
+      problems.push(`condition step ${s.stepNo} requires a condition expression in config`);
+    }
   }
   // Steps should form a contiguous 1..n sequence (the engine orders by stepNo).
   const nos = (def.steps ?? []).map((s) => s.stepNo).sort((a, b) => a - b);
