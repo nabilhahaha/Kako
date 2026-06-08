@@ -192,13 +192,18 @@ export async function getCustomerDebt(customerId: string): Promise<ActionResult<
   };
 }
 
-/** Collect against an existing invoice and log a collection visit. */
+/** Collect against an existing invoice and log a collection visit.
+ *  `idempotency_key` (+ `payment_date`) are optional and used by the offline-sync
+ *  intake to replay a queued collection EXACTLY-ONCE, dated to the capture day —
+ *  online callers omit them, so the live path is unchanged. */
 export async function collectPayment(input: {
   invoice_id: string;
   branch_id: string;
   customer_id: string;
   amount: number;
   payment_method: PaymentMethod;
+  idempotency_key?: string;
+  payment_date?: string;
 }): Promise<ActionResult<{ invoice_id: string }>> {
   const { t } = await getT();
   const { ctx, error: authErr } = await requireAuth();
@@ -211,6 +216,8 @@ export async function collectPayment(input: {
     invoice_id: input.invoice_id,
     amount: input.amount,
     payment_method: input.payment_method,
+    idempotency_key: input.idempotency_key,
+    payment_date: input.payment_date,
   });
   if (!res.ok) return { ok: false, error: res.error };
 

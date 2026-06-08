@@ -82,6 +82,7 @@ export const ar = {
     collectMethodCheck: 'شيك',
     btnConfirmCollect: 'تأكيد التحصيل',
     toastCollected: 'تم التحصيل',
+    toastCollectQueued: 'تم حفظ التحصيل دون اتصال — بانتظار المزامنة والاعتماد من الخادم.',
 
     // ── New customer dialog ───────────────────────────────────────────────────
     newCustomerTitle: 'عميل جديد',
@@ -195,6 +196,7 @@ export const en = {
     collectMethodCheck: 'Check',
     btnConfirmCollect: 'Confirm Collection',
     toastCollected: 'Payment collected',
+    toastCollectQueued: 'Collection saved offline — pending sync & server validation.',
 
     // ── New customer dialog ───────────────────────────────────────────────────
     newCustomerTitle: 'New Customer',

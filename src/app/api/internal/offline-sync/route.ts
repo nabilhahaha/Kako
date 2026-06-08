@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { MOBILE_ENABLED, isApplicable, dedupeMutations, mapVisitVerdict, type OfflineMutation, type SyncStatus, type Verdict } from '@/lib/offline-sync';
+import { collectPayment } from '@/app/(app)/rep/actions';
+import type { PaymentMethod } from '@/lib/erp/types';
 
 // Offline sync intake — POST /api/internal/offline-sync. Receives a batch of
 // queued field mutations from the PWA, records each EXACTLY-ONCE in
@@ -120,6 +122,30 @@ async function applyMutation(db: Db, companyId: string, m: OfflineMutation): Pro
     if (error) return { ok: false, reason: error.message, verdict: 'exception' };
     const r = (data ?? {}) as { blocked?: boolean; violation?: boolean; out_of_route?: boolean };
     return { ok: true, verdict: mapVisitVerdict(r), result: r as Record<string, unknown> };
+  }
+
+  // Collection: SERVER-AUTHORITATIVE. Replay the SAME collectPayment path with the
+  // queued idempotency key (erp_record_payment is atomic + idempotent: a repeat key
+  // is a no-op, and over-collection / cancelled / cross-branch raise). No GL/cash
+  // posting ever happens on the device — it only happens here, on sync.
+  if (m.entity === 'collection' && m.operation === 'create') {
+    const p = m.payload as {
+      invoiceId?: string; branchId?: string; customerId?: string;
+      amount?: unknown; paymentMethod?: string; paymentDate?: string;
+    };
+    const amount = Number(p.amount);
+    if (!p.invoiceId || !p.branchId || !p.customerId) return { ok: false, reason: 'missing collection fields', verdict: 'rejected' };
+    if (!Number.isFinite(amount) || amount <= 0) return { ok: false, reason: 'invalid amount', verdict: 'rejected' };
+    const res = await collectPayment({
+      invoice_id: p.invoiceId,
+      branch_id: p.branchId,
+      customer_id: p.customerId,
+      amount,
+      payment_method: (p.paymentMethod as PaymentMethod) ?? 'cash',
+      idempotency_key: m.idempotencyKey,
+      payment_date: p.paymentDate,
+    });
+    return res.ok ? { ok: true, verdict: 'accepted' } : { ok: false, reason: res.error, verdict: 'rejected' };
   }
 
   return { ok: false, reason: 'no handler' };
