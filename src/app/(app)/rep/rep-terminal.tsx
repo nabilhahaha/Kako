@@ -15,6 +15,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, ErpCustomer, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
 import { Search, Plus, Minus, Trash2, Wifi, WifiOff, RefreshCw, ShoppingBag, CheckCircle2, Loader2, Printer, MapPin, Warehouse, Wallet, UserPlus, FileText, PackagePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { enqueue as enqueueOffline } from '@/lib/offline-sync/client';
 
 export interface PlanCustomer {
   id: string;
@@ -54,6 +55,12 @@ function loadQueue(): PendingSale[] {
 function saveQueue(q: PendingSale[]) {
   localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
 }
+/** Device-LOCAL calendar day (YYYY-MM-DD) — so an offline collection is dated to
+ *  the day it was taken, not the (possibly later) sync day. */
+function localDay(d: Date): string {
+  const z = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+}
 
 export function RepTerminal({
   customers: customersProp,
@@ -65,6 +72,7 @@ export function RepTerminal({
   dayStatus,
   vanId,
   repId,
+  offlineEnabled = false,
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
@@ -75,6 +83,9 @@ export function RepTerminal({
   dayStatus: 'none' | 'open' | 'closed';
   vanId: string | null;
   repId: string;
+  /** KAKO_MOBILE: when on, a collection made while offline is queued (server-
+   *  authoritative; Pending Validation) and posted via the same path on sync. */
+  offlineEnabled?: boolean;
 }) {
   const { t } = useI18n();
 
@@ -549,13 +560,29 @@ export function RepTerminal({
         <CollectDialog
           invoice={collectFor}
           onClose={() => setCollectFor(null)}
-          onDone={(invoiceId, invoiceNumber) => {
+          onDone={(invoiceId, invoiceNumber, queued) => {
             setCollectFor(null);
+            // Queued offline: do NOT finalize a sale or reduce balances — it's
+            // Pending Validation until sync posts it server-side.
+            if (queued) { setVisited((prev) => new Set(prev).add(customerId)); return; }
             setLastSale({ invoice_id: invoiceId, invoice_number: invoiceNumber });
             setVisited((prev) => new Set(prev).add(customerId));
             loadDebt(customerId);
           }}
           onSubmit={async (amount, method) => {
+            // OFFLINE: queue the collection (server-authoritative). NO balance is
+            // finalized on-device — it posts via the same path on sync, exactly-once.
+            if (offlineEnabled && !online) {
+              await enqueueOffline('collection', 'create', {
+                invoiceId: collectFor.id,
+                branchId,
+                customerId,
+                amount,
+                paymentMethod: method,
+                paymentDate: localDay(new Date()),
+              }, { entityId: collectFor.id });
+              return { ok: true, queued: true };
+            }
             return collectPayment({
               invoice_id: collectFor.id,
               branch_id: branchId,
@@ -586,8 +613,8 @@ function CollectDialog({
 }: {
   invoice: { id: string; number: string; remaining: number };
   onClose: () => void;
-  onDone: (invoiceId: string, invoiceNumber: string) => void;
-  onSubmit: (amount: number, method: PaymentMethod) => Promise<{ ok: boolean; error?: string }>;
+  onDone: (invoiceId: string, invoiceNumber: string, queued?: boolean) => void;
+  onSubmit: (amount: number, method: PaymentMethod) => Promise<{ ok: boolean; error?: string; queued?: boolean }>;
 }) {
   const { t } = useI18n();
   const [amount, setAmount] = useState(invoice.remaining.toFixed(2));
@@ -602,8 +629,8 @@ function CollectDialog({
       toast.error(res.error ?? t('rep.errorGeneric'));
       return;
     }
-    toast.success(t('rep.toastCollected'));
-    onDone(invoice.id, invoice.number);
+    toast.success(res.queued ? t('rep.toastCollectQueued') : t('rep.toastCollected'));
+    onDone(invoice.id, invoice.number, res.queued);
   }
 
   return (

@@ -3,6 +3,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { getT } from '@/lib/i18n/server';
 import type { Branch, ErpCustomer, ProductCatalog } from '@/lib/erp/types';
+import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { RepTerminal, type PlanCustomer } from './rep-terminal';
 
 const DAY_CODES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -52,6 +53,7 @@ export default async function RepPage() {
       dayStatus={dayStatus}
       vanId={van?.id ?? null}
       repId={ctx.userId}
+      offlineEnabled={MOBILE_ENABLED()}
     />
   );
 }
