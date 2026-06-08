@@ -9,6 +9,7 @@ import { FormRenderer } from '@/components/forms/form-renderer';
 import { enqueueFormResponse } from '@/lib/form-builder/offline-client';
 import type { FormAnswers, FormDefinition } from '@/lib/form-builder';
 import { submitFormResponse } from '../actions';
+import { submitCustomerDataUpdate } from './actions';
 
 const FORM_CODE = 'customer_data_update';
 const ENTITY = 'customer';
@@ -16,9 +17,11 @@ const ENTITY = 'customer';
 export function CustomerDataUpdateRunner({
   def,
   accessByGovKey,
+  customerId,
 }: {
   def: FormDefinition;
   accessByGovKey: Record<string, AccessLevel>;
+  customerId: string | null;
 }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
@@ -26,14 +29,19 @@ export function CustomerDataUpdateRunner({
   async function onSubmit(answers: FormAnswers) {
     setBusy(true);
     try {
-      // Offline-first: queue when there's no connection; the server applies it
-      // EXACTLY-ONCE on sync via the same submitFormResponse path.
+      // Offline-first: queue the response when there's no connection; it's applied
+      // EXACTLY-ONCE on sync via the same submitFormResponse path. (The workflow
+      // change request is opened online — see below.)
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        await enqueueFormResponse({ formCode: FORM_CODE, answers, entity: ENTITY });
+        await enqueueFormResponse({ formCode: FORM_CODE, answers, entity: ENTITY, recordId: customerId ?? undefined });
         toast.success(t('formBuilder.queuedOffline'));
         return;
       }
-      const res = await submitFormResponse({ formCode: FORM_CODE, answers, entity: ENTITY });
+      // With a target customer → run the Customer Data Update workflow (response +
+      // change request + event). Standalone (no customer) → audit response only.
+      const res = customerId
+        ? await submitCustomerDataUpdate({ customerId, answers })
+        : await submitFormResponse({ formCode: FORM_CODE, answers, entity: ENTITY });
       if (!res.ok) {
         toast.error(res.problems?.length ? res.problems.join(' · ') : t('formBuilder.error'));
         return;

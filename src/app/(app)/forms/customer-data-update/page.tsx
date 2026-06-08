@@ -17,12 +17,17 @@ const ENTITY = 'customer';
 
 async function safe<T>(fn: () => Promise<T>, fb: T): Promise<T> { try { return await fn(); } catch { return fb; } }
 
-export default async function CustomerDataUpdatePage() {
+export default async function CustomerDataUpdatePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ customerId?: string }>;
+}) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!FORM_BUILDER_ENABLED()) notFound();
   if (!hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'customers.manage')) redirect('/dashboard');
 
+  const { customerId } = await searchParams;
   const { t } = await getT();
   const supabase = await createClient();
 
@@ -52,7 +57,7 @@ export default async function CustomerDataUpdatePage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t('formBuilder.cduTitle')} description={t('formBuilder.cduDescription')} />
-      <CustomerDataUpdateRunner def={renderedDef} accessByGovKey={accessByGovKey} />
+      <CustomerDataUpdateRunner def={renderedDef} accessByGovKey={accessByGovKey} customerId={customerId ?? null} />
     </div>
   );
 }

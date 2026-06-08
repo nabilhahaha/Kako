@@ -71,6 +71,8 @@ describe('step executor registry', () => {
     const r = await exec.execute(ctx(s, d));
     expect(r.status).toBe('completed');
     expect(d.updateRecord).toHaveBeenCalledWith(expect.objectContaining({ table: 'erp_customers', id: 'cust1' }));
+    // 8F-2: the Customer Data Update approval flips the change request status.
+    expect(exec.validate(step({ stepType: 'update_record', config: { table: 'erp_customer_change_requests', patch: { status: 'approved' } } }))).toEqual([]);
   });
 
   it('api_call: 2xx completes, 5xx is retryable, 4xx is permanent', async () => {

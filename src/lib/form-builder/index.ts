@@ -17,4 +17,5 @@ export * from './governance';
 export * from './scoring';
 export * from './forms';
 export * from './workflow-ref';
+export * from './change-set';
 export * from './submit-types';
