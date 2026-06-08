@@ -5,3 +5,11 @@ const on = (v: string | undefined): boolean => v === '1' || v === 'true';
 
 /** Global Tax engine flag (default OFF). */
 export const TAX_ENABLED = (): boolean => on(process.env.KAKO_TAX);
+
+// ── Country pack flags (each default OFF; a pack runs only when its flag is on) ──
+/** Egypt ETA pack flag (default OFF). */
+export const TAX_EG_ENABLED = (): boolean => on(process.env.KAKO_TAX_EG);
+/** Saudi ZATCA pack flag (default OFF). */
+export const TAX_SA_ENABLED = (): boolean => on(process.env.KAKO_TAX_SA);
+/** UAE FTA pack flag (default OFF). */
+export const TAX_AE_ENABLED = (): boolean => on(process.env.KAKO_TAX_AE);
