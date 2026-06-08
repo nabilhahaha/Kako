@@ -6,6 +6,7 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
 import { resolveLayout, type AccessLevel } from '@/lib/erp/field-governance';
 import { getEntity } from '@/lib/erp/entities';
+import { recordEvent } from '@/lib/workflow/emit';
 import { resolveFormOptions } from '@/lib/form-builder/options-server';
 import {
   FORM_BUILDER_ENABLED,
@@ -14,6 +15,7 @@ import {
   validateGovernedResponse,
   applyFormGovernance,
   scoreFormResponse,
+  extractChangeSet,
   type FormDefinition,
   type FormAnswers,
   type SubmitFormInput,
@@ -135,5 +137,41 @@ export async function submitFormResponse(input: SubmitFormInput): Promise<Submit
     .select('id')
     .single();
   if (error) return { ok: false, error: error.message };
-  return { ok: true, id: (data as { id: string }).id };
+  const responseId = (data as { id: string }).id;
+
+  // Workflow binding (single path → applies to online AND offline-on-sync):
+  // open the change request (the workflow subject) with the governed change set
+  // and emit the trigger event so the bound workflow auto-starts. Generic over
+  // any entity that declares a binding (customer/supplier/product/route).
+  const wf = def.workflow;
+  if (wf && input.recordId) {
+    const changes = extractChangeSet(def, input.answers);
+    if (Object.keys(changes).length > 0) {
+      const reasonField = wf.reasonField ?? 'reason';
+      const reasonParts = [input.answers[reasonField], input.answers[`${reasonField}_detail`]]
+        .filter((v): v is string => typeof v === 'string' && v.length > 0);
+      const { data: cr, error: crErr } = await supabase
+        .from(wf.changeRequestTable)
+        .insert({
+          [wf.targetIdField]: input.recordId,
+          changes,
+          reason: reasonParts.join(' — ') || null,
+          requested_by: ctx.userId,
+          // status defaults to 'pending'; company_id set by trigger; RLS-scoped.
+        })
+        .select('id')
+        .single();
+      if (crErr) return { ok: false, error: crErr.message, id: responseId };
+      const changeRequestId = (cr as { id: string }).id;
+      await recordEvent({
+        eventType: wf.eventType,
+        entity: wf.changeEntity,
+        recordId: changeRequestId,
+        payload: { [wf.targetIdField]: input.recordId, changes, response_id: responseId },
+      });
+      return { ok: true, id: responseId, changeRequestId };
+    }
+  }
+
+  return { ok: true, id: responseId };
 }

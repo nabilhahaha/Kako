@@ -35,7 +35,25 @@ export interface FormField {
 
 export interface FormSection { key: string; title: string; titleAr?: string; fields: FormField[] }
 
-export interface FormDefinition { sections: FormSection[] }
+/** Optional workflow binding: on submit (online OR offline-on-sync), open a change
+ *  request on the workflow subject table and emit a domain event that auto-starts
+ *  the bound workflow. Generic — any entity with a change-request table (customer/
+ *  supplier/product/route) declares one; the single submit path honors it. */
+export interface FormWorkflowBinding {
+  /** Change-request table (the workflow subject). Convention: columns
+   *  {<targetIdField>, changes jsonb, reason, requested_by, status}. */
+  changeRequestTable: string;
+  /** Column on the change request holding the target record id (e.g. customer_id). */
+  targetIdField: string;
+  /** Entity of the workflow subject (event + dispatcher match). */
+  changeEntity: string;
+  /** Domain event emitted on submit (drives auto-start). */
+  eventType: string;
+  /** Answer field carrying the human reason (+ `<field>_detail`). Default 'reason'. */
+  reasonField?: string;
+}
+
+export interface FormDefinition { sections: FormSection[]; workflow?: FormWorkflowBinding }
 
 export type FormAnswers = Record<string, unknown>;
 

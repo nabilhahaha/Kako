@@ -23,6 +23,8 @@ export interface SubmitFormResult {
   error?: string;
   /** erp_form_responses.id on success. */
   id?: string;
+  /** Change-request id when the form's workflow binding opened one. */
+  changeRequestId?: string;
   /** Field-level validation problems (when error === 'validation'). */
   problems?: string[];
 }

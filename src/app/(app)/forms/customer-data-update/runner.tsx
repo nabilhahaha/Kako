@@ -9,7 +9,6 @@ import { FormRenderer } from '@/components/forms/form-renderer';
 import { enqueueFormResponse } from '@/lib/form-builder/offline-client';
 import type { FormAnswers, FormDefinition } from '@/lib/form-builder';
 import { submitFormResponse } from '../actions';
-import { submitCustomerDataUpdate } from './actions';
 
 const FORM_CODE = 'customer_data_update';
 const ENTITY = 'customer';
@@ -37,11 +36,10 @@ export function CustomerDataUpdateRunner({
         toast.success(t('formBuilder.queuedOffline'));
         return;
       }
-      // With a target customer → run the Customer Data Update workflow (response +
-      // change request + event). Standalone (no customer) → audit response only.
-      const res = customerId
-        ? await submitCustomerDataUpdate({ customerId, answers })
-        : await submitFormResponse({ formCode: FORM_CODE, answers, entity: ENTITY });
+      // The single submit path opens the change request + starts the workflow when
+      // the form has a workflow binding and a target customer; standalone (no
+      // customer) → audit response only.
+      const res = await submitFormResponse({ formCode: FORM_CODE, answers, entity: ENTITY, recordId: customerId ?? undefined });
       if (!res.ok) {
         toast.error(res.problems?.length ? res.problems.join(' · ') : t('formBuilder.error'));
         return;
