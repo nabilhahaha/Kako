@@ -13,3 +13,9 @@ export const TAX_EG_ENABLED = (): boolean => on(process.env.KAKO_TAX_EG);
 export const TAX_SA_ENABLED = (): boolean => on(process.env.KAKO_TAX_SA);
 /** UAE FTA pack flag (default OFF). */
 export const TAX_AE_ENABLED = (): boolean => on(process.env.KAKO_TAX_AE);
+/** Bahrain NBR pack flag (default OFF). */
+export const TAX_BH_ENABLED = (): boolean => on(process.env.KAKO_TAX_BH);
+/** Oman OTA pack flag (default OFF). */
+export const TAX_OM_ENABLED = (): boolean => on(process.env.KAKO_TAX_OM);
+/** Kuwait pack flag (default OFF; future tax readiness). */
+export const TAX_KW_ENABLED = (): boolean => on(process.env.KAKO_TAX_KW);
