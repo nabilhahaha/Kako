@@ -14,3 +14,6 @@ export * from './flags';
 export * from './types';
 export * from './queue';
 export * from './conflict';
+export * from './apply';
+// Note: ./client and ./use-network are 'use client' (IndexedDB/browser) — import
+// them directly from their paths, not via this server-safe barrel.
