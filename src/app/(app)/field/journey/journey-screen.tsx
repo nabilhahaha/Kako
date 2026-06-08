@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,10 +31,12 @@ import {
   X,
   CloudOff,
   Clock,
+  Camera,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useOnlineStatus } from '@/lib/offline-sync/use-network';
 import { enqueue, syncNow } from '@/lib/offline-sync/client';
+import { captureMedia, syncMedia, pendingMediaCount } from '@/lib/offline-sync/media';
 
 interface CheckInResult {
   visit_id?: string;
@@ -64,15 +66,23 @@ export function JourneyScreen({
   data,
   canOverrideGps,
   offlineEnabled = false,
+  canAttachMedia = false,
 }: {
   data: TodayJourneyData;
   canOverrideGps: boolean;
   /** KAKO_MOBILE: when on, a check-in made while offline is queued (Pending
    *  Validation) and replayed through the same RPC on reconnect. */
   offlineEnabled?: boolean;
+  /** field.attach_media: show the per-stop photo capture (uploads attach to the
+   *  synced visit; queued offline + retried). */
+  canAttachMedia?: boolean;
 }) {
   const { t, locale } = useI18n();
   const online = useOnlineStatus();
+  const mediaEnabled = offlineEnabled && canAttachMedia;
+  const [mediaPending, setMediaPending] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const captureCustomer = useRef<string | null>(null);
   // Stops captured offline, awaiting server validation. Keyed by customer →
   // 'pending' (queued) | 'blocked' | 'exception'. Deliberately SEPARATE from the
   // `visited` set so they DON'T count toward coverage/KPIs until validated.
@@ -148,10 +158,37 @@ export function JourneyScreen({
       if (validated.length > 0) {
         setVisited((prev) => { const s = new Set(prev); validated.forEach((id) => s.add(id)); return s; });
       }
+      // Photos attach to the visit the server just synced — upload after visits.
+      if (mediaEnabled) { await syncMedia(); if (!cancelled) setMediaPending(await pendingMediaCount()); }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, offlineEnabled]);
+
+  // Keep the pending-photo count fresh.
+  useEffect(() => {
+    if (!mediaEnabled) return;
+    let active = true;
+    const tick = async () => { if (active) setMediaPending(await pendingMediaCount()); };
+    tick();
+    const id = setInterval(tick, 5000);
+    return () => { active = false; clearInterval(id); };
+  }, [mediaEnabled]);
+
+  function onPickPhoto(customerId: string) {
+    captureCustomer.current = customerId;
+    fileRef.current?.click();
+  }
+  async function onPhotoChosen(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    const customerId = captureCustomer.current;
+    if (!file || !customerId) return;
+    await captureMedia(customerId, localDay(new Date()), file);
+    setMediaPending(await pendingMediaCount());
+    toast.success(t('fmcg.photoQueued'));
+    if (online) { await syncMedia(); setMediaPending(await pendingMediaCount()); }
+  }
 
   const name = (s: JourneyStopRow) =>
     (locale === 'ar' ? s.customer_name_ar || s.customer_name : s.customer_name) || s.customer_code || '—';
@@ -313,6 +350,9 @@ export function JourneyScreen({
 
   return (
     <div className="mx-auto max-w-2xl pb-28">
+      {mediaEnabled && (
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhotoChosen} />
+      )}
       {/* Header + coverage */}
       <div className="mb-4">
         <h1 className="text-2xl font-bold tracking-tight">{t('fmcg.journeyTitle')}</h1>
@@ -334,6 +374,11 @@ export function JourneyScreen({
             <Badge variant={coverage >= 80 ? 'success' : coverage >= 50 ? 'warning' : 'secondary'}>
               {t('fmcg.coverage')} {coverage}%
             </Badge>
+            {mediaEnabled && mediaPending > 0 && (
+              <Badge variant="warning" className="gap-1">
+                <Camera className="h-3 w-3" /> {mediaPending}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Select
@@ -422,13 +467,20 @@ export function JourneyScreen({
                           )}
                         </div>
                       </div>
-                      {stop.phone && (
-                        <a href={`tel:${stop.phone}`}>
-                          <Button variant="ghost" size="icon" aria-label={t('fmcg.call')}>
-                            <Phone className="h-4 w-4" />
+                      <div className="flex shrink-0 items-center gap-1">
+                        {mediaEnabled && (
+                          <Button variant="ghost" size="icon" aria-label={t('fmcg.photoCapture')} onClick={() => onPickPhoto(stop.customer_id)}>
+                            <Camera className="h-4 w-4" />
                           </Button>
-                        </a>
-                      )}
+                        )}
+                        {stop.phone && (
+                          <a href={`tel:${stop.phone}`}>
+                            <Button variant="ghost" size="icon" aria-label={t('fmcg.call')}>
+                              <Phone className="h-4 w-4" />
+                            </Button>
+                          </a>
+                        )}
+                      </div>
                     </div>
 
                     {/* Primary action: Check in */}

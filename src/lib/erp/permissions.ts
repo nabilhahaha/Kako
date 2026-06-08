@@ -40,6 +40,7 @@ export type Permission =
   | 'pricing.manage' // Pricing engine: price rules + effective dates + history (Pricing module)
   | 'electrical.rma' // RMA / serial / warranty management (Electrical pack)
   | 'field.sales' // rep app, daily settlement, visit planning (field roles only)
+  | 'field.attach_media' // attach photos/media to a visit/customer from the field (offline-capable)
   // ── FMCG operations — granular flat permission keys (S5) ──
   | 'customer.create' // create a new customer (rep/field onboarding)
   | 'customer.import' // bulk-import customers
@@ -125,6 +126,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'pricing.manage': { en: 'Manage pricing (rules, lists, effective dates)', ar: 'إدارة التسعير (قواعد، قوائم، تواريخ السريان)', group: 'sales' },
   'electrical.rma': { en: 'Serials, warranty & RMA', ar: 'الأرقام التسلسلية والضمان والإرجاع', group: 'electrical' },
   'field.sales': { en: 'Field sales (rep app)', ar: 'المبيعات الميدانية (تطبيق المندوب)', group: 'sales' },
+  'field.attach_media': { en: 'Attach field media (photos)', ar: 'إرفاق صور ميدانية', group: 'sales' },
   // ── FMCG operations — granular flat permission keys (S5) ──
   'customer.create': { en: 'Create customers', ar: 'إنشاء عملاء', group: 'sales' },
   'customer.import': { en: 'Import customers', ar: 'استيراد العملاء', group: 'sales' },
@@ -258,12 +260,12 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos', 'fashion.sell', 'fashion.installments', 'fashion.cashbox'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
-    'inventory.view', 'stock_request.create', 'field.sales',
+    'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
     'day.close', 'stock.view', 'stock.transfer', 'customer.create',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
-    'inventory.view', 'stock_request.create', 'field.sales',
+    'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
   ],
   technician: [
     'customers.manage', 'sales.sell', 'inventory.view', 'stock_request.create',

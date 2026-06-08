@@ -52,6 +52,7 @@ export default async function FieldJourneyPage() {
       data={result.data}
       canOverrideGps={hasPermission(ctx, 'visit.override_gps')}
       offlineEnabled={MOBILE_ENABLED()}
+      canAttachMedia={hasPermission(ctx, 'field.attach_media')}
     />
   );
 }
