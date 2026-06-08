@@ -347,6 +347,7 @@ Form (form-builder, governed)  →  intake/change-request row (the workflow subj
 3. **Route Riding Report** — supervisor submits (salesman, route, customers visited, execution score, coaching notes, action plan) → **Area Manager review if configured** → **action plan tracked until closed** (reuses `erp_route_rides` + workflow).
 4. **Merchandising Issue** — supervisor *or* salesman records (customer, photo, issue type, competitor activity, display/availability/price issue) → assigned **owner reviews** → action taken → **closed with audit** (reuses surveys/forms + workflow + `field.attach_media`).
 5. **Stock / Cash Variance** — salesman/warehouse records (shortage/excess, reason, evidence) → warehouse/cashier review → supervisor approval → **responsibility assigned** → **no automatic deduction without approval** (reuses `erp_van_variances` + workflow).
+6. **Customer Deactivation** — salesman/office requests closure/inactive (customer, reason, evidence photo) → supervisor/back-office approval per company config → on approve the customer is **deactivated** (governed `update_record`: `is_active=false` / `approval_status='inactive'`); **full audit trail**. Mirror of New Customer Creation, on the same engine.
 
 ---
 
@@ -471,7 +472,45 @@ Every PR: additive, `KAKO_VAN_SALES`-gated (default OFF), multi-tenant RLS, audi
 ### Approval-driven flows (fold into the phases above; each = one small PR on the existing engine)
 - **Phase B — Stock request & load approval (§6B):** ⓐ Salesman stock request (extend `erp_stock_requests`, reuse Suggested Loads 0233 for suggested/avg-daily) + **configurable approval chain** (workflow def, role-based, N steps). ⓑ **Supervisor adjustment authority** (add/remove/±qty/split/send-back, reason-required, **audited before/after**). ⓒ **Supervisor direct load** (origin `supervisor_direct`, no auto-confirm by default). ⓓ **Warehouse load execution** (prepare/dispatch states, reuse `erp_van_load_manifests`). ⓔ **Salesman load confirmation** (`erp_van_load_confirmations`, accept/reject/variance) → **ledger post on confirm only**.
 - **Phase C — New Customer Creation (§6A.1):** draft `erp_customers` via new-outlet intake form (GPS + storefront photos) → onboarding approval → activate.
-- The remaining §6A flows (Customer-data update [shipped], Route-riding report, Merchandising issue, Stock/cash variance) ride the **same engine** as the 8F customer-data-update — each a thin intake form + a configurable workflow definition.
+- The remaining §6A flows (Customer-data update [shipped], Route-riding report, Merchandising issue, Stock/cash variance, **Customer deactivation**) ride the **same engine** as the 8F customer-data-update — each a thin intake form + a configurable workflow definition.
+
+---
+
+## 10. FMCG distribution requirements — explicit coverage (sign-off checklist)
+
+Every required FMCG capability, where it lives in this design, and the existing engine it reuses:
+
+| # | Requirement | In this design | Reuse |
+|---|---|---|---|
+| 1 | **Customer financial visibility** (outstanding · aging · credit status · credit hold/block · last collection date · last payment amount) | §10.1 + Customer 360 (§2.1/§3) | credit profiles/block rules (0222) · collections (0192) · shared `aging()` |
+| 2 | **Customer health** (last visit · last invoice · days since last order · avg monthly sales · missing key SKUs · health score) | §10.1 + Customer 360 | visits/invoices · Perfect Store (0231) · route-intel (0232) |
+| 3 | **Journey plan execution** (planned · actual · route compliance · missed · extra · GPS validation) | §2.1/§2.2 · §7 | journey plans (0129) · visits + compliance (0234) · routes (0062) |
+| 4 | **Suggested load / suggested order** (van load qty · recommended customer order qty) | §3 · §6B | Suggested Loads (0233) + forecasting engine |
+| 5 | **Cash settlement controls** (expected · actual · cashier recon · shortage/excess workflow · approval before deduction) | §3 End-Day · §6A.5 | van cash recon (0229) + variance workflow (no auto-deduction) |
+| 6 | **Warehouse reconciliation** (opening · loaded · sold · returns · transfers · closing · physical count · variance) | §6B · §3 | van reconciliation (0138) + load confirmations + variance workflow |
+| 7 | **Customer creation workflow** (salesman → supervisor approval → activation) | §6A.1 | onboarding workflow (0088) + form-builder |
+| 8 | **Customer deactivation workflow** (closure request → approval → audit) | §6A.6 | same engine; governed `update_record` + audit |
+| 9 | **Van Sales KPI dashboards** (per role) | §10.3 + §2 KPI widgets | roll-up queries over existing data |
+| 10 | **Printing strategy** (Phase 1 PDF/Share/WhatsApp/Email; Phase 2 Bluetooth) | §10.2 | browser PDF + Share sheet now; Capacitor BT later |
+| 11 | **Salesman-simplicity principle** | §0 + §2 hard rule + §10.4 | — |
+
+### 10.1 Customer 360 content (salesman pre-sale card — read-only, glanceable)
+- **Financial visibility:** total outstanding balance · **aging buckets** (current · 1–30 · 31–60 · 61–90 · 90+) · credit status (RAG) · **credit hold / block** status · last collection date · last payment amount.
+- **Customer health:** last visit date · last invoice date · **days since last order** · **average monthly sales** · **missing key SKUs** (must-stock gaps) · **customer health score**.
+- Surfaced as a RAG header (available credit + overdue + oldest-invoice age) with expandable sections; **overdue/credit-hold shown before the order starts** (§1b). Sourced from credit profiles, collections, invoices, visits, and Perfect Store / route-intel — no new tables.
+
+### 10.2 Printing strategy
+- **Phase 1 (PWA, ships first):** generate the invoice/receipt as a **PDF** → device **Share** sheet → **WhatsApp / Email / any app**. **ZATCA-compliant** bilingual layout + QR for Saudi/GCC tenants. A no-printer fallback is **always** available — no hard printer dependency.
+- **Phase 2:** **Bluetooth thermal printing** (58/80mm) — likely a thin **Capacitor** wrapper for native BT access over the same PWA core; additive, no rewrite.
+
+### 10.3 Van Sales KPI dashboards (per role — explicit)
+- **Salesman:** Sales · Coverage · Distribution · Collections · Journey completion.
+- **Supervisor:** Team sales · Team coverage · **Route riding score** · **Merchandising score**.
+- **Area Manager:** Region sales · Coverage · Distribution · Collection performance · **Exception dashboard**.
+(Regional Manager = region roll-up of the above; each KPI is a query over existing data — no new stores.)
+
+### 10.4 Design principle (non-negotiable)
+The **salesman screen is always the simplest screen in the platform.** No admin/config/manager complexity ever appears in the salesman experience — those live on separate, role-gated surfaces (§2). Every salesman common action is **1–2 taps**, minimal typing, big buttons, alerts before the action they affect.
 
 ---
 
@@ -480,4 +519,4 @@ Every PR: additive, `KAKO_VAN_SALES`-gated (default OFF), multi-tenant RLS, audi
 2. **Exceptions via workflow tasks** (no bespoke table) — confirm.
 3. New **permissions** vs reusing `reconciliation.approve` etc. — list to finalize once Phase A lands.
 4. **ZATCA** required for first pilot, or fast-follow?
-5. Bluetooth printing acceptable as **PDF/share-only** for the PWA phase (native wrapper later)?
+5. ~~Printing~~ — **DECIDED:** Phase 1 = PDF / Share / WhatsApp / Email; Phase 2 = Bluetooth thermal (Capacitor). See §10.2.
