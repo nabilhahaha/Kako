@@ -18,6 +18,10 @@ export interface RefSpec {
   match: string[];
   /** FK column written on the imported row, e.g. 'product_id'. */
   column: string;
+  /** Optional equality filter applied to the lookup query — disambiguates a
+   *  shared discriminated table (e.g. erp_customer_lookups by {kind:'channel'})
+   *  so a code resolves within the right partition. */
+  filter?: Record<string, string>;
 }
 
 export interface RefFieldDef {

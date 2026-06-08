@@ -13,3 +13,9 @@ const on = (v: string | undefined): boolean => v === '1' || v === 'true';
 export const FORM_BUILDER_ENABLED = (): boolean => on(process.env.KAKO_FORM_BUILDER);
 
 export * from './model';
+export * from './governance';
+export * from './scoring';
+export * from './forms';
+export * from './workflow-ref';
+export * from './change-set';
+export * from './submit-types';

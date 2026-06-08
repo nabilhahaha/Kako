@@ -4,8 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { MOBILE_ENABLED, isApplicable, dedupeMutations, mapVisitVerdict, type OfflineMutation, type SyncStatus, type Verdict } from '@/lib/offline-sync';
 import { collectPayment } from '@/app/(app)/rep/actions';
 import { submitSurveyResponse } from '@/app/(app)/settings/surveys/actions';
+import { submitFormResponse } from '@/app/(app)/forms/actions';
 import type { PaymentMethod } from '@/lib/erp/types';
 import type { SurveyAnswers } from '@/lib/erp/survey';
+import type { FormAnswers } from '@/lib/form-builder';
 
 // Offline sync intake — POST /api/internal/offline-sync. Receives a batch of
 // queued field mutations from the PWA, records each EXACTLY-ONCE in
@@ -159,6 +161,21 @@ async function applyMutation(db: Db, companyId: string, m: OfflineMutation): Pro
       surveyId: p.surveyId, customerId: p.customerId, visitId: p.visitId ?? null, answers: p.answers ?? {},
     });
     return res.ok ? { ok: true, verdict: 'accepted' } : { ok: false, reason: res.error, verdict: 'rejected' };
+  }
+
+  // Form response: reuse submitFormResponse (loads the published version, resolves
+  // the bound entity's layout through field-governance, validates + strips
+  // ungovernable values, scores, and inserts an IMMUTABLE response). Same path as
+  // the online renderer — the device never finalizes anything itself.
+  if (m.entity === 'form_response' && m.operation === 'create') {
+    const p = m.payload as { formId?: string; formCode?: string; answers?: FormAnswers; entity?: string; recordId?: string };
+    if (!p.formId && !p.formCode) return { ok: false, reason: 'missing form ref', verdict: 'form_rejected' };
+    const res = await submitFormResponse({
+      formId: p.formId, formCode: p.formCode, answers: p.answers ?? {}, entity: p.entity, recordId: p.recordId,
+    });
+    return res.ok
+      ? { ok: true, verdict: 'form_accepted' }
+      : { ok: false, reason: res.error === 'validation' ? (res.problems ?? []).join('; ') : res.error, verdict: 'form_rejected' };
   }
 
   return { ok: false, reason: 'no handler' };

@@ -94,4 +94,6 @@ export interface ExecutorDeps {
 /** Tables an update_record step is permitted to touch (security allow-list). */
 export const UPDATE_RECORD_ALLOWLIST = new Set<string>([
   'erp_customers', 'erp_invoices', 'erp_sales_orders', 'erp_workflow_instances',
+  // Customer Data Update (8F-2): the approval step flips the change request status.
+  'erp_customer_change_requests',
 ]);

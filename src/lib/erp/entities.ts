@@ -111,6 +111,7 @@ const REGISTRY: EntityDescriptor[] = [
       // FMCG hierarchy S3 — scalar customer attributes (segment/classification/
       // channel/region/area are FK master data set via the form, not imported here).
       f('cr_number', 'السجل التجاري', 'CR Number'),
+      f('tax_number', 'الرقم الضريبي', 'VAT Number'),
       f('national_address', 'العنوان الوطني', 'National Address'),
       f('contact_person', 'مسؤول التواصل', 'Contact Person'),
       f('contact_phone', 'هاتف التواصل', 'Contact Phone'),
@@ -118,6 +119,13 @@ const REGISTRY: EntityDescriptor[] = [
       f('latitude', 'خط العرض', 'Latitude', { type: 'number' }),
       f('longitude', 'خط الطول', 'Longitude', { type: 'number' }),
       f('allowed_gps_radius', 'نطاق GPS المسموح (متر)', 'Allowed GPS radius (m)', { type: 'number' }),
+      // FMCG master-data FKs — governed core fields (DFG), importable by code via a
+      // kind-filtered ref into the shared erp_customer_lookups (segment/classification/
+      // channel) or erp_routes. Set on the customer form; resolved per tenant.
+      f('classification_id', 'التصنيف', 'Classification', { type: 'ref', ref: { table: 'erp_customer_lookups', match: ['code'], column: 'classification_id', filter: { kind: 'classification' } } }),
+      f('channel_id', 'القناة', 'Channel', { type: 'ref', ref: { table: 'erp_customer_lookups', match: ['code'], column: 'channel_id', filter: { kind: 'channel' } } }),
+      f('segment_id', 'الشريحة', 'Segment', { type: 'ref', ref: { table: 'erp_customer_lookups', match: ['code'], column: 'segment_id', filter: { kind: 'segment' } } }),
+      f('route_id', 'خط السير', 'Route', { type: 'ref', ref: { table: 'erp_routes', match: ['name'], column: 'route_id' } }),
       f('created_source', 'مصدر الإنشاء', 'Created source'),
       f('external_id', 'المعرّف الخارجي', 'External ID'),
     ],

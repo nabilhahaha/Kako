@@ -43,12 +43,24 @@ describe('entity registry', () => {
   it('customer entity exposes the S3 expanded-model scalar fields', () => {
     const keys = (getEntity('customer')!.fields ?? []).map((f) => f.key);
     expect(keys).toEqual(expect.arrayContaining([
-      'cr_number', 'national_address', 'contact_person', 'contact_phone',
+      'cr_number', 'tax_number', 'national_address', 'contact_person', 'contact_phone',
       'payment_terms_days', 'latitude', 'longitude',
     ]));
-    // FK master-data / geo fields are set via the form, not the import map.
-    expect(keys).not.toContain('segment_id');
+    // region is set via the form only.
     expect(keys).not.toContain('region_id');
+  });
+
+  it('customer FMCG master-data FKs are governed + importable via kind-filtered refs', () => {
+    const fields = getEntity('customer')!.fields ?? [];
+    const byKey = new Map(fields.map((f) => [f.key, f]));
+    // Classification/Channel/Segment/Route now participate in the registry (DFG + import/export).
+    for (const k of ['classification_id', 'channel_id', 'segment_id', 'route_id']) {
+      expect(byKey.has(k)).toBe(true);
+      expect(byKey.get(k)!.type).toBe('ref');
+    }
+    // Shared lookup table is disambiguated by kind so a code resolves correctly.
+    expect(byKey.get('channel_id')!.ref).toEqual({ table: 'erp_customer_lookups', match: ['code'], column: 'channel_id', filter: { kind: 'channel' } });
+    expect(byKey.get('route_id')!.ref).toEqual({ table: 'erp_routes', match: ['name'], column: 'route_id' });
   });
 
   it('unique key defaults to external_id; dedupe keys include it', () => {
