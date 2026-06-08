@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   WORKFLOW_BUILDER_ENABLED,
   filterTemplates, validateTemplateDefinition, catalogIsValid,
+  templateToRows, stepToRow,
   type WorkflowTemplate, type TemplateDefinition,
 } from './index';
 
@@ -50,5 +51,22 @@ describe('workflow-builder/templates', () => {
 
   it('catalogIsValid is true for a clean catalog', () => {
     expect(catalogIsValid([tpl(), tpl({ id: 'T2', code: 'd' })])).toBe(true);
+  });
+});
+
+describe('workflow-builder/instantiate (template → engine rows)', () => {
+  it('stepToRow maps system steps to NULL approver_type + condition for condition steps', () => {
+    const sys = stepToRow({ stepNo: 2, stepType: 'notification', name: 'n', approverType: 'system', approverRef: null, mode: 'sequential', requiredApprovals: 0, slaHours: null, escalateTo: null, config: { channel: 'in_app' } });
+    expect(sys.approver_type).toBeNull();
+    expect(sys.required_approvals).toBe(1);            // engine ignores for non-approval
+    const cond = stepToRow({ stepNo: 1, stepType: 'condition', name: 'c', approverType: 'system', approverRef: null, mode: 'sequential', requiredApprovals: 0, slaHours: null, escalateTo: null, config: { when: 'amount' } });
+    expect(cond.condition).toEqual({ when: 'amount' });
+  });
+
+  it('templateToRows builds a definition row + ordered steps', () => {
+    const rows = templateToRows(def(), { companyId: 'CO1', key: 'k1', nameAr: 'ج', nameEn: 'E' });
+    expect(rows.definition).toMatchObject({ company_id: 'CO1', key: 'k1', entity: 'customer_change_request', name_en: 'E' });
+    expect(rows.steps.map((s) => s.step_no)).toEqual([1, 2]);             // sorted
+    expect(rows.steps[0]).toMatchObject({ step_type: 'approval', approver_type: 'role', approver_ref: 'supervisor', required_approvals: 1 });
   });
 });

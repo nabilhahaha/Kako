@@ -13,3 +13,4 @@ const on = (v: string | undefined): boolean => v === '1' || v === 'true';
 export const WORKFLOW_BUILDER_ENABLED = (): boolean => on(process.env.KAKO_WORKFLOW_BUILDER);
 
 export * from './templates';
+export * from './instantiate';
