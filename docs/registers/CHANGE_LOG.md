@@ -15,6 +15,11 @@ no UI/UX regressions.
 | #185 | 2026-06-08 | Phase 5A M3 — tax ledger + VAT return report | `KAKO_TAX` (OFF) | `0197` additive | green |
 | #184 | 2026-06-08 | Phase 5A M2 — tax groups / multi-rate (pure) | `KAKO_TAX` (OFF) | none | green |
 | #183 | 2026-06-08 | Phase 5A M1 — core VAT calculation engine (pure) | `KAKO_TAX` (OFF) | none | green |
+| #199 | 2026-06-08 | Phase 5E — GCC packs (UAE FTA + Bahrain/Oman/Kuwait) | `KAKO_TAX_*` (OFF) | none | green |
+| #197,#198 | 2026-06-08 | Phase 5C/5D — Egypt ETA + Saudi ZATCA packs (pure builders/QR/validation) | `KAKO_TAX_EG`/`_SA` (OFF) | none | green |
+| #195,#196 | 2026-06-08 | Phase 5B — submission lifecycle + state machine + checkpoint | `KAKO_TAX` (OFF) | `0203` additive | green |
+| #192,#193,#194 | 2026-06-08 | Phase 5A follow-ups — legal entities/registrations + tax service + checkpoint | `KAKO_TAX` (OFF) | `0202` additive | green |
+| #183-#191 | 2026-06-08 | Phase 5A — Global Tax Engine Core (M1–M6) + readiness | `KAKO_TAX`/`KAKO_FINANCE` (OFF) | `0197`–`0201` additive | green |
 | #181,#182 | 2026-06-07 | Phase 5 Global Tax framework — approved frozen baseline (rev 1–4) + 5A roadmap | — | none | green |
 | #180 | 2026-06-07 | **Phase 4 readiness checkpoint** (Trade Spend complete) | — | none | green |
 | #179 | 2026-06-07 | Phase 4 — trade-spend summary read-model + dashboard | `KAKO_TRADE_SPEND` (OFF/inert) | none | green |
