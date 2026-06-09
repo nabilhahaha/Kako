@@ -73,6 +73,12 @@ export function disallowedFields(proposed: Record<string, unknown>, allowedField
   return Object.keys(proposed).filter((k) => !allow.has(k));
 }
 
+/** Required document types that are not yet present on a request (pure). */
+export function missingDocTypes(required: string[], present: string[]): string[] {
+  const have = new Set(present);
+  return [...new Set(required)].filter((d) => !have.has(d));
+}
+
 // ── Declarative validation (in-process rules) ───────────────────────────────
 export interface ValidationError { field: string; rule: string }
 
