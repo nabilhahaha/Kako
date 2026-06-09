@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { logAudit } from '@/lib/erp/audit';
+import { recordEvent } from '@/lib/workflow/emit';
 import {
   VAN_SALES_ENABLED,
   classifyConfirmation,
@@ -72,13 +73,24 @@ export async function confirmLoad(input: ConfirmLoadInput): Promise<ConfirmLoadR
     })),
   });
   if (error) return { ok: false, error: error.message };
+  const id = data as string;
+
+  // A variance (or full reject) raises the warehouse → supervisor review workflow.
+  if (c.requiresReview) {
+    await recordEvent({
+      eventType: 'van_load_variance.raised',
+      entity: 'van_load_variance',
+      recordId: id,
+      payload: { status: c.status, manifest_id: input.manifestId, total_variance: c.totalVariance },
+    });
+  }
 
   await logAudit(supabase, {
     action: 'confirm',
     entity: 'van_load_confirmation',
-    entityId: (data as string) ?? null,
+    entityId: id,
     details: { status: c.status, requiresReview: c.requiresReview, totalAccepted: c.totalAccepted },
     companyId: ctx.companyId,
   });
-  return { ok: true, id: data as string, status: c.status, requiresReview: c.requiresReview };
+  return { ok: true, id, status: c.status, requiresReview: c.requiresReview };
 }

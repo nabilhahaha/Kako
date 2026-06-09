@@ -5,7 +5,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { recordEvent } from '@/lib/workflow/emit';
 import { logAudit } from '@/lib/erp/audit';
-import { VAN_SALES_ENABLED } from '@/lib/van-sales';
+import { VAN_SALES_ENABLED, diffRequestLines, type RequestLineChange } from '@/lib/van-sales';
 
 /** ── Van Sales (Phase B) — submit a van load (stock) request ────────────────
  *  Creates the request + lines on the EXISTING erp_stock_requests entity (origin
@@ -91,4 +91,95 @@ export async function submitStockRequest(input: SubmitStockRequestInput): Promis
     companyId: ctx.companyId,
   });
   return { ok: true, id };
+}
+
+/** ── Van Sales (Phase B) — supervisor adjustment of a load request ──────────
+ *  Controlled supervisor authority to set the approved quantity per line (add /
+ *  remove / increase / reduce) BEFORE the request is approved. Every quantity
+ *  change is captured with a full before/after audit (requested → approved, who,
+ *  why). A reason is REQUIRED whenever any quantity changes. stock.adjust gated. */
+
+export interface AdjustLineInput {
+  productId: string;
+  approvedQty: number;
+}
+
+export interface AdjustStockRequestInput {
+  requestId: string;
+  lines: AdjustLineInput[];
+  reason: string;
+}
+
+export interface AdjustStockRequestResult {
+  ok: boolean;
+  error?: string;
+  changes?: RequestLineChange[];
+}
+
+export async function adjustStockRequest(input: AdjustStockRequestInput): Promise<AdjustStockRequestResult> {
+  if (!VAN_SALES_ENABLED()) return { ok: false, error: 'disabled' };
+
+  const ctx = await getUserContext();
+  if (!ctx) return { ok: false, error: 'unauthorized' };
+  if (!ctx.companyId) return { ok: false, error: 'no company' };
+  if (!hasPermission(ctx, 'stock.adjust') && !ctx.isSuperAdmin) return { ok: false, error: 'unauthorized' };
+  if (!input.requestId) return { ok: false, error: 'missing request' };
+  if (!input.lines?.length) return { ok: false, error: 'no lines' };
+
+  const supabase = await createClient();
+  const { data: existing, error: exErr } = await supabase
+    .from('erp_stock_request_lines')
+    .select('id, product_id, quantity, approved_qty')
+    .eq('request_id', input.requestId);
+  if (exErr) return { ok: false, error: exErr.message };
+
+  type Row = { id: string; product_id: string; quantity: number; approved_qty: number | null };
+  const byProduct = new Map((existing as Row[]).map((l) => [l.product_id, l]));
+
+  // Compute before/after for the touched products (before = current approved, else
+  // the requested qty; a brand-new product's before is 0 → shows as an "add").
+  const before: { productId: string; quantity: number }[] = [];
+  const after: { productId: string; quantity: number }[] = [];
+  for (const adj of input.lines) {
+    const cur = byProduct.get(adj.productId);
+    before.push({ productId: adj.productId, quantity: cur ? Number(cur.approved_qty ?? cur.quantity) : 0 });
+    after.push({ productId: adj.productId, quantity: adj.approvedQty });
+  }
+  const changes = diffRequestLines(before, after);
+  if (changes.length === 0) return { ok: true, changes: [] }; // nothing changed
+  if (!input.reason?.trim()) return { ok: false, error: 'reason_required' };
+
+  // Apply: update approved_qty on existing lines; insert a 0-requested line for an
+  // added product. (Removal = approved_qty 0 — the requested line is kept for audit.)
+  for (const adj of input.lines) {
+    const cur = byProduct.get(adj.productId);
+    if (cur) {
+      const { error } = await supabase.from('erp_stock_request_lines').update({ approved_qty: adj.approvedQty }).eq('id', cur.id);
+      if (error) return { ok: false, error: error.message };
+    } else {
+      const { error } = await supabase.from('erp_stock_request_lines').insert({ request_id: input.requestId, product_id: adj.productId, quantity: 0, approved_qty: adj.approvedQty });
+      if (error) return { ok: false, error: error.message };
+    }
+  }
+
+  // Full before/after audit: requested_qty, previous + new approved_qty per line,
+  // the diff, the reason, and who. (actor + company_id + timestamp are stamped on
+  // the erp_audit_logs row by logAudit.)
+  const auditLines = input.lines.map((adj) => {
+    const cur = byProduct.get(adj.productId);
+    return {
+      product_id: adj.productId,
+      requested_qty: cur ? Number(cur.quantity) : 0,
+      approved_qty_before: cur && cur.approved_qty != null ? Number(cur.approved_qty) : null,
+      approved_qty_after: adj.approvedQty,
+    };
+  });
+  await logAudit(supabase, {
+    action: 'adjust',
+    entity: 'van_stock_request',
+    entityId: input.requestId,
+    details: { reason: input.reason, adjusted_by: ctx.userId, lines: auditLines, changes },
+    companyId: ctx.companyId,
+  });
+  return { ok: true, changes };
 }

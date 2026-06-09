@@ -75,6 +75,8 @@ describe('step executor registry', () => {
     expect(exec.validate(step({ stepType: 'update_record', config: { table: 'erp_customer_change_requests', patch: { status: 'approved' } } }))).toEqual([]);
     // Van Sales Phase B: the load-request approval chain flips the request status.
     expect(exec.validate(step({ stepType: 'update_record', config: { table: 'erp_stock_requests', patch: { status: 'approved' } } }))).toEqual([]);
+    // Van Sales Phase B: the variance-review workflow resolves the confirmation.
+    expect(exec.validate(step({ stepType: 'update_record', config: { table: 'erp_van_load_confirmations', patch: { review_status: 'approved' } } }))).toEqual([]);
   });
 
   it('update_record: applies a DYNAMIC patch + target id from the run context', async () => {

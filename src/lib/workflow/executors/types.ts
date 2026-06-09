@@ -98,4 +98,6 @@ export const UPDATE_RECORD_ALLOWLIST = new Set<string>([
   'erp_customer_change_requests',
   // Van Sales (Phase B): the load-request approval chain flips the request status.
   'erp_stock_requests',
+  // Van Sales (Phase B): the variance-review workflow resolves the confirmation.
+  'erp_van_load_confirmations',
 ]);
