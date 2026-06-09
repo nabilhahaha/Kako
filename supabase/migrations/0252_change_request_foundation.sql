@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS erp_change_request_targets (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_cr_targets_request ON erp_change_request_targets (request_id);
+CREATE INDEX IF NOT EXISTS idx_cr_targets_company ON erp_change_request_targets (company_id);
 ALTER TABLE erp_change_request_targets ENABLE ROW LEVEL SECURITY;
 DROP TRIGGER IF EXISTS erp_cr_targets_set_company ON erp_change_request_targets;
 CREATE TRIGGER erp_cr_targets_set_company BEFORE INSERT ON erp_change_request_targets
@@ -161,6 +162,7 @@ CREATE TABLE IF NOT EXISTS erp_change_request_values (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_cr_values_request ON erp_change_request_values (request_id);
+CREATE INDEX IF NOT EXISTS idx_cr_values_company ON erp_change_request_values (company_id);
 ALTER TABLE erp_change_request_values ENABLE ROW LEVEL SECURITY;
 DROP TRIGGER IF EXISTS erp_cr_values_set_company ON erp_change_request_values;
 CREATE TRIGGER erp_cr_values_set_company BEFORE INSERT ON erp_change_request_values
