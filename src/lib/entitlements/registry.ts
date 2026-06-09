@@ -51,13 +51,22 @@ export function isEntitledIn(
 // and is therefore NEVER gated by entitlements (the existing permission check
 // remains the sole authority). This is the safe-by-default contract.
 const PERMISSION_MODULES: Record<string, string[]> = {
-  // Van Sales engine
+  // Van Sales / merchandising (field ops)
   'field.sales': ['van_sales'],
+  'field.attach_media': ['merchandising'],
   // Change Requests engine
   'change_requests.create': ['change_requests'],
   'change_requests.approve': ['change_requests'],
   'change_requests.manage': ['change_requests'],
-  // (extended in E2 alongside the seeded catalog)
+  // Route Management
+  'route.create': ['route_management'],
+  'route.import': ['route_management'],
+  // Trade Spend
+  'trade_spend.manage': ['trade_spend'],
+  // Note: core-module permissions (sales.*, inventory.*, purchasing.*,
+  // accounting.*, customers.*) are intentionally NOT mapped — core modules are
+  // always available; only optional engines are entitlement-gated. Unmapped
+  // permissions are never gated (the existing permission check stays authoritative).
 };
 
 /** The module(s) a permission unlocks (empty = never entitlement-gated). */

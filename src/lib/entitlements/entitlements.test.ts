@@ -63,6 +63,9 @@ describe('entitlements/modulesForPermission', () => {
   it('maps known permissions, empty for unmapped (never gated)', () => {
     expect(modulesForPermission('field.sales')).toEqual(['van_sales']);
     expect(modulesForPermission('change_requests.approve')).toEqual(['change_requests']);
-    expect(modulesForPermission('sales.sell')).toEqual([]);   // unmapped → not entitlement-gated
+    expect(modulesForPermission('route.create')).toEqual(['route_management']);
+    expect(modulesForPermission('trade_spend.manage')).toEqual(['trade_spend']);
+    expect(modulesForPermission('sales.sell')).toEqual([]);       // core → not entitlement-gated
+    expect(modulesForPermission('inventory.view')).toEqual([]);   // core → not gated
   });
 });
