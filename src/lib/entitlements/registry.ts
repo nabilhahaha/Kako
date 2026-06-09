@@ -73,3 +73,28 @@ const PERMISSION_MODULES: Record<string, string[]> = {
 export function modulesForPermission(permission: string): string[] {
   return PERMISSION_MODULES[permission] ?? [];
 }
+
+export interface GateContext {
+  isPlatformOwner?: boolean;
+  isSuperAdmin?: boolean;
+  companyId?: string | null;
+}
+
+/**
+ * The modules the entitlement gate must verify for a permission — or `null` when
+ * no entitlement check applies and access is governed solely by the existing
+ * permission check. `null` is returned when: the flag is OFF (→ identical to
+ * hasPermission), the actor is a platform owner / super admin, there is no company,
+ * or the permission is unmapped (core/always-on). Pure.
+ */
+export function requiredEntitlementModules(
+  permission: string,
+  ctx: GateContext,
+  entitlementsEnabled: boolean,
+): string[] | null {
+  if (!entitlementsEnabled) return null;
+  if (ctx.isPlatformOwner || ctx.isSuperAdmin) return null;
+  if (!ctx.companyId) return null;
+  const mods = modulesForPermission(permission);
+  return mods.length ? mods : null;
+}
