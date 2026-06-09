@@ -100,4 +100,8 @@ export const UPDATE_RECORD_ALLOWLIST = new Set<string>([
   'erp_stock_requests',
   // Van Sales (Phase B): the variance-review workflow resolves the confirmation.
   'erp_van_load_confirmations',
+  // Universal Change Request engine: the approval workflow flips the request status
+  // (the master-data apply itself goes through erp_change_request_apply, allowlisted
+  // separately in the change-requests registry).
+  'erp_change_requests',
 ]);
