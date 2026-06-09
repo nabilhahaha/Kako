@@ -94,16 +94,21 @@ fast, friendly validation before the RPC (the RPC remains the sole authority).
 - [x] Unit tests `src/lib/van-sales/sell.test.ts` (8 passing)
 - [x] Export from `src/lib/van-sales/index.ts`
 
-### Phase 1 — `erp_van_sell` atomic RPC (no UI)
-- [ ] Migration `0265_van_sell.sql` — `erp_van_sell()` SECURITY DEFINER
-- [ ] Thin server wrapper `src/lib/van-sales/sell-server.ts` (calls the RPC)
-- [ ] Integration tests `src/test/integration/van-sell.test.ts`:
-  - [ ] happy path: issued invoice, `sale_out` at the van, balance raised, journal posted
-  - [ ] server-side price ignores any client price; discount cap enforced
-  - [ ] credit-limit reject; negative-stock reject (and pass when `allow_negative`)
-  - [ ] no van assigned ⇒ reject (no branch fallback)
-  - [ ] idempotency: repeat key returns the same invoice (no double sale)
-  - [ ] tenant isolation (RLS): cross-company actor cannot sell
+### Phase 1 — `erp_van_sell` atomic RPC (no UI) ✅
+- [x] Migration `0265_van_sell.sql` — `erp_van_sell()` SECURITY DEFINER
+- [x] Thin server wrapper `src/lib/van-sales/sell-server.ts` (calls the RPC)
+- [x] Integration tests `src/test/integration/van-sell.test.ts` (7 passing):
+  - [x] happy path: issued invoice, `sale_out` at the van, balance raised, server-resolved price
+  - [x] server-side price (RPC takes no client price); discount cap enforced
+  - [x] credit-limit reject; negative-stock reject (and pass when `allow_negative`)
+  - [x] no van assigned ⇒ reject (no branch fallback)
+  - [x] idempotency: repeat key returns the same invoice (no double sale)
+  - [x] tenant isolation (RLS): cross-company actor cannot sell
+- Verified locally against Postgres 16 (full migration chain): 7/7 van-sell,
+  151/151 integration, 1258/1258 unit, typecheck clean.
+- Fix found by the tests: when no settings row exists, `SELECT … INTO
+  v_allow_neg` left it NULL → `NOT NULL` silently skipped the stock guard;
+  coerced to `false` after the SELECT.
 
 ### Phases 2–8
 - [ ] _planned; detailed design added before each is built_
