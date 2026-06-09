@@ -20,7 +20,7 @@ async function mkUser(c: Client, branch: string, role: string): Promise<string> 
   return id;
 }
 
-async function setup(c: Client, opts: { withSource?: boolean } = {}): Promise<Fixture> {
+async function setup(c: Client, opts: { withSource?: boolean; direct?: boolean } = {}): Promise<Fixture> {
   const sfx = randomUUID().slice(0, 8);
   const company = (await c.query("insert into erp_companies(name) values('VCL') returning id")).rows[0].id;
   const branch = (await c.query("insert into erp_branches(company_id,code,name) values ($1,'HQ','HQ') returning id", [company])).rows[0].id;
@@ -33,7 +33,9 @@ async function setup(c: Client, opts: { withSource?: boolean } = {}): Promise<Fi
   if (opts.withSource !== false) {
     sr = (await c.query("insert into erp_stock_requests(request_number,branch_id,from_warehouse_id,to_warehouse_id) values ($1,$2,$3,$4) returning id", [`SR-${sfx}`, branch, src, van])).rows[0].id;
   }
-  const manifest = (await c.query("insert into erp_van_load_manifests(branch_id,warehouse_id,stock_request_id,salesman_id,status) values ($1,$2,$3,$4,'loaded') returning id", [branch, van, sr, salesman])).rows[0].id;
+  // Supervisor-direct loads carry source_warehouse_id and no stock request.
+  const sourceCol = opts.direct ? src : null;
+  const manifest = (await c.query("insert into erp_van_load_manifests(branch_id,warehouse_id,stock_request_id,source_warehouse_id,salesman_id,status) values ($1,$2,$3,$4,$5,'loaded') returning id", [branch, van, sr, sourceCol, salesman])).rows[0].id;
   return { company, branch, salesman, src, van, p1, manifest };
 }
 
@@ -60,6 +62,18 @@ describe.skipIf(!hasTestDb)('van-sales · atomic confirm load posting', () => {
       expect(Number((await c.query('select quantity from erp_inventory_stock where warehouse_id=$1 and product_id=$2', [f.van, f.p1])).rows[0].quantity)).toBe(8);
       expect(Number((await c.query('select quantity from erp_inventory_stock where warehouse_id=$1 and product_id=$2', [f.src, f.p1])).rows[0].quantity)).toBe(92);
       expect(Number((await c.query('select posted_at is not null as p from erp_van_load_confirmations where id=$1', [conf])).rows[0].p ? 1 : 0)).toBe(1);
+    });
+  }, 30_000);
+
+  it('supervisor-direct load (no request) posts from source_warehouse_id', async () => {
+    await withRollback(async (c) => {
+      const f = await setup(c, { withSource: false, direct: true });
+      await actAs(c, f.salesman);
+      const conf = await call(c, f.manifest, 'accept_full', false, lines(f, 10, 10));
+      await resetRole(c);
+      expect(await moveCount(c, conf)).toBe(2);
+      expect(Number((await c.query('select quantity from erp_inventory_stock where warehouse_id=$1 and product_id=$2', [f.van, f.p1])).rows[0].quantity)).toBe(10);
+      expect(Number((await c.query('select quantity from erp_inventory_stock where warehouse_id=$1 and product_id=$2', [f.src, f.p1])).rows[0].quantity)).toBe(90);
     });
   }, 30_000);
 
