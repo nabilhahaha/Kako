@@ -85,4 +85,45 @@ registerAlertSource({
   },
 });
 
+// ── Low stock: products whose total on-hand is below their min_stock ─────────
+// Scoped by the product's own company (products_catalog.company_id); on-hand is
+// summed across the product's inventory rows. Verifiable on existing columns.
+registerAlertSource({
+  key: 'low_stock',
+  async evaluate(deps: AlertDeps): Promise<AlertCandidate[]> {
+    const { data: products } = await deps.db
+      .from('erp_products_catalog')
+      .select('id, code, name, min_stock')
+      .eq('company_id', deps.companyId).gt('min_stock', 0);
+    const list = (products ?? []) as { id: string; code: string | null; name: string | null; min_stock: number }[];
+    if (list.length === 0) return [];
+
+    const ids = list.map((p) => p.id);
+    const { data: stock } = await deps.db
+      .from('erp_inventory_stock')
+      .select('product_id, quantity')
+      .in('product_id', ids);
+    const onHand = new Map<string, number>();
+    for (const s of (stock ?? []) as { product_id: string; quantity: number | null }[]) {
+      onHand.set(s.product_id, (onHand.get(s.product_id) ?? 0) + Number(s.quantity ?? 0));
+    }
+
+    const out: AlertCandidate[] = [];
+    for (const p of list) {
+      const have = onHand.get(p.id) ?? 0;
+      const min = Number(p.min_stock);
+      if (have >= min) continue;
+      out.push({
+        dedupeKey: `low_stock:${p.id}`,
+        severity: have <= 0 ? 'high' : 'warning',
+        entity: 'product', recordId: p.id,
+        title: `Low stock — ${p.name ?? p.code ?? p.id}`,
+        body: `On-hand ${have} is below the minimum ${min}.`,
+        payload: { product_id: p.id, on_hand: have, min_stock: min },
+      });
+    }
+    return out;
+  },
+});
+
 export {};
