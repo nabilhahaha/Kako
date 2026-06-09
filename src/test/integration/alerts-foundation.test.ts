@@ -16,11 +16,11 @@ describe.skipIf(!hasTestDb)('alerts · foundation', () => {
       await c.query('insert into auth.users(id, email) values ($1,$2)', [user, `u+${user}@test.local`]);
       await c.query("insert into erp_user_branches(user_id,branch_id,role,is_default) values ($1,$2,'admin',true)", [user, branch]);
 
-      // A global rule (seeded by a future phase as data) is readable by any tenant.
-      await c.query("insert into erp_alert_rules(company_id, rule_key, source_key) values (null,'low_stock','low_stock')");
+      // A global rule (test-only key, not seeded by migrations) is readable by any tenant.
+      await c.query("insert into erp_alert_rules(company_id, rule_key, source_key) values (null,'zz_test_rule','zz_test_rule')");
 
       await actAs(c, user);
-      expect((await c.query("select count(*)::int n from erp_alert_rules where rule_key='low_stock'")).rows[0].n).toBe(1);
+      expect((await c.query("select count(*)::int n from erp_alert_rules where rule_key='zz_test_rule'")).rows[0].n).toBe(1);
 
       // Raise an alert; company_id auto-stamps; dedupe is enforced.
       await c.query("insert into erp_alerts(rule_key, source_key, dedupe_key, title) values ('low_stock','low_stock','p:123','Low stock')");
