@@ -5,6 +5,7 @@ import {
   valuesEqual,
   diffChanges,
   disallowedFields,
+  missingDocTypes,
   evaluateValidation,
   registerValidator,
 } from './index';
@@ -54,6 +55,12 @@ describe('change-requests/diff', () => {
   it('disallowedFields flags fields outside the whitelist', () => {
     expect(disallowedFields({ a: 1, z: 2 }, ['a'])).toEqual(['z']);
     expect(disallowedFields({ a: 1 }, null)).toEqual([]);
+  });
+  it('missingDocTypes returns required types not yet present (deduped)', () => {
+    expect(missingDocTypes(['cr_copy', 'vat_certificate'], ['cr_copy'])).toEqual(['vat_certificate']);
+    expect(missingDocTypes(['cr_copy', 'cr_copy'], [])).toEqual(['cr_copy']);
+    expect(missingDocTypes([], ['anything'])).toEqual([]);
+    expect(missingDocTypes(['cr_copy'], ['cr_copy', 'photo'])).toEqual([]);
   });
 });
 

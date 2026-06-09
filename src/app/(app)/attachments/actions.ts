@@ -39,6 +39,7 @@ export interface AttachmentView {
   uploaded_by: string | null;
   created_at: string;
   url: string | null;
+  doc_type: string | null;
 }
 
 /** Active attachments for a record, each with a short-lived signed URL. */
@@ -48,14 +49,14 @@ export async function listAttachments(entity: string, recordId: string): Promise
   const supabase = await createClient();
   const { data } = await supabase
     .from('erp_attachments')
-    .select('id, path, file_name, mime_type, size_bytes, uploaded_by, created_at')
+    .select('id, path, file_name, mime_type, size_bytes, uploaded_by, created_at, doc_type')
     .eq('entity', entity).eq('record_id', recordId).is('deleted_at', null)
     .order('created_at', { ascending: false });
   const rows = (data ?? []) as (Omit<AttachmentView, 'url'> & { path: string })[];
   const out: AttachmentView[] = [];
   for (const r of rows) {
     const { data: signed } = await supabase.storage.from(ATTACHMENTS_BUCKET).createSignedUrl(r.path, 3600);
-    out.push({ id: r.id, file_name: r.file_name, mime_type: r.mime_type, size_bytes: r.size_bytes, uploaded_by: r.uploaded_by, created_at: r.created_at, url: signed?.signedUrl ?? null });
+    out.push({ id: r.id, file_name: r.file_name, mime_type: r.mime_type, size_bytes: r.size_bytes, uploaded_by: r.uploaded_by, created_at: r.created_at, url: signed?.signedUrl ?? null, doc_type: r.doc_type });
   }
   return out;
 }
@@ -68,6 +69,9 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
   const file = formData.get('file');
   // Device-generated id of a queued offline photo — makes the upload idempotent.
   const clientRef = String(formData.get('client_ref') || '').trim() || null;
+  // Optional document classification (e.g. cr_copy, vat_certificate) — the doc-type
+  // tag is stored as-is here; CR-specific allowed-type policy lives in the CR layer.
+  const docType = String(formData.get('doc_type') || '').trim() || null;
   if (!entity || !recordId || !(file instanceof File)) return { ok: false, error: 'missing' };
   if (!ctx.companyId) return { ok: false, error: 'no_company' };
 
@@ -82,6 +86,13 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
   if (!v.ok) return { ok: false, error: v.error };
 
   const supabase = await createClient();
+
+  // Change-request documents are authorized by READABILITY of the request itself
+  // (RLS scopes it to the caller's company) — no separate permission needed.
+  if (entity === 'change_request') {
+    const { data: cr } = await supabase.from('erp_change_requests').select('id').eq('id', recordId).maybeSingle();
+    if (!cr) return { ok: false, error: 'forbidden' };
+  }
 
   // Idempotent retry: a media upload re-sent after a lost response is a no-op.
   if (clientRef) {
@@ -99,7 +110,7 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
     .insert({
       company_id: ctx.companyId, entity, record_id: recordId, bucket: ATTACHMENTS_BUCKET, path,
       file_name: file.name, mime_type: file.type, size_bytes: file.size, uploaded_by: ctx.userId,
-      client_ref: clientRef,
+      client_ref: clientRef, doc_type: docType,
     })
     .select('id').single();
   if (error) {
