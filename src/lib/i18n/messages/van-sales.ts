@@ -60,6 +60,18 @@ export const ar = {
       needReason: 'أدخل سبب الفرق لكل صنف.',
       reasons: { short: 'نقص', extra: 'زيادة', damaged: 'تالف', wrong_item: 'صنف خاطئ', expiry: 'صلاحية', other: 'أخرى' },
     },
+    warehouse: {
+      title: 'لوحة المستودع',
+      subtitle: 'التحميلات بانتظار تأكيد المندوب وحالات الفروقات.',
+      pendingConfirmation: 'بانتظار تأكيد المندوب',
+      varianceCases: 'حالات الفروقات',
+      manifest: 'كشف التحميل',
+      salesman: 'المندوب',
+      date: 'التاريخ',
+      status: 'الحالة',
+      review: 'المراجعة',
+      none: 'لا يوجد',
+    },
   },
 };
 
@@ -122,6 +134,18 @@ export const en = {
       sentForReview: 'Variance sent for review.',
       needReason: 'Add a reason for each variance line.',
       reasons: { short: 'Short', extra: 'Extra', damaged: 'Damaged', wrong_item: 'Wrong item', expiry: 'Expiry', other: 'Other' },
+    },
+    warehouse: {
+      title: 'Warehouse Dashboard',
+      subtitle: 'Loads awaiting salesman confirmation and variance cases.',
+      pendingConfirmation: 'Pending salesman confirmation',
+      varianceCases: 'Variance cases',
+      manifest: 'Manifest',
+      salesman: 'Salesman',
+      date: 'Date',
+      status: 'Status',
+      review: 'Review',
+      none: 'Nothing here.',
     },
   },
 };
