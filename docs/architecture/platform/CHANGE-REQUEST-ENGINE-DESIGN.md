@@ -1,6 +1,6 @@
 # Universal Change Request Engine — platform design
 
-**Status:** Design for sign-off · **Flag:** `KAKO_CHANGE_REQUESTS` (default OFF)
+**Status:** Signed off — implementing per §14 · **Flag:** `KAKO_CHANGE_REQUESTS` (default OFF)
 **Author:** platform · **Supersedes:** the entity-specific `erp_customer_change_requests` flow (which it generalizes and can absorb)
 
 A **reusable platform capability** — not a feature — that lets any current or future
@@ -250,9 +250,13 @@ requester can't `edit` per `resolveAccess`.
   (`target_id` null) or per-target overrides.
 - **Attachments** — reuse `erp_attachments` + `uploadAttachment` with
   `entity='change_request'`, `record_id=request_id`; add a nullable **`doc_type`** column
-  to `erp_attachments` (additive, benign for all entities) so a file is tagged CR copy /
-  VAT cert / national address / photo / contract / approval doc per `metadata.attachment_types`.
-  No new upload system; `change_request` added to the attachment entity-permission map.
+  to `erp_attachments` (additive, benign for all entities) — the **primary, queryable
+  classification** going forward (CR copy, VAT cert, national address, photo, contract,
+  approval doc). Document categories themselves live in a **doc-type registry**
+  (`erp_change_request_doc_types`, global + per-company), so industry packs introduce new
+  categories **without a schema change**; `metadata.attachment_types` references them by key,
+  and validation can require a given `doc_type` per entity. No new upload system;
+  `change_request` added to the attachment entity-permission map.
 - **Notifications** — `erp_notify` on submit (approvers, via workflow tasks), and on
   approved / rejected / applied / failed (requester), template from metadata. The existing
   `channel` column carries future email/WhatsApp without schema change.
@@ -318,31 +322,41 @@ migrated/absorbed in a later phase (no data loss; dual-read during transition).
 
 Each PR is additive, flag-gated (`KAKO_CHANGE_REQUESTS` OFF), CI-green, with tests.
 
-| PR | Scope |
-|---|---|
-| **0** | *This design doc.* |
-| **1 — Schema + registry** | CR tables (entities, requests, targets, values), RLS, stamps; CR apply allowlist; code-side registry accessor + validator/adapter registries; pure tests. |
-| **2 — Submit + lifecycle** | `submitChangeRequest` action (single), state machine, event emit, DFG + declarative validation, audit; `customer` registered as first entity. |
-| **3 — Workflow wiring** | Per-entity default definition seeding from metadata; approval → status flip → apply; notifications; integration test (submit→approve→apply). |
-| **4 — Apply engine** | `erp_change_request_apply` (generic, before/after audit, allowlist, DFG re-check); idempotent; integration tests. |
-| **5 — Effective dating** | `effective_at`, `scheduled` state, `erp_change_request_run_due()` cron; tests. |
-| **6 — Bulk** | targets fan-out, `bulk_max`, per-target status/audit, `partially_applied`; tests. |
-| **7 — Attachments** | `doc_type` column, `change_request` attachment wiring, doc-type metadata; tests. |
-| **8 — External hooks** | `external` approver type, adapter registry, signed callback route, email stub; tests. |
-| **9 — Generic UI** | metadata-driven create form, request list, approval inbox, attachments panel (flag-gated routes). |
-| **10 — More entities** | register Products, Suppliers, Routes, Vehicles, Salesmen + GPS/VAT/CR/National-Address field sets (metadata + allowlist only). |
-| **11 — Absorb legacy** | migrate `erp_customer_change_requests` onto the engine; dual-read; deprecate. |
-| **12 — Enablement guide** | per-tenant pilot guide (mirrors Van Sales), validation checklist, rollback, monitoring. |
+Engine-first (validate the platform before exposing it). Order confirmed at sign-off.
+
+| PR | Phase | Scope |
+|---|---|---|
+| **0** | — | *This design doc.* |
+| **1** | Registry & metadata foundation | CR tables (entities, requests, targets, values), **doc-type registry**, RLS, stamps; CR apply allowlist; strongly-typed code accessors + validator/adapter registries over the DB metadata; pure tests. |
+| **2** | Change request lifecycle | `submitChangeRequest` (single), state machine, event emit, DFG + declarative validation, audit; `customer` registered as reference entity #1. |
+| **3** | Workflow & approvals | Per-entity default definition seeding from metadata; approval → status flip; multi-level / company-specific overrides; notifications; integration test. |
+| **4** | Apply / execution layer | `erp_change_request_apply` (generic, before/after audit, allowlist, DFG re-check); idempotent; integration tests. |
+| **5** | Attachments | `doc_type` column + doc-type registry, `change_request` attachment wiring, required-doc validation; tests. |
+| **6** | Effective dating | `effective_at`, `scheduled` state, `erp_change_request_run_due()` cron; tests. |
+| **7** | Bulk change requests | targets fan-out, `bulk_max`, per-target status/audit, `partially_applied`; tests. |
+| **8** | External approval hooks | `external` approver type, adapter registry, signed callback route, email stub; tests. |
+| **9** | Generic UI | metadata-driven create form, request list, approval inbox, attachments panel (flag-gated routes). |
+| **10** | Customer entity migration | migrate `erp_customer_change_requests` onto the engine; dual-read; deprecate legacy (single-engine end-state). |
+| **11** | Additional entities | register Products, Suppliers, Routes, Vehicles, Salesmen + GPS/VAT/CR/National-Address field sets (metadata + allowlist only). |
+| **12** | Pilot enablement guide | per-tenant guide (mirrors Van Sales), validation checklist, rollback, monitoring. |
 
 ---
 
-## 15. Open decisions for sign-off
+## 15. Decisions (signed off)
 
-1. **Metadata source of truth** — proposed: **DB table canonical** (`erp_change_request_entities`),
-   seedable by pack migrations, with a typed code accessor. (Alt: code-registry canonical.)
-2. **`doc_type` on `erp_attachments`** — proposed: add one **nullable** column to the shared
-   attachments table (additive, benign). Confirm OK to touch the shared table this way.
-3. **Legacy customer flow** — proposed: keep working, register `customer` as entity #1,
-   absorb in PR 11 with dual-read. Confirm the migration appetite/timing.
-4. **Phasing** — proposed order above (engine before UI before more entities). Confirm,
-   or reprioritize (e.g. UI earlier for a demo).
+1. **Metadata source of truth — DB table canonical.** `erp_change_request_entities` is
+   authoritative, seedable by industry-pack migrations, with **per-company overrides** as a
+   first-class case. Approval / validation / notification / permission config is data-driven.
+   **Strongly-typed code accessors + validation wrap the DB metadata** to preserve type safety,
+   but the database is canonical. New entities are added by registration/config, not engine code.
+2. **`doc_type` on `erp_attachments` — add a nullable column** (additive, backward-compatible)
+   as the **primary, queryable** document classification. Document categories live in a
+   **doc-type registry** (`erp_change_request_doc_types`) so packs add categories without a
+   schema change; validation may require specific doc types per request type.
+3. **Legacy customer flow — keep, register `customer` as reference entity #1, absorb later.**
+   Lowest risk; existing customer workflows continue uninterrupted; the engine is proven first.
+   **Not two systems permanently** — target is a single universal engine with the legacy flow
+   gradually absorbed (PR 10) once proven in production.
+4. **Phasing — engine first, then UI, then more entities** (order in §14). The platform core
+   (lifecycle, approvals, apply, attachments, effective dating, bulk, external hooks) is built
+   and validated before the UI consumes it. Objective: a durable platform capability, not a fast demo.
