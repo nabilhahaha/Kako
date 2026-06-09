@@ -162,11 +162,23 @@ export async function adjustStockRequest(input: AdjustStockRequestInput): Promis
     }
   }
 
+  // Full before/after audit: requested_qty, previous + new approved_qty per line,
+  // the diff, the reason, and who. (actor + company_id + timestamp are stamped on
+  // the erp_audit_logs row by logAudit.)
+  const auditLines = input.lines.map((adj) => {
+    const cur = byProduct.get(adj.productId);
+    return {
+      product_id: adj.productId,
+      requested_qty: cur ? Number(cur.quantity) : 0,
+      approved_qty_before: cur && cur.approved_qty != null ? Number(cur.approved_qty) : null,
+      approved_qty_after: adj.approvedQty,
+    };
+  });
   await logAudit(supabase, {
     action: 'adjust',
     entity: 'van_stock_request',
     entityId: input.requestId,
-    details: { changes, reason: input.reason, adjusted_by: ctx.userId },
+    details: { reason: input.reason, adjusted_by: ctx.userId, lines: auditLines, changes },
     companyId: ctx.companyId,
   });
   return { ok: true, changes };
