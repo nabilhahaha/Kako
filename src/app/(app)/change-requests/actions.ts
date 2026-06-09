@@ -46,6 +46,11 @@ export async function submitChangeRequest(input: SubmitChangeRequestInput): Prom
 
   const supabase = await createClient();
 
+  // 0) Entitlement subsumption (fallback-safe): gates only when KAKO_ENTITLEMENTS is
+  //    ON and the owner set a change_requests entitlement that is OFF.
+  const { entitlementAllows } = await import('@/lib/entitlements/gate-server');
+  if (!(await entitlementAllows(supabase, ctx.companyId, 'change_requests'))) return { ok: false, error: 'not_entitled' };
+
   // 1) Resolve the entity metadata (company override → global default).
   const entity = await getChangeRequestEntity(supabase, input.entityKey, ctx.companyId);
   if (!entity || !entity.isActive) return { ok: false, error: 'unknown_entity' };

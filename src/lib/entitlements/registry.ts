@@ -45,6 +45,25 @@ export function isEntitledIn(
   return featureRow ? entitlementActive(featureRow, nowMs) : true;
 }
 
+/**
+ * Engine-activation gate (fallback-safe). When entitlements are OFF, or when no
+ * explicit module entitlement row exists for the company, this returns true so the
+ * engine behaves exactly as today; only when an owner has SET a module entitlement
+ * does it honor it. This is how engines (van_sales / alerts / change_requests) are
+ * subsumed without breaking anything. Pure.
+ */
+export function moduleEntitledOrFallback(
+  entitlements: CompanyEntitlement[],
+  moduleKey: string,
+  entitlementsEnabled: boolean,
+  nowMs: number,
+): boolean {
+  if (!entitlementsEnabled) return true;
+  const row = entitlements.find((e) => e.moduleKey === moduleKey && e.featureKey === null);
+  if (!row) return true;                       // no entitlement set → fall back to current behavior
+  return entitlementActive(row, nowMs);
+}
+
 // ── Permission → module map ─────────────────────────────────────────────────
 // Maps a permission to the module(s) it unlocks. Seeded here (kept beside the
 // permission catalog); modules/packs extend it. An unmapped permission returns []

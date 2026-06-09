@@ -57,5 +57,9 @@ export async function isVanSalesActive(supabase: SupabaseClient, ctx: UserContex
   if (!VAN_SALES_ENABLED()) return false;
   if (!ctx.companyId) return false;
   const s = await loadVanSalesSettings(supabase, ctx.companyId);
-  return s.isEnabled;
+  if (!s.isEnabled) return false;
+  // Entitlement subsumption (fallback-safe): honored only when KAKO_ENTITLEMENTS is
+  // ON and the owner has set a van_sales entitlement; otherwise behaves as before.
+  const { entitlementAllows } = await import('@/lib/entitlements/gate-server');
+  return entitlementAllows(supabase, ctx.companyId, 'van_sales');
 }

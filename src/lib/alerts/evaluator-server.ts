@@ -44,6 +44,10 @@ async function dispatch(db: SupabaseClient, companyId: string, rule: AlertRule, 
 
 export async function runCompanyAlerts(db: SupabaseClient, companyId: string, now: () => number = Date.now): Promise<CompanyEvalResult> {
   const out: CompanyEvalResult = { raised: 0, refreshed: 0, resolved: 0 };
+  // Entitlement subsumption (fallback-safe): skip a company only when KAKO_ENTITLEMENTS
+  // is ON and the owner set a critical_alerts entitlement that is OFF.
+  const { entitlementAllows } = await import('@/lib/entitlements/gate-server');
+  if (!(await entitlementAllows(db, companyId, 'critical_alerts'))) return out;
   const rules = await loadRules(db, companyId);
 
   for (const rule of rules) {
