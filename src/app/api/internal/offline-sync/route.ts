@@ -5,9 +5,11 @@ import { MOBILE_ENABLED, isApplicable, dedupeMutations, mapVisitVerdict, type Of
 import { collectPayment } from '@/app/(app)/rep/actions';
 import { submitSurveyResponse } from '@/app/(app)/settings/surveys/actions';
 import { submitFormResponse } from '@/app/(app)/forms/actions';
+import { confirmLoad } from '@/app/(app)/field/van-sales/actions';
 import type { PaymentMethod } from '@/lib/erp/types';
 import type { SurveyAnswers } from '@/lib/erp/survey';
 import type { FormAnswers } from '@/lib/form-builder';
+import type { ConfirmationLineInput } from '@/lib/van-sales';
 
 // Offline sync intake — POST /api/internal/offline-sync. Receives a batch of
 // queued field mutations from the PWA, records each EXACTLY-ONCE in
@@ -176,6 +178,19 @@ async function applyMutation(db: Db, companyId: string, m: OfflineMutation): Pro
     return res.ok
       ? { ok: true, verdict: 'form_accepted' }
       : { ok: false, reason: res.error === 'validation' ? (res.problems ?? []).join('; ') : res.error, verdict: 'form_rejected' };
+  }
+
+  // Van load confirmation: reuse confirmLoad → the SAME atomic, validated RPC
+  // (erp_van_confirm_load) that the online path uses. EXACTLY-ONCE by the intake
+  // layer; the RPC is itself idempotent per manifest. Stock posts (accepted-qty
+  // only) server-side on apply — the device never finalizes the ledger.
+  if (m.entity === 'van_load_confirmation' && m.operation === 'create') {
+    const p = m.payload as { manifestId?: string; lines?: ConfirmationLineInput[]; notes?: string };
+    if (!p.manifestId) return { ok: false, reason: 'missing manifest', verdict: 'load_rejected' };
+    const res = await confirmLoad({ manifestId: p.manifestId, lines: p.lines ?? [], notes: p.notes });
+    return res.ok
+      ? { ok: true, verdict: 'load_confirmed' }
+      : { ok: false, reason: res.problems?.length ? res.problems.join('; ') : res.error, verdict: 'load_rejected' };
   }
 
   return { ok: false, reason: 'no handler' };
