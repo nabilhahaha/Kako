@@ -3,6 +3,7 @@
   "crons": [
     { "path": "/api/internal/sync-tick", "schedule": "*/15 * * * *" },
     { "path": "/api/internal/change-request-tick", "schedule": "*/10 * * * *" },
+    { "path": "/api/internal/alerts-tick", "schedule": "*/15 * * * *" },
     { "path": "/api/internal/search-reindex", "schedule": "0 3 * * *" },
     { "path": "/api/internal/kpi-snapshot", "schedule": "0 2 * * *" }
   ]
