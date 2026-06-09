@@ -6,6 +6,7 @@ import {
   isEntitledIn,
   modulesForPermission,
   requiredEntitlementModules,
+  moduleEntitledOrFallback,
 } from './index';
 import type { CompanyEntitlement, CompanyEntitlementRow } from './types';
 
@@ -89,5 +90,19 @@ describe('entitlements/requiredEntitlementModules (gate decision)', () => {
   it('mapped engine permission + company + flag ON → the module(s)', () => {
     expect(requiredEntitlementModules('field.sales', co, true)).toEqual(['van_sales']);
     expect(requiredEntitlementModules('route.create', co, true)).toEqual(['route_management']);
+  });
+});
+
+describe('entitlements/moduleEntitledOrFallback (engine subsumption)', () => {
+  const now = 1_000_000;
+  it('flag OFF → allow (no subsumption)', () => {
+    expect(moduleEntitledOrFallback([], 'van_sales', false, now)).toBe(true);
+  });
+  it('no entitlement row → allow (fallback to current behavior)', () => {
+    expect(moduleEntitledOrFallback([], 'van_sales', true, now)).toBe(true);
+  });
+  it('row present → honored', () => {
+    expect(moduleEntitledOrFallback([ent({ isEnabled: true })], 'van_sales', true, now)).toBe(true);
+    expect(moduleEntitledOrFallback([ent({ isEnabled: false })], 'van_sales', true, now)).toBe(false);
   });
 });
