@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import { useI18n } from '@/lib/i18n/provider';
 import { missingVarianceReasons, VARIANCE_REASONS, type ConfirmationLineInput, type VarianceReason } from '@/lib/van-sales';
 import { enqueueLoadConfirmation } from '@/lib/van-sales/offline-client';
+import { captureEntityMedia, syncMedia } from '@/lib/offline-sync/media';
 import { confirmLoad } from '../actions';
 
 export interface ConfirmLineView { productId: string; productName: string; loadedQty: number }
@@ -21,11 +22,13 @@ export function ConfirmForm({ manifestId, lines }: { manifestId: string; lines: 
   const { t } = useI18n();
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>(() => lines.map((l) => ({ ...l, accepted: l.loadedQty, reason: '' })));
+  const [evidence, setEvidence] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
 
   const setRow = (i: number, patch: Partial<Row>) => setRows((s) => s.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const acceptFull = () => setRows((s) => s.map((r) => ({ ...r, accepted: r.loadedQty, reason: '' })));
   const rejectFull = () => setRows((s) => s.map((r) => ({ ...r, accepted: 0 })));
+  const hasVariance = rows.some((r) => r.accepted !== r.loadedQty);
 
   const buildLines = (): ConfirmationLineInput[] =>
     rows.map((r) => ({ productId: r.productId, loadedQty: r.loadedQty, acceptedQty: r.accepted, reason: r.reason || undefined }));
@@ -37,12 +40,20 @@ export function ConfirmForm({ manifestId, lines }: { manifestId: string; lines: 
     try {
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
         await enqueueLoadConfirmation({ manifestId, lines: cl });
+        if (evidence.length) toast.info(t('vanSales.confirm.evidenceOnlineOnly'));
         toast.success(t('vanSales.confirm.queuedOffline'));
         router.push('/field/van-sales');
         return;
       }
       const res = await confirmLoad({ manifestId, lines: cl });
       if (!res.ok) { toast.error(res.problems?.length ? res.problems.join(' · ') : res.error ?? t('vanSales.confirm.error')); return; }
+      // Variance evidence → attach to the confirmation via the shared field-media
+      // pipeline (capture → offline store → /api/internal/offline-media → erp_attachments).
+      if (evidence.length && res.id) {
+        for (const f of evidence) await captureEntityMedia('van_load_confirmation', res.id, f);
+        await syncMedia();
+        toast.success(t('vanSales.confirm.photosAttached'));
+      }
       toast.success(res.requiresReview ? t('vanSales.confirm.sentForReview') : t('vanSales.confirm.confirmed'));
       router.push('/field/van-sales');
     } catch {
@@ -92,6 +103,20 @@ export function ConfirmForm({ manifestId, lines }: { manifestId: string; lines: 
           })}
         </CardContent>
       </Card>
+
+      {hasVariance && (
+        <Card>
+          <CardContent className="space-y-1.5 pt-6">
+            <span className="text-xs font-medium">{t('vanSales.confirm.evidence')}</span>
+            <input
+              type="file" accept="image/*" capture="environment" multiple
+              className="block w-full text-sm"
+              onChange={(e) => setEvidence(Array.from(e.target.files ?? []))}
+            />
+            <span className="text-xs text-muted-foreground">{evidence.length ? `${evidence.length} · ${t('vanSales.confirm.evidenceHint')}` : t('vanSales.confirm.evidenceHint')}</span>
+          </CardContent>
+        </Card>
+      )}
 
       <Button onClick={confirm} disabled={busy} className="w-full">
         <Send className="h-4 w-4" /> {busy ? t('vanSales.confirm.confirming') : t('vanSales.confirm.confirm')}

@@ -34,3 +34,24 @@ export function validateAttachment(input: { type: string; size: number }): { ok:
   if (input.size > spec.maxBytes) return { ok: false, error: `too_large_${spec.category}` };
   return { ok: true };
 }
+
+/** Entities a field rep may attach IMAGE evidence to with `field.attach_media`,
+ *  via the offline-media pipeline. One trust boundary, read by the salesman app
+ *  (capture), the offline-media route (intake), and uploadAttachment (authz).
+ *  Covers customer visits, van load confirmations + variance evidence, returns,
+ *  merchandising audits, and route riding. */
+export const FIELD_MEDIA_ENTITIES = [
+  'visit',                 // customer visits
+  'customer',              // customer master photos
+  'van_load_confirmation', // van load confirmations + variance evidence
+  'sales_return',          // returns
+  'merchandising_audit',   // merchandising audits
+  'route_ride',            // route riding
+] as const;
+
+export type FieldMediaEntity = (typeof FIELD_MEDIA_ENTITIES)[number];
+
+/** Is `entity` an allowed field-media target (image evidence via field.attach_media)? */
+export function isFieldMediaEntity(entity: string): entity is FieldMediaEntity {
+  return (FIELD_MEDIA_ENTITIES as readonly string[]).includes(entity);
+}

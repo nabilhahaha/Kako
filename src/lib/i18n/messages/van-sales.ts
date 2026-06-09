@@ -58,6 +58,10 @@ export const ar = {
       noPending: 'لا توجد تحميلات بانتظار التأكيد.',
       sentForReview: 'تم إرسال الفروقات للمراجعة.',
       needReason: 'أدخل سبب الفرق لكل صنف.',
+      evidence: 'صور إثبات الفرق',
+      evidenceHint: 'أضف صورًا توضّح الفرق (اختياري).',
+      evidenceOnlineOnly: 'تُرفق الصور عند الاتصال بالإنترنت.',
+      photosAttached: 'تم إرفاق الصور.',
       reasons: { short: 'نقص', extra: 'زيادة', damaged: 'تالف', wrong_item: 'صنف خاطئ', expiry: 'صلاحية', other: 'أخرى' },
     },
     warehouse: {
@@ -171,6 +175,10 @@ export const en = {
       noPending: 'No loads awaiting confirmation.',
       sentForReview: 'Variance sent for review.',
       needReason: 'Add a reason for each variance line.',
+      evidence: 'Variance evidence photos',
+      evidenceHint: 'Add photos that show the variance (optional).',
+      evidenceOnlineOnly: 'Photos attach when you are online.',
+      photosAttached: 'Photos attached.',
       reasons: { short: 'Short', extra: 'Extra', damaged: 'Damaged', wrong_item: 'Wrong item', expiry: 'Expiry', other: 'Other' },
     },
     warehouse: {
