@@ -8,21 +8,21 @@ import {
   VAN_SALES_ENABLED,
   classifyConfirmation,
   missingVarianceReasons,
+  invalidAcceptedQuantities,
   type ConfirmationLineInput,
   type LoadConfirmationStatus,
 } from '@/lib/van-sales';
 
 /** ── Van Sales (Phase B) — confirm a van load ───────────────────────────────
- *  The salesman accept / reject / accept-with-variance handshake. Records the
- *  immutable confirmation + lines, then posts ONLY the accepted quantity into van
- *  stock via erp_van_confirm_load() (warehouse → van transfer; the ledger trigger
- *  maintains on-hand). Variance never auto-deducts — it sets review_status so the
- *  warehouse → supervisor review picks it up. Audited. Flag-gated. */
+ *  The salesman accept / reject / accept-with-variance handshake. The ENTIRE flow
+ *  (confirmation + lines + ledger posting + posted_at) runs ATOMICALLY inside one
+ *  SECURITY DEFINER function (erp_van_confirm_load) — any failure rolls everything
+ *  back, so there is no partial confirmation. The RPC re-validates ownership /
+ *  company / manifest status / accepted ≤ loaded and posts ONLY the accepted
+ *  quantity (warehouse → van). Variance never auto-deducts. Flag-gated. */
 
 export interface ConfirmLoadInput {
   manifestId: string;
-  warehouseId?: string; // the van
-  salesmanId?: string;
   lines: ConfirmationLineInput[];
   notes?: string;
 }
@@ -42,60 +42,43 @@ export async function confirmLoad(input: ConfirmLoadInput): Promise<ConfirmLoadR
   const ctx = await getUserContext();
   if (!ctx) return { ok: false, error: 'unauthorized' };
   if (!ctx.companyId) return { ok: false, error: 'no company' };
-  if (!hasPermission(ctx, 'field.sales') && !ctx.isSuperAdmin) return { ok: false, error: 'unauthorized' };
+  if (!hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'stock.adjust') && !ctx.isSuperAdmin) {
+    return { ok: false, error: 'unauthorized' };
+  }
   if (!input.manifestId) return { ok: false, error: 'missing manifest' };
 
-  // A variance line must carry a reason (short/extra/damaged/wrong_item/expiry/other).
+  // Client-side guards for a clean error (the RPC re-validates as the trust boundary).
+  const badQty = invalidAcceptedQuantities(input.lines);
+  if (badQty.length) return { ok: false, error: 'invalid_accepted_qty', problems: badQty };
   const missing = missingVarianceReasons(input.lines);
   if (missing.length) return { ok: false, error: 'variance_reason_required', problems: missing };
 
   const c = classifyConfirmation(input.lines);
   const supabase = await createClient();
 
-  const { data: conf, error: cErr } = await supabase
-    .from('erp_van_load_confirmations')
-    .insert({
-      manifest_id: input.manifestId,
-      warehouse_id: input.warehouseId ?? null,
-      salesman_id: input.salesmanId ?? ctx.userId,
-      status: c.status,
-      requires_review: c.requiresReview,
-      review_status: c.requiresReview ? 'pending' : 'none',
-      notes: input.notes ?? null,
-      created_by: ctx.userId,
-      // company_id set by trigger; RLS-scoped.
-    })
-    .select('id')
-    .single();
-  if (cErr) return { ok: false, error: cErr.message };
-  const id = (conf as { id: string }).id;
-
-  const lineRows = c.lines.map((l) => ({
-    confirmation_id: id,
-    product_id: l.productId,
-    loaded_qty: l.loadedQty,
-    accepted_qty: l.acceptedQty,
-    variance_qty: l.varianceQty,
-    variance_reason: l.reason ?? null,
-    notes: l.notes ?? null,
-    photo_ref: l.photoRef ?? null,
-  }));
-  const { error: lErr } = await supabase.from('erp_van_load_confirmation_lines').insert(lineRows);
-  if (lErr) return { ok: false, error: lErr.message, id };
-
-  // Post ONLY the accepted quantity to the ledger (warehouse → van). Nothing posts
-  // on a full reject. Idempotent server-side (posted_at guard).
-  if (c.totalAccepted > 0) {
-    const { error: pErr } = await supabase.rpc('erp_van_confirm_load', { p_confirmation_id: id });
-    if (pErr) return { ok: false, error: pErr.message, id };
-  }
+  // One atomic call does everything (insert + post + posted_at) or nothing.
+  const { data, error } = await supabase.rpc('erp_van_confirm_load', {
+    p_manifest_id: input.manifestId,
+    p_status: c.status,
+    p_requires_review: c.requiresReview,
+    p_notes: input.notes ?? null,
+    p_lines: c.lines.map((l) => ({
+      product_id: l.productId,
+      loaded_qty: l.loadedQty,
+      accepted_qty: l.acceptedQty,
+      variance_reason: l.reason ?? null,
+      notes: l.notes ?? null,
+      photo_ref: l.photoRef ?? null,
+    })),
+  });
+  if (error) return { ok: false, error: error.message };
 
   await logAudit(supabase, {
     action: 'confirm',
     entity: 'van_load_confirmation',
-    entityId: id,
-    details: { status: c.status, requiresReview: c.requiresReview, totalAccepted: c.totalAccepted, totalVariance: c.totalVariance },
+    entityId: (data as string) ?? null,
+    details: { status: c.status, requiresReview: c.requiresReview, totalAccepted: c.totalAccepted },
     companyId: ctx.companyId,
   });
-  return { ok: true, id, status: c.status, requiresReview: c.requiresReview };
+  return { ok: true, id: data as string, status: c.status, requiresReview: c.requiresReview };
 }

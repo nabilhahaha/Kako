@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   lineVariance, classifyConfirmation, postableQuantities, missingVarianceReasons,
-  suggestedRequestQty, diffRequestLines,
+  invalidAcceptedQuantities, suggestedRequestQty, diffRequestLines,
 } from './index';
 
 describe('van-sales/load · confirmation', () => {
@@ -20,16 +20,16 @@ describe('van-sales/load · confirmation', () => {
     expect(r.lines[0].varianceQty).toBe(-2);
   });
 
-  it('Accept With Variance: a quality/extra discrepancy → review', () => {
+  it('Accept With Variance: a quality discrepancy → review', () => {
     const r = classifyConfirmation([
       { productId: 'a', loadedQty: 10, acceptedQty: 8, reason: 'short' },
-      { productId: 'b', loadedQty: 5, acceptedQty: 6, reason: 'extra' },   // extra → review-worthy
+      { productId: 'b', loadedQty: 5, acceptedQty: 3, reason: 'damaged' }, // quality → review-worthy
     ]);
     expect(r.status).toBe('accept_with_variance');
     expect(r.requiresReview).toBe(true);
-    expect(r.totalVariance).toBe(-1);
-    const damaged = classifyConfirmation([{ productId: 'c', loadedQty: 4, acceptedQty: 2, reason: 'damaged' }]);
-    expect(damaged.status).toBe('accept_with_variance');
+    for (const reason of ['wrong_item', 'expiry', 'other'] as const) {
+      expect(classifyConfirmation([{ productId: 'c', loadedQty: 4, acceptedQty: 2, reason }]).status).toBe('accept_with_variance');
+    }
   });
 
   it('Reject Full: nothing accepted → review', () => {
@@ -55,6 +55,14 @@ describe('van-sales/load · confirmation', () => {
 
   it('lineVariance is accepted minus loaded', () => {
     expect(lineVariance({ productId: 'a', loadedQty: 10, acceptedQty: 7 })).toBe(-3);
+  });
+
+  it('flags accepted qty that is negative or exceeds loaded', () => {
+    expect(invalidAcceptedQuantities([
+      { productId: 'a', loadedQty: 10, acceptedQty: 8 },   // ok
+      { productId: 'b', loadedQty: 5, acceptedQty: 6 },    // > loaded
+      { productId: 'c', loadedQty: 4, acceptedQty: -1 },   // negative
+    ])).toEqual(['b', 'c']);
   });
 });
 
