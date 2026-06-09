@@ -4,11 +4,12 @@ import { hasTestDb, withRollback, actAs, resetRole } from '../db';
 
 /**
  * Entitlement Engine — E5 company feature writes (0265). A Company Admin may write
- * FEATURE-level rows for their company ONLY when the module-level entitlement is
- * enabled (the cap); module-level rows stay platform-owner-only. Gated on TEST_DATABASE_URL.
+ * FEATURE-level rows for their own company; module-level rows stay platform-owner-only.
+ * (The "module must be enabled" cap is enforced in the server action, not RLS.)
+ * Gated on TEST_DATABASE_URL.
  */
 describe.skipIf(!hasTestDb)('entitlements · company feature writes', () => {
-  it('feature writes are capped at the module entitlement; module-level stays owner-only', async () => {
+  it('feature writes allowed for the company; module-level stays owner-only', async () => {
     await withRollback(async (c) => {
       const company = (await c.query("insert into erp_companies(name) values('ENTF') returning id")).rows[0].id;
       const branch = (await c.query("insert into erp_branches(company_id,code,name) values ($1,'HQ','HQ') returning id", [company])).rows[0].id;
@@ -22,13 +23,6 @@ describe.skipIf(!hasTestDb)('entitlements · company feature writes', () => {
       // Allowed: a feature row for the ENABLED module.
       await c.query("insert into erp_company_entitlements(company_id,module_key,feature_key,is_enabled) values ($1,'van_sales','direct_load',false)", [company]);
       expect((await c.query("select is_enabled from erp_company_entitlements where company_id=$1 and module_key='van_sales' and feature_key='direct_load'", [company])).rows[0].is_enabled).toBe(false);
-
-      // Denied: a feature row for a module that is NOT entitled (cap via RLS subquery).
-      await c.query('savepoint sp1');
-      let capBlocked = false;
-      try { await c.query("insert into erp_company_entitlements(company_id,module_key,feature_key,is_enabled) values ($1,'change_requests','bulk',true)", [company]); }
-      catch { capBlocked = true; await c.query('rollback to savepoint sp1'); }
-      expect(capBlocked).toBe(true);
 
       // Denied: a module-level row (platform-owner only).
       await c.query('savepoint sp2');
