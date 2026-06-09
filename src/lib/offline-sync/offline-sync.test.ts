@@ -132,3 +132,32 @@ describe('offline-sync/media (image fit math)', () => {
     expect(fitDimensions(0, 0, 1280)).toEqual({ width: 1, height: 1 });            // guards div-by-zero
   });
 });
+
+describe('offline-sync/media (intake field selection)', () => {
+  const base = { blob: new Blob(), fileName: 'p.jpg', mimeType: 'image/jpeg', createdAt: 't' };
+  it('direct-entity target sends reference_type/reference_id (and wins over visit fields)', async () => {
+    const { mediaUploadFields } = await import('./media');
+    expect(mediaUploadFields({ id: 'c1', referenceType: 'van_load_confirmation', referenceId: 'CONF1', ...base }))
+      .toEqual({ client_ref: 'c1', reference_type: 'van_load_confirmation', reference_id: 'CONF1' });
+    // a stray customer/visit alongside a direct target is ignored
+    expect(mediaUploadFields({ id: 'c2', referenceType: 'sales_return', referenceId: 'R1', customerId: 'X', visitDate: 'D', ...base }))
+      .toEqual({ client_ref: 'c2', reference_type: 'sales_return', reference_id: 'R1' });
+  });
+  it('visit target sends customer_id/visit_date', async () => {
+    const { mediaUploadFields } = await import('./media');
+    expect(mediaUploadFields({ id: 'v1', customerId: 'C1', visitDate: '2026-06-09', ...base }))
+      .toEqual({ client_ref: 'v1', customer_id: 'C1', visit_date: '2026-06-09' });
+  });
+});
+
+describe('erp/attachments (field-media allowlist)', () => {
+  it('allows field entities and rejects others', async () => {
+    const { isFieldMediaEntity, FIELD_MEDIA_ENTITIES } = await import('@/lib/erp/attachments');
+    for (const e of ['visit', 'customer', 'van_load_confirmation', 'sales_return', 'merchandising_audit', 'route_ride']) {
+      expect(isFieldMediaEntity(e)).toBe(true);
+    }
+    expect(isFieldMediaEntity('invoice')).toBe(false);
+    expect(isFieldMediaEntity('payment')).toBe(false);
+    expect(FIELD_MEDIA_ENTITIES).toContain('van_load_confirmation');
+  });
+});

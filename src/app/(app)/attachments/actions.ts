@@ -6,7 +6,7 @@ import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guard
 import { hasPermission, type Permission } from '@/lib/erp/permissions';
 import { getEntity } from '@/lib/erp/entities';
 import { logAudit } from '@/lib/erp/audit';
-import { ATTACHMENTS_BUCKET, validateAttachment, safeExtension } from '@/lib/erp/attachments';
+import { ATTACHMENTS_BUCKET, validateAttachment, safeExtension, isFieldMediaEntity } from '@/lib/erp/attachments';
 
 /** Generic attachments, reusable for any entity. Tenant isolation is enforced by
  *  RLS on erp_attachments + the storage bucket's company-prefix policy; manage
@@ -21,6 +21,12 @@ function entityPermission(entity: string): Permission | null {
     customer_change_request: 'customers.manage',
     credit_limit_request: 'customers.manage',
     workflow: 'workflow.manage',
+    // Field-media-only entities (no registry record of their own): manage rights
+    // map to the same field gate used to attach the evidence.
+    van_load_confirmation: 'field.attach_media',
+    sales_return: 'field.attach_media',
+    merchandising_audit: 'field.attach_media',
+    route_ride: 'field.attach_media',
   };
   return fallback[entity] ?? null;
 }
@@ -66,9 +72,10 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
   if (!ctx.companyId) return { ok: false, error: 'no_company' };
 
   // Authorization: the entity's own manage permission, OR — for a field rep
-  // attaching an IMAGE to a visit/customer they're servicing — 'field.attach_media'.
+  // attaching IMAGE evidence to a field entity (visit, van load confirmation,
+  // variance, return, merchandising audit, route ride) — 'field.attach_media'.
   const perm = entityPermission(entity);
-  const isFieldMedia = file.type.startsWith('image/') && (entity === 'visit' || entity === 'customer') && hasPermission(ctx, 'field.attach_media');
+  const isFieldMedia = file.type.startsWith('image/') && isFieldMediaEntity(entity) && hasPermission(ctx, 'field.attach_media');
   if (perm && !hasPermission(ctx, perm) && !isFieldMedia) return { ok: false, error: 'forbidden' };
 
   const v = validateAttachment({ type: file.type, size: file.size });
