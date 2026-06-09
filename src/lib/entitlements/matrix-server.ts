@@ -41,3 +41,44 @@ export async function loadCapabilityMatrix(supabase: SupabaseClient, companyId: 
     isEnabled: enabled.get(String(m.module_key)) ?? false,
   }));
 }
+
+export interface FeatureRow {
+  moduleKey: string;
+  moduleLabelEn: string;
+  featureKey: string;
+  labelEn: string;
+  labelAr: string | null;
+  isEnabled: boolean;   // feature-level entitlement (default: inherits the enabled module → true)
+}
+
+/** Features of the modules a company is ENTITLED to, with their feature-level
+ *  entitlement state. Only modules with an active module-level entitlement appear,
+ *  so a Company Admin only ever sees what the Platform Owner allowed. */
+export async function loadCompanyFeatureSettings(supabase: SupabaseClient, companyId: string): Promise<FeatureRow[]> {
+  const { data: ents } = await supabase
+    .from('erp_company_entitlements')
+    .select('module_key, feature_key, is_enabled')
+    .eq('company_id', companyId);
+  const rows = (ents ?? []) as { module_key: string; feature_key: string | null; is_enabled: boolean }[];
+  const enabledModules = new Set(rows.filter((r) => r.feature_key === null && r.is_enabled).map((r) => r.module_key));
+  if (enabledModules.size === 0) return [];
+  const featureState = new Map(rows.filter((r) => r.feature_key !== null).map((r) => [`${r.module_key}:${r.feature_key}`, r.is_enabled]));
+
+  const { data: feats } = await supabase
+    .from('erp_features')
+    .select('module_key, feature_key, label_en, label_ar, erp_modules!inner(label_en)')
+    .eq('is_active', true)
+    .in('module_key', [...enabledModules]);
+  return ((feats ?? []) as Record<string, unknown>[]).map((f) => {
+    const key = `${String(f.module_key)}:${String(f.feature_key)}`;
+    return {
+      moduleKey: String(f.module_key),
+      moduleLabelEn: String((f.erp_modules as { label_en?: string } | null)?.label_en ?? f.module_key),
+      featureKey: String(f.feature_key),
+      labelEn: String(f.label_en),
+      labelAr: (f.label_ar as string) ?? null,
+      // default ON (inherits the enabled module) unless an explicit feature row disables it
+      isEnabled: featureState.has(key) ? Boolean(featureState.get(key)) : true,
+    };
+  });
+}

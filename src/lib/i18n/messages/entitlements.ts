@@ -15,6 +15,10 @@ export const ar = {
     error: 'تعذّر الحفظ.',
     notAllowed: 'هذه الصفحة لمالك المنصّة فقط.',
     cat: { core: 'أساسي', engine: 'محرّك', vertical: 'قطاعي', pack: 'حزمة' },
+    featuresTitle: 'إعدادات الميزات',
+    featuresSubtitle: 'فعّل ميزات الوحدات المتاحة لشركتك.',
+    feature: 'الميزة',
+    noFeatures: 'لا توجد ميزات قابلة للتهيئة (لا توجد وحدات مفعّلة).',
   },
 };
 
@@ -33,5 +37,9 @@ export const en = {
     error: 'Could not save.',
     notAllowed: 'This page is for the platform owner only.',
     cat: { core: 'Core', engine: 'Engine', vertical: 'Vertical', pack: 'Pack' },
+    featuresTitle: 'Feature Settings',
+    featuresSubtitle: 'Enable features within the modules your company is allowed.',
+    feature: 'Feature',
+    noFeatures: 'No configurable features (no modules enabled).',
   },
 };
