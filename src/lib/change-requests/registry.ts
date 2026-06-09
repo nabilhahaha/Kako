@@ -19,7 +19,10 @@ import type {
 // so metadata can never point the engine at an arbitrary table. Grows by an
 // explicit one-line addition as each master-data entity is governed.
 export const CR_APPLY_ALLOWLIST: ReadonlySet<string> = new Set<string>([
-  'erp_customers',          // reference entity (registered in Phase 2)
+  'erp_customers',          // reference entity (Phase 2)
+  'erp_products_catalog',   // product (Phase 11)
+  'erp_suppliers',          // supplier (Phase 11)
+  'erp_routes',             // route (Phase 11)
 ]);
 
 /** Is `table` an allowed Change Request apply target? */
