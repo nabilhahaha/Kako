@@ -9,3 +9,4 @@
 export * from './flags';
 export * from './types';
 export * from './registry';
+export * from './lifecycle';
