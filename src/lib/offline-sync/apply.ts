@@ -16,6 +16,7 @@ export const APPLY_WHITELIST: Record<string, readonly SyncOperation[]> = {
   collection: ['create'],
   survey: ['create'],
   form_response: ['create'], // immutable form responses — create-only, validated + governed server-side
+  van_load_confirmation: ['create'], // salesman load confirmation — applied EXACTLY-ONCE via the same atomic RPC
 };
 
 /** True when an (entity, operation) is on the safe auto-apply whitelist. Pure. */
@@ -37,7 +38,8 @@ export function applicableEntities(): string[] {
 export type Verdict =
   | 'valid' | 'out_of_route' | 'gps_violation' | 'blocked'   // visit outcomes
   | 'accepted' | 'rejected' | 'duplicate' | 'exception'      // collection outcomes
-  | 'form_accepted' | 'form_rejected';                       // form-response outcomes
+  | 'form_accepted' | 'form_rejected'                        // form-response outcomes
+  | 'load_confirmed' | 'load_rejected';                      // van load-confirmation outcomes
 
 /** Map an erp_check_in_visit result to a single field-facing verdict. Pure.
  *  Precedence: blocked (needs approval) → gps_violation → out_of_route → valid. */
