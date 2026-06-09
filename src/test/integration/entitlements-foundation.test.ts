@@ -29,9 +29,11 @@ describe.skipIf(!hasTestDb)('entitlements · foundation', () => {
       // Company reads its own entitlement…
       expect((await c.query("select is_enabled from erp_company_entitlements where company_id=$1", [company])).rows[0].is_enabled).toBe(true);
       // …but cannot write it (platform-owner only) — RLS blocks the insert.
+      // (savepoint so the expected failure doesn't poison the surrounding transaction)
+      await c.query('savepoint sp_block');
       let blocked = false;
       try { await c.query("insert into erp_company_entitlements(company_id,module_key,is_enabled) values ($1,'change_requests',true)", [company]); }
-      catch { blocked = true; }
+      catch { blocked = true; await c.query('rollback to savepoint sp_block'); }
       expect(blocked).toBe(true);
       // Company CAN manage its own user overrides (tenant-scoped).
       await c.query("insert into erp_user_permission_overrides(user_id,permission,grant_type) values ($1,'field.sales','grant')", [user]);
