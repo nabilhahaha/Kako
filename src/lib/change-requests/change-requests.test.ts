@@ -31,6 +31,9 @@ describe('change-requests/flags', () => {
 describe('change-requests/apply allowlist', () => {
   it('only allowlisted tables are valid apply targets', () => {
     expect(isApplyAllowed('erp_customers')).toBe(true);
+    expect(isApplyAllowed('erp_products_catalog')).toBe(true);
+    expect(isApplyAllowed('erp_suppliers')).toBe(true);
+    expect(isApplyAllowed('erp_routes')).toBe(true);
     expect(isApplyAllowed('erp_invoices')).toBe(false);
     expect(isApplyAllowed('auth.users')).toBe(false);
     expect(isApplyAllowed('')).toBe(false);
