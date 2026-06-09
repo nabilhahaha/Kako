@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import {
-  Truck, MapPin, Map as MapIcon, ShoppingCart, HandCoins, Boxes, ClipboardCheck, ClipboardList, RefreshCw, Play, CheckCircle2, type LucideIcon,
+  Truck, MapPin, Map as MapIcon, ShoppingCart, Undo2, HandCoins, Boxes, ClipboardCheck, ClipboardList, RefreshCw, Play, CheckCircle2, type LucideIcon,
 } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 // land in later phases and show a "Coming soon" chip until then.
 
 interface SpineStep {
-  key: 'confirmLoad' | 'journey' | 'route' | 'sell' | 'collect' | 'stock' | 'reconcile' | 'merchandising' | 'offline';
+  key: 'confirmLoad' | 'journey' | 'route' | 'sell' | 'return' | 'collect' | 'stock' | 'reconcile' | 'merchandising' | 'offline';
   icon: LucideIcon;
   href?: string; // omit = coming soon
 }
@@ -30,6 +30,7 @@ const STEPS: SpineStep[] = [
   { key: 'journey', icon: MapPin, href: '/field/journey' },
   { key: 'route', icon: MapIcon, href: '/field/route' },
   { key: 'sell', icon: ShoppingCart, href: '/field/van-sales/sell' },
+  { key: 'return', icon: Undo2, href: '/field/van-sales/return' },
   { key: 'collect', icon: HandCoins },                         // Phase D
   { key: 'stock', icon: Boxes, href: '/field/stock' },
   { key: 'reconcile', icon: ClipboardCheck, href: '/field/van-reconciliation' },

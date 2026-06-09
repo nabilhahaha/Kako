@@ -132,5 +132,28 @@ step on the "My Day" hub. Mobile-first, minimal-tap flow:
   idempotency key for safe retries; preview/issue need a connection because
   pricing is server-authoritative. Full offline queue/replay is **Phase 6**.
 
-### Phases 3–8
+### Phase 3 — Van returns (return-to-van, additive) ✅
+New `erp_van_return` RPC (migration `0266`) — one `SECURITY DEFINER` transaction
+that accepts a return in the field and posts it back to the rep's **van**:
+- [x] Additive: `erp_sales_returns.idempotency_key` + partial-unique index
+- [x] `erp_van_return()` — guards: branch access · **mandatory + valid reason_id**
+      (per-company, active) · **van required** (no branch fallback) · idempotency.
+      Server-authoritative price: original invoice line if `invoice_id` given,
+      else `erp_resolve_price`. Effects: completed return + lines · `return_in`
+      to the van · SR/AR journal · customer balance `-= total` · optional
+      `erp_credit_notes` (`CN-<return_number>`, linked to return + invoice) ·
+      `erp_log_audit` (who/when/reason/qty/original invoice)
+- [x] Pure core `src/lib/van-sales/returns.ts` (normalize + total) + unit tests
+- [x] Server wrapper `returns-server.ts` (`previewVanReturn` + `vanReturn`),
+      gated by `isVanSalesActive`
+- [x] Thin UI `/field/van-sales/return` wired from the My Day hub + i18n (ar+en)
+- [x] Integration tests (7): return-to-van · credit-note linkage · stock
+      reconciliation · mandatory reason · audit · idempotency · tenant isolation
+      · no-van
+- Verified locally over the full migration chain: 7/7 van-return · 159/159
+  integration · 1263/1263 unit · typecheck clean.
+- Fix found by the tests: a no-match idempotency `SELECT … INTO` NULLed the
+  accumulators → NULL `total_amount`; reset them after the idempotency block.
+
+### Phases 4–8
 - [ ] _planned; detailed design added before each is built_
