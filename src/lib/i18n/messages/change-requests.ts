@@ -1,0 +1,61 @@
+/** Universal Change Request engine — UI strings. ar = source of truth; en mirrors.
+ *  Flag-gated (KAKO_CHANGE_REQUESTS). */
+export const ar = {
+  changeRequests: {
+    title: 'طلبات التغيير',
+    subtitle: 'تغييرات بيانات رئيسية محوكمة ومعتمدة ومدققة.',
+    none: 'لا توجد طلبات تغيير.',
+    entity: 'الكيان',
+    scopeLabel: 'النطاق',
+    statusLabel: 'الحالة',
+    requestedBy: 'مقدّم الطلب',
+    created: 'التاريخ',
+    targetsLabel: 'السجلات',
+    view: 'عرض',
+    reason: 'السبب',
+    fieldChanges: 'تغييرات الحقول',
+    field: 'الحقل',
+    before: 'قبل',
+    after: 'بعد',
+    documents: 'المستندات',
+    noDocuments: 'لا توجد مستندات.',
+    effectiveAt: 'يسري اعتبارًا من',
+    notFound: 'الطلب غير موجود.',
+    scope: { single: 'سجل واحد', bulk: 'دفعة' },
+    status: {
+      draft: 'مسودة', submitted: 'مُرسل', pending: 'قيد الاعتماد', approved: 'معتمد',
+      scheduled: 'مجدول', applying: 'جارٍ التطبيق', applied: 'مطبّق',
+      partially_applied: 'مطبّق جزئيًا', failed: 'فشل', rejected: 'مرفوض', cancelled: 'ملغى',
+    },
+  },
+};
+
+export const en = {
+  changeRequests: {
+    title: 'Change Requests',
+    subtitle: 'Governed, approved, audited master-data changes.',
+    none: 'No change requests.',
+    entity: 'Entity',
+    scopeLabel: 'Scope',
+    statusLabel: 'Status',
+    requestedBy: 'Requested by',
+    created: 'Created',
+    targetsLabel: 'Records',
+    view: 'View',
+    reason: 'Reason',
+    fieldChanges: 'Field changes',
+    field: 'Field',
+    before: 'Before',
+    after: 'After',
+    documents: 'Documents',
+    noDocuments: 'No documents.',
+    effectiveAt: 'Effective from',
+    notFound: 'Request not found.',
+    scope: { single: 'Single record', bulk: 'Bulk' },
+    status: {
+      draft: 'Draft', submitted: 'Submitted', pending: 'Pending approval', approved: 'Approved',
+      scheduled: 'Scheduled', applying: 'Applying', applied: 'Applied',
+      partially_applied: 'Partially applied', failed: 'Failed', rejected: 'Rejected', cancelled: 'Cancelled',
+    },
+  },
+};
