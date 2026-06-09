@@ -72,6 +72,18 @@ export const ar = {
       review: 'المراجعة',
       none: 'لا يوجد',
     },
+    reports: {
+      title: 'تقارير التحميل',
+      subtitle: 'المطلوب مقابل المعتمد مقابل المستلَم، الفروقات، ومستوى الخدمة.',
+      requested: 'المطلوب',
+      approved: 'المعتمد',
+      received: 'المستلَم',
+      variance: 'الفرق',
+      fillRate: 'نسبة التلبية',
+      deliveryAccuracy: 'دقة التسليم',
+      manifest: 'كشف التحميل',
+      none: 'لا توجد بيانات بعد.',
+    },
   },
 };
 
@@ -146,6 +158,18 @@ export const en = {
       status: 'Status',
       review: 'Review',
       none: 'Nothing here.',
+    },
+    reports: {
+      title: 'Load Reports',
+      subtitle: 'Requested vs approved vs received, variance, and service level.',
+      requested: 'Requested',
+      approved: 'Approved',
+      received: 'Received',
+      variance: 'Variance',
+      fillRate: 'Fill rate',
+      deliveryAccuracy: 'Delivery accuracy',
+      manifest: 'Manifest',
+      none: 'No data yet.',
     },
   },
 };
