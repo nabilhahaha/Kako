@@ -18,14 +18,14 @@ describe.skipIf(!hasTestDb)('entitlements · foundation', () => {
       await c.query("insert into erp_user_branches(user_id,branch_id,role,is_default) values ($1,$2,'admin',true)", [user, branch]);
 
       // Catalog (seeded as owner; readable by any tenant user).
-      await c.query("insert into erp_modules(module_key,label_en,category) values ('van_sales','Van Sales','engine')");
-      await c.query("insert into erp_features(module_key,feature_key,label_en) values ('van_sales','direct_load','Direct load')");
+      await c.query("insert into erp_modules(module_key,label_en,category) values ('zz_test_module','Test','engine')");
+      await c.query("insert into erp_features(module_key,feature_key,label_en) values ('zz_test_module','zz_feat','Test feat')");
       // Platform-owner-set entitlement for this company.
-      await c.query("insert into erp_company_entitlements(company_id,module_key,is_enabled) values ($1,'van_sales',true)", [company]);
+      await c.query("insert into erp_company_entitlements(company_id,module_key,is_enabled) values ($1,'zz_test_module',true)", [company]);
 
       await actAs(c, user);
-      expect((await c.query("select count(*)::int n from erp_modules where module_key='van_sales'")).rows[0].n).toBe(1);
-      expect((await c.query("select count(*)::int n from erp_features where module_key='van_sales'")).rows[0].n).toBe(1);
+      expect((await c.query("select count(*)::int n from erp_modules where module_key='zz_test_module'")).rows[0].n).toBe(1);
+      expect((await c.query("select count(*)::int n from erp_features where module_key='zz_test_module'")).rows[0].n).toBe(1);
       // Company reads its own entitlement…
       expect((await c.query("select is_enabled from erp_company_entitlements where company_id=$1", [company])).rows[0].is_enabled).toBe(true);
       // …but cannot write it (platform-owner only) — RLS blocks the insert.

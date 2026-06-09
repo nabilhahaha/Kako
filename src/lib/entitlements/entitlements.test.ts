@@ -5,6 +5,7 @@ import {
   entitlementActive,
   isEntitledIn,
   modulesForPermission,
+  requiredEntitlementModules,
 } from './index';
 import type { CompanyEntitlement, CompanyEntitlementRow } from './types';
 
@@ -63,6 +64,30 @@ describe('entitlements/modulesForPermission', () => {
   it('maps known permissions, empty for unmapped (never gated)', () => {
     expect(modulesForPermission('field.sales')).toEqual(['van_sales']);
     expect(modulesForPermission('change_requests.approve')).toEqual(['change_requests']);
-    expect(modulesForPermission('sales.sell')).toEqual([]);   // unmapped → not entitlement-gated
+    expect(modulesForPermission('route.create')).toEqual(['route_management']);
+    expect(modulesForPermission('trade_spend.manage')).toEqual(['trade_spend']);
+    expect(modulesForPermission('sales.sell')).toEqual([]);       // core → not entitlement-gated
+    expect(modulesForPermission('inventory.view')).toEqual([]);   // core → not gated
+  });
+});
+
+describe('entitlements/requiredEntitlementModules (gate decision)', () => {
+  const co = { companyId: 'c1' };
+  it('flag OFF → null (gate is a no-op = hasPermission)', () => {
+    expect(requiredEntitlementModules('field.sales', co, false)).toBeNull();
+  });
+  it('platform owner / super admin → null', () => {
+    expect(requiredEntitlementModules('field.sales', { ...co, isPlatformOwner: true }, true)).toBeNull();
+    expect(requiredEntitlementModules('field.sales', { ...co, isSuperAdmin: true }, true)).toBeNull();
+  });
+  it('no company → null', () => {
+    expect(requiredEntitlementModules('field.sales', { companyId: null }, true)).toBeNull();
+  });
+  it('unmapped (core) permission → null', () => {
+    expect(requiredEntitlementModules('sales.sell', co, true)).toBeNull();
+  });
+  it('mapped engine permission + company + flag ON → the module(s)', () => {
+    expect(requiredEntitlementModules('field.sales', co, true)).toEqual(['van_sales']);
+    expect(requiredEntitlementModules('route.create', co, true)).toEqual(['route_management']);
   });
 });

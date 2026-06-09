@@ -51,16 +51,50 @@ export function isEntitledIn(
 // and is therefore NEVER gated by entitlements (the existing permission check
 // remains the sole authority). This is the safe-by-default contract.
 const PERMISSION_MODULES: Record<string, string[]> = {
-  // Van Sales engine
+  // Van Sales / merchandising (field ops)
   'field.sales': ['van_sales'],
+  'field.attach_media': ['merchandising'],
   // Change Requests engine
   'change_requests.create': ['change_requests'],
   'change_requests.approve': ['change_requests'],
   'change_requests.manage': ['change_requests'],
-  // (extended in E2 alongside the seeded catalog)
+  // Route Management
+  'route.create': ['route_management'],
+  'route.import': ['route_management'],
+  // Trade Spend
+  'trade_spend.manage': ['trade_spend'],
+  // Note: core-module permissions (sales.*, inventory.*, purchasing.*,
+  // accounting.*, customers.*) are intentionally NOT mapped — core modules are
+  // always available; only optional engines are entitlement-gated. Unmapped
+  // permissions are never gated (the existing permission check stays authoritative).
 };
 
 /** The module(s) a permission unlocks (empty = never entitlement-gated). */
 export function modulesForPermission(permission: string): string[] {
   return PERMISSION_MODULES[permission] ?? [];
+}
+
+export interface GateContext {
+  isPlatformOwner?: boolean;
+  isSuperAdmin?: boolean;
+  companyId?: string | null;
+}
+
+/**
+ * The modules the entitlement gate must verify for a permission — or `null` when
+ * no entitlement check applies and access is governed solely by the existing
+ * permission check. `null` is returned when: the flag is OFF (→ identical to
+ * hasPermission), the actor is a platform owner / super admin, there is no company,
+ * or the permission is unmapped (core/always-on). Pure.
+ */
+export function requiredEntitlementModules(
+  permission: string,
+  ctx: GateContext,
+  entitlementsEnabled: boolean,
+): string[] | null {
+  if (!entitlementsEnabled) return null;
+  if (ctx.isPlatformOwner || ctx.isSuperAdmin) return null;
+  if (!ctx.companyId) return null;
+  const mods = modulesForPermission(permission);
+  return mods.length ? mods : null;
 }
