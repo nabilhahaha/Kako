@@ -54,6 +54,9 @@ unchanged (photos attach when the device is back online). Requires `KAKO_MOBILE`
 
 A tenant is active only when **both** the platform flag and the company toggle are ON.
 
+> For a real pilot rollout (prerequisites, policy, validation checklist, rollback,
+> and monitoring), follow **`VAN-SALES-PILOT-ENABLEMENT.md`**.
+
 ## What the e2e test asserts
 
 Request 10 → supervisor approves 8 (adjusted) → warehouse loads 8 → salesman accepts 7 (short 1):
