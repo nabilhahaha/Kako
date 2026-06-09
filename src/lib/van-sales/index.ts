@@ -13,3 +13,4 @@ const on = (v: string | undefined): boolean => v === '1' || v === 'true';
 export const VAN_SALES_ENABLED = (): boolean => on(process.env.KAKO_VAN_SALES);
 
 export * from './day';
+export * from './load';
