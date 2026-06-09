@@ -183,3 +183,78 @@ export async function adjustStockRequest(input: AdjustStockRequestInput): Promis
   });
   return { ok: true, changes };
 }
+
+/** ── Van Sales (Phase B) — supervisor-direct load assignment ────────────────
+ *  A supervisor creates a load manifest for a salesman directly (no stock
+ *  request), choosing the source warehouse + the van + the loaded lines. The load
+ *  is created in 'loaded' state; the SALESMAN must still confirm it (accept /
+ *  reject / variance) before any stock posts — there is NO auto-confirmation.
+ *  stock.adjust gated; audited. */
+
+export interface DirectLoadLineInput {
+  productId: string;
+  loadedQty: number;
+}
+
+export interface CreateDirectLoadInput {
+  salesmanId: string;
+  warehouseId: string;       // the van (destination)
+  sourceWarehouseId: string; // where the goods come from
+  lines: DirectLoadLineInput[];
+  notes?: string;
+}
+
+export interface CreateDirectLoadResult {
+  ok: boolean;
+  error?: string;
+  manifestId?: string;
+}
+
+export async function createDirectLoad(input: CreateDirectLoadInput): Promise<CreateDirectLoadResult> {
+  if (!VAN_SALES_ENABLED()) return { ok: false, error: 'disabled' };
+
+  const ctx = await getUserContext();
+  if (!ctx) return { ok: false, error: 'unauthorized' };
+  if (!ctx.companyId) return { ok: false, error: 'no company' };
+  if (!hasPermission(ctx, 'stock.adjust') && !ctx.isSuperAdmin) return { ok: false, error: 'unauthorized' };
+  if (!input.salesmanId || !input.warehouseId || !input.sourceWarehouseId) return { ok: false, error: 'missing fields' };
+  const lines = (input.lines ?? []).filter((l) => l.loadedQty > 0);
+  if (lines.length === 0) return { ok: false, error: 'no lines' };
+
+  const supabase = await createClient();
+  const { data: wh } = await supabase.from('erp_warehouses').select('branch_id').eq('id', input.warehouseId).maybeSingle();
+  const branchId = (wh as { branch_id: string } | null)?.branch_id;
+  if (!branchId) return { ok: false, error: 'warehouse not found' };
+
+  const manifestNumber = `VDL-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
+  const { data: man, error } = await supabase
+    .from('erp_van_load_manifests')
+    .insert({
+      branch_id: branchId,
+      warehouse_id: input.warehouseId,
+      source_warehouse_id: input.sourceWarehouseId,
+      salesman_id: input.salesmanId,
+      manifest_number: manifestNumber,
+      status: 'loaded',
+      notes: input.notes ?? null,
+      created_by: ctx.userId,
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: error.message };
+  const manifestId = (man as { id: string }).id;
+
+  const { error: lErr } = await supabase
+    .from('erp_van_load_manifest_lines')
+    .insert(lines.map((l) => ({ manifest_id: manifestId, product_id: l.productId, loaded_qty: l.loadedQty })));
+  if (lErr) return { ok: false, error: lErr.message, manifestId };
+
+  await logAudit(supabase, {
+    action: 'create',
+    entity: 'van_direct_load',
+    entityId: manifestId,
+    details: { salesman_id: input.salesmanId, source_warehouse_id: input.sourceWarehouseId, van: input.warehouseId, lines: lines.length },
+    companyId: ctx.companyId,
+  });
+  return { ok: true, manifestId };
+}
