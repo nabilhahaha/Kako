@@ -19,6 +19,12 @@ export const ar = {
     featuresSubtitle: 'فعّل ميزات الوحدات المتاحة لشركتك.',
     feature: 'الميزة',
     noFeatures: 'لا توجد ميزات قابلة للتهيئة (لا توجد وحدات مفعّلة).',
+    summaryTitle: 'صلاحيات الأدوار',
+    summarySubtitle: 'عرض صلاحيات كل دور (للقراءة فقط) مع تمييز المعطّل بسبب القدرات.',
+    role: 'الدور',
+    permissions: 'الصلاحيات',
+    gatedHint: 'معطّل (الوحدة غير مفعّلة)',
+    noPermissions: 'لا توجد صلاحيات.',
   },
 };
 
@@ -41,5 +47,11 @@ export const en = {
     featuresSubtitle: 'Enable features within the modules your company is allowed.',
     feature: 'Feature',
     noFeatures: 'No configurable features (no modules enabled).',
+    summaryTitle: 'Role Permissions',
+    summarySubtitle: 'Read-only view of each role’s permissions; capability-gated ones are flagged.',
+    role: 'Role',
+    permissions: 'Permissions',
+    gatedHint: 'gated (module off)',
+    noPermissions: 'No permissions.',
   },
 };
