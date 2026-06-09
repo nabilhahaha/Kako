@@ -217,6 +217,11 @@ export function SellScreen({
             {canDiscount && discountCapPct != null && (
               <p className="text-xs text-muted-foreground">{t('vanSales.sell.discountCap', { cap: discountCapPct })}</p>
             )}
+            {products.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">{t('vanSales.sell.noVanStock')}</p>
+            ) : filteredProducts.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">{t('vanSales.sell.noProductMatch')}</p>
+            ) : null}
             <ul className="space-y-2">
               {filteredProducts.map((p) => {
                 const qty = cartQty(p.id);
@@ -294,6 +299,7 @@ export function SellScreen({
           <CardContent className="space-y-4 pt-6 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/15"><Check className="h-6 w-6 text-success" /></div>
             <div>
+              <div className="text-sm text-muted-foreground">{t('vanSales.sell.completed')}</div>
               <div className="text-lg font-bold">{t('vanSales.sell.issued', { number: result.invoiceNumber })}</div>
               <div className="mt-1 text-2xl font-bold tabular-nums" dir="ltr">{money(result.netAmount)}</div>
             </div>

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HandCoins, Check, Loader2, ReceiptText } from 'lucide-react';
+import { HandCoins, Check, Loader2, ReceiptText, Share2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,20 +92,35 @@ export function CollectScreen({
     if (preselect) pickCustomer(preselect);
   }
 
+  async function share() {
+    if (!done) return;
+    const text = t('vanSales.collect.shareText', { number: done.number, amount: done.applied.toFixed(2) });
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try { await navigator.share({ title: done.number, text }); } catch { /* cancelled */ }
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      await navigator.clipboard.writeText(text); toast.success(t('vanSales.collect.share'));
+    }
+  }
+
   if (done) {
     return (
       <Card>
         <CardContent className="space-y-4 pt-6 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/15"><Check className="h-6 w-6 text-success" /></div>
-          <div className="text-lg font-bold">{t('vanSales.collect.done', { number: done.number })}</div>
-          <div className="text-sm text-muted-foreground" dir="ltr">
-            {t('vanSales.collect.applied')} {money(done.applied)}
-            {done.unapplied > 0 && <> · {t('vanSales.collect.onAccount')} {money(done.unapplied)}</>}
+          <div>
+            <div className="text-sm text-muted-foreground">{t('vanSales.collect.completed')}</div>
+            <div className="text-lg font-bold">{t('vanSales.collect.done', { number: done.number })}</div>
+            <div className="mt-1 text-sm text-muted-foreground" dir="ltr">
+              {t('vanSales.collect.applied')} {money(done.applied)}
+              {done.unapplied > 0 && <> · {t('vanSales.collect.onAccount')} {money(done.unapplied)}</>}
+            </div>
           </div>
+          {/* Transaction completed → Share / Continue (collection-receipt print is a known gap) */}
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => router.push('/field/van-sales')}>{t('vanSales.collect.back')}</Button>
+            <Button variant="outline" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.collect.share')}</Button>
             <Button onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.collect.newCollection')}</Button>
           </div>
+          <Button variant="ghost" className="w-full" onClick={() => router.push('/field/van-sales')}>{t('vanSales.collect.back')}</Button>
         </CardContent>
       </Card>
     );

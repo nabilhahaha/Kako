@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Trash2, Undo2, Check, Loader2, ReceiptText } from 'lucide-react';
+import { Plus, Trash2, Undo2, Check, Loader2, ReceiptText, Printer, Share2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,7 +43,7 @@ export function ReturnScreen({
   const [creditNote, setCreditNote] = useState(false);
   const [total, setTotal] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ id: string; returnNumber: string; creditNoteId: string | null } | null>(null);
+  const [done, setDone] = useState<{ id: string; returnNumber: string; creditNoteId: string | null; total: number } | null>(null);
   const [key, setKey] = useState(() => uuid());
 
   const cName = (c: ReturnCustomer) => (ar && c.name_ar ? c.name_ar : c.name);
@@ -75,7 +75,7 @@ export function ReturnScreen({
         lines: validLines.map((l) => ({ product_id: l.productId, quantity: l.quantity })),
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.return.error')); return; }
-      setDone({ id: res.data.id, returnNumber: res.data.returnNumber, creditNoteId: res.data.creditNoteId });
+      setDone({ id: res.data.id, returnNumber: res.data.returnNumber, creditNoteId: res.data.creditNoteId, total: res.data.totalAmount });
       toast.success(t('vanSales.return.done', { number: res.data.returnNumber }));
     } finally { setBusy(false); }
   }
@@ -85,17 +85,36 @@ export function ReturnScreen({
     setReasonId(''); setCreditNote(false); setKey(uuid()); setCustomerId(preselect);
   }
 
+  async function share() {
+    if (!done) return;
+    const text = t('vanSales.return.shareText', { number: done.returnNumber, amount: done.total.toFixed(2) });
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/sales/returns/${done.id}/print` : '';
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try { await navigator.share({ title: done.returnNumber, text, url }); } catch { /* cancelled */ }
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      await navigator.clipboard.writeText(`${text} ${url}`.trim()); toast.success(t('vanSales.return.share'));
+    }
+  }
+
   if (done) {
     return (
       <Card>
         <CardContent className="space-y-4 pt-6 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/15"><Check className="h-6 w-6 text-success" /></div>
-          <div className="text-lg font-bold">{t('vanSales.return.done', { number: done.returnNumber })}</div>
-          {done.creditNoteId && <div className="text-sm text-muted-foreground">{t('vanSales.return.creditNoteIssued', { number: `CN-${done.returnNumber}` })}</div>}
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => router.push('/field/van-sales')}>{t('vanSales.return.back')}</Button>
+          <div>
+            <div className="text-sm text-muted-foreground">{t('vanSales.return.completed')}</div>
+            <div className="text-lg font-bold">{t('vanSales.return.done', { number: done.returnNumber })}</div>
+            {done.creditNoteId && <div className="text-sm text-muted-foreground">{t('vanSales.return.creditNoteIssued', { number: `CN-${done.returnNumber}` })}</div>}
+          </div>
+          {/* Transaction completed → Print / Share / Continue (never auto-print) */}
+          <div className="grid grid-cols-3 gap-2">
+            <a href={`/sales/returns/${done.id}/print`} target="_blank" rel="noreferrer">
+              <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.return.print')}</Button>
+            </a>
+            <Button variant="outline" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.return.share')}</Button>
             <Button onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.return.newReturn')}</Button>
           </div>
+          <Button variant="ghost" className="w-full" onClick={() => router.push('/field/van-sales')}>{t('vanSales.return.back')}</Button>
         </CardContent>
       </Card>
     );
