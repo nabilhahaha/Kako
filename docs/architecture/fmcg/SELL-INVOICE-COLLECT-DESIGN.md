@@ -155,5 +155,32 @@ that accepts a return in the field and posts it back to the rep's **van**:
 - Fix found by the tests: a no-match idempotency `SELECT … INTO` NULLed the
   accumulators → NULL `total_amount`; reset them after the idempotency block.
 
-### Phases 4–8
+### Phase 4 + 5 — Collections entry + multi-invoice allocation ✅
+Reuse the existing collections engine (`erp_collections`/`erp_collection_allocations`
+0192 + the pure `allocatePayment`); add an atomic commit RPC for consistency.
+- [x] **P4 numbering:** explicit `'collection'`→`COL` in `erp_next_number`;
+      settlement populates `collection_number`
+- [x] Additive: `erp_collections.idempotency_key` + partial-unique index
+- [x] `erp_settle_collection()` (migration `0267`, `SECURITY DEFINER`, atomic):
+      branch access · idempotency · lock outstanding invoices `FOR UPDATE`
+      oldest-first · allocate oldest-first **or specified per-invoice** (clamp to
+      remaining + budget) · insert collection (`COL-` number) + allocations ·
+      apply to invoices (`paid_amount`/status) · **reduce `erp_customers.balance`
+      by total applied** (matches `erp_record_payment`) · returns totals + unapplied
+- [x] Preview reuses pure `allocatePayment` (live in the screen, same policy)
+- [x] Server wrapper `collect-server.ts` (`loadCustomerOutstanding` +
+      `settleCollectionEntry`), gated by `isVanSalesActive`
+- [x] Thin UI `/field/van-sales/collect` wired from the hub "Collect" step + i18n
+- [x] Integration tests (6): allocation (oldest-first + specified) · settlement ·
+      numbering · idempotency · tenant isolation · customer-balance consistency
+- Verified locally over the full chain: 6/6 collection · 165/165 integration ·
+  1263/1263 unit · build exit 0 · typecheck clean.
+- Fix found by the tests: invoice `status` is an enum — the `CASE` text needed an
+  explicit `::erp_invoice_status` cast.
+
+**FMCG loop closed:** sell → invoice → collect now fully operational behind
+`KAKO_VAN_SALES` (default OFF). Remaining P6–P8 are offline/GL/reconciliation
+hardening.
+
+### Phases 6–8
 - [ ] _planned; detailed design added before each is built_
