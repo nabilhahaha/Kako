@@ -182,5 +182,18 @@ Reuse the existing collections engine (`erp_collections`/`erp_collection_allocat
 `KAKO_VAN_SALES` (default OFF). Remaining P6–P8 are offline/GL/reconciliation
 hardening.
 
-### Phases 6–8
-- [ ] _planned; detailed design added before each is built_
+### Phase 8 — Pilot runbook + end-to-end demo test ✅ (built ahead of P6/P7)
+- [x] `docs/architecture/fmcg/PILOT-RUNBOOK.md` — users/roles · permissions ·
+      activation + company/branch/van/product/customer/pricing/collections
+      checklists · validation scenarios · Go/No-Go · blockers
+- [x] `src/test/integration/van-fmcg-e2e.test.ts` (9 passing) — the full loop
+      **Visit → Sell → Invoice → Collect → Return → Reconcile** on the real RPCs,
+      plus named scenarios: normal sale · discount · partial collection ·
+      multi-invoice collection · return + credit note · stock reconciliation ·
+      failed validations (over-credit · over-cap · missing reason · no van)
+- Verdict: **Conditional GO** for an online-first pilot once activation + setup +
+  one supervised dry-run pass. Offline (P6) only if the territory demands it.
+
+### Phases 6–7 (on hold)
+- [ ] P6 offline wiring (sell + collect) — only if pilot connectivity requires it
+- [ ] P7 collections GL posting (`KAKO_FINANCE`) — optional
