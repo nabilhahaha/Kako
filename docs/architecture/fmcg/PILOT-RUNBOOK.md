@@ -121,6 +121,18 @@ dry-run on the pilot device. Each scenario below maps to a passing test.
 - [ ] Pilot route has **adequate connectivity** (online-first; see blockers).
 - [ ] Tax configuration matches the jurisdiction (e-invoice clearance is async).
 
+**HARD UoM & pricing controls (blocking — from the master-data audit):**
+> The pilot loop is **base-unit only** (UoM conversion factors are not applied at
+> point of sale). These three controls are **mandatory** before activation.
+- [ ] **UoM-1 — single base UoM per SKU.** Every pilot SKU operates with exactly
+      one base unit of measure; no SKU relies on carton↔piece conversion at sale.
+- [ ] **UoM-2 — stock unit = sales unit.** Van stock quantities and sales
+      quantities use the **same base unit** for every pilot SKU (so van stock =
+      loaded − sold + returned holds without conversion).
+- [ ] **PRICE — positive price.** Every pilot SKU **resolves to a positive price**
+      for a sample customer (run a price preview / test sale per SKU) — no SKU
+      sells at 0. *(`sell_price > 0` is not enforced by code; this gate enforces it.)*
+
 **Launch only when every box is checked.** Roll back instantly by unsetting
 `KAKO_VAN_SALES` (or `erp_van_sales_settings.is_enabled = false`) — all surfaces
 go inert; no data is lost.
@@ -154,3 +166,21 @@ go inert; no data is lost.
 route, once Sections 1–3 are complete and the Section 4 validation (automated +
 one manual dry-run) passes. **No-Go only** if the territory has poor connectivity
 *and* offline is mandatory — in that case build **Phase 6** first.
+
+---
+
+## 8. Post-pilot backlog (not for pilot — frozen)
+
+### Multi-UoM Sales & Inventory Conversion
+The pilot is intentionally **single-base-UoM** (Go/No-Go controls UoM-1/UoM-2).
+This backlog item wires multi-UoM end to end **after** the pilot:
+- **Carton / Pack / Box / Piece selling** — pick the unit at point of sale.
+- **Conversion factors** — apply `erp_product_uoms.factor` across the sell /
+  return / invoice / stock paths.
+- **Inventory conversion** — decrement/restock van + warehouse stock in base
+  units regardless of the sold unit; keep the ledger consistent.
+- **Pricing by UoM** — resolve price per selling unit (extend `erp_resolve_price`).
+- **Mixed-UoM transactions** — multiple units across lines on one document.
+
+*Status: deferred. Do not build during the pilot. Revisit only after a clean
+pilot run, or earlier if a pilot blocker is discovered.*
