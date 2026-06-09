@@ -73,6 +73,8 @@ describe('step executor registry', () => {
     expect(d.updateRecord).toHaveBeenCalledWith(expect.objectContaining({ table: 'erp_customers', id: 'cust1' }));
     // 8F-2: the Customer Data Update approval flips the change request status.
     expect(exec.validate(step({ stepType: 'update_record', config: { table: 'erp_customer_change_requests', patch: { status: 'approved' } } }))).toEqual([]);
+    // Van Sales Phase B: the load-request approval chain flips the request status.
+    expect(exec.validate(step({ stepType: 'update_record', config: { table: 'erp_stock_requests', patch: { status: 'approved' } } }))).toEqual([]);
   });
 
   it('update_record: applies a DYNAMIC patch + target id from the run context', async () => {
