@@ -100,6 +100,14 @@ export function missingVarianceReasons(lines: readonly ConfirmationLineInput[]):
   return lines.filter((l) => lineVariance(l) !== 0 && !l.reason).map((l) => l.productId);
 }
 
+/** Product ids whose accepted qty is invalid — negative, or greater than loaded
+ *  (you can never accept more than the warehouse loaded). Pure. */
+export function invalidAcceptedQuantities(lines: readonly ConfirmationLineInput[]): string[] {
+  return lines
+    .filter((l) => (l.acceptedQty || 0) < 0 || (l.acceptedQty || 0) > (l.loadedQty || 0))
+    .map((l) => l.productId);
+}
+
 // ── Suggested request quantity (reuse Suggested Load + forecasting) ───────────
 
 /** Suggested quantity to request for a SKU, from recent per-period sales history
