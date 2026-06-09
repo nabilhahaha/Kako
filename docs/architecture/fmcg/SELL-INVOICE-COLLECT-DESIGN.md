@@ -110,5 +110,27 @@ fast, friendly validation before the RPC (the RPC remains the sole authority).
   v_allow_neg` left it NULL → `NOT NULL` silently skipped the stock guard;
   coerced to `false` after the SELECT.
 
-### Phases 2–8
+### Phase 2 — Van-sell mobile UI (visit-anchored, no new RPC) ✅
+Route `/field/van-sales/sell` (server, `force-dynamic`), wired from the "Sell"
+step on the "My Day" hub. Mobile-first, minimal-tap flow:
+**Customer → Products → Review → Issue → Print/Share**.
+- [x] `previewVanSale` server action (read-only) — server-authoritative prices via
+      `erp_resolve_price` + `computeVanSellTotals`; never trusts a client price
+- [x] `sell/page.tsx` — gate `isVanSalesActive` + `field.sales`; loads the rep's
+      van, van stock per SKU, customers, `discount_cap_pct`, `sales.discount`
+      permission, optional `?customer=` preselect
+- [x] `sell/sell-screen.tsx` — customer pick (or deep-linked) · product add with
+      per-SKU stock badges · qty stepper · discount field gated by `sales.discount`
+      and clamped to the cap · review (server prices) · issue (`vanSell`, client
+      idempotency key) · receipt with Print (`/print/receipt/[id]`) + Web Share
+- [x] Wire the hub `sell` step href (remove "coming soon")
+- [x] i18n `vanSales.sell.*` (ar source + en mirror) — parity test green
+- [x] Integration test: a customer-scoped `percent_off` rule flows through to the
+      issued `unit_price` (server-resolved price authority underpinning preview)
+- Verified: typecheck clean · 8/8 van-sell integration · 16 unit/i18n · build via CI.
+- Offline-ready design: online-status banner, cart held in state, client
+  idempotency key for safe retries; preview/issue need a connection because
+  pricing is server-authoritative. Full offline queue/replay is **Phase 6**.
+
+### Phases 3–8
 - [ ] _planned; detailed design added before each is built_

@@ -29,7 +29,7 @@ const STEPS: SpineStep[] = [
   { key: 'confirmLoad', icon: Truck },                         // Phase B
   { key: 'journey', icon: MapPin, href: '/field/journey' },
   { key: 'route', icon: MapIcon, href: '/field/route' },
-  { key: 'sell', icon: ShoppingCart },                         // Phase C
+  { key: 'sell', icon: ShoppingCart, href: '/field/van-sales/sell' },
   { key: 'collect', icon: HandCoins },                         // Phase D
   { key: 'stock', icon: Boxes, href: '/field/stock' },
   { key: 'reconcile', icon: ClipboardCheck, href: '/field/van-reconciliation' },

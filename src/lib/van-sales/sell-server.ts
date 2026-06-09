@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive, loadVanSalesSettings } from './settings-server';
-import { normalizeVanSellLines, firstDiscountOverCap, type VanSellLineInput } from './sell';
+import { computeVanSellTotals, normalizeVanSellLines, firstDiscountOverCap, type VanSellLineInput } from './sell';
+import type { DocumentTotals } from '@/lib/erp/sales-calc';
 
 // ============================================================================
 // Van Sell — thin server wrapper (Phase 1, no UI). Validates the request, then
@@ -39,6 +40,71 @@ const RPC_ERRORS: Record<string, string> = {
   insufficient_van_stock: 'Not enough stock on the van for one or more lines.',
   no_valid_lines: 'Add at least one line with a quantity.',
 };
+
+export interface VanSellPreviewLine {
+  product_id: string;
+  quantity: number;
+  discount_pct: number;
+  unit_price: number;
+  tax_rate: number;
+  line_total: number;
+}
+
+export interface VanSellPreview {
+  lines: VanSellPreviewLine[];
+  totals: DocumentTotals;
+}
+
+/**
+ * Read-only price preview for the Review step. Resolves the AUTHORITATIVE unit
+ * price of every line via erp_resolve_price (never a client price) and the per
+ * product tax, then totals them with the shared pure core — so what the rep sees
+ * matches exactly what erp_van_sell will commit. Creates nothing.
+ */
+export async function previewVanSale(input: { branch_id: string; customer_id: string; lines: VanSellLineInput[] }): Promise<ActionResult<VanSellPreview>> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
+
+  const supabase = await createClient();
+  if (!(await isVanSalesActive(supabase, ctx))) return { ok: false, error: 'Van Sales is not enabled.' };
+  if (!input.branch_id || !input.customer_id) return { ok: false, error: 'Branch and customer are required.' };
+
+  const lines = normalizeVanSellLines(input.lines ?? []);
+  if (lines.length === 0) return { ok: false, error: RPC_ERRORS.no_valid_lines };
+
+  // Resolve each line server-side. One round-trip per product is fine for a van
+  // cart (a handful of SKUs); the RPC re-resolves on issue, so this is advisory.
+  const productIds = [...new Set(lines.map((l) => l.product_id))];
+  const { data: taxRows } = await supabase
+    .from('erp_products_catalog')
+    .select('id, tax_rate')
+    .in('id', productIds);
+  const taxById = new Map((taxRows ?? []).map((r) => [(r as { id: string }).id, Number((r as { tax_rate: number }).tax_rate ?? 0)]));
+
+  const priced: VanSellPreviewLine[] = [];
+  for (const l of lines) {
+    const { data: pr, error } = await supabase.rpc('erp_resolve_price', {
+      p_product_id: l.product_id,
+      p_customer_id: input.customer_id,
+      p_branch_id: input.branch_id,
+      p_qty: l.quantity,
+    });
+    if (error) return { ok: false, error: friendlyDbError(error) };
+    const row = (Array.isArray(pr) ? pr[0] : pr) as { price: number } | undefined;
+    const unit_price = Number(row?.price ?? 0);
+    const tax_rate = taxById.get(l.product_id) ?? 0;
+    const gross = Math.round((l.quantity * unit_price + Number.EPSILON) * 100) / 100;
+    const discount = Math.round((gross * l.discount_pct) / 100 * 100 + Number.EPSILON) / 100;
+    const line_total = Math.round((gross - discount + Number.EPSILON) * 100) / 100;
+    priced.push({ product_id: l.product_id, quantity: l.quantity, discount_pct: l.discount_pct, unit_price, tax_rate, line_total });
+  }
+
+  const totals = computeVanSellTotals(priced.map((p) => ({
+    product_id: p.product_id, quantity: p.quantity, unit_price: p.unit_price, discount_pct: p.discount_pct, tax_rate: p.tax_rate,
+  })));
+
+  return { ok: true, data: { lines: priced, totals } };
+}
 
 /**
  * Sell off the van: create + issue an invoice against the rep's van in one

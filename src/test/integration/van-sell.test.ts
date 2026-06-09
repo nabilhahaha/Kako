@@ -92,6 +92,25 @@ describe.skipIf(!hasTestDb)('van-sell · erp_van_sell (0265)', () => {
     });
   }, 30_000);
 
+  it('uses the server-resolved price (a customer percent_off rule), not the base', async () => {
+    await withRollback(async (c) => {
+      const s = await seed(c, { sellPrice: 100, vanStock: 10 });
+      // 10% off for this specific customer — resolved by erp_resolve_price, which
+      // is exactly what the Phase 2 preview surfaces and the RPC commits.
+      await c.query(
+        "insert into erp_price_rules(company_id,product_id,scope_type,scope_id,price_type,value,min_qty,is_active) values ($1,$2,'customer',$3,'percent_off',10,1,true)",
+        [s.company, s.product, s.customer],
+      );
+      await actAs(c, s.rep);
+      const res = await vanSell(c, s, [{ product_id: s.product, quantity: 2 }]);
+      await resetRole(c);
+      // base 100 − 10% = 90 resolved unit price; net 2 × 90 = 180.
+      const line = (await c.query('select unit_price from erp_invoice_lines where invoice_id=$1', [res.invoice_id])).rows[0];
+      expect(Number(line.unit_price)).toBe(90);
+      expect(Number(res.net_amount)).toBe(180);
+    });
+  }, 30_000);
+
   it('enforces the discount cap; a within-cap discount succeeds', async () => {
     await withRollback(async (c) => {
       const s = await seed(c, { sellPrice: 100, vanStock: 10 });
