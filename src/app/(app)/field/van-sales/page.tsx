@@ -44,6 +44,7 @@ export default async function VanSalesMyDayPage() {
   if (!VAN_SALES_ENABLED()) notFound();
   const isSalesman = hasPermission(ctx, 'field.sales') || ctx.memberships.some((m) => m.role === 'salesman');
   if (!isSalesman && !ctx.isSuperAdmin) redirect('/dashboard');
+  const isAdmin = hasPermission(ctx, 'settings.branches') || ctx.isSuperAdmin;
 
   const { t } = await getT();
   const { state } = await loadVanDayState(ctx);
@@ -92,6 +93,21 @@ export default async function VanSalesMyDayPage() {
           );
         })}
       </div>
+
+      {/* Admin: pilot readiness diagnostic */}
+      {isAdmin && (
+        <Link href="/field/van-sales/readiness" className="block">
+          <Card className="transition-colors hover:bg-secondary/50">
+            <CardContent className="flex items-center gap-3 py-4">
+              <ClipboardCheck className="h-5 w-5 text-primary" />
+              <div>
+                <div className="text-sm font-medium">{t('vanSales.readiness.title')}</div>
+                <div className="text-xs text-muted-foreground">{t('vanSales.readiness.subtitle')}</div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
     </div>
   );
 }
