@@ -16,12 +16,31 @@ ledger posting and reporting. The flow is **CI-validated** by
 4. Salesman confirms the load                 /field/van-sales/confirm   → confirmLoad
         Accept Full / Accept Partial / Reject Full / Accept With Variance
         → erp_van_confirm_load (atomic, validated, idempotent)
+        → optional variance EVIDENCE PHOTOS attach to the confirmation
+          (reuses field.attach_media + /api/internal/offline-media)
 5. Ledger posting                             ONLY accepted qty: transfer_out(source) + transfer_in(van)
         → variance flags review; rejected qty never moves; no auto-deduction
 6. Variance review (if any)                   Warehouse → Supervisor (workflow) → review_status
+        → reviewer sees the salesman's evidence photos on the confirmation
 7. Reporting                                  /field/van-sales/reports
         requested vs approved vs received · fill rate · delivery accuracy · variance
 ```
+
+### Variance evidence photos
+
+When a confirmation line has a variance, the salesman can attach evidence photos.
+They ride the **existing field-media path** — no separate media system:
+
+- captured via `captureEntityMedia('van_load_confirmation', confirmationId, file)`
+  into the shared offline blob store,
+- uploaded through `POST /api/internal/offline-media` (direct-entity branch,
+  allowlisted by `FIELD_MEDIA_ENTITIES`),
+- stored by the generic `uploadAttachment` (type/size validation, storage, RLS
+  insert, `client_ref` idempotency) gated by `field.attach_media`.
+
+The same pipeline serves customer visits, returns, merchandising audits and route
+riding. Online confirmation attaches photos immediately; offline confirmation is
+unchanged (photos attach when the device is back online). Requires `KAKO_MOBILE`.
 
 ## Enabling the module (per tenant)
 
@@ -51,8 +70,20 @@ Request 10 → supervisor approves 8 (adjusted) → warehouse loads 8 → salesm
 | Anyone (reports) | `/field/van-sales/reports` |
 | Admin | `/settings/van-sales` (enablement + policy) |
 
-## Remaining before production
+## Production readiness
 
-Photo capture (gap #4) reuses the field-media path and is pending a small offline-media
-generalization (generic `reference_type`/`reference_id`) so confirmation/variance photos attach
-without touching the visit-photo flow. Everything else in the loop is in place behind the flag.
+All eight production gates are closed; the full loop is in place behind the flag:
+
+1. Supervisor adjustment with before/after audit — ✅
+2. Variance-review workflow (warehouse → supervisor) — ✅
+3. Supervisor-direct load posting with `source_warehouse_id` — ✅
+4. Photo capture (variance evidence via the shared field-media path) — ✅
+5. Offline confirmation — ✅
+6. Reporting (requested vs approved vs received, fill rate, variance) — ✅
+7. Admin enablement (per-tenant toggle + policy) — ✅
+8. End-to-end demo (CI-validated by `van-sales-e2e.test.ts`) — ✅
+
+`KAKO_VAN_SALES` stays **OFF by default**. Enablement is an explicit, per-tenant
+opt-in: set the platform flag, then have the company admin enable the tenant at
+`/settings/van-sales`. Flipping the default for existing customers is a separate
+product-direction decision.
