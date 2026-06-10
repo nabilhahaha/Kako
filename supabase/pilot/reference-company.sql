@@ -195,6 +195,31 @@ BEGIN
     (u_cashvan, 'cash.van@nile-group.test'),    (u_collector,'collection.officer@nile-group.test'),
     (u_creditctl,'credit.controller@nile-group.test');
 
+  ----------------------------------------------------------------------------
+  -- GoTrue login completeness. A raw INSERT into auth.users does NOT make a
+  -- user able to sign in: Supabase Auth needs a password, instance_id set to the
+  -- single-tenant zero-UUID, and a matching auth.identities row (provider=email).
+  -- Without the identity + instance_id, every login returns "Invalid email or
+  -- password" even with the correct password. Set a shared DEMO password and
+  -- create the identities so these demo users can actually authenticate.
+  ----------------------------------------------------------------------------
+  UPDATE auth.users
+     SET instance_id        = '00000000-0000-0000-0000-000000000000',
+         encrypted_password = extensions.crypt('Vantora#Demo1', extensions.gen_salt('bf')),
+         email_confirmed_at = COALESCE(email_confirmed_at, now()),
+         aud                = 'authenticated',
+         role               = 'authenticated',
+         raw_app_meta_data  = '{"provider":"email","providers":["email"]}'::jsonb
+   WHERE email LIKE '%@nile-group.test';
+
+  INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+  SELECT u.id::text, u.id,
+         jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true, 'phone_verified', false),
+         'email', now(), now(), now()
+  FROM auth.users u
+  WHERE u.email LIKE '%@nile-group.test'
+    AND NOT EXISTS (SELECT 1 FROM auth.identities i WHERE i.user_id = u.id AND i.provider = 'email');
+
   -- Platform Owner is a PLATFORM-level (vendor) identity, not a company role.
   UPDATE erp_profiles SET is_platform_owner = true WHERE id = u_owner;
 
