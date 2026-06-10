@@ -17,6 +17,10 @@ on:
         description: 'Type "provision" to confirm applying the FULL schema to the target DB'
         required: true
         default: ''
+  # One-shot trigger: pushing the dedicated `staging-provision` branch runs this
+  # (works even though the workflow is not on the default branch).
+  push:
+    branches: [staging-provision]
 
 permissions:
   contents: read
@@ -31,8 +35,11 @@ jobs:
         env:
           DBURL: ${{ secrets.STAGING_PROVISION_DATABASE_URL }}
           CONFIRM: ${{ github.event.inputs.confirm }}
+          EVENT: ${{ github.event_name }}
         run: |
-          if [ "${CONFIRM}" != "provision" ]; then
+          # Confirmation is only required for manual dispatch; pushing the
+          # dedicated branch is itself the confirmation.
+          if [ "${EVENT}" = "workflow_dispatch" ] && [ "${CONFIRM}" != "provision" ]; then
             echo "::error::Refusing: type 'provision' to confirm."; exit 1
           fi
           if [ -z "${DBURL:-}" ]; then
