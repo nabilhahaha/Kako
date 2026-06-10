@@ -251,6 +251,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'customers.manage', 'customers.change_status', 'inventory.view', 'stock_request.approve', 'reports.view',
     'visit.approve_out_of_route', 'day.approve_close_exception', 'stock.transfer.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
+    'reconciliation.view', 'reconciliation.approve',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
@@ -262,6 +263,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
     'day.close', 'stock.view', 'stock.transfer', 'customer.create',
+    'reconciliation.view', 'reconciliation.manage',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
@@ -278,7 +280,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'inventory.view', 'inventory.adjust', 'inventory.transfer',
     'inventory.count', 'stock_request.approve', 'purchasing.manage',
     'stock.view', 'stock.adjust', 'stock.transfer', 'stock.transfer.approve',
-    'fashion.inventory', 'fashion.purchase',
+    'fashion.inventory', 'fashion.purchase', 'reconciliation.view',
   ],
   staff: ['inventory.view'],
   viewer: ['reports.view', 'accounting.view', 'inventory.view'],
