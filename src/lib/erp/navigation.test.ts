@@ -185,4 +185,35 @@ describe('navigation — capability binding (CRM / Workflow / Analytics)', () =>
     expect(hrefs(v)).toContain('/customers');
     expect(hrefs(v)).toContain('/approvals');
   });
+
+  describe('flag-aware nav (Phase 2)', () => {
+    it('flag-gated items are hidden when no flags are enabled (no URL-only orphans)', () => {
+      const h = hrefs(visibleSections(['settings.branches'], true, false, [], [], false, null, []));
+      expect(h).not.toContain('/alerts');
+      expect(h).not.toContain('/change-requests');
+      expect(h).not.toContain('/settings/van-sales');
+    });
+
+    it('Alerts appears only when the alerts flag is on', () => {
+      expect(hrefs(visibleSections([], false, false, [], [], false, null, []))).not.toContain('/alerts');
+      expect(hrefs(visibleSections([], false, false, [], [], false, null, ['alerts']))).toContain('/alerts');
+    });
+
+    it('Change Requests appears only when its flag is on', () => {
+      expect(hrefs(visibleSections([], false, false, [], [], false, null, ['change_requests']))).toContain('/change-requests');
+      expect(hrefs(visibleSections([], false, false, [], [], false, null, ['alerts']))).not.toContain('/change-requests');
+    });
+
+    it('Van Sales settings needs BOTH the flag and settings.branches', () => {
+      expect(hrefs(visibleSections([], false, false, [], [], false, null, ['van_sales']))).not.toContain('/settings/van-sales');
+      expect(hrefs(visibleSections(['settings.branches'], false, false, [], [], false, null, []))).not.toContain('/settings/van-sales');
+      expect(hrefs(visibleSections(['settings.branches'], false, false, [], [], false, null, ['van_sales']))).toContain('/settings/van-sales');
+    });
+
+    it('backward-compatible: omitting enabledFlags hides flag items but keeps everything else', () => {
+      const v = visibleSections(['customers.manage'], false, false, []);
+      expect(hrefs(v)).toContain('/customers');
+      expect(hrefs(v)).not.toContain('/alerts');
+    });
+  });
 });

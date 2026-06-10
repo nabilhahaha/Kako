@@ -7,6 +7,7 @@ import { BottomNav } from '@/components/layout/bottom-nav';
 import { TopBar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/layout/command-palette';
 import { SEARCH_ENABLED } from '@/lib/search/flags';
+import { enabledNavFlags } from '@/lib/erp/nav-flags';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { CopilotFab } from '@/components/copilot/copilot-fab';
@@ -34,6 +35,10 @@ export default async function AppLayout({
   const pctx = await getPlatformContext();
   const isPlatformStaff = Boolean(pctx?.isStaff);
   const platformPermissions: string[] = pctx?.permissions ?? [];
+  // Feature-flag tokens that are ON (server-side) → drives flag-aware nav so
+  // flag-gated pages (Alerts, Change Requests, Van Sales settings) appear when
+  // enabled and disappear cleanly when off — no URL-only orphans.
+  const navFlags = enabledNavFlags();
 
   // A signed-in user who isn't platform staff and has no company yet is sent to
   // self-service onboarding to create their company (free trial).
@@ -149,6 +154,7 @@ export default async function AppLayout({
           isPlatformStaff={isPlatformStaff}
           businessType={ctx.company?.business_type ?? null}
           recordsSearch={SEARCH_ENABLED()}
+          enabledFlags={navFlags}
         />
         <Sidebar
           permissions={ctx.permissions}
@@ -158,6 +164,7 @@ export default async function AppLayout({
           platformPermissions={platformPermissions}
           isPlatformStaff={isPlatformStaff}
           businessType={ctx.company?.business_type ?? null}
+          enabledFlags={navFlags}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
