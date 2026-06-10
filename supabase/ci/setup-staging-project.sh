@@ -75,6 +75,9 @@ for f in "$SUPA_DIR"/migrations/*.sql; do
 done
 echo "› applied $count migrations"
 
+echo "› restoring Supabase role grants (DROP SCHEMA public wiped the defaults)"
+"${PSQL[@]}" -f "$SUPA_DIR/ci/post-apply-grants.sql"
+
 echo "› verifying schema integrity (PR #311 objects)…"
 "${PSQL[@]}" -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
