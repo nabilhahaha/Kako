@@ -1,0 +1,7 @@
+full_name,email,phone,role,branch_ref,reports_to,active
+General Manager,gm@distributor.example,+20-10-1000-0001,manager,CAI,,true
+Finance Manager,finance.manager@distributor.example,+20-10-1000-0002,accountant,CAI,,true
+Sales Manager,sales.manager@distributor.example,+20-10-1000-0003,regional_manager,CAI,,true
+Field Supervisor,supervisor@distributor.example,+20-10-1000-0004,supervisor,CAI,sales.manager@distributor.example,true
+Van Sales Rep,van.rep@distributor.example,+20-10-1000-0005,salesman,CAI,supervisor@distributor.example,true
+Warehouse Keeper,warehouse.keeper@distributor.example,+20-10-1000-0006,warehouse_keeper,CAI,,true

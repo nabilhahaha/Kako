@@ -1,0 +1,7 @@
+warehouse_ref,product_ref,quantity,reserved_qty
+WH-CAI,BEV-001,1000,0
+WH-CAI,SNK-001,1000,0
+WH-CAI,DAI-001,1000,0
+VAN-CAI-01,BEV-001,200,0
+VAN-CAI-01,SNK-001,200,0
+VAN-ALX-01,DAI-001,200,0

@@ -1,0 +1,4 @@
+code,name,name_ar,phone,email,city,credit_limit,cr_number,tax_number,national_address,contact_person,contact_phone,payment_terms_days,latitude,longitude,allowed_gps_radius,classification_id,channel_id,segment_id,route_id,created_source,external_id
+CUST-001,Retailer 1,تاجر 1,+20-10-0000-0001,,Cairo,5000,,,,Ahmed,+20-10-0000-0001,30,30.0510,31.2410,150,,,,Cairo Route A,import,EXT-CUST-001
+CUST-002,Retailer 2,تاجر 2,+20-10-0000-0002,,Cairo,7000,,,,Mona,+20-10-0000-0002,15,30.0520,31.2420,150,,,,Cairo Route A,import,EXT-CUST-002
+CUST-017,Retailer 17,تاجر 17,+20-10-0000-0017,,Alexandria,13000,,,,Sara,+20-10-0000-0017,0,31.2010,29.9210,150,,,,Alex Route A,import,EXT-CUST-017
