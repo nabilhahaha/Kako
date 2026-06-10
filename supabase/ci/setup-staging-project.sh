@@ -45,6 +45,25 @@ export PGHOST="${_hostport%%:*}"
 PGPORT="${_hostport#*:}"; [ "$PGPORT" = "$_hostport" ] && PGPORT=5432; export PGPORT
 _db="${_hostpart#*/}"; _db="${_db%%\?*}"; [ -z "$_db" ] && _db=postgres; export PGDATABASE="$_db"
 export PGSSLMODE="${PGSSLMODE:-require}"   # Supabase requires TLS
+
+# The DIRECT host (db.<ref>.supabase.co) is IPv6-only on Supabase; GitHub runners
+# are IPv4-only, so connections fail with "Network is unreachable". If we were
+# handed the direct host, switch to the IPv4 Session pooler (user must become
+# postgres.<ref>). Region defaults to this project's region; override via
+# SUPABASE_REGION. Pick the pooler shard that actually resolves.
+case "$PGHOST" in
+  db.*.supabase.co)
+    _ref="${PGHOST#db.}"; _ref="${_ref%%.supabase.co}"
+    _region="${SUPABASE_REGION:-eu-west-1}"
+    export PGUSER="postgres.${_ref}"
+    export PGPORT=5432
+    for _shard in aws-0 aws-1; do
+      _cand="${_shard}-${_region}.pooler.supabase.com"
+      if getent hosts "$_cand" >/dev/null 2>&1; then export PGHOST="$_cand"; break; fi
+    done
+    echo "› direct host is IPv6-only → using IPv4 Session pooler: $PGHOST (user=$PGUSER)"
+    ;;
+esac
 # Ensure pgcrypto/uuid functions resolve unqualified during apply (Supabase keeps
 # them in the `extensions` schema). Harmless if already on the search_path.
 export PGOPTIONS="-c search_path=public,extensions"
