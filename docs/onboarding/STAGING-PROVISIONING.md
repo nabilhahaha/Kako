@@ -29,14 +29,24 @@ HTTPS), so the full 250-migration apply runs from a place that *can* reach the D
 
 ## ✅ Minimum manual step (recommended: GitHub Actions — no local tooling)
 
-1. **Get the connection string.** Supabase dashboard → `vantora-staging` →
-   **Project Settings → Database** → set/reset the **database password** → copy
-   the **URI** connection string (direct, port 5432), e.g.
-   `postgresql://postgres:<PASSWORD>@db.rsjvgehvastmawzwnqcs.supabase.co:5432/postgres`
-2. **Add it as a repo secret.** GitHub → repo **Settings → Secrets and variables
-   → Actions → New repository secret**:
+1. **Reset the DB password to an ALPHANUMERIC-ONLY value.** Supabase dashboard →
+   `vantora-staging` → **Project Settings → Database → Reset database password**.
+   Use letters + digits only (e.g. `VantoraStaging2026`). **Avoid symbols**
+   (`% [ ] @ : / #` …) — they break URI parsing.
+2. **Copy the Session-pooler connection string.** Same page → **Connection
+   string → Session pooler** (port 5432). It works from CI runners (the direct
+   `db.<ref>` host can be IPv6-only). It looks like:
+   `postgresql://postgres.rsjvgehvastmawzwnqcs:[YOUR-PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres`
+   **Replace `[YOUR-PASSWORD]` — including the square brackets — with the
+   alphanumeric password from step 1.** (No brackets left behind.)
+3. **Add it as a repo secret.** GitHub → repo **Settings → Secrets and variables
+   → Actions → New repository secret** (update if it already exists):
    - Name: `STAGING_PROVISION_DATABASE_URL`
-   - Value: the connection string from step 1.
+   - Value: the full string from step 2 (no brackets, alphanumeric password).
+
+> ⚠️ The first run failed because the secret's password still had `[ ]` brackets
+> and a `%` (invalid percent-encoding). An alphanumeric password + the pooler
+> string avoids both.
 
 That's it. **Tell me once the secret is set** — I'll trigger the
 **“Provision staging schema”** workflow (`provision-staging.yml`) via the GitHub

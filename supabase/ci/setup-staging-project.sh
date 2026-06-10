@@ -35,7 +35,7 @@ SUPA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PGOPTIONS="-c search_path=public,extensions"
 PSQL=(psql "$DB_URL" -v ON_ERROR_STOP=1 -q)
 
-echo "› target: ${DB_URL%%@*}@… (verifying connectivity)"
+echo "› verifying connectivity to the target database…"
 "${PSQL[@]}" -c "select 'connected to '||current_database()||' on '||version();" >/dev/null
 
 echo "› ensure extensions present (no-op on Supabase)"
