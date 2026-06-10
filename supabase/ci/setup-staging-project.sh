@@ -45,6 +45,8 @@ if [ "${DB_URL#*://}" != "$DB_URL" ] && [ "${DB_URL#*@}" != "$DB_URL" ]; then
 else
   export PGPASSWORD="$DB_URL"               # secret is the raw password
 fi
+# Strip stray CR/LF/surrounding spaces a copy-paste may have left in the secret.
+export PGPASSWORD="$(printf '%s' "$PGPASSWORD" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 export PGHOST="${STAGING_DB_HOST:-aws-0-eu-west-1.pooler.supabase.com}"
 export PGUSER="${STAGING_DB_USER:-postgres.rsjvgehvastmawzwnqcs}"
 export PGPORT="${STAGING_DB_PORT:-5432}"
