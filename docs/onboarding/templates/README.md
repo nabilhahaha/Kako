@@ -23,6 +23,10 @@ mirror the certified **reference tenant** (Nile FMCG) so you can cross-check;
 Import each file in this order: a row that references something not yet imported
 will fail validation.
 
+> `feedback-log.csv` is **not** an import file — it's the pilot feedback-capture
+> log used by the [First Customer Deployment Plan](../FIRST-CUSTOMER-DEPLOYMENT-PLAN.md)
+> (§9). Copy it and fill it in throughout the pilot.
+
 ## How to import each file
 
 1. **Settings → Import** → choose the entity → upload the CSV.

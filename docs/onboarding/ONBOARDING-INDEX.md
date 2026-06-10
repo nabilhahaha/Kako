@@ -12,9 +12,12 @@ toggle.
 
 ## Start here
 
-1. **[Distributor Onboarding Checklist](./DISTRIBUTOR-ONBOARDING-CHECKLIST.md)** —
-   the end-to-end, stop-at-first-✗ sequence with a Go/No-Go gate. **Drive the
-   onboarding from this.**
+1. **[First Real Customer Deployment Plan](./FIRST-CUSTOMER-DEPLOYMENT-PLAN.md)** —
+   the dated, owned, measurable plan to deploy to the **first real distributor**
+   and **capture real-world feedback** (selection, RACI, timeline, Go/No-Go,
+   hypercare, feedback engine, success metrics, decision gate). **Read this first.**
+2. **[Distributor Onboarding Checklist](./DISTRIBUTOR-ONBOARDING-CHECKLIST.md)** —
+   the end-to-end, stop-at-first-✗ build/activation runbook the plan executes.
 
 ## Setup guides (linked from the checklist)
 
@@ -43,6 +46,7 @@ importer (Settings → Import), example rows mirroring the reference tenant, and
 | 7 | `templates/07-users.csv` | Users |
 | 8 | `templates/08-opening-stock.csv` | Opening stock |
 | 9 | `templates/09-journey-plans.csv` | Journey plans |
+| — | `templates/feedback-log.csv` | Pilot feedback log (capture, not import) |
 
 ## Built on the certified package
 

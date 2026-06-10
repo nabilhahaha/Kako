@@ -51,6 +51,21 @@ committed to the repository and linked from here.
 
 ---
 
+## Onboarding & first-customer deployment
+
+To take a **real distributor live** (the next objective — not feature work), use
+the onboarding package:
+
+| Deliverable | Purpose |
+|---|---|
+| [`../../onboarding/ONBOARDING-INDEX.md`](../../onboarding/ONBOARDING-INDEX.md) | Onboarding package index |
+| [`../../onboarding/FIRST-CUSTOMER-DEPLOYMENT-PLAN.md`](../../onboarding/FIRST-CUSTOMER-DEPLOYMENT-PLAN.md) | **First Real Customer Deployment Plan** — deploy + capture feedback |
+| [`../../onboarding/DISTRIBUTOR-ONBOARDING-CHECKLIST.md`](../../onboarding/DISTRIBUTOR-ONBOARDING-CHECKLIST.md) | Go/No-Go-gated build runbook |
+| Branch / Van / User / Pricing guides + Support Playbook | Step-by-step setup + pilot support |
+| [`../../onboarding/templates/`](../../onboarding/templates/) | CSV import templates + feedback log |
+
+---
+
 ## Handover confirmations (re-verified at package time)
 
 | Confirmation | Result | Evidence |

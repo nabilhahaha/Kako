@@ -1,0 +1,6 @@
+date,source,role,category,severity,area,description,document_or_error_token,status,owner,resolution_or_disposition
+2026-06-15,rep,salesman,usability,S3,sell,"Item search felt slow with a long product list",,open,deployment_lead,
+2026-06-15,supervisor,supervisor,process,S2,reconciliation,"Wants a printed day-end variance summary to sign",,triaged,deployment_lead,Deferred to post-pilot backlog (log only)
+2026-06-16,rep,salesman,connectivity,S2,collect,"Lost signal mid-collection; resumed on reconnect, no double post",COL-CAI-000042,resolved,support,Idempotency held; confirmed single collection
+2026-06-16,owner,admin,feature-request,S4,reports,"Would like a weekly sales-by-brand chart",,open,deployment_lead,Backlog candidate for next phase
+2026-06-17,support,support,data,S1,pricing,"One SKU resolved price 0 - missing sell_price",INV-CAI-000051,resolved,deployment_lead,Fixed SKU price in Settings; Readiness re-checked READY
