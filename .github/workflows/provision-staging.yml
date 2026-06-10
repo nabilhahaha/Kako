@@ -1,0 +1,57 @@
+name: Provision staging schema
+
+# One-shot: brings a FRESH Supabase project up to the full repository schema
+# (legacy-base + all migrations + integrity verification) via
+# supabase/ci/setup-staging-project.sh. Manual only.
+#
+# Uses a DEDICATED secret (STAGING_PROVISION_DATABASE_URL) so it does NOT collide
+# with the auto-running migrate-staging workflow (which uses STAGING_DATABASE_URL).
+#
+# Manual step required: add the target project's connection string as the repo
+# secret STAGING_PROVISION_DATABASE_URL, then run this workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "provision" to confirm applying the FULL schema to the target DB'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    name: Apply full schema to a fresh Supabase project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard — require confirmation and secret
+        id: guard
+        env:
+          DBURL: ${{ secrets.STAGING_PROVISION_DATABASE_URL }}
+          CONFIRM: ${{ github.event.inputs.confirm }}
+        run: |
+          if [ "${CONFIRM}" != "provision" ]; then
+            echo "::error::Refusing: type 'provision' to confirm."; exit 1
+          fi
+          if [ -z "${DBURL:-}" ]; then
+            echo "::error::STAGING_PROVISION_DATABASE_URL secret not set."; exit 1
+          fi
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: steps.guard.outputs.ok == 'true'
+        uses: actions/checkout@v4
+
+      - name: Install postgresql-client
+        if: steps.guard.outputs.ok == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply full schema (legacy-base + migrations + verify)
+        if: steps.guard.outputs.ok == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_PROVISION_DATABASE_URL }}
+        run: bash supabase/ci/setup-staging-project.sh
