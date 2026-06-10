@@ -30,12 +30,27 @@ set -euo pipefail
 
 DB_URL="${DATABASE_URL:?set DATABASE_URL to the target Supabase project connection string}"
 SUPA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Parse the connection URL OURSELVES (no percent-decoding) so passwords with URI
+# metacharacters like % work. libpq's URI parser would choke on a raw % in the
+# password; we extract fields literally and connect via PG* env + a key=value
+# conninfo (PGPASSWORD is taken verbatim).
+_u="${DB_URL#*://}"                       # strip scheme (postgres:// or postgresql://)
+_userinfo="${_u%%@*}"                      # user:password  (assumes no '@' in password)
+_hostpart="${_u#*@}"                       # host:port/db?params
+export PGUSER="${_userinfo%%:*}"
+export PGPASSWORD="${_userinfo#*:}"        # literal — % and other chars preserved
+_hostport="${_hostpart%%/*}"
+export PGHOST="${_hostport%%:*}"
+PGPORT="${_hostport#*:}"; [ "$PGPORT" = "$_hostport" ] && PGPORT=5432; export PGPORT
+_db="${_hostpart#*/}"; _db="${_db%%\?*}"; [ -z "$_db" ] && _db=postgres; export PGDATABASE="$_db"
+export PGSSLMODE="${PGSSLMODE:-require}"   # Supabase requires TLS
 # Ensure pgcrypto/uuid functions resolve unqualified during apply (Supabase keeps
 # them in the `extensions` schema). Harmless if already on the search_path.
 export PGOPTIONS="-c search_path=public,extensions"
-PSQL=(psql "$DB_URL" -v ON_ERROR_STOP=1 -q)
+PSQL=(psql -v ON_ERROR_STOP=1 -q)         # connection comes from PG* env vars
 
-echo "› verifying connectivity to the target database…"
+echo "› verifying connectivity to the target database (host=$PGHOST port=$PGPORT user=$PGUSER db=$PGDATABASE)…"
 "${PSQL[@]}" -c "select 'connected to '||current_database()||' on '||version();" >/dev/null
 
 echo "› ensure extensions present (no-op on Supabase)"
