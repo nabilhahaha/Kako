@@ -1,25 +1,25 @@
 # VANTORA — First Distributor Go-Live Checklist
 
 **Env:** `vantora-staging` → production (`rsjvgehvastmawzwnqcs`). **`kako-fmcg` untouched.**
-Work top-to-bottom. Do **not** start Phase 1 until Phase 0 is ✅. Each item: check the box + record who/when.
+**Model: COEXISTENCE** — keep `Nile FMCG (DEMO)` as a permanent reference tenant and add the real
+customer as a **second, RLS-isolated tenant** (no demo deletion). Work top-to-bottom; record who/when.
 
 ---
 
-## Phase 0 — Backups & gate (no data mutation)
-- [ ] **PITR enabled** (Dashboard → Database → Backups) — Pro plan + PITR add-on active.
-- [ ] **Restore point verified** — restored a backup to a throwaway project; counts + schema integrity match.
-- [ ] **Restore timestamp recorded** (UTC) as the rollback target: `____________`.
-- [ ] Cleanup **dry-run** reviewed (`golive-demo-cleanup.sql` run as-is → "DRY RUN OK", rolled back).
-- [ ] Production Readiness Report + this checklist **approved**. ➜ *only now may Phase 1 run.*
+## Phase 0 — Backups (good practice; no destructive gate)
+- [ ] **PITR / scheduled backup confirmed** (Dashboard → Database → Backups) — restore option available.
+- [ ] (No demo wipe in this model — the demo tenant is retained. `golive-demo-cleanup.sql` is superseded.)
+- [ ] Production Readiness Report + this checklist **approved**.
 
-## Phase 1 — Demo cleanup (data-only, reversible via Phase 0)
-- [ ] Run `supabase/pilot/golive-demo-cleanup.sql` with `vantora.cleanup_confirm='APPLY'`.
-- [ ] Verify: `erp_companies`=0, `auth.users`=0, `erp_branches`/`customers`/`products`=0.
-- [ ] Verify kept: `erp_roles`=25, `erp_role_permissions`=394, modules/features intact, guard trigger present.
-- [ ] Schema integrity re-check passes (270 erp tables, FMCG RPCs).
+## Phase 1 — Provision the real-customer tenant (additive, alongside the demo)
+- [ ] Edit + run `supabase/pilot/new-tenant-bootstrap.sql` (company name/ar/currency/country) → creates the
+      empty FMCG company + settings + **refined-role company-scoped permissions** (required: these roles have
+      no global defaults).
+- [ ] Verify: a 2nd company row exists; `Nile FMCG (DEMO)` is untouched; new company carries refined-role perms.
+- [ ] Confirm isolation: demo logins still see only the demo; the new tenant starts empty.
 
-## Phase 2 — Real master-data import (FK order)
-- [ ] Company created (name, currency, country, `business_type='fmcg'`, van-sales + fmcg settings).
+## Phase 2 — Real master-data import (FK order) — into the new tenant
+- [ ] Company already created by Phase 1 (name, currency, country, `business_type='fmcg'`, van-sales + fmcg settings).
 - [ ] `01-branches.csv` → branches (HQ flagged).
 - [ ] `02-warehouses.csv` → main + van warehouses.
 - [ ] `03-products.csv` → categories + SKUs (cost/sell/tax/pack/expiry).

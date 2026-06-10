@@ -1,4 +1,11 @@
 -- ============================================================================
+-- ⚠️ SUPERSEDED (2026-06-10): the go-live now uses the COEXISTENCE model — the
+-- demo tenant "Nile FMCG (DEMO)" is KEPT permanently and the real customer is
+-- added as a SECOND tenant (see new-tenant-bootstrap.sql + GOLIVE-COEXISTENCE-
+-- MODEL.md). This destructive cleanup is NO LONGER part of the plan; it is
+-- retained only for reference. (Its name-guard also no longer matches the
+-- renamed demo company, so it will safely refuse to run.)
+-- ============================================================================
 -- VANTORA — GO-LIVE STEP 1: demo-data cleanup for vantora-staging → production
 -- ----------------------------------------------------------------------------
 -- Removes ALL demo/test tenant data so production starts EMPTY of business data,
