@@ -104,7 +104,11 @@ export function ReturnScreen({
           <div>
             <div className="text-sm text-muted-foreground">{t('vanSales.return.completed')}</div>
             <div className="text-lg font-bold">{t('vanSales.return.done', { number: done.returnNumber })}</div>
-            {done.creditNoteId && <div className="text-sm text-muted-foreground">{t('vanSales.return.creditNoteIssued', { number: `CN-${done.returnNumber}` })}</div>}
+            {done.creditNoteId && (
+              <a href={`/print/credit-note/${done.creditNoteId}`} target="_blank" rel="noreferrer" className="inline-block text-sm font-medium text-primary underline underline-offset-2">
+                {t('vanSales.return.creditNoteIssued', { number: `CN-${done.returnNumber}` })}
+              </a>
+            )}
           </div>
           {/* Transaction completed → Print / Share / Continue (never auto-print) */}
           <div className="grid grid-cols-3 gap-2">
