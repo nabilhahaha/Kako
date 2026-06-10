@@ -31,39 +31,21 @@ set -euo pipefail
 DB_URL="${DATABASE_URL:?set DATABASE_URL to the target Supabase project connection string}"
 SUPA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Parse the connection URL OURSELVES (no percent-decoding) so passwords with URI
-# metacharacters like % work. libpq's URI parser would choke on a raw % in the
-# password; we extract fields literally and connect via PG* env + a key=value
-# conninfo (PGPASSWORD is taken verbatim).
-_u="${DB_URL#*://}"                       # strip scheme (postgres:// or postgresql://)
-_userinfo="${_u%%@*}"                      # user:password  (assumes no '@' in password)
-_hostpart="${_u#*@}"                       # host:port/db?params
-export PGUSER="${_userinfo%%:*}"
-export PGPASSWORD="${_userinfo#*:}"        # literal — % and other chars preserved
-_hostport="${_hostpart%%/*}"
-export PGHOST="${_hostport%%:*}"
-PGPORT="${_hostport#*:}"; [ "$PGPORT" = "$_hostport" ] && PGPORT=5432; export PGPORT
-_db="${_hostpart#*/}"; _db="${_db%%\?*}"; [ -z "$_db" ] && _db=postgres; export PGDATABASE="$_db"
+# Take ONLY the password from the secret (extracted literally, so URI
+# metacharacters like % are preserved — libpq's URI parser would choke on them).
+# Everything else is pinned to this project's IPv4 Session pooler, which is the
+# only connection that works from IPv4-only CI runners (the direct
+# db.<ref>.supabase.co host is IPv6-only, and the pooler needs user
+# postgres.<ref>). Pinning removes all host/user/IPv6/encoding failure modes —
+# the secret only has to carry the right password. Override via env if needed.
+_u="${DB_URL#*://}"                        # strip scheme
+_userinfo="${_u%%@*}"                       # user:password
+export PGPASSWORD="${_userinfo#*:}"         # literal password (handles %, etc.)
+export PGHOST="${STAGING_DB_HOST:-aws-0-eu-west-1.pooler.supabase.com}"
+export PGUSER="${STAGING_DB_USER:-postgres.rsjvgehvastmawzwnqcs}"
+export PGPORT="${STAGING_DB_PORT:-5432}"
+export PGDATABASE="${STAGING_DB_NAME:-postgres}"
 export PGSSLMODE="${PGSSLMODE:-require}"   # Supabase requires TLS
-
-# The DIRECT host (db.<ref>.supabase.co) is IPv6-only on Supabase; GitHub runners
-# are IPv4-only, so connections fail with "Network is unreachable". If we were
-# handed the direct host, switch to the IPv4 Session pooler (user must become
-# postgres.<ref>). Region defaults to this project's region; override via
-# SUPABASE_REGION. Pick the pooler shard that actually resolves.
-case "$PGHOST" in
-  db.*.supabase.co)
-    _ref="${PGHOST#db.}"; _ref="${_ref%%.supabase.co}"
-    _region="${SUPABASE_REGION:-eu-west-1}"
-    export PGUSER="postgres.${_ref}"
-    export PGPORT=5432
-    for _shard in aws-0 aws-1; do
-      _cand="${_shard}-${_region}.pooler.supabase.com"
-      if getent hosts "$_cand" >/dev/null 2>&1; then export PGHOST="$_cand"; break; fi
-    done
-    echo "› direct host is IPv6-only → using IPv4 Session pooler: $PGHOST (user=$PGUSER)"
-    ;;
-esac
 # Ensure pgcrypto/uuid functions resolve unqualified during apply (Supabase keeps
 # them in the `extensions` schema). Harmless if already on the search_path.
 export PGOPTIONS="-c search_path=public,extensions"
