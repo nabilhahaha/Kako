@@ -1,7 +1,13 @@
-full_name,email,phone,role,branch_ref,reports_to,active
-General Manager,gm@distributor.example,+20-10-1000-0001,manager,CAI,,true
-Finance Manager,finance.manager@distributor.example,+20-10-1000-0002,accountant,CAI,,true
-Sales Manager,sales.manager@distributor.example,+20-10-1000-0003,regional_manager,CAI,,true
-Field Supervisor,supervisor@distributor.example,+20-10-1000-0004,supervisor,CAI,sales.manager@distributor.example,true
-Van Sales Rep,van.rep@distributor.example,+20-10-1000-0005,salesman,CAI,supervisor@distributor.example,true
-Warehouse Keeper,warehouse.keeper@distributor.example,+20-10-1000-0006,warehouse_keeper,CAI,,true
+full_name,email,phone,role,job_title,branch_ref,department,reports_to,van_ref,route_ref,active
+General Manager,gm@distributor.example,+20-10-1000-0001,manager,General Manager,CAI,Operations,,,,true
+Finance Manager,finance.manager@distributor.example,+20-10-1000-0002,accountant,Finance Manager,CAI,Finance & Accounting,,,,true
+Credit Controller,credit.controller@distributor.example,+20-10-1000-0003,credit_controller,Credit Controller,CAI,Finance & Accounting,finance.manager@distributor.example,,,true
+Collection Officer,collection.officer@distributor.example,+20-10-1000-0004,collection_officer,Collection Officer,CAI,Finance & Accounting,credit.controller@distributor.example,,,true
+Sales Manager,sales.manager@distributor.example,+20-10-1000-0005,regional_manager,Sales Manager,CAI,Sales,,,,true
+Field Supervisor,supervisor@distributor.example,+20-10-1000-0006,supervisor,Field Supervisor,CAI,Van Sales,sales.manager@distributor.example,,,true
+Van Sales Rep (cash+credit),van.rep@distributor.example,+20-10-1000-0007,salesman,Van Sales Rep,CAI,Van Sales,supervisor@distributor.example,VAN-CAI-01,RT-CAI-A,true
+Cash Van Rep (cash only),cash.van@distributor.example,+20-10-1000-0008,cash_van,Cash Van Rep,CAI,Van Sales,supervisor@distributor.example,VAN-CAI-02,RT-CAI-C,true
+Merchandiser,merchandiser@distributor.example,+20-10-1000-0009,merchandiser,Merchandiser,CAI,Merchandising,supervisor@distributor.example,,RT-CAI-A,true
+Warehouse Keeper,warehouse.keeper@distributor.example,+20-10-1000-0010,warehouse_keeper,Warehouse Keeper,CAI,Warehousing,,,,true
+Data Admin,data.admin@distributor.example,+20-10-1000-0011,it_admin,Data Admin,CAI,Operations,,,,true
+Read-only Auditor,auditor@distributor.example,+20-10-1000-0012,viewer,Read-Only Auditor,CAI,Reporting & Analytics,,,,true
