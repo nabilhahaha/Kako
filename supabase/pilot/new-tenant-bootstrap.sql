@@ -53,6 +53,20 @@ BEGIN
     (v_co,'overstock','Overstock','فائض مخزون')
   ON CONFLICT (company_id, code) DO NOTHING;
 
+  -- Enable the modules a van-sales FMCG distributor needs. WITHOUT these, the
+  -- nav (visibleSections) hides the field/van-sales/distribution/returns/
+  -- warehousing screens, so reps/merchandisers/credit-controllers see almost
+  -- nothing. (sales/inventory/purchasing/accounting alone are not enough.)
+  INSERT INTO erp_company_modules(company_id, module, enabled)
+  SELECT v_co, m, true FROM unnest(ARRAY[
+    'sales','inventory','purchasing','accounting',
+    'distribution','crm','analytics','warehousing','returns','integrations'
+  ]) AS m
+  WHERE NOT EXISTS (SELECT 1 FROM erp_company_modules cm WHERE cm.company_id=v_co AND cm.module=m);
+  UPDATE erp_company_modules SET enabled=true
+   WHERE company_id=v_co AND module IN ('sales','inventory','purchasing','accounting',
+        'distribution','crm','analytics','warehousing','returns','integrations');
+
   -- Refined FMCG roles (global registry; idempotent) ...
   INSERT INTO erp_roles(key, name_ar, is_system, rank) VALUES
     ('merchandiser','منسق عرض',false,2),('cash_van','مندوب بيع نقدي',false,2),

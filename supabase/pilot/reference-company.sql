@@ -94,6 +94,13 @@ BEGIN
   INSERT INTO erp_van_sales_settings(company_id, is_enabled, discount_cap_pct, allow_negative_van_stock, require_physical_count_on_close)
     VALUES (v_co, true, 15, false, true);
   INSERT INTO erp_fmcg_settings(company_id) VALUES (v_co) ON CONFLICT DO NOTHING;
+  -- Enable the modules a van-sales FMCG distributor needs; otherwise the nav
+  -- (visibleSections) hides the field/van-sales/distribution/returns/warehousing
+  -- screens and reps/merchandisers see almost nothing.
+  INSERT INTO erp_company_modules(company_id, module, enabled)
+  SELECT v_co, m, true FROM unnest(ARRAY['sales','inventory','purchasing','accounting',
+    'distribution','crm','analytics','warehousing','returns','integrations']) AS m
+  ON CONFLICT DO NOTHING;
   INSERT INTO erp_return_reasons(company_id, code, label_en, label_ar) VALUES
     (v_co, 'damaged', 'Damaged', 'تالف'),
     (v_co, 'expired', 'Expired', 'منتهي الصلاحية'),
