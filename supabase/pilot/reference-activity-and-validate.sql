@@ -157,14 +157,16 @@ BEGIN
       ('supervisor@nile-group.test','reconciliation.view',true),('supervisor@nile-group.test','reports.view',true),
       ('supervisor@nile-group.test','purchasing.manage',false),('supervisor@nile-group.test','accounting.post',false),
       ('supervisor@nile-group.test','field.sales',false),('supervisor@nile-group.test','customers.approve',false),
-      -- Salesman (salesman)
+      -- Salesman (salesman → cash + credit per company policy)
       ('salesman@nile-group.test','sales.sell',true),('salesman@nile-group.test','sales.collect',true),
+      ('salesman@nile-group.test','sales.credit',true),
       ('salesman@nile-group.test','field.sales',true),('salesman@nile-group.test','day.close',true),
       ('salesman@nile-group.test','reconciliation.view',true),('salesman@nile-group.test','reconciliation.manage',false),
       ('salesman@nile-group.test','purchasing.manage',false),('salesman@nile-group.test','reports.view',false),
       ('salesman@nile-group.test','accounting.post',false),
-      -- Van Sales Rep (salesman)
-      ('van.rep@nile-group.test','sales.sell',true),('van.rep@nile-group.test','field.sales',true),
+      -- Van Sales Rep (salesman → cash + credit)
+      ('van.rep@nile-group.test','sales.sell',true),('van.rep@nile-group.test','sales.credit',true),
+      ('van.rep@nile-group.test','field.sales',true),
       ('van.rep@nile-group.test','day.close',true),('van.rep@nile-group.test','reconciliation.view',true),
       ('van.rep@nile-group.test','reconciliation.manage',false),('van.rep@nile-group.test','purchasing.manage',false),
       -- Warehouse Manager (warehouse_keeper)
@@ -179,10 +181,26 @@ BEGIN
       ('inventory.controller@nile-group.test','inventory.view',true),('inventory.controller@nile-group.test','inventory.adjust',true),
       ('inventory.controller@nile-group.test','reconciliation.manage',true),('inventory.controller@nile-group.test','sales.sell',false),
       ('inventory.controller@nile-group.test','accounting.post',false),
-      -- Merchandiser (salesman)
-      ('merchandiser@nile-group.test','field.sales',true),('merchandiser@nile-group.test','sales.sell',true),
-      ('merchandiser@nile-group.test','customers.manage',true),('merchandiser@nile-group.test','reconciliation.manage',false),
+      -- Merchandiser (refined: assortment/survey/grade; NO selling/collection)
+      ('merchandiser@nile-group.test','assortment.manage',true),('merchandiser@nile-group.test','survey.manage',true),
+      ('merchandiser@nile-group.test','grade.manage',true),('merchandiser@nile-group.test','field.sales',true),
+      ('merchandiser@nile-group.test','customers.manage',true),
+      ('merchandiser@nile-group.test','sales.sell',false),('merchandiser@nile-group.test','sales.collect',false),
+      ('merchandiser@nile-group.test','reconciliation.manage',false),
       ('merchandiser@nile-group.test','purchasing.manage',false),('merchandiser@nile-group.test','accounting.post',false),
+      -- Cash Van Rep (refined: cash sell + collect; NO credit)
+      ('cash.van@nile-group.test','sales.sell',true),('cash.van@nile-group.test','sales.collect',true),
+      ('cash.van@nile-group.test','field.sales',true),('cash.van@nile-group.test','day.close',true),
+      ('cash.van@nile-group.test','sales.credit',false),('cash.van@nile-group.test','credit.request.create',false),
+      ('cash.van@nile-group.test','accounting.post',false),
+      -- Collection Officer (refined: collect only; NO selling)
+      ('collection.officer@nile-group.test','sales.collect',true),('collection.officer@nile-group.test','customers.manage',true),
+      ('collection.officer@nile-group.test','sales.sell',false),('collection.officer@nile-group.test','field.sales',false),
+      ('collection.officer@nile-group.test','accounting.post',false),
+      -- Credit Controller (refined: approve credit; NO journal posting)
+      ('credit.controller@nile-group.test','credit.request.approve',true),('credit.controller@nile-group.test','accounting.view',true),
+      ('credit.controller@nile-group.test','sales.collect',true),
+      ('credit.controller@nile-group.test','accounting.post',false),('credit.controller@nile-group.test','sales.sell',false),
       -- Customer Service Agent (cashier)
       ('cs.agent@nile-group.test','sales.sell',true),('cs.agent@nile-group.test','sales.collect',true),
       ('cs.agent@nile-group.test','customers.manage',true),('cs.agent@nile-group.test','reports.view',false),

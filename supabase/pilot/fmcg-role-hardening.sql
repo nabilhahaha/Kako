@@ -31,13 +31,14 @@ BEGIN
   END IF;
 
   -- 1) Register the refined roles (company-usable, non-system). Idempotent.
-  INSERT INTO erp_roles (role_key, name, is_system)
+  --    erp_roles PK is `key`; labels live in `name_ar`; `rank` orders the role.
+  INSERT INTO erp_roles (key, name_ar, is_system, rank)
   VALUES
-    ('merchandiser',      'Merchandiser',       false),
-    ('cash_van',          'Cash Van Rep',       false),
-    ('collection_officer','Collection Officer', false),
-    ('credit_controller', 'Credit Controller',  false)
-  ON CONFLICT (role_key) DO NOTHING;
+    ('merchandiser',      'منسق عرض',        false, 2),
+    ('cash_van',          'مندوب بيع نقدي',  false, 2),
+    ('collection_officer','موظف تحصيل',      false, 3),
+    ('credit_controller', 'مراقب ائتمان',    false, 5)
+  ON CONFLICT (key) DO NOTHING;
 
   -- 2) Company-scoped permission sets (delete + reseed → idempotent).
   DELETE FROM erp_company_role_permissions
