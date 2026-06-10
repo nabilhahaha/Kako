@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HandCoins, Check, Loader2, ReceiptText, Share2 } from 'lucide-react';
+import { HandCoins, Check, Loader2, ReceiptText, Share2, Printer } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +39,7 @@ export function CollectScreen({
   const [specify, setSpecify] = useState(false);
   const [perInvoice, setPerInvoice] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ number: string; applied: number; unapplied: number } | null>(null);
+  const [done, setDone] = useState<{ id: string; number: string; applied: number; unapplied: number } | null>(null);
   const [key, setKey] = useState(() => uuid());
 
   const cName = (c: CollectCustomer) => (ar && c.name_ar ? c.name_ar : c.name);
@@ -81,7 +81,7 @@ export function CollectScreen({
         specified: specify ? perInvoice : undefined,
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.collect.error')); return; }
-      setDone({ number: res.data.collectionNumber, applied: res.data.totalApplied, unapplied: res.data.unapplied });
+      setDone({ id: res.data.collectionId, number: res.data.collectionNumber, applied: res.data.totalApplied, unapplied: res.data.unapplied });
       toast.success(t('vanSales.collect.done', { number: res.data.collectionNumber }));
     } finally { setBusy(false); }
   }
@@ -115,8 +115,11 @@ export function CollectScreen({
               {done.unapplied > 0 && <> · {t('vanSales.collect.onAccount')} {money(done.unapplied)}</>}
             </div>
           </div>
-          {/* Transaction completed → Share / Continue (collection-receipt print is a known gap) */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Transaction completed → Print / Share / Continue (never auto-print) */}
+          <div className="grid grid-cols-3 gap-2">
+            <a href={`/print/collection/${done.id}`} target="_blank" rel="noreferrer">
+              <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.collect.print')}</Button>
+            </a>
             <Button variant="outline" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.collect.share')}</Button>
             <Button onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.collect.newCollection')}</Button>
           </div>
