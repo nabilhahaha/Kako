@@ -28,6 +28,7 @@ toggle.
 | [User Onboarding](./USER-ONBOARDING-GUIDE.md) | Role mapping, bulk import / invite, multi-branch, passwords, visibility |
 | [Pricing Setup](./PRICING-SETUP-GUIDE.md) | Base price + tax, resolution order, lists/rules, discount cap, credit |
 | [Pilot Support Playbook](./PILOT-SUPPORT-PLAYBOOK.md) | Cadence, triage, common fixes, escalation, rollback, exit criteria |
+| [Reference Tenant Users & Demo Login Sheet](./REFERENCE-TENANT-USERS.md) | All 17 demo identities, roles, emails, branches + how to enable login for testing |
 
 ## Import templates
 
