@@ -314,6 +314,12 @@ export async function setCustomerJourney(
   if (c && salesmanId && statusBlocks((c as { customer_status?: string }).customer_status, 'rep')) {
     return { ok: false, error: t(statusBlockMessageKey((c as { customer_status?: string }).customer_status)) };
   }
+  // Role isolation: you may only assign a customer to a rep within your scope
+  // (self / team / region / company). Stops a rep handing a customer to anyone.
+  if (salesmanId) {
+    const { data: canSee } = await supabase.rpc('erp_can_see_user', { p_user: salesmanId });
+    if (!canSee) return { ok: false, error: t('customers.errUnauthorized') };
+  }
   const { error } = await supabase
     .from('erp_customers')
     .update({ salesman_id: salesmanId || null, visit_day: visitDay || null })

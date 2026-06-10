@@ -38,7 +38,8 @@ export default async function CustomersPage({
   const [{ data: customers, count }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }] = await Promise.all([
     listQuery.range(from, to),
     supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
-    supabase.from('erp_profiles').select('id, full_name, email').eq('is_active', true),
+    // Role-scoped reps (self/team/region/all) — see erp_assignable_reps / RLS.
+    supabase.rpc('erp_assignable_reps'),
     supabase.from('erp_customer_lookups').select('*').eq('is_active', true).order('sort').order('name'),
     supabase.from('erp_regions').select('*').eq('is_active', true).order('sort').order('name'),
     supabase.from('erp_areas').select('*').eq('is_active', true).order('sort').order('name'),
