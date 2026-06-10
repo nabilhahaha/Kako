@@ -250,8 +250,7 @@ assertions** (allowed **and** blocked, per identity) passed. Representative:
 | Read-Only Exec (`viewer`) | **reports, accounting view, inventory view** | sell, collect, purchasing, approve, reconcile |
 
 ### 6.3 Platform health at validation time
-Typecheck clean · **1,280 unit + 176 integration** tests green · build green
-(unchanged by this tenant — it is data + docs only).
+Typecheck clean · **1,280 unit + 181 integration** tests green · build green.
 
 ---
 
@@ -269,9 +268,12 @@ higher-risk items (platform changes) are documented, not made.**
 | 5 | **No dedicated Customer-Service role** — `cashier` is the closest (sell + collect + manage customers). A pure CS agent arguably shouldn't sell. | Medium | **Documented.** Acceptable approximation for the reference; a CS role is a follow-up permission-model change. |
 | 6 | **Procurement** has no standalone role; **branch_manager** carries purchasing + supplier authority and **warehouse_keeper** carries purchasing (no supplier master). | Low | **Resolved by mapping** — Procurement Mgr → `branch_manager`, Buyer → `warehouse_keeper`. Realistic separation (buyer raises POs, manager owns suppliers). |
 | 7 | Two titles per role for Finance and Warehousing. | Low | **Resolved organizationally** — distinguished by department + job title + `manager_id`, not permissions. |
+| 8 | **Cross-tenant document numbering** — invoice/return/PO/transfer/receipt/order/journal/voucher/RMA numbers carried a **global** unique index while sequences count per-branch, so two tenants sharing a branch code collide. Pre-existing base schema (0005); surfaced while running the reference + pilot tenants on one DB. | Medium (product) | ✅ **Fixed — migration `0268`** re-scopes every number to its owning branch/warehouse and adds the missing collections guarantee; regression test added. Reference + pilot tenants now coexist (both hold `INV-CAI-000001`). |
+| 9 | **Duplicate `auth.users` accumulation** across reseeds — `DROP SCHEMA public` doesn't clear the `auth` schema, so email-based identity resolution could pick a stale user → false cross-tenant check-in denial (the tenancy guard itself was correct). | Low (seed hygiene) | ✅ **Fixed** — seeds purge prior demo identities before re-provisioning; clean bootstrap → seed → validate repeats with no manual cleanup. |
 
-No security, RLS, or breaking changes were required or made. All gaps are
-additive enhancements; none blocks using this tenant as the reference.
+No security, RLS, or breaking changes were required or made. Findings 8–9 were
+fixed (a contained, reversible migration + seed hygiene); the rest are additive
+enhancements. None blocks using this tenant as the reference.
 
 ---
 

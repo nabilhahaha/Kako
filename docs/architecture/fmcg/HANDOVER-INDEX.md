@@ -59,16 +59,24 @@ committed to the repository and linked from here.
 | Reference tenant can be recreated from scratch | ✅ | fresh bootstrap → `reference-company.sql` → **PROVISIONED** |
 | Regression package can be executed repeatedly | ✅ | `reference-activity-and-validate.sql` ×2 → **109/109** both runs, activity idempotent (2nd run skips re-posting, re-validates) |
 | Pilot package is complete & self-contained | ✅ | clean DB → `demo-distributor.sql` + `run-pilot-dry-run.sql` → **ALL CHECKS PASSED** |
-| Platform health | ✅ | typecheck clean · **1,280 unit + 176 integration** green · build green |
+| Clean bootstrap → seed → validate, repeatable with **no manual cleanup** | ✅ | two full cycles → identical results, **17 distinct users, zero accumulation** |
+| **Multiple tenants coexist** on one database | ✅ | reference + pilot tenants both own branch `CAI` and both hold `INV-CAI-000001` with no collision (migration 0268) |
+| Platform health | ✅ | typecheck clean · **1,280 unit + 181 integration** green · build green |
 
 ---
 
-## Known limitations & recommended next phase
+## Findings resolved during the handover
 
 | Item | Severity | Status |
 |---|---|---|
-| **Cross-tenant document numbering** — `erp_invoices.invoice_number` / `erp_sales_returns.return_number` carry a **global** unique index while sequences count per-branch. Two *different companies* sharing a branch code (e.g. both `CAI`) would collide on first invoice. Pre-existing base schema (migration 0005); **not** introduced by the van-sales loop; does **not** affect a single dedicated pilot tenant. | Medium | **Documented — recommended for the next phase** (tenant-scope the number, or prefix it per company). A constraint change is a migration = higher-risk; not made here. |
-| No dedicated **Merchandiser** / **Customer-Service** roles | Medium | Documented in [`REFERENCE-COMPANY.md` §7](./REFERENCE-COMPANY.md#7-findings--gaps); mapped to closest roles |
+| **Cross-tenant document numbering** — invoice / return / PO / transfer / receipt / order / journal / voucher / RMA numbers carried a **global** unique index while sequences count per-branch, so two tenants sharing a branch code (e.g. both `CAI`) collided. Pre-existing base schema (0005); **not** introduced by the van-sales loop. | Medium | ✅ **FIXED — migration `0268`** re-scopes every number to its owning branch/warehouse (+ adds the missing collections guarantee). Regression test `document-numbering-tenant-scope.test.ts` proves two same-coded tenants coexist. Verified live: reference + pilot tenants both hold `INV-CAI-000001`. |
+| **Duplicate `auth.users` accumulation** across reseeds (the `auth` schema survives `DROP SCHEMA public`), causing email-based identity resolution to pick a stale user → false cross-tenant check-in denial. The tenancy guard itself was **correct**. | Low (seed hygiene) | ✅ **FIXED** — both seeds purge prior demo identities before re-provisioning; clean bootstrap → seed → validate is repeatable with no manual cleanup (verified across two cycles). |
+
+## Known limitations (documented, non-blocking)
+
+| Item | Severity | Status |
+|---|---|---|
+| No dedicated **Merchandiser** / **Customer-Service** roles | Medium | Documented in [`REFERENCE-COMPANY.md` §7](./REFERENCE-COMPANY.md#7-findings--gaps); mapped to closest roles. A purpose-built role is a future permission-model change. |
 | No `erp_brands` / `erp_taxes` / `erp_payment_terms` master tables | Low | Modeled via existing columns; documented |
 | Offline-first field operation | — | Out of scope (Phase 6); pilot is online-first by design |
 
