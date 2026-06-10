@@ -67,6 +67,15 @@ BEGIN
   END IF;
 
   ----------------------------------------------------------------------------
+  -- Seed-identity hygiene. The auth schema is NOT dropped by `DROP SCHEMA public`,
+  -- so on a recreate-from-scratch (drop public → re-bootstrap → re-run this seed)
+  -- the prior run's auth.users rows survive and email lookups would return stale
+  -- duplicates. Purge any prior demo identities (this domain is demo-only) so each
+  -- recreation yields exactly one user per email. No-op on a first run.
+  ----------------------------------------------------------------------------
+  DELETE FROM auth.users WHERE email LIKE '%@nile-group.test';
+
+  ----------------------------------------------------------------------------
   -- Company + FMCG/van-sales policy + return reasons
   ----------------------------------------------------------------------------
   INSERT INTO erp_companies(name, name_ar, currency, country, tax_number, address, phone, email, business_type)

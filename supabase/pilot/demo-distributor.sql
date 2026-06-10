@@ -45,6 +45,11 @@ BEGIN
     RETURN;
   END IF;
 
+  -- Seed-identity hygiene: the auth schema survives `DROP SCHEMA public`, so on a
+  -- recreate-from-scratch the prior run's auth.users persist. Purge prior demo
+  -- identities (demo-only domain) so each recreation is clean. No-op on first run.
+  DELETE FROM auth.users WHERE email LIKE '%@nile-demo.test';
+
   -- Company + Van Sales policy + FMCG settings + return reasons.
   INSERT INTO erp_companies(name, currency, country) VALUES ('Nile FMCG Distribution Co.', 'EGP', 'EG') RETURNING id INTO v_company;
   INSERT INTO erp_van_sales_settings(company_id, is_enabled, discount_cap_pct, allow_negative_van_stock, require_physical_count_on_close)
