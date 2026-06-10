@@ -38,9 +38,13 @@ SUPA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # db.<ref>.supabase.co host is IPv6-only, and the pooler needs user
 # postgres.<ref>). Pinning removes all host/user/IPv6/encoding failure modes —
 # the secret only has to carry the right password. Override via env if needed.
-_u="${DB_URL#*://}"                        # strip scheme
-_userinfo="${_u%%@*}"                       # user:password
-export PGPASSWORD="${_userinfo#*:}"         # literal password (handles %, etc.)
+# The secret may be EITHER a full connection URL (we extract the password) OR
+# just the raw password — whichever is simpler for you.
+if [ "${DB_URL#*://}" != "$DB_URL" ] && [ "${DB_URL#*@}" != "$DB_URL" ]; then
+  _u="${DB_URL#*://}"; _userinfo="${_u%%@*}"; export PGPASSWORD="${_userinfo#*:}"
+else
+  export PGPASSWORD="$DB_URL"               # secret is the raw password
+fi
 export PGHOST="${STAGING_DB_HOST:-aws-0-eu-west-1.pooler.supabase.com}"
 export PGUSER="${STAGING_DB_USER:-postgres.rsjvgehvastmawzwnqcs}"
 export PGPORT="${STAGING_DB_PORT:-5432}"
