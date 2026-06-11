@@ -9,8 +9,6 @@ import { loadProductUnits } from '@/lib/erp/uom-server';
 import { validatePurchase, baseMovement } from '@/lib/erp/uom-rules';
 import { factorOf, toBase, priceToBase } from '@/lib/erp/uom';
 
-export { pharmacySearch } from '../pos/actions';
-
 /** Unit options for a product (receiving defaults to the purchase unit). */
 export async function productUnits(productId: string): Promise<{ base: string; purchase: string; units: string[] }> {
   const { error } = await requireAuth();

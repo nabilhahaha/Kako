@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Search, PackageCheck } from 'lucide-react';
-import { pharmacySearch, productUnits, receiveBatch } from './actions';
-import type { PharmacySearchRow } from '../pos/actions';
+import { productUnits, receiveBatch } from './actions';
+import { pharmacySearch, type PharmacySearchRow } from '../pos/actions';
 
 export function ReceiveManager({ suppliers, batchTracking, expiryTracking }: {
   suppliers: Array<{ id: string; name: string; name_ar: string | null }>;
