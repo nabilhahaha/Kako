@@ -109,6 +109,32 @@ BEGIN
     (v_co, 'overstock', 'Overstock', 'فائض مخزون')
   ON CONFLICT (company_id, code) DO NOTHING;
 
+  -- Default field-form SECTIONS per entity, so the Roles & Permissions →
+  -- Section Access governance screen has sections to manage out of the box
+  -- (a fresh tenant otherwise shows "No sections exist for this entity").
+  INSERT INTO erp_field_sections(company_id, entity, key, label_en, label_ar, sort, collapsible, default_collapsed)
+  SELECT v_co, x.entity, x.key, x.le, x.la, x.sort, true, false FROM (VALUES
+    ('customer','basic','Basic Information','المعلومات الأساسية',1),
+    ('customer','contact','Contact','بيانات التواصل',2),
+    ('customer','financial','Credit & Financial','الائتمان والمالية',3),
+    ('customer','location','Location & GPS','الموقع و GPS',4),
+    ('customer','classification','Classification','التصنيف',5),
+    ('product','basic','Basic Information','المعلومات الأساسية',1),
+    ('product','pricing','Pricing & Tax','التسعير والضريبة',2),
+    ('product','inventory','Inventory','المخزون',3),
+    ('product','packaging','Packaging','التعبئة',4),
+    ('invoice','header','Header','الترويسة',1),
+    ('invoice','lines','Line Items','بنود الفاتورة',2),
+    ('invoice','totals','Totals & Payment','الإجماليات والدفع',3),
+    ('supplier','basic','Basic Information','المعلومات الأساسية',1),
+    ('supplier','contact','Contact','بيانات التواصل',2),
+    ('supplier','financial','Financial','المالية',3),
+    ('route','basic','Basic Information','المعلومات الأساسية',1),
+    ('route','schedule','Schedule','الجدول',2),
+    ('route','assignment','Rep & Van','المندوب والعربة',3)
+  ) AS x(entity,key,le,la,sort)
+  WHERE NOT EXISTS (SELECT 1 FROM erp_field_sections fs WHERE fs.company_id=v_co AND fs.entity=x.entity AND fs.key=x.key);
+
   ----------------------------------------------------------------------------
   -- Refined FMCG roles (default provisioning) + company-scoped permissions.
   -- erp_user_has_permission() prefers a company-scoped grant over the global
