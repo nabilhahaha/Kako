@@ -70,7 +70,8 @@ BEGIN
   -- Refined FMCG roles (global registry; idempotent) ...
   INSERT INTO erp_roles(key, name_ar, is_system, rank) VALUES
     ('merchandiser','منسق عرض',false,2),('cash_van','مندوب بيع نقدي',false,2),
-    ('collection_officer','موظف تحصيل',false,3),('credit_controller','مراقب ائتمان',false,5)
+    ('collection_officer','موظف تحصيل',false,3),('credit_controller','مراقب ائتمان',false,5),
+    ('inventory_controller','مراقب مخزون',false,4)
   ON CONFLICT (key) DO NOTHING;
 
   -- ... and their COMPANY-SCOPED permissions for THIS tenant (required).
@@ -101,7 +102,13 @@ BEGIN
     ('credit_controller','accounting.view'),('credit_controller','accounting.voucher.approve'),
     ('credit_controller','sales.collect'),('credit_controller','suppliers.manage'),
     ('credit_controller','customers.change_status'),('credit_controller','reports.view'),
-    ('credit_controller','report.aggregate.view')
+    ('credit_controller','report.aggregate.view'),
+    -- Inventory Controller: stock accuracy; NO purchasing / approvals / recon-manage.
+    ('inventory_controller','inventory.view'),('inventory_controller','stock.view'),
+    ('inventory_controller','product.search'),('inventory_controller','inventory.count'),
+    ('inventory_controller','inventory.adjust'),('inventory_controller','stock.adjust'),
+    ('inventory_controller','stock.transfer'),('inventory_controller','stock_request.approve'),
+    ('inventory_controller','reconciliation.view'),('inventory_controller','report.aggregate.view')
   ) AS g(role_key, permission)
   ON CONFLICT (company_id, role_key, permission) DO NOTHING;
 

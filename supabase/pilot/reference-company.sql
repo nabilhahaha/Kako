@@ -125,7 +125,8 @@ BEGIN
     ('merchandiser',      'منسق عرض',       false, 2),
     ('cash_van',          'مندوب بيع نقدي', false, 2),
     ('collection_officer','موظف تحصيل',     false, 3),
-    ('credit_controller', 'مراقب ائتمان',   false, 5)
+    ('credit_controller', 'مراقب ائتمان',   false, 5),
+    ('inventory_controller','مراقب مخزون',  false, 4)
   ON CONFLICT (key) DO NOTHING;
 
   INSERT INTO erp_company_role_permissions(company_id, role_key, permission)
@@ -164,6 +165,11 @@ BEGIN
     ('collection_officer','report.aggregate.view'),
     -- Credit Controller: approve credit; NO accounting.post.
     ('credit_controller','credit.request.approve'),('credit_controller','credit.request.create'),
+    ('inventory_controller','inventory.view'),('inventory_controller','stock.view'),
+    ('inventory_controller','product.search'),('inventory_controller','inventory.count'),
+    ('inventory_controller','inventory.adjust'),('inventory_controller','stock.adjust'),
+    ('inventory_controller','stock.transfer'),('inventory_controller','stock_request.approve'),
+    ('inventory_controller','reconciliation.view'),('inventory_controller','report.aggregate.view'),
     ('credit_controller','accounting.view'),('credit_controller','accounting.voucher.approve'),
     ('credit_controller','sales.collect'),('credit_controller','suppliers.manage'),
     ('credit_controller','customers.change_status'),('credit_controller','reports.view'),
@@ -308,7 +314,7 @@ BEGIN
     (u_vanrep,  v_cai, 'salesman',         true, d_van,   (SELECT id FROM erp_job_titles WHERE company_id=v_co AND name='Van Sales Rep')),
     (u_whmgr,   v_cai, 'warehouse_keeper', true, d_wh,    (SELECT id FROM erp_job_titles WHERE company_id=v_co AND name='Warehouse Manager')),
     (u_whkeep,  v_cai, 'warehouse_keeper', true, d_wh,    (SELECT id FROM erp_job_titles WHERE company_id=v_co AND name='Warehouse Keeper')),
-    (u_invctl,  v_cai, 'warehouse_keeper', true, d_inv,   (SELECT id FROM erp_job_titles WHERE company_id=v_co AND name='Inventory Controller')),
+    (u_invctl,  v_cai, 'inventory_controller', true, d_inv, (SELECT id FROM erp_job_titles WHERE company_id=v_co AND name='Inventory Controller')),
     (u_merch,   v_cai, 'merchandiser',     true, d_merch, (SELECT id FROM erp_job_titles WHERE company_id=v_co AND name='Merchandiser')),
     (u_csagent, v_cai, 'cashier',          true, d_cs,    (SELECT id FROM erp_job_titles WHERE company_id=v_co AND name='Customer Service Agent')),
     (u_roexec,  v_cai, 'viewer',           true, d_rep,   (SELECT id FROM erp_job_titles WHERE company_id=v_co AND name='Read-Only Executive')),
