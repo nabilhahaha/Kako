@@ -82,18 +82,32 @@ export async function importEgyptianDrugs(): Promise<{ ok: boolean; error?: stri
   const iEn = idx('commercial_name_en');
   const iAr = idx('commercial_name_ar');
   const iSci = idx('scientific_name');
+  const iMfr = idx('manufacturer');
+  const iClass = idx('drug_class');
+  const iRoute = idx('route');
   const iPrice = idx('price_egp');
   if (iEn < 0) return { ok: false, error: t('clinic.refActions.unexpectedFormat') };
 
+  const cell = (r: string[], i: number, n: number) => (i >= 0 ? (r[i] ?? '').trim().slice(0, n) || null : null);
   const records = rows
     .filter((r) => (r[iEn] ?? '').trim().length > 0)
-    .map((r) => ({
-      kind: 'drug' as const,
-      name: (r[iEn] ?? '').trim().slice(0, 200),
-      name_ar: (r[iAr] ?? '').trim().slice(0, 200) || null,
-      detail: (r[iSci] ?? '').trim().slice(0, 400) || null,
-      price: iPrice >= 0 && r[iPrice] && !Number.isNaN(Number(r[iPrice])) ? Number(r[iPrice]) : null,
-    }));
+    .map((r) => {
+      const sci = cell(r, iSci, 400);
+      return {
+        kind: 'drug' as const,
+        name: (r[iEn] ?? '').trim().slice(0, 200),
+        name_ar: cell(r, iAr, 200),
+        // Richer Global Medicine Catalog fields (schema 0274). Active ingredient
+        // and generic name both derive from the scientific name in this dataset.
+        detail: sci,
+        active_ingredient: sci,
+        generic_name: sci,
+        manufacturer: cell(r, iMfr, 200),
+        category: cell(r, iClass, 120),
+        form: cell(r, iRoute, 80),
+        price: iPrice >= 0 && r[iPrice] && !Number.isNaN(Number(r[iPrice])) ? Number(r[iPrice]) : null,
+      };
+    });
 
   const supabase = await createClient();
   const { error: delErr } = await supabase.from('erp_clinic_reference').delete().eq('kind', 'drug');
