@@ -82,6 +82,37 @@ Onboarding (no manual entry of thousands): (1) pick from Global Catalog →
 - `erp_pick_fefo_batches(product, warehouse, qty)` — FEFO allocation for POS.
 - `erp_expiry_risk` view — expired / ≤30 / ≤60 / ≤90-day buckets (RLS-aware).
 
+## 4b. Tenant Feature Configuration (built — 0275)
+
+Pharmacy capabilities are **per-tenant configurable, never hard-coded**. A
+generic, reusable layer (pharmacy is the first `pack`; other industries add
+features with a new pack):
+
+- **Catalog** `src/lib/erp/feature-catalog.ts` — 20 features across Inventory /
+  POS / Governance, each with templates + a `coverage` map (nav/screen/
+  validation/logic).
+- **Templates** — Pharmacy **Lite ⊆ Standard ⊆ Enterprise** (monotonic, tested).
+- **DB** `erp_feature_flags` (RLS: read = tenant, write = company admin) +
+  `erp_feature_enabled(company, key)` for SQL business logic.
+- **Resolver** `src/lib/erp/feature-flags.ts` (`getFeatureFlags` — override row,
+  else Lite default).
+- **Screen** `/settings/features` (company admin) — apply a template + per-feature
+  toggles; disabled features leave no UI/nav orphan.
+- **Gating** — nav uses the existing `flag`/`enabledFlags` mechanism (layout
+  injects the tenant's enabled feature keys); screens/validation/logic call
+  `loadFeatureFlags()` / `getFeatureFlags` / `erp_feature_enabled`.
+
+Validated on staging (rolled back): admin resolves batch=ON, FEFO=OFF, lot=OFF;
+reads own 20 flags; non-admin write denied. Persisted demo config (Amty spec) on
+City Care Pharmacy: batch/expiry/near-expiry/barcode-scan/hold-resume ON;
+lot/FEFO/expiry-write-off/controlled OFF.
+
+### UI Coverage Audit hook
+Each feature's `coverage` (nav/screens/validation/logic) is the audit target.
+`feature-catalog.test.ts` already enforces every feature declares coverage; the
+forthcoming UI Coverage Audit cross-checks that an **enabled** feature is actually
+rendered/usable on its declared screens and hidden when disabled.
+
 ## 5. Build plan (remaining phases)
 
 1. **Catalog/onboarding services + UI** — search API over the 24.9k catalog

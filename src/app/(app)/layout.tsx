@@ -8,6 +8,7 @@ import { TopBar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/layout/command-palette';
 import { SEARCH_ENABLED } from '@/lib/search/flags';
 import { enabledNavFlags } from '@/lib/erp/nav-flags';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { CopilotFab } from '@/components/copilot/copilot-fab';
@@ -38,7 +39,14 @@ export default async function AppLayout({
   // Feature-flag tokens that are ON (server-side) → drives flag-aware nav so
   // flag-gated pages (Alerts, Change Requests, Van Sales settings) appear when
   // enabled and disappear cleanly when off — no URL-only orphans.
-  const navFlags = enabledNavFlags();
+  // Merge env-based flags with the tenant's enabled FEATURE flags (erp_feature_flags)
+  // so feature-gated nav items (pharmacy batch/expiry/…) appear only when the
+  // company has the feature ON. Disabled features leave no nav orphan.
+  const tenantFeatures = await getFeatureFlags(await createClient(), ctx.companyId);
+  const navFlags = [
+    ...enabledNavFlags(),
+    ...Object.keys(tenantFeatures).filter((k) => tenantFeatures[k]),
+  ];
 
   // A signed-in user who isn't platform staff and has no company yet is sent to
   // self-service onboarding to create their company (free trial).
