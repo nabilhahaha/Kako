@@ -79,10 +79,10 @@ export async function loadAuthzConsole(
   ] = await Promise.all([
     supabase.from('erp_company_roles').select('role_key, enabled').eq('company_id', companyId),
     supabase.from('erp_roles').select('key, name_ar, is_system, rank').order('rank', { ascending: false }),
-    supabase
-      .from('erp_user_branches')
-      .select('user_id, role, branch:erp_branches!inner(company_id), profile:erp_profiles(id, full_name, email)')
-      .eq('branch.company_id', companyId),
+    // Members from the tenant-scoped visibility model (erp_visible_user_ids):
+    // Company Admin → all tenant users; Supervisor → team; Area Manager → region;
+    // Rep → self. SECURITY DEFINER RPC re-applies the scope, so no RLS is widened.
+    supabase.rpc('erp_scoped_members'),
     supabase
       .from('erp_company_role_permissions')
       .select('role_key, permission')
@@ -107,21 +107,20 @@ export async function loadAuthzConsole(
     roles = allRolesList.filter((r) => r.is_system).map((r) => ({ key: r.key, name_ar: r.name_ar }));
   }
 
-  // ── Members: collapse erp_user_branches rows to one entry per user. The joined
-  //    profile arrives as an object (or array) via the FK relationship. ──
-  type ProfileLite = { id: string; full_name: string | null; email: string | null };
+  // ── Members: collapse the scoped-member rows (one per user/role) to one entry
+  //    per user. Source = erp_scoped_members() RPC (flat user_id/role/name/email). ──
   const memberMap = new Map<string, AuthzMember>();
   for (const raw of (memberRows ?? []) as unknown as Array<{
     user_id: string;
     role: string;
-    profile: ProfileLite | ProfileLite[] | null;
+    full_name: string | null;
+    email: string | null;
   }>) {
-    const profile = Array.isArray(raw.profile) ? raw.profile[0] ?? null : raw.profile;
     const existing = memberMap.get(raw.user_id);
     if (existing) {
       if (!existing.roleKeys.includes(raw.role)) existing.roleKeys.push(raw.role);
     } else {
-      const name = profile?.full_name?.trim() || profile?.email || raw.user_id;
+      const name = raw.full_name?.trim() || raw.email || raw.user_id;
       memberMap.set(raw.user_id, { id: raw.user_id, name, roleKeys: [raw.role] });
     }
   }

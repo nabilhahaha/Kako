@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import {
-  Truck, MapPin, Map as MapIcon, ShoppingCart, HandCoins, Boxes, ClipboardCheck, ClipboardList, RefreshCw, Play, CheckCircle2, type LucideIcon,
+  Truck, MapPin, Map as MapIcon, ShoppingCart, Undo2, HandCoins, Boxes, ClipboardCheck, ClipboardList, RefreshCw, Play, CheckCircle2, type LucideIcon,
 } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 // land in later phases and show a "Coming soon" chip until then.
 
 interface SpineStep {
-  key: 'confirmLoad' | 'journey' | 'route' | 'sell' | 'collect' | 'stock' | 'reconcile' | 'merchandising' | 'offline';
+  key: 'confirmLoad' | 'journey' | 'route' | 'sell' | 'return' | 'collect' | 'stock' | 'reconcile' | 'merchandising' | 'offline';
   icon: LucideIcon;
   href?: string; // omit = coming soon
 }
@@ -29,8 +29,9 @@ const STEPS: SpineStep[] = [
   { key: 'confirmLoad', icon: Truck },                         // Phase B
   { key: 'journey', icon: MapPin, href: '/field/journey' },
   { key: 'route', icon: MapIcon, href: '/field/route' },
-  { key: 'sell', icon: ShoppingCart },                         // Phase C
-  { key: 'collect', icon: HandCoins },                         // Phase D
+  { key: 'sell', icon: ShoppingCart, href: '/field/van-sales/sell' },
+  { key: 'return', icon: Undo2, href: '/field/van-sales/return' },
+  { key: 'collect', icon: HandCoins, href: '/field/van-sales/collect' },
   { key: 'stock', icon: Boxes, href: '/field/stock' },
   { key: 'reconcile', icon: ClipboardCheck, href: '/field/van-reconciliation' },
   { key: 'merchandising', icon: ClipboardList, href: '/field/survey' },
@@ -43,6 +44,7 @@ export default async function VanSalesMyDayPage() {
   if (!VAN_SALES_ENABLED()) notFound();
   const isSalesman = hasPermission(ctx, 'field.sales') || ctx.memberships.some((m) => m.role === 'salesman');
   if (!isSalesman && !ctx.isSuperAdmin) redirect('/dashboard');
+  const isAdmin = hasPermission(ctx, 'settings.branches') || ctx.isSuperAdmin;
 
   const { t } = await getT();
   const { state } = await loadVanDayState(ctx);
@@ -91,6 +93,21 @@ export default async function VanSalesMyDayPage() {
           );
         })}
       </div>
+
+      {/* Admin: pilot readiness diagnostic */}
+      {isAdmin && (
+        <Link href="/field/van-sales/readiness" className="block">
+          <Card className="transition-colors hover:bg-secondary/50">
+            <CardContent className="flex items-center gap-3 py-4">
+              <ClipboardCheck className="h-5 w-5 text-primary" />
+              <div>
+                <div className="text-sm font-medium">{t('vanSales.readiness.title')}</div>
+                <div className="text-xs text-muted-foreground">{t('vanSales.readiness.subtitle')}</div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
     </div>
   );
 }

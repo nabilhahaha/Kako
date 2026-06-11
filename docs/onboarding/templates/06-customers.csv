@@ -1,0 +1,4 @@
+code,name,name_ar,phone,email,city,branch_ref,credit_limit,payment_terms_days,payment_type,cr_number,tax_number,national_address,contact_person,contact_phone,latitude,longitude,allowed_gps_radius,route_ref,salesman_ref,approval_status,created_source,external_id
+CUST-001,Retailer 1,تاجر 1,+20-10-0000-0001,,Cairo,CAI,5000,30,credit,,,,Ahmed,+20-10-0000-0001,30.0510,31.2410,150,Cairo Route A,van.rep@distributor.example,approved,import,EXT-CUST-001
+CUST-002,Retailer 2,تاجر 2,+20-10-0000-0002,,Cairo,CAI,7000,15,credit,,,,Mona,+20-10-0000-0002,30.0520,31.2420,150,Cairo Route A,van.rep@distributor.example,approved,import,EXT-CUST-002
+CUST-017,Retailer 17,تاجر 17,+20-10-0000-0017,,Alexandria,ALX,0,0,cash,,,,Sara,+20-10-0000-0017,31.2010,29.9210,150,Alex Route A,salesman@distributor.example,approved,import,EXT-CUST-017

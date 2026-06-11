@@ -5,6 +5,7 @@ import { getT } from '@/lib/i18n/server';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/server';
 import { PrintBar } from '@/components/print/print-button';
+import { BrandLogo } from '@/components/print/brand-logo';
 
 // Collection receipt print — payment → invoice → customer → company (all in
 // production). Bilingual, print-friendly. Additive; no schema change.
@@ -38,7 +39,7 @@ export default async function ReceiptPrintPage({ params }: { params: Promise<{ i
 
   const company = await safe(async () => {
     if (!customer?.company_id) return null;
-    const { data } = await supabase.from('erp_companies').select('name, name_ar, phone').eq('id', customer.company_id as string).maybeSingle();
+    const { data } = await supabase.from('erp_companies').select('name, name_ar, phone, logo_url').eq('id', customer.company_id as string).maybeSingle();
     return data as Record<string, unknown> | null;
   }, null);
 
@@ -49,6 +50,7 @@ export default async function ReceiptPrintPage({ params }: { params: Promise<{ i
       <PrintBar printLabel={t('salesman.print')} backHref="/sales/invoices" backLabel={t('salesman.back')} />
       <div className="space-y-4 rounded-lg border bg-white p-6 text-black print:border-0 print:p-0">
         <div className="border-b pb-3 text-center">
+          <BrandLogo url={company?.logo_url as string | undefined} className="mx-auto mb-2 h-12 w-auto max-w-[160px] object-contain" />
           <h1 className="text-base font-bold">{pick(company?.name as string, company?.name_ar as string) || '—'}</h1>
           <p className="mt-1 text-sm font-semibold">{t('vanops.receiptTitle')}</p>
           <p className="text-xs text-gray-600" dir="ltr">{String(pay.reference_number ?? pay.id).slice(0, 18)}</p>

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
 
 /**
@@ -17,7 +18,7 @@ export async function adjustStock(input: {
   notes?: string;
 }): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
 
   const { t } = await getT();
   if (!input.warehouse_id) return { ok: false, error: t('inventory.errorWarehouseRequired') };
@@ -26,17 +27,24 @@ export async function adjustStock(input: {
     return { ok: false, error: t('inventory.errorDeltaRequired') };
 
   const supabase = await createClient();
+  const note = input.notes?.trim() || t('inventory.defaultAdjustmentNote');
   const { error } = await supabase.from('erp_stock_movements').insert({
     movement_type: 'adjustment',
     warehouse_id: input.warehouse_id,
     product_id: input.product_id,
     quantity: input.delta,
     reference_type: 'manual',
-    notes: input.notes?.trim() || t('inventory.defaultAdjustmentNote'),
-    created_by: ctx!.userId,
+    notes: note,
+    created_by: ctx.userId,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  // Critical-action audit: stock.adjust (irreversible — corrected by a counter-entry).
+  await logAudit(supabase, {
+    action: 'update', entity: 'stock_adjustment',
+    details: { warehouse_id: input.warehouse_id, product_id: input.product_id, delta: input.delta, reason: note },
+    companyId: ctx.companyId,
+  });
   revalidatePath('/inventory');
   return { ok: true };
 }

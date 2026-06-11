@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PrintButton } from '@/components/print-button';
+import { BrandLogo } from '@/components/print/brand-logo';
 import { INVOICE_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import type { Invoice, InvoiceLine } from '@/lib/erp/types';
@@ -31,7 +32,7 @@ export default async function InvoicePrintPage({
     customer: { name: string; name_ar: string | null; phone: string | null; address: string | null; tax_number: string | null } | null;
     branch: {
       name: string; name_ar: string | null; address: string | null; phone: string | null;
-      company: { name: string; name_ar: string | null; tax_number: string | null; address: string | null; phone: string | null; currency: string } | null;
+      company: { name: string; name_ar: string | null; tax_number: string | null; address: string | null; phone: string | null; currency: string; logo_url: string | null } | null;
     } | null;
   };
 
@@ -52,6 +53,7 @@ export default async function InvoicePrintPage({
 
       <div className="flex items-start justify-between border-b pb-4">
         <div>
+          <BrandLogo url={company?.logo_url} className="mb-2 h-12 w-auto max-w-[160px] object-contain" />
           <h1 className="text-xl font-bold">{company?.name_ar || company?.name || 'الشركة'}</h1>
           {company?.address && <p className="text-xs text-gray-600">{company.address}</p>}
           {company?.phone && <p className="text-xs text-gray-600" dir="ltr">{company.phone}</p>}

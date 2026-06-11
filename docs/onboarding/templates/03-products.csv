@@ -1,0 +1,6 @@
+code,name,name_ar,barcode,category_code,unit,cost_price,sell_price,tax_rate,min_stock,brand,subcategory,pack_size,expiry_days,external_id
+BEV-001,Nile Cola 330ml,نايل كولا 330مل,622000000001,BEV,carton,60,90,14,20,NileCola,Soft Drinks,24x330ml,180,SKU-BEV-001
+BEV-003,Oasis Water 600ml,واحة مياه 600مل,622000000003,BEV,carton,30,48,0,20,Oasis,Water,24x600ml,365,SKU-BEV-003
+SNK-001,CrispMax Chips 25g,كريسب ماكس 25جم,622000000005,SNK,carton,48,78,14,15,CrispMax,Chips,48x25g,120,SKU-SNK-001
+DAI-001,DairyPure Milk 1L,ديري بيور حليب 1لتر,622000000009,DAI,carton,95,140,0,10,DairyPure,Milk,12x1L,30,SKU-DAI-001
+HC-001,SparkleClean Dish 500ml,سباركل غسيل,622000000015,HC,carton,105,170,14,10,SparkleClean,Dishwash,12x500ml,730,SKU-HC-001

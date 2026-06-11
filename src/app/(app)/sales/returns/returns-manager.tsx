@@ -15,7 +15,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 import type { Branch, ErpCustomer, ProductCatalog, ReturnStatus } from '@/lib/erp/types';
 import type { ReturnRow } from './page';
-import { useConfirm } from '@/components/confirm-dialog';
+import { useCriticalAction } from '@/lib/critical-action';
 import { useI18n } from '@/lib/i18n/provider';
 import { Plus, Loader2, X, Undo2, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -51,7 +51,7 @@ export function ReturnsManager({
   q: string;
 }) {
   const router = useRouter();
-  const confirm = useConfirm();
+  const runCritical = useCriticalAction();
   const { t, locale } = useI18n();
   const [creating, setCreating] = useState(false);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
@@ -94,40 +94,37 @@ export function ReturnsManager({
     });
   }
 
+  function returnLabel(id: string) {
+    const r = returns.find((x) => x.id === id);
+    if (!r) return id;
+    return [r.return_number, r.customer?.name_ar || r.customer?.name].filter(Boolean).join(' · ');
+  }
+
+  // Return approval — irreversible (restocks + posts AR); standard confirm.
   async function onComplete(id: string) {
-    const ok = await confirm({
-      title: t('sales.returnConfirmApproveTitle'),
-      message: t('sales.returnConfirmApproveMsg'),
-      confirmText: t('sales.returnConfirmApproveBtn'),
-    });
-    if (!ok) return;
-    startTransition(async () => {
-      const res = await completeReturn(id);
-      if (!res.ok) {
-        toast.error(res.error ?? t('sales.errorGeneric'));
-        return;
-      }
-      toast.success(t('sales.returnSuccessApproved'));
-      router.refresh();
+    await runCritical({
+      catalogKey: 'return.approve',
+      action: t('critical.actions.returnApprove'),
+      record: returnLabel(id),
+      execute: async () => {
+        const res = await completeReturn(id);
+        return { ok: res.ok, error: res.error };
+      },
+      onDone: () => router.refresh(),
     });
   }
 
+  // Return rejection — reason mandatory (from the catalog).
   async function onCancel(id: string) {
-    const ok = await confirm({
-      title: t('sales.returnConfirmCancelTitle'),
-      confirmText: t('sales.returnConfirmCancelBtn'),
-      cancelText: t('sales.btnBack'),
-      destructive: true,
-    });
-    if (!ok) return;
-    startTransition(async () => {
-      const res = await cancelReturn(id);
-      if (!res.ok) {
-        toast.error(res.error ?? t('sales.errorGeneric'));
-        return;
-      }
-      toast.success(t('sales.returnSuccessCancelled'));
-      router.refresh();
+    await runCritical({
+      catalogKey: 'return.reject',
+      action: t('critical.actions.returnReject'),
+      record: returnLabel(id),
+      execute: async (reason) => {
+        const res = await cancelReturn(id, reason);
+        return { ok: res.ok, error: res.error };
+      },
+      onDone: () => router.refresh(),
     });
   }
 

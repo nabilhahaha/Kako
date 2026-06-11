@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PrintButton } from '@/components/print-button';
+import { BrandLogo } from '@/components/print/brand-logo';
 import { PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { Invoice, Payment, PaymentMethod } from '@/lib/erp/types';
@@ -18,13 +19,13 @@ export default async function ReceiptPrintPage({
   const supabase = await createClient();
   const { data: invoice } = await supabase
     .from('erp_invoices')
-    .select('*, customer:erp_customers(name, name_ar, phone), branch:erp_branches(name, name_ar, company:erp_companies(name, name_ar))')
+    .select('*, customer:erp_customers(name, name_ar, phone), branch:erp_branches(name, name_ar, company:erp_companies(name, name_ar, logo_url))')
     .eq('id', id)
     .maybeSingle();
   if (!invoice) notFound();
   const inv = invoice as unknown as Invoice & {
     customer: { name: string; name_ar: string | null; phone: string | null } | null;
-    branch: { name: string; name_ar: string | null; company: { name: string; name_ar: string | null } | null } | null;
+    branch: { name: string; name_ar: string | null; company: { name: string; name_ar: string | null; logo_url: string | null } | null } | null;
   };
 
   const { data: payments } = await supabase
@@ -43,6 +44,7 @@ export default async function ReceiptPrintPage({
       </div>
 
       <div className="border-b pb-4 text-center">
+        <BrandLogo url={company?.logo_url} className="mx-auto mb-2 h-12 w-auto max-w-[160px] object-contain" />
         <h1 className="text-lg font-bold">{company?.name_ar || company?.name || 'الشركة'}</h1>
         <h2 className="mt-2 text-base font-bold">سند تحصيل / قبض</h2>
       </div>

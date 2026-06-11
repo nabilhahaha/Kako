@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { logAudit } from '@/lib/erp/audit';
+import { notifyManagers } from '@/lib/erp/notify';
 import { recordEvent } from '@/lib/workflow/emit';
 import {
   VAN_SALES_ENABLED,
@@ -82,6 +83,11 @@ export async function confirmLoad(input: ConfirmLoadInput): Promise<ConfirmLoadR
       entity: 'van_load_variance',
       recordId: id,
       payload: { status: c.status, manifest_id: input.manifestId, total_variance: c.totalVariance },
+    });
+    await notifyManagers(supabase, ctx.companyId, {
+      type: 'critical_action',
+      titleAr: 'فرق في تأكيد تحميل سيارة', titleEn: 'Van load variance needs review',
+      body: `${c.status}`, link: '/field/van-sales', entity: 'van_load_confirmation', recordId: id,
     });
   }
 

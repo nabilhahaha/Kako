@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Play, Receipt, Users, ListChecks, MapPin, Boxes, AlertTriangle } from 'lucide-react';
+import { Play, Receipt, Users, ListChecks, MapPin, Boxes, AlertTriangle, Truck } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
+import { createClient } from '@/lib/supabase/server';
+import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard, type StatTone } from '@/components/shared/stat-card';
 import { AttentionList, QuickNav, type QuickLink } from '@/components/home/home-widgets';
@@ -29,7 +31,14 @@ export default async function TodayHomePage() {
   const items = rankAttention(itemsRes.ok && itemsRes.data ? itemsRes.data : []);
   const summary = summarizeAttention(items);
 
+  // Surface the Van Sales "My Day" hub for reps — only when Van Sales is active
+  // for the company (platform flag + per-company toggle), so the link is never a
+  // dead-end. The hub is otherwise reachable only by direct URL.
+  const supabase = await createClient();
+  const vanSalesOn = await isVanSalesActive(supabase, ctx);
+
   const quick: QuickLink[] = [
+    ...(vanSalesOn ? [{ label: t('vanSales.myDayTitle'), href: '/field/van-sales', icon: Truck }] : []),
     { label: t('nav.items.invoices'), href: '/sales/invoices', icon: Receipt },
     { label: t('nav.items.customers'), href: '/customers', icon: Users },
     { label: t('nav.items.attentionCenter'), href: '/attention', icon: ListChecks },

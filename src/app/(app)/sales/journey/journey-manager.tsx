@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { setCustomerJourney } from '../../customers/actions';
+import { useCriticalAction } from '@/lib/critical-action';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +24,7 @@ export function JourneyManager({
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
+  const runCritical = useCriticalAction();
   const [repFilter, setRepFilter] = useState('');
   const [query, setQuery] = useState('');
   const [pending, startTransition] = useTransition();
@@ -45,11 +47,28 @@ export function JourneyManager({
     return m;
   }, [filtered]);
 
+  // Visit-day edits are a direct inline update (planning convenience).
   function update(id: string, salesmanId: string | null, visitDay: string | null) {
     startTransition(async () => {
       const res = await setCustomerJourney(id, salesmanId, visitDay);
       if (!res.ok) toast.error(res.error ?? t('sales.errorGeneric'));
       else router.refresh();
+    });
+  }
+
+  // Salesman reassignment is a governed action: lightweight confirm + server audit
+  // + manager notification. Reason stays optional here to keep bulk planning fast.
+  function reassignRep(c: ErpCustomer, salesmanId: string | null) {
+    void runCritical({
+      catalogKey: 'salesman.reassign',
+      action: t('critical.actions.salesmanReassign'),
+      record: c.name_ar || c.name,
+      requireReason: false,
+      execute: async () => {
+        const res = await setCustomerJourney(c.id, salesmanId, c.visit_day);
+        return { ok: res.ok, error: res.error };
+      },
+      onDone: () => router.refresh(),
     });
   }
 
@@ -97,7 +116,7 @@ export function JourneyManager({
                       <select
                         value={c.salesman_id ?? ''}
                         disabled={pending}
-                        onChange={(e) => update(c.id, e.target.value || null, c.visit_day)}
+                        onChange={(e) => reassignRep(c, e.target.value || null)}
                         className="h-9 w-40 rounded-md border border-input bg-background px-2 text-sm"
                       >
                         <option value="">{t('sales.journeyNoRepOption')}</option>

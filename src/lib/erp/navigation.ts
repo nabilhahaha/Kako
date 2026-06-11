@@ -93,6 +93,11 @@ export interface NavItem {
   /** Also show this item to the platform owner (who otherwise sees only the
    *  vendor panel + a few cross-tenant tools). */
   showForPlatformOwner?: boolean;
+  /** Feature-flag token (e.g. 'alerts', 'change_requests', 'van_sales'). The item
+   *  is HIDDEN unless this token is in the `enabledFlags` passed to
+   *  visibleSections — so a flag-gated page never appears as a URL-only orphan,
+   *  and disappears cleanly when its flag is off. Omit = flag-independent. */
+  flag?: string;
 }
 
 export interface NavSection {
@@ -206,6 +211,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.routeExec', href: '/field/route', icon: MapPin, perm: 'field.sales' },
       { label: 'nav.items.vanStock', href: '/field/stock', icon: Boxes, perm: ['inventory.view', 'field.sales'] },
       { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck, module: 'workflow' },
+      { label: 'nav.items.alerts', href: '/alerts', icon: Bell, flag: 'alerts' },
+      { label: 'nav.items.changeRequests', href: '/change-requests', icon: GitBranch, flag: 'change_requests' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
     ],
   },
@@ -317,6 +324,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.repSettlement', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'], module: ['field_ops', 'distribution'] },
       { label: 'nav.items.salesOrders', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell', module: 'sales_orders' },
       { label: 'nav.items.invoices', href: '/sales/invoices', icon: FileText, perm: ['sales.sell', 'sales.collect'] },
+      { label: 'nav.items.collections', href: '/collections', icon: Wallet, perm: 'sales.collect' },
+      { label: 'nav.items.cashbox', href: '/cashbox', icon: Wallet, perm: 'sales.collect' },
       { label: 'nav.items.pricing', href: '/sales/pricing', icon: Tags, perm: 'pricing.manage' },
       { label: 'nav.items.priceBook', href: '/sales/price-book', icon: Tags, perm: ['pricing.manage', 'pricing.view'] },
       { label: 'nav.items.journey', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales', module: ['field_ops', 'distribution'] },
@@ -409,12 +418,13 @@ export const NAV_SECTIONS: NavSection[] = [
     // Integrations / Governance / Personal), ordered most-used first within each.
     items: [
       // ── Organization ──
-      { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, superAdminOnly: true, group: 'nav.groups.organization' },
+      { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, perm: 'settings.branches', group: 'nav.groups.organization' },
       { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.regions', href: '/settings/regions', icon: Map, perm: 'settings.branches', group: 'nav.groups.organization' },
+      { label: 'nav.items.vanSalesSettings', href: '/settings/van-sales', icon: Truck, perm: 'settings.branches', flag: 'van_sales', group: 'nav.groups.organization' },
       { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.organization' },
       // ── Data & Fields ──
       { label: 'nav.items.customerData', href: '/settings/customer-data', icon: Tags, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
@@ -460,6 +470,10 @@ export function visibleSections(
   platformPermissions: string[] = [],
   isPlatformStaff = false,
   businessType: string | null = null,
+  /** Feature-flag tokens that are currently ON (resolved server-side). Items with
+   *  a `flag` are hidden unless their token is present. Default [] = flagged items
+   *  hidden (safe), flag-independent items unaffected (backward-compatible). */
+  enabledFlags: string[] = [],
 ): NavSection[] {
   const has = (perm: Permission | Permission[]) =>
     Array.isArray(perm) ? perm.some((p) => permissions.includes(p)) : permissions.includes(perm);
@@ -501,6 +515,10 @@ export function visibleSections(
       // carry no tenant `perm`, so without this guard they leaked to every tenant
       // via the `!item.perm` allow below.
       if (item.platformOwnerOnly || item.platformPerm) return false;
+      // Flag-gated item: hidden unless its feature flag is ON (resolved server-
+      // side). Keeps flag-gated pages out of the nav until enabled, and removes
+      // them cleanly when disabled — no URL-only orphans.
+      if (item.flag && !enabledFlags.includes(item.flag)) return false;
       // finer per-item module gate (e.g. POS / sales orders / warehousing)
       if (!moduleAllowed(item.module)) return false;
       if (item.superAdminOnly) return elevated;

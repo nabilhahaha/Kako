@@ -4,6 +4,7 @@ import { getT } from '@/lib/i18n/server';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/server';
 import { PrintBar } from '@/components/print/print-button';
+import { BrandLogo } from '@/components/print/brand-logo';
 
 // Customer account statement — print/export-friendly ledger (invoices as debit,
 // payments as credit, running + outstanding balance). Reuses existing data
@@ -30,8 +31,8 @@ export default async function StatementPrintPage({ params }: { params: Promise<{
 
   const company = await safe(async () => {
     if (!customer.company_id) return null;
-    const { data } = await supabase.from('erp_companies').select('name, name_ar').eq('id', customer.company_id as string).maybeSingle();
-    return data as { name: string; name_ar: string | null } | null;
+    const { data } = await supabase.from('erp_companies').select('name, name_ar, logo_url').eq('id', customer.company_id as string).maybeSingle();
+    return data as { name: string; name_ar: string | null; logo_url: string | null } | null;
   }, null);
 
   const invoices = await safe(async () => {
@@ -62,6 +63,7 @@ export default async function StatementPrintPage({ params }: { params: Promise<{
       <div className="space-y-5 rounded-lg border bg-white p-6 text-black print:border-0 print:p-0">
         <div className="flex items-start justify-between gap-4 border-b pb-4">
           <div>
+            <BrandLogo url={company?.logo_url} className="mx-auto mb-2 h-12 w-auto max-w-[160px] object-contain" />
             <h1 className="text-lg font-bold">{pick(company?.name, company?.name_ar) || '—'}</h1>
             <p className="text-sm font-semibold">{t('salesman.statementTitle')}</p>
           </div>

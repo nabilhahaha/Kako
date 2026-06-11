@@ -1,0 +1,6 @@
+branch_ref,code,name,name_ar,location,is_van
+CAI,WH-CAI,Cairo Main Warehouse,مخزن القاهرة الرئيسي,Smart Village,false
+ALX,WH-ALX,Alexandria Warehouse,مخزن الإسكندرية,Smouha,false
+GIZ,WH-GIZ,Giza Warehouse,مخزن الجيزة,6th October,false
+CAI,VAN-CAI-01,Cairo Van 01,سيارة القاهرة 01,,true
+ALX,VAN-ALX-01,Alex Van 01,سيارة الإسكندرية 01,,true

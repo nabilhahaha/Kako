@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { logAudit } from '@/lib/erp/audit';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { logPriceOverrides } from '@/lib/erp/pricing-server';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
@@ -154,8 +155,8 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
  * journal entry. Also increases the customer's outstanding balance.
  */
 export async function issueInvoice(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
   const { t } = await getT();
 
   const supabase = await createClient();
@@ -173,6 +174,11 @@ export async function issueInvoice(id: string): Promise<ActionResult> {
   const { error } = await supabase.rpc('erp_issue_invoice', { p_invoice_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  // Critical-action audit: invoice.finalize (irreversible — stock-out + AR posting).
+  await logAudit(supabase, {
+    action: 'update', entity: 'invoice', entityId: id,
+    details: { event: 'invoice_finalized', customer_id: customerId ?? null }, companyId: ctx.companyId,
+  });
   await emitDomainEvent({ eventType: EVENT.INVOICE_ISSUED, entity: 'invoice', recordId: id });
   revalidatePath('/sales/invoices');
   revalidatePath('/customers');

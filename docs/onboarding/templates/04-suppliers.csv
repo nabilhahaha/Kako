@@ -1,0 +1,4 @@
+code,name,name_ar,phone,email,city,tax_number,payment_terms_days,external_id
+SUP-001,Nile Beverage Bottling,شركة النيل للمشروبات,+20-2-2700-0001,sales@nilebev.test,Cairo,EG-S-001,30,SUP-NILEBEV
+SUP-002,CrispMax Foods Egypt,كريسب ماكس للأغذية,+20-2-2700-0002,orders@crispmax.test,Cairo,EG-S-002,45,SUP-CRISPMAX
+SUP-003,DairyPure Industries,ديري بيور للصناعات,+20-3-4200-0003,info@dairypure.test,Alexandria,EG-S-003,15,SUP-DAIRYPURE
