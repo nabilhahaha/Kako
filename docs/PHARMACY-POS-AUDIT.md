@@ -101,6 +101,27 @@ rejects unknown / zero-factor units; `validateSell`/`validateQty` reject
 non-sellable units, non-positive and (unless allowed) fractional quantities.
 Tests: `uom.test.ts` (7) + `uom-rules.test.ts` (8).
 
+## 3d. Platform Contact Model (reusable, not pharmacy-only)
+
+`erp_customers` is the single contact model: a **Full** business customer (FMCG)
+uses the governance fields (CR/VAT/GPS/National Address + approval); a
+**Lightweight** contact (pharmacy walk-in, clinic patient, retail/cash POS, quick
+reg) uses name (+ optional phone/notes), `contact_mode='lightweight'`, no
+governance, no approval. Reusable component `components/contacts/quick-customer.tsx`
++ action `contacts/actions.ts#quickCreateCustomer` — any pack drops it in.
+
+| Capability | Flag (platform) | DB | Component/Action | Permission | Status |
+|---|---|---|---|---|---|
+| Lightweight customers | `platform.lightweight_customer_mode` | `erp_customers.contact_mode`/`notes` (0282) | quickCreateCustomer | tenant flag | ✅ |
+| Inline quick-create | `platform.quick_customer_create` | — | `<QuickCustomerCreate>` | `customers.manage`/`sales.sell`/`sales.collect` | ✅ |
+
+UX: cash customer is the default, selection optional, **+ New** inline by the
+selector, name (+ phone) with **Enter-to-save**, **auto-selected** after create,
+mobile/tablet friendly. Both flags configurable per tenant in `/settings/features`
+(Customers domain); quick-create additionally gated **by role** (permission).
+
+**Role Coverage:** Owner (`admin`) ✅ · Pharmacist/Cashier (`sales.sell`/`sales.collect`) ✅ · a role without those perms → the **+ New** control is hidden and the server rejects creation. When `lightweight_customer_mode` or `quick_customer_create` is OFF for the tenant, the control disappears and the action returns disabled — no FMCG complexity is forced on the pharmacy.
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

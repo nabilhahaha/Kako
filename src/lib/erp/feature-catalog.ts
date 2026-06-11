@@ -15,7 +15,7 @@
  * stored config resolves to the Lite preset (safe minimum).
  */
 
-export type FeatureDomain = 'inventory' | 'pos' | 'governance' | 'scanning';
+export type FeatureDomain = 'inventory' | 'pos' | 'governance' | 'scanning' | 'contacts';
 export type FeatureTemplate = 'lite' | 'standard' | 'enterprise';
 
 /** Where a feature manifests — drives the UI Coverage Audit. */
@@ -145,6 +145,14 @@ export const FEATURES: FeatureDef[] = [
   }),
   P('platform.scan_ocr', 'scanning', ENT, {
     logic: ['scan.ocr'],
+  }),
+  // ── Contacts (PLATFORM pack — reusable customer/contact model) ──────────────
+  P('platform.lightweight_customer_mode', 'contacts', ALL, {
+    logic: ['contact.lightweight'], screens: ['/pharmacy/pos', '/sales/pos', '/customers'],
+    validation: ['contact_mode'],
+  }),
+  P('platform.quick_customer_create', 'contacts', ALL, {
+    logic: ['quickCreateCustomer'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),
 ];
 

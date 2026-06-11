@@ -9,13 +9,15 @@ export const ar = {
     saveError: 'تعذّر الحفظ',
     templateApplied: 'تم تطبيق القالب',
     template: { lite: 'صيدلية مبسّطة', standard: 'صيدلية قياسية', enterprise: 'صيدلية احترافية' },
-    domain: { inventory: 'المخزون', pos: 'نقطة البيع', governance: 'الحوكمة', scanning: 'المسح الضوئي' },
+    domain: { inventory: 'المخزون', pos: 'نقطة البيع', governance: 'الحوكمة', scanning: 'المسح الضوئي', contacts: 'العملاء' },
     label: {
       platform: {
         scan_barcode: 'مسح الباركود',
         scan_camera: 'المسح بالكاميرا',
         scan_qr: 'مسح رمز QR',
         scan_ocr: 'التعرّف الضوئي على النص (OCR)',
+        lightweight_customer_mode: 'العملاء المبسّطون',
+        quick_customer_create: 'إنشاء عميل سريع',
       },
       pharmacy: {
         batch_tracking: 'تتبّع التشغيلات (Batch)',
@@ -47,6 +49,8 @@ export const ar = {
         scan_camera: 'استخدام كاميرا الجهاز للمسح المتواصل (موبايل/تابلت).',
         scan_qr: 'مسح رموز QR (عملاء، مستندات، تشغيلات…).',
         scan_ocr: 'التعرّف على النص من الصور (لاحقاً).',
+        lightweight_customer_mode: 'السماح بعملاء مبسّطين (اسم فقط) دون حقول الشركات.',
+        quick_customer_create: 'إنشاء عميل سريع من نقطة البيع مباشرة.',
       },
       pharmacy: {
         batch_tracking: 'تتبّع المخزون على مستوى التشغيلة مع التكلفة والكمية.',
@@ -85,13 +89,15 @@ export const en = {
     saveError: 'Could not save',
     templateApplied: 'Template applied',
     template: { lite: 'Pharmacy Lite', standard: 'Pharmacy Standard', enterprise: 'Pharmacy Enterprise' },
-    domain: { inventory: 'Inventory', pos: 'Point of Sale', governance: 'Governance', scanning: 'Scanning' },
+    domain: { inventory: 'Inventory', pos: 'Point of Sale', governance: 'Governance', scanning: 'Scanning', contacts: 'Customers' },
     label: {
       platform: {
         scan_barcode: 'Barcode Scanning',
         scan_camera: 'Camera Scanning',
         scan_qr: 'QR Scanning',
         scan_ocr: 'OCR / Text Recognition',
+        lightweight_customer_mode: 'Lightweight Customers',
+        quick_customer_create: 'Quick Customer Create',
       },
       pharmacy: {
         batch_tracking: 'Batch Tracking',
@@ -123,6 +129,8 @@ export const en = {
         scan_camera: 'Use the device camera for continuous scanning (mobile/tablet).',
         scan_qr: 'Scan QR codes (customers, documents, batches…).',
         scan_ocr: 'Recognise text from images (later).',
+        lightweight_customer_mode: 'Allow lightweight customers (name only), no business fields.',
+        quick_customer_create: 'Create a customer inline from the POS.',
       },
       pharmacy: {
         batch_tracking: 'Track stock per batch with cost and quantity.',

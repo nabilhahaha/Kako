@@ -41,6 +41,12 @@ export default async function PharmacyPosPage() {
   };
   const canLink = (ctx.permissions as string[]).includes('inventory.adjust')
     || (ctx.permissions as string[]).includes('pricing.manage');
+  // Platform Contact Model: inline quick-create allowed when both tenant flags are
+  // on AND the role may create customers (sellers / customer managers).
+  const perms2 = ctx.permissions as string[];
+  const quickCreate = flags['platform.quick_customer_create'] === true
+    && flags['platform.lightweight_customer_mode'] === true
+    && (perms2.includes('customers.manage') || perms2.includes('sales.sell') || perms2.includes('sales.collect') || ctx.isSuperAdmin);
   // Discount is allowed for pricing managers; otherwise hidden (discount permission).
   const canDiscount = (ctx.permissions as string[]).includes('pricing.manage')
     || (ctx.permissions as string[]).includes('sales.discount');
@@ -61,6 +67,7 @@ export default async function PharmacyPosPage() {
         features={features}
         canDiscount={canDiscount}
         canLink={canLink}
+        quickCreate={quickCreate}
         intlLocale={INTL_LOCALE[locale]}
         defaultCustomerId={defaultCustomerId}
       />

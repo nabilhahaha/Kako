@@ -73,6 +73,15 @@ export const ar = {
     manualPlaceholder: 'أدخل/امسح الباركود…',
     add: 'إضافة',
   },
+  contacts: {
+    new: 'عميل جديد',
+    name: 'اسم العميل',
+    phone: 'الهاتف (اختياري)',
+    save: 'حفظ',
+    nameRequired: 'اسم العميل مطلوب',
+    error: 'تعذّر إنشاء العميل',
+    created: 'تم إنشاء العميل',
+  },
 };
 
 export const en = {
@@ -148,5 +157,14 @@ export const en = {
     unsupported: 'Camera not supported on this browser. Use a barcode scanner or manual entry.',
     manualPlaceholder: 'Enter/scan barcode…',
     add: 'Add',
+  },
+  contacts: {
+    new: 'New customer',
+    name: 'Customer name',
+    phone: 'Phone (optional)',
+    save: 'Save',
+    nameRequired: 'Customer name is required',
+    error: 'Could not create customer',
+    created: 'Customer created',
   },
 };

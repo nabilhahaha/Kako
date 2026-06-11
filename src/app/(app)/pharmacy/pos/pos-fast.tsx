@@ -15,9 +15,10 @@ import type { Branch, ErpCustomer, PaymentMethod } from '@/lib/erp/types';
 import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History } from 'lucide-react';
 import { CameraScanner, type ScanResult } from '@/components/scanning/scanner';
 import {
-  pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct, createPharmacyCustomer,
+  pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct,
   type PharmacySearchRow, type PharmacyBatch,
 } from './actions';
+import { QuickCustomerCreate } from '@/components/contacts/quick-customer';
 
 export interface PosFeatureFlags {
   barcodeScan: boolean;
@@ -43,7 +44,7 @@ const HOLDS_KEY = 'vantora_pharmacy_pos_holds';
 const RECENT_KEY = 'vantora_pharmacy_pos_recent';
 
 export function PharmacyPos({
-  branches, customers, features, canDiscount, canLink, intlLocale, defaultCustomerId,
+  branches, customers, features, canDiscount, canLink, quickCreate, intlLocale, defaultCustomerId,
 }: {
   branches: Pick<Branch, 'id' | 'name' | 'name_ar'>[];
   customers: Pick<ErpCustomer, 'id' | 'name' | 'name_ar'>[];
@@ -51,6 +52,8 @@ export function PharmacyPos({
   canDiscount: boolean;
   /** May link an unknown scanned barcode to an existing product. */
   canLink: boolean;
+  /** Platform Contact Model: inline lightweight customer quick-create allowed. */
+  quickCreate: boolean;
   intlLocale: string;
   /** Default "Cash customer" for fast walk-in sales (no selection needed). */
   defaultCustomerId: string;
@@ -64,9 +67,6 @@ export function PharmacyPos({
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [customerList, setCustomerList] = useState(customers);
   const [customerId, setCustomerId] = useState(defaultCustomerId || customers[0]?.id || '');
-  const [newCust, setNewCust] = useState(false);
-  const [ncName, setNcName] = useState('');
-  const [ncPhone, setNcPhone] = useState('');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PharmacySearchRow[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -260,23 +260,6 @@ export function PharmacyPos({
     router.refresh();
   }
 
-  // Lightweight walk-in customer create (name + optional phone; no FMCG fields).
-  function quickCreateCustomer() {
-    const nm0 = ncName.trim();
-    if (!nm0) { toast.error(t('pharmacyPos.custNameRequired')); return; }
-    setBusy(true);
-    createPharmacyCustomer(nm0, ncPhone).then((res) => {
-      setBusy(false);
-      if (!res.ok || !res.data) { toast.error(res.error ?? t('pharmacyPos.custError')); return; }
-      const c = { id: res.data.id, name: res.data.name, name_ar: null };
-      setCustomerList((list) => [...list, c]);
-      setCustomerId(res.data.id);
-      setNcName(''); setNcPhone(''); setNewCust(false);
-      toast.success(t('pharmacyPos.custcreated'));
-      searchRef.current?.focus();
-    });
-  }
-
   kb.current = { checkout, hold, toggleResume: () => setShowHolds((s) => !s), canSell };
 
   return (
@@ -354,18 +337,11 @@ export function PharmacyPos({
             <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="h-10 flex-1 rounded-md border border-input bg-background px-2 text-sm">
               {customerList.map((c) => <option key={c.id} value={c.id}>{nm(c)}</option>)}
             </select>
-            <Button type="button" variant="outline" className="h-10 px-3" onClick={() => setNewCust((s) => !s)} title={t('pharmacyPos.custNew')}>
-              <Plus className="h-4 w-4" />
-            </Button>
+            <QuickCustomerCreate
+              enabled={quickCreate}
+              onCreated={(c) => { setCustomerList((list) => [...list, c]); setCustomerId(c.id); searchRef.current?.focus(); }}
+            />
           </div>
-          {newCust && (
-            <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2">
-              <Input value={ncName} onChange={(e) => setNcName(e.target.value)} placeholder={t('pharmacyPos.custName')}
-                className="h-9 flex-1" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); quickCreateCustomer(); } }} />
-              <Input value={ncPhone} onChange={(e) => setNcPhone(e.target.value)} placeholder={t('pharmacyPos.custPhone')} className="h-9 w-32" dir="ltr" />
-              <Button type="button" size="sm" disabled={busy} onClick={quickCreateCustomer}>{t('pharmacyPos.custSave')}</Button>
-            </div>
-          )}
 
           <div className="max-h-[46vh] space-y-2 overflow-y-auto border-y py-2">
             {cart.length === 0 ? (
