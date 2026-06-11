@@ -171,6 +171,16 @@ BEGIN
   ) AS g(role_key, permission)
   ON CONFLICT (company_id, role_key, permission) DO NOTHING;
 
+  -- GM ≠ Company Admin: General Manager (manager) = operations only. Company-scoped
+  -- manager override = global manager perms MINUS the governance set (staff/branch/
+  -- field/integration admin stays with admin). Tenant-scoped; global is untouched.
+  INSERT INTO erp_company_role_permissions(company_id, role_key, permission)
+  SELECT v_co, 'manager', rp.permission FROM erp_role_permissions rp
+  WHERE rp.role_key='manager'
+    AND rp.permission NOT IN ('settings.users','settings.branches','settings.custom_fields',
+                              'integrations.manage','user.import','user.transfer','workflow.manage')
+  ON CONFLICT (company_id, role_key, permission) DO NOTHING;
+
   ----------------------------------------------------------------------------
   -- Branches (multi-branch) + main warehouses + van warehouses
   ----------------------------------------------------------------------------

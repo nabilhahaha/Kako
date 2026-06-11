@@ -105,6 +105,17 @@ BEGIN
   ) AS g(role_key, permission)
   ON CONFLICT (company_id, role_key, permission) DO NOTHING;
 
+  -- GM ≠ Company Admin: the General Manager (manager) runs operations, NOT org
+  -- governance. Seed a company-scoped manager override = global manager perms
+  -- MINUS the governance set, so GM keeps all operations but loses staff/branch/
+  -- field/integration administration (which stays with admin). Tenant-scoped only.
+  INSERT INTO erp_company_role_permissions(company_id, role_key, permission)
+  SELECT v_co, 'manager', rp.permission FROM erp_role_permissions rp
+  WHERE rp.role_key='manager'
+    AND rp.permission NOT IN ('settings.users','settings.branches','settings.custom_fields',
+                              'integrations.manage','user.import','user.transfer','workflow.manage')
+  ON CONFLICT (company_id, role_key, permission) DO NOTHING;
+
   RAISE NOTICE '════ NEW FMCG TENANT BOOTSTRAPPED ════';
   RAISE NOTICE 'company: % (%)', v_name, v_co;
   RAISE NOTICE 'next   : import branches → warehouses → products → suppliers → routes → customers → opening stock (docs/onboarding/templates), then invite users with refined roles.';
