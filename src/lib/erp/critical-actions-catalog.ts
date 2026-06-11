@@ -113,7 +113,7 @@ export const CRITICAL_ACTIONS: CriticalActionSpec[] = [
     risk: 'high', requiredPermission: 'customers.manage', requiredRole: 'Sales Manager / Finance',
     reasonRequired: true, approvalRequired: true, irreversible: false,
     auditFields: ['customer_id', 'old_limit', 'new_limit', 'reason'],
-    notifyTargets: ['finance', 'sales_manager'], reversalPolicy: 'reversible', status: 'ready',
+    notifyTargets: ['finance', 'sales_manager'], reversalPolicy: 'reversible', status: 'wired',
     actionRef: 'customers/actions.ts#requestCreditLimitChange',
   },
   {
@@ -136,8 +136,8 @@ export const CRITICAL_ACTIONS: CriticalActionSpec[] = [
     risk: 'medium', requiredPermission: 'customers.manage', requiredRole: 'Supervisor',
     reasonRequired: false, approvalRequired: true, irreversible: false,
     auditFields: ['customer_id', 'changed_fields', 'change_request_id'],
-    notifyTargets: ['supervisor'], reversalPolicy: 'reversible', status: 'ready',
-    actionRef: 'change-requests/actions.ts#submitChangeRequest',
+    notifyTargets: ['supervisor'], reversalPolicy: 'reversible', status: 'wired',
+    actionRef: 'customers/actions.ts#requestCustomerApproval',
   },
   // ─── Pricing / trade spend ────────────────────────────────────────────────
   {
@@ -153,14 +153,16 @@ export const CRITICAL_ACTIONS: CriticalActionSpec[] = [
     risk: 'high', requiredPermission: 'pricing.manage', requiredRole: 'Sales Manager / Finance',
     reasonRequired: false, approvalRequired: true, irreversible: false,
     auditFields: ['agreement_id', 'customer_id', 'amount', 'period'],
-    notifyTargets: ['finance', 'sales_manager'], reversalPolicy: 'approval_to_reverse', status: 'planned',
+    notifyTargets: ['finance', 'sales_manager'], reversalPolicy: 'approval_to_reverse', status: 'ready',
+    actionRef: 'distribution/trade-spend/actions.ts#approveTradeSpend',
   },
   {
     key: 'tradeSpend.cancel', labelKey: 'critical.actions.tradeSpendCancel', domain: 'trade',
     risk: 'high', requiredPermission: 'pricing.manage', requiredRole: 'Sales Manager / Finance',
     reasonRequired: true, approvalRequired: true, irreversible: true,
     auditFields: ['agreement_id', 'reason', 'accrued_to_date'],
-    notifyTargets: ['finance', 'sales_manager'], reversalPolicy: 'irreversible', status: 'planned',
+    notifyTargets: ['finance', 'sales_manager'], reversalPolicy: 'irreversible', status: 'ready',
+    actionRef: 'distribution/trade-spend/actions.ts#cancelTradeSpend',
   },
   // ─── Van operations ───────────────────────────────────────────────────────
   {
@@ -175,7 +177,7 @@ export const CRITICAL_ACTIONS: CriticalActionSpec[] = [
     risk: 'medium', requiredPermission: 'field.sales', requiredRole: 'Van Salesman / Supervisor',
     reasonRequired: false, approvalRequired: false, irreversible: true,
     auditFields: ['load_id', 'van_id', 'item_count', 'status'],
-    notifyTargets: ['supervisor', 'inventory_controller'], reversalPolicy: 'reverse_entry', status: 'ready',
+    notifyTargets: ['supervisor', 'inventory_controller'], reversalPolicy: 'reverse_entry', status: 'wired',
     actionRef: 'field/van-sales/actions.ts#confirmLoad',
   },
   {
@@ -215,7 +217,7 @@ export const CRITICAL_ACTIONS: CriticalActionSpec[] = [
     risk: 'medium', requiredPermission: 'customers.manage', requiredRole: 'Supervisor',
     reasonRequired: true, approvalRequired: false, irreversible: false,
     auditFields: ['customer_id', 'old_salesman', 'new_salesman', 'visit_day', 'reason'],
-    notifyTargets: ['salesman', 'supervisor'], reversalPolicy: 'reversible', status: 'ready',
+    notifyTargets: ['salesman', 'supervisor'], reversalPolicy: 'reversible', status: 'wired',
     actionRef: 'customers/actions.ts#setCustomerJourney',
   },
   // ─── Approvals (generic supervisor gate) ──────────────────────────────────
@@ -224,7 +226,7 @@ export const CRITICAL_ACTIONS: CriticalActionSpec[] = [
     risk: 'high', requiredPermission: 'approvals.decide', requiredRole: 'Supervisor / Approver',
     reasonRequired: false, approvalRequired: false, irreversible: false,
     auditFields: ['task_id', 'workflow_key', 'decision', 'comment'],
-    notifyTargets: ['approver_queue', 'salesman'], reversalPolicy: 'approval_to_reverse', status: 'ready',
+    notifyTargets: ['approver_queue', 'salesman'], reversalPolicy: 'approval_to_reverse', status: 'wired',
     actionRef: 'approvals/actions.ts#decideTask',
   },
   // ─── Expiry (blocked on the batch/expiry data model — see PHARMACY-BACKLOG) ─

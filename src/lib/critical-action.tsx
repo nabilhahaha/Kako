@@ -45,6 +45,8 @@ export interface CriticalActionConfig<T = unknown> {
   irreversible?: boolean;
   /** Capture a reason/comment before executing (high-risk actions). */
   requireReason?: boolean;
+  /** Suppress the generic success toast (for flows that show their own). */
+  silentSuccess?: boolean;
   /** The server action to run; receives the optional reason for auditing. */
   execute: (reason?: string) => Promise<CriticalResult<T>>;
   /** Optional print URL to offer after success (or return result.printHref). */
@@ -102,7 +104,7 @@ export function useCriticalAction() {
         toast.error(res.error || t('shared.errorGeneric'));
         return false;
       }
-      toast.success(t('critical.success', { action: cfg.action }));
+      if (!cfg.silentSuccess) toast.success(t('critical.success', { action: cfg.action }));
 
       const href = cfg.printHref?.(res.data) ?? res.printHref;
       if (href) {

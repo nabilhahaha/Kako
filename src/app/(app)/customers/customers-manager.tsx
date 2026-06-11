@@ -351,12 +351,16 @@ export function CustomersManager({
                     type="button"
                     variant="secondary"
                     disabled={pending}
-                    onClick={async () => {
-                      const res = await requestCustomerApproval(current.id);
-                      if (!res.ok) return toast.error(res.error ?? t('workflow.toast.error'));
-                      toast.success(t('workflow.toast.requested'));
-                      router.refresh();
-                    }}
+                    onClick={() => void runCritical({
+                      catalogKey: 'customer.dataUpdateApproval',
+                      action: t('critical.actions.dataUpdateApproval'),
+                      record: locale === 'ar' ? current.name_ar || current.name : current.name,
+                      execute: async (reason) => {
+                        const res = await requestCustomerApproval(current.id, reason);
+                        return { ok: res.ok, error: res.error };
+                      },
+                      onDone: () => router.refresh(),
+                    })}
                   >
                     {t('workflow.requestApproval')}
                   </Button>
@@ -373,14 +377,19 @@ export function CustomersManager({
                   </Field>
                   <Button
                     type="button" variant="secondary" disabled={pending}
-                    onClick={async () => {
+                    onClick={() => {
                       const amt = parseFloat(creditLimitInput);
                       if (!Number.isFinite(amt) || amt < 0) return toast.error(t('workflow.toast.error'));
-                      const res = await requestCreditLimitChange(current.id, amt);
-                      if (!res.ok) return toast.error(res.error ?? t('workflow.toast.error'));
-                      toast.success(t('workflow.toast.requested'));
-                      setCreditLimitInput('');
-                      router.refresh();
+                      void runCritical({
+                        catalogKey: 'customer.creditLimitOverride',
+                        action: t('critical.actions.creditLimitOverride'),
+                        record: `${locale === 'ar' ? current.name_ar || current.name : current.name} · ${amt}`,
+                        execute: async (reason) => {
+                          const res = await requestCreditLimitChange(current.id, amt, reason);
+                          return { ok: res.ok, error: res.error };
+                        },
+                        onDone: () => { setCreditLimitInput(''); router.refresh(); },
+                      });
                     }}
                   >
                     {t('workflow.creditLimit.requestButton')}

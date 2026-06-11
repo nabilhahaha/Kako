@@ -13,6 +13,7 @@ import { applyWorkflowOutcome, type WorkflowOutcome } from '@/lib/erp/workflow-h
 import { sensitiveChanges } from '@/lib/erp/customer-approval';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import { logAudit } from '@/lib/erp/audit';
+import { notifyManagers } from '@/lib/erp/notify';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
 import { resolveLayout, applyWriteAccess } from '@/lib/erp/field-governance';
 
@@ -299,9 +300,10 @@ export async function setCustomerJourney(
   id: string,
   salesmanId: string | null,
   visitDay: string | null,
+  reason?: string,
 ): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
   const { t } = await getT();
   const supabase = await createClient();
   // Approval gate: don't assign a rep/route to a non-approved customer.
@@ -325,6 +327,17 @@ export async function setCustomerJourney(
     .update({ salesman_id: salesmanId || null, visit_day: visitDay || null })
     .eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
+  // Critical-action: salesman.reassign (reason captured at the call site).
+  await logAudit(supabase, {
+    action: 'update', entity: 'customer_assignment', entityId: id,
+    details: { new_salesman: salesmanId, visit_day: visitDay, reason: reason?.trim() || null },
+    companyId: ctx.companyId,
+  });
+  await notifyManagers(supabase, ctx.companyId, {
+    type: 'critical_action',
+    titleAr: 'إعادة تعيين مندوب لعميل', titleEn: 'Customer salesman reassigned',
+    body: reason?.trim() || '', link: '/sales/journey', entity: 'customer_assignment', recordId: id,
+  });
   revalidatePath('/customers');
   revalidatePath('/sales/journey');
   return { ok: true };
@@ -332,9 +345,9 @@ export async function setCustomerJourney(
 
 /** Submit a customer for onboarding approval: mark it pending and start the
  *  generic workflow (an approval task routes to the company admin). */
-export async function requestCustomerApproval(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+export async function requestCustomerApproval(id: string, reason?: string): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
   const { t } = await getT();
   if (!id) return { ok: false, error: t('customers.errUnauthorized') };
 
@@ -344,6 +357,16 @@ export async function requestCustomerApproval(id: string): Promise<ActionResult>
     p_key: 'customer_onboarding', p_entity: 'customer', p_record_id: id, p_context: {},
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
+  // Critical-action: customer.dataUpdateApproval (CR/VAT/National Address etc.).
+  await logAudit(supabase, {
+    action: 'update', entity: 'customer_change_request', entityId: id,
+    details: { event: 'data_update_submitted', reason: reason?.trim() || null }, companyId: ctx.companyId,
+  });
+  await notifyManagers(supabase, ctx.companyId, {
+    type: 'critical_action',
+    titleAr: 'طلب اعتماد تعديل بيانات عميل', titleEn: 'Customer data update awaiting approval',
+    body: reason?.trim() || '', link: '/approvals', entity: 'customer', recordId: id,
+  });
   revalidatePath('/customers');
   revalidatePath('/approvals');
   return { ok: true };
@@ -351,9 +374,9 @@ export async function requestCustomerApproval(id: string): Promise<ActionResult>
 
 /** Request a credit-limit change for a customer: records the request and starts
  *  the (threshold-based, multi-step) credit_limit_approval workflow. */
-export async function requestCreditLimitChange(customerId: string, requestedLimit: number): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+export async function requestCreditLimitChange(customerId: string, requestedLimit: number, reason?: string): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
   const { t } = await getT();
   if (!customerId) return { ok: false, error: t('customers.errUnauthorized') };
   if (!Number.isFinite(requestedLimit) || requestedLimit < 0) return { ok: false, error: t('customers.errImportNoRows') };
@@ -374,6 +397,17 @@ export async function requestCreditLimitChange(customerId: string, requestedLimi
     p_record_id: (req as { id: string }).id, p_context: { amount: requestedLimit },
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
+  // Critical-action: customer.creditLimitOverride (reason captured at the call site).
+  await logAudit(supabase, {
+    action: 'update', entity: 'credit_limit_request', entityId: (req as { id: string }).id,
+    details: { customer_id: customerId, old_limit: current, new_limit: requestedLimit, reason: reason?.trim() || null },
+    companyId: ctx.companyId,
+  });
+  await notifyManagers(supabase, ctx.companyId, {
+    type: 'critical_action',
+    titleAr: 'طلب تجاوز حد ائتمان', titleEn: 'Credit-limit override requested',
+    body: reason?.trim() || '', link: '/approvals', entity: 'credit_limit_request', recordId: (req as { id: string }).id,
+  });
   revalidatePath('/customers');
   revalidatePath('/approvals');
   return { ok: true };
