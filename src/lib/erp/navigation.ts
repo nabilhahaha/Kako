@@ -288,6 +288,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'nav.sections.pharmacy',
     module: 'pharmacy',
     items: [
+      { label: 'nav.items.pharmacyPos', href: '/pharmacy/pos', icon: Zap, perm: ['sales.sell', 'sales.collect'] },
       { label: 'nav.items.pharmacyDispense', href: '/pharmacy/dispense', icon: Pill, perm: 'pharmacy.dispense' },
       { label: 'nav.items.expiryNear', href: '/inventory/expiry', icon: CalendarClock, perm: 'pharmacy.dispense' },
     ],
