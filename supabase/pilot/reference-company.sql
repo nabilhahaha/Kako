@@ -109,29 +109,41 @@ BEGIN
     (v_co, 'overstock', 'Overstock', 'فائض مخزون')
   ON CONFLICT (company_id, code) DO NOTHING;
 
-  -- Default field-form SECTIONS per entity, so the Roles & Permissions →
-  -- Section Access governance screen has sections to manage out of the box
+  -- Realistic FMCG field-form SECTIONS per entity, so Roles & Permissions →
+  -- Section Access has business-oriented sections to manage out of the box
   -- (a fresh tenant otherwise shows "No sections exist for this entity").
   INSERT INTO erp_field_sections(company_id, entity, key, label_en, label_ar, sort, collapsible, default_collapsed)
   SELECT v_co, x.entity, x.key, x.le, x.la, x.sort, true, false FROM (VALUES
-    ('customer','basic','Basic Information','المعلومات الأساسية',1),
-    ('customer','contact','Contact','بيانات التواصل',2),
-    ('customer','financial','Credit & Financial','الائتمان والمالية',3),
-    ('customer','location','Location & GPS','الموقع و GPS',4),
-    ('customer','classification','Classification','التصنيف',5),
-    ('product','basic','Basic Information','المعلومات الأساسية',1),
-    ('product','pricing','Pricing & Tax','التسعير والضريبة',2),
-    ('product','inventory','Inventory','المخزون',3),
-    ('product','packaging','Packaging','التعبئة',4),
-    ('invoice','header','Header','الترويسة',1),
-    ('invoice','lines','Line Items','بنود الفاتورة',2),
-    ('invoice','totals','Totals & Payment','الإجماليات والدفع',3),
-    ('supplier','basic','Basic Information','المعلومات الأساسية',1),
-    ('supplier','contact','Contact','بيانات التواصل',2),
-    ('supplier','financial','Financial','المالية',3),
-    ('route','basic','Basic Information','المعلومات الأساسية',1),
-    ('route','schedule','Schedule','الجدول',2),
-    ('route','assignment','Rep & Van','المندوب والعربة',3)
+    ('customer','outlet_identity','Outlet Identity','هوية المنفذ',1),
+    ('customer','trade_channel','Trade Channel & Grade','القناة والتصنيف',2),
+    ('customer','territory_coverage','Territory & Coverage','المنطقة والتغطية',3),
+    ('customer','credit_terms','Credit & Payment Terms','الائتمان وشروط الدفع',4),
+    ('customer','tax_compliance','Tax & Compliance (VAT/CR)','الضريبة والامتثال',5),
+    ('customer','contacts_ownership','Contacts & Ownership','جهات الاتصال والملكية',6),
+    ('customer','visit_plan','Visit & Journey Plan','خطة الزيارة والجولة',7),
+    ('product','item_identity','Item Identity (Brand/Category)','هوية الصنف',1),
+    ('product','packaging_uom','Packaging & Units of Measure','التعبئة ووحدات القياس',2),
+    ('product','pricing_tax','Pricing & Tax','التسعير والضريبة',3),
+    ('product','inventory_replenishment','Inventory & Replenishment','المخزون والتزويد',4),
+    ('product','shelf_life','Shelf Life & Batch/Expiry','الصلاحية والتشغيلة',5),
+    ('product','trade_promo','Assortment (MSL) & Promotions','التشكيلة والعروض',6),
+    ('supplier','supplier_identity','Supplier Identity','هوية المورد',1),
+    ('supplier','contacts','Contacts','جهات الاتصال',2),
+    ('supplier','commercial_terms','Commercial Terms & Lead Time','الشروط التجارية',3),
+    ('supplier','tax_compliance','Tax & Compliance (VAT/CR)','الضريبة والامتثال',4),
+    ('supplier','bank_settlement','Bank & Settlement','البنك والتسوية',5),
+    ('invoice','invoice_header','Invoice Header','ترويسة الفاتورة',1),
+    ('invoice','rep_route','Sales Rep, Route & Van','المندوب والمسار والعربة',2),
+    ('invoice','line_items','Line Items','بنود الفاتورة',3),
+    ('invoice','discounts_promo','Discounts & Promotions','الخصومات والعروض',4),
+    ('invoice','tax_totals','Tax & Totals','الضريبة والإجماليات',5),
+    ('invoice','payment_settlement','Payment & Collection','الدفع والتحصيل',6),
+    ('invoice','delivery_proof','Delivery & Proof of Visit','التسليم وإثبات الزيارة',7),
+    ('visit','visit_details','Visit Details (Check-in/GPS)','تفاصيل الزيارة',1),
+    ('visit','coverage_compliance','Coverage & Route Compliance','التغطية والالتزام بالمسار',2),
+    ('visit','merchandising','Merchandising & Survey','العرض والاستبيان',3),
+    ('visit','stock_order','Stock Check & Order Capture','جرد المخزون وأخذ الطلب',4),
+    ('visit','visit_outcome','Outcome & Next Action','النتيجة والإجراء التالي',5)
   ) AS x(entity,key,le,la,sort)
   WHERE NOT EXISTS (SELECT 1 FROM erp_field_sections fs WHERE fs.company_id=v_co AND fs.entity=x.entity AND fs.key=x.key);
 
