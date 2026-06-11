@@ -14,6 +14,7 @@ import { sensitiveChanges } from '@/lib/erp/customer-approval';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import { logAudit } from '@/lib/erp/audit';
 import { notifyManagers } from '@/lib/erp/notify';
+import { getActionPolicy } from '@/lib/erp/action-policy';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
 import { resolveLayout, applyWriteAccess } from '@/lib/erp/field-governance';
 
@@ -343,6 +344,55 @@ export async function setCustomerJourney(
   return { ok: true };
 }
 
+/**
+ * Request approval for a customer GPS/location change. Records a tenant-scoped
+ * MDG change request (entity=customer, field=gps) that a supervisor approves;
+ * consumes the ACTION POLICY (customer.gpsChangeApproval) for enable/disable and
+ * reason requirement. Audited + managers notified. Reusable across verticals.
+ */
+export async function requestCustomerGpsChange(
+  customerId: string,
+  latitude: number,
+  longitude: number,
+  reason?: string,
+): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const { t } = await getT();
+  if (!customerId) return { ok: false, error: t('customers.errUnauthorized') };
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return { ok: false, error: t('customers.errImportNoRows') };
+
+  const supabase = await createClient();
+  const policy = await getActionPolicy(supabase, ctx.companyId, 'customer.gpsChangeApproval');
+  if (!policy.enabled) return { ok: false, error: t('customers.errUnauthorized') };
+  if (policy.reasonRequired && !reason?.trim()) return { ok: false, error: t('customers.errUnauthorized') };
+
+  const { data: req, error } = await supabase
+    .from('erp_mdg_change_requests')
+    .insert({
+      company_id: ctx.companyId, entity: 'customer', entity_id: customerId, field: 'gps',
+      old_value: null, new_value: { latitude, longitude },
+      reason: reason?.trim() || null, status: 'pending', current_stage: 'review', requested_by: ctx.userId,
+    })
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  const reqId = (req as { id: string } | null)?.id ?? customerId;
+  await logAudit(supabase, {
+    action: 'update', entity: 'customer_gps_change', entityId: customerId,
+    details: { latitude, longitude, reason: reason?.trim() || null, request_id: reqId }, companyId: ctx.companyId,
+  });
+  await notifyManagers(supabase, ctx.companyId, {
+    type: 'critical_action',
+    titleAr: 'طلب اعتماد تغيير موقع عميل', titleEn: 'Customer GPS change awaiting approval',
+    body: reason?.trim() || '', link: '/approvals', entity: 'customer', recordId: customerId,
+  });
+  revalidatePath('/customers');
+  revalidatePath('/approvals');
+  return { ok: true };
+}
+
 /** Submit a customer for onboarding approval: mark it pending and start the
  *  generic workflow (an approval task routes to the company admin). */
 export async function requestCustomerApproval(id: string, reason?: string): Promise<ActionResult> {
@@ -352,6 +402,9 @@ export async function requestCustomerApproval(id: string, reason?: string): Prom
   if (!id) return { ok: false, error: t('customers.errUnauthorized') };
 
   const supabase = await createClient();
+  // Policy engine: respect the tenant's enable/disable for this action.
+  const policy = await getActionPolicy(supabase, ctx.companyId, 'customer.dataUpdateApproval');
+  if (!policy.enabled) return { ok: false, error: t('customers.errUnauthorized') };
   await supabase.from('erp_customers').update({ is_approved: false, approval_status: 'pending', rejection_reason: null }).eq('id', id);
   const { error } = await supabase.rpc('erp_workflow_start', {
     p_key: 'customer_onboarding', p_entity: 'customer', p_record_id: id, p_context: {},

@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { logAudit } from '@/lib/erp/audit';
+import { notifyManagers } from '@/lib/erp/notify';
+import { getActionPolicy } from '@/lib/erp/action-policy';
 import { getT } from '@/lib/i18n/server';
 
 export interface ActionResult {
@@ -52,5 +54,48 @@ export async function recordCollection(input: {
     companyId: ctx.companyId,
   });
   revalidatePath('/collections');
+  return { ok: true };
+}
+
+/**
+ * Reverse a posted collection (collection.adjust / reversal). Consumes the
+ * tenant ACTION POLICY (erp_action_policies) — blocked when the action is
+ * disabled for the company — rather than hard-coded rules. The atomic
+ * erp_reverse_collection RPC unwinds allocations + restores balances; this
+ * wrapper enforces the permission, the policy, audits, and notifies managers.
+ */
+export async function reverseCollection(collectionId: string, reason?: string): Promise<ActionResult> {
+  const ctx = await getUserContext();
+  const { t } = await getT();
+  if (!ctx) return { ok: false, error: t('sales.collectionsErrUnauthorized') };
+  if (!(ctx.permissions as string[]).includes('sales.collect'))
+    return { ok: false, error: t('sales.collectionsErrUnauthorized') };
+  if (!collectionId) return { ok: false, error: t('sales.collectionsErrUnauthorized') };
+
+  const supabase = await createClient();
+  // Policy engine: respect the tenant's enable/disable for this action.
+  const policy = await getActionPolicy(supabase, ctx.companyId, 'collection.adjust');
+  if (!policy.enabled) return { ok: false, error: t('actionPolicies.disabledForTenant') };
+  if (policy.reasonRequired && !reason?.trim()) return { ok: false, error: t('actionPolicies.reasonRequiredErr') };
+
+  const { data, error } = await supabase.rpc('erp_reverse_collection', {
+    p_collection_id: collectionId,
+    p_reason: reason?.trim() || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  const res = (data ?? {}) as { reversed?: number; customer_id?: string };
+
+  await logAudit(supabase, {
+    action: 'update', entity: 'collection', entityId: collectionId,
+    details: { event: 'collection_reversed', reversed: res.reversed ?? null, reason: reason?.trim() || null },
+    companyId: ctx.companyId,
+  });
+  await notifyManagers(supabase, ctx.companyId, {
+    type: 'critical_action',
+    titleAr: 'عكس تحصيل', titleEn: 'Collection reversed',
+    body: reason?.trim() || '', link: '/collections', entity: 'collection', recordId: collectionId,
+  });
+  revalidatePath('/collections');
+  revalidatePath('/customers');
   return { ok: true };
 }

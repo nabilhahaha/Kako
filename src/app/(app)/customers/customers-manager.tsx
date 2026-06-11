@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { ListSearch } from '@/components/list-search';
-import { upsertCustomer, toggleCustomerActive, requestCustomerApproval, requestCreditLimitChange } from './actions';
+import { upsertCustomer, toggleCustomerActive, requestCustomerApproval, requestCreditLimitChange, requestCustomerGpsChange } from './actions';
+import { loadActionPolicyConfig } from '../settings/action-policies/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -66,6 +67,8 @@ export function CustomersManager({
   const [importing, setImporting] = useState(false);
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [creditLimitInput, setCreditLimitInput] = useState('');
+  const [gpsLat, setGpsLat] = useState('');
+  const [gpsLng, setGpsLng] = useState('');
   const [pending, startTransition] = useTransition();
 
   const ar = locale === 'ar';
@@ -351,16 +354,22 @@ export function CustomersManager({
                     type="button"
                     variant="secondary"
                     disabled={pending}
-                    onClick={() => void runCritical({
-                      catalogKey: 'customer.dataUpdateApproval',
-                      action: t('critical.actions.dataUpdateApproval'),
-                      record: locale === 'ar' ? current.name_ar || current.name : current.name,
-                      execute: async (reason) => {
-                        const res = await requestCustomerApproval(current.id, reason);
-                        return { ok: res.ok, error: res.error };
-                      },
-                      onDone: () => router.refresh(),
-                    })}
+                    onClick={async () => {
+                      const policy = await loadActionPolicyConfig('customer.dataUpdateApproval');
+                      if (!policy.enabled) { toast.error(t('actionPolicies.disabledForTenant')); return; }
+                      void runCritical({
+                        catalogKey: 'customer.dataUpdateApproval',
+                        action: t('critical.actions.dataUpdateApproval'),
+                        record: locale === 'ar' ? current.name_ar || current.name : current.name,
+                        requireReason: policy.reasonRequired,
+                        irreversible: policy.irreversible,
+                        execute: async (reason) => {
+                          const res = await requestCustomerApproval(current.id, reason);
+                          return { ok: res.ok, error: res.error };
+                        },
+                        onDone: () => router.refresh(),
+                      });
+                    }}
                   >
                     {t('workflow.requestApproval')}
                   </Button>
@@ -393,6 +402,41 @@ export function CustomersManager({
                     }}
                   >
                     {t('workflow.creditLimit.requestButton')}
+                  </Button>
+                </div>
+              )}
+              {current && (
+                <div className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed p-3">
+                  <Field label={t('customers.gpsLat')}>
+                    <Input type="number" step="0.000001" dir="ltr" className="max-w-[10rem]"
+                      value={gpsLat} onChange={(e) => setGpsLat(e.target.value)} />
+                  </Field>
+                  <Field label={t('customers.gpsLng')}>
+                    <Input type="number" step="0.000001" dir="ltr" className="max-w-[10rem]"
+                      value={gpsLng} onChange={(e) => setGpsLng(e.target.value)} />
+                  </Field>
+                  <Button
+                    type="button" variant="secondary" disabled={pending}
+                    onClick={async () => {
+                      const lat = parseFloat(gpsLat); const lng = parseFloat(gpsLng);
+                      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return toast.error(t('workflow.toast.error'));
+                      const policy = await loadActionPolicyConfig('customer.gpsChangeApproval');
+                      if (!policy.enabled) { toast.error(t('actionPolicies.disabledForTenant')); return; }
+                      void runCritical({
+                        catalogKey: 'customer.gpsChangeApproval',
+                        action: t('critical.actions.gpsChangeApproval'),
+                        record: `${locale === 'ar' ? current.name_ar || current.name : current.name} · ${lat}, ${lng}`,
+                        requireReason: policy.reasonRequired,
+                        irreversible: policy.irreversible,
+                        execute: async (reason) => {
+                          const res = await requestCustomerGpsChange(current.id, lat, lng, reason);
+                          return { ok: res.ok, error: res.error };
+                        },
+                        onDone: () => { setGpsLat(''); setGpsLng(''); router.refresh(); },
+                      });
+                    }}
+                  >
+                    {t('customers.gpsRequestApproval')}
                   </Button>
                 </div>
               )}

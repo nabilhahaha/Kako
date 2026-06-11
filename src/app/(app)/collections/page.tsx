@@ -43,7 +43,7 @@ export default async function CollectionsPage() {
   // Recent collections (context).
   const { data: recentRaw } = await supabase
     .from('erp_collections')
-    .select('collection_number, collection_date, amount, method, customer_id')
+    .select('id, collection_number, collection_date, amount, method, customer_id, status')
     .order('collection_date', { ascending: false })
     .limit(20);
   const recent = (recentRaw as RecentCollection[]) ?? [];

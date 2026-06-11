@@ -4,6 +4,8 @@ import {
   type RiskLevel, type ReversalPolicy, type WireStatus,
 } from './critical-actions-catalog';
 import { DICTIONARIES } from '../i18n/dictionaries';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 function resolve(locale: 'ar' | 'en', key: string): unknown {
   return key.split('.').reduce<unknown>(
@@ -62,5 +64,20 @@ describe('FMCG critical-action catalog', () => {
   it('getCriticalActionSpec resolves a known key and ignores unknowns', () => {
     expect(getCriticalActionSpec('invoice.finalize')?.domain).toBe('sales');
     expect(getCriticalActionSpec('does.not.exist')).toBeUndefined();
+  });
+
+  it('the erp_action_policies seed (0272) covers exactly the catalog keys', () => {
+    // Guards DB-default ↔ TS-catalog drift: every catalog action must be seeded
+    // by erp_seed_action_policies, and the seed must not reference stale keys.
+    const sql = readFileSync(
+      join(process.cwd(), 'supabase/migrations/0272_action_policies.sql'),
+      'utf8',
+    );
+    const seeded = new Set<string>();
+    for (const m of sql.matchAll(/\(\s*'([a-zA-Z]+\.[a-zA-Z]+)'\s*,\s*'(?:low|medium|high|critical)'/g)) {
+      seeded.add(m[1]);
+    }
+    const catalogKeys = new Set(CRITICAL_ACTIONS.map((a) => a.key));
+    expect([...seeded].sort()).toEqual([...catalogKeys].sort());
   });
 });

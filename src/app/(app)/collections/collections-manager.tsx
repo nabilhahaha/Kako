@@ -11,11 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Wallet } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useCriticalAction } from '@/lib/critical-action';
-import { recordCollection } from './actions';
+import { recordCollection, reverseCollection } from './actions';
+import { loadActionPolicyConfig } from '../settings/action-policies/actions';
 
 export interface ARCustomer { id: string; code: string; name: string; name_ar: string | null; balance: number; branch_id: string; }
 export interface OpenInvoice { id: string; invoice_number: string; customer_id: string; branch_id: string; net_amount: number; paid_amount: number | null; due_date: string | null; created_at: string; status: string; }
-export interface RecentCollection { collection_number: string; collection_date: string; amount: number; method: string; customer_id: string; }
+export interface RecentCollection { id: string; collection_number: string; collection_date: string; amount: number; method: string; customer_id: string; status?: string | null; }
 
 const METHODS = [
   { value: 'cash', label: 'Cash' },
@@ -79,6 +80,26 @@ export function CollectionsManager({
   }
 
   const nm = (c: { name: string; name_ar: string | null }) => (locale === 'ar' ? c.name_ar || c.name : c.name);
+
+  // Collection reversal — consumes the tenant ACTION POLICY (collection.adjust):
+  // reason requirement, irreversible styling and enablement come from the policy
+  // engine, not hard-coded rules.
+  async function onReverse(r: RecentCollection) {
+    const policy = await loadActionPolicyConfig('collection.adjust');
+    if (!policy.enabled) { toast.error(t('actionPolicies.disabledForTenant')); return; }
+    await runCritical({
+      catalogKey: 'collection.adjust',
+      action: t('critical.actions.collectionAdjust'),
+      record: `${r.collection_number} · ${formatCurrency(Number(r.amount))}`,
+      requireReason: policy.reasonRequired,
+      irreversible: policy.irreversible,
+      execute: async (reason) => {
+        const res = await reverseCollection(r.id, reason);
+        return { ok: res.ok, error: res.error };
+      },
+      onDone: () => router.refresh(),
+    });
+  }
 
   return (
     <div className="space-y-4">
@@ -179,9 +200,18 @@ export function CollectionsManager({
           <div className="mb-2 text-sm font-semibold">{t('sales.collectionsRecent')}</div>
           <div className="space-y-1 text-sm">
             {recent.map((r) => (
-              <div key={r.collection_number} className="flex justify-between border-b py-1 last:border-0">
+              <div key={r.id} className="flex items-center justify-between border-b py-1 last:border-0">
                 <span>{r.collection_number} · {formatDate(r.collection_date)}</span>
-                <span className="font-medium">{formatCurrency(Number(r.amount))}</span>
+                <span className="flex items-center gap-2">
+                  <span className="font-medium">{formatCurrency(Number(r.amount))}</span>
+                  {r.status === 'reversed' ? (
+                    <span className="text-xs text-muted-foreground">{t('sales.collectionsReversed')}</span>
+                  ) : (
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => onReverse(r)}>
+                      {t('sales.collectionsReverse')}
+                    </Button>
+                  )}
+                </span>
               </div>
             ))}
           </div>

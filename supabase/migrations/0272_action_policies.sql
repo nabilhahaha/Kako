@@ -78,6 +78,9 @@ AS $$
     AND enabled = true
     AND effective_from <= now()
     AND (effective_to IS NULL OR effective_to > now())
+    -- Tenant guard: a SECURITY DEFINER function must not leak another company's
+    -- config. Only the caller's own company (or platform/super) resolves.
+    AND (erp_is_platform_owner() OR erp_is_super_admin() OR p_company = erp_user_company_id())
   ORDER BY effective_from DESC
   LIMIT 1;
 $$;
