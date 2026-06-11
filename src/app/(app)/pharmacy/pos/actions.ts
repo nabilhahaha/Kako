@@ -91,6 +91,33 @@ export async function linkBarcodeToProduct(productId: string, barcode: string): 
   return { ok: true };
 }
 
+/**
+ * Lightweight pharmacy customer quick-create — NO FMCG fields (no CR/VAT/GPS/
+ * National Address/trade data) and NO approval workflow. Walk-in friendly:
+ * captures name (+ optional phone) only, active & approved immediately. Gated by
+ * the seller permission; this is the pharmacy-pack customer flow, distinct from
+ * the FMCG customer governance.
+ */
+export async function createPharmacyCustomer(name: string, phone?: string | null): Promise<ActionResult<{ id: string; name: string }>> {
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
+  const perms = ctx.permissions as string[];
+  if (!(perms.includes('sales.sell') || perms.includes('sales.collect') || ctx.isSuperAdmin)) {
+    return { ok: false, error: 'no_permission' };
+  }
+  const nm = (name ?? '').trim();
+  if (!nm) return { ok: false, error: 'name_required' };
+  const supabase = await createClient();
+  const code = 'WC' + Date.now().toString(36).toUpperCase();
+  const { data, error: insErr } = await supabase
+    .from('erp_customers')
+    .insert({ company_id: ctx.companyId, code, name: nm, phone: phone?.trim() || null, is_active: true, is_approved: true, balance: 0 })
+    .select('id, name')
+    .single();
+  if (insErr) return { ok: false, error: insErr.message };
+  return { ok: true, data: { id: (data as { id: string; name: string }).id, name: (data as { name: string }).name } };
+}
+
 export interface PharmacyCheckoutLine {
   product_id: string;
   quantity: number;

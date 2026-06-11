@@ -15,7 +15,7 @@ import type { Branch, ErpCustomer, PaymentMethod } from '@/lib/erp/types';
 import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History } from 'lucide-react';
 import { CameraScanner, type ScanResult } from '@/components/scanning/scanner';
 import {
-  pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct,
+  pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct, createPharmacyCustomer,
   type PharmacySearchRow, type PharmacyBatch,
 } from './actions';
 
@@ -62,7 +62,11 @@ export function PharmacyPos({
   const nm = (x: { name: string; name_ar: string | null }) => (locale === 'ar' ? x.name_ar || x.name : x.name);
 
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
+  const [customerList, setCustomerList] = useState(customers);
   const [customerId, setCustomerId] = useState(defaultCustomerId || customers[0]?.id || '');
+  const [newCust, setNewCust] = useState(false);
+  const [ncName, setNcName] = useState('');
+  const [ncPhone, setNcPhone] = useState('');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PharmacySearchRow[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -76,6 +80,7 @@ export function PharmacyPos({
   const [linkQuery, setLinkQuery] = useState('');
   const [linkResults, setLinkResults] = useState<PharmacySearchRow[]>([]);
   const [pending, start] = useTransition();
+  const [busy, setBusy] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const kb = useRef<{ checkout: () => void; hold: () => void; toggleResume: () => void; canSell: boolean }>({
@@ -198,7 +203,7 @@ export function PharmacyPos({
 
   const overStock = cart.some((l) => l.on_hand > 0 && l.quantity > l.on_hand);
   const change = Math.max(0, (Number(tendered) || 0) - totals.net_amount);
-  const canSell = Boolean(branchId && customerId && cart.length > 0 && !overStock) && !pending;
+  const canSell = Boolean(branchId && customerId && cart.length > 0 && !overStock) && !pending && !busy;
 
   function persistHolds(next: Hold[]) { setHolds(next); localStorage.setItem(HOLDS_KEY, JSON.stringify(next)); }
   function recordRecent(lines: CartLine[]) {
@@ -222,32 +227,53 @@ export function PharmacyPos({
     setShowHolds(false); searchRef.current?.focus();
   }
 
-  function checkout() {
+  // Plain async (NOT useTransition): the receipt confirm() must render immediately.
+  // Inside a transition, post-await state updates are deferred → the modal would
+  // never paint (it can't settle until the user clicks the modal that isn't shown).
+  async function checkout() {
+    if (!canSell) return;
     const sold = cart;
-    start(async () => {
-      const res = await pharmacyCheckout({
-        branch_id: branchId, customer_id: customerId,
-        lines: cart.map((l) => ({
-          product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price,
-          discount_pct: l.discount_pct, tax_rate: l.tax_rate, batch_id: l.batch_id ?? null,
-        })),
-        amount: totals.net_amount, payment_method: method,
+    setBusy(true);
+    const res = await pharmacyCheckout({
+      branch_id: branchId, customer_id: customerId,
+      lines: cart.map((l) => ({
+        product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price,
+        discount_pct: l.discount_pct, tax_rate: l.tax_rate, batch_id: l.batch_id ?? null,
+      })),
+      amount: totals.net_amount, payment_method: method,
+    });
+    setBusy(false);
+    if (!res.ok) { toast.error(res.error ?? t('pharmacyPos.checkoutError')); return; }
+    const invId = res.data?.invoice_id;
+    toast.success(t('pharmacyPos.sold', { number: res.data?.invoice_number ?? '' }));
+    recordRecent(sold);
+    setCart([]); setTendered('');
+    // Receipt printing ONLY after the committed sale.
+    if (features.receiptPrinting && invId) {
+      const want = await confirm({
+        title: t('pos.receipt.confirmTitle'), message: t('pos.receipt.confirmMsg'),
+        confirmText: t('pos.receipt.print'), cancelText: t('shared.skip'),
       });
-      if (!res.ok) { toast.error(res.error ?? t('pharmacyPos.checkoutError')); return; }
-      const invId = res.data?.invoice_id;
-      toast.success(t('pharmacyPos.sold', { number: res.data?.invoice_number ?? '' }));
-      recordRecent(sold);
-      setCart([]); setTendered('');
-      // Receipt printing ONLY after the committed sale.
-      if (features.receiptPrinting && invId) {
-        const want = await confirm({
-          title: t('pos.receipt.confirmTitle'), message: t('pos.receipt.confirmMsg'),
-          confirmText: t('pos.receipt.print'), cancelText: t('shared.skip'),
-        });
-        if (want) window.open(`/print/pharmacy/receipt/${invId}?autoprint=1`, '_blank', 'noopener');
-      }
+      if (want) window.open(`/print/pharmacy/receipt/${invId}?autoprint=1`, '_blank', 'noopener');
+    }
+    searchRef.current?.focus();
+    router.refresh();
+  }
+
+  // Lightweight walk-in customer create (name + optional phone; no FMCG fields).
+  function quickCreateCustomer() {
+    const nm0 = ncName.trim();
+    if (!nm0) { toast.error(t('pharmacyPos.custNameRequired')); return; }
+    setBusy(true);
+    createPharmacyCustomer(nm0, ncPhone).then((res) => {
+      setBusy(false);
+      if (!res.ok || !res.data) { toast.error(res.error ?? t('pharmacyPos.custError')); return; }
+      const c = { id: res.data.id, name: res.data.name, name_ar: null };
+      setCustomerList((list) => [...list, c]);
+      setCustomerId(res.data.id);
+      setNcName(''); setNcPhone(''); setNewCust(false);
+      toast.success(t('pharmacyPos.custcreated'));
       searchRef.current?.focus();
-      router.refresh();
     });
   }
 
@@ -326,9 +352,20 @@ export function PharmacyPos({
               </select>
             )}
             <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="h-10 flex-1 rounded-md border border-input bg-background px-2 text-sm">
-              {customers.map((c) => <option key={c.id} value={c.id}>{nm(c)}</option>)}
+              {customerList.map((c) => <option key={c.id} value={c.id}>{nm(c)}</option>)}
             </select>
+            <Button type="button" variant="outline" className="h-10 px-3" onClick={() => setNewCust((s) => !s)} title={t('pharmacyPos.custNew')}>
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
+          {newCust && (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2">
+              <Input value={ncName} onChange={(e) => setNcName(e.target.value)} placeholder={t('pharmacyPos.custName')}
+                className="h-9 flex-1" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); quickCreateCustomer(); } }} />
+              <Input value={ncPhone} onChange={(e) => setNcPhone(e.target.value)} placeholder={t('pharmacyPos.custPhone')} className="h-9 w-32" dir="ltr" />
+              <Button type="button" size="sm" disabled={busy} onClick={quickCreateCustomer}>{t('pharmacyPos.custSave')}</Button>
+            </div>
+          )}
 
           <div className="max-h-[46vh] space-y-2 overflow-y-auto border-y py-2">
             {cart.length === 0 ? (
@@ -397,7 +434,7 @@ export function PharmacyPos({
           )}
 
           <Button className="h-14 w-full text-lg font-bold" disabled={!canSell} onClick={checkout}>
-            {pending && <Loader2 className="h-5 w-5 animate-spin" />} {t('pharmacyPos.checkout')} · {money(totals.net_amount)}
+            {(pending || busy) && <Loader2 className="h-5 w-5 animate-spin" />} {t('pharmacyPos.checkout')} · {money(totals.net_amount)}
           </Button>
           <p className="text-center text-[11px] text-muted-foreground">{t('pharmacyPos.shortcuts')}</p>
 

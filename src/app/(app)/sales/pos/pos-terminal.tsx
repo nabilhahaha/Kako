@@ -43,7 +43,8 @@ export function PosTerminal({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [pay, setPay] = useState(true);
   const [method, setMethod] = useState<PaymentMethod>('cash');
-  const [pending, startTransition] = useTransition();
+  const [pending] = useTransition();
+  const [busy, setBusy] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -80,41 +81,44 @@ export function PosTerminal({
   }));
   const totals = computeTotals(lineInputs);
 
-  const canSell = branchId && customerId && cart.length > 0;
+  const canSell = branchId && customerId && cart.length > 0 && !pending;
 
-  function complete() {
-    startTransition(async () => {
-      const res = await quickSale({
-        branch_id: branchId,
-        customer_id: customerId,
-        lines: lineInputs,
-        pay,
-        amount: pay ? totals.net_amount : 0,
-        payment_method: method,
-      });
-      // Print ONLY after a successful, committed sale. On failure: no print.
-      if (!res.ok) {
-        toast.error(res.error ?? t('sales.errorGeneric'));
-        return;
-      }
-      toast.success(t('sales.posSuccessMsg', { number: res.data?.invoice_number ?? '', collected: pay ? t('sales.posSuccessCollected') : '' }));
-      setCart([]);
-      setQuery('');
-
-      // Receipt-printing flag ON → offer to print the just-confirmed invoice.
-      if (receiptPrinting && res.data?.invoice_id) {
-        const wantPrint = await confirm({
-          title: t('pos.receipt.confirmTitle'),
-          message: t('pos.receipt.confirmMsg'),
-          confirmText: t('pos.receipt.print'),
-          cancelText: t('shared.skip'),
-        });
-        if (wantPrint) {
-          window.open(`/print/pharmacy/receipt/${res.data.invoice_id}?autoprint=1`, '_blank', 'noopener');
-        }
-      }
-      router.refresh();
+  // Plain async (NOT startTransition): a confirm() awaited inside a transition is
+  // deferred and the modal never paints (deadlock). Use a manual busy flag.
+  async function complete() {
+    if (!canSell) return;
+    setBusy(true);
+    const res = await quickSale({
+      branch_id: branchId,
+      customer_id: customerId,
+      lines: lineInputs,
+      pay,
+      amount: pay ? totals.net_amount : 0,
+      payment_method: method,
     });
+    setBusy(false);
+    // Print ONLY after a successful, committed sale. On failure: no print.
+    if (!res.ok) {
+      toast.error(res.error ?? t('sales.errorGeneric'));
+      return;
+    }
+    toast.success(t('sales.posSuccessMsg', { number: res.data?.invoice_number ?? '', collected: pay ? t('sales.posSuccessCollected') : '' }));
+    setCart([]);
+    setQuery('');
+
+    // Receipt-printing flag ON → offer to print the just-confirmed invoice.
+    if (receiptPrinting && res.data?.invoice_id) {
+      const wantPrint = await confirm({
+        title: t('pos.receipt.confirmTitle'),
+        message: t('pos.receipt.confirmMsg'),
+        confirmText: t('pos.receipt.print'),
+        cancelText: t('shared.skip'),
+      });
+      if (wantPrint) {
+        window.open(`/print/pharmacy/receipt/${res.data.invoice_id}?autoprint=1`, '_blank', 'noopener');
+      }
+    }
+    router.refresh();
   }
 
   if (branches.length === 0 || customers.length === 0 || products.length === 0) {
@@ -228,8 +232,8 @@ export function PosTerminal({
             </select>
           )}
 
-          <Button className="w-full" size="lg" disabled={!canSell || pending} onClick={complete}>
-            {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+          <Button className="w-full" size="lg" disabled={!canSell || busy} onClick={complete}>
+            {(pending || busy) && <Loader2 className="h-4 w-4 animate-spin" />}
             {pay ? t('sales.posBtnCompleteAndCollect') : t('sales.posBtnCompleteDeferred')}
           </Button>
         </CardContent>
