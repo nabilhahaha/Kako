@@ -74,6 +74,15 @@ export async function upsertPriceRule(formData: FormData): Promise<ActionResult>
     ? await supabase.from('erp_price_rules').update(payload).eq('id', id)
     : await supabase.from('erp_price_rules').insert(payload);
   if (error) return { ok: false, error: friendlyDbError(error) };
+  // Audit price CHANGES (existing rule edits) — revenue-affecting. The optional
+  // `reason` is captured by the Critical Action standard on the client.
+  if (id) {
+    await logAudit(supabase, {
+      action: 'update', entity: 'price_rule', entityId: id,
+      details: { product_id, scope_type, price_type, value, reason: String(formData.get('reason') || '').trim() || null },
+      companyId: g.companyId,
+    });
+  }
   revalidatePath('/sales/pricing');
   return { ok: true };
 }

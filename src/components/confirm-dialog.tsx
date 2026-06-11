@@ -13,6 +13,11 @@ interface ConfirmOptions {
   cancelText?: string;
   /** Style the confirm button as destructive. */
   destructive?: boolean;
+  /** Optional metadata rows (action / record / user / timestamp …) shown as a
+   *  small labelled list — used by the Critical Action standard. */
+  details?: { label: string; value: string }[];
+  /** Optional warning line (e.g. "This action is irreversible"). */
+  warning?: string;
 }
 
 type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
@@ -57,10 +62,25 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${options.destructive ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
                   <AlertTriangle className="h-5 w-5" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h3 className="font-semibold">{options.title}</h3>
                   {options.message && (
                     <p className="mt-1 text-sm text-muted-foreground">{options.message}</p>
+                  )}
+                  {options.details && options.details.length > 0 && (
+                    <dl className="mt-3 space-y-1 rounded-md bg-muted/40 p-2 text-xs">
+                      {options.details.map((d) => (
+                        <div key={d.label} className="flex justify-between gap-3">
+                          <dt className="text-muted-foreground">{d.label}</dt>
+                          <dd className="font-medium text-foreground">{d.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                  {options.warning && (
+                    <p className="mt-2 flex items-center gap-1 text-xs font-medium text-destructive">
+                      <AlertTriangle className="h-3.5 w-3.5" /> {options.warning}
+                    </p>
                   )}
                 </div>
               </div>

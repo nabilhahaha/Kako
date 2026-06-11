@@ -15,6 +15,7 @@ import type {
 } from '@/lib/erp/types';
 import { useI18n } from '@/lib/i18n/provider';
 import { useConfirm } from '@/components/confirm-dialog';
+import { useCriticalAction } from '@/lib/critical-action';
 import {
   upsertPriceRule, togglePriceRuleActive, deletePriceRule, upsertPriceList, upsertPriceListItem,
 } from './actions';
@@ -127,6 +128,7 @@ function RulesSection({
   router: ReturnType<typeof useRouter>;
 }) {
   const { t } = useI18n();
+  const runCritical = useCriticalAction();
   const [editing, setEditing] = useState<PriceRule | 'new' | null>(null);
   const [scopeType, setScopeType] = useState<PriceScopeType>('customer');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -135,11 +137,27 @@ function RulesSection({
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    startTransition(async () => {
-      const res = await upsertPriceRule(fd);
-      if (!res.ok) { toast.error(res.error ?? t('pricing.toastError')); return; }
-      toast.success(t('pricing.toastSaved')); setEditing(null); router.refresh();
+    const fd = new FormData(e.currentTarget); // captured synchronously
+    // New rule → create directly. Editing an existing rule is a PRICE CHANGE, so
+    // it runs through the Critical Action standard (confirm + reason + audit).
+    if (!cur) {
+      startTransition(async () => {
+        const res = await upsertPriceRule(fd);
+        if (!res.ok) { toast.error(res.error ?? t('pricing.toastError')); return; }
+        toast.success(t('pricing.toastSaved')); setEditing(null); router.refresh();
+      });
+      return;
+    }
+    void runCritical({
+      action: t('pricing.criticalAction'),
+      record: productName(cur.product_id),
+      requireReason: true,
+      execute: async (reason) => {
+        if (reason) fd.set('reason', reason);
+        const res = await upsertPriceRule(fd);
+        return { ok: res.ok, error: res.error };
+      },
+      onDone: () => { setEditing(null); router.refresh(); },
     });
   }
   function act(fn: () => Promise<{ ok: boolean; error?: string }>) {
