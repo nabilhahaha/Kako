@@ -292,7 +292,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.pharmacyOnboard', href: '/pharmacy/onboarding', icon: Package, perm: ['pricing.manage', 'inventory.adjust'] },
       { label: 'nav.items.pharmacyReceive', href: '/pharmacy/receive', icon: PackageCheck, perm: 'inventory.adjust' },
       { label: 'nav.items.pharmacyDispense', href: '/pharmacy/dispense', icon: Pill, perm: 'pharmacy.dispense' },
-      { label: 'nav.items.expiryNear', href: '/inventory/expiry', icon: CalendarClock, perm: 'pharmacy.dispense' },
+      { label: 'nav.items.expiryNear', href: '/pharmacy/expiry', icon: CalendarClock, perm: ['pharmacy.dispense', 'inventory.adjust', 'inventory.view'], flag: 'pharmacy.near_expiry_alerts' },
     ],
   },
   {

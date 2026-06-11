@@ -35,6 +35,19 @@ export const ar = {
     received: 'تم الاستلام',
     error: 'تعذّر الاستلام',
   },
+  pharmExpiry: {
+    title: 'مخاطر الصلاحية',
+    description: 'الأصناف المنتهية والقريبة من الانتهاء، مع إعدام المنتهي.',
+    bucket: { expired: 'منتهٍ', d30: 'خلال ٣٠ يوم', d60: 'خلال ٦٠ يوم', d90: 'خلال ٩٠ يوم' },
+    none: 'لا توجد أصناف قريبة من الانتهاء 🎉',
+    product: 'الصنف',
+    batch: 'التشغيلة',
+    expiry: 'الصلاحية',
+    days: 'الأيام',
+    qty: 'الكمية',
+    status: 'الحالة',
+    writeOff: 'إعدام',
+  },
 };
 
 export const en = {
@@ -72,5 +85,18 @@ export const en = {
     receiveBtn: 'Receive',
     received: 'Received',
     error: 'Could not receive',
+  },
+  pharmExpiry: {
+    title: 'Expiry Risk',
+    description: 'Expired and near-expiry items, with expiry write-off.',
+    bucket: { expired: 'Expired', d30: 'Within 30 days', d60: 'Within 60 days', d90: 'Within 90 days' },
+    none: 'No items near expiry 🎉',
+    product: 'Product',
+    batch: 'Batch',
+    expiry: 'Expiry',
+    days: 'Days',
+    qty: 'Qty',
+    status: 'Status',
+    writeOff: 'Write off',
   },
 };
