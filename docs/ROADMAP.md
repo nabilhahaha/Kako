@@ -99,9 +99,32 @@ at a time) and **build sub-slices** (each design→build→verify→PR→prod-ap
 | CSeed | **Capability-seed slice** — universal CRM/Workflow/Analytics nav gating (new-company seed bridge) | Build | R4B, BU | Med | Low–Med | now | 🟡 built, in review (`CAPABILITY-SEED.md`); 0098 rolled-back-verified, pending prod apply |
 | B5 | **Odoo adapter** | Build | framework | Med | Med (JSON-RPC) | 5 | 🟡 built; in review (`ADAPTER-ODOO.md`); no migration; live validation pending a pilot |
 | B4 | **Oracle NetSuite adapter** | Build | framework | Med | Med–High (TBA OAuth1-HMAC) | 6 | 🟡 built; in review (`ADAPTER-NETSUITE.md`); shared oauth1.ts TBA signer; no migration; live validation pending a pilot |
+| BCA | **Critical Action Standard + FMCG catalog** | Build | audit, workflow engine | High | Med | now | 🟡 core (`useCriticalAction`/`CriticalActionButton`) + generic Shift/Cashbox shipped; **8 FMCG flows wired**, 5 ready, 9 planned — see `FMCG-CRITICAL-ACTIONS-CATALOG.md` |
 
 **Vendor-order override (standing):** a real pilot customer's ERP requirement
 overrides the default B2→B5 order.
+
+### Governance & Critical Actions (cross-cutting)
+
+A single, reusable confirmation standard now governs every high-consequence
+action: confirm (action / record / user / timestamp + irreversible warning) →
+optional reason → execute → success → optional print → **server-side audit**. The
+22-action FMCG catalog (`src/lib/erp/critical-actions-catalog.ts`, test-enforced)
+is the source of truth for **risk level, required role, reason policy, approval
+requirement, audit fields, notification targets, and reversal policy** per action.
+
+- **Wired today (8):** invoice finalization, collection posting, return
+  approval/rejection, price-list modification, stock-transfer approval, stock
+  adjustment, customer activation/deactivation.
+- **Ready (5):** credit-limit override, customer data-update approval, van-load
+  confirmation, salesman reassignment, supervisor approval (workflow engine).
+- **Planned (9):** collection adjustment, GPS-change approval, trade-spend
+  approval/cancellation, van reconciliation/unload, route reassignment,
+  near-expiry write-off, expiry-disposal approval (last two blocked on the
+  batch/expiry data model — `PHARMACY-BACKLOG.md`).
+- **Next:** notification delivery (`erp_notify`) on each committed action, and a
+  lightweight **approval-policy table** so reason/approval requirements become
+  per-tenant configurable rather than code constants.
 
 ### Recommended sequencing
 1. **R2 documentation authoring** proceeds in parallel (index + Module Catalog

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/confirm-dialog';
 import { usePrompt } from '@/components/prompt-dialog';
 import { useI18n } from '@/lib/i18n/provider';
+import { getCriticalActionSpec } from '@/lib/erp/critical-actions-catalog';
 
 /**
  * VANTORA — Critical Action standard.
@@ -31,6 +32,9 @@ export interface CriticalResult<T = unknown> {
 }
 
 export interface CriticalActionConfig<T = unknown> {
+  /** Optional FMCG catalog key — supplies `irreversible` and reason defaults
+   *  from CRITICAL_ACTIONS unless the call overrides them explicitly. */
+  catalogKey?: string;
   /** Short, already-translated action name, e.g. "Close shift". */
   action: string;
   /** Affected record label, e.g. "Shift #3 — Cashier A". */
@@ -57,6 +61,11 @@ export function useCriticalAction() {
 
   return useCallback(
     async function run<T>(cfg: CriticalActionConfig<T>): Promise<boolean> {
+      // Catalog defaults (overridable per call): irreversible + reason policy.
+      const spec = cfg.catalogKey ? getCriticalActionSpec(cfg.catalogKey) : undefined;
+      const irreversible = cfg.irreversible ?? spec?.irreversible ?? false;
+      const requireReason = cfg.requireReason ?? spec?.reasonRequired ?? false;
+
       const now = new Date().toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-GB');
       const details: { label: string; value: string }[] = [
         { label: t('critical.fieldAction'), value: cfg.action },
@@ -68,15 +77,15 @@ export function useCriticalAction() {
       const okConfirm = await confirm({
         title: t('critical.confirmTitle', { action: cfg.action }),
         details,
-        warning: cfg.irreversible ? t('critical.irreversible') : undefined,
-        destructive: cfg.irreversible,
+        warning: irreversible ? t('critical.irreversible') : undefined,
+        destructive: irreversible,
         confirmText: t('shared.confirm'),
         cancelText: t('shared.cancel'),
       });
       if (!okConfirm) return false;
 
       let reason: string | undefined;
-      if (cfg.requireReason) {
+      if (requireReason) {
         const r = await prompt({
           title: t('critical.reasonTitle'),
           label: t('critical.reasonLabel'),

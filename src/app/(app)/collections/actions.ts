@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
 
 export interface ActionResult {
@@ -44,6 +45,12 @@ export async function recordCollection(input: {
     p_collection_date: input.date || null,
   });
   if (error) return { ok: false, error: error.message };
+  // Critical-action audit: collection.post (irreversible — undone by a reversal voucher).
+  await logAudit(supabase, {
+    action: 'create', entity: 'collection',
+    details: { customer_id: input.customerId, branch_id: input.branchId, amount, method: input.method || 'cash', collection_date: input.date || null },
+    companyId: ctx.companyId,
+  });
   revalidatePath('/collections');
   return { ok: true };
 }

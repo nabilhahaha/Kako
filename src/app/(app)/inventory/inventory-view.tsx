@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { adjustStock } from './actions';
+import { useCriticalAction } from '@/lib/critical-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -280,26 +281,31 @@ function AdjustDialog({
   onDone: () => void;
 }) {
   const { t } = useI18n();
+  const runCritical = useCriticalAction();
   const [warehouseId, setWarehouseId] = useState(initial.warehouse_id);
   const [productId, setProductId] = useState(initial.product_id);
   const [delta, setDelta] = useState('');
   const [notes, setNotes] = useState('');
   const [pending, startTransition] = useTransition();
 
+  // Stock adjustment — irreversible movement; the dialog's notes field carries the
+  // reason, so the standard confirms (action/record/irreversible) without re-prompting.
   function submit() {
-    startTransition(async () => {
-      const res = await adjustStock({
-        warehouse_id: warehouseId,
-        product_id: productId,
-        delta: Number(delta),
-        notes,
+    const product = products.find((p) => p.id === productId);
+    startTransition(() => {
+      void runCritical({
+        catalogKey: 'stock.adjust',
+        action: t('critical.actions.stockAdjust'),
+        requireReason: false,
+        record: `${product?.name_ar || product?.name || productId} · ${Number(delta) > 0 ? '+' : ''}${delta}`,
+        execute: async () => {
+          const res = await adjustStock({
+            warehouse_id: warehouseId, product_id: productId, delta: Number(delta), notes,
+          });
+          return { ok: res.ok, error: res.error };
+        },
+        onDone,
       });
-      if (!res.ok) {
-        toast.error(res.error ?? t('inventory.toastError'));
-        return;
-      }
-      toast.success(t('inventory.toastAdjustSuccess'));
-      onDone();
     });
   }
 

@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { Plus, Pencil, Loader2, X, Users, Search, AlertTriangle, FileText, Upload, Printer, BadgeCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n/provider';
+import { useCriticalAction } from '@/lib/critical-action';
 
 type Rep = Pick<Profile, 'id' | 'full_name' | 'email'>;
 
@@ -60,6 +61,7 @@ export function CustomersManager({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { t, locale } = useI18n();
+  const runCritical = useCriticalAction();
   const [editing, setEditing] = useState<ErpCustomer | null | 'new'>(null);
   const [importing, setImporting] = useState(false);
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
@@ -156,11 +158,17 @@ export function CustomersManager({
     });
   }
 
+  // Customer activation/deactivation — reason mandatory (catalog: customer.statusChange).
   function onToggle(c: ErpCustomer) {
-    startTransition(async () => {
-      const res = await toggleCustomerActive(c.id, !c.is_active);
-      if (!res.ok) toast.error(res.error ?? t('customers.toastError'));
-      else router.refresh();
+    void runCritical({
+      catalogKey: 'customer.statusChange',
+      action: t('critical.actions.customerStatusChange'),
+      record: locale === 'ar' ? c.name_ar || c.name : c.name,
+      execute: async (reason) => {
+        const res = await toggleCustomerActive(c.id, !c.is_active, reason);
+        return { ok: res.ok, error: res.error };
+      },
+      onDone: () => router.refresh(),
     });
   }
 

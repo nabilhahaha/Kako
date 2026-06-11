@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Wallet } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useCriticalAction } from '@/lib/critical-action';
 import { recordCollection } from './actions';
 
 export interface ARCustomer { id: string; code: string; name: string; name_ar: string | null; balance: number; branch_id: string; }
@@ -34,6 +35,7 @@ export function CollectionsManager({
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
+  const runCritical = useCriticalAction();
   const [selected, setSelected] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
@@ -57,18 +59,23 @@ export function CollectionsManager({
     setMethod('cash');
   }
 
+  // Collection posting — irreversible (AR settlement); standard confirm + audit.
   async function submit() {
     if (!sel) return;
     const amt = Number(amount);
     if (!amt || amt <= 0) { toast.error(t('sales.collectionsErrAmount')); return; }
-    setLoading(true);
-    const res = await recordCollection({ customerId: sel.id, branchId: sel.branch_id, amount: amt, method, date });
-    setLoading(false);
-    if (!res.ok) { toast.error(res.error || t('sales.errorGeneric')); return; }
-    toast.success(t('sales.collectionsSuccess'));
-    setSelected(null);
-    setAmount('');
-    router.refresh();
+    await runCritical({
+      catalogKey: 'collection.post',
+      action: t('critical.actions.collectionPost'),
+      record: `${nm(sel)} · ${formatCurrency(amt)}`,
+      execute: async () => {
+        setLoading(true);
+        const res = await recordCollection({ customerId: sel.id, branchId: sel.branch_id, amount: amt, method, date });
+        setLoading(false);
+        return { ok: res.ok, error: res.error };
+      },
+      onDone: () => { setSelected(null); setAmount(''); router.refresh(); },
+    });
   }
 
   const nm = (c: { name: string; name_ar: string | null }) => (locale === 'ar' ? c.name_ar || c.name : c.name);

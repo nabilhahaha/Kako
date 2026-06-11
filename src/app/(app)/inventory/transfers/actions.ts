@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
 
 interface TransferLineInput {
@@ -71,13 +72,18 @@ export async function createTransfer(input: {
  * movements and status update in one transaction.
  */
 export async function completeTransfer(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_complete_transfer', { p_transfer_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  // Critical-action audit: stock.transferApprove (irreversible stock movements).
+  await logAudit(supabase, {
+    action: 'update', entity: 'stock_transfer', entityId: id,
+    details: { event: 'transfer_completed' }, companyId: ctx.companyId,
+  });
   await emitDomainEvent({ eventType: EVENT.STOCK_TRANSFER_COMPLETED, entity: 'stock_transfer', recordId: id });
   revalidatePath('/inventory/transfers');
   revalidatePath('/inventory');

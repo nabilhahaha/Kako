@@ -22,6 +22,7 @@ import { INTL_LOCALE } from '@/lib/i18n/config';
 import type { Branch, ErpCustomer, InvoiceStatus, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
 import type { InvoiceRow } from './page';
 import { useConfirm } from '@/components/confirm-dialog';
+import { useCriticalAction } from '@/lib/critical-action';
 import { useI18n } from '@/lib/i18n/provider';
 import Link from 'next/link';
 import { Plus, Loader2, X, Receipt, CheckCircle2, Wallet, Printer } from 'lucide-react';
@@ -55,6 +56,7 @@ export function InvoicesManager({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const runCritical = useCriticalAction();
   const { t, locale } = useI18n();
   const [creating, setCreating] = useState(false);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
@@ -119,21 +121,18 @@ export function InvoicesManager({
     });
   }
 
+  // Invoice finalization — irreversible (stock-out + AR posting).
   async function onIssue(id: string) {
-    const ok = await confirm({
-      title: t('sales.invoiceConfirmIssueTitle'),
-      message: t('sales.invoiceConfirmIssueMsg'),
-      confirmText: t('sales.invoiceConfirmIssueBtn'),
-    });
-    if (!ok) return;
-    startTransition(async () => {
-      const res = await issueInvoice(id);
-      if (!res.ok) {
-        toast.error(res.error ?? t('sales.errorGeneric'));
-        return;
-      }
-      toast.success(t('sales.invoiceSuccessIssued'));
-      router.refresh();
+    const inv = invoices.find((x) => x.id === id);
+    await runCritical({
+      catalogKey: 'invoice.finalize',
+      action: t('critical.actions.invoiceFinalize'),
+      record: inv?.invoice_number ?? id,
+      execute: async () => {
+        const res = await issueInvoice(id);
+        return { ok: res.ok, error: res.error };
+      },
+      onDone: () => router.refresh(),
     });
   }
 

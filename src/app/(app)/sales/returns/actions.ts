@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
 
 interface ReturnLineInput {
@@ -80,13 +81,18 @@ export async function createReturn(input: {
  * Sales-Returns/AR journal, and lower the customer balance in one tx.
  */
 export async function completeReturn(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_complete_sales_return', { p_return_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  // Critical-action audit: return.approve (irreversible — restock + AR posting).
+  await logAudit(supabase, {
+    action: 'update', entity: 'sales_return', entityId: id,
+    details: { event: 'return_approved' }, companyId: ctx.companyId,
+  });
   await emitDomainEvent({ eventType: EVENT.RETURN_APPROVED, entity: 'return', recordId: id });
   revalidatePath('/sales/returns');
   revalidatePath('/customers');
@@ -94,9 +100,9 @@ export async function completeReturn(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function cancelReturn(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+export async function cancelReturn(id: string, reason?: string): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -105,6 +111,11 @@ export async function cancelReturn(id: string): Promise<ActionResult> {
     .eq('id', id)
     .in('status', ['draft', 'approved']);
   if (error) return { ok: false, error: friendlyDbError(error) };
+  // Critical-action audit: return.reject (reason mandatory at the call site).
+  await logAudit(supabase, {
+    action: 'update', entity: 'sales_return', entityId: id,
+    details: { event: 'return_rejected', reason: reason?.trim() || null }, companyId: ctx.companyId,
+  });
   revalidatePath('/sales/returns');
   return { ok: true };
 }

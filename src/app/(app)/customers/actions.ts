@@ -437,9 +437,10 @@ export async function rejectCustomer(id: string, reason: string): Promise<Action
 export async function toggleCustomerActive(
   id: string,
   isActive: boolean,
+  reason?: string,
 ): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -447,6 +448,11 @@ export async function toggleCustomerActive(
     .update({ is_active: isActive })
     .eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
+  // Critical-action audit: customer.statusChange (reason mandatory at call site).
+  await logAudit(supabase, {
+    action: isActive ? 'activate' : 'deactivate', entity: 'customer_status', entityId: id,
+    details: { is_active_new: isActive, reason: reason?.trim() || null }, companyId: ctx.companyId,
+  });
   revalidatePath('/customers');
   return { ok: true };
 }
