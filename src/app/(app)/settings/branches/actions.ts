@@ -19,6 +19,19 @@ async function requireSuperAdmin() {
   return { ctx, error: null };
 }
 
+// A tenant Company Admin (settings.branches) may manage branches within their
+// OWN company; a super-admin may manage any. Branch writes are additionally
+// pinned to the caller's company (server-side + RLS), so this never grants a
+// cross-tenant write path. Company creation itself stays super-admin only.
+async function requireBranchManager() {
+  const ctx = await getUserContext();
+  const { t } = await getT();
+  if (!ctx) return { ctx: null, error: t('settings.unauthorizedLogin') };
+  if (!ctx.isSuperAdmin && !(ctx.permissions as string[]).includes('settings.branches'))
+    return { ctx: null, error: t('settings.branches.superAdminOnlyAction') };
+  return { ctx, error: null };
+}
+
 export async function createCompany(formData: FormData): Promise<ActionResult> {
   const { error: authErr } = await requireSuperAdmin();
   if (authErr) return { ok: false, error: authErr };
@@ -43,11 +56,16 @@ export async function createCompany(formData: FormData): Promise<ActionResult> {
 }
 
 export async function upsertBranch(formData: FormData): Promise<ActionResult> {
-  const { error: authErr } = await requireSuperAdmin();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireBranchManager();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
 
   const id = String(formData.get('id') || '').trim();
-  const company_id = String(formData.get('company_id') || '').trim();
+  // SERVER-ENFORCED company scope: a tenant admin's branch is always pinned to
+  // their OWN company (the form value is ignored); only a super-admin may target
+  // an arbitrary company. RLS (erp_branches_company_admin) is the backstop.
+  const company_id = ctx.isSuperAdmin
+    ? String(formData.get('company_id') || '').trim()
+    : (ctx.companyId ?? '');
   const code = String(formData.get('code') || '').trim().toUpperCase();
   const name = String(formData.get('name') || '').trim();
   const name_ar = String(formData.get('name_ar') || '').trim() || null;
@@ -81,9 +99,11 @@ export async function toggleBranchActive(
   id: string,
   isActive: boolean,
 ): Promise<ActionResult> {
-  const { error: authErr } = await requireSuperAdmin();
+  const { error: authErr } = await requireBranchManager();
   if (authErr) return { ok: false, error: authErr };
 
+  // RLS (erp_branches_company_admin) limits the UPDATE to the caller's own
+  // company, so a forged id from another tenant simply matches zero rows.
   const supabase = await createClient();
   const { error } = await supabase
     .from('erp_branches')

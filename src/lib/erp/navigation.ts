@@ -416,7 +416,7 @@ export const NAV_SECTIONS: NavSection[] = [
     // Integrations / Governance / Personal), ordered most-used first within each.
     items: [
       // ── Organization ──
-      { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, superAdminOnly: true, group: 'nav.groups.organization' },
+      { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, perm: 'settings.branches', group: 'nav.groups.organization' },
       { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true, group: 'nav.groups.organization' },
