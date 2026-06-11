@@ -90,7 +90,9 @@ export const FEATURES: FeatureDef[] = [
     validation: ['barcode_required'], screens: ['/products'],
   }),
   F('pharmacy.multi_unit_support', 'inventory', STD, {
-    screens: ['/products'], logic: ['product.uoms'],
+    screens: ['/products', '/pharmacy/onboarding', '/pharmacy/receive', '/pharmacy/pos', '/inventory', '/pharmacy/reports'],
+    validation: ['sell_mode', 'allow_fractional', 'unit_conversion'],
+    logic: ['product.uoms', 'uom.engine', 'uom.rules', 'base_unit_movements'],
   }),
   F('pharmacy.controlled_drug_tracking', 'inventory', ENT, {
     screens: ['/pharmacy/dispense'], validation: ['controlled_log'], logic: ['dispense.is_controlled'],

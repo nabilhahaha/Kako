@@ -81,6 +81,26 @@ consumes it (POS scan button, gated by `platform.scan_camera`). Flags live in th
 tenant Feature Config (`/settings/features` → Scanning domain) and the UI Coverage
 Audit (each scan feature declares `coverage`).
 
+## 3c. Unit Governance Coverage (multi_unit_support)
+
+Per-product unit rules (engine: `src/lib/erp/uom.ts` + `uom-rules.ts`, bridge
+`uom-server.ts`) — verified across every surface a unit-enabled product touches.
+Inventory invariant: **all stock movements store BASE-unit quantities**; the
+audit preserves entered unit + entered qty + base qty (`baseMovement`).
+
+| Surface | Rule enforced | Where | Status |
+|---|---|---|---|
+| **Catalog** | base / purchase / sales units, `sell_mode`, `allow_fractional`, conversion ratios | `erp_products_catalog` (0277/0278) + `erp_product_uoms` + `/settings/uom` | ✅ storage; 🟡 product-edit fields land with Onboarding |
+| **Batch Intake** | receive in purchase/receiving unit → `toBase` → base stock; `validatePurchase` | `uom-rules.validatePurchase` + `baseMovement` | 🟡 engine ready; screen next |
+| **POS** | only sellable units (`sellMode`), whole-qty unless `allow_fractional`, price/qty converted to base, stock validated in base | `pharmacyCheckout` (`validateSell`, `toBase`, `priceToBase`, `uom_movement` audit) | ✅ enforced server-side (unit selector UI next) |
+| **Inventory** | movements + batch decrements in base units | `pharmacyCheckout` batch decrement uses base qty | ✅ |
+| **Reports** | report by base / sales / purchase unit | `stockInUnit` / `lineUnitPrice` helpers | 🟡 helpers ready; report screens next |
+
+Invalid conversions are blocked before any stock math: `validateConversion`
+rejects unknown / zero-factor units; `validateSell`/`validateQty` reject
+non-sellable units, non-positive and (unless allowed) fractional quantities.
+Tests: `uom.test.ts` (7) + `uom-rules.test.ts` (8).
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

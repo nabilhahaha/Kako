@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { requireAuth, type ActionResult } from '@/lib/erp/guards';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { logAudit } from '@/lib/erp/audit';
+import { loadProductUnitsMany } from '@/lib/erp/uom-server';
+import { validateSell, validateQty, baseMovement } from '@/lib/erp/uom-rules';
+import { toBase, priceToBase, factorOf } from '@/lib/erp/uom';
 import { quickSale } from '../../sales/pos/actions';
 import type { PaymentMethod } from '@/lib/erp/types';
 
@@ -95,6 +98,8 @@ export interface PharmacyCheckoutLine {
   discount_pct?: number;
   tax_rate?: number;
   batch_id?: string | null;
+  /** Selling unit; defaults to the product's base unit. */
+  uom?: string | null;
 }
 
 export async function pharmacyCheckout(input: {
@@ -108,34 +113,67 @@ export async function pharmacyCheckout(input: {
   if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
   if (!input.lines?.length) return { ok: false, error: 'empty_cart' };
 
+  const supabase = await createClient();
+  const flags = await getFeatureFlags(supabase, ctx.companyId);
+  const multiUnit = flags['pharmacy.multi_unit_support'] === true;
+
+  // Unit governance: validate each line and store stock in BASE units. The entered
+  // unit / entered qty / base qty are preserved for the audit trail. Without
+  // multi-unit, lines are already base-unit; we still enforce whole-quantity rules.
+  const cfgByProduct = await loadProductUnitsMany(supabase, input.lines.map((l) => l.product_id));
+  const movements: ReturnType<typeof baseMovement>[] = [];
+  const saleLines = [] as Array<{ product_id: string; quantity: number; unit_price: number; discount_pct: number; tax_rate: number }>;
+  for (const l of input.lines) {
+    const cfg = cfgByProduct.get(l.product_id);
+    const uom = (multiUnit && l.uom) ? l.uom : (cfg?.units.base ?? '');
+    let quantity = l.quantity;
+    let unitPrice = l.unit_price;
+    if (cfg) {
+      const v = (multiUnit && l.uom) ? validateSell(l.quantity, uom, cfg.units, cfg.rules)
+                                     : validateQty(l.quantity, cfg.units.base, cfg.units, cfg.rules);
+      if (!v.ok) return { ok: false, error: `uom_${v.error}` };
+      if (multiUnit && l.uom && uom !== cfg.units.base) {
+        const f = factorOf(cfg.units, uom);
+        quantity = toBase(l.quantity, f);     // stock decrements in base units
+        unitPrice = priceToBase(l.unit_price, f);
+      }
+      movements.push(baseMovement(l.quantity, uom, cfg.units));
+    }
+    saleLines.push({
+      product_id: l.product_id, quantity, unit_price: unitPrice,
+      discount_pct: l.discount_pct ?? 0, tax_rate: l.tax_rate ?? 0,
+    });
+  }
+
   const sale = await quickSale({
     branch_id: input.branch_id,
     customer_id: input.customer_id,
-    lines: input.lines.map((l) => ({
-      product_id: l.product_id,
-      quantity: l.quantity,
-      unit_price: l.unit_price,
-      discount_pct: l.discount_pct ?? 0,
-      tax_rate: l.tax_rate ?? 0,
-    })),
+    lines: saleLines,
     pay: true,
     amount: input.amount,
     payment_method: input.payment_method,
   });
   if (!sale.ok || !sale.data) return { ok: false, error: sale.error };
 
+  if (multiUnit && movements.some((m) => m.entered_unit !== '' && m.factor !== 1)) {
+    await logAudit(supabase, {
+      action: 'create', entity: 'uom_movement', entityId: sale.data.invoice_id,
+      details: { movements }, companyId: ctx.companyId,
+    });
+  }
+
   // Batch Tracking ON → decrement the chosen batches (best-effort; the sale is
   // already committed). FEFO/manual selection is decided on the client.
-  const supabase = await createClient();
-  const flags = await getFeatureFlags(supabase, ctx.companyId);
   if (flags['pharmacy.batch_tracking']) {
     for (const l of input.lines) {
       if (!l.batch_id) continue;
+      const cfg = cfgByProduct.get(l.product_id);
+      const baseQty = (multiUnit && l.uom && cfg) ? toBase(l.quantity, factorOf(cfg.units, l.uom)) : l.quantity;
       const { data: b } = await supabase
         .from('erp_product_batches').select('qty_on_hand').eq('id', l.batch_id).maybeSingle();
       const cur = Number((b as { qty_on_hand: number } | null)?.qty_on_hand ?? 0);
       await supabase.from('erp_product_batches')
-        .update({ qty_on_hand: Math.max(0, cur - l.quantity), updated_at: new Date().toISOString() })
+        .update({ qty_on_hand: Math.max(0, cur - baseQty), updated_at: new Date().toISOString() })
         .eq('id', l.batch_id);
     }
   }
