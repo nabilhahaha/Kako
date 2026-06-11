@@ -14,7 +14,10 @@ export default async function JourneyPage() {
   const supabase = await createClient();
   const [{ data: customers }, { data: profiles }] = await Promise.all([
     supabase.from('erp_customers').select('*').eq('is_active', true).order('name'),
-    supabase.from('erp_profiles').select('id, full_name, email').eq('is_active', true),
+    // Role-scoped reps: only users this person may see/assign (self for a rep,
+    // team for a supervisor, region for an area manager, all for admin). Also
+    // enforced at the DB by the erp_profiles RLS (erp_visible_user_ids()).
+    supabase.rpc('erp_assignable_reps'),
   ]);
 
   return (

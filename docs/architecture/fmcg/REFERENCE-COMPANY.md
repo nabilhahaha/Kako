@@ -89,8 +89,10 @@ Reporting & Analytics.
 
 ## 2. Role matrix
 
-17 identities (1 platform owner + 16 company users). "Branch(es)" lists every
-`erp_user_branches` membership; the **default** branch is shown first.
+20 identities (1 platform owner + 19 company users). "Branch(es)" lists every
+`erp_user_branches` membership; the **default** branch is shown first. The four
+**refined FMCG roles** (Merchandiser, Cash Van, Collection Officer, Credit
+Controller) carry distinct company-scoped permission sets — see §7.
 
 | # | User (email) | Department | Job title | Enforced role | Branch(es) |
 |---|---|---|---|---|---|
@@ -108,12 +110,15 @@ Reporting & Analytics.
 | 11 | warehouse.manager@nile-group.test | Warehousing | Warehouse Manager | `warehouse_keeper` | CAI |
 | 12 | warehouse.keeper@nile-group.test | Warehousing | Warehouse Keeper | `warehouse_keeper` | CAI |
 | 13 | inventory.controller@nile-group.test | Inventory Control | Inventory Controller | `warehouse_keeper` | CAI |
-| 14 | merchandiser@nile-group.test | Merchandising | Merchandiser | `salesman` | CAI |
+| 14 | merchandiser@nile-group.test | Merchandising | Merchandiser | `merchandiser` | CAI |
 | 15 | cs.agent@nile-group.test | Customer Service | Customer Service Agent | `cashier` | CAI |
 | 16 | readonly.exec@nile-group.test | Reporting & Analytics | Read-Only Executive | `viewer` | CAI |
+| 17 | cash.van@nile-group.test | Van Sales | Cash Van Rep | `cash_van` | CAI |
+| 18 | collection.officer@nile-group.test | Finance & Accounting | Collection Officer | `collection_officer` | CAI |
+| 19 | credit.controller@nile-group.test | Finance & Accounting | Credit Controller | `credit_controller` | CAI |
 
 `*` = default branch. Van reps each have an **assigned van** (`assigned_to`):
-Van Sales Rep → `VAN-CAI-01`, Salesman → `VAN-ALX-01`.
+Van Sales Rep → `VAN-CAI-01`, Salesman → `VAN-ALX-01`, Cash Van Rep → `VAN-CAI-02`.
 
 ---
 
@@ -264,7 +269,8 @@ higher-risk items (platform changes) are documented, not made.**
 | 1 | **No `erp_brands` table** — brand is a free-text product attribute. | Low | **Documented.** Brands modeled on `products.brand`; sufficient for reporting/filtering. A brand master is a future enhancement. |
 | 2 | **No `erp_taxes` table** — tax is a product `tax_rate` %. | Low | **Documented.** 14% VAT / 0% exempt modeled per SKU; matches how invoices compute tax today. |
 | 3 | **No `erp_payment_terms` table** — terms are `payment_terms_days` on customers/suppliers. | Low | **Documented.** Net 0/15/30 modeled via the day columns; drives invoice `due_date`. |
-| 4 | **No dedicated Merchandiser role** — merchandising perms (`assortment.manage`, `survey.manage`) sit on `sales_director`/`national_sales_manager`, not a field role. | Medium | **Documented.** Mapped Merchandiser → `salesman` (field access). A purpose-built merchandiser role is a permission-model change (higher-risk) — recommend as a follow-up. |
+| 4 | **No dedicated Merchandiser role** — merchandising perms (`assortment.manage`, `survey.manage`) sat on `sales_director`/`national_sales_manager`, not a field role. | Medium | ✅ **Resolved** — dedicated `merchandiser` role with `assortment.manage`/`survey.manage`/`grade.manage` and **no** selling/collection, seeded by default (company-scoped). See `STAGING-FMCG-ROLE-HARDENING.md`. |
+| 4b | **Cash Van not separated from Credit Van** · **no collect-only Collection Officer** · **no Credit Controller approval authority**. | Medium | ✅ **Resolved** — `cash_van` (cash sell+collect, no credit; enforced by permission **and** a DB guard), `collection_officer` (collect only), `credit_controller` (`credit.request.approve`, no journal posting); Van Sales Rep = cash **and** credit. All seeded by default. |
 | 5 | **No dedicated Customer-Service role** — `cashier` is the closest (sell + collect + manage customers). A pure CS agent arguably shouldn't sell. | Medium | **Documented.** Acceptable approximation for the reference; a CS role is a follow-up permission-model change. |
 | 6 | **Procurement** has no standalone role; **branch_manager** carries purchasing + supplier authority and **warehouse_keeper** carries purchasing (no supplier master). | Low | **Resolved by mapping** — Procurement Mgr → `branch_manager`, Buyer → `warehouse_keeper`. Realistic separation (buyer raises POs, manager owns suppliers). |
 | 7 | Two titles per role for Finance and Warehousing. | Low | **Resolved organizationally** — distinguished by department + job title + `manager_id`, not permissions. |
