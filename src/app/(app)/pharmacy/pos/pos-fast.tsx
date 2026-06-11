@@ -12,7 +12,7 @@ import { computeTotals } from '@/lib/erp/sales-calc';
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, ErpCustomer, PaymentMethod } from '@/lib/erp/types';
-import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2 } from 'lucide-react';
+import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History } from 'lucide-react';
 import {
   pharmacySearch, pharmacyBatches, pharmacyCheckout,
   type PharmacySearchRow, type PharmacyBatch,
@@ -36,16 +36,20 @@ interface CartLine {
 }
 
 interface Hold { id: string; at: number; label: string; customerId: string; lines: CartLine[] }
+interface RecentItem { product_id: string; code: string; name: string; name_ar: string | null; unit_price: number; tax_rate: number; on_hand: number; batch_count: number }
 const HOLDS_KEY = 'vantora_pharmacy_pos_holds';
+const RECENT_KEY = 'vantora_pharmacy_pos_recent';
 
 export function PharmacyPos({
-  branches, customers, features, canDiscount, intlLocale,
+  branches, customers, features, canDiscount, intlLocale, defaultCustomerId,
 }: {
   branches: Pick<Branch, 'id' | 'name' | 'name_ar'>[];
   customers: Pick<ErpCustomer, 'id' | 'name' | 'name_ar'>[];
   features: PosFeatureFlags;
   canDiscount: boolean;
   intlLocale: string;
+  /** Default "Cash customer" for fast walk-in sales (no selection needed). */
+  defaultCustomerId: string;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -54,7 +58,7 @@ export function PharmacyPos({
   const nm = (x: { name: string; name_ar: string | null }) => (locale === 'ar' ? x.name_ar || x.name : x.name);
 
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
-  const [customerId, setCustomerId] = useState(customers[0]?.id ?? '');
+  const [customerId, setCustomerId] = useState(defaultCustomerId || customers[0]?.id || '');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PharmacySearchRow[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -62,13 +66,31 @@ export function PharmacyPos({
   const [tendered, setTendered] = useState('');
   const [holds, setHolds] = useState<Hold[]>([]);
   const [showHolds, setShowHolds] = useState(false);
+  const [recent, setRecent] = useState<RecentItem[]>([]);
   const [pending, start] = useTransition();
   const searchRef = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const kb = useRef<{ checkout: () => void; hold: () => void; toggleResume: () => void; canSell: boolean }>({
+    checkout: () => {}, hold: () => {}, toggleResume: () => {}, canSell: false,
+  });
 
-  useEffect(() => { searchRef.current?.focus(); }, []);
+  const focusSearch = () => searchRef.current?.focus();
+  useEffect(() => { focusSearch(); }, []);
   useEffect(() => {
     try { setHolds(JSON.parse(localStorage.getItem(HOLDS_KEY) || '[]')); } catch { /* ignore */ }
+    try { setRecent(JSON.parse(localStorage.getItem(RECENT_KEY) || '[]')); } catch { /* ignore */ }
+  }, []);
+
+  // Global hotkeys: F4 hold · F5 resume · F9 checkout. Registered once; calls the
+  // latest handlers via a ref so the keyboard works without touching the mouse.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F9') { e.preventDefault(); if (kb.current.canSell) kb.current.checkout(); }
+      else if (e.key === 'F4') { e.preventDefault(); kb.current.hold(); }
+      else if (e.key === 'F5') { e.preventDefault(); kb.current.toggleResume(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   // Debounced fast search.
@@ -80,33 +102,42 @@ export function PharmacyPos({
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [query]);
 
-  function addRow(r: PharmacySearchRow) {
+  function addItem(p: RecentItem) {
     setCart((prev) => {
-      const ex = prev.find((l) => l.product_id === r.product_id);
-      if (ex) return prev.map((l) => (l.product_id === r.product_id ? { ...l, quantity: l.quantity + 1 } : l));
+      const ex = prev.find((l) => l.product_id === p.product_id);
+      if (ex) return prev.map((l) => (l.product_id === p.product_id ? { ...l, quantity: l.quantity + 1 } : l));
       return [...prev, {
-        product_id: r.product_id, code: r.code, name: r.name, name_ar: r.name_ar,
-        unit_price: Number(r.sell_price), tax_rate: Number(r.tax_rate), quantity: 1, discount_pct: 0,
-        on_hand: Number(r.on_hand), batch_count: r.batch_count,
+        product_id: p.product_id, code: p.code, name: p.name, name_ar: p.name_ar,
+        unit_price: p.unit_price, tax_rate: p.tax_rate, quantity: 1, discount_pct: 0,
+        on_hand: p.on_hand, batch_count: p.batch_count,
       }];
     });
     // Batch tracking: load batches; FEFO preselects the earliest-expiry one.
-    if (features.batchTracking && r.batch_count > 0) {
-      pharmacyBatches(r.product_id).then((batches) => {
-        setCart((prev) => prev.map((l) => l.product_id === r.product_id
+    if (features.batchTracking && p.batch_count > 0) {
+      pharmacyBatches(p.product_id).then((batches) => {
+        setCart((prev) => prev.map((l) => l.product_id === p.product_id
           ? { ...l, batches, batch_id: features.fefo ? (batches[0]?.id ?? null) : l.batch_id ?? null }
           : l));
       });
     }
     setQuery('');
     setResults([]);
-    searchRef.current?.focus();
+    focusSearch();
+  }
+
+  function addRow(r: PharmacySearchRow) {
+    addItem({
+      product_id: r.product_id, code: r.code, name: r.name, name_ar: r.name_ar,
+      unit_price: Number(r.sell_price), tax_rate: Number(r.tax_rate),
+      on_hand: Number(r.on_hand), batch_count: r.batch_count,
+    });
   }
 
   function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
-    // Barcode scanners type fast and end with Enter → instant add of the top hit.
-    if (e.key === 'Enter' && features.barcodeScan && results[0]) { e.preventDefault(); addRow(results[0]); }
-    else if (e.key === 'Enter' && results.length === 1) { e.preventDefault(); addRow(results[0]); }
+    // Enter always adds the first/best hit (barcode scanners end with Enter);
+    // ESC cancels the current search and keeps focus for the next scan.
+    if (e.key === 'Enter') { if (results[0]) { e.preventDefault(); addRow(results[0]); } }
+    else if (e.key === 'Escape') { e.preventDefault(); setQuery(''); setResults([]); }
   }
 
   function setQty(id: string, qty: number) {
@@ -127,9 +158,18 @@ export function PharmacyPos({
 
   const overStock = cart.some((l) => l.on_hand > 0 && l.quantity > l.on_hand);
   const change = Math.max(0, (Number(tendered) || 0) - totals.net_amount);
-  const canSell = branchId && customerId && cart.length > 0 && !overStock && !pending;
+  const canSell = Boolean(branchId && customerId && cart.length > 0 && !overStock) && !pending;
 
   function persistHolds(next: Hold[]) { setHolds(next); localStorage.setItem(HOLDS_KEY, JSON.stringify(next)); }
+  function recordRecent(lines: CartLine[]) {
+    const items: RecentItem[] = lines.map((l) => ({
+      product_id: l.product_id, code: l.code, name: l.name, name_ar: l.name_ar,
+      unit_price: l.unit_price, tax_rate: l.tax_rate, on_hand: l.on_hand, batch_count: l.batch_count,
+    }));
+    const merged = [...items, ...recent.filter((r) => !items.some((i) => i.product_id === r.product_id))].slice(0, 12);
+    setRecent(merged);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(merged));
+  }
   function hold() {
     if (!cart.length) return;
     const label = `${cart.length} ${t('pharmacyPos.items')} · ${money(totals.net_amount)}`;
@@ -143,6 +183,7 @@ export function PharmacyPos({
   }
 
   function checkout() {
+    const sold = cart;
     start(async () => {
       const res = await pharmacyCheckout({
         branch_id: branchId, customer_id: customerId,
@@ -155,6 +196,7 @@ export function PharmacyPos({
       if (!res.ok) { toast.error(res.error ?? t('pharmacyPos.checkoutError')); return; }
       const invId = res.data?.invoice_id;
       toast.success(t('pharmacyPos.sold', { number: res.data?.invoice_number ?? '' }));
+      recordRecent(sold);
       setCart([]); setTendered('');
       // Receipt printing ONLY after the committed sale.
       if (features.receiptPrinting && invId) {
@@ -169,30 +211,50 @@ export function PharmacyPos({
     });
   }
 
+  kb.current = { checkout, hold, toggleResume: () => setShowHolds((s) => !s), canSell };
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_24rem]">
       {/* Search + results */}
       <div className="space-y-3">
         <div className="relative">
           {features.barcodeScan
-            ? <ScanLine className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
-            : <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />}
+            ? <ScanLine className="pointer-events-none absolute start-3 top-1/2 h-6 w-6 -translate-y-1/2 text-primary" />
+            : <Search className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />}
           <Input
             ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearchKey}
             placeholder={features.barcodeScan ? t('pharmacyPos.searchScan') : t('pharmacyPos.search')}
-            className="h-12 ps-10 text-base" autoComplete="off"
+            className="h-14 ps-11 text-lg" autoComplete="off" enterKeyHint="enter"
           />
         </div>
+
+        {/* Recently sold — instant re-add (shown when not actively searching). */}
+        {recent.length > 0 && query.trim().length === 0 && (
+          <div>
+            <p className="mb-1 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              <History className="h-3.5 w-3.5" /> {t('pharmacyPos.recent')}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {recent.map((r) => (
+                <button key={r.product_id} onClick={() => addItem(r)}
+                  className="rounded-full border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/60 hover:bg-secondary/40">
+                  {nm(r)} · <span dir="ltr" className="tabular-nums">{money(r.unit_price)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {results.map((r) => {
             const out = r.on_hand <= 0;
             return (
               <button key={r.product_id} onClick={() => addRow(r)}
-                className="rounded-lg border p-3 text-start transition-colors hover:border-primary/60 hover:bg-secondary/40">
-                <p className="line-clamp-2 text-sm font-medium">{nm(r)}</p>
+                className="min-h-[5rem] rounded-lg border p-4 text-start transition-colors active:scale-[0.98] hover:border-primary/60 hover:bg-secondary/40">
+                <p className="line-clamp-2 text-sm font-semibold">{nm(r)}</p>
                 {r.active_ingredient && <p className="line-clamp-1 text-[11px] text-muted-foreground">{r.active_ingredient}</p>}
                 <p className="mt-1 flex items-center justify-between">
-                  <span className="font-bold tabular-nums text-primary" dir="ltr">{money(Number(r.sell_price))}</span>
+                  <span className="text-base font-bold tabular-nums text-primary" dir="ltr">{money(Number(r.sell_price))}</span>
                   <span className={`text-[11px] tabular-nums ${out ? 'text-destructive' : 'text-muted-foreground'}`} dir="ltr">
                     {out ? t('pharmacyPos.outOfStock') : `${r.on_hand}`}
                   </span>
@@ -209,13 +271,14 @@ export function PharmacyPos({
       {/* Cart / checkout */}
       <Card className="sticky top-4 h-fit">
         <CardContent className="space-y-3 pt-5">
+          <p className="text-xs text-muted-foreground">{t('pharmacyPos.customerOptional')}</p>
           <div className="flex flex-wrap gap-2">
             {branches.length > 1 && (
-              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="h-9 flex-1 rounded-md border border-input bg-background px-2 text-sm">
+              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="h-10 flex-1 rounded-md border border-input bg-background px-2 text-sm">
                 {branches.map((b) => <option key={b.id} value={b.id}>{nm(b)}</option>)}
               </select>
             )}
-            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="h-9 flex-1 rounded-md border border-input bg-background px-2 text-sm">
+            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="h-10 flex-1 rounded-md border border-input bg-background px-2 text-sm">
               {customers.map((c) => <option key={c.id} value={c.id}>{nm(c)}</option>)}
             </select>
           </div>
@@ -232,10 +295,10 @@ export function PharmacyPos({
                     <button onClick={() => setQty(l.product_id, 0)} className="rounded p-0.5 text-destructive hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => setQty(l.product_id, l.quantity - 1)} className="rounded p-1 hover:bg-secondary"><Minus className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => setQty(l.product_id, l.quantity - 1)} className="flex h-9 w-9 items-center justify-center rounded-md border hover:bg-secondary"><Minus className="h-3.5 w-3.5" /></button>
                     <input type="number" min="0" value={l.quantity} onChange={(e) => setQty(l.product_id, Number(e.target.value))}
-                      className={`h-7 w-12 rounded border bg-background text-center text-sm ${over ? 'border-destructive text-destructive' : 'border-input'}`} dir="ltr" />
-                    <button onClick={() => setQty(l.product_id, l.quantity + 1)} className="rounded p-1 hover:bg-secondary"><Plus className="h-3.5 w-3.5" /></button>
+                      className={`h-9 w-14 rounded border bg-background text-center text-base font-semibold ${over ? 'border-destructive text-destructive' : 'border-input'}`} dir="ltr" />
+                    <button onClick={() => setQty(l.product_id, l.quantity + 1)} className="flex h-9 w-9 items-center justify-center rounded-md border hover:bg-secondary"><Plus className="h-3.5 w-3.5" /></button>
                     <span className="ms-1 text-xs text-muted-foreground" dir="ltr">× {money(l.unit_price)}</span>
                     {canDiscount && (
                       <input type="number" min="0" max="100" value={l.discount_pct || ''} placeholder={t('pharmacyPos.discPct')}
@@ -286,9 +349,10 @@ export function PharmacyPos({
             <Row label={t('pharmacyPos.change')} value={money(change)} />
           )}
 
-          <Button className="h-12 w-full text-base" disabled={!canSell} onClick={checkout}>
-            {pending && <Loader2 className="h-4 w-4 animate-spin" />} {t('pharmacyPos.checkout')} · {money(totals.net_amount)}
+          <Button className="h-14 w-full text-lg font-bold" disabled={!canSell} onClick={checkout}>
+            {pending && <Loader2 className="h-5 w-5 animate-spin" />} {t('pharmacyPos.checkout')} · {money(totals.net_amount)}
           </Button>
+          <p className="text-center text-[11px] text-muted-foreground">{t('pharmacyPos.shortcuts')}</p>
 
           <div className="flex flex-wrap gap-2">
             {features.holdResume && (

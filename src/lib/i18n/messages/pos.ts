@@ -48,6 +48,9 @@ export const ar = {
     returns: 'مرتجع',
     selectBatch: 'اختر التشغيلة',
     overStock: 'المتاح {qty} فقط',
+    recent: 'الأكثر بيعاً مؤخراً',
+    customerOptional: 'العميل (اختياري — افتراضي: عميل نقدي)',
+    shortcuts: 'F4 تعليق · F5 استئناف · F9 إتمام · Enter إضافة · ESC إلغاء',
   },
 };
 
@@ -100,5 +103,8 @@ export const en = {
     returns: 'Return',
     selectBatch: 'Select batch',
     overStock: 'Only {qty} in stock',
+    recent: 'Recently sold',
+    customerOptional: 'Customer (optional — defaults to Cash customer)',
+    shortcuts: 'F4 Hold · F5 Resume · F9 Checkout · Enter Add · ESC Clear',
   },
 };

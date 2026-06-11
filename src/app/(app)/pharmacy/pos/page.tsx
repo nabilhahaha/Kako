@@ -42,6 +42,13 @@ export default async function PharmacyPosPage() {
   const canDiscount = (ctx.permissions as string[]).includes('pricing.manage')
     || (ctx.permissions as string[]).includes('sales.discount');
 
+  // Default "Cash customer" for walk-in sales: prefer one named cash/walk-in/نقدي,
+  // else the first — so the cashier never has to pick a customer.
+  const custList = (customers as Array<{ id: string; name: string; name_ar: string | null }>) ?? [];
+  const cashCust = custList.find((c) =>
+    /cash|walk|نقد|عميل نقدي/i.test(`${c.name} ${c.name_ar ?? ''}`));
+  const defaultCustomerId = cashCust?.id ?? custList[0]?.id ?? '';
+
   return (
     <div>
       <PageHeader title={t('pharmacyPos.title')} description={t('pharmacyPos.description')} />
@@ -51,6 +58,7 @@ export default async function PharmacyPosPage() {
         features={features}
         canDiscount={canDiscount}
         intlLocale={INTL_LOCALE[locale]}
+        defaultCustomerId={defaultCustomerId}
       />
     </div>
   );
