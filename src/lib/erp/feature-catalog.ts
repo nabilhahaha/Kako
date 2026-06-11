@@ -15,7 +15,7 @@
  * stored config resolves to the Lite preset (safe minimum).
  */
 
-export type FeatureDomain = 'inventory' | 'pos' | 'governance';
+export type FeatureDomain = 'inventory' | 'pos' | 'governance' | 'scanning';
 export type FeatureTemplate = 'lite' | 'standard' | 'enterprise';
 
 /** Where a feature manifests — drives the UI Coverage Audit. */
@@ -44,6 +44,15 @@ const F = (
   key: string, domain: FeatureDomain, templates: FeatureTemplate[], coverage: FeatureCoverage,
 ): FeatureDef => ({
   key, pack: 'pharmacy', domain,
+  labelKey: `features.label.${key}`, descKey: `features.desc.${key}`,
+  templates, coverage,
+});
+
+/** Platform-pack feature (reusable across ALL industry packs, e.g. scanning). */
+const P = (
+  key: string, domain: FeatureDomain, templates: FeatureTemplate[], coverage: FeatureCoverage,
+): FeatureDef => ({
+  key, pack: 'platform', domain,
   labelKey: `features.label.${key}`, descKey: `features.desc.${key}`,
   templates, coverage,
 });
@@ -120,6 +129,20 @@ export const FEATURES: FeatureDef[] = [
   }),
   F('pharmacy.notifications', 'governance', ALL, {
     logic: ['erp_notify'],
+  }),
+  // ── Scanning (PLATFORM pack — reusable by every industry; surfaced only where a
+  //    business process consumes it: Pharmacy POS, FMCG sales, warehouse, …) ────
+  P('platform.scan_barcode', 'scanning', ALL, {
+    logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
+  }),
+  P('platform.scan_camera', 'scanning', STD, {
+    logic: ['scan.camera'], screens: ['/pharmacy/pos'],
+  }),
+  P('platform.scan_qr', 'scanning', STD, {
+    logic: ['scan.qr'], screens: ['/pharmacy/pos'],
+  }),
+  P('platform.scan_ocr', 'scanning', ENT, {
+    logic: ['scan.ocr'],
   }),
 ];
 

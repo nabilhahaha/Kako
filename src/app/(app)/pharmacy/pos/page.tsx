@@ -30,7 +30,8 @@ export default async function PharmacyPosPage() {
   ]);
 
   const features: PosFeatureFlags = {
-    barcodeScan: flags['pharmacy.pos_barcode_scan'] === true,
+    barcodeScan: flags['pharmacy.pos_barcode_scan'] === true || flags['platform.scan_barcode'] === true,
+    scanCamera: flags['platform.scan_camera'] === true,
     batchTracking: flags['pharmacy.batch_tracking'] === true,
     fefo: flags['pharmacy.fefo_allocation'] === true,
     holdResume: flags['pharmacy.pos_hold_resume'] === true,
@@ -38,6 +39,8 @@ export default async function PharmacyPosPage() {
     receiptPrinting: flags['pharmacy.pos_receipt_printing'] === true,
     discountApproval: flags['pharmacy.pos_discount_approval'] === true,
   };
+  const canLink = (ctx.permissions as string[]).includes('products.manage')
+    || (ctx.permissions as string[]).includes('pricing.manage');
   // Discount is allowed for pricing managers; otherwise hidden (discount permission).
   const canDiscount = (ctx.permissions as string[]).includes('pricing.manage')
     || (ctx.permissions as string[]).includes('sales.discount');
@@ -57,6 +60,7 @@ export default async function PharmacyPosPage() {
         customers={(customers as Pick<ErpCustomer, 'id' | 'name' | 'name_ar'>[]) ?? []}
         features={features}
         canDiscount={canDiscount}
+        canLink={canLink}
         intlLocale={INTL_LOCALE[locale]}
         defaultCustomerId={defaultCustomerId}
       />

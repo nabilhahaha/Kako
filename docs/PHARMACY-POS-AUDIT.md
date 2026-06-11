@@ -56,6 +56,31 @@ Page guard: `requireAnyPermission(['sales.sell','sales.collect'])`; nav item gat
 on the same perms; discount UI gated on `pricing.manage`/`sales.discount`. RLS
 scopes all reads/writes to the tenant.
 
+## 3b. Scanning Framework (platform-wide, reusable)
+
+A single enterprise scanner — **not** a pharmacy-only implementation — consumable
+by any pack (FMCG sales, warehouse receiving, stock transfer, inventory count,
+clinic). `src/components/scanning/scanner.tsx`: camera barcode/QR via the native
+`BarcodeDetector` (no dependency) + manual entry that also serves hardware
+USB/Bluetooth scanners; continuous mode with duplicate-suppression; auto-refocus
+on the consumer's input.
+
+| Scan feature | Flag (platform pack) | DB | Component | Consumer | Fallback | Status |
+|---|---|---|---|---|---|---|
+| Barcode | `platform.scan_barcode` | `erp_pharmacy_search` (barcode) | search box / scanner | POS | search dialog | ✅ |
+| Camera scan | `platform.scan_camera` | — | `CameraScanner` (BarcodeDetector) | POS scan button | manual entry if unsupported | ✅ |
+| QR | `platform.scan_qr` | — | same component (`qr_code` format) | (future: customer/doc QR) | — | 🟡 framework ready |
+| OCR | `platform.scan_ocr` | — | same `onScan` contract | future | — | ⛔ planned |
+
+**Not-found → link:** an unknown scanned barcode opens a search dialog that links
+the code to an existing product (`linkBarcodeToProduct`, permission-gated
+`products.manage`/`pricing.manage`, audited) and adds it to the cart.
+
+**Navigation:** no scanning menu — scanning is surfaced only where a process
+consumes it (POS scan button, gated by `platform.scan_camera`). Flags live in the
+tenant Feature Config (`/settings/features` → Scanning domain) and the UI Coverage
+Audit (each scan feature declares `coverage`).
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

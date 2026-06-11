@@ -9,8 +9,14 @@ export const ar = {
     saveError: 'تعذّر الحفظ',
     templateApplied: 'تم تطبيق القالب',
     template: { lite: 'صيدلية مبسّطة', standard: 'صيدلية قياسية', enterprise: 'صيدلية احترافية' },
-    domain: { inventory: 'المخزون', pos: 'نقطة البيع', governance: 'الحوكمة' },
+    domain: { inventory: 'المخزون', pos: 'نقطة البيع', governance: 'الحوكمة', scanning: 'المسح الضوئي' },
     label: {
+      platform: {
+        scan_barcode: 'مسح الباركود',
+        scan_camera: 'المسح بالكاميرا',
+        scan_qr: 'مسح رمز QR',
+        scan_ocr: 'التعرّف الضوئي على النص (OCR)',
+      },
       pharmacy: {
         batch_tracking: 'تتبّع التشغيلات (Batch)',
         lot_tracking: 'تتبّع اللوط (Lot)',
@@ -36,6 +42,12 @@ export const ar = {
       },
     },
     desc: {
+      platform: {
+        scan_barcode: 'تفعيل المسح بالباركود في الشاشات التي تدعمه.',
+        scan_camera: 'استخدام كاميرا الجهاز للمسح المتواصل (موبايل/تابلت).',
+        scan_qr: 'مسح رموز QR (عملاء، مستندات، تشغيلات…).',
+        scan_ocr: 'التعرّف على النص من الصور (لاحقاً).',
+      },
       pharmacy: {
         batch_tracking: 'تتبّع المخزون على مستوى التشغيلة مع التكلفة والكمية.',
         lot_tracking: 'تتبّع رقم اللوط للاستدعاء وتتبّع المورّد.',
@@ -73,8 +85,14 @@ export const en = {
     saveError: 'Could not save',
     templateApplied: 'Template applied',
     template: { lite: 'Pharmacy Lite', standard: 'Pharmacy Standard', enterprise: 'Pharmacy Enterprise' },
-    domain: { inventory: 'Inventory', pos: 'Point of Sale', governance: 'Governance' },
+    domain: { inventory: 'Inventory', pos: 'Point of Sale', governance: 'Governance', scanning: 'Scanning' },
     label: {
+      platform: {
+        scan_barcode: 'Barcode Scanning',
+        scan_camera: 'Camera Scanning',
+        scan_qr: 'QR Scanning',
+        scan_ocr: 'OCR / Text Recognition',
+      },
       pharmacy: {
         batch_tracking: 'Batch Tracking',
         lot_tracking: 'Lot Tracking',
@@ -100,6 +118,12 @@ export const en = {
       },
     },
     desc: {
+      platform: {
+        scan_barcode: 'Enable barcode scanning on screens that support it.',
+        scan_camera: 'Use the device camera for continuous scanning (mobile/tablet).',
+        scan_qr: 'Scan QR codes (customers, documents, batches…).',
+        scan_ocr: 'Recognise text from images (later).',
+      },
       pharmacy: {
         batch_tracking: 'Track stock per batch with cost and quantity.',
         lot_tracking: 'Track lot numbers for recall and supplier trace.',

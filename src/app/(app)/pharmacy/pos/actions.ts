@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, type ActionResult } from '@/lib/erp/guards';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import { logAudit } from '@/lib/erp/audit';
 import { quickSale } from '../../sales/pos/actions';
 import type { PaymentMethod } from '@/lib/erp/types';
 
@@ -57,6 +58,34 @@ export async function pharmacyBatches(productId: string): Promise<PharmacyBatch[
     .order('expiry_date', { ascending: true, nullsFirst: false })
     .order('received_at', { ascending: true });
   return (data as PharmacyBatch[]) ?? [];
+}
+
+/**
+ * Scan fallback — link a scanned barcode to an existing product (the generic
+ * Scanning Framework's "not found → link to record" mapping). Permission-gated
+ * (products.manage / pricing.manage); company-scoped via RLS; audited.
+ */
+export async function linkBarcodeToProduct(productId: string, barcode: string): Promise<ActionResult> {
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
+  const perms = ctx.permissions as string[];
+  if (!(perms.includes('products.manage') || perms.includes('pricing.manage') || ctx.isSuperAdmin)) {
+    return { ok: false, error: 'no_permission' };
+  }
+  const code = (barcode ?? '').trim();
+  if (!productId || !code) return { ok: false, error: 'invalid' };
+  const supabase = await createClient();
+  const { error: upErr } = await supabase
+    .from('erp_products_catalog')
+    .update({ barcode: code, updated_at: new Date().toISOString(), updated_by: ctx.userId })
+    .eq('id', productId)
+    .eq('company_id', ctx.companyId);
+  if (upErr) return { ok: false, error: upErr.message };
+  await logAudit(supabase, {
+    action: 'update', entity: 'product_barcode', entityId: productId,
+    details: { barcode: code }, companyId: ctx.companyId,
+  });
+  return { ok: true };
 }
 
 export interface PharmacyCheckoutLine {

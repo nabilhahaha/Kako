@@ -11,14 +11,14 @@ import { applyFeatureTemplate, setFeatureFlag } from './actions';
 
 export interface FeatureView {
   key: string;
-  domain: 'inventory' | 'pos' | 'governance';
+  domain: 'inventory' | 'pos' | 'governance' | 'scanning';
   labelKey: string;
   descKey: string;
   templates: string[];
   enabled: boolean;
 }
 
-const DOMAINS: FeatureView['domain'][] = ['inventory', 'pos', 'governance'];
+const DOMAINS: FeatureView['domain'][] = ['inventory', 'pos', 'governance', 'scanning'];
 const TEMPLATES = ['lite', 'standard', 'enterprise'] as const;
 
 export function FeaturesManager({ features }: { features: FeatureView[] }) {

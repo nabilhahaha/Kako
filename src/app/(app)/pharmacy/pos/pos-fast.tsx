@@ -13,13 +13,15 @@ import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, ErpCustomer, PaymentMethod } from '@/lib/erp/types';
 import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History } from 'lucide-react';
+import { CameraScanner, type ScanResult } from '@/components/scanning/scanner';
 import {
-  pharmacySearch, pharmacyBatches, pharmacyCheckout,
+  pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct,
   type PharmacySearchRow, type PharmacyBatch,
 } from './actions';
 
 export interface PosFeatureFlags {
   barcodeScan: boolean;
+  scanCamera: boolean;
   batchTracking: boolean;
   fefo: boolean;
   holdResume: boolean;
@@ -41,12 +43,14 @@ const HOLDS_KEY = 'vantora_pharmacy_pos_holds';
 const RECENT_KEY = 'vantora_pharmacy_pos_recent';
 
 export function PharmacyPos({
-  branches, customers, features, canDiscount, intlLocale, defaultCustomerId,
+  branches, customers, features, canDiscount, canLink, intlLocale, defaultCustomerId,
 }: {
   branches: Pick<Branch, 'id' | 'name' | 'name_ar'>[];
   customers: Pick<ErpCustomer, 'id' | 'name' | 'name_ar'>[];
   features: PosFeatureFlags;
   canDiscount: boolean;
+  /** May link an unknown scanned barcode to an existing product. */
+  canLink: boolean;
   intlLocale: string;
   /** Default "Cash customer" for fast walk-in sales (no selection needed). */
   defaultCustomerId: string;
@@ -67,6 +71,10 @@ export function PharmacyPos({
   const [holds, setHolds] = useState<Hold[]>([]);
   const [showHolds, setShowHolds] = useState(false);
   const [recent, setRecent] = useState<RecentItem[]>([]);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [notFound, setNotFound] = useState<string | null>(null);
+  const [linkQuery, setLinkQuery] = useState('');
+  const [linkResults, setLinkResults] = useState<PharmacySearchRow[]>([]);
   const [pending, start] = useTransition();
   const searchRef = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -130,6 +138,38 @@ export function PharmacyPos({
       product_id: r.product_id, code: r.code, name: r.name, name_ar: r.name_ar,
       unit_price: Number(r.sell_price), tax_rate: Number(r.tax_rate),
       on_hand: Number(r.on_hand), batch_count: r.batch_count,
+    });
+  }
+
+  // Generic scan handler (camera or hardware). Look up by barcode; add if found,
+  // else open the not-found → link dialog. Continuous: the camera stays open.
+  async function handleScan(r: ScanResult) {
+    const code = r.value.trim();
+    if (!code) return;
+    const rows = await pharmacySearch(code);
+    const hit = rows.find((x) => (x.barcode || '') === code) ?? (rows.length === 1 ? rows[0] : undefined);
+    if (hit) { addRow(hit); return; }
+    setScanOpen(false);
+    setLinkQuery(''); setLinkResults([]);
+    setNotFound(code);
+  }
+
+  useEffect(() => {
+    if (notFound === null) return;
+    const q = linkQuery.trim();
+    if (q.length < 1) { setLinkResults([]); return; }
+    const id = setTimeout(async () => setLinkResults(await pharmacySearch(q)), 160);
+    return () => clearTimeout(id);
+  }, [linkQuery, notFound]);
+
+  function linkAndAdd(row: PharmacySearchRow) {
+    if (!notFound) return;
+    start(async () => {
+      const res = await linkBarcodeToProduct(row.product_id, notFound);
+      if (!res.ok) { toast.error(res.error === 'no_permission' ? t('pharmacyPos.linkError') : (res.error ?? t('pharmacyPos.linkError'))); return; }
+      toast.success(t('pharmacyPos.linked'));
+      addRow(row);
+      setNotFound(null);
     });
   }
 
@@ -217,15 +257,22 @@ export function PharmacyPos({
     <div className="grid gap-4 lg:grid-cols-[1fr_24rem]">
       {/* Search + results */}
       <div className="space-y-3">
-        <div className="relative">
-          {features.barcodeScan
-            ? <ScanLine className="pointer-events-none absolute start-3 top-1/2 h-6 w-6 -translate-y-1/2 text-primary" />
-            : <Search className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />}
-          <Input
-            ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearchKey}
-            placeholder={features.barcodeScan ? t('pharmacyPos.searchScan') : t('pharmacyPos.search')}
-            className="h-14 ps-11 text-lg" autoComplete="off" enterKeyHint="enter"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            {features.barcodeScan
+              ? <ScanLine className="pointer-events-none absolute start-3 top-1/2 h-6 w-6 -translate-y-1/2 text-primary" />
+              : <Search className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />}
+            <Input
+              ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearchKey}
+              placeholder={features.barcodeScan ? t('pharmacyPos.searchScan') : t('pharmacyPos.search')}
+              className="h-14 ps-11 text-lg" autoComplete="off" enterKeyHint="enter"
+            />
+          </div>
+          {features.scanCamera && (
+            <Button type="button" variant="outline" className="h-14 px-4" onClick={() => setScanOpen(true)} title={t('pharmacyPos.scan')}>
+              <ScanLine className="h-6 w-6" />
+            </Button>
+          )}
         </div>
 
         {/* Recently sold — instant re-add (shown when not actively searching). */}
@@ -384,6 +431,38 @@ export function PharmacyPos({
           )}
         </CardContent>
       </Card>
+
+      {/* Generic scanning framework — continuous camera scan adds items live. */}
+      {features.scanCamera && (
+        <CameraScanner open={scanOpen} onClose={() => setScanOpen(false)} onScan={handleScan} continuous />
+      )}
+
+      {/* Scan fallback: unknown barcode → search + link to an existing medicine. */}
+      {notFound !== null && (
+        <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/50 p-4" onClick={() => setNotFound(null)}>
+          <div className="w-full max-w-md rounded-xl bg-card p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold">{t('pharmacyPos.notFoundTitle')}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{t('pharmacyPos.notFoundMsg', { code: notFound })}</p>
+            {canLink ? (
+              <>
+                <Input autoFocus value={linkQuery} onChange={(e) => setLinkQuery(e.target.value)}
+                  placeholder={t('pharmacyPos.linkSearch')} className="mt-3 h-11" />
+                <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
+                  {linkResults.map((r) => (
+                    <button key={r.product_id} disabled={pending} onClick={() => linkAndAdd(r)}
+                      className="flex w-full items-center justify-between rounded-md border p-2 text-start text-sm hover:bg-secondary">
+                      <span className="min-w-0 truncate">{nm(r)}</span>
+                      <span className="text-xs text-primary">{t('pharmacyPos.link')}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="mt-3 rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">{t('pharmacyPos.linkError')}</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
