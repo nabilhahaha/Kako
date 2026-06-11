@@ -70,6 +70,7 @@ import * as alertsUi from './alerts';
 import * as actionPolicies from './action-policies';
 import * as features from './features';
 import * as pos from './pos';
+import * as pharmacyOps from './pharmacy-ops';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -88,6 +89,7 @@ const MODULES = [
   actionPolicies,
   features,
   pos,
+  pharmacyOps,
 ];
 
 type Catalog = Record<string, unknown>;

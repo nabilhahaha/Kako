@@ -39,7 +39,7 @@ export default async function PharmacyPosPage() {
     receiptPrinting: flags['pharmacy.pos_receipt_printing'] === true,
     discountApproval: flags['pharmacy.pos_discount_approval'] === true,
   };
-  const canLink = (ctx.permissions as string[]).includes('products.manage')
+  const canLink = (ctx.permissions as string[]).includes('inventory.adjust')
     || (ctx.permissions as string[]).includes('pricing.manage');
   // Discount is allowed for pricing managers; otherwise hidden (discount permission).
   const canDiscount = (ctx.permissions as string[]).includes('pricing.manage')

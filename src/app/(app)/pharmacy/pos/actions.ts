@@ -72,7 +72,7 @@ export async function linkBarcodeToProduct(productId: string, barcode: string): 
   const { ctx, error } = await requireAuth();
   if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
   const perms = ctx.permissions as string[];
-  if (!(perms.includes('products.manage') || perms.includes('pricing.manage') || ctx.isSuperAdmin)) {
+  if (!(perms.includes('inventory.adjust') || perms.includes('pricing.manage') || ctx.isSuperAdmin)) {
     return { ok: false, error: 'no_permission' };
   }
   const code = (barcode ?? '').trim();
