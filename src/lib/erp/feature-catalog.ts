@@ -105,6 +105,9 @@ export const FEATURES: FeatureDef[] = [
   F('pharmacy.pos_prescription_required', 'pos', ENT, {
     screens: ['/pharmacy/pos'], validation: ['prescription_required'],
   }),
+  F('pharmacy.pos_receipt_printing', 'pos', ALL, {
+    screens: ['/sales/pos', '/pharmacy/pos'], logic: ['receipt_print'],
+  }),
   // ── Governance ───────────────────────────────────────────────────────────────
   F('pharmacy.approval_workflows', 'governance', STD, {
     logic: ['erp_workflow_start'], nav: ['nav.items.approvals'],

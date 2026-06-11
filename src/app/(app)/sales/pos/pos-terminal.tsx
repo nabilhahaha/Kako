@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/utils';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 import type { Branch, ErpCustomer, PaymentMethod, ProductCatalog } from '@/lib/erp/types';
 import { useI18n } from '@/lib/i18n/provider';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Search, Plus, Minus, Trash2, Loader2, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -25,13 +26,17 @@ export function PosTerminal({
   customers,
   branches,
   products,
+  receiptPrinting = false,
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
   products: ProductCatalog[];
+  /** Feature flag (pharmacy.pos_receipt_printing): offer to print after a sale. */
+  receiptPrinting?: boolean;
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
+  const confirm = useConfirm();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [customerId, setCustomerId] = useState(customers[0]?.id ?? '');
   const [query, setQuery] = useState('');
@@ -87,6 +92,7 @@ export function PosTerminal({
         amount: pay ? totals.net_amount : 0,
         payment_method: method,
       });
+      // Print ONLY after a successful, committed sale. On failure: no print.
       if (!res.ok) {
         toast.error(res.error ?? t('sales.errorGeneric'));
         return;
@@ -94,6 +100,19 @@ export function PosTerminal({
       toast.success(t('sales.posSuccessMsg', { number: res.data?.invoice_number ?? '', collected: pay ? t('sales.posSuccessCollected') : '' }));
       setCart([]);
       setQuery('');
+
+      // Receipt-printing flag ON → offer to print the just-confirmed invoice.
+      if (receiptPrinting && res.data?.invoice_id) {
+        const wantPrint = await confirm({
+          title: t('pos.receipt.confirmTitle'),
+          message: t('pos.receipt.confirmMsg'),
+          confirmText: t('pos.receipt.print'),
+          cancelText: t('shared.skip'),
+        });
+        if (wantPrint) {
+          window.open(`/print/pharmacy/receipt/${res.data.invoice_id}?autoprint=1`, '_blank', 'noopener');
+        }
+      }
       router.refresh();
     });
   }

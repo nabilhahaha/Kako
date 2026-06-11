@@ -69,6 +69,7 @@ import * as changeRequests from './change-requests';
 import * as alertsUi from './alerts';
 import * as actionPolicies from './action-policies';
 import * as features from './features';
+import * as pos from './pos';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -86,6 +87,7 @@ const MODULES = [
   alertsUi,
   actionPolicies,
   features,
+  pos,
 ];
 
 type Catalog = Record<string, unknown>;
