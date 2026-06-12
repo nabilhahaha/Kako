@@ -12,7 +12,7 @@ import { computeTotals } from '@/lib/erp/sales-calc';
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, ErpCustomer, PaymentMethod } from '@/lib/erp/types';
-import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History } from 'lucide-react';
+import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History, Camera } from 'lucide-react';
 import { CameraScanner, type ScanResult } from '@/components/scanning/scanner';
 import {
   pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct,
@@ -278,8 +278,8 @@ export function PharmacyPos({
             />
           </div>
           {features.scanCamera && (
-            <Button type="button" variant="outline" className="h-14 px-4" onClick={() => setScanOpen(true)} title={t('pharmacyPos.scan')}>
-              <ScanLine className="h-6 w-6" />
+            <Button type="button" variant="secondary" className="h-14 shrink-0 gap-1.5 px-4 font-medium" onClick={() => setScanOpen(true)} title={t('pharmacyPos.scan')}>
+              <Camera className="h-6 w-6" /> <span>{t('pharmacyPos.scan')}</span>
             </Button>
           )}
         </div>
