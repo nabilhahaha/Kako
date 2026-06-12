@@ -12,7 +12,7 @@ import { computeTotals } from '@/lib/erp/sales-calc';
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, ErpCustomer, PaymentMethod } from '@/lib/erp/types';
-import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History, Camera, Replace } from 'lucide-react';
+import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History, Camera, Replace, FileText } from 'lucide-react';
 import { CameraScanner, type ScanResult } from '@/components/scanning/scanner';
 import {
   pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct, pharmacyAlternatives,
@@ -30,6 +30,8 @@ export interface PosFeatureFlags {
   receiptPrinting: boolean;
   discountApproval: boolean;
   substitutes: boolean;
+  prescriptionCapture: boolean;
+  prescriptionRequired: boolean;
 }
 
 interface CartLine {
@@ -81,6 +83,8 @@ export function PharmacyPos({
   const [altResults, setAltResults] = useState<PharmacyAlternative[]>([]);
   const [altLoading, setAltLoading] = useState(false);
   const [notFound, setNotFound] = useState<string | null>(null);
+  const [rxOpen, setRxOpen] = useState(features.prescriptionRequired);
+  const [rx, setRx] = useState({ patient_name: '', doctor_name: '', rx_number: '', is_controlled: false });
   const [linkQuery, setLinkQuery] = useState('');
   const [linkResults, setLinkResults] = useState<PharmacySearchRow[]>([]);
   const [pending, start] = useTransition();
@@ -207,7 +211,10 @@ export function PharmacyPos({
 
   const overStock = cart.some((l) => l.on_hand > 0 && l.quantity > l.on_hand);
   const change = Math.max(0, (Number(tendered) || 0) - totals.net_amount);
-  const canSell = Boolean(branchId && customerId && cart.length > 0 && !overStock) && !pending && !busy;
+  // When prescriptions are mandatory, require at least patient + (Rx no. or doctor).
+  const rxOk = !features.prescriptionRequired
+    || (rx.patient_name.trim().length > 0 && (rx.rx_number.trim().length > 0 || rx.doctor_name.trim().length > 0));
+  const canSell = Boolean(branchId && customerId && cart.length > 0 && !overStock && rxOk) && !pending && !busy;
 
   function persistHolds(next: Hold[]) { setHolds(next); localStorage.setItem(HOLDS_KEY, JSON.stringify(next)); }
   function recordRecent(lines: CartLine[]) {
@@ -245,6 +252,9 @@ export function PharmacyPos({
         discount_pct: l.discount_pct, tax_rate: l.tax_rate, batch_id: l.batch_id ?? null,
       })),
       amount: totals.net_amount, payment_method: method,
+      prescription: features.prescriptionCapture
+        ? { patient_name: rx.patient_name, doctor_name: rx.doctor_name, rx_number: rx.rx_number, is_controlled: rx.is_controlled }
+        : null,
     });
     setBusy(false);
     if (!res.ok) { toast.error(res.error ?? t('pharmacyPos.checkoutError')); return; }
@@ -252,6 +262,8 @@ export function PharmacyPos({
     toast.success(t('pharmacyPos.sold', { number: res.data?.invoice_number ?? '' }));
     recordRecent(sold);
     setCart([]); setTendered('');
+    setRx({ patient_name: '', doctor_name: '', rx_number: '', is_controlled: false });
+    setRxOpen(features.prescriptionRequired);
     // Receipt printing ONLY after the committed sale.
     if (features.receiptPrinting && invId) {
       const want = await confirm({
@@ -366,6 +378,37 @@ export function PharmacyPos({
               onCreated={(c) => { setCustomerList((list) => [...list, c]); setCustomerId(c.id); searchRef.current?.focus(); }}
             />
           </div>
+
+          {/* Prescription → Dispense linkage (regulatory record, auto-linked to the
+              invoice). Collapsed by default; expanded & required when the tenant
+              mandates prescriptions. */}
+          {features.prescriptionCapture && (
+            <div className="rounded-md border">
+              <button type="button" onClick={() => setRxOpen((o) => !o)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-start text-sm font-medium">
+                <FileText className="h-4 w-4 text-primary" />
+                <span>{t('pharmacyPos.rxTitle')}{features.prescriptionRequired ? ' *' : ''}</span>
+                {!rxOpen && (rx.patient_name || rx.rx_number) && (
+                  <span className="ms-auto truncate text-xs text-muted-foreground">{rx.patient_name || rx.rx_number}</span>
+                )}
+              </button>
+              {rxOpen && (
+                <div className="grid grid-cols-2 gap-2 border-t p-3">
+                  <input value={rx.patient_name} onChange={(e) => setRx((s) => ({ ...s, patient_name: e.target.value }))}
+                    placeholder={t('pharmacyPos.rxPatient')} className="col-span-2 h-9 rounded-md border border-input bg-background px-2 text-sm" />
+                  <input value={rx.doctor_name} onChange={(e) => setRx((s) => ({ ...s, doctor_name: e.target.value }))}
+                    placeholder={t('pharmacyPos.rxDoctor')} className="h-9 rounded-md border border-input bg-background px-2 text-sm" />
+                  <input value={rx.rx_number} onChange={(e) => setRx((s) => ({ ...s, rx_number: e.target.value }))}
+                    placeholder={t('pharmacyPos.rxNumber')} dir="ltr" className="h-9 rounded-md border border-input bg-background px-2 text-sm" />
+                  <label className="col-span-2 flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={rx.is_controlled} onChange={(e) => setRx((s) => ({ ...s, is_controlled: e.target.checked }))} className="h-4 w-4" />
+                    {t('pharmacyPos.rxControlled')}
+                  </label>
+                  {!rxOk && <p className="col-span-2 text-xs text-destructive">{t('pharmacyPos.rxRequired')}</p>}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="max-h-[46vh] space-y-2 overflow-y-auto border-y py-2">
             {cart.length === 0 ? (

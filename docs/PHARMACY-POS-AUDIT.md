@@ -150,6 +150,34 @@ whole module disappears when `pharmacy.purchase_orders` is OFF for the tenant
 (nav `flag` + page redirect + server `feature_disabled`). Enabled for Amty
 (Standard template).
 
+## 3f. Prescription → Dispense linkage (M4)
+
+The standalone dispensing register (`erp_pharmacy_dispenses` + `_items`, 0057) is
+now **driven from the POS sale**. When a tenant has prescription capture on, the
+cashier fills an inline (collapsible) Rx panel — patient, doctor, Rx number,
+controlled flag — and on checkout an audited dispense record (`status='done'`) is
+written and linked to the created invoice via `invoice_no`, with one item per
+cart line (name + qty + price + the FEFO/chosen **batch** for traceability). No
+stock is moved by the register (the sale already moved it).
+
+| Capability | Flag | DB | Where | Permission | Status |
+|---|---|---|---|---|---|
+| Rx capture panel at POS | `pharmacy.prescription_capture` | — | `pos-fast.tsx` (collapsible) | `sales.sell`/`sales.collect` | ✅ |
+| Auto dispense record + invoice link | `pharmacy.prescription_capture` | `erp_pharmacy_dispenses.invoice_no` + `_items.batch_number/expiry_date` | `pharmacyCheckout` | seller | ✅ |
+| Mandatory Rx | `pharmacy.pos_prescription_required` | — | `canSell` gate (patient + Rx/doctor) + server writes record unconditionally | seller | ✅ |
+| Invoice column in register | `pharmacy.prescription_capture` | `invoice_no` | `/pharmacy/dispense` list | `pharmacy.dispense` | ✅ |
+
+UX: the Rx panel is collapsed for a fast walk-in OTC sale and auto-expands +
+becomes required only when the tenant mandates prescriptions; Rx state resets
+after each sale. The dispense register's Invoice column makes the Rx→sale link
+visible and searchable. `prescription_capture` is Standard (configurable per
+tenant); the stricter `pos_prescription_required` stays Enterprise. Both enabled
+for Amty (`prescription_capture`; `pos_prescription_required` off → optional Rx).
+
+**Role Coverage:** Owner ✅ · Pharmacist/Cashier (`sales.sell`/`sales.collect`)
+writes the record on sale ✅ · the register itself is gated by `pharmacy.dispense`.
+With `prescription_capture` OFF the panel vanishes and checkout writes no record.
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

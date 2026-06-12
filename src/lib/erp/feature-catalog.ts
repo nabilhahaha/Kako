@@ -120,6 +120,10 @@ export const FEATURES: FeatureDef[] = [
   F('pharmacy.pos_prescription_required', 'pos', ENT, {
     screens: ['/pharmacy/pos'], validation: ['prescription_required'],
   }),
+  F('pharmacy.prescription_capture', 'pos', STD, {
+    screens: ['/pharmacy/pos', '/pharmacy/dispense'],
+    logic: ['erp_pharmacy_dispenses', 'prescription_dispense_link'],
+  }),
   F('pharmacy.pos_receipt_printing', 'pos', ALL, {
     screens: ['/sales/pos', '/pharmacy/pos'], logic: ['receipt_print'],
   }),

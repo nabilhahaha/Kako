@@ -120,12 +120,24 @@ export interface PharmacyCheckoutLine {
   uom?: string | null;
 }
 
+export interface PharmacyPrescription {
+  patient_name?: string | null;
+  patient_phone?: string | null;
+  doctor_name?: string | null;
+  rx_number?: string | null;
+  is_controlled?: boolean;
+}
+
 export async function pharmacyCheckout(input: {
   branch_id: string;
   customer_id: string;
   lines: PharmacyCheckoutLine[];
   amount: number;
   payment_method: PaymentMethod;
+  /** Prescription → Dispense linkage: when provided and the tenant has
+   *  prescription capture enabled, an audited dispense register record is written
+   *  and linked to the created invoice (regulatory log; does not move stock). */
+  prescription?: PharmacyPrescription | null;
 }): Promise<ActionResult<{ invoice_id: string; invoice_number: string }>> {
   const { ctx, error } = await requireAuth();
   if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
@@ -180,6 +192,10 @@ export async function pharmacyCheckout(input: {
     });
   }
 
+  // The earliest batch touched per product (for the dispense register's batch
+  // traceability column). Filled by the batch-tracking decrement below.
+  const batchByProduct = new Map<string, { batch_number: string | null; expiry_date: string | null }>();
+
   // Batch Tracking ON → decrement stock at the batch level. With FEFO enabled,
   // allocation is SERVER-authoritative: erp_pick_fefo_batches picks from the
   // earliest-expiry batches (correct even across multiple batches); otherwise the
@@ -195,19 +211,63 @@ export async function pharmacyCheckout(input: {
           p_product: l.product_id, p_warehouse: null, p_qty: baseQty,
         });
         for (const p of (picks ?? []) as Array<{ batch_id: string; take: number }>) {
-          const { data: b } = await supabase.from('erp_product_batches').select('qty_on_hand').eq('id', p.batch_id).maybeSingle();
-          const cur = Number((b as { qty_on_hand: number } | null)?.qty_on_hand ?? 0);
+          const { data: b } = await supabase.from('erp_product_batches').select('qty_on_hand, batch_number, expiry_date').eq('id', p.batch_id).maybeSingle();
+          const row = b as { qty_on_hand: number; batch_number: string | null; expiry_date: string | null } | null;
+          const cur = Number(row?.qty_on_hand ?? 0);
+          if (!batchByProduct.has(l.product_id)) batchByProduct.set(l.product_id, { batch_number: row?.batch_number ?? null, expiry_date: row?.expiry_date ?? null });
           await supabase.from('erp_product_batches')
             .update({ qty_on_hand: Math.max(0, cur - Number(p.take)), updated_at: new Date().toISOString() })
             .eq('id', p.batch_id);
         }
       } else if (l.batch_id) {
-        const { data: b } = await supabase.from('erp_product_batches').select('qty_on_hand').eq('id', l.batch_id).maybeSingle();
-        const cur = Number((b as { qty_on_hand: number } | null)?.qty_on_hand ?? 0);
+        const { data: b } = await supabase.from('erp_product_batches').select('qty_on_hand, batch_number, expiry_date').eq('id', l.batch_id).maybeSingle();
+        const row = b as { qty_on_hand: number; batch_number: string | null; expiry_date: string | null } | null;
+        const cur = Number(row?.qty_on_hand ?? 0);
+        if (!batchByProduct.has(l.product_id)) batchByProduct.set(l.product_id, { batch_number: row?.batch_number ?? null, expiry_date: row?.expiry_date ?? null });
         await supabase.from('erp_product_batches')
           .update({ qty_on_hand: Math.max(0, cur - baseQty), updated_at: new Date().toISOString() })
           .eq('id', l.batch_id);
       }
+    }
+  }
+
+  // Prescription → Dispense linkage. When the tenant captures prescriptions and
+  // either details were entered OR the tenant mandates them, write an audited
+  // dispense register record linked to this invoice (regulatory log; no stock
+  // movement — the sale already moved stock). Reuses erp_pharmacy_dispenses.
+  const rx = input.prescription ?? null;
+  const rxHasData = !!rx && !!(rx.patient_name?.trim() || rx.doctor_name?.trim() || rx.rx_number?.trim() || rx.is_controlled);
+  if (flags['pharmacy.prescription_capture'] === true && (rxHasData || flags['pharmacy.pos_prescription_required'] === true)) {
+    const { data: names } = await supabase
+      .from('erp_products_catalog').select('id, name, name_ar')
+      .in('id', input.lines.map((l) => l.product_id));
+    const nameById = new Map((((names ?? []) as Array<{ id: string; name: string; name_ar: string | null }>)).map((n) => [n.id, n.name_ar || n.name]));
+    const { data: disp } = await supabase
+      .from('erp_pharmacy_dispenses')
+      .insert({
+        company_id: ctx.companyId, branch_id: input.branch_id, status: 'done',
+        patient_name: rx?.patient_name?.trim() || null, patient_phone: rx?.patient_phone?.trim() || null,
+        doctor_name: rx?.doctor_name?.trim() || null, rx_number: rx?.rx_number?.trim() || null,
+        is_controlled: rx?.is_controlled === true,
+        invoice_no: sale.data.invoice_number, created_by: ctx.userId,
+      })
+      .select('id').maybeSingle();
+    const dispId = (disp as { id: string } | null)?.id ?? null;
+    if (dispId) {
+      const itemRows = input.lines.map((l) => {
+        const bt = batchByProduct.get(l.product_id);
+        return {
+          company_id: ctx.companyId, dispense_id: dispId, product_id: l.product_id,
+          name: nameById.get(l.product_id) ?? l.product_id, qty: l.quantity, price: l.unit_price,
+          batch_number: bt?.batch_number ?? null, expiry_date: bt?.expiry_date ?? null,
+        };
+      });
+      await supabase.from('erp_pharmacy_dispense_items').insert(itemRows);
+      await logAudit(supabase, {
+        action: 'create', entity: 'pharmacy_dispense', entityId: dispId,
+        details: { invoice_no: sale.data.invoice_number, rx_number: rx?.rx_number ?? null, is_controlled: rx?.is_controlled === true, items: itemRows.length },
+        companyId: ctx.companyId,
+      });
     }
   }
 

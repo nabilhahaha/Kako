@@ -39,6 +39,7 @@ export const ar = {
     colPatient: 'المريض',
     colDoctor: 'الطبيب',
     colRx: 'روشتة',
+    colInvoice: 'الفاتورة',
     colItems: 'أصناف',
     colStatus: 'الحالة',
 
@@ -120,6 +121,7 @@ export const en = {
     colPatient: 'Patient',
     colDoctor: 'Doctor',
     colRx: 'Rx #',
+    colInvoice: 'Invoice',
     colItems: 'Items',
     colStatus: 'Status',
 

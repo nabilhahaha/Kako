@@ -14,7 +14,7 @@ import { INTL_LOCALE } from '@/lib/i18n/config';
 import { useI18n } from '@/lib/i18n/provider';
 import { createDispense } from '../actions';
 
-export interface DispenseRow { id: string; status: string; patient_name: string | null; doctor_name: string | null; rx_number: string | null; is_controlled: boolean; dispensed_at: string; item_count: number }
+export interface DispenseRow { id: string; status: string; patient_name: string | null; doctor_name: string | null; rx_number: string | null; invoice_no: string | null; is_controlled: boolean; dispensed_at: string; item_count: number }
 
 const STATUS_VARIANT: Record<string, 'secondary' | 'warning' | 'success' | 'destructive'> = {
   open: 'warning', done: 'success', cancelled: 'destructive',
@@ -29,7 +29,7 @@ export function DispenseList({ rows }: { rows: DispenseRow[] }) {
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return rows;
-    return rows.filter((r) => (r.patient_name || '').toLowerCase().includes(s) || (r.doctor_name || '').toLowerCase().includes(s) || (r.rx_number || '').toLowerCase().includes(s));
+    return rows.filter((r) => (r.patient_name || '').toLowerCase().includes(s) || (r.doctor_name || '').toLowerCase().includes(s) || (r.rx_number || '').toLowerCase().includes(s) || (r.invoice_no || '').toLowerCase().includes(s));
   }, [rows, q]);
 
   function start() {
@@ -56,7 +56,7 @@ export function DispenseList({ rows }: { rows: DispenseRow[] }) {
         ) : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground"><tr>
-              <th className="p-3 text-start font-medium">{t('pharmacy.colDate')}</th><th className="p-3 text-start font-medium">{t('pharmacy.colPatient')}</th><th className="p-3 text-start font-medium">{t('pharmacy.colDoctor')}</th><th className="p-3 text-start font-medium">{t('pharmacy.colRx')}</th><th className="p-3 text-center font-medium">{t('pharmacy.colItems')}</th><th className="p-3 text-center font-medium">{t('pharmacy.colStatus')}</th>
+              <th className="p-3 text-start font-medium">{t('pharmacy.colDate')}</th><th className="p-3 text-start font-medium">{t('pharmacy.colPatient')}</th><th className="p-3 text-start font-medium">{t('pharmacy.colDoctor')}</th><th className="p-3 text-start font-medium">{t('pharmacy.colRx')}</th><th className="p-3 text-start font-medium">{t('pharmacy.colInvoice')}</th><th className="p-3 text-center font-medium">{t('pharmacy.colItems')}</th><th className="p-3 text-center font-medium">{t('pharmacy.colStatus')}</th>
             </tr></thead>
             <tbody>
               {filtered.map((r) => {
@@ -68,6 +68,7 @@ export function DispenseList({ rows }: { rows: DispenseRow[] }) {
                     <td className="p-3 font-medium">{r.patient_name || '—'}{r.is_controlled && <ShieldAlert className="ms-1 inline h-3.5 w-3.5 text-destructive" />}</td>
                     <td className="p-3 text-muted-foreground">{r.doctor_name || '—'}</td>
                     <td className="p-3 text-muted-foreground" dir="ltr">{r.rx_number || '—'}</td>
+                    <td className="p-3 font-mono text-xs text-muted-foreground" dir="ltr">{r.invoice_no || '—'}</td>
                     <td className="p-3 text-center tabular-nums">{r.item_count}</td>
                     <td className="p-3 text-center"><Badge variant={variant}>{statusLabel}</Badge></td>
                   </tr>
