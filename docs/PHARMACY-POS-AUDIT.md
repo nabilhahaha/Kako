@@ -326,6 +326,28 @@ Standard, `loyalty` is Enterprise. Both enabled for Amty (earn 1 pt/EGP, point =
 limit/balance ✅ · only `settings.users`/admin sets the loyalty rates ✅. With the
 flags OFF the POS requires full payment and shows no loyalty UI.
 
+## 3m. Multi-branch stock visibility & transfers (M10)
+
+An owner sees each medicine's on-hand across every branch and rebalances by
+transferring between them — reusing the proven `erp_transfer_orders` /
+`erp_complete_transfer` pipeline, then moving the **batches** (FEFO) from source
+to destination so expiry/FEFO survive the move.
+
+| Capability | Flag | DB | Where | Status |
+|---|---|---|---|---|
+| Branch stock matrix | `pharmacy.multi_branch` | `erp_pharmacy_branch_stock` (0291) | `/pharmacy/branches` (product × branch pivot) | ✅ |
+| Branch→branch transfer | same | `erp_transfer_orders` + `erp_complete_transfer` | one-step `transferStock` (create + complete) | ✅ |
+| Batch move | same | `erp_pick_fefo_batches` + `erp_product_batches` | FEFO batches pulled from source, mirrored into dest | ✅ |
+
+Reuse: the transfer pipeline is the platform's existing one; the pharmacy adds
+the cross-branch visibility RPC + a batch-aware move. Enterprise tier; enabled
+for Amty, which now has a **second branch** (Maadi, 60 stocked products) so the
+matrix and transfers are testable.
+
+**Role Coverage:** viewers (`inventory.view`) see the matrix; transfers require
+`inventory.transfer` (seeded to Amty admin/manager). With the flag OFF the screen
+and nav item disappear.
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

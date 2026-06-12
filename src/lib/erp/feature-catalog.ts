@@ -124,6 +124,10 @@ export const FEATURES: FeatureDef[] = [
     nav: ['nav.items.pharmacyValuation'], screens: ['/pharmacy/valuation'],
     logic: ['erp_pharmacy_inventory_valuation'],
   }),
+  F('pharmacy.multi_branch', 'inventory', ENT, {
+    nav: ['nav.items.pharmacyBranches'], screens: ['/pharmacy/branches'],
+    logic: ['erp_pharmacy_branch_stock', 'erp_complete_transfer'],
+  }),
   // ── POS ────────────────────────────────────────────────────────────────────
   F('pharmacy.pos_barcode_scan', 'pos', ALL, {
     screens: ['/pharmacy/pos'], logic: ['pos.barcodeSearch'],
