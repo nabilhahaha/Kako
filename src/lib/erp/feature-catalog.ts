@@ -130,6 +130,9 @@ export const FEATURES: FeatureDef[] = [
   F('pharmacy.substitute_suggestions', 'pos', ALL, {
     screens: ['/pharmacy/pos'], logic: ['erp_pharmacy_alternatives'],
   }),
+  F('pharmacy.offline_pos', 'pos', ENT, {
+    screens: ['/pharmacy/pos'], logic: ['offline_queue', 'erp_pharmacy_pos_idempotency'],
+  }),
   // ── Governance ───────────────────────────────────────────────────────────────
   F('pharmacy.approval_workflows', 'governance', STD, {
     logic: ['erp_workflow_start'], nav: ['nav.items.approvals'],

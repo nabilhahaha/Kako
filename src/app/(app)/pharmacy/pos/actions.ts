@@ -139,12 +139,28 @@ export async function pharmacyCheckout(input: {
    *  prescription capture enabled, an audited dispense register record is written
    *  and linked to the created invoice (regulatory log; does not move stock). */
   prescription?: PharmacyPrescription | null;
+  /** Offline POS replay dedup key (client-generated UUID). If a sale with this
+   *  key was already committed, the stored invoice is returned instead of
+   *  creating a second one — so a lost response never double-charges. */
+  idempotency_key?: string | null;
 }): Promise<ActionResult<{ invoice_id: string; invoice_number: string }>> {
   const { ctx, error } = await requireAuth();
   if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
   if (!input.lines?.length) return { ok: false, error: 'empty_cart' };
 
   const supabase = await createClient();
+
+  // Idempotent replay: a previously-committed sale with this key returns its
+  // invoice (no second sale). The unique (company_id, key) index is the guard.
+  const idemKey = (input.idempotency_key ?? '').trim() || null;
+  if (idemKey) {
+    const { data: prior } = await supabase
+      .from('erp_pharmacy_pos_idempotency')
+      .select('invoice_id, invoice_number').eq('idempotency_key', idemKey).maybeSingle();
+    const p = prior as { invoice_id: string | null; invoice_number: string | null } | null;
+    if (p?.invoice_id) return { ok: true, data: { invoice_id: p.invoice_id, invoice_number: p.invoice_number ?? '' } };
+  }
+
   const flags = await getFeatureFlags(supabase, ctx.companyId);
   const multiUnit = flags['pharmacy.multi_unit_support'] === true;
 
@@ -185,6 +201,15 @@ export async function pharmacyCheckout(input: {
     payment_method: input.payment_method,
   });
   if (!sale.ok || !sale.data) return { ok: false, error: sale.error };
+
+  // Record the idempotency key so a replay of this exact sale is a no-op. Best-
+  // effort; a unique-violation here means a concurrent replay already recorded it.
+  if (idemKey) {
+    await supabase.from('erp_pharmacy_pos_idempotency').insert({
+      company_id: ctx.companyId, idempotency_key: idemKey,
+      invoice_id: sale.data.invoice_id, invoice_number: sale.data.invoice_number, created_by: ctx.userId,
+    });
+  }
 
   if (multiUnit && movements.some((m) => m.entered_unit !== '' && m.factor !== 1)) {
     await logAudit(supabase, {

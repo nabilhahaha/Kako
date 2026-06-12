@@ -207,6 +207,35 @@ marked controlled).
 till until patient + Rx captured ✅ · register filterable by `pharmacy.dispense`.
 With the flag OFF, the controlled marker is ignored and no enforcement applies.
 
+## 3h. Offline Pharmacy POS (M6)
+
+The till keeps selling when the internet drops. A completed sale is stored
+on-device (IndexedDB, `vantora-pharmacy-pos`) with a client-generated idempotency
+key and replayed through the same `pharmacyCheckout` when connectivity returns —
+so batch decrement, FEFO, the dispense/controlled register and receipt logic all
+run server-side exactly as for an online sale, just deferred. Reuses the field
+client's `useOnlineStatus`.
+
+| Capability | Flag | DB | Where | Status |
+|---|---|---|---|---|
+| Offline capture | `pharmacy.offline_pos` | — | `offline-queue.ts` (IndexedDB) | ✅ |
+| Safe replay (no double-charge) | same | `erp_pharmacy_pos_idempotency` (0286, unique company+key) | `pharmacyCheckout` short-circuits a seen key | ✅ |
+| Auto-drain on reconnect | same | — | `useOnlineStatus` effect → `drainQueue` | ✅ |
+| Status + manual sync | same | — | offline/pending banner + "Sync now" | ✅ |
+
+Idempotency is the safety core: `pharmacyCheckout` records the key after a
+committed sale and, on replay, returns the stored invoice instead of creating a
+second one — so a lost network response can never charge twice. Drain stops at
+the first failure (e.g. dropped again) and resumes on the next online event;
+receipt printing is skipped while offline (no committed invoice yet). Enterprise
+flag, enabled for Amty.
+
+**Role Coverage:** Owner ✅ · Pharmacist/Cashier sells through an outage and the
+queue auto-syncs ✅. With the flag OFF, checkout requires connectivity (no queue).
+**Note:** the cart, holds, recent panel and queue are device-local; the POS shell
+itself still needs to have been loaded (the app is not yet a full installable PWA
+shell for pharmacy — first paint requires one online load).
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

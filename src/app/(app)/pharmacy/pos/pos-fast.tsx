@@ -19,6 +19,9 @@ import {
   type PharmacySearchRow, type PharmacyBatch, type PharmacyAlternative,
 } from './actions';
 import { QuickCustomerCreate } from '@/components/contacts/quick-customer';
+import { useOnlineStatus } from '@/lib/offline-sync/use-network';
+import { queueSale, listQueuedSales, removeQueuedSale } from '@/lib/pharmacy/offline-queue';
+import { WifiOff, RefreshCw } from 'lucide-react';
 
 export interface PosFeatureFlags {
   barcodeScan: boolean;
@@ -33,6 +36,7 @@ export interface PosFeatureFlags {
   prescriptionCapture: boolean;
   prescriptionRequired: boolean;
   controlledTracking: boolean;
+  offlinePos: boolean;
 }
 
 interface CartLine {
@@ -90,6 +94,9 @@ export function PharmacyPos({
   const [linkResults, setLinkResults] = useState<PharmacySearchRow[]>([]);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState(false);
+  const online = useOnlineStatus();
+  const [queuedCount, setQueuedCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const kb = useRef<{ checkout: () => void; hold: () => void; toggleResume: () => void; canSell: boolean }>({
@@ -249,14 +256,41 @@ export function PharmacyPos({
     setShowHolds(false); searchRef.current?.focus();
   }
 
+  const refreshQueued = async () => setQueuedCount((await listQueuedSales()).length);
+
+  // Replay queued offline sales through the idempotent server action. Stops at the
+  // first failure (e.g. connectivity dropped again); already-applied keys are no-ops.
+  async function drainQueue() {
+    if (syncing) return;
+    const items = await listQueuedSales();
+    if (items.length === 0) { setQueuedCount(0); return; }
+    setSyncing(true);
+    let done = 0;
+    for (const q of items) {
+      const res = await pharmacyCheckout({
+        branch_id: q.branch_id, customer_id: q.customer_id, lines: q.lines,
+        amount: q.amount, payment_method: q.payment_method, prescription: q.prescription ?? null,
+        idempotency_key: q.idempotency_key,
+      });
+      if (res.ok) { await removeQueuedSale(q.idempotency_key); done++; } else break;
+    }
+    setSyncing(false);
+    await refreshQueued();
+    if (done > 0) { toast.success(t('pharmacyPos.synced', { count: done })); router.refresh(); }
+  }
+
+  // On mount: surface any queued sales and (if online) drain them. Drain again the
+  // moment connectivity returns.
+  useEffect(() => { refreshQueued(); }, []);
+  useEffect(() => { if (online) drainQueue(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [online]);
+
   // Plain async (NOT useTransition): the receipt confirm() must render immediately.
   // Inside a transition, post-await state updates are deferred → the modal would
   // never paint (it can't settle until the user clicks the modal that isn't shown).
   async function checkout() {
     if (!canSell) return;
     const sold = cart;
-    setBusy(true);
-    const res = await pharmacyCheckout({
+    const payload = {
       branch_id: branchId, customer_id: customerId,
       lines: cart.map((l) => ({
         product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price,
@@ -266,7 +300,25 @@ export function PharmacyPos({
       prescription: features.prescriptionCapture
         ? { patient_name: rx.patient_name, doctor_name: rx.doctor_name, rx_number: rx.rx_number, is_controlled: rx.is_controlled }
         : null,
-    });
+    };
+
+    // Offline: persist the sale on-device and finish instantly. It replays safely
+    // (idempotent) when connectivity returns. No receipt print while offline.
+    if (features.offlinePos && !online) {
+      const label = `${sold.length} ${t('pharmacyPos.items')} · ${money(totals.net_amount)}`;
+      await queueSale({ ...payload, label });
+      recordRecent(sold);
+      setCart([]); setTendered('');
+      setRx({ patient_name: '', doctor_name: '', rx_number: '', is_controlled: false });
+      setRxOpen(features.prescriptionRequired);
+      await refreshQueued();
+      toast.success(t('pharmacyPos.savedOffline'));
+      searchRef.current?.focus();
+      return;
+    }
+
+    setBusy(true);
+    const res = await pharmacyCheckout(payload);
     setBusy(false);
     if (!res.ok) { toast.error(res.error ?? t('pharmacyPos.checkoutError')); return; }
     const invId = res.data?.invoice_id;
@@ -374,6 +426,20 @@ export function PharmacyPos({
       {/* Cart / checkout */}
       <Card className="sticky top-4 h-fit">
         <CardContent className="space-y-3 pt-5">
+          {features.offlinePos && (!online || queuedCount > 0) && (
+            <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs ${online ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-destructive/10 text-destructive'}`}>
+              {online ? <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} /> : <WifiOff className="h-4 w-4" />}
+              <span className="flex-1">
+                {!online && t('pharmacyPos.offlineMode')}
+                {online && queuedCount > 0 && t('pharmacyPos.pendingSync', { count: queuedCount })}
+              </span>
+              {online && queuedCount > 0 && (
+                <button type="button" disabled={syncing} onClick={drainQueue} className="font-medium underline">
+                  {t('pharmacyPos.syncNow')}
+                </button>
+              )}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">{t('pharmacyPos.customerOptional')}</p>
           <div className="flex flex-wrap gap-2">
             {branches.length > 1 && (
@@ -492,7 +558,8 @@ export function PharmacyPos({
           )}
 
           <Button className="h-14 w-full text-lg font-bold" disabled={!canSell} onClick={checkout}>
-            {(pending || busy) && <Loader2 className="h-5 w-5 animate-spin" />} {t('pharmacyPos.checkout')} · {money(totals.net_amount)}
+            {(pending || busy) && <Loader2 className="h-5 w-5 animate-spin" />}
+            {features.offlinePos && !online ? <WifiOff className="h-5 w-5" /> : null} {t('pharmacyPos.checkout')} · {money(totals.net_amount)}
           </Button>
           <p className="text-center text-[11px] text-muted-foreground">{t('pharmacyPos.shortcuts')}</p>
 

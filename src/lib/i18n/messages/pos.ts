@@ -76,6 +76,11 @@ export const ar = {
     rxControlled: 'دواء مراقَب',
     rxRequired: 'أدخل اسم المريض ورقم الروشتة (أو الطبيب) للأدوية بالروشتة',
     controlled: 'مراقَب',
+    offlineMode: 'وضع عدم الاتصال — يُحفظ البيع محلياً ويُزامَن عند عودة الإنترنت',
+    savedOffline: 'تم حفظ البيع محلياً — سيُزامَن عند عودة الاتصال',
+    pendingSync: '{count} فاتورة بانتظار المزامنة',
+    syncNow: 'مزامنة الآن',
+    synced: 'تمت مزامنة {count} فاتورة',
   },
   scan: {
     title: 'مسح ضوئي',
@@ -172,6 +177,11 @@ export const en = {
     rxControlled: 'Controlled drug',
     rxRequired: 'Enter patient name and Rx number (or doctor) for prescription items',
     controlled: 'Controlled',
+    offlineMode: 'Offline — the sale is saved on this device and syncs when the internet returns',
+    savedOffline: 'Sale saved offline — it will sync when back online',
+    pendingSync: '{count} invoice(s) waiting to sync',
+    syncNow: 'Sync now',
+    synced: 'Synced {count} invoice(s)',
   },
   scan: {
     title: 'Scan',
