@@ -122,6 +122,34 @@ mobile/tablet friendly. Both flags configurable per tenant in `/settings/feature
 
 **Role Coverage:** Owner (`admin`) ✅ · Pharmacist/Cashier (`sales.sell`/`sales.collect`) ✅ · a role without those perms → the **+ New** control is hidden and the server rejects creation. When `lightweight_customer_mode` or `quick_customer_create` is OFF for the tenant, the control disappears and the action returns disabled — no FMCG complexity is forced on the pharmacy.
 
+## 3e. Purchasing & Reorder (M3 — `/pharmacy/purchasing`)
+
+Low-stock → supplier purchase orders → receive, reusing the platform's proven
+purchase-order tables (`erp_purchase_orders`/`_lines`), number sequence
+(`erp_next_number`), and the **atomic** receive RPC (`erp_receive_purchase_order`:
+goods receipt + stock + AP journal + supplier balance). The pharmacy value-add is
+the reorder suggestion engine and one-click, supplier-grouped PO creation.
+
+| Capability | Flag | DB / RPC | Component / Action | Permission | Status |
+|---|---|---|---|---|---|
+| Reorder suggestions | `pharmacy.purchase_orders` | `erp_pharmacy_reorder_suggestions()` (0284): on-hand ≤ min, suggested = 2× min − on-hand, last cost, preferred supplier (latest batch) | `reorderSuggestions` | `inventory.adjust`/`purchasing.manage` | ✅ |
+| One-click POs (per supplier) | same | `erp_next_number` + `erp_purchase_orders`/`_lines` (status `sent`) | `createReorderPurchaseOrders` | same | ✅ |
+| Receive in full | same | `erp_receive_purchase_order` (atomic) + `erp_product_batches` row when Batch Tracking on (keeps FEFO/expiry live) | `receivePharmacyPurchaseOrder` | same | ✅ |
+| PO list | same | `erp_purchase_orders` (RLS) | `listPharmacyPurchaseOrders` | same | ✅ |
+
+UX: two tabs (**Reorder** / **Purchase Orders**). Reorder is a check-list with
+editable order qty + per-row supplier (prefilled from the last batch's supplier);
+items without a supplier block submission until one is picked. Creating POs groups
+selected lines by supplier and raises one PO each, then flips to the Orders tab.
+Receiving is one click and writes batch rows so the new stock is FEFO-pickable.
+
+**Role Coverage:** Owner (`admin`) ✅ · stock/purchasing role
+(`inventory.adjust`/`purchasing.manage`) ✅ · cashier without those perms → the
+nav item is hidden (flag + perm) and every action returns `no_permission`. The
+whole module disappears when `pharmacy.purchase_orders` is OFF for the tenant
+(nav `flag` + page redirect + server `feature_disabled`). Enabled for Amty
+(Standard template).
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

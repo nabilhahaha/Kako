@@ -97,6 +97,10 @@ export const FEATURES: FeatureDef[] = [
   F('pharmacy.controlled_drug_tracking', 'inventory', ENT, {
     screens: ['/pharmacy/dispense'], validation: ['controlled_log'], logic: ['dispense.is_controlled'],
   }),
+  F('pharmacy.purchase_orders', 'inventory', STD, {
+    nav: ['nav.items.pharmacyPurchasing'], screens: ['/pharmacy/purchasing'],
+    logic: ['erp_pharmacy_reorder_suggestions', 'erp_receive_purchase_order'],
+  }),
   // ── POS ────────────────────────────────────────────────────────────────────
   F('pharmacy.pos_barcode_scan', 'pos', ALL, {
     screens: ['/pharmacy/pos'], logic: ['pos.barcodeSearch'],
