@@ -119,7 +119,14 @@ export type Module =
   | 'sales' | 'inventory' | 'purchasing' | 'accounting' | 'hotel' | 'clinic' | 'restaurant' | 'salon' | 'pharmacy' | 'laundry' | 'market' | 'wholesale' | 'distribution' | 'fashion'
   | 'pos' | 'sales_orders' | 'returns' | 'warehousing'
   // Core (capability) modules — first-class licensable entitlements (R4B).
-  | 'crm' | 'workflow' | 'analytics' | 'field_ops' | 'integrations';
+  | 'crm' | 'workflow' | 'analytics' | 'field_ops' | 'integrations'
+  // Engine modules — company/business-type driven (NOT in ALL_MODULES, never
+  // plan-gated). Mirror the erp_modules registry keys (category='engine',
+  // parented under field_ops / distribution / workflow). The auth-context plan
+  // filter passes through keys outside ALL_MODULES, so these stay driven by
+  // erp_company_modules, not by the subscription plan.
+  | 'route_management' | 'van_sales' | 'trade_spend' | 'merchandising'
+  | 'change_requests' | 'critical_alerts';
 
 /** The modules a subscription PLAN can grant (coarse). Core capability modules
  *  are included so they appear in the (grouped) Marketplace and are gateable. */
@@ -152,6 +159,12 @@ export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
   sales_orders: { en: 'Sales Orders', ar: 'أوامر البيع' },
   returns: { en: 'Returns', ar: 'المرتجعات' },
   warehousing: { en: 'Warehouse Management', ar: 'إدارة المخازن' },
+  route_management: { en: 'Route Management', ar: 'إدارة خطوط السير' },
+  van_sales: { en: 'Van Sales', ar: 'البيع من السيارة' },
+  trade_spend: { en: 'Trade Spend', ar: 'الإنفاق التجاري' },
+  merchandising: { en: 'Merchandising', ar: 'التسويق الميداني' },
+  change_requests: { en: 'Change Requests', ar: 'طلبات التغيير' },
+  critical_alerts: { en: 'Critical Alerts', ar: 'التنبيهات الحرجة' },
 };
 
 /**
@@ -211,8 +224,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.routeExec', href: '/field/route', icon: MapPin, perm: 'field.sales' },
       { label: 'nav.items.vanStock', href: '/field/stock', icon: Boxes, perm: ['inventory.view', 'field.sales'] },
       { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck, module: 'workflow' },
-      { label: 'nav.items.alerts', href: '/alerts', icon: Bell, flag: 'alerts' },
-      { label: 'nav.items.changeRequests', href: '/change-requests', icon: GitBranch, flag: 'change_requests' },
+      { label: 'nav.items.alerts', href: '/alerts', icon: Bell, flag: 'alerts', module: 'critical_alerts' },
+      { label: 'nav.items.changeRequests', href: '/change-requests', icon: GitBranch, flag: 'change_requests', module: 'change_requests' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
     ],
   },
@@ -349,12 +362,15 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'nav.sections.distribution',
-    module: 'distribution',
+    // ANY-of: the section opens for the distribution vertical OR any of its
+    // engine modules, so an engine-only tenant (no distribution vertical) still
+    // sees its engine screens. Cannot regress a distribution-only tenant.
+    module: ['distribution', 'route_management', 'van_sales', 'trade_spend', 'merchandising'],
     items: [
-      { label: 'nav.items.routes', href: '/distribution/routes', icon: Truck, perm: ['reports.view', 'customers.manage'] },
-      { label: 'nav.items.vanAccounting', href: '/distribution/van-accounting', icon: Wallet, perm: 'reports.view' },
+      { label: 'nav.items.routes', href: '/distribution/routes', icon: Truck, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'] },
+      { label: 'nav.items.vanAccounting', href: '/distribution/van-accounting', icon: Wallet, perm: 'reports.view', module: ['distribution', 'van_sales'] },
       { label: 'nav.items.fieldSync', href: '/distribution/field-sync', icon: Smartphone, perm: 'reports.view' },
-      { label: 'nav.items.perfectStoreScores', href: '/distribution/perfect-store-scores', icon: Star, perm: 'reports.view' },
+      { label: 'nav.items.perfectStoreScores', href: '/distribution/perfect-store-scores', icon: Star, perm: 'reports.view', module: ['distribution', 'merchandising'] },
       { label: 'nav.items.territoryIntel', href: '/distribution/territory-intel', icon: Activity, perm: 'reports.view' },
       { label: 'nav.items.suggestedLoad', href: '/distribution/suggested-load', icon: Boxes, perm: 'reports.view' },
       { label: 'nav.items.distributionReport', href: '/distribution/report', icon: BarChart3, perm: 'reports.view' },
@@ -362,16 +378,16 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.coverage', href: '/distribution/coverage', icon: Map, perm: 'reports.view' },
       { label: 'nav.items.repTargets', href: '/distribution/targets', icon: Target, perm: 'reports.view' },
       { label: 'nav.items.targetsAchievement', href: '/distribution/targets-achievement', icon: Target, perm: ['target.view', 'target.manage'] },
-      { label: 'nav.items.assortment', href: '/distribution/assortment', icon: PackageCheck, perm: 'reports.view' },
+      { label: 'nav.items.assortment', href: '/distribution/assortment', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'] },
       { label: 'nav.items.retailCockpit', href: '/distribution/retail-cockpit', icon: LayoutGrid, perm: 'reports.view' },
-      { label: 'nav.items.mslComplianceDash', href: '/distribution/msl-compliance', icon: PackageCheck, perm: 'reports.view' },
+      { label: 'nav.items.mslComplianceDash', href: '/distribution/msl-compliance', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'] },
       { label: 'nav.items.distributionDash', href: '/distribution/distribution-dashboard', icon: Layers, perm: 'reports.view' },
       { label: 'nav.items.oosDash', href: '/distribution/oos', icon: PackageCheck, perm: 'reports.view' },
-      { label: 'nav.items.perfectStoreDash', href: '/distribution/perfect-store', icon: Target, perm: 'reports.view' },
-      { label: 'nav.items.outletGrading', href: '/distribution/grading', icon: Star, perm: 'reports.view' },
+      { label: 'nav.items.perfectStoreDash', href: '/distribution/perfect-store', icon: Target, perm: 'reports.view', module: ['distribution', 'merchandising'] },
+      { label: 'nav.items.outletGrading', href: '/distribution/grading', icon: Star, perm: 'reports.view', module: ['distribution', 'merchandising'] },
       { label: 'nav.items.returnsAnalysis', href: '/distribution/returns-analysis', icon: Undo2, perm: ['report.aggregate.view', 'reports.view'] },
       { label: 'nav.items.creditRequests', href: '/distribution/credit-requests', icon: CreditCard, perm: ['credit.request.approve', 'credit.request.create'] },
-      { label: 'nav.items.tradeSpend', href: '/distribution/trade-spend', icon: Receipt, perm: 'reports.view' },
+      { label: 'nav.items.tradeSpend', href: '/distribution/trade-spend', icon: Receipt, perm: 'reports.view', module: ['distribution', 'trade_spend'] },
       { label: 'nav.items.salesSummary', href: '/distribution/sales-summary', icon: BarChart3, perm: 'report.aggregate.view' },
     ],
   },
@@ -435,7 +451,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.regions', href: '/settings/regions', icon: Map, perm: 'settings.branches', group: 'nav.groups.organization' },
-      { label: 'nav.items.vanSalesSettings', href: '/settings/van-sales', icon: Truck, perm: 'settings.branches', flag: 'van_sales', group: 'nav.groups.organization' },
+      { label: 'nav.items.vanSalesSettings', href: '/settings/van-sales', icon: Truck, perm: 'settings.branches', flag: 'van_sales', module: 'van_sales', group: 'nav.groups.organization' },
       { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.organization' },
       // ── Data & Fields ──
       { label: 'nav.items.customerData', href: '/settings/customer-data', icon: Tags, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },

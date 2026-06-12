@@ -10,7 +10,8 @@ import { Loader2, Check, Lock, RotateCcw, Info } from 'lucide-react';
 import {
   ShoppingCart, Boxes, Truck as TruckIcon, Wallet, BedDouble, Stethoscope,
   UtensilsCrossed, Scissors, Pill, WashingMachine, ScanBarcode, Layers,
-  FileText, Undo2, Warehouse, Users, ClipboardCheck, BarChart3, Plug, Shirt, type LucideIcon,
+  FileText, Undo2, Warehouse, Users, ClipboardCheck, BarChart3, Plug, Shirt,
+  Map as MapIcon, Receipt, Target, GitBranch, Bell, type LucideIcon,
 } from 'lucide-react';
 import { ALL_MODULES, MODULE_LABELS, type Module } from '@/lib/erp/navigation';
 import {
@@ -30,6 +31,11 @@ const ICONS: Record<Module, LucideIcon> = {
   pharmacy: Pill, laundry: WashingMachine, market: ScanBarcode, wholesale: Layers,
   distribution: TruckIcon, fashion: Shirt, pos: ScanBarcode, sales_orders: FileText, returns: Undo2,
   warehousing: Warehouse,
+  // Engine modules (company/business-type driven; not shown as plan cards since
+  // MARKETPLACE_MODULES = ALL_MODULES, which deliberately excludes these). Mapped
+  // here only to keep the Record<Module, …> exhaustive.
+  route_management: MapIcon, van_sales: TruckIcon, trade_spend: Receipt,
+  merchandising: Target, change_requests: GitBranch, critical_alerts: Bell,
 };
 
 const MARKETPLACE_MODULES = ALL_MODULES;
