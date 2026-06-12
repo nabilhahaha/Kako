@@ -50,6 +50,7 @@ export const ar = {
         audit_logging: 'سجل التدقيق',
         critical_actions: 'الإجراءات الحرجة',
         notifications: 'الإشعارات',
+        eta_einvoicing: 'جاهزية الفاتورة الإلكترونية (ETA)',
       },
     },
     desc: {
@@ -92,6 +93,7 @@ export const ar = {
         audit_logging: 'تسجيل كل عملية في سجل التدقيق.',
         critical_actions: 'تأكيد + سبب + تدقيق للإجراءات الحرجة.',
         notifications: 'إشعار المسؤولين عند العمليات المهمة.',
+        eta_einvoicing: 'تقييم جاهزية تفعيل الفاتورة الإلكترونية مع مصلحة الضرائب المصرية.',
       },
     },
   },
@@ -148,6 +150,7 @@ export const en = {
         audit_logging: 'Audit Logging',
         critical_actions: 'Critical Actions',
         notifications: 'Notifications',
+        eta_einvoicing: 'ETA e-Invoicing Readiness',
       },
     },
     desc: {
@@ -190,6 +193,7 @@ export const en = {
         audit_logging: 'Record every operation in the audit log.',
         critical_actions: 'Confirm + reason + audit on critical actions.',
         notifications: 'Notify managers on important operations.',
+        eta_einvoicing: 'Assess readiness to activate ETA (Egyptian Tax Authority) e-invoicing.',
       },
     },
   },

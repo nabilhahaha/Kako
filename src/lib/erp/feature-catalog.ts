@@ -185,6 +185,10 @@ export const FEATURES: FeatureDef[] = [
   F('pharmacy.notifications', 'governance', ALL, {
     logic: ['erp_notify'],
   }),
+  F('pharmacy.eta_einvoicing', 'governance', ENT, {
+    nav: ['nav.items.pharmacyEta'], screens: ['/pharmacy/eta', '/settings/einvoice'],
+    logic: ['erp_company_eta_settings'],
+  }),
   // ── Scanning (PLATFORM pack — reusable by every industry; surfaced only where a
   //    business process consumes it: Pharmacy POS, FMCG sales, warehouse, …) ────
   P('platform.scan_barcode', 'scanning', ALL, {

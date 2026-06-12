@@ -348,6 +348,34 @@ matrix and transfers are testable.
 `inventory.transfer` (seeded to Amty admin/manager). With the flag OFF the screen
 and nav item disappear.
 
+## 3n. ETA e-invoicing activation readiness (M11)
+
+A read-only readiness assessment of everything the Egyptian Tax Authority
+integration needs before it can be switched on — reuses the existing
+`erp_company_eta_settings` + `/settings/einvoice` config. `/pharmacy/eta` scores
+each prerequisite and tells the tenant exactly what is left.
+
+| Check (required unless noted) | Source |
+|---|---|
+| Tax registration number, activity code, issuer name | `erp_company_eta_settings` |
+| Issuer address complete (gov/city/street/building) | `erp_company_eta_settings.address` |
+| Company tax number | `erp_companies.tax_number` |
+| Item codes per line (GS1 barcode or EGS) | `erp_products_catalog.barcode/egs_code` (0292) |
+| Tax-rate mapping on every item | `erp_products_catalog.tax_rate` |
+| Environment selected (preprod/production) | `erp_company_eta_settings.environment` |
+| EGS code per item (*recommended*) | `erp_products_catalog.egs_code` |
+
+`etaReadiness()` returns each check (pass/fail + a `detail` like "400 / 400" and a
+`required`/`recommended` level) and an overall %/ready verdict; the screen shows a
+progress bar, per-check guidance, and a link to configure ETA. 0292 adds an
+`egs_code` column for item mapping. Enterprise tier; enabled for Amty (seeded
+partially configured so the checklist reads as in-progress). Activation itself
+stays the super-admin `/settings/einvoice` action — this milestone is the
+**readiness gate**, not live submission.
+
+**Role Coverage:** owners/managers (`reports.view`) see readiness; `settings.users`
+/ super-admin configures ETA. Flag OFF → screen + nav hidden.
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

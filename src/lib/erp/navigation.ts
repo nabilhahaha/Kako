@@ -300,6 +300,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.pharmacyBranches', href: '/pharmacy/branches', icon: Network, perm: ['inventory.view', 'inventory.transfer'], flag: 'pharmacy.multi_branch' },
       { label: 'nav.items.pharmacyLoyalty', href: '/pharmacy/loyalty', icon: Star, perm: ['reports.view', 'settings.users'], flag: 'pharmacy.loyalty' },
       { label: 'nav.items.pharmacyReports', href: '/pharmacy/reports', icon: ClipboardList, perm: 'reports.view' },
+      { label: 'nav.items.pharmacyEta', href: '/pharmacy/eta', icon: ReceiptText, perm: ['reports.view', 'settings.users'], flag: 'pharmacy.eta_einvoicing' },
     ],
   },
   {
