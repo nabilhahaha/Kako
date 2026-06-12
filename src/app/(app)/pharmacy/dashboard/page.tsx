@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 interface DashData {
-  today_sales: number; today_invoices: number; today_cash: number; gp_estimate: number;
+  today_sales: number; today_invoices: number; today_cash: number; gp_estimate: number; valuation_method?: string;
   low_stock: number; expired: number; near_expiry: number; returns_today: number; adjustments_today: number;
   top_meds: Array<{ name: string; name_ar: string | null; qty: number }>;
   sales_by_user: Array<{ user: string; total: number }>;
@@ -33,7 +33,7 @@ export default async function PharmacyDashboardPage() {
   const kpis: Array<{ label: string; value: string; tone?: string }> = [
     { label: t('pharmDash.todaySales'), value: money(d.today_sales) },
     { label: t('pharmDash.cash'), value: money(d.today_cash) },
-    { label: t('pharmDash.gp'), value: money(d.gp_estimate) },
+    { label: t('pharmDash.gp') + (d.valuation_method ? ` · ${t(`pharmValuation.method.${d.valuation_method}`)}` : ''), value: money(d.gp_estimate) },
     { label: t('pharmDash.invoices'), value: String(d.today_invoices ?? 0) },
     { label: t('pharmDash.lowStock'), value: String(d.low_stock ?? 0), tone: (d.low_stock ?? 0) > 0 ? 'text-amber-600' : '' },
     { label: t('pharmDash.nearExpiry'), value: String(d.near_expiry ?? 0), tone: (d.near_expiry ?? 0) > 0 ? 'text-amber-600' : '' },

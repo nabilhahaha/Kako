@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 export interface ReportsData {
+  valuation_method?: string;
+  inventory_value?: number;
   gross_profit?: number;
   period_sales?: number;
   daily_sales?: Array<{ date: string; total: number; count: number }>;
@@ -30,7 +32,7 @@ export function ReportsView({ data, intlLocale }: { data: ReportsData; intlLocal
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">{t('pharmReports.periodSales')}</div><div className="text-xl font-bold" dir="ltr">{money(data.period_sales)}</div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">{t('pharmReports.gp')}</div><div className="text-xl font-bold text-emerald-600" dir="ltr">{money(data.gross_profit)}</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">{t('pharmReports.gp')}{data.valuation_method ? ` · ${t(`pharmValuation.method.${data.valuation_method}`)}` : ''}</div><div className="text-xl font-bold text-emerald-600" dir="ltr">{money(data.gross_profit)}</div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">{t('pharmReports.more')}</div>
           <div className="flex gap-3 text-sm">
             <Link href="/pharmacy/expiry" className="text-primary hover:underline">{t('pharmReports.expiry')}</Link>

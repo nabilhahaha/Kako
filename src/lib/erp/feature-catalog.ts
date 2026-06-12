@@ -61,9 +61,27 @@ const ALL: FeatureTemplate[] = ['lite', 'standard', 'enterprise'];
 const STD: FeatureTemplate[] = ['standard', 'enterprise'];
 const ENT: FeatureTemplate[] = ['enterprise'];
 
+/**
+ * Pharmacy packs (the three onboarding templates). Powerful backend, simple
+ * frontend — a tenant on Lite only ever SEES Lite features (nav, screens, logic
+ * are all flag-gated), so a small pharmacy is never overwhelmed. Tiers are
+ * monotonic (Lite ⊆ Standard ⊆ Enterprise):
+ *
+ *   • Lite       — POS, search, alternatives, receipt print, simple stock
+ *                  receiving (batch tracking), expiry alerts.
+ *   • Standard   — + FEFO, reorder + purchase orders, reports (expiry-risk
+ *                  dashboard), offline POS, hold/resume, multi-unit, prescription
+ *                  capture, expiry write-off.
+ *   • Enterprise — + controlled drugs, inventory valuation, advanced approvals,
+ *                  lot tracking, price override, mandatory prescription
+ *                  (+ multi-branch when that pack lands). Audit logging /
+ *                  critical-action governance underpins every tier.
+ */
 export const FEATURES: FeatureDef[] = [
   // ── Inventory ──────────────────────────────────────────────────────────────
-  F('pharmacy.batch_tracking', 'inventory', STD, {
+  // Lite: simple stock receiving + expiry alerts need batches with expiry, so
+  // batch tracking is part of the Lite baseline (see the Pharmacy templates).
+  F('pharmacy.batch_tracking', 'inventory', ALL, {
     screens: ['/inventory/batches', '/pharmacy/receive'], logic: ['erp_product_batches'],
     nav: ['nav.items.pharmacyBatches'],
   }),
@@ -74,7 +92,8 @@ export const FEATURES: FeatureDef[] = [
     screens: ['/pharmacy/receive', '/inventory/batches'], validation: ['expiry_required'],
     logic: ['batch.expiry_date'],
   }),
-  F('pharmacy.fefo_allocation', 'inventory', ALL, {
+  // Standard tier (FEFO is a Standard capability per the Pharmacy templates).
+  F('pharmacy.fefo_allocation', 'inventory', STD, {
     logic: ['erp_pick_fefo_batches'], screens: ['/pharmacy/pos'],
   }),
   F('pharmacy.near_expiry_alerts', 'inventory', ALL, {
@@ -100,6 +119,10 @@ export const FEATURES: FeatureDef[] = [
   F('pharmacy.purchase_orders', 'inventory', STD, {
     nav: ['nav.items.pharmacyPurchasing'], screens: ['/pharmacy/purchasing'],
     logic: ['erp_pharmacy_reorder_suggestions', 'erp_receive_purchase_order'],
+  }),
+  F('pharmacy.inventory_valuation', 'inventory', ENT, {
+    nav: ['nav.items.pharmacyValuation'], screens: ['/pharmacy/valuation'],
+    logic: ['erp_pharmacy_inventory_valuation'],
   }),
   // ── POS ────────────────────────────────────────────────────────────────────
   F('pharmacy.pos_barcode_scan', 'pos', ALL, {
@@ -130,11 +153,12 @@ export const FEATURES: FeatureDef[] = [
   F('pharmacy.substitute_suggestions', 'pos', ALL, {
     screens: ['/pharmacy/pos'], logic: ['erp_pharmacy_alternatives'],
   }),
-  F('pharmacy.offline_pos', 'pos', ENT, {
+  F('pharmacy.offline_pos', 'pos', STD, {
     screens: ['/pharmacy/pos'], logic: ['offline_queue', 'erp_pharmacy_pos_idempotency'],
   }),
   // ── Governance ───────────────────────────────────────────────────────────────
-  F('pharmacy.approval_workflows', 'governance', STD, {
+  // Enterprise: "advanced approvals" per the Pharmacy templates.
+  F('pharmacy.approval_workflows', 'governance', ENT, {
     logic: ['erp_workflow_start'], nav: ['nav.items.approvals'],
   }),
   F('pharmacy.audit_logging', 'governance', ALL, {

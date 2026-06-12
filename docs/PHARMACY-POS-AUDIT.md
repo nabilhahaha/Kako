@@ -236,6 +236,48 @@ queue auto-syncs ✅. With the flag OFF, checkout requires connectivity (no queu
 itself still needs to have been loaded (the app is not yet a full installable PWA
 shell for pharmacy — first paint requires one online load).
 
+## 3i. Inventory valuation — the official tenant costing method (M7)
+
+The valuation method (FIFO / Moving Average) is a **tenant setting**
+(`erp_inventory_settings.valuation_method`, default FIFO), not a report toggle —
+it is the official accounting basis used **consistently** for inventory
+valuation, COGS, gross profit, inventory reports and dashboards via one shared
+primitive: `erp_product_cost(product, method)` (FIFO = current batch layers'
+weighted cost; Moving Average = average purchase cost; falls back to cost_price),
+resolved through `erp_company_valuation_method()`.
+
+| Consumer | Wired to official method |
+|---|---|
+| `erp_pharmacy_inventory_valuation` | ✅ (`'official'` resolves the setting; explicit method = comparison) |
+| `erp_pharmacy_reports` (GP/COGS + inventory balance + `inventory_value`) | ✅ |
+| `erp_pharmacy_dashboard` (GP estimate) | ✅ (`valuation_method` echoed to the KPI) |
+| Valuation screen `/pharmacy/valuation` | ✅ official badge + change (admin) + FIFO/Avg comparison view |
+
+The screen shows the official method prominently; a view selector renders the
+other method **for comparison only** (badged), and only a `settings.users`/admin
+may change the official method (persisted + audited). So a report toggle can never
+become the source of truth. Enterprise tier; enabled for Amty (official = FIFO).
+
+**Role Coverage:** Owner/admin sets the method ✅ · viewers (`inventory.view`/
+`reports.view`) see valuation + comparison but cannot change the official basis ✅.
+
+## 3j. Pharmacy packs — Lite / Standard / Enterprise (template simplicity)
+
+Powerful backend, simple frontend: every capability is flag-gated end-to-end
+(nav + screen + logic), so a tenant only ever sees the features its pack enables —
+a small pharmacy is never shown PO/valuation/controlled screens. Tiers are
+monotonic (Lite ⊆ Standard ⊆ Enterprise).
+
+| Tier | Adds (headline capabilities) |
+|---|---|
+| **Lite** | POS, search, alternatives, receipt print, simple stock receiving (batch tracking), expiry alerts |
+| **Standard** | + FEFO, reorder + purchase orders, reports (expiry-risk dashboard), offline POS, hold/resume, multi-unit, prescription capture, expiry write-off |
+| **Enterprise** | + controlled drugs, inventory valuation, advanced approvals, lot tracking, price override, mandatory prescription (multi-branch when that pack lands) |
+
+Source of truth: `src/lib/erp/feature-catalog.ts` (`templateFeatureKeys`). A new
+tenant starts from a template; disabled features have no nav item, no screen and
+no server path. `/settings/features` fine-tunes per tenant after.
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +
