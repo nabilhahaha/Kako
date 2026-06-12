@@ -8,6 +8,7 @@ import { loadProductUnitsMany } from '@/lib/erp/uom-server';
 import { validateSell, validateQty, baseMovement } from '@/lib/erp/uom-rules';
 import { toBase, priceToBase, factorOf } from '@/lib/erp/uom';
 import { quickSale } from '../../sales/pos/actions';
+import { computeTotals } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
 
 /**
@@ -47,6 +48,33 @@ export interface PharmacyBatch {
   batch_number: string | null;
   expiry_date: string | null;
   qty_on_hand: number;
+}
+
+export interface PharmacyLoyaltyInfo {
+  points: number;
+  earn_rate: number;
+  redeem_rate: number;   // EGP value per point
+  min_redeem: number;
+}
+
+/** A customer's loyalty balance + the tenant rates, for the POS redeem UI. */
+export async function pharmacyLoyaltyInfo(customerId: string): Promise<PharmacyLoyaltyInfo | null> {
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx?.companyId || !customerId) return null;
+  const supabase = await createClient();
+  const flags = await getFeatureFlags(supabase, ctx.companyId);
+  if (flags['pharmacy.loyalty'] !== true) return null;
+  const [{ data: cust }, { data: ls }] = await Promise.all([
+    supabase.from('erp_customers').select('loyalty_points').eq('id', customerId).eq('company_id', ctx.companyId).maybeSingle(),
+    supabase.from('erp_loyalty_settings').select('earn_rate, redeem_rate, min_redeem').eq('company_id', ctx.companyId).maybeSingle(),
+  ]);
+  const s = ls as { earn_rate: number; redeem_rate: number; min_redeem: number } | null;
+  return {
+    points: Number((cust as { loyalty_points: number } | null)?.loyalty_points ?? 0),
+    earn_rate: Number(s?.earn_rate ?? 0),
+    redeem_rate: Number(s?.redeem_rate ?? 0),
+    min_redeem: Number(s?.min_redeem ?? 0),
+  };
 }
 
 export interface PharmacyAlternative extends PharmacySearchRow {
@@ -143,6 +171,9 @@ export async function pharmacyCheckout(input: {
    *  key was already committed, the stored invoice is returned instead of
    *  creating a second one — so a lost response never double-charges. */
   idempotency_key?: string | null;
+  /** Loyalty points to redeem on this sale (the client has already applied the
+   *  redemption as a cart discount, so `amount`/net are post-redemption). */
+  redeem_points?: number | null;
 }): Promise<ActionResult<{ invoice_id: string; invoice_number: string }>> {
   const { ctx, error } = await requireAuth();
   if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
@@ -192,12 +223,30 @@ export async function pharmacyCheckout(input: {
     });
   }
 
+  // Partial payment / customer credit: `amount` is what's paid NOW; any shortfall
+  // against the invoice net becomes the customer's account balance (AR). Gated by
+  // pharmacy.customer_credit and the customer's own credit control / limit.
+  const net = computeTotals(saleLines).net_amount;
+  const paidNow = Math.min(Math.max(0, input.amount), net);
+  const remainder = Math.round((net - paidNow) * 100) / 100;
+  if (remainder > 0.005) {
+    if (flags['pharmacy.customer_credit'] !== true) return { ok: false, error: 'credit_disabled' };
+    const { data: cust } = await supabase
+      .from('erp_customers').select('balance, credit_limit, credit_control_enabled')
+      .eq('id', input.customer_id).eq('company_id', ctx.companyId).maybeSingle();
+    const c = cust as { balance: number; credit_limit: number; credit_control_enabled: boolean } | null;
+    if (c?.credit_control_enabled && Number(c.credit_limit) > 0
+        && Number(c.balance) + remainder > Number(c.credit_limit)) {
+      return { ok: false, error: 'credit_limit' };
+    }
+  }
+
   const sale = await quickSale({
     branch_id: input.branch_id,
     customer_id: input.customer_id,
     lines: saleLines,
-    pay: true,
-    amount: input.amount,
+    pay: paidNow > 0,
+    amount: paidNow,
     payment_method: input.payment_method,
   });
   if (!sale.ok || !sale.data) return { ok: false, error: sale.error };
@@ -315,6 +364,29 @@ export async function pharmacyCheckout(input: {
         },
         companyId: ctx.companyId,
       });
+    }
+  }
+
+  // Loyalty: earn points on the (post-redemption) net and redeem the requested
+  // points. The client already applied the redemption as a cart discount, so net
+  // is correct. Atomic via erp_loyalty_redeem_earn; best-effort (sale committed).
+  if (flags['pharmacy.loyalty'] === true) {
+    const { data: ls } = await supabase
+      .from('erp_loyalty_settings').select('earn_rate').eq('company_id', ctx.companyId).maybeSingle();
+    const earnRate = Number((ls as { earn_rate: number } | null)?.earn_rate ?? 0);
+    const redeem = Math.max(0, Math.floor(Number(input.redeem_points ?? 0)));
+    const earn = earnRate > 0 ? Math.floor(net * earnRate) : 0;
+    if ((earn > 0 || redeem > 0) && input.customer_id) {
+      const { error: lErr } = await supabase.rpc('erp_loyalty_redeem_earn', {
+        p_customer: input.customer_id, p_invoice_no: sale.data.invoice_number,
+        p_redeem: redeem, p_earn: earn,
+      });
+      if (!lErr) {
+        await logAudit(supabase, {
+          action: 'create', entity: 'loyalty', entityId: input.customer_id,
+          details: { invoice_no: sale.data.invoice_number, earn, redeem }, companyId: ctx.companyId,
+        });
+      }
     }
   }
 

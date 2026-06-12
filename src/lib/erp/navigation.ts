@@ -297,6 +297,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.pharmacyDispense', href: '/pharmacy/dispense', icon: Pill, perm: 'pharmacy.dispense' },
       { label: 'nav.items.expiryNear', href: '/pharmacy/expiry', icon: CalendarClock, perm: ['pharmacy.dispense', 'inventory.adjust', 'inventory.view'], flag: 'pharmacy.near_expiry_alerts' },
       { label: 'nav.items.pharmacyValuation', href: '/pharmacy/valuation', icon: Wallet, perm: ['inventory.view', 'reports.view'], flag: 'pharmacy.inventory_valuation' },
+      { label: 'nav.items.pharmacyLoyalty', href: '/pharmacy/loyalty', icon: Star, perm: ['reports.view', 'settings.users'], flag: 'pharmacy.loyalty' },
       { label: 'nav.items.pharmacyReports', href: '/pharmacy/reports', icon: ClipboardList, perm: 'reports.view' },
     ],
   },

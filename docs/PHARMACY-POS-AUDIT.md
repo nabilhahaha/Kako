@@ -302,6 +302,30 @@ batches, with a manual "other batch" path). Standard tier; enabled for Amty.
 POS falls back to the generic `/sales/returns` (no batch restock); the nav item
 and screen disappear.
 
+## 3l. Loyalty / Customer Credit / Partial Payment (M9)
+
+Three payment capabilities at the till. Credit + partial reuse the existing AR
+layer (`erp_customers.balance/credit_limit/credit_control_enabled` + partial
+`recordPayment`); loyalty adds points (0290).
+
+| Capability | Flag | DB | Where | Status |
+|---|---|---|---|---|
+| Partial payment + credit | `pharmacy.customer_credit` | AR (existing) | POS "amount paid" < total → remainder on account; `pharmacyCheckout` enforces `credit_limit` when `credit_control_enabled` | ✅ |
+| Loyalty earn | `pharmacy.loyalty` | `erp_customers.loyalty_points`, `erp_loyalty_ledger` (0290) | `pharmacyCheckout` earns `floor(net × earn_rate)` | ✅ |
+| Loyalty redeem | same | `erp_loyalty_redeem_earn` (atomic, validates balance + min) | POS redeem → applied as a uniform cart discount (invoice stays consistent) | ✅ |
+| Rates + ledger | same | `erp_loyalty_settings` | `/pharmacy/loyalty` (admin sets earn/redeem/min; ledger) | ✅ |
+
+Redemption is applied as a **discount** (uniform fraction across lines, so tax +
+net scale and the invoice stays internally consistent), not a phantom tender —
+points value is recorded in the ledger and earn is computed on the post-redemption
+net. Credit needs the shortfall to fit the customer's limit; `customer_credit` is
+Standard, `loyalty` is Enterprise. Both enabled for Amty (earn 1 pt/EGP, point =
+0.05 EGP, min 50; 8 demo customers seeded with points + a 5,000 credit limit).
+
+**Role Coverage:** Cashier takes partial/credit + redeems within the customer's
+limit/balance ✅ · only `settings.users`/admin sets the loyalty rates ✅. With the
+flags OFF the POS requires full payment and shows no loyalty UI.
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

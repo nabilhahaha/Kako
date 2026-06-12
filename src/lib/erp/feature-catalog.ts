@@ -160,6 +160,13 @@ export const FEATURES: FeatureDef[] = [
   F('pharmacy.offline_pos', 'pos', STD, {
     screens: ['/pharmacy/pos'], logic: ['offline_queue', 'erp_pharmacy_pos_idempotency'],
   }),
+  F('pharmacy.customer_credit', 'pos', STD, {
+    screens: ['/pharmacy/pos'], validation: ['credit_limit'], logic: ['partial_payment', 'customer_credit'],
+  }),
+  F('pharmacy.loyalty', 'pos', ENT, {
+    nav: ['nav.items.pharmacyLoyalty'], screens: ['/pharmacy/pos', '/pharmacy/loyalty'],
+    logic: ['erp_loyalty_redeem_earn'],
+  }),
   // ── Governance ───────────────────────────────────────────────────────────────
   // Enterprise: "advanced approvals" per the Pharmacy templates.
   F('pharmacy.approval_workflows', 'governance', ENT, {

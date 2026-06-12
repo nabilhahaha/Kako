@@ -16,7 +16,8 @@ import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle
 import { CameraScanner, type ScanResult } from '@/components/scanning/scanner';
 import {
   pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct, pharmacyAlternatives,
-  type PharmacySearchRow, type PharmacyBatch, type PharmacyAlternative,
+  pharmacyLoyaltyInfo,
+  type PharmacySearchRow, type PharmacyBatch, type PharmacyAlternative, type PharmacyLoyaltyInfo,
 } from './actions';
 import { QuickCustomerCreate } from '@/components/contacts/quick-customer';
 import { useOnlineStatus } from '@/lib/offline-sync/use-network';
@@ -38,6 +39,8 @@ export interface PosFeatureFlags {
   controlledTracking: boolean;
   offlinePos: boolean;
   batchAwareReturns: boolean;
+  customerCredit: boolean;
+  loyalty: boolean;
 }
 
 interface CartLine {
@@ -91,6 +94,8 @@ export function PharmacyPos({
   const [notFound, setNotFound] = useState<string | null>(null);
   const [rxOpen, setRxOpen] = useState(features.prescriptionRequired);
   const [rx, setRx] = useState({ patient_name: '', doctor_name: '', rx_number: '', is_controlled: false });
+  const [loyalty, setLoyalty] = useState<PharmacyLoyaltyInfo | null>(null);
+  const [redeemPts, setRedeemPts] = useState('');
   const [linkQuery, setLinkQuery] = useState('');
   const [linkResults, setLinkResults] = useState<PharmacySearchRow[]>([]);
   const [pending, start] = useTransition();
@@ -219,7 +224,26 @@ export function PharmacyPos({
   }))), [cart]);
 
   const overStock = cart.some((l) => l.on_hand > 0 && l.quantity > l.on_hand);
-  const change = Math.max(0, (Number(tendered) || 0) - totals.net_amount);
+
+  // Loyalty redemption applies as a uniform cart discount: redeemValue EGP off the
+  // pre-tax subtotal → a single fraction k scales every line (and thus tax + net),
+  // keeping invoice integrity. Points are capped to the balance and redeem value
+  // to the subtotal.
+  const subtotalPreTax = useMemo(() => cart.reduce((s, l) => s + l.unit_price * l.quantity * (1 - (l.discount_pct || 0) / 100), 0), [cart]);
+  const redeemPoints = features.loyalty && loyalty
+    ? Math.max(0, Math.min(Math.floor(Number(redeemPts) || 0), Math.floor(loyalty.points)))
+    : 0;
+  const redeemValue = loyalty && redeemPoints > 0 ? Math.min(redeemPoints * loyalty.redeem_rate, subtotalPreTax) : 0;
+  const redeemFraction = subtotalPreTax > 0 ? (subtotalPreTax - redeemValue) / subtotalPreTax : 1;
+  const payableNet = Math.round(totals.net_amount * redeemFraction * 100) / 100;
+
+  // Partial payment / customer credit: amount received may be less than payable;
+  // the shortfall goes on the customer account (when credit is enabled).
+  const received = Number(tendered) || 0;
+  const paidNow = features.customerCredit ? Math.min(received, payableNet) : payableNet;
+  const onAccount = Math.max(0, Math.round((payableNet - paidNow) * 100) / 100);
+  const change = Math.max(0, received - payableNet);
+
   // A controlled drug in the cart forces the register: patient + Rx number are
   // mandatory (stricter than an ordinary Rx-required tenant). Otherwise, when the
   // tenant simply mandates prescriptions, require patient + (Rx no. or doctor).
@@ -234,6 +258,15 @@ export function PharmacyPos({
   useEffect(() => {
     if (cartHasControlled) { setRxOpen(true); setRx((s) => (s.is_controlled ? s : { ...s, is_controlled: true })); }
   }, [cartHasControlled]);
+
+  // Loyalty: load the selected customer's points + tenant rates; reset redemption.
+  useEffect(() => {
+    setRedeemPts('');
+    if (!features.loyalty || !customerId) { setLoyalty(null); return; }
+    let on = true;
+    pharmacyLoyaltyInfo(customerId).then((i) => { if (on) setLoyalty(i); });
+    return () => { on = false; };
+  }, [customerId, features.loyalty]);
 
   function persistHolds(next: Hold[]) { setHolds(next); localStorage.setItem(HOLDS_KEY, JSON.stringify(next)); }
   function recordRecent(lines: CartLine[]) {
@@ -291,16 +324,23 @@ export function PharmacyPos({
   async function checkout() {
     if (!canSell) return;
     const sold = cart;
+    // Fold any loyalty redemption into each line as extra discount (so the invoice
+    // net is post-redemption and stays internally consistent).
+    const k = redeemFraction;
     const payload = {
       branch_id: branchId, customer_id: customerId,
-      lines: cart.map((l) => ({
-        product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price,
-        discount_pct: l.discount_pct, tax_rate: l.tax_rate, batch_id: l.batch_id ?? null,
-      })),
-      amount: totals.net_amount, payment_method: method,
+      lines: cart.map((l) => {
+        const effDisc = k < 1 ? 100 * (1 - (1 - (l.discount_pct || 0) / 100) * k) : (l.discount_pct || 0);
+        return {
+          product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price,
+          discount_pct: Math.round(effDisc * 1000) / 1000, tax_rate: l.tax_rate, batch_id: l.batch_id ?? null,
+        };
+      }),
+      amount: paidNow, payment_method: method,
       prescription: features.prescriptionCapture
         ? { patient_name: rx.patient_name, doctor_name: rx.doctor_name, rx_number: rx.rx_number, is_controlled: rx.is_controlled }
         : null,
+      redeem_points: redeemPoints > 0 ? redeemPoints : null,
     };
 
     // Offline: persist the sale on-device and finish instantly. It replays safely
@@ -309,7 +349,7 @@ export function PharmacyPos({
       const label = `${sold.length} ${t('pharmacyPos.items')} · ${money(totals.net_amount)}`;
       await queueSale({ ...payload, label });
       recordRecent(sold);
-      setCart([]); setTendered('');
+      setCart([]); setTendered(''); setRedeemPts('');
       setRx({ patient_name: '', doctor_name: '', rx_number: '', is_controlled: false });
       setRxOpen(features.prescriptionRequired);
       await refreshQueued();
@@ -325,7 +365,8 @@ export function PharmacyPos({
     const invId = res.data?.invoice_id;
     toast.success(t('pharmacyPos.sold', { number: res.data?.invoice_number ?? '' }));
     recordRecent(sold);
-    setCart([]); setTendered('');
+    setCart([]); setTendered(''); setRedeemPts('');
+    if (features.loyalty && customerId) pharmacyLoyaltyInfo(customerId).then(setLoyalty);
     setRx({ patient_name: '', doctor_name: '', rx_number: '', is_controlled: false });
     setRxOpen(features.prescriptionRequired);
     // Receipt printing ONLY after the committed sale.
@@ -537,11 +578,29 @@ export function PharmacyPos({
             })}
           </div>
 
+          {/* Loyalty: balance + redeem (value applied as a cart discount). */}
+          {features.loyalty && loyalty && cart.length > 0 && (loyalty.points > 0 || redeemValue > 0) && (
+            <div className="space-y-1 rounded-md border bg-amber-500/5 p-2 text-sm">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{t('pharmacyPos.loyaltyPoints')}</span>
+                <span className="font-medium text-amber-600" dir="ltr">{Math.floor(loyalty.points)} · {money(loyalty.redeem_rate)}/{t('pharmacyPos.point')}</span>
+              </div>
+              {loyalty.redeem_rate > 0 && loyalty.points >= loyalty.min_redeem && (
+                <div className="flex items-center gap-2">
+                  <Input type="number" inputMode="numeric" value={redeemPts} onChange={(e) => setRedeemPts(e.target.value)}
+                    placeholder={t('pharmacyPos.redeem')} className="h-8 flex-1" dir="ltr" />
+                  <button type="button" onClick={() => setRedeemPts(String(Math.floor(loyalty.points)))} className="text-xs text-primary underline">{t('pharmacyPos.redeemMax')}</button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-1 text-sm">
             <Row label={t('pharmacyPos.subtotal')} value={money(totals.total_amount)} />
             {totals.tax_amount > 0 && <Row label={t('pharmacyPos.tax')} value={money(totals.tax_amount)} />}
+            {redeemValue > 0 && <Row label={t('pharmacyPos.loyaltyDiscount')} value={`- ${money(totals.net_amount - payableNet)}`} />}
             <div className="flex justify-between border-t pt-1 text-lg font-bold">
-              <span>{t('pharmacyPos.total')}</span><span dir="ltr" className="tabular-nums">{money(totals.net_amount)}</span>
+              <span>{t('pharmacyPos.total')}</span><span dir="ltr" className="tabular-nums">{money(payableNet)}</span>
             </div>
           </div>
 
@@ -549,18 +608,21 @@ export function PharmacyPos({
             <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className="h-9 w-28 rounded-md border border-input bg-background px-2 text-sm">
               {PAYMENT_METHOD_OPTIONS.map((m) => <option key={m.value} value={m.value}>{m[locale]}</option>)}
             </select>
-            {method === 'cash' && (
+            {(method === 'cash' || features.customerCredit) && (
               <Input type="number" inputMode="decimal" value={tendered} onChange={(e) => setTendered(e.target.value)}
-                placeholder={t('pharmacyPos.tendered')} className="h-9 flex-1" dir="ltr" />
+                placeholder={features.customerCredit ? t('pharmacyPos.amountPaid') : t('pharmacyPos.tendered')} className="h-9 flex-1" dir="ltr" />
             )}
           </div>
-          {method === 'cash' && Number(tendered) > 0 && (
+          {method === 'cash' && received > 0 && change > 0 && (
             <Row label={t('pharmacyPos.change')} value={money(change)} />
+          )}
+          {features.customerCredit && onAccount > 0 && (
+            <Row label={t('pharmacyPos.onAccount')} value={money(onAccount)} />
           )}
 
           <Button className="h-14 w-full text-lg font-bold" disabled={!canSell} onClick={checkout}>
             {(pending || busy) && <Loader2 className="h-5 w-5 animate-spin" />}
-            {features.offlinePos && !online ? <WifiOff className="h-5 w-5" /> : null} {t('pharmacyPos.checkout')} · {money(totals.net_amount)}
+            {features.offlinePos && !online ? <WifiOff className="h-5 w-5" /> : null} {t('pharmacyPos.checkout')} · {money(payableNet)}
           </Button>
           <p className="text-center text-[11px] text-muted-foreground">{t('pharmacyPos.shortcuts')}</p>
 
