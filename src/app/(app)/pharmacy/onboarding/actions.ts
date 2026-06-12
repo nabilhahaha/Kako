@@ -51,6 +51,7 @@ export interface OnboardItem {
   cost_price?: number;
   min_stock?: number;
   base_uom: string;
+  is_controlled?: boolean;
 }
 
 export async function onboardMedicines(items: OnboardItem[]): Promise<ActionResult & { count?: number }> {
@@ -77,6 +78,7 @@ export async function onboardMedicines(items: OnboardItem[]): Promise<ActionResu
     base_uom: d.base_uom || 'unit',
     is_active: true,
     is_medicine: true,
+    is_controlled: d.is_controlled === true,
     medicine_ref_id: d.ref_id,
     created_source: 'onboarding',
   }));

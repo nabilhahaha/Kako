@@ -12,7 +12,7 @@ import { computeTotals } from '@/lib/erp/sales-calc';
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, ErpCustomer, PaymentMethod } from '@/lib/erp/types';
-import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History, Camera, Replace, FileText } from 'lucide-react';
+import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History, Camera, Replace, FileText, ShieldAlert } from 'lucide-react';
 import { CameraScanner, type ScanResult } from '@/components/scanning/scanner';
 import {
   pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct, pharmacyAlternatives,
@@ -32,17 +32,18 @@ export interface PosFeatureFlags {
   substitutes: boolean;
   prescriptionCapture: boolean;
   prescriptionRequired: boolean;
+  controlledTracking: boolean;
 }
 
 interface CartLine {
   product_id: string; code: string; name: string; name_ar: string | null;
   unit_price: number; tax_rate: number; quantity: number; discount_pct: number;
-  on_hand: number; batch_count: number;
+  on_hand: number; batch_count: number; is_controlled?: boolean;
   batches?: PharmacyBatch[]; batch_id?: string | null;
 }
 
 interface Hold { id: string; at: number; label: string; customerId: string; lines: CartLine[] }
-interface RecentItem { product_id: string; code: string; name: string; name_ar: string | null; unit_price: number; tax_rate: number; on_hand: number; batch_count: number }
+interface RecentItem { product_id: string; code: string; name: string; name_ar: string | null; unit_price: number; tax_rate: number; on_hand: number; batch_count: number; is_controlled?: boolean }
 const HOLDS_KEY = 'vantora_pharmacy_pos_holds';
 const RECENT_KEY = 'vantora_pharmacy_pos_recent';
 
@@ -130,7 +131,7 @@ export function PharmacyPos({
       return [...prev, {
         product_id: p.product_id, code: p.code, name: p.name, name_ar: p.name_ar,
         unit_price: p.unit_price, tax_rate: p.tax_rate, quantity: 1, discount_pct: 0,
-        on_hand: p.on_hand, batch_count: p.batch_count,
+        on_hand: p.on_hand, batch_count: p.batch_count, is_controlled: p.is_controlled,
       }];
     });
     // Batch tracking: load batches; FEFO preselects the earliest-expiry one.
@@ -150,7 +151,7 @@ export function PharmacyPos({
     addItem({
       product_id: r.product_id, code: r.code, name: r.name, name_ar: r.name_ar,
       unit_price: Number(r.sell_price), tax_rate: Number(r.tax_rate),
-      on_hand: Number(r.on_hand), batch_count: r.batch_count,
+      on_hand: Number(r.on_hand), batch_count: r.batch_count, is_controlled: r.is_controlled,
     });
   }
 
@@ -211,16 +212,26 @@ export function PharmacyPos({
 
   const overStock = cart.some((l) => l.on_hand > 0 && l.quantity > l.on_hand);
   const change = Math.max(0, (Number(tendered) || 0) - totals.net_amount);
-  // When prescriptions are mandatory, require at least patient + (Rx no. or doctor).
-  const rxOk = !features.prescriptionRequired
-    || (rx.patient_name.trim().length > 0 && (rx.rx_number.trim().length > 0 || rx.doctor_name.trim().length > 0));
+  // A controlled drug in the cart forces the register: patient + Rx number are
+  // mandatory (stricter than an ordinary Rx-required tenant). Otherwise, when the
+  // tenant simply mandates prescriptions, require patient + (Rx no. or doctor).
+  const cartHasControlled = features.controlledTracking && cart.some((l) => l.is_controlled);
+  const rxOk = cartHasControlled
+    ? (rx.patient_name.trim().length > 0 && rx.rx_number.trim().length > 0)
+    : (!features.prescriptionRequired
+        || (rx.patient_name.trim().length > 0 && (rx.rx_number.trim().length > 0 || rx.doctor_name.trim().length > 0)));
   const canSell = Boolean(branchId && customerId && cart.length > 0 && !overStock && rxOk) && !pending && !busy;
+
+  // A controlled item forces the Rx panel open and pre-marks the controlled flag.
+  useEffect(() => {
+    if (cartHasControlled) { setRxOpen(true); setRx((s) => (s.is_controlled ? s : { ...s, is_controlled: true })); }
+  }, [cartHasControlled]);
 
   function persistHolds(next: Hold[]) { setHolds(next); localStorage.setItem(HOLDS_KEY, JSON.stringify(next)); }
   function recordRecent(lines: CartLine[]) {
     const items: RecentItem[] = lines.map((l) => ({
       product_id: l.product_id, code: l.code, name: l.name, name_ar: l.name_ar,
-      unit_price: l.unit_price, tax_rate: l.tax_rate, on_hand: l.on_hand, batch_count: l.batch_count,
+      unit_price: l.unit_price, tax_rate: l.tax_rate, on_hand: l.on_hand, batch_count: l.batch_count, is_controlled: l.is_controlled,
     }));
     const merged = [...items, ...recent.filter((r) => !items.some((i) => i.product_id === r.product_id))].slice(0, 12);
     setRecent(merged);
@@ -382,12 +393,13 @@ export function PharmacyPos({
           {/* Prescription → Dispense linkage (regulatory record, auto-linked to the
               invoice). Collapsed by default; expanded & required when the tenant
               mandates prescriptions. */}
-          {features.prescriptionCapture && (
-            <div className="rounded-md border">
+          {(features.prescriptionCapture || cartHasControlled) && (
+            <div className={`rounded-md border ${cartHasControlled ? 'border-destructive/50' : ''}`}>
               <button type="button" onClick={() => setRxOpen((o) => !o)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-start text-sm font-medium">
-                <FileText className="h-4 w-4 text-primary" />
-                <span>{t('pharmacyPos.rxTitle')}{features.prescriptionRequired ? ' *' : ''}</span>
+                <FileText className={`h-4 w-4 ${cartHasControlled ? 'text-destructive' : 'text-primary'}`} />
+                <span>{t('pharmacyPos.rxTitle')}{(features.prescriptionRequired || cartHasControlled) ? ' *' : ''}</span>
+                {cartHasControlled && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive">{t('pharmacyPos.controlled')}</span>}
                 {!rxOpen && (rx.patient_name || rx.rx_number) && (
                   <span className="ms-auto truncate text-xs text-muted-foreground">{rx.patient_name || rx.rx_number}</span>
                 )}
@@ -418,7 +430,10 @@ export function PharmacyPos({
               return (
                 <div key={l.product_id} className="space-y-1 border-b pb-2 last:border-0">
                   <div className="flex items-start justify-between gap-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate">{nm(l)}</span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {features.controlledTracking && l.is_controlled && <ShieldAlert className="me-1 inline h-3.5 w-3.5 text-destructive" />}
+                      {nm(l)}
+                    </span>
                     <button onClick={() => setQty(l.product_id, 0)} className="rounded p-0.5 text-destructive hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                   <div className="flex items-center gap-1">

@@ -75,6 +75,7 @@ export const ar = {
     rxNumber: 'رقم الروشتة',
     rxControlled: 'دواء مراقَب',
     rxRequired: 'أدخل اسم المريض ورقم الروشتة (أو الطبيب) للأدوية بالروشتة',
+    controlled: 'مراقَب',
   },
   scan: {
     title: 'مسح ضوئي',
@@ -170,6 +171,7 @@ export const en = {
     rxNumber: 'Rx number',
     rxControlled: 'Controlled drug',
     rxRequired: 'Enter patient name and Rx number (or doctor) for prescription items',
+    controlled: 'Controlled',
   },
   scan: {
     title: 'Scan',

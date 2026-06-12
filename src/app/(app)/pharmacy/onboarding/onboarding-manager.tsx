@@ -104,6 +104,10 @@ export function OnboardingManager() {
                     {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select></label>
               </div>
+              <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <input type="checkbox" checked={it.is_controlled ?? false} onChange={(e) => patch(i, { is_controlled: e.target.checked })} className="h-3.5 w-3.5" />
+                {t('pharmOnboard.controlled')}
+              </label>
             </div>
           ))}
         </CardContent></Card>

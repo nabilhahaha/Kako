@@ -178,6 +178,35 @@ for Amty (`prescription_capture`; `pos_prescription_required` off → optional R
 writes the record on sale ✅ · the register itself is gated by `pharmacy.dispense`.
 With `prescription_capture` OFF the panel vanishes and checkout writes no record.
 
+## 3g. Controlled Drug Register enforcement (M5)
+
+A tenant product can be flagged `is_controlled` (0285, on `erp_products_catalog`).
+When the tenant has Controlled Drug Tracking on, putting a controlled item in the
+cart **forces** the prescription register: patient + Rx number become mandatory,
+the Rx panel auto-opens and is marked controlled, and the sale is always written
+to the dispense register (`erp_pharmacy_dispenses`) — even if generic prescription
+capture is off. `erp_pharmacy_search` now returns `is_controlled` so the POS
+enforces it client- and server-side.
+
+| Capability | Flag | DB | Where | Status |
+|---|---|---|---|---|
+| Mark medicine controlled | `pharmacy.controlled_drug_tracking` | `erp_products_catalog.is_controlled` (0285) | Onboarding checkbox | ✅ |
+| Search exposes controlled | same | `erp_pharmacy_search` returns `is_controlled` | POS rows/cart | ✅ |
+| Forced Rx on controlled sale | same | — | `canSell` requires patient + Rx no.; line + panel show a red shield | ✅ |
+| Always-logged register | same | `erp_pharmacy_dispenses` (is_controlled=true; notes flag if Rx incomplete) | `pharmacyCheckout` (server-authoritative) | ✅ |
+| Controlled register view | `pharmacy.dispense` | filter on `is_controlled` | `/pharmacy/dispense` "Controlled only" | ✅ |
+
+Server is authoritative: even if the client is bypassed, `pharmacyCheckout`
+re-derives controlled lines from the catalog, writes the register, and records a
+`controlled_incomplete` audit flag when patient/Rx are missing (the sale is
+already committed; the gap is logged, not silently dropped). Enabled for Amty
+(controlled tracking on; 5 demo medicines — tramadol/pregabalin/codeine/etc. —
+marked controlled).
+
+**Role Coverage:** Owner ✅ · Pharmacist/Cashier — controlled sale blocked at the
+till until patient + Rx captured ✅ · register filterable by `pharmacy.dispense`.
+With the flag OFF, the controlled marker is ignored and no enforcement applies.
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

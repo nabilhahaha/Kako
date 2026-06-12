@@ -29,6 +29,7 @@ export interface PharmacySearchRow {
   active_ingredient: string | null;
   on_hand: number;
   batch_count: number;
+  is_controlled: boolean;
 }
 
 export async function pharmacySearch(query: string): Promise<PharmacySearchRow[]> {
@@ -62,8 +63,8 @@ export async function pharmacyAlternatives(productId: string): Promise<PharmacyA
   if (error || !productId) return [];
   const supabase = await createClient();
   const { data } = await supabase.rpc('erp_pharmacy_alternatives', { p_product: productId, p_limit: 12 });
-  return ((data ?? []) as Array<Omit<PharmacyAlternative, 'tax_rate' | 'batch_count'>>).
-    map((r) => ({ ...r, tax_rate: 0, batch_count: 0 }));
+  return ((data ?? []) as Array<Omit<PharmacyAlternative, 'tax_rate' | 'batch_count' | 'is_controlled'>>).
+    map((r) => ({ ...r, tax_rate: 0, batch_count: 0, is_controlled: false }));
 }
 
 /** Batches for a product, earliest-expiry first (index 0 = FEFO suggestion). */
@@ -231,25 +232,42 @@ export async function pharmacyCheckout(input: {
     }
   }
 
-  // Prescription → Dispense linkage. When the tenant captures prescriptions and
-  // either details were entered OR the tenant mandates them, write an audited
-  // dispense register record linked to this invoice (regulatory log; no stock
-  // movement — the sale already moved stock). Reuses erp_pharmacy_dispenses.
+  // Prescription → Dispense linkage + Controlled Drug Register enforcement.
+  // Fetch product names + controlled flags for the sold lines once.
+  const { data: prodMeta } = await supabase
+    .from('erp_products_catalog').select('id, name, name_ar, is_controlled')
+    .in('id', input.lines.map((l) => l.product_id));
+  const metaById = new Map((((prodMeta ?? []) as Array<{ id: string; name: string; name_ar: string | null; is_controlled: boolean }>))
+    .map((n) => [n.id, n]));
+  const nameById = new Map([...metaById].map(([id, m]) => [id, m.name_ar || m.name]));
+  const controlledTracking = flags['pharmacy.controlled_drug_tracking'] === true;
+  const hasControlled = controlledTracking && input.lines.some((l) => metaById.get(l.product_id)?.is_controlled === true);
+
   const rx = input.prescription ?? null;
   const rxHasData = !!rx && !!(rx.patient_name?.trim() || rx.doctor_name?.trim() || rx.rx_number?.trim() || rx.is_controlled);
-  if (flags['pharmacy.prescription_capture'] === true && (rxHasData || flags['pharmacy.pos_prescription_required'] === true)) {
-    const { data: names } = await supabase
-      .from('erp_products_catalog').select('id, name, name_ar')
-      .in('id', input.lines.map((l) => l.product_id));
-    const nameById = new Map((((names ?? []) as Array<{ id: string; name: string; name_ar: string | null }>)).map((n) => [n.id, n.name_ar || n.name]));
+
+  // Controlled enforcement: a controlled sale MUST carry patient + Rx number and
+  // is always written to the register, regardless of the capture flag. The sale is
+  // already committed, so we still record it but report the compliance gap.
+  let controlledIncomplete = false;
+  if (hasControlled && !(rx?.patient_name?.trim() && rx?.rx_number?.trim())) {
+    controlledIncomplete = true;
+  }
+
+  const writeRegister =
+    (flags['pharmacy.prescription_capture'] === true && (rxHasData || flags['pharmacy.pos_prescription_required'] === true))
+    || hasControlled;
+
+  if (writeRegister) {
     const { data: disp } = await supabase
       .from('erp_pharmacy_dispenses')
       .insert({
         company_id: ctx.companyId, branch_id: input.branch_id, status: 'done',
         patient_name: rx?.patient_name?.trim() || null, patient_phone: rx?.patient_phone?.trim() || null,
         doctor_name: rx?.doctor_name?.trim() || null, rx_number: rx?.rx_number?.trim() || null,
-        is_controlled: rx?.is_controlled === true,
+        is_controlled: hasControlled || rx?.is_controlled === true,
         invoice_no: sale.data.invoice_number, created_by: ctx.userId,
+        notes: controlledIncomplete ? 'controlled: missing prescription data' : null,
       })
       .select('id').maybeSingle();
     const dispId = (disp as { id: string } | null)?.id ?? null;
@@ -265,7 +283,11 @@ export async function pharmacyCheckout(input: {
       await supabase.from('erp_pharmacy_dispense_items').insert(itemRows);
       await logAudit(supabase, {
         action: 'create', entity: 'pharmacy_dispense', entityId: dispId,
-        details: { invoice_no: sale.data.invoice_number, rx_number: rx?.rx_number ?? null, is_controlled: rx?.is_controlled === true, items: itemRows.length },
+        details: {
+          invoice_no: sale.data.invoice_number, rx_number: rx?.rx_number ?? null,
+          is_controlled: hasControlled || rx?.is_controlled === true,
+          controlled_incomplete: controlledIncomplete, items: itemRows.length,
+        },
         companyId: ctx.companyId,
       });
     }

@@ -33,6 +33,7 @@ export const ar = {
     // ── Empty / no results ───────────────────────────────────────────────
     emptyDispenses: 'لا عمليات صرف بعد.',
     noResults: 'لا نتائج.',
+    controlledOnly: 'المراقَبة فقط',
 
     // ── Table headers (list) ─────────────────────────────────────────────
     colDate: 'التاريخ',
@@ -115,6 +116,7 @@ export const en = {
     // ── Empty / no results ───────────────────────────────────────────────
     emptyDispenses: 'No dispense records yet.',
     noResults: 'No results.',
+    controlledOnly: 'Controlled only',
 
     // ── Table headers (list) ─────────────────────────────────────────────
     colDate: 'Date',

@@ -24,13 +24,15 @@ export function DispenseList({ rows }: { rows: DispenseRow[] }) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const [q, setQ] = useState('');
+  const [controlledOnly, setControlledOnly] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return rows;
-    return rows.filter((r) => (r.patient_name || '').toLowerCase().includes(s) || (r.doctor_name || '').toLowerCase().includes(s) || (r.rx_number || '').toLowerCase().includes(s) || (r.invoice_no || '').toLowerCase().includes(s));
-  }, [rows, q]);
+    let out = controlledOnly ? rows.filter((r) => r.is_controlled) : rows;
+    if (s) out = out.filter((r) => (r.patient_name || '').toLowerCase().includes(s) || (r.doctor_name || '').toLowerCase().includes(s) || (r.rx_number || '').toLowerCase().includes(s) || (r.invoice_no || '').toLowerCase().includes(s));
+    return out;
+  }, [rows, q, controlledOnly]);
 
   function start() {
     startTransition(async () => {
@@ -44,6 +46,10 @@ export function DispenseList({ rows }: { rows: DispenseRow[] }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button disabled={pending} onClick={start}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t('pharmacy.btnNewDispense')}</Button>
+        <button type="button" onClick={() => setControlledOnly((v) => !v)}
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm ${controlledOnly ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}>
+          <ShieldAlert className="h-4 w-4" /> {t('pharmacy.controlledOnly')}
+        </button>
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('pharmacy.searchPlaceholder')} className="w-64 ps-9" />
