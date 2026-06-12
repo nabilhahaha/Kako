@@ -65,6 +65,10 @@ export const ar = {
     link: 'ربط الباركود',
     linked: 'تم ربط الباركود وإضافة الصنف',
     linkError: 'تعذّر ربط الباركود',
+    findAlternatives: 'بدائل',
+    alternativesFor: 'بدائل {name}',
+    noAlternatives: 'لا توجد بدائل بنفس المادة الفعّالة',
+    inStock: 'المتاح',
   },
   scan: {
     title: 'مسح ضوئي',
@@ -150,6 +154,10 @@ export const en = {
     link: 'Link barcode',
     linked: 'Barcode linked and item added',
     linkError: 'Could not link the barcode',
+    findAlternatives: 'Find Alternatives',
+    alternativesFor: 'Alternatives for {name}',
+    noAlternatives: 'No alternatives with the same active ingredient',
+    inStock: 'In stock',
   },
   scan: {
     title: 'Scan',

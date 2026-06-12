@@ -38,6 +38,7 @@ export default async function PharmacyPosPage() {
     returns: flags['pharmacy.pos_returns'] === true,
     receiptPrinting: flags['pharmacy.pos_receipt_printing'] === true,
     discountApproval: flags['pharmacy.pos_discount_approval'] === true,
+    substitutes: flags['pharmacy.substitute_suggestions'] === true,
   };
   const canLink = (ctx.permissions as string[]).includes('inventory.adjust')
     || (ctx.permissions as string[]).includes('pricing.manage');

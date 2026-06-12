@@ -48,6 +48,24 @@ export interface PharmacyBatch {
   qty_on_hand: number;
 }
 
+export interface PharmacyAlternative extends PharmacySearchRow {
+  manufacturer: string | null;
+  form: string | null;
+  strength: string | null;
+}
+
+/** Generic/substitute medicines (same active ingredient; same dosage form first,
+ *  in-stock, cheapest). Returns trade name + manufacturer + form + strength +
+ *  price + on-hand for the POS "Find Alternatives" dialog. */
+export async function pharmacyAlternatives(productId: string): Promise<PharmacyAlternative[]> {
+  const { error } = await requireAuth();
+  if (error || !productId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase.rpc('erp_pharmacy_alternatives', { p_product: productId, p_limit: 12 });
+  return ((data ?? []) as Array<Omit<PharmacyAlternative, 'tax_rate' | 'batch_count'>>).
+    map((r) => ({ ...r, tax_rate: 0, batch_count: 0 }));
+}
+
 /** Batches for a product, earliest-expiry first (index 0 = FEFO suggestion). */
 export async function pharmacyBatches(productId: string): Promise<PharmacyBatch[]> {
   const { error } = await requireAuth();

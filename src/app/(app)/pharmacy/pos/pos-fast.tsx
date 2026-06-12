@@ -12,11 +12,11 @@ import { computeTotals } from '@/lib/erp/sales-calc';
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/erp/constants';
 import { formatCurrency } from '@/lib/utils';
 import type { Branch, ErpCustomer, PaymentMethod } from '@/lib/erp/types';
-import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History, Camera } from 'lucide-react';
+import { Search, ScanLine, Plus, Minus, Trash2, Loader2, PauseCircle, PlayCircle, Undo2, History, Camera, Replace } from 'lucide-react';
 import { CameraScanner, type ScanResult } from '@/components/scanning/scanner';
 import {
-  pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct,
-  type PharmacySearchRow, type PharmacyBatch,
+  pharmacySearch, pharmacyBatches, pharmacyCheckout, linkBarcodeToProduct, pharmacyAlternatives,
+  type PharmacySearchRow, type PharmacyBatch, type PharmacyAlternative,
 } from './actions';
 import { QuickCustomerCreate } from '@/components/contacts/quick-customer';
 
@@ -29,6 +29,7 @@ export interface PosFeatureFlags {
   returns: boolean;
   receiptPrinting: boolean;
   discountApproval: boolean;
+  substitutes: boolean;
 }
 
 interface CartLine {
@@ -76,6 +77,9 @@ export function PharmacyPos({
   const [showHolds, setShowHolds] = useState(false);
   const [recent, setRecent] = useState<RecentItem[]>([]);
   const [scanOpen, setScanOpen] = useState(false);
+  const [altFor, setAltFor] = useState<PharmacySearchRow | null>(null);
+  const [altResults, setAltResults] = useState<PharmacyAlternative[]>([]);
+  const [altLoading, setAltLoading] = useState(false);
   const [notFound, setNotFound] = useState<string | null>(null);
   const [linkQuery, setLinkQuery] = useState('');
   const [linkResults, setLinkResults] = useState<PharmacySearchRow[]>([]);
@@ -260,6 +264,13 @@ export function PharmacyPos({
     router.refresh();
   }
 
+  // Same-active-ingredient substitutes (generics) for a product.
+  async function showAlternatives(r: PharmacySearchRow) {
+    setAltFor(r); setAltResults([]); setAltLoading(true);
+    const a = await pharmacyAlternatives(r.product_id);
+    setAltResults(a); setAltLoading(false);
+  }
+
   kb.current = { checkout, hold, toggleResume: () => setShowHolds((s) => !s), canSell };
 
   return (
@@ -305,17 +316,30 @@ export function PharmacyPos({
           {results.map((r) => {
             const out = r.on_hand <= 0;
             return (
-              <button key={r.product_id} onClick={() => addRow(r)}
-                className="min-h-[5rem] rounded-lg border p-4 text-start transition-colors active:scale-[0.98] hover:border-primary/60 hover:bg-secondary/40">
-                <p className="line-clamp-2 text-sm font-semibold">{nm(r)}</p>
-                {r.active_ingredient && <p className="line-clamp-1 text-[11px] text-muted-foreground">{r.active_ingredient}</p>}
-                <p className="mt-1 flex items-center justify-between">
-                  <span className="text-base font-bold tabular-nums text-primary" dir="ltr">{money(Number(r.sell_price))}</span>
-                  <span className={`text-[11px] tabular-nums ${out ? 'text-destructive' : 'text-muted-foreground'}`} dir="ltr">
-                    {out ? t('pharmacyPos.outOfStock') : `${r.on_hand}`}
-                  </span>
-                </p>
-              </button>
+              <div key={r.product_id} className="relative">
+                <button onClick={() => addRow(r)}
+                  className="min-h-[5rem] w-full rounded-lg border p-4 text-start transition-colors active:scale-[0.98] hover:border-primary/60 hover:bg-secondary/40">
+                  <p className="line-clamp-2 pe-6 text-sm font-semibold">{nm(r)}</p>
+                  {r.active_ingredient && <p className="line-clamp-1 text-[11px] text-muted-foreground">{r.active_ingredient}</p>}
+                  <p className="mt-1 flex items-center justify-between">
+                    <span className="text-base font-bold tabular-nums text-primary" dir="ltr">{money(Number(r.sell_price))}</span>
+                    <span className={`text-[11px] tabular-nums ${out ? 'text-destructive' : 'text-muted-foreground'}`} dir="ltr">
+                      {out ? t('pharmacyPos.outOfStock') : `${r.on_hand}`}
+                    </span>
+                  </p>
+                </button>
+                {features.substitutes && out ? (
+                  <button type="button" onClick={() => showAlternatives(r)}
+                    className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-1 rounded-md bg-primary/10 py-1 text-[11px] font-medium text-primary hover:bg-primary/20">
+                    <Replace className="h-3.5 w-3.5" /> {t('pharmacyPos.findAlternatives')}
+                  </button>
+                ) : features.substitutes ? (
+                  <button type="button" onClick={() => showAlternatives(r)} title={t('pharmacyPos.findAlternatives')}
+                    className="absolute end-1 top-1 rounded-md border bg-background p-1 text-muted-foreground hover:text-primary">
+                    <Replace className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
             );
           })}
           {query.trim().length > 0 && results.length === 0 && (
@@ -448,6 +472,42 @@ export function PharmacyPos({
       {/* Generic scanning framework — continuous camera scan adds items live. */}
       {features.scanCamera && (
         <CameraScanner open={scanOpen} onClose={() => setScanOpen(false)} onScan={handleScan} continuous />
+      )}
+
+      {/* Substitutes: same active ingredient, in-stock first. */}
+      {altFor !== null && (
+        <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/50 p-4" onClick={() => setAltFor(null)}>
+          <div className="w-full max-w-md rounded-xl bg-card p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold">{t('pharmacyPos.alternativesFor', { name: nm(altFor) })}</h3>
+            {altFor.active_ingredient && <p className="mt-0.5 text-xs text-muted-foreground">{altFor.active_ingredient}</p>}
+            <div className="mt-3 max-h-[60vh] space-y-1 overflow-y-auto">
+              {altLoading ? (
+                <p className="p-4 text-center text-sm text-muted-foreground"><Loader2 className="mx-auto h-4 w-4 animate-spin" /></p>
+              ) : altResults.length === 0 ? (
+                <p className="p-4 text-center text-sm text-muted-foreground">{t('pharmacyPos.noAlternatives')}</p>
+              ) : altResults.map((a) => {
+                const out = a.on_hand <= 0;
+                return (
+                  <button key={a.product_id} onClick={() => { addRow(a); setAltFor(null); }}
+                    className="flex w-full items-center justify-between gap-2 rounded-md border p-2.5 text-start text-sm hover:bg-secondary">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{nm(a)}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">
+                        {[a.manufacturer, a.form, a.strength].filter(Boolean).join(' · ') || a.active_ingredient}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 flex-col items-end">
+                      <span className="font-semibold tabular-nums text-primary" dir="ltr">{money(Number(a.sell_price))}</span>
+                      <span className={`text-[11px] tabular-nums ${out ? 'text-destructive' : 'text-muted-foreground'}`} dir="ltr">
+                        {out ? t('pharmacyPos.outOfStock') : `${t('pharmacyPos.inStock')}: ${a.on_hand}`}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Scan fallback: unknown barcode → search + link to an existing medicine. */}
