@@ -11,6 +11,9 @@ interface ReturnLineInput {
   product_id: string;
   quantity: number;
   unit_price: number;
+  /** Batch-aware returns (pharmacy): restore this line to a specific batch. */
+  batch_number?: string | null;
+  expiry_date?: string | null;
 }
 
 function round2(n: number) {
@@ -65,6 +68,8 @@ export async function createReturn(input: {
       quantity: l.quantity,
       unit_price: l.unit_price,
       line_total: round2(l.quantity * l.unit_price),
+      batch_number: l.batch_number?.trim() || null,
+      expiry_date: l.expiry_date || null,
     })),
   );
   if (linesErr) {

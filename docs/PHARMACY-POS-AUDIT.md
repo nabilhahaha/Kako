@@ -278,6 +278,30 @@ Source of truth: `src/lib/erp/feature-catalog.ts` (`templateFeatureKeys`). A new
 tenant starts from a template; disabled features have no nav item, no screen and
 no server path. `/settings/features` fine-tunes per tenant after.
 
+## 3k. Batch-aware returns (M8)
+
+A pharmacy return restocks the **specific batch** the goods came from, so batch
+quantities, FEFO and expiry stay correct — the generic return only moves
+`inventory_stock`. Return lines now carry `batch_number`/`expiry_date` (0289);
+after the proven generic pipeline runs (restock + Sales-Returns/AR journal +
+customer balance), `erp_pharmacy_return_restock_batches` restores each line's qty
+into its matching batch (reviving a sold-out batch if needed).
+
+| Capability | Flag | DB | Where | Status |
+|---|---|---|---|---|
+| Batch on return line | `pharmacy.batch_aware_returns` | `erp_sales_return_lines.batch_number/expiry_date` (0289) | `/pharmacy/returns` | ✅ |
+| Batch restock | same | `erp_pharmacy_return_restock_batches` | `createPharmacyReturn` (after `erp_complete_sales_return`) | ✅ |
+| POS routes to batch return | same | — | POS "Return" → `/pharmacy/returns` when on | ✅ |
+
+Reuse: `createPharmacyReturn` orchestrates the existing `createReturn` (extended
+with optional batch fields) → `completeReturn` → batch restock; the screen reuses
+`pharmacySearch` + `pharmacyBatches` (batch picker defaults to the in-stock
+batches, with a manual "other batch" path). Standard tier; enabled for Amty.
+
+**Role Coverage:** Owner / returns role (`sales.return`) ✅. With the flag OFF the
+POS falls back to the generic `/sales/returns` (no batch restock); the nav item
+and screen disappear.
+
 ## 4. Gaps tracked before "done"
 
 1. **Barcodes + batches on inventory** — needs the **Catalog Onboarding** +

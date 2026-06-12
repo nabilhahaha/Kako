@@ -43,6 +43,7 @@ export default async function PharmacyPosPage() {
     prescriptionRequired: flags['pharmacy.pos_prescription_required'] === true,
     controlledTracking: flags['pharmacy.controlled_drug_tracking'] === true,
     offlinePos: flags['pharmacy.offline_pos'] === true,
+    batchAwareReturns: flags['pharmacy.batch_aware_returns'] === true,
   };
   const canLink = (ctx.permissions as string[]).includes('inventory.adjust')
     || (ctx.permissions as string[]).includes('pricing.manage');

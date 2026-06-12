@@ -37,6 +37,7 @@ export interface PosFeatureFlags {
   prescriptionRequired: boolean;
   controlledTracking: boolean;
   offlinePos: boolean;
+  batchAwareReturns: boolean;
 }
 
 interface CartLine {
@@ -575,7 +576,7 @@ export function PharmacyPos({
               </>
             )}
             {features.returns && (
-              <Button variant="outline" size="sm" onClick={() => router.push('/sales/returns')}>
+              <Button variant="outline" size="sm" onClick={() => router.push(features.batchAwareReturns ? '/pharmacy/returns' : '/sales/returns')}>
                 <Undo2 className="h-4 w-4" /> {t('pharmacyPos.returns')}
               </Button>
             )}

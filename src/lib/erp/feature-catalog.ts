@@ -134,6 +134,10 @@ export const FEATURES: FeatureDef[] = [
   F('pharmacy.pos_returns', 'pos', ALL, {
     screens: ['/pharmacy/pos', '/sales/returns'], logic: ['returns'],
   }),
+  F('pharmacy.batch_aware_returns', 'pos', STD, {
+    nav: ['nav.items.pharmacyReturns'], screens: ['/pharmacy/returns'],
+    logic: ['erp_pharmacy_return_restock_batches'],
+  }),
   F('pharmacy.pos_discount_approval', 'pos', STD, {
     screens: ['/pharmacy/pos'], validation: ['discount_approval'],
   }),
