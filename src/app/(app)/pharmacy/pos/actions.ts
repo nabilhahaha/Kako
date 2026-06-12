@@ -162,19 +162,34 @@ export async function pharmacyCheckout(input: {
     });
   }
 
-  // Batch Tracking ON → decrement the chosen batches (best-effort; the sale is
-  // already committed). FEFO/manual selection is decided on the client.
+  // Batch Tracking ON → decrement stock at the batch level. With FEFO enabled,
+  // allocation is SERVER-authoritative: erp_pick_fefo_batches picks from the
+  // earliest-expiry batches (correct even across multiple batches); otherwise the
+  // cashier-chosen batch is used. Best-effort (the sale is already committed).
   if (flags['pharmacy.batch_tracking']) {
+    const fefo = flags['pharmacy.fefo_allocation'] === true;
     for (const l of input.lines) {
-      if (!l.batch_id) continue;
       const cfg = cfgByProduct.get(l.product_id);
       const baseQty = (multiUnit && l.uom && cfg) ? toBase(l.quantity, factorOf(cfg.units, l.uom)) : l.quantity;
-      const { data: b } = await supabase
-        .from('erp_product_batches').select('qty_on_hand').eq('id', l.batch_id).maybeSingle();
-      const cur = Number((b as { qty_on_hand: number } | null)?.qty_on_hand ?? 0);
-      await supabase.from('erp_product_batches')
-        .update({ qty_on_hand: Math.max(0, cur - baseQty), updated_at: new Date().toISOString() })
-        .eq('id', l.batch_id);
+      if (!(baseQty > 0)) continue;
+      if (fefo) {
+        const { data: picks } = await supabase.rpc('erp_pick_fefo_batches', {
+          p_product: l.product_id, p_warehouse: null, p_qty: baseQty,
+        });
+        for (const p of (picks ?? []) as Array<{ batch_id: string; take: number }>) {
+          const { data: b } = await supabase.from('erp_product_batches').select('qty_on_hand').eq('id', p.batch_id).maybeSingle();
+          const cur = Number((b as { qty_on_hand: number } | null)?.qty_on_hand ?? 0);
+          await supabase.from('erp_product_batches')
+            .update({ qty_on_hand: Math.max(0, cur - Number(p.take)), updated_at: new Date().toISOString() })
+            .eq('id', p.batch_id);
+        }
+      } else if (l.batch_id) {
+        const { data: b } = await supabase.from('erp_product_batches').select('qty_on_hand').eq('id', l.batch_id).maybeSingle();
+        const cur = Number((b as { qty_on_hand: number } | null)?.qty_on_hand ?? 0);
+        await supabase.from('erp_product_batches')
+          .update({ qty_on_hand: Math.max(0, cur - baseQty), updated_at: new Date().toISOString() })
+          .eq('id', l.batch_id);
+      }
     }
   }
 

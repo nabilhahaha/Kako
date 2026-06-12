@@ -74,7 +74,7 @@ export const FEATURES: FeatureDef[] = [
     screens: ['/pharmacy/receive', '/inventory/batches'], validation: ['expiry_required'],
     logic: ['batch.expiry_date'],
   }),
-  F('pharmacy.fefo_allocation', 'inventory', STD, {
+  F('pharmacy.fefo_allocation', 'inventory', ALL, {
     logic: ['erp_pick_fefo_batches'], screens: ['/pharmacy/pos'],
   }),
   F('pharmacy.near_expiry_alerts', 'inventory', ALL, {
