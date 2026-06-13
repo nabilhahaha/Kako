@@ -1,0 +1,24 @@
+# Supabase project configuration.
+#
+# Purpose in THIS repo: declare edge-function deploy settings so that
+# `supabase functions deploy` applies consistent options across every
+# environment. The database schema is managed separately (psql + migrations in
+# the migrate-staging / provision-staging workflows); this file governs the
+# EDGE FUNCTIONS, which those workflows do not touch.
+#
+# project_id is the default target for the Supabase CLI / `supabase link`. CI and
+# the one-time manual command override it with `--project-ref <ref>`, so a fresh
+# staging project can be targeted without editing this file.
+project_id = "rsjvgehvastmawzwnqcs"
+
+# admin-create-user / admin-set-user-active perform their OWN authorization
+# (they read the Authorization header, call auth.getUser(), check
+# is_super_admin / is_platform_owner / admin|manager, and handle the CORS
+# OPTIONS preflight + 401/403 responses themselves). They must therefore be
+# reachable without gateway JWT verification: verify_jwt = false. The service
+# role key stays inside the function and is never exposed to any in-app role.
+[functions.admin-create-user]
+verify_jwt = false
+
+[functions.admin-set-user-active]
+verify_jwt = false
