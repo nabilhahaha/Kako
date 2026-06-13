@@ -1,5 +1,20 @@
 /** Core shell, nav, auth & dashboard messages. See ./index.ts for assembly. */
 export const ar = {
+  approvalQueue: {
+    title: 'قائمة الموافقات',
+    desc: 'اعتماد أو رفض طلبات الفريق من مكان واحد.',
+    statPending: 'قيد الانتظار', statApproved: 'معتمد', statRejected: 'مرفوض',
+    empty: 'لا توجد عناصر مطابقة.',
+    typeAll: 'الكل',
+    type_day_close: 'إغلاق اليوم', type_visit: 'زيارة خارج الخط', type_customer_transfer: 'نقل عميل', type_van_transfer: 'تحويل مخزون سيارة', type_trade_spend: 'إنفاق تجاري',
+    status_pending: 'قيد الانتظار', status_approved: 'معتمد', status_rejected: 'مرفوض',
+    filter_pending: 'قيد الانتظار', filter_approved: 'معتمد', filter_rejected: 'مرفوض', filter_all: 'الكل',
+    approve: 'اعتماد', reject: 'رفض',
+    commentPlaceholder: 'تعليق (اختياري)…',
+    requestedOn: 'طُلب في', decidedOn: 'تقرر في',
+    approvedToast: 'تم الاعتماد.', rejectedToast: 'تم الرفض.', failed: 'تعذّر تنفيذ الإجراء.',
+    rejectUnsupported: 'الرفض غير متاح لهذا النوع — يمكن الاعتماد فقط.',
+  },
   common: {
     search: 'بحث',
     searchEllipsis: 'بحث…',
@@ -188,6 +203,7 @@ export const ar = {
       gradingSetup: 'إعداد تصنيف العملاء',
       vanStock: 'المخزون',
       approvals: 'الموافقات',
+      approvalQueue: 'قائمة الموافقات',
       alerts: 'التنبيهات',
       changeRequests: 'طلبات التعديل',
       vanSalesSettings: 'إعداد مبيعات الشاحنة',
@@ -320,6 +336,21 @@ export const ar = {
 };
 
 export const en = {
+  approvalQueue: {
+    title: 'Approval Queue',
+    desc: "Approve or reject your team's requests from one place.",
+    statPending: 'Pending', statApproved: 'Approved', statRejected: 'Rejected',
+    empty: 'No matching items.',
+    typeAll: 'All',
+    type_day_close: 'Day Close', type_visit: 'Out-of-Route Visit', type_customer_transfer: 'Customer Transfer', type_van_transfer: 'Van Transfer', type_trade_spend: 'Trade Spend',
+    status_pending: 'Pending', status_approved: 'Approved', status_rejected: 'Rejected',
+    filter_pending: 'Pending', filter_approved: 'Approved', filter_rejected: 'Rejected', filter_all: 'All',
+    approve: 'Approve', reject: 'Reject',
+    commentPlaceholder: 'Comment (optional)…',
+    requestedOn: 'Requested', decidedOn: 'Decided',
+    approvedToast: 'Approved.', rejectedToast: 'Rejected.', failed: 'Action failed.',
+    rejectUnsupported: 'Reject is not available for this type — approve only.',
+  },
   common: {
     search: 'Search',
     searchEllipsis: 'Search…',
@@ -508,6 +539,7 @@ export const en = {
       gradingSetup: 'Outlet Grading Setup',
       vanStock: 'Stock',
       approvals: 'Approvals',
+      approvalQueue: 'Approval Queue',
       alerts: 'Alerts',
       changeRequests: 'Change Requests',
       vanSalesSettings: 'Van Sales Settings',
