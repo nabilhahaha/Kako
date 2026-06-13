@@ -26,6 +26,9 @@ const GATES: Record<string, Permission[]> = {
   finalizeStockCount: ['inventory.count'],
   completeTransfer: ['inventory.transfer', 'stock.transfer.approve'],
   approveStockRequest: ['stock_request.approve'],
+  // U-4 — sensitive master-data field gates (price / credit limit).
+  editProductPrice: ['pricing.manage', 'product.create'],
+  setCustomerCreditLimit: ['customers.change_status'],
 };
 
 const can = (role: BranchRole, perms: Permission[]) => {
@@ -59,5 +62,16 @@ describe('MJ-1 posting-action permission gates', () => {
   it('separation of duties: a rep who can REQUEST a load cannot APPROVE it', () => {
     expect(permissionsForRole('salesman')).toContain('stock_request.create');
     expect(can('salesman', GATES.approveStockRequest)).toBe(false);
+  });
+
+  it('U-4: salesman/viewer cannot change product price or customer credit limit', () => {
+    for (const role of ['salesman', 'viewer', 'cashier'] as const) {
+      expect(can(role, GATES.editProductPrice)).toBe(false);
+      expect(can(role, GATES.setCustomerCreditLimit)).toBe(false);
+    }
+    // Credit/status authorities (and admins) still can.
+    expect(can('branch_manager', GATES.setCustomerCreditLimit)).toBe(true);
+    expect(can('accountant', GATES.setCustomerCreditLimit)).toBe(true);
+    expect(can('admin', GATES.editProductPrice)).toBe(true);
   });
 });

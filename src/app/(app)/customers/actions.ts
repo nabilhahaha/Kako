@@ -150,6 +150,19 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
 
   const supabase = await createClient();
 
+  // U-4: credit_limit is a sensitive field. Only a user with credit/status
+  // authority (customers.status.change) may set or change it; otherwise preserve
+  // the existing value (edit) or default to 0 (create). Real credit increases
+  // route through the credit-limit request/approval workflow.
+  if (!can(ctx, 'customers.status.change')) {
+    if (id) {
+      const { data: ex } = await supabase.from('erp_customers').select('credit_limit').eq('id', id).maybeSingle();
+      rawPayload.credit_limit = Number((ex as { credit_limit?: number } | null)?.credit_limit ?? 0);
+    } else {
+      rawPayload.credit_limit = 0;
+    }
+  }
+
   // FP-CS: changing customer_status (suspend / block / activate) requires the
   // customers.change_status permission. Normal edits that leave status unchanged
   // are unaffected. New customers default to 'active' (no permission needed).

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
 
 function num(v: FormDataEntryValue | null): number {
@@ -39,8 +40,8 @@ export async function addDrugsToProducts(
 }
 
 export async function upsertProduct(formData: FormData): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
   const { t } = await getT();
 
   const id = String(formData.get('id') || '').trim();
@@ -52,6 +53,25 @@ export async function upsertProduct(formData: FormData): Promise<ActionResult> {
   // Auto-generate a sequential code (P00001, P00002, …) when left blank.
   if (!code) code = await nextProductCode(supabase);
 
+  // U-4: price is a sensitive field. Only a user with pricing authority may set or
+  // change it; otherwise preserve the existing prices (edit) or default to 0
+  // (create). Non-price product fields remain editable by any product editor.
+  const canPrice = hasPermission(ctx, 'pricing.manage') || hasPermission(ctx, 'product.create');
+  let costPrice = num(formData.get('cost_price'));
+  let sellPrice = num(formData.get('sell_price'));
+  if (!canPrice) {
+    if (id) {
+      const { data: ex } = await supabase
+        .from('erp_products_catalog').select('cost_price, sell_price').eq('id', id).maybeSingle();
+      const e = ex as { cost_price?: number; sell_price?: number } | null;
+      costPrice = Number(e?.cost_price ?? 0);
+      sellPrice = Number(e?.sell_price ?? 0);
+    } else {
+      costPrice = 0;
+      sellPrice = 0;
+    }
+  }
+
   const categoryId = String(formData.get('category_id') || '').trim();
   const payload = {
     code,
@@ -60,8 +80,8 @@ export async function upsertProduct(formData: FormData): Promise<ActionResult> {
     barcode: String(formData.get('barcode') || '').trim() || null,
     category_id: categoryId || null,
     unit: String(formData.get('unit') || 'piece'),
-    cost_price: num(formData.get('cost_price')),
-    sell_price: num(formData.get('sell_price')),
+    cost_price: costPrice,
+    sell_price: sellPrice,
     min_stock: num(formData.get('min_stock')),
     tax_rate: num(formData.get('tax_rate')),
     eta_item_code: String(formData.get('eta_item_code') || '').trim() || null,
