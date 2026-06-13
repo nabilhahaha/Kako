@@ -1,5 +1,6 @@
 import type { Permission } from './permissions';
 import type { Module } from './navigation';
+import type { BranchRole } from './types';
 
 /**
  * The best landing page for a user, based on their business modules and role —
@@ -16,6 +17,10 @@ export function resolveHomePath(ctx: {
   companyId?: string | null;
   modules: Module[];
   permissions: Permission[];
+  /** The user's branch roles. When present (real UserContext callers), each FMCG
+   *  role lands on its own work screen instead of the generic dashboard. Absent
+   *  (view-as preview / legacy callers) → falls back to dashboard routing. */
+  memberships?: ReadonlyArray<{ role: BranchRole }>;
 }): string {
   // The vendor platform owner runs the platform, not a tenant store.
   if (ctx.isPlatformOwner) return '/platform';
@@ -48,6 +53,19 @@ export function resolveHomePath(ctx: {
   if (has('hotel')) return '/hotel/bookings';
   if (has('wholesale')) return '/wholesale';
 
-  // General / retail (sales + inventory) stays on the main dashboard.
+  // Role-aware landing (FMCG / distribution & general): open each role on the
+  // screen they use first thing every day, instead of a generic KPI dashboard.
+  // Precedence top→down; a multi-role user gets the most senior match. Admin /
+  // manager keep the dashboard (it IS their overview).
+  const roles = (ctx.memberships ?? []).map((m) => m.role);
+  const hasRole = (...rs: BranchRole[]) => rs.some((r) => roles.includes(r));
+  if (hasRole('admin', 'manager')) return '/dashboard';
+  if (hasRole('branch_manager')) return '/manager';
+  if (hasRole('supervisor', 'area_manager', 'regional_manager', 'national_sales_manager', 'sales_director')) return '/approvals/queue';
+  if (hasRole('accountant')) return '/collections';
+  if (hasRole('warehouse_keeper')) return '/inventory/requests';
+  if (hasRole('salesman', 'driver')) return '/today';
+
+  // General / retail with no recognised role stays on the main dashboard.
   return '/dashboard';
 }

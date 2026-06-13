@@ -4,6 +4,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
+import { ApprovalsTabs } from '../approvals/approvals-tabs';
 import { AttentionList, QuickNav, type QuickLink } from '@/components/home/home-widgets';
 import { nextBestActions, type AttentionItem } from '@/app/(app)/copilot/actions';
 import { rankAttention } from '@/lib/erp/attention';
@@ -35,6 +36,7 @@ export default async function ApprovalCenterPage() {
 
   return (
     <div className="space-y-6">
+      <ApprovalsTabs showWorkflow />
       <PageHeader title={t('home.approvalsTitle')} description={t('home.approvalsSubtitle')} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

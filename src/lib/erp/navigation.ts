@@ -217,14 +217,15 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.supervisorHome', href: '/supervisor', icon: Users, perm: ['visit.approve_out_of_route', 'day.approve_close_exception'] },
       { label: 'nav.items.managerHome', href: '/manager', icon: BarChart3, perm: 'reports.view' },
       { label: 'nav.items.attentionCenter', href: '/attention', icon: ListChecks },
-      { label: 'nav.items.approvalCenter', href: '/approval-center', icon: ShieldCheck, module: 'workflow' },
       { label: 'nav.items.reportsCenter', href: '/reports', icon: FileSpreadsheet, perm: 'reports.view' },
       { label: 'nav.items.territoryHome', href: '/territory', icon: Map, perm: 'reports.view' },
       { label: 'nav.items.coaching', href: '/coaching', icon: GraduationCap, perm: 'field.sales' },
       { label: 'nav.items.routeExec', href: '/field/route', icon: MapPin, perm: 'field.sales' },
       { label: 'nav.items.vanStock', href: '/field/stock', icon: Boxes, perm: ['inventory.view', 'field.sales'] },
-      { label: 'nav.items.approvals', href: '/approvals', icon: ClipboardCheck, module: 'workflow' },
-      { label: 'nav.items.approvalQueue', href: '/approvals/queue', icon: ClipboardCheck, perm: ['day.approve_close_exception', 'visit.approve_out_of_route', 'customer.transfer', 'stock.transfer.approve'] },
+      // U2: a single "Approvals" entry → the unified queue (which carries tabs to
+      // the Workflow inbox + Approval Center for tenants that use the workflow
+      // engine). Replaces the three look-alike menu items.
+      { label: 'nav.items.approvalQueue', href: '/approvals/queue', icon: ClipboardCheck, perm: ['day.approve_close_exception', 'visit.approve_out_of_route', 'customer.transfer', 'stock.transfer.approve', 'workflow.manage'] },
       { label: 'nav.items.alerts', href: '/alerts', icon: Bell, flag: 'alerts', module: 'critical_alerts' },
       { label: 'nav.items.changeRequests', href: '/change-requests', icon: GitBranch, flag: 'change_requests', module: 'change_requests' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },

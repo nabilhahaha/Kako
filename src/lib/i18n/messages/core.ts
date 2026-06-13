@@ -11,7 +11,8 @@ export const ar = {
     success: 'تم إرسال الطلب للاعتماد.', error: 'تعذّر إرسال الطلب.',
   },
   approvalQueue: {
-    title: 'قائمة الموافقات',
+    title: 'الموافقات',
+    tabField: 'الميدانية', tabWorkflow: 'سير العمل', tabCenter: 'مركز الموافقات',
     desc: 'اعتماد أو رفض طلبات الفريق من مكان واحد.',
     statPending: 'قيد الانتظار', statApproved: 'معتمد', statRejected: 'مرفوض',
     empty: 'لا توجد عناصر مطابقة.',
@@ -137,6 +138,7 @@ export const ar = {
     stepProduct: 'أضف أول منتج',
     stepCustomer: 'أضف أول عميل',
     stepInvoice: 'أنشئ أول فاتورة',
+    qaNewInvoice: 'فاتورة جديدة', qaCollect: 'تحصيل', qaNewCustomer: 'عميل جديد', qaReceivePO: 'استلام مشتريات', qaReports: 'التقارير',
   },
   nav: {
     sections: {
@@ -214,7 +216,7 @@ export const ar = {
       gradingSetup: 'إعداد تصنيف العملاء',
       vanStock: 'المخزون',
       approvals: 'الموافقات',
-      approvalQueue: 'قائمة الموافقات',
+      approvalQueue: 'الموافقات',
       customerTransfer: 'طلب نقل عميل',
       vanTransfer: 'طلب تحويل مخزون',
       alerts: 'التنبيهات',
@@ -360,7 +362,8 @@ export const en = {
     success: 'Request submitted for approval.', error: 'Could not submit the request.',
   },
   approvalQueue: {
-    title: 'Approval Queue',
+    title: 'Approvals',
+    tabField: 'Field', tabWorkflow: 'Workflow', tabCenter: 'Center',
     desc: "Approve or reject your team's requests from one place.",
     statPending: 'Pending', statApproved: 'Approved', statRejected: 'Rejected',
     empty: 'No matching items.',
@@ -486,6 +489,7 @@ export const en = {
     stepProduct: 'Add your first product',
     stepCustomer: 'Add your first customer',
     stepInvoice: 'Create your first invoice',
+    qaNewInvoice: 'New Invoice', qaCollect: 'Record Collection', qaNewCustomer: 'New Customer', qaReceivePO: 'Receive PO', qaReports: 'Reports',
   },
   nav: {
     sections: {
@@ -563,7 +567,7 @@ export const en = {
       gradingSetup: 'Outlet Grading Setup',
       vanStock: 'Stock',
       approvals: 'Approvals',
-      approvalQueue: 'Approval Queue',
+      approvalQueue: 'Approvals',
       customerTransfer: 'Customer Transfer',
       vanTransfer: 'Van Transfer',
       alerts: 'Alerts',

@@ -155,9 +155,14 @@ describe('navigation — capability binding (CRM / Workflow / Analytics)', () =>
     expect(hrefs(visibleSections(['customers.manage'], false, false, ['inventory']))).not.toContain('/customers');
   });
 
-  it('Approvals is gated by the workflow module', () => {
-    expect(hrefs(visibleSections([], false, false, ['workflow']))).toContain('/approvals');
-    expect(hrefs(visibleSections([], false, false, ['sales']))).not.toContain('/approvals');
+  it('Approvals (U2: single consolidated entry) is permission-gated, not module-gated', () => {
+    // The one "Approvals" item → /approvals/queue, shown to anyone holding an
+    // approval permission (incl. workflow.manage). Module-independent.
+    expect(hrefs(visibleSections(['workflow.manage'], false, false, ['sales']))).toContain('/approvals/queue');
+    expect(hrefs(visibleSections(['day.approve_close_exception'], false, false, ['sales']))).toContain('/approvals/queue');
+    expect(hrefs(visibleSections([], false, false, ['workflow']))).not.toContain('/approvals/queue');
+    // The old separate /approvals and /approval-center menu items are removed.
+    expect(hrefs(visibleSections(['workflow.manage'], false, false, ['workflow']))).not.toContain('/approval-center');
   });
 
   it('Settings → Workflows needs the workflow module AND workflow.manage', () => {
@@ -175,7 +180,7 @@ describe('navigation — capability binding (CRM / Workflow / Analytics)', () =>
     const v = visibleSections(['customers.manage', 'workflow.manage', 'reports.view'], false, false, ['crm', 'workflow', 'analytics', 'sales']);
     const h = hrefs(v);
     expect(h).toContain('/customers');
-    expect(h).toContain('/approvals');
+    expect(h).toContain('/approvals/queue');
     expect(h).toContain('/settings/workflows');
     expect(h).toContain('/sales/report');
   });
@@ -183,7 +188,7 @@ describe('navigation — capability binding (CRM / Workflow / Analytics)', () =>
   it('legacy/unrestricted (empty modules) still shows capability items', () => {
     const v = visibleSections(['customers.manage', 'workflow.manage'], false, false, []);
     expect(hrefs(v)).toContain('/customers');
-    expect(hrefs(v)).toContain('/approvals');
+    expect(hrefs(v)).toContain('/approvals/queue');
   });
 
   describe('flag-aware nav (Phase 2)', () => {

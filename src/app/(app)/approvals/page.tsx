@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { getT } from '@/lib/i18n/server';
 import { ApprovalsManager, type TaskRow } from './approvals-manager';
+import { ApprovalsTabs } from './approvals-tabs';
 import { DEFAULT_PAGE_SIZE, param, pageNumber, rangeFor, type SearchParams } from '@/lib/list-params';
 
 /** ── Workflow Inbox (generic approvals) ───────────────────────────────────
@@ -181,6 +182,7 @@ export default async function ApprovalsPage({
 
   return (
     <div>
+      <ApprovalsTabs showWorkflow />
       <PageHeader title={t('workflow.title')} description={t('workflow.subtitle')} />
       <Suspense fallback={null}>
         <ApprovalsManager

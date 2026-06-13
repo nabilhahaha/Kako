@@ -3,6 +3,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { ApprovalQueue, type ApprovalItem, type ApprovalType } from './approval-queue';
+import { ApprovalsTabs } from '../approvals-tabs';
 
 /**
  * Unified Approval Queue. Aggregates the field/commercial approval workflows that
@@ -122,5 +123,10 @@ export default async function ApprovalQueuePage() {
 
   items.sort((a, b) => (b.requestedAt ?? '').localeCompare(a.requestedAt ?? ''));
 
-  return <ApprovalQueue items={items} caps={caps} />;
+  return (
+    <div className="space-y-4">
+      <ApprovalsTabs showWorkflow={hasPermission(ctx, 'workflow.manage')} />
+      <ApprovalQueue items={items} caps={caps} />
+    </div>
+  );
 }
