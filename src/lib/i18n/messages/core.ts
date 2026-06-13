@@ -1,5 +1,15 @@
 /** Core shell, nav, auth & dashboard messages. See ./index.ts for assembly. */
 export const ar = {
+  transferReq: {
+    customerTitle: 'طلب نقل عميل', customerDesc: 'يُرسل للاعتماد في قائمة الموافقات.',
+    vanTitle: 'طلب تحويل مخزون سيارة', vanDesc: 'يُرسل للاعتماد من المشرف.',
+    selectCustomer: 'العميل', targetBranch: 'الفرع المستهدف', reason: 'السبب (اختياري)',
+    fromWarehouse: 'من مخزن', toWarehouse: 'إلى مخزن', product: 'المنتج', qty: 'الكمية',
+    addLine: 'إضافة صنف', removeLine: 'حذف', noLines: 'أضف صنفًا واحدًا على الأقل.',
+    sameWarehouse: 'اختر مخزنين مختلفين.', selectRequired: 'أكمل الحقول المطلوبة.',
+    submit: 'إرسال الطلب', submitting: 'جارٍ الإرسال…',
+    success: 'تم إرسال الطلب للاعتماد.', error: 'تعذّر إرسال الطلب.',
+  },
   approvalQueue: {
     title: 'قائمة الموافقات',
     desc: 'اعتماد أو رفض طلبات الفريق من مكان واحد.',
@@ -164,6 +174,7 @@ export const ar = {
     },
     bottom: {
       home: 'الرئيسية',
+      approvals: 'الموافقات',
       today: 'اليوم',
       customers: 'العملاء',
       sell: 'بيع',
@@ -204,6 +215,8 @@ export const ar = {
       vanStock: 'المخزون',
       approvals: 'الموافقات',
       approvalQueue: 'قائمة الموافقات',
+      customerTransfer: 'طلب نقل عميل',
+      vanTransfer: 'طلب تحويل مخزون',
       alerts: 'التنبيهات',
       changeRequests: 'طلبات التعديل',
       vanSalesSettings: 'إعداد مبيعات الشاحنة',
@@ -336,6 +349,16 @@ export const ar = {
 };
 
 export const en = {
+  transferReq: {
+    customerTitle: 'Customer Transfer Request', customerDesc: 'Sent to the Approval Queue for sign-off.',
+    vanTitle: 'Van Transfer Request', vanDesc: 'Sent to a supervisor for approval.',
+    selectCustomer: 'Customer', targetBranch: 'Target branch', reason: 'Reason (optional)',
+    fromWarehouse: 'From warehouse', toWarehouse: 'To warehouse', product: 'Product', qty: 'Qty',
+    addLine: 'Add item', removeLine: 'Remove', noLines: 'Add at least one item.',
+    sameWarehouse: 'Pick two different warehouses.', selectRequired: 'Complete the required fields.',
+    submit: 'Submit request', submitting: 'Submitting…',
+    success: 'Request submitted for approval.', error: 'Could not submit the request.',
+  },
   approvalQueue: {
     title: 'Approval Queue',
     desc: "Approve or reject your team's requests from one place.",
@@ -500,6 +523,7 @@ export const en = {
     },
     bottom: {
       home: 'Home',
+      approvals: 'Approvals',
       today: 'Today',
       customers: 'Customers',
       sell: 'Sell',
@@ -540,6 +564,8 @@ export const en = {
       vanStock: 'Stock',
       approvals: 'Approvals',
       approvalQueue: 'Approval Queue',
+      customerTransfer: 'Customer Transfer',
+      vanTransfer: 'Van Transfer',
       alerts: 'Alerts',
       changeRequests: 'Change Requests',
       vanSalesSettings: 'Van Sales Settings',

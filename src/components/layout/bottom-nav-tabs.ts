@@ -1,6 +1,6 @@
 import type { Permission } from '@/lib/erp/permissions';
 import { isModuleGateOpen, type Module } from '@/lib/erp/navigation';
-import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, type LucideIcon } from 'lucide-react';
+import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, type LucideIcon } from 'lucide-react';
 
 /** A candidate bottom-nav tab. `href` must resolve to a real route, `labelKey`
  *  is an i18n key, `perm` (when set) gates visibility, and `module` (when set)
@@ -29,6 +29,9 @@ export interface BottomNavTab {
  *  Only the first 4 the user can see are rendered, plus a "More" drawer trigger. */
 export const BOTTOM_NAV_TABS: BottomNavTab[] = [
   { href: '/dashboard', icon: Home, labelKey: 'nav.bottom.home' },
+  // Approver direct access (placed high so supervisors/managers get it in the top
+  // slots, not buried in "More"). Gated by an approval permission.
+  { href: '/approvals/queue', icon: ClipboardCheck, labelKey: 'nav.bottom.approvals', perm: 'day.approve_close_exception' },
   // Field loop: the salesman's "Today" home (only shown to field reps).
   { href: '/today', icon: MapPin, labelKey: 'nav.bottom.today', perm: 'field.sales' },
   // ── Customers (mutually-exclusive group 'customers') ──

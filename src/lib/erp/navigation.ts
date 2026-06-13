@@ -359,6 +359,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
       { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view', module: ['analytics', 'sales'] },
       { label: 'nav.items.customers', href: '/customers', icon: Users, perm: 'customers.manage', module: ['crm', 'sales'] },
+      { label: 'nav.items.customerTransfer', href: '/customers/transfer', icon: ArrowLeftRight, perm: 'customer.transfer' },
     ],
   },
   {
@@ -405,6 +406,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.expiryNear', href: '/inventory/expiry', icon: CalendarClock, perm: 'inventory.view' },
       { label: 'nav.items.warehouses', href: '/warehouses', icon: Warehouse, perm: 'inventory.view', module: 'warehousing' },
       { label: 'nav.items.vanReconciliation', href: '/field/van-reconciliation', icon: PackageCheck, perm: ['reconciliation.view', 'reconciliation.manage', 'reconciliation.approve'], module: ['field_ops', 'distribution'] },
+      { label: 'nav.items.vanTransfer', href: '/inventory/van-transfer', icon: Truck, perm: 'stock.transfer' },
     ],
   },
   {
