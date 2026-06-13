@@ -54,15 +54,14 @@ const PERMISSION_MODULES: Record<string, string[]> = {
   // Van Sales / merchandising (field ops)
   'field.sales': ['van_sales'],
   'field.attach_media': ['merchandising'],
-  // Change Requests engine
-  'change_requests.create': ['change_requests'],
-  'change_requests.approve': ['change_requests'],
-  'change_requests.manage': ['change_requests'],
   // Route Management
   'route.create': ['route_management'],
   'route.import': ['route_management'],
-  // Trade Spend
-  'trade_spend.manage': ['trade_spend'],
+  // Note: the change_requests.* and trade_spend.manage keys are intentionally
+  // NOT mapped here — they are not part of the code Permission union and are
+  // granted to no role, so they were inert map entries. Those engines gate via
+  // their module entitlement + KAKO_* kill-switch; they will get first-class,
+  // typed permissions when the engines ship (Governance Roadmap, Phase C).
   // Note: core-module permissions (sales.*, inventory.*, purchasing.*,
   // accounting.*, customers.*) are intentionally NOT mapped — core modules are
   // always available; only optional engines are entitlement-gated. Unmapped

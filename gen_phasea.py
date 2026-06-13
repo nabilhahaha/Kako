@@ -75,15 +75,16 @@ h1("Status Summary")
 para("Legend: ☐ Not Started (Ready) · ◐ In Progress · ☑ Done · ⚠ Blocked. As of this revision, no Phase A "
      "item has been started — execution awaits the founder's go-ahead.")
 tbl(["#","Phase A item","Type","Zero-impact?","Reversible?","Migration?","Status"],[
- ["A1","Remove dead permission keys","Code","Yes","Yes","No","☐ Ready"],
- ["A2","Add permission aliases (additive)","Code","Yes","Yes","No","☐ Ready"],
- ["A3","Bind nav + page to same capability flag (Trade Spend 404 fix)","Bug fix","Yes (strictly better)","Yes","No","☐ Ready"],
- ["A4","Document 5 archetypes; curate onboarding picker","Docs/UX copy","Yes","Yes","No","☐ Ready"],
- ["A5","Split feature-flag kinds in registry/docs","Docs","Yes","Yes","No","☐ Ready"],
+ ["A1","Remove dead permission keys","Code","Yes","Yes","No","☑ DONE"],
+ ["A2","Permission aliasing — RECLASSIFIED to Phase C","—","No (changes access)","—","Yes","⟶ Phase C"],
+ ["A3","Bind nav + page to same flag (Trade Spend / Coverage 404 fix)","Bug fix","Yes (strictly better)","Yes","No","☑ DONE"],
+ ["A4","Document 5 archetypes (Handbook Appendix A)","Docs","Yes","Yes","No","☑ DONE"],
+ ["A5","Catalog feature-flag kinds (Handbook Appendix A)","Docs","Yes","Yes","No","☑ DONE"],
 ],widths=[0.4,2.7,0.9,1.1,0.9,0.7,0.9],
- fill={(i,6):GREYBG for i in range(5)})
-para("Overall completion: 0 / 5.  Recommended execution order: A4, A5 (doc-only, do anytime) → A3 (closes a real bug, "
-     "freeze-allowed) → A1, A2 (permission hygiene, additive). None require a tenant migration or a maintenance window.",
+ fill={(0,6):GREENBG,(1,6):AMBERBG,(2,6):GREENBG,(3,6):GREENBG,(4,6):GREENBG})
+para("Overall completion: 4 / 4 executable items DONE (A1, A3, A4, A5).  A2 was reclassified to Phase C after the "
+     "business-impact review proved permission aliasing is NOT zero-impact (distinct enforced permissions). Tests 1314 "
+     "passing, build green, zero tenant impact. See the Phase A Completion Report for before/after validation.",
      bold=True)
 
 # ===== DETAIL PAGES =====

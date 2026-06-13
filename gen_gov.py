@@ -437,10 +437,64 @@ para("Net effect: the cognitive surface (types × roles × permission families a
      "business types to archetypes, (3) introduce role-scope to retire the management tiers, (4) split the feature-flag "
      "kinds. Each step is independent and non-breaking.", bold=True, color=NAVY)
 
+# ============ APPENDIX A — PHASE A (RATIFIED) ============
+part("Appendix A — Phase A Governance Hygiene (Ratified)")
+para("Phase A of the Implementation Roadmap is the zero-impact 'governance hygiene' batch. After a per-item business-impact "
+     "review, four items were executed (A1, A3, A4, A5) and one (A2, permission consolidation) was RECLASSIFIED to Phase C. "
+     "This appendix records the ratified outcomes; tests (1314 passing) and production build (green) confirmed no behavioural "
+     "change to any existing tenant.", bold=True)
+tbl(["Item","Action","Status","Type"],[
+ ["A1","Retire inert engine permission keys (change_requests.*, trade_spend.manage) from the entitlement map","Done","Code"],
+ ["A2","Alias 'duplicate' permission families","Reclassified → Phase C (NOT done)","—"],
+ ["A3","Bind nav visibility to the same flag the page enforces (no show-then-404)","Done","Code"],
+ ["A4","Ratify the 5-archetype model + business-type map (this appendix)","Done","Docs"],
+ ["A5","Catalog the two feature-flag kinds (this appendix)","Done","Docs"],
+],widths=[0.5,3.4,1.7,0.7],
+ fill={(0,2):GREENBG,(1,2):AMBERBG,(2,2):GREENBG,(3,2):GREENBG,(4,2):GREENBG})
+para("Why A2 was held: the codebase proves the 'duplicate' families are intentionally distinct, separately-enforced "
+     "permissions — stock.* gates van operations while inventory.* gates the warehouse; customer.* is field onboarding while "
+     "customers.* is management; report.aggregate.view is a deliberate scale-safe boundary (fmcg/actions.ts). Aliasing them "
+     "would silently widen access, so consolidation is a Phase C structural change with a migration plan, not Phase A hygiene.",
+     italic=True, color=AMBER)
+
+h1("A4 — The 5 Archetypes (ratified) & business-type map")
+para("VANTORA's 21 business types map onto 5 architecture archetypes. This is the OFFICIAL archetype model. Note: existing "
+     "tenants keep their exact business_type value; this is documentation. Any actual type→archetype migration is Phase C.")
+tbl(["Archetype","Business types (current)","Defining module set"],[
+ ["1 · Distribution","fmcg, delivery, wholesale, general","distribution + field_ops + sales_orders (+ FMCG engines for fmcg)"],
+ ["2 · Stock-Retail (POS)","supermarket, pharmacy, auto_parts, bakery, bookstore, herbalist, butchery, workshop, electronics","inventory + pos + sales + purchasing + returns (+ vertical: pharmacy/market)"],
+ ["3 · Service-Vertical","clinic, salon, hotel, laundry, restaurant, cafe","vertical module + crm/accounting/analytics (little/no inventory)"],
+ ["4 · Self-contained-Vertical","clothing (fashion)","single 'fashion' sub-system"],
+ ["5 · Generic / Light","services, general","core ERP only; no specialization"],
+],widths=[1.5,3.1,2.6])
+para("9 of the 21 types share an identical 11-module set (auto_parts/bakery/bookstore/herbalist/butchery/workshop …) — which "
+     "is why the count collapses to 5 archetypes in the future model (Part 8/10). Phase A only ratifies the map.", italic=True)
+
+h1("A5 — Feature-flag catalog: two kinds")
+para("VANTORA has TWO distinct flag systems. Conflating them caused the show-then-404 class of bug (fixed by A3). The "
+     "governance rule: tenant-visible gating uses CAPABILITY flags; unfinished/large engines use KILL-SWITCHES; nav + page "
+     "must bind to the SAME signal.")
+tbl(["Kind","What it is","Source of truth","Governs","Example"],[
+ ["Capability flag","Per-tenant feature toggle (Lite/Standard/Enterprise templates)","erp_feature_flags + feature-catalog.ts","What a TENANT sees/can enable","pharmacy.inventory_valuation, pharmacy.multi_branch"],
+ ["Kill-switch","Platform-wide env gate for an unfinished/heavy engine","process.env KAKO_*","Whether an ENGINE is live at all","KAKO_TRADE_SPEND, KAKO_DISTRIBUTION"],
+],widths=[1.1,2.1,1.7,1.4,1.5],
+ fill={(0,0):BLUEBG,(1,0):AMBERBG})
+h2("Platform kill-switches (env KAKO_*) — ~38 tokens")
+para("ALERTS · ATTRIBUTION · CHANGE_REQUESTS · COMMERCIAL · CUSTOMER_TIMELINE · DISTRIBUTION · EINVOICE · ENTITLEMENTS · "
+     "EVENTS · FINANCE · INTEGRATION_HUB · INVENTORY_COSTING · MOBILE · PERFECT_STORE · PROMOTIONS · PURCHASING · RETURNS · "
+     "ROUTE_INTEL · ROUTE_OPTIMIZATION · ROUTE_RIDING · SEARCH · SEARCH_LIVE · SEARCH_UX · SUGGESTED_LOAD · TAX (+ regional "
+     "TAX_AE/BH/EG/KW/OM/SA) · TRADE_SPEND · VAN_ACCOUNTING · VAN_SALES · WF_CLAIM · WF_DISPATCH_SWEEP · WF_IDEMPOTENT.",
+     size=9)
+para("A3 binding now in force: the nav helper (enabledNavFlags) emits a token only when the engine's kill-switch is ON, and "
+     "the nav item carries the matching flag — so trade-spend (KAKO_TRADE_SPEND) and coverage (KAKO_DISTRIBUTION) appear in "
+     "navigation only when their page will actually render.", italic=True)
+
 para("")
 para("This handbook is the official VANTORA governance reference. The model is sound; the path to clarity is consolidation "
      "(Parts 7–8), not rebuilding. Adopting the archetype + template-role + deduplicated-permission model would cut the "
-     "cognitive surface roughly in half while preserving every current capability.", bold=True, color=NAVY)
+     "cognitive surface roughly in half while preserving every current capability. Phase A hygiene (Appendix A) is complete; "
+     "structural simplification (Phase B–D) resumes after pilot validation, the first paying customer, and real usage data.",
+     bold=True, color=NAVY)
 
 out="docs/audits/VANTORA-Governance-Architecture-Handbook.docx"
 os.makedirs("docs/audits",exist_ok=True); d.save(out); print("saved",out)

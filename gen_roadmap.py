@@ -82,11 +82,11 @@ LEG={"IMM":GREENBG,"PP":BLUEBG,"APC":AMBERBG,"LT":REDBG}
 def C(x): return LEG[x]
 rows=[
  # rec, when, benefit, risk, effort, tenant impact, migration
- ["Drop dead permission keys (change_requests.*, trade_spend.manage)","IMM","Removes confusion; cleaner audit","Low","S","None (unenforced)","No"],
- ["Alias duplicate permissions (stock→inventory, customer→customers, report.aggregate→reports)","IMM","Removes biggest source of overlap","Low","M","None (seeders keep working)","No"],
- ["Tie nav + page gating to the SAME capability flag (fix show-then-404)","IMM","Fixes real UX bug (Trade Spend 404)","Low","S","Positive (no broken links)","No"],
- ["Stop seeding label-only business types as distinct; document the 5 archetypes","IMM","Clarifies onboarding","Low","S","None (existing tenants keep type)","No"],
- ["Separate the two feature-flag kinds (capability vs kill-switch) in docs/registry","IMM","Prevents future show-then-404","Low","M","None","No"],
+ ["[A1 ✔ DONE] Drop dead permission keys (change_requests.*, trade_spend.manage)","IMM","Removes confusion; cleaner audit","Low","S","None (unenforced)","No"],
+ ["[A2 ⟶ Phase C] Consolidate permission families — NOT aliasable: they are distinct enforced perms","APC","Real dedup, but needs migration","High","L","YES — changes effective access","YES"],
+ ["[A3 ✔ DONE] Tie nav + page gating to the SAME flag (fix show-then-404)","IMM","Fixes real UX bug (Trade Spend 404)","Low","S","Positive (no broken links)","No"],
+ ["[A4 ✔ DONE] Document the 5 archetypes (no type change)","IMM","Clarifies onboarding","Low","S","None (existing tenants keep type)","No"],
+ ["[A5 ✔ DONE] Catalog the two feature-flag kinds (capability vs kill-switch)","IMM","Prevents future show-then-404","Low","S","None","No"],
  ["Don't seed optional/vertical roles by default in new tenants","PP","Simpler new-tenant setup","Low","S","New tenants only","No"],
  ["Introduce role 'scope' dimension (branch/area/region/national) additively","PP","Foundation to retire mgmt tiers","Medium","L","None until adopted","No"],
  ["Collapse identical-module business types into 'Retail' archetype (new tenants)","PP","Fewer types to reason about","Medium","M","New tenants only","No"],
@@ -112,16 +112,19 @@ part("3. Quick Wins  —  ZERO impact on current functionality")
 para("These are the recommendations that can be implemented NOW with zero behavioural change for any existing tenant. They "
      "are additive, reversible, and invisible to users. This is the single most important section: it is the safe set.",
      bold=True, color=GREEN)
-tbl(["Quick win","Why it's zero-impact","Reversible?"],[
- ["Remove dead permission keys (change_requests.*, trade_spend.manage)","Not referenced by the code Permission type — nothing enforces them, so removal changes no behaviour","Yes"],
- ["Add permission ALIASES (stock.*→inventory.*, customer.*→customers.*, report.aggregate.view→reports.view)","Aliases resolve old+new to the same grant; seeders and existing roles keep working untouched","Yes"],
- ["Bind nav visibility and page access to the same capability flag","A screen either shows AND works, or is hidden — strictly better than today's show-then-404","Yes"],
- ["Document the 5 archetypes; stop creating NEW label-only types","Existing tenants keep their exact business_type; only the onboarding picker is curated","Yes"],
- ["Split feature-flag kinds in the registry/docs (capability vs kill-switch)","Pure classification + documentation; no runtime change","Yes"],
-],widths=[2.5,3.6,0.9],fill={(i,0):GREENBG for i in range(5)})
-para("Founder decision: these five can be approved as a single 'governance hygiene' batch. Each is independently shippable, "
-     "none requires data migration, and each can be reverted by removing an alias or a doc line. Recommended to do during "
-     "the pilot window because they reduce confusion without touching tenant-visible behaviour.", bold=True)
+para("UPDATE (post business-impact review): the original Quick-Win set listed permission ALIASING as zero-impact. The "
+     "codebase review proved it is NOT — the 'duplicate' families are distinct enforced permissions, so aliasing changes "
+     "access. It was removed from Quick Wins and reclassified to Phase C. The remaining FOUR were executed.", bold=True, color=AMBER)
+tbl(["Quick win","Why it's zero-impact","Status"],[
+ ["A1 · Remove dead permission keys (change_requests.*, trade_spend.manage)","Not in the code Permission type, granted to no role — removal changes no behaviour","✔ DONE"],
+ ["A3 · Bind nav visibility to the same flag the page enforces","A screen either shows AND works, or is hidden — strictly better than today's show-then-404","✔ DONE"],
+ ["A4 · Document the 5 archetypes (existing types unchanged)","Existing tenants keep their exact business_type; documentation only","✔ DONE"],
+ ["A5 · Catalog the two feature-flag kinds (capability vs kill-switch)","Pure classification + documentation; no runtime change","✔ DONE"],
+ ["A2 · Permission aliasing — REMOVED FROM QUICK WINS","NOT zero-impact: distinct enforced permissions; aliasing widens access","⟶ Phase C"],
+],widths=[2.5,3.2,0.9],fill={**{(i,2):GREENBG for i in range(4)},(4,2):AMBERBG,(4,0):AMBERBG})
+para("Founder decision (executed): A1, A3, A4, A5 shipped as the governance-hygiene batch — tests 1314 passing, build green, "
+     "zero behavioural change to existing tenants. A2 held for Phase C with a migration plan. No role, business type, "
+     "permission family, or tenant was changed.", bold=True)
 
 # ---------- 4. HIGH-RISK CHANGES ----------
 part("4. High-Risk Changes  —  gate behind real customer data")

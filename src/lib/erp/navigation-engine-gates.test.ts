@@ -25,7 +25,7 @@ const ENGINE_HREFS = [
   '/distribution/perfect-store', '/distribution/perfect-store-scores', '/distribution/msl-compliance',
   '/distribution/assortment', '/distribution/grading', '/alerts', '/change-requests', '/settings/van-sales',
 ];
-const ENGINE_FLAGS = ['alerts', 'change_requests', 'van_sales'];
+const ENGINE_FLAGS = ['alerts', 'change_requests', 'van_sales', 'trade_spend', 'distribution'];
 const PERMS = ['reports.view', 'customers.manage', 'settings.branches'] as Permission[];
 
 const hrefsOf = (sections: ReturnType<typeof visibleSections>) =>
