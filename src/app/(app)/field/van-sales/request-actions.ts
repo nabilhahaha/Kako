@@ -52,11 +52,16 @@ export async function submitStockRequest(input: SubmitStockRequestInput): Promis
   const branchId = (wh as { branch_id: string } | null)?.branch_id;
   if (!branchId) return { ok: false, error: 'warehouse not found' };
 
-  const requestNumber = `VLR-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
+  // BL-5: canonical, atomic, branch-scoped number (was Date.now()+random with no
+  // unique constraint — silent duplicates under concurrent/offline reps).
+  const { data: requestNumber, error: numErr } = await supabase.rpc('erp_next_number', {
+    p_branch_id: branchId, p_seq_type: 'stock_request',
+  });
+  if (numErr || !requestNumber) return { ok: false, error: numErr?.message ?? 'numbering failed' };
   const { data: req, error } = await supabase
     .from('erp_stock_requests')
     .insert({
-      request_number: requestNumber,
+      request_number: requestNumber as string,
       branch_id: branchId,
       from_warehouse_id: input.fromWarehouseId,
       to_warehouse_id: input.toWarehouseId,
@@ -226,7 +231,11 @@ export async function createDirectLoad(input: CreateDirectLoadInput): Promise<Cr
   const branchId = (wh as { branch_id: string } | null)?.branch_id;
   if (!branchId) return { ok: false, error: 'warehouse not found' };
 
-  const manifestNumber = `VDL-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
+  // BL-5: canonical atomic branch-scoped number (was Date.now()+random, no unique).
+  const { data: manifestNumber, error: manNumErr } = await supabase.rpc('erp_next_number', {
+    p_branch_id: branchId, p_seq_type: 'van_load',
+  });
+  if (manNumErr || !manifestNumber) return { ok: false, error: manNumErr?.message ?? 'numbering failed' };
   const { data: man, error } = await supabase
     .from('erp_van_load_manifests')
     .insert({
@@ -234,7 +243,7 @@ export async function createDirectLoad(input: CreateDirectLoadInput): Promise<Cr
       warehouse_id: input.warehouseId,
       source_warehouse_id: input.sourceWarehouseId,
       salesman_id: input.salesmanId,
-      manifest_number: manifestNumber,
+      manifest_number: manifestNumber as string,
       status: 'loaded',
       notes: input.notes ?? null,
       created_by: ctx.userId,

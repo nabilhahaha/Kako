@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
 
@@ -21,6 +22,9 @@ export async function adjustStock(input: {
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
 
   const { t } = await getT();
+  // MJ-1: direct stock adjustment — require an inventory/stock adjust permission.
+  if (!hasPermission(ctx, 'inventory.adjust') && !hasPermission(ctx, 'stock.adjust'))
+    return { ok: false, error: t('settings.unauthorized') };
   if (!input.warehouse_id) return { ok: false, error: t('inventory.errorWarehouseRequired') };
   if (!input.product_id) return { ok: false, error: t('inventory.errorProductRequired') };
   if (!input.delta || input.delta === 0)

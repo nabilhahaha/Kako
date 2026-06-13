@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { getT } from '@/lib/i18n/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
@@ -95,9 +96,12 @@ export async function receivePurchaseOrder(
   warehouseId: string,
   details?: Array<{ product_id: string; batch_number?: string; expiry_date?: string }>,
 ): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
+  const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
   const { t } = await getT();
+  // MJ-1: receiving a PO posts a goods receipt (stock + Inventory/AP journal) —
+  // require purchasing.manage.
+  if (!hasPermission(ctx!, 'purchasing.manage')) return { ok: false, error: t('settings.unauthorized') };
   if (!warehouseId) return { ok: false, error: t('purchases.errSelectWarehouse') };
 
   const supabase = await createClient();

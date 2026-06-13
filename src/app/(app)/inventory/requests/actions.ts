@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
 
 interface RequestInput {
@@ -61,8 +62,12 @@ export async function createStockRequest(input: RequestInput): Promise<ActionRes
 
 /** Warehouse keeper / manager approves: moves stock to the van (atomic RPC). */
 export async function approveStockRequest(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
+  const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  // MJ-1: approving moves stock to the van — require stock_request.approve
+  // (separated from stock_request.create that the requesting rep holds).
+  if (!hasPermission(ctx!, 'stock_request.approve')) return { ok: false, error: t('settings.unauthorized') };
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_approve_stock_request', { p_request_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };

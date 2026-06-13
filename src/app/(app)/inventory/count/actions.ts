@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
 
 /**
@@ -86,6 +87,12 @@ export async function finalizeStockCount(
   countId: string,
   lines: Array<{ id: string; counted_qty: number }>,
 ): Promise<ActionResult> {
+  // MJ-1: finalizing a count posts variance movements — require inventory.count.
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const { t } = await getT();
+  if (!hasPermission(ctx, 'inventory.count')) return { ok: false, error: t('settings.unauthorized') };
+
   const saved = await saveStockCount(countId, lines);
   if (!saved.ok) return saved;
 

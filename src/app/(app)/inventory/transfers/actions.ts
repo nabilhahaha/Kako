@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
 
@@ -74,6 +75,11 @@ export async function createTransfer(input: {
 export async function completeTransfer(id: string): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const { t } = await getT();
+  // MJ-1: completing a transfer moves stock between warehouses — require a
+  // transfer permission.
+  if (!hasPermission(ctx, 'inventory.transfer') && !hasPermission(ctx, 'stock.transfer.approve'))
+    return { ok: false, error: t('settings.unauthorized') };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_complete_transfer', { p_transfer_id: id });

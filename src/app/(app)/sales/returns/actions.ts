@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
 
@@ -88,6 +89,11 @@ export async function createReturn(input: {
 export async function completeReturn(id: string): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const { t } = await getT();
+  // MJ-1: completing a return restocks + posts a credit journal — require a
+  // returns/sales permission (admins/managers hold ALL).
+  if (!hasPermission(ctx, 'sales.return') && !hasPermission(ctx, 'sales.sell'))
+    return { ok: false, error: t('settings.unauthorized') };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_complete_sales_return', { p_return_id: id });

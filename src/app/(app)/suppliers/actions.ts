@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import type { PaymentMethod } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
 
@@ -68,8 +69,13 @@ export async function recordSupplierPayment(input: {
   reference_number?: string;
   payment_date?: string;
 }): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
+  const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  // MJ-1: supplier payment posts AP/Cash journal — require accounting.post or
+  // suppliers.manage (accountant/procurement/admin hold these).
+  if (!hasPermission(ctx!, 'accounting.post') && !hasPermission(ctx!, 'suppliers.manage'))
+    return { ok: false, error: t('settings.unauthorized') };
 
   // Atomic via RPC: payment row + supplier balance + AP/Cash journal.
   const supabase = await createClient();

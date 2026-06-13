@@ -110,15 +110,53 @@ export async function importEgyptianDrugs(): Promise<{ ok: boolean; error?: stri
     });
 
   const supabase = await createClient();
-  const { error: delErr } = await supabase.from('erp_clinic_reference').delete().eq('kind', 'drug');
-  if (delErr) return { ok: false, error: delErr.message };
 
-  const batchSize = 4000;
+  // BL-1 fix: UPSERT in place instead of DELETE-then-INSERT. Deleting the drug
+  // rows violated the erp_products_catalog.medicine_ref_id foreign key whenever a
+  // pharmacy product was linked to a drug (and re-inserting would orphan the link
+  // anyway, since new rows get new ids). We now refresh keyed on the PRIMARY KEY:
+  // existing drugs keep their id (product links survive), new drugs are inserted,
+  // and drugs no longer in the feed are left untouched (global reference data is
+  // never deleted). Fully additive — no FK can be violated.
+  const { data: existing } = await supabase
+    .from('erp_clinic_reference')
+    .select('id, name')
+    .eq('kind', 'drug');
+  const idByName = new Map<string, string>();
+  for (const r of (existing ?? []) as Array<{ id: string; name: string }>) {
+    const key = r.name.trim().toLowerCase();
+    if (key && !idByName.has(key)) idByName.set(key, r.id);
+  }
+
+  // De-duplicate the feed by normalized name (keep first); split into in-place
+  // updates (existing id attached) and fresh inserts so each batch has a uniform
+  // column set (PostgREST requirement).
+  type DrugRow = (typeof records)[number] & { id?: string };
+  const seen = new Set<string>();
+  const toUpdate: DrugRow[] = [];
+  const toInsert: DrugRow[] = [];
+  for (const rec of records) {
+    const key = rec.name.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const id = idByName.get(key);
+    if (id) toUpdate.push({ id, ...rec });
+    else toInsert.push(rec);
+  }
+
+  const batchSize = 2000;
   let count = 0;
-  for (let i = 0; i < records.length; i += batchSize) {
-    const { error } = await supabase.from('erp_clinic_reference').insert(records.slice(i, i + batchSize));
+  for (let i = 0; i < toUpdate.length; i += batchSize) {
+    const { error } = await supabase
+      .from('erp_clinic_reference')
+      .upsert(toUpdate.slice(i, i + batchSize), { onConflict: 'id' });
     if (error) return { ok: false, error: error.message, count };
-    count += Math.min(batchSize, records.length - i);
+    count += Math.min(batchSize, toUpdate.length - i);
+  }
+  for (let i = 0; i < toInsert.length; i += batchSize) {
+    const { error } = await supabase.from('erp_clinic_reference').insert(toInsert.slice(i, i + batchSize));
+    if (error) return { ok: false, error: error.message, count };
+    count += Math.min(batchSize, toInsert.length - i);
   }
   return { ok: true, count };
 }

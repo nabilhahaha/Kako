@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n/provider';
@@ -42,6 +42,9 @@ export function CollectionsManager({
   const [method, setMethod] = useState('cash');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
+  // BL-6: one stable idempotency key per submit attempt. Reused across a rapid
+  // double-click (so the RPC dedupes instead of posting twice); cleared on success.
+  const idemKey = useRef<string | null>(null);
 
   const invoicesByCustomer = useMemo(() => {
     const m = new Map<string, OpenInvoice[]>();
@@ -71,11 +74,12 @@ export function CollectionsManager({
       record: `${nm(sel)} · ${formatCurrency(amt)}`,
       execute: async () => {
         setLoading(true);
-        const res = await recordCollection({ customerId: sel.id, branchId: sel.branch_id, amount: amt, method, date });
+        if (!idemKey.current) idemKey.current = crypto.randomUUID();
+        const res = await recordCollection({ customerId: sel.id, branchId: sel.branch_id, amount: amt, method, date, idempotencyKey: idemKey.current });
         setLoading(false);
         return { ok: res.ok, error: res.error };
       },
-      onDone: () => { setSelected(null); setAmount(''); router.refresh(); },
+      onDone: () => { idemKey.current = null; setSelected(null); setAmount(''); router.refresh(); },
     });
   }
 

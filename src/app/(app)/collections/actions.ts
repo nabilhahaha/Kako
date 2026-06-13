@@ -26,6 +26,10 @@ export async function recordCollection(input: {
   amount: number;
   method: string;
   date?: string | null;
+  /** BL-6: client-generated UUID, stable per submit attempt, so a double-click /
+   *  retry is a no-op in erp_settle_collection instead of a duplicate receipt +
+   *  double balance reduction. */
+  idempotencyKey?: string | null;
 }): Promise<ActionResult> {
   const ctx = await getUserContext();
   const { t } = await getT();
@@ -43,7 +47,7 @@ export async function recordCollection(input: {
     p_method: input.method || 'cash',
     p_reference: null,
     p_specified: null,
-    p_idempotency_key: null,
+    p_idempotency_key: input.idempotencyKey ?? null,
     p_collection_date: input.date || null,
   });
   if (error) return { ok: false, error: error.message };
