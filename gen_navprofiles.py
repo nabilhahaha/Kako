@@ -56,13 +56,18 @@ d.add_page_break()
 # ---- Exec summary ----
 h1("Executive summary")
 para("VANTORA's sidebar previously showed every role the full ERP tree, gated only by permissions. The Salesman — the "
-     "highest-volume daily user — saw 20+ items across Dashboard, Catalog, Warehouses, Alerts and Coaching, with the five "
-     "things he actually does each day scattered among them. This change adds a thin RELEVANCE layer on top of the existing "
-     "permission gating: each role gets a short, curated PRIMARY menu of its daily tools, and everything else folds into a "
-     "single \"More\" group.", bold=True)
-para("Nothing about access changed. The profile can only surface items the user could already reach — it reorders the "
-     "already-permission-filtered navigation, it never adds an entry the permission layer withheld. No backend, no RPC, no "
-     "RLS, no migration. Pure navigation/UX. Admin, Manager, Super-Admin and Platform-Owner keep the full, un-profiled tree.")
+     "highest-volume daily user — has broad read permissions in the pilot (reports.view, inventory.view, field + sales), so "
+     "his sidebar rendered ~51 items: Dashboard, every distribution analytics dashboard, the product catalog, warehouses, "
+     "low-stock alerts, pricing — with the five things he actually does each day buried among them. This change adds a thin "
+     "RELEVANCE layer on top of the existing permission gating with three moves: (1) a short, curated PRIMARY menu of daily "
+     "tools; (2) wrong-role / back-office screens HIDDEN from the menu entirely; (3) the rest kept in a \"More\" group, "
+     "sub-headed by section so it reads as organised, not a flat dump.", bold=True)
+para("Measured on the live pilot salesman: 51 visible items → 5 Primary + 16 grouped More = 21, with 30 back-office / "
+     "analytics screens hidden from the menu.", bold=True, color=GREEN)
+para("Nothing about ACCESS changed. \"Hidden\" means the nav link isn't drawn — the permission and the URL still work; this "
+     "is a relevance filter, not a security control. The profile can only act on items the user could already reach. No "
+     "backend, no RPC, no RLS, no migration. Pure navigation/UX. Admin, Manager, Super-Admin and Platform-Owner keep the "
+     "full, un-profiled tree.")
 
 h2("What shipped")
 tbl(["Role","Primary menu (in order)","Everything else"],
@@ -89,9 +94,21 @@ b("Coaching, Attention Center, Near Expiry (supervisor / occasional)")
 b("Duplicate entry points: Today + Today's Journey + Journey + Rep App; POS + Invoices + Sales Orders; Collections + Cashbox")
 
 h2("After")
-para("Five primary items — the entire daily loop — then one \"More\" group for the long tail. The duplicates collapse "
-     "naturally: the primary slot owns the canonical entry (Today→/today, Sell→/sales/pos, Collect→/collections), and the "
-     "variants (Journey, Rep App, Invoices, Orders, Cashbox) drop into More instead of competing at the top level.")
+para("Five primary items — the entire daily loop — then a curated, grouped \"More\" of ~16 field screens. The duplicates "
+     "collapse (Today owns the canonical /today; Journey, Rep App drop into More under \"Field\"; Invoices, Orders, Cashbox "
+     "drop under \"Sales\"). Crucially, the 30 wrong-role / back-office screens the broadly-permissioned rep used to see "
+     "(Dashboard, all distribution dashboards, Products, Warehouses, Low-Stock, Pricing, Reports Center, Manager/Supervisor "
+     "Home, Sales Summary…) are HIDDEN from the menu entirely — not merely demoted.")
+h2("Salesman — actual rendered menu (live pilot permissions)")
+tbl(["","Items"],
+[
+ ["Before (raw sidebar)","51"],
+ ["Primary","5  (Today · Sell · Collect · Customers · Van)"],
+ ["More (grouped: Field · Sales · Inventory)","16"],
+ ["Hidden from menu (UI-only)","30"],
+ ["After (total visible in menu)","21"],
+],widths=[3.4,3.0],
+fill={(1,1):GREENBG,(3,1):AMBERBG})
 tbl(["Primary","Label","Route","Replaces / absorbs"],
 [
  ["1","Today","/today","Today's Journey, Journey, Rep App"],
@@ -104,6 +121,10 @@ tbl(["Primary","Label","Route","Replaces / absorbs"],
 # ---- How it works ----
 part("2 · How it works (mechanics)")
 h2("A relevance layer, not a permission layer")
+para("Two curation mechanisms per profile: an ALLOWLIST (`more`) for narrow roles — only the listed field screens survive in "
+     "More, everything else is hidden (used for the Salesman/Driver, who hold broad read perms); or a DENYLIST (`hide`) for "
+     "broad roles that keep most of the tree but lose a few wrong-role entries (Supervisor, Warehouse Keeper, Accountant, "
+     "Branch Manager). More items are tagged with their source section so the sidebar renders sub-headers.")
 para("The whole feature is one pure function, applyNavProfile, applied AFTER visibleSections has already done permission, "
      "module and feature-flag gating. It cannot widen access:")
 code("sections = applyNavProfile(")
@@ -114,8 +135,9 @@ code(");")
 para("Guarantees that keep this safe:", bold=True)
 b("A profile item is promoted to Primary ONLY if its href is in the already-visible set. If the rep lacks the permission "
   "for /collections, the Collect slot silently drops — the profile can never reveal a hidden screen.")
-b("\"More\" is built from the remaining visible items in their original order, de-duplicated by href — so no screen the "
-  "user could previously reach disappears; it just moves down.")
+b("\"More\" is built from the remaining visible items in original order, de-duplicated by href, then filtered by the "
+  "profile's allowlist/denylist and tagged with their section. Hiding a link is UI-only — the permission and URL are "
+  "untouched, so a user who needs a hidden screen can still reach it directly; it just isn't menu clutter.")
 b("Elevated users (Super-Admin, Platform-Owner) and the admin / manager roles return the sections UNCHANGED — they keep "
   "the full ERP tree.")
 b("Role seniority mirrors home.ts: branch_manager → supervisor → accountant → warehouse_keeper → salesman → driver. "
@@ -128,7 +150,7 @@ tbl(["File","Change"],
  ["src/components/layout/sidebar.tsx","Added roles prop; wrap visibleSections() in applyNavProfile(). Renders for desktop sidebar + mobile \"More\" drawer (shared content)."],
  ["src/app/(app)/layout.tsx","Pass roles={ctx.memberships.map(m => m.role)} to <Sidebar>."],
  ["src/lib/i18n/messages/core.ts","Added nav.sections.primary / .more and the nav.profile.* label namespace (ar + en, full parity)."],
- ["src/lib/erp/nav-profiles.test.ts","NEW — 11 unit tests (profileRoleFor precedence, salesman/supervisor primary, visibility gating, More de-dup, elevated/admin pass-through)."],
+ ["src/lib/erp/nav-profiles.test.ts","NEW — 14 unit tests (profileRoleFor precedence, salesman/supervisor primary, allowlist hiding, denylist, section grouping, visibility gating, More de-dup, elevated/admin pass-through)."],
 ],widths=[2.6,4.0])
 
 # ---- Validation ----
@@ -137,11 +159,11 @@ para("All gates green. No permission, RPC, RLS or migration touched.", bold=True
 tbl(["Gate","Result"],
 [
  ["npx tsc --noEmit","Clean — no type errors"],
- ["nav-profiles.test.ts","11 passed"],
+ ["nav-profiles.test.ts","14 passed"],
  ["i18n.test.ts (ar/en parity)","Passed — new keys present in both locales"],
  ["keys-usage.test.ts","Passed — nav.profile.* + nav.sections.* keys resolve"],
  ["navigation.test.ts","Passed"],
- ["Full suite (vitest run)","1332 passed · 181 skipped"],
+ ["Full suite (vitest run)","1335 passed · 181 skipped"],
  ["npm run build","Compiled successfully"],
 ],widths=[3.0,3.4],
 fill={(i,1):GREENBG for i in range(7)})
@@ -153,8 +175,10 @@ b("Navigation/UX only — a render-time reorganisation of an already-filtered li
 b("Fully reversible — removing the applyNavProfile wrapper restores the prior full-tree sidebar with zero data impact.")
 
 h2("Reviewer quick-check")
-para("To confirm no access changed: the set of hrefs rendered for any role is identical before and after — only their "
-     "grouping/order differs. Primary ⊆ (visible ∩ profile); More = visible − Primary. Union(Primary, More) == visible.",
+para("Access is unchanged because the profile only ever REMOVES nav links, never adds them: Primary ⊆ (visible ∩ profile); "
+     "More ⊆ (visible − Primary); so (Primary ∪ More) ⊆ visible. A hidden item drops from the menu but keeps its permission "
+     "and its route — confirm by navigating to a hidden URL directly (it still loads) or by checking that ROLE_PERMISSIONS "
+     "and erp_role_permissions are untouched in the diff.",
      italic=True, color=GREY, size=9)
 
 out="docs/audits/VANTORA-Navigation-Profiles-Implementation.docx"

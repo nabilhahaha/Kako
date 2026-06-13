@@ -66,7 +66,7 @@ describe('profileRoleFor', () => {
 });
 
 describe('applyNavProfile', () => {
-  it('builds a 5-item Primary + More for a salesman', () => {
+  it('builds a 5-item Primary + curated More for a salesman', () => {
     const out = applyNavProfile(sampleSections(), ['salesman']);
     expect(out).toHaveLength(2);
     const [primary, more] = out;
@@ -79,15 +79,62 @@ describe('applyNavProfile', () => {
       '/field/stock',
     ]);
     expect(more.title).toBe('nav.sections.more');
-    // Everything else (journey, rep app, invoices, orders, cashbox, products,
-    // dashboard) is folded into More — and the primary hrefs are NOT repeated.
     const moreHrefs = more.items.map((i) => i.href);
+    // Primary hrefs are NOT repeated in More.
     for (const h of primary.items.map((i) => i.href)) {
       expect(moreHrefs).not.toContain(h);
     }
-    expect(moreHrefs).toContain('/dashboard');
+    // Field-relevant secondary screens stay in More…
     expect(moreHrefs).toContain('/sales/invoices');
+    expect(moreHrefs).toContain('/sales/orders');
     expect(moreHrefs).toContain('/cashbox');
+    // …but wrong-role / back-office screens are HIDDEN from the menu entirely
+    // (allowlist), not merely demoted — this is the core of the simplification.
+    expect(moreHrefs).not.toContain('/dashboard');
+    expect(moreHrefs).not.toContain('/products');
+  });
+
+  it('hides every non-allowlisted visible item for the salesman', () => {
+    const sections: NavSection[] = [
+      {
+        title: 'nav.sections.distribution',
+        items: [
+          { label: 'a', href: '/distribution/sales-summary', icon: Circle },
+          { label: 'b', href: '/distribution/routes', icon: Circle },
+          { label: 'c', href: '/warehouses', icon: Circle },
+          { label: 'd', href: '/inventory/low-stock', icon: Circle },
+          { label: 'e', href: '/sales/invoices', icon: Circle }, // allowlisted
+        ],
+      },
+    ];
+    const out = applyNavProfile(sections, ['salesman']);
+    const more = out.find((s) => s.title === 'nav.sections.more');
+    expect(more?.items.map((i) => i.href)).toEqual(['/sales/invoices']);
+  });
+
+  it('tags More items with their source section for sub-headers', () => {
+    const out = applyNavProfile(sampleSections(), ['salesman']);
+    const more = out.find((s) => s.title === 'nav.sections.more')!;
+    const invoices = more.items.find((i) => i.href === '/sales/invoices');
+    expect(invoices?.group).toBe('nav.sections.sales');
+  });
+
+  it('applies a hide denylist (no allowlist) for the warehouse keeper', () => {
+    const sections: NavSection[] = [
+      {
+        title: 'nav.sections.main',
+        items: [
+          { label: 'a', href: '/inventory/requests', icon: Circle }, // primary
+          { label: 'b', href: '/sales/pos', icon: Circle }, // hidden
+          { label: 'c', href: '/collections', icon: Circle }, // hidden
+          { label: 'd', href: '/reports', icon: Circle }, // kept in More
+        ],
+      },
+    ];
+    const out = applyNavProfile(sections, ['warehouse_keeper']);
+    const more = out.find((s) => s.title === 'nav.sections.more');
+    // /sales/pos + /collections are denied; /reports survives in More.
+    expect(more?.items.map((i) => i.href)).toEqual(['/reports']);
   });
 
   it('only promotes a primary item when its href is actually visible', () => {
@@ -101,13 +148,14 @@ describe('applyNavProfile', () => {
   });
 
   it('de-duplicates More by href', () => {
+    // /sales/invoices is allowlisted for the salesman; appears in two sections.
     const sections: NavSection[] = [
-      { title: 'a', items: [{ label: 'a', href: '/dup', icon: Circle }] },
-      { title: 'b', items: [{ label: 'b', href: '/dup', icon: Circle }] },
+      { title: 'a', items: [{ label: 'a', href: '/sales/invoices', icon: Circle }] },
+      { title: 'b', items: [{ label: 'b', href: '/sales/invoices', icon: Circle }] },
     ];
     const out = applyNavProfile(sections, ['salesman']);
     const more = out.find((s) => s.title === 'nav.sections.more');
-    expect(more?.items.filter((i) => i.href === '/dup')).toHaveLength(1);
+    expect(more?.items.filter((i) => i.href === '/sales/invoices')).toHaveLength(1);
   });
 
   it('leaves sections unchanged for admin/manager', () => {
