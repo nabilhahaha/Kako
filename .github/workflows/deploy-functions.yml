@@ -1,0 +1,89 @@
+name: Deploy Edge Functions
+
+# Deploys EVERY function under supabase/functions/* to a target Supabase project.
+#
+# WHY THIS EXISTS: edge functions are NOT covered by the schema workflows
+# (migrate-staging / provision-staging apply SQL via psql only). A freshly
+# provisioned project therefore has full schema/data/auth but ZERO edge
+# functions, which silently breaks user creation (admin-create-user) and user
+# activation (admin-set-user-active). This workflow closes that gap so future
+# staging environments never miss an edge function again.
+#
+# The loop over supabase/functions/*/ means any NEW function added to the repo
+# is deployed automatically — no per-function edits needed here.
+#
+# Required repo secrets:
+#   SUPABASE_ACCESS_TOKEN  — CLI auth token (Supabase Dashboard › Account ›
+#                            Access Tokens). Never printed.
+#   STAGING_PROJECT_REF    — default target project ref (e.g. rsjvgehvastmawzwnqcs).
+# Function runtime secrets (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY /
+# SUPABASE_ANON_KEY) are auto-injected by the Supabase platform into deployed
+# functions — there is NO secret step here, and no service-role key is handled.
+#
+# Touches FUNCTIONS only. It never runs SQL and never reads or writes database,
+# tenant, or auth data. No production trigger and no production secret: it is a
+# clean no-op unless the staging secrets above are present.
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_ref:
+        description: 'Target Supabase project ref (blank = STAGING_PROJECT_REF secret)'
+        required: false
+        default: ''
+  # Deploy functions right after a fresh provision (same one-shot branch the
+  # provision-staging workflow uses), so a newly provisioned project gets its
+  # functions in the same pass.
+  push:
+    branches: [staging-provision]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-functions:
+    name: Deploy supabase/functions/* to the target project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard — require access token + a project ref
+        id: guard
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF_INPUT: ${{ github.event.inputs.project_ref }}
+          REF_SECRET: ${{ secrets.STAGING_PROJECT_REF }}
+        run: |
+          REF="${REF_INPUT:-$REF_SECRET}"
+          if [ -z "${TOKEN:-}" ] || [ -z "${REF:-}" ]; then
+            echo "::notice::SUPABASE_ACCESS_TOKEN or project ref missing — skipping (no-op)."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        if: steps.guard.outputs.run == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy all edge functions
+        if: steps.guard.outputs.run == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ steps.guard.outputs.ref }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          deployed=0
+          for fn in supabase/functions/*/; do
+            name="$(basename "$fn")"
+            echo "› deploying ${name} → ${REF}"
+            supabase functions deploy "${name}" --project-ref "${REF}"
+            deployed=$((deployed + 1))
+          done
+          echo "› deployed ${deployed} edge function(s) to ${REF}"
