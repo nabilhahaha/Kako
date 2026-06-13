@@ -173,6 +173,7 @@ export default async function AppLayout({
           isPlatformStaff={isPlatformStaff}
           businessType={ctx.company?.business_type ?? null}
           enabledFlags={navFlags}
+          roles={ctx.memberships.map((m) => m.role)}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar

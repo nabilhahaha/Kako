@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation';
 import { Fragment } from 'react';
 import { cn } from '@/lib/utils';
 import { visibleSections, type Module } from '@/lib/erp/navigation';
+import { applyNavProfile } from '@/lib/erp/nav-profiles';
 import type { Permission } from '@/lib/erp/permissions';
+import type { BranchRole } from '@/lib/erp/types';
 import { X } from 'lucide-react';
 import { Logo } from '@/components/brand/logo';
 import { useI18n } from '@/lib/i18n/provider';
@@ -20,6 +22,7 @@ export function Sidebar({
   isPlatformStaff = false,
   businessType = null,
   enabledFlags = [],
+  roles = [],
 }: {
   permissions: Permission[];
   isSuperAdmin: boolean;
@@ -29,13 +32,20 @@ export function Sidebar({
   isPlatformStaff?: boolean;
   businessType?: string | null;
   enabledFlags?: string[];
+  /** The user's branch roles — drive the relevance-based navigation profile
+   *  (primary menu + "More"). Permissions are unchanged. */
+  roles?: BranchRole[];
 }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const { open, setOpen } = useMobileNav();
   // Compute on the client so the icon components never cross the
   // server→client boundary (functions aren't serializable as props).
-  const sections = visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules, platformPermissions, isPlatformStaff, businessType, enabledFlags);
+  const sections = applyNavProfile(
+    visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules, platformPermissions, isPlatformStaff, businessType, enabledFlags),
+    roles,
+    { isSuperAdmin, isPlatformOwner },
+  );
 
   // Highlight only the most specific (longest) matching href, so a parent like
   // /platform doesn't stay active while on /platform/companies.

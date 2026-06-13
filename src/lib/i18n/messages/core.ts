@@ -160,6 +160,8 @@ export const ar = {
       purchasing: 'المشتريات',
       accounting: 'الحسابات',
       settings: 'الإعدادات',
+      primary: 'الأساسية',
+      more: 'المزيد',
     },
     groups: {
       organization: 'المؤسسة',
@@ -182,6 +184,13 @@ export const ar = {
       sell: 'بيع',
       inventory: 'المخزون',
       more: 'المزيد',
+    },
+    profile: {
+      today: 'اليوم', sell: 'بيع', collect: 'تحصيل', customers: 'العملاء', van: 'السيارة',
+      approvals: 'الموافقات', team: 'الفريق', coverage: 'التغطية', vanRecon: 'تسوية السيارة', reports: 'التقارير',
+      manager: 'لوحة الفرع', purchasing: 'المشتريات', inventory: 'المخزون',
+      requests: 'طلبات التحميل', stock: 'المخزون', receive: 'استلام', transfers: 'التحويلات',
+      accounting: 'المحاسبة', vouchers: 'السندات', aging: 'أعمار الديون', suppliers: 'الموردون', dashboard: 'الرئيسية',
     },
     items: {
       overview: 'نظرة عامة',
@@ -511,6 +520,8 @@ export const en = {
       purchasing: 'Purchasing',
       accounting: 'Accounting',
       settings: 'Settings',
+      primary: 'Primary',
+      more: 'More',
     },
     groups: {
       organization: 'Organization',
@@ -533,6 +544,13 @@ export const en = {
       sell: 'Sell',
       inventory: 'Inventory',
       more: 'More',
+    },
+    profile: {
+      today: 'Today', sell: 'Sell', collect: 'Collect', customers: 'Customers', van: 'Van',
+      approvals: 'Approvals', team: 'Team', coverage: 'Coverage', vanRecon: 'Van Reconciliation', reports: 'Reports',
+      manager: 'Branch', purchasing: 'Purchasing', inventory: 'Inventory',
+      requests: 'Load Requests', stock: 'Stock', receive: 'Receive', transfers: 'Transfers',
+      accounting: 'Accounting', vouchers: 'Vouchers', aging: 'AR Aging', suppliers: 'Suppliers', dashboard: 'Home',
     },
     items: {
       overview: 'Overview',
