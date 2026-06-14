@@ -46,7 +46,7 @@ export default async function TodayHomePage() {
   const flags = await getFeatureFlags(supabase, ctx.companyId!);
   const isVanSalesman = hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'settings.branches') && !ctx.isSuperAdmin;
   if (unifiedSalesmanWorkspaceEnabled(flags) && vanSalesOn && isVanSalesman) {
-    return <SalesmanWorkspace ctx={ctx} coveragePct={sig.coveragePct} overdue={sig.overdue} items={items} itemCount={summary.itemCount} />;
+    return <SalesmanWorkspace ctx={ctx} items={items} itemCount={summary.itemCount} />;
   }
 
   // Non-salesman field roles (managers/supervisors/admins) keep the existing

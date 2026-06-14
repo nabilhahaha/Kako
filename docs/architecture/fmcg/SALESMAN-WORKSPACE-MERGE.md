@@ -280,6 +280,10 @@ stable. Reuse-only, no engine/schema/transaction change.
      `Home`/`/dashboard` for that user. Flag-gated; non-salesman roles + flag-off
      tenants unchanged; extend the existing resolver unit test.
 
-Status: **queued for ONE batched refinement pass after UAT.** Do NOT change the
-current UAT build (keep results valid). Apply items 1–4 (+ KPIs) together on the
-user's signal.
+Status: **✅ IMPLEMENTED (one batched pass).** All four items shipped behind
+`platform.unified_salesman_workspace` (pilot flag ON): Customer-first CTA in the
+workspace (route stays the spine), tile order Customer · Collect · Sell · Return ·
+Van Stock · End Day & Settle, the bottom nav Today · Customer · Van Stock · More
+(Sell + Home removed), and the operational KPI strip (Planned / Visited /
+Remaining / Today's sales / Today's collections / Route compliance %). Reuse-only;
+reversible; non-salesman roles + flag-off tenants unchanged.
