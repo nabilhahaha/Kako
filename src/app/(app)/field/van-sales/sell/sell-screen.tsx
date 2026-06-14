@@ -17,9 +17,14 @@ import { firstDiscountOverCap } from '@/lib/van-sales/sell';
 import { previewVanSale, vanSell, type VanSellPreview } from '@/lib/van-sales/sell-server';
 
 export interface SellCustomer { id: string; name: string; name_ar: string | null; code: string; balance: number; credit_limit: number }
-export interface SellProduct { id: string; name: string; name_ar: string | null; code: string; available: number }
+export interface SellProduct {
+  id: string; name: string; name_ar: string | null; code: string; available: number;
+  /** U3: sellable units (base + alternates) for the per-line UoM picker. */
+  units?: { uom: string; factor: number }[];
+  defaultSellUom?: string | null;
+}
 
-interface CartLine { productId: string; quantity: number; discount_pct: number }
+interface CartLine { productId: string; quantity: number; discount_pct: number; uom?: string | null }
 type Step = 'customer' | 'products' | 'review' | 'done';
 
 function uuid(): string {
@@ -28,7 +33,7 @@ function uuid(): string {
 }
 
 export function SellScreen({
-  branchId, customers, products, preselectCustomerId, discountCapPct, canDiscount, offlineEnabled,
+  branchId, customers, products, preselectCustomerId, discountCapPct, canDiscount, offlineEnabled, multiUom = false,
 }: {
   branchId: string;
   customers: SellCustomer[];
@@ -37,6 +42,7 @@ export function SellScreen({
   discountCapPct: number | null;
   canDiscount: boolean;
   offlineEnabled: boolean;
+  multiUom?: boolean;
 }) {
   const { t, locale } = useI18n();
   const ar = locale === 'ar';
@@ -60,6 +66,9 @@ export function SellScreen({
   const pName = (p: SellProduct) => (ar && p.name_ar ? p.name_ar : p.name);
   const customer = customers.find((c) => c.id === customerId) ?? null;
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  // Base units a chosen UoM represents (1 for base/unset) — for the stock hint.
+  const lineFactor = (p: SellProduct, uom: string | null | undefined): number =>
+    (uom ? p.units?.find((u) => u.uom === uom)?.factor : 1) || 1;
 
   const filteredCustomers = useMemo(() => {
     const q = custQuery.trim().toLowerCase();
@@ -89,13 +98,17 @@ export function SellScreen({
     setCart((ls) => ls.map((l) => (l.productId === pid ? { ...l, discount_pct: Math.max(0, pct) } : l)));
     setPreview(null);
   }
+  function setUom(pid: string, uom: string) {
+    setCart((ls) => ls.map((l) => (l.productId === pid ? { ...l, uom: uom || null } : l)));
+    setPreview(null);
+  }
 
   function chooseCustomer(id: string) { setCustomerId(id); setStep('products'); }
 
   async function goReview() {
     if (!customerId || cart.length === 0) return;
     if (canDiscount) {
-      const over = firstDiscountOverCap(cart.map((l) => ({ product_id: l.productId, quantity: l.quantity, discount_pct: l.discount_pct })), discountCapPct);
+      const over = firstDiscountOverCap(cart.map((l) => ({ product_id: l.productId, quantity: l.quantity, discount_pct: l.discount_pct, uom: l.uom ?? null })), discountCapPct);
       if (over) { toast.error(t('vanSales.sell.discountOverCap')); return; }
     }
     if (!online) { toast.error(t('vanSales.sell.offlinePricing')); return; }
@@ -103,7 +116,7 @@ export function SellScreen({
     try {
       const res = await previewVanSale({
         branch_id: branchId, customer_id: customerId,
-        lines: cart.map((l) => ({ product_id: l.productId, quantity: l.quantity, discount_pct: l.discount_pct })),
+        lines: cart.map((l) => ({ product_id: l.productId, quantity: l.quantity, discount_pct: l.discount_pct, uom: l.uom ?? null })),
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.sell.error')); return; }
       setPreview(res.data);
@@ -118,7 +131,7 @@ export function SellScreen({
     try {
       const res = await vanSell({
         branch_id: branchId, customer_id: customerId, idempotency_key: saleKey,
-        lines: cart.map((l) => ({ product_id: l.productId, quantity: l.quantity, discount_pct: l.discount_pct })),
+        lines: cart.map((l) => ({ product_id: l.productId, quantity: l.quantity, discount_pct: l.discount_pct, uom: l.uom ?? null })),
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.sell.error')); return; }
       setResult({ id: res.data.id, invoiceNumber: res.data.invoiceNumber, netAmount: res.data.netAmount });
@@ -249,7 +262,23 @@ export function SellScreen({
                         </div>
                       )}
                     </div>
-                    {inCart && qty > p.available && (
+                    {inCart && multiUom && (p.units?.length ?? 0) > 1 && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{t('vanSales.sell.unit')}</span>
+                        <select
+                          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                          value={line?.uom ?? ''}
+                          onChange={(e) => setUom(p.id, e.target.value)}
+                        >
+                          {(p.units ?? []).map((u) => (
+                            <option key={u.uom} value={u.factor === 1 ? '' : u.uom}>
+                              {u.factor === 1 ? u.uom : `${u.uom} (×${u.factor})`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {inCart && qty * (lineFactor(p, line?.uom) ) > p.available && (
                       <p className="mt-1 text-xs text-warning">{t('vanSales.sell.outOfStock')}</p>
                     )}
                     {inCart && canDiscount && (

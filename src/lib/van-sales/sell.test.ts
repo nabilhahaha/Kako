@@ -32,7 +32,7 @@ describe('van-sell pure core', () => {
         // @ts-expect-error — exercise runtime coercion from loosely-typed input
         { product_id: 'p1', quantity: '3', discount_pct: '5' },
       ]);
-      expect(out[0]).toEqual({ product_id: 'p1', quantity: 3, discount_pct: 5 });
+      expect(out[0]).toEqual({ product_id: 'p1', quantity: 3, discount_pct: 5, uom: null });
     });
   });
 

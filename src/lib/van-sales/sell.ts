@@ -12,11 +12,13 @@
 
 import { computeTotals, type LineInput, type DocumentTotals } from '@/lib/erp/sales-calc';
 
-/** What the client submits per line — never a price (resolved server-side). */
+/** What the client submits per line — never a price (resolved server-side).
+ *  `uom` is the unit the rep entered (e.g. 'carton'); null/absent = base unit. */
 export interface VanSellLineInput {
   product_id: string;
   quantity: number;
   discount_pct?: number;
+  uom?: string | null;
 }
 
 /** A line after the server resolved its price + tax — input to the totals math. */
@@ -34,6 +36,7 @@ export function normalizeVanSellLines(lines: VanSellLineInput[]): Required<VanSe
       product_id: l.product_id,
       quantity: Number(l.quantity),
       discount_pct: Math.max(0, Number(l.discount_pct ?? 0)),
+      uom: (l.uom ?? '').trim() || null,
     }));
 }
 

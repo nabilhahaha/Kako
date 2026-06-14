@@ -6,6 +6,9 @@ import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive, loadVanSalesSettings } from './settings-server';
 import { computeVanSellTotals, normalizeVanSellLines, firstDiscountOverCap, type VanSellLineInput } from './sell';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import { multiUomEnabled, factorOf } from '@/lib/erp/uom';
+import { loadProductUnitsMany } from '@/lib/erp/uom-server';
 import type { DocumentTotals } from '@/lib/erp/sales-calc';
 
 // ============================================================================
@@ -81,17 +84,43 @@ export async function previewVanSale(input: { branch_id: string; customer_id: st
     .in('id', productIds);
   const taxById = new Map((taxRows ?? []).map((r) => [(r as { id: string }).id, Number((r as { tax_rate: number }).tax_rate ?? 0)]));
 
+  // U3: when multi-UoM is on, price each line per its entered UoM (price-book
+  // per-uom special, else the rule-based base price × factor) — mirroring the RPC
+  // so the preview matches what erp_van_sell will commit. Flag off ⇒ base only.
+  const multiUom = ctx.companyId ? multiUomEnabled(await getFeatureFlags(supabase, ctx.companyId)) : false;
+  const unitsById = multiUom ? await loadProductUnitsMany(supabase, productIds) : null;
+  const today = new Date().toISOString().slice(0, 10);
+
   const priced: VanSellPreviewLine[] = [];
   for (const l of lines) {
-    const { data: pr, error } = await supabase.rpc('erp_resolve_price', {
-      p_product_id: l.product_id,
-      p_customer_id: input.customer_id,
-      p_branch_id: input.branch_id,
-      p_qty: l.quantity,
-    });
-    if (error) return { ok: false, error: friendlyDbError(error) };
-    const row = (Array.isArray(pr) ? pr[0] : pr) as { price: number } | undefined;
-    const unit_price = Number(row?.price ?? 0);
+    const uom = multiUom ? (l.uom ?? null) : null;
+    const units = uom ? unitsById?.get(l.product_id)?.units : undefined;
+    const factor = uom && units ? factorOf(units, uom) : 1;
+    let unit_price = 0;
+    if (uom && factor !== 1) {
+      const { data: sp } = await supabase
+        .from('erp_prices')
+        .select('price').eq('product_id', l.product_id).eq('uom', uom).eq('is_active', true)
+        .lte('effective_from', today).lte('min_qty', l.quantity)
+        .order('min_qty', { ascending: false }).limit(1).maybeSingle();
+      const special = (sp as { price?: number } | null)?.price;
+      if (special != null) {
+        unit_price = Number(special);
+      } else {
+        const { data: pr } = await supabase.rpc('erp_resolve_price', {
+          p_product_id: l.product_id, p_customer_id: input.customer_id, p_branch_id: input.branch_id, p_qty: l.quantity * factor,
+        });
+        const row = (Array.isArray(pr) ? pr[0] : pr) as { price: number } | undefined;
+        unit_price = Number(row?.price ?? 0) * factor;
+      }
+    } else {
+      const { data: pr, error } = await supabase.rpc('erp_resolve_price', {
+        p_product_id: l.product_id, p_customer_id: input.customer_id, p_branch_id: input.branch_id, p_qty: l.quantity,
+      });
+      if (error) return { ok: false, error: friendlyDbError(error) };
+      const row = (Array.isArray(pr) ? pr[0] : pr) as { price: number } | undefined;
+      unit_price = Number(row?.price ?? 0);
+    }
     const tax_rate = taxById.get(l.product_id) ?? 0;
     const gross = Math.round((l.quantity * unit_price + Number.EPSILON) * 100) / 100;
     const discount = Math.round((gross * l.discount_pct) / 100 * 100 + Number.EPSILON) / 100;
@@ -135,11 +164,18 @@ export async function vanSell(input: VanSellInput): Promise<ActionResult<{ id: s
     if (over) return { ok: false, error: RPC_ERRORS.discount_exceeds_cap };
   }
 
+  // U3: pass the entered UoM per line ONLY when multi-UoM is enabled for the
+  // company (flag-gated). The RPC converts uom→base, prices per uom, and keeps
+  // stock in base units. Flag off ⇒ uom is null ⇒ identical to the legacy sale.
+  const multiUom = ctx.companyId ? multiUomEnabled(await getFeatureFlags(supabase, ctx.companyId)) : false;
   const { data, error } = await supabase.rpc('erp_van_sell', {
     p_branch_id: input.branch_id,
     p_customer_id: input.customer_id,
-    // Only product / quantity / discount — the price is resolved server-side.
-    p_lines: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, discount_pct: l.discount_pct })),
+    // Only product / quantity / discount / uom — the price is resolved server-side.
+    p_lines: lines.map((l) => ({
+      product_id: l.product_id, quantity: l.quantity, discount_pct: l.discount_pct,
+      uom: multiUom ? (l.uom ?? null) : null,
+    })),
     p_idempotency_key: input.idempotency_key ?? null,
     p_due_date: input.due_date ?? null,
     p_notes: input.notes ?? null,

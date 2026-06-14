@@ -7,6 +7,9 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { isVanSalesActive, loadVanSalesSettings } from '@/lib/van-sales/settings-server';
 import { MOBILE_ENABLED } from '@/lib/offline-sync';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import { multiUomEnabled } from '@/lib/erp/uom';
+import { loadProductUnitsMany } from '@/lib/erp/uom-server';
 import { SellScreen, type SellCustomer, type SellProduct } from './sell-screen';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +74,21 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
     }));
   const customers = ((custRes.data ?? []) as SellCustomer[]);
 
+  // U3: when multi-UoM is enabled, attach each product's sellable units (base +
+  // alternates) for the per-line UoM picker. Respects sell_mode ('base' = base only).
+  const multiUom = multiUomEnabled(await getFeatureFlags(supabase, ctx.companyId!));
+  if (multiUom && products.length > 0) {
+    const cfgs = await loadProductUnitsMany(supabase, products.map((p) => p.id));
+    for (const p of products) {
+      const cfg = cfgs.get(p.id);
+      if (!cfg) continue;
+      p.units = cfg.rules.sellMode === 'base'
+        ? [{ uom: cfg.units.base, factor: 1 }]
+        : cfg.units.units.map((u) => ({ uom: u.uom, factor: u.factor }));
+      p.defaultSellUom = cfg.units.sales ?? null;
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader title={t('vanSales.sell.title')} description={t('vanSales.sell.subtitle')} />
@@ -82,6 +100,7 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
         discountCapPct={settings.discountCapPct}
         canDiscount={hasPermission(ctx, 'sales.discount') || ctx.isSuperAdmin}
         offlineEnabled={MOBILE_ENABLED()}
+        multiUom={multiUom}
       />
     </div>
   );
