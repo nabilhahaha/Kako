@@ -49,6 +49,8 @@ export const BOTTOM_NAV_TABS: BottomNavTab[] = [
   { href: '/fashion/sell', icon: ScanBarcode, labelKey: 'nav.bottom.sell', perm: 'fashion.sell', module: 'fashion', group: 'sell' },
   { href: '/sales/invoices', icon: Zap, labelKey: 'nav.bottom.sell', perm: 'sales.sell', module: 'sales', group: 'sell' },
   // ── Inventory (mutually-exclusive group 'inventory') ──
+  // Van reps see their VAN stock (not the generic warehouse view) — F6.
+  { href: '/field/stock', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'field.sales', group: 'inventory', vanSalesOnly: true },
   { href: '/fashion/inventory', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'fashion.inventory', module: 'fashion', group: 'inventory' },
   { href: '/inventory', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'inventory.view', module: 'inventory', group: 'inventory' },
 ];

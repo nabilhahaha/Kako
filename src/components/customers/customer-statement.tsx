@@ -11,7 +11,7 @@ import { INTL_LOCALE } from '@/lib/i18n/config';
 import { useI18n } from '@/lib/i18n/provider';
 import { AGING_BUCKETS, type AgingBucket, type CustomerStatement } from '@/lib/erp/customer-statement';
 import type { InvoiceStatus, PaymentMethod } from '@/lib/erp/types';
-import { Printer, HandCoins } from 'lucide-react';
+import { Printer, HandCoins, ShoppingCart, Undo2 } from 'lucide-react';
 
 const BUCKET_LABEL: Record<AgingBucket, string> = {
   current: 'accounting.aging.bucketCurrent',
@@ -32,6 +32,8 @@ export function CustomerStatementView({
   statement,
   printHref,
   collectHref,
+  sellHref,
+  returnHref,
   canCollect = false,
   showRecon = false,
 }: {
@@ -39,6 +41,9 @@ export function CustomerStatementView({
   printHref: string;
   /** When provided + canCollect + outstanding > 0, shows the Collect Now action. */
   collectHref?: string;
+  /** Field visit context (F2): Sell / Return scoped to this customer. */
+  sellHref?: string;
+  returnHref?: string;
   canCollect?: boolean;
   /** Admin/accountant: surface the ledger-vs-balance reconciliation check. */
   showRecon?: boolean;
@@ -72,16 +77,26 @@ export function CustomerStatementView({
         <Summary label={t('customers.stmtOverdueAmount')} value={money(summary.overdueAmount)} tone={summary.overdueAmount > 0 ? 'warn' : undefined} />
       </div>
 
-      {/* Actions */}
+      {/* Actions — the visit context: Collect · Sell · Return · Print (F2). */}
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={printHref} target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
-          <Printer className="h-4 w-4" /> {t('customers.stmtBtnPrint')}
-        </Link>
         {showCollect && (
           <Link href={collectHref!} className={buttonVariants({ size: 'sm' })}>
             <HandCoins className="h-4 w-4" /> {t('customers.stmtCollectNow')}
           </Link>
         )}
+        {sellHref && (
+          <Link href={sellHref} className={buttonVariants({ size: 'sm' })}>
+            <ShoppingCart className="h-4 w-4" /> {t('vanSales.steps.sell')}
+          </Link>
+        )}
+        {returnHref && (
+          <Link href={returnHref} className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+            <Undo2 className="h-4 w-4" /> {t('vanSales.steps.return')}
+          </Link>
+        )}
+        <Link href={printHref} target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+          <Printer className="h-4 w-4" /> {t('customers.stmtBtnPrint')}
+        </Link>
         {showRecon && (
           <Badge variant={statement.reconDelta === 0 ? 'success' : 'destructive'}>
             {statement.reconDelta === 0 ? t('customers.stmtReconOk') : t('customers.stmtReconWarn', { delta: money(statement.reconDelta) })}

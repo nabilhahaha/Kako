@@ -179,6 +179,21 @@ describe('bottom-nav — Customers & Inventory tabs are Fashion-aware', () => {
       expect(hrefs(r, 'nav.bottom.inventory').length).toBeLessThanOrEqual(1);
     }
   });
+  it('Van Sales rep → Inventory tab opens VAN stock (/field/stock), not the generic warehouse view', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('field.sales', 'inventory.view'), isSuperAdmin: false,
+      modules: M('van_sales', 'inventory', 'field_ops'), businessType: 'general', vanSalesActive: true,
+    });
+    expect(hrefs(r, 'nav.bottom.inventory')).toEqual(['/field/stock']);
+    expect(r.some((t) => t.href === '/inventory')).toBe(false);
+  });
+  it('Van Sales INACTIVE → Inventory falls back to the generic /inventory', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('field.sales', 'inventory.view'), isSuperAdmin: false,
+      modules: M('van_sales', 'inventory', 'field_ops'), businessType: 'general', vanSalesActive: false,
+    });
+    expect(hrefs(r, 'nav.bottom.inventory')).toEqual(['/inventory']);
+  });
   it('generic inventory tab no longer leaks to a tenant lacking the inventory module', () => {
     // salon-style tenant: has inventory.view perm but no inventory module → tab hidden (no upgrade screen)
     const r = resolveBottomNavTabs({ permissions: P('inventory.view', 'customers.manage'), isSuperAdmin: false, modules: M('salon', 'sales'), businessType: 'salon' });

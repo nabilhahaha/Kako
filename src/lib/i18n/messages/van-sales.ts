@@ -11,8 +11,11 @@ export const ar = {
     },
     start: 'ابدأ اليوم',
     endDay: 'إنهاء اليوم',
+    endDaySettle: 'إنهاء اليوم وتسوية العهدة',
+    pickerSubtitle: 'اختر عميلاً لعرض كشف الحساب والتحصيل والبيع والمرتجع.',
     comingSoon: 'قريبًا',
     steps: {
+      customer: 'عميل',
       confirmLoad: 'تأكيد تحميل الشاحنة',
       journey: 'خط السير / الخريطة',
       route: 'نظرة يومي',
@@ -354,8 +357,11 @@ export const en = {
     },
     start: 'Start Day',
     endDay: 'End Day',
+    endDaySettle: 'End Day & settle van',
+    pickerSubtitle: 'Pick a customer to view statement, collect, sell and return.',
     comingSoon: 'Coming soon',
     steps: {
+      customer: 'Customer',
       confirmLoad: 'Confirm Van Load',
       journey: 'Journey / Map',
       route: 'My Day overview',

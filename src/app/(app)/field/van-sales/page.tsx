@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import {
-  Truck, MapPin, Map as MapIcon, ShoppingCart, Undo2, HandCoins, Boxes, ClipboardCheck, ClipboardList, RefreshCw, Play, CheckCircle2, type LucideIcon,
+  Truck, MapPin, Map as MapIcon, ShoppingCart, Undo2, HandCoins, Boxes, ClipboardCheck, ClipboardList, RefreshCw, Play, CheckCircle2, Users, type LucideIcon,
 } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
@@ -20,13 +20,15 @@ export const dynamic = 'force-dynamic';
 // land in later phases and show a "Coming soon" chip until then.
 
 interface SpineStep {
-  key: 'confirmLoad' | 'journey' | 'route' | 'sell' | 'return' | 'collect' | 'stock' | 'reconcile' | 'merchandising' | 'offline';
+  key: 'customer' | 'confirmLoad' | 'journey' | 'route' | 'sell' | 'return' | 'collect' | 'stock' | 'reconcile' | 'merchandising' | 'offline';
   icon: LucideIcon;
-  href?: string; // omit = coming soon
+  href?: string; // omit = coming soon (hidden from the salesman — F5)
 }
 
 const STEPS: SpineStep[] = [
-  { key: 'confirmLoad', icon: Truck },                         // Phase B
+  // F1: customer-first entry — pick a customer once, then Statement/Collect/Sell/Return.
+  { key: 'customer', icon: Users, href: '/field/van-sales/customers' },
+  { key: 'confirmLoad', icon: Truck },                         // Phase B (no href ⇒ hidden)
   { key: 'journey', icon: MapPin, href: '/field/journey' },
   { key: 'route', icon: MapIcon, href: '/field/route' },
   { key: 'sell', icon: ShoppingCart, href: '/field/van-sales/sell' },
@@ -66,30 +68,26 @@ export default async function VanSalesMyDayPage() {
           )}
           {state === 'open' && (
             <Link href="/field/van-reconciliation" className="inline-flex h-10 items-center gap-2 rounded-md border border-input px-4 text-sm font-medium hover:bg-secondary">
-              <CheckCircle2 className="h-4 w-4" /> {t('vanSales.endDay')}
+              <CheckCircle2 className="h-4 w-4" /> {t('vanSales.endDaySettle')}
             </Link>
           )}
         </CardContent>
       </Card>
 
-      {/* Spine */}
+      {/* Spine — only actionable tiles (F5: coming-soon tiles without an href are
+          hidden from the salesman). Customer-first tile leads the daily flow. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {STEPS.map((s) => {
-          const label = t(`vanSales.steps.${s.key}`);
+        {STEPS.filter((s) => s.href).map((s) => {
           const Icon = s.icon;
-          const body = (
-            <CardContent className="flex h-full flex-col items-start gap-2 pt-6">
-              <Icon className="h-6 w-6 text-primary" />
-              <span className="text-sm font-medium">{label}</span>
-              {!s.href && <Badge variant="outline" className="mt-auto">{t('vanSales.comingSoon')}</Badge>}
-            </CardContent>
-          );
-          return s.href ? (
-            <Link key={s.key} href={s.href} className="block">
-              <Card className="h-full transition-colors hover:bg-secondary/50">{body}</Card>
+          return (
+            <Link key={s.key} href={s.href!} className="block">
+              <Card className="h-full transition-colors hover:bg-secondary/50">
+                <CardContent className="flex h-full flex-col items-start gap-2 pt-6">
+                  <Icon className="h-6 w-6 text-primary" />
+                  <span className="text-sm font-medium">{t(`vanSales.steps.${s.key}`)}</span>
+                </CardContent>
+              </Card>
             </Link>
-          ) : (
-            <Card key={s.key} className="h-full opacity-60">{body}</Card>
           );
         })}
       </div>

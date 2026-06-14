@@ -38,6 +38,8 @@ export default async function VanStatementPage({ params }: { params: Promise<{ i
         statement={res.statement}
         printHref={`/print/statement/${id}`}
         collectHref={`/field/van-sales/collect?customer=${id}`}
+        sellHref={`/field/van-sales/sell?customer=${id}`}
+        returnHref={`/field/van-sales/return?customer=${id}`}
         canCollect={hasPermission(ctx, 'sales.collect') || ctx.isSuperAdmin}
       />
     </div>
