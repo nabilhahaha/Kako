@@ -28,13 +28,34 @@ export default async function ReceiptPrintPage({
     branch: { name: string; name_ar: string | null; company: { name: string; name_ar: string | null; logo_url: string | null } | null } | null;
   };
 
-  const { data: payments } = await supabase
-    .from('erp_payments')
-    .select('*')
-    .eq('invoice_id', id)
-    .order('payment_date');
-  const payList = (payments as Payment[]) ?? [];
-  const totalPaid = payList.reduce((s, p) => s + Number(p.amount), 0);
+  // Payments for this invoice come from TWO sources: legacy desktop payments
+  // (erp_payments) AND the collections engine used by FMCG / van-sales and the
+  // Collect screen (erp_collections + erp_collection_allocations). The receipt
+  // must reflect both, and the COLLECTED total must equal the invoice's
+  // authoritative paid_amount — not just one table (the in-sell / collection
+  // payments live in erp_collections, so reading erp_payments alone showed 0).
+  const [{ data: payments }, { data: allocs }] = await Promise.all([
+    supabase.from('erp_payments').select('*').eq('invoice_id', id).order('payment_date'),
+    supabase
+      .from('erp_collection_allocations')
+      .select('applied_amount, collection:erp_collections(collection_date, method, reference_number)')
+      .eq('invoice_id', id),
+  ]);
+
+  type Line = { id: string; date: string; method: string; amount: number };
+  const fromPayments: Line[] = ((payments as Payment[]) ?? []).map((p) => ({
+    id: p.id, date: p.payment_date, method: p.payment_method, amount: Number(p.amount),
+  }));
+  const fromCollections: Line[] = ((allocs ?? []) as {
+    applied_amount: number; collection: { collection_date: string; method: string; reference_number: string | null } | { collection_date: string; method: string; reference_number: string | null }[] | null;
+  }[]).map((a, i) => {
+    const c = Array.isArray(a.collection) ? a.collection[0] : a.collection;
+    return { id: `col-${i}`, date: c?.collection_date ?? inv.created_at, method: c?.method ?? 'cash', amount: Number(a.applied_amount) };
+  });
+  const payList = [...fromPayments, ...fromCollections].sort((a, b) => a.date.localeCompare(b.date));
+  // Authoritative collected total = the invoice's paid_amount (set by both the
+  // payment and the collection-settle paths), so it always matches the status.
+  const totalPaid = Number(inv.paid_amount ?? 0);
   const company = inv.branch?.company;
 
   return (
@@ -52,7 +73,7 @@ export default async function ReceiptPrintPage({
       <div className="space-y-2">
         <Row label="العميل" value={inv.customer?.name_ar || inv.customer?.name || '—'} />
         <Row label="عن الفاتورة" value={inv.invoice_number} ltr />
-        <Row label="التاريخ" value={formatDate(payList[0]?.payment_date ?? inv.created_at)} />
+        <Row label="التاريخ" value={formatDate(payList[0]?.date ?? inv.created_at)} />
         <Row label="إجمالي الفاتورة" value={formatCurrency(inv.net_amount)} ltr />
       </div>
 
@@ -67,8 +88,8 @@ export default async function ReceiptPrintPage({
         <tbody>
           {payList.map((p) => (
             <tr key={p.id} className="border-b">
-              <td className="p-2">{formatDate(p.payment_date)}</td>
-              <td className="p-2">{PAYMENT_METHOD_LABELS[p.payment_method as PaymentMethod]?.ar ?? p.payment_method}</td>
+              <td className="p-2">{formatDate(p.date)}</td>
+              <td className="p-2">{PAYMENT_METHOD_LABELS[p.method as PaymentMethod]?.ar ?? p.method}</td>
               <td className="p-2 text-left tabular-nums" dir="ltr">{formatCurrency(p.amount)}</td>
             </tr>
           ))}
