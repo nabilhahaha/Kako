@@ -139,7 +139,6 @@ export function LineItemsEditor({
           <thead className="border-b bg-secondary/50 text-muted-foreground">
             <tr>
               <th className="p-2 text-start font-medium">{t('shared.lineItems.product')}</th>
-              {uomEnabled && <th className="p-2 text-center font-medium w-28">{t('shared.lineItems.unit')}</th>}
               <th className="p-2 text-center font-medium w-20">{t('shared.lineItems.qty')}</th>
               <th className="p-2 text-center font-medium w-28">{t('shared.lineItems.unitPrice')}</th>
               <th className="p-2 text-center font-medium w-20">{t('shared.lineItems.discountPct')}</th>
@@ -153,7 +152,7 @@ export function LineItemsEditor({
               const c = computeLine(l);
               return (
                 <tr key={l.key} className="border-b last:border-0">
-                  <td className="p-2">
+                  <td className="p-2 align-top">
                     <select
                       value={l.product_id}
                       onChange={(e) => onPickProduct(l.key, e.target.value)}
@@ -166,14 +165,16 @@ export function LineItemsEditor({
                         </option>
                       ))}
                     </select>
-                  </td>
-                  {uomEnabled && (
-                    <td className="p-2">
-                      {unitsFor(l.product_id).length > 1 ? (
+                    {/* UoM picker sits directly UNDER the product — always in the
+                        first (never-scrolled) column so it's obvious on mobile. */}
+                    {uomEnabled && unitsFor(l.product_id).length > 1 && (
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="shrink-0 text-xs text-muted-foreground">{t('shared.lineItems.unit')}:</span>
                         <select
                           value={l.uom ?? ''}
                           onChange={(e) => onChangeUom(l.key, e.target.value)}
-                          className="h-9 w-full min-w-[6.5rem] rounded-md border border-input bg-background px-2 text-sm"
+                          aria-label={t('shared.lineItems.unit')}
+                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-medium"
                         >
                           {unitsFor(l.product_id).map((u) => (
                             <option key={u.uom} value={u.factor === 1 ? '' : u.uom}>
@@ -181,11 +182,9 @@ export function LineItemsEditor({
                             </option>
                           ))}
                         </select>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  )}
+                      </div>
+                    )}
+                  </td>
                   <td className="p-2">
                     <Input
                       type="number" step="0.001" min="0" dir="ltr"
@@ -231,7 +230,7 @@ export function LineItemsEditor({
             })}
             {lines.length === 0 && (
               <tr>
-                <td colSpan={uomEnabled ? 8 : 7} className="p-4 text-center text-muted-foreground">
+                <td colSpan={7} className="p-4 text-center text-muted-foreground">
                   {t('shared.lineItems.addAtLeastOne')}
                 </td>
               </tr>
