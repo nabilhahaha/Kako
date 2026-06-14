@@ -1,10 +1,45 @@
 # Day Reopen — Governed Request & Approval Workflow (Design)
 
-**Status:** Design-first. No code until approved.
-**Scope:** FMCG van-sales day lifecycle. Flag-gated, additive, reuse-first.
+**Status:** Phase 1 **IMPLEMENTED** (migration 0308, flag-gated, shipped to staging). Phase 2/3 design-first — no code until approved.
+**Scope:** ONE unified FMCG operational + financial lifecycle. Flag-gated, additive, reuse-first.
 **Flag:** `platform.day_reopen` (platform feature, default **OFF**).
 **Guardrails:** No new engine. Reuse the existing work-session, workflow, audit,
 permission and reconciliation infrastructure. Pilot-first, reversible.
+
+---
+
+## 0. One unified FMCG operational lifecycle
+
+Route execution, visit, sell, collect, return, print, settlement, cash custody
+and finalization all belong to **one** governed lifecycle — not separate designs.
+Reopen governance, the accounting lock, cash custody and salesman liability are
+facets of this single chain:
+
+```
+Open Day → Van Load Assigned → Van Load Confirmed → Route Execution → Visit →
+  Statement → Collect → Sell → Return → Print → End Day → Van Reconciliation →
+  Settlement Submitted → Verified (Cash Pending) → Cash Received →
+  Accountant Approved → Finalized
+```
+
+| Stage | Status today | Where |
+|---|---|---|
+| Open Day → Van Load → Route → Visit → Statement → Collect → Sell → Return → Print → End Day | **Built** | journey/route, visit-driven route, `erp_van_sell(_with_payment)`, `erp_settle_collection`, `erp_van_return`, print templates, `erp_close_day` |
+| Van Reconciliation | **Built** | `erp_van_reconciliations` / `erp_compute_van_reconciliation` |
+| End Day enforcement (block after close) | **Built (shipped)** | day-close guard (server + UI) |
+| **Reopen governance** | **Phase 1 (this doc, shipped)** | `erp_day_reopen_requests`, `erp_request_/decide_day_reopen` |
+| Settlement Submitted → Verified (Cash Pending) → Cash Received + salesman liability | **Phase 2 (design below)** | cash-custody package |
+| Accountant Approved → Finalized → journal lock | **Phase 3 (design below)** | finance posting (`KAKO_FINANCE`) |
+
+Principles held throughout: **(1)** one operational workflow; **(2)** reopen is
+always reason-based, auditable, approval-based, tracked; **(3)** Accountant
+Approved is the final lock; **(4)** cash verification ≠ physical receipt; **(5)**
+multi-day bulk handover; **(6)** salesman liability tracked (pending amount /
+days / closed days awaiting receipt / reopen count / variances); **(7)** van +
+cash reconciliation both gate finalization; **(8)** limits (max pending cash, max
+pending days, max reopen count); **(9)** reuse-first — Change Requests, approval
+workflows, audit logs, notifications, settlement infra, day-lifecycle infra; no
+parallel engines.
 
 ---
 
@@ -336,7 +371,7 @@ new reopen request — `reopen_count` increments each cycle).
 
 ## 11. Recommended implementation phases
 
-**Phase 1 — Governed reopen loop (pilot, flag default OFF)**
+**Phase 1 — Governed reopen loop (pilot, flag default OFF) — ✅ IMPLEMENTED (migration 0308)**
 - `platform.day_reopen` flag + i18n.
 - `erp_day_reopen_requests` table + session counters (additive migration).
 - `erp_request_day_reopen` / `erp_decide_day_reopen` RPCs (Supervisor/Admin tier; `lock_level` computed, higher tiers inert).
@@ -370,3 +405,67 @@ two-track (settlement × cash) lock semantics are correct from day one.
 should be **Phase 2 of this same workstream**, or split into its own dedicated
 "Salesman Cash Custody / Handover" design since it's a substantial finance feature
 in its own right (it's useful independently of reopen).
+
+> **Decisions (approved):** Phase 1 = governed reopen loop only — **shipped**.
+> Cash custody stays **Phase 2 of this same workstream** (one unified lifecycle,
+> not two designs). Sequence: Phase 1 reopen → Phase 2 cash custody +
+> settlement-aware reopen → Phase 3 accountant approval + finalization + journal
+> lock, reopen rules ultimately driven by settlement × cash × accountant status.
+
+---
+
+# Appendix A — Phase 2 preparation package (before coding Phase 2)
+
+Phase 2 = Cash Custody, Cash Pending, Cash Receipt, Salesman Liability, Multi-Day
+Handover, and Settlement-Aware Reopen Rules. This appendix is the pre-code review
+the workstream requires. **No Phase 2 code until this is approved.**
+
+## A1. Current infrastructure inventory (grounded)
+| Area | Exists today | Reuse for Phase 2 |
+|---|---|---|
+| Work session | `erp_work_sessions` (status, close_status, reopen_count) | host the cash/verification fields |
+| Van reconciliation | `erp_van_reconciliations` (draft/pending_approval/settled/rejected) + `erp_compute_van_reconciliation` (perm `reconciliation.manage/approve`) | Settlement Submitted / Approved states |
+| Cash reconciliation | `erp_van_cash_reconciliations` (opening/sales/collections/returns/expenses → expected vs counted, variance; draft/settled/rejected) | source of `expected_cash` + variance |
+| Van accounting | `erp_van_opening_balances`, `erp_van_expenses(+categories)` (migration 0229) | cash math inputs |
+| Collections allocation | `erp_collections` + `erp_collection_allocations` (oldest-first, idempotent via `erp_settle_collection`) | **template for cash handover allocation** |
+| Approvals | generic workflow (`erp_workflow_start/decide`, `erp_workflow_definitions` event-triggered) + Change Requests (`erp_change_requests`) + lightweight request tables (`erp_credit_limit_requests`) | route verify/receipt approvals |
+| Audit | `erp_audit_logs` + `erp_log_audit` (SECURITY DEFINER, unforgeable) | same trail, `entity='work_session'` |
+| Events / notify | `erp_events` + `emitDomainEvent` / `EVENT` (KAKO_EVENTS) | notify cashier/supervisor |
+| Permissions | catalog + `erp_user_has_perm`; roles incl. cashier, accountant | add `cash.verify` / `cash.receive` |
+| Finance posting | `erp_post_journal_entry` (status `posted`, `KAKO_FINANCE` OFF) | Phase 3 finalize lock |
+
+## A2. Existing reusable components
+- **Allocation engine pattern** (collections→allocations) → cash handover→allocations, **oldest-pending-day-first**, idempotent.
+- **`erp_close_day` RPC family** (perm + tenant guard + audit) → `erp_verify_day_settlement`, `erp_receive_cash_handover`.
+- **Outstanding/oldest-first read** (the collection screen) → per-salesman pending-liability list (keyed by salesman not customer).
+- **CreditStandingCard / debt snapshot** UI idiom → salesman liability card.
+- **Approvals inbox + audit log + event bus + feature-flag + i18n-parity** scaffolding — all already in place.
+
+## A3. Required additions (Phase 2)
+- **Schema:** session `verified_at/by`, `expected_cash`, `cash_status`; tables `erp_cash_handovers` + `erp_cash_handover_allocations`; company limits `max_pending_cash`, `max_pending_days`, `max_reopen_count` (extend `erp_fmcg_settings`).
+- **RPCs:** `erp_verify_day_settlement` (cashier, no cash), `erp_receive_cash_handover` (bulk allocate), and `lock_level` computation wired to recon/cash statuses; reopen decide RPC reads the real `lock_level`.
+- **Perms:** `cash.verify`, `cash.receive` (cashier/accountant); `day.reopen.override` activated for `cash_received`/`settlement_approved`.
+- **UI:** cashier screen (verify + receive + per-salesman liability); rep + hub liability card; approver inbox shows verified / cash-received status.
+
+## A4. Approval model
+- **Verify** (cashier, `cash.verify`) — accept figures, no cash. **Receive** (cashier, `cash.receive`) — physical/bulk handover. **Reopen** authority = higher of settlement vs cash tier (Supervisor ≤ verified_cash_pending; Admin override ≥ cash_received). Accountant participates at `settlement_approved`. No self-approval anywhere.
+
+## A5. Audit model (single trail)
+All Phase 2 events (`verify_day_settlement`, `receive_cash_handover`, plus the existing reopen actions) write to **`erp_audit_logs` keyed by `entity='work_session'` / `entity_id=work_session_id`**, so a day's complete operational + cash + reopen history is one reconstructable timeline. Phase 3 (accountant/finalize) appends to the same trail. No separate logs.
+
+## A6. Data-model impact
+Additive only: new columns (nullable / defaulted), two new tables, settings columns. No change to existing invoice/collection/reconciliation semantics; `cash_status` is derived but cached for fast liability reads. Fully reversible.
+
+## A7. Risks
+Financial integrity on reopen-after-received (→ override + flag allocation for review + recon stale-on-reopen); liability accumulation (→ limits + alerts); verify/receipt confusion (→ distinct perms/RPCs/labels); offline (cash actions are cashier-side/online); tenant isolation (RLS + SECURITY DEFINER guards).
+
+## A8. Migration strategy
+One additive migration (`03xx_cash_custody_phase2`) — columns + tables + RPCs + perms + settings, all `IF NOT EXISTS` / `ON CONFLICT DO NOTHING`, behind the same `platform.day_reopen` (or a sibling `platform.cash_custody`) flag, default OFF. Existing tenants unaffected until opted in; pilot-first; documented rollback.
+
+## A9. Recommended implementation sequence
+1. Settings limits + session cash fields (inert).
+2. `erp_verify_day_settlement` + Verified state + cashier verify UI.
+3. `erp_cash_handovers(+allocations)` + `erp_receive_cash_handover` (bulk, oldest-first) + receipt UI.
+4. Per-salesman liability read + rep/hub/cashier cards + limit checks/alerts.
+5. Wire `lock_level` (settlement × cash) into the reopen decide RPC + `day.reopen.override`.
+6. Validate on staging (verify-without-receipt, multi-day bulk handover, reopen-after-received escalation, liability math, invariants); UAT; then Phase 3.
