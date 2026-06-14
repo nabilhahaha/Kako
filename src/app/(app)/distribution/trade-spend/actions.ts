@@ -6,6 +6,7 @@ import { requireAuth, can, friendlyDbError, type ActionResult } from '@/lib/erp/
 import { logAudit } from '@/lib/erp/audit';
 import { notifyManagers } from '@/lib/erp/notify';
 import { TRADE_SPEND_ENABLED } from '@/lib/trade-spend/flags';
+import { APPROVAL_TRADE_SPEND_WF } from '@/lib/erp/approval-flags';
 
 /**
  * Trade-spend governance actions (Critical Action standard).
@@ -24,6 +25,44 @@ async function guard(): Promise<{ ok: true; companyId: string } | { ok: false; e
   if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
   if (!ctx.companyId || !can(ctx, 'pricing.rule.edit')) return { ok: false, error: 'unauthorized' };
   return { ok: true, companyId: ctx.companyId };
+}
+
+/**
+ * P1: submit a draft promotion for engine-driven approval (flag-gated).
+ * Sets status → pending_approval and starts the `trade_spend_approval` workflow
+ * (approver: any pricing.manage holder; self-approval blocked, reject reason
+ * required). The decision is then made in the Workflow Inbox via the engine; the
+ * `trade_promotion` outcome handler flips status to approved/cancelled. When the
+ * flag is OFF, callers keep using the legacy direct approveTradeSpend/cancel.
+ */
+export async function submitTradeSpendForApproval(id: string): Promise<ActionResult> {
+  if (!TRADE_SPEND_ENABLED()) return { ok: false, error: 'disabled' };
+  if (!APPROVAL_TRADE_SPEND_WF()) return { ok: false, error: 'workflow_disabled' };
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx) return { ok: false, error: error ?? 'unauthorized' };
+  if (!ctx.companyId) return { ok: false, error: 'unauthorized' };
+  if (!id) return { ok: false, error: 'missing promotion' };
+
+  const supabase = await createClient();
+  const { error: upErr } = await supabase
+    .from('erp_trade_promotions')
+    .update({ status: 'pending_approval' })
+    .eq('id', id)
+    .eq('status', 'draft');
+  if (upErr) return { ok: false, error: friendlyDbError(upErr) };
+
+  const { error: startErr } = await supabase.rpc('erp_workflow_start', {
+    p_key: 'trade_spend_approval', p_entity: 'trade_promotion', p_record_id: id, p_context: {},
+  });
+  if (startErr) return { ok: false, error: friendlyDbError(startErr) };
+
+  await logAudit(supabase, {
+    action: 'submit', entity: 'trade_promotion', entityId: id,
+    details: { event: 'trade_spend_submitted' }, companyId: ctx.companyId,
+  });
+  revalidatePath('/distribution/trade-spend');
+  revalidatePath('/approvals');
+  return { ok: true };
 }
 
 export async function approveTradeSpend(id: string, reason?: string): Promise<ActionResult> {

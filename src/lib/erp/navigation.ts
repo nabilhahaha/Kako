@@ -225,7 +225,7 @@ export const NAV_SECTIONS: NavSection[] = [
       // U2: a single "Approvals" entry → the unified queue (which carries tabs to
       // the Workflow inbox + Approval Center for tenants that use the workflow
       // engine). Replaces the three look-alike menu items.
-      { label: 'nav.items.approvalQueue', href: '/approvals/queue', icon: ClipboardCheck, perm: ['day.approve_close_exception', 'visit.approve_out_of_route', 'customer.transfer', 'stock.transfer.approve', 'workflow.manage'] },
+      { label: 'nav.items.approvalQueue', href: '/approvals/queue', icon: ClipboardCheck, perm: ['day.approve_close_exception', 'visit.approve_out_of_route', 'customer.transfer', 'stock.transfer.approve', 'workflow.manage', 'credit.request.approve', 'pricing.manage'] },
       { label: 'nav.items.alerts', href: '/alerts', icon: Bell, flag: 'alerts', module: 'critical_alerts' },
       { label: 'nav.items.changeRequests', href: '/change-requests', icon: GitBranch, flag: 'change_requests', module: 'change_requests' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },

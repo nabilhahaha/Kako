@@ -4,7 +4,61 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { hasPermission } from '@/lib/erp/permissions';
+import { logAudit } from '@/lib/erp/audit';
+import { APPROVAL_PRICE_CHANGE_WF } from '@/lib/erp/approval-flags';
 import { getT } from '@/lib/i18n/server';
+
+/**
+ * P1: request a price change through the engine (flag-gated, additive).
+ * Stages the requested price in erp_price_change_requests and starts the
+ * `price_change_approval` workflow (approver: any pricing.manage holder;
+ * self-approval blocked, reject reason required). The live product price is
+ * untouched until the request is approved, when the `price_change_request`
+ * outcome handler applies it. Direct price edits (upsertProduct) are unchanged;
+ * this is an additional, opt-in approval path that only exists when the flag is on.
+ */
+export async function requestPriceChange(
+  productId: string,
+  requestedPrice: number,
+  reason?: string,
+): Promise<ActionResult> {
+  if (!APPROVAL_PRICE_CHANGE_WF()) return { ok: false, error: 'workflow_disabled' };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  if (!ctx.companyId) return { ok: false, error: 'unauthorized' };
+  if (!productId || !Number.isFinite(requestedPrice) || requestedPrice < 0) {
+    return { ok: false, error: 'invalid' };
+  }
+
+  const supabase = await createClient();
+  const { data: req, error: insErr } = await supabase
+    .from('erp_price_change_requests')
+    .insert({
+      company_id: ctx.companyId,
+      product_id: productId,
+      requested_price: requestedPrice,
+      status: 'submitted',
+      requested_by: ctx.userId,
+    })
+    .select('id')
+    .single();
+  if (insErr) return { ok: false, error: friendlyDbError(insErr) };
+  const reqId = (req as { id: string }).id;
+
+  const { error: startErr } = await supabase.rpc('erp_workflow_start', {
+    p_key: 'price_change_approval', p_entity: 'price_change_request',
+    p_record_id: reqId, p_context: { amount: requestedPrice },
+  });
+  if (startErr) return { ok: false, error: friendlyDbError(startErr) };
+
+  await logAudit(supabase, {
+    action: 'request', entity: 'price_change_request', entityId: reqId,
+    details: { product_id: productId, requested_price: requestedPrice, reason: reason?.trim() || null },
+    companyId: ctx.companyId,
+  });
+  revalidatePath('/approvals');
+  return { ok: true };
+}
 
 function num(v: FormDataEntryValue | null): number {
   const n = Number(String(v ?? '').replace(/,/g, ''));

@@ -70,6 +70,36 @@ const HANDLERS: Record<string, Handler> = {
     }
     await supabase.from('erp_credit_limit_requests').update({ status: outcome }).eq('id', recordId);
   },
+
+  // Trade-spend (P1): approval activates the promotion; rejection cancels it.
+  // Same status transitions as the legacy direct actions, now engine-driven.
+  trade_promotion: async (recordId, outcome) => {
+    const supabase = await createClient();
+    await supabase
+      .from('erp_trade_promotions')
+      .update({ status: outcome === 'approved' ? 'approved' : 'cancelled' })
+      .eq('id', recordId);
+  },
+
+  // Price-change (P1): on approve, apply the requested price to the product;
+  // either way, stamp the request's final status. The live price is untouched
+  // while the request is pending.
+  price_change_request: async (recordId, outcome) => {
+    const supabase = await createClient();
+    const { data: req } = await supabase
+      .from('erp_price_change_requests')
+      .select('product_id, requested_price')
+      .eq('id', recordId)
+      .single();
+    const r = req as { product_id: string | null; requested_price: number | null } | null;
+    if (r && outcome === 'approved' && r.product_id != null && r.requested_price != null) {
+      await supabase.from('erp_products_catalog').update({ sell_price: r.requested_price }).eq('id', r.product_id);
+    }
+    await supabase
+      .from('erp_price_change_requests')
+      .update({ status: outcome === 'approved' ? 'approved' : 'rejected' })
+      .eq('id', recordId);
+  },
 };
 
 export function hasWorkflowHandler(entity: string): boolean {

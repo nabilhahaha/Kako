@@ -10,6 +10,7 @@ import { coerceCustomValue } from '@/lib/erp/custom-fields';
 import { getT } from '@/lib/i18n/server';
 import { isCompanyWide } from '@/lib/erp/scope';
 import { applyWorkflowOutcome, type WorkflowOutcome } from '@/lib/erp/workflow-handlers';
+import { creditWorkflowKey } from '@/lib/erp/approval-flags';
 import { sensitiveChanges } from '@/lib/erp/customer-approval';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import { logAudit } from '@/lib/erp/audit';
@@ -458,8 +459,11 @@ export async function requestCreditLimitChange(customerId: string, requestedLimi
     .single();
   if (insErr) return { ok: false, error: friendlyDbError(insErr) };
 
+  // P1: route through the v2 (permission + threshold + governance) definition
+  // when the flag is on; otherwise the legacy company_admin workflow. Same
+  // entity + record + context, so the outcome handler is unchanged.
   const { error } = await supabase.rpc('erp_workflow_start', {
-    p_key: 'credit_limit_approval', p_entity: 'credit_limit_request',
+    p_key: creditWorkflowKey(), p_entity: 'credit_limit_request',
     p_record_id: (req as { id: string }).id, p_context: { amount: requestedLimit },
   });
   if (error) return { ok: false, error: friendlyDbError(error) };

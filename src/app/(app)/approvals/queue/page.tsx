@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
+import { canSeeWorkflowInbox } from '@/lib/erp/approvals-access';
 import { createClient } from '@/lib/supabase/server';
 import { ApprovalQueue, type ApprovalItem, type ApprovalType } from './approval-queue';
 import { ApprovalsTabs } from '../approvals-tabs';
@@ -125,7 +126,7 @@ export default async function ApprovalQueuePage() {
 
   return (
     <div className="space-y-4">
-      <ApprovalsTabs showWorkflow={hasPermission(ctx, 'workflow.manage')} />
+      <ApprovalsTabs showWorkflow={canSeeWorkflowInbox(ctx)} />
       <ApprovalQueue items={items} caps={caps} />
     </div>
   );
