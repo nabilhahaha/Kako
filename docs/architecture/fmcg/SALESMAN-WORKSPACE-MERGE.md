@@ -264,5 +264,22 @@ stable. Reuse-only, no engine/schema/transaction change.
    | Today's sales | today's invoices (`created_by`=rep) net total |
    | Today's collections | today's `erp_collections` / allocations for the rep |
    | Route compliance % | coverage (visited ÷ planned) — `homeSignals.coveragePct` |
+4. **Bottom-nav = one operational entry (APPROVED).** For a van salesman (flag ON),
+   make the mobile bottom nav mirror the single workspace — **customer-driven, not
+   transaction-driven**:
+   - **Remove** the `Sell` tab (`/field/van-sales/sell`) — duplicate entry that
+     bypasses the Customer → Statement context. Selling stays via Customer →
+     Statement → Collect → Sell and the workspace Sell tile.
+   - **Add** a `Customer` tab → `/field/van-sales/customers` (the picker) — the
+     primary operational entry.
+   - **Drop** the generic `Home` (`/dashboard`) tab — Today *is* home.
+   - **Target van-salesman bottom nav: `Today · Customer · Van Stock · More`.**
+   - Implement in `bottom-nav-tabs.ts` (pure + unit-tested): thread the
+     unified-workspace + van-salesman condition into `resolveBottomNavTabs`; add a
+     `Customer` candidate (field.sales + vanSalesOnly); suppress `Sell` and
+     `Home`/`/dashboard` for that user. Flag-gated; non-salesman roles + flag-off
+     tenants unchanged; extend the existing resolver unit test.
 
-Status: queued for implementation on the user's signal after UAT.
+Status: **queued for ONE batched refinement pass after UAT.** Do NOT change the
+current UAT build (keep results valid). Apply items 1–4 (+ KPIs) together on the
+user's signal.
