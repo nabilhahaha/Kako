@@ -1,16 +1,19 @@
 import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import {
-  Truck, MapPin, Map as MapIcon, ShoppingCart, Undo2, HandCoins, Boxes, ClipboardCheck, ClipboardList, RefreshCw, Play, CheckCircle2, Users, type LucideIcon,
+  Truck, MapPin, Map as MapIcon, ShoppingCart, Undo2, HandCoins, Boxes, ClipboardCheck, ClipboardList, RefreshCw, Play, CheckCircle2, Users, LockOpen, type LucideIcon,
 } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
+import { createClient } from '@/lib/supabase/server';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { VAN_SALES_ENABLED } from '@/lib/van-sales';
-import { loadVanDayState } from '@/lib/van-sales/day-server';
+import { dayReopenEnabled } from '@/lib/van-sales/sell';
+import { loadVanDayState, loadPendingDayReopens } from '@/lib/van-sales/day-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +56,12 @@ export default async function VanSalesMyDayPage() {
 
   const tone = state === 'open' ? 'success' : state === 'closed' ? 'secondary' : 'outline';
 
+  // Governed day-reopen (flag-gated): approvers see the pending-request inbox.
+  const supabase = await createClient();
+  const flags = await getFeatureFlags(supabase, ctx.companyId!);
+  const canApproveReopen = dayReopenEnabled(flags) && (hasPermission(ctx, 'day.reopen.approve') || ctx.isSuperAdmin);
+  const pendingReopens = canApproveReopen ? await loadPendingDayReopens(ctx) : [];
+
   return (
     <div className="space-y-6">
       <PageHeader title={t('vanSales.myDayTitle')} description={t('vanSales.myDaySubtitle')} />
@@ -91,6 +100,22 @@ export default async function VanSalesMyDayPage() {
           );
         })}
       </div>
+
+      {/* Approver: governed day-reopen inbox (flag-gated) */}
+      {canApproveReopen && (
+        <Link href="/field/van-sales/reopen-approvals" className="block">
+          <Card className="transition-colors hover:bg-secondary/50">
+            <CardContent className="flex items-center gap-3 py-4">
+              <LockOpen className="h-5 w-5 text-primary" />
+              <div className="flex-1">
+                <div className="text-sm font-medium">{t('vanSales.reopen.approvals.title')}</div>
+                <div className="text-xs text-muted-foreground">{t('vanSales.reopen.approvals.subtitle')}</div>
+              </div>
+              {pendingReopens.length > 0 && <Badge>{pendingReopens.length}</Badge>}
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* Admin: pilot readiness diagnostic */}
       {isAdmin && (

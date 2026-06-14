@@ -5,6 +5,7 @@ import {
   firstDiscountOverCap,
   computeVanSellTotals,
   collectInSellEnabled,
+  dayReopenEnabled,
   sumTenders,
   paymentStatusFor,
   outstandingAfter,
@@ -104,6 +105,15 @@ describe('van-sell pure core', () => {
       expect(collectInSellEnabled({})).toBe(false);
       expect(collectInSellEnabled({ 'platform.collect_in_sell': false })).toBe(false);
       expect(collectInSellEnabled({ 'platform.collect_in_sell': true })).toBe(true);
+    });
+  });
+
+  describe('dayReopenEnabled', () => {
+    it('is OFF by default and ON only with the platform flag', () => {
+      expect(dayReopenEnabled(null)).toBe(false);
+      expect(dayReopenEnabled({})).toBe(false);
+      expect(dayReopenEnabled({ 'platform.day_reopen': false })).toBe(false);
+      expect(dayReopenEnabled({ 'platform.day_reopen': true })).toBe(true);
     });
   });
 

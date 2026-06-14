@@ -85,6 +85,12 @@ export function visitDrivenRouteEnabled(flags: Record<string, boolean | undefine
   return Boolean(flags?.['platform.visit_driven_route']);
 }
 
+/** Is the governed Day-Reopen workflow active? Opt-in platform flag
+ *  (`platform.day_reopen`), default OFF. Pure. */
+export function dayReopenEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
+  return Boolean(flags?.['platform.day_reopen']);
+}
+
 /** Tender methods supported in-sell (one collection row each on the server).
  *  These are the DB-canonical erp_collections.method codes (constraint-aligned):
  *  cash · credit_card (Card) · bank_transfer · check (Cheque). */

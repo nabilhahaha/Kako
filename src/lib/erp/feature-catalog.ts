@@ -212,6 +212,13 @@ export const FEATURES: FeatureDef[] = [
     screens: ['/field/journey', '/field/van-sales/statement'],
     logic: ['visit.session', 'route.visit_context'],
   }),
+  // Day Reopen (FMCG): after End Day & Settle, the salesman may submit a
+  // reason-based request to reopen the closed day; a Supervisor/Admin approves or
+  // rejects it. Default OFF (opt-in per tenant). Governed + audited; no engine.
+  P('platform.day_reopen', 'pos', [], {
+    screens: ['/field/van-sales/sell', '/field/van-sales/reopen-approvals'],
+    logic: ['erp_request_day_reopen', 'erp_decide_day_reopen'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),

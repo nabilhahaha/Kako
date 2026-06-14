@@ -62,6 +62,9 @@ export type Permission =
   | 'visit.approve_out_of_route' // approve an out-of-route visit
   | 'day.close' // close the working day (rep)
   | 'day.approve_close_exception' // approve a day-close exception
+  | 'day.reopen.request' // request to reopen a closed day (rep) — governed workflow
+  | 'day.reopen.approve' // approve/reject a day-reopen request (supervisor/admin)
+  | 'day.reopen.override' // approve a reopen past the settlement/accounting lock (Phase 2/3)
   // ── FMCG Value Acceleration Wave 1 ──
   | 'product.search' // search the product catalogue (paginated, tenant-safe)
   | 'pricing.view' // view price lists / resolved prices
@@ -148,6 +151,9 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'visit.approve_out_of_route': { en: 'Approve out-of-route visits', ar: 'اعتماد الزيارات خارج خط السير', group: 'field_ops' },
   'day.close': { en: 'Close the working day', ar: 'إغلاق يوم العمل', group: 'field_ops' },
   'day.approve_close_exception': { en: 'Approve day-close exceptions', ar: 'اعتماد استثناءات إغلاق اليوم', group: 'field_ops' },
+  'day.reopen.request': { en: 'Request to reopen a closed day', ar: 'طلب إعادة فتح يوم مُغلق', group: 'field_ops' },
+  'day.reopen.approve': { en: 'Approve day-reopen requests', ar: 'اعتماد طلبات إعادة فتح اليوم', group: 'field_ops' },
+  'day.reopen.override': { en: 'Override settlement lock on reopen', ar: 'تجاوز قفل التسوية عند إعادة الفتح', group: 'field_ops' },
   // ── FMCG Value Acceleration Wave 1 ──
   'product.search': { en: 'Search products', ar: 'البحث عن المنتجات', group: 'inventory' },
   'pricing.view': { en: 'View pricing', ar: 'عرض التسعير', group: 'sales' },
@@ -238,7 +244,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'suppliers.manage', 'reports.view',
     'customer.transfer', 'customer.create', 'customer.edit', 'route.create', 'journey.create',
     'stock.adjust', 'stock.transfer.approve', 'visit.approve_out_of_route',
-    'day.approve_close_exception', 'stock.view', 'user.transfer',
+    'day.approve_close_exception', 'day.reopen.approve', 'stock.view', 'user.transfer',
   ],
   // IT Admin: integrations / scheduler / governance / technical settings.
   it_admin: [
@@ -251,7 +257,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'customers.manage', 'customers.change_status', 'inventory.view', 'stock_request.approve', 'reports.view',
     'visit.approve_out_of_route', 'day.approve_close_exception', 'stock.transfer.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
-    'reconciliation.view', 'reconciliation.manage',
+    'reconciliation.view', 'reconciliation.manage', 'day.reopen.approve',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
@@ -262,7 +268,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
-    'day.close', 'stock.view', 'stock.transfer', 'customer.create',
+    'day.close', 'day.reopen.request', 'stock.view', 'stock.transfer', 'customer.create',
     'reconciliation.view',
   ],
   driver: [
