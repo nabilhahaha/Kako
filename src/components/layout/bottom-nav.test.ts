@@ -200,3 +200,37 @@ describe('bottom-nav — Customers & Inventory tabs are Fashion-aware', () => {
     expect(r.some((t) => t.href === '/inventory')).toBe(false);
   });
 });
+
+// ── Unified salesman workspace: one operational entry (Today · Customer · Van Stock) ──
+describe('bottom-nav — unified salesman workspace', () => {
+  const P = (...p: Permission[]) => p;
+  const M = (...m: Module[]) => m;
+  // the cleaned FMCG salesman: field.sales, no settings.branches, no sales.sell
+  const SALESMAN = {
+    permissions: P('field.sales', 'inventory.view'), isSuperAdmin: false,
+    modules: M('van_sales', 'inventory', 'field_ops'), businessType: 'general', vanSalesActive: true,
+  };
+
+  it('unified ON → Customer (picker) replaces Sell; Home is dropped', () => {
+    const r = resolveBottomNavTabs({ ...SALESMAN, unifiedWorkspace: true });
+    const hrefs = r.map((t) => t.href);
+    expect(hrefs).toContain('/today');
+    expect(hrefs).toContain('/field/van-sales/customers'); // Customer-first entry
+    expect(hrefs).toContain('/field/stock');               // Van Stock
+    expect(hrefs).not.toContain('/field/van-sales/sell');  // no standalone Sell
+    expect(hrefs).not.toContain('/dashboard');             // no duplicate Home
+  });
+
+  it('unified OFF → unchanged (Home + Sell present, no picker tab)', () => {
+    const r = resolveBottomNavTabs({ ...SALESMAN, unifiedWorkspace: false });
+    const hrefs = r.map((t) => t.href);
+    expect(hrefs).toContain('/dashboard');
+    expect(hrefs).toContain('/field/van-sales/sell');
+    expect(hrefs).not.toContain('/field/van-sales/customers');
+  });
+
+  it('the Customer picker tab never leaks to a non-unified user', () => {
+    const r = resolveBottomNavTabs({ ...SALESMAN }); // unifiedWorkspace omitted (falsey)
+    expect(r.some((t) => t.href === '/field/van-sales/customers')).toBe(false);
+  });
+});

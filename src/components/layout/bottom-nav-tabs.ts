@@ -1,6 +1,6 @@
 import type { Permission } from '@/lib/erp/permissions';
 import { isModuleGateOpen, type Module } from '@/lib/erp/navigation';
-import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, Truck, type LucideIcon } from 'lucide-react';
+import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, Truck, UserSquare, type LucideIcon } from 'lucide-react';
 
 /** A candidate bottom-nav tab. `href` must resolve to a real route, `labelKey`
  *  is an i18n key, `perm` (when set) gates visibility, and `module` (when set)
@@ -26,26 +26,38 @@ export interface BottomNavTab {
    *  per-company toggle). Lets the "Sell" tab route a van rep to the Van-Sell
    *  workflow instead of the generic invoice editor. */
   vanSalesOnly?: boolean;
+  /** Only a candidate when the unified salesman workspace is active for THIS user
+   *  (flag ON + van salesman). Used to surface the Customer-first entry. */
+  unifiedOnly?: boolean;
+  /** Suppressed when the unified salesman workspace is active for THIS user — the
+   *  duplicate/overlapping entry points (generic Home, the standalone Sell tab)
+   *  are removed so Today is the one home and selling stays Customer-first. */
+  hideWhenUnified?: boolean;
 }
 
 /** Ordered candidate tabs for the mobile bottom bar. The Stock view lives at
  *  `/inventory` (the catalog is `/products`); the inventory tab must point there.
  *  Only the first 4 the user can see are rendered, plus a "More" drawer trigger. */
 export const BOTTOM_NAV_TABS: BottomNavTab[] = [
-  { href: '/dashboard', icon: Home, labelKey: 'nav.bottom.home' },
+  // Generic Home — hidden for the unified salesman (Today IS home, no duplicate).
+  { href: '/dashboard', icon: Home, labelKey: 'nav.bottom.home', hideWhenUnified: true },
   // Approver direct access (placed high so supervisors/managers get it in the top
   // slots, not buried in "More"). Gated by an approval permission.
   { href: '/approvals/queue', icon: ClipboardCheck, labelKey: 'nav.bottom.approvals', perm: 'day.approve_close_exception' },
   // Field loop: the salesman's "Today" home (only shown to field reps).
   { href: '/today', icon: MapPin, labelKey: 'nav.bottom.today', perm: 'field.sales' },
   // ── Customers (mutually-exclusive group 'customers') ──
+  // Unified salesman: the Customer-first entry → the Today JP / All-Customers picker.
+  { href: '/field/van-sales/customers', icon: UserSquare, labelKey: 'nav.bottom.customers', perm: 'field.sales', group: 'customers', vanSalesOnly: true, unifiedOnly: true },
   { href: '/fashion/customers', icon: Users, labelKey: 'nav.bottom.customers', perm: 'fashion.sell', module: 'fashion', group: 'customers' },
   { href: '/customers', icon: Users, labelKey: 'nav.bottom.customers', perm: 'customers.manage', module: 'sales', group: 'customers' },
   // ── Sell (mutually-exclusive group 'sell') ──
   // Fashion shops sell from the Fashion POS; everyone else from generic Sales.
   // The resolver shows only one, gated by the enabled module so a fashion-only
   // clothing company never lands on the `sales`-module-gated upgrade screen.
-  { href: '/field/van-sales/sell', icon: Truck, labelKey: 'nav.bottom.sell', perm: 'field.sales', group: 'sell', vanSalesOnly: true },
+  // The Van-Sell tab is hidden for the unified salesman (selling is Customer-first:
+  // Customer → Statement → Collect → Sell), so there's one operational entry.
+  { href: '/field/van-sales/sell', icon: Truck, labelKey: 'nav.bottom.sell', perm: 'field.sales', group: 'sell', vanSalesOnly: true, hideWhenUnified: true },
   { href: '/fashion/sell', icon: ScanBarcode, labelKey: 'nav.bottom.sell', perm: 'fashion.sell', module: 'fashion', group: 'sell' },
   { href: '/sales/invoices', icon: Zap, labelKey: 'nav.bottom.sell', perm: 'sales.sell', module: 'sales', group: 'sell' },
   // ── Inventory (mutually-exclusive group 'inventory') ──
@@ -66,6 +78,10 @@ export interface BottomNavContext {
   businessType?: string | null;
   /** Whether Van Sales is active for the tenant (gates the Van-Sell "Sell" tab). */
   vanSalesActive?: boolean;
+  /** Whether the unified salesman workspace is active for THIS user (flag ON +
+   *  van salesman). Surfaces the Customer-first tab and removes the duplicate
+   *  Home / standalone Sell tabs so Today is the one operational entry. */
+  unifiedWorkspace?: boolean;
 }
 
 /**
@@ -85,7 +101,9 @@ export function resolveBottomNavTabs(
 ): BottomNavTab[] {
   const can = (p?: Permission) => !p || ctx.isSuperAdmin || ctx.permissions.includes(p);
   const candidates = tabs.filter(
-    (t) => can(t.perm) && isModuleGateOpen(ctx.modules, t.module) && (!t.vanSalesOnly || ctx.vanSalesActive),
+    (t) => can(t.perm) && isModuleGateOpen(ctx.modules, t.module) && (!t.vanSalesOnly || ctx.vanSalesActive)
+      // Unified salesman workspace: surface unifiedOnly tabs, drop hideWhenUnified ones.
+      && (!t.unifiedOnly || ctx.unifiedWorkspace) && !(t.hideWhenUnified && ctx.unifiedWorkspace),
   );
 
   // Within a mutually-exclusive group, clothing prefers the Fashion route; every
