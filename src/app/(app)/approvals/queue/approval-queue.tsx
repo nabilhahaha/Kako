@@ -26,7 +26,7 @@ export interface ApprovalItem {
   canReject: boolean;
 }
 
-const TYPES: ApprovalType[] = ['day_close', 'visit', 'customer_transfer', 'van_transfer', 'trade_spend'];
+const TYPES: ApprovalType[] = ['day_close', 'visit', 'customer_transfer', 'van_transfer', 'trade_spend', 'workflow'];
 type StatusFilter = 'pending' | 'approved' | 'rejected' | 'all';
 const STATUSES: StatusFilter[] = ['pending', 'approved', 'rejected', 'all'];
 

@@ -10,14 +10,18 @@ import {
   rejectVanTransfer,
 } from '../../field/actions';
 import { approveTradeSpend, cancelTradeSpend } from '../../distribution/trade-spend/actions';
+import { decideTask } from '../actions';
 
-/** Workflow types surfaced in the unified Approval Queue. */
+/** Workflow types surfaced in the unified Approval Queue. `workflow` covers any
+ *  engine-driven task (credit-limit, trade-spend, price-change, change-requests…)
+ *  surfaced via the unified inbox (P3); it dispatches to the generic decideTask. */
 export type ApprovalType =
   | 'day_close'
   | 'visit'
   | 'customer_transfer'
   | 'van_transfer'
-  | 'trade_spend';
+  | 'trade_spend'
+  | 'workflow';
 
 /**
  * Single entry point that DISPATCHES to the already-implemented approval actions
@@ -49,6 +53,11 @@ export async function decideApproval(
       break;
     case 'trade_spend':
       res = approve ? await approveTradeSpend(id, comment) : await cancelTradeSpend(id, comment ?? '');
+      break;
+    case 'workflow':
+      // Engine task (id = workflow task id). decideTask enforces the assignee +
+      // governance (self-approval / reject reason) and applies the outcome handler.
+      res = await decideTask(id, approve ? 'approve' : 'reject', comment);
       break;
     default:
       return { ok: false, error: 'unknown_type' };

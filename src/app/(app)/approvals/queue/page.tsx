@@ -2,9 +2,20 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { canSeeWorkflowInbox } from '@/lib/erp/approvals-access';
+import { UNIFIED_INBOX } from '@/lib/erp/approval-flags';
+import { getT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
 import { ApprovalQueue, type ApprovalItem, type ApprovalType } from './approval-queue';
 import { ApprovalsTabs } from '../approvals-tabs';
+
+/** Engine workflow entity → friendly i18n label (P3 unified inbox). */
+const WF_ENTITY_LABEL: Record<string, string> = {
+  credit_limit_request: 'approvalQueue.wfCreditLimit',
+  trade_promotion: 'approvalQueue.wfTradeSpend',
+  price_change_request: 'approvalQueue.wfPriceChange',
+  customer: 'approvalQueue.wfCustomer',
+  customer_change_request: 'approvalQueue.wfCustomerChange',
+};
 
 /**
  * Unified Approval Queue. Aggregates the field/commercial approval workflows that
@@ -29,10 +40,45 @@ export default async function ApprovalQueuePage() {
     customer_transfer: hasPermission(ctx, 'customer.transfer'),
     van_transfer: hasPermission(ctx, 'stock.transfer.approve'),
     trade_spend: hasPermission(ctx, 'reports.view'),
+    // P3: engine tasks surface only when the unified inbox is enabled.
+    workflow: UNIFIED_INBOX(),
   };
 
   const supabase = await createClient();
   const items: ApprovalItem[] = [];
+
+  // P3 (flag KAKO_UNIFIED_INBOX): fold the engine Workflow Inbox into this one
+  // queue — the tasks the caller can act on (credit-limit, trade-spend,
+  // price-change, change-requests…), via the indexed erp_workflow_my_tasks().
+  // Flag OFF ⇒ no engine items, behaviour identical to today.
+  if (UNIFIED_INBOX()) {
+    const { t } = await getT();
+    const { data: myTasks } = await supabase.rpc('erp_workflow_my_tasks');
+    const tasks = (myTasks as { id: string; instance_id: string; created_at: string }[] | null) ?? [];
+    if (tasks.length > 0) {
+      const { data: insts } = await supabase
+        .from('erp_workflow_instances')
+        .select('id, entity, record_id')
+        .in('id', tasks.map((tk) => tk.instance_id));
+      const instById = new Map(
+        ((insts as { id: string; entity: string; record_id: string }[] | null) ?? []).map((i) => [i.id, i]),
+      );
+      for (const tk of tasks) {
+        const inst = instById.get(tk.instance_id);
+        const entity = inst?.entity ?? 'workflow';
+        items.push({
+          type: 'workflow',
+          id: tk.id,
+          primary: t(WF_ENTITY_LABEL[entity] ?? 'approvalQueue.type_workflow'),
+          secondary: inst?.record_id ?? '',
+          status: 'pending',
+          requestedAt: tk.created_at ?? null,
+          decidedAt: null,
+          canReject: true,
+        });
+      }
+    }
+  }
 
   if (caps.day_close) {
     const { data } = await supabase
@@ -126,7 +172,9 @@ export default async function ApprovalQueuePage() {
 
   return (
     <div className="space-y-4">
-      <ApprovalsTabs showWorkflow={canSeeWorkflowInbox(ctx)} />
+      {/* When the unified inbox is on, engine tasks live HERE, so the separate
+          Workflow/Center tabs are redundant and hidden. */}
+      <ApprovalsTabs showWorkflow={!UNIFIED_INBOX() && canSeeWorkflowInbox(ctx)} />
       <ApprovalQueue items={items} caps={caps} />
     </div>
   );
