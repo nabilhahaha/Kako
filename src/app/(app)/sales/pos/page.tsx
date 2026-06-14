@@ -6,6 +6,8 @@ import type { Branch, ErpCustomer, ProductCatalog } from '@/lib/erp/types';
 import { PosTerminal } from './pos-terminal';
 import { getT } from '@/lib/i18n/server';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import { multiUomEnabled } from '@/lib/erp/uom';
+import { loadProductUnitsMany } from '@/lib/erp/uom-server';
 
 export default async function PosPage() {
   const ctx = await getUserContext();
@@ -20,6 +22,21 @@ export default async function PosPage() {
     getFeatureFlags(supabase, ctx.companyId),
   ]);
 
+  // U3: when multi-UoM is on, attach each product's sellable units for the picker.
+  const multiUom = multiUomEnabled(flags);
+  const productUnits: Record<string, { uom: string; factor: number }[]> = {};
+  if (multiUom) {
+    const list = (products as ProductCatalog[]) ?? [];
+    const cfgs = await loadProductUnitsMany(supabase, list.map((p) => p.id));
+    for (const p of list) {
+      const cfg = cfgs.get(p.id);
+      if (!cfg) continue;
+      productUnits[p.id] = cfg.rules.sellMode === 'base'
+        ? [{ uom: cfg.units.base, factor: 1 }]
+        : cfg.units.units.map((u) => ({ uom: u.uom, factor: u.factor }));
+    }
+  }
+
   return (
     <div>
       <PageHeader title={t('sales.posTitle')} description={t('sales.posDescription')} />
@@ -28,6 +45,8 @@ export default async function PosPage() {
         branches={(branches as Branch[]) ?? []}
         products={(products as ProductCatalog[]) ?? []}
         receiptPrinting={flags['pharmacy.pos_receipt_printing'] === true}
+        productUnits={productUnits}
+        multiUom={multiUom}
       />
     </div>
   );

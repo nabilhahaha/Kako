@@ -135,6 +135,10 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
       unit_price: l.unit_price,
       discount_pct: l.discount_pct,
       line_total: c.net,
+      // U2: entered-UoM snapshot (null = base / legacy). quantity stays base.
+      entered_uom: l.entered_uom ?? null,
+      entered_qty: l.entered_qty ?? null,
+      uom_factor: l.uom_factor ?? null,
     };
   });
   const { error: linesErr } = await supabase.from('erp_invoice_lines').insert(lineRows);

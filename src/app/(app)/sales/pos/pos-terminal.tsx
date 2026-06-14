@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 interface CartLine {
   product: ProductCatalog;
   quantity: number;
+  uom?: string | null;
 }
 
 export function PosTerminal({
@@ -27,12 +28,17 @@ export function PosTerminal({
   branches,
   products,
   receiptPrinting = false,
+  productUnits = {},
+  multiUom = false,
 }: {
   customers: ErpCustomer[];
   branches: Branch[];
   products: ProductCatalog[];
   /** Feature flag (pharmacy.pos_receipt_printing): offer to print after a sale. */
   receiptPrinting?: boolean;
+  /** U3: per-product sellable units (base + alternates) for the UoM picker. */
+  productUnits?: Record<string, { uom: string; factor: number }[]>;
+  multiUom?: boolean;
 }) {
   const router = useRouter();
   const { t, locale } = useI18n();
@@ -71,14 +77,30 @@ export function PosTerminal({
     if (qty <= 0) return setCart((prev) => prev.filter((l) => l.product.id !== id));
     setCart((prev) => prev.map((l) => (l.product.id === id ? { ...l, quantity: qty } : l)));
   }
+  function setUom(id: string, uom: string) {
+    setCart((prev) => prev.map((l) => (l.product.id === id ? { ...l, uom: uom || null } : l)));
+  }
+  // Base units a chosen UoM represents (1 for base/unset).
+  const factorFor = (pid: string, uom: string | null | undefined): number =>
+    (multiUom && uom ? productUnits[pid]?.find((u) => u.uom === uom)?.factor : 1) || 1;
+  // Display price per entered unit (base price × factor).
+  const lineUnitPrice = (l: CartLine): number => Number(l.product.sell_price) * factorFor(l.product.id, l.uom);
 
-  const lineInputs = cart.map((l) => ({
-    product_id: l.product.id,
-    quantity: l.quantity,
-    unit_price: Number(l.product.sell_price),
-    discount_pct: 0,
-    tax_rate: Number(l.product.tax_rate),
-  }));
+  // Lines for the sale: BASE quantity + base unit_price, with the entered-UoM
+  // snapshot (U2). Totals are computed on base — math is unchanged for base lines.
+  const lineInputs = cart.map((l) => {
+    const factor = factorFor(l.product.id, l.uom);
+    const base = {
+      product_id: l.product.id,
+      quantity: l.quantity * factor,
+      unit_price: Number(l.product.sell_price),
+      discount_pct: 0,
+      tax_rate: Number(l.product.tax_rate),
+    };
+    return l.uom && factor !== 1
+      ? { ...base, entered_uom: l.uom, entered_qty: l.quantity, uom_factor: factor }
+      : base;
+  });
   const totals = computeTotals(lineInputs);
 
   const canSell = branchId && customerId && cart.length > 0 && !pending;
@@ -193,8 +215,21 @@ export function PosTerminal({
                   <div className="min-w-0 flex-1">
                     <p className="truncate">{l.product.name_ar || l.product.name}</p>
                     <p className="text-xs text-muted-foreground tabular-nums" dir="ltr">
-                      {formatCurrency(l.product.sell_price, 'EGP', INTL_LOCALE[locale])} × {l.quantity}
+                      {formatCurrency(lineUnitPrice(l), 'EGP', INTL_LOCALE[locale])} × {l.quantity}
                     </p>
+                    {multiUom && (productUnits[l.product.id]?.length ?? 0) > 1 && (
+                      <select
+                        className="mt-1 h-7 rounded border border-input bg-background px-1 text-xs"
+                        value={l.uom ?? ''}
+                        onChange={(e) => setUom(l.product.id, e.target.value)}
+                      >
+                        {(productUnits[l.product.id] ?? []).map((u) => (
+                          <option key={u.uom} value={u.factor === 1 ? '' : u.uom}>
+                            {u.factor === 1 ? u.uom : `${u.uom} (×${u.factor})`}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <button onClick={() => setQty(l.product.id, l.quantity - 1)} className="rounded p-1 hover:bg-secondary"><Minus className="h-3.5 w-3.5" /></button>
