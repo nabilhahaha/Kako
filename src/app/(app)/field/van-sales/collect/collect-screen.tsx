@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { HandCoins, Check, Loader2, ReceiptText, Share2, Printer } from 'lucide-react';
@@ -41,6 +41,13 @@ export function CollectScreen({
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ id: string; number: string; applied: number; unapplied: number } | null>(null);
   const [key, setKey] = useState(() => uuid());
+
+  // Deep-link (?customer= / "Collect Now"): auto-load the preselected customer's
+  // outstanding invoices on mount so the rep lands straight on what's owed.
+  useEffect(() => {
+    if (preselect) pickCustomer(preselect);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const cName = (c: CollectCustomer) => (ar && c.name_ar ? c.name_ar : c.name);
   const money = (n: number) => n.toFixed(2);

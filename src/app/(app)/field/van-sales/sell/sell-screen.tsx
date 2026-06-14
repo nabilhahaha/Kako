@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ShoppingCart, Plus, Minus, ArrowLeft, ArrowRight, Search, Check,
-  Printer, Share2, ReceiptText, CloudOff, Loader2, User, Wallet, Trash2,
+  Printer, Share2, ReceiptText, CloudOff, Loader2, User, Wallet, Trash2, HandCoins,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -218,6 +218,13 @@ export function SellScreen({
     setCustomerId(preselect); setStep(preselect ? 'products' : 'customer');
   }
 
+  // Blocked customer → jump straight to Collection for this customer (their
+  // outstanding invoices auto-load there), turning a blocked sale into debt recovery.
+  function goCollect() {
+    if (!customerId) return;
+    router.push(`/field/van-sales/collect?customer=${customerId}`);
+  }
+
   async function share() {
     if (!result) return;
     const text = t('vanSales.sell.shareText', { number: result.invoiceNumber, net: result.netAmount.toFixed(2) });
@@ -278,7 +285,7 @@ export function SellScreen({
               <CreditStandingCard
                 status={creditStatus} creditLimit={creditLimit} currentBalance={currentBalance}
                 availableCredit={availableCredit} overdueDayCount={overdueDayCount} termsDays={termsDays}
-                money={money} t={t}
+                money={money} t={t} onCollectNow={goCollect}
               />
             )}
           </CardContent>
@@ -499,7 +506,7 @@ export function SellScreen({
             <CreditStandingCard
               status={creditStatus} creditLimit={creditLimit} currentBalance={currentBalance}
               availableCredit={availableCredit} overdueDayCount={overdueDayCount} termsDays={termsDays}
-              money={money} t={t}
+              money={money} t={t} onCollectNow={goCollect}
             />
             <div className="rounded-md border bg-secondary/30 p-3 text-sm">
               <Row label={t('vanSales.sell.payment.remainingInvoice')} value={money(remaining)} />
@@ -618,12 +625,14 @@ const STATUS_DOT: Record<CreditStatus, string> = {
  *  banner (before the sale) and the Payment step, so the reason a customer is
  *  blocked is always explicit. */
 function CreditStandingCard({
-  status, creditLimit, currentBalance, availableCredit, overdueDayCount, termsDays, money, t,
+  status, creditLimit, currentBalance, availableCredit, overdueDayCount, termsDays, money, t, onCollectNow,
 }: {
   status: CreditStatus;
   creditLimit: number; currentBalance: number; availableCredit: number;
   overdueDayCount: number | null; termsDays: number;
   money: (n: number) => string; t: (k: string, v?: Record<string, string | number>) => string;
+  /** When the standing is blocked, offer a one-tap jump to Collection for this customer. */
+  onCollectNow?: () => void;
 }) {
   const blocked = creditStandingBlocked(status);
   const exceededBy = Math.max(0, Math.round((currentBalance - creditLimit) * 100) / 100);
@@ -662,9 +671,16 @@ function CreditStandingCard({
         )}
       </div>
       {blocked && (
-        <p className="mt-1 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs font-medium text-destructive">
-          {t('vanSales.sell.payment.creditBlockedMsg')}
-        </p>
+        <div className="mt-1 space-y-2">
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs font-medium text-destructive">
+            {t('vanSales.sell.payment.creditBlockedMsg')}
+          </p>
+          {onCollectNow && (
+            <Button type="button" size="sm" className="w-full" onClick={onCollectNow}>
+              <HandCoins className="h-4 w-4" /> {t('vanSales.sell.payment.collectNow')}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
