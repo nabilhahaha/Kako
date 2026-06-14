@@ -237,3 +237,32 @@ are additive and flag-gated; no data or schema involved.
   (picker), **one** Inventory (van stock), **one** Sell (van-sell), and **one**
   day CTA. tsc + tests + build green; pilot flag enabled; UAT script for the full
   Today → Route → … → End Day loop.
+
+---
+
+# 9. Next refinement pass (approved direction — queued, NOT yet implemented)
+
+Captured during pilot UAT of the unified workspace. The unified direction is
+approved; these are batched for the next pass so the current UAT build stays
+stable. Reuse-only, no engine/schema/transaction change.
+
+1. **Customer = primary operational entry point.** Keep the canonical sequence as
+   the primary workflow: **Customer → Statement → Collect → Sell → Return → Print
+   → Complete Visit → Next Customer**. The route remains the spine ("Continue
+   route" stays), but make **Customer** the lead entry (first tile / primary
+   affordance) rather than route-first.
+2. **Tile order** (match the real visit flow):
+   `Customer · Collect · Sell · Return · Van Stock · End Day & Settle`
+   (promote End Day & Settle into the tile grid).
+3. **Operational KPIs in the top section** (explicitly a future pass, not a UAT
+   blocker) — all sourceable from existing data, reuse-only:
+   | KPI | Source (already available) |
+   |---|---|
+   | Planned customers | `erp_today_journey(salesman, today)` |
+   | Visited customers | `erp_visits` (today, this session/salesman) |
+   | Remaining customers | planned − visited |
+   | Today's sales | today's invoices (`created_by`=rep) net total |
+   | Today's collections | today's `erp_collections` / allocations for the rep |
+   | Route compliance % | coverage (visited ÷ planned) — `homeSignals.coveragePct` |
+
+Status: queued for implementation on the user's signal after UAT.
