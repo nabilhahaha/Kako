@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive } from './settings-server';
+import { dayReopenEnabled } from './sell';
 
 // ============================================================================
 // Day Reopen (Phase 1) — governed request/approval actions. Thin wrappers over
@@ -34,6 +36,7 @@ export async function requestDayReopen(input: { workSessionId: string; reason: s
 
   const supabase = await createClient();
   if (!(await isVanSalesActive(supabase, ctx))) return { ok: false, error: 'Van Sales is not enabled.' };
+  if (!dayReopenEnabled(await getFeatureFlags(supabase, ctx.companyId!))) return { ok: false, error: 'Day reopen is not enabled.' };
   if (!input.workSessionId) return { ok: false, error: 'Missing day.' };
   if (!input.reason || !input.reason.trim()) return { ok: false, error: 'Please enter a reason for the reopen.' };
 
@@ -59,6 +62,7 @@ export async function decideReopenRequest(input: { requestId: string; decision: 
 
   const supabase = await createClient();
   if (!(await isVanSalesActive(supabase, ctx))) return { ok: false, error: 'Van Sales is not enabled.' };
+  if (!dayReopenEnabled(await getFeatureFlags(supabase, ctx.companyId!))) return { ok: false, error: 'Day reopen is not enabled.' };
   if (!input.requestId) return { ok: false, error: 'Missing request.' };
   if (input.decision !== 'approve' && input.decision !== 'reject') return { ok: false, error: 'Invalid decision.' };
 

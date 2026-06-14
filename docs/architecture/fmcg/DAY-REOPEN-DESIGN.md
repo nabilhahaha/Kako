@@ -526,3 +526,28 @@ when ready. Overrides preserved; re-runnable.
   session columns + template perms). Additive throughout, so reversible.
 - **Guardrail:** promotion is gated on **explicit pilot sign-off**; existing tenants
   change only via the opt-in migrator. Pilot → Validate → FMCG Standard → inherit.
+
+## B6. Feature-flag ownership & override rules
+- **Flag:** `platform.day_reopen` — a per-company row in `erp_feature_flags`
+  (`company_id, feature_key, enabled`); catalog default **OFF** (`templates: []`).
+- **Resolution / precedence (per `getFeatureFlags`):** a stored company row **wins**
+  over the catalog default. Order: Platform-Owner/super-admin action → company
+  stored flag → catalog default. There is no global on-switch; it is per company.
+- **Who may toggle:** the **Platform Owner** (any company) and a **Company Admin**
+  for their own company (the `erp_feature_flags` write RLS is company-admin gated).
+  Salesmen/supervisors **cannot** change it — they only operate within it.
+- **Where:** Company Settings → Feature Configuration (the existing flags screen);
+  Platform-Owner tooling for cross-company control; and (post-promotion) the FMCG
+  creation-seeding for new companies.
+- **Enforcement is server-authoritative AND layered:** the flag gates (1) the rep
+  gate UI (`loadDayReopenGate`), (2) the approver page + hub inbox, and (3) the
+  **server actions** `requestDayReopen` / `decideReopenRequest` (which now
+  short-circuit when the flag is OFF) — so "feature off" means off everywhere, even
+  though the template seeds the perms to every new company. Permissions
+  (`day.reopen.request/.approve`) gate *who*; the flag gates *whether the workflow
+  exists for the company*. Both must be true.
+- **Override behaviour is non-destructive:** turning the flag OFF hides the UI and
+  blocks new requests/decisions immediately; existing `erp_day_reopen_requests`
+  rows and audit history are **retained** (read-only). Turning it back ON resumes
+  with full history intact. Day-Close **Enforcement** is independent of this flag
+  (code-level, van-sales-gated) and is unaffected by toggling it.
