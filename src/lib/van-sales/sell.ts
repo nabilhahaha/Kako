@@ -176,6 +176,13 @@ export function creditStatusOf(args: {
   return 'good';
 }
 
+/** Is the customer's STANDING credit-blocked (independent of the current sale)?
+ *  Over limit, overdue, or cash-only ⇒ credit sales are blocked (full cash still
+ *  allowed). Good / near_limit are not blocked. Pure. */
+export function creditStandingBlocked(status: CreditStatus): boolean {
+  return status === 'over_limit' || status === 'overdue' || status === 'cash_only';
+}
+
 /**
  * Would issuing this sale breach the customer's credit control? Mirrors the RPC:
  *   • A FULLY-PAID sale (remaining 0) is always allowed — even for a blocked

@@ -15,6 +15,7 @@ import {
   overdueDays,
   isOverdueBlocked,
   creditStatusOf,
+  creditStandingBlocked,
   type PaymentTender,
 } from './sell';
 
@@ -216,6 +217,16 @@ describe('van-sell pure core', () => {
     it('near_limit never overrides a blocking state (overdue / over_limit win)', () => {
       expect(creditStatusOf({ creditLimit: 5000, currentBalance: 4900, overdue: true })).toBe('overdue');
       expect(creditStatusOf({ creditLimit: 5000, currentBalance: 5000, overdue: false })).toBe('over_limit');
+    });
+  });
+
+  describe('creditStandingBlocked', () => {
+    it('blocks credit standing for over_limit / overdue / cash_only only', () => {
+      expect(creditStandingBlocked('good')).toBe(false);
+      expect(creditStandingBlocked('near_limit')).toBe(false);
+      expect(creditStandingBlocked('over_limit')).toBe(true);
+      expect(creditStandingBlocked('overdue')).toBe(true);
+      expect(creditStandingBlocked('cash_only')).toBe(true);
     });
   });
 });

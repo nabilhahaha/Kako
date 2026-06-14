@@ -16,8 +16,8 @@ import { useOnlineStatus } from '@/lib/offline-sync/use-network';
 import {
   firstDiscountOverCap, PAYMENT_METHODS, REFERENCE_REQUIRED_METHODS,
   sumTenders, paymentStatusFor, outstandingAfter, newBalanceAfter, validateTenders,
-  availableCreditFor, creditBlocked, isOverdueBlocked, overdueDays, creditStatusOf,
-  type PaymentMethod, type PaymentTender,
+  availableCreditFor, creditBlocked, isOverdueBlocked, overdueDays, creditStatusOf, creditStandingBlocked,
+  type PaymentMethod, type PaymentTender, type CreditStatus,
 } from '@/lib/van-sales/sell';
 import { previewVanSale, vanSell, vanSellWithPayment, type VanSellPreview } from '@/lib/van-sales/sell-server';
 
@@ -259,18 +259,28 @@ export function SellScreen({
       {/* Selected customer banner */}
       {customer && step !== 'customer' && step !== 'done' && (
         <Card className="mb-3">
-          <CardContent className="flex items-center justify-between gap-2 p-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 font-semibold">
-                <User className="h-4 w-4 shrink-0" /><span className="truncate">{cName(customer)}</span>
-                {collectInSell && <CreditBadge status={creditStatus} t={t} />}
+          <CardContent className="space-y-2 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 font-semibold">
+                  <User className="h-4 w-4 shrink-0" /><span className="truncate">{cName(customer)}</span>
+                  {collectInSell && <CreditBadge status={creditStatus} t={t} />}
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground" dir="ltr">
+                  {t('vanSales.sell.balance')} {money(Number(customer.balance))}
+                  {Number(customer.credit_limit) > 0 && <> · {t('vanSales.sell.creditLimit')} {money(Number(customer.credit_limit))}</>}
+                </div>
               </div>
-              <div className="mt-0.5 text-xs text-muted-foreground" dir="ltr">
-                {t('vanSales.sell.balance')} {money(Number(customer.balance))}
-                {Number(customer.credit_limit) > 0 && <> · {t('vanSales.sell.creditLimit')} {money(Number(customer.credit_limit))}</>}
-              </div>
+              {!preselect && <Button variant="ghost" size="sm" onClick={() => setStep('customer')}>{t('vanSales.sell.stepCustomer')}</Button>}
             </div>
-            {!preselect && <Button variant="ghost" size="sm" onClick={() => setStep('customer')}>{t('vanSales.sell.stepCustomer')}</Button>}
+            {/* Credit standing + reason, visible BEFORE building the sale. */}
+            {collectInSell && (
+              <CreditStandingCard
+                status={creditStatus} creditLimit={creditLimit} currentBalance={currentBalance}
+                availableCredit={availableCredit} overdueDayCount={overdueDayCount} termsDays={termsDays}
+                money={money} t={t}
+              />
+            )}
           </CardContent>
         </Card>
       )}
@@ -484,29 +494,14 @@ export function SellScreen({
               <Row label={t('vanSales.sell.payment.newBalance')} value={money(newBalance)} />
             </div>
 
-            {/* Credit-control panel — status, limit / outstanding / available,
-                aging (oldest unpaid, overdue days, allowed days), live warning. */}
-            <div className="space-y-1 rounded-md border bg-secondary/30 p-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t('vanSales.sell.payment.creditStatus')}</span>
-                <CreditBadge status={creditStatus} t={t} />
-              </div>
-              {creditLimit > 0 ? (
-                <>
-                  <Row label={t('vanSales.sell.payment.creditLimit')} value={money(creditLimit)} />
-                  <Row label={t('vanSales.sell.payment.currentOutstanding')} value={money(currentBalance)} />
-                  <Row label={t('vanSales.sell.payment.availableCredit')} value={money(availableCredit)} />
-                </>
-              ) : (
-                <Row label={t('vanSales.sell.payment.creditLimit')} value={t('vanSales.sell.payment.cashOnly')} />
-              )}
-              {termsDays > 0 && <Row label={t('vanSales.sell.payment.allowedDays')} value={String(termsDays)} />}
-              {customer?.oldest_unpaid_date && (
-                <Row label={t('vanSales.sell.payment.oldestUnpaid')} value={customer.oldest_unpaid_date} />
-              )}
-              {overdueDayCount != null && overdueDayCount > 0 && (
-                <Row label={t('vanSales.sell.payment.overdueDays')} value={String(overdueDayCount)} />
-              )}
+            {/* Credit standing + reason (same card as the banner) + this sale's
+                remaining and a per-sale block warning. */}
+            <CreditStandingCard
+              status={creditStatus} creditLimit={creditLimit} currentBalance={currentBalance}
+              availableCredit={availableCredit} overdueDayCount={overdueDayCount} termsDays={termsDays}
+              money={money} t={t}
+            />
+            <div className="rounded-md border bg-secondary/30 p-3 text-sm">
               <Row label={t('vanSales.sell.payment.remainingInvoice')} value={money(remaining)} />
             </div>
             {isCreditBlocked && (
@@ -606,11 +601,71 @@ function Row({ label, value }: { label: string; value: string }) {
   return <div className="flex items-center justify-between text-muted-foreground"><span>{label}</span><span className="tabular-nums" dir="ltr">{value}</span></div>;
 }
 
-function CreditBadge({ status, t }: { status: 'good' | 'near_limit' | 'over_limit' | 'overdue' | 'cash_only'; t: (k: string) => string }) {
+function CreditBadge({ status, t }: { status: CreditStatus; t: (k: string) => string }) {
   const variant =
     status === 'good' ? 'success'
       : status === 'near_limit' ? 'warning'
         : status === 'cash_only' ? 'secondary'
           : 'destructive';
   return <Badge variant={variant}>{t(`vanSales.sell.payment.cs_${status}`)}</Badge>;
+}
+
+const STATUS_DOT: Record<CreditStatus, string> = {
+  good: '🟢', near_limit: '🟡', over_limit: '🔴', overdue: '🔴', cash_only: '💵',
+};
+
+/** Credit standing + reason + the figures behind it — shown on the customer
+ *  banner (before the sale) and the Payment step, so the reason a customer is
+ *  blocked is always explicit. */
+function CreditStandingCard({
+  status, creditLimit, currentBalance, availableCredit, overdueDayCount, termsDays, money, t,
+}: {
+  status: CreditStatus;
+  creditLimit: number; currentBalance: number; availableCredit: number;
+  overdueDayCount: number | null; termsDays: number;
+  money: (n: number) => string; t: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  const blocked = creditStandingBlocked(status);
+  const exceededBy = Math.max(0, Math.round((currentBalance - creditLimit) * 100) / 100);
+  const tone =
+    status === 'good' ? 'border-success/40 bg-success/5'
+      : status === 'near_limit' ? 'border-warning/40 bg-warning/5'
+        : status === 'cash_only' ? 'border-border bg-secondary/40'
+          : 'border-destructive/40 bg-destructive/5';
+  return (
+    <div className={`space-y-1 rounded-md border p-3 text-sm ${tone}`}>
+      <div className="flex items-center gap-2 font-semibold">
+        <span aria-hidden>{STATUS_DOT[status]}</span>
+        {t(`vanSales.sell.payment.cs_${status}`)}
+      </div>
+      <div className="text-xs text-muted-foreground">
+        <span className="font-medium">{t('vanSales.sell.payment.reasonLabel')}:</span>{' '}
+        {t(`vanSales.sell.payment.reason_${status}`)}
+      </div>
+      <div className="space-y-0.5 pt-0.5">
+        {status === 'near_limit' && (
+          <Row label={t('vanSales.sell.payment.availableCredit')} value={money(availableCredit)} />
+        )}
+        {status === 'over_limit' && (
+          <>
+            <Row label={t('vanSales.sell.payment.creditLimit')} value={money(creditLimit)} />
+            <Row label={t('vanSales.sell.payment.currentOutstanding')} value={money(currentBalance)} />
+            <Row label={t('vanSales.sell.payment.exceededBy')} value={money(exceededBy)} />
+          </>
+        )}
+        {status === 'overdue' && (
+          <>
+            <Row label={t('vanSales.sell.payment.oldestUnpaid')}
+              value={overdueDayCount != null ? t('vanSales.sell.payment.daysOverdue', { days: overdueDayCount }) : '—'} />
+            {termsDays > 0 && <Row label={t('vanSales.sell.payment.allowedDays')} value={String(termsDays)} />}
+          </>
+        )}
+      </div>
+      {blocked && (
+        <p className="mt-1 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs font-medium text-destructive">
+          {t('vanSales.sell.payment.creditBlockedMsg')}
+        </p>
+      )}
+    </div>
+  );
 }
