@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
@@ -21,6 +22,9 @@ export default async function InvoicesPage({
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  // Back-office invoice editor is a SELLING screen — require sales.sell. Field
+  // reps (sales.collect only, no sales.sell) work through Van-Sales, not here.
+  if (!hasPermission(ctx, 'sales.sell') && !ctx.isSuperAdmin) redirect('/dashboard');
   const { t } = await getT();
 
   const sp = await searchParams;
