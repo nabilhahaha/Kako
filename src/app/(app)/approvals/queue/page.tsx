@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { canSeeWorkflowInbox } from '@/lib/erp/approvals-access';
-import { UNIFIED_INBOX } from '@/lib/erp/approval-flags';
+import { UNIFIED_INBOX, APPROVAL_DAYCLOSE, APPROVAL_VISIT, APPROVAL_CUSTTRANSFER, APPROVAL_VANTRANSFER, APPROVAL_TRADE_SPEND_WF } from '@/lib/erp/approval-flags';
 import { getT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
 import { ApprovalQueue, type ApprovalItem, type ApprovalType } from './approval-queue';
@@ -34,12 +34,15 @@ export default async function ApprovalQueuePage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  // Legacy field-queue types are hidden once their P2 engine flag is on (the
+  // approval then lives in the unified engine inbox instead — avoids showing the
+  // same item twice). Flags OFF ⇒ unchanged.
   const caps: Record<ApprovalType, boolean> = {
-    day_close: hasPermission(ctx, 'day.approve_close_exception'),
-    visit: hasPermission(ctx, 'visit.approve_out_of_route'),
-    customer_transfer: hasPermission(ctx, 'customer.transfer'),
-    van_transfer: hasPermission(ctx, 'stock.transfer.approve'),
-    trade_spend: hasPermission(ctx, 'reports.view'),
+    day_close: hasPermission(ctx, 'day.approve_close_exception') && !APPROVAL_DAYCLOSE(),
+    visit: hasPermission(ctx, 'visit.approve_out_of_route') && !APPROVAL_VISIT(),
+    customer_transfer: hasPermission(ctx, 'customer.transfer') && !APPROVAL_CUSTTRANSFER(),
+    van_transfer: hasPermission(ctx, 'stock.transfer.approve') && !APPROVAL_VANTRANSFER(),
+    trade_spend: hasPermission(ctx, 'reports.view') && !APPROVAL_TRADE_SPEND_WF(),
     // P3: engine tasks surface only when the unified inbox is enabled.
     workflow: UNIFIED_INBOX(),
   };

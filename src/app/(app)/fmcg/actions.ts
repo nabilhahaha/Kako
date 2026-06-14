@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, type ActionResult } from '@/lib/erp/guards';
 import { hasPermission } from '@/lib/erp/permissions';
+import { APPROVAL_VANRECON } from '@/lib/erp/approval-flags';
 
 /** ── FMCG Value Acceleration Wave 1 — server actions ─────────────────────────
  *  Thin, permission-gated wrappers over the validated 0137–0143 RPCs, plus
@@ -449,6 +450,16 @@ export async function computeVanReconciliation(
     p_actuals: actuals,
   });
   if (rpcErr) return { ok: false, error: rpcErr.message };
+
+  // P2 (flag KAKO_APPROVAL_VANRECON): when variance puts the reconciliation in
+  // pending_approval, route it through the engine. Flag OFF ⇒ skipped (legacy
+  // settle/reject path + the under-threshold auto-draft are unchanged).
+  const rd = data as { reconciliation_id?: string; status?: string } | null;
+  if (APPROVAL_VANRECON() && rd?.reconciliation_id && rd?.status === 'pending_approval') {
+    await supabase.rpc('erp_workflow_start', {
+      p_key: 'van_reconciliation_approval', p_entity: 'van_reconciliation', p_record_id: rd.reconciliation_id, p_context: {},
+    });
+  }
   revalidatePath('/field/van-reconciliation');
   return { ok: true, data };
 }

@@ -93,6 +93,56 @@ const HANDLERS: Record<string, Handler> = {
     }
   },
 
+  // ── P2 field workflows: each reuses the existing decision RPC as its handler ──
+  // Day-close exception: approve runs the existing close RPC; reject reopens the
+  // day (close_status back to 'open') so the rep can retry. (No reject RPC exists.)
+  work_session: async (recordId, outcome) => {
+    const supabase = await createClient();
+    if (outcome === 'approved') {
+      await supabase.rpc('erp_approve_day_close', { p_work_session_id: recordId });
+    } else {
+      await supabase.from('erp_work_sessions').update({ close_status: 'open' }).eq('id', recordId).eq('close_status', 'pending_approval');
+    }
+  },
+
+  // Out-of-route visit: the existing decide RPC handles both approve and reject.
+  visit_compliance: async (recordId, outcome, comment) => {
+    const supabase = await createClient();
+    await supabase.rpc('erp_decide_visit_compliance', {
+      p_id: recordId, p_approve: outcome === 'approved', p_note: comment ?? null,
+    });
+  },
+
+  // Customer transfer: approve runs the existing apply RPC; reject marks rejected.
+  customer_transfer: async (recordId, outcome) => {
+    const supabase = await createClient();
+    if (outcome === 'approved') {
+      await supabase.rpc('erp_approve_customer_transfer', { p_transfer_id: recordId });
+    } else {
+      await supabase.from('erp_customer_transfers').update({ status: 'rejected' }).eq('id', recordId).eq('status', 'pending');
+    }
+  },
+
+  // Van (stock) transfer: reuse the existing approve / reject RPCs.
+  van_transfer: async (recordId, outcome, comment) => {
+    const supabase = await createClient();
+    if (outcome === 'approved') {
+      await supabase.rpc('erp_approve_van_transfer', { p_id: recordId });
+    } else {
+      await supabase.rpc('erp_reject_van_transfer', { p_id: recordId, p_reason: comment ?? '' });
+    }
+  },
+
+  // Van reconciliation: reuse the existing settle / reject RPCs.
+  van_reconciliation: async (recordId, outcome, comment) => {
+    const supabase = await createClient();
+    if (outcome === 'approved') {
+      await supabase.rpc('erp_settle_van_reconciliation', { p_id: recordId });
+    } else {
+      await supabase.rpc('erp_reject_van_reconciliation', { p_id: recordId, p_reason: comment ?? '' });
+    }
+  },
+
   // Price-change (P1): on approve, apply the requested price to the product;
   // either way, stamp the request's final status. The live price is untouched
   // while the request is pending.

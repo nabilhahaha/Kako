@@ -23,6 +23,16 @@ export const UNIFIED_INBOX = (): boolean => on(process.env.KAKO_UNIFIED_INBOX);
 //    preserved while off; activate only after staging validation + pilot sign-off).
 /** Route stock/load requests through the engine. */
 export const APPROVAL_LOADREQ = (): boolean => on(process.env.KAKO_APPROVAL_LOADREQ);
+/** Route day-close exceptions through the engine. */
+export const APPROVAL_DAYCLOSE = (): boolean => on(process.env.KAKO_APPROVAL_DAYCLOSE);
+/** Route out-of-route visit compliance through the engine. */
+export const APPROVAL_VISIT = (): boolean => on(process.env.KAKO_APPROVAL_VISIT);
+/** Route customer transfers through the engine. */
+export const APPROVAL_CUSTTRANSFER = (): boolean => on(process.env.KAKO_APPROVAL_CUSTTRANSFER);
+/** Route van (stock) transfers through the engine. */
+export const APPROVAL_VANTRANSFER = (): boolean => on(process.env.KAKO_APPROVAL_VANTRANSFER);
+/** Route van reconciliation through the engine. */
+export const APPROVAL_VANRECON = (): boolean => on(process.env.KAKO_APPROVAL_VANRECON);
 
 /** The credit-limit workflow definition key — v2 when flagged on, else legacy.
  *  Pure (testable) selector so the routing decision is unit-covered. */
