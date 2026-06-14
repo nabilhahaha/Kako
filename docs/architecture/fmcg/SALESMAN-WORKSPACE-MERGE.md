@@ -290,20 +290,40 @@ reversible; non-salesman roles + flag-off tenants unchanged.
 
 ---
 
-# 10. Long-term direction (captured — not yet implemented)
+# 10. Final FMCG salesman navigation model (✅ IMPLEMENTED)
 
-**The Customer tab is transitional.** The end state: the **customer picker lives
-inside Today** (embedded — Today JP / All-Customers list + search right in the
-workspace), so Today is the *complete* operational workspace and there is no
-separate `/field/van-sales/customers` hop. Selecting a customer opens the visit
-context (Statement → Collect → Sell → Return → Print → Complete Visit → Next).
+**This is the canonical model** — Today is the *complete* operational workspace;
+the salesman thinks in customers and visits, not modules.
 
-- **Now (shipped):** Today = workspace; Customer is a bottom-nav tab + the
-  primary CTA that navigates to the picker page. One operational entry, no
-  duplicates — but the picker is still a separate screen.
-- **Long term:** fold the picker INTO Today (the `CustomerPicker` component is
-  already standalone and reusable, so this is composition, not a rewrite); the
-  Customer tab then becomes redundant and can be retired, leaving Today as the
-  single surface. Keep `/field/van-sales/customers` as a deep-link alias.
-- Reuse-first, flag-gated, reversible — same playbook. Queued for a later pass
-  (after the current refinements settle in UAT).
+**Workflow:** `Start Day → Route → Customer Picker → Statement → Collect → Sell →
+Return → Print → Complete Visit → Next Customer → End Day & Settle`.
+
+**Bottom navigation (van salesman):** **`Today · Van Stock · More`** — the Customer,
+Sell and generic Home/Dashboard tabs are all removed.
+
+- **Customer Picker is embedded INSIDE Today** (no separate hop): rendered in the
+  workspace once the day is open, via the shared `loadVanCustomerPicker(ctx)`
+  loader + the standalone `CustomerPicker` component — so it carries the full
+  feature set: **Today JP / All Customers · Sold-today indicator · Sell-again
+  warning · off-route/unplanned flow** (all already built; reuse-only).
+- **Today workspace (open day):** day status + Continue route (route stays the
+  spine) · operational **KPI strip** (Planned · Visited · Remaining · Today's
+  sales · Today's collections · Route compliance %) · the **embedded Customer
+  Picker** (primary entry) · quick actions **Van Stock · End Day & Settle** ·
+  attention. Selecting a customer → the visit context (Statement → Collect → Sell
+  → Return → Print → Complete Visit → Next).
+- `/field/van-sales/customers` **stays as a deep-link alias** (same loader), so
+  off-route navigation and bookmarks still resolve.
+- Implemented in the pure, unit-tested `resolveBottomNavTabs` (the Customer tab
+  candidate removed; `Sell` + `Home` suppressed when unified). Flag-gated by
+  `platform.unified_salesman_workspace`; **non-salesman roles + flag-off tenants
+  unchanged**; reversible.
+
+## 10.1 Inclusion in the FMCG-default promotion plan
+This final model **is** what gets promoted (per §5.5 / the reopen design's
+Appendix B mechanism): when a new company is FMCG, `platform.unified_salesman_workspace`
+is seeded **ON** at creation (business-type default) → every new FMCG salesman gets
+**Today · Van Stock · More + the embedded customer-first workspace** from day one,
+no manual setup. Existing FMCG companies adopt via the opt-in migrator
+(`erp_apply_fmcg_*_default(company_id)` family); non-FMCG verticals are untouched;
+rollback = flip the flag OFF. **Promotion stays gated on pilot UAT sign-off.**

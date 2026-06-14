@@ -211,26 +211,20 @@ describe('bottom-nav — unified salesman workspace', () => {
     modules: M('van_sales', 'inventory', 'field_ops'), businessType: 'general', vanSalesActive: true,
   };
 
-  it('unified ON → Customer (picker) replaces Sell; Home is dropped', () => {
+  it('unified ON → Today · Van Stock only (no Sell, no Home, no Customer tab)', () => {
     const r = resolveBottomNavTabs({ ...SALESMAN, unifiedWorkspace: true });
     const hrefs = r.map((t) => t.href);
-    expect(hrefs).toContain('/today');
-    expect(hrefs).toContain('/field/van-sales/customers'); // Customer-first entry
-    expect(hrefs).toContain('/field/stock');               // Van Stock
-    expect(hrefs).not.toContain('/field/van-sales/sell');  // no standalone Sell
-    expect(hrefs).not.toContain('/dashboard');             // no duplicate Home
+    expect(hrefs).toContain('/today');                          // the one home
+    expect(hrefs).toContain('/field/stock');                   // Van Stock
+    expect(hrefs).not.toContain('/field/van-sales/sell');      // no standalone Sell
+    expect(hrefs).not.toContain('/dashboard');                 // no duplicate Home
+    expect(hrefs).not.toContain('/field/van-sales/customers'); // picker lives inside Today
   });
 
-  it('unified OFF → unchanged (Home + Sell present, no picker tab)', () => {
+  it('unified OFF → unchanged (Home + Sell present)', () => {
     const r = resolveBottomNavTabs({ ...SALESMAN, unifiedWorkspace: false });
     const hrefs = r.map((t) => t.href);
     expect(hrefs).toContain('/dashboard');
     expect(hrefs).toContain('/field/van-sales/sell');
-    expect(hrefs).not.toContain('/field/van-sales/customers');
-  });
-
-  it('the Customer picker tab never leaks to a non-unified user', () => {
-    const r = resolveBottomNavTabs({ ...SALESMAN }); // unifiedWorkspace omitted (falsey)
-    expect(r.some((t) => t.href === '/field/van-sales/customers')).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import type { Permission } from '@/lib/erp/permissions';
 import { isModuleGateOpen, type Module } from '@/lib/erp/navigation';
-import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, Truck, UserSquare, type LucideIcon } from 'lucide-react';
+import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, Truck, type LucideIcon } from 'lucide-react';
 
 /** A candidate bottom-nav tab. `href` must resolve to a real route, `labelKey`
  *  is an i18n key, `perm` (when set) gates visibility, and `module` (when set)
@@ -47,8 +47,9 @@ export const BOTTOM_NAV_TABS: BottomNavTab[] = [
   // Field loop: the salesman's "Today" home (only shown to field reps).
   { href: '/today', icon: MapPin, labelKey: 'nav.bottom.today', perm: 'field.sales' },
   // ── Customers (mutually-exclusive group 'customers') ──
-  // Unified salesman: the Customer-first entry → the Today JP / All-Customers picker.
-  { href: '/field/van-sales/customers', icon: UserSquare, labelKey: 'nav.bottom.customers', perm: 'field.sales', group: 'customers', vanSalesOnly: true, unifiedOnly: true },
+  // (Unified salesman: NO Customer tab — the picker lives inside Today, so the
+  // bottom nav is Today · Van Stock · More. Selling/collection start from the
+  // embedded picker → the visit context.)
   { href: '/fashion/customers', icon: Users, labelKey: 'nav.bottom.customers', perm: 'fashion.sell', module: 'fashion', group: 'customers' },
   { href: '/customers', icon: Users, labelKey: 'nav.bottom.customers', perm: 'customers.manage', module: 'sales', group: 'customers' },
   // ── Sell (mutually-exclusive group 'sell') ──

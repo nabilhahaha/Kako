@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import {
   Play, CheckCircle2, Lock, Clock, MapPin, ListChecks, Receipt, Users,
-  UserSquare, ShoppingCart, HandCoins, Undo2, Boxes, ClipboardCheck, type LucideIcon,
+  UserSquare, HandCoins, Boxes, ClipboardCheck, type LucideIcon,
 } from 'lucide-react';
 import { getT } from '@/lib/i18n/server';
 import type { UserContext } from '@/lib/erp/auth-context';
@@ -16,15 +16,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { loadVanDayState, loadDayReopenGate } from '@/lib/van-sales/day-server';
+import { loadVanCustomerPicker } from '@/lib/van-sales/customers-server';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
+import { CustomerPicker } from '@/app/(app)/field/van-sales/customers/customer-picker';
 
-// Operational tiles in the real visit order (customer-first):
-// Customer · Collect · Sell · Return · Van Stock · End Day & Settle.
+// Non-visit operational quick actions (the visit steps — Collect/Sell/Return —
+// happen INSIDE the customer visit context, reached from the embedded picker).
 const TILES: { key: string; href: string; icon: LucideIcon; label: string }[] = [
-  { key: 'customer', href: '/field/van-sales/customers', icon: UserSquare, label: 'vanSales.steps.customer' },
-  { key: 'collect', href: '/field/van-sales/collect', icon: HandCoins, label: 'vanSales.steps.collect' },
-  { key: 'sell', href: '/field/van-sales/sell', icon: ShoppingCart, label: 'vanSales.steps.sell' },
-  { key: 'return', href: '/field/van-sales/return', icon: Undo2, label: 'vanSales.steps.return' },
   { key: 'stock', href: '/field/stock', icon: Boxes, label: 'vanSales.steps.stock' },
   { key: 'endday', href: '/field/van-reconciliation', icon: ClipboardCheck, label: 'vanSales.endDaySettle' },
 ];
@@ -45,13 +43,14 @@ export async function SalesmanWorkspace({ ctx, items, itemCount }: Props) {
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
 
-  const [{ state }, reopen, planRes, visRes, invRes, colRes] = await Promise.all([
+  const [{ state }, reopen, planRes, visRes, invRes, colRes, picker] = await Promise.all([
     loadVanDayState(ctx),
     loadDayReopenGate(ctx),
     supabase.rpc('erp_today_journey', { p_salesman: ctx.userId, p_date: today }),
     supabase.from('erp_visits').select('customer_id').eq('salesman_id', ctx.userId).eq('visit_date', today),
     supabase.from('erp_invoices').select('net_amount, status').eq('created_by', ctx.userId).gte('created_at', `${today}T00:00:00`),
     supabase.from('erp_collections').select('amount, status').eq('received_by', ctx.userId).eq('collection_date', today),
+    loadVanCustomerPicker(ctx),
   ]);
 
   // Operational KPIs (read-only; reuse existing data — no new engine).
@@ -86,14 +85,9 @@ export async function SalesmanWorkspace({ ctx, items, itemCount }: Props) {
           )}
 
           {state === 'open' && (
-            <div className="space-y-2">
-              <Link href="/field/van-sales/customers" className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-4 text-base font-semibold text-primary-foreground hover:bg-primary/90">
-                <UserSquare className="h-5 w-5" /> {t('vanSales.startWithCustomer')}
-              </Link>
-              <Link href="/field/journey" className={`${buttonVariants({ variant: 'outline' })} w-full`}>
-                <MapPin className="h-4 w-4" /> {t('vanSales.continueRoute')}
-              </Link>
-            </div>
+            <Link href="/field/journey" className={`${buttonVariants({ variant: 'outline' })} w-full`}>
+              <MapPin className="h-4 w-4" /> {t('vanSales.continueRoute')}
+            </Link>
           )}
 
           {state === 'closed' && (
@@ -121,8 +115,21 @@ export async function SalesmanWorkspace({ ctx, items, itemCount }: Props) {
         <StatCard label={t('vanSales.kpi.compliance')} value={`${compliance}%`} icon={MapPin} tone={complianceTone} />
       </div>
 
-      {/* Operational tiles — visit order; one home for every task. */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {/* Customer Picker — embedded, the primary operational entry (the visit
+          starts here). Today JP / All Customers, Sold-today, Sell-again warning,
+          off-route flow all live in the picker. Shown once the day is open. */}
+      {state === 'open' && picker && (
+        <section className="space-y-2">
+          <div className="flex items-center gap-2">
+            <UserSquare className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('vanSales.steps.customer')}</h2>
+          </div>
+          <CustomerPicker customers={picker.customers} />
+        </section>
+      )}
+
+      {/* Non-visit quick actions: Van Stock · End Day & Settle. */}
+      <div className="grid grid-cols-2 gap-3">
         {TILES.map((s) => {
           const Icon = s.icon;
           return (
