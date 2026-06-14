@@ -12,7 +12,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { VAN_SALES_ENABLED } from '@/lib/van-sales';
-import { dayReopenEnabled } from '@/lib/van-sales/sell';
+import { dayReopenEnabled, unifiedSalesmanWorkspaceEnabled } from '@/lib/van-sales/sell';
 import { loadVanDayState, loadPendingDayReopens } from '@/lib/van-sales/day-server';
 
 export const dynamic = 'force-dynamic';
@@ -52,13 +52,20 @@ export default async function VanSalesMyDayPage() {
   const isAdmin = hasPermission(ctx, 'settings.branches') || ctx.isSuperAdmin;
 
   const { t } = await getT();
+
+  // Unified salesman workspace (flag ON): Today is the ONE home for a van salesman
+  // — this hub redirects into it (one-way; /today never redirects back). Admins /
+  // managers keep the hub (readiness + approver inbox). Reuse-only.
+  const supabase = await createClient();
+  const flags = await getFeatureFlags(supabase, ctx.companyId!);
+  const isVanSalesman = hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'settings.branches') && !ctx.isSuperAdmin;
+  if (unifiedSalesmanWorkspaceEnabled(flags) && isVanSalesman) redirect('/today');
+
   const { state } = await loadVanDayState(ctx);
 
   const tone = state === 'open' ? 'success' : state === 'closed' ? 'secondary' : 'outline';
 
   // Governed day-reopen (flag-gated): approvers see the pending-request inbox.
-  const supabase = await createClient();
-  const flags = await getFeatureFlags(supabase, ctx.companyId!);
   const canApproveReopen = dayReopenEnabled(flags) && (hasPermission(ctx, 'day.reopen.approve') || ctx.isSuperAdmin);
   const pendingReopens = canApproveReopen ? await loadPendingDayReopens(ctx) : [];
 

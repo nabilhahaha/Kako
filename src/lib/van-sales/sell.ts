@@ -91,6 +91,12 @@ export function dayReopenEnabled(flags: Record<string, boolean | undefined> | nu
   return Boolean(flags?.['platform.day_reopen']);
 }
 
+/** Is the unified salesman workspace active (Today = the one operational home)?
+ *  Opt-in platform flag (`platform.unified_salesman_workspace`), default OFF. Pure. */
+export function unifiedSalesmanWorkspaceEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
+  return Boolean(flags?.['platform.unified_salesman_workspace']);
+}
+
 /** Tender methods supported in-sell (one collection row each on the server).
  *  These are the DB-canonical erp_collections.method codes (constraint-aligned):
  *  cash · credit_card (Card) · bank_transfer · check (Cheque). */

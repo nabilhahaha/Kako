@@ -219,6 +219,14 @@ export const FEATURES: FeatureDef[] = [
     screens: ['/field/van-sales/sell', '/field/van-sales/reopen-approvals'],
     logic: ['erp_request_day_reopen', 'erp_decide_day_reopen'],
   }),
+  // Unified salesman workspace (FMCG): Today becomes the ONE operational home for
+  // the van salesman — day status + single CTA, route-first entry, the operational
+  // tiles, reopen, and signals — and /field/van-sales redirects into it. Default
+  // OFF (opt-in per tenant); UI/navigation composition only — no engine/schema.
+  P('platform.unified_salesman_workspace', 'pos', [], {
+    screens: ['/today', '/field/van-sales'],
+    logic: ['salesman.workspace', 'today.compose'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),

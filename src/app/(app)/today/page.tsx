@@ -6,6 +6,9 @@ import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import { unifiedSalesmanWorkspaceEnabled } from '@/lib/van-sales/sell';
+import { SalesmanWorkspace } from './salesman-workspace';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard, type StatTone } from '@/components/shared/stat-card';
 import { AttentionList, QuickNav, type QuickLink } from '@/components/home/home-widgets';
@@ -37,6 +40,17 @@ export default async function TodayHomePage() {
   const supabase = await createClient();
   const vanSalesOn = await isVanSalesActive(supabase, ctx);
 
+  // Unified salesman workspace (flag ON): Today IS the one operational home for a
+  // van salesman (field.sales, not an admin/manager). Compose the workspace and
+  // return early; everyone else keeps the existing Today home below. Reuse-only.
+  const flags = await getFeatureFlags(supabase, ctx.companyId!);
+  const isVanSalesman = hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'settings.branches') && !ctx.isSuperAdmin;
+  if (unifiedSalesmanWorkspaceEnabled(flags) && vanSalesOn && isVanSalesman) {
+    return <SalesmanWorkspace ctx={ctx} coveragePct={sig.coveragePct} overdue={sig.overdue} items={items} itemCount={summary.itemCount} />;
+  }
+
+  // Non-salesman field roles (managers/supervisors/admins) keep the existing
+  // Today home + shortcuts. (Van salesmen are handled by the workspace above.)
   const quick: QuickLink[] = [
     ...(vanSalesOn ? [{ label: t('vanSales.myDayTitle'), href: '/field/van-sales', icon: Truck }] : []),
     { label: t('nav.items.invoices'), href: '/sales/invoices', icon: Receipt },

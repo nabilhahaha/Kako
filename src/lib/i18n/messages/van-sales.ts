@@ -12,6 +12,8 @@ export const ar = {
     start: 'ابدأ اليوم',
     endDay: 'إنهاء اليوم',
     endDaySettle: 'إنهاء اليوم وتسوية العهدة',
+    continueRoute: 'متابعة خط السير',
+    workspaceSubtitle: 'مساحة عملك اليومية: خط السير، العميل، البيع، التحصيل، المرتجع، الإنهاء.',
     pickerSubtitle: 'اختر عميلاً لعرض كشف الحساب والتحصيل والبيع والمرتجع.',
     picker: {
       tabToday: 'خطة اليوم',
@@ -427,6 +429,8 @@ export const en = {
     start: 'Start Day',
     endDay: 'End Day',
     endDaySettle: 'End Day & settle van',
+    continueRoute: 'Continue route',
+    workspaceSubtitle: 'Your day, in one place: route, customer, sell, collect, return, close.',
     pickerSubtitle: 'Pick a customer to view statement, collect, sell and return.',
     picker: {
       tabToday: 'Today JP',
