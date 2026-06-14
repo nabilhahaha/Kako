@@ -312,7 +312,14 @@ export function SellScreen({
                   {Number(customer.credit_limit) > 0 && <> · {t('vanSales.sell.creditLimit')} {money(Number(customer.credit_limit))}</>}
                 </div>
               </div>
-              {!preselect && <Button variant="ghost" size="sm" onClick={() => setStep('customer')}>{t('vanSales.sell.stepCustomer')}</Button>}
+              <div className="flex shrink-0 items-center gap-1">
+                {customerId && (
+                  <Button variant="ghost" size="sm" onClick={() => router.push(`/field/van-sales/statement/${customerId}`)}>
+                    {t('vanSales.sell.statement')}
+                  </Button>
+                )}
+                {!preselect && <Button variant="ghost" size="sm" onClick={() => setStep('customer')}>{t('vanSales.sell.stepCustomer')}</Button>}
+              </div>
             </div>
             {/* Credit standing + reason, visible BEFORE building the sale. */}
             {collectInSell && (
