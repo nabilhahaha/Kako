@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roshen KSA — Forecast & Scenario Lab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0e1726; --panel: #16233a; --panel2: #1d2d47; --line: #2a3c5a;
+    --txt: #e7eef9; --muted: #93a4c0; --accent: #ffb800; --accent2: #28c2a0;
+    --danger: #ff6b6b; --good: #28c2a0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Segoe UI", Tahoma, system-ui, sans-serif;
+    background: var(--bg); color: var(--txt); font-size: 14px;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px; padding: 14px 20px;
+    background: linear-gradient(135deg, #122236, #1a2d45);
+    border-bottom: 2px solid var(--accent);
+  }
+  header .logo { width: 38px; height: 38px; border-radius: 10px; display: flex;
+    align-items: center; justify-content: center; font-size: 22px;
+    background: linear-gradient(135deg, #ffb800, #ffc627); }
+  header h1 { font-size: 17px; margin: 0; }
+  header .sub { font-size: 11px; color: var(--muted); }
+  .wrap { display: grid; grid-template-columns: 300px 1fr 320px; gap: 14px; padding: 14px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .panel h2 { font-size: 13px; margin: 0 0 10px; color: var(--accent); letter-spacing: .3px;
+    text-transform: uppercase; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  .panel h3 { font-size: 12px; margin: 14px 0 6px; color: var(--accent2); }
+  label.fld { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+  input, select, button { font-family: inherit; }
+  input[type=number], input[type=text], select {
+    width: 100%; padding: 7px 9px; background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 8px; color: var(--txt); font-size: 13px;
+  }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  button {
+    cursor: pointer; border: none; border-radius: 9px; padding: 9px 14px;
+    font-size: 13px; font-weight: 600; transition: .15s;
+  }
+  button:hover { filter: brightness(1.1); }
+  .btn-primary { background: linear-gradient(135deg, #ffb800, #ffc627); color: #1a1100; }
+  .btn-ghost { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); }
+  .btn-accent { background: var(--accent2); color: #042018; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 4px 8px; font-size: 11px; }
+  .drop {
+    border: 2px dashed var(--line); border-radius: 12px; padding: 22px 12px; text-align: center;
+    color: var(--muted); cursor: pointer; transition: .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); color: var(--txt); background: rgba(255,184,0,.05); }
+  .stat { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; border-bottom: 1px dashed var(--line); }
+  .stat b { color: var(--txt); }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .kpi .lab { font-size: 11px; color: var(--muted); }
+  .kpi .val { font-size: 20px; font-weight: 800; margin-top: 3px; }
+  .kpi .val.small { font-size: 16px; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .toolbar .sp { flex: 1; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 7px 9px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--accent); font-weight: 700; position: sticky; top: 0; background: var(--panel); cursor: pointer; }
+  td.name { text-align: right; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+  tr:hover td { background: rgba(255,255,255,.03); }
+  .tbl-wrap { max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .lever-card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+  .lever-card .lh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .lever-card .lh b { font-size: 12px; }
+  .pill { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 20px; background: var(--line); color: var(--txt); }
+  .muted { color: var(--muted); font-size: 11px; }
+  .chart-box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; height: 280px; }
+  .empty { text-align: center; color: var(--muted); padding: 40px; }
+  .season-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .season-grid label { font-size: 10px; color: var(--muted); display: block; }
+  .season-grid input { padding: 4px; font-size: 11px; text-align: center; }
+  .badge-up { color: var(--good); } .badge-dn { color: var(--danger); }
+  details summary { cursor: pointer; color: var(--accent2); font-size: 12px; margin: 8px 0; }
+  .hint { font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🍫</div>
+  <div>
+    <h1>Roshen KSA — Forecast &amp; Scenario Lab</h1>
+    <div class="sub">أداة توقّع خفيفة · إكسل داخل / إكسل خارج · المحرّك على مستوى الصنف مع تجميع لأي مستوى</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: data + assumptions -->
+  <div>
+    <div class="panel">
+      <h2>1 · الداتا</h2>
+      <div id="drop" class="drop">
+        <div style="font-size:26px">📥</div>
+        اسحب ملف الإكسل هنا<br>أو اضغط للاختيار
+        <input type="file" id="file" accept=".xlsx,.xls" style="display:none">
+      </div>
+      <div id="dataStats" style="margin-top:10px"></div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>2 · الافتراضات العامة</h2>
+      <label class="fld">نافذة الأساس (آخر كام شهر مكتمل)</label>
+      <input type="number" id="baseWin" value="3" min="1" max="12">
+      <label class="fld">أفق التوقّع (عدد الشهور الجاية)</label>
+      <input type="number" id="horizon" value="6" min="1" max="18">
+      <label class="fld">أيام البيع المفترضة للشهر القادم</label>
+      <input type="number" id="sellDays" value="26" min="20" max="31">
+      <details>
+        <summary>معامِلات الموسم (رمضان / عيد / صيف) ×</summary>
+        <div class="hint">عندك سنة واحدة بس — فالموسمية بتتظبط يدوياً. 1.0 = عادي، 1.3 = +30%.</div>
+        <div class="season-grid" id="seasonGrid"></div>
+        <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="presetRamadan()">⭐ تفعيل بريست رمضان/العيد (تقديري)</button>
+      </details>
+      <button class="btn-primary" style="width:100%;margin-top:12px" onclick="runForecast()">🔄 احسب التوقّع</button>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>الدقّة (Backtest)</h2>
+      <div id="backtestBox" class="muted">ارفع الداتا واحسب التوقّع لرؤية دقّة آخر شهر.</div>
+    </div>
+  </div>
+
+  <!-- CENTER: results -->
+  <div>
+    <div class="kpis" id="kpis">
+      <div class="kpi"><div class="lab">إجمالي التوقّع (المبيعات)</div><div class="val" id="kSales">—</div></div>
+      <div class="kpi"><div class="lab">إجمالي التوقّع (كراتين)</div><div class="val" id="kVol">—</div></div>
+      <div class="kpi"><div class="lab">أثر السيناريو</div><div class="val small" id="kDelta">—</div></div>
+      <div class="kpi"><div class="lab">vs التارجت</div><div class="val small" id="kTarget">—</div></div>
+    </div>
+
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+
+    <div class="toolbar">
+      <span class="muted">مستوى العرض:</span>
+      <select id="level" style="width:auto" onchange="renderTable();renderChart()">
+        <option value="total">إجمالي الشركة</option>
+        <option value="category">الفئة</option>
+        <option value="branch">الفرع</option>
+        <option value="region">المنطقة</option>
+        <option value="sku">الصنف (SKU)</option>
+      </select>
+      <span class="muted">القياس:</span>
+      <select id="measure" style="width:auto" onchange="renderTable();renderChart()">
+        <option value="sales">المبيعات (ريال)</option>
+        <option value="vol">الكمية (كراتين)</option>
+      </select>
+      <span class="sp"></span>
+      <button class="btn-accent" onclick="exportExcel()">📤 تصدير إكسل</button>
+    </div>
+
+    <div class="tbl-wrap"><table id="tbl"><thead></thead><tbody>
+      <tr><td class="empty">لسه مفيش توقّع — ارفع الداتا واضغط "احسب التوقّع".</td></tr>
+    </tbody></table></div>
+  </div>
+
+  <!-- RIGHT: levers -->
+  <div>
+    <div class="panel">
+      <h2>3 · السيناريو (اللِّيفرات)</h2>
+      <div class="row2">
+        <button class="btn-ghost" onclick="addLever('promo')">➕ بروموشن</button>
+        <button class="btn-ghost" onclick="addLever('push')">➕ ضغط صنف</button>
+      </div>
+      <div id="levers" style="margin-top:12px"></div>
+      <div class="row2" style="margin-top:8px">
+        <button class="btn-ghost" onclick="saveScenario()">💾 حفظ</button>
+        <button class="btn-ghost" onclick="loadScenario()">📂 تحميل</button>
+      </div>
+      <div class="hint" id="waterfall"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   Roshen Forecast & Scenario Lab — self-contained, client-side.
+   Engine granularity: SKU × Branch (atomic) → rolls up to any level.
+   Method: weighted moving average baseline × manual seasonal factors,
+   net of returns, ex-VAT, with run-rate handling of the partial last month.
+   ========================================================================= */
+
+const MONTH_NAMES = {january:1,jan:1,february:2,feb:2,march:3,mar:3,april:4,apr:4,
+  may:5,june:6,jun:6,july:7,jul:7,august:8,aug:8,september:9,sep:9,sept:9,
+  october:10,oct:10,november:11,nov:11,december:12,dec:12};
+
+let HISTORY = null;     // built from Excel
+let FORECAST = null;    // computed result
+let LEVERS = [];        // scenario levers
+let SEASON = {};        // calMonth(1-12) -> factor
+let CHART = null;
+
+/* ---------- column auto-detection ---------- */
+function findCol(keys, candidates) {
+  const lower = {}; keys.forEach(k => lower[String(k).toLowerCase().trim()] = k);
+  for (const c of candidates) {
+    const hit = Object.keys(lower).find(k => k === c.toLowerCase());
+    if (hit) return lower[hit];
+  }
+  for (const c of candidates) {
+    const hit = Object.keys(lower).find(k => k.includes(c.toLowerCase()));
+    if (hit) return lower[hit];
+  }
+  return null;
+}
+
+function monthNum(v) {
+  if (v == null) return null;
+  if (typeof v === 'number') return (v >= 1 && v <= 12) ? v : null;
+  return MONTH_NAMES[String(v).toLowerCase().trim()] || null;
+}
+
+function excelToYMD(val) {
+  if (val == null) return null;
+  if (val instanceof Date) return [val.getUTCFullYear(), val.getUTCMonth()+1, val.getUTCDate()];
+  if (typeof val === 'number') {
+    const d = new Date((val - 25569) * 86400000);
+    return [d.getUTCFullYear(), d.getUTCMonth()+1, d.getUTCDate()];
+  }
+  const s = String(val);
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return [+m[1], +m[2], +m[3]];
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (m) return [+m[3], +m[1], +m[2]];
+  return null;
+}
+
+/* ---------- build clean history ---------- */
+function buildHistory(rows) {
+  if (!rows.length) throw new Error('الملف فاضي');
+  const keys = Object.keys(rows[0]);
+  const col = {
+    day:   findCol(keys, ['day']),
+    month: findCol(keys, ['month']),
+    year:  findCol(keys, ['year']),
+    invDate: findCol(keys, ['invoice date', 'created date', 'date']),
+    sku:   findCol(keys, ['item id', 'itemid', 'sku']),
+    desc:  findCol(keys, ['item description', 'item desc', 'description']),
+    cat:   findCol(keys, ['item category', 'category']),
+    branch: findCol(keys, ['branch']),
+    region: findCol(keys, ['region2', 'region']),
+    cust:  findCol(keys, ['cust account', 'customer account', 'account']),
+    cases: findCol(keys, ['inv qty cases', 'qty cases', 'cases']),
+    sales: findCol(keys, ['invoice amount ex vat', 'net amount', 'amount']),
+    isret: findCol(keys, ['isreturn', 'is return']),
+    soret: findCol(keys, ['so/return', 'soreturn']),
+  };
+  const missing = ['sku','cases','sales'].filter(k => !col[k]);
+  if (missing.length) throw new Error('أعمدة ناقصة: ' + missing.join(', '));
+
+  const atoms = new Map();           // "sku||branch" -> atom
+  const skuMeta = new Map();         // sku -> {desc, cat}
+  const branchRegion = {};           // branch -> {region: count}
+  const sellingDays = {};            // 'YYYY-MM' -> Set(day)
+  const monthSet = new Set();
+  let processed = 0, skipped = 0;
+
+  for (const r of rows) {
+    let y, mo, d;
+    if (col.day && col.month && col.year && r[col.year] != null) {
+      y = +r[col.year]; mo = monthNum(r[col.month]); d = +r[col.day];
+    }
+    if (!(y && mo && d) && col.invDate) {
+      const ymd = excelToYMD(r[col.invDate]); if (ymd) [y, mo, d] = ymd;
+    }
+    if (!(y && mo >= 1 && mo <= 12 && d)) { skipped++; continue; }
+
+    const sku = String(r[col.sku] || '').trim();
+    if (!sku) { skipped++; continue; }
+    const cases = Number(r[col.cases]) || 0;
+    const sales = Number(r[col.sales]) || 0;
+    const isRet = (String(r[col.isret] || '').toUpperCase() === 'YES') ||
+                  (String(r[col.soret] || '') === 'ReturnItem');
+    // returns already carry negative sign in the source; keep as-is so they net out.
+
+    const ym = `${y}-${String(mo).padStart(2,'0')}`;
+    monthSet.add(ym);
+    (sellingDays[ym] = sellingDays[ym] || new Set()).add(d);
+
+    const branch = String(r[col.branch] || '—').trim() || '—';
+    const region = col.region ? String(r[col.region] || '—').trim() : '—';
+    const cat = col.cat ? String(r[col.cat] || '—').trim() : '—';
+    const desc = col.desc ? String(r[col.desc] || sku).trim() : sku;
+
+    if (!skuMeta.has(sku)) skuMeta.set(sku, { desc, cat });
+    (branchRegion[branch] = branchRegion[branch] || {})[region] =
+      (branchRegion[branch]?.[region] || 0) + 1;
+
+    const key = sku + '||' + branch;
+    let a = atoms.get(key);
+    if (!a) { a = { sku, branch, vol: {}, sal: {} }; atoms.set(key, a); }
+    a.vol[ym] = (a.vol[ym] || 0) + cases;
+    a.sal[ym] = (a.sal[ym] || 0) + sales;
+    processed++;
+  }
+
+  // dominant region per branch
+  const branchToRegion = {};
+  for (const b in branchRegion) {
+    branchToRegion[b] = Object.entries(branchRegion[b]).sort((a,b)=>b[1]-a[1])[0][0];
+  }
+
+  const months = [...monthSet].sort();
+  // selling-days count + partial-month detection
+  const sdCount = {}; months.forEach(m => sdCount[m] = sellingDays[m].size);
+  const lastMonth = months[months.length - 1];
+  const lastMaxDay = Math.max(...sellingDays[lastMonth]);
+  const partialLast = lastMaxDay < 26;           // looks incomplete
+  const completeMonths = partialLast ? months.slice(0, -1) : months.slice();
+
+  return {
+    atoms, skuMeta, branchToRegion, months, completeMonths, sdCount,
+    lastMonth, lastMaxDay, partialLast,
+    meta: { rows: rows.length, processed, skipped,
+            dateMin: months[0], dateMax: lastMonth,
+            nSku: skuMeta.size, nBranch: Object.keys(branchToRegion).length,
+            nAtom: atoms.size }
+  };
+}
+
+/* ---------- forecast engine ---------- */
+function calMonthOf(ym) { return +ym.split('-')[1]; }
+function nextMonth(ym) {
+  let [y, m] = ym.split('-').map(Number); m++; if (m > 12) { m = 1; y++; }
+  return `${y}-${String(m).padStart(2,'0')}`;
+}
+
+function computeForecast() {
+  if (!HISTORY) return null;
+  const baseWin = Math.max(1, +document.getElementById('baseWin').value || 3);
+  const horizon = Math.max(1, +document.getElementById('horizon').value || 6);
+  const H = HISTORY;
+  const baseMonths = H.completeMonths.slice(-baseWin);   // last K complete months
+  if (!baseMonths.length) return null;
+  // weights: most recent highest (e.g. 3,2,1)
+  const weights = baseMonths.map((_, i) => i + 1);
+  const wSum = weights.reduce((a,b)=>a+b,0);
+
+  // future months to forecast
+  const fMonths = [];
+  let cur = H.partialLast ? H.lastMonth : nextMonth(H.lastMonth);
+  for (let i = 0; i < horizon; i++) { fMonths.push(cur); cur = nextMonth(cur); }
+
+  // per-atom baseline (volume) and avg price
+  const atomFc = [];   // {sku, branch, cat, region, base:{ym:vol}, price}
+  for (const a of H.atoms.values()) {
+    let wVol = 0, sumVol = 0, sumSal = 0;
+    baseMonths.forEach((m, i) => {
+      const v = a.vol[m] || 0;
+      wVol += v * weights[i];
+      sumVol += v; sumSal += (a.sal[m] || 0);
+    });
+    const baseVol = wVol / wSum;                       // weighted avg monthly volume
+    const price = sumVol > 0 ? sumSal / sumVol : 0;    // avg ex-VAT price per case
+    if (baseVol <= 0 && sumVol <= 0) continue;         // skip dead atoms
+    const meta = H.skuMeta.get(a.sku) || { desc: a.sku, cat: '—' };
+    atomFc.push({
+      sku: a.sku, desc: meta.desc, cat: meta.cat,
+      branch: a.branch, region: H.branchToRegion[a.branch] || '—',
+      baseVol, price, fc: {}
+    });
+  }
+
+  // apply season + run-rate (partial month) to get BASELINE forecast per month
+  for (const af of atomFc) {
+    fMonths.forEach((ym, idx) => {
+      const season = SEASON[calMonthOf(ym)] || 1;
+      let vol = af.baseVol * season;
+      // partial current month: blend actual-so-far with run-rate to month end
+      if (idx === 0 && HISTORY.partialLast && ym === HISTORY.lastMonth) {
+        const atom = HISTORY.atoms.get(af.sku + '||' + af.branch);
+        const soFar = atom ? (atom.vol[ym] || 0) : 0;
+        const elapsed = HISTORY.lastMaxDay;
+        const fullDays = +document.getElementById('sellDays').value || 26;
+        const runRate = elapsed > 0 ? soFar / elapsed * fullDays : vol;
+        vol = Math.max(vol, runRate);   // take the more informed of the two
+      }
+      af.fc[ym] = { base: vol, vol, sales: vol * af.price };
+    });
+  }
+
+  return { fMonths, baseMonths, atomFc, partialFirst: HISTORY.partialLast };
+}
+
+/* ---------- apply scenario levers ---------- */
+function scopeMatch(lever, af) {
+  if (lever.scopeType === 'all') return true;
+  if (lever.scopeType === 'sku') return af.sku === lever.scopeValue;
+  if (lever.scopeType === 'category') return af.cat === lever.scopeValue;
+  if (lever.scopeType === 'branch') return af.branch === lever.scopeValue;
+  return false;
+}
+function applyLevers(fc) {
+  const totals = { base: 0, afterPromo: 0, afterPush: 0 };
+  for (const af of fc.atomFc) {
+    for (const ym of fc.fMonths) {
+      const cell = af.fc[ym];
+      cell.vol = cell.base;
+      cell.discFactor = 1;
+      const inLeverMonth = (lever) => !lever.months || !lever.months.length || lever.months.includes(ym);
+      totals.base += cell.base * af.price;
+      // promo levers
+      for (const L of LEVERS) {
+        if (L.type !== 'promo' || !scopeMatch(L, af) || !inLeverMonth(L)) continue;
+        cell.vol *= (1 + (L.uplift || 0) / 100);
+        cell.discFactor *= (1 - (L.discount || 0) / 100);
+        // cannibalization: reduce other SKUs in same category/branch
+      }
+      // cannibalization (second pass-ish, simple): if a promo hits this category but not this SKU
+      for (const L of LEVERS) {
+        if (L.type !== 'promo' || !L.cannibal || !inLeverMonth(L)) continue;
+        const sameCatDiffSku = (L.scopeType === 'category' && af.cat === L.scopeValue) ||
+                               (L.scopeType === 'sku' && af.cat === skuCatOf(L.scopeValue) && af.sku !== L.scopeValue);
+        if (sameCatDiffSku && !scopeMatch(L, af)) cell.vol *= (1 - (L.cannibal || 0) / 100);
+      }
+      totals.afterPromo += cell.vol * af.price;
+      // push levers
+      for (const L of LEVERS) {
+        if (L.type !== 'push' || af.sku !== L.scopeValue || !inLeverMonth(L)) continue;
+        cell.vol *= (1 + (L.uplift || 0) / 100);
+      }
+      cell.sales = cell.vol * af.price * cell.discFactor;
+      totals.afterPush += cell.sales;
+    }
+  }
+  return totals;
+}
+function skuCatOf(sku) {
+  const m = HISTORY && HISTORY.skuMeta.get(sku); return m ? m.cat : '—';
+}
+
+/* ---------- backtest: hold out last complete month ---------- */
+function backtest() {
+  const H = HISTORY; if (!H || H.completeMonths.length < 2) return null;
+  const baseWin = Math.max(1, +document.getElementById('baseWin').value || 3);
+  const test = H.completeMonths[H.completeMonths.length - 1];
+  const train = H.completeMonths.slice(0, -1).slice(-baseWin);
+  const weights = train.map((_, i) => i + 1); const wSum = weights.reduce((a,b)=>a+b,0);
+  const season = SEASON[calMonthOf(test)] || 1;
+  let absErr = 0, actualTot = 0, signErr = 0;
+  for (const a of H.atoms.values()) {
+    let w = 0; train.forEach((m,i)=> w += (a.vol[m]||0) * weights[i]);
+    const pred = (w / wSum) * season;
+    const actual = a.vol[test] || 0;
+    absErr += Math.abs(pred - actual);
+    signErr += (pred - actual);
+    actualTot += actual;
+  }
+  return {
+    month: test,
+    wmape: actualTot > 0 ? (absErr / actualTot * 100) : null,
+    bias: actualTot > 0 ? (signErr / actualTot * 100) : null,
+  };
+}
+
+/* ---------- orchestration ---------- */
+function runForecast() {
+  if (!HISTORY) { alert('ارفع ملف الإكسل الأول'); return; }
+  readSeason();
+  const fc = computeForecast();
+  if (!fc) { alert('مفيش شهور مكتملة كفاية لحساب الأساس'); return; }
+  const totals = applyLevers(fc);
+  FORECAST = { ...fc, totals, backtest: backtest() };
+  renderKPIs(); renderTable(); renderChart(); renderBacktest(); renderWaterfall();
+}
+
+/* ---------- rollup ---------- */
+function rollup(level, measure) {
+  const fc = FORECAST; if (!fc) return { rows: [], months: [] };
+  const map = new Map();
+  for (const af of fc.atomFc) {
+    let key, label;
+    if (level === 'total') { key = 'TOTAL'; label = 'إجمالي الشركة'; }
+    else if (level === 'category') { key = af.cat; label = af.cat; }
+    else if (level === 'branch') { key = af.branch; label = af.branch; }
+    else if (level === 'region') { key = af.region; label = af.region; }
+    else { key = af.sku; label = af.desc; }
+    let row = map.get(key);
+    if (!row) { row = { key, label, vals: {}, total: 0 }; map.set(key, row); }
+    for (const ym of fc.fMonths) {
+      const v = measure === 'vol' ? af.fc[ym].vol : af.fc[ym].sales;
+      row.vals[ym] = (row.vals[ym] || 0) + v;
+      row.total += v;
+    }
+  }
+  const rows = [...map.values()].sort((a,b)=>b.total-a.total);
+  return { rows, months: fc.fMonths };
+}
+
+/* ---------- rendering ---------- */
+function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+function fmtK(n) {
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return Math.round(n).toString();
+}
+
+function renderKPIs() {
+  const fc = FORECAST; if (!fc) return;
+  let sales = 0, vol = 0;
+  for (const af of fc.atomFc) for (const ym of fc.fMonths) { sales += af.fc[ym].sales; vol += af.fc[ym].vol; }
+  document.getElementById('kSales').textContent = fmtK(sales) + ' ر.س';
+  document.getElementById('kVol').textContent = fmt(vol) + ' كرتونة';
+  const delta = fc.totals.afterPush - fc.totals.base;
+  const dPct = fc.totals.base > 0 ? delta / fc.totals.base * 100 : 0;
+  const el = document.getElementById('kDelta');
+  el.innerHTML = (delta >= 0 ? '+' : '') + fmtK(delta) + ' ر.س <span class="' +
+    (delta>=0?'badge-up':'badge-dn') + '">(' + (dPct>=0?'+':'') + dPct.toFixed(1) + '%)</span>';
+  document.getElementById('kTarget').textContent = '— (أضف تارجت)';
+}
+
+function renderTable() {
+  if (!FORECAST) return;
+  const level = document.getElementById('level').value;
+  const measure = document.getElementById('measure').value;
+  const { rows, months } = rollup(level, measure);
+  const thead = document.querySelector('#tbl thead');
+  const tbody = document.querySelector('#tbl tbody');
+  thead.innerHTML = '<tr><th style="text-align:right">' +
+    (level==='sku'?'الصنف':level==='category'?'الفئة':level==='branch'?'الفرع':level==='region'?'المنطقة':'البند') +
+    '</th>' + months.map(m => '<th>' + m + (FORECAST.partialFirst && m===FORECAST.fMonths[0] ? ' *' : '') + '</th>').join('') +
+    '<th>الإجمالي</th></tr>';
+  tbody.innerHTML = rows.map(r =>
+    '<tr><td class="name" title="'+r.label+'">' + r.label + '</td>' +
+    months.map(m => '<td>' + fmt(r.vals[m]||0) + '</td>').join('') +
+    '<td><b>' + fmt(r.total) + '</b></td></tr>'
+  ).join('') || '<tr><td class="empty">لا توجد بيانات</td></tr>';
+}
+
+function renderChart() {
+  if (!FORECAST) return;
+  const measure = document.getElementById('measure').value;
+  const H = HISTORY;
+  // historical company series (net) for context
+  const histMonths = H.completeMonths.slice(-6);
+  const histVals = histMonths.map(m => {
+    let s = 0; for (const a of H.atoms.values()) s += measure==='vol' ? (a.vol[m]||0) : (a.sal[m]||0);
+    return s;
+  });
+  const fc = FORECAST;
+  const fcVals = fc.fMonths.map(ym => {
+    let s = 0; for (const af of fc.atomFc) s += measure==='vol' ? af.fc[ym].vol : af.fc[ym].sales;
+    return s;
+  });
+  const baseVals = fc.fMonths.map(ym => {
+    let s = 0; for (const af of fc.atomFc) s += (measure==='vol' ? af.fc[ym].base : af.fc[ym].base*af.price);
+    return s;
+  });
+  const labels = [...histMonths, ...fc.fMonths];
+  const histLine = [...histVals, ...fc.fMonths.map(()=>null)];
+  const baseLine = [...histMonths.map(()=>null), ...baseVals];
+  const scenLine = [...histMonths.map(()=>null), ...fcVals];
+  // connect last hist point to forecast
+  if (histVals.length) { baseLine[histMonths.length-1] = histVals[histVals.length-1]; scenLine[histMonths.length-1] = histVals[histVals.length-1]; }
+
+  if (CHART) CHART.destroy();
+  CHART = new Chart(document.getElementById('chart'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'تاريخي', data: histLine, borderColor: '#93a4c0', backgroundColor: 'transparent', tension: .25 },
+      { label: 'أساس (Baseline)', data: baseLine, borderColor: '#ffb800', borderDash: [6,4], backgroundColor: 'transparent', tension: .25 },
+      { label: 'السيناريو', data: scenLine, borderColor: '#28c2a0', backgroundColor: 'rgba(40,194,160,.08)', fill: true, tension: .25 },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e7eef9', boxWidth: 12, font: { size: 11 } } } },
+      scales: { x: { ticks: { color: '#93a4c0' }, grid: { color: '#2a3c5a' } },
+                y: { ticks: { color: '#93a4c0', callback: v => fmtK(v) }, grid: { color: '#2a3c5a' } } } }
+  });
+}
+
+function renderBacktest() {
+  const b = FORECAST && FORECAST.backtest;
+  const el = document.getElementById('backtestBox');
+  if (!b || b.wmape == null) { el.innerHTML = '<span class="muted">مش متاح (محتاج شهرين مكتملين).</span>'; return; }
+  const q = b.wmape < 15 ? 'good' : b.wmape < 30 ? '' : 'danger';
+  el.innerHTML =
+    '<div class="stat">شهر الاختبار <b>' + b.month + '</b></div>' +
+    '<div class="stat">خطأ التوقّع (WMAPE) <b style="color:var(--'+(q==='good'?'good':q==='danger'?'danger':'accent')+')">' + b.wmape.toFixed(1) + '%</b></div>' +
+    '<div class="stat">الانحياز (Bias) <b>' + (b.bias>=0?'+':'') + b.bias.toFixed(1) + '%</b></div>' +
+    '<div class="hint">WMAPE = متوسط الخطأ موزون بالحجم. أقل = أدق. Bias موجب = الموديل بيتوقّع أعلى من الواقع.</div>';
+}
+
+function renderWaterfall() {
+  const t = FORECAST && FORECAST.totals; if (!t) return;
+  document.getElementById('waterfall').innerHTML =
+    '<b style="color:var(--accent2)">Waterfall (إجمالي أفق التوقّع):</b><br>' +
+    'أساس: ' + fmtK(t.base) + ' ر.س<br>' +
+    '+ بروموشن: ' + fmtK(t.afterPromo - t.base) + ' ر.س<br>' +
+    '+ ضغط صنف: ' + fmtK(t.afterPush - t.afterPromo) + ' ر.س<br>' +
+    '<b>= نهائي: ' + fmtK(t.afterPush) + ' ر.س</b>';
+}
+
+/* ---------- season UI ---------- */
+function buildSeasonGrid() {
+  const names = ['ينا','فبر','مار','أبر','ماي','يون','يول','أغس','سبت','أكت','نوف','ديس'];
+  const g = document.getElementById('seasonGrid');
+  g.innerHTML = names.map((n,i) =>
+    '<div><label>'+n+'</label><input type="number" step="0.05" min="0" value="1" data-m="'+(i+1)+'"></div>'
+  ).join('');
+}
+function readSeason() {
+  SEASON = {};
+  document.querySelectorAll('#seasonGrid input').forEach(inp => {
+    SEASON[+inp.dataset.m] = parseFloat(inp.value) || 1;
+  });
+}
+function presetRamadan() {
+  // Indicative KSA confectionery seasonality (user should refine).
+  const preset = { 1:1.05, 2:1.15, 3:1.35, 4:1.20, 5:0.95, 6:0.9, 7:0.85, 8:0.9, 9:1.0, 10:1.05, 11:1.1, 12:1.15 };
+  document.querySelectorAll('#seasonGrid input').forEach(inp => { inp.value = preset[+inp.dataset.m] || 1; });
+  alert('تم تفعيل بريست تقديري (رمضان ~مارس، ذروة الصيف منخفضة للشوكولاتة). عدّلها حسب خبرتك.');
+}
+
+/* ---------- levers UI ---------- */
+function addLever(type) {
+  if (!HISTORY) { alert('ارفع الداتا الأول عشان نعرف الأصناف والفروع'); return; }
+  const id = 'L' + Date.now();
+  LEVERS.push({ id, type, scopeType: type==='push'?'sku':'all', scopeValue: '', uplift: type==='push'?20:15, discount: type==='promo'?10:0, cannibal: 0, months: [] });
+  renderLevers();
+}
+function removeLever(id) { LEVERS = LEVERS.filter(l => l.id !== id); renderLevers(); if (FORECAST) runForecast(); }
+function skuOptions() {
+  return [...HISTORY.skuMeta.entries()].map(([sku,m]) => '<option value="'+sku+'">'+m.desc.slice(0,40)+'</option>').join('');
+}
+function catOptions() {
+  return [...new Set([...HISTORY.skuMeta.values()].map(m=>m.cat))].map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+}
+function branchOptions() {
+  return Object.keys(HISTORY.branchToRegion).map(b=>'<option value="'+b+'">'+b+'</option>').join('');
+}
+function renderLevers() {
+  const box = document.getElementById('levers');
+  box.innerHTML = LEVERS.map(L => {
+    const isPromo = L.type === 'promo';
+    let scopeHtml = '';
+    if (isPromo) {
+      scopeHtml =
+        '<label class="fld">النطاق</label>' +
+        '<select onchange="updLever(\''+L.id+'\',\'scopeType\',this.value)">' +
+          ['all:كل الأصناف','sku:صنف','category:فئة','branch:فرع'].map(o=>{const[v,t]=o.split(':');return '<option value="'+v+'" '+(L.scopeType===v?'selected':'')+'>'+t+'</option>';}).join('') +
+        '</select>' +
+        (L.scopeType!=='all' ? '<select onchange="updLever(\''+L.id+'\',\'scopeValue\',this.value)" style="margin-top:6px"><option value="">— اختر —</option>'+
+          (L.scopeType==='sku'?skuOptions():L.scopeType==='category'?catOptions():branchOptions())+'</select>' : '');
+    } else {
+      scopeHtml = '<label class="fld">الصنف المستهدف</label>' +
+        '<select onchange="updLever(\''+L.id+'\',\'scopeValue\',this.value)"><option value="">— اختر —</option>'+skuOptions()+'</select>';
+    }
+    return '<div class="lever-card"><div class="lh"><b>'+(isPromo?'🎁 بروموشن':'📦 ضغط صنف')+
+      '</b><button class="btn-danger" onclick="removeLever(\''+L.id+'\')">حذف</button></div>'+
+      scopeHtml +
+      '<div class="row2" style="margin-top:6px">'+
+        '<div><label class="fld">رفع الكمية %</label><input type="number" value="'+L.uplift+'" onchange="updLever(\''+L.id+'\',\'uplift\',+this.value)"></div>'+
+        (isPromo?'<div><label class="fld">عمق الخصم %</label><input type="number" value="'+L.discount+'" onchange="updLever(\''+L.id+'\',\'discount\',+this.value)"></div>':'<div></div>')+
+      '</div>'+
+      (isPromo?'<details><summary>متقدّم</summary><label class="fld">تأثير على المنافِس (cannibalization %)</label><input type="number" value="'+L.cannibal+'" onchange="updLever(\''+L.id+'\',\'cannibal\',+this.value)"><div class="hint">يخصم من باقي أصناف نفس الفئة.</div></details>':'')+
+      '<div class="muted" style="margin-top:6px">يطبّق على كل شهور الأفق (متعدد الشهور قريباً).</div>'+
+    '</div>';
+  }).join('') || '<div class="muted">مفيش لِيفرات — ده سيناريو الأساس.</div>';
+}
+function updLever(id, field, val) {
+  const L = LEVERS.find(l => l.id === id); if (!L) return;
+  L[field] = val;
+  if (field === 'scopeType') renderLevers();
+  if (FORECAST) runForecast();
+}
+
+/* ---------- save / load scenario ---------- */
+function saveScenario() {
+  readSeason();
+  const blob = { levers: LEVERS, season: SEASON,
+    baseWin: document.getElementById('baseWin').value,
+    horizon: document.getElementById('horizon').value,
+    sellDays: document.getElementById('sellDays').value };
+  localStorage.setItem('roshen_forecast_scenario', JSON.stringify(blob));
+  alert('تم حفظ السيناريو محلياً.');
+}
+function loadScenario() {
+  const raw = localStorage.getItem('roshen_forecast_scenario');
+  if (!raw) { alert('مفيش سيناريو محفوظ.'); return; }
+  const b = JSON.parse(raw);
+  LEVERS = b.levers || []; SEASON = b.season || {};
+  document.getElementById('baseWin').value = b.baseWin || 3;
+  document.getElementById('horizon').value = b.horizon || 6;
+  document.getElementById('sellDays').value = b.sellDays || 26;
+  document.querySelectorAll('#seasonGrid input').forEach(inp => { if (SEASON[+inp.dataset.m]) inp.value = SEASON[+inp.dataset.m]; });
+  renderLevers();
+  if (HISTORY) runForecast();
+}
+
+/* ---------- Excel export ---------- */
+function exportExcel() {
+  if (!FORECAST) { alert('احسب التوقّع الأول'); return; }
+  const fc = FORECAST; const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Forecast (SKU × Branch detail, sales + volume)
+  const head = ['SKU','Description','Category','Branch','Region','Measure', ...fc.fMonths, 'Total'];
+  const detail = [head];
+  for (const af of fc.atomFc) {
+    const volRow = [af.sku, af.desc, af.cat, af.branch, af.region, 'Cases'];
+    const salRow = [af.sku, af.desc, af.cat, af.branch, af.region, 'Sales(ex-VAT)'];
+    let vt = 0, st = 0;
+    fc.fMonths.forEach(m => { volRow.push(Math.round(af.fc[m].vol)); salRow.push(Math.round(af.fc[m].sales)); vt += af.fc[m].vol; st += af.fc[m].sales; });
+    volRow.push(Math.round(vt)); salRow.push(Math.round(st));
+    detail.push(volRow, salRow);
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detail), 'Forecast (SKUxBranch)');
+
+  // Sheet 2: rollups (category + branch + company) for sales
+  function rollupSheet(level) {
+    const { rows, months } = rollup(level, 'sales');
+    const aoa = [['Level: '+level, ...months, 'Total'], ...rows.map(r => [r.label, ...months.map(m=>Math.round(r.vals[m]||0)), Math.round(r.total)])];
+    return XLSX.utils.aoa_to_sheet(aoa);
+  }
+  XLSX.utils.book_append_sheet(wb, rollupSheet('category'), 'By Category');
+  XLSX.utils.book_append_sheet(wb, rollupSheet('branch'), 'By Branch');
+
+  // Sheet 3: Scenario summary (company total per month, base vs scenario)
+  const baseByMonth = {}, scenByMonth = {};
+  fc.fMonths.forEach(m => { baseByMonth[m] = 0; scenByMonth[m] = 0; });
+  for (const af of fc.atomFc) for (const m of fc.fMonths) { baseByMonth[m] += af.fc[m].base*af.price; scenByMonth[m] += af.fc[m].sales; }
+  const summary = [['Month','Baseline (ex-VAT)','Scenario (ex-VAT)','Delta','Delta %']];
+  fc.fMonths.forEach(m => {
+    const b = baseByMonth[m], s = scenByMonth[m];
+    summary.push([m, Math.round(b), Math.round(s), Math.round(s-b), b>0?((s-b)/b*100).toFixed(1)+'%':'—']);
+  });
+  summary.push(['TOTAL', Math.round(fc.totals.base), Math.round(fc.totals.afterPush), Math.round(fc.totals.afterPush-fc.totals.base),
+    fc.totals.base>0?((fc.totals.afterPush-fc.totals.base)/fc.totals.base*100).toFixed(1)+'%':'—']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Scenario Summary');
+
+  // Sheet 4: Assumptions
+  const ass = [['Assumption','Value'],
+    ['Generated', new Date().toISOString()],
+    ['Data range', HISTORY.meta.dateMin + ' → ' + HISTORY.meta.dateMax],
+    ['Rows processed', HISTORY.meta.processed],
+    ['Rows skipped', HISTORY.meta.skipped],
+    ['SKUs / Branches / Atoms', HISTORY.meta.nSku+' / '+HISTORY.meta.nBranch+' / '+HISTORY.meta.nAtom],
+    ['Baseline window (months)', document.getElementById('baseWin').value],
+    ['Horizon (months)', document.getElementById('horizon').value],
+    ['Assumed selling days', document.getElementById('sellDays').value],
+    ['Partial last month', HISTORY.partialLast ? HISTORY.lastMonth+' (run-rate)' : 'no'],
+    ['Sales metric', 'Invoice Amount ex VAT (net of returns)'],
+    ['', ''],
+    ['Seasonal factors (cal month → x)', ''],
+  ];
+  for (let m=1;m<=12;m++) ass.push([m, SEASON[m]||1]);
+  ass.push(['','']);
+  ass.push(['Levers','']);
+  LEVERS.forEach((L,i) => ass.push(['Lever '+(i+1), JSON.stringify(L)]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ass), 'Assumptions');
+
+  // Sheet 5: Backtest
+  const bt = fc.backtest;
+  const btAoa = [['Backtest (hold-out last complete month)',''],
+    ['Test month', bt? bt.month : 'n/a'],
+    ['WMAPE %', bt && bt.wmape!=null ? bt.wmape.toFixed(1) : 'n/a'],
+    ['Bias %', bt && bt.bias!=null ? bt.bias.toFixed(1) : 'n/a'],
+    ['Note','WMAPE = volume-weighted mean abs % error. Lower is better.']];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(btAoa), 'Backtest');
+
+  const ts = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `Roshen_Forecast_${ts}.xlsx`);
+}
+
+/* ---------- file handling ---------- */
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+      HISTORY = buildHistory(rows);
+      renderDataStats();
+      buildSeasonGrid();
+      renderLevers();
+      document.getElementById('drop').innerHTML = '<div style="font-size:26px">✅</div>اتحمّلت: ' + file.name + '<br><span class="muted">اضغط لتغيير الملف</span>';
+      runForecast();
+    } catch (err) { alert('خطأ في قراءة الملف: ' + err.message); console.error(err); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function renderDataStats() {
+  const m = HISTORY.meta;
+  document.getElementById('dataStats').innerHTML =
+    '<div class="stat">الفترة <b>'+m.dateMin+' → '+m.dateMax+'</b></div>' +
+    '<div class="stat">صفوف معالَجة <b>'+fmt(m.processed)+'</b></div>' +
+    '<div class="stat">صفوف متشالة <b>'+fmt(m.skipped)+'</b></div>' +
+    '<div class="stat">أصناف / فروع <b>'+m.nSku+' / '+m.nBranch+'</b></div>' +
+    (HISTORY.partialLast ? '<div class="hint">⚠️ آخر شهر ('+HISTORY.lastMonth+') ناقص — هيتحسب بالـ run-rate.</div>' : '');
+}
+
+/* ---------- init / events ---------- */
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+drop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+buildSeasonGrid();
+</script>
+</body>
+</html>
