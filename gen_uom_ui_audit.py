@@ -50,19 +50,20 @@ p=d.add_paragraph(); p.alignment=WD_ALIGN_PARAGRAPH.CENTER
 r=p.add_run("Read-only · verified against code + live schema/permissions · June 2026"); r.font.size=Pt(9); r.italic=True; r.font.color.rgb=GREY
 d.add_page_break()
 
-h1("Verdict")
+h1("Verdict (updated — gap CLOSED)")
 para("Most of the IMPLEMENTED multi-UoM surface is correctly exposed end-to-end (backend → API → UI → nav → permission). "
-     "Three items are NOT yet UI-exposed, but only ONE is a true 'backend-only' gap to close before U3 — the other two are "
-     "intentionally not-yet-built (the U3/U4 sell/buy flows) and the U2 line columns (dormant foundation by design).",
+     "The single 'backend-only' configuration gap has now been CLOSED: the product UoM-governance fields are in the FMCG "
+     "product form behind uom.manage. The two remaining un-exposed items are intentionally not-yet-built (the U3/U4 "
+     "sell/buy flows) plus the U2 line columns (dormant foundation by design).",
      bold=True)
 tbl(["Result","Count","Items"],
 [
- ["Fully exposed","5","Alt-UoMs (settings/uom) · Base unit (product form) · Price-by-UoM (price-book) · UoM conversion · Enable flag (settings/features)"],
- ["Gap to close before U3","1","Product UoM-governance fields (purchase/default-sell UoM, sell_mode, allow_fractional) not in the FMCG product form"],
+ ["Fully exposed","6","Alt-UoMs (settings/uom) · Base unit (product form) · Product UoM-governance (product form — NOW ADDED) · Price-by-UoM (price-book) · UoM conversion · Enable flag (settings/features)"],
+ ["Gap to close before U3","0","— (closed: Default Sell Unit / Purchase Unit / Sell Mode / Allow Fractional added to the product form behind uom.manage)"],
  ["Intentionally pending (U3/U4)","2","Sell-by-UoM picker (van-sell/POS) · Buy-by-UoM (FMCG receiving)"],
  ["Dormant by design (U2)","1","Transaction-line UoM capture columns (no UI until U3)"],
 ],widths=[1.6,0.6,4.4],
-fill={(0,0):GREENBG,(1,0):REDBG,(2,0):AMBERBG,(3,0):AMBERBG})
+fill={(0,0):GREENBG,(1,0):GREENBG,(2,0):AMBERBG,(3,0):AMBERBG})
 
 part("1 · Six-layer exposure matrix")
 tbl(["Capability","Backend","API","UI","Nav","Permission","Mobile","Verdict"],
@@ -72,29 +73,28 @@ tbl(["Capability","Backend","API","UI","Nav","Permission","Mobile","Verdict"],
  ["Price by UoM (uom + qty breaks)","erp_prices(uom,min_qty)","upsertPrice","sales/price-book (+preview)","pricing.manage/view","pricing.manage","More drawer","EXPOSED"],
  ["UoM → base conversion","erp_uom_to_base","uomToBaseAction","infra (price-book preview)","—","pricing.view gate","—","EXPOSED (infra)"],
  ["Enable multi-UoM","platform.multi_uom flag","features actions","settings/features","settings.users (admin)","company admin","More drawer","EXPOSED"],
- ["Product UoM governance (purchase/sell UoM, sell_mode, allow_fractional)","catalog columns","upsertProduct (partial)","NONE in FMCG form (pharmacy onboarding only)","—","uom.manage (would-be)","NO","GAP"],
+ ["Product UoM governance (purchase/sell UoM, sell_mode, allow_fractional)","catalog columns","upsertProduct (gated)","product form 'Units & Selling' section","Products","uom.manage","Yes","EXPOSED (now)"],
  ["Sell by UoM (picker per line)","backend-ready","pharmacy action only","NONE (even pharmacy POS UI has no picker)","—","—","NO","PENDING U3"],
  ["Buy/receive by UoM","pharmacy only","pharmacy receive","pharmacy receive only","—","—","—","PENDING U4"],
  ["Transaction-line UoM capture","entered_uom/qty/factor cols","lineUomFields (unwired)","NONE (dormant)","—","—","NO","DORMANT (U2)"],
 ],widths=[1.7,1.0,1.0,1.1,0.95,1.0,0.7,0.85],size=7.0,
-fill={(0,7):GREENBG,(1,7):GREENBG,(2,7):GREENBG,(3,7):GREENBG,(4,7):GREENBG,(5,7):REDBG,(6,7):AMBERBG,(7,7):AMBERBG,(8,7):AMBERBG})
+fill={(0,7):GREENBG,(1,7):GREENBG,(2,7):GREENBG,(3,7):GREENBG,(4,7):GREENBG,(5,7):GREENBG,(6,7):AMBERBG,(7,7):AMBERBG,(8,7):AMBERBG})
 
-part("2 · The one gap to close before U3")
-h2("Product UoM-governance fields are not in the FMCG product form")
-para("The standard product create/edit form (products-manager.tsx) lets you set the base unit (the 'unit' field → "
-     "base_uom) but NOT: purchase_uom, default_sell_uom, sell_mode (base | sales | all) and allow_fractional. Those "
-     "catalog columns are only set today via the pharmacy onboarding wizard — so for an FMCG product they are effectively "
-     "DATABASE-ONLY.", color=RED)
-para("Why it matters for U3: sell_mode decides WHICH units a product may be sold in, and allow_fractional governs Kg/Gram "
-     "(half-unit) sales. U3's sell-by-UoM picker needs these configured per product — without a UI an FMCG admin cannot set "
-     "them. The alternate units themselves (carton/inner/piece + factor + barcode) ARE manageable (settings/uom), and "
-     "prices-by-UoM ARE manageable (price-book) — this is the missing piece of the configuration triangle.")
-h2("Recommended fix (small, additive — do BEFORE U3)")
-bl("Add a 'Units & selling' section to the product form (or extend settings/uom per product) exposing: default sell unit, "
-   "purchase unit, sell mode (base/sales/all), allow fractional. Gate by uom.manage. ~half-day; additive; no schema change "
-   "(columns already exist).")
-bl("Optional: surface the per-product alternate-UoM editor inline on the product page (today it's a separate "
-   "settings/uom screen) so the whole UoM setup for a product is in one place.")
+part("2 · The gap — now CLOSED")
+h2("Product UoM-governance fields added to the FMCG product form")
+para("Previously the standard product form set the base unit ('unit') but NOT purchase_uom / default_sell_uom / sell_mode "
+     "/ allow_fractional — those were database-only for FMCG (set only via the pharmacy onboarding wizard). This is now "
+     "fixed.", color=GREEN)
+h2("What shipped")
+bl("A 'Units & Selling' section on the product create/edit form exposing: Default Sell Unit, Purchase Unit, Sell Mode "
+   "(base | sales | all) and Allow Fractional. Rendered ONLY for users with uom.manage.")
+bl("upsertProduct writes these four columns ONLY when the caller holds uom.manage (otherwise the columns are left "
+   "untouched — preserved on edit, DB-default on create), mirroring the U-4 sensitive-field pattern.")
+bl("ar/en labels added; the existing columns are reused (no schema change). Demo pilot products were finished with "
+   "default-sell/purchase units + sell_mode so U3 has fully-configured products to test.")
+para("Why it mattered for U3: sell_mode decides which units a product may be sold in, and allow_fractional governs Kg/Gram "
+     "sales — U3's sell-by-UoM picker reads both. The configuration triangle (alternate units in settings/uom, prices in "
+     "price-book, governance in the product form) is now complete and UI-exposed.", italic=True, color=GREY, size=9)
 
 part("3 · Intentionally pending / dormant (NOT gaps)")
 bl("Sell-by-UoM picker (van-sell / general POS / even pharmacy POS) — this IS U3. The pharmacy CHECKOUT ACTION accepts a "
@@ -124,11 +124,11 @@ para("All UoM CONFIGURATION screens (settings/uom, price-book, settings/features
      "The field-facing mobile UoM need (a picker when selling) is U3 and is the right place to invest mobile effort.",
      bold=True)
 
-part("6 · Recommendation")
-para("Before starting U3: close the single gap — add the product UoM-governance fields (default sell unit / purchase unit "
-     "/ sell_mode / allow_fractional) to the product form behind uom.manage. It is additive, uses existing columns, and is "
-     "required for U3's per-product sell-unit rules to be configurable. Everything else multi-UoM is correctly exposed or "
-     "is the next planned workstream. Nothing IMPLEMENTED is improperly hidden except that one configuration surface.",
+part("6 · Status — cleared for U3")
+para("The single configuration gap is CLOSED: product UoM-governance (default sell unit / purchase unit / sell_mode / "
+     "allow_fractional) is now in the product form behind uom.manage. Every IMPLEMENTED multi-UoM capability is exposed "
+     "across backend → API → UI → nav → permission, with mobile config via the More drawer. The only remaining un-exposed "
+     "items are the sell-by-UoM picker (U3) and FMCG buy-by-UoM (U4) — the planned next workstreams. Proceeding to U3.",
      bold=True, color=NAVY)
 
 out="docs/audits/VANTORA-Multi-UoM-UI-Permission-Audit.docx"

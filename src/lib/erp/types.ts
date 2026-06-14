@@ -319,6 +319,13 @@ export interface ProductCatalog {
   eta_item_code: string | null;
   eta_item_code_type: 'EGS' | 'GS1' | null;
   eta_unit_type: string | null;
+  /** Multi-UoM governance (managed behind uom.manage). */
+  base_uom?: string | null;
+  purchase_uom?: string | null;
+  sales_uom?: string | null;
+  default_sell_uom?: string | null;
+  sell_mode?: 'base' | 'sales' | 'all' | null;
+  allow_fractional?: boolean | null;
   created_at: string;
   updated_at: string;
 }

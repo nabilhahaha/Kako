@@ -26,12 +26,14 @@ export function ProductsManager({
   categories,
   showDrugCatalog = false,
   etaEnabled = false,
+  canManageUom = false,
   q = '',
 }: {
   products: ProductCatalog[];
   categories: ProductCategory[];
   showDrugCatalog?: boolean;
   etaEnabled?: boolean;
+  canManageUom?: boolean;
   q?: string;
 }) {
   const router = useRouter();
@@ -200,6 +202,39 @@ export function ProductsManager({
                   <Input name="min_stock" type="number" step="0.001" dir="ltr" defaultValue={current?.min_stock ?? 0} />
                 </Field>
                 </FormSection>
+                {canManageUom && (
+                  <FormSection title={t('products.sectionUnits')}>
+                    <Field label={t('products.fieldDefaultSellUnit')}>
+                      <select name="default_sell_uom" defaultValue={current?.default_sell_uom ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="">{t('products.uomBaseDefault')}</option>
+                        {PRODUCT_UNIT_OPTIONS.map((u) => (
+                          <option key={`ds-${u.value}`} value={u.value}>{u[locale]}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label={t('products.fieldPurchaseUnit')}>
+                      <select name="purchase_uom" defaultValue={current?.purchase_uom ?? ''} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="">{t('products.uomBaseDefault')}</option>
+                        {PRODUCT_UNIT_OPTIONS.map((u) => (
+                          <option key={`pu-${u.value}`} value={u.value}>{u[locale]}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label={t('products.fieldSellMode')}>
+                      <select name="sell_mode" defaultValue={current?.sell_mode ?? 'all'} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="base">{t('products.sellModeBase')}</option>
+                        <option value="sales">{t('products.sellModeSales')}</option>
+                        <option value="all">{t('products.sellModeAll')}</option>
+                      </select>
+                    </Field>
+                    <Field label={t('products.fieldAllowFractional')}>
+                      <label className="flex h-10 items-center gap-2 text-sm">
+                        <input type="checkbox" name="allow_fractional" defaultChecked={current?.allow_fractional ?? false} className="h-4 w-4" />
+                        <span className="text-muted-foreground">{t('products.allowFractionalHint')}</span>
+                      </label>
+                    </Field>
+                  </FormSection>
+                )}
                 {etaEnabled && (
                   <FormSection title={t('products.sectionEInvoice')}>
                     <Field label={t('products.fieldEtaCodeType')}>

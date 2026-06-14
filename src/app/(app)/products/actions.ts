@@ -127,7 +127,7 @@ export async function upsertProduct(formData: FormData): Promise<ActionResult> {
   }
 
   const categoryId = String(formData.get('category_id') || '').trim();
-  const payload = {
+  const payload: Record<string, unknown> = {
     code,
     name,
     name_ar: String(formData.get('name_ar') || '').trim() || null,
@@ -142,6 +142,17 @@ export async function upsertProduct(formData: FormData): Promise<ActionResult> {
     eta_item_code_type: String(formData.get('eta_item_code_type') || '').trim() || null,
     eta_unit_type: String(formData.get('eta_unit_type') || '').trim() || null,
   };
+
+  // Multi-UoM governance fields are written ONLY by a user with uom.manage
+  // (otherwise the columns are left untouched: preserved on edit, DB-default on
+  // create). The form only renders these for uom.manage holders.
+  if (hasPermission(ctx, 'uom.manage')) {
+    const mode = String(formData.get('sell_mode') || '').trim();
+    payload.default_sell_uom = String(formData.get('default_sell_uom') || '').trim() || null;
+    payload.purchase_uom = String(formData.get('purchase_uom') || '').trim() || null;
+    payload.sell_mode = (['base', 'sales', 'all'].includes(mode) ? mode : 'all');
+    payload.allow_fractional = formData.get('allow_fractional') != null;
+  }
 
   const { error } = id
     ? await supabase.from('erp_products_catalog').update(payload).eq('id', id)
