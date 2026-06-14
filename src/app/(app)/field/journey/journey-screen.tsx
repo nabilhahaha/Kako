@@ -349,7 +349,7 @@ export function JourneyScreen({
   };
 
   return (
-    <div className="mx-auto max-w-2xl pb-28">
+    <div className="mx-auto max-w-2xl pb-36 lg:pb-28">
       {mediaEnabled && (
         <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhotoChosen} />
       )}
@@ -568,8 +568,10 @@ export function JourneyScreen({
         </ul>
       )}
 
-      {/* Sticky End Day primary action */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 p-3 backdrop-blur">
+      {/* Sticky End Day primary action — sits ABOVE the mobile bottom-nav
+          (h-14, z-40) so it's never hidden behind the tab bar; flush bottom on
+          desktop where the bottom-nav is hidden (lg). */}
+      <div className="fixed inset-x-0 bottom-14 z-30 border-t bg-background/95 p-3 backdrop-blur lg:bottom-0">
         <div className="mx-auto max-w-2xl">
           <Button className="w-full" size="lg" variant="default" onClick={() => setCloseOpen(true)}>
             <Flag className="h-4 w-4" /> {t('fmcg.endDay')}

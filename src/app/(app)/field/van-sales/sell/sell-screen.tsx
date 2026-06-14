@@ -160,7 +160,7 @@ export function SellScreen({
   const money = (n: number) => n.toFixed(2);
 
   return (
-    <div className="mx-auto max-w-2xl pb-28">
+    <div className="mx-auto max-w-2xl pb-36 lg:pb-28">
       {offlineEnabled && !online && (
         <div className="mb-3 flex items-center gap-2 rounded-md border border-warning/40 bg-warning/5 p-3 text-sm text-warning">
           <CloudOff className="h-4 w-4 shrink-0" />
@@ -343,9 +343,11 @@ export function SellScreen({
         </Card>
       )}
 
-      {/* Sticky action bar */}
+      {/* Sticky action bar. Sits ABOVE the mobile bottom-nav (h-14, z-40) so the
+          Review/Issue action is never hidden behind the tab bar; flush bottom on
+          desktop where the bottom-nav is hidden (lg). */}
       {step !== 'done' && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 p-3 backdrop-blur">
+        <div className="fixed inset-x-0 bottom-14 z-30 border-t bg-background/95 p-3 backdrop-blur lg:bottom-0">
           <div className="mx-auto flex max-w-2xl items-center gap-2">
             {step === 'review' ? (
               <>
