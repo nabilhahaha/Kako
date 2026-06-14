@@ -287,3 +287,23 @@ Van Stock · End Day & Settle, the bottom nav Today · Customer · Van Stock · 
 (Sell + Home removed), and the operational KPI strip (Planned / Visited /
 Remaining / Today's sales / Today's collections / Route compliance %). Reuse-only;
 reversible; non-salesman roles + flag-off tenants unchanged.
+
+---
+
+# 10. Long-term direction (captured — not yet implemented)
+
+**The Customer tab is transitional.** The end state: the **customer picker lives
+inside Today** (embedded — Today JP / All-Customers list + search right in the
+workspace), so Today is the *complete* operational workspace and there is no
+separate `/field/van-sales/customers` hop. Selecting a customer opens the visit
+context (Statement → Collect → Sell → Return → Print → Complete Visit → Next).
+
+- **Now (shipped):** Today = workspace; Customer is a bottom-nav tab + the
+  primary CTA that navigates to the picker page. One operational entry, no
+  duplicates — but the picker is still a separate screen.
+- **Long term:** fold the picker INTO Today (the `CustomerPicker` component is
+  already standalone and reusable, so this is composition, not a rewrite); the
+  Customer tab then becomes redundant and can be retired, leaving Today as the
+  single surface. Keep `/field/van-sales/customers` as a deep-link alias.
+- Reuse-first, flag-gated, reversible — same playbook. Queued for a later pass
+  (after the current refinements settle in UAT).
