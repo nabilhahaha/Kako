@@ -191,6 +191,12 @@ export const FEATURES: FeatureDef[] = [
   }),
   // ── Scanning (PLATFORM pack — reusable by every industry; surfaced only where a
   //    business process consumes it: Pharmacy POS, FMCG sales, warehouse, …) ────
+  P('platform.multi_uom', 'inventory', STD, {
+    screens: ['/settings/uom', '/products', '/inventory'],
+    validation: ['sell_mode', 'allow_fractional', 'unit_conversion'],
+    logic: ['product.uoms', 'uom.engine', 'uom.rules', 'base_unit_movements'],
+    nav: ['nav.items.unitsOfMeasure'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),

@@ -99,3 +99,13 @@ export function unitLabel(units: ProductUnits, uom: string): string {
   const f = factorOf(units, uom);
   return f === 1 ? uom : `${uom} (×${f} ${units.base})`;
 }
+
+/**
+ * Is multi-UoM active for this tenant? The engine is company-wide: it turns on
+ * with the platform flag `platform.multi_uom` (FMCG/distribution/any pack) OR the
+ * legacy pharmacy flag `pharmacy.multi_unit_support` (kept working). Pure — takes
+ * the tenant's resolved feature-flag map.
+ */
+export function multiUomEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
+  return Boolean(flags?.['platform.multi_uom'] || flags?.['pharmacy.multi_unit_support']);
+}
