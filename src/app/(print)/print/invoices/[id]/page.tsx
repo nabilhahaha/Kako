@@ -9,6 +9,10 @@ import type { Invoice, InvoiceLine } from '@/lib/erp/types';
 
 interface LineRow extends InvoiceLine {
   product: { code: string; name: string; name_ar: string | null } | null;
+  /** U2 UoM capture (nullable; null ⇒ entered in the base unit). */
+  entered_uom?: string | null;
+  entered_qty?: number | null;
+  uom_factor?: number | null;
 }
 
 export default async function InvoicePrintPage({
@@ -87,6 +91,7 @@ export default async function InvoicePrintPage({
           <tr className="border-y bg-gray-100">
             <th className="p-2 text-right">#</th>
             <th className="p-2 text-right">الصنف</th>
+            <th className="p-2 text-center">الوحدة</th>
             <th className="p-2 text-center">الكمية</th>
             <th className="p-2 text-left">سعر الوحدة</th>
             <th className="p-2 text-center">خصم %</th>
@@ -94,19 +99,28 @@ export default async function InvoicePrintPage({
           </tr>
         </thead>
         <tbody>
-          {lineRows.map((l, i) => (
-            <tr key={l.id} className="border-b">
-              <td className="p-2">{i + 1}</td>
-              <td className="p-2">
-                <span className="me-1 font-mono text-xs text-gray-500" dir="ltr">{l.product?.code}</span>
-                {l.product?.name_ar || l.product?.name || '—'}
-              </td>
-              <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(l.quantity)}</td>
-              <td className="p-2 text-left tabular-nums" dir="ltr">{formatCurrency(l.unit_price)}</td>
-              <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(l.discount_pct)}</td>
-              <td className="p-2 text-left tabular-nums" dir="ltr">{formatCurrency(l.line_total)}</td>
-            </tr>
-          ))}
+          {lineRows.map((l, i) => {
+            // Show the unit the rep entered (carton/inner/…) with its per-UoM qty +
+            // price; fall back to the base unit when no UoM was captured. line_total
+            // is identical either way (display only).
+            const hasUom = !!l.entered_uom && !!l.uom_factor;
+            const qty = hasUom ? Number(l.entered_qty) : Number(l.quantity);
+            const price = hasUom ? Number(l.unit_price) * Number(l.uom_factor) : Number(l.unit_price);
+            return (
+              <tr key={l.id} className="border-b">
+                <td className="p-2">{i + 1}</td>
+                <td className="p-2">
+                  <span className="me-1 font-mono text-xs text-gray-500" dir="ltr">{l.product?.code}</span>
+                  {l.product?.name_ar || l.product?.name || '—'}
+                </td>
+                <td className="p-2 text-center">{l.entered_uom || '—'}</td>
+                <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(qty)}</td>
+                <td className="p-2 text-left tabular-nums" dir="ltr">{formatCurrency(price)}</td>
+                <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(l.discount_pct)}</td>
+                <td className="p-2 text-left tabular-nums" dir="ltr">{formatCurrency(l.line_total)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 

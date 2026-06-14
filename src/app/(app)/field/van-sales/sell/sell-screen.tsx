@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ShoppingCart, Plus, Minus, ArrowLeft, ArrowRight, Search, Check,
-  Printer, Share2, ReceiptText, CloudOff, Loader2, User, Wallet, Trash2, HandCoins,
+  Printer, Share2, ReceiptText, CloudOff, Loader2, User, Wallet, Trash2, HandCoins, FileText,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -582,10 +582,13 @@ export function SellScreen({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <a href={`/print/receipt/${result.id}`} target="_blank" rel="noreferrer">
-                <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.sell.print')}</Button>
+                <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.sell.printReceipt')}</Button>
               </a>
-              <Button variant="outline" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.sell.share')}</Button>
+              <a href={`/print/invoices/${result.id}`} target="_blank" rel="noreferrer">
+                <Button variant="outline" className="w-full"><FileText className="h-4 w-4" /> {t('vanSales.sell.printInvoice')}</Button>
+              </a>
             </div>
+            <Button variant="outline" className="w-full" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.sell.share')}</Button>
             <Button className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.newSale')}</Button>
           </CardContent>
         </Card>
