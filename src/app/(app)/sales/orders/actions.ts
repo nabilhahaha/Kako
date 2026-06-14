@@ -78,6 +78,11 @@ export async function createSalesOrder(input: OrderInput): Promise<ActionResult<
       unit_price: l.unit_price,
       discount_pct: l.discount_pct,
       line_total: c.net,
+      // U2/U3: UoM capture — quantity/unit_price are BASE; this snapshots what the
+      // user actually entered (NULL ⇒ base unit). Stock/finance stay base-driven.
+      entered_uom: l.entered_uom ?? null,
+      entered_qty: l.entered_qty ?? null,
+      uom_factor: l.uom_factor ?? null,
     };
   });
   const { error: linesErr } = await supabase.from('erp_sales_order_lines').insert(lineRows);
@@ -166,6 +171,10 @@ export async function convertOrderToInvoice(orderId: string): Promise<ActionResu
         unit_price: l.unit_price,
         discount_pct: l.discount_pct,
         line_total: l.line_total,
+        // Carry the UoM snapshot forward so the invoice reflects the same entry.
+        entered_uom: l.entered_uom ?? null,
+        entered_qty: l.entered_qty ?? null,
+        uom_factor: l.uom_factor ?? null,
       })),
     );
   }

@@ -1,6 +1,6 @@
 import type { Permission } from '@/lib/erp/permissions';
 import { isModuleGateOpen, type Module } from '@/lib/erp/navigation';
-import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, type LucideIcon } from 'lucide-react';
+import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, Truck, type LucideIcon } from 'lucide-react';
 
 /** A candidate bottom-nav tab. `href` must resolve to a real route, `labelKey`
  *  is an i18n key, `perm` (when set) gates visibility, and `module` (when set)
@@ -22,6 +22,10 @@ export interface BottomNavTab {
    *  tabs for the same job — e.g. the "Sell" tab is generic Sales OR Fashion POS,
    *  never both. */
   group?: string;
+  /** Only a candidate when Van Sales is active for the tenant (env GA + the
+   *  per-company toggle). Lets the "Sell" tab route a van rep to the Van-Sell
+   *  workflow instead of the generic invoice editor. */
+  vanSalesOnly?: boolean;
 }
 
 /** Ordered candidate tabs for the mobile bottom bar. The Stock view lives at
@@ -41,6 +45,7 @@ export const BOTTOM_NAV_TABS: BottomNavTab[] = [
   // Fashion shops sell from the Fashion POS; everyone else from generic Sales.
   // The resolver shows only one, gated by the enabled module so a fashion-only
   // clothing company never lands on the `sales`-module-gated upgrade screen.
+  { href: '/field/van-sales/sell', icon: Truck, labelKey: 'nav.bottom.sell', perm: 'field.sales', group: 'sell', vanSalesOnly: true },
   { href: '/fashion/sell', icon: ScanBarcode, labelKey: 'nav.bottom.sell', perm: 'fashion.sell', module: 'fashion', group: 'sell' },
   { href: '/sales/invoices', icon: Zap, labelKey: 'nav.bottom.sell', perm: 'sales.sell', module: 'sales', group: 'sell' },
   // ── Inventory (mutually-exclusive group 'inventory') ──
@@ -57,6 +62,8 @@ export interface BottomNavContext {
   /** Company business type, used to pick the most specific route within a
    *  mutually-exclusive group (e.g. clothing → Fashion POS). */
   businessType?: string | null;
+  /** Whether Van Sales is active for the tenant (gates the Van-Sell "Sell" tab). */
+  vanSalesActive?: boolean;
 }
 
 /**
@@ -75,7 +82,9 @@ export function resolveBottomNavTabs(
   tabs: BottomNavTab[] = BOTTOM_NAV_TABS,
 ): BottomNavTab[] {
   const can = (p?: Permission) => !p || ctx.isSuperAdmin || ctx.permissions.includes(p);
-  const candidates = tabs.filter((t) => can(t.perm) && isModuleGateOpen(ctx.modules, t.module));
+  const candidates = tabs.filter(
+    (t) => can(t.perm) && isModuleGateOpen(ctx.modules, t.module) && (!t.vanSalesOnly || ctx.vanSalesActive),
+  );
 
   // Within a mutually-exclusive group, clothing prefers the Fashion route; every
   // other business type prefers the generic route.
@@ -87,7 +96,11 @@ export function resolveBottomNavTabs(
     const g = t.group;
     if (!g || chosen.has(g)) continue;
     const group = candidates.filter((c) => c.group === g);
-    const pick = group.find((c) => isFashionRoute(c.href) === prefersFashion) ?? group[0];
+    // Van Sales reps get the Van-Sell workflow as their "Sell" tab (the primary
+    // FMCG selling path); otherwise fall back to fashion-vs-generic preference.
+    const pick = group.find((c) => c.vanSalesOnly)
+      ?? group.find((c) => isFashionRoute(c.href) === prefersFashion)
+      ?? group[0];
     chosen.set(g, pick.href);
   }
   return candidates.filter((t) => !t.group || chosen.get(t.group) === t.href);

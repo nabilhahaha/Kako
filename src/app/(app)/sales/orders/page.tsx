@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
 import type { Branch, ErpCustomer, ProductCatalog, SalesOrder } from '@/lib/erp/types';
 import { OrdersManager } from './orders-manager';
+import { productUnitsForPicker } from '@/lib/erp/uom-server';
 import { getT } from '@/lib/i18n/server';
 
 export interface OrderRow extends SalesOrder {
@@ -46,6 +47,13 @@ export default async function SalesOrdersPage({
         .order('name'),
     ]);
 
+  // U3: per-product sellable units for the line-editor UoM picker (sell docs).
+  const { multiUom, productUnits } = await productUnitsForPicker(
+    supabase,
+    ctx.companyId ?? '',
+    ((products as ProductCatalog[]) ?? []).map((p) => p.id),
+  );
+
   return (
     <div>
       <PageHeader title={t('sales.ordersTitle')} description={t('sales.ordersDescription')} />
@@ -55,6 +63,8 @@ export default async function SalesOrdersPage({
         branches={(branches as Branch[]) ?? []}
         products={(products as ProductCatalog[]) ?? []}
         q={q}
+        productUnits={productUnits}
+        multiUom={multiUom}
       />
       <Pager page={page} pageSize={PAGE_SIZE} total={count ?? 0} basePath="/sales/orders" query={{ q: q || undefined }} />
     </div>

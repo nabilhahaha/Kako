@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
 import type { Branch, ErpCustomer, Invoice, ProductCatalog } from '@/lib/erp/types';
 import { InvoicesManager } from './invoices-manager';
+import { productUnitsForPicker } from '@/lib/erp/uom-server';
 import { getT } from '@/lib/i18n/server';
 
 export interface InvoiceRow extends Invoice {
@@ -46,6 +47,13 @@ export default async function InvoicesPage({
     ]);
   const etaEnabled = Boolean(etaSettings?.enabled);
 
+  // U3: per-product sellable units for the line-editor UoM picker (sell docs).
+  const { multiUom, productUnits } = await productUnitsForPicker(
+    supabase,
+    ctx.companyId ?? '',
+    ((products as ProductCatalog[]) ?? []).map((p) => p.id),
+  );
+
   return (
     <div>
       <PageHeader title={t('sales.invoicesTitle')} description={t('sales.invoicesDescription')} />
@@ -57,6 +65,8 @@ export default async function InvoicesPage({
         q={q}
         status={status}
         etaEnabled={etaEnabled}
+        productUnits={productUnits}
+        multiUom={multiUom}
       />
       <Pager
         page={page}

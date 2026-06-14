@@ -51,6 +51,7 @@ export const ar = {
     },
     lineItems: {
       product: 'المنتج',
+      unit: 'الوحدة',
       qty: 'الكمية',
       unitPrice: 'سعر الوحدة',
       discountPct: 'خصم %',
@@ -213,6 +214,7 @@ export const en = {
     },
     lineItems: {
       product: 'Product',
+      unit: 'Unit',
       qty: 'Qty',
       unitPrice: 'Unit price',
       discountPct: 'Disc %',

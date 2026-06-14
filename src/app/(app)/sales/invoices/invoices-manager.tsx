@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { FormSection } from '@/components/shared/form-section';
-import { LineItemsEditor, newLine, type EditorLine } from '@/components/sales/line-items-editor';
+import { LineItemsEditor, newLine, editorLineToBase, type EditorLine, type ProductUnitsMap } from '@/components/sales/line-items-editor';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FieldError } from '@/components/ui/field-error';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -45,6 +45,8 @@ export function InvoicesManager({
   q,
   status,
   etaEnabled = false,
+  productUnits = {},
+  multiUom = false,
 }: {
   invoices: InvoiceRow[];
   customers: ErpCustomer[];
@@ -53,6 +55,8 @@ export function InvoicesManager({
   q: string;
   status: string;
   etaEnabled?: boolean;
+  productUnits?: ProductUnitsMap;
+  multiUom?: boolean;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -103,13 +107,7 @@ export function InvoicesManager({
         customer_id: customerId,
         due_date: dueDate,
         notes,
-        lines: lines.map((l) => ({
-          product_id: l.product_id,
-          quantity: l.quantity,
-          unit_price: l.unit_price,
-          discount_pct: l.discount_pct,
-          tax_rate: l.tax_rate,
-        })),
+        lines: lines.map((l) => editorLineToBase(l, productUnits)),
       });
       if (!res.ok) {
         toast.error(res.error ?? t('sales.errorGeneric'));
@@ -226,6 +224,8 @@ export function InvoicesManager({
               lines={lines}
               onChange={(l) => { setLines(l); setErrors((x) => ({ ...x, lines: undefined })); }}
               priceResolver={customerId ? (productId, qty) => resolveLinePrice({ productId, customerId, branchId, qty }) : undefined}
+              productUnits={productUnits}
+              multiUom={multiUom}
             />
             <FieldError>{errors.lines}</FieldError>
 

@@ -113,6 +113,40 @@ describe('bottom-nav — module-aware Sell routing', () => {
     const r = resolveBottomNavTabs({ permissions: [], isSuperAdmin: true, modules: [], businessType: null });
     expect(sellTabs(r)).toHaveLength(1);
   });
+
+  it('Van Sales rep → Sell opens the Van-Sell workflow, not the generic invoice editor', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('sales.sell', 'field.sales'), isSuperAdmin: false,
+      modules: M('sales', 'van_sales', 'field_ops'), businessType: 'general',
+      vanSalesActive: true,
+    });
+    const sell = sellTabs(r);
+    expect(sell).toHaveLength(1);
+    expect(sell[0].href).toBe('/field/van-sales/sell');
+    // still exactly one Sell tab — the generic editor is collapsed away
+    expect(r.some((t) => t.href === '/sales/invoices')).toBe(false);
+  });
+
+  it('Van Sales INACTIVE → the Van-Sell tab is hidden, Sell falls back to generic Sales', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('sales.sell', 'field.sales'), isSuperAdmin: false,
+      modules: M('sales', 'van_sales', 'field_ops'), businessType: 'general',
+      vanSalesActive: false,
+    });
+    const sell = sellTabs(r);
+    expect(sell).toHaveLength(1);
+    expect(sell[0].href).toBe('/sales/invoices');
+    expect(r.some((t) => t.href === '/field/van-sales/sell')).toBe(false);
+  });
+
+  it('Van Sales active but rep lacks field.sales → no Van-Sell tab (perm-gated)', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('sales.sell'), isSuperAdmin: false,
+      modules: M('sales'), businessType: 'general', vanSalesActive: true,
+    });
+    expect(sellTabs(r)).toHaveLength(1);
+    expect(sellTabs(r)[0].href).toBe('/sales/invoices');
+  });
 });
 
 describe('bottom-nav — Customers & Inventory tabs are Fashion-aware', () => {

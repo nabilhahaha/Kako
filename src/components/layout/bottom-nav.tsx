@@ -19,6 +19,7 @@ export function BottomNav({
   isSuperAdmin,
   modules = [],
   businessType = null,
+  vanSalesActive = false,
 }: {
   permissions: Permission[];
   isSuperAdmin: boolean;
@@ -26,12 +27,14 @@ export function BottomNav({
   modules?: Module[];
   /** Company business type (picks the most specific route per group). */
   businessType?: string | null;
+  /** Van Sales active for the tenant → the "Sell" tab routes to Van-Sell. */
+  vanSalesActive?: boolean;
 }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const setOpen = useMobileNav((s) => s.setOpen);
 
-  const visible = resolveBottomNavTabs({ permissions, isSuperAdmin, modules, businessType })
+  const visible = resolveBottomNavTabs({ permissions, isSuperAdmin, modules, businessType, vanSalesActive })
     .map((tab) => ({ href: tab.href, icon: tab.icon, label: t(tab.labelKey) }))
     .slice(0, 4);
   const cols = visible.length + 1;

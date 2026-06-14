@@ -15,6 +15,7 @@ import { CopilotFab } from '@/components/copilot/copilot-fab';
 import { OfflineStatusBar } from '@/components/layout/offline-status-bar';
 import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
+import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
 import { getT } from '@/lib/i18n/server';
@@ -204,7 +205,7 @@ export default async function AppLayout({
           {/* pb on mobile keeps content clear of the fixed bottom tab bar (UX-3) */}
           <main className="flex-1 p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
         </div>
-        <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} modules={ctx.modules} businessType={ctx.company?.business_type ?? null} />
+        <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} modules={ctx.modules} businessType={ctx.company?.business_type ?? null} vanSalesActive={await isVanSalesActive(await createClient(), ctx)} />
         {/* Global Help Copilot — always available, outside page content. */}
         <CopilotFab />
       </div>

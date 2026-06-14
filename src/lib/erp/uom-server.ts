@@ -1,7 +1,8 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { resolveUnits, type ProductUnits } from './uom';
+import { resolveUnits, multiUomEnabled, type ProductUnits } from './uom';
 import { type UnitRules, type SellMode } from './uom-rules';
+import { getFeatureFlags } from './feature-flags';
 
 /**
  * Server bridge: load a product's resolved units + governance rules from the DB
@@ -71,4 +72,31 @@ export async function loadProductUnitsMany(
     out.set(cat.id, build(cat, uomsByProduct.get(cat.id) ?? []));
   }
   return out;
+}
+
+/** Plain { uom, factor } unit list keyed by product id — the shape the shared
+ *  LineItemsEditor / pickers consume (sorted base-first). */
+export type ProductUnitsMap = Record<string, { uom: string; factor: number }[]>;
+
+/**
+ * One call that gives a sell surface everything its UoM picker needs:
+ *  - `multiUom`: whether the tenant's Multi-UoM feature is ON.
+ *  - `productUnits`: per-product sellable units (base + alternates), base-first.
+ * When the feature is OFF we skip the unit query entirely and return an empty
+ * map, so legacy/non-FMCG tenants pay nothing and the picker stays hidden.
+ */
+export async function productUnitsForPicker(
+  supabase: SupabaseClient,
+  companyId: string,
+  productIds: string[],
+): Promise<{ multiUom: boolean; productUnits: ProductUnitsMap }> {
+  const flags = await getFeatureFlags(supabase, companyId);
+  const multiUom = multiUomEnabled(flags);
+  if (!multiUom) return { multiUom: false, productUnits: {} };
+  const configs = await loadProductUnitsMany(supabase, productIds);
+  const productUnits: ProductUnitsMap = {};
+  for (const [id, cfg] of configs) {
+    productUnits[id] = cfg.units.units.map((u) => ({ uom: u.uom, factor: u.factor }));
+  }
+  return { multiUom, productUnits };
 }
