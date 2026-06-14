@@ -469,3 +469,60 @@ One additive migration (`03xx_cash_custody_phase2`) — columns + tables + RPCs 
 4. Per-salesman liability read + rep/hub/cashier cards + limit checks/alerts.
 5. Wire `lock_level` (settlement × cash) into the reopen decide RPC + `day.reopen.override`.
 6. Validate on staging (verify-without-receipt, multi-day bulk handover, reopen-after-received escalation, liability math, invariants); UAT; then Phase 3.
+
+---
+
+# Appendix B — Becoming the FMCG default (promotion & migration)
+
+**Goal:** Pilot → Validate → **FMCG Standard** → future FMCG companies inherit the
+governed day lifecycle automatically (Day-Close Governance, Reopen Request,
+Approval Flow, Audit Trail, Day-Close Enforcement) with **no manual config**.
+Existing FMCG companies stay unchanged until explicitly migrated.
+
+## B1. Pilot implementation (done)
+Migration 0308 (flag-gated, default OFF) + pilot-only enablement on staging
+(`platform.day_reopen=true`, `day.reopen.request/.approve` granted to the pilot's
+roles). This is the validation surface. **No promotion happens until UAT passes.**
+
+## B2. What is already template-level vs what promotion adds
+| Capability | Mechanism | Already default for new companies? |
+|---|---|---|
+| Reopen **permissions** (`day.reopen.request/.approve`) | seeded into the template `erp_role_permissions` by 0308 → copied to each new company by `erp_seed_company_roles()` | ✅ Yes (new FMCG companies inherit the perms) |
+| **Day-Close Enforcement** | code-level guard gated on Van Sales being active (not a flag) | ✅ Yes (automatic wherever van-sales is on) |
+| Audit trail | `erp_log_audit` inside the RPCs | ✅ Yes (intrinsic) |
+| Reopen **workflow visibility** (UI + RPC entry) | `platform.day_reopen` feature flag, currently catalog default OFF (`templates: []`) | ❌ **This is the one thing promotion must flip on for FMCG** |
+
+So "promote to FMCG default" reduces to **defaulting the flag ON for FMCG
+companies** — everything else already rides the template/role/code path.
+
+## B3. FMCG default template promotion strategy (post-validation)
+A small follow-up migration `03xx_day_reopen_fmcg_default` that, **after pilot
+sign-off**, makes the flag inherit automatically for **new FMCG companies only**:
+- Add an FMCG business-type default-flags seeding step at company creation —
+  mirror `erp_seed_company_roles()`: a `erp_seed_company_feature_flags(company_id)`
+  (or extend the existing creation hook) that inserts `platform.day_reopen=true`
+  into `erp_feature_flags` when the company's business type is FMCG / distribution.
+- Keep `templates: []` in the catalog (so non-FMCG verticals are unaffected) — the
+  default is applied **by business type at creation**, not globally by tier.
+- Net result: **a new FMCG tenant is correct from day one** — perms (already
+  templated) + flag (seeded ON) + enforcement (automatic). No manual setup.
+
+## B4. Existing FMCG company migration strategy (opt-in, explicit)
+Mirror the proven `erp_apply_fmcg_salesman_default(company_id)` pattern (0307):
+an idempotent, Platform-Owner-only **`erp_apply_fmcg_day_reopen_default(company_id)`**
+that, for one chosen existing company, (a) ensures the role perms exist in its
+`erp_company_role_permissions`, and (b) sets `platform.day_reopen=true`. Existing
+companies are **never** touched implicitly; an admin runs the migrator per company
+when ready. Overrides preserved; re-runnable.
+
+## B5. Rollback strategy
+- **Per company (instant):** set `platform.day_reopen=false` — the request/approval
+  UI and RPC entry points disappear; the day-close enforcement (separate) stays.
+  No data loss; existing requests remain for audit.
+- **Promotion rollback:** drop the FMCG creation-seeding step (new companies stop
+  defaulting it ON); already-created companies keep their stored flag (flip
+  individually if desired).
+- **Full feature rollback:** the 0308 manual rollback block (drop RPCs + table +
+  session columns + template perms). Additive throughout, so reversible.
+- **Guardrail:** promotion is gated on **explicit pilot sign-off**; existing tenants
+  change only via the opt-in migrator. Pilot → Validate → FMCG Standard → inherit.
