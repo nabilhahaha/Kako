@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive } from './settings-server';
+import { isVanDayOpen } from './day-server';
 
 // ============================================================================
 // Van Sales — collection settlement wiring (Phase 5). Completes sell → invoice →
@@ -77,6 +78,7 @@ export async function settleCollectionEntry(input: SettleCollectionEntryInput): 
 
   const supabase = await createClient();
   if (!(await isVanSalesActive(supabase, ctx))) return { ok: false, error: 'Van Sales is not enabled.' };
+  if (!(await isVanDayOpen(ctx.userId))) return { ok: false, error: 'Your day is closed — start a new day before creating transactions.' };
   if (!input.branch_id || !input.customer_id) return { ok: false, error: 'Branch and customer are required.' };
   if (!(input.amount > 0)) return { ok: false, error: RPC_ERRORS.invalid_amount };
 

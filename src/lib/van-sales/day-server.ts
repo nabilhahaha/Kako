@@ -31,3 +31,21 @@ export async function loadVanDayState(ctx: UserContext): Promise<VanDay> {
   const row = data as { id: string; status: string };
   return { state: row.status === 'closed' ? 'closed' : 'open', sessionId: row.id };
 }
+
+/**
+ * Day-close guard (server source of truth): a van transaction (Sell / Collect /
+ * Return / Issue) is allowed ONLY while today's work session is OPEN. No session
+ * (not started) or a closed session (settled) ⇒ blocked — the rep must start a
+ * new day first. Keeps the van reconciliation consistent (nothing is created
+ * after settlement). Applied to every FMCG transaction path.
+ */
+export async function isVanDayOpen(userId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('erp_work_sessions')
+    .select('status')
+    .eq('salesman_id', userId)
+    .eq('work_date', today())
+    .maybeSingle();
+  return Boolean(data) && (data as { status: string }).status !== 'closed';
+}

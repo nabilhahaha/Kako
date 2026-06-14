@@ -5,6 +5,11 @@ import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive, loadVanSalesSettings } from './settings-server';
+import { isVanDayOpen } from './day-server';
+
+// Day-close guard message (server source of truth). The UI shows a localized
+// "start a new day" gate; this is the safety-net when the day closes mid-flow.
+const DAY_CLOSED = 'Your day is closed — start a new day before creating transactions.';
 import { computeVanSellTotals, normalizeVanSellLines, firstDiscountOverCap, collectInSellEnabled, validateTenders, sumTenders, type VanSellLineInput, type PaymentTender } from './sell';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { multiUomEnabled, factorOf } from '@/lib/erp/uom';
@@ -155,6 +160,7 @@ export async function vanSell(input: VanSellInput): Promise<ActionResult<{ id: s
   if (!(await isVanSalesActive(supabase, ctx))) {
     return { ok: false, error: 'Van Sales is not enabled.' };
   }
+  if (!(await isVanDayOpen(ctx.userId))) return { ok: false, error: DAY_CLOSED };
 
   if (!input.branch_id) return { ok: false, error: 'Branch is required.' };
   if (!input.customer_id) return { ok: false, error: 'Customer is required.' };
@@ -230,6 +236,7 @@ export async function vanSellWithPayment(
   if (!(await isVanSalesActive(supabase, ctx))) return { ok: false, error: 'Van Sales is not enabled.' };
   const flags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;
   if (!collectInSellEnabled(flags)) return { ok: false, error: 'Collection-in-Sell is not enabled.' };
+  if (!(await isVanDayOpen(ctx.userId))) return { ok: false, error: DAY_CLOSED };
 
   if (!input.branch_id) return { ok: false, error: 'Branch is required.' };
   if (!input.customer_id) return { ok: false, error: 'Customer is required.' };

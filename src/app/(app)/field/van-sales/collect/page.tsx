@@ -7,6 +7,8 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { CollectScreen, type CollectCustomer } from './collect-screen';
+import { isVanDayOpen } from '@/lib/van-sales/day-server';
+import { DayClosedGate } from '../day-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +25,7 @@ export default async function VanCollectPage({ searchParams }: { searchParams: P
   if (!hasPermission(ctx, 'field.sales') && !ctx.isSuperAdmin) redirect('/dashboard');
 
   const { t } = await getT();
+  if (!(await isVanDayOpen(ctx.userId))) return <DayClosedGate title={t('vanSales.collect.title')} />;
   const { customer: preselectCustomer } = await searchParams;
 
   const { data: vanRow } = await supabase

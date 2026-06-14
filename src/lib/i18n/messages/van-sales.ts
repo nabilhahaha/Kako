@@ -13,6 +13,8 @@ export const ar = {
     endDay: 'إنهاء اليوم',
     endDaySettle: 'إنهاء اليوم وتسوية العهدة',
     pickerSubtitle: 'اختر عميلاً لعرض كشف الحساب والتحصيل والبيع والمرتجع.',
+    dayClosedTitle: 'يومك مُغلق',
+    dayClosedBody: 'تم إغلاق اليوم وتسوية العهدة. ابدأ يوماً جديداً قبل إنشاء أي عملية. كشوف الحساب والتقارير والطباعة متاحة للاطّلاع فقط.',
     comingSoon: 'قريبًا',
     steps: {
       customer: 'عميل',
@@ -375,6 +377,8 @@ export const en = {
     endDay: 'End Day',
     endDaySettle: 'End Day & settle van',
     pickerSubtitle: 'Pick a customer to view statement, collect, sell and return.',
+    dayClosedTitle: 'Your day is closed',
+    dayClosedBody: 'The day is closed and the van is settled. Start a new day before creating any transaction. Statements, reports and prints remain available to view.',
     comingSoon: 'Coming soon',
     steps: {
       customer: 'Customer',

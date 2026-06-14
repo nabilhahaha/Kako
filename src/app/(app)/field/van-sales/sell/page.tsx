@@ -10,8 +10,10 @@ import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { multiUomEnabled } from '@/lib/erp/uom';
 import { collectInSellEnabled } from '@/lib/van-sales/sell';
+import { isVanDayOpen } from '@/lib/van-sales/day-server';
 import { loadProductUnitsMany } from '@/lib/erp/uom-server';
 import { SellScreen, type SellCustomer, type SellProduct } from './sell-screen';
+import { DayClosedGate } from '../day-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +30,8 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
   if (!hasPermission(ctx, 'field.sales') && !ctx.isSuperAdmin) redirect('/dashboard');
 
   const { t } = await getT();
+  // Day-close guard: no new sale unless today's session is open (FMCG default).
+  if (!(await isVanDayOpen(ctx.userId))) return <DayClosedGate title={t('vanSales.sell.title')} />;
   const { customer: preselectCustomer } = await searchParams;
 
   // The rep's own active van — the sale's source and branch.

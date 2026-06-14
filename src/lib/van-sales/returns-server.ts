@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive } from './settings-server';
+import { isVanDayOpen } from './day-server';
 import { normalizeReturnLines, computeReturnTotal, type ReturnLineInput, type PricedReturnLine } from './returns';
 
 // ============================================================================
@@ -88,6 +89,7 @@ export async function vanReturn(input: VanReturnInput): Promise<ActionResult<{ i
 
   const supabase = await createClient();
   if (!(await isVanSalesActive(supabase, ctx))) return { ok: false, error: 'Van Sales is not enabled.' };
+  if (!(await isVanDayOpen(ctx.userId))) return { ok: false, error: 'Your day is closed — start a new day before creating transactions.' };
   if (!input.branch_id) return { ok: false, error: 'Branch is required.' };
   if (!input.customer_id) return { ok: false, error: 'Customer is required.' };
   if (!input.reason_id) return { ok: false, error: RPC_ERRORS.reason_required };
