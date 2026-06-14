@@ -202,8 +202,9 @@ export default async function AppLayout({
               </a>
             </div>
           )}
-          {/* pb on mobile keeps content clear of the fixed bottom tab bar (UX-3) */}
-          <main className="flex-1 p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
+          {/* pb on mobile keeps content clear of the fixed bottom tab bar + the
+              device home-indicator inset (UX-3 / safe-area). */}
+          <main className="flex-1 p-4 pb-nav-safe lg:p-6 lg:pb-6">{children}</main>
         </div>
         <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} modules={ctx.modules} businessType={ctx.company?.business_type ?? null} vanSalesActive={await isVanSalesActive(await createClient(), ctx)} />
         {/* Global Help Copilot — always available, outside page content. */}

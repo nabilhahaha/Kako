@@ -126,3 +126,14 @@
 @media (prefers-reduced-motion: reduce) {
   .ams-aura, .ams-aura-2, .ams-fade, .ams-pop { animation: none; }
 }
+
+/* ── Mobile safe-area utilities (requires viewport-fit=cover) ─────────────────
+   The mobile bottom-nav is h-14 (3.5rem). These let fixed action bars / bottom
+   sheets clear BOTH the nav and the device home-indicator inset. */
+@layer utilities {
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  /* Sit a fixed element directly above the (safe-area-aware) bottom nav. */
+  .bottom-nav-safe { bottom: calc(3.5rem + env(safe-area-inset-bottom)); }
+  /* Reserve content space for the nav + a buffer + the home-indicator inset. */
+  .pb-nav-safe { padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
+}

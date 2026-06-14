@@ -604,9 +604,9 @@ export function JourneyScreen({
       )}
 
       {/* Sticky End Day primary action — sits ABOVE the mobile bottom-nav
-          (h-14, z-40) so it's never hidden behind the tab bar; flush bottom on
-          desktop where the bottom-nav is hidden (lg). */}
-      <div className="fixed inset-x-0 bottom-14 z-30 border-t bg-background/95 p-3 backdrop-blur lg:bottom-0">
+          (h-14 + safe-area, z-40) so it's never hidden behind the tab bar; flush
+          bottom on desktop where the bottom-nav is hidden (lg). */}
+      <div className="fixed inset-x-0 bottom-nav-safe z-40 border-t bg-background/95 p-3 backdrop-blur lg:bottom-0">
         <div className="mx-auto max-w-2xl">
           <Button className="w-full" size="lg" variant="default" onClick={() => setCloseOpen(true)}>
             <Flag className="h-4 w-4" /> {t('fmcg.endDay')}
@@ -614,10 +614,11 @@ export function JourneyScreen({
         </div>
       </div>
 
-      {/* End Day summary modal */}
+      {/* End Day summary modal — above the bottom-nav (z-50) and padded clear of
+          the home indicator; scrollable on small screens. */}
       {closeOpen && (
-        <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-          <Card className="w-full max-w-md rounded-b-none sm:rounded-b-lg">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+          <Card className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-b-none pb-safe sm:rounded-b-lg sm:pb-0">
             <CardContent className="p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-lg font-bold">{t('fmcg.closeDayTitle')}</h2>

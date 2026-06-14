@@ -604,11 +604,11 @@ export function SellScreen({
         </Card>
       )}
 
-      {/* Sticky action bar. Sits ABOVE the mobile bottom-nav (h-14, z-40) so the
-          Review/Issue action is never hidden behind the tab bar; flush bottom on
-          desktop where the bottom-nav is hidden (lg). */}
+      {/* Sticky action bar. Sits ABOVE the mobile bottom-nav (h-14 + safe-area,
+          z-40) so the Review/Issue action is never hidden behind the tab bar;
+          flush bottom on desktop where the bottom-nav is hidden (lg). */}
       {step !== 'done' && (
-        <div className="fixed inset-x-0 bottom-14 z-30 border-t bg-background/95 p-3 backdrop-blur lg:bottom-0">
+        <div className="fixed inset-x-0 bottom-nav-safe z-40 border-t bg-background/95 p-3 backdrop-blur lg:bottom-0">
           <div className="mx-auto flex max-w-2xl items-center gap-2">
             {step === 'review' ? (
               <>
@@ -650,7 +650,7 @@ export function SellScreen({
           onClick={() => setConfirmOpen(false)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-background p-4 sm:rounded-2xl"
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:rounded-2xl sm:pb-4"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-base font-bold">{t('vanSales.sell.confirm.title')}</h3>
