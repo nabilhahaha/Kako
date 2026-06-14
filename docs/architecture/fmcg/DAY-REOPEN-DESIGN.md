@@ -50,43 +50,77 @@ above — not a new parallel accounting engine.
 
 ## 3. Target lifecycle & the lock point
 
-Mapping the requested model onto what the system actually has:
+**Cash verification ≠ cash receipt.** A cashier can *verify* the settlement
+figures (the reconciliation is correct) without the salesman having physically
+*handed over* the cash. A salesman may carry cash for several days and deliver it
+later in one handover. So the day has **two independent tracks** that must be
+modelled separately:
 
+**Track A — Settlement / verification (the accounting state of the day)**
 ```
-Open
- └─ End Day & Settle ─────────────► Closed                (status='closed')
-                                      │
-            (van/cash reconciliation submitted)
-                                      ▼
-                              Settlement Submitted          (recon status='pending_approval')
-                                      │
-            (reconciliation.approve  / accountant sign-off)
-                                      ▼
-                              Settlement Approved  ◄── FINAL LOCK POINT
-                                      │
-            (journal posting, KAKO_FINANCE)
-                                      ▼
-                                  Finalized                 (journal status='posted')
+Open ─ End Day & Settle ─► Closed ─► Settlement Submitted ─► Verified ─► Accountant Approved ─► Finalized
+                          status      recon                  cashier      accountant            journal
+                          ='closed'   ='pending_approval'    verifies     sign-off              ='posted'
+                                                             (numbers OK)  ◄── FINAL LOCK POINT
 ```
 
-We compute a single derived **`lock_level`** for any closed session:
+**Track B — Cash custody (the money state of the day)**
+```
+Cash Pending ──────────────────────► Cash Received
+(liability sits with the salesman)   (handover to cashier; may be bulk, covering
+                                      several closed days at once)
+```
 
-| `lock_level` | Derived from | Reopen authority required |
-|---|---|---|
-| `none` | Closed, no reconciliation submitted | **Supervisor / Admin** approval |
-| `settlement_submitted` | recon `pending_approval` | **Supervisor / Admin** approval |
-| `settlement_approved` | recon `settled` **or** cash recon `settled` | **Higher-level override** (Admin + accountant ack) |
-| `finalized` | any journal entry `posted` for the session's documents | **Platform Owner / Admin override** only |
+`Verified` lives on Track A and explicitly means **"Verified (Cash Pending)"** —
+the cashier accepted the figures but the cash is still outstanding. Track B
+advances independently when the physical handover happens.
 
-**The accountant confirmation (`settlement_approved`) is the final lock point.**
-Below it → Supervisor/Admin can approve a reopen. At or above it → reopen is
-**blocked unless a higher-level override exists.**
+We compute a derived **`lock_level`** for any closed session from **both** tracks:
 
-> **Pilot reality:** `KAKO_FINANCE` is OFF and no reconciliation is `settled` in
-> the pilot yet, so in practice every closed pilot day is `lock_level='none'` and
-> Supervisor/Admin can approve. The higher tiers are **designed now but inert**
-> until those layers are switched on (Phase 2/3). This keeps Phase 1 small while
-> the lock semantics are correct from day one.
+| `lock_level` | Settlement track | Cash track | Reopen authority required |
+|---|---|---|---|
+| `none` | Closed (no recon) | Pending | **Supervisor / Admin** |
+| `settlement_submitted` | recon `pending_approval` | Pending | **Supervisor / Admin** |
+| `verified_cash_pending` | cashier **verified** | **Pending** | **Supervisor / Admin** + a cash-pending warning (numbers are signed but no money moved — relatively safe to reopen, recompute on close) |
+| `cash_received` | verified | **Received** | **Higher-level override** (Admin) — reopening now changes a day whose cash is already in the till |
+| `settlement_approved` | accountant **approved** | Received | **Higher-level override** (Admin + accountant ack) ◄ **final lock point** |
+| `finalized` | journal `posted` | Received | **Platform Owner / Admin override** only |
+
+**Rule:** reopen authority is the **higher** of the two tracks' requirements —
+i.e. it considers **both** settlement status **and** cash-received status. A day
+that is only `Verified (Cash Pending)` is still Supervisor-reopenable; once cash
+is received **or** the accountant approves, it escalates to override.
+
+> **Pilot reality:** `KAKO_FINANCE` is OFF, no reconciliation is `settled`, and
+> no cashier verification/handover layer is live yet, so every closed pilot day is
+> `lock_level='none'` today and Supervisor/Admin can approve. The verification,
+> cash-custody, accountant and finalized tiers are **designed now but inert**
+> until Phase 2/3 switch them on — keeping Phase 1 small while the lock semantics
+> are correct from day one.
+
+### 3.1 Cash liability & bulk handover (verification ≠ receipt)
+
+Because a salesman can carry cash across several days and hand it over later, the
+system must track **a running cash liability per salesman**, not just a per-day
+cash flag. This maps **exactly** onto an existing pattern: the way collections are
+allocated across multiple invoices (`erp_collections` + `erp_collection_allocations`).
+We reuse that shape — **one handover can cover many closed days**:
+
+```
+Per closed day:  expected_cash  (from cash reconciliation)  →  cash_status: pending | partial | received
+
+Salesman pending liability  =  Σ expected_cash of days NOT yet fully received
+
+Handover (bulk):
+   erp_cash_handovers (salesman, cashier, amount, received_at)
+        └─ erp_cash_handover_allocations (handover_id → work_session_id, amount)   ← oldest-day-first, like collections
+```
+
+- **Cashier verifies** a day (Track A → `Verified`) by accepting the reconciliation figures — **no cash required**. Recorded with actor + timestamp.
+- **Cash receipt** is a **separate** action (Track B): the cashier records a handover of an amount and the system **allocates it across the salesman's oldest cash-pending days first** (specified amounts also allowed), advancing each covered day to `received` (or `partial`).
+- The salesman's screen and the cashier's screen both show **pending amount** and **pending days** (count + age of the oldest unsettled-cash day), driven from one read of the per-session `expected_cash` minus allocated receipts — same "outstanding, oldest-first" computation already used for customer collections.
+
+This keeps **verification and receipt as distinct, separately-audited events**, supports **carry-over and bulk handover**, and gives a clean per-salesman cash-liability ledger without a new engine.
 
 ---
 
@@ -106,7 +140,7 @@ Mirror the proven lightweight request pattern (`erp_credit_limit_requests`),
 | `note` | text NULL | optional |
 | `attachment_url` | text NULL | optional (reuse existing storage bucket; Phase 1 may omit) |
 | `lock_level` | text | snapshot at request time (`none`/`settlement_submitted`/`settlement_approved`/`finalized`) |
-| `settlement_snapshot` | jsonb | `{recon_status, cash_recon_status, journal_posted, reopen_count}` captured at request |
+| `settlement_snapshot` | jsonb | `{recon_status, cash_recon_status, verified, cash_status, cash_received, expected_cash, journal_posted, reopen_count}` captured at request |
 | `status` | text | `pending` / `approved` / `rejected` / `cancelled` / `applied` |
 | `decided_by` | uuid NULL | approver |
 | `decided_at` | timestamptz NULL | |
@@ -118,12 +152,25 @@ Mirror the proven lightweight request pattern (`erp_credit_limit_requests`),
 - Partial unique index: **one `pending` request per `work_session_id`** (prevents duplicates / races).
 - RLS: salesman sees own requests; approvers see their company's; standard tenant isolation.
 
-### Counter on `erp_work_sessions` (additive columns)
+### Counter + cash/verification fields on `erp_work_sessions` (additive columns)
 - `reopen_count int NOT NULL DEFAULT 0`
-- `last_reopened_at timestamptz NULL`
-- `last_reopened_by uuid NULL`
+- `last_reopened_at timestamptz NULL`, `last_reopened_by uuid NULL`
+- `verified_at timestamptz NULL`, `verified_by uuid NULL` — cashier verification (Track A; no cash required)
+- `expected_cash numeric NULL` — the day's cash liability (from cash reconciliation)
+- `cash_status text NOT NULL DEFAULT 'pending'` — `pending` / `partial` / `received` (Track B; derived, but cached for fast pending-liability reads)
 
-(Backfill default 0; existing rows untouched. Additive, reversible.)
+(Backfill defaults; existing rows untouched. Additive, reversible.)
+
+### New tables for cash custody (mirror collections → allocations)
+**`erp_cash_handovers`** — one physical handover event:
+`id, company_id, salesman_id, cashier_id, amount, received_at, note, created_at`.
+
+**`erp_cash_handover_allocations`** — splits a handover across closed days:
+`id, handover_id FK, work_session_id FK, amount`. Allocation is **oldest-cash-pending-day first** (or specified per day), identical to `erp_collection_allocations`. A day's `cash_status` is `received` once `Σ allocations ≥ expected_cash`, else `partial`/`pending`.
+
+> The **per-salesman pending liability** = `Σ expected_cash − Σ allocations` over
+> the salesman's verified/closed days — the same oldest-first outstanding math the
+> collection screen already runs, just keyed by salesman instead of customer.
 
 ---
 
@@ -145,15 +192,32 @@ Caller: salesman (perm `day.reopen.request`). Validates:
 ### `erp_decide_day_reopen(p_request_id, p_decision, p_note)`
 Caller: approver. `p_decision ∈ {approve, reject}`. Validates:
 1. Request is `pending`.
-2. **Authority vs `lock_level` (re-evaluated at decision time, not trusted from the snapshot):**
-   - `none` / `settlement_submitted` → requires `day.reopen.approve` (Supervisor/Admin).
-   - `settlement_approved` → requires `day.reopen.override` (Admin, with accountant ack — Phase 2).
+2. **Authority vs `lock_level` (re-evaluated at decision time, not trusted from the snapshot — and considering BOTH settlement and cash-received status):**
+   - `none` / `settlement_submitted` / `verified_cash_pending` → requires `day.reopen.approve` (Supervisor/Admin); the `verified_cash_pending` case shows a "numbers signed, cash still out" notice.
+   - `cash_received` / `settlement_approved` → requires `day.reopen.override` (Admin, with accountant ack — Phase 2).
    - `finalized` → requires `day.reopen.override` held by Platform Owner/Admin (Phase 3).
-3. On **approve**: flip session `status='open'`, `closed_at=NULL`, `reopen_count += 1`, `last_reopened_at/by`; set request `status='applied'`, `decided_by/at`. If recon was `settled`, mark it **stale/needs-recompute** (Phase 2). Audit `approve_day_reopen`.
+3. On **approve**: flip session `status='open'`, `closed_at=NULL`, `reopen_count += 1`, `last_reopened_at/by`; set request `status='applied'`, `decided_by/at`. If recon was `settled` **or cash was already received**, mark the settlement/cash **stale → needs-recompute** so a reopened day can't silently diverge from a banked figure (Phase 2). Audit `approve_day_reopen`.
 4. On **reject**: request `status='rejected'`, `decided_by/at`, `decision_note`. Day stays closed. Audit `reject_day_reopen`.
 
 Both wrap the existing `reopenDay` status-flip logic so there is exactly one code
 path that re-opens a session — now gated, reasoned, and audited.
+
+### `erp_verify_day_settlement(p_work_session_id, p_note)` — *Phase 2*
+Caller: cashier (perm `cash.verify`). Accepts the reconciliation **figures
+without receiving cash**. Sets `verified_at/by` (Track A → `Verified`); leaves
+`cash_status='pending'`. Audit `verify_day_settlement`. This is what makes
+**Verified (Cash Pending)** a real, recorded state.
+
+### `erp_receive_cash_handover(p_salesman_id, p_amount, p_specified, p_note)` — *Phase 2*
+Caller: cashier (perm `cash.receive`). Records **one handover** that can cover
+**multiple closed days**: inserts `erp_cash_handovers` then allocates across the
+salesman's **oldest cash-pending days first** (or `p_specified` per session) into
+`erp_cash_handover_allocations`, advancing each covered day's `cash_status` to
+`received`/`partial` (Track B). Idempotent + concurrency-safe like
+`erp_settle_collection`. Audit `receive_cash_handover` with the allocation map.
+
+> Verification and receipt are **two separate RPCs / two audit events** — a
+> cashier can verify today and receive cash days later in one bulk handover.
 
 ---
 
@@ -164,10 +228,13 @@ New permission keys (added to `src/lib/erp/permissions.ts` + role seeding):
 | Permission | Default holders | Purpose |
 |---|---|---|
 | `day.reopen.request` | salesman | submit a reopen request |
-| `day.reopen.approve` | supervisor, manager, admin | approve reopen when `lock_level ≤ settlement_submitted` |
-| `day.reopen.override` | admin, platform owner | approve reopen when `lock_level ≥ settlement_approved` / `finalized` |
+| `day.reopen.approve` | supervisor, manager, admin | approve reopen when `lock_level ≤ verified_cash_pending` |
+| `day.reopen.override` | admin, platform owner | approve reopen when `lock_level ≥ cash_received` / `settlement_approved` / `finalized` |
+| `cash.verify` | cashier, accountant | verify settlement figures **without** receiving cash (Track A) — *Phase 2* |
+| `cash.receive` | cashier | record a (possibly bulk, multi-day) cash handover (Track B) — *Phase 2* |
 
 - The **salesman cannot self-approve** (request and approve are distinct perms; the decide RPC rejects `requested_by = decider`).
+- **Cashier** owns the cash track: `cash.verify` (numbers) and `cash.receive` (money) are separate, so verification can precede receipt by days.
 - Accountant participates at the `settlement_approved` tier (Phase 2): the override path requires an accountant acknowledgement before Admin can grant.
 - Reuse `canSeeWorkflowInbox` / the approvals inbox for surfacing pending requests to approvers.
 
@@ -180,10 +247,14 @@ stamped from `auth.uid()`, unforgeable). Recorded actions:
 
 - `request_day_reopen` — actor, session, reason, lock_level, snapshot.
 - `approve_day_reopen` / `reject_day_reopen` — actor, decision note, prior lock_level, resulting reopen_count.
+- `verify_day_settlement` — cashier, session, note (cash-pending verification). *Phase 2*
+- `receive_cash_handover` — cashier, salesman, amount, the per-session allocation map. *Phase 2*
 - (Optional) `day_reopen.requested` / `…decided` domain events on the event bus for downstream notification.
 
-A closed day's full reopen history is reconstructable: every request, who decided,
-why, the settlement state at the time, and how many times it has been reopened.
+A closed day's full reopen history **and** cash-custody history are reconstructable:
+every request, who verified the figures, when (and how much) cash was received,
+which handover covered which day, who decided each reopen, why, the settlement +
+cash state at the time, and how many times the day has been reopened.
 
 ---
 
@@ -199,16 +270,25 @@ When the day is closed and `platform.day_reopen` is ON:
 ```
 - **Request** opens a form: **Reason (required)**, Note (optional), Attachment (optional, Phase 1 may defer).
 - After submit, the gate shows a **pending banner**: *"Reopen requested — awaiting Supervisor/Admin approval"* with the current settlement status and reopen count. The Sell/Collect/Return actions stay blocked until approved.
+- The gate (and the My-Day hub) also shows the salesman's **pending cash liability**: *"Cash to hand over: 4,250 across 3 days (oldest 5 days)"* — driven by the Track-B math. *Phase 2.*
 - If `lock_level = finalized`, the Request button is replaced by an info line: *"This day is finalized by accounting and cannot be reopened without a platform override."*
 
 ### Approver — the approvals inbox (reuse existing inbox)
 A pending **Day Reopen** card shows exactly what the rule requires:
 - Salesman, branch, work date
 - **Reason** (+ note/attachment)
-- **Settlement status** (reconciliation state)
+- **Settlement status** (reconciliation state) and **Verified (Cash Pending)?**
 - **Accountant approval status** (settlement_approved? yes/no)
+- **Cash received status** (received / partial / pending) + the day's `expected_cash`
 - **Reopen count** (how many times already reopened)
 - Actions: **Approve** / **Reject** (reject requires a note). Approve disabled when the approver's permission tier is below the request's `lock_level`, with a clear reason.
+
+### Cashier — verification & cash handover (*Phase 2*)
+A cashier screen lists, per salesman, the **closed days awaiting verification** and
+the **running cash liability** (pending amount + pending days/age). Two distinct
+actions:
+- **Verify** a day's figures → Track A `Verified (Cash Pending)`, no money moved.
+- **Receive cash** → enter one amount; the system allocates it **oldest-pending-day first** across the salesman's days (a single handover can clear several days at once), each covered day → `received`/`partial`.
 
 ### After approval
 Session re-opens; the salesman's gate clears; Sell/Collect/Return allowed again
@@ -226,6 +306,10 @@ new reopen request — `reopen_count` increments each cycle).
 | Approve race / double-approve | Decide RPC requires `status='pending'`; second decide no-ops. |
 | Reason missing | Request RPC rejects (server-enforced, not just UI). |
 | Reopen after recon `settled` | Requires `day.reopen.override`; on approve, recon marked **stale → recompute** (Phase 2) so settlement can't silently drift. |
+| **Verified but cash still pending** | Reopen stays Supervisor-approvable (numbers signed, no money moved); on reopen the verification is cleared so the cashier re-verifies after the correction. |
+| **Reopen after cash already received** | Escalates to `day.reopen.override`; on approve, the affected handover allocation is flagged for review so the banked figure and the day can't silently disagree. |
+| **Cash carried across days / bulk handover** | One `erp_cash_handover` allocates across many `work_session_id`s (oldest-first); partial handovers leave `cash_status='partial'` and reduce the pending liability incrementally. |
+| **Handover exceeds outstanding** | Allocation caps at each day's `expected_cash`; any surplus is rejected or held as unallocated (cashier resolves) — never silently over-applied. |
 | Reopen after journal `posted` | Blocked unless Platform Owner/Admin override (Phase 3); never silent. |
 | Self-approval | Decide RPC rejects `decider == requested_by`. |
 | Offline rep | Reopen needs a connection (server approval) — not available offline; documented. |
@@ -241,6 +325,8 @@ new reopen request — `reopen_count` increments each cycle).
 | **Financial integrity** — editing a settled/posted day | Tiered `lock_level`; accountant approval is the hard lock; override is explicit, logged, and Platform-Owner-gated. |
 | **Reconciliation drift** — reopen invalidates a prior settlement | On reopen above `none`, mark reconciliation stale + require recompute before re-settle (Phase 2). |
 | **Abuse / reopen loops** | `reopen_count` is visible on every request and audited; optional threshold alert for repeated reopens. |
+| **Cash liability accumulation** — rep carries large cash for many days | Per-salesman pending amount + pending-days age are surfaced (rep + cashier + supervisor); optional liability/age threshold alert reusing the existing alerts surface. |
+| **Verify/receipt confusion** | Two separate perms, RPCs, and audit events; the UI labels the cash-pending state explicitly so "verified" is never read as "cash in hand." |
 | **Privilege creep** | Three distinct perms; request ≠ approve ≠ override; salesman can never self-serve. |
 | **Audit gaps** | All paths go through `erp_log_audit`; the bare super-admin `reopenDay` is removed/redirected through the governed RPC. |
 | **Scope creep into accounting** | Phase 1 ships only the request/approve loop at `lock_level='none'`; accounting tiers are designed but inert until their flags/layers exist. |
@@ -259,8 +345,9 @@ new reopen request — `reopen_count` increments each cycle).
 - Audit on every action. Redirect/retire the bare `reopenDay` through the governed path.
 - UAT scenarios: request → approve → reopen → re-sell → re-close; request → reject; only-latest-day rule; reason-required; self-approval blocked.
 
-**Phase 2 — Settlement-aware locking**
-- Wire `lock_level` to van + cash reconciliation statuses; accountant in the `settlement_approved` tier; `day.reopen.override` for post-settlement reopen; reconciliation auto-stale-on-reopen.
+**Phase 2 — Settlement-aware locking + cash custody (verification ≠ receipt)**
+- Wire `lock_level` to van + cash reconciliation statuses; accountant in the `settlement_approved` tier; `day.reopen.override` for post-settlement / post-cash-received reopen; reconciliation auto-stale-on-reopen.
+- Cash track: `verified_at/by` + `expected_cash` + `cash_status` on the session; `erp_cash_handovers` + `erp_cash_handover_allocations`; `cash.verify` / `cash.receive` perms and RPCs; cashier screen + per-salesman pending-liability (amount + days); reopen rules consider **both** settlement and cash-received status.
 
 **Phase 3 — Accounting finalization lock**
 - Wire `finalized` to journal posting (`KAKO_FINANCE`); Platform-Owner override; full period-close interaction.
@@ -269,9 +356,17 @@ new reopen request — `reopen_count` increments each cycle).
 
 ## 12. Open question for sign-off
 
-The pilot has no accountant-settlement or finance posting live yet
-(`KAKO_FINANCE` OFF, no recon `settled`). I recommend **Phase 1 = Supervisor/Admin
-approval at `lock_level='none'`**, with the settlement/accountant/finalized tiers
-**built into the model but inert** until Phase 2/3. Confirm that's the right
-sequencing, or if you'd rather I stub the accountant-approval tier as active now
-(it would currently never trigger in the pilot).
+The pilot has no accountant-settlement, cash-custody, or finance posting live yet
+(`KAKO_FINANCE` OFF, no recon `settled`, no cashier verify/handover layer). I
+recommend **Phase 1 = the governed reopen request/approve loop at
+`lock_level='none'` (Supervisor/Admin)**, with the verification, cash-custody
+(verify ≠ receipt + bulk handover), accountant, and finalized tiers **built into
+the lifecycle/model now but inert**, delivered in **Phase 2** as a self-contained
+cash-custody package. This keeps Phase 1 shippable for your current UAT while the
+two-track (settlement × cash) lock semantics are correct from day one.
+
+**Confirm:** (a) Phase 1 scope as above; and (b) whether the cash-custody track
+(verification-without-receipt, per-salesman liability, bulk multi-day handover)
+should be **Phase 2 of this same workstream**, or split into its own dedicated
+"Salesman Cash Custody / Handover" design since it's a substantial finance feature
+in its own right (it's useful independently of reopen).
