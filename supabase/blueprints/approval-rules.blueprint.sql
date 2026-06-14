@@ -1,0 +1,70 @@
+-- ============================================================================
+-- BLUEPRINT (NOT an auto-migration) — Configurable approval definitions
+-- ----------------------------------------------------------------------------
+-- Ready-to-activate examples for the priority workflows once the foundation
+-- (0296 permission resolution + 0297 governance enforcement) is applied. This
+-- file lives OUTSIDE supabase/migrations on purpose: it is a reviewed,
+-- per-tenant configuration artifact, not a schema migration. Apply per tenant
+-- (set company_id) during the convergence phase. Each is additive and dormant
+-- until the app routes the corresponding action through erp_workflow_start.
+--
+-- Pattern: one erp_workflow_definitions row (key + entity + governance flags)
+-- and one erp_workflow_steps row per APPROVAL LEVEL. Levels use conditions
+-- (amount thresholds), permission/role assignees (resolved by 0296), quorum,
+-- and SLA/escalation columns.
+-- ============================================================================
+
+-- ── 1. Credit Limit Increase ────────────────────────────────────────────────
+-- <= 5,000 → Branch Manager (role) ; > 5,000 → any credit.request.approve holder
+-- (permission). Self-approval blocked; reject reason mandatory; 24h SLA.
+-- with d as (
+--   insert into erp_workflow_definitions
+--     (company_id, key, entity, name_ar, name_en, trigger, is_active,
+--      block_self_approval, require_reject_reason, status)
+--   values
+--     (:company_id, 'credit_limit_approval', 'credit_limit_request',
+--      'اعتماد حد ائتمان', 'Credit limit approval', 'manual', true,
+--      true, true, 'published')
+--   returning id)
+-- insert into erp_workflow_steps
+--   (definition_id, step_no, name_en, approver_type, approver_ref, mode,
+--    required_approvals, condition, sla_hours, escalate_to)
+-- select id, 1, 'Branch Manager', 'role', 'branch_manager', 'sequential', 1,
+--        '{"when":"amount","op":"lt","value":"5000"}'::jsonb, 24, 'company_admin' from d
+-- union all
+-- select id, 2, 'Credit approver', 'permission', 'credit.request.approve', 'sequential', 1,
+--        '{"when":"amount","op":"gt","value":"4999"}'::jsonb, 24, 'company_admin' from d;
+
+-- ── 2. Trade Spend Approval ─────────────────────────────────────────────────
+-- Single level: any holder of pricing.rule.edit (matches the action's gate).
+-- Reject reason mandatory; self-approval blocked.
+-- with d as (
+--   insert into erp_workflow_definitions
+--     (company_id, key, entity, name_ar, name_en, trigger, is_active,
+--      block_self_approval, require_reject_reason, status)
+--   values
+--     (:company_id, 'trade_spend_approval', 'trade_promotion',
+--      'اعتماد إنفاق تجاري', 'Trade spend approval', 'manual', true,
+--      true, true, 'published')
+--   returning id)
+-- insert into erp_workflow_steps
+--   (definition_id, step_no, name_en, approver_type, approver_ref, mode, required_approvals, sla_hours)
+-- select id, 1, 'Trade-spend approver', 'permission', 'pricing.rule.edit', 'sequential', 1, 48 from d;
+
+-- ── 3. Price Change Approval (new) ──────────────────────────────────────────
+-- Introduces an approval where today there is none. Routed to pricing approvers;
+-- escalate large changes (by percent) to company admin.
+-- with d as (
+--   insert into erp_workflow_definitions
+--     (company_id, key, entity, name_ar, name_en, trigger, is_active,
+--      block_self_approval, require_reject_reason, status)
+--   values
+--     (:company_id, 'price_change_approval', 'price_change',
+--      'اعتماد تغيير سعر', 'Price change approval', 'manual', true,
+--      true, true, 'published')
+--   returning id)
+-- insert into erp_workflow_steps
+--   (definition_id, step_no, name_en, approver_type, approver_ref, mode,
+--    required_approvals, condition, sla_hours, escalate_to)
+-- select id, 1, 'Pricing approver', 'permission', 'pricing.manage', 'sequential', 1,
+--        null, 24, 'company_admin' from d;

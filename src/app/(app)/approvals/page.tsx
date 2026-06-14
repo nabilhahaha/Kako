@@ -7,6 +7,7 @@ import { getT } from '@/lib/i18n/server';
 import { ApprovalsManager, type TaskRow } from './approvals-manager';
 import { ApprovalsTabs } from './approvals-tabs';
 import { DEFAULT_PAGE_SIZE, param, pageNumber, rangeFor, type SearchParams } from '@/lib/list-params';
+import { isActionableWorkflowTask } from '@/lib/erp/workflow-inbox';
 
 /** ── Workflow Inbox (generic approvals) ───────────────────────────────────
  *  Lists the workflow tasks the current user can act on, across every module.
@@ -79,12 +80,17 @@ export default async function ApprovalsPage({
   const { data } = await base.limit(2000);
   const all = (data as Raw[] | null) ?? [];
 
-  // Tasks this user can act on / has acted on: company-admin tasks (when admin)
-  // or tasks assigned directly to the user.
-  const actionable = all.filter(
-    (r) =>
-      (r.assignee_type === 'company_admin' && isCompanyAdmin) ||
-      (r.assignee_type === 'user' && r.assignee_ref === ctx.userId),
+  // Tasks this user can act on / has acted on — mirrors the engine's
+  // authorization (company_admin / direct user / role / permission), so
+  // role- and permission-routed approvals surface here instead of being hidden.
+  const actor = {
+    userId: ctx.userId,
+    roles: ctx.memberships.map((m) => m.role as string),
+    permissions: ctx.permissions as readonly string[],
+    isCompanyAdmin,
+  };
+  const actionable = all.filter((r) =>
+    isActionableWorkflowTask({ assignee_type: r.assignee_type, assignee_ref: r.assignee_ref }, actor),
   );
 
   // Resolve display names for requester (profile) and company.
