@@ -80,6 +80,8 @@ export function SellScreen({
   const [result, setResult] = useState<{ id: string; invoiceNumber: string; netAmount: number; paidAmount?: number; status?: string } | null>(null);
   // Collection-in-Sell: tenders entered in the Payment step (empty = credit).
   const [tenders, setTenders] = useState<PaymentTender[]>([]);
+  // Final pre-issue confirmation modal (UX safeguard; no server change).
+  const [confirmOpen, setConfirmOpen] = useState(false);
   // One key per sale attempt — makes a retry safe (no double sale) and is the
   // seam Phase 6 reuses to replay an offline sale exactly once.
   const [saleKey, setSaleKey] = useState<string>(() => uuid());
@@ -219,8 +221,35 @@ export function SellScreen({
   }
 
   function reset() {
-    setResult(null); setPreview(null); setCart([]); setTenders([]); setSaleKey(uuid());
+    setResult(null); setPreview(null); setCart([]); setTenders([]); setConfirmOpen(false); setSaleKey(uuid());
     setCustomerId(preselect); setStep(preselect ? 'products' : 'customer');
+  }
+
+  // Per-line summary for the confirmation modal, shown in the ENTERED unit (UoM,
+  // qty, per-UoM price) — reads the server-priced preview, converts the per-base
+  // price back to the chosen UoM. Display only.
+  const baseUomOf = (p: SellProduct | undefined) => p?.units?.find((u) => u.factor === 1)?.uom ?? p?.defaultSellUom ?? null;
+  const confirmLines = preview
+    ? cart.filter((l) => l.quantity > 0).map((l) => {
+        const p = productById.get(l.productId);
+        const pv = preview.lines.find((x) => x.product_id === l.productId);
+        const factor = p ? lineFactor(p, l.uom) : 1;
+        return {
+          key: l.productId,
+          name: p ? pName(p) : l.productId,
+          uom: l.uom ?? baseUomOf(p),
+          qty: l.quantity,
+          unitPrice: (pv?.unit_price ?? 0) * factor, // per-UoM
+          discount: l.discount_pct,
+          lineTotal: pv?.line_total ?? 0,
+        };
+      })
+    : [];
+
+  // Open the modal from the sticky "Issue" actions; Confirm runs the real issue.
+  function confirmIssue() {
+    setConfirmOpen(false);
+    if (collectInSell) issueWithPayment(); else issue();
   }
 
   // Blocked customer → jump straight to Collection for this customer (their
@@ -576,7 +605,7 @@ export function SellScreen({
                     <Wallet className="h-4 w-4" /> {t('vanSales.sell.payment.proceed')}
                   </Button>
                 ) : (
-                  <Button className="flex-[2]" size="lg" disabled={busy || !online} onClick={issue}>
+                  <Button className="flex-[2]" size="lg" disabled={busy || !online} onClick={() => setConfirmOpen(true)}>
                     {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('vanSales.sell.issuing')}</> : <><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.issue')}</>}
                   </Button>
                 )}
@@ -584,7 +613,7 @@ export function SellScreen({
             ) : step === 'payment' ? (
               <>
                 <Button variant="outline" className="flex-1" onClick={() => setStep('review')}><ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t('vanSales.sell.back')}</Button>
-                <Button className="flex-[2]" size="lg" disabled={busy || !online || !!tenderError} onClick={issueWithPayment}>
+                <Button className="flex-[2]" size="lg" disabled={busy || !online || !!tenderError || isCreditBlocked} onClick={() => setConfirmOpen(true)}>
                   {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('vanSales.sell.issuing')}</> : <><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.issue')}</>}
                 </Button>
               </>
@@ -596,6 +625,94 @@ export function SellScreen({
             ) : (
               <Button variant="outline" className="w-full" onClick={() => router.push('/field/van-sales')}>{t('vanSales.sell.back')}</Button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Final pre-issue confirmation (UX safeguard). Double-check customer, items,
+          UoM, totals and payment before the invoice is issued + printed. */}
+      {confirmOpen && preview && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+          onClick={() => setConfirmOpen(false)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-background p-4 sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-bold">{t('vanSales.sell.confirm.title')}</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('vanSales.sell.confirm.subtitle')}</p>
+
+            <div className="mt-3 border-y py-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('vanSales.sell.confirm.customer')}</span>
+                <span className="font-semibold">{customer ? cName(customer) : '—'}</span>
+              </div>
+            </div>
+
+            <table className="mt-2 w-full text-xs">
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="p-1 text-start font-medium">{t('vanSales.sell.confirm.colSku')}</th>
+                  <th className="p-1 text-center font-medium">{t('vanSales.sell.confirm.colUom')}</th>
+                  <th className="p-1 text-center font-medium">{t('vanSales.sell.confirm.colQty')}</th>
+                  <th className="p-1 text-end font-medium">{t('vanSales.sell.confirm.colPrice')}</th>
+                  <th className="p-1 text-center font-medium">{t('vanSales.sell.confirm.colDisc')}</th>
+                  <th className="p-1 text-end font-medium">{t('vanSales.sell.confirm.colTotal')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {confirmLines.map((l) => (
+                  <tr key={l.key} className="border-b last:border-0">
+                    <td className="p-1">{l.name}</td>
+                    <td className="p-1 text-center">{l.uom ?? '—'}</td>
+                    <td className="p-1 text-center tabular-nums" dir="ltr">{l.qty}</td>
+                    <td className="p-1 text-end tabular-nums" dir="ltr">{money(l.unitPrice)}</td>
+                    <td className="p-1 text-center tabular-nums" dir="ltr">{l.discount > 0 ? `${l.discount}%` : '—'}</td>
+                    <td className="p-1 text-end tabular-nums" dir="ltr">{money(l.lineTotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="mt-3 space-y-1 border-t pt-2 text-sm">
+              <div className="flex items-center justify-between font-bold">
+                <span>{t('vanSales.sell.payment.net')}</span>
+                <span className="tabular-nums" dir="ltr">{money(net)}</span>
+              </div>
+              {collectInSell ? (
+                <>
+                  <Row label={t('vanSales.sell.payment.paid')} value={money(paid)} />
+                  <Row label={t('vanSales.sell.payment.remaining')} value={money(remaining)} />
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{t('vanSales.sell.payment.statusLabel')}</span>
+                    <Badge variant={payStatus === 'paid' ? 'success' : payStatus === 'partially_paid' ? 'default' : 'secondary'}>
+                      {t(`vanSales.sell.payment.st_${payStatus}`)}
+                    </Badge>
+                  </div>
+                  {tenders.length > 0 && (
+                    <Row
+                      label={t('vanSales.sell.confirm.paymentMethods')}
+                      value={tenders.map((tn) => `${t(`vanSales.sell.payment.m_${tn.method}`)} ${money(Number(tn.amount) || 0)}`).join(' · ')}
+                    />
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t('vanSales.sell.payment.statusLabel')}</span>
+                  <Badge variant="secondary">{t('vanSales.sell.payment.st_credit')}</Badge>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setConfirmOpen(false)}>
+                <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t('vanSales.sell.confirm.back')}
+              </Button>
+              <Button className="flex-[2]" size="lg" disabled={busy} onClick={confirmIssue}>
+                {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('vanSales.sell.issuing')}</> : <><Check className="h-4 w-4" /> {t('vanSales.sell.confirm.issue')}</>}
+              </Button>
+            </div>
           </div>
         </div>
       )}
