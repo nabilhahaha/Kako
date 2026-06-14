@@ -19,6 +19,11 @@ export const APPROVAL_PRICE_CHANGE_WF = (): boolean => on(process.env.KAKO_APPRO
 /** P3: surface engine workflow tasks inside the unified Approval Queue. */
 export const UNIFIED_INBOX = (): boolean => on(process.env.KAKO_UNIFIED_INBOX);
 
+// ── P2: operational field-workflow convergence (each default OFF; legacy path
+//    preserved while off; activate only after staging validation + pilot sign-off).
+/** Route stock/load requests through the engine. */
+export const APPROVAL_LOADREQ = (): boolean => on(process.env.KAKO_APPROVAL_LOADREQ);
+
 /** The credit-limit workflow definition key — v2 when flagged on, else legacy.
  *  Pure (testable) selector so the routing decision is unit-covered. */
 export function creditWorkflowKey(flagOn: boolean = APPROVAL_CREDIT_V2()): string {

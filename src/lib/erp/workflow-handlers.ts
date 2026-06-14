@@ -81,6 +81,18 @@ const HANDLERS: Record<string, Handler> = {
       .eq('id', recordId);
   },
 
+  // Load request (P2): on approve, run the existing atomic stock-move RPC
+  // (reuses the proven logic); on reject, mark the request rejected. Runs as the
+  // deciding user (who holds stock_request.approve via the engine's permission step).
+  stock_request: async (recordId, outcome) => {
+    const supabase = await createClient();
+    if (outcome === 'approved') {
+      await supabase.rpc('erp_approve_stock_request', { p_request_id: recordId });
+    } else {
+      await supabase.from('erp_stock_requests').update({ status: 'rejected' }).eq('id', recordId).eq('status', 'pending');
+    }
+  },
+
   // Price-change (P1): on approve, apply the requested price to the product;
   // either way, stamp the request's final status. The live price is untouched
   // while the request is pending.

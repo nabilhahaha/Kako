@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { hasPermission } from '@/lib/erp/permissions';
+import { APPROVAL_LOADREQ } from '@/lib/erp/approval-flags';
 import { getT } from '@/lib/i18n/server';
 
 interface RequestInput {
@@ -54,6 +55,17 @@ export async function createStockRequest(input: RequestInput): Promise<ActionRes
   if (lErr) {
     await supabase.from('erp_stock_requests').delete().eq('id', req.id);
     return { ok: false, error: friendlyDbError(lErr) };
+  }
+
+  // P2 (flag KAKO_APPROVAL_LOADREQ): route approval through the engine,
+  // branch-scoped to the rep's branch. If the start fails the request is still
+  // valid and approvable via the legacy screen, so we don't roll it back. Flag
+  // OFF ⇒ this is skipped entirely (legacy behaviour).
+  if (APPROVAL_LOADREQ()) {
+    await supabase.rpc('erp_workflow_start', {
+      p_key: 'stock_request_approval', p_entity: 'stock_request',
+      p_record_id: req.id, p_context: { branch_id: input.branch_id },
+    });
   }
 
   revalidatePath('/inventory/requests');
