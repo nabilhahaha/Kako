@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive, loadVanSalesSettings } from './settings-server';
-import { computeVanSellTotals, normalizeVanSellLines, firstDiscountOverCap, type VanSellLineInput } from './sell';
+import { computeVanSellTotals, normalizeVanSellLines, firstDiscountOverCap, collectInSellEnabled, validateTenders, sumTenders, type VanSellLineInput, type PaymentTender } from './sell';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { multiUomEnabled, factorOf } from '@/lib/erp/uom';
 import { loadProductUnitsMany } from '@/lib/erp/uom-server';
@@ -42,6 +42,11 @@ const RPC_ERRORS: Record<string, string> = {
   over_credit: 'This sale would exceed the customer credit limit.',
   insufficient_van_stock: 'Not enough stock on the van for one or more lines.',
   no_valid_lines: 'Add at least one line with a quantity.',
+  payment_exceeds_total: 'Payment cannot exceed the invoice total.',
+  tender_invalid_amount: 'Each payment amount must be greater than zero.',
+  tender_invalid_method: 'Unsupported payment method.',
+  tender_reference_required: 'A reference is required for cheque / bank transfer.',
+  customer_overdue_blocked: 'Customer is blocked for credit sales (overdue). Collection only — a fully-paid sale is still allowed.',
 };
 
 export interface VanSellPreviewLine {
@@ -196,4 +201,97 @@ export async function vanSell(input: VanSellInput): Promise<ActionResult<{ id: s
   revalidatePath('/customers');
 
   return { ok: true, data: { id: row.invoice_id, invoiceNumber: row.invoice_number, netAmount: Number(row.net_amount) } };
+}
+
+// ============================================================================
+// Collection-in-Sell (Phase 1) — sell + take payment, atomically, before the
+// invoice is final. Wraps the erp_van_sell_with_payment RPC (faithful superset
+// of erp_van_sell + tender posting). Flag-gated by platform.collect_in_sell;
+// when OFF this action refuses (the UI never calls it). Tenders are validated
+// fast here (the RPC re-enforces as the authority). Reuses the same UoM gating
+// and discount pre-check as vanSell. Returns the final paid amount + status so
+// the rep leaves with the receipt fully settled.
+// ============================================================================
+
+export interface VanSellWithPaymentInput extends VanSellInput {
+  tenders: PaymentTender[];
+}
+
+export async function vanSellWithPayment(
+  input: VanSellWithPaymentInput,
+): Promise<ActionResult<{ id: string; invoiceNumber: string; netAmount: number; paidAmount: number; status: string }>> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
+
+  const supabase = await createClient();
+
+  // Enablement gates: Van Sales active AND the Collect-in-Sell flag ON. Either
+  // off ⇒ refuse (the standalone flow / Collect screen remain the path).
+  if (!(await isVanSalesActive(supabase, ctx))) return { ok: false, error: 'Van Sales is not enabled.' };
+  const flags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;
+  if (!collectInSellEnabled(flags)) return { ok: false, error: 'Collection-in-Sell is not enabled.' };
+
+  if (!input.branch_id) return { ok: false, error: 'Branch is required.' };
+  if (!input.customer_id) return { ok: false, error: 'Customer is required.' };
+
+  const lines = normalizeVanSellLines(input.lines ?? []);
+  if (lines.length === 0) return { ok: false, error: RPC_ERRORS.no_valid_lines };
+
+  // Fast discount-cap pre-check (the RPC re-enforces it as the authority).
+  if (ctx.companyId) {
+    const settings = await loadVanSalesSettings(supabase, ctx.companyId);
+    const over = firstDiscountOverCap(lines, settings.discountCapPct);
+    if (over) return { ok: false, error: RPC_ERRORS.discount_exceeds_cap };
+  }
+
+  // Validate tenders against the previewed net so we fail fast with a friendly
+  // message; the RPC re-checks (no overpayment, positive amounts) authoritatively.
+  const tenders = (input.tenders ?? []).filter((t) => Number(t.amount) > 0);
+  if (tenders.length > 0) {
+    const preview = await previewVanSale({ branch_id: input.branch_id, customer_id: input.customer_id, lines });
+    if (!preview.ok || !preview.data) return { ok: false, error: preview.error ?? 'Pricing failed.' };
+    const net = preview.data.totals.net_amount;
+    const bad = validateTenders(net, tenders);
+    if (bad) return { ok: false, error: RPC_ERRORS[bad] ?? bad };
+    // Belt-and-braces: never let the rounded sum exceed net by a cent.
+    if (sumTenders(tenders) > net) return { ok: false, error: RPC_ERRORS.payment_exceeds_total };
+  }
+
+  const multiUom = ctx.companyId ? multiUomEnabled(flags) : false;
+  const { data, error } = await supabase.rpc('erp_van_sell_with_payment', {
+    p_branch_id: input.branch_id,
+    p_customer_id: input.customer_id,
+    p_lines: lines.map((l) => ({
+      product_id: l.product_id, quantity: l.quantity, discount_pct: l.discount_pct,
+      uom: multiUom ? (l.uom ?? null) : null,
+    })),
+    p_tenders: tenders.map((t) => ({ method: t.method, amount: Number(t.amount), reference: t.reference ?? null })),
+    p_idempotency_key: input.idempotency_key ?? null,
+    p_due_date: input.due_date ?? null,
+    p_notes: input.notes ?? null,
+  });
+  if (error) {
+    return { ok: false, error: RPC_ERRORS[error.message] ?? friendlyDbError(error) };
+  }
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { invoice_id: string; invoice_number: string; net_amount: number; paid_amount: number; status: string }
+    | undefined;
+  if (!row?.invoice_id) return { ok: false, error: 'Van sale failed.' };
+
+  // Announce the issued invoice + each payment received (no-op unless KAKO_EVENTS).
+  await emitDomainEvent({ eventType: EVENT.INVOICE_ISSUED, entity: 'invoice', recordId: row.invoice_id });
+  for (const t of tenders) {
+    await emitDomainEvent({ eventType: EVENT.PAYMENT_RECEIVED, entity: 'payment', recordId: row.invoice_id, payload: { amount: Number(t.amount), method: t.method } });
+  }
+  revalidatePath('/sales/invoices');
+  revalidatePath('/customers');
+
+  return {
+    ok: true,
+    data: {
+      id: row.invoice_id, invoiceNumber: row.invoice_number,
+      netAmount: Number(row.net_amount), paidAmount: Number(row.paid_amount), status: String(row.status),
+    },
+  };
 }

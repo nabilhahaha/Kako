@@ -9,6 +9,7 @@ import { isVanSalesActive, loadVanSalesSettings } from '@/lib/van-sales/settings
 import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { multiUomEnabled } from '@/lib/erp/uom';
+import { collectInSellEnabled } from '@/lib/van-sales/sell';
 import { loadProductUnitsMany } from '@/lib/erp/uom-server';
 import { SellScreen, type SellCustomer, type SellProduct } from './sell-screen';
 
@@ -57,10 +58,26 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
       .eq('warehouse_id', van.id),
     supabase
       .from('erp_customers')
-      .select('id, name, name_ar, code, balance, credit_limit')
+      .select('id, name, name_ar, code, balance, credit_limit, payment_terms_days, credit_control_enabled')
       .eq('branch_id', van.branch_id)
       .order('name').limit(500),
   ]);
+
+  // Credit-control aging: oldest still-unpaid invoice per customer in this branch
+  // (drives the overdue badge + the in-sell credit block). One grouped read; only
+  // customers with open invoices appear.
+  const { data: openInv } = await supabase
+    .from('erp_invoices')
+    .select('customer_id, created_at, net_amount, paid_amount, status')
+    .eq('branch_id', van.branch_id)
+    .in('status', ['issued', 'partially_paid', 'overdue']);
+  const oldestUnpaid = new Map<string, string>();
+  for (const r of (openInv ?? []) as { customer_id: string; created_at: string; net_amount: number; paid_amount: number }[]) {
+    if (Number(r.net_amount ?? 0) - Number(r.paid_amount ?? 0) <= 0) continue;
+    const d = String(r.created_at).slice(0, 10);
+    const prev = oldestUnpaid.get(r.customer_id);
+    if (!prev || d < prev) oldestUnpaid.set(r.customer_id, d);
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const products: SellProduct[] = ((stockRes.data ?? []) as any[])
@@ -72,11 +89,18 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
       code: r.product.code as string,
       available: Number(r.quantity ?? 0) - Number(r.reserved_qty ?? 0),
     }));
-  const customers = ((custRes.data ?? []) as SellCustomer[]);
+  const customers = ((custRes.data ?? []) as SellCustomer[]).map((c) => ({
+    ...c, oldest_unpaid_date: oldestUnpaid.get(c.id) ?? null,
+  }));
 
   // U3: when multi-UoM is enabled, attach each product's sellable units (base +
   // alternates) for the per-line UoM picker. Respects sell_mode ('base' = base only).
-  const multiUom = multiUomEnabled(await getFeatureFlags(supabase, ctx.companyId!));
+  const flags = await getFeatureFlags(supabase, ctx.companyId!);
+  const multiUom = multiUomEnabled(flags);
+  // Collection-in-Sell: show the Payment step only when the flag is ON. A rep with
+  // sales.collect may enter tenders; otherwise the step is credit-only.
+  const collectInSell = collectInSellEnabled(flags);
+  const canCollect = hasPermission(ctx, 'sales.collect') || ctx.isSuperAdmin;
   if (multiUom && products.length > 0) {
     const cfgs = await loadProductUnitsMany(supabase, products.map((p) => p.id));
     for (const p of products) {
@@ -101,6 +125,8 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
         canDiscount={hasPermission(ctx, 'sales.discount') || ctx.isSuperAdmin}
         offlineEnabled={MOBILE_ENABLED()}
         multiUom={multiUom}
+        collectInSell={collectInSell}
+        canCollect={canCollect}
       />
     </div>
   );

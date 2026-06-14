@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ShoppingCart, Plus, Minus, ArrowLeft, ArrowRight, Search, Check,
-  Printer, Share2, ReceiptText, CloudOff, Loader2, User,
+  Printer, Share2, ReceiptText, CloudOff, Loader2, User, Wallet, Trash2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,10 +13,22 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
 import { useOnlineStatus } from '@/lib/offline-sync/use-network';
-import { firstDiscountOverCap } from '@/lib/van-sales/sell';
-import { previewVanSale, vanSell, type VanSellPreview } from '@/lib/van-sales/sell-server';
+import {
+  firstDiscountOverCap, PAYMENT_METHODS, REFERENCE_REQUIRED_METHODS,
+  sumTenders, paymentStatusFor, outstandingAfter, newBalanceAfter, validateTenders,
+  availableCreditFor, creditBlocked, isOverdueBlocked, overdueDays, creditStatusOf,
+  type PaymentMethod, type PaymentTender,
+} from '@/lib/van-sales/sell';
+import { previewVanSale, vanSell, vanSellWithPayment, type VanSellPreview } from '@/lib/van-sales/sell-server';
 
-export interface SellCustomer { id: string; name: string; name_ar: string | null; code: string; balance: number; credit_limit: number }
+export interface SellCustomer {
+  id: string; name: string; name_ar: string | null; code: string; balance: number; credit_limit: number;
+  /** Credit-control inputs for the in-sell guard (Phase 1). */
+  payment_terms_days?: number | null;
+  credit_control_enabled?: boolean | null;
+  /** Oldest unpaid invoice date (yyyy-mm-dd) for overdue detection; null = none open. */
+  oldest_unpaid_date?: string | null;
+}
 export interface SellProduct {
   id: string; name: string; name_ar: string | null; code: string; available: number;
   /** U3: sellable units (base + alternates) for the per-line UoM picker. */
@@ -25,7 +37,7 @@ export interface SellProduct {
 }
 
 interface CartLine { productId: string; quantity: number; discount_pct: number; uom?: string | null }
-type Step = 'customer' | 'products' | 'review' | 'done';
+type Step = 'customer' | 'products' | 'review' | 'payment' | 'done';
 
 function uuid(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
@@ -34,6 +46,7 @@ function uuid(): string {
 
 export function SellScreen({
   branchId, customers, products, preselectCustomerId, discountCapPct, canDiscount, offlineEnabled, multiUom = false,
+  collectInSell = false, canCollect = false,
 }: {
   branchId: string;
   customers: SellCustomer[];
@@ -43,6 +56,10 @@ export function SellScreen({
   canDiscount: boolean;
   offlineEnabled: boolean;
   multiUom?: boolean;
+  /** Collection-in-Sell flag ON for the tenant → show the Payment step. */
+  collectInSell?: boolean;
+  /** Rep holds sales.collect → may enter tenders; otherwise credit-only. */
+  canCollect?: boolean;
 }) {
   const { t, locale } = useI18n();
   const ar = locale === 'ar';
@@ -57,7 +74,9 @@ export function SellScreen({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [preview, setPreview] = useState<VanSellPreview | null>(null);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ id: string; invoiceNumber: string; netAmount: number } | null>(null);
+  const [result, setResult] = useState<{ id: string; invoiceNumber: string; netAmount: number; paidAmount?: number; status?: string } | null>(null);
+  // Collection-in-Sell: tenders entered in the Payment step (empty = credit).
+  const [tenders, setTenders] = useState<PaymentTender[]>([]);
   // One key per sale attempt — makes a retry safe (no double sale) and is the
   // seam Phase 6 reuses to replay an offline sale exactly once.
   const [saleKey, setSaleKey] = useState<string>(() => uuid());
@@ -140,8 +159,62 @@ export function SellScreen({
     } finally { setBusy(false); }
   }
 
+  // ── Collection-in-Sell: Payment step ────────────────────────────────────────
+  const net = preview?.totals.net_amount ?? 0;
+  const paid = sumTenders(tenders);
+  const remaining = outstandingAfter(net, paid);
+  const payStatus = paymentStatusFor(net, paid);            // 'paid' | 'partially_paid' | 'credit'
+  const newBalance = newBalanceAfter(Number(customer?.balance ?? 0), net, paid);
+  const tenderError = validateTenders(net, tenders);
+  // Credit-control guard (mirrors the RPC; salesman cannot override — Phase 1).
+  const today = new Date().toISOString().slice(0, 10);
+  const creditLimit = Number(customer?.credit_limit ?? 0);
+  const currentBalance = Number(customer?.balance ?? 0);
+  const termsDays = Number(customer?.payment_terms_days ?? 0);
+  const ccEnabled = customer?.credit_control_enabled !== false;
+  const overdue = isOverdueBlocked(termsDays, customer?.oldest_unpaid_date ?? null, today, ccEnabled);
+  const overdueDayCount = overdueDays(customer?.oldest_unpaid_date ?? null, today);
+  const availableCredit = availableCreditFor(creditLimit, currentBalance);
+  const creditStatus = creditStatusOf({ creditLimit, currentBalance, overdue });
+  const isCreditBlocked = creditBlocked(creditLimit, currentBalance, net, paid, overdue);
+
+  function payFullCash() { setTenders([{ method: 'cash', amount: net, reference: null }]); }
+  function payCredit() { setTenders([]); }
+  function addTender() { setTenders((ts) => [...ts, { method: 'cash', amount: Math.max(0, remaining), reference: null }]); }
+  function removeTender(i: number) { setTenders((ts) => ts.filter((_, idx) => idx !== i)); }
+  function updateTender(i: number, patch: Partial<PaymentTender>) {
+    setTenders((ts) => ts.map((tn, idx) => (idx === i ? { ...tn, ...patch } : tn)));
+  }
+
+  async function issueWithPayment() {
+    if (!customerId || cart.length === 0) return;
+    if (!online) { toast.error(t('vanSales.sell.offlinePricing')); return; }
+    const err = validateTenders(net, tenders);
+    if (err) { toast.error(t(`vanSales.sell.payment.err_${err}`)); return; }
+    if (isCreditBlocked) {
+      toast.error(
+        overdue ? t('vanSales.sell.payment.creditWarnBlocked')
+          : creditLimit <= 0 ? t('vanSales.sell.payment.creditWarnZero')
+            : t('vanSales.sell.payment.creditWarnExceed'),
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await vanSellWithPayment({
+        branch_id: branchId, customer_id: customerId, idempotency_key: saleKey,
+        lines: cart.map((l) => ({ product_id: l.productId, quantity: l.quantity, discount_pct: l.discount_pct, uom: l.uom ?? null })),
+        tenders,
+      });
+      if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.sell.error')); return; }
+      setResult({ id: res.data.id, invoiceNumber: res.data.invoiceNumber, netAmount: res.data.netAmount, paidAmount: res.data.paidAmount, status: res.data.status });
+      setStep('done');
+      toast.success(t('vanSales.sell.issued', { number: res.data.invoiceNumber }));
+    } finally { setBusy(false); }
+  }
+
   function reset() {
-    setResult(null); setPreview(null); setCart([]); setSaleKey(uuid());
+    setResult(null); setPreview(null); setCart([]); setTenders([]); setSaleKey(uuid());
     setCustomerId(preselect); setStep(preselect ? 'products' : 'customer');
   }
 
@@ -172,9 +245,15 @@ export function SellScreen({
       <div className="mb-4 flex items-center gap-2 text-xs font-medium text-muted-foreground">
         <StepChip active={step === 'customer'} done={!!customerId && step !== 'customer'} label={t('vanSales.sell.stepCustomer')} />
         <span>›</span>
-        <StepChip active={step === 'products'} done={step === 'review' || step === 'done'} label={t('vanSales.sell.stepProducts')} />
+        <StepChip active={step === 'products'} done={step === 'review' || step === 'payment' || step === 'done'} label={t('vanSales.sell.stepProducts')} />
         <span>›</span>
-        <StepChip active={step === 'review'} done={step === 'done'} label={t('vanSales.sell.stepReview')} />
+        <StepChip active={step === 'review'} done={step === 'payment' || step === 'done'} label={t('vanSales.sell.stepReview')} />
+        {collectInSell && (
+          <>
+            <span>›</span>
+            <StepChip active={step === 'payment'} done={step === 'done'} label={t('vanSales.sell.payment.step')} />
+          </>
+        )}
       </div>
 
       {/* Selected customer banner */}
@@ -182,7 +261,10 @@ export function SellScreen({
         <Card className="mb-3">
           <CardContent className="flex items-center justify-between gap-2 p-3">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 font-semibold"><User className="h-4 w-4 shrink-0" /><span className="truncate">{cName(customer)}</span></div>
+              <div className="flex items-center gap-2 font-semibold">
+                <User className="h-4 w-4 shrink-0" /><span className="truncate">{cName(customer)}</span>
+                {collectInSell && <CreditBadge status={creditStatus} t={t} />}
+              </div>
               <div className="mt-0.5 text-xs text-muted-foreground" dir="ltr">
                 {t('vanSales.sell.balance')} {money(Number(customer.balance))}
                 {Number(customer.credit_limit) > 0 && <> · {t('vanSales.sell.creditLimit')} {money(Number(customer.credit_limit))}</>}
@@ -322,6 +404,122 @@ export function SellScreen({
         </Card>
       )}
 
+      {/* STEP: payment — Collection-in-Sell */}
+      {step === 'payment' && (
+        <Card>
+          <CardContent className="space-y-4 pt-6">
+            <div className="flex items-center justify-between text-base font-bold">
+              <span>{t('vanSales.sell.payment.net')}</span>
+              <span className="tabular-nums" dir="ltr">{money(net)}</span>
+            </div>
+
+            {canCollect ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="button" variant="outline" onClick={payFullCash}>
+                    <Wallet className="h-4 w-4" /> {t('vanSales.sell.payment.payFullCash')}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={payCredit}>
+                    {t('vanSales.sell.payment.credit')}
+                  </Button>
+                </div>
+
+                <ul className="space-y-2">
+                  {tenders.map((tn, i) => (
+                    <li key={i} className="space-y-2 rounded-md border p-2">
+                      <div className="flex items-center gap-2">
+                        <select
+                          className="h-9 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+                          value={tn.method}
+                          onChange={(e) => updateTender(i, { method: e.target.value as PaymentMethod })}
+                        >
+                          {PAYMENT_METHODS.map((m) => (
+                            <option key={m} value={m}>{t(`vanSales.sell.payment.m_${m}`)}</option>
+                          ))}
+                        </select>
+                        <Input
+                          type="number" inputMode="decimal" min={0} dir="ltr"
+                          className="h-9 w-28 text-center"
+                          value={tn.amount}
+                          onChange={(e) => updateTender(i, { amount: Number(e.target.value) })}
+                        />
+                        <button
+                          type="button" onClick={() => removeTender(i)}
+                          aria-label={t('vanSales.sell.payment.removeTender')}
+                          className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {REFERENCE_REQUIRED_METHODS.includes(tn.method) && (
+                        <Input
+                          className="h-9" placeholder={t('vanSales.sell.payment.reference')}
+                          value={tn.reference ?? ''}
+                          onChange={(e) => updateTender(i, { reference: e.target.value })}
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+
+                <Button type="button" variant="ghost" size="sm" onClick={addTender}>
+                  <Plus className="h-4 w-4" /> {t('vanSales.sell.payment.addTender')}
+                </Button>
+              </>
+            ) : (
+              <p className="rounded-md border border-warning/40 bg-warning/5 p-3 text-sm text-warning">
+                {t('vanSales.sell.payment.credit')}
+              </p>
+            )}
+
+            <div className="space-y-1 border-t pt-3 text-sm">
+              <Row label={t('vanSales.sell.payment.paid')} value={money(paid)} />
+              <Row label={t('vanSales.sell.payment.remaining')} value={money(remaining)} />
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('vanSales.sell.payment.statusLabel')}</span>
+                <Badge variant={payStatus === 'paid' ? 'success' : payStatus === 'partially_paid' ? 'default' : 'secondary'}>
+                  {t(`vanSales.sell.payment.st_${payStatus}`)}
+                </Badge>
+              </div>
+              <Row label={t('vanSales.sell.payment.newBalance')} value={money(newBalance)} />
+            </div>
+
+            {/* Credit-control panel — status, limit / outstanding / available,
+                aging (oldest unpaid, overdue days, allowed days), live warning. */}
+            <div className="space-y-1 rounded-md border bg-secondary/30 p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('vanSales.sell.payment.creditStatus')}</span>
+                <CreditBadge status={creditStatus} t={t} />
+              </div>
+              {creditLimit > 0 ? (
+                <>
+                  <Row label={t('vanSales.sell.payment.creditLimit')} value={money(creditLimit)} />
+                  <Row label={t('vanSales.sell.payment.currentOutstanding')} value={money(currentBalance)} />
+                  <Row label={t('vanSales.sell.payment.availableCredit')} value={money(availableCredit)} />
+                </>
+              ) : (
+                <Row label={t('vanSales.sell.payment.creditLimit')} value={t('vanSales.sell.payment.cashOnly')} />
+              )}
+              {termsDays > 0 && <Row label={t('vanSales.sell.payment.allowedDays')} value={String(termsDays)} />}
+              {customer?.oldest_unpaid_date && (
+                <Row label={t('vanSales.sell.payment.oldestUnpaid')} value={customer.oldest_unpaid_date} />
+              )}
+              {overdueDayCount != null && overdueDayCount > 0 && (
+                <Row label={t('vanSales.sell.payment.overdueDays')} value={String(overdueDayCount)} />
+              )}
+              <Row label={t('vanSales.sell.payment.remainingInvoice')} value={money(remaining)} />
+            </div>
+            {isCreditBlocked && (
+              <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm font-medium text-destructive">
+                {overdue ? t('vanSales.sell.payment.creditWarnBlocked')
+                  : creditLimit <= 0 ? t('vanSales.sell.payment.creditWarnZero')
+                    : t('vanSales.sell.payment.creditWarnExceed')}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* STEP: done — receipt */}
       {step === 'done' && result && (
         <Card>
@@ -331,6 +529,18 @@ export function SellScreen({
               <div className="text-sm text-muted-foreground">{t('vanSales.sell.completed')}</div>
               <div className="text-lg font-bold">{t('vanSales.sell.issued', { number: result.invoiceNumber })}</div>
               <div className="mt-1 text-2xl font-bold tabular-nums" dir="ltr">{money(result.netAmount)}</div>
+              {result.status && (
+                <div className="mt-2 flex items-center justify-center gap-2 text-sm">
+                  <Badge variant={result.status === 'paid' ? 'success' : result.status === 'partially_paid' ? 'default' : 'secondary'}>
+                    {t(`vanSales.sell.payment.st_${result.status === 'paid' ? 'paid' : result.status === 'partially_paid' ? 'partially_paid' : 'credit'}`)}
+                  </Badge>
+                  {(result.paidAmount ?? 0) > 0 && (
+                    <span className="text-muted-foreground" dir="ltr">
+                      {t('vanSales.sell.payment.paid')} {money(result.paidAmount ?? 0)}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <a href={`/print/receipt/${result.id}`} target="_blank" rel="noreferrer">
@@ -352,7 +562,20 @@ export function SellScreen({
             {step === 'review' ? (
               <>
                 <Button variant="outline" className="flex-1" onClick={() => setStep('products')}><ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t('vanSales.sell.back')}</Button>
-                <Button className="flex-[2]" size="lg" disabled={busy || !online} onClick={issue}>
+                {collectInSell ? (
+                  <Button className="flex-[2]" size="lg" onClick={() => setStep('payment')}>
+                    <Wallet className="h-4 w-4" /> {t('vanSales.sell.payment.proceed')}
+                  </Button>
+                ) : (
+                  <Button className="flex-[2]" size="lg" disabled={busy || !online} onClick={issue}>
+                    {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('vanSales.sell.issuing')}</> : <><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.issue')}</>}
+                  </Button>
+                )}
+              </>
+            ) : step === 'payment' ? (
+              <>
+                <Button variant="outline" className="flex-1" onClick={() => setStep('review')}><ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t('vanSales.sell.back')}</Button>
+                <Button className="flex-[2]" size="lg" disabled={busy || !online || !!tenderError} onClick={issueWithPayment}>
                   {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('vanSales.sell.issuing')}</> : <><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.issue')}</>}
                 </Button>
               </>
@@ -381,4 +604,13 @@ function StepChip({ active, done, label }: { active: boolean; done: boolean; lab
 
 function Row({ label, value }: { label: string; value: string }) {
   return <div className="flex items-center justify-between text-muted-foreground"><span>{label}</span><span className="tabular-nums" dir="ltr">{value}</span></div>;
+}
+
+function CreditBadge({ status, t }: { status: 'good' | 'near_limit' | 'over_limit' | 'overdue' | 'cash_only'; t: (k: string) => string }) {
+  const variant =
+    status === 'good' ? 'success'
+      : status === 'near_limit' ? 'warning'
+        : status === 'cash_only' ? 'secondary'
+          : 'destructive';
+  return <Badge variant={variant}>{t(`vanSales.sell.payment.cs_${status}`)}</Badge>;
 }

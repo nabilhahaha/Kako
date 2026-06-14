@@ -197,6 +197,14 @@ export const FEATURES: FeatureDef[] = [
     logic: ['product.uoms', 'uom.engine', 'uom.rules', 'base_unit_movements'],
     nav: ['nav.items.unitsOfMeasure'],
   }),
+  // Collection-in-Sell (FMCG): take payment inside the Van-Sell flow before the
+  // invoice is issued. Default OFF (no template seeds it) — opt-in per tenant
+  // until pilot UAT validates it; additive and reversible (the standalone
+  // Collect screen and erp_van_sell are untouched).
+  P('platform.collect_in_sell', 'pos', [], {
+    screens: ['/field/van-sales/sell'],
+    logic: ['erp_van_sell_with_payment', 'collection.posting'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),

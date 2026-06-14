@@ -13,6 +13,7 @@ export const ar = {
     label: {
       platform: {
         multi_uom: 'وحدات متعددة (كرتونة/علبة/قطعة)',
+        collect_in_sell: 'تحصيل أثناء البيع',
         scan_barcode: 'مسح الباركود',
         scan_camera: 'المسح بالكاميرا',
         scan_qr: 'مسح رمز QR',
@@ -57,6 +58,7 @@ export const ar = {
     desc: {
       platform: {
         multi_uom: 'بيع/شراء وحركة المخزون بوحدات مختلفة (كرتونة/علبة/قطعة) مع التحويل لوحدة الأساس.',
+        collect_in_sell: 'استلام الدفع (كاش/تحويل/فيزا/شيك) أثناء البيع من السيارة قبل إصدار الفاتورة، مع حساب الرصيد تلقائياً.',
         scan_barcode: 'تفعيل المسح بالباركود في الشاشات التي تدعمه.',
         scan_camera: 'استخدام كاميرا الجهاز للمسح المتواصل (موبايل/تابلت).',
         scan_qr: 'مسح رموز QR (عملاء، مستندات، تشغيلات…).',
@@ -115,6 +117,7 @@ export const en = {
     label: {
       platform: {
         multi_uom: 'Multi-Unit (Carton/Pack/Piece)',
+        collect_in_sell: 'Collect-in-Sell',
         scan_barcode: 'Barcode Scanning',
         scan_camera: 'Camera Scanning',
         scan_qr: 'QR Scanning',
@@ -159,6 +162,7 @@ export const en = {
     desc: {
       platform: {
         multi_uom: 'Sell/buy and move stock in different units (carton/pack/piece) with conversion to the base unit.',
+        collect_in_sell: 'Take payment (cash/transfer/card/cheque) inside the Van-Sell flow before issuing the invoice, with the AR balance computed automatically.',
         scan_barcode: 'Enable barcode scanning on screens that support it.',
         scan_camera: 'Use the device camera for continuous scanning (mobile/tablet).',
         scan_qr: 'Scan QR codes (customers, documents, batches…).',
