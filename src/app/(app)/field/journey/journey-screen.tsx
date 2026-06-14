@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,6 +33,7 @@ import {
   CloudOff,
   Clock,
   Camera,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useOnlineStatus } from '@/lib/offline-sync/use-network';
@@ -67,6 +69,7 @@ export function JourneyScreen({
   canOverrideGps,
   offlineEnabled = false,
   canAttachMedia = false,
+  visitDriven = false,
 }: {
   data: TodayJourneyData;
   canOverrideGps: boolean;
@@ -76,8 +79,11 @@ export function JourneyScreen({
   /** field.attach_media: show the per-stop photo capture (uploads attach to the
    *  synced visit; queued offline + retried). */
   canAttachMedia?: boolean;
+  /** Visit-driven route (Phase 1): the stop opens the customer visit context. */
+  visitDriven?: boolean;
 }) {
   const { t, locale } = useI18n();
+  const router = useRouter();
   const online = useOnlineStatus();
   const mediaEnabled = offlineEnabled && canAttachMedia;
   const [mediaPending, setMediaPending] = useState(0);
@@ -306,6 +312,20 @@ export function JourneyScreen({
     }
   }
 
+  // Visit-driven route: check-in (if not yet) then open the customer visit
+  // context (Statement hub). Online-first — the statement needs a connection; when
+  // offline we still queue the check-in but stay on the route.
+  async function onOpenVisit(stop: JourneyStopRow, idx: number) {
+    if (!visited.has(stop.customer_id)) {
+      await doCheckIn(stop);
+      if (!online) return; // queued offline — cannot load the visit context now
+    }
+    const next = ordered[idx + 1];
+    const params = new URLSearchParams({ from: 'route', seq: String(idx + 1), total: String(total) });
+    if (next) { params.set('next', next.customer_id); params.set('nextName', name(next)); }
+    router.push(`/field/van-sales/statement/${stop.customer_id}?${params.toString()}`);
+  }
+
   async function submitBlocked(force: boolean) {
     if (!blockedStop) return;
     if (!reason.trim()) {
@@ -483,10 +503,25 @@ export function JourneyScreen({
                       </div>
                     </div>
 
-                    {/* Primary action: Check in */}
+                    {/* Visit-driven route: open the customer visit context (check-in
+                        happens implicitly when not yet visited). */}
+                    {visitDriven && !isBlocked && (
+                      <Button
+                        className="mt-3 w-full"
+                        disabled={busyId === stop.customer_id || (isPending && pendingVerdict !== 'exception')}
+                        onClick={() => onOpenVisit(stop, idx)}
+                      >
+                        {busyId === stop.customer_id
+                          ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('fmcg.checkingIn')}</>
+                          : <>{isVisited ? <CheckCircle2 className="h-4 w-4" /> : <MapPin className="h-4 w-4" />} {t('vanSales.visit.openVisit')} <ChevronRight className="h-4 w-4 rtl:rotate-180" /></>}
+                      </Button>
+                    )}
+
+                    {/* Primary action: Check in (compliance-only; secondary when visit-driven) */}
                     {!isBlocked ? (
                       <Button
                         className="mt-3 w-full"
+                        variant={visitDriven ? 'outline' : 'default'}
                         disabled={busyId === stop.customer_id || isVisited || (isPending && pendingVerdict !== 'exception')}
                         onClick={() => doCheckIn(stop)}
                       >

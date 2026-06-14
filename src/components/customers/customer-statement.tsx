@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { StatementTable, type StatementEntry } from '@/components/statement-table';
 import { INVOICE_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -11,7 +13,18 @@ import { INTL_LOCALE } from '@/lib/i18n/config';
 import { useI18n } from '@/lib/i18n/provider';
 import { AGING_BUCKETS, type AgingBucket, type CustomerStatement } from '@/lib/erp/customer-statement';
 import type { InvoiceStatus, PaymentMethod } from '@/lib/erp/types';
-import { Printer, HandCoins, ShoppingCart, Undo2 } from 'lucide-react';
+import { markVisitWork, listUnfinishedVisitWork, clearAllVisitWork } from '@/lib/van-sales/visit-session';
+import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight } from 'lucide-react';
+
+/** Visit context (Phase 1, route-driven): the route stop opened this customer; the
+ *  statement is the visit hub and "Complete Visit" returns to the route. */
+export interface VisitContext {
+  customerId: string;
+  seq: number;          // 1-based position on the route
+  total: number;        // stops on the route
+  nextName?: string | null;
+  completeHref: string; // back to the route (next stop highlighted)
+}
 
 const BUCKET_LABEL: Record<AgingBucket, string> = {
   current: 'accounting.aging.bucketCurrent',
@@ -36,6 +49,7 @@ export function CustomerStatementView({
   returnHref,
   canCollect = false,
   showRecon = false,
+  visit,
 }: {
   statement: CustomerStatement;
   printHref: string;
@@ -47,12 +61,33 @@ export function CustomerStatementView({
   canCollect?: boolean;
   /** Admin/accountant: surface the ledger-vs-balance reconciliation check. */
   showRecon?: boolean;
+  /** Phase 1 visit-driven route: renders the route banner + Complete Visit. */
+  visit?: VisitContext;
 }) {
   const { t, locale } = useI18n();
+  const router = useRouter();
   const intl = INTL_LOCALE[locale];
   const { summary, aging, openInvoices, ledger } = statement;
   const money = (n: number) => formatCurrency(n, 'EGP', intl);
   const showCollect = canCollect && !!collectHref && summary.currentBalance > 0;
+
+  // Complete-Visit guard: block accidental completion while a sale / collection /
+  // return was started but not finished — the rep must finish it (clears the flag
+  // on success) or explicitly discard it here.
+  const [guard, setGuard] = useState<string[] | null>(null);
+  const mark = (action: 'sell' | 'collect' | 'return') => { if (visit) markVisitWork(visit.customerId, action); };
+  function onCompleteVisit() {
+    if (!visit) return;
+    const pending = listUnfinishedVisitWork(visit.customerId);
+    if (pending.length > 0) { setGuard(pending); return; }
+    router.push(visit.completeHref);
+  }
+  function onDiscardComplete() {
+    if (!visit) return;
+    clearAllVisitWork(visit.customerId);
+    setGuard(null);
+    router.push(visit.completeHref);
+  }
 
   // Map the authoritative ledger to the reusable StatementTable shape.
   const entries: StatementEntry[] = ledger.map((e) => ({
@@ -69,6 +104,14 @@ export function CustomerStatementView({
 
   return (
     <div className="space-y-4">
+      {/* Route banner — visit-driven context (Phase 1). */}
+      {visit && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-secondary/40 p-2 text-sm">
+          <span className="font-medium">{t('vanSales.visit.stop', { n: visit.seq, total: visit.total })}</span>
+          {visit.nextName && <span className="text-muted-foreground">{t('vanSales.visit.next', { name: visit.nextName })}</span>}
+        </div>
+      )}
+
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Summary label={t('customers.stmtSummaryBalance')} value={money(summary.currentBalance)} tone={summary.currentBalance > 0 ? 'warn' : 'ok'} />
@@ -80,17 +123,17 @@ export function CustomerStatementView({
       {/* Actions — the visit context: Collect · Sell · Return · Print (F2). */}
       <div className="flex flex-wrap items-center gap-2">
         {showCollect && (
-          <Link href={collectHref!} className={buttonVariants({ size: 'sm' })}>
+          <Link href={collectHref!} onClick={() => mark('collect')} className={buttonVariants({ size: 'sm' })}>
             <HandCoins className="h-4 w-4" /> {t('customers.stmtCollectNow')}
           </Link>
         )}
         {sellHref && (
-          <Link href={sellHref} className={buttonVariants({ size: 'sm' })}>
+          <Link href={sellHref} onClick={() => mark('sell')} className={buttonVariants({ size: 'sm' })}>
             <ShoppingCart className="h-4 w-4" /> {t('vanSales.steps.sell')}
           </Link>
         )}
         {returnHref && (
-          <Link href={returnHref} className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+          <Link href={returnHref} onClick={() => mark('return')} className={buttonVariants({ size: 'sm', variant: 'outline' })}>
             <Undo2 className="h-4 w-4" /> {t('vanSales.steps.return')}
           </Link>
         )}
@@ -168,6 +211,33 @@ export function CustomerStatementView({
           emptyText={t('customers.stmtEmpty')}
         />
       </div>
+
+      {/* Complete Visit — closes the visit and returns to the route (Phase 1). */}
+      {visit && (
+        <Button className="w-full" size="lg" onClick={onCompleteVisit}>
+          <CheckCircle2 className="h-4 w-4" /> {t('vanSales.visit.completeVisit')}
+        </Button>
+      )}
+
+      {/* Unfinished-work guard: explicit complete-or-discard before closing. */}
+      {visit && guard && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setGuard(null)}>
+          <div className="w-full max-w-md rounded-t-2xl bg-background p-4 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-destructive">{t('vanSales.visit.unfinishedTitle')}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t('vanSales.visit.unfinishedBody', { actions: guard.map((a) => t(`vanSales.visit.w_${a}`)).join('، ') })}
+            </p>
+            <div className="mt-4 flex items-center gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setGuard(null)}>
+                <ArrowRight className="h-4 w-4 rtl:rotate-180" /> {t('vanSales.visit.keepWorking')}
+              </Button>
+              <Button variant="destructive" className="flex-1" onClick={onDiscardComplete}>
+                {t('vanSales.visit.discardComplete')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

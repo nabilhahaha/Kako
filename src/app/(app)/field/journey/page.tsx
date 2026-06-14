@@ -1,10 +1,14 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
+import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { MOBILE_ENABLED } from '@/lib/offline-sync';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import { visitDrivenRouteEnabled } from '@/lib/van-sales/sell';
+import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { loadTodayJourney } from '../actions';
 import { JourneyScreen } from './journey-screen';
 
@@ -47,12 +51,19 @@ export default async function FieldJourneyPage() {
     );
   }
 
+  // Visit-driven route (Phase 1, flag-gated): each stop opens the customer visit
+  // context. Only when the flag is on AND Van Sales is active for the tenant.
+  const supabase = await createClient();
+  const flags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;
+  const visitDriven = visitDrivenRouteEnabled(flags) && (await isVanSalesActive(supabase, ctx));
+
   return (
     <JourneyScreen
       data={result.data}
       canOverrideGps={hasPermission(ctx, 'visit.override_gps')}
       offlineEnabled={MOBILE_ENABLED()}
       canAttachMedia={hasPermission(ctx, 'field.attach_media')}
+      visitDriven={visitDriven}
     />
   );
 }

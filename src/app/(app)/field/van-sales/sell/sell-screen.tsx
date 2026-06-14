@@ -20,6 +20,7 @@ import {
   type PaymentMethod, type PaymentTender, type CreditStatus,
 } from '@/lib/van-sales/sell';
 import { previewVanSale, vanSell, vanSellWithPayment, type VanSellPreview } from '@/lib/van-sales/sell-server';
+import { clearVisitWork } from '@/lib/van-sales/visit-session';
 
 export interface SellCustomer {
   id: string; name: string; name_ar: string | null; code: string; balance: number; credit_limit: number;
@@ -160,6 +161,7 @@ export function SellScreen({
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.sell.error')); return; }
       setResult({ id: res.data.id, invoiceNumber: res.data.invoiceNumber, netAmount: res.data.netAmount });
       setStep('done');
+      if (customerId) clearVisitWork(customerId, 'sell');
       toast.success(t('vanSales.sell.issued', { number: res.data.invoiceNumber }));
     } finally { setBusy(false); }
   }
@@ -216,6 +218,7 @@ export function SellScreen({
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.sell.error')); return; }
       setResult({ id: res.data.id, invoiceNumber: res.data.invoiceNumber, netAmount: res.data.netAmount, paidAmount: res.data.paidAmount, status: res.data.status });
       setStep('done');
+      if (customerId) clearVisitWork(customerId, 'sell');
       toast.success(t('vanSales.sell.issued', { number: res.data.invoiceNumber }));
     } finally { setBusy(false); }
   }

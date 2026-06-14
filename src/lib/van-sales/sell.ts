@@ -79,6 +79,12 @@ export function collectInSellEnabled(flags: Record<string, boolean | undefined> 
   return Boolean(flags?.['platform.collect_in_sell']);
 }
 
+/** Is the Visit-Driven Route active? Opt-in platform flag
+ *  (`platform.visit_driven_route`), default OFF. Pure. */
+export function visitDrivenRouteEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
+  return Boolean(flags?.['platform.visit_driven_route']);
+}
+
 /** Tender methods supported in-sell (one collection row each on the server).
  *  These are the DB-canonical erp_collections.method codes (constraint-aligned):
  *  cash · credit_card (Card) · bank_transfer · check (Cheque). */

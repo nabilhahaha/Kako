@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useI18n } from '@/lib/i18n/provider';
 import { allocatePayment } from '@/lib/distribution/collections/allocation';
 import { loadCustomerOutstanding, settleCollectionEntry, type OutstandingInvoiceView } from '@/lib/van-sales/collect-server';
+import { clearVisitWork } from '@/lib/van-sales/visit-session';
 
 export interface CollectCustomer { id: string; name: string; name_ar: string | null; code: string; balance: number }
 
@@ -89,6 +90,7 @@ export function CollectScreen({
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.collect.error')); return; }
       setDone({ id: res.data.collectionId, number: res.data.collectionNumber, applied: res.data.totalApplied, unapplied: res.data.unapplied });
+      if (customerId) clearVisitWork(customerId, 'collect');
       toast.success(t('vanSales.collect.done', { number: res.data.collectionNumber }));
     } finally { setBusy(false); }
   }

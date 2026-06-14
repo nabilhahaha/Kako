@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useI18n } from '@/lib/i18n/provider';
 import { previewVanReturn, vanReturn } from '@/lib/van-sales/returns-server';
+import { clearVisitWork } from '@/lib/van-sales/visit-session';
 
 export interface ReturnCustomer { id: string; name: string; name_ar: string | null; code: string }
 export interface ReturnProduct { id: string; name: string; name_ar: string | null; code: string }
@@ -76,6 +77,7 @@ export function ReturnScreen({
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.return.error')); return; }
       setDone({ id: res.data.id, returnNumber: res.data.returnNumber, creditNoteId: res.data.creditNoteId, total: res.data.totalAmount });
+      if (customerId) clearVisitWork(customerId, 'return');
       toast.success(t('vanSales.return.done', { number: res.data.returnNumber }));
     } finally { setBusy(false); }
   }

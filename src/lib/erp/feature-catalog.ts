@@ -205,6 +205,13 @@ export const FEATURES: FeatureDef[] = [
     screens: ['/field/van-sales/sell'],
     logic: ['erp_van_sell_with_payment', 'collection.posting'],
   }),
+  // Visit-Driven Route (FMCG): the route stop opens the customer visit context
+  // (Statement → Collect/Sell/Return/Print → Complete Visit → Next). Default OFF
+  // (opt-in per tenant); UI/navigation only — no engine/schema/transaction change.
+  P('platform.visit_driven_route', 'pos', [], {
+    screens: ['/field/journey', '/field/van-sales/statement'],
+    logic: ['visit.session', 'route.visit_context'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),
