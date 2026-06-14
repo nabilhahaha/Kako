@@ -28,6 +28,9 @@ export interface SellCustomer {
   credit_control_enabled?: boolean | null;
   /** Oldest unpaid invoice date (yyyy-mm-dd) for overdue detection; null = none open. */
   oldest_unpaid_date?: string | null;
+  /** Debt snapshot for the blocked-customer summary. */
+  open_invoice_count?: number | null;
+  overdue_amount?: number | null;
 }
 export interface SellProduct {
   id: string; name: string; name_ar: string | null; code: string; available: number;
@@ -175,6 +178,8 @@ export function SellScreen({
   const overdue = isOverdueBlocked(termsDays, customer?.oldest_unpaid_date ?? null, today, ccEnabled);
   const overdueDayCount = overdueDays(customer?.oldest_unpaid_date ?? null, today);
   const availableCredit = availableCreditFor(creditLimit, currentBalance);
+  const overdueAmount = Number(customer?.overdue_amount ?? 0);
+  const openInvoiceCount = Number(customer?.open_invoice_count ?? 0);
   const creditStatus = creditStatusOf({ creditLimit, currentBalance, overdue });
   const isCreditBlocked = creditBlocked(creditLimit, currentBalance, net, paid, overdue);
 
@@ -285,6 +290,7 @@ export function SellScreen({
               <CreditStandingCard
                 status={creditStatus} creditLimit={creditLimit} currentBalance={currentBalance}
                 availableCredit={availableCredit} overdueDayCount={overdueDayCount} termsDays={termsDays}
+                overdueAmount={overdueAmount} openInvoiceCount={openInvoiceCount}
                 money={money} t={t} onCollectNow={goCollect}
               />
             )}
@@ -506,7 +512,8 @@ export function SellScreen({
             <CreditStandingCard
               status={creditStatus} creditLimit={creditLimit} currentBalance={currentBalance}
               availableCredit={availableCredit} overdueDayCount={overdueDayCount} termsDays={termsDays}
-              money={money} t={t} onCollectNow={goCollect}
+              overdueAmount={overdueAmount} openInvoiceCount={openInvoiceCount}
+                money={money} t={t} onCollectNow={goCollect}
             />
             <div className="rounded-md border bg-secondary/30 p-3 text-sm">
               <Row label={t('vanSales.sell.payment.remainingInvoice')} value={money(remaining)} />
@@ -625,11 +632,13 @@ const STATUS_DOT: Record<CreditStatus, string> = {
  *  banner (before the sale) and the Payment step, so the reason a customer is
  *  blocked is always explicit. */
 function CreditStandingCard({
-  status, creditLimit, currentBalance, availableCredit, overdueDayCount, termsDays, money, t, onCollectNow,
+  status, creditLimit, currentBalance, availableCredit, overdueDayCount, termsDays,
+  overdueAmount, openInvoiceCount, money, t, onCollectNow,
 }: {
   status: CreditStatus;
   creditLimit: number; currentBalance: number; availableCredit: number;
   overdueDayCount: number | null; termsDays: number;
+  overdueAmount: number; openInvoiceCount: number;
   money: (n: number) => string; t: (k: string, v?: Record<string, string | number>) => string;
   /** When the standing is blocked, offer a one-tap jump to Collection for this customer. */
   onCollectNow?: () => void;
@@ -675,6 +684,17 @@ function CreditStandingCard({
           <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs font-medium text-destructive">
             {t('vanSales.sell.payment.creditBlockedMsg')}
           </p>
+          {/* Debt snapshot so the rep grasps the situation before opening Collection. */}
+          {openInvoiceCount > 0 && (
+            <div className="space-y-0.5 rounded-md border bg-background/60 p-2 text-xs">
+              <Row label={t('vanSales.sell.payment.debtOutstanding')} value={money(currentBalance)} />
+              {overdueAmount > 0 && <Row label={t('vanSales.sell.payment.debtOverdue')} value={money(overdueAmount)} />}
+              <Row label={t('vanSales.sell.payment.debtOpenInvoices')} value={String(openInvoiceCount)} />
+              {overdueDayCount != null && (
+                <Row label={t('vanSales.sell.payment.debtOldestInvoice')} value={t('vanSales.sell.payment.daysCount', { days: overdueDayCount })} />
+              )}
+            </div>
+          )}
           {onCollectNow && (
             <Button type="button" size="sm" className="w-full" onClick={onCollectNow}>
               <HandCoins className="h-4 w-4" /> {t('vanSales.sell.payment.collectNow')}

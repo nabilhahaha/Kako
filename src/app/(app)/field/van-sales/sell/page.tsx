@@ -63,20 +63,31 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
       .order('name').limit(500),
   ]);
 
-  // Credit-control aging: oldest still-unpaid invoice per customer in this branch
-  // (drives the overdue badge + the in-sell credit block). One grouped read; only
-  // customers with open invoices appear.
+  // Credit-control aging + debt snapshot: per customer, the oldest still-unpaid
+  // invoice (drives the overdue badge/block), the open-invoice count, and the
+  // overdue amount (outstanding on invoices older than the customer's terms).
+  // One grouped read; only customers with open invoices appear.
+  const termsByCust = new Map(
+    ((custRes.data ?? []) as { id: string; payment_terms_days: number | null }[]).map((c) => [c.id, Number(c.payment_terms_days ?? 0)]),
+  );
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const daysSince = (iso: string) => Math.max(0, Math.floor((Date.parse(`${todayIso}T00:00:00Z`) - Date.parse(`${iso}T00:00:00Z`)) / 86_400_000));
   const { data: openInv } = await supabase
     .from('erp_invoices')
     .select('customer_id, created_at, net_amount, paid_amount, status')
     .eq('branch_id', van.branch_id)
     .in('status', ['issued', 'partially_paid', 'overdue']);
-  const oldestUnpaid = new Map<string, string>();
+  const debt = new Map<string, { oldest: string; count: number; overdue: number }>();
   for (const r of (openInv ?? []) as { customer_id: string; created_at: string; net_amount: number; paid_amount: number }[]) {
-    if (Number(r.net_amount ?? 0) - Number(r.paid_amount ?? 0) <= 0) continue;
+    const out = Number(r.net_amount ?? 0) - Number(r.paid_amount ?? 0);
+    if (out <= 0) continue;
     const d = String(r.created_at).slice(0, 10);
-    const prev = oldestUnpaid.get(r.customer_id);
-    if (!prev || d < prev) oldestUnpaid.set(r.customer_id, d);
+    const a = debt.get(r.customer_id) ?? { oldest: d, count: 0, overdue: 0 };
+    a.count += 1;
+    if (d < a.oldest) a.oldest = d;
+    const terms = termsByCust.get(r.customer_id) ?? 0;
+    if (terms > 0 && daysSince(d) > terms) a.overdue += out;
+    debt.set(r.customer_id, a);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,9 +100,15 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
       code: r.product.code as string,
       available: Number(r.quantity ?? 0) - Number(r.reserved_qty ?? 0),
     }));
-  const customers = ((custRes.data ?? []) as SellCustomer[]).map((c) => ({
-    ...c, oldest_unpaid_date: oldestUnpaid.get(c.id) ?? null,
-  }));
+  const customers = ((custRes.data ?? []) as SellCustomer[]).map((c) => {
+    const d = debt.get(c.id);
+    return {
+      ...c,
+      oldest_unpaid_date: d?.oldest ?? null,
+      open_invoice_count: d?.count ?? 0,
+      overdue_amount: d ? Math.round(d.overdue * 100) / 100 : 0,
+    };
+  });
 
   // U3: when multi-UoM is enabled, attach each product's sellable units (base +
   // alternates) for the per-line UoM picker. Respects sell_mode ('base' = base only).
