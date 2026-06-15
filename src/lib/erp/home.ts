@@ -66,6 +66,13 @@ export function resolveHomePath(ctx: {
   if (hasRole('warehouse_keeper')) return '/inventory/requests';
   if (hasRole('salesman', 'driver')) return '/today';
 
+  // Any remaining FIELD user (e.g. merchandiser / custom field roles that hold
+  // field.sales) lands on My Day. The senior office roles above already returned
+  // their own home (admin/manager → dashboard, finance → collections, warehouse →
+  // requests, supervisor → approvals), so this only catches field users — it does
+  // NOT pull Company Admin / Finance / Warehouse / Ops / Platform onto My Day.
+  if (can('field.sales')) return '/today';
+
   // General / retail with no recognised role stays on the main dashboard.
   return '/dashboard';
 }
