@@ -234,6 +234,15 @@ export const FEATURES: FeatureDef[] = [
     screens: ['/field/van-sales/requests'],
     logic: ['requests.hub', 'erp_request_cash_handover'],
   }),
+  // RPC authorization enforcement (Security — Backend-Enforcement Phase D):
+  // defense-in-depth in-function permission checks on sensitive financial /
+  // transactional RPCs (issue invoice, record payment, post voucher, approve
+  // load, van sell/collect/return). Default OFF — when ON for a tenant, each
+  // guarded RPC also verifies the caller's permission server-side (not only the
+  // UI/route). Reversible by toggling the flag; no schema change.
+  P('platform.rpc_authz_enforcement', 'governance', [], {
+    logic: ['erp_guard_rpc', 'erp_rpc_authz_enabled'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),

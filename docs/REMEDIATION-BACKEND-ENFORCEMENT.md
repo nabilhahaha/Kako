@@ -84,6 +84,16 @@ L (1–2d), per item, including ar/en parity + tests.
 
 ## D. RPCs without in-function authorization (SECURITY DEFINER)
 
+> **STATUS: IMPLEMENTED & VALIDATED on staging (migration 0314).** Flag-gated
+> (`platform.rpc_authz_enforcement`, default OFF; enabled for the pilot tenant only).
+> Step 0 done — all 10 RPCs are `authenticated=X` (directly callable), confirming the gap
+> is **exploitable**, not just defense-in-depth. A `erp_guard_rpc(variadic perms)` helper was
+> injected at the top of each RPC; it no-ops unless the company flag is ON, then verifies the
+> caller holds the same permission the route/action already requires (platform-owner/super-admin
+> bypass built in). Validated by `supabase/pilot/validate-rpc-authz.sql`: **70 allow/deny
+> assertions (7 roles × 10 RPCs) pass**, plus a flag-OFF no-op proof. No app code changed
+> (server actions still call the same RPCs); fully reversible via the flag.
+
 1. **Finding:** The following mutation RPCs **do not** call `erp_user_has_perm` (verified via
    `pg_proc`). They scope company but trust the caller for permission:
 
