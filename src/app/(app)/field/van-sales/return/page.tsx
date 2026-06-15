@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
-import { ReturnScreen, type ReturnCustomer, type ReturnProduct, type ReturnReason } from './return-screen';
+import { ReturnScreen, type ReturnCustomer, type ReturnReason } from './return-screen';
 import { isVanDayOpen } from '@/lib/van-sales/day-server';
 import { DayClosedGate } from '../day-gate';
 
@@ -43,9 +43,8 @@ export default async function VanReturnPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const [custRes, prodRes, reasonRes] = await Promise.all([
+  const [custRes, reasonRes] = await Promise.all([
     supabase.from('erp_customers').select('id, name, name_ar, code').eq('branch_id', van.branch_id).order('name').limit(500),
-    supabase.from('erp_products_catalog').select('id, name, name_ar, code').eq('is_active', true).order('name').limit(500),
     supabase.from('erp_return_reasons').select('id, code, label_en, label_ar').eq('is_active', true).order('sort'),
   ]);
 
@@ -55,7 +54,6 @@ export default async function VanReturnPage({ searchParams }: { searchParams: Pr
       <ReturnScreen
         branchId={van.branch_id}
         customers={(custRes.data ?? []) as ReturnCustomer[]}
-        products={(prodRes.data ?? []) as ReturnProduct[]}
         reasons={(reasonRes.data ?? []) as ReturnReason[]}
         preselectCustomerId={preselectCustomer ?? null}
       />

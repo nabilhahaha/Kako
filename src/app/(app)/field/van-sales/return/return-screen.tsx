@@ -1,35 +1,37 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Trash2, Undo2, Check, Loader2, ReceiptText, Printer, Share2 } from 'lucide-react';
+import { Undo2, Check, Loader2, ReceiptText, Printer, Share2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useI18n } from '@/lib/i18n/provider';
-import { previewVanReturn, vanReturn } from '@/lib/van-sales/returns-server';
+import {
+  previewVanReturn, vanReturn, loadReturnableInvoices, loadInvoiceReturnLines,
+  type ReturnableInvoice, type ReturnLineRow,
+} from '@/lib/van-sales/returns-server';
 import { clearVisitWork } from '@/lib/van-sales/visit-session';
 
 export interface ReturnCustomer { id: string; name: string; name_ar: string | null; code: string }
-export interface ReturnProduct { id: string; name: string; name_ar: string | null; code: string }
 export interface ReturnReason { id: string; code: string; label_en: string | null; label_ar: string | null }
-
-interface Line { productId: string; quantity: number }
 
 function uuid(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+// Enhanced (not replaced): same screen — Customer → Select Invoice → Reason →
+// Invoice Items (Sold / Returned / Remaining) → quantity (capped at remaining) →
+// Execute. The item list is the selected invoice's products only.
 export function ReturnScreen({
-  branchId, customers, products, reasons, preselectCustomerId,
+  branchId, customers, reasons, preselectCustomerId,
 }: {
   branchId: string;
   customers: ReturnCustomer[];
-  products: ReturnProduct[];
   reasons: ReturnReason[];
   preselectCustomerId: string | null;
 }) {
@@ -39,26 +41,63 @@ export function ReturnScreen({
 
   const preselect = preselectCustomerId && customers.some((c) => c.id === preselectCustomerId) ? preselectCustomerId : '';
   const [customerId, setCustomerId] = useState(preselect);
+  const [invoiceId, setInvoiceId] = useState('');
   const [reasonId, setReasonId] = useState('');
-  const [lines, setLines] = useState<Line[]>([{ productId: '', quantity: 1 }]);
   const [creditNote, setCreditNote] = useState(false);
+  const [invoices, setInvoices] = useState<ReturnableInvoice[]>([]);
+  const [invLines, setInvLines] = useState<ReturnLineRow[]>([]);
+  const [qty, setQty] = useState<Record<string, number>>({});
+  const [loadingInv, setLoadingInv] = useState(false);
+  const [loadingLines, setLoadingLines] = useState(false);
   const [total, setTotal] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ id: string; returnNumber: string; creditNoteId: string | null; total: number } | null>(null);
   const [key, setKey] = useState(() => uuid());
 
   const cName = (c: ReturnCustomer) => (ar && c.name_ar ? c.name_ar : c.name);
-  const pName = (p: ReturnProduct) => (ar && p.name_ar ? p.name_ar : p.name);
   const rName = (r: ReturnReason) => (ar && r.label_ar ? r.label_ar : r.label_en ?? r.code);
+  const lName = (l: ReturnLineRow) => (ar && l.name_ar ? l.name_ar : l.name);
 
-  const validLines = useMemo(() => lines.filter((l) => l.productId && l.quantity > 0), [lines]);
-  function setLine(i: number, patch: Partial<Line>) { setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l))); setTotal(null); }
+  // Load the customer's returnable invoices when the customer changes.
+  useEffect(() => {
+    setInvoiceId(''); setInvoices([]); setInvLines([]); setQty({}); setTotal(null);
+    if (!customerId) return;
+    let alive = true;
+    setLoadingInv(true);
+    loadReturnableInvoices(branchId, customerId)
+      .then((res) => { if (alive && res.ok && res.data) setInvoices(res.data); })
+      .finally(() => { if (alive) setLoadingInv(false); });
+    return () => { alive = false; };
+  }, [customerId, branchId]);
+
+  // Load the selected invoice's items (Sold / Returned / Remaining).
+  useEffect(() => {
+    setInvLines([]); setQty({}); setTotal(null);
+    if (!invoiceId) return;
+    let alive = true;
+    setLoadingLines(true);
+    loadInvoiceReturnLines(invoiceId)
+      .then((res) => { if (alive && res.ok && res.data) setInvLines(res.data); })
+      .finally(() => { if (alive) setLoadingLines(false); });
+    return () => { alive = false; };
+  }, [invoiceId]);
+
+  function setQ(productId: string, raw: number, remaining: number) {
+    const v = Number.isFinite(raw) ? Math.max(0, Math.min(raw, remaining)) : 0;
+    setQty((m) => ({ ...m, [productId]: v }));
+    setTotal(null);
+  }
+
+  const validLines = useMemo(
+    () => invLines.filter((l) => (qty[l.productId] ?? 0) > 0).map((l) => ({ product_id: l.productId, quantity: qty[l.productId] })),
+    [invLines, qty],
+  );
 
   async function preview() {
-    if (!customerId || validLines.length === 0) return;
+    if (!customerId || !invoiceId || validLines.length === 0) return;
     setBusy(true);
     try {
-      const res = await previewVanReturn({ branch_id: branchId, customer_id: customerId, lines: validLines.map((l) => ({ product_id: l.productId, quantity: l.quantity })) });
+      const res = await previewVanReturn({ branch_id: branchId, customer_id: customerId, invoice_id: invoiceId, lines: validLines });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.return.error')); return; }
       setTotal(res.data.total);
     } finally { setBusy(false); }
@@ -66,24 +105,24 @@ export function ReturnScreen({
 
   async function submit() {
     if (!customerId) { toast.error(t('vanSales.sell.pickCustomer')); return; }
+    if (!invoiceId) { toast.error(t('vanSales.return.invoiceRequired')); return; }
     if (!reasonId) { toast.error(t('vanSales.return.reasonRequired')); return; }
     if (validLines.length === 0) { toast.error(t('vanSales.return.emptyCart')); return; }
     setBusy(true);
     try {
       const res = await vanReturn({
         branch_id: branchId, customer_id: customerId, reason_id: reasonId, idempotency_key: key,
-        create_credit_note: creditNote,
-        lines: validLines.map((l) => ({ product_id: l.productId, quantity: l.quantity })),
+        invoice_id: invoiceId, create_credit_note: creditNote, lines: validLines,
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.return.error')); return; }
       setDone({ id: res.data.id, returnNumber: res.data.returnNumber, creditNoteId: res.data.creditNoteId, total: res.data.totalAmount });
-      if (customerId) clearVisitWork(customerId, 'return');
+      clearVisitWork(customerId, 'return');
       toast.success(t('vanSales.return.done', { number: res.data.returnNumber }));
     } finally { setBusy(false); }
   }
 
   function reset() {
-    setDone(null); setTotal(null); setLines([{ productId: '', quantity: 1 }]);
+    setDone(null); setTotal(null); setInvoiceId(''); setInvLines([]); setQty({});
     setReasonId(''); setCreditNote(false); setKey(uuid()); setCustomerId(preselect);
   }
 
@@ -112,7 +151,6 @@ export function ReturnScreen({
               </a>
             )}
           </div>
-          {/* Transaction completed → Print / Share / Continue (never auto-print) */}
           <div className="grid grid-cols-3 gap-2">
             <a href={`/sales/returns/${done.id}/print`} target="_blank" rel="noreferrer">
               <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.return.print')}</Button>
@@ -129,14 +167,30 @@ export function ReturnScreen({
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
+        {/* Customer */}
         <div className="space-y-1.5">
           <Label>{t('vanSales.return.stepCustomer')}</Label>
-          <Select value={customerId} onChange={(e) => { setCustomerId(e.target.value); setTotal(null); }}>
+          <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
             <option value="">{t('vanSales.return.pickCustomer')}</option>
             {customers.map((c) => <option key={c.id} value={c.id}>{cName(c)} · {c.code}</option>)}
           </Select>
         </div>
 
+        {/* Invoice selector */}
+        <div className="space-y-1.5">
+          <Label>{t('vanSales.return.stepInvoice')}</Label>
+          <Select value={invoiceId} onChange={(e) => setInvoiceId(e.target.value)} disabled={!customerId || loadingInv}>
+            <option value="">{loadingInv ? t('vanSales.return.loading') : t('vanSales.return.pickInvoice')}</option>
+            {invoices.map((inv) => (
+              <option key={inv.id} value={inv.id}>{inv.invoiceNumber} · {inv.date} · {inv.net.toFixed(2)}</option>
+            ))}
+          </Select>
+          {customerId && !loadingInv && invoices.length === 0 && (
+            <p className="text-xs text-muted-foreground">{t('vanSales.return.noInvoices')}</p>
+          )}
+        </div>
+
+        {/* Reason */}
         <div className="space-y-1.5">
           <Label>{t('vanSales.return.reason')} *</Label>
           <Select value={reasonId} onChange={(e) => setReasonId(e.target.value)}>
@@ -145,23 +199,42 @@ export function ReturnScreen({
           </Select>
         </div>
 
+        {/* Invoice items — Sold / Returned / Remaining + quantity (capped) */}
         <div className="space-y-2">
           <Label>{t('vanSales.return.stepProducts')}</Label>
-          {lines.map((l, i) => (
-            <div key={i} className="flex items-end gap-2">
-              <div className="flex-1 space-y-1.5">
-                <Select value={l.productId} onChange={(e) => setLine(i, { productId: e.target.value })}>
-                  <option value="">{t('vanSales.return.searchProduct')}</option>
-                  {products.map((p) => <option key={p.id} value={p.id}>{pName(p)}</option>)}
-                </Select>
-              </div>
-              <div className="w-24 space-y-1.5">
-                <Input type="number" inputMode="numeric" min={1} value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} aria-label={t('vanSales.return.qty')} />
-              </div>
-              <Button type="button" variant="ghost" size="icon" onClick={() => { setLines((ls) => ls.filter((_, j) => j !== i)); setTotal(null); }} aria-label="−"><Trash2 className="h-4 w-4" /></Button>
-            </div>
-          ))}
-          <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, { productId: '', quantity: 1 }])}><Plus className="h-4 w-4" /></Button>
+          {!invoiceId ? (
+            <p className="rounded-md border border-dashed p-3 text-center text-xs text-muted-foreground">{t('vanSales.return.selectInvoiceFirst')}</p>
+          ) : loadingLines ? (
+            <div className="flex justify-center p-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+          ) : (
+            <ul className="divide-y rounded-md border">
+              {invLines.map((l) => {
+                const q = qty[l.productId] ?? 0;
+                return (
+                  <li key={l.productId} className="flex items-center gap-3 p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{lName(l)}</div>
+                      <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground" dir="ltr">
+                        <span>{t('vanSales.return.sold')}: {l.sold}</span>
+                        <span>{t('vanSales.return.returned')}: {l.returned}</span>
+                        <span className="font-semibold text-foreground">{t('vanSales.return.remaining')}: {l.remaining}</span>
+                      </div>
+                    </div>
+                    <Input
+                      type="number" inputMode="numeric" min={0} max={l.remaining}
+                      className="w-20 shrink-0"
+                      value={q === 0 ? '' : q}
+                      placeholder="0"
+                      disabled={l.remaining <= 0}
+                      onChange={(e) => setQ(l.productId, Math.floor(Number(e.target.value)), l.remaining)}
+                      aria-label={t('vanSales.return.qty')}
+                    />
+                  </li>
+                );
+              })}
+              {invLines.length === 0 && <li className="p-3 text-center text-xs text-muted-foreground">{t('vanSales.return.noInvoiceItems')}</li>}
+            </ul>
+          )}
         </div>
 
         <label className="flex items-center gap-2 text-sm font-medium">
@@ -175,7 +248,7 @@ export function ReturnScreen({
         )}
 
         <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" disabled={busy || validLines.length === 0 || !customerId} onClick={preview}>
+          <Button variant="outline" className="flex-1" disabled={busy || validLines.length === 0 || !invoiceId} onClick={preview}>
             {busy && total == null ? <Loader2 className="h-4 w-4 animate-spin" /> : t('vanSales.return.review')}
           </Button>
           <Button className="flex-[2]" disabled={busy} onClick={submit}>

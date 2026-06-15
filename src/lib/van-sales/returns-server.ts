@@ -97,6 +97,17 @@ export async function vanReturn(input: VanReturnInput): Promise<ActionResult<{ i
   const lines = normalizeReturnLines(input.lines ?? []);
   if (lines.length === 0) return { ok: false, error: RPC_ERRORS.no_valid_lines };
 
+  // Invoice-anchored return: never let a line exceed what's still returnable
+  // (sold − previously returned) on the selected invoice. Server-authoritative;
+  // the UI caps too, but this is the guard. A product not on the invoice ⇒ 0.
+  if (input.invoice_id) {
+    const remaining = await invoiceRemainingMap(supabase, input.invoice_id);
+    for (const l of lines) {
+      const rem = remaining.get(l.product_id)?.remaining ?? 0;
+      if (l.quantity > rem + 1e-6) return { ok: false, error: RETURN_EXCEEDS };
+    }
+  }
+
   const { data, error } = await supabase.rpc('erp_van_return', {
     p_branch_id: input.branch_id,
     p_customer_id: input.customer_id,
@@ -119,4 +130,89 @@ export async function vanReturn(input: VanReturnInput): Promise<ActionResult<{ i
   revalidatePath('/customers');
 
   return { ok: true, data: { id: row.return_id, returnNumber: row.return_number, creditNoteId: row.credit_note_id, totalAmount: Number(row.total_amount) } };
+}
+
+// ============================================================================
+// Invoice-anchored return: pick an invoice → its items with Sold / Previously
+// returned / Remaining returnable. Read-only loaders for the screen; the cap is
+// enforced both here (vanReturn guard) and in the UI. No transaction change.
+// ============================================================================
+
+const RETURN_EXCEEDS = 'You cannot return more than the remaining returnable quantity.';
+
+export interface ReturnableInvoice { id: string; invoiceNumber: string; date: string; net: number }
+export interface ReturnLineRow {
+  productId: string; name: string; name_ar: string | null; code: string;
+  sold: number; returned: number; remaining: number; unitPrice: number;
+}
+
+/** Per-product Sold / previously-returned / remaining for one invoice. */
+async function invoiceRemainingMap(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any, invoiceId: string,
+): Promise<Map<string, { sold: number; returned: number; remaining: number; unitPrice: number }>> {
+  const map = new Map<string, { sold: number; returned: number; remaining: number; unitPrice: number }>();
+  const { data: ilines } = await supabase.from('erp_invoice_lines').select('product_id, quantity, unit_price').eq('invoice_id', invoiceId);
+  for (const r of (ilines ?? []) as { product_id: string; quantity: number; unit_price: number }[]) {
+    const e = map.get(r.product_id) ?? { sold: 0, returned: 0, remaining: 0, unitPrice: Number(r.unit_price ?? 0) };
+    e.sold += Number(r.quantity ?? 0);
+    e.unitPrice = Number(r.unit_price ?? 0);
+    map.set(r.product_id, e);
+  }
+  const { data: rets } = await supabase.from('erp_sales_returns').select('id').eq('invoice_id', invoiceId).eq('status', 'completed');
+  const retIds = ((rets ?? []) as { id: string }[]).map((r) => r.id);
+  if (retIds.length > 0) {
+    const { data: rl } = await supabase.from('erp_sales_return_lines').select('product_id, quantity').in('return_id', retIds);
+    for (const r of (rl ?? []) as { product_id: string; quantity: number }[]) {
+      const e = map.get(r.product_id);
+      if (e) e.returned += Number(r.quantity ?? 0);
+    }
+  }
+  for (const e of map.values()) e.remaining = Math.max(0, e.sold - e.returned);
+  return map;
+}
+
+/** The customer's invoices eligible for return (non-draft, non-cancelled), newest first. */
+export async function loadReturnableInvoices(branchId: string, customerId: string): Promise<ActionResult<ReturnableInvoice[]>> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
+  const supabase = await createClient();
+  if (!(await isVanSalesActive(supabase, ctx))) return { ok: false, error: 'Van Sales is not enabled.' };
+  if (!branchId || !customerId) return { ok: false, error: 'Branch and customer are required.' };
+
+  const { data, error } = await supabase
+    .from('erp_invoices')
+    .select('id, invoice_number, created_at, net_amount, status')
+    .eq('branch_id', branchId).eq('customer_id', customerId)
+    .in('status', ['issued', 'paid', 'partially_paid', 'overdue'])
+    .order('created_at', { ascending: false }).limit(100);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  const rows = ((data ?? []) as { id: string; invoice_number: string; created_at: string; net_amount: number }[])
+    .map((r) => ({ id: r.id, invoiceNumber: r.invoice_number, date: String(r.created_at).slice(0, 10), net: Number(r.net_amount ?? 0) }));
+  return { ok: true, data: rows };
+}
+
+/** The selected invoice's items with Sold / Previously returned / Remaining. */
+export async function loadInvoiceReturnLines(invoiceId: string): Promise<ActionResult<ReturnLineRow[]>> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
+  const supabase = await createClient();
+  if (!(await isVanSalesActive(supabase, ctx))) return { ok: false, error: 'Van Sales is not enabled.' };
+  if (!invoiceId) return { ok: false, error: 'Invoice is required.' };
+
+  const map = await invoiceRemainingMap(supabase, invoiceId);
+  const ids = [...map.keys()];
+  if (ids.length === 0) return { ok: true, data: [] };
+
+  const { data: prods } = await supabase.from('erp_products_catalog').select('id, name, name_ar, code').in('id', ids);
+  const pById = new Map(((prods ?? []) as { id: string; name: string; name_ar: string | null; code: string }[]).map((p) => [p.id, p]));
+
+  const rows: ReturnLineRow[] = ids.map((id) => {
+    const e = map.get(id)!;
+    const p = pById.get(id);
+    return { productId: id, name: p?.name ?? id, name_ar: p?.name_ar ?? null, code: p?.code ?? '', sold: e.sold, returned: e.returned, remaining: e.remaining, unitPrice: e.unitPrice };
+  });
+  rows.sort((a, b) => a.name.localeCompare(b.name));
+  return { ok: true, data: rows };
 }
