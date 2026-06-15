@@ -103,6 +103,12 @@ export function salesmanRequestsEnabled(flags: Record<string, boolean | undefine
   return Boolean(flags?.['platform.salesman_requests']);
 }
 
+/** The governed customer-request kinds (raised + applied via the customer-request
+ *  RPCs). Kept in this pure module so the 'use server' requests file exports only
+ *  async actions. */
+export const CUSTOMER_REQUEST_KINDS = ['new_customer', 'data_update', 'gps_correction', 'credit_limit', 'payment_terms'] as const;
+export type CustomerRequestKind = (typeof CUSTOMER_REQUEST_KINDS)[number];
+
 /** Tender methods supported in-sell (one collection row each on the server).
  *  These are the DB-canonical erp_collections.method codes (constraint-aligned):
  *  cash · credit_card (Card) · bank_transfer · check (Cheque). */

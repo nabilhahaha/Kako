@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Check, X, User, UserPlus, FileEdit, MapPin } from 'lucide-react';
+import { Check, X, User, UserPlus, FileEdit, MapPin, CreditCard, CalendarClock, AlertTriangle, Paperclip } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
 import { decideCustomerRequest, type PendingCustomerRequest } from '@/lib/van-sales/requests-server';
 
-const ICON = { new_customer: UserPlus, data_update: FileEdit, gps_correction: MapPin } as const;
+const ICON = { new_customer: UserPlus, data_update: FileEdit, gps_correction: MapPin, credit_limit: CreditCard, payment_terms: CalendarClock } as const;
 
 export function CustomerRequestList({ requests }: { requests: PendingCustomerRequest[] }) {
   const { t, locale } = useI18n();
@@ -56,6 +56,22 @@ export function CustomerRequestList({ requests }: { requests: PendingCustomerReq
                 <span className="text-xs text-muted-foreground">{fmt(r.createdAt)}</span>
               </div>
 
+              {/* Duplicate detection — possible existing-customer matches. */}
+              {r.duplicates.length > 0 && (
+                <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-sm">
+                  <div className="mb-1 flex items-center gap-1.5 font-medium text-warning">
+                    <AlertTriangle className="h-4 w-4" /> {t('vanSales.requests.custInbox.duplicates')}
+                  </div>
+                  <ul className="space-y-0.5">
+                    {r.duplicates.map((d) => (
+                      <li key={d.id} className="text-xs">
+                        <span className="font-medium">{d.name}</span> · {d.code} — <span className="text-muted-foreground">{d.reasons.map((x) => t(`vanSales.requests.dup.${x}`)).join('، ')}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="rounded-md bg-muted/40 p-3 text-sm">
                 <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                   {rows(r.payload).map(({ k, v }) => (
@@ -66,6 +82,18 @@ export function CustomerRequestList({ requests }: { requests: PendingCustomerReq
                   ))}
                 </dl>
               </div>
+
+              {/* Attachments (storefront / CR / VAT / …) */}
+              {r.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {r.attachments.map((a) => (
+                    <a key={a.id} href={a.url ?? '#'} target="_blank" rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-secondary">
+                      <Paperclip className="h-3 w-3" /> {a.doc_type ? t(`vanSales.requests.doc.${a.doc_type}`) : a.file_name}
+                    </a>
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label>{t('vanSales.requests.custInbox.noteLabel')}</Label>

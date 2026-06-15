@@ -7,7 +7,9 @@ import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guard
 import { hasPermission } from '@/lib/erp/permissions';
 import type { UserContext } from '@/lib/erp/auth-context';
 import { isVanSalesActive } from './settings-server';
-import { salesmanRequestsEnabled } from './sell';
+import { salesmanRequestsEnabled, CUSTOMER_REQUEST_KINDS, type CustomerRequestKind } from './sell';
+import { distanceMeters } from '@/lib/erp/journey-sort';
+import { listAttachments, type AttachmentView } from '@/app/(app)/attachments/actions';
 
 // ============================================================================
 // Salesman Requests hub (Phase 1) — a thin facade over the existing request
@@ -16,7 +18,7 @@ import { salesmanRequestsEnabled } from './sell';
 // (platform.salesman_requests). No transaction/accounting change.
 // ============================================================================
 
-export type RequestKind = 'load' | 'cash_handover' | 'reopen' | 'new_customer' | 'data_update' | 'gps_correction';
+export type RequestKind = 'load' | 'cash_handover' | 'reopen' | CustomerRequestKind;
 
 export interface MyRequest {
   id: string;
@@ -141,13 +143,29 @@ export async function loadRequestCustomers(ctx: UserContext): Promise<RequestCus
   return ((data ?? []) as RequestCustomer[]);
 }
 
-/** Salesman raises a governed customer request (new / data update / GPS). */
-export async function requestCustomerChange(input: { kind: RequestKind; customerId?: string | null; payload: Record<string, unknown> }): Promise<ActionResult<{ requestId: string }>> {
+export interface RequestRoute { id: string; name: string; code: string | null }
+
+/** The rep's routes (for assigning a new customer on approval — no orphan record). */
+export async function loadRequestRoutes(ctx: UserContext): Promise<RequestRoute[]> {
+  const supabase = await createClient();
+  const { data: vanRow } = await supabase
+    .from('erp_warehouses').select('branch_id')
+    .eq('is_van', true).eq('assigned_to', ctx.userId).eq('is_active', true)
+    .order('code').limit(1).maybeSingle();
+  const branchId = (vanRow as { branch_id: string } | null)?.branch_id;
+  // The rep's own routes first; fall back to the branch's routes.
+  const q = supabase.from('erp_routes').select('id, name, code').eq('is_active', true).order('name').limit(200);
+  const { data } = branchId ? await q.or(`rep_id.eq.${ctx.userId},branch_id.eq.${branchId}`) : await q.eq('rep_id', ctx.userId);
+  return ((data ?? []) as RequestRoute[]);
+}
+
+/** Salesman raises a governed customer request (new / update / GPS / credit / terms). */
+export async function requestCustomerChange(input: { kind: CustomerRequestKind; customerId?: string | null; payload: Record<string, unknown> }): Promise<ActionResult<{ requestId: string }>> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
   const gate = await requestsActive(ctx);
   if (!gate.ok) return gate;
-  if (input.kind !== 'new_customer' && input.kind !== 'data_update' && input.kind !== 'gps_correction') return { ok: false, error: 'Invalid request.' };
+  if (!(CUSTOMER_REQUEST_KINDS as readonly string[]).includes(input.kind)) return { ok: false, error: 'Invalid request.' };
 
   const payload = { ...input.payload };
   if (input.kind === 'new_customer') {
@@ -186,9 +204,40 @@ export async function decideCustomerRequest(input: { requestId: string; decision
   return { ok: true, data: { status: row.status } };
 }
 
+export interface DuplicateMatch { id: string; name: string; code: string; reasons: string[] }
 export interface PendingCustomerRequest {
   id: string; kind: RequestKind; customerName: string | null; salesmanName: string;
   payload: Record<string, unknown>; createdAt: string;
+  /** Possible existing-customer matches (new_customer only) — name / mobile / CR / VAT / GPS. */
+  duplicates: DuplicateMatch[];
+  /** Uploaded evidence (storefront / CR / VAT / national address / other). */
+  attachments: AttachmentView[];
+}
+
+interface DupCandidate { id: string; name: string; code: string; phone: string | null; cr_number: string | null; tax_number: string | null; latitude: number | null; longitude: number | null }
+
+/** Possible duplicates for a new_customer payload: name (contains), mobile, CR,
+ *  VAT (exact), or GPS within 120m. Pure over the candidate set. */
+function findDuplicates(payload: Record<string, unknown>, candidates: DupCandidate[]): DuplicateMatch[] {
+  const s = (v: unknown) => (v == null ? '' : String(v).trim().toLowerCase());
+  const name = s(payload.name), mobile = s(payload.mobile), cr = s(payload.cr), vat = s(payload.vat);
+  const lat = Number(payload.latitude), lng = Number(payload.longitude);
+  const hasGps = Number.isFinite(lat) && Number.isFinite(lng);
+  const out: DuplicateMatch[] = [];
+  for (const c of candidates) {
+    const reasons: string[] = [];
+    const cn = s(c.name);
+    if (name && cn && (cn === name || cn.includes(name) || name.includes(cn))) reasons.push('name');
+    if (mobile && s(c.phone) === mobile) reasons.push('mobile');
+    if (cr && s(c.cr_number) === cr) reasons.push('cr');
+    if (vat && s(c.tax_number) === vat) reasons.push('vat');
+    if (hasGps && c.latitude != null && c.longitude != null) {
+      const d = distanceMeters({ latitude: lat, longitude: lng }, { latitude: c.latitude, longitude: c.longitude });
+      if (Number.isFinite(d) && d <= 120) reasons.push('gps');
+    }
+    if (reasons.length > 0) out.push({ id: c.id, name: c.name, code: c.code, reasons });
+  }
+  return out.slice(0, 8);
 }
 
 /** Pending customer requests in the company (for approvers). */
@@ -213,10 +262,27 @@ export async function loadPendingCustomerRequests(ctx: UserContext): Promise<Pen
   const repName = new Map(((profs ?? []) as { id: string; full_name: string | null }[]).map((p) => [p.id, p.full_name ?? '']));
   const custName = new Map((((custData as { data: { id: string; name: string }[] }).data) ?? []).map((c) => [c.id, c.name]));
 
+  // Duplicate detection: load the company's customers ONCE; match per new-customer request.
+  const hasNew = rows.some((r) => r.kind === 'new_customer');
+  let candidates: DupCandidate[] = [];
+  if (hasNew) {
+    const { data: cands } = await supabase
+      .from('erp_customers')
+      .select('id, name, code, phone, cr_number, tax_number, latitude, longitude')
+      .limit(2000);
+    candidates = (cands ?? []) as DupCandidate[];
+  }
+
+  // Attachments per request (storefront / CR / VAT / …), with signed URLs.
+  const attByReq = new Map<string, AttachmentView[]>();
+  await Promise.all(rows.map(async (r) => { attByReq.set(r.id, await listAttachments('customer_request', r.id)); }));
+
   return rows.map((r) => ({
     id: r.id, kind: r.kind,
     customerName: r.customer_id ? (custName.get(r.customer_id) ?? null) : ((r.payload?.name as string) ?? null),
     salesmanName: repName.get(r.salesman_id) || r.salesman_id.slice(0, 8),
     payload: r.payload ?? {}, createdAt: r.created_at,
+    duplicates: r.kind === 'new_customer' ? findDuplicates(r.payload ?? {}, candidates) : [],
+    attachments: attByReq.get(r.id) ?? [],
   }));
 }

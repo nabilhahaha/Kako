@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { BackLink } from '@/components/shared/back-link';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { salesmanRequestsEnabled } from '@/lib/van-sales/sell';
-import { loadMyRequests, loadRequestCustomers } from '@/lib/van-sales/requests-server';
+import { loadMyRequests, loadRequestCustomers, loadRequestRoutes } from '@/lib/van-sales/requests-server';
 import { loadVanDayState } from '@/lib/van-sales/day-server';
 import { RequestsHub } from './requests-hub';
 
@@ -28,8 +28,10 @@ export default async function RequestsPage() {
 
   const { t } = await getT();
   const canCustomer = hasPermission(ctx, 'customer.request') || ctx.isSuperAdmin;
-  const [myRequests, { state }, customers] = await Promise.all([
-    loadMyRequests(ctx), loadVanDayState(ctx), canCustomer ? loadRequestCustomers(ctx) : Promise.resolve([]),
+  const [myRequests, { state }, customers, routes] = await Promise.all([
+    loadMyRequests(ctx), loadVanDayState(ctx),
+    canCustomer ? loadRequestCustomers(ctx) : Promise.resolve([]),
+    canCustomer ? loadRequestRoutes(ctx) : Promise.resolve([]),
   ]);
 
   return (
@@ -44,6 +46,7 @@ export default async function RequestsPage() {
         dayClosed={state === 'closed'}
         canCustomer={canCustomer}
         customers={customers}
+        routes={routes}
       />
     </div>
   );
