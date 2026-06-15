@@ -226,22 +226,29 @@ customers.approval.approve`). The fix must **reuse `can()`**, not add a parallel
      owner already pass `hasPermission`).
    - Proposed perm per action:
 
-     | Action | Proposed perm(s) |
+     | Action | Permission(s) — FINAL |
      | --- | --- |
      | `createTransfer` / `cancelTransfer` | `inventory.transfer` OR `stock.transfer` |
      | `createStockCount` / `saveStockCount` / `cancelStockCount` | `inventory.count` |
      | `createStockRequest` | `stock_request.create` |
-     | `rejectStockRequest` / `cancelStockRequest` | `stock_request.approve` (reject) · creator-or-`stock_request.approve` (cancel) |
-     | `upsertProduct` (base) | `product.create` (create) OR `inventory.adjust` (edit) |
-     | `toggleProductActive` / `createCategory` / `addDrugsToProducts` | `product.create` (or `product.import` for drugs) |
-     | `upsertCustomer` (base) | `customers.manage` OR `customer.create` (create) / `customer.edit` (edit) |
+     | `rejectStockRequest` | `stock_request.approve` |
+     | `cancelStockRequest` | `stock_request.create` OR `stock_request.approve` |
+     | `upsertProduct` — create | `product.create` |
+     | `upsertProduct` — edit | **`product.edit`** (NEW key — see below) |
+     | `toggleProductActive` | `product.edit` |
+     | `createCategory` | `product.create` |
+     | `addDrugsToProducts` | `product.import` |
+     | `upsertCustomer` — create | `customer.create` *(reps without it are routed to the governed customer-request: Salesman → New Customer Request → Supervisor review → validation → approval → created)* |
+     | `upsertCustomer` — edit | `customers.manage` OR `customer.edit` |
      | `importCustomers` | `customer.import` |
      | `setCustomerJourney` | `journey.create` |
      | `toggleCustomerActive` | `customers.change_status` |
 
-   - **Note (missing perm key):** there is no `product.edit` permission. Proposal: gate product
-     edits on `product.create` (or add a `product.edit` key in a later Section E pass). Flagged
-     so we agree the key before coding.
+   - **NEW permission key `product.edit`** (approved): add to the code `Permission` union +
+     `PERMISSION_LABELS` (group `inventory`), and grant in the DB (`erp_role_permissions` template
+     + pilot `erp_company_role_permissions`) to the roles that already hold `product.create`
+     (admin, manager) so they are not blocked when the flag is on. Establishes the
+     view/create/edit/delete/approve product model; `product.delete`/`product.approve` are future.
 6. **Regression risk:** MEDIUM. The guard mirrors the already-hidden button, so legitimate UI
    users pass — but some actions are currently reachable by roles that *should* keep access (e.g.
    a `salesman` self-creating a customer via `upsertCustomer`: salesman holds `customer.create`?
@@ -262,14 +269,26 @@ customers.approval.approve`). The fix must **reuse `can()`**, not add a parallel
   loses access.
 - Flag enabled for the **pilot only**; integration tests run with the flag OFF (unaffected).
 
-### F.3 Open decisions for you (before coding F)
+### F.3 Resolved decisions (approved)
 
-- **`upsertCustomer` create by salesman:** keep direct create gated on `customer.create` (pilot
-  salesman lacks it → would be blocked, pushing them to the governed customer-request), or allow
-  rep self-create? (Recommend: route reps through the governed request; gate direct create on
-  `customer.create`.)
-- **`product.edit` key:** add a dedicated permission, or reuse `product.create` for edits?
-- **`addDrugsToProducts`:** gate on `product.import` or a pharmacy-specific perm?
+- **`upsertCustomer` create:** gate direct create on `customer.create`. Reps (salesman) lacking
+  it are routed through the governed customer-request flow (Salesman → New Customer Request →
+  Supervisor review → data validation → approval → customer created). Edit gated on
+  `customers.manage` OR `customer.edit`.
+- **`product.edit`:** add a dedicated `product.edit` permission key (separate from create) and
+  gate all product modifications on it. Future model: `product.view/create/edit/delete/approve`.
+- **`addDrugsToProducts`:** gate on `product.import` (it is a bulk-import/onboarding action, not
+  dispensing — `pharmacy.dispense` stays scoped to dispensing workflows).
+
+### F.4 Deliverables when approved to implement
+
+1. `product.edit` added (code union + labels + DB grants for admin/manager, template + pilot).
+2. `requireActionPerm(ctx, caps[])` guard (flag-gated by `platform.action_authz_enforcement`,
+   default OFF, pilot only; reuses the alias-aware `can()`); applied to the actions in F.1.
+3. Flag registered in the catalog (default OFF) + ar/en i18n; enabled for the pilot only.
+4. Validation: pure-decision vitest (allow/deny per role via `permissionsForRole`) + a
+   role×action allow/deny matrix verified against live pilot grants. `tsc`/tests/build green.
+5. No app behaviour change while the flag is OFF; reversible by toggle; no production rollout.
 
 ---
 
