@@ -67,8 +67,8 @@ export function ReopenRequestForm({ workSessionId }: { workSessionId: string }) 
       </div>
       <div className="flex gap-2">
         <Button variant="ghost" onClick={() => setOpen(false)} disabled={busy}>{t('vanSales.reopen.cancel')}</Button>
-        <Button onClick={submit} disabled={busy} className="flex-1">
-          <Send className="h-4 w-4" /> {busy ? t('vanSales.reopen.submitting') : t('vanSales.reopen.submit')}
+        <Button onClick={submit} loading={busy} className="flex-1">
+          {busy ? t('vanSales.reopen.submitting') : <><Send className="h-4 w-4" /> {t('vanSales.reopen.submit')}</>}
         </Button>
       </div>
     </div>

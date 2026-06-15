@@ -378,7 +378,7 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
   }
 
   function SubmitBtn({ busy: b, onClick }: { busy: boolean; onClick: () => void }) {
-    return <Button className="w-full" disabled={b} onClick={onClick}><Send className="h-4 w-4" /> {b ? t('vanSales.requests.submitting') : t('vanSales.requests.submit')}</Button>;
+    return <Button className="w-full" loading={b} onClick={onClick}>{b ? t('vanSales.requests.submitting') : <><Send className="h-4 w-4" /> {t('vanSales.requests.submit')}</>}</Button>;
   }
 }
 

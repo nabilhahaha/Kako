@@ -54,11 +54,11 @@ export function CashHandoverList({ requests }: { requests: PendingCashHandover[]
               />
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" disabled={busy === r.id} onClick={() => decide(r.id, 'reject')}>
-                <X className="h-4 w-4" /> {t('vanSales.requests.confirm.reject')}
+              <Button variant="outline" className="flex-1" loading={busy === r.id} onClick={() => decide(r.id, 'reject')}>
+                {busy === r.id ? t('common.processing') : <><X className="h-4 w-4" /> {t('vanSales.requests.confirm.reject')}</>}
               </Button>
-              <Button className="flex-1" disabled={busy === r.id} onClick={() => decide(r.id, 'confirm')}>
-                <Check className="h-4 w-4" /> {t('vanSales.requests.confirm.confirm')}
+              <Button className="flex-1" loading={busy === r.id} onClick={() => decide(r.id, 'confirm')}>
+                {busy === r.id ? t('common.processing') : <><Check className="h-4 w-4" /> {t('vanSales.requests.confirm.confirm')}</>}
               </Button>
             </div>
           </CardContent>

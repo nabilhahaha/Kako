@@ -9,7 +9,7 @@ import { isVanSalesActive, loadVanSalesSettings } from '@/lib/van-sales/settings
 import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { multiUomEnabled } from '@/lib/erp/uom';
-import { collectInSellEnabled } from '@/lib/van-sales/sell';
+import { collectInSellEnabled, smartNextCustomerEnabled } from '@/lib/van-sales/sell';
 import { isVanDayOpen } from '@/lib/van-sales/day-server';
 import { loadProductUnitsMany } from '@/lib/erp/uom-server';
 import { SellScreen, type SellCustomer, type SellProduct } from './sell-screen';
@@ -123,6 +123,7 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
   // sales.collect may enter tenders; otherwise the step is credit-only.
   const collectInSell = collectInSellEnabled(flags);
   const canCollect = hasPermission(ctx, 'sales.collect') || ctx.isSuperAdmin;
+  const smartNext = smartNextCustomerEnabled(flags);
   if (multiUom && products.length > 0) {
     const cfgs = await loadProductUnitsMany(supabase, products.map((p) => p.id));
     for (const p of products) {
@@ -150,6 +151,7 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
         multiUom={multiUom}
         collectInSell={collectInSell}
         canCollect={canCollect}
+        smartNext={smartNext}
       />
     </div>
   );

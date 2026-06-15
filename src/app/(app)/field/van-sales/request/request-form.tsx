@@ -103,8 +103,8 @@ export function StockRequestForm({ van, warehouses, products }: { van: Warehouse
           <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
-        <Button onClick={submit} disabled={busy} className="w-full">
-          <Send className="h-4 w-4" /> {busy ? t('vanSales.request.submitting') : t('vanSales.request.submit')}
+        <Button onClick={submit} loading={busy} className="w-full">
+          {busy ? t('vanSales.request.submitting') : <><Send className="h-4 w-4" /> {t('vanSales.request.submit')}</>}
         </Button>
       </CardContent>
     </Card>

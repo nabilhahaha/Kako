@@ -105,11 +105,11 @@ export function CustomerRequestList({ requests }: { requests: PendingCustomerReq
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" disabled={busy === r.id} onClick={() => decide(r.id, 'reject')}>
-                  <X className="h-4 w-4" /> {t('vanSales.requests.custInbox.reject')}
+                <Button variant="outline" className="flex-1" loading={busy === r.id} onClick={() => decide(r.id, 'reject')}>
+                  {busy === r.id ? t('common.processing') : <><X className="h-4 w-4" /> {t('vanSales.requests.custInbox.reject')}</>}
                 </Button>
-                <Button className="flex-1" disabled={busy === r.id} onClick={() => decide(r.id, 'approve')}>
-                  <Check className="h-4 w-4" /> {t('vanSales.requests.custInbox.approve')}
+                <Button className="flex-1" loading={busy === r.id} onClick={() => decide(r.id, 'approve')}>
+                  {busy === r.id ? t('common.processing') : <><Check className="h-4 w-4" /> {t('vanSales.requests.custInbox.approve')}</>}
                 </Button>
               </div>
             </CardContent>

@@ -8,7 +8,8 @@ import {
   Printer, Share2, ReceiptText, CloudOff, Loader2, User, Wallet, Trash2, HandCoins, FileText,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { PendingLink } from '@/components/shared/pending-link';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
@@ -50,7 +51,7 @@ function uuid(): string {
 
 export function SellScreen({
   branchId, customers, products, preselectCustomerId, discountCapPct, canDiscount, offlineEnabled, multiUom = false,
-  collectInSell = false, canCollect = false,
+  collectInSell = false, canCollect = false, smartNext = false,
 }: {
   branchId: string;
   customers: SellCustomer[];
@@ -64,6 +65,8 @@ export function SellScreen({
   collectInSell?: boolean;
   /** Rep holds sales.collect → may enter tenders; otherwise credit-only. */
   canCollect?: boolean;
+  /** Smart Next Customer ON → after a sale, primary CTA is Next Customer. */
+  smartNext?: boolean;
 }) {
   const { t, locale } = useI18n();
   const ar = locale === 'ar';
@@ -599,7 +602,18 @@ export function SellScreen({
               </a>
             </div>
             <Button variant="outline" className="w-full" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.sell.share')}</Button>
-            <Button className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.newSale')}</Button>
+            {smartNext ? (
+              <>
+                {/* Keep the rep moving through the route: Next Customer is primary. */}
+                <PendingLink href="/field/next" pendingLabel={t('common.opening')} className={`w-full ${buttonVariants({ size: 'lg' })}`}>
+                  <ArrowRight className="h-5 w-5 rtl:rotate-180" /> {t('vanSales.sell.nextCustomer')}
+                </PendingLink>
+                {/* Selling again to the same customer stays available, secondary. */}
+                <Button variant="outline" className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.sellAgain')}</Button>
+              </>
+            ) : (
+              <Button className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.newSale')}</Button>
+            )}
           </CardContent>
         </Card>
       )}
