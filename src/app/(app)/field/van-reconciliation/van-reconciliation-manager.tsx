@@ -165,40 +165,60 @@ export function VanReconciliationManager({
             {draft.length === 0 ? (
               <EmptyState title={t('fmcgw1.reconEmpty')} />
             ) : (
-              <div className="overflow-x-auto rounded-md border">
-                <table className="w-full text-sm">
-                  <thead className="border-b bg-secondary/50 text-muted-foreground">
-                    <tr>
-                      <th className="p-3 text-start font-medium">{t('fmcgw1.reconProduct')}</th>
-                      <th className="p-3 text-center font-medium">{t('fmcgw1.reconActualQty')}</th>
-                      <th className="p-3 text-center font-medium">{t('fmcgw1.actions')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {draft.map((d) => (
-                      <tr key={d.productId} className="border-b">
-                        <td className="p-3 font-medium">{d.label}</td>
-                        <td className="p-3 text-center">
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.001"
-                            dir="ltr"
-                            value={d.actualQty}
-                            onChange={(e) => setQty(d.productId, e.target.value)}
-                            className="mx-auto h-8 w-28 text-center"
-                          />
-                        </td>
-                        <td className="p-3 text-center">
-                          <Button variant="ghost" size="icon" onClick={() => removeLine(d.productId)} aria-label={t('fmcgw1.delete')}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </td>
+              <>
+                {/* Mobile (< sm): product · qty input · delete, in a row. */}
+                <div className="space-y-2 sm:hidden">
+                  {draft.map((d) => (
+                    <div key={d.productId} className="flex items-center gap-2 rounded-md border p-2">
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium">{d.label}</span>
+                      <Input
+                        type="number" min={0} step="0.001" dir="ltr"
+                        value={d.actualQty}
+                        onChange={(e) => setQty(d.productId, e.target.value)}
+                        className="h-9 w-24 shrink-0 text-center"
+                      />
+                      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeLine(d.productId)} aria-label={t('fmcgw1.delete')}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop (sm+): table. */}
+                <div className="hidden overflow-x-auto rounded-md border sm:block">
+                  <table className="w-full text-sm">
+                    <thead className="border-b bg-secondary/50 text-muted-foreground">
+                      <tr>
+                        <th className="p-3 text-start font-medium">{t('fmcgw1.reconProduct')}</th>
+                        <th className="p-3 text-center font-medium">{t('fmcgw1.reconActualQty')}</th>
+                        <th className="p-3 text-center font-medium">{t('fmcgw1.actions')}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {draft.map((d) => (
+                        <tr key={d.productId} className="border-b">
+                          <td className="p-3 font-medium">{d.label}</td>
+                          <td className="p-3 text-center">
+                            <Input
+                              type="number"
+                              min={0}
+                              step="0.001"
+                              dir="ltr"
+                              value={d.actualQty}
+                              onChange={(e) => setQty(d.productId, e.target.value)}
+                              className="mx-auto h-8 w-28 text-center"
+                            />
+                          </td>
+                          <td className="p-3 text-center">
+                            <Button variant="ghost" size="icon" onClick={() => removeLine(d.productId)} aria-label={t('fmcgw1.delete')}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
 
             <div className="sticky bottom-2 flex justify-end">
@@ -240,30 +260,47 @@ export function VanReconciliationManager({
                   </div>
 
                   {hl.length > 0 && (
-                    <div className="overflow-x-auto rounded-md border">
-                      <table className="w-full text-sm">
-                        <thead className="border-b bg-secondary/50 text-muted-foreground">
-                          <tr>
-                            <th className="p-2 text-start font-medium">{t('fmcgw1.reconProduct')}</th>
-                            <th className="p-2 text-center font-medium">{t('fmcgw1.reconExpected')}</th>
-                            <th className="p-2 text-center font-medium">{t('fmcgw1.reconActual')}</th>
-                            <th className="p-2 text-center font-medium">{t('fmcgw1.reconVarianceQty')}</th>
-                            <th className="p-2 text-center font-medium">{t('fmcgw1.reconVarianceValue')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {hl.map((l) => (
-                            <tr key={l.id} className="border-b">
-                              <td className="p-2">{l.product_id ? productLabels[l.product_id] ?? '—' : '—'}</td>
-                              <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(l.expected_qty)}</td>
-                              <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(l.actual_qty)}</td>
-                              <td className={`p-2 text-center tabular-nums ${Number(l.variance_qty) !== 0 ? 'text-warning font-medium' : ''}`} dir="ltr">{formatNumber(l.variance_qty)}</td>
-                              <td className={`p-2 text-center tabular-nums ${Number(l.variance_value) !== 0 ? 'text-warning font-medium' : ''}`} dir="ltr">{formatCurrency(l.variance_value)}</td>
+                    <>
+                      {/* Mobile (< sm): one card per line, label↔value rows. */}
+                      <div className="space-y-2 sm:hidden">
+                        {hl.map((l) => (
+                          <div key={l.id} className="space-y-1.5 rounded-md border p-3">
+                            <p className="truncate text-sm font-medium">{l.product_id ? productLabels[l.product_id] ?? '—' : '—'}</p>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm tabular-nums">
+                              <span className="text-muted-foreground">{t('fmcgw1.reconExpected')}</span><span className="text-end" dir="ltr">{formatNumber(l.expected_qty)}</span>
+                              <span className="text-muted-foreground">{t('fmcgw1.reconActual')}</span><span className="text-end" dir="ltr">{formatNumber(l.actual_qty)}</span>
+                              <span className="text-muted-foreground">{t('fmcgw1.reconVarianceQty')}</span><span className={`text-end ${Number(l.variance_qty) !== 0 ? 'font-medium text-warning' : ''}`} dir="ltr">{formatNumber(l.variance_qty)}</span>
+                              <span className="text-muted-foreground">{t('fmcgw1.reconVarianceValue')}</span><span className={`text-end ${Number(l.variance_value) !== 0 ? 'font-medium text-warning' : ''}`} dir="ltr">{formatCurrency(l.variance_value)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Desktop (sm+): table. */}
+                      <div className="hidden overflow-x-auto rounded-md border sm:block">
+                        <table className="w-full text-sm">
+                          <thead className="border-b bg-secondary/50 text-muted-foreground">
+                            <tr>
+                              <th className="p-2 text-start font-medium">{t('fmcgw1.reconProduct')}</th>
+                              <th className="p-2 text-center font-medium">{t('fmcgw1.reconExpected')}</th>
+                              <th className="p-2 text-center font-medium">{t('fmcgw1.reconActual')}</th>
+                              <th className="p-2 text-center font-medium">{t('fmcgw1.reconVarianceQty')}</th>
+                              <th className="p-2 text-center font-medium">{t('fmcgw1.reconVarianceValue')}</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {hl.map((l) => (
+                              <tr key={l.id} className="border-b">
+                                <td className="p-2">{l.product_id ? productLabels[l.product_id] ?? '—' : '—'}</td>
+                                <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(l.expected_qty)}</td>
+                                <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(l.actual_qty)}</td>
+                                <td className={`p-2 text-center tabular-nums ${Number(l.variance_qty) !== 0 ? 'text-warning font-medium' : ''}`} dir="ltr">{formatNumber(l.variance_qty)}</td>
+                                <td className={`p-2 text-center tabular-nums ${Number(l.variance_value) !== 0 ? 'text-warning font-medium' : ''}`} dir="ltr">{formatCurrency(l.variance_value)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>

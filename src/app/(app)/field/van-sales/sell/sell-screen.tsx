@@ -663,7 +663,22 @@ export function SellScreen({
               </div>
             </div>
 
-            <table className="mt-2 w-full text-xs">
+            {/* Mobile (< sm): one row per line — name + (qty × price − disc) = total. */}
+            <div className="mt-2 space-y-1.5 sm:hidden">
+              {confirmLines.map((l) => (
+                <div key={l.key} className="flex items-start justify-between gap-2 border-b pb-1.5 text-xs last:border-0">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{l.name}</p>
+                    <p className="tabular-nums text-muted-foreground" dir="ltr">
+                      {l.qty}{l.uom ? ` ${l.uom}` : ''} × {money(l.unitPrice)}{l.discount > 0 ? ` −${l.discount}%` : ''}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-semibold tabular-nums" dir="ltr">{money(l.lineTotal)}</span>
+                </div>
+              ))}
+            </div>
+            {/* Desktop (sm+): table. */}
+            <table className="mt-2 hidden w-full text-xs sm:table">
               <thead>
                 <tr className="border-b text-muted-foreground">
                   <th className="p-1 text-start font-medium">{t('vanSales.sell.confirm.colSku')}</th>
