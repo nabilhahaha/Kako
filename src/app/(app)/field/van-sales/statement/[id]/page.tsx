@@ -65,6 +65,7 @@ export default async function VanStatementPage({
         returnHref={`/field/van-sales/return?customer=${id}`}
         canCollect={hasPermission(ctx, 'sales.collect') || ctx.isSuperAdmin}
         visit={visit}
+        variant="field"
       />
     </div>
   );

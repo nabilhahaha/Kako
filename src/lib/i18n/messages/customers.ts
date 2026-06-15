@@ -183,6 +183,13 @@ export const ar = {
     stmtReconOk: 'الرصيد مطابق',
     stmtReconWarn: 'فرق تسوية: {delta}',
     stmtNoOpen: 'لا توجد فواتير مفتوحة.',
+    stmtCreditStatus: 'الحالة الائتمانية',
+    stmtCreditGood: 'حالة جيدة',
+    stmtCreditOverdue: 'عليه متأخرات',
+    stmtCreditOverLimit: 'تجاوز حد الائتمان',
+    stmtBalanceLabel: 'الرصيد الحالي',
+    stmtDetailsShow: 'تفاصيل الحساب',
+    stmtDetailsHide: 'إخفاء التفاصيل',
   },
 };
 
@@ -369,5 +376,12 @@ export const en = {
     stmtReconOk: 'Balance reconciled',
     stmtReconWarn: 'Reconciliation delta: {delta}',
     stmtNoOpen: 'No open invoices.',
+    stmtCreditStatus: 'Credit status',
+    stmtCreditGood: 'Good standing',
+    stmtCreditOverdue: 'Overdue',
+    stmtCreditOverLimit: 'Over credit limit',
+    stmtBalanceLabel: 'Current balance',
+    stmtDetailsShow: 'Account details',
+    stmtDetailsHide: 'Hide details',
   },
 };
