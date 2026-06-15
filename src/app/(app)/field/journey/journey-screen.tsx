@@ -105,6 +105,8 @@ export function JourneyScreen({
   // Per-stop pending override: holds the check-in result that requires a reason.
   const [blockedStop, setBlockedStop] = useState<{ stop: JourneyStopRow; result: CheckInResult } | null>(null);
   const [reason, setReason] = useState('');
+  // Route list view: split the stops into Remaining vs Visited (no mixed list).
+  const [routeTab, setRouteTab] = useState<'remaining' | 'visited'>('remaining');
 
   // End-day modal
   const [closeOpen, setCloseOpen] = useState(false);
@@ -216,6 +218,13 @@ export function JourneyScreen({
   const total = data.stops.length;
   const visitedCount = ordered.filter((s) => visited.has(s.customer_id)).length;
   const coverage = total > 0 ? Math.round((visitedCount / total) * 100) : 0;
+
+  // Remaining vs Visited splits (completed = a recorded visit today). The list
+  // shows ONE tab at a time so the rep never scrolls a mixed list; after Complete
+  // Visit the customer re-loads into `visited` and moves here automatically.
+  const remainingStops = useMemo(() => ordered.filter((s) => !visited.has(s.customer_id)), [ordered, visited]);
+  const visitedStops = useMemo(() => ordered.filter((s) => visited.has(s.customer_id)), [ordered, visited]);
+  const shown = routeTab === 'visited' ? visitedStops : remainingStops;
 
   async function getDeviceLocation(): Promise<LatLng | null> {
     if (origin) return origin;
@@ -429,14 +438,34 @@ export function JourneyScreen({
         </p>
       )}
 
+      {/* Remaining / Visited tabs — split the route, no mixed list. */}
+      {ordered.length > 0 && (
+        <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm font-medium">
+          <button type="button" onClick={() => setRouteTab('remaining')}
+            className={`rounded-md py-1.5 transition-colors ${routeTab === 'remaining' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+            {t('fmcg.tabRemaining')} ({remainingStops.length})
+          </button>
+          <button type="button" onClick={() => setRouteTab('visited')}
+            className={`rounded-md py-1.5 transition-colors ${routeTab === 'visited' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+            {t('fmcg.tabVisited')} ({visitedStops.length})
+          </button>
+        </div>
+      )}
+
       {/* Stop list */}
       {ordered.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">{t('fmcg.noStops')}</CardContent>
         </Card>
+      ) : shown.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            {routeTab === 'visited' ? t('fmcg.noVisitedYet') : t('fmcg.allVisited')}
+          </CardContent>
+        </Card>
       ) : (
         <ul className="space-y-3">
-          {ordered.map((stop, idx) => {
+          {shown.map((stop, idx) => {
             const isVisited = visited.has(stop.customer_id);
             const isBlocked = blockedStop?.stop.customer_id === stop.customer_id;
             const pendingVerdict = pendingVisits[stop.customer_id];
