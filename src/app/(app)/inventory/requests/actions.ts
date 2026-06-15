@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireActionPerm } from '@/lib/erp/action-authz';
 import { hasPermission } from '@/lib/erp/permissions';
 import { APPROVAL_LOADREQ } from '@/lib/erp/approval-flags';
 import { logAudit } from '@/lib/erp/audit';
@@ -19,7 +20,9 @@ interface RequestInput {
 /** Rep raises a stock-load request from a source warehouse into a van. */
 export async function createStockRequest(input: RequestInput): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['stock_request.create']);
+  if (denied) return denied;
   const { t } = await getT();
   if (!input.from_warehouse_id || !input.to_warehouse_id)
     return { ok: false, error: t('inventory.errorSelectSourceAndVan') };
@@ -122,8 +125,10 @@ export async function approveStockRequest(id: string): Promise<ActionResult> {
 }
 
 export async function rejectStockRequest(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['stock_request.approve']);
+  if (denied) return denied;
   const supabase = await createClient();
   const { error } = await supabase
     .from('erp_stock_requests')
@@ -136,8 +141,10 @@ export async function rejectStockRequest(id: string): Promise<ActionResult> {
 }
 
 export async function cancelStockRequest(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['stock_request.create', 'stock_request.approve']);
+  if (denied) return denied;
   const supabase = await createClient();
   const { error } = await supabase
     .from('erp_stock_requests')

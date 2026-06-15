@@ -47,6 +47,7 @@ export type Permission =
   | 'customer.transfer' // reassign customer ownership (route/salesman/branch)
   | 'customer.edit' // edit customer master data
   | 'product.create' // create a new product
+  | 'product.edit' // edit an existing product (master data)
   | 'product.import' // bulk-import products
   | 'stock.view' // view van/warehouse stock balances
   | 'stock.adjust' // adjust stock (van/warehouse)
@@ -140,6 +141,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'customer.transfer': { en: 'Transfer customer ownership', ar: 'نقل ملكية العملاء', group: 'sales' },
   'customer.edit': { en: 'Edit customers', ar: 'تعديل العملاء', group: 'sales' },
   'product.create': { en: 'Create products', ar: 'إنشاء منتجات', group: 'inventory' },
+  'product.edit': { en: 'Edit products', ar: 'تعديل المنتجات', group: 'inventory' },
   'product.import': { en: 'Import products', ar: 'استيراد المنتجات', group: 'inventory' },
   'stock.view': { en: 'View stock', ar: 'عرض المخزون', group: 'inventory' },
   'stock.adjust': { en: 'Adjust stock', ar: 'تسوية المخزون', group: 'inventory' },

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireActionPerm } from '@/lib/erp/action-authz';
 import { hasPermission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
 
@@ -12,7 +13,9 @@ import { getT } from '@/lib/i18n/server';
  */
 export async function createStockCount(warehouseId: string): Promise<ActionResult<{ id: string }>> {
   const { ctx, error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['inventory.count']);
+  if (denied) return denied;
   const { t } = await getT();
   if (!warehouseId) return { ok: false, error: t('inventory.errorSelectWarehouse') };
 
@@ -66,8 +69,10 @@ export async function saveStockCount(
   countId: string,
   lines: Array<{ id: string; counted_qty: number }>,
 ): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['inventory.count']);
+  if (denied) return denied;
 
   const supabase = await createClient();
   for (const l of lines) {
@@ -106,8 +111,10 @@ export async function finalizeStockCount(
 }
 
 export async function cancelStockCount(countId: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['inventory.count']);
+  if (denied) return denied;
   const supabase = await createClient();
   const { error } = await supabase
     .from('erp_stock_counts')

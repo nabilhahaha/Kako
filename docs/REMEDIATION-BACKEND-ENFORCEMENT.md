@@ -159,11 +159,16 @@ L (1–2d), per item, including ar/en parity + tests.
 
 ---
 
-## F. Client-hidden action paths — server-action enforcement (PLAN)
+## F. Client-hidden action paths — server-action enforcement (IMPLEMENTED)
 
-> **STATUS: PLAN ONLY — not implemented.** Same approach as D: staging-only,
-> feature-flagged (`platform.action_authz_enforcement`, default OFF, pilot only),
-> reversible, evidence-based, with an allow/deny validation. No rollout until reviewed.
+> **STATUS: IMPLEMENTED & VALIDATED on staging.** Flag `platform.action_authz_enforcement`
+> (default OFF; enabled for the pilot only). A flag-gated `requireActionPerm(ctx, caps[])`
+> guard (`action-authz.ts`, pure core in `action-authz-core.ts`) was added to the 12 mutating
+> actions below; it no-ops when the flag is OFF and otherwise requires any listed capability
+> (apex bypass; reuses alias-aware `can()`). New `product.edit` permission added (migration 0315
+> + pilot grant to admin/manager). Validated: `action-authz.test.ts` (7 allow/deny unit tests) +
+> the role×action matrix in `supabase/pilot/validate-action-authz.sql`. `tsc`/1406 unit tests/
+> build all green. Reversible by toggling the flag; no app behaviour change while OFF.
 
 ### F.0 Evidence (read from the action sources)
 

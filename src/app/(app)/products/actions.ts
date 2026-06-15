@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireActionPerm } from '@/lib/erp/action-authz';
 import { hasPermission } from '@/lib/erp/permissions';
 import { logAudit } from '@/lib/erp/audit';
 import { APPROVAL_PRICE_CHANGE_WF } from '@/lib/erp/approval-flags';
@@ -70,8 +71,10 @@ function num(v: FormDataEntryValue | null): number {
 export async function addDrugsToProducts(
   items: { name: string; name_ar?: string | null; detail?: string | null; price?: number | null }[],
 ): Promise<ActionResult & { count?: number }> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['product.import']);
+  if (denied) return denied;
   const { t } = await getT();
   if (!items?.length) return { ok: false, error: t('products.errorNoItems') };
 
@@ -99,6 +102,9 @@ export async function upsertProduct(formData: FormData): Promise<ActionResult> {
   const { t } = await getT();
 
   const id = String(formData.get('id') || '').trim();
+  // F: gate the write itself — create vs edit are distinct permissions.
+  const denied = await requireActionPerm(ctx, id ? ['product.edit'] : ['product.create']);
+  if (denied) return denied;
   let code = String(formData.get('code') || '').trim();
   const name = String(formData.get('name') || '').trim();
   if (!name) return { ok: false, error: t('products.errorNameRequired') };
@@ -182,8 +188,10 @@ export async function toggleProductActive(
   id: string,
   isActive: boolean,
 ): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['product.edit']);
+  if (denied) return denied;
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -196,8 +204,10 @@ export async function toggleProductActive(
 }
 
 export async function createCategory(formData: FormData): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['product.create']);
+  if (denied) return denied;
   const { t } = await getT();
 
   const code = String(formData.get('code') || '').trim();

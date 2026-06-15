@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, can, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireActionPerm } from '@/lib/erp/action-authz';
 import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
 import { validateCustomValues } from '@/lib/erp/form-schema';
 import { coerceCustomValue } from '@/lib/erp/custom-fields';
@@ -79,6 +80,10 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   const { t } = await getT();
 
   const id = String(formData.get('id') || '').trim();
+  // F: direct create requires customer.create (reps without it use the governed
+  // customer-request flow); edit requires customers.manage OR customer.edit.
+  const denied = await requireActionPerm(ctx, id ? ['customers.manage', 'customer.edit'] : ['customer.create']);
+  if (denied) return denied;
   const code = String(formData.get('code') || '').trim();
   const name = String(formData.get('name') || '').trim();
   if (!code) return { ok: false, error: t('customers.errCodeRequired') };
@@ -281,8 +286,10 @@ export async function importCustomers(
   branchId: string | null,
   salesmanId: string | null,
 ): Promise<ActionResult<{ count: number }>> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['customer.import']);
+  if (denied) return denied;
 
   const clean = rows
     .map((r) => ({
@@ -319,6 +326,8 @@ export async function setCustomerJourney(
 ): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['journey.create']);
+  if (denied) return denied;
   const { t } = await getT();
   const supabase = await createClient();
   // Approval gate: don't assign a rep/route to a non-approved customer.
@@ -545,6 +554,8 @@ export async function toggleCustomerActive(
 ): Promise<ActionResult> {
   const { ctx, error: authErr } = await requireAuth();
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const denied = await requireActionPerm(ctx, ['customers.change_status']);
+  if (denied) return denied;
 
   const supabase = await createClient();
   const { error } = await supabase

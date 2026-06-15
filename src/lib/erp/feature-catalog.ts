@@ -243,6 +243,15 @@ export const FEATURES: FeatureDef[] = [
   P('platform.rpc_authz_enforcement', 'governance', [], {
     logic: ['erp_guard_rpc', 'erp_rpc_authz_enabled'],
   }),
+  // Server-action permission enforcement (Security — Backend-Enforcement Phase F):
+  // defense-in-depth permission checks inside mutating server actions that
+  // previously relied on UI hiding + RLS (inventory transfers/counts, stock
+  // requests, product create/edit/category, customer create/edit/import/journey/
+  // status). Default OFF — when ON for a tenant, each action also verifies the
+  // caller's permission server-side. Reversible by toggling the flag; no schema.
+  P('platform.action_authz_enforcement', 'governance', [], {
+    logic: ['requireActionPerm', 'actionAuthzEnforced'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),
