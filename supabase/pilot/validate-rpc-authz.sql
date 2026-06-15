@@ -49,6 +49,9 @@ begin
       v_perms := array(select jsonb_array_elements_text(rc->'p'));
       select exists(select 1 from erp_company_role_permissions
                     where company_id=pilot and role_key=v_user.role and permission = any(v_perms)) into v_expected;
+      -- Each assertion simulates an independent (entry-point) RPC call: reset the
+      -- transaction-local guard marker so every call enforces (real calls are 1/txn).
+      perform set_config('kako.rpc_guarded', '', true);
       begin
         perform erp_guard_rpc(variadic v_perms);
         v_actual := true;                       -- allowed
