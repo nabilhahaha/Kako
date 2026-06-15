@@ -30,7 +30,7 @@ export default async function ReopenApprovalsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <BackLink href="/field/van-sales" label={t('vanSales.sell.back')} />
+      <BackLink href="/field/van-sales" home="/dashboard" label={t('vanSales.sell.back')} />
       <PageHeader title={t('vanSales.reopen.approvals.title')} description={t('vanSales.reopen.approvals.subtitle')} />
       <ReopenApprovalList requests={requests} />
     </div>

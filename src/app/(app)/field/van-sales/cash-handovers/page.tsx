@@ -27,7 +27,7 @@ export default async function CashHandoversPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <BackLink href="/field/van-sales" label={t('vanSales.sell.back')} />
+      <BackLink href="/field/van-sales" home="/dashboard" label={t('vanSales.sell.back')} />
       <PageHeader title={t('vanSales.requests.confirm.title')} description={t('vanSales.requests.confirm.subtitle')} />
       <CashHandoverList requests={requests} />
     </div>

@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { SurveyForm, type ExecSurvey } from './survey-form';
@@ -27,6 +28,7 @@ export default async function FieldSurveyPage({ params }: { params: Promise<{ cu
 
   return (
     <div className="space-y-6">
+      <BackLink href="/field/journey" home="/today" label={t('common.back')} />
       <PageHeader title={t('retail.survey.execTitle')} description={customerName} />
       {(surveys as unknown[]).length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">{t('retail.survey.noActive')}</CardContent></Card>

@@ -3,6 +3,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { MOBILE_ENABLED } from '@/lib/offline-sync';
@@ -59,13 +60,16 @@ export default async function FieldJourneyPage({ searchParams }: { searchParams:
   const visitDriven = visitDrivenRouteEnabled(flags) && (await isVanSalesActive(supabase, ctx));
 
   return (
-    <JourneyScreen
-      data={result.data}
-      canOverrideGps={hasPermission(ctx, 'visit.override_gps')}
-      offlineEnabled={MOBILE_ENABLED()}
-      canAttachMedia={hasPermission(ctx, 'field.attach_media')}
-      visitDriven={visitDriven}
-      autoEndDay={endday === '1'}
-    />
+    <div className="space-y-4">
+      <BackLink href="/today" label={t('common.back')} />
+      <JourneyScreen
+        data={result.data}
+        canOverrideGps={hasPermission(ctx, 'visit.override_gps')}
+        offlineEnabled={MOBILE_ENABLED()}
+        canAttachMedia={hasPermission(ctx, 'field.attach_media')}
+        visitDriven={visitDriven}
+        autoEndDay={endday === '1'}
+      />
+    </div>
   );
 }

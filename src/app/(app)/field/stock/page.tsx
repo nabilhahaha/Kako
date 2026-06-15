@@ -6,6 +6,7 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { EmptyState } from '@/components/shared/empty-state';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { createClient } from '@/lib/supabase/server';
@@ -61,6 +62,7 @@ export default async function StockVisibilityPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink href="/today" label={t('common.back')} />
       <PageHeader title={t('vanops.stockTitle')} description={t('vanops.stockSubtitle')} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

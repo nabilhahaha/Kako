@@ -23,7 +23,7 @@ export async function DayClosedGate({ title }: { title: string }) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <BackLink href="/field/van-sales" label={t('vanSales.sell.back')} />
+      <BackLink href="/today" home="/today" label={t('vanSales.sell.back')} />
       <PageHeader title={title} />
       <Card>
         <CardContent className="flex flex-col items-center gap-3 p-8 text-center">

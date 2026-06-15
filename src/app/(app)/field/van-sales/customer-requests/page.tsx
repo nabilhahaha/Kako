@@ -28,7 +28,7 @@ export default async function CustomerRequestsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <BackLink href="/field/van-sales" label={t('vanSales.sell.back')} />
+      <BackLink href="/field/van-sales" home="/dashboard" label={t('vanSales.sell.back')} />
       <PageHeader title={t('vanSales.requests.custInbox.title')} description={t('vanSales.requests.custInbox.subtitle')} />
       <CustomerRequestList requests={requests} />
     </div>

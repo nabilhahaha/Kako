@@ -5,6 +5,7 @@ import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { gatherPilotReadiness } from '@/lib/van-sales/pilot-readiness-server';
@@ -34,6 +35,7 @@ export default async function VanSalesReadinessPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      <BackLink href="/field/van-sales" home="/dashboard" label={t('common.back')} />
       <PageHeader title={t('vanSales.readiness.title')} description={t('vanSales.readiness.subtitle')} />
 
       {/* Summary banner */}

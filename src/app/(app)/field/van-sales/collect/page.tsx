@@ -9,6 +9,7 @@ import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { CollectScreen, type CollectCustomer } from './collect-screen';
 import { isVanDayOpen } from '@/lib/van-sales/day-server';
 import { DayClosedGate } from '../day-gate';
+import { BackLink } from '@/components/shared/back-link';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,7 @@ export default async function VanCollectPage({ searchParams }: { searchParams: P
 
   return (
     <div className="space-y-6">
+      <BackLink href="/today" label={t('common.back')} />
       <PageHeader title={t('vanSales.collect.title')} description={t('vanSales.collect.subtitle')} />
       <CollectScreen
         branchId={van.branch_id}

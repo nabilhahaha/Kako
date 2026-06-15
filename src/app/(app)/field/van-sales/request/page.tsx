@@ -4,6 +4,7 @@ import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { StockRequestForm, type WarehouseOpt, type ProductOpt } from './request-form';
@@ -32,6 +33,7 @@ export default async function VanSalesRequestPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink href="/field/van-sales/requests" home="/today" label={t('common.back')} />
       <PageHeader title={t('vanSales.request.title')} description={t('vanSales.request.subtitle')} />
       {!van ? (
         <Card><CardContent className="pt-6 text-sm text-muted-foreground">{t('vanSales.request.noVan')}</CardContent></Card>

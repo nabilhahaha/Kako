@@ -9,6 +9,7 @@ import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { ReturnScreen, type ReturnCustomer, type ReturnReason } from './return-screen';
 import { isVanDayOpen } from '@/lib/van-sales/day-server';
 import { DayClosedGate } from '../day-gate';
+import { BackLink } from '@/components/shared/back-link';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,7 @@ export default async function VanReturnPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="space-y-6">
+      <BackLink href="/today" label={t('common.back')} />
       <PageHeader title={t('vanSales.return.title')} description={t('vanSales.return.subtitle')} />
       <ReturnScreen
         branchId={van.branch_id}

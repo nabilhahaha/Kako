@@ -52,7 +52,7 @@ export default async function VanStatementPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-10">
-      <BackLink href={visit ? '/field/journey' : '/field/van-sales'} label={visit ? t('vanSales.visit.backToRoute') : t('vanSales.sell.back')} />
+      <BackLink href={visit ? '/field/journey' : '/field/van-sales'} home="/today" label={visit ? t('vanSales.visit.backToRoute') : t('vanSales.sell.back')} />
       <PageHeader
         title={t('customers.stmtTitle', { name: res.customer.name_ar || res.customer.name })}
         description={res.customer.code}

@@ -4,6 +4,7 @@ import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { ConfirmForm, type ConfirmLineView } from './confirm-form';
@@ -57,6 +58,7 @@ export default async function VanSalesConfirmPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink href="/today" label={t('common.back')} />
       <PageHeader title={t('vanSales.confirm.title')} description={t('vanSales.confirm.subtitle')} />
       {!manifest || lines.length === 0 ? (
         <Card><CardContent className="pt-6 text-sm text-muted-foreground">{t('vanSales.confirm.noPending')}</CardContent></Card>

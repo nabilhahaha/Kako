@@ -14,6 +14,7 @@ import { isVanDayOpen } from '@/lib/van-sales/day-server';
 import { loadProductUnitsMany } from '@/lib/erp/uom-server';
 import { SellScreen, type SellCustomer, type SellProduct } from './sell-screen';
 import { DayClosedGate } from '../day-gate';
+import { BackLink } from '@/components/shared/back-link';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,6 +137,7 @@ export default async function VanSellPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-6">
+      <BackLink href="/today" label={t('common.back')} />
       <PageHeader title={t('vanSales.sell.title')} description={t('vanSales.sell.subtitle')} />
       <SellScreen
         branchId={van.branch_id}

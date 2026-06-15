@@ -29,7 +29,7 @@ export default async function VanCustomersPage() {
   if (!picker) {
     return (
       <div className="mx-auto max-w-2xl space-y-4">
-        <BackLink href="/field/van-sales" label={t('vanSales.sell.back')} />
+        <BackLink href="/field/van-sales" home="/today" label={t('vanSales.sell.back')} />
         <PageHeader title={t('vanSales.steps.customer')} description={t('vanSales.pickerSubtitle')} />
         <Card><CardContent className="pt-6 text-sm text-muted-foreground">{t('vanSales.sell.noVan')}</CardContent></Card>
       </div>
@@ -38,7 +38,7 @@ export default async function VanCustomersPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <BackLink href="/field/van-sales" label={t('vanSales.sell.back')} />
+      <BackLink href="/field/van-sales" home="/today" label={t('vanSales.sell.back')} />
       <PageHeader title={t('vanSales.steps.customer')} description={t('vanSales.pickerSubtitle')} />
       <CustomerPicker customers={picker.customers} />
     </div>

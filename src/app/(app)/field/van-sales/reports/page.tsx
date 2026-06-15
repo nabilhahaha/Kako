@@ -4,6 +4,7 @@ import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { loadVanReports } from '@/lib/van-sales/reports-server';
@@ -27,6 +28,7 @@ export default async function VanSalesReportsPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink href="/field/van-sales" home="/today" label={t('common.back')} />
       <PageHeader title={t('vanSales.reports.title')} description={t('vanSales.reports.subtitle')} />
 
       {/* Overall service level */}
