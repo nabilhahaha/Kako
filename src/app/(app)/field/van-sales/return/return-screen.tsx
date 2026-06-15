@@ -155,12 +155,14 @@ export function ReturnScreen({
               </a>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <a href={`/sales/returns/${done.id}/print`} target="_blank" rel="noreferrer">
-              <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.return.print')}</Button>
-            </a>
-            <Button variant="outline" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.return.share')}</Button>
-            <Button onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.return.newReturn')}</Button>
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <a href={`/sales/returns/${done.id}/print`} target="_blank" rel="noreferrer" className="block">
+                <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.return.print')}</Button>
+              </a>
+              <Button variant="outline" className="w-full" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.return.share')}</Button>
+            </div>
+            <Button className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.return.newReturn')}</Button>
           </div>
           <Button variant="ghost" className="w-full" onClick={() => router.push('/field/van-sales')}>{t('vanSales.return.back')}</Button>
         </CardContent>

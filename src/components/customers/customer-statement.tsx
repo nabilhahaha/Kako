@@ -154,11 +154,12 @@ export function CustomerStatementView({
     <Card>
       <CardContent className="p-3">
         <p className="mb-2 text-xs font-medium text-muted-foreground">{t('customers.stmtAgingTitle')}</p>
-        <div className="grid grid-cols-5 gap-2 text-center">
+        {/* 3 per row on phones (5 buckets won't fit at 390px), 5 on sm+. */}
+        <div className="grid grid-cols-3 gap-2 text-center sm:grid-cols-5">
           {AGING_BUCKETS.map((b) => (
-            <div key={b} className={`rounded-md border p-2 ${b !== 'current' && aging[b] > 0 ? 'border-warning/40 bg-warning/5' : ''}`}>
-              <div className="text-[11px] text-muted-foreground">{t(BUCKET_LABEL[b])}</div>
-              <div className="text-sm font-bold tabular-nums" dir="ltr">{money(aging[b])}</div>
+            <div key={b} className={`min-w-0 rounded-md border p-2 ${b !== 'current' && aging[b] > 0 ? 'border-warning/40 bg-warning/5' : ''}`}>
+              <div className="truncate text-[11px] text-muted-foreground">{t(BUCKET_LABEL[b])}</div>
+              <div className="truncate text-sm font-bold tabular-nums" dir="ltr">{money(aging[b])}</div>
             </div>
           ))}
         </div>
@@ -173,34 +174,52 @@ export function CustomerStatementView({
         {openInvoices.length === 0 ? (
           <p className="p-4 text-center text-sm text-muted-foreground">{t('customers.stmtNoOpen')}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b bg-secondary/40 text-muted-foreground">
-                <tr>
-                  <th className="p-2 text-start font-medium">{t('customers.stmtColInvoice')}</th>
-                  <th className="p-2 text-start font-medium">{t('customers.stmtColDate')}</th>
-                  <th className="p-2 text-end font-medium">{t('customers.stmtColOutstanding')}</th>
-                  <th className="p-2 text-center font-medium">{t('customers.stmtColDays')}</th>
-                  <th className="p-2 text-center font-medium">{t('customers.stmtColStatus')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {openInvoices.map((o) => (
-                  <tr key={o.id} className="border-b last:border-0">
-                    <td className="p-2 font-mono text-xs" dir="ltr">{o.invoiceNumber}</td>
-                    <td className="p-2 text-muted-foreground">{formatDate(o.date, intl)}</td>
-                    <td className="p-2 text-end tabular-nums" dir="ltr">{money(o.outstanding)}</td>
-                    <td className="p-2 text-center tabular-nums" dir="ltr">{o.daysOverdue > 0 ? o.daysOverdue : '—'}</td>
-                    <td className="p-2 text-center">
-                      <Badge variant="secondary">
-                        {INVOICE_STATUS_LABELS[o.status as InvoiceStatus]?.[locale] ?? o.status}
-                      </Badge>
-                    </td>
+          <>
+            {/* Mobile (< sm): stacked cards — invoice number wraps safely. */}
+            <ul className="divide-y sm:hidden">
+              {openInvoices.map((o) => (
+                <li key={o.id} className="space-y-1 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="min-w-0 break-all font-mono text-xs" dir="ltr">{o.invoiceNumber}</span>
+                    <Badge variant="secondary" className="shrink-0">{INVOICE_STATUS_LABELS[o.status as InvoiceStatus]?.[locale] ?? o.status}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">{formatDate(o.date, intl)}{o.daysOverdue > 0 ? ` · ${o.daysOverdue}${locale === 'ar' ? 'ي' : 'd'}` : ''}</span>
+                    <span className="font-semibold tabular-nums" dir="ltr">{money(o.outstanding)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {/* Desktop (sm+): full table. */}
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="w-full text-sm">
+                <thead className="border-b bg-secondary/40 text-muted-foreground">
+                  <tr>
+                    <th className="p-2 text-start font-medium">{t('customers.stmtColInvoice')}</th>
+                    <th className="p-2 text-start font-medium">{t('customers.stmtColDate')}</th>
+                    <th className="p-2 text-end font-medium">{t('customers.stmtColOutstanding')}</th>
+                    <th className="p-2 text-center font-medium">{t('customers.stmtColDays')}</th>
+                    <th className="p-2 text-center font-medium">{t('customers.stmtColStatus')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {openInvoices.map((o) => (
+                    <tr key={o.id} className="border-b last:border-0">
+                      <td className="break-all p-2 font-mono text-xs" dir="ltr">{o.invoiceNumber}</td>
+                      <td className="p-2 text-muted-foreground">{formatDate(o.date, intl)}</td>
+                      <td className="p-2 text-end tabular-nums" dir="ltr">{money(o.outstanding)}</td>
+                      <td className="p-2 text-center tabular-nums" dir="ltr">{o.daysOverdue > 0 ? o.daysOverdue : '—'}</td>
+                      <td className="p-2 text-center">
+                        <Badge variant="secondary">
+                          {INVOICE_STATUS_LABELS[o.status as InvoiceStatus]?.[locale] ?? o.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

@@ -124,13 +124,17 @@ export function CollectScreen({
               {done.unapplied > 0 && <> · {t('vanSales.collect.onAccount')} {money(done.unapplied)}</>}
             </div>
           </div>
-          {/* Transaction completed → Print / Share / Continue (never auto-print) */}
-          <div className="grid grid-cols-3 gap-2">
-            <a href={`/print/collection/${done.id}`} target="_blank" rel="noreferrer">
-              <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.collect.print')}</Button>
-            </a>
-            <Button variant="outline" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.collect.share')}</Button>
-            <Button onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.collect.newCollection')}</Button>
+          {/* Transaction completed → Print / Share / Continue (never auto-print).
+              Print+Share share a row; the longer "New" action is full-width below
+              so nothing is cramped at phone widths. */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <a href={`/print/collection/${done.id}`} target="_blank" rel="noreferrer" className="block">
+                <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.collect.print')}</Button>
+              </a>
+              <Button variant="outline" className="w-full" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.collect.share')}</Button>
+            </div>
+            <Button className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.collect.newCollection')}</Button>
           </div>
           <Button variant="ghost" className="w-full" onClick={() => router.push('/field/van-sales')}>{t('vanSales.collect.back')}</Button>
         </CardContent>

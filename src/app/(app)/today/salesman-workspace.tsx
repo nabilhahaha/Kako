@@ -212,7 +212,7 @@ async function KpiSection({ ctx }: { ctx: UserContext }) {
   return (
     <section className="space-y-2 pt-2">
       <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('vanSales.myDayTitle')}</h2>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <StatCard label={t('vanSales.kpi.planned')} value={String(planned)} icon={Users} tone="info" />
         <StatCard label={t('vanSales.kpi.visited')} value={String(visited)} icon={CheckCircle2} tone="success" />
         <StatCard label={t('vanSales.kpi.remaining')} value={String(remaining)} icon={Clock} tone={remaining > 0 ? 'warning' : 'success'} />
@@ -236,7 +236,7 @@ function SectionSkeleton({ lines = 3 }: { lines?: number }) {
 
 function KpiSkeleton() {
   return (
-    <div className="grid grid-cols-3 gap-2 pt-2">
+    <div className="grid grid-cols-2 gap-2 pt-2 sm:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="h-16 animate-pulse rounded-lg border bg-secondary/30" />
       ))}

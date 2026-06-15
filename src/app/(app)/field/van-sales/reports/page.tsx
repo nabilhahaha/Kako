@@ -42,7 +42,22 @@ export default async function VanSalesReportsPage() {
         <Card><CardContent className="pt-6 text-sm text-muted-foreground">{t('vanSales.reports.none')}</CardContent></Card>
       ) : (
         <Card><CardContent className="pt-6">
-          <table className="w-full text-sm">
+          {/* Mobile (< sm): stacked cards. */}
+          <ul className="divide-y sm:hidden">
+            {reports.map((r) => (
+              <li key={r.confirmationId} className="space-y-1.5 py-3 first:pt-0">
+                <p className="break-all font-mono text-xs" dir="ltr">{r.manifestNumber ?? r.confirmationId.slice(0, 8)}</p>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm tabular-nums">
+                  <span className="text-muted-foreground">{t('vanSales.reports.requested')}</span><span className="text-end" dir="ltr">{r.service.requestedTotal}</span>
+                  <span className="text-muted-foreground">{t('vanSales.reports.approved')}</span><span className="text-end" dir="ltr">{r.service.approvedTotal}</span>
+                  <span className="text-muted-foreground">{t('vanSales.reports.received')}</span><span className="text-end" dir="ltr">{r.service.receivedTotal}</span>
+                  <span className="text-muted-foreground">{t('vanSales.reports.variance')}</span><span className="text-end font-semibold" dir="ltr">{r.service.netVariance}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {/* Desktop (sm+): table. */}
+          <table className="hidden w-full text-sm sm:table">
             <thead>
               <tr className="border-b border-border text-start text-xs text-muted-foreground">
                 <th className="py-2 text-start font-medium">{t('vanSales.reports.manifest')}</th>

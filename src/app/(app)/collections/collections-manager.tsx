@@ -127,7 +127,23 @@ export function CollectionsManager({
         <Card><CardContent className="p-8 text-center text-muted-foreground">{t('sales.collectionsNone')}</CardContent></Card>
       ) : (
         <Card><CardContent className="p-0">
-          <table className="w-full text-sm">
+          {/* Mobile (< sm): stacked cards. */}
+          <ul className="divide-y sm:hidden">
+            {customers.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 p-3">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{nm(c)}</div>
+                  <div className="truncate text-xs text-muted-foreground">{c.code} · {invoicesByCustomer.get(c.id)?.length ?? 0} {t('sales.collectionsColOpen')}</div>
+                  <div className="text-sm font-semibold tabular-nums" dir="ltr">{formatCurrency(Number(c.balance))}</div>
+                </div>
+                <Button size="sm" variant="outline" className="shrink-0" onClick={() => openFor(c)}>
+                  <Wallet className="me-1 h-4 w-4" />{t('sales.collectionsRecord')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+          {/* Desktop (sm+): table. */}
+          <table className="hidden w-full text-sm sm:table">
             <thead className="border-b bg-muted/40 text-start">
               <tr>
                 <th className="p-3 text-start">{t('sales.collectionsColCustomer')}</th>
@@ -160,24 +176,37 @@ export function CollectionsManager({
           <div className="font-semibold">{nm(sel)} — {formatCurrency(Number(sel.balance))}</div>
 
           {selInvoices.length > 0 && (
-            <table className="w-full text-sm">
-              <thead className="border-b text-muted-foreground">
-                <tr>
-                  <th className="p-2 text-start">{t('sales.collectionsColInvoice')}</th>
-                  <th className="p-2 text-start">{t('sales.collectionsColDue')}</th>
-                  <th className="p-2 text-end">{t('sales.collectionsColOutstanding')}</th>
-                </tr>
-              </thead>
-              <tbody>
+            <>
+              {/* Mobile (< sm): stacked rows. */}
+              <ul className="divide-y sm:hidden">
                 {selInvoices.map((inv) => (
-                  <tr key={inv.id} className="border-b last:border-0">
-                    <td className="p-2">{inv.invoice_number}</td>
-                    <td className="p-2">{inv.due_date ? formatDate(inv.due_date) : '—'}</td>
-                    <td className="p-2 text-end">{formatCurrency(outstanding(inv))}</td>
-                  </tr>
+                  <li key={inv.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                    <span className="min-w-0 break-all font-mono text-xs" dir="ltr">{inv.invoice_number}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{inv.due_date ? formatDate(inv.due_date) : '—'}</span>
+                    <span className="shrink-0 font-semibold tabular-nums" dir="ltr">{formatCurrency(outstanding(inv))}</span>
+                  </li>
                 ))}
-              </tbody>
-            </table>
+              </ul>
+              {/* Desktop (sm+): table. */}
+              <table className="hidden w-full text-sm sm:table">
+                <thead className="border-b text-muted-foreground">
+                  <tr>
+                    <th className="p-2 text-start">{t('sales.collectionsColInvoice')}</th>
+                    <th className="p-2 text-start">{t('sales.collectionsColDue')}</th>
+                    <th className="p-2 text-end">{t('sales.collectionsColOutstanding')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selInvoices.map((inv) => (
+                    <tr key={inv.id} className="border-b last:border-0">
+                      <td className="p-2">{inv.invoice_number}</td>
+                      <td className="p-2">{inv.due_date ? formatDate(inv.due_date) : '—'}</td>
+                      <td className="p-2 text-end">{formatCurrency(outstanding(inv))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
 
           <div className="flex flex-wrap items-end gap-3">
