@@ -532,8 +532,8 @@ export function JourneyScreen({
                       </div>
                     </div>
 
-                    {/* Visit-driven route: open the customer visit context (check-in
-                        happens implicitly when not yet visited). */}
+                    {/* Visit-driven route: ONE action — Start Visit runs the GPS
+                        check-in automatically then opens the customer context. */}
                     {visitDriven && !isBlocked && (
                       <Button
                         className="mt-3 w-full"
@@ -542,37 +542,31 @@ export function JourneyScreen({
                       >
                         {busyId === stop.customer_id
                           ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('fmcg.checkingIn')}</>
-                          : <>{isVisited ? <CheckCircle2 className="h-4 w-4" /> : <MapPin className="h-4 w-4" />} {t('vanSales.visit.openVisit')} <ChevronRight className="h-4 w-4 rtl:rotate-180" /></>}
+                          : <>{isVisited ? <CheckCircle2 className="h-4 w-4" /> : <MapPin className="h-4 w-4" />} {t(isVisited ? 'vanSales.visit.openVisit' : 'vanSales.visit.startVisit')} <ChevronRight className="h-4 w-4 rtl:rotate-180" /></>}
                       </Button>
                     )}
 
-                    {/* Primary action: Check in (compliance-only; secondary when visit-driven) */}
-                    {!isBlocked ? (
+                    {/* Compliance-only Check in — only in the legacy (non-visit-driven)
+                        flow, where there's no visit context to open. */}
+                    {!visitDriven && !isBlocked && (
                       <Button
                         className="mt-3 w-full"
-                        variant={visitDriven ? 'outline' : 'default'}
                         disabled={busyId === stop.customer_id || isVisited || (isPending && pendingVerdict !== 'exception')}
                         onClick={() => doCheckIn(stop)}
                       >
                         {busyId === stop.customer_id ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" /> {t('fmcg.checkingIn')}
-                          </>
+                          <><Loader2 className="h-4 w-4 animate-spin" /> {t('fmcg.checkingIn')}</>
                         ) : isVisited ? (
-                          <>
-                            <CheckCircle2 className="h-4 w-4" /> {t('fmcg.checkedIn')}
-                          </>
+                          <><CheckCircle2 className="h-4 w-4" /> {t('fmcg.checkedIn')}</>
                         ) : isPending && pendingVerdict !== 'exception' ? (
-                          <>
-                            <CloudOff className="h-4 w-4" /> {t('fmcg.queuedLabel')}
-                          </>
+                          <><CloudOff className="h-4 w-4" /> {t('fmcg.queuedLabel')}</>
                         ) : (
-                          <>
-                            <MapPin className="h-4 w-4" /> {t('fmcg.checkIn')}
-                          </>
+                          <><MapPin className="h-4 w-4" /> {t('fmcg.checkIn')}</>
                         )}
                       </Button>
-                    ) : (
+                    )}
+
+                    {isBlocked && (
                       <div className="mt-3 rounded-md border border-warning/40 bg-warning/5 p-3">
                         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-warning">
                           <ShieldAlert className="h-4 w-4" />

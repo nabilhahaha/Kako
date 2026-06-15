@@ -127,7 +127,8 @@ export const ar = {
       offline: 'قائمة المزامنة',
     },
     visit: {
-      openVisit: 'بدء الزيارة',
+      openVisit: 'فتح الزيارة',
+      startVisit: 'ابدأ الزيارة',
       stop: 'محطة {n} من {total}',
       next: 'التالي: {name}',
       completeVisit: 'إنهاء الزيارة',
@@ -600,7 +601,8 @@ export const en = {
       offline: 'Sync queue',
     },
     visit: {
-      openVisit: 'Start visit',
+      openVisit: 'Open visit',
+      startVisit: 'Start visit',
       stop: 'Stop {n} of {total}',
       next: 'Next: {name}',
       completeVisit: 'Complete Visit',
