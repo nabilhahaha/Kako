@@ -159,32 +159,128 @@ L (1–2d), per item, including ar/en parity + tests.
 
 ---
 
-## F. Hidden-UI-only action paths (client-hidden buttons)
+## F. Client-hidden action paths — server-action enforcement (PLAN)
 
-1. **Finding:** Screens render action **buttons** conditionally by permission (e.g.
-   `/inventory/requests` approve, `/products` create, `/customers` actions, `/inventory` adjust).
-   Hiding the button is not enforcement — the underlying **server action / RPC** must re-check.
-2. **Risk:** MEDIUM (a crafted request could invoke the action even with the button hidden).
-3. **Affected roles:** any role that can reach the page but not the action.
-4. **Current enforcement:** button hidden client-side; server action enforcement **varies** (some
-   call `hasPermission`, some delegate to an RPC that may/may not check — see Section D).
-5. **Proposed enforcement:** audit each conditionally-rendered action's server action; ensure it
-   calls `hasPermission(ctx, <perm>)` (or `requireModule`/RPC guard) before mutating. Add a
-   lightweight test convention: every exported server action asserts a permission.
-6. **Regression risk:** LOW (adds a check that mirrors the already-hidden button).
-7. **Effort:** M (inventory + products + customers + stock-request actions are the priority set).
+> **STATUS: PLAN ONLY — not implemented.** Same approach as D: staging-only,
+> feature-flagged (`platform.action_authz_enforcement`, default OFF, pilot only),
+> reversible, evidence-based, with an allow/deny validation. No rollout until reviewed.
+
+### F.0 Evidence (read from the action sources)
+
+Each row is an exported server action that **mutates** data. "Current guard" is what the
+function itself enforces today (verified by reading the code) — not the hidden button or the
+page guard.
+
+| Area | Action (file) | Current guard | Gap |
+| --- | --- | --- | --- |
+| Inventory | `adjustStock` (`inventory/actions.ts`) | `inventory.adjust` OR `stock.adjust` | ✅ guarded |
+| Inventory | `createTransfer` (`inventory/transfers/…`) | `requireAuth` only | ❌ no perm |
+| Inventory | `completeTransfer` (`…/transfers`) | `inventory.transfer` OR `stock.transfer.approve` | ✅ guarded |
+| Inventory | `cancelTransfer` (`…/transfers`) | `requireAuth` only | ❌ no perm |
+| Inventory | `createStockCount` (`…/count`) | `requireAuth` only | ❌ no perm |
+| Inventory | `saveStockCount` (`…/count`) | `requireAuth` only | ❌ no perm |
+| Inventory | `finalizeStockCount` (`…/count`) | `inventory.count` | ✅ guarded |
+| Inventory | `cancelStockCount` (`…/count`) | `requireAuth` only | ❌ no perm |
+| Stock req | `createStockRequest` (`inventory/requests/…`) | `requireAuth` only | ❌ no perm |
+| Stock req | `approveStockRequest` | `stock_request.approve` (+ RPC guard, §D) | ✅ guarded |
+| Stock req | `setStockRequestLoadingDate` | `stock_request.approve` | ✅ guarded |
+| Stock req | `rejectStockRequest` | `requireAuth` only | ❌ no perm |
+| Stock req | `cancelStockRequest` | `requireAuth` only | ❌ no perm |
+| Product | `upsertProduct` (`products/actions.ts`) | gates **price** (`pricing.manage`/`product.create`) + **uom** (`uom.manage`) subfields only | ⚠️ base create/edit ungated |
+| Product | `toggleProductActive` | `requireAuth` only | ❌ no perm |
+| Product | `createCategory` | `requireAuth` only | ❌ no perm |
+| Product | `addDrugsToProducts` | `requireAuth` only | ❌ no perm |
+| Customer | `upsertCustomer` (`customers/actions.ts`) | gates **status** change (`can('customers.status.change')`) only | ⚠️ base create/edit ungated |
+| Customer | `importCustomers` | `requireAuth` only | ❌ no perm (`customer.import`) |
+| Customer | `setCustomerJourney` | approval + visibility scope; no `journey.create` | ⚠️ partial |
+| Customer | `toggleCustomerActive` | critical-action audit; perm check to verify | ⚠️ verify |
+| Customer | `decideCustomerApproval` | `can('customers.approval.approve')` | ✅ guarded |
+| Customer | `requestCustomerGpsChange` / `requestCustomerApproval` / `requestCreditLimitChange` | action-policy gated (governed request → guarded RPC) | ✅ governed |
+
+**Note:** the customer module already has an alias-based capability helper (`can()` with
+`customers.change_status → customers.status.change`, `customers.approve →
+customers.approval.approve`). The fix must **reuse `can()`**, not add a parallel system.
+
+### F.1 The findings (the ❌ / ⚠️ rows above)
+
+1. **Finding:** ~12 mutating server actions enforce only `requireAuth` (any authenticated user)
+   or gate a sub-field only, relying on the hidden button + RLS write-scope for permission.
+2. **Risk:** MEDIUM. A crafted POST (server actions are HTTP endpoints) can invoke the mutation
+   without the permission the UI implies. RLS still scopes the company/branch, so it is **not**
+   cross-tenant, but an in-tenant under-privileged role (e.g. `viewer`, `salesman`) could
+   create/edit/deactivate products, customers, transfers, counts, or stock requests.
+3. **Affected roles:** any in-tenant role that can reach the page but lacks the action's intended
+   permission — e.g. `viewer` (product/customer writes), `salesman`/`merchandiser` (transfers,
+   counts), `warehouse_keeper` (customer/product writes).
+4. **Current enforcement:** `requireAuth` + company-scoped RLS write-scope (S4b) + the hidden
+   button. No action-level permission for the ❌ rows.
+5. **Proposed enforcement:** a small flag-gated helper mirroring D, used at the top of each
+   under-guarded action:
+   ```ts
+   // returns an error ActionResult when the flag is ON and the caller lacks the perm; else null
+   const denied = await requireActionPerm(ctx, ['inventory.transfer', 'stock.transfer']);
+   if (denied) return denied;
+   ```
+   - `requireActionPerm` reads `platform.action_authz_enforcement` for the company (no-op when
+     OFF), then checks `hasPermission`/`can` for ANY of the listed perms (super-admin/platform
+     owner already pass `hasPermission`).
+   - Proposed perm per action:
+
+     | Action | Proposed perm(s) |
+     | --- | --- |
+     | `createTransfer` / `cancelTransfer` | `inventory.transfer` OR `stock.transfer` |
+     | `createStockCount` / `saveStockCount` / `cancelStockCount` | `inventory.count` |
+     | `createStockRequest` | `stock_request.create` |
+     | `rejectStockRequest` / `cancelStockRequest` | `stock_request.approve` (reject) · creator-or-`stock_request.approve` (cancel) |
+     | `upsertProduct` (base) | `product.create` (create) OR `inventory.adjust` (edit) |
+     | `toggleProductActive` / `createCategory` / `addDrugsToProducts` | `product.create` (or `product.import` for drugs) |
+     | `upsertCustomer` (base) | `customers.manage` OR `customer.create` (create) / `customer.edit` (edit) |
+     | `importCustomers` | `customer.import` |
+     | `setCustomerJourney` | `journey.create` |
+     | `toggleCustomerActive` | `customers.change_status` |
+
+   - **Note (missing perm key):** there is no `product.edit` permission. Proposal: gate product
+     edits on `product.create` (or add a `product.edit` key in a later Section E pass). Flagged
+     so we agree the key before coding.
+6. **Regression risk:** MEDIUM. The guard mirrors the already-hidden button, so legitimate UI
+   users pass — but some actions are currently reachable by roles that *should* keep access (e.g.
+   a `salesman` self-creating a customer via `upsertCustomer`: salesman holds `customer.create`?
+   In the pilot DB **salesman lacks `customer.create`** but the page self-assigns the rep — so
+   guarding `upsertCustomer` on `customer.create` would block salesman customer creation, which
+   may be intended to flow through the **governed customer-request** instead). Each action's perm
+   must be diffed against every role's live grants **before** enabling; ambiguous ones
+   (`upsertCustomer`, `setCustomerJourney`) are decided with you, not assumed.
+7. **Effort:** M. One helper + ~12 call sites + unit tests; no schema change.
+
+### F.2 Validation (allow/deny, same rigor as D)
+
+- **Pure helper unit tests** (vitest): `requireActionPerm` allows when flag OFF; when ON, allows
+  iff the ctx holds any listed perm; super-admin/platform-owner always pass. Allow/deny asserted
+  per role using `permissionsForRole(role)` for all roles.
+- **Role × action matrix** (doc + a SQL/data check): for each action's proposed perm, list the
+  roles that pass under the live pilot grants — reviewed before enabling, so no legitimate role
+  loses access.
+- Flag enabled for the **pilot only**; integration tests run with the flag OFF (unaffected).
+
+### F.3 Open decisions for you (before coding F)
+
+- **`upsertCustomer` create by salesman:** keep direct create gated on `customer.create` (pilot
+  salesman lacks it → would be blocked, pushing them to the governed customer-request), or allow
+  rep self-create? (Recommend: route reps through the governed request; gate direct create on
+  `customer.create`.)
+- **`product.edit` key:** add a dedicated permission, or reuse `product.create` for edits?
+- **`addDrugsToProducts`:** gate on `product.import` or a pharmacy-specific perm?
 
 ---
 
 ## G. Suggested sequencing (when approved)
 
-1. **Step 0 — EXECUTE-grant audit** of the Section D RPCs (decides HIGH vs defense-in-depth). S.
-2. **Section D financial RPCs** (`erp_issue_invoice`, `erp_record_payment`,
-   `erp_record_supplier_payment`, `erp_post_*_voucher`) — add in-RPC guards + allow/deny tests. M–L.
-3. **Section F** server-action re-checks for inventory/products/customers/stock-request. M.
+1. ✅ **Step 0 — EXECUTE-grant audit** (done: all 10 RPCs `authenticated=X` → exploitable).
+2. ✅ **Section D financial/transactional RPCs** — in-RPC guards + 70-assertion allow/deny matrix.
+3. **Section F** server-action re-checks (this plan) — flag `platform.action_authz_enforcement`. M.
 4. **Section B** page guards behind `KAKO_STRICT_PAGE_GUARDS` (default OFF) + coverage test. M.
 5. **Section E** type the 12 DB-only perms + trace + guard the financial-control actions. M.
 6. **Section C** vertical page guards. L (low urgency for FMCG pilot).
 
 All changes are additive, reversible, staging-first, and validated against every role's live grants
-(no role that should pass starts failing). **Nothing proceeds until this plan is approved.**
+(no role that should pass starts failing). **Section F awaits approval before implementation.**
