@@ -16,9 +16,10 @@ import { JourneyScreen } from './journey-screen';
  *  Server component: guards field.sales, resolves the caller's open work
  *  session (creating one for today when needed) and hands the planned stops to
  *  the mobile-first client screen. */
-export default async function FieldJourneyPage() {
+export default async function FieldJourneyPage({ searchParams }: { searchParams: Promise<{ endday?: string }> }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  const { endday } = await searchParams;
 
   const { t } = await getT();
 
@@ -64,6 +65,7 @@ export default async function FieldJourneyPage() {
       offlineEnabled={MOBILE_ENABLED()}
       canAttachMedia={hasPermission(ctx, 'field.attach_media')}
       visitDriven={visitDriven}
+      autoEndDay={endday === '1'}
     />
   );
 }

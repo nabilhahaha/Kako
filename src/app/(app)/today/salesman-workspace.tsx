@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import {
   Play, CheckCircle2, Lock, Clock, MapPin, ListChecks, Receipt, Users,
-  UserSquare, HandCoins, Boxes, ClipboardCheck, type LucideIcon,
+  UserSquare, HandCoins, Boxes, type LucideIcon,
 } from 'lucide-react';
 import { getT } from '@/lib/i18n/server';
 import type { UserContext } from '@/lib/erp/auth-context';
@@ -24,7 +24,6 @@ import { CustomerPicker } from '@/app/(app)/field/van-sales/customers/customer-p
 // happen INSIDE the customer visit context, reached from the embedded picker).
 const TILES: { key: string; href: string; icon: LucideIcon; label: string }[] = [
   { key: 'stock', href: '/field/stock', icon: Boxes, label: 'vanSales.steps.stock' },
-  { key: 'endday', href: '/field/van-reconciliation', icon: ClipboardCheck, label: 'vanSales.endDaySettle' },
 ];
 
 interface Props {
@@ -85,9 +84,15 @@ export async function SalesmanWorkspace({ ctx, items, itemCount }: Props) {
           )}
 
           {state === 'open' && (
-            <Link href="/field/journey" className={`${buttonVariants({ variant: 'outline' })} w-full`}>
-              <MapPin className="h-4 w-4" /> {t('vanSales.continueRoute')}
-            </Link>
+            <div className="space-y-2">
+              <Link href="/field/journey" className={`${buttonVariants({ variant: 'outline' })} w-full`}>
+                <MapPin className="h-4 w-4" /> {t('vanSales.continueRoute')}
+              </Link>
+              {/* End Day opens the close-day workflow directly (not a dead-end). */}
+              <Link href="/field/journey?endday=1" className={`${buttonVariants({ variant: 'default' })} w-full`}>
+                <CheckCircle2 className="h-4 w-4" /> {t('vanSales.endDaySettle')}
+              </Link>
+            </div>
           )}
 
           {state === 'closed' && (

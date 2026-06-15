@@ -70,6 +70,7 @@ export function JourneyScreen({
   offlineEnabled = false,
   canAttachMedia = false,
   visitDriven = false,
+  autoEndDay = false,
 }: {
   data: TodayJourneyData;
   canOverrideGps: boolean;
@@ -81,6 +82,8 @@ export function JourneyScreen({
   canAttachMedia?: boolean;
   /** Visit-driven route (Phase 1): the stop opens the customer visit context. */
   visitDriven?: boolean;
+  /** Deep link (?endday=1): open the End Day / close-day workflow directly. */
+  autoEndDay?: boolean;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -113,6 +116,9 @@ export function JourneyScreen({
   const [bulkReason, setBulkReason] = useState('');
   const [closing, setClosing] = useState(false);
   const [closeResult, setCloseResult] = useState<CloseResult | null>(null);
+
+  // Deep link from the workspace "End Day & Settle" — open the close-day workflow.
+  useEffect(() => { if (autoEndDay) setCloseOpen(true); }, [autoEndDay]);
 
   // ── Geolocation (best-effort; falls back to manual order) ──
   useEffect(() => {
