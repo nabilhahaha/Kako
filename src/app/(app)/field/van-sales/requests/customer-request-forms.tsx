@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { UserPlus, FileEdit, MapPin, CreditCard, CalendarClock, Send, LocateFixed, ChevronRight } from 'lucide-react';
+import { UserPlus, FileEdit, MapPin, CreditCard, CalendarClock, Shuffle, RotateCcw, Ban, Send, LocateFixed, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,13 +11,15 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useI18n } from '@/lib/i18n/provider';
 import { distanceMeters } from '@/lib/erp/journey-sort';
-import { requestCustomerChange, type RequestCustomer, type RequestRoute } from '@/lib/van-sales/requests-server';
+import { requestCustomerChange, type RequestCustomer, type RequestRoute, type RequestSalesman } from '@/lib/van-sales/requests-server';
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
 
-type Open = 'new' | 'update' | 'gps' | 'credit' | 'terms' | null;
+type Open = 'new' | 'update' | 'gps' | 'credit' | 'terms' | 'route' | 'reactivate' | 'close' | null;
+type SimpleKind = 'data_update' | 'gps_correction' | 'credit_limit' | 'payment_terms' | 'route_transfer' | 'reactivate' | 'close';
 
 const ACTIVITIES = ['grocery', 'mini_market', 'supermarket', 'wholesale', 'bakery', 'roastery', 'pharmacy', 'other'] as const;
 const CLASSES = ['A', 'B', 'C', 'D'] as const;
+const CLOSURE_REASONS = ['competitor_won', 'closed_business', 'duplicate', 'relocated', 'other'] as const;
 const UPDATE_FIELDS = ['name', 'phone', 'city', 'address', 'cr_number', 'tax_number', 'national_address', 'contact_person', 'credit_limit', 'payment_terms_days'] as const;
 type UpdateField = (typeof UPDATE_FIELDS)[number];
 
@@ -39,13 +41,15 @@ const NC0 = {
   payment_type: '', requested_credit_limit: '', requested_terms: '', notes: '', route_id: '',
 };
 
-export function CustomerRequestForms({ customers, routes }: { customers: RequestCustomer[]; routes: RequestRoute[] }) {
+export function CustomerRequestForms({ customers, routes, salesmen }: { customers: RequestCustomer[]; routes: RequestRoute[]; salesmen: RequestSalesman[] }) {
   const { t, locale } = useI18n();
   const ar = locale === 'ar';
   const router = useRouter();
   const [open, setOpen] = useState<Open>(null);
   const [busy, setBusy] = useState(false);
   const cName = (c: RequestCustomer) => (ar && c.name_ar ? c.name_ar : c.name);
+  const repName = (id: string | null | undefined) => (id ? (salesmen.find((s) => s.id === id)?.name ?? '—') : '—');
+  const routeName = (id: string | null | undefined) => (id ? (routes.find((r) => r.id === id)?.name ?? '—') : '—');
 
   // New customer
   const [nc, setNc] = useState({ ...NC0 });
@@ -56,8 +60,16 @@ export function CustomerRequestForms({ customers, routes }: { customers: Request
   // Data update / GPS / credit / terms
   const [upCust, setUpCust] = useState(''); const [upField, setUpField] = useState<UpdateField>('phone'); const [upNew, setUpNew] = useState(''); const [upReason, setUpReason] = useState('');
   const [gpsCust, setGpsCust] = useState(''); const [gpsNew, setGpsNew] = useState<{ lat: number; lng: number } | null>(null); const [gpsReason, setGpsReason] = useState('');
-  const [clCust, setClCust] = useState(''); const [clLimit, setClLimit] = useState(''); const [clReason, setClReason] = useState('');
-  const [ptCust, setPtCust] = useState(''); const [ptTerms, setPtTerms] = useState(''); const [ptReason, setPtReason] = useState('');
+  const [clCust, setClCust] = useState(''); const [clLimit, setClLimit] = useState(''); const [clReason, setClReason] = useState(''); const [clFile, setClFile] = useState<File | null>(null);
+  const [ptCust, setPtCust] = useState(''); const [ptTerms, setPtTerms] = useState(''); const [ptReason, setPtReason] = useState(''); const [ptFile, setPtFile] = useState<File | null>(null);
+  // Route transfer
+  const [rtCust, setRtCust] = useState(''); const [rtRoute, setRtRoute] = useState(''); const [rtReason, setRtReason] = useState('');
+  // Reactivate
+  const [raCust, setRaCust] = useState(''); const [raReason, setRaReason] = useState(''); const [raNotes, setRaNotes] = useState('');
+  // Close
+  const [clxCust, setClxCust] = useState(''); const [clxReason, setClxReason] = useState(''); const [clxNotes, setClxNotes] = useState(''); const [clxFile, setClxFile] = useState<File | null>(null);
+
+  const reqRouteRep = routes.find((r) => r.id === rtRoute)?.rep_id ?? null;
 
   const selectedUp = customers.find((c) => c.id === upCust) ?? null;
   const selectedGps = customers.find((c) => c.id === gpsCust) ?? null;
@@ -74,17 +86,27 @@ export function CustomerRequestForms({ customers, routes }: { customers: Request
   function resetAll() {
     setOpen(null); setNc({ ...NC0 }); setNcGps(null); setFiles({ storefront: null, cr: null, vat: null, na: null, other: null });
     setUpCust(''); setUpNew(''); setUpReason(''); setGpsCust(''); setGpsNew(null); setGpsReason('');
-    setClCust(''); setClLimit(''); setClReason(''); setPtCust(''); setPtTerms(''); setPtReason('');
+    setClCust(''); setClLimit(''); setClReason(''); setClFile(null); setPtCust(''); setPtTerms(''); setPtReason(''); setPtFile(null);
+    setRtCust(''); setRtRoute(''); setRtReason(''); setRaCust(''); setRaReason(''); setRaNotes('');
+    setClxCust(''); setClxReason(''); setClxNotes(''); setClxFile(null);
   }
 
-  // Generic submit for the simple kinds.
-  async function submit(kind: 'data_update' | 'gps_correction' | 'credit_limit' | 'payment_terms', customerId: string | null, payload: Record<string, unknown>, validate: () => string | null) {
+  async function uploadFile(reqId: string, file: File | null, docType: string) {
+    if (!file) return;
+    const fd = new FormData();
+    fd.set('entity', 'customer_request'); fd.set('record_id', reqId); fd.set('doc_type', docType); fd.set('file', file);
+    await uploadAttachment(fd);
+  }
+
+  // Generic submit for the simple kinds (with an optional supporting attachment).
+  async function submit(kind: SimpleKind, customerId: string | null, payload: Record<string, unknown>, validate: () => string | null, file?: File | null) {
     const err = validate();
     if (err) { toast.error(err); return; }
     setBusy(true);
     try {
       const res = await requestCustomerChange({ kind, customerId, payload });
-      if (!res.ok) { toast.error(res.error ?? '—'); return; }
+      if (!res.ok || !res.data) { toast.error(res.error ?? '—'); return; }
+      await uploadFile(res.data.requestId, file ?? null, 'supporting');
       toast.success(t('vanSales.requests.submitted')); resetAll(); router.refresh();
     } finally { setBusy(false); }
   }
@@ -259,8 +281,9 @@ export function CustomerRequestForms({ customers, routes }: { customers: Request
         <Field label={t('vanSales.requests.currentValue')}><Input value={customers.find((c) => c.id === clCust)?.credit_limit?.toString() ?? ''} readOnly disabled /></Field>
         <Field label={t('vanSales.requests.f_reqLimit')}><Input inputMode="decimal" value={clLimit} onChange={(e) => setClLimit(e.target.value)} /></Field>
         <Field label={t('vanSales.requests.reason')}><Input value={clReason} onChange={(e) => setClReason(e.target.value)} /></Field>
+        <FileField label={t('vanSales.requests.f_support')} file={clFile} onPick={setClFile} />
         <SubmitBtn busy={busy} onClick={() => submit('credit_limit', clCust, { new_limit: clLimit, reason: clReason },
-          () => (!clCust ? t('vanSales.requests.customerRequired') : !(Number(clLimit) >= 0 && clLimit !== '') ? t('vanSales.requests.amountRequired') : null))} />
+          () => (!clCust ? t('vanSales.requests.customerRequired') : !(Number(clLimit) >= 0 && clLimit !== '') ? t('vanSales.requests.amountRequired') : null), clFile)} />
       </>
     );
 
@@ -270,8 +293,63 @@ export function CustomerRequestForms({ customers, routes }: { customers: Request
         <Field label={t('vanSales.requests.currentValue')}><Input value={customers.find((c) => c.id === ptCust)?.payment_terms_days?.toString() ?? ''} readOnly disabled /></Field>
         <Field label={t('vanSales.requests.f_reqTerms')}><Input inputMode="numeric" value={ptTerms} onChange={(e) => setPtTerms(e.target.value)} /></Field>
         <Field label={t('vanSales.requests.reason')}><Input value={ptReason} onChange={(e) => setPtReason(e.target.value)} /></Field>
+        <FileField label={t('vanSales.requests.f_support')} file={ptFile} onPick={setPtFile} />
         <SubmitBtn busy={busy} onClick={() => submit('payment_terms', ptCust, { new_terms: ptTerms, reason: ptReason },
-          () => (!ptCust ? t('vanSales.requests.customerRequired') : ptTerms === '' ? t('vanSales.requests.termsRequired') : null))} />
+          () => (!ptCust ? t('vanSales.requests.customerRequired') : ptTerms === '' ? t('vanSales.requests.termsRequired') : null), ptFile)} />
+      </>
+    );
+
+    if (key === 'route') {
+      const c = customers.find((x) => x.id === rtCust) ?? null;
+      return (
+        <>
+          <Field label={t('vanSales.requests.pickCustomer')}>{custSelect(rtCust, setRtCust)}</Field>
+          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+            <div>{t('vanSales.requests.f_currentRoute')}: <span className="font-medium text-foreground">{routeName(c?.route_id)}</span></div>
+            <div>{t('vanSales.requests.f_currentSalesman')}: <span className="font-medium text-foreground">{repName(c?.salesman_id)}</span></div>
+          </div>
+          <Field label={t('vanSales.requests.f_reqRoute')}>
+            <Select value={rtRoute} onChange={(e) => setRtRoute(e.target.value)}>
+              <option value="">—</option>{routes.map((r) => <option key={r.id} value={r.id}>{r.name}{r.code ? ` · ${r.code}` : ''}</option>)}
+            </Select>
+          </Field>
+          {rtRoute && <div className="text-xs text-muted-foreground">{t('vanSales.requests.f_reqSalesman')}: <span className="font-medium text-foreground">{repName(reqRouteRep)}</span></div>}
+          <Field label={t('vanSales.requests.reason')}><Input value={rtReason} onChange={(e) => setRtReason(e.target.value)} /></Field>
+          <SubmitBtn busy={busy} onClick={() => submit('route_transfer', rtCust, {
+            req_route: rtRoute, req_salesman: reqRouteRep ?? '',
+            route_from: routeName(c?.route_id), route_to: routeName(rtRoute),
+            salesman_from: repName(c?.salesman_id), salesman_to: repName(reqRouteRep), reason: rtReason,
+          }, () => (!rtCust ? t('vanSales.requests.customerRequired') : !rtRoute ? t('vanSales.requests.routeRequired') : !rtReason.trim() ? t('vanSales.requests.reasonRequired') : null))} />
+        </>
+      );
+    }
+
+    if (key === 'reactivate') {
+      const c = customers.find((x) => x.id === raCust) ?? null;
+      return (
+        <>
+          <Field label={t('vanSales.requests.pickCustomer')}>{custSelect(raCust, setRaCust)}</Field>
+          <div className="text-xs text-muted-foreground">{t('vanSales.requests.f_lastPurchase')}: <span className="font-medium text-foreground">{c?.last_purchase ?? '—'}</span></div>
+          <Field label={t('vanSales.requests.f_reactivateReason')}><Input value={raReason} onChange={(e) => setRaReason(e.target.value)} /></Field>
+          <Field label={t('vanSales.requests.f_notes')}><Input value={raNotes} onChange={(e) => setRaNotes(e.target.value)} /></Field>
+          <SubmitBtn busy={busy} onClick={() => submit('reactivate', raCust, { last_purchase: c?.last_purchase ?? '', reason: raReason, notes: raNotes },
+            () => (!raCust ? t('vanSales.requests.customerRequired') : !raReason.trim() ? t('vanSales.requests.reasonRequired') : null))} />
+        </>
+      );
+    }
+
+    if (key === 'close') return (
+      <>
+        <Field label={t('vanSales.requests.pickCustomer')}>{custSelect(clxCust, setClxCust)}</Field>
+        <Field label={t('vanSales.requests.f_closureReason')}>
+          <Select value={clxReason} onChange={(e) => setClxReason(e.target.value)}>
+            <option value="">—</option>{CLOSURE_REASONS.map((r) => <option key={r} value={r}>{t(`vanSales.requests.cr.${r}`)}</option>)}
+          </Select>
+        </Field>
+        <Field label={t('vanSales.requests.f_notes')}><Input value={clxNotes} onChange={(e) => setClxNotes(e.target.value)} /></Field>
+        <FileField label={t('vanSales.requests.f_support')} file={clxFile} onPick={setClxFile} />
+        <SubmitBtn busy={busy} onClick={() => submit('close', clxCust, { closure_reason: clxReason, notes: clxNotes },
+          () => (!clxCust ? t('vanSales.requests.customerRequired') : !clxReason ? t('vanSales.requests.closureRequired') : null), clxFile)} />
       </>
     );
     return null;
@@ -284,6 +362,9 @@ export function CustomerRequestForms({ customers, routes }: { customers: Request
       {tile('gps', <MapPin className="h-5 w-5 text-primary" />, t('vanSales.requests.fixLocation'), t('vanSales.requests.fixLocationDesc'))}
       {tile('credit', <CreditCard className="h-5 w-5 text-primary" />, t('vanSales.requests.creditChange'), t('vanSales.requests.creditChangeDesc'))}
       {tile('terms', <CalendarClock className="h-5 w-5 text-primary" />, t('vanSales.requests.termsChange'), t('vanSales.requests.termsChangeDesc'))}
+      {tile('route', <Shuffle className="h-5 w-5 text-primary" />, t('vanSales.requests.routeTransfer'), t('vanSales.requests.routeTransferDesc'))}
+      {tile('reactivate', <RotateCcw className="h-5 w-5 text-primary" />, t('vanSales.requests.reactivate'), t('vanSales.requests.reactivateDesc'))}
+      {tile('close', <Ban className="h-5 w-5 text-primary" />, t('vanSales.requests.closeCustomer'), t('vanSales.requests.closeCustomerDesc'))}
     </div>
   );
 

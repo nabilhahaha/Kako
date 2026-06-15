@@ -106,7 +106,7 @@ export function salesmanRequestsEnabled(flags: Record<string, boolean | undefine
 /** The governed customer-request kinds (raised + applied via the customer-request
  *  RPCs). Kept in this pure module so the 'use server' requests file exports only
  *  async actions. */
-export const CUSTOMER_REQUEST_KINDS = ['new_customer', 'data_update', 'gps_correction', 'credit_limit', 'payment_terms'] as const;
+export const CUSTOMER_REQUEST_KINDS = ['new_customer', 'data_update', 'gps_correction', 'credit_limit', 'payment_terms', 'route_transfer', 'reactivate', 'close'] as const;
 export type CustomerRequestKind = (typeof CUSTOMER_REQUEST_KINDS)[number];
 
 /** Tender methods supported in-sell (one collection row each on the server).

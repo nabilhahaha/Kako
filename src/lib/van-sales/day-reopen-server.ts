@@ -19,7 +19,7 @@ const RPC_ERRORS: Record<string, string> = {
   'not authorized: day.reopen.request': 'You are not allowed to request a reopen.',
   'not authorized: day.reopen.approve': 'You are not allowed to decide reopen requests.',
   'a reason is required to request a reopen': 'Please enter a reason for the reopen.',
-  'only a closed day can be reopened': 'This day is not closed.',
+  'only a closed day can be reopened': 'Your day is already open. Please close the day first before requesting to reopen it.',
   'only the latest closed day can be reopened': 'Only the latest closed day can be reopened.',
   'a reopen request is already pending for this day': 'A reopen request is already pending for this day.',
   'you can only request a reopen of your own day': 'You can only request a reopen of your own day.',

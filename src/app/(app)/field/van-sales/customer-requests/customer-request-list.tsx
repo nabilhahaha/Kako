@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Check, X, User, UserPlus, FileEdit, MapPin, CreditCard, CalendarClock, AlertTriangle, Paperclip } from 'lucide-react';
+import { Check, X, User, UserPlus, FileEdit, MapPin, CreditCard, CalendarClock, Shuffle, RotateCcw, Ban, AlertTriangle, Paperclip } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
 import { decideCustomerRequest, type PendingCustomerRequest } from '@/lib/van-sales/requests-server';
 
-const ICON = { new_customer: UserPlus, data_update: FileEdit, gps_correction: MapPin, credit_limit: CreditCard, payment_terms: CalendarClock } as const;
+const ICON = { new_customer: UserPlus, data_update: FileEdit, gps_correction: MapPin, credit_limit: CreditCard, payment_terms: CalendarClock, route_transfer: Shuffle, reactivate: RotateCcw, close: Ban } as const;
 
 export function CustomerRequestList({ requests }: { requests: PendingCustomerRequest[] }) {
   const { t, locale } = useI18n();
@@ -32,7 +32,7 @@ export function CustomerRequestList({ requests }: { requests: PendingCustomerReq
 
   // Show the payload as readable rows (skip empty + internal keys).
   function rows(p: Record<string, unknown>) {
-    const skip = new Set(['branch_id']);
+    const skip = new Set(['branch_id', 'route_id', 'req_route', 'req_salesman']);
     return Object.entries(p)
       .filter(([k, v]) => !skip.has(k) && v != null && String(v).trim() !== '')
       .map(([k, v]) => ({ k, v: String(v) }));

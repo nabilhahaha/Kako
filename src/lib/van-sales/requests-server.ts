@@ -125,38 +125,60 @@ export interface RequestCustomer {
   cr_number: string | null; tax_number: string | null;
   credit_limit: number | null; payment_terms_days: number | null;
   latitude: number | null; longitude: number | null;
+  route_id: string | null; salesman_id: string | null; last_purchase: string | null;
 }
 
-/** The rep's branch customers (for the data-update / GPS forms: select + current values). */
+async function repBranch(supabase: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<string | null> {
+  const { data } = await supabase.from('erp_warehouses').select('branch_id')
+    .eq('is_van', true).eq('assigned_to', userId).eq('is_active', true).order('code').limit(1).maybeSingle();
+  return (data as { branch_id: string } | null)?.branch_id ?? null;
+}
+
+/** The rep's branch customers (select + current values for the customer forms). */
 export async function loadRequestCustomers(ctx: UserContext): Promise<RequestCustomer[]> {
   const supabase = await createClient();
-  const { data: vanRow } = await supabase
-    .from('erp_warehouses').select('branch_id')
-    .eq('is_van', true).eq('assigned_to', ctx.userId).eq('is_active', true)
-    .order('code').limit(1).maybeSingle();
-  const branchId = (vanRow as { branch_id: string } | null)?.branch_id;
+  const branchId = await repBranch(supabase, ctx.userId);
   if (!branchId) return [];
-  const { data } = await supabase
-    .from('erp_customers')
-    .select('id, name, name_ar, code, phone, city, address, cr_number, tax_number, credit_limit, payment_terms_days, latitude, longitude')
-    .eq('branch_id', branchId).order('name').limit(500);
-  return ((data ?? []) as RequestCustomer[]);
+  const [{ data }, { data: inv }] = await Promise.all([
+    supabase.from('erp_customers')
+      .select('id, name, name_ar, code, phone, city, address, cr_number, tax_number, credit_limit, payment_terms_days, latitude, longitude, route_id, salesman_id')
+      .eq('branch_id', branchId).order('name').limit(500),
+    supabase.from('erp_invoices').select('customer_id, created_at').eq('branch_id', branchId).order('created_at', { ascending: false }).limit(2000),
+  ]);
+  // Last purchase date per customer (newest invoice).
+  const last = new Map<string, string>();
+  for (const r of (inv ?? []) as { customer_id: string; created_at: string }[]) if (!last.has(r.customer_id)) last.set(r.customer_id, String(r.created_at).slice(0, 10));
+  return ((data ?? []) as Omit<RequestCustomer, 'last_purchase'>[]).map((c) => ({ ...c, last_purchase: last.get(c.id) ?? null }));
 }
 
-export interface RequestRoute { id: string; name: string; code: string | null }
+export interface RequestRoute { id: string; name: string; code: string | null; rep_id: string | null }
 
-/** The rep's routes (for assigning a new customer on approval — no orphan record). */
+/** The rep's routes (assignment + route-transfer target). */
 export async function loadRequestRoutes(ctx: UserContext): Promise<RequestRoute[]> {
   const supabase = await createClient();
-  const { data: vanRow } = await supabase
-    .from('erp_warehouses').select('branch_id')
-    .eq('is_van', true).eq('assigned_to', ctx.userId).eq('is_active', true)
-    .order('code').limit(1).maybeSingle();
-  const branchId = (vanRow as { branch_id: string } | null)?.branch_id;
-  // The rep's own routes first; fall back to the branch's routes.
-  const q = supabase.from('erp_routes').select('id, name, code').eq('is_active', true).order('name').limit(200);
+  const branchId = await repBranch(supabase, ctx.userId);
+  const q = supabase.from('erp_routes').select('id, name, code, rep_id').eq('is_active', true).order('name').limit(200);
   const { data } = branchId ? await q.or(`rep_id.eq.${ctx.userId},branch_id.eq.${branchId}`) : await q.eq('rep_id', ctx.userId);
   return ((data ?? []) as RequestRoute[]);
+}
+
+export interface RequestSalesman { id: string; name: string }
+
+/** Salesmen names referenced by the rep's routes/customers (for route-transfer display). */
+export async function loadRequestSalesmen(ctx: UserContext): Promise<RequestSalesman[]> {
+  const supabase = await createClient();
+  const branchId = await repBranch(supabase, ctx.userId);
+  if (!branchId) return [];
+  const [{ data: routes }, { data: custs }] = await Promise.all([
+    supabase.from('erp_routes').select('rep_id').or(`rep_id.eq.${ctx.userId},branch_id.eq.${branchId}`),
+    supabase.from('erp_customers').select('salesman_id').eq('branch_id', branchId).limit(500),
+  ]);
+  const ids = new Set<string>();
+  for (const r of (routes ?? []) as { rep_id: string | null }[]) if (r.rep_id) ids.add(r.rep_id);
+  for (const c of (custs ?? []) as { salesman_id: string | null }[]) if (c.salesman_id) ids.add(c.salesman_id);
+  if (ids.size === 0) return [];
+  const { data: profs } = await supabase.from('erp_profiles').select('id, full_name').in('id', [...ids]);
+  return ((profs ?? []) as { id: string; full_name: string | null }[]).map((p) => ({ id: p.id, name: p.full_name || p.id.slice(0, 8) }));
 }
 
 /** Salesman raises a governed customer request (new / update / GPS / credit / terms). */

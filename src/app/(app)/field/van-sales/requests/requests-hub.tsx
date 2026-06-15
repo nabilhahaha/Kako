@@ -13,17 +13,17 @@ import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 import { formatCurrency } from '@/lib/utils';
-import { requestCashHandover, type MyRequest, type RequestCustomer, type RequestRoute } from '@/lib/van-sales/requests-server';
+import { requestCashHandover, type MyRequest, type RequestCustomer, type RequestRoute, type RequestSalesman } from '@/lib/van-sales/requests-server';
 import { CustomerRequestForms } from './customer-request-forms';
 
 const TONE: Record<MyRequest['tone'], 'secondary' | 'success' | 'destructive'> = { pending: 'secondary', done: 'success', rejected: 'destructive' };
 
 export function RequestsHub({
-  myRequests, canLoad, canCash, canReopen, dayClosed, canCustomer, customers, routes,
+  myRequests, canLoad, canCash, canReopen, dayClosed, canCustomer, customers, routes, salesmen,
 }: {
   myRequests: MyRequest[];
   canLoad: boolean; canCash: boolean; canReopen: boolean; dayClosed: boolean;
-  canCustomer: boolean; customers: RequestCustomer[]; routes: RequestRoute[];
+  canCustomer: boolean; customers: RequestCustomer[]; routes: RequestRoute[]; salesmen: RequestSalesman[];
 }) {
   const { t, locale } = useI18n();
   const intl = INTL_LOCALE[locale];
@@ -112,7 +112,7 @@ export function RequestsHub({
         )}
 
         {/* Governed customer requests (new / data update / GPS / credit / terms) */}
-        {canCustomer && <CustomerRequestForms customers={customers} routes={routes} />}
+        {canCustomer && <CustomerRequestForms customers={customers} routes={routes} salesmen={salesmen} />}
       </div>
 
       {/* My requests */}
