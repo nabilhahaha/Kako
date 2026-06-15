@@ -39,16 +39,13 @@ export default async function TodayHomePage() {
   ]);
 
   // Unified salesman workspace (flag ON): Today IS the one operational home for a
-  // van salesman (field.sales, not an admin/manager). Compose the workspace and
-  // return early. The workspace needs only the attention items (nextBestActions),
-  // NOT homeSignals — so skip homeSignals on this path. Flags are passed down so
-  // the workspace doesn't re-load them.
+  // van salesman (field.sales, not an admin/manager). Return the streamed
+  // workspace early — it awaits ONLY the hero-critical data and defers the rest
+  // (picker, attention/copilot, KPIs) behind Suspense, so the next action paints
+  // first. Flags are passed down so the workspace doesn't re-load them.
   const isVanSalesman = hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'settings.branches') && !ctx.isSuperAdmin;
   if (unifiedSalesmanWorkspaceEnabled(flags) && vanSalesOn && isVanSalesman) {
-    const itemsRes = await nextBestActions(locale);
-    const items = rankAttention(itemsRes.ok && itemsRes.data ? itemsRes.data : []);
-    const summary = summarizeAttention(items);
-    return <SalesmanWorkspace ctx={ctx} items={items} itemCount={summary.itemCount} flags={flags} />;
+    return <SalesmanWorkspace ctx={ctx} flags={flags} />;
   }
 
   // Non-salesman field roles (managers/supervisors/admins) keep the existing
