@@ -103,6 +103,12 @@ export function salesmanRequestsEnabled(flags: Record<string, boolean | undefine
   return Boolean(flags?.['platform.salesman_requests']);
 }
 
+/** Is Smart Next Customer active? Opt-in platform flag
+ *  (`platform.smart_next_customer`), default OFF. Pure. */
+export function smartNextCustomerEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
+  return Boolean(flags?.['platform.smart_next_customer']);
+}
+
 /** The governed customer-request kinds (raised + applied via the customer-request
  *  RPCs). Kept in this pure module so the 'use server' requests file exports only
  *  async actions. */

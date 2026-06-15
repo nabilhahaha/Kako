@@ -234,6 +234,15 @@ export const FEATURES: FeatureDef[] = [
     screens: ['/field/van-sales/requests'],
     logic: ['requests.hub', 'erp_request_cash_handover'],
   }),
+  // Smart Next Customer (FMCG): after Complete Visit / at Start Day, suggest the
+  // next route stops ranked route-first (sequence primary, distance secondary)
+  // with Start Visit + external Navigate (Google/Apple/Waze), plus Resume Visit.
+  // Default OFF (opt-in per tenant); UI/navigation + a pure ranking engine — no
+  // engine/schema/transaction change.
+  P('platform.smart_next_customer', 'pos', [], {
+    screens: ['/field/next', '/field/journey', '/today'],
+    logic: ['next-customer.rank', 'map-links', 'active-visit'],
+  }),
   // RPC authorization enforcement (Security — Backend-Enforcement Phase D):
   // defense-in-depth in-function permission checks on sensitive financial /
   // transactional RPCs (issue invoice, record payment, post voucher, approve

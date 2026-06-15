@@ -17,8 +17,11 @@ import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { loadVanDayState, loadDayReopenGate } from '@/lib/van-sales/day-server';
 import { loadVanCustomerPicker } from '@/lib/van-sales/customers-server';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import { smartNextCustomerEnabled } from '@/lib/van-sales/sell';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
 import { CustomerPicker } from '@/app/(app)/field/van-sales/customers/customer-picker';
+import { ResumeVisitBanner } from './resume-visit-banner';
 
 // Non-visit operational quick actions (the visit steps — Collect/Sell/Return —
 // happen INSIDE the customer visit context, reached from the embedded picker).
@@ -68,9 +71,17 @@ export async function SalesmanWorkspace({ ctx, items, itemCount }: Props) {
   const tone = state === 'open' ? 'success' : state === 'closed' ? 'secondary' : 'outline';
   const pendingReopen = reopen.request?.status === 'pending';
 
+  // Smart Next Customer (flag-gated): Start-Day suggestions + Resume Visit.
+  const flags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;
+  const smartNext = smartNextCustomerEnabled(flags);
+  const startHref = smartNext ? '/field/next' : '/field/journey';
+
   return (
     <div className="space-y-6">
       <PageHeader title={t('vanSales.myDayTitle')} description={t('vanSales.workspaceSubtitle')} />
+
+      {/* Resume an in-progress visit (survives app restart). */}
+      {smartNext && <ResumeVisitBanner />}
 
       {/* Day status + Customer-first CTA (route stays the spine, as secondary). */}
       <Card>
@@ -78,13 +89,18 @@ export async function SalesmanWorkspace({ ctx, items, itemCount }: Props) {
           <Badge variant={tone}>{t(`vanSales.state.${state}`)}</Badge>
 
           {state === 'not_started' && (
-            <Link href="/field/journey" className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-4 text-base font-semibold text-primary-foreground hover:bg-primary/90">
+            <Link href={startHref} className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-4 text-base font-semibold text-primary-foreground hover:bg-primary/90">
               <Play className="h-5 w-5 rtl:rotate-180" /> {t('vanSales.start')}
             </Link>
           )}
 
           {state === 'open' && (
             <div className="space-y-2">
+              {smartNext && (
+                <Link href="/field/next" className={`${buttonVariants({ variant: 'default' })} w-full`}>
+                  <Play className="h-4 w-4 rtl:rotate-180" /> {t('vanSales.smartNext.startDayTitle')}
+                </Link>
+              )}
               <Link href="/field/journey" className={`${buttonVariants({ variant: 'outline' })} w-full`}>
                 <MapPin className="h-4 w-4" /> {t('vanSales.continueRoute')}
               </Link>

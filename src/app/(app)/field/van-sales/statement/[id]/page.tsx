@@ -4,7 +4,7 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
-import { visitDrivenRouteEnabled } from '@/lib/van-sales/sell';
+import { visitDrivenRouteEnabled, smartNextCustomerEnabled } from '@/lib/van-sales/sell';
 import { PageHeader } from '@/components/shared/page-header';
 import { BackLink } from '@/components/shared/back-link';
 import { loadCustomerStatement } from '@/lib/erp/customer-statement-server';
@@ -39,6 +39,9 @@ export default async function VanStatementPage({
 
   // Visit context only when arrived from the route and the flag is on.
   const flags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;
+  // Smart Next Customer (flag-gated): Complete Visit lands on the route-first
+  // suggestions instead of the route screen, and the marker drives Resume Visit.
+  const smartNext = smartNextCustomerEnabled(flags);
   const visit: VisitContext | undefined =
     sp.from === 'route' && visitDrivenRouteEnabled(flags)
       ? {
@@ -46,7 +49,11 @@ export default async function VanStatementPage({
           seq: Math.max(1, Number(sp.seq) || 1),
           total: Math.max(1, Number(sp.total) || 1),
           nextName: sp.nextName ?? null,
-          completeHref: sp.next ? `/field/journey?focus=${sp.next}` : '/field/journey',
+          completeHref: smartNext
+            ? `/field/next?done=${id}`
+            : sp.next ? `/field/journey?focus=${sp.next}` : '/field/journey',
+          trackResume: smartNext,
+          customerName: res.customer.name_ar || res.customer.name,
         }
       : undefined;
 

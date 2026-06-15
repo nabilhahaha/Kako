@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { AGING_BUCKETS, type AgingBucket, type CustomerStatement } from '@/lib/erp/customer-statement';
 import type { InvoiceStatus, PaymentMethod } from '@/lib/erp/types';
 import { markVisitWork, listUnfinishedVisitWork, clearAllVisitWork } from '@/lib/van-sales/visit-session';
+import { setActiveVisit, clearActiveVisit } from '@/lib/van-sales/active-visit';
 import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight, ChevronDown, ShieldCheck, AlertTriangle } from 'lucide-react';
 
 /** Visit context (Phase 1, route-driven): the route stop opened this customer; the
@@ -24,6 +25,9 @@ export interface VisitContext {
   total: number;        // stops on the route
   nextName?: string | null;
   completeHref: string; // back to the route (next stop highlighted)
+  /** Smart Next Customer: record/clear the active-visit marker for Resume Visit. */
+  trackResume?: boolean;
+  customerName?: string;
 }
 
 const BUCKET_LABEL: Record<AgingBucket, string> = {
@@ -86,15 +90,21 @@ export function CustomerStatementView({
   // on success) or explicitly discard it here.
   const [guard, setGuard] = useState<string[] | null>(null);
   const mark = (action: 'sell' | 'collect' | 'return') => { if (visit) markVisitWork(visit.customerId, action); };
+  // Smart Next: mark this visit active on open (survives app restart → Resume Visit).
+  useEffect(() => {
+    if (visit?.trackResume) setActiveVisit(visit.customerId, visit.customerName ?? '');
+  }, [visit?.trackResume, visit?.customerId, visit?.customerName]);
   function onCompleteVisit() {
     if (!visit) return;
     const pending = listUnfinishedVisitWork(visit.customerId);
     if (pending.length > 0) { setGuard(pending); return; }
+    if (visit.trackResume) clearActiveVisit();
     router.push(visit.completeHref);
   }
   function onDiscardComplete() {
     if (!visit) return;
     clearAllVisitWork(visit.customerId);
+    if (visit.trackResume) clearActiveVisit();
     setGuard(null);
     router.push(visit.completeHref);
   }
