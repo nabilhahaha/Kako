@@ -13,15 +13,17 @@ import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/lib/i18n/provider';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 import { formatCurrency } from '@/lib/utils';
-import { requestCashHandover, type MyRequest } from '@/lib/van-sales/requests-server';
+import { requestCashHandover, type MyRequest, type RequestCustomer } from '@/lib/van-sales/requests-server';
+import { CustomerRequestForms } from './customer-request-forms';
 
 const TONE: Record<MyRequest['tone'], 'secondary' | 'success' | 'destructive'> = { pending: 'secondary', done: 'success', rejected: 'destructive' };
 
 export function RequestsHub({
-  myRequests, canLoad, canCash, canReopen, dayClosed,
+  myRequests, canLoad, canCash, canReopen, dayClosed, canCustomer, customers,
 }: {
   myRequests: MyRequest[];
   canLoad: boolean; canCash: boolean; canReopen: boolean; dayClosed: boolean;
+  canCustomer: boolean; customers: RequestCustomer[];
 }) {
   const { t, locale } = useI18n();
   const intl = INTL_LOCALE[locale];
@@ -108,6 +110,9 @@ export function RequestsHub({
             </Card>
           </Link>
         )}
+
+        {/* Governed customer requests (new / data update / GPS) */}
+        {canCustomer && <CustomerRequestForms customers={customers} />}
       </div>
 
       {/* My requests */}

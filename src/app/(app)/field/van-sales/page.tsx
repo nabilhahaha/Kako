@@ -3,7 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import {
   Truck, MapPin, Map as MapIcon, ShoppingCart, Undo2, HandCoins, Boxes, ClipboardCheck, ClipboardList, RefreshCw, Play, CheckCircle2, Users, LockOpen, type LucideIcon,
 } from 'lucide-react';
-import { loadPendingCashHandovers } from '@/lib/van-sales/requests-server';
+import { loadPendingCashHandovers, loadPendingCustomerRequests } from '@/lib/van-sales/requests-server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
@@ -72,6 +72,8 @@ export default async function VanSalesMyDayPage() {
   // Cash-handover confirmer inbox (flag platform.salesman_requests).
   const canConfirmCash = salesmanRequestsEnabled(flags) && (hasPermission(ctx, 'cash.handover.confirm') || ctx.isSuperAdmin);
   const pendingCash = canConfirmCash ? await loadPendingCashHandovers(ctx) : [];
+  const canApproveCustomerReq = salesmanRequestsEnabled(flags) && (hasPermission(ctx, 'customer.request.approve') || ctx.isSuperAdmin);
+  const pendingCustomerReqs = canApproveCustomerReq ? await loadPendingCustomerRequests(ctx) : [];
 
   return (
     <div className="space-y-6">
@@ -139,6 +141,22 @@ export default async function VanSalesMyDayPage() {
                 <div className="text-xs text-muted-foreground">{t('vanSales.requests.confirm.subtitle')}</div>
               </div>
               {pendingCash.length > 0 && <Badge>{pendingCash.length}</Badge>}
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
+      {/* Approver: customer requests (flag-gated) */}
+      {canApproveCustomerReq && (
+        <Link href="/field/van-sales/customer-requests" className="block">
+          <Card className="transition-colors hover:bg-secondary/50">
+            <CardContent className="flex items-center gap-3 py-4">
+              <Users className="h-5 w-5 text-primary" />
+              <div className="flex-1">
+                <div className="text-sm font-medium">{t('vanSales.requests.custInbox.title')}</div>
+                <div className="text-xs text-muted-foreground">{t('vanSales.requests.custInbox.subtitle')}</div>
+              </div>
+              {pendingCustomerReqs.length > 0 && <Badge>{pendingCustomerReqs.length}</Badge>}
             </CardContent>
           </Card>
         </Link>

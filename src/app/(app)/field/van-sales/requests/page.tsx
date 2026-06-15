@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { BackLink } from '@/components/shared/back-link';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { salesmanRequestsEnabled } from '@/lib/van-sales/sell';
-import { loadMyRequests } from '@/lib/van-sales/requests-server';
+import { loadMyRequests, loadRequestCustomers } from '@/lib/van-sales/requests-server';
 import { loadVanDayState } from '@/lib/van-sales/day-server';
 import { RequestsHub } from './requests-hub';
 
@@ -27,7 +27,10 @@ export default async function RequestsPage() {
   if (!hasPermission(ctx, 'field.sales') && !ctx.isSuperAdmin) redirect('/dashboard');
 
   const { t } = await getT();
-  const [myRequests, { state }] = await Promise.all([loadMyRequests(ctx), loadVanDayState(ctx)]);
+  const canCustomer = hasPermission(ctx, 'customer.request') || ctx.isSuperAdmin;
+  const [myRequests, { state }, customers] = await Promise.all([
+    loadMyRequests(ctx), loadVanDayState(ctx), canCustomer ? loadRequestCustomers(ctx) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -39,6 +42,8 @@ export default async function RequestsPage() {
         canCash={hasPermission(ctx, 'cash.handover.request') || ctx.isSuperAdmin}
         canReopen={hasPermission(ctx, 'day.reopen.request') || ctx.isSuperAdmin}
         dayClosed={state === 'closed'}
+        canCustomer={canCustomer}
+        customers={customers}
       />
     </div>
   );
