@@ -15,6 +15,8 @@ import { AGING_BUCKETS, type AgingBucket, type CustomerStatement } from '@/lib/e
 import type { InvoiceStatus, PaymentMethod } from '@/lib/erp/types';
 import { markVisitWork, listUnfinishedVisitWork, clearAllVisitWork } from '@/lib/van-sales/visit-session';
 import { setActiveVisit, clearActiveVisit } from '@/lib/van-sales/active-visit';
+import { noteVisitOpen, noteVisitClick, endVisitMetrics } from '@/lib/van-sales/visit-metrics';
+import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
 import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight, ChevronDown, ShieldCheck, AlertTriangle } from 'lucide-react';
 
 /** Visit context (Phase 1, route-driven): the route stop opened this customer; the
@@ -28,6 +30,8 @@ export interface VisitContext {
   /** Smart Next Customer: record/clear the active-visit marker for Resume Visit. */
   trackResume?: boolean;
   customerName?: string;
+  /** How the visit was opened (smart_next | resume | route) — telemetry. */
+  source?: string;
 }
 
 const BUCKET_LABEL: Record<AgingBucket, string> = {
@@ -89,22 +93,37 @@ export function CustomerStatementView({
   // return was started but not finished — the rep must finish it (clears the flag
   // on success) or explicitly discard it here.
   const [guard, setGuard] = useState<string[] | null>(null);
-  const mark = (action: 'sell' | 'collect' | 'return') => { if (visit) markVisitWork(visit.customerId, action); };
-  // Smart Next: mark this visit active on open (survives app restart → Resume Visit).
+  const mark = (action: 'sell' | 'collect' | 'return') => {
+    if (!visit) return;
+    markVisitWork(visit.customerId, action);
+    if (visit.trackResume) noteVisitClick();
+  };
+  // Smart Next: mark this visit active on open (survives app restart → Resume
+  // Visit) + telemetry (visit_started once, transitions counted on re-entry).
   useEffect(() => {
-    if (visit?.trackResume) setActiveVisit(visit.customerId, visit.customerName ?? '');
-  }, [visit?.trackResume, visit?.customerId, visit?.customerName]);
+    if (!visit?.trackResume) return;
+    setActiveVisit(visit.customerId, visit.customerName ?? '');
+    if (noteVisitOpen(visit.customerId) === 'started') {
+      void logFieldUxEvent({ eventType: 'visit_started', customerId: visit.customerId, meta: { source: visit.source ?? 'route' } });
+    }
+  }, [visit?.trackResume, visit?.customerId, visit?.customerName, visit?.source]);
+  function finishVisit() {
+    if (!visit?.trackResume) return;
+    const m = endVisitMetrics();
+    void logFieldUxEvent({ eventType: 'visit_completed', customerId: visit.customerId, meta: m ?? {} });
+    clearActiveVisit();
+  }
   function onCompleteVisit() {
     if (!visit) return;
     const pending = listUnfinishedVisitWork(visit.customerId);
     if (pending.length > 0) { setGuard(pending); return; }
-    if (visit.trackResume) clearActiveVisit();
+    finishVisit();
     router.push(visit.completeHref);
   }
   function onDiscardComplete() {
     if (!visit) return;
     clearAllVisitWork(visit.customerId);
-    if (visit.trackResume) clearActiveVisit();
+    finishVisit();
     setGuard(null);
     router.push(visit.completeHref);
   }

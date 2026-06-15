@@ -9,6 +9,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { rankNextCustomers, formatDistance, type NextCandidate, type RankedCandidate, type GpsPoint } from '@/lib/van-sales/next-customer';
 import { googleMapsUrl, appleMapsUrl, wazeUrl, hasValidCoords } from '@/lib/van-sales/map-links';
 import { setActiveVisit } from '@/lib/van-sales/active-visit';
+import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
 import { CheckCircle2, MapPin, Navigation, Play, AlertTriangle, CreditCard, Route } from 'lucide-react';
 
 // Smart Next Customer — after Complete Visit (mode 'completed') or at Start Day
@@ -30,12 +31,14 @@ export function SmartNextScreen({
   const [locating, setLocating] = useState(true);
 
   useEffect(() => {
+    void logFieldUxEvent({ eventType: 'smart_next_viewed', meta: { mode, count: candidates.length } });
     if (typeof navigator === 'undefined' || !navigator.geolocation) { setLocating(false); return; }
     navigator.geolocation.getCurrentPosition(
       (pos) => { setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocating(false); },
       () => setLocating(false),
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 30_000 },
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const ranked = useMemo(() => rankNextCustomers(candidates, origin, { limit: 5 }), [candidates, origin]);
@@ -83,7 +86,7 @@ export function SmartNextScreen({
 function NextCard({ c, total, primary }: { c: RankedCandidate; total: number; primary?: boolean }) {
   const { t, locale } = useI18n();
   const name = (locale === 'ar' && c.nameAr) ? c.nameAr : c.name;
-  const startHref = `/field/van-sales/statement/${c.customerId}?from=route&seq=${c.sequence}&total=${total}`;
+  const startHref = `/field/van-sales/statement/${c.customerId}?from=route&seq=${c.sequence}&total=${total}&src=smart_next`;
   return (
     <Card className={primary ? 'border-primary/50 bg-primary/5' : ''}>
       <CardContent className="space-y-2.5 p-3">
@@ -127,9 +130,9 @@ function NavigateButton({ lat, lng }: { lat: number | null; lng: number | null }
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setOpen(false)}>
           <div className="w-full max-w-md space-y-2 rounded-t-2xl bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <p className="mb-1 text-sm font-semibold text-muted-foreground">{t('vanSales.smartNext.navigate')}</p>
-            <a href={googleMapsUrl(la, ln)} target="_blank" rel="noopener noreferrer" className={`w-full ${buttonVariants({ variant: 'outline' })}`} onClick={() => setOpen(false)}>{t('vanSales.smartNext.navGoogle')}</a>
-            <a href={appleMapsUrl(la, ln)} target="_blank" rel="noopener noreferrer" className={`w-full ${buttonVariants({ variant: 'outline' })}`} onClick={() => setOpen(false)}>{t('vanSales.smartNext.navApple')}</a>
-            <a href={wazeUrl(la, ln)} target="_blank" rel="noopener noreferrer" className={`w-full ${buttonVariants({ variant: 'outline' })}`} onClick={() => setOpen(false)}>{t('vanSales.smartNext.navWaze')}</a>
+            <a href={googleMapsUrl(la, ln)} target="_blank" rel="noopener noreferrer" className={`w-full ${buttonVariants({ variant: 'outline' })}`} onClick={() => { void logFieldUxEvent({ eventType: 'navigate_clicked', meta: { provider: 'google' } }); setOpen(false); }}>{t('vanSales.smartNext.navGoogle')}</a>
+            <a href={appleMapsUrl(la, ln)} target="_blank" rel="noopener noreferrer" className={`w-full ${buttonVariants({ variant: 'outline' })}`} onClick={() => { void logFieldUxEvent({ eventType: 'navigate_clicked', meta: { provider: 'apple' } }); setOpen(false); }}>{t('vanSales.smartNext.navApple')}</a>
+            <a href={wazeUrl(la, ln)} target="_blank" rel="noopener noreferrer" className={`w-full ${buttonVariants({ variant: 'outline' })}`} onClick={() => { void logFieldUxEvent({ eventType: 'navigate_clicked', meta: { provider: 'waze' } }); setOpen(false); }}>{t('vanSales.smartNext.navWaze')}</a>
           </div>
         </div>
       )}

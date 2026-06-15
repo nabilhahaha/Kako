@@ -22,7 +22,7 @@ export default async function VanStatementPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string; seq?: string; total?: string; next?: string; nextName?: string }>;
+  searchParams: Promise<{ from?: string; seq?: string; total?: string; next?: string; nextName?: string; src?: string }>;
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
@@ -54,6 +54,7 @@ export default async function VanStatementPage({
             : sp.next ? `/field/journey?focus=${sp.next}` : '/field/journey',
           trackResume: smartNext,
           customerName: res.customer.name_ar || res.customer.name,
+          source: sp.src || 'route',
         }
       : undefined;
 

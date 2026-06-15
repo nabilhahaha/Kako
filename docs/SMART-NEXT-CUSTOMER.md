@@ -132,6 +132,27 @@ All gated by `smartNextCustomerEnabled(flags)`; OFF restores the prior route-scr
 4. **Metrics capture:** record clicks/visit and page transitions/visit before vs after (below).
 5. **Go/No-Go:** promote to FMCG default only after UAT sign-off.
 
+## 5b. Pilot telemetry (collection only — no dashboard)
+
+To evaluate the flow we **collect** real usage during the pilot; no analytics screen or reporting
+module is built. Events are appended to `erp_field_ux_events` via a flag-gated, best-effort,
+fire-and-forget server action (`logFieldUxEvent`) that writes **only while
+`platform.smart_next_customer` is ON** — disable the flag and collection stops.
+
+| Required metric | Source event(s) |
+| --- | --- |
+| Visit duration | `visit_completed.meta.durationMs` |
+| Click count | `visit_completed.meta.clicks` |
+| Page transitions | `visit_completed.meta.transitions` |
+| Smart Next viewed | `smart_next_viewed` |
+| Smart Next used | `visit_started` where `meta.source = 'smart_next'` |
+| Navigate used | `navigate_clicked` |
+| Resume Visit shown | `resume_shown` |
+| Resume Visit used | `resume_clicked` |
+
+**Report:** `supabase/pilot/smart-next-metrics.sql` — a single read-only query returning exactly
+these metrics. That query *is* the report; no further analytics development until pilot data exists.
+
 ## 6. Metrics — before / after (per completed visit → next visit)
 
 | Metric | Before | After | Δ |
