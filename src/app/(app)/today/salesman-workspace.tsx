@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { loadVanDayState, loadDayReopenGate } from '@/lib/van-sales/day-server';
 import { loadVanCustomerPicker } from '@/lib/van-sales/customers-server';
-import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import type { FeatureFlags } from '@/lib/erp/feature-flags';
 import { smartNextCustomerEnabled } from '@/lib/van-sales/sell';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
 import { CustomerPicker } from '@/app/(app)/field/van-sales/customers/customer-picker';
@@ -33,13 +33,15 @@ interface Props {
   ctx: UserContext;
   items: AttentionItem[];
   itemCount: number;
+  /** Resolved once on the page and passed down (avoids a re-load here). */
+  flags: FeatureFlags | null;
 }
 
 /** The ONE salesman workspace (unified flag ON): customer-driven. Day status +
  *  a Customer-first CTA (route stays the spine), the operational tiles in visit
  *  order, the reopen flow, and a real-time operational KPI strip. Composition
  *  over existing pieces; no engine/schema/transaction change. */
-export async function SalesmanWorkspace({ ctx, items, itemCount }: Props) {
+export async function SalesmanWorkspace({ ctx, items, itemCount, flags }: Props) {
   const { t, locale } = await getT();
   const intl = INTL_LOCALE[locale];
   const supabase = await createClient();
@@ -72,7 +74,7 @@ export async function SalesmanWorkspace({ ctx, items, itemCount }: Props) {
   const pendingReopen = reopen.request?.status === 'pending';
 
   // Smart Next Customer (flag-gated): Start-Day suggestions + Resume Visit.
-  const flags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;
+  // Flags are resolved once on the page and passed in (no re-load here).
   const smartNext = smartNextCustomerEnabled(flags);
   const startHref = smartNext ? '/field/next' : '/field/journey';
 

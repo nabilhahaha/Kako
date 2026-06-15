@@ -29,28 +29,34 @@ export default async function TodayHomePage() {
   if (!isField) redirect('/dashboard');
 
   const { t, locale } = await getT();
+
+  // Resolve the path-deciding inputs FIRST (Van Sales active + feature flags), in
+  // one parallel wave, so we can branch before doing any page-specific fetching.
+  const supabase = await createClient();
+  const [vanSalesOn, flags] = await Promise.all([
+    isVanSalesActive(supabase, ctx),
+    getFeatureFlags(supabase, ctx.companyId!),
+  ]);
+
+  // Unified salesman workspace (flag ON): Today IS the one operational home for a
+  // van salesman (field.sales, not an admin/manager). Compose the workspace and
+  // return early. The workspace needs only the attention items (nextBestActions),
+  // NOT homeSignals — so skip homeSignals on this path. Flags are passed down so
+  // the workspace doesn't re-load them.
+  const isVanSalesman = hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'settings.branches') && !ctx.isSuperAdmin;
+  if (unifiedSalesmanWorkspaceEnabled(flags) && vanSalesOn && isVanSalesman) {
+    const itemsRes = await nextBestActions(locale);
+    const items = rankAttention(itemsRes.ok && itemsRes.data ? itemsRes.data : []);
+    const summary = summarizeAttention(items);
+    return <SalesmanWorkspace ctx={ctx} items={items} itemCount={summary.itemCount} flags={flags} />;
+  }
+
+  // Non-salesman field roles (managers/supervisors/admins) keep the existing
+  // Today home + shortcuts. Both signals + actions are needed here.
   const [sigRes, itemsRes] = await Promise.all([homeSignals(), nextBestActions(locale)]);
   const sig = sigRes.ok && sigRes.data ? sigRes.data : EMPTY_HOME_SIGNALS;
   const items = rankAttention(itemsRes.ok && itemsRes.data ? itemsRes.data : []);
   const summary = summarizeAttention(items);
-
-  // Surface the Van Sales "My Day" hub for reps — only when Van Sales is active
-  // for the company (platform flag + per-company toggle), so the link is never a
-  // dead-end. The hub is otherwise reachable only by direct URL.
-  const supabase = await createClient();
-  const vanSalesOn = await isVanSalesActive(supabase, ctx);
-
-  // Unified salesman workspace (flag ON): Today IS the one operational home for a
-  // van salesman (field.sales, not an admin/manager). Compose the workspace and
-  // return early; everyone else keeps the existing Today home below. Reuse-only.
-  const flags = await getFeatureFlags(supabase, ctx.companyId!);
-  const isVanSalesman = hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'settings.branches') && !ctx.isSuperAdmin;
-  if (unifiedSalesmanWorkspaceEnabled(flags) && vanSalesOn && isVanSalesman) {
-    return <SalesmanWorkspace ctx={ctx} items={items} itemCount={summary.itemCount} />;
-  }
-
-  // Non-salesman field roles (managers/supervisors/admins) keep the existing
-  // Today home + shortcuts. (Van salesmen are handled by the workspace above.)
   const quick: QuickLink[] = [
     ...(vanSalesOn ? [{ label: t('vanSales.myDayTitle'), href: '/field/van-sales', icon: Truck }] : []),
     { label: t('nav.items.invoices'), href: '/sales/invoices', icon: Receipt },
