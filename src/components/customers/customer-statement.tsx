@@ -154,8 +154,17 @@ export function CustomerStatementView({
     <Card>
       <CardContent className="p-3">
         <p className="mb-2 text-xs font-medium text-muted-foreground">{t('customers.stmtAgingTitle')}</p>
-        {/* 3 per row on phones (5 buckets won't fit at 390px), 5 on sm+. */}
-        <div className="grid grid-cols-3 gap-2 text-center sm:grid-cols-5">
+        {/* Mobile (< sm): full-width label↔value rows so currency never clips. */}
+        <div className="space-y-1.5 sm:hidden">
+          {AGING_BUCKETS.map((b) => (
+            <div key={b} className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 ${b !== 'current' && aging[b] > 0 ? 'border-warning/40 bg-warning/5' : ''}`}>
+              <span className="text-xs text-muted-foreground">{t(BUCKET_LABEL[b])}</span>
+              <span className="text-sm font-bold tabular-nums" dir="ltr">{money(aging[b])}</span>
+            </div>
+          ))}
+        </div>
+        {/* Desktop (sm+): compact 5-bucket grid. */}
+        <div className="hidden grid-cols-5 gap-2 text-center sm:grid">
           {AGING_BUCKETS.map((b) => (
             <div key={b} className={`min-w-0 rounded-md border p-2 ${b !== 'current' && aging[b] > 0 ? 'border-warning/40 bg-warning/5' : ''}`}>
               <div className="truncate text-[11px] text-muted-foreground">{t(BUCKET_LABEL[b])}</div>
