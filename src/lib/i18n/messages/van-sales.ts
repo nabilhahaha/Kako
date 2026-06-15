@@ -207,6 +207,11 @@ export const ar = {
       resumeTitle: 'استئناف الزيارة الحالية',
       resumeBody: 'لديك زيارة مفتوحة لـ {name}.',
       resume: 'استئناف',
+      nextTitle: 'العميل التالي',
+      viewRoute: 'عرض خط السير',
+      routeDone: 'اكتمل خط سير اليوم',
+      coverageLine: 'تمت زيارة {visited} من {planned}',
+      startDay: 'ابدأ اليوم',
     },
     request: {
       title: 'طلب تحميل',
@@ -747,6 +752,11 @@ export const en = {
       resumeTitle: 'Resume current visit',
       resumeBody: 'You have an open visit for {name}.',
       resume: 'Resume',
+      nextTitle: 'Next customer',
+      viewRoute: 'View route',
+      routeDone: 'Route completed',
+      coverageLine: '{visited} of {planned} visited',
+      startDay: 'Start day',
     },
     request: {
       title: 'Load Request',

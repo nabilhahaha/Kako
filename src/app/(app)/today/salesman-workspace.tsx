@@ -21,7 +21,8 @@ import type { FeatureFlags } from '@/lib/erp/feature-flags';
 import { smartNextCustomerEnabled } from '@/lib/van-sales/sell';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
 import { CustomerPicker } from '@/app/(app)/field/van-sales/customers/customer-picker';
-import { ResumeVisitBanner } from './resume-visit-banner';
+import { MyDayHero } from './my-day-hero';
+import type { NextCandidate } from '@/lib/van-sales/next-customer';
 
 // Non-visit operational quick actions (the visit steps — Collect/Sell/Return —
 // happen INSIDE the customer visit context, reached from the embedded picker).
@@ -58,8 +59,9 @@ export async function SalesmanWorkspace({ ctx, items, itemCount, flags }: Props)
   ]);
 
   // Operational KPIs (read-only; reuse existing data — no new engine).
+  const visitedSet = new Set(((visRes.data ?? []) as { customer_id: string }[]).map((r) => r.customer_id));
   const planned = ((planRes.data ?? []) as unknown[]).length;
-  const visited = new Set(((visRes.data ?? []) as { customer_id: string }[]).map((r) => r.customer_id)).size;
+  const visited = visitedSet.size;
   const remaining = Math.max(planned - visited, 0);
   const compliance = planned > 0 ? Math.round((visited / planned) * 100) : 100;
   const sales = ((invRes.data ?? []) as { net_amount: number; status: string }[])
@@ -73,70 +75,82 @@ export async function SalesmanWorkspace({ ctx, items, itemCount, flags }: Props)
   const tone = state === 'open' ? 'success' : state === 'closed' ? 'secondary' : 'outline';
   const pendingReopen = reopen.request?.status === 'pending';
 
-  // Smart Next Customer (flag-gated): Start-Day suggestions + Resume Visit.
-  // Flags are resolved once on the page and passed in (no re-load here).
+  // Smart Next Customer (flag-gated): route-first SFA hero (Resume / Next
+  // Customer / Route completed). Flags resolved once on the page and passed in.
   const smartNext = smartNextCustomerEnabled(flags);
   const startHref = smartNext ? '/field/next' : '/field/journey';
+
+  // Hero candidates = today's route stops, enriched from data we ALREADY have
+  // (the journey RPC + the embedded picker) — no extra query. Ranking happens
+  // client-side (live GPS) in MyDayHero.
+  const stops = (planRes.data ?? []) as { customer_id: string; customer_name: string | null; customer_name_ar: string | null; sequence: number; latitude: number | null; longitude: number | null }[];
+  const pickerById = new Map((picker?.customers ?? []).map((c) => [c.id, c]));
+  const daysSince = (iso: string) => Math.max(0, Math.floor((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${iso}T00:00:00Z`)) / 86_400_000));
+  const heroCandidates: NextCandidate[] = stops.map((s) => {
+    const pc = pickerById.get(s.customer_id);
+    const terms = Number(pc?.payment_terms_days ?? 0);
+    const overdue = !!pc?.oldest_unpaid_date && terms > 0 && daysSince(pc.oldest_unpaid_date) > terms;
+    const creditWarning = !!pc && Number(pc.credit_limit ?? 0) > 0 && Number(pc.balance ?? 0) >= Number(pc.credit_limit ?? 0);
+    return {
+      customerId: s.customer_id,
+      name: s.customer_name ?? '',
+      nameAr: s.customer_name_ar,
+      sequence: s.sequence,
+      latitude: s.latitude,
+      longitude: s.longitude,
+      overdue,
+      creditWarning,
+      visited: visitedSet.has(s.customer_id),
+      active: true,
+    };
+  });
 
   return (
     <div className="space-y-6">
       <PageHeader title={t('vanSales.myDayTitle')} description={t('vanSales.workspaceSubtitle')} />
 
-      {/* Resume an in-progress visit (survives app restart). */}
-      {smartNext && <ResumeVisitBanner />}
+      {/* ONE clear next action — SFA route-first hero (Resume / Next Customer /
+          Route completed) when Smart Next is on; the classic day-status card
+          otherwise. No competing primaries. */}
+      {state === 'open' && smartNext ? (
+        <MyDayHero candidates={heroCandidates} visited={visited} planned={planned} />
+      ) : (
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <Badge variant={tone}>{t(`vanSales.state.${state}`)}</Badge>
 
-      {/* Day status + Customer-first CTA (route stays the spine, as secondary). */}
-      <Card>
-        <CardContent className="space-y-3 pt-6">
-          <Badge variant={tone}>{t(`vanSales.state.${state}`)}</Badge>
+            {state === 'not_started' && (
+              <Link href={startHref} className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-4 text-base font-semibold text-primary-foreground hover:bg-primary/90">
+                <Play className="h-5 w-5 rtl:rotate-180" /> {t('vanSales.start')}
+              </Link>
+            )}
 
-          {state === 'not_started' && (
-            <Link href={startHref} className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-4 text-base font-semibold text-primary-foreground hover:bg-primary/90">
-              <Play className="h-5 w-5 rtl:rotate-180" /> {t('vanSales.start')}
-            </Link>
-          )}
-
-          {state === 'open' && (
-            <div className="space-y-2">
-              {smartNext && (
-                <Link href="/field/next" className={`${buttonVariants({ variant: 'default' })} w-full`}>
-                  <Play className="h-4 w-4 rtl:rotate-180" /> {t('vanSales.smartNext.startDayTitle')}
+            {state === 'open' && (
+              <div className="space-y-2">
+                <Link href="/field/journey" className={`${buttonVariants({ variant: 'outline' })} w-full`}>
+                  <MapPin className="h-4 w-4" /> {t('vanSales.continueRoute')}
                 </Link>
-              )}
-              <Link href="/field/journey" className={`${buttonVariants({ variant: 'outline' })} w-full`}>
-                <MapPin className="h-4 w-4" /> {t('vanSales.continueRoute')}
-              </Link>
-              {/* End Day opens the close-day workflow directly (not a dead-end). */}
-              <Link href="/field/journey?endday=1" className={`${buttonVariants({ variant: 'default' })} w-full`}>
-                <CheckCircle2 className="h-4 w-4" /> {t('vanSales.endDaySettle')}
-              </Link>
-            </div>
-          )}
-
-          {state === 'closed' && (
-            <div className="space-y-3 rounded-lg border p-4">
-              <div className="flex items-center gap-2">
-                {pendingReopen ? <Clock className="h-5 w-5 text-amber-600" /> : <Lock className="h-5 w-5 text-muted-foreground" />}
-                <p className="font-semibold">{pendingReopen ? t('vanSales.reopen.pendingTitle') : t('vanSales.dayClosedTitle')}</p>
+                <Link href="/field/journey?endday=1" className={`${buttonVariants({ variant: 'default' })} w-full`}>
+                  <CheckCircle2 className="h-4 w-4" /> {t('vanSales.endDaySettle')}
+                </Link>
               </div>
-              <p className="text-sm text-muted-foreground">{pendingReopen ? t('vanSales.reopen.pendingBody') : t('vanSales.dayClosedBody')}</p>
-              {!pendingReopen && reopen.canRequest && reopen.sessionId && (
-                <ReopenRequestForm workSessionId={reopen.sessionId} />
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
 
-      {/* Operational KPIs — planned / visited / remaining + sales / collections / compliance. */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatCard label={t('vanSales.kpi.planned')} value={String(planned)} icon={Users} tone="info" />
-        <StatCard label={t('vanSales.kpi.visited')} value={String(visited)} icon={CheckCircle2} tone="success" />
-        <StatCard label={t('vanSales.kpi.remaining')} value={String(remaining)} icon={Clock} tone={remaining > 0 ? 'warning' : 'success'} />
-        <StatCard label={t('vanSales.kpi.sales')} value={formatCurrency(sales, 'EGP', intl)} icon={Receipt} tone="info" />
-        <StatCard label={t('vanSales.kpi.collections')} value={formatCurrency(collections, 'EGP', intl)} icon={HandCoins} tone="success" />
-        <StatCard label={t('vanSales.kpi.compliance')} value={`${compliance}%`} icon={MapPin} tone={complianceTone} />
-      </div>
+            {state === 'closed' && (
+              <div className="space-y-3 rounded-lg border p-4">
+                <div className="flex items-center gap-2">
+                  {pendingReopen ? <Clock className="h-5 w-5 text-amber-600" /> : <Lock className="h-5 w-5 text-muted-foreground" />}
+                  <p className="font-semibold">{pendingReopen ? t('vanSales.reopen.pendingTitle') : t('vanSales.dayClosedTitle')}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">{pendingReopen ? t('vanSales.reopen.pendingBody') : t('vanSales.dayClosedBody')}</p>
+                {!pendingReopen && reopen.canRequest && reopen.sessionId && (
+                  <ReopenRequestForm workSessionId={reopen.sessionId} />
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Customer Picker — embedded, the primary operational entry (the visit
           starts here). Today JP / All Customers, Sold-today, Sell-again warning,
@@ -178,6 +192,19 @@ export async function SalesmanWorkspace({ ctx, items, itemCount, flags }: Props)
           <AttentionList items={items.slice(0, 6)} openLabel={t('home.open')} emptyTitle={t('home.emptyAttention')} />
         </section>
       )}
+
+      {/* Operational KPIs — secondary, at the bottom (not a management dashboard). */}
+      <section className="space-y-2 pt-2">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('vanSales.myDayTitle')}</h2>
+        <div className="grid grid-cols-3 gap-2">
+          <StatCard label={t('vanSales.kpi.planned')} value={String(planned)} icon={Users} tone="info" />
+          <StatCard label={t('vanSales.kpi.visited')} value={String(visited)} icon={CheckCircle2} tone="success" />
+          <StatCard label={t('vanSales.kpi.remaining')} value={String(remaining)} icon={Clock} tone={remaining > 0 ? 'warning' : 'success'} />
+          <StatCard label={t('vanSales.kpi.sales')} value={formatCurrency(sales, 'EGP', intl)} icon={Receipt} tone="info" />
+          <StatCard label={t('vanSales.kpi.collections')} value={formatCurrency(collections, 'EGP', intl)} icon={HandCoins} tone="success" />
+          <StatCard label={t('vanSales.kpi.compliance')} value={`${compliance}%`} icon={MapPin} tone={complianceTone} />
+        </div>
+      </section>
     </div>
   );
 }
