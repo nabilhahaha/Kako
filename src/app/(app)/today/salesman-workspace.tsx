@@ -26,6 +26,7 @@ import { rankAttention, summarizeAttention } from '@/lib/erp/attention';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
 import { CustomerPicker } from '@/app/(app)/field/van-sales/customers/customer-picker';
 import { MyDayHero } from './my-day-hero';
+import { PendingLink } from '@/components/shared/pending-link';
 
 const TILES: { key: string; href: string; icon: LucideIcon; label: string }[] = [
   { key: 'stock', href: '/field/stock', icon: Boxes, label: 'vanSales.steps.stock' },
@@ -119,19 +120,19 @@ async function DayCard({ ctx, state, startHref }: { ctx: UserContext; state: Van
         <Badge variant={tone}>{t(`vanSales.state.${state}`)}</Badge>
 
         {state === 'not_started' && (
-          <Link href={startHref} className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-4 text-base font-semibold text-primary-foreground hover:bg-primary/90">
+          <PendingLink href={startHref} pendingLabel={t('common.starting')} className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-4 text-base font-semibold text-primary-foreground transition-[transform,opacity] duration-100 active:scale-[0.98] hover:bg-primary/90">
             <Play className="h-5 w-5 rtl:rotate-180" /> {t('vanSales.start')}
-          </Link>
+          </PendingLink>
         )}
 
         {state === 'open' && (
           <div className="space-y-2">
-            <Link href="/field/journey" className={`${buttonVariants({ variant: 'outline' })} w-full`}>
+            <PendingLink href="/field/journey" pendingLabel={t('common.opening')} className={`${buttonVariants({ variant: 'outline' })} w-full`}>
               <MapPin className="h-4 w-4" /> {t('vanSales.continueRoute')}
-            </Link>
-            <Link href="/field/journey?endday=1" className={`${buttonVariants({ variant: 'default' })} w-full`}>
+            </PendingLink>
+            <PendingLink href="/field/journey?endday=1" pendingLabel={t('common.closing')} className={`${buttonVariants({ variant: 'default' })} w-full`}>
               <CheckCircle2 className="h-4 w-4" /> {t('vanSales.endDaySettle')}
-            </Link>
+            </PendingLink>
           </div>
         )}
 

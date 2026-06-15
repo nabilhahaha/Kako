@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
+import { PendingLink } from '@/components/shared/pending-link';
 import { useI18n } from '@/lib/i18n/provider';
 import { rankNextCustomers, isEligible, formatDistance, type NextCandidate, type GpsPoint } from '@/lib/van-sales/next-customer';
 import { getActiveVisit, setActiveVisit, type ActiveVisit } from '@/lib/van-sales/active-visit';
@@ -51,13 +52,14 @@ export function MyDayHero({ candidates, visited, planned }: { candidates: NextCa
             <RotateCcw className="h-4 w-4 text-primary" /> {t('vanSales.smartNext.resumeTitle')}
           </div>
           <p className="truncate text-2xl font-bold">{active.name || '—'}</p>
-          <Link
+          <PendingLink
             href={`/field/van-sales/statement/${active.customerId}?from=route&src=resume`}
             onClick={() => void logFieldUxEvent({ eventType: 'resume_clicked', customerId: active.customerId })}
+            pendingLabel={t('common.opening')}
             className={`w-full ${buttonVariants({ size: 'lg' })}`}
           >
             <Play className="h-5 w-5 rtl:rotate-180" /> {t('vanSales.smartNext.resume')}
-          </Link>
+          </PendingLink>
           <Link href="/field/journey" className="block text-center text-sm text-muted-foreground underline-offset-4 hover:underline">
             {t('vanSales.smartNext.viewRoute')}
           </Link>
@@ -76,9 +78,9 @@ export function MyDayHero({ candidates, visited, planned }: { candidates: NextCa
             <p className="text-lg font-bold">{t('vanSales.smartNext.routeDone')}</p>
             <p className="text-sm text-muted-foreground">{t('vanSales.smartNext.coverageLine', { visited, planned })}</p>
           </div>
-          <Link href="/field/journey?endday=1" className={`w-full ${buttonVariants({ size: 'lg' })}`}>
+          <PendingLink href="/field/journey?endday=1" pendingLabel={t('common.closing')} className={`w-full ${buttonVariants({ size: 'lg' })}`}>
             <CheckCircle2 className="h-5 w-5" /> {t('vanSales.endDaySettle')}
-          </Link>
+          </PendingLink>
         </CardContent>
       </Card>
     );
@@ -106,9 +108,9 @@ export function MyDayHero({ candidates, visited, planned }: { candidates: NextCa
           </div>
         )}
         <div className="grid grid-cols-2 gap-2">
-          <Link href={startHref} onClick={() => setActiveVisit(c.customerId, name)} className={buttonVariants({ size: 'lg' })}>
+          <PendingLink href={startHref} onClick={() => setActiveVisit(c.customerId, name)} pendingLabel={t('common.starting')} className={buttonVariants({ size: 'lg' })}>
             <Play className="h-5 w-5 rtl:rotate-180" /> {t('vanSales.smartNext.startVisit')}
-          </Link>
+          </PendingLink>
           <NavigateButton lat={c.latitude} lng={c.longitude} size="lg" />
         </div>
         <Link href="/field/journey" className="block text-center text-sm text-muted-foreground underline-offset-4 hover:underline">

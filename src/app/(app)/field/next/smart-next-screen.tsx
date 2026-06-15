@@ -10,6 +10,7 @@ import { rankNextCustomers, formatDistance, type NextCandidate, type RankedCandi
 import { setActiveVisit } from '@/lib/van-sales/active-visit';
 import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
 import { NavigateButton } from '@/components/field/navigate-button';
+import { PendingLink } from '@/components/shared/pending-link';
 import { CheckCircle2, MapPin, Play, AlertTriangle, CreditCard, Route } from 'lucide-react';
 
 // Smart Next Customer — after Complete Visit (mode 'completed') or at Start Day
@@ -104,9 +105,9 @@ function NextCard({ c, total, primary }: { c: RankedCandidate; total: number; pr
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Link href={startHref} onClick={() => setActiveVisit(c.customerId, name)} className={buttonVariants({ size: 'sm' })}>
+          <PendingLink href={startHref} onClick={() => setActiveVisit(c.customerId, name)} pendingLabel={t('common.starting')} className={buttonVariants({ size: 'sm' })}>
             <Play className="h-4 w-4" /> {t('vanSales.smartNext.startVisit')}
-          </Link>
+          </PendingLink>
           <NavigateButton lat={c.latitude} lng={c.longitude} />
         </div>
       </CardContent>

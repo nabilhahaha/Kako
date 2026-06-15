@@ -15,6 +15,7 @@ import { AGING_BUCKETS, type AgingBucket, type CustomerStatement } from '@/lib/e
 import type { InvoiceStatus, PaymentMethod } from '@/lib/erp/types';
 import { markVisitWork, listUnfinishedVisitWork, clearAllVisitWork } from '@/lib/van-sales/visit-session';
 import { setActiveVisit, clearActiveVisit } from '@/lib/van-sales/active-visit';
+import { PendingLink } from '@/components/shared/pending-link';
 import { noteVisitOpen, noteVisitClick, endVisitMetrics } from '@/lib/van-sales/visit-metrics';
 import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
 import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight, ChevronDown, ShieldCheck, AlertTriangle } from 'lucide-react';
@@ -93,6 +94,7 @@ export function CustomerStatementView({
   // return was started but not finished — the rep must finish it (clears the flag
   // on success) or explicitly discard it here.
   const [guard, setGuard] = useState<string[] | null>(null);
+  const [completing, setCompleting] = useState(false);
   const mark = (action: 'sell' | 'collect' | 'return') => {
     if (!visit) return;
     markVisitWork(visit.customerId, action);
@@ -114,17 +116,19 @@ export function CustomerStatementView({
     clearActiveVisit();
   }
   function onCompleteVisit() {
-    if (!visit) return;
+    if (!visit || completing) return;
     const pending = listUnfinishedVisitWork(visit.customerId);
     if (pending.length > 0) { setGuard(pending); return; }
     finishVisit();
+    setCompleting(true);
     router.push(visit.completeHref);
   }
   function onDiscardComplete() {
-    if (!visit) return;
+    if (!visit || completing) return;
     clearAllVisitWork(visit.customerId);
     finishVisit();
     setGuard(null);
+    setCompleting(true);
     router.push(visit.completeHref);
   }
 
@@ -250,8 +254,8 @@ export function CustomerStatementView({
   const completeVisitBlock = (
     <>
       {visit && (
-        <Button className="w-full" size="lg" onClick={onCompleteVisit}>
-          <CheckCircle2 className="h-4 w-4" /> {t('vanSales.visit.completeVisit')}
+        <Button className="w-full" size="lg" onClick={onCompleteVisit} loading={completing}>
+          {!completing && <CheckCircle2 className="h-4 w-4" />} {completing ? t('common.completing') : t('vanSales.visit.completeVisit')}
         </Button>
       )}
       {visit && guard && (
@@ -265,8 +269,8 @@ export function CustomerStatementView({
               <Button variant="outline" className="flex-1" onClick={() => setGuard(null)}>
                 <ArrowRight className="h-4 w-4 rtl:rotate-180" /> {t('vanSales.visit.keepWorking')}
               </Button>
-              <Button variant="destructive" className="flex-1" onClick={onDiscardComplete}>
-                {t('vanSales.visit.discardComplete')}
+              <Button variant="destructive" className="flex-1" onClick={onDiscardComplete} loading={completing}>
+                {completing ? t('common.completing') : t('vanSales.visit.discardComplete')}
               </Button>
             </div>
           </div>
@@ -314,19 +318,19 @@ export function CustomerStatementView({
         {/* LEVEL 1 — actions: Collect · Sell · Return (thumb-friendly). */}
         <div className="grid grid-cols-2 gap-2">
           {showCollect && (
-            <Link href={collectHref!} onClick={() => mark('collect')} className={`col-span-2 ${buttonVariants({ size: 'lg' })}`}>
+            <PendingLink href={collectHref!} onClick={() => mark('collect')} pendingLabel={t('common.opening')} className={`col-span-2 ${buttonVariants({ size: 'lg' })}`}>
               <HandCoins className="h-5 w-5" /> {t('customers.stmtCollectNow')}
-            </Link>
+            </PendingLink>
           )}
           {sellHref && (
-            <Link href={sellHref} onClick={() => mark('sell')} className={buttonVariants({ size: 'lg' })}>
+            <PendingLink href={sellHref} onClick={() => mark('sell')} pendingLabel={t('common.opening')} className={buttonVariants({ size: 'lg' })}>
               <ShoppingCart className="h-5 w-5" /> {t('vanSales.steps.sell')}
-            </Link>
+            </PendingLink>
           )}
           {returnHref && (
-            <Link href={returnHref} onClick={() => mark('return')} className={buttonVariants({ size: 'lg', variant: 'outline' })}>
+            <PendingLink href={returnHref} onClick={() => mark('return')} pendingLabel={t('common.opening')} className={buttonVariants({ size: 'lg', variant: 'outline' })}>
               <Undo2 className="h-5 w-5" /> {t('vanSales.steps.return')}
-            </Link>
+            </PendingLink>
           )}
         </div>
 
@@ -373,19 +377,19 @@ export function CustomerStatementView({
       {/* Actions — the visit context: Collect · Sell · Return · Print (F2). */}
       <div className="flex flex-wrap items-center gap-2">
         {showCollect && (
-          <Link href={collectHref!} onClick={() => mark('collect')} className={buttonVariants({ size: 'sm' })}>
+          <PendingLink href={collectHref!} onClick={() => mark('collect')} pendingLabel={t('common.opening')} className={buttonVariants({ size: 'sm' })}>
             <HandCoins className="h-4 w-4" /> {t('customers.stmtCollectNow')}
-          </Link>
+          </PendingLink>
         )}
         {sellHref && (
-          <Link href={sellHref} onClick={() => mark('sell')} className={buttonVariants({ size: 'sm' })}>
+          <PendingLink href={sellHref} onClick={() => mark('sell')} pendingLabel={t('common.opening')} className={buttonVariants({ size: 'sm' })}>
             <ShoppingCart className="h-4 w-4" /> {t('vanSales.steps.sell')}
-          </Link>
+          </PendingLink>
         )}
         {returnHref && (
-          <Link href={returnHref} onClick={() => mark('return')} className={buttonVariants({ size: 'sm', variant: 'outline' })}>
+          <PendingLink href={returnHref} onClick={() => mark('return')} pendingLabel={t('common.opening')} className={buttonVariants({ size: 'sm', variant: 'outline' })}>
             <Undo2 className="h-4 w-4" /> {t('vanSales.steps.return')}
-          </Link>
+          </PendingLink>
         )}
         <Link href={printHref} target="_blank" className={buttonVariants({ size: 'sm', variant: 'outline' })}>
           <Printer className="h-4 w-4" /> {t('customers.stmtBtnPrint')}
