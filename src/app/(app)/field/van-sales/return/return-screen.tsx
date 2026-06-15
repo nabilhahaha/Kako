@@ -43,6 +43,7 @@ export function ReturnScreen({
   const [customerId, setCustomerId] = useState(preselect);
   const [invoiceId, setInvoiceId] = useState('');
   const [reasonId, setReasonId] = useState('');
+  const [note, setNote] = useState('');
   const [creditNote, setCreditNote] = useState(false);
   const [invoices, setInvoices] = useState<ReturnableInvoice[]>([]);
   const [invLines, setInvLines] = useState<ReturnLineRow[]>([]);
@@ -57,6 +58,8 @@ export function ReturnScreen({
   const cName = (c: ReturnCustomer) => (ar && c.name_ar ? c.name_ar : c.name);
   const rName = (r: ReturnReason) => (ar && r.label_ar ? r.label_ar : r.label_en ?? r.code);
   const lName = (l: ReturnLineRow) => (ar && l.name_ar ? l.name_ar : l.name);
+  // "Other" reason → reveal a free-text note (sent as the return's notes).
+  const isOther = reasons.find((r) => r.id === reasonId)?.code === 'other';
 
   // Load the customer's returnable invoices when the customer changes.
   useEffect(() => {
@@ -107,12 +110,13 @@ export function ReturnScreen({
     if (!customerId) { toast.error(t('vanSales.sell.pickCustomer')); return; }
     if (!invoiceId) { toast.error(t('vanSales.return.invoiceRequired')); return; }
     if (!reasonId) { toast.error(t('vanSales.return.reasonRequired')); return; }
+    if (isOther && !note.trim()) { toast.error(t('vanSales.return.noteRequired')); return; }
     if (validLines.length === 0) { toast.error(t('vanSales.return.emptyCart')); return; }
     setBusy(true);
     try {
       const res = await vanReturn({
         branch_id: branchId, customer_id: customerId, reason_id: reasonId, idempotency_key: key,
-        invoice_id: invoiceId, create_credit_note: creditNote, lines: validLines,
+        invoice_id: invoiceId, create_credit_note: creditNote, notes: note.trim() || undefined, lines: validLines,
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.return.error')); return; }
       setDone({ id: res.data.id, returnNumber: res.data.returnNumber, creditNoteId: res.data.creditNoteId, total: res.data.totalAmount });
@@ -123,7 +127,7 @@ export function ReturnScreen({
 
   function reset() {
     setDone(null); setTotal(null); setInvoiceId(''); setInvLines([]); setQty({});
-    setReasonId(''); setCreditNote(false); setKey(uuid()); setCustomerId(preselect);
+    setReasonId(''); setNote(''); setCreditNote(false); setKey(uuid()); setCustomerId(preselect);
   }
 
   async function share() {
@@ -197,6 +201,9 @@ export function ReturnScreen({
             <option value="">{t('vanSales.return.pickReason')}</option>
             {reasons.map((r) => <option key={r.id} value={r.id}>{rName(r)}</option>)}
           </Select>
+          {isOther && (
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('vanSales.return.otherNote')} />
+          )}
         </div>
 
         {/* Invoice items — Sold / Returned / Remaining + quantity (capped) */}
