@@ -97,18 +97,33 @@ export function RequestsHub({
         )}
 
         {canReopen && (
-          <Link href="/today" className="block">
-            <Card className="transition-colors hover:bg-secondary/50">
-              <CardContent className="flex items-center gap-3 py-4">
-                <LockOpen className="h-5 w-5 text-primary" />
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{t('vanSales.requests.reopen')}</div>
-                  <div className="text-xs text-muted-foreground">{dayClosed ? t('vanSales.requests.reopenReady') : t('vanSales.requests.reopenWhenClosed')}</div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground rtl:rotate-180" />
-              </CardContent>
-            </Card>
-          </Link>
+          dayClosed ? (
+            <Link href="/today" className="block">
+              <Card className="transition-colors hover:bg-secondary/50">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <LockOpen className="h-5 w-5 text-primary" />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{t('vanSales.requests.reopen')}</div>
+                    <div className="text-xs text-muted-foreground">{t('vanSales.requests.reopenReady')}</div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground rtl:rotate-180" />
+                </CardContent>
+              </Card>
+            </Link>
+          ) : (
+            // Day is open → do NOT navigate; show the agreed message inline.
+            <button type="button" className="block w-full text-start" onClick={() => toast.error(t('vanSales.requests.reopenDayOpen'))}>
+              <Card className="transition-colors hover:bg-secondary/50">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <LockOpen className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{t('vanSales.requests.reopen')}</div>
+                    <div className="text-xs text-muted-foreground">{t('vanSales.requests.reopenWhenClosed')}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </button>
+          )
         )}
 
         {/* Governed customer requests (new / data update / GPS / credit / terms) */}
