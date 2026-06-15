@@ -25,6 +25,7 @@ export function StockRequestForm({ van, warehouses, products }: { van: Warehouse
   const [sourceId, setSourceId] = useState(sources[0]?.id ?? '');
   const [urgent, setUrgent] = useState(false);
   const [notes, setNotes] = useState('');
+  const [loadingDate, setLoadingDate] = useState('');
   const [lines, setLines] = useState<Line[]>([{ productId: '', quantity: 1 }]);
   const [busy, setBusy] = useState(false);
 
@@ -40,7 +41,7 @@ export function StockRequestForm({ van, warehouses, products }: { van: Warehouse
     setBusy(true);
     try {
       const res = await submitStockRequest({
-        fromWarehouseId: sourceId, toWarehouseId: van.id, urgent, notes,
+        fromWarehouseId: sourceId, toWarehouseId: van.id, urgent, notes, requestedDate: loadingDate || undefined,
         lines: valid.map((l) => ({ productId: l.productId, quantity: l.quantity })),
       });
       if (!res.ok) { toast.error(res.error ?? t('vanSales.request.error')); return; }
@@ -86,6 +87,11 @@ export function StockRequestForm({ van, warehouses, products }: { van: Warehouse
           <Button type="button" variant="outline" onClick={() => setLines((ls) => [...ls, { productId: '', quantity: 1 }])}>
             <Plus className="h-4 w-4" /> {t('vanSales.request.addLine')}
           </Button>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>{t('vanSales.request.loadingDate')}</Label>
+          <Input type="date" value={loadingDate} onChange={(e) => setLoadingDate(e.target.value)} />
         </div>
 
         <label className="flex items-center gap-2 text-sm font-medium">

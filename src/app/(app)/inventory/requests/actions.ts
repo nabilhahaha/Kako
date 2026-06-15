@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { hasPermission } from '@/lib/erp/permissions';
 import { APPROVAL_LOADREQ } from '@/lib/erp/approval-flags';
+import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
 
 interface RequestInput {
@@ -68,6 +69,38 @@ export async function createStockRequest(input: RequestInput): Promise<ActionRes
     });
   }
 
+  revalidatePath('/inventory/requests');
+  return { ok: true };
+}
+
+/** Warehouse / admin adjusts the approved loading date BEFORE approval. The
+ *  original requested_date is preserved; the change is fully audited (who / when /
+ *  note) — no silent date changes. */
+export async function setStockRequestLoadingDate(input: { id: string; date: string; note?: string }): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const { t } = await getT();
+  if (!hasPermission(ctx, 'stock_request.approve')) return { ok: false, error: t('settings.unauthorized') };
+  if (!input.id || !input.date) return { ok: false, error: t('inventory.errorAtLeastOneItem') };
+
+  const supabase = await createClient();
+  const { data: cur } = await supabase.from('erp_stock_requests').select('requested_date, approved_date, status').eq('id', input.id).maybeSingle();
+  const row = cur as { requested_date: string | null; approved_date: string | null; status: string } | null;
+  if (!row) return { ok: false, error: 'not found' };
+  if (row.status !== 'pending') return { ok: false, error: t('settings.unauthorized') };
+
+  const { error } = await supabase.from('erp_stock_requests').update({
+    approved_date: input.date,
+    date_changed_by: ctx.userId,
+    date_changed_at: new Date().toISOString(),
+    date_change_note: input.note?.trim() || null,
+  }).eq('id', input.id);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  await logAudit(supabase, {
+    action: 'stock_request.date_change', entity: 'stock_request', entityId: input.id, companyId: ctx.companyId ?? undefined,
+    details: { from: row.requested_date, to: input.date, note: input.note?.trim() || null },
+  });
   revalidatePath('/inventory/requests');
   return { ok: true };
 }

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { createStockRequest, approveStockRequest, rejectStockRequest, cancelStockRequest } from './actions';
+import { createStockRequest, approveStockRequest, rejectStockRequest, cancelStockRequest, setStockRequestLoadingDate } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +28,9 @@ export interface RequestRow {
   from_warehouse: { code: string; name: string; name_ar: string | null } | null;
   to_warehouse: { code: string; name: string; name_ar: string | null } | null;
   lines: Array<{ product_id: string; quantity: number }>;
+  requested_date: string | null;
+  approved_date: string | null;
+  date_change_note: string | null;
 }
 
 const STATUS_VARIANT: Record<ReqStatus, 'secondary' | 'success' | 'destructive' | 'warning'> = {
@@ -79,6 +82,19 @@ export function RequestsManager({
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<Line[]>([newLine()]);
   const [pending, startTransition] = useTransition();
+  const [dateEdit, setDateEdit] = useState<Record<string, { date: string; note: string }>>({});
+
+  function changeDate(id: string) {
+    const e = dateEdit[id];
+    if (!e?.date) return;
+    startTransition(async () => {
+      const res = await setStockRequestLoadingDate({ id, date: e.date, note: e.note });
+      if (!res.ok) { toast.error(res.error ?? t('inventory.toastError')); return; }
+      toast.success(t('inventory.loadingDateSaved'));
+      setDateEdit((m) => { const n = { ...m }; delete n[id]; return n; });
+      router.refresh();
+    });
+  }
 
   const whName = (w: { code: string; name: string; name_ar: string | null } | null) =>
     w ? `${w.code} · ${w.name_ar || w.name}` : '—';
@@ -232,6 +248,28 @@ export function RequestsManager({
                       {r.lines.map((l) => `${productName(l.product_id)} ×${formatNumber(l.quantity)}`).join(' · ')}
                     </p>
                     <p className="text-xs text-muted-foreground">{formatDate(r.created_at)}</p>
+                    {(r.requested_date || r.approved_date) && (
+                      <p className="mt-1 text-xs">
+                        <span className="text-muted-foreground">{t('inventory.requestedLoadingDate')}:</span> <span dir="ltr">{r.requested_date ?? '—'}</span>
+                        {r.approved_date && r.approved_date !== r.requested_date && (
+                          <> · <span className="text-muted-foreground">{t('inventory.approvedLoadingDate')}:</span> <span className="font-medium" dir="ltr">{r.approved_date}</span></>
+                        )}
+                        {r.date_change_note && <span className="text-muted-foreground"> — {r.date_change_note}</span>}
+                      </p>
+                    )}
+                    {r.status === 'pending' && canApprove && (
+                      <div className="mt-2 flex flex-wrap items-end gap-2">
+                        <Input type="date" className="h-8 w-40 text-xs"
+                          value={dateEdit[r.id]?.date ?? (r.approved_date ?? r.requested_date ?? '')}
+                          onChange={(e) => setDateEdit((m) => ({ ...m, [r.id]: { date: e.target.value, note: m[r.id]?.note ?? '' } }))} />
+                        <Input className="h-8 w-44 text-xs" placeholder={t('inventory.dateChangeNote')}
+                          value={dateEdit[r.id]?.note ?? ''}
+                          onChange={(e) => setDateEdit((m) => ({ ...m, [r.id]: { date: m[r.id]?.date ?? (r.approved_date ?? r.requested_date ?? ''), note: e.target.value } }))} />
+                        <Button size="sm" variant="outline" className="h-8 text-xs" disabled={pending || !dateEdit[r.id]?.date} onClick={() => changeDate(r.id)}>
+                          {t('inventory.changeLoadingDate')}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <Badge variant={STATUS_VARIANT[r.status]}>{t(STATUS_KEY[r.status])}</Badge>

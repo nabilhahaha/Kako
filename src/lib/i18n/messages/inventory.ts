@@ -128,6 +128,11 @@ export const ar = {
     requestStatusCancelled: 'ملغي',
 
     approveLoad: 'اعتماد وتحميل',
+    requestedLoadingDate: 'تاريخ التحميل المطلوب',
+    approvedLoadingDate: 'التاريخ المعتمد',
+    changeLoadingDate: 'تعديل التاريخ',
+    dateChangeNote: 'سبب تعديل التاريخ',
+    loadingDateSaved: 'تم تحديث تاريخ التحميل.',
     rejectRequest: 'رفض',
     cancelRequest: 'إلغاء',
 
@@ -350,6 +355,11 @@ export const en = {
     requestStatusCancelled: 'Cancelled',
 
     approveLoad: 'Approve & Load',
+    requestedLoadingDate: 'Requested loading date',
+    approvedLoadingDate: 'Approved date',
+    changeLoadingDate: 'Change date',
+    dateChangeNote: 'Date change note',
+    loadingDateSaved: 'Loading date updated.',
     rejectRequest: 'Reject',
     cancelRequest: 'Cancel',
 

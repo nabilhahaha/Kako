@@ -28,6 +28,9 @@ export interface MyRequest {
   tone: 'pending' | 'done' | 'rejected';
   amount: number | null;
   createdAt: string;
+  /** Load request: the requested vs (warehouse-)approved loading date. */
+  requestedDate?: string | null;
+  approvedDate?: string | null;
 }
 
 const DONE = new Set(['approved', 'applied', 'confirmed', 'loaded', 'completed']);
@@ -45,14 +48,14 @@ async function requestsActive(ctx: UserContext): Promise<{ ok: true } | { ok: fa
 export async function loadMyRequests(ctx: UserContext): Promise<MyRequest[]> {
   const supabase = await createClient();
   const [stockRes, cashRes, reopenRes, custRes] = await Promise.all([
-    supabase.from('erp_stock_requests').select('id, status, created_at').eq('requested_by', ctx.userId).order('created_at', { ascending: false }).limit(10),
+    supabase.from('erp_stock_requests').select('id, status, created_at, requested_date, approved_date').eq('requested_by', ctx.userId).order('created_at', { ascending: false }).limit(10),
     supabase.from('erp_cash_handover_requests').select('id, status, amount, created_at').eq('salesman_id', ctx.userId).order('created_at', { ascending: false }).limit(10),
     supabase.from('erp_day_reopen_requests').select('id, status, created_at').eq('requested_by', ctx.userId).order('created_at', { ascending: false }).limit(10),
     supabase.from('erp_customer_requests').select('id, kind, status, created_at').eq('salesman_id', ctx.userId).order('created_at', { ascending: false }).limit(10),
   ]);
 
   const out: MyRequest[] = [];
-  for (const r of (stockRes.data ?? []) as { id: string; status: string; created_at: string }[]) out.push({ id: r.id, kind: 'load', status: r.status, tone: toneOf(r.status), amount: null, createdAt: r.created_at });
+  for (const r of (stockRes.data ?? []) as { id: string; status: string; created_at: string; requested_date: string | null; approved_date: string | null }[]) out.push({ id: r.id, kind: 'load', status: r.status, tone: toneOf(r.status), amount: null, createdAt: r.created_at, requestedDate: r.requested_date, approvedDate: r.approved_date });
   for (const r of (cashRes.data ?? []) as { id: string; status: string; amount: number; created_at: string }[]) out.push({ id: r.id, kind: 'cash_handover', status: r.status, tone: toneOf(r.status), amount: Number(r.amount ?? 0), createdAt: r.created_at });
   for (const r of (reopenRes.data ?? []) as { id: string; status: string; created_at: string }[]) out.push({ id: r.id, kind: 'reopen', status: r.status, tone: toneOf(r.status), amount: null, createdAt: r.created_at });
   for (const r of (custRes.data ?? []) as { id: string; kind: RequestKind; status: string; created_at: string }[]) out.push({ id: r.id, kind: r.kind, status: r.status, tone: toneOf(r.status), amount: null, createdAt: r.created_at });

@@ -25,6 +25,8 @@ export interface SubmitStockRequestInput {
   toWarehouseId: string; // the van
   urgent?: boolean;
   notes?: string;
+  /** Requested loading/delivery date (YYYY-MM-DD). The warehouse may adjust it. */
+  requestedDate?: string;
   lines: StockRequestLineInput[];
 }
 
@@ -69,6 +71,8 @@ export async function submitStockRequest(input: SubmitStockRequestInput): Promis
       origin: 'salesman',
       notes: input.notes ?? null,
       requested_by: ctx.userId,
+      requested_date: input.requestedDate || null,
+      approved_date: input.requestedDate || null,
     })
     .select('id')
     .single();

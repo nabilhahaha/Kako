@@ -128,7 +128,10 @@ export function RequestsHub({
                   <li key={`${r.kind}-${r.id}`} className="flex items-center justify-between gap-2 p-3">
                     <div className="min-w-0">
                       <div className="text-sm font-medium">{t(`vanSales.requests.kind.${r.kind}`)}{r.amount != null ? ` · ${formatCurrency(r.amount, 'EGP', intl)}` : ''}</div>
-                      <div className="text-xs text-muted-foreground">{fmtDate(r.createdAt)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {fmtDate(r.createdAt)}
+                        {r.kind === 'load' && r.requestedDate ? ` · ${t('vanSales.requests.loadingDateShort')}: ${r.requestedDate}${r.approvedDate && r.approvedDate !== r.requestedDate ? ` → ${r.approvedDate}` : ''}` : ''}
+                      </div>
                     </div>
                     <Badge variant={TONE[r.tone]}>{t(`vanSales.requests.st.${r.tone}`)}</Badge>
                   </li>
