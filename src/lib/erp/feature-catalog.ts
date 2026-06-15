@@ -227,6 +227,13 @@ export const FEATURES: FeatureDef[] = [
     screens: ['/today', '/field/van-sales'],
     logic: ['salesman.workspace', 'today.compose'],
   }),
+  // Salesman Requests hub (FMCG): one place for the salesman's operational
+  // requests (Load · Cash handover · Reopen day; more later). Adds the Requests
+  // bottom-nav tab. Default OFF; independently rollable from the workspace.
+  P('platform.salesman_requests', 'pos', [], {
+    screens: ['/field/van-sales/requests'],
+    logic: ['requests.hub', 'erp_request_cash_handover'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),

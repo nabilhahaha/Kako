@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import {
   Truck, MapPin, Map as MapIcon, ShoppingCart, Undo2, HandCoins, Boxes, ClipboardCheck, ClipboardList, RefreshCw, Play, CheckCircle2, Users, LockOpen, type LucideIcon,
 } from 'lucide-react';
+import { loadPendingCashHandovers } from '@/lib/van-sales/requests-server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
@@ -12,7 +13,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { VAN_SALES_ENABLED } from '@/lib/van-sales';
-import { dayReopenEnabled, unifiedSalesmanWorkspaceEnabled } from '@/lib/van-sales/sell';
+import { dayReopenEnabled, unifiedSalesmanWorkspaceEnabled, salesmanRequestsEnabled } from '@/lib/van-sales/sell';
 import { loadVanDayState, loadPendingDayReopens } from '@/lib/van-sales/day-server';
 
 export const dynamic = 'force-dynamic';
@@ -68,6 +69,9 @@ export default async function VanSalesMyDayPage() {
   // Governed day-reopen (flag-gated): approvers see the pending-request inbox.
   const canApproveReopen = dayReopenEnabled(flags) && (hasPermission(ctx, 'day.reopen.approve') || ctx.isSuperAdmin);
   const pendingReopens = canApproveReopen ? await loadPendingDayReopens(ctx) : [];
+  // Cash-handover confirmer inbox (flag platform.salesman_requests).
+  const canConfirmCash = salesmanRequestsEnabled(flags) && (hasPermission(ctx, 'cash.handover.confirm') || ctx.isSuperAdmin);
+  const pendingCash = canConfirmCash ? await loadPendingCashHandovers(ctx) : [];
 
   return (
     <div className="space-y-6">
@@ -119,6 +123,22 @@ export default async function VanSalesMyDayPage() {
                 <div className="text-xs text-muted-foreground">{t('vanSales.reopen.approvals.subtitle')}</div>
               </div>
               {pendingReopens.length > 0 && <Badge>{pendingReopens.length}</Badge>}
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
+      {/* Confirmer: cash-handover requests (flag-gated) */}
+      {canConfirmCash && (
+        <Link href="/field/van-sales/cash-handovers" className="block">
+          <Card className="transition-colors hover:bg-secondary/50">
+            <CardContent className="flex items-center gap-3 py-4">
+              <HandCoins className="h-5 w-5 text-primary" />
+              <div className="flex-1">
+                <div className="text-sm font-medium">{t('vanSales.requests.confirm.title')}</div>
+                <div className="text-xs text-muted-foreground">{t('vanSales.requests.confirm.subtitle')}</div>
+              </div>
+              {pendingCash.length > 0 && <Badge>{pendingCash.length}</Badge>}
             </CardContent>
           </Card>
         </Link>

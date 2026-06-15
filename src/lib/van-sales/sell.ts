@@ -97,6 +97,12 @@ export function unifiedSalesmanWorkspaceEnabled(flags: Record<string, boolean | 
   return Boolean(flags?.['platform.unified_salesman_workspace']);
 }
 
+/** Is the Salesman Requests hub active? Opt-in platform flag
+ *  (`platform.salesman_requests`), default OFF. Independent of the workspace. Pure. */
+export function salesmanRequestsEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
+  return Boolean(flags?.['platform.salesman_requests']);
+}
+
 /** Tender methods supported in-sell (one collection row each on the server).
  *  These are the DB-canonical erp_collections.method codes (constraint-aligned):
  *  cash · credit_card (Card) · bank_transfer · check (Cheque). */

@@ -1,6 +1,6 @@
 import type { Permission } from '@/lib/erp/permissions';
 import { isModuleGateOpen, type Module } from '@/lib/erp/navigation';
-import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, Truck, type LucideIcon } from 'lucide-react';
+import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, Truck, Inbox, type LucideIcon } from 'lucide-react';
 
 /** A candidate bottom-nav tab. `href` must resolve to a real route, `labelKey`
  *  is an i18n key, `perm` (when set) gates visibility, and `module` (when set)
@@ -29,6 +29,9 @@ export interface BottomNavTab {
   /** Only a candidate when the unified salesman workspace is active for THIS user
    *  (flag ON + van salesman). Used to surface the Customer-first entry. */
   unifiedOnly?: boolean;
+  /** Only a candidate when the Salesman Requests hub is active for THIS user
+   *  (platform.salesman_requests ON + van salesman). */
+  requestsOnly?: boolean;
   /** Suppressed when the unified salesman workspace is active for THIS user — the
    *  duplicate/overlapping entry points (generic Home, the standalone Sell tab)
    *  are removed so Today is the one home and selling stays Customer-first. */
@@ -66,6 +69,8 @@ export const BOTTOM_NAV_TABS: BottomNavTab[] = [
   { href: '/field/stock', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'field.sales', group: 'inventory', vanSalesOnly: true },
   { href: '/fashion/inventory', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'fashion.inventory', module: 'fashion', group: 'inventory' },
   { href: '/inventory', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'inventory.view', module: 'inventory', group: 'inventory' },
+  // Salesman Requests hub (flag platform.salesman_requests) — Today · Van Stock · Requests · More.
+  { href: '/field/van-sales/requests', icon: Inbox, labelKey: 'nav.bottom.requests', perm: 'field.sales', requestsOnly: true },
 ];
 
 export interface BottomNavContext {
@@ -83,6 +88,9 @@ export interface BottomNavContext {
    *  van salesman). Surfaces the Customer-first tab and removes the duplicate
    *  Home / standalone Sell tabs so Today is the one operational entry. */
   unifiedWorkspace?: boolean;
+  /** Whether the Salesman Requests hub is active for THIS user (flag ON + van
+   *  salesman). Surfaces the Requests tab. */
+  requestsEnabled?: boolean;
 }
 
 /**
@@ -104,7 +112,9 @@ export function resolveBottomNavTabs(
   const candidates = tabs.filter(
     (t) => can(t.perm) && isModuleGateOpen(ctx.modules, t.module) && (!t.vanSalesOnly || ctx.vanSalesActive)
       // Unified salesman workspace: surface unifiedOnly tabs, drop hideWhenUnified ones.
-      && (!t.unifiedOnly || ctx.unifiedWorkspace) && !(t.hideWhenUnified && ctx.unifiedWorkspace),
+      && (!t.unifiedOnly || ctx.unifiedWorkspace) && !(t.hideWhenUnified && ctx.unifiedWorkspace)
+      // Salesman Requests hub: surface the Requests tab only when its flag is on.
+      && (!t.requestsOnly || ctx.requestsEnabled),
   );
 
   // Within a mutually-exclusive group, clothing prefers the Fashion route; every

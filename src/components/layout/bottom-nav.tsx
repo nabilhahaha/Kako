@@ -21,6 +21,7 @@ export function BottomNav({
   businessType = null,
   vanSalesActive = false,
   unifiedWorkspace = false,
+  requestsEnabled = false,
 }: {
   permissions: Permission[];
   isSuperAdmin: boolean;
@@ -33,12 +34,14 @@ export function BottomNav({
   /** Unified salesman workspace active for this user → Customer-first nav, no
    *  duplicate Home / Sell tabs. */
   unifiedWorkspace?: boolean;
+  /** Salesman Requests hub active for this user → the Requests tab. */
+  requestsEnabled?: boolean;
 }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const setOpen = useMobileNav((s) => s.setOpen);
 
-  const visible = resolveBottomNavTabs({ permissions, isSuperAdmin, modules, businessType, vanSalesActive, unifiedWorkspace })
+  const visible = resolveBottomNavTabs({ permissions, isSuperAdmin, modules, businessType, vanSalesActive, unifiedWorkspace, requestsEnabled })
     .map((tab) => ({ href: tab.href, icon: tab.icon, label: t(tab.labelKey) }))
     .slice(0, 4);
   const cols = visible.length + 1;

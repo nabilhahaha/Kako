@@ -17,7 +17,7 @@ import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { hasPermission } from '@/lib/erp/permissions';
-import { unifiedSalesmanWorkspaceEnabled } from '@/lib/van-sales/sell';
+import { unifiedSalesmanWorkspaceEnabled, salesmanRequestsEnabled } from '@/lib/van-sales/sell';
 import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
 import { getT } from '@/lib/i18n/server';
@@ -52,6 +52,7 @@ export default async function AppLayout({
   const vanSalesActive = await isVanSalesActive(await createClient(), ctx);
   const isVanSalesman = hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'settings.branches') && !ctx.isSuperAdmin;
   const unifiedWorkspace = unifiedSalesmanWorkspaceEnabled(tenantFeatures) && vanSalesActive && isVanSalesman;
+  const requestsEnabled = salesmanRequestsEnabled(tenantFeatures) && vanSalesActive && isVanSalesman;
   const navFlags = [
     ...enabledNavFlags(),
     ...Object.keys(tenantFeatures).filter((k) => tenantFeatures[k]),
@@ -214,7 +215,7 @@ export default async function AppLayout({
               device home-indicator inset (UX-3 / safe-area). */}
           <main className="flex-1 p-4 pb-nav-safe lg:p-6 lg:pb-6">{children}</main>
         </div>
-        <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} modules={ctx.modules} businessType={ctx.company?.business_type ?? null} vanSalesActive={vanSalesActive} unifiedWorkspace={unifiedWorkspace} />
+        <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} modules={ctx.modules} businessType={ctx.company?.business_type ?? null} vanSalesActive={vanSalesActive} unifiedWorkspace={unifiedWorkspace} requestsEnabled={requestsEnabled} />
         {/* Global Help Copilot — always available, outside page content. */}
         <CopilotFab />
       </div>

@@ -134,3 +134,40 @@ question.
    reuse, no engine work.
 3. **Location Correction approver:** new dedicated mini-inbox, or route GPS requests
    into the existing `/approvals/queue`? (Phase 2 decision.)
+
+---
+
+## 7. Decision (confirmed) + Phase 1 implementation
+
+**Flag:** dedicated **`platform.salesman_requests`** (independent of the workspace).
+**Phase 1 types:** Load Request · **Cash Handover** · Reopen Day. (Credit Limit
+moves to Phase 2 with New Customer / Update Customer Data / Location Correction.)
+
+**Implemented (Phase 1):**
+- New `platform.salesman_requests` flag + `Requests` bottom-nav tab →
+  **`Today · Van Stock · Requests · More`** (in the pure, unit-tested resolver).
+- `/field/van-sales/requests` hub: tiles for **Load** (reuse `/field/van-sales/request`),
+  **Cash handover** (new minimal request), **Reopen day** (links to Today), plus a
+  **"My requests"** status list aggregating stock + cash + reopen requests.
+- Minimal **Cash Handover request** (migration 0309): `erp_cash_handover_requests`
+  + `erp_request_/decide_cash_handover` RPCs; perms `cash.handover.request`
+  (salesman) / `cash.handover.confirm` (cashier/supervisor/accountant/admin);
+  salesman can't confirm own; audited. Confirmer inbox
+  `/field/van-sales/cash-handovers` + a tile on the (manager) van-sales hub.
+- **Pluggable** by design: the hub renders a gated list of request types and the
+  aggregator merges per-backend status — future types (credit, new customer,
+  customer-data, GPS) plug into the same hub + "my requests".
+
+> Cash Handover here is the **request/declaration** layer (declare amount →
+> cashier confirms). The fuller cash-custody (per-day liability + multi-day
+> allocation from the reopen design's Phase 2) will build on these confirmations.
+
+## 8. Queued — Today JP route tabs (next refinement pass, NOT a blocker)
+Inside the Today JP route list, add tabs **All · Remaining · Visited**:
+- **Remaining** = planned customers not yet completed today; **Visited** =
+  completed; **All** = full planned list with a status indicator per stop.
+- Tapping **Complete Visit** moves a customer Remaining → Visited automatically;
+  the **progress counter + coverage %** update accordingly.
+- Today JP route customers first; keep it simple + mobile-friendly. Reuse
+  `erp_today_journey` (planned) + `erp_visits` (visited) — no new engine.
+Status: **queued** for the next refinement pass per the user (non-blocking).

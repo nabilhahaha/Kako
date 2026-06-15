@@ -227,4 +227,13 @@ describe('bottom-nav — unified salesman workspace', () => {
     expect(hrefs).toContain('/dashboard');
     expect(hrefs).toContain('/field/van-sales/sell');
   });
+
+  it('requests flag ON → Requests tab present; OFF → absent', () => {
+    const on = resolveBottomNavTabs({ ...SALESMAN, unifiedWorkspace: true, requestsEnabled: true }).map((t) => t.href);
+    expect(on).toContain('/field/van-sales/requests'); // Today · Van Stock · Requests
+    expect(on).toContain('/today');
+    expect(on).toContain('/field/stock');
+    const off = resolveBottomNavTabs({ ...SALESMAN, unifiedWorkspace: true }).map((t) => t.href);
+    expect(off).not.toContain('/field/van-sales/requests');
+  });
 });

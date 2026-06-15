@@ -184,6 +184,7 @@ export const ar = {
       customers: 'العملاء',
       sell: 'بيع',
       inventory: 'المخزون',
+      requests: 'الطلبات',
       more: 'المزيد',
     },
     profile: {
@@ -545,6 +546,7 @@ export const en = {
       customers: 'Customers',
       sell: 'Sell',
       inventory: 'Inventory',
+      requests: 'Requests',
       more: 'More',
     },
     profile: {
