@@ -2,7 +2,17 @@
 
 **Field Visit & Market Intelligence Platform** — a standalone, mobile-first product for managers, supervisors, trade marketing, and business development teams to document market visits, capture photo intelligence, track competitors and opportunities, log issues, drive action plans, and generate actionable market insights.
 
-> **Status:** Planning / Pre-implementation. This folder currently contains **design documents only** (no application code). Implementation will begin **only after approval**.
+> **Status:** Phase 0 (Foundation & Isolation) complete. The standalone app scaffold, installable PWA, offline-engine foundation, separate Supabase project, separate env, and path-scoped CI/CD are in place and building green. **Phase 1 (Auth, data model, RBAC) awaits approval.**
+
+## Run locally
+
+```bash
+cd field-insights
+npm install
+cp .env.example .env   # fill in VITE_FI_* (a working .env is already present in dev)
+npm run dev            # http://localhost:5273
+npm run typecheck && npm run build
+```
 
 ---
 
@@ -33,6 +43,7 @@ Review these in order before approving implementation:
 4. [`docs/04-user-journey.md`](docs/04-user-journey.md) — end-to-end journeys per role
 5. [`docs/05-mobile-ux-mockups.md`](docs/05-mobile-ux-mockups.md) — ASCII wireframes of the key mobile screens
 6. [`docs/06-development-roadmap.md`](docs/06-development-roadmap.md) — phased delivery plan, milestones, estimates
+7. [`docs/07-phase-0-deliverables.md`](docs/07-phase-0-deliverables.md) — **Phase 0 output:** architecture diagram, execution-graph schema, the 60-second visit UX, future-module design
 
 ---
 
