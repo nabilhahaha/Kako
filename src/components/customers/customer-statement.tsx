@@ -18,7 +18,9 @@ import { setActiveVisit, clearActiveVisit } from '@/lib/van-sales/active-visit';
 import { PendingLink } from '@/components/shared/pending-link';
 import { noteVisitOpen, noteVisitClick, endVisitMetrics } from '@/lib/van-sales/visit-metrics';
 import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
-import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight, ChevronDown, ShieldCheck, AlertTriangle, Ban } from 'lucide-react';
+import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight, ShieldCheck, AlertTriangle, Ban, History, Navigation, Phone, Lightbulb } from 'lucide-react';
+import { googleMapsUrl, appleMapsUrl, wazeUrl, hasValidCoords } from '@/lib/van-sales/map-links';
+import { recommendAction, recommendedKind, daysSince } from '@/lib/van-sales/visit-recommendation';
 
 /** Visit context (Phase 1, route-driven): the route stop opened this customer; the
  *  statement is the visit hub and "Complete Visit" returns to the route. */
@@ -33,6 +35,22 @@ export interface VisitContext {
   customerName?: string;
   /** How the visit was opened (smart_next | resume | route) — telemetry. */
   source?: string;
+}
+
+/** Extra customer context for the field visit cockpit (the rest derives from the
+ *  CustomerStatement). Computed server-side by the visit page. */
+export interface VisitCockpitData {
+  name: string;
+  code: string | null;
+  area: string | null;
+  phone: string | null;
+  lat: number | null;
+  lng: number | null;
+  lastVisitDate: string | null;
+  lastInvoiceDate: string | null;
+  lastInvoiceAmount: number | null;
+  salesThisMonth: number;
+  salesLastMonth: number;
 }
 
 const BUCKET_LABEL: Record<AgingBucket, string> = {
@@ -60,6 +78,7 @@ export function CustomerStatementView({
   showRecon = false,
   visit,
   variant = 'full',
+  cockpit,
 }: {
   statement: CustomerStatement;
   printHref: string;
@@ -73,9 +92,13 @@ export function CustomerStatementView({
   showRecon?: boolean;
   /** Phase 1 visit-driven route: renders the route banner + Complete Visit. */
   visit?: VisitContext;
-  /** 'field' = mobile salesman visit: status-first Level 1 + collapsible Level 2
-   *  details. 'full' (default) = the accounting/admin layout (unchanged). */
+  /** 'field' = mobile salesman VISIT cockpit (customer context + action grid).
+   *  'full' (default) = the accounting/admin layout (unchanged). */
   variant?: 'full' | 'field';
+  /** Extra customer context for the field visit cockpit (name/code/area/phone/
+   *  GPS + last visit/invoice + sales MTD/LM). Balance/credit/overdue/open-count/
+   *  oldest-due derive from `statement`. */
+  cockpit?: VisitCockpitData;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -98,6 +121,7 @@ export function CustomerStatementView({
   const [noSaleOpen, setNoSaleOpen] = useState(false);
   const [noSaleReason, setNoSaleReason] = useState<string>('shop_closed');
   const [noSaleNote, setNoSaleNote] = useState('');
+  const [navOpen, setNavOpen] = useState(false);
   const mark = (action: 'sell' | 'collect' | 'return') => {
     if (!visit) return;
     markVisitWork(visit.customerId, action);
@@ -268,21 +292,10 @@ export function CustomerStatementView({
     </div>
   );
 
-  // Complete-Visit button + unfinished-work guard (shared).
+  // Visit modals (No-Sale reason sheet + unfinished-work guard) — shared.
   const NO_SALE_REASONS = ['shop_closed', 'no_need', 'owner_absent', 'payment_dispute', 'other'] as const;
-  const completeVisitBlock = (
+  const visitSheets = (
     <>
-      {visit && (
-        <div className="space-y-2">
-          <Button className="w-full" size="lg" onClick={onCompleteVisit} loading={completing}>
-            {!completing && <CheckCircle2 className="h-4 w-4" />} {completing ? t('common.completing') : t('vanSales.visit.completeVisit')}
-          </Button>
-          {/* No Sale — complete the visit without a transaction (reason captured). */}
-          <Button variant="outline" className="w-full" onClick={() => setNoSaleOpen(true)} disabled={completing}>
-            <Ban className="h-4 w-4" /> {t('vanSales.visit.noSale')}
-          </Button>
-        </div>
-      )}
       {visit && noSaleOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setNoSaleOpen(false)}>
           <div className="w-full max-w-md space-y-3 rounded-t-2xl bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
@@ -341,8 +354,27 @@ export function CustomerStatementView({
     </>
   );
 
-  // ── FIELD VARIANT — status-first Level 1, collapsible Level 2 ──────────────
-  // Goal: the rep understands the customer and can act within ~3 seconds.
+  // Complete-Visit block for the FULL variant (Complete Visit + No Sale buttons).
+  const completeVisitBlock = (
+    <>
+      {visit && (
+        <div className="space-y-2">
+          <Button className="w-full" size="lg" onClick={onCompleteVisit} loading={completing}>
+            {!completing && <CheckCircle2 className="h-4 w-4" />} {completing ? t('common.completing') : t('vanSales.visit.completeVisit')}
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => setNoSaleOpen(true)} disabled={completing}>
+            <Ban className="h-4 w-4" /> {t('vanSales.visit.noSale')}
+          </Button>
+        </div>
+      )}
+      {visitSheets}
+    </>
+  );
+
+  // ── FIELD VARIANT — VISIT COCKPIT ──────────────────────────────────────────
+  // One visit-centric screen: customer context + visit KPIs + a quick-action grid
+  // (New Sale / Collection / Return / No Sale / History / Navigate / Call). The
+  // rep has everything to decide BEFORE choosing an action; End Visit advances.
   if (variant === 'field') {
     const creditTone =
       creditStatus === 'good'
@@ -350,62 +382,113 @@ export function CustomerStatementView({
         : creditStatus === 'overLimit'
           ? { badge: 'destructive' as const, Icon: AlertTriangle, label: t('customers.stmtCreditOverLimit') }
           : { badge: 'destructive' as const, Icon: AlertTriangle, label: t('customers.stmtCreditOverdue') };
+    const name = cockpit?.name ?? visit?.customerName ?? '—';
+    const subtitle = [cockpit?.code, cockpit?.area].filter(Boolean).join(' · ');
+    const oldestDueDays = openInvoices.reduce((m, o) => Math.max(m, o.daysOverdue), 0);
+    const canNavigate = hasValidCoords(cockpit?.lat, cockpit?.lng);
+    const lat = cockpit?.lat as number;
+    const lng = cockpit?.lng as number;
+
+    // Recommended next action — guide, don't just inform.
+    const reco = recommendAction({
+      overdueAmount: summary.overdueAmount,
+      availableCredit: summary.availableCredit,
+      creditLimit: summary.creditLimit,
+      daysSinceLastPurchase: daysSince(cockpit?.lastInvoiceDate ?? null, new Date().toISOString().slice(0, 10)),
+    });
+    const recoKind = recommendedKind(reco);
+    const recoHref = recoKind === 'collect' ? (showCollect ? collectHref : undefined) : recoKind === 'return' ? returnHref : sellHref;
+    const recoCta = recoKind === 'collect' ? t('vanSales.cockpit.actCollection') : recoKind === 'return' ? t('vanSales.cockpit.actReturn') : t('vanSales.cockpit.actNewSale');
+    const tile = 'flex h-[4.75rem] select-none touch-manipulation flex-col items-center justify-center gap-1 rounded-xl border bg-card text-xs font-medium transition-[transform,background-color] duration-100 active:scale-[0.97] hover:bg-secondary/40 disabled:opacity-40';
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         {routeBanner}
 
-        {/* LEVEL 1 — status at a glance: balance · overdue · credit status. */}
+        {/* CUSTOMER CONTEXT */}
         <Card>
           <CardContent className="space-y-3 p-4">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{t('customers.stmtBalanceLabel')}</p>
-                <p className={`text-3xl font-extrabold tabular-nums ${summary.currentBalance > 0 ? 'text-warning' : 'text-success'}`} dir="ltr">
-                  {money(summary.currentBalance)}
-                </p>
+                <p className="truncate text-lg font-bold leading-tight">{name}</p>
+                {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
               </div>
               <Badge variant={creditTone.badge} className="shrink-0 gap-1">
                 <creditTone.Icon className="h-3.5 w-3.5" /> {creditTone.label}
               </Badge>
             </div>
-            {summary.overdueAmount > 0 && (
-              <div className="flex items-center justify-between rounded-md bg-destructive/5 px-3 py-2">
-                <span className="text-sm font-medium text-destructive">{t('customers.stmtOverdueAmount')}</span>
-                <span className="text-base font-bold tabular-nums text-destructive" dir="ltr">{money(summary.overdueAmount)}</span>
+            <div className="grid grid-cols-2 gap-2">
+              <InfoCell label={t('customers.stmtBalanceLabel')} value={money(summary.currentBalance)} tone={summary.currentBalance > 0 ? 'warn' : undefined} />
+              <InfoCell label={t('customers.stmtAvailableCredit')} value={money(summary.availableCredit)} tone={summary.availableCredit < 0 ? 'bad' : 'ok'} />
+              <InfoCell label={t('vanSales.cockpit.lastInvoice')} value={cockpit?.lastInvoiceDate ? formatDate(cockpit.lastInvoiceDate, intl) : '—'} />
+              <InfoCell label={t('vanSales.cockpit.lastInvoiceAmt')} value={cockpit?.lastInvoiceAmount != null ? money(cockpit.lastInvoiceAmount) : '—'} />
+              <InfoCell label={t('vanSales.cockpit.lastVisit')} value={cockpit?.lastVisitDate ? formatDate(cockpit.lastVisitDate, intl) : '—'} />
+              <InfoCell label={t('customers.stmtSummaryCreditLimit')} value={money(summary.creditLimit)} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* RECOMMENDED ACTION — guide the rep to the next best step. */}
+        <Card className="border-primary/60 bg-primary/5">
+          <CardContent className="flex items-center justify-between gap-3 p-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Lightbulb className="h-5 w-5 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">{t('vanSales.cockpit.recommended')}</p>
+                <p className="truncate text-sm font-bold">{t(`vanSales.cockpit.reco_${reco}`)}</p>
               </div>
+            </div>
+            {recoHref && (
+              <PendingLink href={recoHref} onClick={() => mark(recoKind)} pendingLabel={t('common.opening')} className={`shrink-0 ${buttonVariants({ size: 'sm' })}`}>
+                {recoCta} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+              </PendingLink>
             )}
           </CardContent>
         </Card>
 
-        {/* LEVEL 1 — actions: Collect · Sell · Return (thumb-friendly). */}
+        {/* VISIT KPIs */}
+        <div className="grid grid-cols-3 gap-2">
+          <KpiCell label={t('vanSales.cockpit.salesMtd')} value={money(cockpit?.salesThisMonth ?? 0)} />
+          <KpiCell label={t('vanSales.cockpit.salesLm')} value={money(cockpit?.salesLastMonth ?? 0)} />
+          <KpiCell label={t('vanSales.cockpit.openInv')} value={String(summary.openInvoiceCount)} />
+          <KpiCell label={t('customers.stmtOverdueAmount')} value={money(summary.overdueAmount)} tone={summary.overdueAmount > 0 ? 'bad' : undefined} />
+          <KpiCell label={t('vanSales.cockpit.oldestDue')} value={oldestDueDays > 0 ? `${oldestDueDays}${locale === 'ar' ? 'ي' : 'd'}` : '—'} tone={oldestDueDays > 0 ? 'warn' : undefined} />
+          <KpiCell label={t('vanSales.cockpit.creditLimitShort')} value={money(summary.creditLimit)} />
+        </div>
+
+        {/* QUICK ACTIONS */}
         <div className="grid grid-cols-2 gap-2">
-          {showCollect && (
-            <PendingLink href={collectHref!} onClick={() => mark('collect')} pendingLabel={t('common.opening')} className={`col-span-2 ${buttonVariants({ size: 'lg' })}`}>
-              <HandCoins className="h-5 w-5" /> {t('customers.stmtCollectNow')}
+          {sellHref && (
+            <PendingLink href={sellHref} onClick={() => mark('sell')} pendingLabel={t('common.opening')} className={`${tile} border-primary/40 bg-primary/5 text-primary`}>
+              <ShoppingCart className="h-6 w-6" /> {t('vanSales.cockpit.actNewSale')}
             </PendingLink>
           )}
-          {sellHref && (
-            <PendingLink href={sellHref} onClick={() => mark('sell')} pendingLabel={t('common.opening')} className={buttonVariants({ size: 'lg' })}>
-              <ShoppingCart className="h-5 w-5" /> {t('vanSales.steps.sell')}
+          {showCollect && (
+            <PendingLink href={collectHref!} onClick={() => mark('collect')} pendingLabel={t('common.opening')} className={tile}>
+              <HandCoins className="h-6 w-6" /> {t('vanSales.cockpit.actCollection')}
             </PendingLink>
           )}
           {returnHref && (
-            <PendingLink href={returnHref} onClick={() => mark('return')} pendingLabel={t('common.opening')} className={buttonVariants({ size: 'lg', variant: 'outline' })}>
-              <Undo2 className="h-5 w-5" /> {t('vanSales.steps.return')}
+            <PendingLink href={returnHref} onClick={() => mark('return')} pendingLabel={t('common.opening')} className={tile}>
+              <Undo2 className="h-6 w-6" /> {t('vanSales.cockpit.actReturn')}
             </PendingLink>
+          )}
+          <button type="button" onClick={() => setNoSaleOpen(true)} disabled={completing} className={tile}>
+            <Ban className="h-6 w-6" /> {t('vanSales.visit.noSale')}
+          </button>
+          <button type="button" onClick={() => setShowDetails((v) => !v)} aria-expanded={showDetails} className={tile}>
+            <History className="h-6 w-6" /> {t('vanSales.cockpit.actHistory')}
+          </button>
+          <button type="button" onClick={() => canNavigate && setNavOpen(true)} disabled={!canNavigate} className={tile}>
+            <Navigation className="h-6 w-6" /> {t('vanSales.smartNext.navigate')}
+          </button>
+          {cockpit?.phone && (
+            <a href={`tel:${cockpit.phone}`} className={tile}>
+              <Phone className="h-6 w-6" /> {t('vanSales.cockpit.actCall')}
+            </a>
           )}
         </div>
 
-        {/* LEVEL 2 — details on demand: aging · open invoices · movement · print. */}
-        <button
-          type="button"
-          onClick={() => setShowDetails((v) => !v)}
-          aria-expanded={showDetails}
-          className="flex w-full items-center justify-between rounded-md border bg-secondary/30 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-secondary/60"
-        >
-          {showDetails ? t('customers.stmtDetailsHide') : t('customers.stmtDetailsShow')}
-          <ChevronDown className={`h-4 w-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
-        </button>
+        {/* HISTORY — details on demand: aging · open invoices · movement · print. */}
         {showDetails && (
           <div className="space-y-4">
             {agingBlock}
@@ -417,7 +500,25 @@ export function CustomerStatementView({
           </div>
         )}
 
-        {completeVisitBlock}
+        {/* END VISIT → Next Customer */}
+        {visit && (
+          <Button className="w-full" size="lg" onClick={onCompleteVisit} loading={completing}>
+            {!completing && <ArrowRight className="h-5 w-5 rtl:rotate-180" />} {completing ? t('common.completing') : t('vanSales.cockpit.endVisit')}
+          </Button>
+        )}
+        {visitSheets}
+
+        {/* Navigate sheet */}
+        {navOpen && canNavigate && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setNavOpen(false)}>
+            <div className="w-full max-w-md space-y-2 rounded-t-2xl bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+              <p className="mb-1 text-sm font-semibold text-muted-foreground">{t('vanSales.smartNext.navigate')}</p>
+              <a href={googleMapsUrl(lat, lng)} target="_blank" rel="noopener noreferrer" className={`w-full ${buttonVariants({ variant: 'outline' })}`} onClick={() => setNavOpen(false)}>{t('vanSales.smartNext.navGoogle')}</a>
+              <a href={appleMapsUrl(lat, lng)} target="_blank" rel="noopener noreferrer" className={`w-full ${buttonVariants({ variant: 'outline' })}`} onClick={() => setNavOpen(false)}>{t('vanSales.smartNext.navApple')}</a>
+              <a href={wazeUrl(lat, lng)} target="_blank" rel="noopener noreferrer" className={`w-full ${buttonVariants({ variant: 'outline' })}`} onClick={() => setNavOpen(false)}>{t('vanSales.smartNext.navWaze')}</a>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -483,5 +584,27 @@ function Summary({ label, value, tone }: { label: string; value: string; tone?: 
         <p className={`text-lg font-bold tabular-nums ${cls}`} dir="ltr">{value}</p>
       </CardContent>
     </Card>
+  );
+}
+
+const TONE_CLS: Record<'warn' | 'ok' | 'bad', string> = { warn: 'text-warning', ok: 'text-success', bad: 'text-destructive' };
+
+/** Customer-context cell in the visit cockpit (label + value in a soft box). */
+function InfoCell({ label, value, tone }: { label: string; value: string; tone?: 'warn' | 'ok' | 'bad' }) {
+  return (
+    <div className="min-w-0 rounded-lg bg-secondary/40 p-2.5">
+      <p className="truncate text-[11px] text-muted-foreground">{label}</p>
+      <p className={`truncate text-sm font-bold tabular-nums ${tone ? TONE_CLS[tone] : ''}`} dir="ltr">{value}</p>
+    </div>
+  );
+}
+
+/** Compact KPI tile in the visit cockpit. */
+function KpiCell({ label, value, tone }: { label: string; value: string; tone?: 'warn' | 'ok' | 'bad' }) {
+  return (
+    <div className="min-w-0 rounded-lg border p-2 text-center">
+      <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`truncate text-sm font-bold tabular-nums ${tone ? TONE_CLS[tone] : ''}`} dir="ltr">{value}</p>
+    </div>
   );
 }
