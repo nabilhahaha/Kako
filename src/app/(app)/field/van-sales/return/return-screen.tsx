@@ -15,6 +15,7 @@ import {
   previewVanReturn, vanReturn, loadReturnableInvoices, loadInvoiceReturnLines,
   type ReturnableInvoice, type ReturnLineRow,
 } from '@/lib/van-sales/returns-server';
+import { buildReturnReviewRows, type ReturnReviewRow } from '@/lib/van-sales/returns';
 import { clearVisitWork } from '@/lib/van-sales/visit-session';
 import { clearActiveVisit } from '@/lib/van-sales/active-visit';
 import { endVisitMetrics } from '@/lib/van-sales/visit-metrics';
@@ -59,6 +60,8 @@ export function ReturnScreen({
   const [loadingInv, setLoadingInv] = useState(false);
   const [loadingLines, setLoadingLines] = useState(false);
   const [total, setTotal] = useState<number | null>(null);
+  /** Server-priced review rows (the items being returned) — shown after Review. */
+  const [reviewRows, setReviewRows] = useState<ReturnReviewRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ id: string; returnNumber: string; creditNoteId: string | null; total: number } | null>(null);
   const [key, setKey] = useState(() => uuid());
@@ -71,7 +74,7 @@ export function ReturnScreen({
 
   // Load the customer's returnable invoices when the customer changes.
   useEffect(() => {
-    setInvoiceId(''); setInvoices([]); setInvLines([]); setQty({}); setTotal(null);
+    setInvoiceId(''); setInvoices([]); setInvLines([]); setQty({}); setTotal(null); setReviewRows(null);
     if (!customerId) return;
     let alive = true;
     setLoadingInv(true);
@@ -83,7 +86,7 @@ export function ReturnScreen({
 
   // Load the selected invoice's items (Sold / Returned / Remaining).
   useEffect(() => {
-    setInvLines([]); setQty({}); setTotal(null);
+    setInvLines([]); setQty({}); setTotal(null); setReviewRows(null);
     if (!invoiceId) return;
     let alive = true;
     setLoadingLines(true);
@@ -96,7 +99,8 @@ export function ReturnScreen({
   function setQ(productId: string, raw: number, remaining: number) {
     const v = Number.isFinite(raw) ? Math.max(0, Math.min(raw, remaining)) : 0;
     setQty((m) => ({ ...m, [productId]: v }));
-    setTotal(null);
+    // Any edit invalidates a prior review — recompute via Review again.
+    setTotal(null); setReviewRows(null);
   }
 
   const validLines = useMemo(
@@ -110,6 +114,10 @@ export function ReturnScreen({
     try {
       const res = await previewVanReturn({ branch_id: branchId, customer_id: customerId, invoice_id: invoiceId, lines: validLines });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.return.error')); return; }
+      // Build the review rows from the server-priced lines so the selected items
+      // (name · qty · price · line total) are shown, not just the grand total.
+      const names = Object.fromEntries(invLines.map((l) => [l.productId, lName(l)]));
+      setReviewRows(buildReturnReviewRows(res.data.lines, names));
       setTotal(res.data.total);
     } finally { setBusy(false); }
   }
@@ -277,9 +285,27 @@ export function ReturnScreen({
           <input type="checkbox" checked={creditNote} onChange={(e) => setCreditNote(e.target.checked)} /> {t('vanSales.return.creditNote')}
         </label>
 
-        {total != null && (
-          <div className="flex items-center justify-between border-t pt-3 text-base font-bold">
-            <span>{t('vanSales.return.total')}</span><span className="tabular-nums" dir="ltr">{total.toFixed(2)}</span>
+        {/* REVIEW — the selected items the rep is returning (name · qty · price ·
+            line total) plus the grand total. Shown after tapping Review Return. */}
+        {reviewRows != null && (
+          <div className="space-y-2 rounded-md border bg-secondary/30 p-3">
+            <p className="text-xs font-semibold text-muted-foreground">{t('vanSales.return.reviewTitle')}</p>
+            {reviewRows.length === 0 ? (
+              <p className="text-center text-xs text-muted-foreground">{t('vanSales.return.emptyCart')}</p>
+            ) : (
+              <ul className="divide-y">
+                {reviewRows.map((r) => (
+                  <li key={r.product_id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+                    <span className="min-w-0 flex-1 truncate">{r.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums" dir="ltr">{r.quantity} × {r.unitPrice.toFixed(2)}</span>
+                    <span className="shrink-0 font-semibold tabular-nums" dir="ltr">{r.lineTotal.toFixed(2)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex items-center justify-between border-t pt-2 text-base font-bold">
+              <span>{t('vanSales.return.total')}</span><span className="tabular-nums" dir="ltr">{(total ?? 0).toFixed(2)}</span>
+            </div>
           </div>
         )}
 

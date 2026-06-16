@@ -41,3 +41,31 @@ export function normalizeReturnLines(lines: ReturnLineInput[]): ReturnLineInput[
 export function computeReturnTotal(lines: PricedReturnLine[]): number {
   return round2(lines.reduce((s, l) => s + round2(Number(l.quantity) * Number(l.unit_price)), 0));
 }
+
+/** A line in the return Review panel — what the rep confirms before submitting. */
+export interface ReturnReviewRow {
+  product_id: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+/**
+ * Build the review rows from the server-priced preview lines, resolving each
+ * product's display name from a lookup (product_id → localized name). Every
+ * priced line yields exactly one review row (so the selected items ALWAYS appear
+ * in the review), with its line total = round2(qty × price). Pure.
+ */
+export function buildReturnReviewRows(
+  priced: PricedReturnLine[],
+  names: Record<string, string>,
+): ReturnReviewRow[] {
+  return (priced ?? []).map((l) => ({
+    product_id: l.product_id,
+    name: names[l.product_id] ?? l.product_id,
+    quantity: Number(l.quantity),
+    unitPrice: Number(l.unit_price),
+    lineTotal: round2(Number(l.quantity) * Number(l.unit_price)),
+  }));
+}
