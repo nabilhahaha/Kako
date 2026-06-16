@@ -268,6 +268,13 @@ export const FEATURES: FeatureDef[] = [
   P('platform.credit_override', 'governance', [], {
     logic: ['creditOverrideEnabled', 'visit.credit_block'],
   }),
+  // Share-as-PDF (FMCG): when ON, the Share action on a completed sale / collection /
+  // return generates the document PDF (server-rendered from the existing print view,
+  // identical layout) and opens the native share sheet with the file. Default OFF —
+  // when OFF the Share action keeps its current text-share behavior.
+  P('platform.share_pdf', 'pos', [], {
+    logic: ['sharePdfEnabled'], screens: ['/api/pdf'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),

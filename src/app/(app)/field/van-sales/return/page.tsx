@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
-import { smartNextCustomerEnabled } from '@/lib/van-sales/sell';
+import { smartNextCustomerEnabled, sharePdfEnabled } from '@/lib/van-sales/sell';
 import { ReturnScreen, type ReturnCustomer, type ReturnReason } from './return-screen';
 import { isVanDayOpen } from '@/lib/van-sales/day-server';
 import { DayClosedGate } from '../day-gate';
@@ -50,7 +50,9 @@ export default async function VanReturnPage({ searchParams }: { searchParams: Pr
     supabase.from('erp_customers').select('id, name, name_ar, code').eq('branch_id', van.branch_id).order('name').limit(500),
     supabase.from('erp_return_reasons').select('id, code, label_en, label_ar').eq('is_active', true).order('sort'),
   ]);
-  const smartNext = ctx.companyId ? smartNextCustomerEnabled(await getFeatureFlags(supabase, ctx.companyId)) : false;
+  const returnFlags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;
+  const smartNext = smartNextCustomerEnabled(returnFlags);
+  const sharePdf = sharePdfEnabled(returnFlags);
 
   return (
     <div className="space-y-6">
@@ -62,6 +64,7 @@ export default async function VanReturnPage({ searchParams }: { searchParams: Pr
         reasons={(reasonRes.data ?? []) as ReturnReason[]}
         preselectCustomerId={preselectCustomer ?? null}
         smartNext={smartNext}
+        sharePdf={sharePdf}
       />
     </div>
   );

@@ -16,6 +16,7 @@ import {
   type ReturnableInvoice, type ReturnLineRow,
 } from '@/lib/van-sales/returns-server';
 import { buildReturnReviewRows, type ReturnReviewRow } from '@/lib/van-sales/returns';
+import { shareDocumentPdf } from '@/lib/pdf/share-pdf';
 import { clearVisitWork } from '@/lib/van-sales/visit-session';
 import { clearActiveVisit } from '@/lib/van-sales/active-visit';
 import { endVisitMetrics } from '@/lib/van-sales/visit-metrics';
@@ -35,7 +36,7 @@ function uuid(): string {
 // Invoice Items (Sold / Returned / Remaining) → quantity (capped at remaining) →
 // Execute. The item list is the selected invoice's products only.
 export function ReturnScreen({
-  branchId, customers, reasons, preselectCustomerId, smartNext = false,
+  branchId, customers, reasons, preselectCustomerId, smartNext = false, sharePdf = false,
 }: {
   branchId: string;
   customers: ReturnCustomer[];
@@ -43,6 +44,8 @@ export function ReturnScreen({
   preselectCustomerId: string | null;
   /** Smart Next ON → after a return, the primary CTA is Next Customer. */
   smartNext?: boolean;
+  /** Share-as-PDF flag ON → Share generates the Return Note PDF. */
+  sharePdf?: boolean;
 }) {
   const { t, locale } = useI18n();
   const ar = locale === 'ar';
@@ -144,6 +147,13 @@ export function ReturnScreen({
 
   async function share() {
     if (!done) return;
+    // Share-as-PDF (flag ON): the Return Note PDF, identical to the print view.
+    if (sharePdf) {
+      try {
+        await shareDocumentPdf({ doc: 'return', id: done.id, filename: `${done.returnNumber}.pdf`, title: done.returnNumber });
+      } catch { toast.error(t('vanSales.sell.pdfFailed')); }
+      return;
+    }
     const text = t('vanSales.return.shareText', { number: done.returnNumber, amount: done.total.toFixed(2) });
     const url = typeof window !== 'undefined' ? `${window.location.origin}/sales/returns/${done.id}/print` : '';
     if (typeof navigator !== 'undefined' && navigator.share) {

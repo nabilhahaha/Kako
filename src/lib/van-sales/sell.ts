@@ -116,6 +116,14 @@ export function creditOverrideEnabled(flags: Record<string, boolean | undefined>
   return Boolean(flags?.['platform.credit_override']);
 }
 
+/** Is Share-as-PDF active? Opt-in platform flag (`platform.share_pdf`), default
+ *  OFF. When ON, the Share action on a completed transaction generates the document
+ *  PDF (rendered from the print view) and opens the native share sheet with the
+ *  file, instead of sharing plain text. Pure. */
+export function sharePdfEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
+  return Boolean(flags?.['platform.share_pdf']);
+}
+
 /** The governed customer-request kinds (raised + applied via the customer-request
  *  RPCs). Kept in this pure module so the 'use server' requests file exports only
  *  async actions. */

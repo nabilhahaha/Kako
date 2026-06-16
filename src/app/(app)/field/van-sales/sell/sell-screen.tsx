@@ -23,6 +23,7 @@ import {
   type PaymentMethod, type PaymentTender, type CreditStatus,
 } from '@/lib/van-sales/sell';
 import { previewVanSale, vanSell, vanSellWithPayment, type VanSellPreview } from '@/lib/van-sales/sell-server';
+import { shareDocumentPdf } from '@/lib/pdf/share-pdf';
 import { clearVisitWork } from '@/lib/van-sales/visit-session';
 
 export interface SellCustomer {
@@ -53,7 +54,7 @@ function uuid(): string {
 
 export function SellScreen({
   branchId, customers, products, preselectCustomerId, discountCapPct, canDiscount, offlineEnabled, multiUom = false,
-  collectInSell = false, canCollect = false, smartNext = false,
+  collectInSell = false, canCollect = false, smartNext = false, sharePdf = false,
 }: {
   branchId: string;
   customers: SellCustomer[];
@@ -69,6 +70,8 @@ export function SellScreen({
   canCollect?: boolean;
   /** Smart Next Customer ON → after a sale, primary CTA is Next Customer. */
   smartNext?: boolean;
+  /** Share-as-PDF flag ON → Share generates the Invoice PDF and shares the file. */
+  sharePdf?: boolean;
 }) {
   const { t, locale } = useI18n();
   const ar = locale === 'ar';
@@ -266,6 +269,15 @@ export function SellScreen({
 
   async function share() {
     if (!result) return;
+    // Share-as-PDF (flag ON): generate the Invoice PDF (identical to the print
+    // view) and open the native share sheet with the file. On failure, show an
+    // error and do NOT open the share sheet.
+    if (sharePdf) {
+      try {
+        await shareDocumentPdf({ doc: 'invoice', id: result.id, filename: `${result.invoiceNumber}.pdf`, title: result.invoiceNumber });
+      } catch { toast.error(t('vanSales.sell.pdfFailed')); }
+      return;
+    }
     const text = t('vanSales.sell.shareText', { number: result.invoiceNumber, net: result.netAmount.toFixed(2) });
     const url = typeof window !== 'undefined' ? `${window.location.origin}/print/receipt/${result.id}` : '';
     if (typeof navigator !== 'undefined' && navigator.share) {

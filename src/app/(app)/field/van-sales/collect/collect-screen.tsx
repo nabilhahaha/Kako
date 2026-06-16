@@ -17,6 +17,7 @@ import { clearVisitWork } from '@/lib/van-sales/visit-session';
 import { clearActiveVisit } from '@/lib/van-sales/active-visit';
 import { endVisitMetrics } from '@/lib/van-sales/visit-metrics';
 import { setVisitOutcome } from '@/lib/van-sales/visit-outcome';
+import { shareDocumentPdf } from '@/lib/pdf/share-pdf';
 import { recordVisitOutcome } from '@/lib/van-sales/visit-outcome-server';
 import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
 
@@ -28,13 +29,15 @@ function uuid(): string {
 }
 
 export function CollectScreen({
-  branchId, customers, preselectCustomerId, smartNext = false,
+  branchId, customers, preselectCustomerId, smartNext = false, sharePdf = false,
 }: {
   branchId: string;
   customers: CollectCustomer[];
   preselectCustomerId: string | null;
   /** Smart Next ON → after collecting, the primary CTA is Next Customer. */
   smartNext?: boolean;
+  /** Share-as-PDF flag ON → Share generates the Collection Receipt PDF. */
+  sharePdf?: boolean;
 }) {
   const { t, locale } = useI18n();
   const ar = locale === 'ar';
@@ -105,6 +108,13 @@ export function CollectScreen({
 
   async function share() {
     if (!done) return;
+    // Share-as-PDF (flag ON): the Collection Receipt PDF, identical to the print view.
+    if (sharePdf) {
+      try {
+        await shareDocumentPdf({ doc: 'collection', id: done.id, filename: `${done.number}.pdf`, title: done.number });
+      } catch { toast.error(t('vanSales.sell.pdfFailed')); }
+      return;
+    }
     const text = t('vanSales.collect.shareText', { number: done.number, amount: done.applied.toFixed(2) });
     if (typeof navigator !== 'undefined' && navigator.share) {
       try { await navigator.share({ title: done.number, text }); } catch { /* cancelled */ }
