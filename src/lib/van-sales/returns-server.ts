@@ -444,7 +444,7 @@ const DECIDE_ERRORS: Record<string, string> = {
  * check (primary approver, anyone higher, or the named backup may approve). The
  * RPC enforces no-self-approval, branch access and the single atomic posting.
  */
-export async function decideVanReturn(input: { return_id: string; decision: 'approve' | 'reject'; reason?: string }): Promise<ActionResult<{ id: string; status: string; creditNoteId: string | null }>> {
+export async function decideVanReturn(input: { return_id: string; decision: 'approve' | 'reject'; reason?: string; comment?: string }): Promise<ActionResult<{ id: string; status: string; creditNoteId: string | null }>> {
   const perm = input.decision === 'reject' ? 'returns.reject' : 'returns.approve';
   const { ctx, error: authErr } = await requireActionPermission(perm);
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
@@ -481,6 +481,7 @@ export async function decideVanReturn(input: { return_id: string; decision: 'app
     p_return_id: input.return_id,
     p_decision: input.decision,
     p_reason: input.reason ?? null,
+    p_comment: input.comment ?? null,
   });
   if (error) return { ok: false, error: DECIDE_ERRORS[error.message] ?? friendlyDbError(error) };
 
@@ -513,4 +514,121 @@ export async function markReturnViewed(returnId: string): Promise<ActionResult<{
   const { data, error } = await supabase.rpc('erp_mark_return_viewed', { p_return_id: returnId });
   if (error) return { ok: false, error: DECIDE_ERRORS[error.message] ?? friendlyDbError(error) };
   return { ok: true, data: { firstViewedAt: (data as string | null) ?? null } };
+}
+
+// ── Approver pending queue ───────────────────────────────────────────────────
+
+export interface PendingReturnRow {
+  id: string;
+  returnNumber: string;
+  customerName: string;
+  customerCode: string;
+  requesterName: string;
+  requestedBy: string | null;
+  requestedAt: string | null;
+  firstViewedAt: string | null;
+  value: number;
+  returnType: ReturnTypeKind;
+  lineCount: number;
+  notes: string | null;
+  /** Human label for the matched policy rule (or the mode default). */
+  policyLabel: string;
+  approver: ApprovalLevel;
+  backupApprover: ApprovalLevel | null;
+}
+
+/** Short, human description of a matched approval rule (no DB lookups). */
+function describeRule(r: ReturnRule): string {
+  const parts: string[] = [];
+  if (r.returnType) parts.push(r.returnType);
+  if (r.minValue != null && r.maxValue != null) parts.push(`${r.minValue}–${r.maxValue}`);
+  else if (r.maxValue != null) parts.push(`≤ ${r.maxValue}`);
+  else if (r.minValue != null) parts.push(`≥ ${r.minValue}`);
+  if (r.customerId) parts.push('customer');
+  if (r.customerClass) parts.push('class');
+  if (r.salesmanId) parts.push('salesman');
+  if (r.routeId) parts.push('route');
+  if (r.productCategoryId) parts.push('category');
+  return parts.length ? parts.join(' · ') : 'rule';
+}
+
+/**
+ * The approver's pending-approval queue (held van returns) with the resolved
+ * policy (matched rule + primary/backup approver) and SLA timestamps. Branch
+ * scoped by RLS; gated by the always-on returns.approve permission. Read-only —
+ * stamping first-viewed and deciding are separate actions.
+ */
+export async function loadPendingReturnApprovals(): Promise<ActionResult<PendingReturnRow[]>> {
+  const { ctx, error: authErr } = await requireActionPermission('returns.approve');
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
+
+  const supabase = await createClient();
+  if (!(await isVanSalesActive(supabase, ctx))) return { ok: false, error: 'Van Sales is not enabled.' };
+
+  const { data: rows, error } = await supabase
+    .from('erp_sales_returns')
+    .select('id, return_number, customer_id, total_amount, return_type, requested_by, created_by, requested_at, created_at, first_viewed_at, notes')
+    .eq('status', 'pending_approval')
+    .order('requested_at', { ascending: true })
+    .limit(200);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  const returns = (rows ?? []) as {
+    id: string; return_number: string; customer_id: string; total_amount: number; return_type: string | null;
+    requested_by: string | null; created_by: string | null; requested_at: string | null; created_at: string | null;
+    first_viewed_at: string | null; notes: string | null;
+  }[];
+  if (returns.length === 0) return { ok: true, data: [] };
+
+  const retIds = returns.map((r) => r.id);
+  const custIds = [...new Set(returns.map((r) => r.customer_id))];
+  const reqIds = [...new Set(returns.map((r) => r.requested_by ?? r.created_by).filter((x): x is string => !!x))];
+
+  const [{ data: lineRows }, { data: custRows }, { data: profRows }] = await Promise.all([
+    supabase.from('erp_sales_return_lines').select('return_id, product_id').in('return_id', retIds),
+    supabase.from('erp_customers').select('id, name, name_ar, code').in('id', custIds),
+    reqIds.length ? supabase.from('erp_profiles').select('id, full_name').in('id', reqIds) : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
+  ]);
+
+  const linesByReturn = new Map<string, string[]>();
+  for (const l of (lineRows ?? []) as { return_id: string; product_id: string }[]) {
+    const arr = linesByReturn.get(l.return_id) ?? [];
+    arr.push(l.product_id);
+    linesByReturn.set(l.return_id, arr);
+  }
+  const custById = new Map(((custRows ?? []) as { id: string; name: string; name_ar: string | null; code: string }[]).map((c) => [c.id, c]));
+  const nameById = new Map(((profRows ?? []) as { id: string; full_name: string | null }[]).map((p) => [p.id, p.full_name ?? '']));
+
+  const policy = ctx.companyId ? await loadReturnApprovalPolicy(supabase, ctx.companyId) : DEFAULT_RETURN_POLICY;
+  const activeSorted = (policy.rules ?? []).filter((r) => r.active !== false).sort((a, b) => a.priority - b.priority);
+
+  const out: PendingReturnRow[] = [];
+  for (const r of returns) {
+    const productIds = linesByReturn.get(r.id) ?? [];
+    const returnType: ReturnTypeKind = r.return_type === 'damage' ? 'damage' : 'saleable';
+    const rctx = await buildReturnContext(supabase, { returnType, value: Number(r.total_amount ?? 0), customerId: r.customer_id, salesmanId: r.requested_by ?? r.created_by, productIds });
+    const resolution = resolveReturnDecision(rctx, policy);
+    const policyLabel = resolution.matchedRule != null && activeSorted[resolution.matchedRule]
+      ? describeRule(activeSorted[resolution.matchedRule])
+      : `default:${policy.mode}`;
+    const cust = custById.get(r.customer_id);
+    out.push({
+      id: r.id,
+      returnNumber: r.return_number,
+      customerName: cust?.name ?? r.customer_id,
+      customerCode: cust?.code ?? '',
+      requesterName: nameById.get(r.requested_by ?? r.created_by ?? '') || '',
+      requestedBy: r.requested_by ?? r.created_by,
+      requestedAt: r.requested_at ?? r.created_at,
+      firstViewedAt: r.first_viewed_at,
+      value: Number(r.total_amount ?? 0),
+      returnType,
+      lineCount: productIds.length,
+      notes: r.notes,
+      policyLabel,
+      approver: resolution.approver,
+      backupApprover: resolution.backupApprover,
+    });
+  }
+  return { ok: true, data: out };
 }
