@@ -18,7 +18,7 @@ export default async function StockRequestsPage() {
       supabase
         .from('erp_stock_requests')
         .select(
-          '*, from_warehouse:erp_warehouses!erp_stock_requests_from_warehouse_id_fkey(code, name, name_ar), to_warehouse:erp_warehouses!erp_stock_requests_to_warehouse_id_fkey(code, name, name_ar), lines:erp_stock_request_lines(product_id, quantity)',
+          '*, from_warehouse:erp_warehouses!erp_stock_requests_from_warehouse_id_fkey(code, name, name_ar), to_warehouse:erp_warehouses!erp_stock_requests_to_warehouse_id_fkey(code, name, name_ar), lines:erp_stock_request_lines(product_id, quantity, approved_qty)',
         )
         .order('created_at', { ascending: false })
         .limit(80),
