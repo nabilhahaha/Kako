@@ -590,6 +590,10 @@ export const ar = {
       emptyCart: 'أضف صنفًا واحدًا على الأقل.',
       pricing: 'جارٍ حساب القيم…',
       error: 'تعذّر تنفيذ المرتجع.',
+      submitForApproval: 'إرسال للاعتماد',
+      pendingTitle: 'تم إرسال طلب المرتجع للموافقة',
+      pendingDone: 'طلب مرتجع {number} بانتظار الاعتماد',
+      pendingHint: 'سيُرحَّل المرتجع بعد اعتماده. لن يتأثر رصيد العميل أو المخزون حتى الاعتماد.',
     },
     collect: {
       title: 'تحصيل من العميل',
@@ -1322,6 +1326,10 @@ export const en = {
       emptyCart: 'Add at least one item.',
       pricing: 'Pricing…',
       error: 'Could not post the return.',
+      submitForApproval: 'Submit for approval',
+      pendingTitle: 'Return request sent for approval',
+      pendingDone: 'Return request {number} is awaiting approval',
+      pendingHint: 'The return will post once approved. Customer balance and stock are unchanged until approval.',
     },
     collect: {
       title: 'Collect from customer',

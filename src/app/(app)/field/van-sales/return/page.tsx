@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { smartNextCustomerEnabled, sharePdfEnabled } from '@/lib/van-sales/sell';
+import { returnApprovalEnabled } from '@/lib/van-sales/return-policy';
 import { ReturnScreen, type ReturnCustomer, type ReturnReason } from './return-screen';
 import { isVanDayOpen } from '@/lib/van-sales/day-server';
 import { DayClosedGate } from '../day-gate';
@@ -53,6 +54,7 @@ export default async function VanReturnPage({ searchParams }: { searchParams: Pr
   const returnFlags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;
   const smartNext = smartNextCustomerEnabled(returnFlags);
   const sharePdf = sharePdfEnabled(returnFlags);
+  const approvalEnabled = returnApprovalEnabled(returnFlags);
 
   return (
     <div className="space-y-6">
@@ -65,6 +67,7 @@ export default async function VanReturnPage({ searchParams }: { searchParams: Pr
         preselectCustomerId={preselectCustomer ?? null}
         smartNext={smartNext}
         sharePdf={sharePdf}
+        approvalEnabled={approvalEnabled}
       />
     </div>
   );

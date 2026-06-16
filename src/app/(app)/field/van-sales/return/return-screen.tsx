@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Undo2, Check, Loader2, User, Printer, Share2, ArrowRight } from 'lucide-react';
+import { Undo2, Check, Loader2, User, Printer, Share2, ArrowRight, Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { PendingLink } from '@/components/shared/pending-link';
 import { useI18n } from '@/lib/i18n/provider';
 import {
-  previewVanReturn, vanReturn, loadReturnableInvoices, loadInvoiceReturnLines,
+  previewVanReturn, submitVanReturn, loadReturnableInvoices, loadInvoiceReturnLines,
   type ReturnableInvoice, type ReturnLineRow,
 } from '@/lib/van-sales/returns-server';
 import { buildReturnReviewRows, type ReturnReviewRow } from '@/lib/van-sales/returns';
@@ -36,7 +36,7 @@ function uuid(): string {
 // Invoice Items (Sold / Returned / Remaining) → quantity (capped at remaining) →
 // Execute. The item list is the selected invoice's products only.
 export function ReturnScreen({
-  branchId, customers, reasons, preselectCustomerId, smartNext = false, sharePdf = false,
+  branchId, customers, reasons, preselectCustomerId, smartNext = false, sharePdf = false, approvalEnabled = false,
 }: {
   branchId: string;
   customers: ReturnCustomer[];
@@ -46,6 +46,9 @@ export function ReturnScreen({
   smartNext?: boolean;
   /** Share-as-PDF flag ON → Share generates the Return Note PDF. */
   sharePdf?: boolean;
+  /** Return Approval workflow ON → a return may be held for approval (the
+   *  outcome is decided server-side by the company policy). */
+  approvalEnabled?: boolean;
 }) {
   const { t, locale } = useI18n();
   const ar = locale === 'ar';
@@ -66,7 +69,7 @@ export function ReturnScreen({
   /** Server-priced review rows (the items being returned) — shown after Review. */
   const [reviewRows, setReviewRows] = useState<ReturnReviewRow[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ id: string; returnNumber: string; creditNoteId: string | null; total: number } | null>(null);
+  const [done, setDone] = useState<{ id: string; returnNumber: string; creditNoteId: string | null; total: number; status: 'completed' | 'pending_approval' } | null>(null);
   const [key, setKey] = useState(() => uuid());
 
   const cName = (c: ReturnCustomer) => (ar && c.name_ar ? c.name_ar : c.name);
@@ -133,15 +136,17 @@ export function ReturnScreen({
     if (validLines.length === 0) { toast.error(t('vanSales.return.emptyCart')); return; }
     setBusy(true);
     try {
-      const res = await vanReturn({
+      const res = await submitVanReturn({
         branch_id: branchId, customer_id: customerId, reason_id: reasonId, idempotency_key: key,
         invoice_id: invoiceId, create_credit_note: creditNote, notes: note.trim() || undefined, lines: validLines,
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.return.error')); return; }
-      setDone({ id: res.data.id, returnNumber: res.data.returnNumber, creditNoteId: res.data.creditNoteId, total: res.data.totalAmount });
+      setDone({ id: res.data.id, returnNumber: res.data.returnNumber, creditNoteId: res.data.creditNoteId, total: res.data.totalAmount, status: res.data.status });
       clearVisitWork(customerId, 'return');
       if (customerId) { setVisitOutcome(customerId, 'return'); void recordVisitOutcome({ customerId, outcome: 'return' }); }
-      toast.success(t('vanSales.return.done', { number: res.data.returnNumber }));
+      toast.success(res.data.status === 'pending_approval'
+        ? t('vanSales.return.pendingDone', { number: res.data.returnNumber })
+        : t('vanSales.return.done', { number: res.data.returnNumber }));
     } finally { setBusy(false); }
   }
 
@@ -164,26 +169,35 @@ export function ReturnScreen({
   }
 
   if (done) {
+    const pending = done.status === 'pending_approval';
     return (
       <Card>
         <CardContent className="space-y-4 pt-6 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/15"><Check className="h-6 w-6 text-success" /></div>
+          {pending ? (
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-warning/15"><Clock className="h-6 w-6 text-warning" /></div>
+          ) : (
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/15"><Check className="h-6 w-6 text-success" /></div>
+          )}
           <div>
-            <div className="text-sm text-muted-foreground">{t('vanSales.return.completed')}</div>
-            <div className="text-lg font-bold">{t('vanSales.return.done', { number: done.returnNumber })}</div>
-            {done.creditNoteId && (
+            <div className="text-sm text-muted-foreground">{pending ? t('vanSales.return.pendingTitle') : t('vanSales.return.completed')}</div>
+            <div className="text-lg font-bold">{pending ? t('vanSales.return.pendingDone', { number: done.returnNumber }) : t('vanSales.return.done', { number: done.returnNumber })}</div>
+            {pending && <p className="mx-auto mt-1 max-w-xs text-xs text-muted-foreground">{t('vanSales.return.pendingHint')}</p>}
+            {!pending && done.creditNoteId && (
               <a href={`/print/credit-note/${done.creditNoteId}`} target="_blank" rel="noreferrer" className="inline-block text-sm font-medium text-primary underline underline-offset-2">
                 {t('vanSales.return.creditNoteIssued', { number: `CN-${done.returnNumber}` })}
               </a>
             )}
           </div>
           <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <a href={`/sales/returns/${done.id}/print`} target="_blank" rel="noreferrer" className="block">
-                <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.return.print')}</Button>
-              </a>
-              <Button variant="outline" className="w-full" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.return.share')}</Button>
-            </div>
+            {/* Posted return only: print/share. A pending request posts nothing yet. */}
+            {!pending && (
+              <div className="grid grid-cols-2 gap-2">
+                <a href={`/sales/returns/${done.id}/print`} target="_blank" rel="noreferrer" className="block">
+                  <Button variant="outline" className="w-full"><Printer className="h-4 w-4" /> {t('vanSales.return.print')}</Button>
+                </a>
+                <Button variant="outline" className="w-full" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.return.share')}</Button>
+              </div>
+            )}
             {smartNext ? (
               <>
                 {/* Route-first: complete the visit and move to the next customer. */}
@@ -324,7 +338,9 @@ export function ReturnScreen({
             {busy && total == null ? <Loader2 className="h-4 w-4 animate-spin" /> : t('vanSales.return.review')}
           </Button>
           <Button className="flex-[2]" disabled={busy} onClick={submit}>
-            {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('vanSales.return.submitting')}</> : <><Undo2 className="h-4 w-4" /> {t('vanSales.return.submit')}</>}
+            {busy
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('vanSales.return.submitting')}</>
+              : <><Undo2 className="h-4 w-4" /> {approvalEnabled ? t('vanSales.return.submitForApproval') : t('vanSales.return.submit')}</>}
           </Button>
         </div>
       </CardContent>
