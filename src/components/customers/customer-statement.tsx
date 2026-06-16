@@ -144,6 +144,8 @@ export function CustomerStatementView({
   const [noSaleReason, setNoSaleReason] = useState<NoSaleReason | null>(null);
   const [outcomeNote, setOutcomeNote] = useState('');
   const [outcomeSaving, setOutcomeSaving] = useState(false);
+  /** Continue (متابعة) confirmation: save the no-sale outcome AND end the visit. */
+  const [continueConfirm, setContinueConfirm] = useState(false);
   /** The outcome already recorded for THIS visit (gates End Visit). */
   const [outcome, setOutcome] = useState<VisitOutcomeKind | null>(null);
   const [navOpen, setNavOpen] = useState(false);
@@ -207,7 +209,28 @@ export function CustomerStatementView({
     toast.success(t('vanSales.outcome.recorded'));
   }
   // Open the No-Sales reason sheet fresh (no preselected reason / note).
-  function openNoSale() { setNoSaleReason(null); setOutcomeNote(''); setOutcomeOpen(true); }
+  function openNoSale() { setNoSaleReason(null); setOutcomeNote(''); setContinueConfirm(false); setOutcomeOpen(true); }
+  // "متابعة" — save the selected no-sale outcome AND end the visit + go next, in one
+  // confirmed step. Same validation as Save; if saving fails the visit is NOT ended.
+  async function saveAndContinue() {
+    if (!visit || outcomeSaving || completing || !noSaleReason) return;
+    if (noSaleReasonNeedsNote(noSaleReason) && !outcomeNote.trim()) return;
+    setOutcomeSaving(true);
+    const res = await recordVisitOutcome({ customerId: visit.customerId, outcome: 'no_sale', reason: noSaleReason, note: outcomeNote || null });
+    setOutcomeSaving(false);
+    if (!res.ok) { toast.error(t('settings.unauthorized')); return; } // save failed → do NOT end the visit
+    setVisitOutcome(visit.customerId, 'no_sale');
+    setOutcome('no_sale');
+    setContinueConfirm(false);
+    setOutcomeOpen(false);
+    toast.success(t('vanSales.outcome.recorded'));
+    // End the visit and move to the next customer (honor the unfinished-work guard).
+    const pending = listUnfinishedVisitWork(visit.customerId);
+    if (pending.length > 0) { setGuard(pending); return; }
+    finishVisit();
+    setCompleting(true);
+    router.push(visit.completeHref);
+  }
   function onDiscardComplete() {
     if (!visit || completing) return;
     clearAllVisitWork(visit.customerId);
@@ -367,11 +390,29 @@ export function CustomerStatementView({
               />
             )}
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setOutcomeOpen(false)}>
-                {t('vanSales.visit.keepWorking')}
-              </Button>
-              <Button className="flex-1" onClick={confirmOutcome} loading={outcomeSaving} disabled={!noSaleReason || (noteRequired && !outcomeNote.trim())}>
+              {/* Save only → return to the cockpit (End Visit stays enabled). */}
+              <Button variant="outline" className="flex-1" onClick={confirmOutcome} loading={outcomeSaving} disabled={!noSaleReason || (noteRequired && !outcomeNote.trim())}>
                 {t('vanSales.outcome.save')}
+              </Button>
+              {/* Continue → save + end visit + next customer (after confirmation). */}
+              <Button className="flex-1" onClick={() => setContinueConfirm(true)} disabled={!noSaleReason || (noteRequired && !outcomeNote.trim()) || outcomeSaving}>
+                {t('vanSales.outcome.continue')} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Continue confirmation — save the no-sale outcome AND end the visit. */}
+      {visit && continueConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={() => setContinueConfirm(false)}>
+          <div className="w-full max-w-md space-y-4 rounded-t-2xl bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-medium">{t('vanSales.outcome.continueWarn')}</p>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setContinueConfirm(false)} disabled={outcomeSaving}>
+                {t('common.cancel')}
+              </Button>
+              <Button className="flex-1" onClick={saveAndContinue} loading={outcomeSaving}>
+                {t('vanSales.outcome.continueConfirm')}
               </Button>
             </div>
           </div>
