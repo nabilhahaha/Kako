@@ -612,8 +612,13 @@ export function SellScreen({
                 <PendingLink href="/field/next" pendingLabel={t('common.opening')} className={`w-full ${buttonVariants({ size: 'lg' })}`}>
                   <ArrowRight className="h-5 w-5 rtl:rotate-180" /> {t('vanSales.sell.nextCustomer')}
                 </PendingLink>
-                {/* Selling again to the same customer stays available, secondary. */}
-                <Button variant="outline" className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.sellAgain')}</Button>
+                {/* Another action for the SAME customer → back to the visit cockpit
+                    (Collection / Return / Visit Outcome / History / another Sale). */}
+                {customerId && (
+                  <PendingLink href={`/field/van-sales/statement/${customerId}`} pendingLabel={t('common.opening')} className={`w-full ${buttonVariants({ variant: 'outline' })}`}>
+                    <User className="h-4 w-4" /> {t('vanSales.sell.anotherAction')}
+                  </PendingLink>
+                )}
               </>
             ) : (
               <Button className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.newSale')}</Button>
