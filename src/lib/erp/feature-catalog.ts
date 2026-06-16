@@ -275,6 +275,13 @@ export const FEATURES: FeatureDef[] = [
   P('platform.share_pdf', 'pos', [], {
     logic: ['sharePdfEnabled'], screens: ['/api/pdf'],
   }),
+  // Daily Summary (FMCG, Phase 1): read-only "ملخص اليوم" — salesman day status +
+  // exact counts/amounts (live while open, final when closed) and a supervisor
+  // per-salesman KPI + ranking view. Built from existing data only; estimated
+  // (gap-based) metrics are labeled تقديري. Default OFF.
+  P('platform.daily_summary', 'pos', [], {
+    logic: ['dailySummaryEnabled'], screens: ['/field/van-sales/summary', '/distribution/daily-summary'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),

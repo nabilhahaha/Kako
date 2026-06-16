@@ -124,6 +124,13 @@ export function sharePdfEnabled(flags: Record<string, boolean | undefined> | nul
   return Boolean(flags?.['platform.share_pdf']);
 }
 
+/** Is the Daily Summary active? Opt-in platform flag (`platform.daily_summary`),
+ *  default OFF. When ON, the salesman gets a read-only "ملخص اليوم" view and
+ *  supervisors get the per-salesman timing/productivity KPIs. Pure. */
+export function dailySummaryEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
+  return Boolean(flags?.['platform.daily_summary']);
+}
+
 /** The governed customer-request kinds (raised + applied via the customer-request
  *  RPCs). Kept in this pure module so the 'use server' requests file exports only
  *  async actions. */

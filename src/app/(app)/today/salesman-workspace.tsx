@@ -2,7 +2,7 @@ import { Suspense, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   Play, CheckCircle2, Lock, Clock, MapPin, Receipt, Users,
-  UserSquare, HandCoins, Boxes, ChevronDown, type LucideIcon,
+  UserSquare, HandCoins, Boxes, BarChart3, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 import { getT } from '@/lib/i18n/server';
 import type { UserContext } from '@/lib/erp/auth-context';
@@ -19,7 +19,7 @@ import type { VanDayState } from '@/lib/van-sales/day';
 import { loadVanCustomerPicker } from '@/lib/van-sales/customers-server';
 import { loadNextCandidates } from '@/lib/van-sales/next-customer-server';
 import type { FeatureFlags } from '@/lib/erp/feature-flags';
-import { smartNextCustomerEnabled } from '@/lib/van-sales/sell';
+import { smartNextCustomerEnabled, dailySummaryEnabled } from '@/lib/van-sales/sell';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
 import { CustomerPicker } from '@/app/(app)/field/van-sales/customers/customer-picker';
 import { MyDayHero } from './my-day-hero';
@@ -74,9 +74,12 @@ export async function SalesmanWorkspace({ ctx, flags }: Props) {
         </Suspense>
       )}
 
-      {/* Non-visit quick action: Van Stock (static, immediate). */}
+      {/* Non-visit quick actions: Van Stock + (flag) Daily Summary. */}
       <div className="grid grid-cols-2 gap-3">
-        {TILES.map((s) => {
+        {[
+          ...TILES,
+          ...(dailySummaryEnabled(flags) ? [{ key: 'summary', href: '/field/van-sales/summary', icon: BarChart3, label: 'vanSales.dailySummary.tile' }] : []),
+        ].map((s) => {
           const Icon = s.icon;
           return (
             <Link key={s.key} href={s.href} className="block">
