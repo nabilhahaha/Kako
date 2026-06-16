@@ -7,6 +7,11 @@ export type Permission =
   | 'sales.discount' // apply line discounts
   | 'sales.collect' // record customer payments
   | 'sales.return' // create/approve sales returns
+  | 'returns.create' // create a (van) return / return request
+  | 'returns.approve' // approve a pending return request
+  | 'returns.reject' // reject a pending return request (reason required)
+  | 'returns.override' // override the return approval policy
+  | 'returns.view_all' // view all returns (reports)
   | 'customers.manage'
   | 'customers.approve' // approve/reject customer onboarding + sensitive change requests
   | 'customers.change_status' // suspend / block / activate customers (FP-CS)
@@ -101,6 +106,11 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'sales.discount': { en: 'Grant discounts', ar: 'منح خصومات', group: 'sales' },
   'sales.collect': { en: 'Collect from customers', ar: 'تحصيل من العملاء', group: 'sales' },
   'sales.return': { en: 'Sales returns', ar: 'مرتجعات المبيعات', group: 'sales' },
+  'returns.create': { en: 'Create returns', ar: 'إنشاء مرتجع', group: 'sales' },
+  'returns.approve': { en: 'Approve returns', ar: 'اعتماد المرتجعات', group: 'sales' },
+  'returns.reject': { en: 'Reject returns', ar: 'رفض المرتجعات', group: 'sales' },
+  'returns.override': { en: 'Override return approval', ar: 'تجاوز اعتماد المرتجع', group: 'sales' },
+  'returns.view_all': { en: 'View all returns', ar: 'عرض كل المرتجعات', group: 'sales' },
   'customers.manage': { en: 'Manage customers', ar: 'إدارة العملاء', group: 'sales' },
   'customers.approve': { en: 'Approve customers & changes', ar: 'اعتماد العملاء والتعديلات', group: 'sales' },
   'customers.change_status': { en: 'Suspend / block customers', ar: 'إيقاف / حظر العملاء', group: 'sales' },
@@ -227,6 +237,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
     'assortment.manage', 'survey.manage', 'target.view',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
   ],
   national_sales_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
@@ -234,17 +245,20 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
     'assortment.manage', 'survey.manage', 'target.view',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
   ],
   // Regional / Area: commercial management (no finance posting / settings).
   regional_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
   ],
   area_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
   ],
   // Branch Manager: branch operations (NO settings/billing — distinct from Admin).
   branch_manager: [
@@ -255,6 +269,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'customer.transfer', 'customer.create', 'customer.edit', 'route.create', 'journey.create',
     'stock.adjust', 'stock.transfer.approve', 'visit.approve_out_of_route',
     'day.approve_close_exception', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve', 'stock.view', 'user.transfer',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
   ],
   // IT Admin: integrations / scheduler / governance / technical settings.
   it_admin: [
@@ -268,22 +283,25 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'visit.approve_out_of_route', 'day.approve_close_exception', 'stock.transfer.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
     'reconciliation.view', 'reconciliation.manage', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
     'suppliers.manage', 'sales.collect', 'customers.change_status', 'cash.handover.confirm',
     'stock.view', 'fashion.reports', 'fashion.cashbox', 'fashion.installments', 'fashion.purchase',
+    'returns.view_all',
   ],
   cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'cash.handover.confirm', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos', 'fashion.sell', 'fashion.installments', 'fashion.cashbox'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
     'day.close', 'day.reopen.request', 'cash.handover.request', 'customer.request', 'stock.view', 'stock.transfer', 'customer.create',
-    'reconciliation.view',
+    'reconciliation.view', 'returns.create',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
+    'returns.create',
   ],
   technician: [
     'customers.manage', 'sales.sell', 'inventory.view', 'stock_request.create',
