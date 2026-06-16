@@ -114,7 +114,7 @@ export function computeDailySummary(input: DailySummaryInput): DailySummary {
 
 export type ActivityType = 'invoice' | 'collection' | 'return' | 'no_sale' | 'visit';
 
-export interface DocEvent { customerId: string; number: string; amount: number; at: string }
+export interface DocEvent { id: string; customerId: string; number: string; amount: number; at: string }
 export interface NonTxnOutcome { customerId: string; outcome: VisitOutcomeKind; reason: string | null; at: string }
 
 export interface ActivityInput {
@@ -130,6 +130,8 @@ export interface ActivityRow {
   customerId: string;
   type: ActivityType;
   doc: string | null;
+  /** Document id for drill-down (clickable). Null for non-document rows. */
+  docId: string | null;
   amount: number | null;
   /** Reason/legacy-kind code for no_sale / visit rows (localized by the UI); null for completed txns. */
   reason: string | null;
@@ -146,13 +148,13 @@ const NOT_REACHED = new Set<string>(['closed', 'not_available', 'customer_closed
  */
 export function buildActivityTimeline(input: ActivityInput): ActivityRow[] {
   const rows: ActivityRow[] = [];
-  for (const i of input.invoices ?? []) rows.push({ at: i.at, customerId: i.customerId, type: 'invoice', doc: i.number, amount: Number(i.amount || 0), reason: null });
-  for (const c of input.collections ?? []) rows.push({ at: c.at, customerId: c.customerId, type: 'collection', doc: c.number, amount: Number(c.amount || 0), reason: null });
-  for (const r of input.returns ?? []) rows.push({ at: r.at, customerId: r.customerId, type: 'return', doc: r.number, amount: Number(r.amount || 0), reason: null });
+  for (const i of input.invoices ?? []) rows.push({ at: i.at, customerId: i.customerId, type: 'invoice', doc: i.number, docId: i.id, amount: Number(i.amount || 0), reason: null });
+  for (const c of input.collections ?? []) rows.push({ at: c.at, customerId: c.customerId, type: 'collection', doc: c.number, docId: c.id, amount: Number(c.amount || 0), reason: null });
+  for (const r of input.returns ?? []) rows.push({ at: r.at, customerId: r.customerId, type: 'return', doc: r.number, docId: r.id, amount: Number(r.amount || 0), reason: null });
   for (const o of input.outcomes ?? []) {
     const reason = o.reason ?? (o.outcome !== 'no_sale' ? o.outcome : null);
     const type: ActivityType = NOT_REACHED.has(reason ?? '') ? 'visit' : 'no_sale';
-    rows.push({ at: o.at, customerId: o.customerId, type, doc: null, amount: null, reason });
+    rows.push({ at: o.at, customerId: o.customerId, type, doc: null, docId: null, amount: null, reason });
   }
   return rows.sort((a, b) => (ts(a.at) || 0) - (ts(b.at) || 0));
 }
@@ -178,6 +180,29 @@ export function activityTotals(rows: ActivityRow[]): ActivityTotals {
     closedCount: reasonCount('closed', 'customer_closed'),
     unavailableCount: reasonCount('not_available'),
   };
+}
+
+/** Drill-down URL for a document row (View + Print). Null for non-document rows. */
+export function activityDocHref(type: ActivityType, docId: string | null): string | null {
+  if (!docId) return null;
+  switch (type) {
+    case 'invoice': return `/print/invoices/${docId}`;
+    case 'collection': return `/print/collection/${docId}`;
+    case 'return': return `/sales/returns/${docId}/print`;
+    default: return null;
+  }
+}
+
+export interface ReasonCount { reason: string; count: number }
+
+/** No-sales reasons summary: count per reason/legacy-kind across no-sale + not-
+ *  reached visit rows, most frequent first. Reason codes localized by the UI. Pure. */
+export function noSaleReasonBreakdown(rows: ActivityRow[]): ReasonCount[] {
+  const m = new Map<string, number>();
+  for (const r of rows ?? []) {
+    if ((r.type === 'no_sale' || r.type === 'visit') && r.reason) m.set(r.reason, (m.get(r.reason) ?? 0) + 1);
+  }
+  return Array.from(m.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count);
 }
 
 // ── Supervisor ranking ──────────────────────────────────────────────────────

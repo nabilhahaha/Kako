@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDailySummary, rankSalesmen, buildActivityTimeline, activityTotals, type DailySummaryInput, type SalesmanDay, type ActivityInput } from './daily-summary';
+import { computeDailySummary, rankSalesmen, buildActivityTimeline, activityTotals, noSaleReasonBreakdown, type DailySummaryInput, type SalesmanDay, type ActivityInput } from './daily-summary';
 
 const base: DailySummaryInput = {
   dayOpenedAt: '2026-06-16T06:00:00Z',
@@ -67,9 +67,9 @@ describe('computeDailySummary', () => {
 
 describe('buildActivityTimeline + activityTotals', () => {
   const input: ActivityInput = {
-    invoices: [{ customerId: 'c1', number: 'INV-44', amount: 79.8, at: '2026-06-16T09:14:00Z' }],
-    collections: [{ customerId: 'c1', number: 'COL-27', amount: 344.8, at: '2026-06-16T10:05:00Z' }],
-    returns: [{ customerId: 'c3', number: 'RET-08', amount: 45, at: '2026-06-16T11:10:00Z' }],
+    invoices: [{ id: 'inv1', customerId: 'c1', number: 'INV-44', amount: 79.8, at: '2026-06-16T09:14:00Z' }],
+    collections: [{ id: 'col1', customerId: 'c1', number: 'COL-27', amount: 344.8, at: '2026-06-16T10:05:00Z' }],
+    returns: [{ id: 'ret1', customerId: 'c3', number: 'RET-08', amount: 45, at: '2026-06-16T11:10:00Z' }],
     outcomes: [
       { customerId: 'c2', outcome: 'no_sale', reason: 'no_stock', at: '2026-06-16T10:22:00Z' },
       { customerId: 'c4', outcome: 'no_sale', reason: 'closed', at: '2026-06-16T11:35:00Z' },
@@ -103,6 +103,24 @@ describe('buildActivityTimeline + activityTotals', () => {
 
   it('is empty for no activity', () => {
     expect(buildActivityTimeline({ invoices: [], collections: [], returns: [], outcomes: [] })).toEqual([]);
+  });
+
+  it('carries the document id for drill-down (null for non-doc rows)', () => {
+    const rows = buildActivityTimeline(input);
+    expect(rows[0]).toMatchObject({ type: 'invoice', docId: 'inv1' });
+    expect(rows.find((r) => r.type === 'no_sale')!.docId).toBeNull();
+  });
+
+  it('summarizes no-sale reasons (most frequent first)', () => {
+    const rows = buildActivityTimeline({
+      invoices: [], collections: [], returns: [],
+      outcomes: [
+        { customerId: 'a', outcome: 'no_sale', reason: 'no_stock', at: '2026-06-16T09:00:00Z' },
+        { customerId: 'b', outcome: 'no_sale', reason: 'no_stock', at: '2026-06-16T09:10:00Z' },
+        { customerId: 'c', outcome: 'no_sale', reason: 'closed', at: '2026-06-16T09:20:00Z' },
+      ],
+    });
+    expect(noSaleReasonBreakdown(rows)).toEqual([{ reason: 'no_stock', count: 2 }, { reason: 'closed', count: 1 }]);
   });
 });
 

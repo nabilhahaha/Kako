@@ -1,16 +1,12 @@
 import { Suspense, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
-  Play, CheckCircle2, Lock, Clock, MapPin, Receipt, Users,
-  UserSquare, HandCoins, Boxes, BarChart3, ChevronDown, type LucideIcon,
+  Play, CheckCircle2, Lock, Clock, MapPin,
+  UserSquare, Boxes, BarChart3, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 import { getT } from '@/lib/i18n/server';
 import type { UserContext } from '@/lib/erp/auth-context';
-import { createClient } from '@/lib/supabase/server';
-import { INTL_LOCALE } from '@/lib/i18n/config';
-import { formatCurrency } from '@/lib/utils';
 import { PageHeader } from '@/components/shared/page-header';
-import { StatCard, type StatTone } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -93,11 +89,8 @@ export async function SalesmanWorkspace({ ctx, flags }: Props) {
           );
         })}
       </div>
-
-      {/* Operational KPIs — deferred, secondary, at the bottom. */}
-      <Suspense fallback={<KpiSkeleton />}>
-        <KpiSection ctx={ctx} />
-      </Suspense>
+      {/* Operational KPIs live in the Daily Summary ("ملخص اليوم") dashboard now —
+          no duplicate KPI block on Today (one source of truth). */}
     </div>
   );
 }
@@ -170,59 +163,11 @@ async function PickerSection({ ctx }: { ctx: UserContext }) {
   );
 }
 
-/** Operational KPIs — deferred, secondary, at the bottom. */
-async function KpiSection({ ctx }: { ctx: UserContext }) {
-  const { t, locale } = await getT();
-  const intl = INTL_LOCALE[locale];
-  const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
-  const [planRes, visRes, invRes, colRes] = await Promise.all([
-    supabase.rpc('erp_today_journey', { p_salesman: ctx.userId, p_date: today }),
-    supabase.from('erp_visits').select('customer_id').eq('salesman_id', ctx.userId).eq('visit_date', today),
-    supabase.from('erp_invoices').select('net_amount, status').eq('created_by', ctx.userId).gte('created_at', `${today}T00:00:00`),
-    supabase.from('erp_collections').select('amount, status').eq('received_by', ctx.userId).eq('collection_date', today),
-  ]);
-  const planned = ((planRes.data ?? []) as unknown[]).length;
-  const visited = new Set(((visRes.data ?? []) as { customer_id: string }[]).map((r) => r.customer_id)).size;
-  const remaining = Math.max(planned - visited, 0);
-  const compliance = planned > 0 ? Math.round((visited / planned) * 100) : 100;
-  const sales = ((invRes.data ?? []) as { net_amount: number; status: string }[])
-    .filter((r) => !['draft', 'void', 'cancelled'].includes(r.status))
-    .reduce((s, r) => s + Number(r.net_amount ?? 0), 0);
-  const collections = ((colRes.data ?? []) as { amount: number; status: string }[])
-    .filter((r) => r.status !== 'cancelled')
-    .reduce((s, r) => s + Number(r.amount ?? 0), 0);
-  const complianceTone: StatTone = compliance >= 90 ? 'success' : compliance >= 60 ? 'warning' : 'destructive';
-  return (
-    <section className="space-y-2 pt-2">
-      <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('vanSales.myDayTitle')}</h2>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <StatCard label={t('vanSales.kpi.planned')} value={String(planned)} icon={Users} tone="info" />
-        <StatCard label={t('vanSales.kpi.visited')} value={String(visited)} icon={CheckCircle2} tone="success" />
-        <StatCard label={t('vanSales.kpi.remaining')} value={String(remaining)} icon={Clock} tone={remaining > 0 ? 'warning' : 'success'} />
-        <StatCard label={t('vanSales.kpi.sales')} value={formatCurrency(sales, 'EGP', intl)} icon={Receipt} tone="info" />
-        <StatCard label={t('vanSales.kpi.collections')} value={formatCurrency(collections, 'EGP', intl)} icon={HandCoins} tone="success" />
-        <StatCard label={t('vanSales.kpi.compliance')} value={`${compliance}%`} icon={MapPin} tone={complianceTone} />
-      </div>
-    </section>
-  );
-}
-
 function SectionSkeleton({ lines = 3 }: { lines?: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: lines }).map((_, i) => (
         <div key={i} className="h-12 animate-pulse rounded-lg border bg-secondary/30" />
-      ))}
-    </div>
-  );
-}
-
-function KpiSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-2 pt-2 sm:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-16 animate-pulse rounded-lg border bg-secondary/30" />
       ))}
     </div>
   );
