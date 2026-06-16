@@ -16,6 +16,7 @@ export const ar = {
     startWithCustomer: 'ابدأ بعميل',
     workspaceSubtitle: 'مساحة عملك اليومية: العميل، كشف الحساب، التحصيل، البيع، المرتجع، الإنهاء.',
     offRouteCustomers: 'عملاء آخرون / خارج خط السير',
+    offRouteTile: 'عملاء خارج خط السير',
     kpi: {
       planned: 'العملاء المخطّطون',
       visited: 'تمت زيارتهم',
@@ -740,6 +741,7 @@ export const en = {
     startWithCustomer: 'Start with a customer',
     workspaceSubtitle: 'Your day, in one place: customer, statement, collect, sell, return, close.',
     offRouteCustomers: 'Other / off-route customers',
+    offRouteTile: 'Off-route customers',
     kpi: {
       planned: 'Planned',
       visited: 'Visited',

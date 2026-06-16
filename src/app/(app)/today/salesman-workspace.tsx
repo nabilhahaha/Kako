@@ -1,8 +1,8 @@
-import { Suspense, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   Play, CheckCircle2, Lock, Clock, MapPin,
-  UserSquare, Boxes, BarChart3, ChevronDown, type LucideIcon,
+  UserSquare, Boxes, BarChart3,
 } from 'lucide-react';
 import { getT } from '@/lib/i18n/server';
 import type { UserContext } from '@/lib/erp/auth-context';
@@ -12,18 +12,13 @@ import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { loadVanDayState, loadDayReopenGate } from '@/lib/van-sales/day-server';
 import type { VanDayState } from '@/lib/van-sales/day';
-import { loadVanCustomerPicker } from '@/lib/van-sales/customers-server';
 import { loadNextCandidates } from '@/lib/van-sales/next-customer-server';
 import type { FeatureFlags } from '@/lib/erp/feature-flags';
-import { smartNextCustomerEnabled, dailySummaryEnabled } from '@/lib/van-sales/sell';
+import { smartNextCustomerEnabled, dailySummaryEnabled, stockMovementReportEnabled } from '@/lib/van-sales/sell';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
-import { CustomerPicker } from '@/app/(app)/field/van-sales/customers/customer-picker';
 import { MyDayHero } from './my-day-hero';
 import { PendingLink } from '@/components/shared/pending-link';
 
-const TILES: { key: string; href: string; icon: LucideIcon; label: string }[] = [
-  { key: 'stock', href: '/field/stock', icon: Boxes, label: 'vanSales.steps.stock' },
-];
 
 interface Props {
   ctx: UserContext;
@@ -63,18 +58,15 @@ export async function SalesmanWorkspace({ ctx, flags }: Props) {
       {/* ── PRIMARY NEXT ACTION (first chunk, no competing primaries) ── */}
       {hero ?? <DayCard ctx={ctx} state={state} startHref={startHref} />}
 
-      {/* Customer Picker — deferred (heavy list). */}
-      {state === 'open' && (
-        <Suspense fallback={<SectionSkeleton lines={4} />}>
-          <PickerSection ctx={ctx} />
-        </Suspense>
-      )}
-
-      {/* Non-visit quick actions: Van Stock + (flag) Daily Summary. */}
+      {/* Secondary operational actions, presented as equal tiles: Van Stock
+          (Movement report when enabled) · Daily Summary · Off-route customers. */}
       <div className="grid grid-cols-2 gap-3">
         {[
-          ...TILES,
+          stockMovementReportEnabled(flags)
+            ? { key: 'stock', href: '/field/stock/movements', icon: Boxes, label: 'vanSales.stockMove.title' }
+            : { key: 'stock', href: '/field/stock', icon: Boxes, label: 'vanSales.steps.stock' },
           ...(dailySummaryEnabled(flags) ? [{ key: 'summary', href: '/field/van-sales/summary', icon: BarChart3, label: 'vanSales.dailySummary.tile' }] : []),
+          { key: 'offroute', href: '/field/van-sales/customers', icon: UserSquare, label: 'vanSales.offRouteTile' },
         ].map((s) => {
           const Icon = s.icon;
           return (
@@ -141,34 +133,3 @@ async function DayCard({ ctx, state, startHref }: { ctx: UserContext; state: Van
   );
 }
 
-/** Embedded customer picker — deferred. */
-async function PickerSection({ ctx }: { ctx: UserContext }) {
-  const { t } = await getT();
-  const picker = await loadVanCustomerPicker(ctx);
-  if (!picker) return null;
-  // Route-first: the picker is the OFF-ROUTE / unplanned escape hatch, collapsed
-  // by default so the hero's Next Customer stays the single primary path.
-  return (
-    <details className="group rounded-lg border bg-card">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-sm font-medium">
-        <span className="flex items-center gap-2">
-          <UserSquare className="h-4 w-4 text-muted-foreground" /> {t('vanSales.offRouteCustomers')}
-        </span>
-        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
-      </summary>
-      <div className="border-t p-3">
-        <CustomerPicker customers={picker.customers} />
-      </div>
-    </details>
-  );
-}
-
-function SectionSkeleton({ lines = 3 }: { lines?: number }) {
-  return (
-    <div className="space-y-2">
-      {Array.from({ length: lines }).map((_, i) => (
-        <div key={i} className="h-12 animate-pulse rounded-lg border bg-secondary/30" />
-      ))}
-    </div>
-  );
-}

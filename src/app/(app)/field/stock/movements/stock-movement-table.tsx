@@ -5,7 +5,17 @@ import { Search } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/i18n/provider';
+import { stockStatus } from '@/lib/erp/stock-risk';
 import type { StockMovementRow, StockMovementTotals } from '@/lib/van-sales/stock-movement';
+
+// Risk dot carried over from the old Truck Stock screen (out = red, low = amber)
+// so the movement report keeps the at-a-glance availability signal.
+const RISK_DOT: Record<'out' | 'low', string> = { out: 'bg-destructive', low: 'bg-warning' };
+function RiskDot({ current }: { current: number }) {
+  const s = stockStatus(current);
+  if (s === 'ok') return null;
+  return <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${RISK_DOT[s]}`} aria-hidden />;
+}
 
 // Searchable, mobile-friendly van stock-movement report. SKU rows are clickable
 // (open the per-SKU movement detail in a new tab so the report — and its search —
@@ -45,7 +55,7 @@ export function StockMovementTable({
               {filtered.map((r) => (
                 <li key={r.productId} className="p-3">
                   <a href={`${detailBase}/${r.productId}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2">
-                    <span className="min-w-0 truncate font-medium text-primary underline underline-offset-2">{r.name}</span>
+                    <span className="flex min-w-0 items-center gap-1.5 truncate font-medium text-primary underline underline-offset-2"><RiskDot current={r.current} />{r.name}</span>
                     <span className="shrink-0 text-sm font-bold tabular-nums" dir="ltr">{r.current.toLocaleString()}</span>
                   </a>
                   <div className="mt-1 grid grid-cols-3 gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground" dir="ltr">
@@ -76,7 +86,7 @@ export function StockMovementTable({
               <tbody>
                 {filtered.map((r) => (
                   <tr key={r.productId} className="border-b last:border-0">
-                    <td className="p-2"><a href={`${detailBase}/${r.productId}`} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">{r.name}</a></td>
+                    <td className="p-2"><a href={`${detailBase}/${r.productId}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-primary underline underline-offset-2"><RiskDot current={r.current} />{r.name}</a></td>
                     <td className="p-2 text-end tabular-nums" dir="ltr">{num(r.opening)}</td>
                     <td className="p-2 text-end tabular-nums text-success" dir="ltr">{num(r.load)}</td>
                     <td className="p-2 text-end tabular-nums" dir="ltr">{num(r.sales)}</td>
