@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
-import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireAuth, requireActionPermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive } from './settings-server';
 import { isVanDayOpen } from './day-server';
 import { normalizeReturnLines, computeReturnTotal, type ReturnLineInput, type PricedReturnLine } from './returns';
@@ -84,7 +84,9 @@ export async function previewVanReturn(input: { branch_id: string; customer_id: 
 /** Accept a return back to the rep's van in one atomic RPC. Returns the return id
  *  + optional credit-note id. Gated by Van Sales being active for the company. */
 export async function vanReturn(input: VanReturnInput): Promise<ActionResult<{ id: string; returnNumber: string; creditNoteId: string | null; totalAmount: number }>> {
-  const { ctx, error: authErr } = await requireAuth();
+  // Always-on money-path authorization (not flag-gated): committing a van return
+  // requires the field-sales permission — mirrors the erp_van_return RPC guard.
+  const { ctx, error: authErr } = await requireActionPermission('field.sales');
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
 
   const supabase = await createClient();

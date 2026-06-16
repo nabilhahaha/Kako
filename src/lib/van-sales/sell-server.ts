@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
-import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireAuth, requireActionPermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive, loadVanSalesSettings } from './settings-server';
 import { isVanDayOpen } from './day-server';
 
@@ -151,7 +151,9 @@ export async function previewVanSale(input: { branch_id: string; customer_id: st
  * the company (KAKO_VAN_SALES + per-company toggle); a no-op otherwise.
  */
 export async function vanSell(input: VanSellInput): Promise<ActionResult<{ id: string; invoiceNumber: string; netAmount: number }>> {
-  const { ctx, error: authErr } = await requireAuth();
+  // Always-on money-path authorization (not flag-gated): the field-sales permission
+  // is required to commit a van sale — mirrors the erp_van_sell RPC guard.
+  const { ctx, error: authErr } = await requireActionPermission('field.sales');
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
 
   const supabase = await createClient();
@@ -226,7 +228,9 @@ export interface VanSellWithPaymentInput extends VanSellInput {
 export async function vanSellWithPayment(
   input: VanSellWithPaymentInput,
 ): Promise<ActionResult<{ id: string; invoiceNumber: string; netAmount: number; paidAmount: number; status: string }>> {
-  const { ctx, error: authErr } = await requireAuth();
+  // Always-on money-path authorization (sale + inline collection). Requires the
+  // field-sales permission, mirroring the erp_van_sell_with_payment RPC guard.
+  const { ctx, error: authErr } = await requireActionPermission('field.sales');
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
 
   const supabase = await createClient();

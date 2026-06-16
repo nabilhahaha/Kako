@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
-import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireAuth, requireActionPermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive } from './settings-server';
 import { isVanDayOpen } from './day-server';
 
@@ -73,7 +73,9 @@ export async function loadCustomerOutstanding(branchId: string, customerId: stri
 
 /** Settle a customer collection across outstanding invoices via the atomic RPC. */
 export async function settleCollectionEntry(input: SettleCollectionEntryInput): Promise<ActionResult<{ collectionId: string; collectionNumber: string; totalApplied: number; unapplied: number }>> {
-  const { ctx, error: authErr } = await requireAuth();
+  // Always-on money-path authorization (not flag-gated): recording a collection
+  // requires the collect permission — mirrors the erp_settle_collection RPC guard.
+  const { ctx, error: authErr } = await requireActionPermission('sales.collect');
   if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
 
   const supabase = await createClient();

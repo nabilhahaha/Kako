@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getUserContext, type UserContext } from './auth-context';
 import type { Module } from './navigation';
-import type { Permission } from './permissions';
+import { hasPermission, type Permission } from './permissions';
 import { can as canCapability, canAny as canAnyCapability } from './capabilities';
 
 // ─── Authorization Phase 2 — granular capability resolver (runtime wiring) ────
@@ -27,6 +27,30 @@ export async function requireAuth(): Promise<
 > {
   const ctx = await getUserContext();
   if (!ctx) return { ctx: null, error: 'غير مصرح. سجّل الدخول.' };
+  return { ctx, error: null };
+}
+
+/** Stable not-authorized message for server actions (shown to the user; mirrors
+ *  the English guard-message style of the van-sales actions). */
+export const ACTION_NOT_AUTHORIZED = 'You do not have permission to perform this action.';
+
+/**
+ * Action-layer authorization — ALWAYS ON (not flag-gated). Ensures an
+ * authenticated user holds `perm` and returns the same `{ ctx, error }` shape as
+ * `requireAuth` so a server action can fail fast with a friendly ActionResult.
+ *
+ * Unlike `requireActionPerm` (in action-authz-core), which is a no-op until
+ * `platform.action_authz_enforcement` is enabled, this gate is UNCONDITIONAL. It
+ * is the baseline permission check for sensitive paths (e.g. the van-sales money
+ * paths: sell / collect / return) so server-side enforcement never depends on a
+ * feature flag. `hasPermission` already grants super-admins / platform owners.
+ */
+export async function requireActionPermission(perm: Permission): Promise<
+  { ctx: UserContext; error: null } | { ctx: null; error: string }
+> {
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx) return { ctx: null, error: error ?? 'غير مصرح. سجّل الدخول.' };
+  if (!hasPermission(ctx, perm)) return { ctx: null, error: ACTION_NOT_AUTHORIZED };
   return { ctx, error: null };
 }
 
