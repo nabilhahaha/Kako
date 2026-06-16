@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
@@ -68,15 +67,17 @@ export default async function DailySummaryPage() {
   const TypeTag = ({ r }: { r: ActivityRow }) => (
     <span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${typePill(r)}`}>{t(`vanSales.dailySummary.type_${r.type}`)}</span>
   );
+  // Drill-down opens in a NEW TAB so the Daily Summary stays the control center —
+  // its state / scroll / filters are never lost; close the tab to return.
   const DocLink = ({ r }: { r: ActivityRow }) => {
     const href = activityDocHref(r.type, r.docId);
     if (!r.doc) return <span>—</span>;
     return href
-      ? <Link href={href} className="font-mono text-xs text-primary underline underline-offset-2" dir="ltr">{r.doc}</Link>
+      ? <a href={href} target="_blank" rel="noreferrer" className="font-mono text-xs text-primary underline underline-offset-2" dir="ltr">{r.doc}</a>
       : <span className="font-mono text-xs" dir="ltr">{r.doc}</span>;
   };
   const CustLink = ({ id }: { id: string }) => (
-    <Link href={`/customers/${id}`} className="underline-offset-2 hover:underline">{custName.get(id) || '—'}</Link>
+    <a href={`/customers/${id}`} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">{custName.get(id) || '—'}</a>
   );
   let runAcc = 0;
   const runningSales = timeline.map((r) => { if (r.type === 'invoice') runAcc += r.amount ?? 0; return runAcc; });
