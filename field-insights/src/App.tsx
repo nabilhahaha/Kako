@@ -7,6 +7,8 @@ import { MapPage } from '@/pages/MapPage';
 import { DashboardsPage } from '@/pages/DashboardsPage';
 import { MorePage } from '@/pages/MorePage';
 import { CustomersPage } from '@/pages/CustomersPage';
+import { StartVisitPage } from '@/pages/StartVisitPage';
+import { VisitDetailPage } from '@/pages/VisitDetailPage';
 import { useSession } from '@/stores/session';
 
 export default function App() {
@@ -29,6 +31,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/visits" element={<VisitsPage />} />
+        <Route path="/visits/new" element={<StartVisitPage />} />
+        <Route path="/visits/:id" element={<VisitDetailPage />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/dashboards" element={<DashboardsPage />} />
         <Route path="/more" element={<MorePage />} />

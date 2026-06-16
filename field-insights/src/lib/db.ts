@@ -1,14 +1,14 @@
 import Dexie, { type EntityTable } from 'dexie';
 
-// Offline-first local store. Every field-captured record lands here first and
-// is mirrored to Supabase by the sync queue when connectivity returns.
-// This is the foundation that makes Field Insights usable with no network.
+// Offline-first local store. Field-captured records are written here first and
+// mirrored to Supabase by the sync engine (see sync.ts) when online.
 
 export type SyncState = 'pending' | 'synced' | 'failed';
 
 export interface LocalVisit {
   id: string; // client-generated UUID
   customer_id: string | null;
+  customer_name: string | null; // denormalized for offline display
   location_id: string | null;
   visit_type: string;
   status: string;
@@ -20,46 +20,35 @@ export interface LocalVisit {
   gps_accuracy_m: number | null;
   started_at: string | null;
   ended_at: string | null;
+  area_id: string | null;
+  region_id: string | null;
   sync_status: SyncState;
-  updated_at: string;
+  updatedAt: string;
 }
 
-export interface LocalBlob {
-  id: string;
-  visit_id: string;
-  kind: 'photo' | 'voice';
-  category: string | null;
-  description: string | null;
-  blob: Blob;
-  latitude: number | null;
-  longitude: number | null;
-  taken_at: string;
-  sync_status: SyncState;
-}
-
-// A generic outbound mutation in the sync queue. `entity`/`op` describe the
-// intended change; `payload` is the row to upsert. Idempotent by `id`.
-export interface SyncQueueItem {
-  id: string;
-  entity: string; // 'visits' | 'opportunities' | 'issues' | ...
-  op: 'insert' | 'update' | 'delete';
+// A pending outbound mutation. Idempotent by row id (insert uses upsert).
+export interface OutboxItem {
+  id: string;          // = the target row id (so retries are idempotent)
+  table: string;       // target Postgres table
+  op: 'insert' | 'update';
   payload: Record<string, unknown>;
+  createdAt: string;
   attempts: number;
-  last_error: string | null;
-  created_at: string;
+  lastError: string | null;
 }
 
 export class FieldInsightsDB extends Dexie {
   visits!: EntityTable<LocalVisit, 'id'>;
-  blobs!: EntityTable<LocalBlob, 'id'>;
-  queue!: EntityTable<SyncQueueItem, 'id'>;
+  outbox!: EntityTable<OutboxItem, 'id'>;
 
   constructor() {
     super('field-insights');
-    this.version(1).stores({
-      visits: 'id, customer_id, status, sync_status, updated_at',
-      blobs: 'id, visit_id, kind, sync_status',
-      queue: 'id, entity, created_at',
+    this.version(2).stores({
+      visits: 'id, customer_id, status, sync_status, updatedAt',
+      outbox: 'id, table, createdAt',
+      // drop the Phase-0 placeholder stores
+      blobs: null,
+      queue: null,
     });
   }
 }

@@ -240,6 +240,76 @@ export type Database = {
           },
         ]
       }
+      attachments: {
+        Row: {
+          area_id: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          filename: string | null
+          id: string
+          kind: string | null
+          mime_type: string | null
+          region_id: string | null
+          size_bytes: number | null
+          storage_path: string
+          sync_status: Database["public"]["Enums"]["sync_status"]
+          uploaded_by: string | null
+        }
+        Insert: {
+          area_id?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          filename?: string | null
+          id?: string
+          kind?: string | null
+          mime_type?: string | null
+          region_id?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          sync_status?: Database["public"]["Enums"]["sync_status"]
+          uploaded_by?: string | null
+        }
+        Update: {
+          area_id?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          filename?: string | null
+          id?: string
+          kind?: string | null
+          mime_type?: string | null
+          region_id?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          sync_status?: Database["public"]["Enums"]["sync_status"]
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachments_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachments_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -377,6 +447,7 @@ export type Database = {
           region_id: string | null
           shelf_price: number
           sku: string | null
+          sku_id: string | null
           sync_status: Database["public"]["Enums"]["sync_status"]
           visit_id: string | null
         }
@@ -398,6 +469,7 @@ export type Database = {
           region_id?: string | null
           shelf_price: number
           sku?: string | null
+          sku_id?: string | null
           sync_status?: Database["public"]["Enums"]["sync_status"]
           visit_id?: string | null
         }
@@ -419,6 +491,7 @@ export type Database = {
           region_id?: string | null
           shelf_price?: number
           sku?: string | null
+          sku_id?: string | null
           sync_status?: Database["public"]["Enums"]["sync_status"]
           visit_id?: string | null
         }
@@ -456,6 +529,13 @@ export type Database = {
             columns: ["region_id"]
             isOneToOne: false
             referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competitor_price_points_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
             referencedColumns: ["id"]
           },
           {
@@ -1482,6 +1562,192 @@ export type Database = {
         }
         Relationships: []
       }
+      route_stops: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          id: string
+          planned: boolean
+          route_id: string
+          seq: number
+          status: string
+          updated_at: string
+          visit_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          planned?: boolean
+          route_id: string
+          seq?: number
+          status?: string
+          updated_at?: string
+          visit_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          planned?: boolean
+          route_id?: string
+          seq?: number
+          status?: string
+          updated_at?: string
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_stops_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_stops_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_stops_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "v_route_performance"
+            referencedColumns: ["route_id"]
+          },
+          {
+            foreignKeyName: "route_stops_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routes: {
+        Row: {
+          area_id: string | null
+          company_id: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          owner_id: string | null
+          region_id: string | null
+          route_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          owner_id?: string | null
+          region_id?: string | null
+          route_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          owner_id?: string | null
+          region_id?: string | null
+          route_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skus: {
+        Row: {
+          barcode: string | null
+          brand: string | null
+          category: string | null
+          code: string | null
+          company_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          pack_size: string | null
+          updated_at: string
+        }
+        Insert: {
+          barcode?: string | null
+          brand?: string | null
+          category?: string | null
+          code?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          pack_size?: string | null
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string | null
+          brand?: string | null
+          category?: string | null
+          code?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          pack_size?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skus_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visit_photos: {
         Row: {
           category: Database["public"]["Enums"]["photo_category"]
@@ -1848,6 +2114,35 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_route_performance: {
+        Row: {
+          area_id: string | null
+          completed_stops: number | null
+          completion_pct: number | null
+          name: string | null
+          owner_id: string | null
+          planned_stops: number | null
+          route_date: string | null
+          route_id: string | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

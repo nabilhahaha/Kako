@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { Play, Lightbulb, AlertTriangle, CheckSquare, Camera, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -19,8 +20,10 @@ export function HomePage() {
         <p className="text-sm text-muted-foreground">{t('home.todaysVisits')}: 0 · {t('home.actionsDue')}: 0</p>
       </div>
 
-      <Button size="lg" className="w-full">
-        <Play className="size-5" /> {t('home.startVisit')}
+      <Button asChild size="lg" className="w-full">
+        <Link to="/visits/new">
+          <Play className="size-5" /> {t('home.startVisit')}
+        </Link>
       </Button>
 
       <section className="fi-card p-4">
