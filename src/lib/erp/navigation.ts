@@ -378,6 +378,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.suggestedLoad', href: '/distribution/suggested-load', icon: Boxes, perm: 'reports.view' },
       { label: 'nav.items.distributionReport', href: '/distribution/report', icon: BarChart3, perm: 'reports.view' },
       { label: 'nav.items.journeyCompliance', href: '/distribution/journey-compliance', icon: ClipboardCheck, perm: 'reports.view' },
+      { label: 'nav.items.visitOutcomes', href: '/distribution/visit-outcomes', icon: ClipboardList, perm: 'reports.view' },
       { label: 'nav.items.coverage', href: '/distribution/coverage', icon: Map, perm: 'reports.view', flag: 'distribution' },
       { label: 'nav.items.repTargets', href: '/distribution/targets', icon: Target, perm: 'reports.view' },
       { label: 'nav.items.targetsAchievement', href: '/distribution/targets-achievement', icon: Target, perm: ['target.view', 'target.manage'] },

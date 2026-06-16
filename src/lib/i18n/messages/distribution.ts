@@ -10,6 +10,23 @@ export const ar = {
     customerNotApproved: 'لا يمكن إضافة عميل غير معتمد إلى خط سير.',
     defaultRepName: 'مندوب',
 
+    // ── Visit outcomes report (supervisor) ───────────────────────────────────
+    voTitle: 'نتائج الزيارات',
+    voDescription: 'كل زيارة لها نتيجة مُسجّلة — زيارات منتجة (بيع/تحصيل/مرتجع) مقابل زيارات بلا بيع لكل مندوب، مع الأسباب.',
+    voEmpty: 'لا توجد نتائج زيارات مسجّلة في هذه الفترة.',
+    voTotalVisits: 'إجمالي الزيارات',
+    voProductive: 'زيارات منتجة',
+    voNoSale: 'بدون بيع',
+    voUnproductive: 'غير منتجة',
+    voByRep: 'حسب المندوب',
+    voDetail: 'تفاصيل الزيارات',
+    voColRep: 'المندوب',
+    voColDate: 'التاريخ',
+    voColCustomer: 'العميل',
+    voColOutcome: 'النتيجة',
+    voColReason: 'السبب / ملاحظة',
+    voColTotal: 'الإجمالي',
+
     // ── Trade spend dashboard ────────────────────────────────────────────────
     tsTitle: 'الإنفاق التجاري',
     tsDescription: 'الالتزامات المستحقة والمطالبات والعائد على العروض الترويجية.',
@@ -234,6 +251,23 @@ export const en = {
     noCompany: 'Available within a company account.',
     customerNotApproved: 'A non-approved customer can’t be added to a route.',
     defaultRepName: 'Rep',
+
+    // ── Visit outcomes report (supervisor) ───────────────────────────────────
+    voTitle: 'Visit Outcomes',
+    voDescription: 'Every visit has a recorded outcome — productive visits (sale/collection/return) vs no-sale per rep, with reasons.',
+    voEmpty: 'No visit outcomes recorded in this period.',
+    voTotalVisits: 'Total visits',
+    voProductive: 'Productive',
+    voNoSale: 'No sale',
+    voUnproductive: 'Unproductive',
+    voByRep: 'By rep',
+    voDetail: 'Visit detail',
+    voColRep: 'Rep',
+    voColDate: 'Date',
+    voColCustomer: 'Customer',
+    voColOutcome: 'Outcome',
+    voColReason: 'Reason / note',
+    voColTotal: 'Total',
 
     // ── Trade spend dashboard ────────────────────────────────────────────────
     tsTitle: 'Trade Spend',
