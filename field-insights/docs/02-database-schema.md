@@ -461,3 +461,7 @@ The schema is built so the next wave of modules attaches to the **Visit hub** wi
 2. **Template engine reuse:** merchandising and trade-marketing audits share one `audits` engine keyed by `audit_type` + template — no new subsystem per audit kind.
 3. **Spawn pattern:** any module can create Opportunity/Issue/Action/Follow-up via the same cross-link FKs, so "every visit generates the four entities" holds for future modules too.
 4. **Additive migrations only:** new modules ship as new tables + policies; no destructive changes to Phase-1 tables.
+
+## 10. FMCG Intelligence Layer (core)
+
+Six FMCG capabilities are part of the **core** schema (shipped in Phase 1, not future add-ons): Customer Health Model, Customer Development Stages, Competitor Price Tracking, Opportunity Probability & Forecast Value, Visit Quality Score, and the DVAP Assessment Framework (Distribution · Visibility · Availability · Pricing · Promotion). Full DDL, scoring formulas, and reporting views are specified in [`08-fmcg-intelligence-layer.md`](08-fmcg-intelligence-layer.md). These add columns to `customers`, `visits`, and `opportunities`, and add the tables `dvap_assessments`, `customer_health_snapshots`, `customer_dev_stage_history`, and `competitor_price_points`.

@@ -2,7 +2,7 @@
 
 **Field Visit & Market Intelligence Platform** — a standalone, mobile-first product for managers, supervisors, trade marketing, and business development teams to document market visits, capture photo intelligence, track competitors and opportunities, log issues, drive action plans, and generate actionable market insights.
 
-> **Status:** Phase 0 (Foundation & Isolation) complete. The standalone app scaffold, installable PWA, offline-engine foundation, separate Supabase project, separate env, and path-scoped CI/CD are in place and building green. **Phase 1 (Auth, data model, RBAC) awaits approval.**
+> **Status:** Phase 1 (Auth, Data Model, RBAC, Configurable Intelligence) implemented — 11 migrations applied to the separate Supabase project, configurable framework metamodel (versioned, effective-dated, company-overridable, audited) with FMCG seeded as default, RLS on every table, security hardening, Supabase Auth + typed data layer in the PWA. Builds green. **Phase 2 (visit capture + offline sync) awaits approval.** See `docs/09-phase-1-deliverables.md`.
 
 ## Run locally
 
@@ -44,6 +44,8 @@ Review these in order before approving implementation:
 5. [`docs/05-mobile-ux-mockups.md`](docs/05-mobile-ux-mockups.md) — ASCII wireframes of the key mobile screens
 6. [`docs/06-development-roadmap.md`](docs/06-development-roadmap.md) — phased delivery plan, milestones, estimates
 7. [`docs/07-phase-0-deliverables.md`](docs/07-phase-0-deliverables.md) — **Phase 0 output:** architecture diagram, execution-graph schema, the 60-second visit UX, future-module design
+8. [`docs/08-fmcg-intelligence-layer.md`](docs/08-fmcg-intelligence-layer.md) — **core FMCG layer:** Customer Health, Development Stages, Competitor Price Tracking, Opportunity Forecast, Visit Quality Score, DVAP framework
+9. [`docs/09-phase-1-deliverables.md`](docs/09-phase-1-deliverables.md) — **Phase 1 output:** schema, configurable framework metamodel + governance, RBAC/RLS, security hardening, app auth
 
 ---
 

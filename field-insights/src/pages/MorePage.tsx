@@ -1,4 +1,9 @@
-import { env, isSupabaseConfigured } from '@/lib/env';
+import { Link } from 'react-router-dom';
+import { Users, LogOut, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useSession } from '@/stores/session';
+import { useAuth } from '@/lib/auth';
+import { ROLE_LABELS } from '@/lib/rbac';
 
 const futureModules = [
   'Competitor Intelligence',
@@ -10,17 +15,26 @@ const futureModules = [
 ];
 
 export function MorePage() {
+  const profile = useSession((s) => s.profile);
+  const { signOut } = useAuth();
+
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
       <h1 className="text-xl font-semibold">More</h1>
 
-      <div className="fi-card p-4">
-        <h2 className="mb-2 text-sm font-semibold">Status</h2>
-        <ul className="space-y-1 text-sm text-muted-foreground">
-          <li>App: {env.appName} (Phase 0 scaffold)</li>
-          <li>Backend: {isSupabaseConfigured ? 'Supabase configured' : 'Supabase not yet configured'}</li>
-        </ul>
-      </div>
+      {profile && (
+        <div className="fi-card p-4">
+          <p className="font-medium">{profile.fullName || profile.email}</p>
+          <p className="text-sm text-muted-foreground">{ROLE_LABELS[profile.role]}</p>
+        </div>
+      )}
+
+      <Link to="/customers" className="fi-card flex items-center justify-between p-4 fi-tap">
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <Users className="size-4 text-primary" /> Customers
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground" />
+      </Link>
 
       <div className="fi-card p-4">
         <h2 className="mb-2 text-sm font-semibold">Planned modules</h2>
@@ -30,6 +44,10 @@ export function MorePage() {
           ))}
         </ul>
       </div>
+
+      <Button variant="outline" onClick={() => void signOut()}>
+        <LogOut className="size-4" /> Sign out
+      </Button>
     </div>
   );
 }

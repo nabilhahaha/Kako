@@ -9,18 +9,28 @@ export type Role =
   | 'field_user'
   | 'viewer';
 
+export interface SessionProfile {
+  userId: string;
+  fullName: string;
+  email: string;
+  role: Role;
+  regionId: string | null;
+  areaId: string | null;
+  isActive: boolean;
+}
+
 interface SessionState {
-  userId: string | null;
-  fullName: string | null;
-  role: Role | null;
-  setSession: (s: { userId: string; fullName: string; role: Role }) => void;
+  profile: SessionProfile | null;
+  loading: boolean;
+  setProfile: (p: SessionProfile | null) => void;
+  setLoading: (v: boolean) => void;
   clear: () => void;
 }
 
 export const useSession = create<SessionState>((set) => ({
-  userId: null,
-  fullName: null,
-  role: null,
-  setSession: (s) => set({ userId: s.userId, fullName: s.fullName, role: s.role }),
-  clear: () => set({ userId: null, fullName: null, role: null }),
+  profile: null,
+  loading: true,
+  setProfile: (p) => set({ profile: p, loading: false }),
+  setLoading: (v) => set({ loading: v }),
+  clear: () => set({ profile: null, loading: false }),
 }));
