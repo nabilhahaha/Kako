@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDailySummary, rankSalesmen, type DailySummaryInput, type SalesmanDay } from './daily-summary';
+import { computeDailySummary, rankSalesmen, buildActivityTimeline, activityTotals, type DailySummaryInput, type SalesmanDay, type ActivityInput } from './daily-summary';
 
 const base: DailySummaryInput = {
   dayOpenedAt: '2026-06-16T06:00:00Z',
@@ -62,6 +62,47 @@ describe('computeDailySummary', () => {
     expect(s.lastActivityAt).toBeNull();
     expect(s.longestGapMinutes).toBeNull();
     expect(s.salesAmount).toBe(0);
+  });
+});
+
+describe('buildActivityTimeline + activityTotals', () => {
+  const input: ActivityInput = {
+    invoices: [{ customerId: 'c1', number: 'INV-44', amount: 79.8, at: '2026-06-16T09:14:00Z' }],
+    collections: [{ customerId: 'c1', number: 'COL-27', amount: 344.8, at: '2026-06-16T10:05:00Z' }],
+    returns: [{ customerId: 'c3', number: 'RET-08', amount: 45, at: '2026-06-16T11:10:00Z' }],
+    outcomes: [
+      { customerId: 'c2', outcome: 'no_sale', reason: 'no_stock', at: '2026-06-16T10:22:00Z' },
+      { customerId: 'c4', outcome: 'no_sale', reason: 'closed', at: '2026-06-16T11:35:00Z' },
+      { customerId: 'c5', outcome: 'no_sale', reason: 'not_available', at: '2026-06-16T12:00:00Z' },
+    ],
+  };
+
+  it('builds one chronological timeline (ascending by time)', () => {
+    const rows = buildActivityTimeline(input);
+    expect(rows.map((r) => r.at)).toEqual([
+      '2026-06-16T09:14:00Z', '2026-06-16T10:05:00Z', '2026-06-16T10:22:00Z',
+      '2026-06-16T11:10:00Z', '2026-06-16T11:35:00Z', '2026-06-16T12:00:00Z',
+    ]);
+  });
+
+  it('maps document rows + classifies outcomes (no_sale vs not-reached visit)', () => {
+    const rows = buildActivityTimeline(input);
+    expect(rows[0]).toMatchObject({ type: 'invoice', doc: 'INV-44', amount: 79.8 });
+    expect(rows[2]).toMatchObject({ type: 'no_sale', reason: 'no_stock', doc: null, amount: null });
+    expect(rows.find((r) => r.reason === 'closed')!.type).toBe('visit');
+    expect(rows.find((r) => r.reason === 'not_available')!.type).toBe('visit');
+  });
+
+  it('totals: sums per type + classifies no-sale / closed / unavailable counts', () => {
+    const tot = activityTotals(buildActivityTimeline(input));
+    expect(tot).toEqual({
+      totalSales: 79.8, totalCollections: 344.8, totalReturns: 45,
+      noSalesCount: 1, closedCount: 1, unavailableCount: 1,
+    });
+  });
+
+  it('is empty for no activity', () => {
+    expect(buildActivityTimeline({ invoices: [], collections: [], returns: [], outcomes: [] })).toEqual([]);
   });
 });
 

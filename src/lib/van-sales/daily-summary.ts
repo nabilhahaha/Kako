@@ -110,6 +110,76 @@ export function computeDailySummary(input: DailySummaryInput): DailySummary {
   };
 }
 
+// ── Day activity timeline (chronological report, not cards) ──────────────────
+
+export type ActivityType = 'invoice' | 'collection' | 'return' | 'no_sale' | 'visit';
+
+export interface DocEvent { customerId: string; number: string; amount: number; at: string }
+export interface NonTxnOutcome { customerId: string; outcome: VisitOutcomeKind; reason: string | null; at: string }
+
+export interface ActivityInput {
+  invoices: DocEvent[];
+  collections: DocEvent[];
+  returns: DocEvent[];
+  /** NON-transaction visit outcomes only (no_sale + legacy not-reached kinds). */
+  outcomes: NonTxnOutcome[];
+}
+
+export interface ActivityRow {
+  at: string;
+  customerId: string;
+  type: ActivityType;
+  doc: string | null;
+  amount: number | null;
+  /** Reason/legacy-kind code for no_sale / visit rows (localized by the UI); null for completed txns. */
+  reason: string | null;
+}
+
+/** Reasons / legacy kinds that mean "customer not reached" → shown as a Visit. */
+const NOT_REACHED = new Set<string>(['closed', 'not_available', 'customer_closed', 'gps_exception']);
+
+/**
+ * One chronological timeline of the day's activity (ascending by time), built
+ * from the actual documents (invoice / collection / return) plus the
+ * non-transaction visit outcomes (no-sale / customer not reached). Transaction
+ * outcomes are NOT added — their documents already represent them. Pure.
+ */
+export function buildActivityTimeline(input: ActivityInput): ActivityRow[] {
+  const rows: ActivityRow[] = [];
+  for (const i of input.invoices ?? []) rows.push({ at: i.at, customerId: i.customerId, type: 'invoice', doc: i.number, amount: Number(i.amount || 0), reason: null });
+  for (const c of input.collections ?? []) rows.push({ at: c.at, customerId: c.customerId, type: 'collection', doc: c.number, amount: Number(c.amount || 0), reason: null });
+  for (const r of input.returns ?? []) rows.push({ at: r.at, customerId: r.customerId, type: 'return', doc: r.number, amount: Number(r.amount || 0), reason: null });
+  for (const o of input.outcomes ?? []) {
+    const reason = o.reason ?? (o.outcome !== 'no_sale' ? o.outcome : null);
+    const type: ActivityType = NOT_REACHED.has(reason ?? '') ? 'visit' : 'no_sale';
+    rows.push({ at: o.at, customerId: o.customerId, type, doc: null, amount: null, reason });
+  }
+  return rows.sort((a, b) => (ts(a.at) || 0) - (ts(b.at) || 0));
+}
+
+export interface ActivityTotals {
+  totalSales: number;
+  totalCollections: number;
+  totalReturns: number;
+  noSalesCount: number;
+  closedCount: number;
+  unavailableCount: number;
+}
+
+/** Day totals for the activity report footer. Pure. */
+export function activityTotals(rows: ActivityRow[]): ActivityTotals {
+  const sum = (t: ActivityType) => rows.filter((r) => r.type === t).reduce((s, r) => s + (r.amount ?? 0), 0);
+  const reasonCount = (...codes: string[]) => rows.filter((r) => r.reason != null && codes.includes(r.reason)).length;
+  return {
+    totalSales: r2(sum('invoice')),
+    totalCollections: r2(sum('collection')),
+    totalReturns: r2(sum('return')),
+    noSalesCount: rows.filter((r) => r.type === 'no_sale').length,
+    closedCount: reasonCount('closed', 'customer_closed'),
+    unavailableCount: reasonCount('not_available'),
+  };
+}
+
 // ── Supervisor ranking ──────────────────────────────────────────────────────
 
 export interface SalesmanDay { salesmanId: string; name: string; summary: DailySummary }
