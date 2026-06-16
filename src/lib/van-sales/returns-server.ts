@@ -3,11 +3,13 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
-import { requireAuth, requireActionPermission, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { requireAuth, requireActionPermission, friendlyDbError, ACTION_NOT_AUTHORIZED, type ActionResult } from '@/lib/erp/guards';
 import { isVanSalesActive } from './settings-server';
 import { isVanDayOpen } from './day-server';
 import { normalizeReturnLines, computeReturnTotal, type ReturnLineInput, type PricedReturnLine } from './returns';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import { hasPermission } from '@/lib/erp/permissions';
+import { summarizeSla, type ReturnSlaTimestamps } from './return-sla';
 import type { BranchRole } from '@/lib/erp/types';
 import {
   resolveReturnDecision, canApproveReturn, returnApprovalEnabled, DEFAULT_RETURN_POLICY,
@@ -631,4 +633,120 @@ export async function loadPendingReturnApprovals(): Promise<ActionResult<Pending
     });
   }
   return { ok: true, data: out };
+}
+
+// ── Phase E: approval reports ────────────────────────────────────────────────
+
+export interface ApproverStat {
+  approverId: string;
+  approverName: string;
+  approvedCount: number;
+  approvedValue: number;
+  rejectedCount: number;
+  avgApproveMinutes: number | null;
+}
+
+export interface ReturnApprovalReport {
+  range: { from: string; to: string };
+  counts: { pending: number; approved: number; rejected: number; total: number };
+  value: { pending: number; approved: number; rejected: number };
+  sla: { avgApproveMinutes: number | null; avgReviewMinutes: number | null; pendingOver24h: number; pendingOver48h: number };
+  byApprover: ApproverStat[];
+}
+
+function avgMinutes(list: ReturnSlaTimestamps[]): number | null {
+  const xs = list
+    .map((t) => (t.requestedAt && t.decidedAt ? (Date.parse(t.decidedAt as string) - Date.parse(t.requestedAt as string)) / 60000 : null))
+    .filter((n): n is number => n != null && Number.isFinite(n) && n >= 0);
+  if (xs.length === 0) return null;
+  return xs.reduce((s, n) => s + n, 0) / xs.length;
+}
+
+/**
+ * Return-approval report (Phase E): pending / approved / rejected counts + value,
+ * SLA (avg time-to-review / time-to-approve, pending > 24h / > 48h) and value by
+ * approver. Scope = the approval workflow only (requested_at set). Decided rows are
+ * counted by decision date within [from, to]; pending reflects the current backlog.
+ * Gated by returns.view_all / returns.approve / reports.view; branch-scoped by RLS.
+ */
+export async function loadReturnApprovalReport(range: { from: string; to: string }): Promise<ActionResult<ReturnApprovalReport>> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
+  if (!hasPermission(ctx, 'returns.view_all') && !hasPermission(ctx, 'returns.approve') && !hasPermission(ctx, 'reports.view') && !ctx.isSuperAdmin) {
+    return { ok: false, error: ACTION_NOT_AUTHORIZED };
+  }
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('erp_sales_returns')
+    .select('id, status, total_amount, return_type, requested_at, first_viewed_at, approved_at, approved_by, rejected_at, rejected_by')
+    .not('requested_at', 'is', null)
+    .order('requested_at', { ascending: false })
+    .limit(5000);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  const rows = (data ?? []) as {
+    id: string; status: string; total_amount: number; return_type: string | null;
+    requested_at: string | null; first_viewed_at: string | null;
+    approved_at: string | null; approved_by: string | null; rejected_at: string | null; rejected_by: string | null;
+  }[];
+
+  const fromMs = Date.parse(`${range.from}T00:00:00`);
+  const toMs = Date.parse(`${range.to}T23:59:59`);
+  const inRange = (iso: string | null) => { if (!iso) return false; const t = Date.parse(iso); return t >= fromMs && t <= toMs; };
+
+  const counts = { pending: 0, approved: 0, rejected: 0, total: 0 };
+  const value = { pending: 0, approved: 0, rejected: 0 };
+  const decided: ReturnSlaTimestamps[] = [];
+  const pendingRequestedAt: Array<string | null> = [];
+  const byApprover = new Map<string, ApproverStat & { _times: ReturnSlaTimestamps[] }>();
+  const approverIds = new Set<string>();
+
+  for (const r of rows) {
+    const amt = Number(r.total_amount ?? 0);
+    if (r.status === 'pending_approval') {
+      counts.pending += 1; value.pending += amt; pendingRequestedAt.push(r.requested_at);
+      continue;
+    }
+    if (r.status === 'completed' && r.approved_at && inRange(r.approved_at)) {
+      counts.approved += 1; value.approved += amt;
+      decided.push({ requestedAt: r.requested_at, firstViewedAt: r.first_viewed_at, decidedAt: r.approved_at });
+      const id = r.approved_by ?? 'unknown'; approverIds.add(id);
+      const e = byApprover.get(id) ?? { approverId: id, approverName: '', approvedCount: 0, approvedValue: 0, rejectedCount: 0, avgApproveMinutes: null, _times: [] };
+      e.approvedCount += 1; e.approvedValue += amt; e._times.push({ requestedAt: r.requested_at, decidedAt: r.approved_at });
+      byApprover.set(id, e);
+    } else if (r.status === 'rejected' && r.rejected_at && inRange(r.rejected_at)) {
+      counts.rejected += 1; value.rejected += amt;
+      decided.push({ requestedAt: r.requested_at, firstViewedAt: r.first_viewed_at, decidedAt: r.rejected_at });
+      const id = r.rejected_by ?? 'unknown'; approverIds.add(id);
+      const e = byApprover.get(id) ?? { approverId: id, approverName: '', approvedCount: 0, approvedValue: 0, rejectedCount: 0, avgApproveMinutes: null, _times: [] };
+      e.rejectedCount += 1;
+      byApprover.set(id, e);
+    }
+  }
+  counts.total = counts.pending + counts.approved + counts.rejected;
+
+  // Approver names.
+  const ids = [...approverIds].filter((x) => x && x !== 'unknown');
+  if (ids.length) {
+    const { data: profs } = await supabase.from('erp_profiles').select('id, full_name').in('id', ids);
+    const nameById = new Map(((profs ?? []) as { id: string; full_name: string | null }[]).map((p) => [p.id, p.full_name ?? '']));
+    for (const e of byApprover.values()) e.approverName = nameById.get(e.approverId) || (e.approverId === 'unknown' ? '—' : e.approverId.slice(0, 8));
+  }
+
+  const sla = summarizeSla(decided, pendingRequestedAt);
+  const byApproverOut: ApproverStat[] = [...byApprover.values()]
+    .map(({ _times, ...rest }) => ({ ...rest, avgApproveMinutes: avgMinutes(_times) }))
+    .sort((a, b) => b.approvedValue - a.approvedValue);
+
+  return {
+    ok: true,
+    data: {
+      range,
+      counts,
+      value,
+      sla: { avgApproveMinutes: sla.avgApproveMinutes, avgReviewMinutes: sla.avgReviewMinutes, pendingOver24h: sla.pendingOver24h, pendingOver48h: sla.pendingOver48h },
+      byApprover: byApproverOut,
+    },
+  };
 }

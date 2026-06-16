@@ -33,7 +33,12 @@ export default async function ReturnApprovalsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <BackLink href="/today" home="/today" label={t('common.back')} />
-      <PageHeader title={t('vanSales.approvals.title')} description={t('vanSales.approvals.subtitle')} />
+      <div className="flex items-center justify-between gap-2">
+        <PageHeader title={t('vanSales.approvals.title')} description={t('vanSales.approvals.subtitle')} />
+        <a href="/field/van-sales/approvals/reports" className="shrink-0 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-secondary/50">
+          {t('returnReport.title')}
+        </a>
+      </div>
       {!res.ok ? (
         <Card><CardContent className="pt-6 text-sm text-destructive">{res.error}</CardContent></Card>
       ) : (
