@@ -68,6 +68,7 @@ import * as search from './search';
 import * as changeRequests from './change-requests';
 import * as alertsUi from './alerts';
 import * as actionPolicies from './action-policies';
+import * as returnPolicy from './return-policy';
 import * as features from './features';
 import * as pos from './pos';
 import * as pharmacyOps from './pharmacy-ops';
@@ -87,6 +88,7 @@ const MODULES = [
   changeRequests,
   alertsUi,
   actionPolicies,
+  returnPolicy,
   features,
   pos,
   pharmacyOps,
