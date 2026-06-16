@@ -26,6 +26,28 @@ export function outcomeNeedsReason(o: VisitOutcomeKind): boolean {
   return NON_TXN_OUTCOMES.includes(o);
 }
 
+/** Structured reasons captured under a "No Sales" outcome (the cockpit tile). The
+ *  outcome stored is always `no_sale`; the chosen reason is one of these codes. */
+export type NoSaleReason =
+  | 'not_available'   // العميل غير متاح
+  | 'closed'          // العميل مغلق
+  | 'not_now'         // لا يريد الشراء الآن
+  | 'high_prices'     // أسعار مرتفعة
+  | 'no_stock'        // منتج غير متوفر
+  | 'credit_issue'    // مشكلة في الائتمان
+  | 'competitor'      // يشتري من منافس
+  | 'other';          // أخرى
+
+export const NO_SALE_REASONS: NoSaleReason[] = [
+  'not_available', 'closed', 'not_now', 'high_prices', 'no_stock', 'credit_issue', 'competitor', 'other',
+];
+
+/** A free-text note is mandatory ONLY for the "Other" reason; every other reason
+ *  is self-describing, so the note stays optional. */
+export function noSaleReasonNeedsNote(r: NoSaleReason): boolean {
+  return r === 'other';
+}
+
 /** Credit control: a customer is blocked (New Sale disabled) when overdue OR over
  *  the credit limit. "Over limit" only applies when a limit exists — a cash-only
  *  customer (limit = 0) is never blocked for being over limit. */

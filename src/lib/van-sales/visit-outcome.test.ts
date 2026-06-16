@@ -1,8 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import {
   outcomeNeedsReason, isCreditBlocked, canEndVisit, creditEffectivelyBlocked,
+  noSaleReasonNeedsNote, NO_SALE_REASONS,
   NON_TXN_OUTCOMES, TXN_OUTCOMES, type VisitOutcomeKind,
 } from './visit-outcome';
+
+describe('noSaleReasonNeedsNote (No Sales reason sheet)', () => {
+  it('exposes the eight no-sale reasons', () => {
+    expect(NO_SALE_REASONS).toHaveLength(8);
+    expect(NO_SALE_REASONS).toContain('competitor');
+    expect(NO_SALE_REASONS).toContain('other');
+  });
+  it('requires a note ONLY for "other"', () => {
+    expect(noSaleReasonNeedsNote('other')).toBe(true);
+    for (const r of NO_SALE_REASONS.filter((x) => x !== 'other')) {
+      expect(noSaleReasonNeedsNote(r)).toBe(false);
+    }
+  });
+});
 
 describe('outcomeNeedsReason', () => {
   it('requires a reason for EVERY non-transaction outcome', () => {

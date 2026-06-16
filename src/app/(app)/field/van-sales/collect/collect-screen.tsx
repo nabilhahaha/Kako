@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HandCoins, Check, Loader2, ReceiptText, Share2, Printer, ArrowRight } from 'lucide-react';
+import { HandCoins, Check, Loader2, User, Share2, Printer, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -103,12 +103,6 @@ export function CollectScreen({
     } finally { setBusy(false); }
   }
 
-  function reset() {
-    setDone(null); setInvoices([]); setAmount(0); setPerInvoice({}); setSpecify(false);
-    setKey(uuid()); setCustomerId(preselect);
-    if (preselect) pickCustomer(preselect);
-  }
-
   async function share() {
     if (!done) return;
     const text = t('vanSales.collect.shareText', { number: done.number, amount: done.applied.toFixed(2) });
@@ -153,10 +147,18 @@ export function CollectScreen({
                 >
                   <ArrowRight className="h-5 w-5 rtl:rotate-180" /> {t('vanSales.sell.nextCustomer')}
                 </PendingLink>
-                <Button variant="outline" className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.collect.newCollection')}</Button>
+                {customerId && (
+                  <PendingLink href={`/field/van-sales/statement/${customerId}`} pendingLabel={t('common.opening')} className={`w-full ${buttonVariants({ variant: 'outline' })}`}>
+                    <User className="h-4 w-4" /> {t('vanSales.sell.anotherAction')}
+                  </PendingLink>
+                )}
               </>
             ) : (
-              <Button className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.collect.newCollection')}</Button>
+              customerId && (
+                <PendingLink href={`/field/van-sales/statement/${customerId}`} pendingLabel={t('common.opening')} className={`w-full ${buttonVariants()}`}>
+                  <User className="h-4 w-4" /> {t('vanSales.sell.anotherAction')}
+                </PendingLink>
+              )
             )}
           </div>
           {!smartNext && <Button variant="ghost" className="w-full" onClick={() => router.push('/field/van-sales')}>{t('vanSales.collect.back')}</Button>}

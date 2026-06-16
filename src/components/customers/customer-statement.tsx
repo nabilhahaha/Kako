@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight, ShieldCheck, AlertTriangle, Ban, History, Navigation, Phone, Lightbulb, ClipboardList } from 'lucide-react';
 import { googleMapsUrl, appleMapsUrl, wazeUrl, hasValidCoords } from '@/lib/van-sales/map-links';
 import { recommendAction, recommendedKind, daysSince } from '@/lib/van-sales/visit-recommendation';
-import { setVisitOutcome, getVisitOutcome, clearVisitOutcome, NON_TXN_OUTCOMES, outcomeNeedsReason, isCreditBlocked, canEndVisit, creditEffectivelyBlocked, type VisitOutcomeKind } from '@/lib/van-sales/visit-outcome';
+import { setVisitOutcome, getVisitOutcome, clearVisitOutcome, NO_SALE_REASONS, noSaleReasonNeedsNote, isCreditBlocked, canEndVisit, creditEffectivelyBlocked, type VisitOutcomeKind, type NoSaleReason } from '@/lib/van-sales/visit-outcome';
 import { recordVisitOutcome } from '@/lib/van-sales/visit-outcome-server';
 
 /** Visit context (Phase 1, route-driven): the route stop opened this customer; the
@@ -140,7 +140,8 @@ export function CustomerStatementView({
   const [guard, setGuard] = useState<string[] | null>(null);
   const [completing, setCompleting] = useState(false);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
-  const [outcomeKind, setOutcomeKind] = useState<VisitOutcomeKind>('no_sale');
+  /** The chosen no-sale reason (null until the rep picks one). */
+  const [noSaleReason, setNoSaleReason] = useState<NoSaleReason | null>(null);
   const [outcomeNote, setOutcomeNote] = useState('');
   const [outcomeSaving, setOutcomeSaving] = useState(false);
   /** The outcome already recorded for THIS visit (gates End Visit). */
@@ -189,21 +190,24 @@ export function CustomerStatementView({
     setCompleting(true);
     router.push(visit.completeHref);
   }
-  // Record a NON-transaction visit outcome (No Sale / Closed / Not available /
-  // GPS exception / Other) with a reason where required. Enables End Visit; the
-  // rep still taps End Visit to advance.
+  // Record a "No Sales" visit outcome with a structured reason. The stored
+  // outcome is always `no_sale`; the chosen reason is one of NO_SALE_REASONS. A
+  // note is mandatory only for "Other". Enables End Visit but does NOT auto-end —
+  // the rep returns to the cockpit and decides to end or take another action.
   async function confirmOutcome() {
-    if (!visit || outcomeSaving) return;
-    if (outcomeNeedsReason(outcomeKind) && !outcomeNote.trim()) return;
+    if (!visit || outcomeSaving || !noSaleReason) return;
+    if (noSaleReasonNeedsNote(noSaleReason) && !outcomeNote.trim()) return;
     setOutcomeSaving(true);
-    const res = await recordVisitOutcome({ customerId: visit.customerId, outcome: outcomeKind, reason: outcomeKind, note: outcomeNote || null });
+    const res = await recordVisitOutcome({ customerId: visit.customerId, outcome: 'no_sale', reason: noSaleReason, note: outcomeNote || null });
     setOutcomeSaving(false);
     if (!res.ok) { toast.error(t('settings.unauthorized')); return; }
-    setVisitOutcome(visit.customerId, outcomeKind);
-    setOutcome(outcomeKind);
+    setVisitOutcome(visit.customerId, 'no_sale');
+    setOutcome('no_sale');
     setOutcomeOpen(false);
     toast.success(t('vanSales.outcome.recorded'));
   }
+  // Open the No-Sales reason sheet fresh (no preselected reason / note).
+  function openNoSale() { setNoSaleReason(null); setOutcomeNote(''); setOutcomeOpen(true); }
   function onDiscardComplete() {
     if (!visit || completing) return;
     clearAllVisitWork(visit.customerId);
@@ -331,39 +335,42 @@ export function CustomerStatementView({
     </div>
   );
 
-  // Visit modals (outcome sheet + unfinished-work guard) — shared.
-  const reasonRequired = outcomeNeedsReason(outcomeKind);
+  // Visit modals (No-Sales reason sheet + unfinished-work guard) — shared.
+  const noteRequired = noSaleReason === 'other';
   const visitSheets = (
     <>
       {visit && outcomeOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setOutcomeOpen(false)}>
           <div className="w-full max-w-md space-y-3 rounded-t-2xl bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold">{t('vanSales.outcome.title')}</h3>
+            <h3 className="text-base font-bold">{t('vanSales.outcome.noSaleTitle')}</h3>
             <div className="space-y-1.5">
-              {NON_TXN_OUTCOMES.map((o) => (
+              {NO_SALE_REASONS.map((r) => (
                 <button
-                  key={o}
+                  key={r}
                   type="button"
-                  onClick={() => setOutcomeKind(o)}
-                  className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm ${outcomeKind === o ? 'border-primary bg-primary/5 font-medium' : ''}`}
+                  onClick={() => setNoSaleReason(r)}
+                  className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm ${noSaleReason === r ? 'border-primary bg-primary/5 font-medium' : ''}`}
                 >
-                  {t(`vanSales.outcome.o_${o}`)}
-                  {outcomeKind === o && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                  {t(`vanSales.outcome.reason_${r}`)}
+                  {noSaleReason === r && <CheckCircle2 className="h-4 w-4 text-primary" />}
                 </button>
               ))}
             </div>
-            <textarea
-              value={outcomeNote}
-              onChange={(e) => setOutcomeNote(e.target.value)}
-              placeholder={`${t('vanSales.outcome.note')}${reasonRequired ? ' *' : ''}`}
-              rows={2}
-              className="w-full rounded-md border border-input bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
+            {/* Note: optional for all reasons, mandatory only for "Other". */}
+            {noSaleReason && (
+              <textarea
+                value={outcomeNote}
+                onChange={(e) => setOutcomeNote(e.target.value)}
+                placeholder={`${t('vanSales.outcome.note')}${noteRequired ? ' *' : ''}`}
+                rows={2}
+                className="w-full rounded-md border border-input bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            )}
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setOutcomeOpen(false)}>
                 {t('vanSales.visit.keepWorking')}
               </Button>
-              <Button className="flex-1" onClick={confirmOutcome} loading={outcomeSaving} disabled={reasonRequired && !outcomeNote.trim()}>
+              <Button className="flex-1" onClick={confirmOutcome} loading={outcomeSaving} disabled={!noSaleReason || (noteRequired && !outcomeNote.trim())}>
                 {t('vanSales.outcome.save')}
               </Button>
             </div>
@@ -399,7 +406,7 @@ export function CustomerStatementView({
           <Button className="w-full" size="lg" onClick={onCompleteVisit} loading={completing}>
             {!completing && <CheckCircle2 className="h-4 w-4" />} {completing ? t('common.completing') : t('vanSales.visit.completeVisit')}
           </Button>
-          <Button variant="outline" className="w-full" onClick={() => setOutcomeOpen(true)} disabled={completing}>
+          <Button variant="outline" className="w-full" onClick={openNoSale} disabled={completing}>
             <Ban className="h-4 w-4" /> {t('vanSales.visit.noSale')}
           </Button>
         </div>
@@ -524,7 +531,7 @@ export function CustomerStatementView({
               <Undo2 className="h-6 w-6" /> {t('vanSales.cockpit.actReturn')}
             </PendingLink>
           )}
-          <button type="button" onClick={() => setOutcomeOpen(true)} disabled={completing} className={`${tile} ${outcome && NON_TXN_OUTCOMES.includes(outcome) ? 'border-primary bg-primary/5 text-primary' : ''}`}>
+          <button type="button" onClick={openNoSale} disabled={completing} className={`${tile} ${outcome === 'no_sale' ? 'border-primary bg-primary/5 text-primary' : ''}`}>
             <ClipboardList className="h-6 w-6" /> {t('vanSales.outcome.tile')}
           </button>
           <button type="button" onClick={() => setShowDetails((v) => !v)} aria-expanded={showDetails} className={tile}>

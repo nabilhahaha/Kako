@@ -230,11 +230,6 @@ export function SellScreen({
     } finally { setBusy(false); }
   }
 
-  function reset() {
-    setResult(null); setPreview(null); setCart([]); setTenders([]); setConfirmOpen(false); setSaleKey(uuid());
-    setCustomerId(preselect); setStep(preselect ? 'products' : 'customer');
-  }
-
   // Per-line summary for the confirmation modal, shown in the ENTERED unit (UoM,
   // qty, per-UoM price) — reads the server-priced preview, converts the per-base
   // price back to the chosen UoM. Display only.
@@ -621,7 +616,11 @@ export function SellScreen({
                 )}
               </>
             ) : (
-              <Button className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.sell.newSale')}</Button>
+              customerId && (
+                <PendingLink href={`/field/van-sales/statement/${customerId}`} pendingLabel={t('common.opening')} className={`w-full ${buttonVariants()}`}>
+                  <User className="h-4 w-4" /> {t('vanSales.sell.anotherAction')}
+                </PendingLink>
+              )
             )}
           </CardContent>
         </Card>

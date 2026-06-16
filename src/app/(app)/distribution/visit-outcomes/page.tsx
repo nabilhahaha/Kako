@@ -10,7 +10,7 @@ import { formatDate } from '@/lib/utils';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 import { getT } from '@/lib/i18n/server';
 import { MonthNav } from '../month-nav';
-import { TXN_OUTCOMES, NON_TXN_OUTCOMES, type VisitOutcomeKind } from '@/lib/van-sales/visit-outcome';
+import { TXN_OUTCOMES, NON_TXN_OUTCOMES, NO_SALE_REASONS, type VisitOutcomeKind } from '@/lib/van-sales/visit-outcome';
 import { ClipboardCheck, ShoppingCart, Ban, UserX } from 'lucide-react';
 
 // Supervisor Visit Outcomes — the read side of the "every visit has a measurable
@@ -107,6 +107,17 @@ export default async function VisitOutcomesReportPage({ searchParams }: { search
     .map(([id, v]) => ({ id, name: repMap.get(id) || t('distribution.defaultRepName'), ...v }))
     .sort((a, b) => b.total - a.total);
 
+  // Reason + note text for a row. A no-sale reason is a structured code → localize
+  // it; legacy free-text reasons render as-is; the note is appended when present.
+  const reasonSet = new Set<string>(NO_SALE_REASONS);
+  const reasonText = (o: OutcomeRow): string => {
+    const parts: string[] = [];
+    if (o.reason && reasonSet.has(o.reason)) parts.push(t(`vanSales.outcome.reason_${o.reason}`));
+    else if (o.reason && o.reason !== o.outcome) parts.push(o.reason);
+    if (o.note) parts.push(o.note);
+    return parts.join(' — ') || '—';
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -173,8 +184,8 @@ export default async function VisitOutcomesReportPage({ searchParams }: { search
                       <span>{repMap.get(o.salesman_id) || '—'}</span>
                       <span dir="ltr">{formatDate(o.visit_date, intl)}</span>
                     </div>
-                    {(o.note || (o.reason && o.reason !== o.outcome)) && (
-                      <p className="text-xs text-muted-foreground">{o.note || o.reason}</p>
+                    {reasonText(o) !== '—' && (
+                      <p className="text-xs text-muted-foreground">{reasonText(o)}</p>
                     )}
                   </li>
                 ))}
@@ -195,7 +206,7 @@ export default async function VisitOutcomesReportPage({ searchParams }: { search
                       <td className="p-3">{repMap.get(o.salesman_id) || '—'}</td>
                       <td className="p-3">{custMap.get(o.customer_id) || '—'}</td>
                       <td className="p-3 text-center"><Badge variant={BADGE[o.outcome]}>{t(`vanSales.outcome.o_${o.outcome}`)}</Badge></td>
-                      <td className="p-3 text-muted-foreground">{o.note || (o.reason && o.reason !== o.outcome ? o.reason : '') || '—'}</td>
+                      <td className="p-3 text-muted-foreground">{reasonText(o)}</td>
                     </tr>
                   ))}
                 </tbody>
