@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 30% 97%;
+    --foreground: 212 40% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 212 40% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 212 40% 12%;
+
+    --primary: 209 63% 16%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 24% 92%;
+    --secondary-foreground: 212 40% 16%;
+
+    --muted: 210 24% 94%;
+    --muted-foreground: 212 14% 44%;
+
+    --accent: 43 96% 48%;
+    --accent-foreground: 212 40% 12%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 167 72% 38%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 212 40% 12%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 209 63% 26%;
+
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 212 36% 8%;
+    --foreground: 210 24% 92%;
+
+    --card: 212 32% 11%;
+    --card-foreground: 210 24% 92%;
+
+    --popover: 212 32% 11%;
+    --popover-foreground: 210 24% 92%;
+
+    --primary: 199 89% 48%;
+    --primary-foreground: 212 40% 8%;
+
+    --secondary: 212 22% 17%;
+    --secondary-foreground: 210 24% 88%;
+
+    --muted: 212 20% 18%;
+    --muted-foreground: 210 14% 58%;
+
+    --accent: 43 90% 52%;
+    --accent-foreground: 212 40% 10%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 167 60% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 80% 50%;
+    --warning-foreground: 212 40% 10%;
+
+    --info: 199 80% 52%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 212 20% 20%;
+    --input: 212 20% 20%;
+    --ring: 199 89% 48%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-size: 15px;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    letter-spacing: -0.01em;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  [dir='rtl'] body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; }
+  [dir='ltr'] body { font-family: 'DM Sans', system-ui, sans-serif; }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring/40 ring-offset-1 ring-offset-background;
+  }
+}
+
+@layer components {
+  .fi-card {
+    @apply rounded-xl border bg-card shadow-sm;
+  }
+  .fi-tap {
+    /* large, touch-friendly target */
+    @apply min-h-11 min-w-11;
+  }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+}

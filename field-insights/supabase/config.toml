@@ -1,0 +1,6 @@
+# Field Insights — dedicated Supabase project config (isolated from VANTORA).
+# Project ref is the standalone field-insights project, NOT any VANTORA project.
+project_id = "qulukfxuaklhcztchrbv"
+
+[db]
+major_version = 17
