@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { isPdfDoc, printPathFor, pdfFilename, PDF_DOCS } from './documents';
 
 describe('pdf documents (pure mapping)', () => {
-  it('recognizes the three document types only', () => {
-    expect(PDF_DOCS).toEqual(['invoice', 'collection', 'return']);
+  it('recognizes the supported document types only', () => {
+    expect(PDF_DOCS).toEqual(['invoice', 'collection', 'return', 'statement']);
     expect(isPdfDoc('invoice')).toBe(true);
+    expect(isPdfDoc('statement')).toBe(true);
     expect(isPdfDoc('receipt')).toBe(false);
   });
 
@@ -12,6 +13,7 @@ describe('pdf documents (pure mapping)', () => {
     expect(printPathFor('invoice', 'abc')).toBe('/print/invoices/abc');
     expect(printPathFor('collection', 'abc')).toBe('/print/collection/abc');
     expect(printPathFor('return', 'abc')).toBe('/sales/returns/abc/print');
+    expect(printPathFor('statement', 'abc')).toBe('/print/statement/abc');
   });
 
   describe('pdfFilename', () => {

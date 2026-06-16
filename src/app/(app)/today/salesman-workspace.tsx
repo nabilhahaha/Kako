@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   Play, CheckCircle2, Lock, Clock, MapPin,
-  UserSquare, Boxes, BarChart3,
+  UserSquare, Boxes, BarChart3, FileText,
 } from 'lucide-react';
 import { getT } from '@/lib/i18n/server';
 import type { UserContext } from '@/lib/erp/auth-context';
@@ -67,6 +67,7 @@ export async function SalesmanWorkspace({ ctx, flags }: Props) {
             : { key: 'stock', href: '/field/stock', icon: Boxes, label: 'vanSales.steps.stock' },
           ...(dailySummaryEnabled(flags) ? [{ key: 'summary', href: '/field/van-sales/summary', icon: BarChart3, label: 'vanSales.dailySummary.tile' }] : []),
           { key: 'offroute', href: '/field/van-sales/customers', icon: UserSquare, label: 'vanSales.offRouteTile' },
+          { key: 'statement', href: '/field/van-sales/statement', icon: FileText, label: 'vanSales.statementTile' },
         ].map((s) => {
           const Icon = s.icon;
           return (

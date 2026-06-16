@@ -17,6 +17,15 @@ export const ar = {
     workspaceSubtitle: 'مساحة عملك اليومية: العميل، كشف الحساب، التحصيل، البيع، المرتجع، الإنهاء.',
     offRouteCustomers: 'عملاء آخرون / خارج خط السير',
     offRouteTile: 'عملاء خارج خط السير',
+    statementTile: 'كشف حساب العميل',
+    statementSearch: { subtitle: 'ابحث عن عميل لعرض كشف حسابه: الرصيد، الفواتير المفتوحة والمتأخرة، الطباعة والمشاركة.' },
+    statementHub: {
+      fAll: 'الكل', fOverdue: 'متأخر', fBlocked: 'محظور ائتمانيًا', fDueWeek: 'يستحق هذا الأسبوع', fOpen: 'فواتير مفتوحة',
+      stOverdue: 'متأخر', stBlocked: 'محظور ائتمانيًا', stNearDue: 'قريب الاستحقاق', stHealthy: 'سليم',
+      balance: 'الرصيد', overdue: 'المتأخر', oldestDue: 'أقدم استحقاق', creditLimit: 'حد الائتمان', openCount: 'فواتير مفتوحة',
+      open: 'كشف الحساب', collect: 'تحصيل', print: 'طباعة', share: 'مشاركة PDF', profile: 'ملف العميل',
+      empty: 'لا يوجد عملاء مطابقون.',
+    },
     kpi: {
       planned: 'العملاء المخطّطون',
       visited: 'تمت زيارتهم',
@@ -753,6 +762,15 @@ export const en = {
     workspaceSubtitle: 'Your day, in one place: customer, statement, collect, sell, return, close.',
     offRouteCustomers: 'Other / off-route customers',
     offRouteTile: 'Off-route customers',
+    statementTile: 'Customer statement',
+    statementSearch: { subtitle: 'Search a customer to view their statement: balance, open and overdue invoices, print and share.' },
+    statementHub: {
+      fAll: 'All', fOverdue: 'Overdue', fBlocked: 'Credit blocked', fDueWeek: 'Due this week', fOpen: 'Open invoices',
+      stOverdue: 'Overdue', stBlocked: 'Credit blocked', stNearDue: 'Near due', stHealthy: 'Healthy',
+      balance: 'Balance', overdue: 'Overdue', oldestDue: 'Oldest due', creditLimit: 'Credit limit', openCount: 'Open invoices',
+      open: 'Statement', collect: 'Collect', print: 'Print', share: 'Share PDF', profile: 'Profile',
+      empty: 'No matching customers.',
+    },
     kpi: {
       planned: 'Planned',
       visited: 'Visited',

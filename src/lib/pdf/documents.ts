@@ -2,9 +2,9 @@
 // print page (the single source of truth for layout, reused by Print + PDF) and
 // sanitizes the share filename so it always carries the document number.
 
-export type PdfDoc = 'invoice' | 'collection' | 'return';
+export type PdfDoc = 'invoice' | 'collection' | 'return' | 'statement';
 
-export const PDF_DOCS: PdfDoc[] = ['invoice', 'collection', 'return'];
+export const PDF_DOCS: PdfDoc[] = ['invoice', 'collection', 'return', 'statement'];
 
 export function isPdfDoc(s: string): s is PdfDoc {
   return (PDF_DOCS as string[]).includes(s);
@@ -16,6 +16,7 @@ export function printPathFor(doc: PdfDoc, id: string): string {
     case 'invoice': return `/print/invoices/${id}`;
     case 'collection': return `/print/collection/${id}`;
     case 'return': return `/sales/returns/${id}/print`;
+    case 'statement': return `/print/statement/${id}`;
   }
 }
 
