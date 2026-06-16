@@ -1,62 +1,94 @@
-// Return Approval — PURE policy resolution (no I/O). Decides, per return, whether
-// it is BLOCKED (closed mode), posts immediately (AUTO), or needs APPROVAL — from
-// the company's policy mode + per-type rules (require-approval flag + auto-approve
-// value threshold). Value is the return's total. Used by the return screen and the
-// request RPC so the UI and server agree. Default-OFF behind platform.return_approval.
+// Return Approval — PURE, RULES-DRIVEN policy resolution (no I/O). The company
+// configures: a MODE (disabled / open / approval) + an ordered list of RULES. Each
+// rule matches on any combination of dimensions (return type, value band, customer,
+// customer class, salesman, route, product category) and yields a decision
+// (auto / approval / block). The first matching active rule (by priority) wins; with
+// no match, the MODE default applies (open → auto, approval → approval). Nothing is
+// hardcoded — every example (saleable ≤500 auto / >500 approval, damage always
+// approval, VIP always approval) is expressed as data. Flag: platform.return_approval.
 
-export type ReturnPolicyMode = 'open' | 'approval' | 'closed';
+export type ReturnDecision = 'auto' | 'approval' | 'block';
+export type PolicyMode = 'disabled' | 'open' | 'approval';
 export type ReturnTypeKind = 'saleable' | 'damage';
-export type ReturnDecision = 'blocked' | 'auto' | 'approval';
 export type ApprovalLevel = 'supervisor' | 'branch_manager' | 'company_admin';
 
-export interface ReturnTypeRule {
-  /** Always require approval for this type regardless of value (e.g. Damage). */
-  requireApproval: boolean;
-  /** Auto-approve at or below this value; above → approval. null = no auto band. */
-  autoApproveLimit: number | null;
+/** What we know about a return when resolving its policy. */
+export interface ReturnContext {
+  returnType: ReturnTypeKind;
+  value: number;
+  customerId?: string | null;
+  customerClass?: string | null;
+  salesmanId?: string | null;
+  routeId?: string | null;
+  productCategoryIds?: string[];
 }
 
-export interface ReturnPolicy {
-  mode: ReturnPolicyMode;
-  rules: Record<ReturnTypeKind, ReturnTypeRule>;
-  /** Value bands → approver level (ascending by maxValue). The first band whose
-   *  maxValue ≥ value wins; beyond all bands → the last level. Empty → supervisor. */
-  levelBands?: { maxValue: number; level: ApprovalLevel }[];
+/** One configurable rule. All set (non-null) criteria must match (AND). */
+export interface ReturnRule {
+  priority: number;
+  active?: boolean;
+  returnType?: ReturnTypeKind | null;
+  minValue?: number | null;          // inclusive lower bound on value
+  maxValue?: number | null;          // inclusive upper bound on value
+  customerId?: string | null;
+  customerClass?: string | null;
+  salesmanId?: string | null;
+  routeId?: string | null;
+  productCategoryId?: string | null; // matches when the return contains this category
+  result: ReturnDecision;
+  approverLevel?: ApprovalLevel | null;
 }
 
-/** The default (pilot) policy = Open: everything posts immediately. */
-export const DEFAULT_RETURN_POLICY: ReturnPolicy = {
-  mode: 'open',
-  rules: {
-    saleable: { requireApproval: false, autoApproveLimit: null },
-    damage: { requireApproval: false, autoApproveLimit: null },
-  },
-};
+export interface ReturnApprovalPolicy {
+  mode: PolicyMode;
+  rules: ReturnRule[];
+  /** Default approver when a rule doesn't specify one. */
+  approverRole?: ApprovalLevel | null;
+}
+
+/** The default (pilot) policy = Open with no rules: everything auto-posts. */
+export const DEFAULT_RETURN_POLICY: ReturnApprovalPolicy = { mode: 'open', rules: [], approverRole: 'supervisor' };
+
+/** Does a rule match the return context? All non-null criteria must hold. Pure. */
+export function ruleMatches(rule: ReturnRule, ctx: ReturnContext): boolean {
+  if (rule.returnType && rule.returnType !== ctx.returnType) return false;
+  if (rule.minValue != null && Number(ctx.value) < Number(rule.minValue)) return false;
+  if (rule.maxValue != null && Number(ctx.value) > Number(rule.maxValue)) return false;
+  if (rule.customerId && rule.customerId !== ctx.customerId) return false;
+  if (rule.customerClass && rule.customerClass !== ctx.customerClass) return false;
+  if (rule.salesmanId && rule.salesmanId !== ctx.salesmanId) return false;
+  if (rule.routeId && rule.routeId !== ctx.routeId) return false;
+  if (rule.productCategoryId && !(ctx.productCategoryIds ?? []).includes(rule.productCategoryId)) return false;
+  return true;
+}
+
+export interface ReturnResolution {
+  decision: ReturnDecision;
+  approver: ApprovalLevel;
+  /** Index of the matched rule (by priority order), or null when the mode default applied. */
+  matchedRule: number | null;
+}
 
 /**
- * Resolve what happens to a return of `returnType` worth `valueSAR`. Pure.
- *   • closed mode                     → BLOCKED
- *   • type rule requires approval     → APPROVAL (e.g. Damage, any value)
- *   • open mode                       → AUTO
- *   • approval mode + value ≤ limit   → AUTO
- *   • approval mode + value > limit   → APPROVAL  (no limit set ⇒ APPROVAL)
+ * Resolve the decision for a return. Pure.
+ *   • mode 'disabled'              → block
+ *   • first matching active rule   → its result (+ approver)
+ *   • no rule matches              → mode default (open → auto, approval → approval)
  */
-export function resolveReturnPolicy(returnType: ReturnTypeKind, valueSAR: number, policy: ReturnPolicy): ReturnDecision {
-  if (policy.mode === 'closed') return 'blocked';
-  const rule = policy.rules?.[returnType];
-  if (rule?.requireApproval) return 'approval';
-  if (policy.mode === 'open') return 'auto';
-  // approval mode → threshold-based.
-  const limit = rule?.autoApproveLimit;
-  if (limit == null) return 'approval';
-  return Number(valueSAR) <= Number(limit) ? 'auto' : 'approval';
-}
+export function resolveReturnDecision(ctx: ReturnContext, policy: ReturnApprovalPolicy): ReturnResolution {
+  const fallbackApprover = policy.approverRole ?? 'supervisor';
+  if (policy.mode === 'disabled') return { decision: 'block', approver: fallbackApprover, matchedRule: null };
 
-/** The approver level for a value, from the configured bands. Pure. */
-export function resolveApprovalLevel(valueSAR: number, bands?: ReturnPolicy['levelBands']): ApprovalLevel {
-  const list = (bands ?? []).slice().sort((a, b) => a.maxValue - b.maxValue);
-  for (const b of list) if (Number(valueSAR) <= b.maxValue) return b.level;
-  return list.length ? list[list.length - 1].level : 'supervisor';
+  const rules = (policy.rules ?? [])
+    .filter((r) => r.active !== false)
+    .sort((a, b) => a.priority - b.priority);
+  for (let i = 0; i < rules.length; i++) {
+    if (ruleMatches(rules[i], ctx)) {
+      return { decision: rules[i].result, approver: rules[i].approverLevel ?? fallbackApprover, matchedRule: i };
+    }
+  }
+  const def: ReturnDecision = policy.mode === 'approval' ? 'approval' : 'auto';
+  return { decision: def, approver: fallbackApprover, matchedRule: null };
 }
 
 /** Is the Return Approval workflow active for this tenant? (`platform.return_approval`). Pure. */

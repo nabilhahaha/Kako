@@ -288,6 +288,13 @@ export const FEATURES: FeatureDef[] = [
   P('platform.stock_movement_report', 'pos', [], {
     logic: ['stockMovementReportEnabled'], screens: ['/field/stock/movements'],
   }),
+  // Return Approval Workflow (FMCG, governance): policy-driven return approval
+  // (disabled / open / approval) with configurable rules (type · value · customer ·
+  // class · salesman · route · category). When OFF, returns post immediately (Open).
+  // Default OFF.
+  P('platform.return_approval', 'governance', [], {
+    logic: ['returnApprovalEnabled', 'erp_request_van_return', 'erp_decide_van_return'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),
