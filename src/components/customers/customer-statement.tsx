@@ -18,7 +18,7 @@ import { setActiveVisit, clearActiveVisit } from '@/lib/van-sales/active-visit';
 import { PendingLink } from '@/components/shared/pending-link';
 import { noteVisitOpen, noteVisitClick, endVisitMetrics } from '@/lib/van-sales/visit-metrics';
 import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
-import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight, ChevronDown, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight, ChevronDown, ShieldCheck, AlertTriangle, Ban } from 'lucide-react';
 
 /** Visit context (Phase 1, route-driven): the route stop opened this customer; the
  *  statement is the visit hub and "Complete Visit" returns to the route. */
@@ -95,6 +95,9 @@ export function CustomerStatementView({
   // on success) or explicitly discard it here.
   const [guard, setGuard] = useState<string[] | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [noSaleOpen, setNoSaleOpen] = useState(false);
+  const [noSaleReason, setNoSaleReason] = useState<string>('shop_closed');
+  const [noSaleNote, setNoSaleNote] = useState('');
   const mark = (action: 'sell' | 'collect' | 'return') => {
     if (!visit) return;
     markVisitWork(visit.customerId, action);
@@ -120,6 +123,21 @@ export function CustomerStatementView({
     const pending = listUnfinishedVisitWork(visit.customerId);
     if (pending.length > 0) { setGuard(pending); return; }
     finishVisit();
+    setCompleting(true);
+    router.push(visit.completeHref);
+  }
+  // No Sale: complete the visit WITHOUT a transaction, capturing a reason, then
+  // advance to the next customer (same completeHref as Complete Visit).
+  function confirmNoSale() {
+    if (!visit || completing) return;
+    if (noSaleReason === 'other' && !noSaleNote.trim()) return;
+    clearAllVisitWork(visit.customerId);
+    if (visit.trackResume) {
+      const m = endVisitMetrics();
+      void logFieldUxEvent({ eventType: 'visit_completed', customerId: visit.customerId, meta: { ...(m ?? {}), outcome: 'no_sale', reason: noSaleReason, note: noSaleNote || undefined } });
+      clearActiveVisit();
+    }
+    setNoSaleOpen(false);
     setCompleting(true);
     router.push(visit.completeHref);
   }
@@ -251,12 +269,56 @@ export function CustomerStatementView({
   );
 
   // Complete-Visit button + unfinished-work guard (shared).
+  const NO_SALE_REASONS = ['shop_closed', 'no_need', 'owner_absent', 'payment_dispute', 'other'] as const;
   const completeVisitBlock = (
     <>
       {visit && (
-        <Button className="w-full" size="lg" onClick={onCompleteVisit} loading={completing}>
-          {!completing && <CheckCircle2 className="h-4 w-4" />} {completing ? t('common.completing') : t('vanSales.visit.completeVisit')}
-        </Button>
+        <div className="space-y-2">
+          <Button className="w-full" size="lg" onClick={onCompleteVisit} loading={completing}>
+            {!completing && <CheckCircle2 className="h-4 w-4" />} {completing ? t('common.completing') : t('vanSales.visit.completeVisit')}
+          </Button>
+          {/* No Sale — complete the visit without a transaction (reason captured). */}
+          <Button variant="outline" className="w-full" onClick={() => setNoSaleOpen(true)} disabled={completing}>
+            <Ban className="h-4 w-4" /> {t('vanSales.visit.noSale')}
+          </Button>
+        </div>
+      )}
+      {visit && noSaleOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setNoSaleOpen(false)}>
+          <div className="w-full max-w-md space-y-3 rounded-t-2xl bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold">{t('vanSales.visit.noSaleTitle')}</h3>
+            <div className="space-y-1.5">
+              {NO_SALE_REASONS.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setNoSaleReason(r)}
+                  className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm ${noSaleReason === r ? 'border-primary bg-primary/5 font-medium' : ''}`}
+                >
+                  {t(`vanSales.visit.ns_${r}`)}
+                  {noSaleReason === r && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                </button>
+              ))}
+            </div>
+            {noSaleReason === 'other' && (
+              <textarea
+                value={noSaleNote}
+                onChange={(e) => setNoSaleNote(e.target.value)}
+                placeholder={t('vanSales.visit.noSaleNote')}
+                rows={2}
+                className="w-full rounded-md border border-input bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setNoSaleOpen(false)}>
+                {t('vanSales.visit.keepWorking')}
+              </Button>
+              <Button variant="destructive" className="flex-1" onClick={confirmNoSale} loading={completing} disabled={noSaleReason === 'other' && !noSaleNote.trim()}>
+                {t('vanSales.visit.noSaleConfirm')}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
       {visit && guard && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setGuard(null)}>

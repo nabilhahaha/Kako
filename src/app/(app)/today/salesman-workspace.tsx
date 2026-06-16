@@ -1,8 +1,8 @@
 import { Suspense, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
-  Play, CheckCircle2, Lock, Clock, MapPin, ListChecks, Receipt, Users,
-  UserSquare, HandCoins, Boxes, type LucideIcon,
+  Play, CheckCircle2, Lock, Clock, MapPin, Receipt, Users,
+  UserSquare, HandCoins, Boxes, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 import { getT } from '@/lib/i18n/server';
 import type { UserContext } from '@/lib/erp/auth-context';
@@ -11,7 +11,6 @@ import { INTL_LOCALE } from '@/lib/i18n/config';
 import { formatCurrency } from '@/lib/utils';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard, type StatTone } from '@/components/shared/stat-card';
-import { AttentionList } from '@/components/home/home-widgets';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -21,8 +20,6 @@ import { loadVanCustomerPicker } from '@/lib/van-sales/customers-server';
 import { loadNextCandidates } from '@/lib/van-sales/next-customer-server';
 import type { FeatureFlags } from '@/lib/erp/feature-flags';
 import { smartNextCustomerEnabled } from '@/lib/van-sales/sell';
-import { nextBestActions } from '@/app/(app)/copilot/actions';
-import { rankAttention, summarizeAttention } from '@/lib/erp/attention';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
 import { CustomerPicker } from '@/app/(app)/field/van-sales/customers/customer-picker';
 import { MyDayHero } from './my-day-hero';
@@ -94,11 +91,6 @@ export async function SalesmanWorkspace({ ctx, flags }: Props) {
         })}
       </div>
 
-      {/* Attention / copilot — deferred (recommendation scan). */}
-      <Suspense fallback={null}>
-        <AttentionSection />
-      </Suspense>
-
       {/* Operational KPIs — deferred, secondary, at the bottom. */}
       <Suspense fallback={<KpiSkeleton />}>
         <KpiSection ctx={ctx} />
@@ -158,32 +150,20 @@ async function PickerSection({ ctx }: { ctx: UserContext }) {
   const { t } = await getT();
   const picker = await loadVanCustomerPicker(ctx);
   if (!picker) return null;
+  // Route-first: the picker is the OFF-ROUTE / unplanned escape hatch, collapsed
+  // by default so the hero's Next Customer stays the single primary path.
   return (
-    <section className="space-y-2">
-      <div className="flex items-center gap-2">
-        <UserSquare className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('vanSales.steps.customer')}</h2>
+    <details className="group rounded-lg border bg-card">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-sm font-medium">
+        <span className="flex items-center gap-2">
+          <UserSquare className="h-4 w-4 text-muted-foreground" /> {t('vanSales.offRouteCustomers')}
+        </span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="border-t p-3">
+        <CustomerPicker customers={picker.customers} />
       </div>
-      <CustomerPicker customers={picker.customers} />
-    </section>
-  );
-}
-
-/** Attention / copilot recommendations — deferred. */
-async function AttentionSection() {
-  const { t, locale } = await getT();
-  const res = await nextBestActions(locale);
-  const items = rankAttention(res.ok && res.data ? res.data : []);
-  if (items.length === 0) return null;
-  const { itemCount } = summarizeAttention(items);
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-2">
-        <ListChecks className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('home.attentionFirst')} · {itemCount}</h2>
-      </div>
-      <AttentionList items={items.slice(0, 6)} openLabel={t('home.open')} emptyTitle={t('home.emptyAttention')} />
-    </section>
+    </details>
   );
 }
 

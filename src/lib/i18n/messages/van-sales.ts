@@ -15,6 +15,7 @@ export const ar = {
     continueRoute: 'متابعة خط السير',
     startWithCustomer: 'ابدأ بعميل',
     workspaceSubtitle: 'مساحة عملك اليومية: العميل، كشف الحساب، التحصيل، البيع، المرتجع، الإنهاء.',
+    offRouteCustomers: 'عملاء آخرون / خارج خط السير',
     kpi: {
       planned: 'العملاء المخطّطون',
       visited: 'تمت زيارتهم',
@@ -185,6 +186,15 @@ export const ar = {
       w_collect: 'تحصيل',
       w_return: 'مرتجع',
       checkinFailed: 'تعذّر تسجيل الوصول.',
+      noSale: 'لا يوجد بيع',
+      noSaleTitle: 'سبب عدم البيع',
+      noSaleConfirm: 'تأكيد عدم البيع',
+      noSaleNote: 'ملاحظة (اختياري)',
+      ns_shop_closed: 'المحل مغلق',
+      ns_no_need: 'لا حاجة حاليًا',
+      ns_owner_absent: 'صاحب المحل غير موجود',
+      ns_payment_dispute: 'مشكلة في السداد',
+      ns_other: 'أخرى',
     },
     smartNext: {
       completedTitle: 'تم إنهاء الزيارة',
@@ -212,6 +222,7 @@ export const ar = {
       routeDone: 'اكتمل خط سير اليوم',
       coverageLine: 'تمت زيارة {visited} من {planned}',
       startDay: 'ابدأ اليوم',
+      progress: 'محطة {stop} من {total} • باقٍ {remaining}',
     },
     request: {
       title: 'طلب تحميل',
@@ -562,6 +573,7 @@ export const en = {
     continueRoute: 'Continue route',
     startWithCustomer: 'Start with a customer',
     workspaceSubtitle: 'Your day, in one place: customer, statement, collect, sell, return, close.',
+    offRouteCustomers: 'Other / off-route customers',
     kpi: {
       planned: 'Planned',
       visited: 'Visited',
@@ -732,6 +744,15 @@ export const en = {
       w_collect: 'collection',
       w_return: 'return',
       checkinFailed: 'Check-in failed.',
+      noSale: 'No sale',
+      noSaleTitle: 'Reason for no sale',
+      noSaleConfirm: 'Confirm no sale',
+      noSaleNote: 'Note (optional)',
+      ns_shop_closed: 'Shop closed',
+      ns_no_need: 'No need right now',
+      ns_owner_absent: 'Owner absent',
+      ns_payment_dispute: 'Payment issue',
+      ns_other: 'Other',
     },
     smartNext: {
       completedTitle: 'Visit completed',
@@ -759,6 +780,7 @@ export const en = {
       routeDone: 'Route completed',
       coverageLine: '{visited} of {planned} visited',
       startDay: 'Start day',
+      progress: 'Stop {stop} of {total} • {remaining} remaining',
     },
     request: {
       title: 'Load Request',

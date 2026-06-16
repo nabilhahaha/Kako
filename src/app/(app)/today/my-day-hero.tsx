@@ -90,12 +90,16 @@ export function MyDayHero({ candidates, visited, planned }: { candidates: NextCa
   const c = top;
   const name = (locale === 'ar' && c.nameAr) ? c.nameAr : c.name;
   const startHref = `/field/van-sales/statement/${c.customerId}?from=route&seq=${c.sequence}&total=${planned}&src=smart_next`;
+  const stop = Math.min(visited + 1, Math.max(planned, 1));
+  const remaining = eligible.length;
   return (
     <Card className="border-primary/50">
       <CardContent className="space-y-3 p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('vanSales.smartNext.nextTitle')}</span>
-          <Badge variant="secondary" className="gap-1"><Route className="h-3 w-3" />{t('vanSales.smartNext.seq', { n: c.sequence })}</Badge>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-muted-foreground">
+            {planned > 0 ? t('vanSales.smartNext.progress', { stop, total: planned, remaining }) : t('vanSales.smartNext.nextTitle')}
+          </span>
+          <Badge variant="secondary" className="shrink-0 gap-1"><Route className="h-3 w-3" />{t('vanSales.smartNext.seq', { n: c.sequence })}</Badge>
         </div>
         <div className="flex items-start justify-between gap-3">
           <p className="text-2xl font-bold leading-tight">{name}</p>

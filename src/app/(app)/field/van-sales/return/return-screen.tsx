@@ -3,18 +3,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Undo2, Check, Loader2, ReceiptText, Printer, Share2 } from 'lucide-react';
+import { Undo2, Check, Loader2, ReceiptText, Printer, Share2, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { PendingLink } from '@/components/shared/pending-link';
 import { useI18n } from '@/lib/i18n/provider';
 import {
   previewVanReturn, vanReturn, loadReturnableInvoices, loadInvoiceReturnLines,
   type ReturnableInvoice, type ReturnLineRow,
 } from '@/lib/van-sales/returns-server';
 import { clearVisitWork } from '@/lib/van-sales/visit-session';
+import { clearActiveVisit } from '@/lib/van-sales/active-visit';
+import { endVisitMetrics } from '@/lib/van-sales/visit-metrics';
+import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
 
 export interface ReturnCustomer { id: string; name: string; name_ar: string | null; code: string }
 export interface ReturnReason { id: string; code: string; label_en: string | null; label_ar: string | null }
@@ -28,12 +32,14 @@ function uuid(): string {
 // Invoice Items (Sold / Returned / Remaining) → quantity (capped at remaining) →
 // Execute. The item list is the selected invoice's products only.
 export function ReturnScreen({
-  branchId, customers, reasons, preselectCustomerId,
+  branchId, customers, reasons, preselectCustomerId, smartNext = false,
 }: {
   branchId: string;
   customers: ReturnCustomer[];
   reasons: ReturnReason[];
   preselectCustomerId: string | null;
+  /** Smart Next ON → after a return, the primary CTA is Next Customer. */
+  smartNext?: boolean;
 }) {
   const { t, locale } = useI18n();
   const ar = locale === 'ar';
@@ -162,9 +168,24 @@ export function ReturnScreen({
               </a>
               <Button variant="outline" className="w-full" onClick={share}><Share2 className="h-4 w-4" /> {t('vanSales.return.share')}</Button>
             </div>
-            <Button className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.return.newReturn')}</Button>
+            {smartNext ? (
+              <>
+                {/* Route-first: complete the visit and move to the next customer. */}
+                <PendingLink
+                  href={`/field/next?done=${customerId || '1'}`}
+                  onClick={() => { clearActiveVisit(); const m = endVisitMetrics(); void logFieldUxEvent({ eventType: 'visit_completed', customerId: customerId || null, meta: m ?? {} }); }}
+                  pendingLabel={t('common.opening')}
+                  className={`w-full ${buttonVariants({ size: 'lg' })}`}
+                >
+                  <ArrowRight className="h-5 w-5 rtl:rotate-180" /> {t('vanSales.sell.nextCustomer')}
+                </PendingLink>
+                <Button variant="outline" className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.return.newReturn')}</Button>
+              </>
+            ) : (
+              <Button className="w-full" onClick={reset}><ReceiptText className="h-4 w-4" /> {t('vanSales.return.newReturn')}</Button>
+            )}
           </div>
-          <Button variant="ghost" className="w-full" onClick={() => router.push('/field/van-sales')}>{t('vanSales.return.back')}</Button>
+          {!smartNext && <Button variant="ghost" className="w-full" onClick={() => router.push('/field/van-sales')}>{t('vanSales.return.back')}</Button>}
         </CardContent>
       </Card>
     );
