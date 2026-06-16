@@ -295,6 +295,12 @@ export const FEATURES: FeatureDef[] = [
   P('platform.return_approval', 'governance', [], {
     logic: ['returnApprovalEnabled', 'erp_request_van_return', 'erp_decide_van_return'],
   }),
+  // Approval SLA tracking (FMCG, governance): stamp first-viewed and measure
+  // Time-To-Review / Time-To-Approve to surface approval bottlenecks (pending
+  // > 24h / > 48h, average approval time). Company opt-in. Default OFF.
+  P('platform.return_approval_sla', 'governance', [], {
+    logic: ['returnSlaEnabled', 'erp_mark_return_viewed'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),
