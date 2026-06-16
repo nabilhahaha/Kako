@@ -12,6 +12,8 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { PendingLink } from '@/components/shared/pending-link';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { setVisitOutcome } from '@/lib/van-sales/visit-outcome';
+import { recordVisitOutcome } from '@/lib/van-sales/visit-outcome-server';
 import { useI18n } from '@/lib/i18n/provider';
 import { useOnlineStatus } from '@/lib/offline-sync/use-network';
 import {
@@ -163,6 +165,7 @@ export function SellScreen({
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.sell.error')); return; }
       setResult({ id: res.data.id, invoiceNumber: res.data.invoiceNumber, netAmount: res.data.netAmount });
+      if (customerId) { setVisitOutcome(customerId, 'new_sale'); void recordVisitOutcome({ customerId, outcome: 'new_sale' }); }
       setStep('done');
       if (customerId) clearVisitWork(customerId, 'sell');
       toast.success(t('vanSales.sell.issued', { number: res.data.invoiceNumber }));
@@ -220,6 +223,7 @@ export function SellScreen({
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.sell.error')); return; }
       setResult({ id: res.data.id, invoiceNumber: res.data.invoiceNumber, netAmount: res.data.netAmount, paidAmount: res.data.paidAmount, status: res.data.status });
+      if (customerId) { setVisitOutcome(customerId, 'new_sale'); void recordVisitOutcome({ customerId, outcome: 'new_sale' }); }
       setStep('done');
       if (customerId) clearVisitWork(customerId, 'sell');
       toast.success(t('vanSales.sell.issued', { number: res.data.invoiceNumber }));

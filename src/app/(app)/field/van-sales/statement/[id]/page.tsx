@@ -4,7 +4,7 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
-import { visitDrivenRouteEnabled, smartNextCustomerEnabled } from '@/lib/van-sales/sell';
+import { visitDrivenRouteEnabled, smartNextCustomerEnabled, creditOverrideEnabled } from '@/lib/van-sales/sell';
 import { BackLink } from '@/components/shared/back-link';
 import { loadCustomerStatement } from '@/lib/erp/customer-statement-server';
 import { CustomerStatementView, type VisitContext, type VisitCockpitData } from '@/components/customers/customer-statement';
@@ -80,6 +80,9 @@ export default async function VanStatementPage({
   // Smart Next Customer (flag-gated): Complete Visit lands on the route-first
   // suggestions instead of the route screen, and the marker drives Resume Visit.
   const smartNext = smartNextCustomerEnabled(flags);
+  // Admin Credit Override (flag + role): an authorized role may bypass a credit
+  // block to record a cash sale when company policy permits.
+  const canOverrideCredit = creditOverrideEnabled(flags) && (hasPermission(ctx, 'customers.change_status') || ctx.isSuperAdmin);
   const visit: VisitContext | undefined =
     sp.from === 'route' && visitDrivenRouteEnabled(flags)
       ? {
@@ -109,6 +112,7 @@ export default async function VanStatementPage({
         visit={visit}
         variant="field"
         cockpit={cockpit}
+        canOverrideCredit={canOverrideCredit}
       />
     </div>
   );

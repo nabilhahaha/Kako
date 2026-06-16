@@ -109,6 +109,13 @@ export function smartNextCustomerEnabled(flags: Record<string, boolean | undefin
   return Boolean(flags?.['platform.smart_next_customer']);
 }
 
+/** Is the Admin Credit Override active? Opt-in platform/governance flag
+ *  (`platform.credit_override`), default OFF. When ON, authorized roles may
+ *  bypass a credit block to record a (cash) sale if company policy permits. Pure. */
+export function creditOverrideEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
+  return Boolean(flags?.['platform.credit_override']);
+}
+
 /** The governed customer-request kinds (raised + applied via the customer-request
  *  RPCs). Kept in this pure module so the 'use server' requests file exports only
  *  async actions. */

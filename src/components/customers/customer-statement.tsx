@@ -18,9 +18,12 @@ import { setActiveVisit, clearActiveVisit } from '@/lib/van-sales/active-visit';
 import { PendingLink } from '@/components/shared/pending-link';
 import { noteVisitOpen, noteVisitClick, endVisitMetrics } from '@/lib/van-sales/visit-metrics';
 import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
-import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight, ShieldCheck, AlertTriangle, Ban, History, Navigation, Phone, Lightbulb } from 'lucide-react';
+import { toast } from 'sonner';
+import { Printer, HandCoins, ShoppingCart, Undo2, CheckCircle2, ArrowRight, ShieldCheck, AlertTriangle, Ban, History, Navigation, Phone, Lightbulb, ClipboardList } from 'lucide-react';
 import { googleMapsUrl, appleMapsUrl, wazeUrl, hasValidCoords } from '@/lib/van-sales/map-links';
 import { recommendAction, recommendedKind, daysSince } from '@/lib/van-sales/visit-recommendation';
+import { setVisitOutcome, getVisitOutcome, clearVisitOutcome, NON_TXN_OUTCOMES, outcomeNeedsReason, isCreditBlocked, canEndVisit, creditEffectivelyBlocked, type VisitOutcomeKind } from '@/lib/van-sales/visit-outcome';
+import { recordVisitOutcome } from '@/lib/van-sales/visit-outcome-server';
 
 /** Visit context (Phase 1, route-driven): the route stop opened this customer; the
  *  statement is the visit hub and "Complete Visit" returns to the route. */
@@ -79,6 +82,7 @@ export function CustomerStatementView({
   visit,
   variant = 'full',
   cockpit,
+  canOverrideCredit = false,
 }: {
   statement: CustomerStatement;
   printHref: string;
@@ -99,6 +103,11 @@ export function CustomerStatementView({
    *  GPS + last visit/invoice + sales MTD/LM). Balance/credit/overdue/open-count/
    *  oldest-due derive from `statement`. */
   cockpit?: VisitCockpitData;
+  /** Admin Credit Override: this user's role may bypass a credit block to record
+   *  a (cash) sale when company policy permits (flag `platform.credit_override`).
+   *  When true, a credit-blocked customer's New Sale stays available and the visit
+   *  may end on any outcome. */
+  canOverrideCredit?: boolean;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -110,17 +119,32 @@ export function CustomerStatementView({
   const [showDetails, setShowDetails] = useState(false);
   // Credit status, most-severe-first: over the credit limit blocks new sales;
   // overdue is the collection signal; otherwise the account is in good standing.
+  // Over-limit only applies when a credit limit exists (a cash-only customer with
+  // limit = 0 is never "over limit"; they simply pay cash).
+  const overLimit = summary.creditLimit > 0 && summary.availableCredit < 0;
   const creditStatus: 'good' | 'overdue' | 'overLimit' =
-    summary.availableCredit < 0 ? 'overLimit' : summary.overdueAmount > 0 ? 'overdue' : 'good';
+    overLimit ? 'overLimit' : summary.overdueAmount > 0 ? 'overdue' : 'good';
+  // Credit control: overdue OR over the credit limit → block New Sale; the visit
+  // may only end with a Collection or a No Sale (route discipline, no fake visits).
+  const creditBlocked = isCreditBlocked({ overdueAmount: summary.overdueAmount, availableCredit: summary.availableCredit, creditLimit: summary.creditLimit });
+  const cashOnly = summary.creditLimit <= 0;
+  // Admin Credit Override: an authorized role bypasses the block (cash sale only).
+  // `effectiveBlocked` is what actually gates the UI; `overrideActive` flags that a
+  // block exists but is being bypassed (so we can show the override indicator).
+  const overrideActive = creditBlocked && canOverrideCredit;
+  const effectiveBlocked = creditEffectivelyBlocked(creditBlocked, canOverrideCredit);
 
   // Complete-Visit guard: block accidental completion while a sale / collection /
   // return was started but not finished — the rep must finish it (clears the flag
   // on success) or explicitly discard it here.
   const [guard, setGuard] = useState<string[] | null>(null);
   const [completing, setCompleting] = useState(false);
-  const [noSaleOpen, setNoSaleOpen] = useState(false);
-  const [noSaleReason, setNoSaleReason] = useState<string>('shop_closed');
-  const [noSaleNote, setNoSaleNote] = useState('');
+  const [outcomeOpen, setOutcomeOpen] = useState(false);
+  const [outcomeKind, setOutcomeKind] = useState<VisitOutcomeKind>('no_sale');
+  const [outcomeNote, setOutcomeNote] = useState('');
+  const [outcomeSaving, setOutcomeSaving] = useState(false);
+  /** The outcome already recorded for THIS visit (gates End Visit). */
+  const [outcome, setOutcome] = useState<VisitOutcomeKind | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const mark = (action: 'sell' | 'collect' | 'return') => {
     if (!visit) return;
@@ -130,40 +154,55 @@ export function CustomerStatementView({
   // Smart Next: mark this visit active on open (survives app restart → Resume
   // Visit) + telemetry (visit_started once, transitions counted on re-entry).
   useEffect(() => {
-    if (!visit?.trackResume) return;
+    if (!visit) return;
+    // An outcome may already be recorded (e.g. a sale completed, then the rep
+    // navigated back to the cockpit) — read it so End Visit is enabled.
+    setOutcome(getVisitOutcome(visit.customerId));
+    if (!visit.trackResume) return;
     setActiveVisit(visit.customerId, visit.customerName ?? '');
     if (noteVisitOpen(visit.customerId) === 'started') {
       void logFieldUxEvent({ eventType: 'visit_started', customerId: visit.customerId, meta: { source: visit.source ?? 'route' } });
     }
   }, [visit?.trackResume, visit?.customerId, visit?.customerName, visit?.source]);
   function finishVisit() {
-    if (!visit?.trackResume) return;
-    const m = endVisitMetrics();
-    void logFieldUxEvent({ eventType: 'visit_completed', customerId: visit.customerId, meta: m ?? {} });
-    clearActiveVisit();
+    if (!visit) return;
+    if (visit.trackResume) {
+      const m = endVisitMetrics();
+      void logFieldUxEvent({ eventType: 'visit_completed', customerId: visit.customerId, meta: { ...(m ?? {}), outcome: outcome ?? undefined } });
+      clearActiveVisit();
+    }
+    clearVisitOutcome(visit.customerId);
   }
   function onCompleteVisit() {
     if (!visit || completing) return;
+    // Required outcome: a visit cannot end without a recorded result.
+    if (!outcome) { toast.error(t('vanSales.outcome.required')); return; }
+    // Credit control: a blocked customer may only end with Collection or No Sale
+    // (unless an authorized role is overriding the block).
+    if (effectiveBlocked && outcome !== 'collection' && outcome !== 'no_sale') {
+      toast.error(t('vanSales.outcome.creditBlockedEnd'));
+      return;
+    }
     const pending = listUnfinishedVisitWork(visit.customerId);
     if (pending.length > 0) { setGuard(pending); return; }
     finishVisit();
     setCompleting(true);
     router.push(visit.completeHref);
   }
-  // No Sale: complete the visit WITHOUT a transaction, capturing a reason, then
-  // advance to the next customer (same completeHref as Complete Visit).
-  function confirmNoSale() {
-    if (!visit || completing) return;
-    if (noSaleReason === 'other' && !noSaleNote.trim()) return;
-    clearAllVisitWork(visit.customerId);
-    if (visit.trackResume) {
-      const m = endVisitMetrics();
-      void logFieldUxEvent({ eventType: 'visit_completed', customerId: visit.customerId, meta: { ...(m ?? {}), outcome: 'no_sale', reason: noSaleReason, note: noSaleNote || undefined } });
-      clearActiveVisit();
-    }
-    setNoSaleOpen(false);
-    setCompleting(true);
-    router.push(visit.completeHref);
+  // Record a NON-transaction visit outcome (No Sale / Closed / Not available /
+  // GPS exception / Other) with a reason where required. Enables End Visit; the
+  // rep still taps End Visit to advance.
+  async function confirmOutcome() {
+    if (!visit || outcomeSaving) return;
+    if (outcomeNeedsReason(outcomeKind) && !outcomeNote.trim()) return;
+    setOutcomeSaving(true);
+    const res = await recordVisitOutcome({ customerId: visit.customerId, outcome: outcomeKind, reason: outcomeKind, note: outcomeNote || null });
+    setOutcomeSaving(false);
+    if (!res.ok) { toast.error(t('settings.unauthorized')); return; }
+    setVisitOutcome(visit.customerId, outcomeKind);
+    setOutcome(outcomeKind);
+    setOutcomeOpen(false);
+    toast.success(t('vanSales.outcome.recorded'));
   }
   function onDiscardComplete() {
     if (!visit || completing) return;
@@ -292,42 +331,40 @@ export function CustomerStatementView({
     </div>
   );
 
-  // Visit modals (No-Sale reason sheet + unfinished-work guard) — shared.
-  const NO_SALE_REASONS = ['shop_closed', 'no_need', 'owner_absent', 'payment_dispute', 'other'] as const;
+  // Visit modals (outcome sheet + unfinished-work guard) — shared.
+  const reasonRequired = outcomeNeedsReason(outcomeKind);
   const visitSheets = (
     <>
-      {visit && noSaleOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setNoSaleOpen(false)}>
+      {visit && outcomeOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setOutcomeOpen(false)}>
           <div className="w-full max-w-md space-y-3 rounded-t-2xl bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold">{t('vanSales.visit.noSaleTitle')}</h3>
+            <h3 className="text-base font-bold">{t('vanSales.outcome.title')}</h3>
             <div className="space-y-1.5">
-              {NO_SALE_REASONS.map((r) => (
+              {NON_TXN_OUTCOMES.map((o) => (
                 <button
-                  key={r}
+                  key={o}
                   type="button"
-                  onClick={() => setNoSaleReason(r)}
-                  className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm ${noSaleReason === r ? 'border-primary bg-primary/5 font-medium' : ''}`}
+                  onClick={() => setOutcomeKind(o)}
+                  className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm ${outcomeKind === o ? 'border-primary bg-primary/5 font-medium' : ''}`}
                 >
-                  {t(`vanSales.visit.ns_${r}`)}
-                  {noSaleReason === r && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                  {t(`vanSales.outcome.o_${o}`)}
+                  {outcomeKind === o && <CheckCircle2 className="h-4 w-4 text-primary" />}
                 </button>
               ))}
             </div>
-            {noSaleReason === 'other' && (
-              <textarea
-                value={noSaleNote}
-                onChange={(e) => setNoSaleNote(e.target.value)}
-                placeholder={t('vanSales.visit.noSaleNote')}
-                rows={2}
-                className="w-full rounded-md border border-input bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            )}
+            <textarea
+              value={outcomeNote}
+              onChange={(e) => setOutcomeNote(e.target.value)}
+              placeholder={`${t('vanSales.outcome.note')}${reasonRequired ? ' *' : ''}`}
+              rows={2}
+              className="w-full rounded-md border border-input bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setNoSaleOpen(false)}>
+              <Button variant="outline" className="flex-1" onClick={() => setOutcomeOpen(false)}>
                 {t('vanSales.visit.keepWorking')}
               </Button>
-              <Button variant="destructive" className="flex-1" onClick={confirmNoSale} loading={completing} disabled={noSaleReason === 'other' && !noSaleNote.trim()}>
-                {t('vanSales.visit.noSaleConfirm')}
+              <Button className="flex-1" onClick={confirmOutcome} loading={outcomeSaving} disabled={reasonRequired && !outcomeNote.trim()}>
+                {t('vanSales.outcome.save')}
               </Button>
             </div>
           </div>
@@ -354,7 +391,7 @@ export function CustomerStatementView({
     </>
   );
 
-  // Complete-Visit block for the FULL variant (Complete Visit + No Sale buttons).
+  // Complete-Visit block for the FULL variant (Complete Visit + Outcome buttons).
   const completeVisitBlock = (
     <>
       {visit && (
@@ -362,7 +399,7 @@ export function CustomerStatementView({
           <Button className="w-full" size="lg" onClick={onCompleteVisit} loading={completing}>
             {!completing && <CheckCircle2 className="h-4 w-4" />} {completing ? t('common.completing') : t('vanSales.visit.completeVisit')}
           </Button>
-          <Button variant="outline" className="w-full" onClick={() => setNoSaleOpen(true)} disabled={completing}>
+          <Button variant="outline" className="w-full" onClick={() => setOutcomeOpen(true)} disabled={completing}>
             <Ban className="h-4 w-4" /> {t('vanSales.visit.noSale')}
           </Button>
         </div>
@@ -422,10 +459,18 @@ export function CustomerStatementView({
               <InfoCell label={t('vanSales.cockpit.lastInvoice')} value={cockpit?.lastInvoiceDate ? formatDate(cockpit.lastInvoiceDate, intl) : '—'} />
               <InfoCell label={t('vanSales.cockpit.lastInvoiceAmt')} value={cockpit?.lastInvoiceAmount != null ? money(cockpit.lastInvoiceAmount) : '—'} />
               <InfoCell label={t('vanSales.cockpit.lastVisit')} value={cockpit?.lastVisitDate ? formatDate(cockpit.lastVisitDate, intl) : '—'} />
-              <InfoCell label={t('customers.stmtSummaryCreditLimit')} value={money(summary.creditLimit)} />
+              <InfoCell label={t('customers.stmtSummaryCreditLimit')} value={cashOnly ? t('vanSales.cockpit.cashOnly') : money(summary.creditLimit)} tone={cashOnly ? 'warn' : undefined} />
             </div>
           </CardContent>
         </Card>
+
+        {/* ADMIN CREDIT OVERRIDE — a block exists but an authorized role bypasses
+            it (cash sale only). Make the exception visible. */}
+        {overrideActive && (
+          <div className="flex items-center gap-2 rounded-md border border-warning/50 bg-warning/10 p-2.5 text-xs font-medium text-warning">
+            <ShieldCheck className="h-4 w-4 shrink-0" /> {t('vanSales.cockpit.overrideActive')}
+          </div>
+        )}
 
         {/* RECOMMENDED ACTION — guide the rep to the next best step. */}
         <Card className="border-primary/60 bg-primary/5">
@@ -458,9 +503,16 @@ export function CustomerStatementView({
         {/* QUICK ACTIONS */}
         <div className="grid grid-cols-2 gap-2">
           {sellHref && (
-            <PendingLink href={sellHref} onClick={() => mark('sell')} pendingLabel={t('common.opening')} className={`${tile} border-primary/40 bg-primary/5 text-primary`}>
-              <ShoppingCart className="h-6 w-6" /> {t('vanSales.cockpit.actNewSale')}
-            </PendingLink>
+            effectiveBlocked ? (
+              // New Sale blocked for overdue / over-limit customers.
+              <button type="button" onClick={() => toast.error(t('vanSales.outcome.sellBlocked'))} className={`${tile} text-muted-foreground opacity-60`}>
+                <Ban className="h-6 w-6" /> {t('vanSales.cockpit.actNewSale')}
+              </button>
+            ) : (
+              <PendingLink href={sellHref} onClick={() => mark('sell')} pendingLabel={t('common.opening')} className={`${tile} ${overrideActive ? 'border-warning/50 bg-warning/5 text-warning' : 'border-primary/40 bg-primary/5 text-primary'}`}>
+                <ShoppingCart className="h-6 w-6" /> {overrideActive ? t('vanSales.cockpit.actCashSale') : t('vanSales.cockpit.actNewSale')}
+              </PendingLink>
+            )
           )}
           {showCollect && (
             <PendingLink href={collectHref!} onClick={() => mark('collect')} pendingLabel={t('common.opening')} className={tile}>
@@ -472,8 +524,8 @@ export function CustomerStatementView({
               <Undo2 className="h-6 w-6" /> {t('vanSales.cockpit.actReturn')}
             </PendingLink>
           )}
-          <button type="button" onClick={() => setNoSaleOpen(true)} disabled={completing} className={tile}>
-            <Ban className="h-6 w-6" /> {t('vanSales.visit.noSale')}
+          <button type="button" onClick={() => setOutcomeOpen(true)} disabled={completing} className={`${tile} ${outcome && NON_TXN_OUTCOMES.includes(outcome) ? 'border-primary bg-primary/5 text-primary' : ''}`}>
+            <ClipboardList className="h-6 w-6" /> {t('vanSales.outcome.tile')}
           </button>
           <button type="button" onClick={() => setShowDetails((v) => !v)} aria-expanded={showDetails} className={tile}>
             <History className="h-6 w-6" /> {t('vanSales.cockpit.actHistory')}
@@ -500,12 +552,28 @@ export function CustomerStatementView({
           </div>
         )}
 
-        {/* END VISIT → Next Customer */}
-        {visit && (
-          <Button className="w-full" size="lg" onClick={onCompleteVisit} loading={completing}>
-            {!completing && <ArrowRight className="h-5 w-5 rtl:rotate-180" />} {completing ? t('common.completing') : t('vanSales.cockpit.endVisit')}
-          </Button>
-        )}
+        {/* END VISIT → Next Customer — requires a recorded outcome (and, for a
+            credit-blocked customer, a Collection or No Sale). */}
+        {visit && (() => {
+          const canEnd = canEndVisit(outcome, effectiveBlocked);
+          return (
+            <div className="space-y-1.5">
+              {outcome && (
+                <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-success">
+                  <CheckCircle2 className="h-4 w-4" /> {t('vanSales.outcome.recorded')}: {t(`vanSales.outcome.o_${outcome}`)}
+                </div>
+              )}
+              <Button className={`w-full ${canEnd ? '' : 'opacity-60'}`} size="lg" onClick={onCompleteVisit} loading={completing}>
+                {!completing && <ArrowRight className="h-5 w-5 rtl:rotate-180" />} {completing ? t('common.completing') : t('vanSales.cockpit.endVisit')}
+              </Button>
+              {!canEnd && (
+                <p className="text-center text-xs text-muted-foreground">
+                  {!outcome ? t('vanSales.outcome.required') : t('vanSales.outcome.creditBlockedEnd')}
+                </p>
+              )}
+            </div>
+          );
+        })()}
         {visitSheets}
 
         {/* Navigate sheet */}

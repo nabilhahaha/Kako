@@ -16,6 +16,8 @@ import { loadCustomerOutstanding, settleCollectionEntry, type OutstandingInvoice
 import { clearVisitWork } from '@/lib/van-sales/visit-session';
 import { clearActiveVisit } from '@/lib/van-sales/active-visit';
 import { endVisitMetrics } from '@/lib/van-sales/visit-metrics';
+import { setVisitOutcome } from '@/lib/van-sales/visit-outcome';
+import { recordVisitOutcome } from '@/lib/van-sales/visit-outcome-server';
 import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
 
 export interface CollectCustomer { id: string; name: string; name_ar: string | null; code: string; balance: number }
@@ -96,7 +98,7 @@ export function CollectScreen({
       });
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.collect.error')); return; }
       setDone({ id: res.data.collectionId, number: res.data.collectionNumber, applied: res.data.totalApplied, unapplied: res.data.unapplied });
-      if (customerId) clearVisitWork(customerId, 'collect');
+      if (customerId) { clearVisitWork(customerId, 'collect'); setVisitOutcome(customerId, 'collection'); void recordVisitOutcome({ customerId, outcome: 'collection' }); }
       toast.success(t('vanSales.collect.done', { number: res.data.collectionNumber }));
     } finally { setBusy(false); }
   }

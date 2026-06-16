@@ -261,6 +261,13 @@ export const FEATURES: FeatureDef[] = [
   P('platform.action_authz_enforcement', 'governance', [], {
     logic: ['requireActionPerm', 'actionAuthzEnforced'],
   }),
+  // Credit-block override (FMCG): when ON, authorized roles (customers.change_status)
+  // may bypass the credit block on the visit cockpit to create a CASH sale for an
+  // overdue / over-limit customer. Default OFF — the block is enforced unless the
+  // company policy explicitly allows the override.
+  P('platform.credit_override', 'governance', [], {
+    logic: ['creditOverrideEnabled', 'visit.credit_block'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),

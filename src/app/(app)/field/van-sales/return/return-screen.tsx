@@ -18,6 +18,8 @@ import {
 import { clearVisitWork } from '@/lib/van-sales/visit-session';
 import { clearActiveVisit } from '@/lib/van-sales/active-visit';
 import { endVisitMetrics } from '@/lib/van-sales/visit-metrics';
+import { setVisitOutcome } from '@/lib/van-sales/visit-outcome';
+import { recordVisitOutcome } from '@/lib/van-sales/visit-outcome-server';
 import { logFieldUxEvent } from '@/lib/van-sales/ux-metrics-server';
 
 export interface ReturnCustomer { id: string; name: string; name_ar: string | null; code: string }
@@ -127,6 +129,7 @@ export function ReturnScreen({
       if (!res.ok || !res.data) { toast.error(res.error ?? t('vanSales.return.error')); return; }
       setDone({ id: res.data.id, returnNumber: res.data.returnNumber, creditNoteId: res.data.creditNoteId, total: res.data.totalAmount });
       clearVisitWork(customerId, 'return');
+      if (customerId) { setVisitOutcome(customerId, 'return'); void recordVisitOutcome({ customerId, outcome: 'return' }); }
       toast.success(t('vanSales.return.done', { number: res.data.returnNumber }));
     } finally { setBusy(false); }
   }
