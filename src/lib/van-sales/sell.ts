@@ -131,6 +131,14 @@ export function dailySummaryEnabled(flags: Record<string, boolean | undefined> |
   return Boolean(flags?.['platform.daily_summary']);
 }
 
+/** Is the Van Stock Movement report active? Opt-in platform flag
+ *  (`platform.stock_movement_report`), default OFF. When ON, the van stock screen
+ *  becomes a movement report (Opening · Load · Sales · Returns · Adjustments ·
+ *  Current) with per-SKU drill-down. Pure. */
+export function stockMovementReportEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
+  return Boolean(flags?.['platform.stock_movement_report']);
+}
+
 /** The governed customer-request kinds (raised + applied via the customer-request
  *  RPCs). Kept in this pure module so the 'use server' requests file exports only
  *  async actions. */

@@ -282,6 +282,12 @@ export const FEATURES: FeatureDef[] = [
   P('platform.daily_summary', 'pos', [], {
     logic: ['dailySummaryEnabled'], screens: ['/field/van-sales/summary', '/distribution/daily-summary'],
   }),
+  // Van Stock Movement report (FMCG): the van stock screen becomes a per-SKU
+  // movement report (Opening · Load · Sales · Returns · Adjustments · Current) that
+  // explains the balance, with drill-down + print. Default OFF.
+  P('platform.stock_movement_report', 'pos', [], {
+    logic: ['stockMovementReportEnabled'], screens: ['/field/stock/movements'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),
