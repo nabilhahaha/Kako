@@ -1,0 +1,119 @@
+import { describe, it, expect } from 'vitest';
+import {
+  buildChain, firstStatus, nextStatusAfter, canActOnStage, assignedRole,
+  pendingStatusFor, rejectedStatusFor, stageOfStatus, dayCloseApprovalEnabled,
+  DEFAULT_DAY_CLOSE_POLICY, type DayClosePolicy,
+} from './day-close-policy';
+
+const fullChain = (sod = false): DayClosePolicy => ({
+  mode: 'custom',
+  separationOfDuties: sod,
+  stages: [
+    { stage: 'supervisor', role: 'supervisor' },
+    { stage: 'reconcile', role: 'warehouse_keeper' },
+    { stage: 'settle', role: 'cashier' },
+  ],
+});
+
+describe('day-close policy — chain building', () => {
+  it('direct mode → empty chain → first status closed', () => {
+    const chain = buildChain({ mode: 'direct', supervisorEnabled: true });
+    expect(chain).toEqual([]);
+    expect(firstStatus({ ...DEFAULT_DAY_CLOSE_POLICY, stages: chain })).toBe('closed');
+  });
+
+  it('custom mode builds enabled stages in configured order with assigned roles', () => {
+    const chain = buildChain({
+      mode: 'custom',
+      supervisorEnabled: true, reconcileEnabled: true, settleEnabled: true,
+      supervisorRole: 'supervisor', reconcileRole: 'warehouse_keeper', settleRole: 'cashier',
+      stageOrder: ['supervisor', 'reconcile', 'settle'],
+    });
+    expect(chain.map((s) => s.stage)).toEqual(['supervisor', 'reconcile', 'settle']);
+    expect(chain.map((s) => s.role)).toEqual(['supervisor', 'warehouse_keeper', 'cashier']);
+  });
+
+  it('skips disabled stages and honours a custom order', () => {
+    const chain = buildChain({
+      mode: 'custom',
+      supervisorEnabled: true, reconcileEnabled: false, settleEnabled: true,
+      stageOrder: ['settle', 'supervisor'],
+    });
+    expect(chain.map((s) => s.stage)).toEqual(['settle', 'supervisor']);
+  });
+
+  it('small company: one role assigned to every stage', () => {
+    const chain = buildChain({
+      mode: 'custom', supervisorEnabled: true, reconcileEnabled: true, settleEnabled: true,
+      supervisorRole: 'supervisor', reconcileRole: 'supervisor', settleRole: 'supervisor',
+    });
+    expect(chain.every((s) => s.role === 'supervisor')).toBe(true);
+  });
+});
+
+describe('day-close policy — status transitions', () => {
+  const p = fullChain();
+  it('first status is pending the first enabled stage', () => {
+    expect(firstStatus(p)).toBe('pending_supervisor');
+  });
+  it('advances to the next enabled stage on approve, then closed', () => {
+    expect(nextStatusAfter('supervisor', p)).toBe('pending_reconciliation');
+    expect(nextStatusAfter('reconcile', p)).toBe('pending_settlement');
+    expect(nextStatusAfter('settle', p)).toBe('closed');
+  });
+  it('a single-stage chain closes right after that stage', () => {
+    const one: DayClosePolicy = { mode: 'custom', separationOfDuties: false, stages: [{ stage: 'supervisor', role: 'supervisor' }] };
+    expect(nextStatusAfter('supervisor', one)).toBe('closed');
+  });
+  it('pending/rejected/stageOf helpers', () => {
+    expect(pendingStatusFor('settle')).toBe('pending_settlement');
+    expect(rejectedStatusFor('reconcile')).toBe('reconciliation_rejected');
+    expect(stageOfStatus('pending_reconciliation')).toBe('reconcile');
+    expect(stageOfStatus('closed')).toBeNull();
+  });
+});
+
+describe('day-close policy — authorization (delegation + SoD)', () => {
+  const base = {
+    stage: 'supervisor' as const, policy: fullChain(),
+    userRoles: ['supervisor'], userPerms: ['day.close.supervisor'],
+    submitterId: 'sales1', priorActorIds: [] as string[],
+  };
+
+  it('blocks the submitter from approving their own day', () => {
+    expect(canActOnStage({ ...base, userId: 'sales1' })).toBe(false);
+  });
+  it('requires the stage permission', () => {
+    expect(canActOnStage({ ...base, userId: 'u1', userPerms: [] })).toBe(false);
+    expect(canActOnStage({ ...base, userId: 'u1' })).toBe(true);
+  });
+  it('requires the assigned role unless the stage role is "any"', () => {
+    expect(canActOnStage({ ...base, userId: 'u1', userRoles: ['cashier'] })).toBe(false);
+    const anyPolicy = { ...fullChain(), stages: [{ stage: 'supervisor' as const, role: 'any' }] };
+    expect(canActOnStage({ ...base, userId: 'u1', userRoles: ['cashier'], policy: anyPolicy })).toBe(true);
+  });
+  it('separation of duties: a prior-stage actor cannot act again when ON', () => {
+    const sod = { ...base, policy: fullChain(true), stage: 'reconcile' as const, userRoles: ['warehouse_keeper'], userPerms: ['day.close.reconcile'] };
+    expect(canActOnStage({ ...sod, userId: 'u1', priorActorIds: ['u1'] })).toBe(false); // acted on supervisor stage
+    expect(canActOnStage({ ...sod, userId: 'u2', priorActorIds: ['u1'] })).toBe(true);
+  });
+  it('SoD OFF: the same user may perform multiple stages (audit kept separate by caller)', () => {
+    const multi = { ...base, policy: fullChain(false), stage: 'reconcile' as const, userRoles: ['supervisor', 'warehouse_keeper'], userPerms: ['day.close.reconcile'] };
+    expect(canActOnStage({ ...multi, userId: 'u1', priorActorIds: ['u1'] })).toBe(true);
+  });
+  it('apex bypasses role + SoD but never self-approval', () => {
+    expect(canActOnStage({ ...base, userId: 'sales1', isApex: true })).toBe(false);
+    expect(canActOnStage({ ...base, userId: 'admin', userRoles: [], userPerms: [], isApex: true })).toBe(true);
+  });
+  it('assignedRole reads the policy', () => {
+    expect(assignedRole('settle', fullChain())).toBe('cashier');
+  });
+});
+
+describe('day-close capability flag', () => {
+  it('reads platform.day_close_approval', () => {
+    expect(dayCloseApprovalEnabled({ 'platform.day_close_approval': true })).toBe(true);
+    expect(dayCloseApprovalEnabled({})).toBe(false);
+    expect(dayCloseApprovalEnabled(null)).toBe(false);
+  });
+});

@@ -73,6 +73,12 @@ export type Permission =
   | 'day.reopen.override' // approve a reopen past the settlement/accounting lock (Phase 2/3)
   | 'cash.handover.request' // declare a cash handover to the office/cashier (rep)
   | 'cash.handover.confirm' // confirm/reject a cash-handover request (cashier/supervisor)
+  | 'day.close.submit' // submit End Day for the approval/settlement chain (rep)
+  | 'day.close.supervisor' // act on the Supervisor Review stage of day close
+  | 'day.close.reconcile' // act on the Inventory Reconciliation stage of day close
+  | 'day.close.settle' // act on the Financial Settlement stage of day close
+  | 'day.close.reopen' // reopen a settled/closed day-close (special permission)
+  | 'day.close.override' // force-close past a stuck day-close stage
   | 'customer.request' // raise a governed customer request (new / data update / GPS) — rep
   | 'customer.request.approve' // approve/reject a customer request + apply it (supervisor/admin)
   // ── FMCG Value Acceleration Wave 1 ──
@@ -172,6 +178,12 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'day.reopen.override': { en: 'Override settlement lock on reopen', ar: 'تجاوز قفل التسوية عند إعادة الفتح', group: 'field_ops' },
   'cash.handover.request': { en: 'Request a cash handover', ar: 'طلب تسليم نقدية', group: 'field_ops' },
   'cash.handover.confirm': { en: 'Confirm cash handovers', ar: 'تأكيد تسليم النقدية', group: 'field_ops' },
+  'day.close.submit': { en: 'Submit End Day', ar: 'تقديم إنهاء اليوم', group: 'field_ops' },
+  'day.close.supervisor': { en: 'Approve day close — Supervisor review', ar: 'اعتماد إنهاء اليوم — مراجعة المشرف', group: 'field_ops' },
+  'day.close.reconcile': { en: 'Approve day close — Inventory reconciliation', ar: 'اعتماد إنهاء اليوم — جرد المخزون', group: 'field_ops' },
+  'day.close.settle': { en: 'Approve day close — Financial settlement', ar: 'اعتماد إنهاء اليوم — التسوية المالية', group: 'field_ops' },
+  'day.close.reopen': { en: 'Reopen a closed day', ar: 'إعادة فتح يوم مُغلق', group: 'field_ops' },
+  'day.close.override': { en: 'Override day close', ar: 'تجاوز إنهاء اليوم', group: 'field_ops' },
   'customer.request': { en: 'Raise customer requests', ar: 'تقديم طلبات العملاء', group: 'sales' },
   'customer.request.approve': { en: 'Approve customer requests', ar: 'اعتماد طلبات العملاء', group: 'sales' },
   // ── FMCG Value Acceleration Wave 1 ──
@@ -270,6 +282,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'stock.adjust', 'stock.transfer.approve', 'visit.approve_out_of_route',
     'day.approve_close_exception', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve', 'stock.view', 'user.transfer',
     'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
+    'day.close.supervisor', 'day.close.reconcile', 'day.close.settle', 'day.close.reopen', 'day.close.override',
   ],
   // IT Admin: integrations / scheduler / governance / technical settings.
   it_admin: [
@@ -284,24 +297,25 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
     'reconciliation.view', 'reconciliation.manage', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve',
     'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
+    'day.close.supervisor', 'day.close.reconcile', 'day.close.settle', 'day.close.reopen',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
     'suppliers.manage', 'sales.collect', 'customers.change_status', 'cash.handover.confirm',
     'stock.view', 'fashion.reports', 'fashion.cashbox', 'fashion.installments', 'fashion.purchase',
-    'returns.view_all',
+    'returns.view_all', 'day.close.settle',
   ],
-  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'cash.handover.confirm', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos', 'fashion.sell', 'fashion.installments', 'fashion.cashbox'],
+  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'cash.handover.confirm', 'day.close.settle', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos', 'fashion.sell', 'fashion.installments', 'fashion.cashbox'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
     'day.close', 'day.reopen.request', 'cash.handover.request', 'customer.request', 'stock.view', 'stock.transfer', 'customer.create',
-    'reconciliation.view', 'returns.create',
+    'reconciliation.view', 'returns.create', 'day.close.submit',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
-    'returns.create',
+    'returns.create', 'day.close.submit',
   ],
   technician: [
     'customers.manage', 'sales.sell', 'inventory.view', 'stock_request.create',
@@ -315,6 +329,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'inventory.count', 'stock_request.approve', 'purchasing.manage',
     'stock.view', 'stock.adjust', 'stock.transfer', 'stock.transfer.approve',
     'fashion.inventory', 'fashion.purchase', 'reconciliation.view', 'reconciliation.manage',
+    'day.close.reconcile',
   ],
   staff: ['inventory.view'],
   viewer: ['reports.view', 'accounting.view', 'inventory.view'],

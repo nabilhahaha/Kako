@@ -301,6 +301,18 @@ export const FEATURES: FeatureDef[] = [
   P('platform.return_approval_sla', 'governance', [], {
     logic: ['returnSlaEnabled', 'erp_mark_return_viewed'],
   }),
+  // End Day Approval & Settlement (FMCG, governance): policy-driven multi-stage
+  // day close (Supervisor Review · Inventory Reconciliation · Financial Settlement),
+  // each stage role-assignable; separation-of-duties optional. When OFF, End Day
+  // closes directly (today's behaviour). Default OFF.
+  P('platform.day_close_approval', 'governance', [], {
+    logic: ['dayCloseApprovalEnabled', 'erp_submit_day_close', 'erp_decide_day_close_stage'],
+  }),
+  // End Day SLA tracking: submitted→closed + per-stage durations, aged > 24h/48h.
+  // Company opt-in. Default OFF.
+  P('platform.day_close_sla', 'governance', [], {
+    logic: ['dayCloseSlaEnabled'],
+  }),
   P('platform.scan_barcode', 'scanning', ALL, {
     logic: ['scan.barcode'], screens: ['/pharmacy/pos', '/sales/pos'],
   }),
