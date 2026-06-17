@@ -5,6 +5,8 @@ import { requireAuth, type ActionResult } from '@/lib/erp/guards';
 import { hasPermission } from '@/lib/erp/permissions';
 import { today } from '@/lib/erp/work-session';
 import type { JourneySortMode } from '@/lib/erp/journey-sort';
+import { APPROVAL_DAYCLOSE, APPROVAL_VISIT, APPROVAL_CUSTTRANSFER, APPROVAL_VANTRANSFER } from '@/lib/erp/approval-flags';
+import { dayCloseChainActive, submitDayClose } from '@/lib/van-sales/day-close-server';
 
 /** ── FMCG field-execution server actions ───────────────────────────────────
  *  Thin, permission-gated wrappers over the validated 0128–0134 RPCs. Each
@@ -160,6 +162,18 @@ export async function checkInVisit(input: CheckInInput): Promise<ActionResult> {
     p_force: input.force ?? false,
   });
   if (rpcErr) return { ok: false, error: rpcErr.message };
+
+  // P2 (flag KAKO_APPROVAL_VISIT): when the check-in logs a pending compliance
+  // exception, route it through the engine. Flag OFF ⇒ skipped (legacy path).
+  const complianceId = (data as { compliance_id?: string } | null)?.compliance_id;
+  if (APPROVAL_VISIT() && complianceId) {
+    const { data: comp } = await supabase.from('erp_visit_compliance').select('status').eq('id', complianceId).maybeSingle();
+    if ((comp as { status?: string } | null)?.status === 'pending_approval') {
+      await supabase.rpc('erp_workflow_start', {
+        p_key: 'visit_compliance_approval', p_entity: 'visit_compliance', p_record_id: complianceId, p_context: {},
+      });
+    }
+  }
   return { ok: true, data };
 }
 
@@ -198,15 +212,39 @@ export async function closeDay(
 ): Promise<ActionResult> {
   const { ctx, error } = await requireAuth();
   if (error || !ctx) return { ok: false, error };
-  if (!hasPermission(ctx, 'day.close')) return { ok: false, error: 'unauthorized' };
+  if (!hasPermission(ctx, 'day.close') && !hasPermission(ctx, 'day.close.submit')) return { ok: false, error: 'unauthorized' };
 
   const supabase = await createClient();
+
+  // End Day Approval (platform.day_close_approval): when the company runs an
+  // approval chain, End Day SUBMITS (locks the day, status pending_<first stage>)
+  // instead of closing. Surfaced to existing callers as close_status
+  // 'pending_approval' so the journey screen shows the pending state. Flag OFF or
+  // no chain ⇒ the legacy direct close below is unchanged.
+  const { active } = await dayCloseChainActive(supabase, ctx);
+  if (active) {
+    const sub = await submitDayClose(workSessionId);
+    if (!sub.ok || !sub.data) return { ok: false, error: sub.error };
+    return { ok: true, data: { close_status: 'pending_approval', day_close_status: sub.data.status, request_id: sub.data.requestId } };
+  }
+
   const { data, error: rpcErr } = await supabase.rpc('erp_close_day', {
     p_work_session_id: workSessionId,
     p_skip_reasons: skipReasons,
     p_bulk_reason: bulkReason ?? null,
   });
   if (rpcErr) return { ok: false, error: rpcErr.message };
+
+  // P2 (flag KAKO_APPROVAL_DAYCLOSE): when the close goes pending_approval,
+  // route it through the engine (branch-scoped to the session's branch). Flag
+  // OFF ⇒ skipped; the legacy field-queue day-close approval is unchanged.
+  if (APPROVAL_DAYCLOSE() && (data as { close_status?: string } | null)?.close_status === 'pending_approval') {
+    const { data: ws } = await supabase.from('erp_work_sessions').select('branch_id').eq('id', workSessionId).maybeSingle();
+    await supabase.rpc('erp_workflow_start', {
+      p_key: 'day_close_approval', p_entity: 'work_session', p_record_id: workSessionId,
+      p_context: { branch_id: (ws as { branch_id?: string } | null)?.branch_id ?? null },
+    });
+  }
   return { ok: true, data };
 }
 
@@ -252,6 +290,15 @@ export async function transferCustomer(input: CustomerTransferInput): Promise<Ac
     p_require_approval: input.requireApproval ?? false,
   });
   if (rpcErr) return { ok: false, error: rpcErr.message };
+
+  // P2 (flag KAKO_APPROVAL_CUSTTRANSFER): when the transfer is pending, route it
+  // through the engine (company-wide — transfers are cross-branch). Flag OFF ⇒ skipped.
+  const ctd = data as { transfer_id?: string; status?: string } | null;
+  if (APPROVAL_CUSTTRANSFER() && ctd?.transfer_id && ctd?.status === 'pending') {
+    await supabase.rpc('erp_workflow_start', {
+      p_key: 'customer_transfer_approval', p_entity: 'customer_transfer', p_record_id: ctd.transfer_id, p_context: {},
+    });
+  }
   return { ok: true, data };
 }
 
@@ -320,6 +367,15 @@ export async function requestVanTransfer(
     p_lines: lines,
   });
   if (rpcErr) return { ok: false, error: rpcErr.message };
+
+  // P2 (flag KAKO_APPROVAL_VANTRANSFER): when not auto-approved (status pending),
+  // route through the engine. Flag OFF ⇒ skipped (legacy path + auto-approve kept).
+  const vtd = data as { transfer_id?: string; status?: string; auto_approved?: boolean } | null;
+  if (APPROVAL_VANTRANSFER() && vtd?.transfer_id && vtd?.status === 'pending' && !vtd?.auto_approved) {
+    await supabase.rpc('erp_workflow_start', {
+      p_key: 'van_transfer_approval', p_entity: 'van_transfer', p_record_id: vtd.transfer_id, p_context: {},
+    });
+  }
   return { ok: true, data };
 }
 

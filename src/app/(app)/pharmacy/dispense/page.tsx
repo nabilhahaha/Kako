@@ -15,11 +15,11 @@ export default async function DispenseRegisterPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from('erp_pharmacy_dispenses')
-    .select('id, status, patient_name, doctor_name, rx_number, is_controlled, dispensed_at, items:erp_pharmacy_dispense_items(id)')
+    .select('id, status, patient_name, doctor_name, rx_number, invoice_no, is_controlled, dispensed_at, items:erp_pharmacy_dispense_items(id)')
     .order('dispensed_at', { ascending: false })
     .limit(200);
-  const rows: DispenseRow[] = ((data as unknown as Array<{ id: string; status: string; patient_name: string | null; doctor_name: string | null; rx_number: string | null; is_controlled: boolean; dispensed_at: string; items: { id: string }[] | null }>) ?? [])
-    .map((d) => ({ id: d.id, status: d.status, patient_name: d.patient_name, doctor_name: d.doctor_name, rx_number: d.rx_number, is_controlled: d.is_controlled, dispensed_at: d.dispensed_at, item_count: (d.items ?? []).length }));
+  const rows: DispenseRow[] = ((data as unknown as Array<{ id: string; status: string; patient_name: string | null; doctor_name: string | null; rx_number: string | null; invoice_no: string | null; is_controlled: boolean; dispensed_at: string; items: { id: string }[] | null }>) ?? [])
+    .map((d) => ({ id: d.id, status: d.status, patient_name: d.patient_name, doctor_name: d.doctor_name, rx_number: d.rx_number, invoice_no: d.invoice_no, is_controlled: d.is_controlled, dispensed_at: d.dispensed_at, item_count: (d.items ?? []).length }));
 
   return (
     <div>

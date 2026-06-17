@@ -238,36 +238,46 @@ export async function nextBestActions(
 
   // ── Salesman / field rep ──
   if (has(ctx, 'field.sales')) {
-    // Today's open session: skipped customers (own session only).
-    try {
-      const { data: session } = await supabase
-        .from('erp_work_sessions')
-        .select('skipped_count, coverage_pct')
-        .eq('salesman_id', ctx.userId)
-        .eq('work_date', date)
-        .neq('close_status', 'closed')
-        .maybeSingle();
-      const skipped = (session?.skipped_count as number | null) ?? 0;
-      if (skipped > 0)
-        items.push({
-          title: t('Skipped customers today', 'عملاء تم تخطّيهم اليوم'),
-          count: skipped,
-          href: '/field/journey',
-          severity: 'warning',
-        });
-    } catch {
-      /* null-tolerant */
-    }
-
-    // Today's GPS / out-of-route exceptions (own, via RLS; created today).
-    const gps = await safeCount(() =>
-      supabase
-        .from('erp_visit_compliance')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', `${date}T00:00:00`)
-        .lte('created_at', `${date}T23:59:59`)
-        .in('kind', ['gps_violation', 'out_of_route']),
-    );
+    // Independent reads run in one parallel wave; items pushed in the same order
+    // as before (today's skipped customers, today's GPS/out-of-route, overdue).
+    const [skipped, gps, overdue] = await Promise.all([
+      (async () => {
+        try {
+          const { data: session } = await supabase
+            .from('erp_work_sessions')
+            .select('skipped_count, coverage_pct')
+            .eq('salesman_id', ctx.userId)
+            .eq('work_date', date)
+            .neq('close_status', 'closed')
+            .maybeSingle();
+          return (session?.skipped_count as number | null) ?? 0;
+        } catch {
+          return 0;
+        }
+      })(),
+      safeCount(() =>
+        supabase
+          .from('erp_visit_compliance')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', `${date}T00:00:00`)
+          .lte('created_at', `${date}T23:59:59`)
+          .in('kind', ['gps_violation', 'out_of_route']),
+      ),
+      safeCount(() =>
+        supabase
+          .from('erp_invoices')
+          .select('id', { count: 'exact', head: true })
+          .lt('due_date', date)
+          .in('status', ['issued', 'partially_paid', 'overdue']),
+      ),
+    ]);
+    if (skipped > 0)
+      items.push({
+        title: t('Skipped customers today', 'عملاء تم تخطّيهم اليوم'),
+        count: skipped,
+        href: '/field/journey',
+        severity: 'warning',
+      });
     if (gps > 0)
       items.push({
         title: t('GPS / out-of-route flags today', 'مخالفات GPS / خارج الخط اليوم'),
@@ -275,15 +285,6 @@ export async function nextBestActions(
         href: '/field/journey',
         severity: 'warning',
       });
-
-    // Overdue invoices (caller-scoped via RLS).
-    const overdue = await safeCount(() =>
-      supabase
-        .from('erp_invoices')
-        .select('id', { count: 'exact', head: true })
-        .lt('due_date', date)
-        .in('status', ['issued', 'partially_paid', 'overdue']),
-    );
     if (overdue > 0)
       items.push({
         title: t('Overdue invoices', 'فواتير متأخرة'),
@@ -295,12 +296,12 @@ export async function nextBestActions(
 
   // ── Supervisor / branch manager: approvals queue (RLS-scoped). ──
   if (has(ctx, 'visit.approve_out_of_route') || has(ctx, 'day.approve_close_exception')) {
-    const pendingVisits = await safeCount(() =>
-      supabase
-        .from('erp_visit_compliance')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending_approval'),
-    );
+    const [pendingVisits, pendingDayClose, pendingCustTransfers, pendingVanTransfers] = await Promise.all([
+      safeCount(() => supabase.from('erp_visit_compliance').select('id', { count: 'exact', head: true }).eq('status', 'pending_approval')),
+      safeCount(() => supabase.from('erp_work_sessions').select('id', { count: 'exact', head: true }).eq('close_status', 'pending_approval')),
+      safeCount(() => supabase.from('erp_customer_transfers').select('id', { count: 'exact', head: true }).eq('status', 'pending')),
+      safeCount(() => supabase.from('erp_van_transfers').select('id', { count: 'exact', head: true }).eq('status', 'pending')),
+    ]);
     if (pendingVisits > 0)
       items.push({
         title: t('Visits awaiting approval', 'زيارات بانتظار الاعتماد'),
@@ -308,13 +309,6 @@ export async function nextBestActions(
         href: '/distribution/journey-compliance',
         severity: 'warning',
       });
-
-    const pendingDayClose = await safeCount(() =>
-      supabase
-        .from('erp_work_sessions')
-        .select('id', { count: 'exact', head: true })
-        .eq('close_status', 'pending_approval'),
-    );
     if (pendingDayClose > 0)
       items.push({
         title: t('Day-closes awaiting approval', 'إغلاقات يوم بانتظار الاعتماد'),
@@ -322,13 +316,6 @@ export async function nextBestActions(
         href: '/distribution/journey-compliance',
         severity: 'warning',
       });
-
-    const pendingCustTransfers = await safeCount(() =>
-      supabase
-        .from('erp_customer_transfers')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending'),
-    );
     if (pendingCustTransfers > 0)
       items.push({
         title: t('Customer transfers pending', 'تحويلات عملاء معلّقة'),
@@ -336,13 +323,6 @@ export async function nextBestActions(
         href: '/customers',
         severity: 'info',
       });
-
-    const pendingVanTransfers = await safeCount(() =>
-      supabase
-        .from('erp_van_transfers')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending'),
-    );
     if (pendingVanTransfers > 0)
       items.push({
         title: t('Van transfers pending', 'تحويلات عربات معلّقة'),
@@ -354,13 +334,14 @@ export async function nextBestActions(
 
   // ── Manager / director: financials + workflow queue (RLS-scoped). ──
   if (has(ctx, 'reports.view')) {
-    const overdueTotal = await safeCount(() =>
-      supabase
-        .from('erp_invoices')
-        .select('id', { count: 'exact', head: true })
-        .lt('due_date', date)
-        .in('status', ['issued', 'partially_paid', 'overdue']),
-    );
+    const [overdueTotal, pendingWf] = await Promise.all([
+      safeCount(() =>
+        supabase.from('erp_invoices').select('id', { count: 'exact', head: true })
+          .lt('due_date', date).in('status', ['issued', 'partially_paid', 'overdue'])),
+      safeCount(() =>
+        supabase.from('erp_workflow_instances').select('id', { count: 'exact', head: true })
+          .eq('status', 'pending')),
+    ]);
     if (overdueTotal > 0 && !items.some((i) => i.href === '/sales/invoices'))
       items.push({
         title: t('Overdue invoices', 'فواتير متأخرة'),
@@ -369,12 +350,6 @@ export async function nextBestActions(
         severity: 'danger',
       });
 
-    const pendingWf = await safeCount(() =>
-      supabase
-        .from('erp_workflow_instances')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending'),
-    );
     if (pendingWf > 0)
       items.push({
         title: t('Approvals pending', 'موافقات معلّقة'),

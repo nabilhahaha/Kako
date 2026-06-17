@@ -24,14 +24,16 @@ export default async function SettlementPage({
   const sp = await searchParams;
 
   const date = sp.date || new Date().toISOString().slice(0, 10);
-  const repId = sp.rep || ctx.userId;
+  const repIdParam = sp.rep || ctx.userId;
 
   const supabase = await createClient();
-  const { data: profiles } = await supabase
-    .from('erp_profiles')
-    .select('id, full_name, email')
-    .eq('is_active', true);
+  // Role-scoped reps: a rep can only pick himself; a supervisor his team; an area
+  // manager his region; admin all. Enforced at the DB (RLS) + API (this RPC).
+  const { data: profiles } = await supabase.rpc('erp_assignable_reps');
   const reps = (profiles as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? [];
+  // Role isolation: ignore a ?rep= that is outside the viewer's scope (no peeking
+  // at another rep's settlement via URL) — fall back to the viewer themselves.
+  const repId = reps.some((r) => r.id === repIdParam) ? repIdParam : ctx.userId;
   const repName = reps.find((r) => r.id === repId)?.full_name || reps.find((r) => r.id === repId)?.email || '—';
 
   // Collections received by this rep on the date.

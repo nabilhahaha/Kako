@@ -4,6 +4,7 @@ import { getT } from '@/lib/i18n/server';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/server';
 import { PrintBar } from '@/components/print/print-button';
+import { BrandLogo } from '@/components/print/brand-logo';
 
 // Sales return print — return slip (return + lines + products + customer +
 // company). Reuses erp_sales_returns/_lines (in production). Additive.
@@ -43,8 +44,8 @@ export default async function ReturnPrintPage({ params }: { params: Promise<{ id
 
   const company = await safe(async () => {
     if (!customer?.company_id) return null;
-    const { data } = await supabase.from('erp_companies').select('name, name_ar').eq('id', customer.company_id as string).maybeSingle();
-    return data as { name: string; name_ar: string | null } | null;
+    const { data } = await supabase.from('erp_companies').select('name, name_ar, tax_number, logo_url').eq('id', customer.company_id as string).maybeSingle();
+    return data as { name: string; name_ar: string | null; tax_number: string | null; logo_url: string | null } | null;
   }, null);
 
   const num = (v: unknown) => Number(v ?? 0);
@@ -54,7 +55,11 @@ export default async function ReturnPrintPage({ params }: { params: Promise<{ id
       <PrintBar printLabel={t('salesman.print')} backHref="/sales/returns" backLabel={t('salesman.back')} />
       <div className="space-y-5 rounded-lg border bg-white p-6 text-black print:border-0 print:p-0">
         <div className="flex items-start justify-between gap-4 border-b pb-4">
-          <h1 className="text-lg font-bold">{pick(company?.name, company?.name_ar) || '—'}</h1>
+          <div>
+            <BrandLogo url={company?.logo_url} className="mb-2 h-12 w-auto max-w-[160px] object-contain" />
+            <h1 className="text-lg font-bold">{pick(company?.name, company?.name_ar) || '—'}</h1>
+            {company?.tax_number ? <p className="text-xs text-gray-600">{company.tax_number}</p> : null}
+          </div>
           <div className="text-end">
             <p className="text-base font-bold">{t('vanops.returnTitle')}</p>
             <p className="text-sm font-semibold" dir="ltr">{String(ret.return_number ?? '')}</p>

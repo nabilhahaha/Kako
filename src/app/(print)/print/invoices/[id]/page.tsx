@@ -2,12 +2,17 @@ import { notFound, redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
 import { PrintButton } from '@/components/print-button';
+import { BrandLogo } from '@/components/print/brand-logo';
 import { INVOICE_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import type { Invoice, InvoiceLine } from '@/lib/erp/types';
 
 interface LineRow extends InvoiceLine {
   product: { code: string; name: string; name_ar: string | null } | null;
+  /** U2 UoM capture (nullable; null ⇒ entered in the base unit). */
+  entered_uom?: string | null;
+  entered_qty?: number | null;
+  uom_factor?: number | null;
 }
 
 export default async function InvoicePrintPage({
@@ -31,7 +36,7 @@ export default async function InvoicePrintPage({
     customer: { name: string; name_ar: string | null; phone: string | null; address: string | null; tax_number: string | null } | null;
     branch: {
       name: string; name_ar: string | null; address: string | null; phone: string | null;
-      company: { name: string; name_ar: string | null; tax_number: string | null; address: string | null; phone: string | null; currency: string } | null;
+      company: { name: string; name_ar: string | null; tax_number: string | null; address: string | null; phone: string | null; currency: string; logo_url: string | null } | null;
     } | null;
   };
 
@@ -52,6 +57,7 @@ export default async function InvoicePrintPage({
 
       <div className="flex items-start justify-between border-b pb-4">
         <div>
+          <BrandLogo url={company?.logo_url} className="mb-2 h-12 w-auto max-w-[160px] object-contain" />
           <h1 className="text-xl font-bold">{company?.name_ar || company?.name || 'الشركة'}</h1>
           {company?.address && <p className="text-xs text-gray-600">{company.address}</p>}
           {company?.phone && <p className="text-xs text-gray-600" dir="ltr">{company.phone}</p>}
@@ -85,6 +91,7 @@ export default async function InvoicePrintPage({
           <tr className="border-y bg-gray-100">
             <th className="p-2 text-right">#</th>
             <th className="p-2 text-right">الصنف</th>
+            <th className="p-2 text-center">الوحدة</th>
             <th className="p-2 text-center">الكمية</th>
             <th className="p-2 text-left">سعر الوحدة</th>
             <th className="p-2 text-center">خصم %</th>
@@ -92,19 +99,28 @@ export default async function InvoicePrintPage({
           </tr>
         </thead>
         <tbody>
-          {lineRows.map((l, i) => (
-            <tr key={l.id} className="border-b">
-              <td className="p-2">{i + 1}</td>
-              <td className="p-2">
-                <span className="me-1 font-mono text-xs text-gray-500" dir="ltr">{l.product?.code}</span>
-                {l.product?.name_ar || l.product?.name || '—'}
-              </td>
-              <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(l.quantity)}</td>
-              <td className="p-2 text-left tabular-nums" dir="ltr">{formatCurrency(l.unit_price)}</td>
-              <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(l.discount_pct)}</td>
-              <td className="p-2 text-left tabular-nums" dir="ltr">{formatCurrency(l.line_total)}</td>
-            </tr>
-          ))}
+          {lineRows.map((l, i) => {
+            // Show the unit the rep entered (carton/inner/…) with its per-UoM qty +
+            // price; fall back to the base unit when no UoM was captured. line_total
+            // is identical either way (display only).
+            const hasUom = !!l.entered_uom && !!l.uom_factor;
+            const qty = hasUom ? Number(l.entered_qty) : Number(l.quantity);
+            const price = hasUom ? Number(l.unit_price) * Number(l.uom_factor) : Number(l.unit_price);
+            return (
+              <tr key={l.id} className="border-b">
+                <td className="p-2">{i + 1}</td>
+                <td className="p-2">
+                  <span className="me-1 font-mono text-xs text-gray-500" dir="ltr">{l.product?.code}</span>
+                  {l.product?.name_ar || l.product?.name || '—'}
+                </td>
+                <td className="p-2 text-center">{l.entered_uom || '—'}</td>
+                <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(qty)}</td>
+                <td className="p-2 text-left tabular-nums" dir="ltr">{formatCurrency(price)}</td>
+                <td className="p-2 text-center tabular-nums" dir="ltr">{formatNumber(l.discount_pct)}</td>
+                <td className="p-2 text-left tabular-nums" dir="ltr">{formatCurrency(l.line_total)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 

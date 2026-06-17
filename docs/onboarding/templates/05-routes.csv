@@ -1,0 +1,4 @@
+code,name,name_ar,city,status,region_ref,branch_ref
+RT-CAI-A,Cairo Route A,خط القاهرة أ,Cairo,active,,CAI
+RT-CAI-B,Cairo Route B,خط القاهرة ب,Cairo,active,,CAI
+RT-ALX-A,Alex Route A,خط الإسكندرية أ,Alexandria,active,,ALX

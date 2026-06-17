@@ -6,9 +6,13 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { EmptyState } from '@/components/shared/empty-state';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { createClient } from '@/lib/supabase/server';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import { stockMovementReportEnabled } from '@/lib/van-sales/sell';
+import { buttonVariants } from '@/components/ui/button';
 import { stockStatus, summarizeStock, rankStock, type StockStatus } from '@/lib/erp/stock-risk';
 
 // Stock visibility — on-hand availability with low/out risk indicators, risk-first.
@@ -61,7 +65,14 @@ export default async function StockVisibilityPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('vanops.stockTitle')} description={t('vanops.stockSubtitle')} />
+      <BackLink href="/today" label={t('common.back')} />
+      <PageHeader
+        title={t('vanops.stockTitle')}
+        description={t('vanops.stockSubtitle')}
+        action={stockMovementReportEnabled(await getFeatureFlags(supabase, ctx.companyId)) ? (
+          <a href="/field/stock/movements" className={buttonVariants({ size: 'sm', variant: 'outline' })}>{t('vanSales.stockMove.title')}</a>
+        ) : undefined}
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label={t('vanops.inStock')} value={String(summary.ok)} icon={PackageCheck} tone="success" />

@@ -3,7 +3,11 @@
 // Static assets (script/style/image) → cache-first, network fallback.
 // Non-GET and cross-origin/API/auth requests are never cached.
 
-const CACHE = 'ams-v1';
+// Bump this version on any client-asset change that must reach already-installed
+// PWAs — `activate` deletes every cache != CACHE, so a version bump purges the
+// stale app-shell/bundle cache for all clients (fixes "deployed nav change not
+// visible"). v2: DF-003 Field Requests nav entry.
+const CACHE = 'ams-v2';
 
 // App-shell resources to precache on install.
 const PRECACHE = ['/', '/offline', '/icon.svg'];

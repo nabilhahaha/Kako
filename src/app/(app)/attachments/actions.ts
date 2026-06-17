@@ -20,6 +20,7 @@ function entityPermission(entity: string): Permission | null {
   const fallback: Record<string, Permission> = {
     customer_change_request: 'customers.manage',
     credit_limit_request: 'customers.manage',
+    customer_request: 'customer.request',
     workflow: 'workflow.manage',
     // Field-media-only entities (no registry record of their own): manage rights
     // map to the same field gate used to attach the evidence.

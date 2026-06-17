@@ -4,6 +4,7 @@ import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
@@ -56,6 +57,7 @@ export default async function VanSalesWarehousePage() {
 
   return (
     <div className="space-y-6">
+      <BackLink href="/field/van-sales" home="/inventory/requests" label={t('common.back')} />
       <PageHeader title={t('vanSales.warehouse.title')} description={t('vanSales.warehouse.subtitle')} />
 
       <div className="grid gap-3 sm:grid-cols-2">

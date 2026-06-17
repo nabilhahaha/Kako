@@ -33,12 +33,14 @@ export const ar = {
     // ── Empty / no results ───────────────────────────────────────────────
     emptyDispenses: 'لا عمليات صرف بعد.',
     noResults: 'لا نتائج.',
+    controlledOnly: 'المراقَبة فقط',
 
     // ── Table headers (list) ─────────────────────────────────────────────
     colDate: 'التاريخ',
     colPatient: 'المريض',
     colDoctor: 'الطبيب',
     colRx: 'روشتة',
+    colInvoice: 'الفاتورة',
     colItems: 'أصناف',
     colStatus: 'الحالة',
 
@@ -114,12 +116,14 @@ export const en = {
     // ── Empty / no results ───────────────────────────────────────────────
     emptyDispenses: 'No dispense records yet.',
     noResults: 'No results.',
+    controlledOnly: 'Controlled only',
 
     // ── Table headers (list) ─────────────────────────────────────────────
     colDate: 'Date',
     colPatient: 'Patient',
     colDoctor: 'Doctor',
     colRx: 'Rx #',
+    colInvoice: 'Invoice',
     colItems: 'Items',
     colStatus: 'Status',
 

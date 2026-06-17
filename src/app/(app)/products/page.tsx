@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
@@ -41,6 +42,7 @@ export default async function ProductsPage({
         categories={(categories as ProductCategory[]) ?? []}
         showDrugCatalog={ctx.modules.includes('pharmacy') || ctx.modules.includes('clinic')}
         etaEnabled={etaEnabled}
+        canManageUom={hasPermission(ctx, 'uom.manage')}
         q={q}
       />
       <Pager page={page} pageSize={pageSize} total={count ?? 0} basePath="/products" query={{ q: q || undefined }} />

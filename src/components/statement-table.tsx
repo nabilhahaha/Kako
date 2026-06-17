@@ -54,7 +54,31 @@ export function StatementTable({
   return (
     <Card>
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
+        {/* Mobile (< sm): stacked cards — no horizontal scroll. */}
+        <ul className="divide-y sm:hidden">
+          {rows.map((r, i) => (
+            <li key={i} className="space-y-1 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">{formatDate(r.date, intl)}</span>
+                <span className="min-w-0 break-all text-end font-mono text-[11px] text-muted-foreground" dir="ltr">{r.ref}</span>
+              </div>
+              {r.description && <p className="text-sm">{r.description}</p>}
+              <div className="flex items-center justify-between gap-2 text-sm tabular-nums" dir="ltr">
+                <span className={Number(r.credit) > 0 ? 'text-success' : ''}>
+                  {Number(r.debit) > 0 ? `+${formatCurrency(r.debit, 'EGP', intl)}` : ''}
+                  {Number(r.credit) > 0 ? `−${formatCurrency(r.credit, 'EGP', intl)}` : ''}
+                </span>
+                <span className="font-semibold">{formatCurrency(r.balance, 'EGP', intl)}</span>
+              </div>
+            </li>
+          ))}
+          <li className="flex items-center justify-between gap-2 p-3 font-bold">
+            <span>{t('shared.statement.total')}</span>
+            <span className="tabular-nums" dir="ltr">{formatCurrency(totalDebit - totalCredit, 'EGP', intl)}</span>
+          </li>
+        </ul>
+        {/* Desktop (sm+): full table. */}
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full text-sm">
             <thead className="border-b bg-secondary/50 text-muted-foreground">
               <tr>
@@ -70,7 +94,7 @@ export function StatementTable({
               {rows.map((r, i) => (
                 <tr key={i} className="border-b last:border-0 hover:bg-secondary/30">
                   <td className="p-3 text-muted-foreground">{formatDate(r.date, intl)}</td>
-                  <td className="p-3 font-mono text-xs" dir="ltr">{r.ref}</td>
+                  <td className="break-all p-3 font-mono text-xs" dir="ltr">{r.ref}</td>
                   <td className="p-3">{r.description}</td>
                   <td className="p-3 text-end tabular-nums" dir="ltr">{Number(r.debit) > 0 ? formatCurrency(r.debit, 'EGP', intl) : '—'}</td>
                   <td className="p-3 text-end tabular-nums text-success" dir="ltr">{Number(r.credit) > 0 ? formatCurrency(r.credit, 'EGP', intl) : '—'}</td>

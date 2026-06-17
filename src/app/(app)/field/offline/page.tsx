@@ -4,6 +4,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { BackLink } from '@/components/shared/back-link';
 import { EmptyState } from '@/components/shared/empty-state';
 import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { OfflineClient } from './offline-client';
@@ -19,6 +20,7 @@ export default async function FieldOfflinePage() {
 
   return (
     <div className="space-y-6">
+      <BackLink href="/today" label={t('common.back')} />
       <PageHeader title={t('distribution.oflTitle')} description={t('distribution.oflDescription')} />
       {MOBILE_ENABLED()
         ? <OfflineClient />

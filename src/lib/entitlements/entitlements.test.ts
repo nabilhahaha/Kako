@@ -64,11 +64,14 @@ describe('entitlements/isEntitledIn', () => {
 describe('entitlements/modulesForPermission', () => {
   it('maps known permissions, empty for unmapped (never gated)', () => {
     expect(modulesForPermission('field.sales')).toEqual(['van_sales']);
-    expect(modulesForPermission('change_requests.approve')).toEqual(['change_requests']);
     expect(modulesForPermission('route.create')).toEqual(['route_management']);
-    expect(modulesForPermission('trade_spend.manage')).toEqual(['trade_spend']);
     expect(modulesForPermission('sales.sell')).toEqual([]);       // core → not entitlement-gated
     expect(modulesForPermission('inventory.view')).toEqual([]);   // core → not gated
+    // A1 hygiene: change_requests.* and trade_spend.manage are not in the code
+    // Permission union and are granted to no role — they were inert map entries
+    // and are now unmapped (never gated; their engines gate via module + flag).
+    expect(modulesForPermission('change_requests.approve')).toEqual([]);
+    expect(modulesForPermission('trade_spend.manage')).toEqual([]);
   });
 });
 

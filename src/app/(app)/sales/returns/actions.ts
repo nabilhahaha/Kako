@@ -4,12 +4,17 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
+import { logAudit } from '@/lib/erp/audit';
 import { getT } from '@/lib/i18n/server';
 
 interface ReturnLineInput {
   product_id: string;
   quantity: number;
   unit_price: number;
+  /** Batch-aware returns (pharmacy): restore this line to a specific batch. */
+  batch_number?: string | null;
+  expiry_date?: string | null;
 }
 
 function round2(n: number) {
@@ -64,6 +69,8 @@ export async function createReturn(input: {
       quantity: l.quantity,
       unit_price: l.unit_price,
       line_total: round2(l.quantity * l.unit_price),
+      batch_number: l.batch_number?.trim() || null,
+      expiry_date: l.expiry_date || null,
     })),
   );
   if (linesErr) {
@@ -80,13 +87,23 @@ export async function createReturn(input: {
  * Sales-Returns/AR journal, and lower the customer balance in one tx.
  */
 export async function completeReturn(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const { t } = await getT();
+  // MJ-1: completing a return restocks + posts a credit journal — require a
+  // returns/sales permission (admins/managers hold ALL).
+  if (!hasPermission(ctx, 'sales.return') && !hasPermission(ctx, 'sales.sell'))
+    return { ok: false, error: t('settings.unauthorized') };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc('erp_complete_sales_return', { p_return_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  // Critical-action audit: return.approve (irreversible — restock + AR posting).
+  await logAudit(supabase, {
+    action: 'update', entity: 'sales_return', entityId: id,
+    details: { event: 'return_approved' }, companyId: ctx.companyId,
+  });
   await emitDomainEvent({ eventType: EVENT.RETURN_APPROVED, entity: 'return', recordId: id });
   revalidatePath('/sales/returns');
   revalidatePath('/customers');
@@ -94,9 +111,9 @@ export async function completeReturn(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function cancelReturn(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+export async function cancelReturn(id: string, reason?: string): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -105,6 +122,11 @@ export async function cancelReturn(id: string): Promise<ActionResult> {
     .eq('id', id)
     .in('status', ['draft', 'approved']);
   if (error) return { ok: false, error: friendlyDbError(error) };
+  // Critical-action audit: return.reject (reason mandatory at the call site).
+  await logAudit(supabase, {
+    action: 'update', entity: 'sales_return', entityId: id,
+    details: { event: 'return_rejected', reason: reason?.trim() || null }, companyId: ctx.companyId,
+  });
   revalidatePath('/sales/returns');
   return { ok: true };
 }

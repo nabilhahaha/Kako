@@ -1,0 +1,280 @@
+branch,last_commit,subject,merged_to_main,in_pilot,classification,safe_to_delete,safe_to_archive
+chore/test-users,2026-05-16,chore(scripts): add create-test-users.js for 8-role seed,N,N,Experimental,N,Y
+claude/8a1-workflow-template-catalog,2026-06-08,feat(8A-1): workflow template catalog + seeded approval temp,N,N,Experimental,N,Y
+claude/8a2-template-instantiation,2026-06-08,feat(8A-2): instantiate workflow template -> engine definiti,N,N,Experimental,N,Y
+claude/8a3-template-step-configs,2026-06-08,fix(8A-3): correct demo-template step configs + engine-align,N,N,Experimental,N,Y
+claude/8f-operational-completeness,2026-06-08,test(8F): end-to-end Customer Data Update — approve applie,N,N,Experimental,N,Y
+claude/8f1-form-builder-engine,2026-06-08,feat(8F-1): Form Builder engine (definitions + versions + im,N,N,Experimental,N,Y
+claude/add-git-commands-cDRcB,2026-05-16,refactor(src): align with new visit_reasons_master + raw_dat,Y,Y,Legacy-merged,Y,Y
+claude/ai-insights-sprint,2026-06-04,feat(insights): deterministic AI insights foundation (flag-O,N,N,Experimental,N,Y
+claude/ai-strategy,2026-06-04,docs: AI strategy — NL Copilot over existing RPCs; free-ti,N,N,Experimental,N,Y
+claude/alerts-a1-foundation,2026-06-09,feat(alerts): Phase A1 — foundation (rules + instances + r,N,N,Experimental,N,Y
+claude/alerts-a2-evaluator,2026-06-09,feat(alerts): Phase A2 — evaluator + dispatch + cron,N,N,Experimental,N,Y
+claude/alerts-a3-sources,2026-06-09,chore: re-trigger CI (DB job stuck queued),N,N,Experimental,N,Y
+claude/alerts-a3b-lowstock,2026-06-09,test(alerts): use a non-seeded rule_key in the foundation te,N,N,Experimental,N,Y
+claude/alerts-a4-lifecycle,2026-06-09,feat(alerts): Phase A4 — lifecycle actions (acknowledge/sn,N,N,Experimental,N,Y
+claude/alerts-a5-ui,2026-06-09,feat(alerts): Phase A5 — alerts UI (list + lifecycle actio,N,N,Experimental,N,Y
+claude/alerts-a8-pilot-guide,2026-06-09,docs(alerts): pilot enablement guide,N,N,Documentation,N,Y
+claude/alerts-design,2026-06-09,docs(alerts): Critical Alerts Framework — platform design,N,N,Documentation,N,Y
+claude/architecture-index,2026-06-03,docs: master Architecture Index (design only),N,N,Documentation,N,Y
+claude/attachments-build,2026-06-02,docs: expanded FP-0 design — first-class FMCG customer hie,Y,Y,Legacy-merged,Y,Y
+claude/attachments-design,2026-06-02,docs: ERP Attachments — design review (review-first; no bu,N,N,Documentation,N,Y
+claude/auth-p1-granular-catalog,2026-06-03,feat(auth): Phase 1 granular capability catalog + alias reso,N,N,Experimental,N,Y
+claude/authorization-model-spec,2026-06-03,docs(authz): close F1/F3/F4 + Approval Matrix consolidation ,N,N,Experimental,N,Y
+claude/authz-enforcement,2026-06-03,feat(authz): P6 console — Authorization Console (capabilit,Y,Y,Legacy-merged,Y,Y
+claude/brave-mendel-xoudda,2026-06-16,feat(market-visits): standalone market visits tracker,N,N,Experimental,N,Y
+claude/build-expiry-registration-app-en17Q,2026-05-18,fix: damage request RLS update policy — correct WITH CHECK,N,N,Experimental,N,Y
+claude/business-process-demo-runbook,2026-06-08,docs: business-process foundation demo runbook (3 demo workf,N,N,Experimental,N,Y
+claude/change-request-engine-design,2026-06-09,docs(change-requests): fold in sign-off decisions,N,N,Documentation,N,Y
+claude/ci-deploy-edge-functions,2026-06-13,ci: add Deploy Edge Functions workflow + supabase/config.tom,N,N,Experimental,N,Y
+claude/clinic-project-continuation-2onKn,2026-06-02,docs: Slice S3 (Expanded Customer Model) design review,N,N,Experimental,N,Y
+claude/clinic-project-continuation-7P1NJ,2026-06-01,Demo: all-role users + verified permission matrix (pre-seed ,N,N,Experimental,N,Y
+claude/clinic-project-continuation-PqxGD,2026-06-06,fix(offline): emit Next standalone server when KAKO_OFFLINE ,N,N,Experimental,N,Y
+claude/commercial-attribution,2026-06-08,feat(attribution): Phase 4+ — promotion/return attribution,N,N,Experimental,N,Y
+claude/commercial-excellence-pricing-credit,2026-06-08,feat(commercial): Phase 7 — Commercial Excellence 6A (pric,N,N,Experimental,N,Y
+claude/commercial-excellence-targets-forecast-mdg,2026-06-08,feat(commercial): Phase 7 — Commercial Excellence 6B (targ,N,N,Experimental,N,Y
+claude/company-onboarding-wizard,2026-06-03,feat(onboarding): Organization Structure UI — wizard step ,N,N,Experimental,N,Y
+claude/company-roles-permissions,2026-06-02,S2: FMCG hierarchy — sales-hierarchy roles (#60),Y,Y,Legacy-merged,Y,Y
+claude/competitive-gap-analysis,2026-06-08,docs(assessment): competitive gap analysis vs SalesBuzz / SA,N,N,Experimental,N,Y
+claude/composite-indexes,2026-06-02,perf: composite indexes for pilot query shapes (migration 01,N,N,Documentation,N,Y
+claude/copilot-ai-v1,2026-06-04,feat(copilot-ai): V1 Ask Copilot — optional; flag-gated AI,N,N,Experimental,N,Y
+claude/country-compliance-backlog,2026-06-07,docs(platform): Country Compliance & E-Invoicing foundation ,N,N,Documentation,N,Y
+claude/cr-phase1-registry,2026-06-09,fix(change-requests): add covering indexes on FK company_id ,N,N,Experimental,N,Y
+claude/cr-phase11-entities,2026-06-09,feat(change-requests): Phase 11 — register more entities (,N,N,Experimental,N,Y
+claude/cr-phase12-pilot-guide,2026-06-09,docs(change-requests): pilot enablement guide,N,N,Documentation,N,Y
+claude/cr-phase2-lifecycle,2026-06-09,feat(change-requests): Phase 2 — lifecycle; validation; su,N,N,Experimental,N,Y
+claude/cr-phase3-workflow,2026-06-09,feat(change-requests): Phase 3 — customer approval workflo,N,N,Experimental,N,Y
+claude/cr-phase4-apply,2026-06-09,feat(change-requests): Phase 4 — generic apply / execution,N,N,Experimental,N,Y
+claude/cr-phase5-attachments,2026-06-09,feat(change-requests): Phase 5 — attachment document class,N,N,Experimental,N,Y
+claude/cr-phase6-effective-dating,2026-06-09,feat(change-requests): Phase 6 — effective dating (due swe,N,N,Experimental,N,Y
+claude/cr-phase7-bulk,2026-06-09,feat(change-requests): Phase 7 — bulk change requests,N,N,Experimental,N,Y
+claude/cr-phase8-external-hooks,2026-06-09,feat(change-requests): Phase 8 — external approval hooks (,N,N,Experimental,N,Y
+claude/cr-phase9-ui,2026-06-09,feat(change-requests): Phase 9 — generic read UI (list + d,N,N,Experimental,N,Y
+claude/cr-pilot-readiness,2026-06-09,docs(change-requests): pilot readiness package (owner review,N,N,Documentation,N,Y
+claude/crm-foundation-architecture,2026-06-07,docs(crm): mark CRM Foundation architecture APPROVED & froze,N,N,Experimental,N,Y
+claude/customer-approval-design,2026-06-02,fix(test): SAVEPOINT around the expected decide failure,Y,Y,Legacy-merged,Y,Y
+claude/customer-onboarding,2026-06-04,Customer Onboarding: expand ERPNext/Odoo auto-mapping preset,Y,Y,Legacy-merged,Y,Y
+claude/customer-status-blocking,2026-06-02,docs: platform-wide Dynamic Field Governance design (review-,Y,Y,Legacy-merged,Y,Y
+claude/customer-timeline,2026-06-08,feat(customer-timeline): Phase 3 — customer relationship t,N,N,Experimental,N,Y
+claude/dashboard-row-data-review-mdjvs8,2026-06-14,feat(tools): lightweight Excel-in/Excel-out forecast & scena,N,N,Documentation,N,Y
+claude/data-portability-backlog,2026-06-07,docs(platform): Data Portability & Backup — architecture &,N,N,Documentation,N,Y
+claude/db-scalability-summary,2026-06-02,docs: Database Scalability — executive summary (read-only ,N,N,Experimental,N,Y
+claude/drift-activation-tpm,2026-06-04,docs: Drift Activation staging-validation report + productio,N,N,Experimental,N,Y
+claude/drift-closure-package,2026-06-04,docs: Drift Closure Program — approval-ready package (inve,N,N,Experimental,N,Y
+claude/dynamic-field-governance,2026-06-02,docs: UX review Part B — architecture & performance remedi,Y,Y,Legacy-merged,Y,Y
+claude/einvoice-compliance-foundations,2026-06-08,feat(compliance): Phase 5F — e-invoicing compliance platfo,N,N,Experimental,N,Y
+claude/electrical-role-defaults-ux,2026-05-31,fix: sync PACK_ROLE_SUGGESTIONS.electrical source to the 14 ,N,N,Experimental,N,Y
+claude/electrical-screens-p1,2026-06-01,demo: sample supplier-returns seed for Demo Electric,N,N,Experimental,N,Y
+claude/enterprise-fmcg-readiness,2026-06-04,docs: Enterprise FMCG Readiness — gap analysis; competitor,N,N,Documentation,N,Y
+claude/enterprise-operations,2026-06-03,feat(ui): Phase 5.5 Company Analytics Dashboard,Y,Y,Legacy-merged,Y,Y
+claude/enterprise-readiness,2026-06-03,chore(readiness): safe auto-remediation — additive indexes,Y,Y,Legacy-merged,Y,Y
+claude/entitlements-design,2026-06-09,docs(entitlements): Platform Module & Feature Entitlement En,N,N,Documentation,N,Y
+claude/entitlements-e1-schema,2026-06-09,test(entitlements): savepoint around the RLS-denied insert,N,N,Experimental,N,Y
+claude/entitlements-e2-catalog,2026-06-09,test(entitlements): use test-only catalog keys in the founda,N,N,Experimental,N,Y
+claude/entitlements-e4-matrix,2026-06-09,feat(entitlements): E4 — Platform-Owner Company Capability,N,N,Experimental,N,Y
+claude/entitlements-e5-features,2026-06-09,fix(entitlements): simplify E5 feature-write RLS; cap in the,N,N,Experimental,N,Y
+claude/entitlements-e6-summary,2026-06-09,feat(entitlements): E6 — read-only role permission matrix ,N,N,Experimental,N,Y
+claude/entitlements-e7-subsume,2026-06-09,feat(entitlements): E7 — subsume engine toggles (fallback-,N,N,Experimental,N,Y
+claude/entitlements-e9-guide,2026-06-09,docs(entitlements): E9 — pilot enablement guide,N,N,Documentation,N,Y
+claude/entity-360-platform,2026-06-08,feat(entity360): Phase 7 — unified Entity 360 platform,N,N,Experimental,N,Y
+claude/fashion-store-pack,2026-06-05,fix(fashion): stop platform/vendor + generic nav leaking to ,Y,Y,Legacy-merged,Y,Y
+claude/field-insights-new-project-5w7gg9,2026-06-16,docs(field-insights): add Vercel deployment guide (Word),N,N,Experimental,N,Y
+claude/finance-foundation-architecture,2026-06-07,docs(finance): finalize approved Finance Foundation architec,N,N,Experimental,N,Y
+claude/fix-company-management,2026-06-04,fix(platform): Company Management crash — RSC boundary on ,N,N,Experimental,N,Y
+claude/fmcg-bug-hunt,2026-06-04,docs: complete executive Release Package — readiness; ops;,Y,Y,Legacy-merged,Y,Y
+claude/fmcg-customer-hierarchy,2026-06-02,docs: status blocking — allow sales returns at all statuse,Y,Y,Legacy-merged,Y,Y
+claude/fmcg-distribution-assessment,2026-06-08,docs(assessments): FMCG distribution excellence readiness as,N,N,Documentation,N,Y
+claude/fmcg-field-force-pro-nR35c,2026-05-23,fix: match reference design exactly,N,N,Experimental,N,Y
+claude/fmcg-operations-foundation,2026-06-03,feat(fmcg): field-execution app layer — server actions + T,Y,Y,Legacy-merged,Y,Y
+claude/fmcg-s1-regions-areas,2026-06-02,S1: FMCG hierarchy — Region + Area entities (+ branch link,N,N,Experimental,N,Y
+claude/fmcg-s2-roles,2026-06-02,S2: FMCG hierarchy — sales-hierarchy roles (role layer),N,N,Experimental,N,Y
+claude/fmcg-s3-customer-model,2026-06-02,feat: S3 expanded customer model + company-managed master da,Y,Y,Legacy-merged,Y,Y
+claude/fmcg-s4-scope-rls,2026-06-02,feat: S4a hierarchy scope + RLS (customers + routes),Y,Y,Legacy-merged,Y,Y
+claude/fmcg-s4b-txn-scope,2026-06-02,feat: S4b transactional scope + write-scope (B1),Y,Y,Legacy-merged,Y,Y
+claude/fmcg-seeder-spec,2026-06-03,docs(seeder): lock v1.1 decisions + note DB provisioning pre,N,N,Experimental,N,Y
+claude/fmcg-sell-collect-loop,2026-06-17,docs(fmcg): cashier/treasury role & permission review (analy,N,Y,Active-pilot-SoT,N,N
+claude/fmcg-value-wave1,2026-06-04,feat(fmcg-w1): Wave 1 application layer — screens; reports,Y,Y,Legacy-merged,Y,Y
+claude/form-builder-engine-h92fzd,2026-06-17,docs(fmcg): supervisor transaction-permission removal implem,N,N,Active-docs-secondary,N,N
+claude/global-compliance-foundation,2026-06-08,feat(compliance): Phase 5G — global tax compliance foundat,N,N,Experimental,N,Y
+claude/help-copilot,2026-06-03,feat(copilot): dynamic live-context layer — self-updates w,Y,Y,Legacy-merged,Y,Y
+claude/import-engine-extension,2026-06-04,Import Engine Extension: FK resolution + 5 onboarding entiti,Y,Y,Legacy-merged,Y,Y
+claude/integration-hub,2026-06-04,feat(integration-hub): unified Data Migration Center + live ,Y,Y,Legacy-merged,Y,Y
+claude/inventory-foundation-architecture,2026-06-07,docs(inventory): mark Inventory Foundation architecture APPR,N,N,Experimental,N,Y
+claude/jpfood-route-optimizer-q1n5I,2026-05-24,feat: professional enterprise UI redesign,N,N,Experimental,N,Y
+claude/mobile-field-ui,2026-06-08,feat(ui): Phase 7B — Mobile Field Sync status UI (queue; c,N,N,Experimental,N,Y
+claude/mobile-offline-collections,2026-06-08,mobile(step1): offline collections (server-authoritative),N,N,Experimental,N,Y
+claude/mobile-offline-media,2026-06-08,mobile(step1): offline media capture (visit photos),N,N,Experimental,N,Y
+claude/mobile-offline-statusbar,2026-06-08,mobile(step1): persistent app-wide offline status bar + GPS ,N,N,Experimental,N,Y
+claude/mobile-offline-surveys,2026-06-08,mobile(step1): offline survey capture,N,N,Experimental,N,Y
+claude/mobile-offline-visit-checkin,2026-06-08,mobile(step1): offline visit check-in with Pending Validatio,N,N,Experimental,N,Y
+claude/mobile-pwa-foundation,2026-06-08,feat(mobile): Step 1 — mobile field offline operation foun,N,N,Experimental,N,Y
+claude/multi-branch-management-system-mtTwa,2026-05-28,docs: correct stale journey note — visits already link to ,Y,Y,Legacy-merged,Y,Y
+claude/next-exec-package,2026-06-04,docs: Next Execution Package — PITR; staging; deploy-gate;,N,N,Experimental,N,Y
+claude/offline-sync-architecture,2026-06-07,docs(release): Workflow Platform decouple plan (Option C) �,N,N,Experimental,N,Y
+claude/offline-sync-mobile,2026-06-08,feat(offline-sync): Phase 7B — mobile field app offline sy,N,N,Experimental,N,Y
+claude/outlet-grading,2026-06-04,FMCG Outlet Grading: dynamic grade engine + management + das,Y,Y,Legacy-merged,Y,Y
+claude/perfect-store-engine,2026-06-08,feat(perfect-store): Phase 7C — configurable perfect store,N,N,Experimental,N,Y
+claude/perfect-store-ui,2026-06-08,feat(ui): Phase 7C — Perfect Store Scores UI (leaderboard;,N,N,Experimental,N,Y
+claude/phase-7-van-mobile-perfectstore-proposals,2026-06-08,docs(architecture): Phase 7A-7E architecture proposals (van ,N,N,Documentation,N,Y
+claude/phase-8-platform-expansion-proposal,2026-06-08,docs(architecture): Phase 8 platform expansion & enterprise ,N,N,Documentation,N,Y
+claude/phase0-event-backbone,2026-06-07,feat(events): Phase 0 — event-producer backbone (flag-gate,N,N,Experimental,N,Y
+claude/phase0-event-backbone-2,2026-06-07,feat(events): Phase 0 increment 2 — remaining producers + ,N,N,Experimental,N,Y
+claude/phase0-implementation-plan,2026-06-07,docs(impl): Phase 0 Implementation Plan (planning only),N,N,Documentation,N,Y
+claude/phase1-finance-poster,2026-06-07,fix(finance): erp_post_journal_entry reference_id is uuid (n,N,N,Experimental,N,Y
+claude/phase1-finance-posting-engine,2026-06-07,fix(finance): add covering index on erp_posting_rule_lines.c,N,N,Experimental,N,Y
+claude/phase1-freeze,2026-06-07,docs(phase1): FREEZE Phase 1 — final consolidated sign-off,N,N,Documentation,N,Y
+claude/phase1-gl-wiring,2026-06-07,test(finance): Phase 1 — end-to-end inventory→GL posting,N,N,Experimental,N,Y
+claude/phase1-inventory-cost-state,2026-06-07,fix(inventory): add covering indexes for cost-table FKs (sch,N,N,Experimental,N,Y
+claude/phase1-inventory-costing,2026-06-07,feat(inventory): Phase 1 — costing engine core (FIFO/Weigh,N,N,Experimental,N,Y
+claude/phase1-readiness-report,2026-06-07,docs(phase1): consolidated Phase 1 readiness report (Finance,N,N,Documentation,N,Y
+claude/phase1-registers,2026-06-07,docs(registers): add Decision / Blocker / Change-Log registe,N,N,Experimental,N,Y
+claude/phase2-3way-match,2026-06-07,feat(purchasing): Phase 2 — 3-way match engine (pure) + ki,N,N,Experimental,N,Y
+claude/phase2-ap-ledger,2026-06-07,feat(purchasing): Phase 2 — AP sub-ledger + supplier-invoi,N,N,Experimental,N,Y
+claude/phase2-e2e-readiness,2026-06-07,test(purchasing): Phase 2 e2e + multi-company tests + readin,N,N,Documentation,N,Y
+claude/phase2-matching-service,2026-06-07,feat(purchasing): Phase 2 — matching service (PO/GRN/invoi,N,N,Experimental,N,Y
+claude/phase2-supplier-invoices,2026-06-07,feat(purchasing): Phase 2 — supplier invoice (bill) data m,N,N,Experimental,N,Y
+claude/phase3-collection-allocation,2026-06-07,feat(distribution): Phase 3 — collection settlement (payme,N,N,Experimental,N,Y
+claude/phase3-collection-model,2026-06-07,feat(distribution): Phase 3 — collection receipt + multi-i,N,N,Experimental,N,Y
+claude/phase3-completion-report,2026-06-07,docs(phases): consolidated Phase 3 + 3.x completion report (,N,N,Documentation,N,Y
+claude/phase3-coverage-dashboard,2026-06-07,feat(distribution): Phase 3.x — Coverage & Supervisor Moni,N,N,Experimental,N,Y
+claude/phase3-coverage-kpi,2026-06-07,feat(distribution): Phase 3 — coverage / journey-adherence,N,N,Experimental,N,Y
+claude/phase3-coverage-readmodel,2026-06-07,feat(distribution): Phase 3 — coverage KPI read-model serv,N,N,Experimental,N,Y
+claude/phase3-e2e-readiness,2026-06-07,test(distribution): Phase 3 e2e + multi-company tests + read,N,N,Documentation,N,Y
+claude/phase3-event-wiring,2026-06-07,feat(distribution): Phase 3.x — wire goods.received + cust,N,N,Experimental,N,Y
+claude/phase3-kpi-closure-note,2026-06-07,docs(distribution): Phase 3 FMCG KPI & collections closure n,N,N,Documentation,N,Y
+claude/phase3-kpi-snapshot,2026-06-07,feat(distribution): Phase 3 — persisted rep-day KPI snapsh,N,N,Experimental,N,Y
+claude/phase3-offline-and-readiness,2026-06-07,docs(distribution): Phase 3.x offline-sync foundation + read,N,N,Documentation,N,Y
+claude/phase3-rep-scorecard,2026-06-07,feat(distribution): Phase 3.x — rep-day KPI snapshot sched,N,N,Experimental,N,Y
+claude/phase3-settlement-service,2026-06-07,feat(distribution): Phase 3 — collection settlement servic,N,N,Experimental,N,Y
+claude/phase3-snapshot-service,2026-06-07,feat(distribution): Phase 3 — rep-day KPI snapshot service,N,N,Experimental,N,Y
+claude/phase3-van-manifest,2026-06-07,feat(distribution): Phase 3.x — van load manifest model (0,N,N,Experimental,N,Y
+claude/phase4-accrual-engine,2026-06-07,feat(trade-spend): Phase 4 — accrual engine (pure) + kicko,N,N,Experimental,N,Y
+claude/phase4-claims-engine,2026-06-07,feat(trade-spend): Phase 4 — claims/deductions settlement ,N,N,Experimental,N,Y
+claude/phase4-data-model,2026-06-07,feat(trade-spend): Phase 4 — trade-spend data model (0195),N,N,Experimental,N,Y
+claude/phase4-gl-integration,2026-06-07,feat(trade-spend): Phase 4 — GL integration (Augment; reus,N,N,Experimental,N,Y
+claude/phase4-readiness,2026-06-07,docs(phases): Phase 4 (Trade Spend) readiness checkpoint,N,N,Documentation,N,Y
+claude/phase4-roi-engine,2026-06-07,feat(trade-spend): Phase 4 — ROI foundation engine (pure),N,N,Experimental,N,Y
+claude/phase4-summary-dashboard,2026-06-07,feat(trade-spend): Phase 4 — summary read-model + trade-sp,N,N,Experimental,N,Y
+claude/phase5-country-packs-checkpoint,2026-06-08,docs(phases): Phase 5 country packs (5C/5D/5E) readiness che,N,N,Documentation,N,Y
+claude/phase5-doc-level-tax,2026-06-07,docs(architecture): Phase 5 rev 3 + rev 4 APPROVED; Phase 5A,N,N,Experimental,N,Y
+claude/phase5-tax-architecture,2026-06-07,docs: freeze Phase 5 architecture baseline + Phase 5A implem,N,N,Experimental,N,Y
+claude/phase5a-followups-checkpoint,2026-06-08,docs(phases): Phase 5A follow-ups readiness checkpoint,N,N,Documentation,N,Y
+claude/phase5a-legal-entities,2026-06-08,feat(tax): Phase 5A follow-up — legal entities + tax regis,N,N,Experimental,N,Y
+claude/phase5a-m1-vat-engine,2026-06-07,feat(tax): Phase 5A M1 — core VAT calculation engine (pure,N,N,Experimental,N,Y
+claude/phase5a-m2-tax-groups,2026-06-07,feat(tax): Phase 5A M2 — tax groups / multi-rate (pure),N,N,Experimental,N,Y
+claude/phase5a-m3-tax-ledger,2026-06-07,feat(tax): Phase 5A M3 — tax ledger + VAT return report (a,N,N,Experimental,N,Y
+claude/phase5a-m4a-doc-profiles,2026-06-08,feat(tax): Phase 5A M4a — document tax profile catalog (ad,N,N,Experimental,N,Y
+claude/phase5a-m4b-doc-level-tax,2026-06-08,feat(tax): Phase 5A M4b — document-level taxation cascade ,N,N,Experimental,N,Y
+claude/phase5a-m4c-determination,2026-06-08,feat(tax): Phase 5A M4c — tax determination rules engine (,N,N,Experimental,N,Y
+claude/phase5a-m5-posting,2026-06-08,feat(tax): Phase 5A M5 — tax GL posting integration (Augme,N,N,Experimental,N,Y
+claude/phase5a-m6-pack-framework,2026-06-08,feat(tax): Phase 5A M6 — country pack framework foundation,N,N,Experimental,N,Y
+claude/phase5a-readiness,2026-06-08,docs(phases): Phase 5A (Global Tax Engine Core) readiness ch,N,N,Documentation,N,Y
+claude/phase5a-tax-service,2026-06-08,feat(tax): Phase 5A follow-up — tax service (determine→c,N,N,Experimental,N,Y
+claude/phase5b-checkpoint,2026-06-08,docs(phases): Phase 5B (country pack framework) readiness ch,N,N,Documentation,N,Y
+claude/phase5b-submission-lifecycle,2026-06-08,feat(tax): Phase 5B — submission lifecycle + state machine,N,N,Experimental,N,Y
+claude/phase5c-egypt-eta,2026-06-08,feat(tax): Phase 5C — Egypt ETA pack (pure document builde,N,N,Experimental,N,Y
+claude/phase5d-saudi-zatca,2026-06-08,feat(tax): Phase 5D — Saudi ZATCA pack (pure builder + TLV,N,N,Experimental,N,Y
+claude/phase5e-gcc-packs,2026-06-08,feat(tax): Phase 5E — GCC packs (UAE FTA + Bahrain/Oman/Ku,N,N,Experimental,N,Y
+claude/phase6-integration-hub-proposal,2026-06-08,docs(architecture): Phase 6 — Universal Integration Hub pr,N,N,Documentation,N,Y
+claude/phase6a-hub-framework,2026-06-08,feat(integration-hub): Phase 6A — connector framework + xr,N,N,Experimental,N,Y
+claude/phase8-ai-packs-briefs,2026-06-08,docs: Phase 8 design briefs — AI Insights (8G); Asset (8I),N,N,Documentation,N,Y
+claude/phase8-builder-family-briefs,2026-06-08,docs: Phase 8 design briefs — Rule Engine (8D); Notificati,N,N,Documentation,N,Y
+claude/phase8-dnd-dashboard-briefs,2026-06-08,docs: Drag-and-Drop framework + Phase 8B (Dashboard Builder),N,N,Documentation,N,Y
+claude/phase8-master-index,2026-06-08,docs: Phase 8 master index + decision matrix (single review/,N,N,Documentation,N,Y
+claude/phase8a-workflow-builder-brief,2026-06-08,docs: Phase 8A (Workflow Builder) pre-implementation design ,N,N,Documentation,N,Y
+claude/pil-design-review-package,2026-06-08,docs: Principal Intelligence Layer (PIL) detailed design-rev,N,N,Documentation,N,Y
+claude/pilot-hardening,2026-06-02,feat: close walkthrough D1 + B1 in the hardening slice,Y,Y,Legacy-merged,Y,Y
+claude/pilot-readiness,2026-06-02,docs: Pilot Readiness Review + realistic FMCG demo seed,Y,Y,Legacy-merged,Y,Y
+claude/pilot-simulation-plan,2026-06-03,docs(sim): close F1/F3/F5/F6 + per-widget scope & heaviest-p,N,N,Documentation,N,Y
+claude/pilot-walkthrough,2026-06-02,docs: walkthrough — mark D1/B1 closed; Go = unconditional ,Y,Y,Legacy-merged,Y,Y
+claude/platform-governance,2026-06-05,fix(ci): complete FK index + RLS-initplan coverage for the F,Y,Y,Legacy-merged,Y,Y
+claude/pricing-design,2026-06-02,feat: Pricing P-a — price-rules engine + resolver + histor,Y,Y,Legacy-merged,Y,Y
+claude/pricing-pb,2026-06-02,feat: pilot-first pricing UX — default to Customer scope; ,Y,Y,Legacy-merged,Y,Y
+claude/principal-intelligence-layer-proposal,2026-06-08,docs: Principal Intelligence Layer (PIL) architecture propos,N,N,Documentation,N,Y
+claude/prod-readiness-assessment,2026-06-08,docs(assessment): VANTORA production readiness assessment + ,N,N,Documentation,N,Y
+claude/project-setup-Vlvzq,2026-05-24,fix: TS 6.0 build errors + Vercel SPA routing,N,N,Experimental,N,Y
+claude/promotion-platform,2026-06-08,feat(promotion): Phase 4+ — enterprise promotion; trade sp,N,N,Experimental,N,Y
+claude/provider-panel-cockpit,2026-06-03,feat(provider): executive Overview cockpit + panel consisten,N,N,Experimental,N,Y
+claude/provider-panel-ux,2026-06-03,feat(ui): Batch 4.5 Modules & Industry Packs UX,Y,Y,Legacy-merged,Y,Y
+claude/purchasing-foundation-architecture,2026-06-07,docs(purchasing): mark Purchasing Foundation architecture AP,N,N,Experimental,N,Y
+claude/retail-exec-dashboards,2026-06-04,Executive Retail Execution dashboards: MSL Compliance; Distr,Y,Y,Legacy-merged,Y,Y
+claude/retail-execution-core,2026-06-04,Retail Execution Core: dynamic MSL Matrix Engine + distribut,Y,Y,Legacy-merged,Y,Y
+claude/returns-reconciliation,2026-06-08,feat(returns): Phase 4+ — enterprise returns; credit notes,N,N,Experimental,N,Y
+claude/review-file-issues-OvtiD,2026-05-23,feat: period comparison; smart alerts; and Excel export,N,N,Documentation,N,Y
+claude/role-governance-backlog,2026-06-07,docs(platform): Role Template Governance & Company Role Over,N,N,Documentation,N,Y
+claude/role-governance-engine,2026-06-08,feat(role-governance): Phase 7 — dynamic role governance; ,N,N,Experimental,N,Y
+claude/role-template-versioning,2026-06-08,feat(role-templates): Phase 7 — mandatory role template ve,N,N,Experimental,N,Y
+claude/roshen-field-intelligence-prd-Oxkjx,2026-05-24,chore: clean slate — remove all app code for fresh rebuild,N,N,Experimental,N,Y
+claude/roshen-trade-spend-platform-ODQPl,2026-05-25,feat: Supabase data layer with localStorage fallback,Y,Y,Legacy-merged,Y,Y
+claude/route-accounting-ui,2026-06-08,feat(ui): Phase 7A — Route Accounting UI (van statement; d,N,N,Experimental,N,Y
+claude/route-exec-sprint,2026-06-04,Merge remote-tracking branch 'origin/main' into claude/route,Y,Y,Legacy-merged,Y,Y
+claude/route-optimization-territory,2026-06-08,feat(route-optimization): Phase 3 — route optimization; te,N,N,Experimental,N,Y
+claude/route-riding-module,2026-06-08,feat(route-riding): Phase 3 — Route Riding Excellence modu,N,N,Experimental,N,Y
+claude/route-territory-intel,2026-06-08,feat(route-intel): Phase 7D — route & territory intelligen,N,N,Experimental,N,Y
+claude/sales-foundation-architecture,2026-06-07,docs(sales): mark Sales Foundation architecture APPROVED & f,N,N,Experimental,N,Y
+claude/salesman-app-sprint,2026-06-04,feat(salesman): invoice print + customer statement print + C,Y,Y,Legacy-merged,Y,Y
+claude/search-os-architecture,2026-06-07,docs(search): Search OS Phase 1 screen tree (UX spec; review,N,N,Experimental,N,Y
+claude/search-os-phase1,2026-06-07,feat(search): Search OS Phase 1 — global categorized searc,N,N,Experimental,N,Y
+claude/search-release-note,2026-06-07,docs(release): Search OS release note (V1 Phase 1; post-merg,N,N,Documentation,N,Y
+claude/security-remediation,2026-06-03,security: remediation batch H1/H2/H4/M1/M2/M7,N,N,Experimental,N,Y
+claude/setup-auth-screens-0Kwqp,2026-06-13,ci: Deploy Edge Functions workflow (infrastructure only) (#3,N,N,Experimental,N,Y
+claude/step1-completion-checkpoint,2026-06-08,docs: Step 1 (Mobile Field Client) completion checkpoint,N,N,Documentation,N,Y
+claude/step2-access-expiry-sweep,2026-06-08,step2(hardening): temporary access expiry sweep (non-destruc,N,N,Experimental,N,Y
+claude/step2-audit-retention,2026-06-08,step2(hardening): audit log retention (non-destructive by de,N,N,Experimental,N,Y
+claude/step2-observability,2026-06-08,step2(hardening): structured logging + alerting,N,N,Experimental,N,Y
+claude/step2-security-review-checkpoint,2026-06-08,docs: Step 2 formal security review + pre-pilot readiness ch,N,N,Documentation,N,Y
+claude/step2-sync-retry,2026-06-08,step2(hardening): offline sync retry with backoff + dead-let,N,N,Experimental,N,Y
+claude/step2-temp-access-enforcement,2026-06-08,step2(hardening): temporary-access enforcement wiring (flag-,N,N,Experimental,N,Y
+claude/suggested-load,2026-06-08,feat(suggested-load): Phase 7E — suggested load & demand e,N,N,Experimental,N,Y
+claude/suggested-load-ui,2026-06-08,feat(ui): Phase 7E — Suggested Load UI (load sheets; deman,N,N,Experimental,N,Y
+claude/territory-intel-ui,2026-06-08,feat(ui): Phase 7D — Territory & Route Intelligence UI (he,N,N,Experimental,N,Y
+claude/trade-spend-foundation-architecture,2026-06-07,docs(trade-spend): mark Trade Spend Foundation architecture ,N,N,Experimental,N,Y
+claude/uiux-master-screen-plan,2026-06-07,docs(ux): VANTORA UI/UX Master Screen Plan (planning only),N,N,Documentation,N,Y
+claude/ux-excellence-review,2026-06-04,docs: UX Excellence & product-design review (findings; mocks,N,N,Documentation,N,Y
+claude/ux-form-grouping,2026-06-02,feat: UX-2 — shared FormSection + grouped customer form,Y,Y,Legacy-merged,Y,Y
+claude/ux-hardening-pilot,2026-06-03,Merge #92: Enterprise Operations (Phase 5),Y,Y,Legacy-merged,Y,Y
+claude/ux-harvest-sprint,2026-06-04,merge: reconcile main into UX stack — keep Next.js deletio,Y,Y,Legacy-merged,Y,Y
+claude/ux-import-manual-first,2026-06-02,feat: UX-4 — import manual-first (no auto-guess by default,Y,Y,Legacy-merged,Y,Y
+claude/ux-mobile,2026-06-02,feat: UX-3 — mobile bottom tab bar + responsive customer c,Y,Y,Legacy-merged,Y,Y
+claude/ux-page-templates,2026-06-02,feat: UX-5 — empty-state CTAs + page-template conventions ,Y,Y,Legacy-merged,Y,Y
+claude/ux-review-design,2026-06-02,feat: UX-1 — Settings navigation grouped into labeled subs,Y,Y,Legacy-merged,Y,Y
+claude/ux-sprint,2026-06-04,feat(ux): Attention Center (exceptions-first) + route-health,Y,Y,Legacy-merged,Y,Y
+claude/ux-u1-sprint,2026-06-04,feat(ux-u1): role-aware homes + Approval/Reports Centers + s,Y,Y,Legacy-merged,Y,Y
+claude/van-accounting,2026-06-08,feat(van-accounting): Phase 7A — route accounting & van op,N,N,Experimental,N,Y
+claude/van-ops-sprint,2026-06-04,feat(van-ops): stock visibility + collection receipt + retur,Y,Y,Legacy-merged,Y,Y
+claude/van-sales-design-brief,2026-06-08,docs(van-sales): explicit FMCG requirements coverage + deact,N,N,Documentation,N,Y
+claude/van-sales-e2e,2026-06-09,test(van-sales): UI 6 — end-to-end demo walkthrough (reque,N,N,Experimental,N,Y
+claude/van-sales-e2e-demo,2026-06-09,test(van-sales): expand e2e demo to assert warehouse visibil,N,N,Experimental,N,Y
+claude/van-sales-phase-a,2026-06-08,feat(van-sales): Phase A foundation — flag + salesman day ,N,N,Experimental,N,Y
+claude/van-sales-phase-a2,2026-06-08,feat(van-sales): Phase A PR2 — salesman "My Day" shell + i,N,N,Experimental,N,Y
+claude/van-sales-phase-b1,2026-06-09,feat(van-sales): Phase B PR1 — van load confirmation model,N,N,Experimental,N,Y
+claude/van-sales-phase-b2,2026-06-09,refactor(van-sales): atomic confirm-load RPC + trust-boundar,N,N,Experimental,N,Y
+claude/van-sales-phase-b3,2026-06-09,feat(van-sales): Phase B PR3 — configurable load-request a,N,N,Experimental,N,Y
+claude/van-sales-phase-b4,2026-06-09,feat(van-sales): enrich supervisor-adjustment audit (request,N,N,Experimental,N,Y
+claude/van-sales-phase-b5,2026-06-09,feat(van-sales): Phase B PR5 — supervisor-direct load post,N,N,Experimental,N,Y
+claude/van-sales-phase-b6,2026-06-09,feat(van-sales): Phase B PR6 — offline load confirmation (,N,N,Experimental,N,Y
+claude/van-sales-phase-b7,2026-06-09,feat(van-sales): Phase B PR7 — load reporting core (reques,N,N,Experimental,N,Y
+claude/van-sales-phase-b8,2026-06-09,feat(van-sales): Phase B PR8 — per-tenant enablement + pol,N,N,Experimental,N,Y
+claude/van-sales-photo-capture,2026-06-09,feat(van-sales): variance evidence photos via generalized of,N,N,Experimental,N,Y
+claude/van-sales-pilot-guide,2026-06-09,docs(van-sales): pilot-tenant enablement guide,N,N,Documentation,N,Y
+claude/van-sales-runbook-photos,2026-06-09,docs(van-sales): runbook — photo capture landed; all 8 gat,N,N,Experimental,N,Y
+claude/van-sales-ui-admin,2026-06-09,feat(van-sales): UI 5 — admin enablement + policy page,N,N,Experimental,N,Y
+claude/van-sales-ui-confirm,2026-06-09,feat(van-sales): UI 2 — salesman load confirmation screen ,N,N,Experimental,N,Y
+claude/van-sales-ui-reports,2026-06-09,feat(van-sales): UI 4 — load reports page,N,N,Documentation,N,Y
+claude/van-sales-ui-request,2026-06-09,feat(van-sales): UI 1 — salesman stock request screen,N,N,Experimental,N,Y
+claude/van-sales-ui-warehouse,2026-06-09,feat(van-sales): UI 3 — warehouse pending-confirmations da,N,N,Experimental,N,Y
+claude/vantora-implementation-master-plan,2026-06-07,docs: VANTORA Implementation Master Plan (planning only),N,N,Documentation,N,Y
+claude/vantora-navigation-map,2026-06-07,docs(ux): VANTORA navigation map & screen hierarchy + role j,N,N,Documentation,N,Y
+claude/vantora-printing-fix,2026-06-06,fix(offline-seed): bind owner as 'admin'; mark setup_done; p,N,N,Experimental,N,Y
+claude/vantora-printing-issue-SrMcV,2026-06-08,audit: feature activation matrix + expose orphaned distribut,N,N,Experimental,N,Y
+claude/vantora-salesman-mobile-a54qbt,2026-06-16,fix(staging): add Netlify SPA _redirects fallback,N,N,Experimental,N,Y
+claude/workflow-platform-v1,2026-06-07,feat(workflow): Workflow Platform V1+V1.1 — clean main-bas,N,N,Experimental,N,Y
+claude/workflow-release-note,2026-06-07,docs(release): Workflow Platform release note (post-merge; v,N,N,Documentation,N,Y
+claude/workspace-engine-spec,2026-06-03,docs(workspace+align): close F2/F5; persona/provider-nav sec,N,N,Experimental,N,Y
+claude/zatca-readiness-assessment,2026-06-08,docs(assessments): ZATCA e-invoicing readiness review & gap ,N,N,Documentation,N,Y
+feat/auto-updater,2026-06-06,fix(offline): resolve the bundled node next to the executabl,N,N,Experimental,N,Y
+fix/camera-live-only,2026-05-16,fix(camera): enforce live-capture only with EXIF freshness c,N,N,Experimental,N,Y
+main,2026-06-09,docs(entitlements): E9 — pilot enablement guide (#309),Y,N,Active-trunk,N,N
+release/pilot,2026-06-02,docs: operational readiness — executed integration build; ,N,N,Experimental,N,Y
+staging-frontend,2026-06-11,deploy: governance member visibility fix into staging previe,N,N,Experimental,N,Y
+staging-provision,2026-06-10,fix(staging): accept secret as raw password or full URL,N,Y,Experimental,N,Y

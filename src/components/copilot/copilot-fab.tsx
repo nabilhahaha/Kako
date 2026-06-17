@@ -42,7 +42,7 @@ export function CopilotFab() {
         aria-label={t('copilot.openAria')}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-20 end-4 z-40 inline-flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 lg:bottom-6 lg:end-6"
+        className="fixed end-4 z-30 inline-flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 lg:end-6"
       >
         {open ? <X className="h-5 w-5" /> : <HelpCircle className="h-5 w-5" />}
         <span className="text-sm font-medium">{t('copilot.open')}</span>
@@ -61,7 +61,7 @@ export function CopilotFab() {
             role="dialog"
             aria-modal="true"
             aria-label={t('copilot.title')}
-            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col rounded-t-2xl border bg-card shadow-2xl sm:inset-x-auto sm:bottom-6 sm:end-6 sm:max-h-[80vh] sm:w-[26rem] sm:rounded-2xl"
+            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col rounded-t-2xl border bg-card pb-safe shadow-2xl sm:inset-x-auto sm:bottom-6 sm:end-6 sm:max-h-[80vh] sm:w-[26rem] sm:rounded-2xl sm:pb-0"
           >
             <div className="flex shrink-0 items-start justify-between gap-2 border-b p-4">
               <div>

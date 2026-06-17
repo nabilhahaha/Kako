@@ -54,6 +54,7 @@ export const BRANCH_ROLES: Record<BranchRole, BilingualLabel> = {
   warehouse_keeper:       { en: 'Warehouse Keeper',       ar: 'أمين المخزن' },
   staff:                  { en: 'Staff',                  ar: 'موظف' },
   viewer:                 { en: 'Viewer',                 ar: 'مشاهد فقط' },
+  auditor:                { en: 'Auditor',                ar: 'مدقق' },
 };
 
 export const BRANCH_ROLE_OPTIONS = Object.entries(BRANCH_ROLES).map(

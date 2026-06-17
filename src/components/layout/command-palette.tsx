@@ -29,6 +29,7 @@ export function CommandPalette({
   isPlatformStaff = false,
   businessType = null,
   recordsSearch = false,
+  enabledFlags = [],
 }: {
   permissions: Permission[];
   isSuperAdmin: boolean;
@@ -38,6 +39,7 @@ export function CommandPalette({
   isPlatformStaff?: boolean;
   businessType?: string | null;
   recordsSearch?: boolean;
+  enabledFlags?: string[];
 }) {
   const router = useRouter();
   const { t } = useI18n();
@@ -51,10 +53,10 @@ export function CommandPalette({
   // Navigation items the user can see (instant, local).
   const navItems = useMemo(
     () =>
-      visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules, platformPermissions, isPlatformStaff, businessType).flatMap((s) =>
+      visibleSections(permissions, isSuperAdmin, isPlatformOwner, modules, platformPermissions, isPlatformStaff, businessType, enabledFlags).flatMap((s) =>
         s.items.map((i) => ({ label: t(i.label), href: i.href, icon: i.icon, section: t(s.title) })),
       ),
-    [permissions, isSuperAdmin, isPlatformOwner, modules, platformPermissions, isPlatformStaff, businessType, t],
+    [permissions, isSuperAdmin, isPlatformOwner, modules, platformPermissions, isPlatformStaff, businessType, enabledFlags, t],
   );
 
   const filteredNav = useMemo(() => {

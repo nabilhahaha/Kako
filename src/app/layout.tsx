@@ -38,6 +38,9 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: '#0f2c52',
+  // Extend under the notch / home indicator so env(safe-area-inset-*) is live —
+  // the mobile bottom-nav, sticky action bars and bottom sheets pad against it.
+  viewportFit: 'cover',
 };
 
 export default async function RootLayout({

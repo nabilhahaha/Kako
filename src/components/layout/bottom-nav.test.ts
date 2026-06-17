@@ -113,6 +113,40 @@ describe('bottom-nav — module-aware Sell routing', () => {
     const r = resolveBottomNavTabs({ permissions: [], isSuperAdmin: true, modules: [], businessType: null });
     expect(sellTabs(r)).toHaveLength(1);
   });
+
+  it('Van Sales rep → Sell opens the Van-Sell workflow, not the generic invoice editor', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('sales.sell', 'field.sales'), isSuperAdmin: false,
+      modules: M('sales', 'van_sales', 'field_ops'), businessType: 'general',
+      vanSalesActive: true,
+    });
+    const sell = sellTabs(r);
+    expect(sell).toHaveLength(1);
+    expect(sell[0].href).toBe('/field/van-sales/sell');
+    // still exactly one Sell tab — the generic editor is collapsed away
+    expect(r.some((t) => t.href === '/sales/invoices')).toBe(false);
+  });
+
+  it('Van Sales INACTIVE → the Van-Sell tab is hidden, Sell falls back to generic Sales', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('sales.sell', 'field.sales'), isSuperAdmin: false,
+      modules: M('sales', 'van_sales', 'field_ops'), businessType: 'general',
+      vanSalesActive: false,
+    });
+    const sell = sellTabs(r);
+    expect(sell).toHaveLength(1);
+    expect(sell[0].href).toBe('/sales/invoices');
+    expect(r.some((t) => t.href === '/field/van-sales/sell')).toBe(false);
+  });
+
+  it('Van Sales active but rep lacks field.sales → no Van-Sell tab (perm-gated)', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('sales.sell'), isSuperAdmin: false,
+      modules: M('sales'), businessType: 'general', vanSalesActive: true,
+    });
+    expect(sellTabs(r)).toHaveLength(1);
+    expect(sellTabs(r)[0].href).toBe('/sales/invoices');
+  });
 });
 
 describe('bottom-nav — Customers & Inventory tabs are Fashion-aware', () => {
@@ -145,9 +179,61 @@ describe('bottom-nav — Customers & Inventory tabs are Fashion-aware', () => {
       expect(hrefs(r, 'nav.bottom.inventory').length).toBeLessThanOrEqual(1);
     }
   });
+  it('Van Sales rep → Inventory tab opens VAN stock (/field/stock), not the generic warehouse view', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('field.sales', 'inventory.view'), isSuperAdmin: false,
+      modules: M('van_sales', 'inventory', 'field_ops'), businessType: 'general', vanSalesActive: true,
+    });
+    expect(hrefs(r, 'nav.bottom.inventory')).toEqual(['/field/stock']);
+    expect(r.some((t) => t.href === '/inventory')).toBe(false);
+  });
+  it('Van Sales INACTIVE → Inventory falls back to the generic /inventory', () => {
+    const r = resolveBottomNavTabs({
+      permissions: P('field.sales', 'inventory.view'), isSuperAdmin: false,
+      modules: M('van_sales', 'inventory', 'field_ops'), businessType: 'general', vanSalesActive: false,
+    });
+    expect(hrefs(r, 'nav.bottom.inventory')).toEqual(['/inventory']);
+  });
   it('generic inventory tab no longer leaks to a tenant lacking the inventory module', () => {
     // salon-style tenant: has inventory.view perm but no inventory module → tab hidden (no upgrade screen)
     const r = resolveBottomNavTabs({ permissions: P('inventory.view', 'customers.manage'), isSuperAdmin: false, modules: M('salon', 'sales'), businessType: 'salon' });
     expect(r.some((t) => t.href === '/inventory')).toBe(false);
+  });
+});
+
+// ── Unified salesman workspace: one operational entry (Today · Customer · Van Stock) ──
+describe('bottom-nav — unified salesman workspace', () => {
+  const P = (...p: Permission[]) => p;
+  const M = (...m: Module[]) => m;
+  // the cleaned FMCG salesman: field.sales, no settings.branches, no sales.sell
+  const SALESMAN = {
+    permissions: P('field.sales', 'inventory.view'), isSuperAdmin: false,
+    modules: M('van_sales', 'inventory', 'field_ops'), businessType: 'general', vanSalesActive: true,
+  };
+
+  it('unified ON → Today · Van Stock only (no Sell, no Home, no Customer tab)', () => {
+    const r = resolveBottomNavTabs({ ...SALESMAN, unifiedWorkspace: true });
+    const hrefs = r.map((t) => t.href);
+    expect(hrefs).toContain('/today');                          // the one home
+    expect(hrefs).toContain('/field/stock');                   // Van Stock
+    expect(hrefs).not.toContain('/field/van-sales/sell');      // no standalone Sell
+    expect(hrefs).not.toContain('/dashboard');                 // no duplicate Home
+    expect(hrefs).not.toContain('/field/van-sales/customers'); // picker lives inside Today
+  });
+
+  it('unified OFF → unchanged (Home + Sell present)', () => {
+    const r = resolveBottomNavTabs({ ...SALESMAN, unifiedWorkspace: false });
+    const hrefs = r.map((t) => t.href);
+    expect(hrefs).toContain('/dashboard');
+    expect(hrefs).toContain('/field/van-sales/sell');
+  });
+
+  it('requests flag ON → Requests tab present; OFF → absent', () => {
+    const on = resolveBottomNavTabs({ ...SALESMAN, unifiedWorkspace: true, requestsEnabled: true }).map((t) => t.href);
+    expect(on).toContain('/field/van-sales/requests'); // Today · Van Stock · Requests
+    expect(on).toContain('/today');
+    expect(on).toContain('/field/stock');
+    const off = resolveBottomNavTabs({ ...SALESMAN, unifiedWorkspace: true }).map((t) => t.href);
+    expect(off).not.toContain('/field/van-sales/requests');
   });
 });

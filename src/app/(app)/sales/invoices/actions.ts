@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
+import { logAudit } from '@/lib/erp/audit';
 import { computeLine, computeTotals, type LineInput } from '@/lib/erp/sales-calc';
 import { logPriceOverrides } from '@/lib/erp/pricing-server';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
@@ -28,6 +30,9 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
   const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
   const { t } = await getT();
+  // MJ-1: enforce the specific permission (RPCs guard branch access, not the
+  // operation) — only sales roles may create invoices.
+  if (!hasPermission(ctx!, 'sales.sell')) return { ok: false, error: t('settings.unauthorized') };
 
   if (!input.branch_id) return { ok: false, error: t('sales.branchRequired') };
   if (!input.customer_id) return { ok: false, error: t('sales.customerRequired') };
@@ -130,6 +135,10 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
       unit_price: l.unit_price,
       discount_pct: l.discount_pct,
       line_total: c.net,
+      // U2: entered-UoM snapshot (null = base / legacy). quantity stays base.
+      entered_uom: l.entered_uom ?? null,
+      entered_qty: l.entered_qty ?? null,
+      uom_factor: l.uom_factor ?? null,
     };
   });
   const { error: linesErr } = await supabase.from('erp_invoice_lines').insert(lineRows);
@@ -154,9 +163,11 @@ export async function createInvoice(input: InvoiceInput): Promise<ActionResult<{
  * journal entry. Also increases the customer's outstanding balance.
  */
 export async function issueInvoice(id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
-  if (authErr) return { ok: false, error: authErr };
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
   const { t } = await getT();
+  // MJ-1: issuing finalizes (stock-out + AR posting) — require a sales permission.
+  if (!hasPermission(ctx, 'sales.sell')) return { ok: false, error: t('settings.unauthorized') };
 
   const supabase = await createClient();
   // FP-CS: don't issue (stock-out + AR) for a suspended/blocked customer, even
@@ -173,6 +184,11 @@ export async function issueInvoice(id: string): Promise<ActionResult> {
   const { error } = await supabase.rpc('erp_issue_invoice', { p_invoice_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
+  // Critical-action audit: invoice.finalize (irreversible — stock-out + AR posting).
+  await logAudit(supabase, {
+    action: 'update', entity: 'invoice', entityId: id,
+    details: { event: 'invoice_finalized', customer_id: customerId ?? null }, companyId: ctx.companyId,
+  });
   await emitDomainEvent({ eventType: EVENT.INVOICE_ISSUED, entity: 'invoice', recordId: id });
   revalidatePath('/sales/invoices');
   revalidatePath('/customers');
@@ -275,10 +291,12 @@ export async function recordPayment(input: {
   payment_date?: string;
   idempotency_key?: string;
 }): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
+  const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
 
   const { t } = await getT();
+  // MJ-1: recording a payment posts cash + reduces AR — require sales.collect.
+  if (!hasPermission(ctx!, 'sales.collect')) return { ok: false, error: t('settings.unauthorized') };
   if (!(input.amount > 0)) return { ok: false, error: t('sales.invoiceErrAmountPositive') };
 
   // Atomic + idempotent: a retry with the same key is a no-op (no double payment).

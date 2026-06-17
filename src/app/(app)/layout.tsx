@@ -7,12 +7,17 @@ import { BottomNav } from '@/components/layout/bottom-nav';
 import { TopBar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/layout/command-palette';
 import { SEARCH_ENABLED } from '@/lib/search/flags';
+import { enabledNavFlags } from '@/lib/erp/nav-flags';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { PromptProvider } from '@/components/prompt-dialog';
 import { CopilotFab } from '@/components/copilot/copilot-fab';
 import { OfflineStatusBar } from '@/components/layout/offline-status-bar';
 import { MOBILE_ENABLED } from '@/lib/offline-sync';
 import { companyLocked, subscriptionState, daysLeft } from '@/lib/erp/subscription';
+import { isVanSalesActive } from '@/lib/van-sales/settings-server';
+import { hasPermission } from '@/lib/erp/permissions';
+import { unifiedSalesmanWorkspaceEnabled, salesmanRequestsEnabled } from '@/lib/van-sales/sell';
 import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
 import { getT } from '@/lib/i18n/server';
@@ -34,6 +39,24 @@ export default async function AppLayout({
   const pctx = await getPlatformContext();
   const isPlatformStaff = Boolean(pctx?.isStaff);
   const platformPermissions: string[] = pctx?.permissions ?? [];
+  // Feature-flag tokens that are ON (server-side) → drives flag-aware nav so
+  // flag-gated pages (Alerts, Change Requests, Van Sales settings) appear when
+  // enabled and disappear cleanly when off — no URL-only orphans.
+  // Merge env-based flags with the tenant's enabled FEATURE flags (erp_feature_flags)
+  // so feature-gated nav items (pharmacy batch/expiry/…) appear only when the
+  // company has the feature ON. Disabled features leave no nav orphan.
+  const tenantFeatures = await getFeatureFlags(await createClient(), ctx.companyId);
+  // Unified salesman workspace (flag ON + a van salesman, not an admin/manager):
+  // drives the Customer-first bottom nav (no duplicate Home / Sell). Computed once
+  // and reused by the BottomNav below.
+  const vanSalesActive = await isVanSalesActive(await createClient(), ctx);
+  const isVanSalesman = hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'settings.branches') && !ctx.isSuperAdmin;
+  const unifiedWorkspace = unifiedSalesmanWorkspaceEnabled(tenantFeatures) && vanSalesActive && isVanSalesman;
+  const requestsEnabled = salesmanRequestsEnabled(tenantFeatures) && vanSalesActive && isVanSalesman;
+  const navFlags = [
+    ...enabledNavFlags(),
+    ...Object.keys(tenantFeatures).filter((k) => tenantFeatures[k]),
+  ];
 
   // A signed-in user who isn't platform staff and has no company yet is sent to
   // self-service onboarding to create their company (free trial).
@@ -149,6 +172,7 @@ export default async function AppLayout({
           isPlatformStaff={isPlatformStaff}
           businessType={ctx.company?.business_type ?? null}
           recordsSearch={SEARCH_ENABLED()}
+          enabledFlags={navFlags}
         />
         <Sidebar
           permissions={ctx.permissions}
@@ -158,6 +182,8 @@ export default async function AppLayout({
           platformPermissions={platformPermissions}
           isPlatformStaff={isPlatformStaff}
           businessType={ctx.company?.business_type ?? null}
+          enabledFlags={navFlags}
+          roles={ctx.memberships.map((m) => m.role)}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
@@ -185,10 +211,11 @@ export default async function AppLayout({
               </a>
             </div>
           )}
-          {/* pb on mobile keeps content clear of the fixed bottom tab bar (UX-3) */}
-          <main className="flex-1 p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
+          {/* pb on mobile keeps content clear of the fixed bottom tab bar + the
+              device home-indicator inset (UX-3 / safe-area). */}
+          <main className="flex-1 p-4 pb-nav-safe lg:p-6 lg:pb-6">{children}</main>
         </div>
-        <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} modules={ctx.modules} businessType={ctx.company?.business_type ?? null} />
+        <BottomNav permissions={ctx.permissions} isSuperAdmin={ctx.isSuperAdmin} modules={ctx.modules} businessType={ctx.company?.business_type ?? null} vanSalesActive={vanSalesActive} unifiedWorkspace={unifiedWorkspace} requestsEnabled={requestsEnabled} />
         {/* Global Help Copilot — always available, outside page content. */}
         <CopilotFab />
       </div>

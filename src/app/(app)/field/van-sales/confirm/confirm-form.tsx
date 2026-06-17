@@ -13,6 +13,7 @@ import { missingVarianceReasons, VARIANCE_REASONS, type ConfirmationLineInput, t
 import { enqueueLoadConfirmation } from '@/lib/van-sales/offline-client';
 import { captureEntityMedia, syncMedia } from '@/lib/offline-sync/media';
 import { confirmLoad } from '../actions';
+import { useCriticalAction } from '@/lib/critical-action';
 
 export interface ConfirmLineView { productId: string; productName: string; loadedQty: number }
 
@@ -21,6 +22,7 @@ interface Row extends ConfirmLineView { accepted: number; reason: '' | VarianceR
 export function ConfirmForm({ manifestId, lines }: { manifestId: string; lines: ConfirmLineView[] }) {
   const { t } = useI18n();
   const router = useRouter();
+  const runCritical = useCriticalAction();
   const [rows, setRows] = useState<Row[]>(() => lines.map((l) => ({ ...l, accepted: l.loadedQty, reason: '' })));
   const [evidence, setEvidence] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -33,34 +35,46 @@ export function ConfirmForm({ manifestId, lines }: { manifestId: string; lines: 
   const buildLines = (): ConfirmationLineInput[] =>
     rows.map((r) => ({ productId: r.productId, loadedQty: r.loadedQty, acceptedQty: r.accepted, reason: r.reason || undefined }));
 
+  // Van load confirmation — governed by the Critical Action standard (confirm +
+  // server audit). silentSuccess keeps the rich, state-specific toasts below
+  // (offline-queued / sent-for-review / confirmed) and the offline path.
   async function confirm() {
     const cl = buildLines();
     if (missingVarianceReasons(cl).length) { toast.error(t('vanSales.confirm.needReason')); return; }
-    setBusy(true);
-    try {
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        await enqueueLoadConfirmation({ manifestId, lines: cl });
-        if (evidence.length) toast.info(t('vanSales.confirm.evidenceOnlineOnly'));
-        toast.success(t('vanSales.confirm.queuedOffline'));
-        router.push('/field/van-sales');
-        return;
-      }
-      const res = await confirmLoad({ manifestId, lines: cl });
-      if (!res.ok) { toast.error(res.problems?.length ? res.problems.join(' · ') : res.error ?? t('vanSales.confirm.error')); return; }
-      // Variance evidence → attach to the confirmation via the shared field-media
-      // pipeline (capture → offline store → /api/internal/offline-media → erp_attachments).
-      if (evidence.length && res.id) {
-        for (const f of evidence) await captureEntityMedia('van_load_confirmation', res.id, f);
-        await syncMedia();
-        toast.success(t('vanSales.confirm.photosAttached'));
-      }
-      toast.success(res.requiresReview ? t('vanSales.confirm.sentForReview') : t('vanSales.confirm.confirmed'));
-      router.push('/field/van-sales');
-    } catch {
-      toast.error(t('vanSales.confirm.error'));
-    } finally {
-      setBusy(false);
-    }
+    await runCritical({
+      catalogKey: 'van.loadConfirm',
+      action: t('critical.actions.vanLoadConfirm'),
+      silentSuccess: true,
+      execute: async () => {
+        setBusy(true);
+        try {
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            await enqueueLoadConfirmation({ manifestId, lines: cl });
+            if (evidence.length) toast.info(t('vanSales.confirm.evidenceOnlineOnly'));
+            toast.success(t('vanSales.confirm.queuedOffline'));
+            router.push('/field/van-sales');
+            return { ok: true };
+          }
+          const res = await confirmLoad({ manifestId, lines: cl });
+          if (!res.ok) {
+            return { ok: false, error: res.problems?.length ? res.problems.join(' · ') : res.error ?? t('vanSales.confirm.error') };
+          }
+          // Variance evidence → attach via the shared field-media pipeline.
+          if (evidence.length && res.id) {
+            for (const f of evidence) await captureEntityMedia('van_load_confirmation', res.id, f);
+            await syncMedia();
+            toast.success(t('vanSales.confirm.photosAttached'));
+          }
+          toast.success(res.requiresReview ? t('vanSales.confirm.sentForReview') : t('vanSales.confirm.confirmed'));
+          router.push('/field/van-sales');
+          return { ok: true };
+        } catch {
+          return { ok: false, error: t('vanSales.confirm.error') };
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
   }
 
   return (

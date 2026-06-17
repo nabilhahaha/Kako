@@ -21,7 +21,7 @@ export default async function SetupPage() {
 
   const locale = await getLocale();
   const bt = ctx.company.business_type as BusinessType | null;
-  const businessLabel = bt ? BUSINESS_TYPE_LABELS[bt][locale] : '';
+  const businessLabel = bt ? (BUSINESS_TYPE_LABELS[bt]?.[locale] ?? bt) : '';
 
   return (
     <SetupWizard

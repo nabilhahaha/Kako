@@ -19,6 +19,7 @@ import { type TFunc } from '@/lib/i18n';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 import { formatDate, cn } from '@/lib/utils';
 import { decideTask } from './actions';
+import { useCriticalAction } from '@/lib/critical-action';
 
 export interface TaskRow {
   id: string;
@@ -72,6 +73,7 @@ export function ApprovalsManager({
   entityOptions: string[];
 }) {
   const { t, locale } = useI18n();
+  const runCritical = useCriticalAction();
   const router = useRouter();
   const pathname = usePathname();
   const [navPending, startNav] = useTransition();
@@ -119,27 +121,40 @@ export function ApprovalsManager({
     setSelected(next);
   }
 
+  // Single-task decision — governed by the Critical Action standard (confirm +
+  // engine audit). The reject reason is captured inline before the confirm;
+  // silentSuccess preserves the queue's own approved/rejected toasts. The bulk
+  // path keeps its native UX (no per-item modal).
   async function decide(id: string, decision: 'approve' | 'reject') {
     if (decision === 'reject' && !(reasons[id] && reasons[id].trim())) {
       setShowReason((s) => ({ ...s, [id]: true }));
       return toast.error(t('workflow.rejectReasonRequired'));
     }
-    setBusy(id);
-    try {
-      const res = await decideTask(id, decision, reasons[id]);
-      if (!res.ok)
-        return toast.error(
-          res.error === 'rejection_reason_required'
-            ? t('workflow.rejectReasonRequired')
-            : res.error ?? t('workflow.toast.error'),
-        );
-      toast.success(decision === 'approve' ? t('workflow.toast.approved') : t('workflow.toast.rejected'));
-      setSelected((s) => ({ ...s, [id]: false }));
-    } catch {
-      toast.error(t('workflow.toast.error'));
-    } finally {
-      setBusy(null);
-    }
+    const task = tasks.find((x) => x.id === id);
+    await runCritical({
+      catalogKey: 'supervisor.approve',
+      action: t('critical.actions.supervisorApprove'),
+      record: task?.recordLabel ?? id,
+      requireReason: false,
+      silentSuccess: true,
+      execute: async () => {
+        setBusy(id);
+        try {
+          const res = await decideTask(id, decision, reasons[id]);
+          if (!res.ok) {
+            return { ok: false, error: res.error === 'rejection_reason_required'
+              ? t('workflow.rejectReasonRequired') : res.error ?? t('workflow.toast.error') };
+          }
+          toast.success(decision === 'approve' ? t('workflow.toast.approved') : t('workflow.toast.rejected'));
+          setSelected((s) => ({ ...s, [id]: false }));
+          return { ok: true };
+        } catch {
+          return { ok: false, error: t('workflow.toast.error') };
+        } finally {
+          setBusy(null);
+        }
+      },
+    });
   }
 
   /** Bulk approve — trivially composable: approve needs no reason, so we just

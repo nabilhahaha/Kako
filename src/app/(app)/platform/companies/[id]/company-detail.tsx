@@ -220,7 +220,7 @@ export function CompanyDetail({
   }
 
   const resetLabel = company.business_type
-    ? t('platform.company.modules.resetButton', { type: BUSINESS_TYPE_LABELS[company.business_type][locale] })
+    ? t('platform.company.modules.resetButton', { type: BUSINESS_TYPE_LABELS[company.business_type]?.[locale] ?? company.business_type })
     : t('platform.company.modules.resetGeneric');
 
   function toggleIntegration(integrationId: string, on: boolean) {
@@ -368,7 +368,7 @@ export function CompanyDetail({
               <Badge variant={badgeVariant}>{stateLabel}</Badge>
               {company.plan_key && <Badge variant="secondary" dir="ltr">{company.plan_key}</Badge>}
               {company.business_type && (
-                <span className="text-sm text-muted-foreground">{BUSINESS_TYPE_LABELS[company.business_type][locale]}</span>
+                <span className="text-sm text-muted-foreground">{BUSINESS_TYPE_LABELS[company.business_type]?.[locale] ?? company.business_type}</span>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

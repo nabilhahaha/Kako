@@ -4,6 +4,11 @@ export interface LineInput {
   unit_price: number;
   discount_pct: number;
   tax_rate: number;
+  /** Multi-UoM capture (U2): the unit/qty the user entered; quantity stays BASE.
+   *  Null/absent = base unit (legacy). Math ignores these — they are persisted only. */
+  entered_uom?: string | null;
+  entered_qty?: number | null;
+  uom_factor?: number | null;
 }
 
 export interface ComputedLine extends LineInput {

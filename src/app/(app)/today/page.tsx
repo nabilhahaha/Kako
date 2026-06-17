@@ -1,9 +1,14 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Play, Receipt, Users, ListChecks, MapPin, Boxes, AlertTriangle } from 'lucide-react';
+import { Play, Receipt, Users, ListChecks, MapPin, Boxes, AlertTriangle, Truck } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
 import { hasPermission } from '@/lib/erp/permissions';
+import { createClient } from '@/lib/supabase/server';
+import { isVanSalesActive } from '@/lib/van-sales/settings-server';
+import { getFeatureFlags } from '@/lib/erp/feature-flags';
+import { unifiedSalesmanWorkspaceEnabled } from '@/lib/van-sales/sell';
+import { SalesmanWorkspace } from './salesman-workspace';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard, type StatTone } from '@/components/shared/stat-card';
 import { AttentionList, QuickNav, type QuickLink } from '@/components/home/home-widgets';
@@ -24,12 +29,33 @@ export default async function TodayHomePage() {
   if (!isField) redirect('/dashboard');
 
   const { t, locale } = await getT();
+
+  // Resolve the path-deciding inputs FIRST (Van Sales active + feature flags), in
+  // one parallel wave, so we can branch before doing any page-specific fetching.
+  const supabase = await createClient();
+  const [vanSalesOn, flags] = await Promise.all([
+    isVanSalesActive(supabase, ctx),
+    getFeatureFlags(supabase, ctx.companyId!),
+  ]);
+
+  // Unified salesman workspace (flag ON): Today IS the one operational home for a
+  // van salesman (field.sales, not an admin/manager). Return the streamed
+  // workspace early — it awaits ONLY the hero-critical data and defers the rest
+  // (picker, attention/copilot, KPIs) behind Suspense, so the next action paints
+  // first. Flags are passed down so the workspace doesn't re-load them.
+  const isVanSalesman = hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'settings.branches') && !ctx.isSuperAdmin;
+  if (unifiedSalesmanWorkspaceEnabled(flags) && vanSalesOn && isVanSalesman) {
+    return <SalesmanWorkspace ctx={ctx} flags={flags} />;
+  }
+
+  // Non-salesman field roles (managers/supervisors/admins) keep the existing
+  // Today home + shortcuts. Both signals + actions are needed here.
   const [sigRes, itemsRes] = await Promise.all([homeSignals(), nextBestActions(locale)]);
   const sig = sigRes.ok && sigRes.data ? sigRes.data : EMPTY_HOME_SIGNALS;
   const items = rankAttention(itemsRes.ok && itemsRes.data ? itemsRes.data : []);
   const summary = summarizeAttention(items);
-
   const quick: QuickLink[] = [
+    ...(vanSalesOn ? [{ label: t('vanSales.myDayTitle'), href: '/field/van-sales', icon: Truck }] : []),
     { label: t('nav.items.invoices'), href: '/sales/invoices', icon: Receipt },
     { label: t('nav.items.customers'), href: '/customers', icon: Users },
     { label: t('nav.items.attentionCenter'), href: '/attention', icon: ListChecks },

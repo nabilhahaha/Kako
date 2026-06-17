@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pager } from '@/components/pager';
 import type { Branch, ErpCustomer, Invoice, ProductCatalog } from '@/lib/erp/types';
 import { InvoicesManager } from './invoices-manager';
+import { productUnitsForPicker } from '@/lib/erp/uom-server';
 import { getT } from '@/lib/i18n/server';
 
 export interface InvoiceRow extends Invoice {
@@ -20,6 +22,9 @@ export default async function InvoicesPage({
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  // Back-office invoice editor is a SELLING screen — require sales.sell. Field
+  // reps (sales.collect only, no sales.sell) work through Van-Sales, not here.
+  if (!hasPermission(ctx, 'sales.sell') && !ctx.isSuperAdmin) redirect('/dashboard');
   const { t } = await getT();
 
   const sp = await searchParams;
@@ -46,6 +51,13 @@ export default async function InvoicesPage({
     ]);
   const etaEnabled = Boolean(etaSettings?.enabled);
 
+  // U3: per-product sellable units for the line-editor UoM picker (sell docs).
+  const { multiUom, productUnits } = await productUnitsForPicker(
+    supabase,
+    ctx.companyId ?? '',
+    ((products as ProductCatalog[]) ?? []).map((p) => p.id),
+  );
+
   return (
     <div>
       <PageHeader title={t('sales.invoicesTitle')} description={t('sales.invoicesDescription')} />
@@ -57,6 +69,8 @@ export default async function InvoicesPage({
         q={q}
         status={status}
         etaEnabled={etaEnabled}
+        productUnits={productUnits}
+        multiUom={multiUom}
       />
       <Pager
         page={page}

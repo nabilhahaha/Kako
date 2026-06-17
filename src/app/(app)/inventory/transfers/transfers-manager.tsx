@@ -15,6 +15,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, ProductCatalog, TransferStatus, Warehouse } from '@/lib/erp/types';
 import type { TransferRow } from './page';
 import { useConfirm } from '@/components/confirm-dialog';
+import { useCriticalAction } from '@/lib/critical-action';
 import { Plus, Loader2, X, ArrowLeftRight, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -50,6 +51,7 @@ export function TransfersManager({
   const router = useRouter();
   const { t, locale } = useI18n();
   const confirm = useConfirm();
+  const runCritical = useCriticalAction();
   const [creating, setCreating] = useState(false);
   const [fromWh, setFromWh] = useState('');
   const [toWh, setToWh] = useState('');
@@ -90,21 +92,18 @@ export function TransfersManager({
     });
   }
 
+  // Stock transfer approval — irreversible paired stock movements.
   async function onComplete(id: string) {
-    const ok = await confirm({
-      title: t('inventory.confirmCompleteTitle'),
-      message: t('inventory.confirmCompleteMessage'),
-      confirmText: t('inventory.confirmCompleteBtn'),
-    });
-    if (!ok) return;
-    startTransition(async () => {
-      const res = await completeTransfer(id);
-      if (!res.ok) {
-        toast.error(res.error ?? t('inventory.toastError'));
-        return;
-      }
-      toast.success(t('inventory.toastTransferCompleted'));
-      router.refresh();
+    const tr = transfers.find((x) => x.id === id);
+    await runCritical({
+      catalogKey: 'stock.transferApprove',
+      action: t('critical.actions.stockTransferApprove'),
+      record: tr?.transfer_number ?? id,
+      execute: async () => {
+        const res = await completeTransfer(id);
+        return { ok: res.ok, error: res.error };
+      },
+      onDone: () => router.refresh(),
     });
   }
 

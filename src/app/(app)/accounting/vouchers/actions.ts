@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
 
 export type VoucherKind = 'payment' | 'receipt';
@@ -31,6 +32,8 @@ export async function createVoucher(
   if (authErr) return { ok: false, error: authErr };
 
   const { t } = await getT();
+  // MJ-1: creating a voucher posts to the GL — require accounting.post.
+  if (!hasPermission(ctx!, 'accounting.post')) return { ok: false, error: t('settings.unauthorized') };
   if (!input.branch_id) return { ok: false, error: t('accounting.vouchers.errBranchRequired') };
   if (!input.account_id) return { ok: false, error: t('accounting.vouchers.errAccountRequired') };
   if (!input.party.trim())
@@ -68,8 +71,11 @@ export async function createVoucher(
  * Receipt voucher → Debit Cash, Credit chosen account (revenue).
  */
 export async function postVoucher(kind: VoucherKind, id: string): Promise<ActionResult> {
-  const { error: authErr } = await requireAuth();
+  const { ctx, error: authErr } = await requireAuth();
   if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  // MJ-1: posting a voucher writes the GL journal — require accounting.post.
+  if (!hasPermission(ctx!, 'accounting.post')) return { ok: false, error: t('settings.unauthorized') };
 
   const supabase = await createClient();
   const fn = kind === 'payment' ? 'erp_post_payment_voucher' : 'erp_post_receipt_voucher';

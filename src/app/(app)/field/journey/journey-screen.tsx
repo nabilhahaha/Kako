@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import {
   type JourneyStopRow,
   type TodayJourneyData,
 } from '../actions';
+import { withdrawDayClose } from '@/lib/van-sales/day-close-server';
 import {
   MapPin,
   Navigation,
@@ -32,6 +34,7 @@ import {
   CloudOff,
   Clock,
   Camera,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useOnlineStatus } from '@/lib/offline-sync/use-network';
@@ -51,6 +54,8 @@ interface CheckInResult {
 
 interface CloseResult {
   close_status?: string;
+  request_id?: string;
+  day_close_status?: string;
   planned_count?: number;
   visited_count?: number;
   skipped_count?: number;
@@ -67,6 +72,8 @@ export function JourneyScreen({
   canOverrideGps,
   offlineEnabled = false,
   canAttachMedia = false,
+  visitDriven = false,
+  autoEndDay = false,
 }: {
   data: TodayJourneyData;
   canOverrideGps: boolean;
@@ -76,8 +83,13 @@ export function JourneyScreen({
   /** field.attach_media: show the per-stop photo capture (uploads attach to the
    *  synced visit; queued offline + retried). */
   canAttachMedia?: boolean;
+  /** Visit-driven route (Phase 1): the stop opens the customer visit context. */
+  visitDriven?: boolean;
+  /** Deep link (?endday=1): open the End Day / close-day workflow directly. */
+  autoEndDay?: boolean;
 }) {
   const { t, locale } = useI18n();
+  const router = useRouter();
   const online = useOnlineStatus();
   const mediaEnabled = offlineEnabled && canAttachMedia;
   const [mediaPending, setMediaPending] = useState(0);
@@ -99,12 +111,30 @@ export function JourneyScreen({
   // Per-stop pending override: holds the check-in result that requires a reason.
   const [blockedStop, setBlockedStop] = useState<{ stop: JourneyStopRow; result: CheckInResult } | null>(null);
   const [reason, setReason] = useState('');
+  // Route list view: split the stops into Remaining vs Visited (no mixed list).
+  const [routeTab, setRouteTab] = useState<'remaining' | 'visited'>('remaining');
 
   // End-day modal
   const [closeOpen, setCloseOpen] = useState(false);
   const [bulkReason, setBulkReason] = useState('');
   const [closing, setClosing] = useState(false);
   const [closeResult, setCloseResult] = useState<CloseResult | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
+
+  async function doWithdraw(requestId: string) {
+    setWithdrawing(true);
+    try {
+      const res = await withdrawDayClose(requestId);
+      if (!res.ok) { toast.error(res.error || t('fmcg.error')); return; }
+      toast.success(t('vanSales.dayClose.withdrawnToast'));
+      setCloseResult(null);
+      setCloseOpen(false);
+      router.refresh();
+    } finally { setWithdrawing(false); }
+  }
+
+  // Deep link from the workspace "End Day & Settle" — open the close-day workflow.
+  useEffect(() => { if (autoEndDay) setCloseOpen(true); }, [autoEndDay]);
 
   // ── Geolocation (best-effort; falls back to manual order) ──
   useEffect(() => {
@@ -211,6 +241,13 @@ export function JourneyScreen({
   const visitedCount = ordered.filter((s) => visited.has(s.customer_id)).length;
   const coverage = total > 0 ? Math.round((visitedCount / total) * 100) : 0;
 
+  // Remaining vs Visited splits (completed = a recorded visit today). The list
+  // shows ONE tab at a time so the rep never scrolls a mixed list; after Complete
+  // Visit the customer re-loads into `visited` and moves here automatically.
+  const remainingStops = useMemo(() => ordered.filter((s) => !visited.has(s.customer_id)), [ordered, visited]);
+  const visitedStops = useMemo(() => ordered.filter((s) => visited.has(s.customer_id)), [ordered, visited]);
+  const shown = routeTab === 'visited' ? visitedStops : remainingStops;
+
   async function getDeviceLocation(): Promise<LatLng | null> {
     if (origin) return origin;
     if (typeof navigator === 'undefined' || !navigator.geolocation) return null;
@@ -306,6 +343,20 @@ export function JourneyScreen({
     }
   }
 
+  // Visit-driven route: check-in (if not yet) then open the customer visit
+  // context (Statement hub). Online-first — the statement needs a connection; when
+  // offline we still queue the check-in but stay on the route.
+  async function onOpenVisit(stop: JourneyStopRow, idx: number) {
+    if (!visited.has(stop.customer_id)) {
+      await doCheckIn(stop);
+      if (!online) return; // queued offline — cannot load the visit context now
+    }
+    const next = ordered[idx + 1];
+    const params = new URLSearchParams({ from: 'route', seq: String(idx + 1), total: String(total) });
+    if (next) { params.set('next', next.customer_id); params.set('nextName', name(next)); }
+    router.push(`/field/van-sales/statement/${stop.customer_id}?${params.toString()}`);
+  }
+
   async function submitBlocked(force: boolean) {
     if (!blockedStop) return;
     if (!reason.trim()) {
@@ -349,7 +400,7 @@ export function JourneyScreen({
   };
 
   return (
-    <div className="mx-auto max-w-2xl pb-28">
+    <div className="mx-auto max-w-2xl pb-36 lg:pb-28">
       {mediaEnabled && (
         <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhotoChosen} />
       )}
@@ -409,14 +460,34 @@ export function JourneyScreen({
         </p>
       )}
 
+      {/* Remaining / Visited tabs — split the route, no mixed list. */}
+      {ordered.length > 0 && (
+        <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm font-medium">
+          <button type="button" onClick={() => setRouteTab('remaining')}
+            className={`rounded-md py-1.5 transition-colors ${routeTab === 'remaining' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+            {t('fmcg.tabRemaining')} ({remainingStops.length})
+          </button>
+          <button type="button" onClick={() => setRouteTab('visited')}
+            className={`rounded-md py-1.5 transition-colors ${routeTab === 'visited' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+            {t('fmcg.tabVisited')} ({visitedStops.length})
+          </button>
+        </div>
+      )}
+
       {/* Stop list */}
       {ordered.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">{t('fmcg.noStops')}</CardContent>
         </Card>
+      ) : shown.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            {routeTab === 'visited' ? t('fmcg.noVisitedYet') : t('fmcg.allVisited')}
+          </CardContent>
+        </Card>
       ) : (
         <ul className="space-y-3">
-          {ordered.map((stop, idx) => {
+          {shown.map((stop, idx) => {
             const isVisited = visited.has(stop.customer_id);
             const isBlocked = blockedStop?.stop.customer_id === stop.customer_id;
             const pendingVerdict = pendingVisits[stop.customer_id];
@@ -483,32 +554,41 @@ export function JourneyScreen({
                       </div>
                     </div>
 
-                    {/* Primary action: Check in */}
-                    {!isBlocked ? (
+                    {/* Visit-driven route: ONE action — Start Visit runs the GPS
+                        check-in automatically then opens the customer context. */}
+                    {visitDriven && !isBlocked && (
+                      <Button
+                        className="mt-3 w-full"
+                        disabled={busyId === stop.customer_id || (isPending && pendingVerdict !== 'exception')}
+                        onClick={() => onOpenVisit(stop, idx)}
+                      >
+                        {busyId === stop.customer_id
+                          ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('fmcg.checkingIn')}</>
+                          : <>{isVisited ? <CheckCircle2 className="h-4 w-4" /> : <MapPin className="h-4 w-4" />} {t(isVisited ? 'vanSales.visit.openVisit' : 'vanSales.visit.startVisit')} <ChevronRight className="h-4 w-4 rtl:rotate-180" /></>}
+                      </Button>
+                    )}
+
+                    {/* Compliance-only Check in — only in the legacy (non-visit-driven)
+                        flow, where there's no visit context to open. */}
+                    {!visitDriven && !isBlocked && (
                       <Button
                         className="mt-3 w-full"
                         disabled={busyId === stop.customer_id || isVisited || (isPending && pendingVerdict !== 'exception')}
                         onClick={() => doCheckIn(stop)}
                       >
                         {busyId === stop.customer_id ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" /> {t('fmcg.checkingIn')}
-                          </>
+                          <><Loader2 className="h-4 w-4 animate-spin" /> {t('fmcg.checkingIn')}</>
                         ) : isVisited ? (
-                          <>
-                            <CheckCircle2 className="h-4 w-4" /> {t('fmcg.checkedIn')}
-                          </>
+                          <><CheckCircle2 className="h-4 w-4" /> {t('fmcg.checkedIn')}</>
                         ) : isPending && pendingVerdict !== 'exception' ? (
-                          <>
-                            <CloudOff className="h-4 w-4" /> {t('fmcg.queuedLabel')}
-                          </>
+                          <><CloudOff className="h-4 w-4" /> {t('fmcg.queuedLabel')}</>
                         ) : (
-                          <>
-                            <MapPin className="h-4 w-4" /> {t('fmcg.checkIn')}
-                          </>
+                          <><MapPin className="h-4 w-4" /> {t('fmcg.checkIn')}</>
                         )}
                       </Button>
-                    ) : (
+                    )}
+
+                    {isBlocked && (
                       <div className="mt-3 rounded-md border border-warning/40 bg-warning/5 p-3">
                         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-warning">
                           <ShieldAlert className="h-4 w-4" />
@@ -568,8 +648,10 @@ export function JourneyScreen({
         </ul>
       )}
 
-      {/* Sticky End Day primary action */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 p-3 backdrop-blur">
+      {/* Sticky End Day primary action — sits ABOVE the mobile bottom-nav
+          (h-14 + safe-area, z-40) so it's never hidden behind the tab bar; flush
+          bottom on desktop where the bottom-nav is hidden (lg). */}
+      <div className="fixed inset-x-0 bottom-nav-safe z-40 border-t bg-background/95 p-3 backdrop-blur lg:bottom-0">
         <div className="mx-auto max-w-2xl">
           <Button className="w-full" size="lg" variant="default" onClick={() => setCloseOpen(true)}>
             <Flag className="h-4 w-4" /> {t('fmcg.endDay')}
@@ -577,10 +659,11 @@ export function JourneyScreen({
         </div>
       </div>
 
-      {/* End Day summary modal */}
+      {/* End Day summary modal — above the bottom-nav (z-50) and padded clear of
+          the home indicator; scrollable on small screens. */}
       {closeOpen && (
-        <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-          <Card className="w-full max-w-md rounded-b-none sm:rounded-b-lg">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+          <Card className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-b-none pb-safe sm:rounded-b-lg sm:pb-0">
             <CardContent className="p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-lg font-bold">{t('fmcg.closeDayTitle')}</h2>
@@ -635,6 +718,13 @@ export function JourneyScreen({
                   >
                     {closeResult.close_status === 'closed' ? t('fmcg.closedOk') : t('fmcg.pendingApproval')}
                   </Badge>
+                  {/* Withdraw is allowed only while pending and no stage has acted; the
+                      RPC enforces both — a stale button surfaces a clear error. */}
+                  {closeResult.request_id && closeResult.close_status !== 'closed' && (
+                    <Button className="mb-2 w-full" variant="outline" disabled={withdrawing} onClick={() => doWithdraw(closeResult.request_id!)}>
+                      {withdrawing ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t('vanSales.dayClose.withdraw')}
+                    </Button>
+                  )}
                   <Button className="w-full" variant="outline" onClick={() => setCloseOpen(false)}>
                     {t('fmcg.cancel')}
                   </Button>

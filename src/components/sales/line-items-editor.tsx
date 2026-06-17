@@ -10,8 +10,14 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 
+/** Per-product sellable units (base + alternates) keyed by product id. */
+export type ProductUnitsMap = Record<string, { uom: string; factor: number }[]>;
+
 export interface EditorLine extends LineInput {
   key: string;
+  /** Working UoM selection (null/'' = base). quantity/unit_price are in THIS unit;
+   *  converted to base via editorLineToBase() at submit. */
+  uom?: string | null;
 }
 
 export function newLine(): EditorLine {
@@ -22,6 +28,35 @@ export function newLine(): EditorLine {
     unit_price: 0,
     discount_pct: 0,
     tax_rate: 0,
+    uom: null,
+  };
+}
+
+/** Base units per a product's chosen UoM (1 for base/unset). */
+export function unitFactor(units: ProductUnitsMap, productId: string, uom: string | null | undefined): number {
+  return (uom ? units[productId]?.find((u) => u.uom === uom)?.factor : 1) || 1;
+}
+
+/**
+ * Convert an editor line (entered in its chosen UoM) into the base LineInput the
+ * server stores: quantity → BASE, unit_price → per-base, plus the
+ * entered_uom/entered_qty/uom_factor snapshot (null when base). Use this in every
+ * consumer's submit map so the base-unit invariant holds and UoM is captured.
+ */
+export function editorLineToBase(l: EditorLine, units: ProductUnitsMap): LineInput {
+  const factor = unitFactor(units, l.product_id, l.uom);
+  if (!l.uom || factor === 1) {
+    return { product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price, discount_pct: l.discount_pct, tax_rate: l.tax_rate };
+  }
+  return {
+    product_id: l.product_id,
+    quantity: l.quantity * factor,
+    unit_price: l.unit_price / factor,
+    discount_pct: l.discount_pct,
+    tax_rate: l.tax_rate,
+    entered_uom: l.uom,
+    entered_qty: l.quantity,
+    uom_factor: factor,
   };
 }
 
@@ -31,6 +66,8 @@ export function LineItemsEditor({
   onChange,
   priceField = 'sell',
   priceResolver,
+  productUnits = {},
+  multiUom = false,
 }: {
   products: ProductCatalog[];
   lines: EditorLine[];
@@ -40,9 +77,16 @@ export function LineItemsEditor({
    *  a selected customer), the picked product's price is resolved through the
    *  engine; the user can still override it. Absent → base sell/cost price. */
   priceResolver?: (productId: string, qty: number) => Promise<number | null>;
+  /** U3: per-product sellable units for the per-line UoM selector. */
+  productUnits?: ProductUnitsMap;
+  multiUom?: boolean;
 }) {
   const { t, locale } = useI18n();
   const intl = INTL_LOCALE[locale];
+  // UoM is offered only for SELL documents (invoices / sales orders); purchasing
+  // (cost) stays base until U4. A product shows a selector only when it has >1 unit.
+  const uomEnabled = multiUom && priceField === 'sell';
+  const unitsFor = (pid: string) => productUnits[pid] ?? [];
   // Always-fresh handle on lines so an async resolver patch doesn't clobber the
   // synchronous product pick (stale-closure safety).
   const linesRef = useRef(lines);
@@ -50,6 +94,8 @@ export function LineItemsEditor({
   function update(key: string, patch: Partial<EditorLine>) {
     onChange(linesRef.current.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
+
+  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
   function onPickProduct(key: string, productId: string) {
     const p = products.find((x) => x.id === productId);
@@ -59,10 +105,27 @@ export function LineItemsEditor({
       product_id: productId,
       unit_price: basePrice,
       tax_rate: p ? Number(p.tax_rate) : 0,
+      uom: null, // reset to base on product change
     });
     if (productId && priceResolver) {
       priceResolver(productId, qty).then((resolved) => {
         if (resolved != null) update(key, { unit_price: resolved });
+      });
+    }
+  }
+
+  // Selecting a UoM re-prices the line per the chosen unit (base price × factor),
+  // re-resolving via the pricing engine on the BASE qty when a resolver is present.
+  function onChangeUom(key: string, uom: string) {
+    const l = linesRef.current.find((x) => x.key === key);
+    if (!l) return;
+    const p = products.find((x) => x.id === l.product_id);
+    const base = p ? Number(priceField === 'cost' ? p.cost_price : p.sell_price) : 0;
+    const factor = unitFactor(productUnits, l.product_id, uom || null);
+    update(key, { uom: uom || null, unit_price: round2(base * factor) });
+    if (l.product_id && priceResolver) {
+      priceResolver(l.product_id, (Number(l.quantity) || 1) * factor).then((resolved) => {
+        if (resolved != null) update(key, { unit_price: round2(resolved * factor) });
       });
     }
   }
@@ -89,7 +152,7 @@ export function LineItemsEditor({
               const c = computeLine(l);
               return (
                 <tr key={l.key} className="border-b last:border-0">
-                  <td className="p-2">
+                  <td className="p-2 align-top">
                     <select
                       value={l.product_id}
                       onChange={(e) => onPickProduct(l.key, e.target.value)}
@@ -102,6 +165,25 @@ export function LineItemsEditor({
                         </option>
                       ))}
                     </select>
+                    {/* UoM picker sits directly UNDER the product — always in the
+                        first (never-scrolled) column so it's obvious on mobile. */}
+                    {uomEnabled && unitsFor(l.product_id).length > 1 && (
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="shrink-0 text-xs text-muted-foreground">{t('shared.lineItems.unit')}:</span>
+                        <select
+                          value={l.uom ?? ''}
+                          onChange={(e) => onChangeUom(l.key, e.target.value)}
+                          aria-label={t('shared.lineItems.unit')}
+                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-medium"
+                        >
+                          {unitsFor(l.product_id).map((u) => (
+                            <option key={u.uom} value={u.factor === 1 ? '' : u.uom}>
+                              {u.factor === 1 ? u.uom : `${u.uom} (×${u.factor})`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </td>
                   <td className="p-2">
                     <Input

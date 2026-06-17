@@ -3,6 +3,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { VanReconciliationManager, type ReconHeader, type ReconLine } from './van-reconciliation-manager';
@@ -54,6 +55,7 @@ export default async function VanReconciliationPage() {
 
   return (
     <div>
+      <BackLink href="/today" label={t('common.back')} />
       <PageHeader title={t('fmcgw1.reconTitle')} description={t('fmcgw1.reconDescription')} />
       <VanReconciliationManager
         headers={heads}

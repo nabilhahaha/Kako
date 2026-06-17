@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { createStockRequest, approveStockRequest, rejectStockRequest, cancelStockRequest } from './actions';
+import { createStockRequest, approveStockRequest, rejectStockRequest, cancelStockRequest, setStockRequestLoadingDate } from './actions';
+import { adjustStockRequest } from '@/app/(app)/field/van-sales/request-actions';
+import { effectiveApprovedQty, lineDifference, isPartialApproval, type ApprovalLine } from '@/lib/van-sales/stock-request-approval';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +29,10 @@ export interface RequestRow {
   created_at: string;
   from_warehouse: { code: string; name: string; name_ar: string | null } | null;
   to_warehouse: { code: string; name: string; name_ar: string | null } | null;
-  lines: Array<{ product_id: string; quantity: number }>;
+  lines: Array<{ product_id: string; quantity: number; approved_qty: number | null }>;
+  requested_date: string | null;
+  approved_date: string | null;
+  date_change_note: string | null;
 }
 
 const STATUS_VARIANT: Record<ReqStatus, 'secondary' | 'success' | 'destructive' | 'warning'> = {
@@ -57,6 +62,7 @@ export function RequestsManager({
   branches,
   products,
   canApprove,
+  canAdjust,
   canRequest,
 }: {
   requests: RequestRow[];
@@ -65,6 +71,7 @@ export function RequestsManager({
   products: ProductCatalog[];
   currentUserId: string;
   canApprove: boolean;
+  canAdjust: boolean;
   canRequest: boolean;
 }) {
   const router = useRouter();
@@ -79,6 +86,52 @@ export function RequestsManager({
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<Line[]>([newLine()]);
   const [pending, startTransition] = useTransition();
+  const [dateEdit, setDateEdit] = useState<Record<string, { date: string; note: string }>>({});
+  // Approver per-line adjustment: requestId → productId → approved qty.
+  const [approvedEdit, setApprovedEdit] = useState<Record<string, Record<string, number>>>({});
+  const [addSku, setAddSku] = useState<Record<string, string>>({});
+
+  /** Approved qty for a line (edit → stored approved_qty → requested). */
+  const approvedOf = (r: RequestRow, productId: string, requested: number, storedApproved: number | null) => {
+    const e = approvedEdit[r.id]?.[productId];
+    return e != null ? e : effectiveApprovedQty(storedApproved, requested);
+  };
+  const setApproved = (rId: string, productId: string, v: number) =>
+    setApprovedEdit((m) => ({ ...m, [rId]: { ...(m[rId] ?? {}), [productId]: Math.max(0, Math.floor(Number(v) || 0)) } }));
+  /** All product ids in scope for a request = its lines + any approver-added SKUs. */
+  const scopedProducts = (r: RequestRow): string[] => {
+    const ids = r.lines.map((l) => l.product_id);
+    for (const pid of Object.keys(approvedEdit[r.id] ?? {})) if (!ids.includes(pid)) ids.push(pid);
+    return ids;
+  };
+  const approvalLines = (r: RequestRow): ApprovalLine[] => scopedProducts(r).map((pid) => {
+    const line = r.lines.find((l) => l.product_id === pid);
+    return { productId: pid, requestedQty: line?.quantity ?? 0, approvedQty: approvedOf(r, pid, line?.quantity ?? 0, line?.approved_qty ?? null) };
+  });
+
+  function saveAdjust(r: RequestRow) {
+    const lns = approvalLines(r).map((l) => ({ productId: l.productId, approvedQty: l.approvedQty ?? 0 }));
+    startTransition(async () => {
+      const res = await adjustStockRequest({ requestId: r.id, lines: lns, reason: t('inventory.adjustReason') });
+      if (!res.ok) { toast.error(res.error ?? t('inventory.toastError')); return; }
+      toast.success(t('inventory.adjustSaved'));
+      setApprovedEdit((m) => { const n = { ...m }; delete n[r.id]; return n; });
+      setAddSku((m) => { const n = { ...m }; delete n[r.id]; return n; });
+      router.refresh();
+    });
+  }
+
+  function changeDate(id: string) {
+    const e = dateEdit[id];
+    if (!e?.date) return;
+    startTransition(async () => {
+      const res = await setStockRequestLoadingDate({ id, date: e.date, note: e.note });
+      if (!res.ok) { toast.error(res.error ?? t('inventory.toastError')); return; }
+      toast.success(t('inventory.loadingDateSaved'));
+      setDateEdit((m) => { const n = { ...m }; delete n[id]; return n; });
+      router.refresh();
+    });
+  }
 
   const whName = (w: { code: string; name: string; name_ar: string | null } | null) =>
     w ? `${w.code} · ${w.name_ar || w.name}` : '—';
@@ -228,10 +281,80 @@ export function RequestsManager({
                     <p className="text-sm">
                       {t('inventory.requestDirectionLabel', { from: whName(r.from_warehouse), to: whName(r.to_warehouse) })}
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {r.lines.map((l) => `${productName(l.product_id)} ×${formatNumber(l.quantity)}`).join(' · ')}
-                    </p>
+                    {r.status === 'pending' && canApprove ? (
+                      <div className="mt-2 space-y-2">
+                        {isPartialApproval(approvalLines(r)) && <Badge variant="warning" className="text-[10px]">{t('inventory.partialApproval')}</Badge>}
+                        <div className="overflow-x-auto rounded-md border">
+                          <table className="w-full text-xs">
+                            <thead className="bg-secondary/40 text-muted-foreground"><tr>
+                              <th className="p-1.5 text-start font-medium">{t('inventory.product')}</th>
+                              <th className="p-1.5 text-end font-medium">{t('inventory.requestedQty')}</th>
+                              <th className="p-1.5 text-end font-medium">{t('inventory.approvedQty')}</th>
+                              <th className="p-1.5 text-end font-medium">{t('inventory.difference')}</th>
+                            </tr></thead>
+                            <tbody>
+                              {scopedProducts(r).map((pid) => {
+                                const line = r.lines.find((l) => l.product_id === pid);
+                                const requested = line?.quantity ?? 0;
+                                const approved = approvedOf(r, pid, requested, line?.approved_qty ?? null);
+                                const diff = lineDifference(approved, requested);
+                                return (
+                                  <tr key={pid} className="border-t">
+                                    <td className="p-1.5">{productName(pid)}{!line && <span className="ms-1 text-[10px] text-primary">+{t('inventory.added')}</span>}</td>
+                                    <td className="p-1.5 text-end tabular-nums text-muted-foreground" dir="ltr">{formatNumber(requested)}</td>
+                                    <td className="p-1.5 text-end"><Input type="number" min={0} step="0.001" dir="ltr" disabled={!canAdjust} value={approved} onChange={(e) => setApproved(r.id, pid, Number(e.target.value))} className="ms-auto h-7 w-20 text-end text-xs" /></td>
+                                    <td className={`p-1.5 text-end tabular-nums ${diff < 0 ? 'text-destructive' : diff > 0 ? 'text-success' : 'text-muted-foreground'}`} dir="ltr">{diff > 0 ? `+${formatNumber(diff)}` : formatNumber(diff)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        {canAdjust && (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <select value={addSku[r.id] ?? ''} onChange={(e) => setAddSku((m) => ({ ...m, [r.id]: e.target.value }))} className="h-7 min-w-[8rem] rounded-md border border-input bg-background px-2 text-xs">
+                              <option value="">{t('inventory.addSku')}</option>
+                              {products.filter((p) => !scopedProducts(r).includes(p.id)).map((p) => <option key={p.id} value={p.id}>{p.name_ar || p.name}</option>)}
+                            </select>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!addSku[r.id]} onClick={() => { const pid = addSku[r.id]; if (pid) { setApproved(r.id, pid, 1); setAddSku((m) => ({ ...m, [r.id]: '' })); } }}><Plus className="h-3.5 w-3.5" /></Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={pending || !approvedEdit[r.id]} onClick={() => saveAdjust(r)}>{t('inventory.saveAdjust')}</Button>
+                            <span className="text-[10px] text-muted-foreground">{t('inventory.zeroRemoves')}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {r.lines.map((l) => {
+                          const eff = effectiveApprovedQty(l.approved_qty, l.quantity);
+                          return eff !== l.quantity
+                            ? `${productName(l.product_id)} ×${formatNumber(l.quantity)}→${formatNumber(eff)}`
+                            : `${productName(l.product_id)} ×${formatNumber(l.quantity)}`;
+                        }).join(' · ')}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">{formatDate(r.created_at)}</p>
+                    {(r.requested_date || r.approved_date) && (
+                      <p className="mt-1 text-xs">
+                        <span className="text-muted-foreground">{t('inventory.requestedLoadingDate')}:</span> <span dir="ltr">{r.requested_date ?? '—'}</span>
+                        {r.approved_date && r.approved_date !== r.requested_date && (
+                          <> · <span className="text-muted-foreground">{t('inventory.approvedLoadingDate')}:</span> <span className="font-medium" dir="ltr">{r.approved_date}</span></>
+                        )}
+                        {r.date_change_note && <span className="text-muted-foreground"> — {r.date_change_note}</span>}
+                      </p>
+                    )}
+                    {r.status === 'pending' && canApprove && (
+                      <div className="mt-2 flex flex-wrap items-end gap-2">
+                        <Input type="date" className="h-8 w-40 text-xs"
+                          value={dateEdit[r.id]?.date ?? (r.approved_date ?? r.requested_date ?? '')}
+                          onChange={(e) => setDateEdit((m) => ({ ...m, [r.id]: { date: e.target.value, note: m[r.id]?.note ?? '' } }))} />
+                        <Input className="h-8 w-44 text-xs" placeholder={t('inventory.dateChangeNote')}
+                          value={dateEdit[r.id]?.note ?? ''}
+                          onChange={(e) => setDateEdit((m) => ({ ...m, [r.id]: { date: m[r.id]?.date ?? (r.approved_date ?? r.requested_date ?? ''), note: e.target.value } }))} />
+                        <Button size="sm" variant="outline" className="h-8 text-xs" disabled={pending || !dateEdit[r.id]?.date} onClick={() => changeDate(r.id)}>
+                          {t('inventory.changeLoadingDate')}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <Badge variant={STATUS_VARIANT[r.status]}>{t(STATUS_KEY[r.status])}</Badge>

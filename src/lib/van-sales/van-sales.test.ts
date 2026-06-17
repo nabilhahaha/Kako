@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   VAN_SALES_ENABLED,
   transition, canSell, allowedActions, primaryAction,
@@ -8,7 +8,14 @@ import {
 const ctx = (over: Partial<VanDayContext> = {}): VanDayContext => ({ ...EMPTY_DAY_CONTEXT, ...over });
 
 describe('van-sales/flag', () => {
-  it('defaults OFF', () => { expect(VAN_SALES_ENABLED()).toBe(false); });
+  const orig = process.env.KAKO_VAN_SALES;
+  afterEach(() => { process.env.KAKO_VAN_SALES = orig; });
+  it('GA default ON when unset', () => { delete process.env.KAKO_VAN_SALES; expect(VAN_SALES_ENABLED()).toBe(true); });
+  it('explicit kill-switch OFF', () => {
+    process.env.KAKO_VAN_SALES = '0'; expect(VAN_SALES_ENABLED()).toBe(false);
+    process.env.KAKO_VAN_SALES = 'false'; expect(VAN_SALES_ENABLED()).toBe(false);
+  });
+  it('explicitly ON', () => { process.env.KAKO_VAN_SALES = '1'; expect(VAN_SALES_ENABLED()).toBe(true); });
 });
 
 describe('van-sales/day · transitions', () => {

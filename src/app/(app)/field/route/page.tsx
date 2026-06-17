@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatCard, type StatTone } from '@/components/shared/stat-card';
 import { EmptyState } from '@/components/shared/empty-state';
 import { QuickNav, type QuickLink } from '@/components/home/home-widgets';
+import { BackLink } from '@/components/shared/back-link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { loadTodayJourney } from '@/app/(app)/field/actions';
@@ -47,6 +48,7 @@ export default async function RouteExecutionPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink href="/today" label={t('common.back')} />
       <PageHeader title={t('routeexec.title')} description={t('routeexec.subtitle')} />
 
       {/* Single primary action — the detailed GPS check-in journey. */}

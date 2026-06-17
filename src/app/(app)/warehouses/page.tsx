@@ -16,7 +16,8 @@ export default async function WarehousesPage() {
   const [{ data: warehouses }, { data: branches }, { data: profiles }] = await Promise.all([
     supabase.from('erp_warehouses').select('*').order('code'),
     supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
-    supabase.from('erp_profiles').select('id, full_name, email').eq('is_active', true),
+    // Role-scoped assignees (self/team/region/all) — see erp_assignable_reps / RLS.
+    supabase.rpc('erp_assignable_reps'),
   ]);
 
   return (

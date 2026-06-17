@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { FormSection } from '@/components/shared/form-section';
-import { LineItemsEditor, newLine, type EditorLine } from '@/components/sales/line-items-editor';
+import { LineItemsEditor, newLine, editorLineToBase, type EditorLine, type ProductUnitsMap } from '@/components/sales/line-items-editor';
 import { SALES_ORDER_STATUS_LABELS } from '@/lib/erp/constants';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { INTL_LOCALE } from '@/lib/i18n/config';
@@ -35,12 +35,16 @@ export function OrdersManager({
   branches,
   products,
   q,
+  productUnits = {},
+  multiUom = false,
 }: {
   orders: OrderRow[];
   customers: ErpCustomer[];
   branches: Branch[];
   products: ProductCatalog[];
   q: string;
+  productUnits?: ProductUnitsMap;
+  multiUom?: boolean;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -67,13 +71,7 @@ export function OrdersManager({
         branch_id: branchId,
         customer_id: customerId,
         notes,
-        lines: lines.map((l) => ({
-          product_id: l.product_id,
-          quantity: l.quantity,
-          unit_price: l.unit_price,
-          discount_pct: l.discount_pct,
-          tax_rate: l.tax_rate,
-        })),
+        lines: lines.map((l) => editorLineToBase(l, productUnits)),
       });
       if (!res.ok) {
         toast.error(res.error ?? t('sales.errorGeneric'));
@@ -169,6 +167,8 @@ export function OrdersManager({
               lines={lines}
               onChange={setLines}
               priceResolver={customerId ? (productId, qty) => resolveLinePrice({ productId, customerId, branchId, qty }) : undefined}
+              productUnits={productUnits}
+              multiUom={multiUom}
             />
 
             <div className="flex gap-2">

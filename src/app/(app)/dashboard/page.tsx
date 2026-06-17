@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { GettingStarted } from '@/components/shared/getting-started';
+import { QuickNav, type QuickLink } from '@/components/home/home-widgets';
 import { resolveHomePath } from '@/lib/erp/home';
 import { hasPermission } from '@/lib/erp/permissions';
 import type { UserContext } from '@/lib/erp/auth-context';
@@ -26,6 +27,10 @@ import {
   ShieldQuestion,
   Wrench,
   PackageCheck,
+  Wallet,
+  UserPlus,
+  BarChart3,
+  FileText,
 } from 'lucide-react';
 
 const ACTIVE_STATUSES: InvoiceStatus[] = ['issued', 'paid', 'partially_paid', 'overdue'];
@@ -152,7 +157,19 @@ export default async function DashboardPage() {
         ]}
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* U4: one-tap shortcuts to the most common daily actions (role-gated). */}
+      {ctx && (() => {
+        const quick = ([
+          hasPermission(ctx, 'sales.sell') && { label: t('dashboard.qaNewInvoice'), href: '/sales/invoices', icon: FileText },
+          hasPermission(ctx, 'sales.collect') && { label: t('dashboard.qaCollect'), href: '/collections', icon: Wallet },
+          hasPermission(ctx, 'customers.manage') && { label: t('dashboard.qaNewCustomer'), href: '/customers', icon: UserPlus },
+          hasPermission(ctx, 'purchasing.manage') && { label: t('dashboard.qaReceivePO'), href: '/purchases/orders', icon: PackageCheck },
+          hasPermission(ctx, 'reports.view') && { label: t('dashboard.qaReports'), href: '/reports', icon: BarChart3 },
+        ].filter(Boolean) as QuickLink[]);
+        return quick.length > 0 ? <div className="mt-4"><QuickNav links={quick} /></div> : null;
+      })()}
+
+      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label={t('dashboard.monthSales')} value={formatCurrency(monthSales, 'EGP', intl)} icon={TrendingUp} tone="success" href="/sales/invoices" />
         <StatCard label={t('dashboard.receivables')} value={formatCurrency(receivables, 'EGP', intl)} icon={ArrowUpCircle} tone="primary" href="/customers" />
         <StatCard label={t('dashboard.payables')} value={formatCurrency(payables, 'EGP', intl)} icon={ArrowDownCircle} tone="warning" href="/suppliers" />

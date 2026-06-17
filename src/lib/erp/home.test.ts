@@ -113,4 +113,27 @@ describe('resolveHomePath', () => {
   it('routes to /clinic even when other modules are also present', () => {
     expect(path(['sales', 'clinic', 'inventory'], ['clinic.doctor'])).toBe('/clinic/doctor');
   });
+
+  // ─── U1: role-aware landing for FMCG roles (memberships present) ───────────
+  const byRole = (role: string) =>
+    resolveHomePath({ companyId: 'c1', modules: ['sales', 'inventory', 'distribution'] as Module[], permissions: [], memberships: [{ role: role as never }] });
+
+  it('lands each FMCG role on its work screen', () => {
+    expect(byRole('salesman')).toBe('/today');
+    expect(byRole('driver')).toBe('/today');
+    expect(byRole('supervisor')).toBe('/approvals/queue');
+    expect(byRole('accountant')).toBe('/collections');
+    expect(byRole('warehouse_keeper')).toBe('/inventory/requests');
+    expect(byRole('branch_manager')).toBe('/manager');
+    expect(byRole('admin')).toBe('/dashboard');
+    expect(byRole('manager')).toBe('/dashboard');
+  });
+
+  it('falls back to /dashboard when no memberships are supplied', () => {
+    expect(path(['sales', 'inventory'], [])).toBe('/dashboard');
+  });
+
+  it('most-senior role wins for a multi-role user', () => {
+    expect(resolveHomePath({ companyId: 'c1', modules: ['sales'] as Module[], permissions: [], memberships: [{ role: 'salesman' as never }, { role: 'admin' as never }] })).toBe('/dashboard');
+  });
 });

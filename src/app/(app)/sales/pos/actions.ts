@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT } from '@/lib/events/producer';
 import { requireAuth, type ActionResult, friendlyDbError } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import { repDayBlocked } from '@/lib/erp/work-session';
 import type { LineInput } from '@/lib/erp/sales-calc';
 import type { PaymentMethod } from '@/lib/erp/types';
@@ -24,6 +25,8 @@ export async function quickSale(input: {
   const { ctx, error: authErr } = await requireAuth();
   const { t } = await getT();
   if (authErr || !ctx) return { ok: false, error: authErr ?? t('sales.posErrUnauthorized') };
+  // MJ-1: POS quick-sale sells + collects — require a sales permission.
+  if (!hasPermission(ctx, 'sales.sell')) return { ok: false, error: t('sales.posErrUnauthorized') };
 
   const blocked = await repDayBlocked(ctx);
   if (blocked) return { ok: false, error: blocked };

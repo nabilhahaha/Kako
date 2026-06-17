@@ -1,0 +1,4 @@
+customer_ref,salesman_ref,day_of_week,frequency,sequence,external_id
+CUST-001,van.rep@distributor.example,sat,weekly,1,JP-001
+CUST-002,van.rep@distributor.example,sat,weekly,2,JP-002
+CUST-017,salesman@distributor.example,mon,weekly,1,JP-017

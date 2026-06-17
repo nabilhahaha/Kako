@@ -7,25 +7,40 @@ export type Permission =
   | 'sales.discount' // apply line discounts
   | 'sales.collect' // record customer payments
   | 'sales.return' // create/approve sales returns
+  | 'returns.create' // create a (van) return / return request
+  | 'returns.approve' // approve a pending return request
+  | 'returns.reject' // reject a pending return request (reason required)
+  | 'returns.override' // override the return approval policy
+  | 'returns.view_all' // view all returns (reports)
   | 'customers.manage'
   | 'customers.approve' // approve/reject customer onboarding + sensitive change requests
   | 'customers.change_status' // suspend / block / activate customers (FP-CS)
+  | 'customers.view_balance' // see a customer's outstanding balance (field/back-office)
+  | 'customers.view_credit' // see a customer's credit limit (sensitive; not field sellers by default)
   | 'inventory.view'
   | 'inventory.adjust' // manual stock adjustments / stocktake
   | 'inventory.transfer' // move stock between warehouses
   | 'inventory.count' // perform monthly physical counts
   | 'stock_request.create' // rep requests stock from a warehouse
   | 'stock_request.approve' // warehouse keeper / manager approves & loads
+  | 'stock_request.adjust' // edit approved quantities on a load request (split from approve)
   | 'purchasing.manage' // POs, receiving
   | 'purchasing.return' // supplier (purchase) returns
   | 'suppliers.manage' // suppliers + settlements
   | 'accounting.view' // chart, journal, reports
   | 'accounting.post' // post vouchers / journals
+  | 'treasury.manage' // operate the office Cash Box / treasury (open/close shift, expenses) — finance/treasury only
   | 'settings.branches' // company & branches
   | 'settings.users' // users, roles, hierarchy
   | 'integrations.manage' // data import, API keys, webhooks, sync (Data Integration Layer)
   | 'settings.custom_fields' // define custom fields per entity (Custom Fields Engine)
+  | 'settings.workflow_policy' // edit approval / settlement / day-close company policies
   | 'workflow.manage' // define approval workflows (Workflow / Approval Engine)
+  | 'documents.print' // print financial/operational documents
+  | 'documents.share' // share document PDFs (native share / link)
+  | 'documents.export' // export/download document PDFs
+  | 'cash.view_outstanding' // see outstanding cash / custody balances (finance/settlement)
+  | 'audit.view' // read-only access to the audit trail (auditor)
   | 'reports.view'
   | 'hotel.manage' // rooms & bookings (hotel / furnished apartments)
   | 'clinic.manage' // full clinic access (admin/manager) — implies reception + doctor
@@ -47,6 +62,7 @@ export type Permission =
   | 'customer.transfer' // reassign customer ownership (route/salesman/branch)
   | 'customer.edit' // edit customer master data
   | 'product.create' // create a new product
+  | 'product.edit' // edit an existing product (master data)
   | 'product.import' // bulk-import products
   | 'stock.view' // view van/warehouse stock balances
   | 'stock.adjust' // adjust stock (van/warehouse)
@@ -62,6 +78,20 @@ export type Permission =
   | 'visit.approve_out_of_route' // approve an out-of-route visit
   | 'day.close' // close the working day (rep)
   | 'day.approve_close_exception' // approve a day-close exception
+  | 'day.reopen.request' // request to reopen a closed day (rep) — governed workflow
+  | 'day.reopen.approve' // approve/reject a day-reopen request (supervisor/admin)
+  | 'day.reopen.override' // approve a reopen past the settlement/accounting lock (Phase 2/3)
+  | 'cash.handover.request' // declare a cash handover to the office/cashier (rep)
+  | 'cash.handover.confirm' // confirm/reject a cash-handover request (cashier/supervisor)
+  | 'day.close.submit' // submit End Day for the approval/settlement chain (rep)
+  | 'day.close.supervisor' // act on the Supervisor Review stage of day close
+  | 'day.close.reconcile' // act on the Inventory Reconciliation stage of day close
+  | 'day.close.settle' // act on the Financial Settlement stage of day close
+  | 'day.close.reopen' // reopen a settled/closed day-close (special permission)
+  | 'day.close.override' // force-close past a stuck day-close stage (Override Center)
+  | 'day.reopen' // reopen a CLOSED day (Override Center) — controlled + audited
+  | 'customer.request' // raise a governed customer request (new / data update / GPS) — rep
+  | 'customer.request.approve' // approve/reject a customer request + apply it (supervisor/admin)
   // ── FMCG Value Acceleration Wave 1 ──
   | 'product.search' // search the product catalogue (paginated, tenant-safe)
   | 'pricing.view' // view price lists / resolved prices
@@ -93,7 +123,14 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'sales.discount': { en: 'Grant discounts', ar: 'منح خصومات', group: 'sales' },
   'sales.collect': { en: 'Collect from customers', ar: 'تحصيل من العملاء', group: 'sales' },
   'sales.return': { en: 'Sales returns', ar: 'مرتجعات المبيعات', group: 'sales' },
+  'returns.create': { en: 'Create returns', ar: 'إنشاء مرتجع', group: 'sales' },
+  'returns.approve': { en: 'Approve returns', ar: 'اعتماد المرتجعات', group: 'sales' },
+  'returns.reject': { en: 'Reject returns', ar: 'رفض المرتجعات', group: 'sales' },
+  'returns.override': { en: 'Override return approval', ar: 'تجاوز اعتماد المرتجع', group: 'sales' },
+  'returns.view_all': { en: 'View all returns', ar: 'عرض كل المرتجعات', group: 'sales' },
   'customers.manage': { en: 'Manage customers', ar: 'إدارة العملاء', group: 'sales' },
+  'customers.view_balance': { en: 'View customer balance', ar: 'عرض رصيد العميل', group: 'sales' },
+  'customers.view_credit': { en: 'View customer credit limit', ar: 'عرض حد ائتمان العميل', group: 'sales' },
   'customers.approve': { en: 'Approve customers & changes', ar: 'اعتماد العملاء والتعديلات', group: 'sales' },
   'customers.change_status': { en: 'Suspend / block customers', ar: 'إيقاف / حظر العملاء', group: 'sales' },
   'inventory.view': { en: 'View stock balances', ar: 'عرض أرصدة المخزون', group: 'inventory' },
@@ -102,17 +139,25 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'inventory.count': { en: 'Monthly stocktake', ar: 'الجرد الشهري', group: 'inventory' },
   'stock_request.create': { en: 'Request stock loading', ar: 'طلب تحميل بضاعة', group: 'inventory' },
   'stock_request.approve': { en: 'Approve loading requests', ar: 'اعتماد طلبات التحميل', group: 'inventory' },
+  'stock_request.adjust': { en: 'Edit approved load quantities', ar: 'تعديل كميات التحميل المعتمدة', group: 'inventory' },
   'purchasing.manage': { en: 'Purchasing and receiving', ar: 'المشتريات والاستلام', group: 'purchasing' },
   'purchasing.return': { en: 'Supplier returns', ar: 'مرتجعات المشتريات', group: 'purchasing' },
   'suppliers.manage': { en: 'Suppliers and settlement', ar: 'الموردين والسداد', group: 'purchasing' },
   'accounting.view': { en: 'View accounts and reports', ar: 'عرض الحسابات والتقارير', group: 'accounting' },
   'accounting.post': { en: 'Post journals and vouchers', ar: 'ترحيل القيود والسندات', group: 'accounting' },
+  'treasury.manage': { en: 'Operate the cash box / treasury', ar: 'تشغيل صندوق النقدية / الخزينة', group: 'accounting' },
   'reports.view': { en: 'Reports', ar: 'التقارير', group: 'accounting' },
   'settings.branches': { en: 'Manage branches', ar: 'إدارة الفروع', group: 'settings' },
   'settings.users': { en: 'Manage users and permissions', ar: 'إدارة المستخدمين والصلاحيات', group: 'settings' },
   'integrations.manage': { en: 'Manage data import & integrations', ar: 'إدارة استيراد البيانات والتكاملات', group: 'settings' },
   'settings.custom_fields': { en: 'Manage custom fields', ar: 'إدارة الحقول المخصصة', group: 'settings' },
+  'settings.workflow_policy': { en: 'Edit workflow policies (approval / settlement / day close)', ar: 'تعديل سياسات المسارات (اعتماد / تسوية / إنهاء اليوم)', group: 'settings' },
   'workflow.manage': { en: 'Manage approval workflows', ar: 'إدارة مسارات الموافقات', group: 'settings' },
+  'documents.print': { en: 'Print documents', ar: 'طباعة المستندات', group: 'sales' },
+  'documents.share': { en: 'Share document PDFs', ar: 'مشاركة ملفات PDF', group: 'sales' },
+  'documents.export': { en: 'Export document PDFs', ar: 'تصدير ملفات PDF', group: 'sales' },
+  'cash.view_outstanding': { en: 'View outstanding cash / custody', ar: 'عرض النقدية المتبقية / العهدة', group: 'field_ops' },
+  'audit.view': { en: 'View the audit trail', ar: 'عرض سجل التدقيق', group: 'settings' },
   'hotel.manage': { en: 'Manage rooms and bookings', ar: 'إدارة الغرف والحجوزات', group: 'hotel' },
   'clinic.manage': { en: 'Full clinic management', ar: 'إدارة العيادة بالكامل', group: 'clinic' },
   'clinic.reception': { en: 'Reception (appointments/registration/billing)', ar: 'الاستقبال (مواعيد/تسجيل/تحصيل)', group: 'clinic' },
@@ -133,6 +178,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'customer.transfer': { en: 'Transfer customer ownership', ar: 'نقل ملكية العملاء', group: 'sales' },
   'customer.edit': { en: 'Edit customers', ar: 'تعديل العملاء', group: 'sales' },
   'product.create': { en: 'Create products', ar: 'إنشاء منتجات', group: 'inventory' },
+  'product.edit': { en: 'Edit products', ar: 'تعديل المنتجات', group: 'inventory' },
   'product.import': { en: 'Import products', ar: 'استيراد المنتجات', group: 'inventory' },
   'stock.view': { en: 'View stock', ar: 'عرض المخزون', group: 'inventory' },
   'stock.adjust': { en: 'Adjust stock', ar: 'تسوية المخزون', group: 'inventory' },
@@ -148,6 +194,20 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'visit.approve_out_of_route': { en: 'Approve out-of-route visits', ar: 'اعتماد الزيارات خارج خط السير', group: 'field_ops' },
   'day.close': { en: 'Close the working day', ar: 'إغلاق يوم العمل', group: 'field_ops' },
   'day.approve_close_exception': { en: 'Approve day-close exceptions', ar: 'اعتماد استثناءات إغلاق اليوم', group: 'field_ops' },
+  'day.reopen.request': { en: 'Request to reopen a closed day', ar: 'طلب إعادة فتح يوم مُغلق', group: 'field_ops' },
+  'day.reopen.approve': { en: 'Approve day-reopen requests', ar: 'اعتماد طلبات إعادة فتح اليوم', group: 'field_ops' },
+  'day.reopen.override': { en: 'Override settlement lock on reopen', ar: 'تجاوز قفل التسوية عند إعادة الفتح', group: 'field_ops' },
+  'cash.handover.request': { en: 'Request a cash handover', ar: 'طلب تسليم نقدية', group: 'field_ops' },
+  'cash.handover.confirm': { en: 'Confirm cash handovers', ar: 'تأكيد تسليم النقدية', group: 'field_ops' },
+  'day.close.submit': { en: 'Submit End Day', ar: 'تقديم إنهاء اليوم', group: 'field_ops' },
+  'day.close.supervisor': { en: 'Approve day close — Supervisor review', ar: 'اعتماد إنهاء اليوم — مراجعة المشرف', group: 'field_ops' },
+  'day.close.reconcile': { en: 'Approve day close — Inventory reconciliation', ar: 'اعتماد إنهاء اليوم — جرد المخزون', group: 'field_ops' },
+  'day.close.settle': { en: 'Approve day close — Financial settlement', ar: 'اعتماد إنهاء اليوم — التسوية المالية', group: 'field_ops' },
+  'day.close.reopen': { en: 'Reopen a closed day', ar: 'إعادة فتح يوم مُغلق', group: 'field_ops' },
+  'day.close.override': { en: 'Override day close (force close)', ar: 'تجاوز إنهاء اليوم (إغلاق قسري)', group: 'field_ops' },
+  'day.reopen': { en: 'Reopen a closed day (Override Center)', ar: 'إعادة فتح يوم مُغلق (مركز التجاوز)', group: 'field_ops' },
+  'customer.request': { en: 'Raise customer requests', ar: 'تقديم طلبات العملاء', group: 'sales' },
+  'customer.request.approve': { en: 'Approve customer requests', ar: 'اعتماد طلبات العملاء', group: 'sales' },
   // ── FMCG Value Acceleration Wave 1 ──
   'product.search': { en: 'Search products', ar: 'البحث عن المنتجات', group: 'inventory' },
   'pricing.view': { en: 'View pricing', ar: 'عرض التسعير', group: 'sales' },
@@ -208,27 +268,39 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   sales_director: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
-    'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
+    'stock_request.approve', 'stock_request.adjust', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
     'assortment.manage', 'survey.manage', 'target.view',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   national_sales_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
-    'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
+    'stock_request.approve', 'stock_request.adjust', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
     'assortment.manage', 'survey.manage', 'target.view',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   // Regional / Area: commercial management (no finance posting / settings).
   regional_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
-    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
+    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve', 'stock_request.adjust',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   area_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
-    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
+    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve', 'stock_request.adjust',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   // Branch Manager: branch operations (NO settings/billing — distinct from Admin).
   branch_manager: [
@@ -238,34 +310,64 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'suppliers.manage', 'reports.view',
     'customer.transfer', 'customer.create', 'customer.edit', 'route.create', 'journey.create',
     'stock.adjust', 'stock.transfer.approve', 'visit.approve_out_of_route',
-    'day.approve_close_exception', 'stock.view', 'user.transfer',
+    'day.approve_close_exception', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve', 'stock.view', 'user.transfer',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
+    // Settlement (day.close.settle) deliberately NOT held — the branch manager
+    // approves/reconciles/oversees but does not perform FINANCIAL settlement
+    // (owned by Cashier/Accountant/Admin only). SoD.
+    'day.close.supervisor', 'day.close.reconcile', 'day.close.reopen',
+    'stock_request.adjust', 'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   // IT Admin: integrations / scheduler / governance / technical settings.
   it_admin: [
-    'integrations.manage', 'settings.custom_fields', 'workflow.manage',
-    'settings.users',
+    'integrations.manage', 'settings.custom_fields', 'workflow.manage', 'settings.workflow_policy',
+    'settings.users', 'audit.view',
     'customer.import', 'product.import', 'user.import', 'route.import', 'journey.import',
   ],
+  // Supervisor = operational manager & APPROVER, not a transaction executor.
+  // Deliberately holds NO sales.sell / sales.collect / sales.return /
+  // sales.discount (segregation of duties): the rep sells/collects/returns; the
+  // supervisor reviews, approves, monitors, coaches, and governs customers/routes.
+  // Route coverage for an absent rep is handled by route REASSIGNMENT (the
+  // supervisor keeps customer.transfer + route.create), with a time-boxed,
+  // audited "Acting Sales Rep" elevation reserved as an exceptional procedure.
   supervisor: [
-    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'stock_request.approve', 'reports.view',
     'visit.approve_out_of_route', 'day.approve_close_exception', 'stock.transfer.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
+    'reconciliation.view', 'reconciliation.manage', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
+    // Settlement (day.close.settle) deliberately NOT held: the supervisor APPROVES
+    // and RECONCILES the close (day.close.supervisor + day.close.reconcile) but does
+    // NOT settle the cash — settlement is owned by Cashier/Accountant/Admin (SoD).
+    'day.close.supervisor', 'day.close.reconcile', 'day.close.reopen',
+    'stock_request.adjust', 'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
-    'suppliers.manage', 'sales.collect', 'customers.change_status',
+    'suppliers.manage', 'sales.collect', 'customers.change_status', 'cash.handover.confirm',
     'stock.view', 'fashion.reports', 'fashion.cashbox', 'fashion.installments', 'fashion.purchase',
+    'returns.view_all', 'day.close.settle', 'treasury.manage',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
-  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos', 'fashion.sell', 'fashion.installments', 'fashion.cashbox'],
+  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'cash.handover.confirm', 'day.close.settle', 'treasury.manage',
+    'customers.view_balance', 'cash.view_outstanding', 'documents.print', 'documents.share', 'documents.export',
+    'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos', 'fashion.sell', 'fashion.installments', 'fashion.cashbox'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
-    'day.close', 'stock.view', 'stock.transfer', 'customer.create',
+    'day.close', 'day.reopen.request', 'cash.handover.request', 'customer.request', 'stock.view', 'stock.transfer', 'customer.create',
+    'reconciliation.view', 'returns.create', 'day.close.submit',
+    'customers.view_balance', 'documents.print', 'documents.share', 'documents.export',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
+    'returns.create', 'day.close.submit',
+    'customers.view_balance', 'documents.print', 'documents.share', 'documents.export',
   ],
   technician: [
     'customers.manage', 'sales.sell', 'inventory.view', 'stock_request.create',
@@ -276,12 +378,20 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   housekeeping: ['hotel.manage'],
   warehouse_keeper: [
     'inventory.view', 'inventory.adjust', 'inventory.transfer',
-    'inventory.count', 'stock_request.approve', 'purchasing.manage',
+    'inventory.count', 'stock_request.approve', 'stock_request.adjust', 'purchasing.manage',
     'stock.view', 'stock.adjust', 'stock.transfer', 'stock.transfer.approve',
-    'fashion.inventory', 'fashion.purchase',
+    'fashion.inventory', 'fashion.purchase', 'reconciliation.view', 'reconciliation.manage',
+    'day.close.reconcile', 'documents.print', 'documents.export',
   ],
   staff: ['inventory.view'],
-  viewer: ['reports.view', 'accounting.view', 'inventory.view'],
+  viewer: ['reports.view', 'accounting.view', 'inventory.view', 'documents.export'],
+  // Auditor: read-only oversight across approvals, settlement and the audit trail.
+  auditor: [
+    'reports.view', 'accounting.view', 'inventory.view', 'stock.view',
+    'returns.view_all', 'reconciliation.view',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'audit.view', 'documents.export',
+  ],
 };
 
 export interface PermissionContext {

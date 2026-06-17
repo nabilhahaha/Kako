@@ -1,0 +1,18 @@
+name_job_title,role,email,branch,demo_password,login_path,what_to_verify
+Platform Owner,platform_owner,owner@nile-group.test,(cross-tenant),Vantora#Demo1,/login,Cross-tenant visibility; all permissions
+Chief Executive Officer,admin,ceo@nile-group.test,CAI;ALX;GIZ,Vantora#Demo1,/login,Users/settings; approve customers; accounting; multi-branch
+General Manager,manager,gm@nile-group.test,CAI,Vantora#Demo1,/login,Broad authority including field
+Finance Manager,accountant,finance.manager@nile-group.test,CAI,Vantora#Demo1,/login,Accounting + collect; no Sell
+Accountant,accountant,accountant@nile-group.test,CAI,Vantora#Demo1,/login,Accounting/reports; no Sell
+Procurement Manager,branch_manager,procurement.manager@nile-group.test,CAI,Vantora#Demo1,/login,Purchasing + suppliers + reconcile
+Buyer,warehouse_keeper,buyer@nile-group.test,CAI,Vantora#Demo1,/login,Purchasing + inventory; no supplier master
+Sales Manager,regional_manager,sales.manager@nile-group.test,CAI;ALX,Vantora#Demo1,/login,Sell/collect/returns/reports
+Field Supervisor,supervisor,supervisor@nile-group.test,CAI;ALX,Vantora#Demo1,/login,Reconciliation-manage; reports
+Salesman,salesman,salesman@nile-group.test,ALX,Vantora#Demo1,/login,My Day field loop (Alex van)
+Van Sales Rep,salesman,van.rep@nile-group.test,CAI,Vantora#Demo1,/login,My Day full field loop (Cairo van)
+Warehouse Manager,warehouse_keeper,warehouse.manager@nile-group.test,CAI,Vantora#Demo1,/login,Inventory + reconcile; no Sell
+Warehouse Keeper,warehouse_keeper,warehouse.keeper@nile-group.test,CAI,Vantora#Demo1,/login,Inventory + reconcile
+Inventory Controller,warehouse_keeper,inventory.controller@nile-group.test,CAI,Vantora#Demo1,/login,Inventory + reconcile
+Merchandiser,salesman,merchandiser@nile-group.test,CAI,Vantora#Demo1,/login,Field access; customers
+Customer Service Agent,cashier,cs.agent@nile-group.test,CAI,Vantora#Demo1,/login,Sell; collect; manage customers
+Read-Only Executive,viewer,readonly.exec@nile-group.test,CAI,Vantora#Demo1,/login,Reports only; transactional screens hidden

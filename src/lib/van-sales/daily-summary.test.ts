@@ -1,0 +1,148 @@
+import { describe, it, expect } from 'vitest';
+import { computeDailySummary, rankSalesmen, buildActivityTimeline, activityTotals, noSaleReasonBreakdown, type DailySummaryInput, type SalesmanDay, type ActivityInput } from './daily-summary';
+
+const base: DailySummaryInput = {
+  dayOpenedAt: '2026-06-16T06:00:00Z',
+  dayClosedAt: null,
+  nowIso: '2026-06-16T10:00:00Z',
+  outcomes: [
+    { kind: 'new_sale', customerId: 'c1', at: '2026-06-16T07:00:00Z' },
+    { kind: 'collection', customerId: 'c2', at: '2026-06-16T07:30:00Z' },
+    { kind: 'no_sale', customerId: 'c3', at: '2026-06-16T08:00:00Z' },
+    { kind: 'no_sale', customerId: 'c3', at: '2026-06-16T09:30:00Z' }, // repeat no-sale, c3
+    { kind: 'return', customerId: 'c1', at: '2026-06-16T07:05:00Z' },
+  ],
+  invoices: [{ amount: 100, at: '2026-06-16T07:00:00Z' }, { amount: 50.5, at: '2026-06-16T07:02:00Z' }],
+  collections: [{ amount: 80, at: '2026-06-16T07:30:00Z' }],
+  returns: [{ at: '2026-06-16T07:05:00Z' }],
+};
+
+describe('computeDailySummary', () => {
+  it('is LIVE while the day is open', () => {
+    expect(computeDailySummary(base).open).toBe(true);
+    expect(computeDailySummary({ ...base, dayClosedAt: '2026-06-16T15:00:00Z' }).open).toBe(false);
+  });
+
+  it('counts visits + customers + per-outcome breakdown', () => {
+    const s = computeDailySummary(base);
+    expect(s.visits).toBe(5);
+    expect(s.customersVisited).toBe(3);       // c1, c2, c3
+    expect(s.salesVisits).toBe(1);
+    expect(s.collectionVisits).toBe(1);
+    expect(s.returnVisits).toBe(1);
+    expect(s.noSaleVisits).toBe(2);
+    expect(s.salesCustomers).toBe(1);
+    expect(s.noSaleCustomers).toBe(1);        // only c3
+  });
+
+  it('sums amounts + counts transactions', () => {
+    const s = computeDailySummary(base);
+    expect(s.salesAmount).toBe(150.5);
+    expect(s.collectionAmount).toBe(80);
+    expect(s.invoiceCount).toBe(2);
+    expect(s.collectionCount).toBe(1);
+    expect(s.returnCount).toBe(1);
+  });
+
+  it('flags repeat no-sale customers (≥2)', () => {
+    expect(computeDailySummary(base).noSaleRepeatCustomers).toBe(1); // c3 twice
+  });
+
+  it('computes first/last activity + longest gap (approx idle)', () => {
+    const s = computeDailySummary(base);
+    expect(s.firstActivityAt).toBe('2026-06-16T07:00:00.000Z');
+    expect(s.lastActivityAt).toBe('2026-06-16T09:30:00.000Z');
+    expect(s.longestGapMinutes).toBe(90); // 08:00 → 09:30
+  });
+
+  it('handles an empty day', () => {
+    const s = computeDailySummary({ ...base, outcomes: [], invoices: [], collections: [], returns: [] });
+    expect(s.visits).toBe(0);
+    expect(s.firstActivityAt).toBeNull();
+    expect(s.lastActivityAt).toBeNull();
+    expect(s.longestGapMinutes).toBeNull();
+    expect(s.salesAmount).toBe(0);
+  });
+});
+
+describe('buildActivityTimeline + activityTotals', () => {
+  const input: ActivityInput = {
+    invoices: [{ id: 'inv1', customerId: 'c1', number: 'INV-44', amount: 79.8, at: '2026-06-16T09:14:00Z' }],
+    collections: [{ id: 'col1', customerId: 'c1', number: 'COL-27', amount: 344.8, at: '2026-06-16T10:05:00Z' }],
+    returns: [{ id: 'ret1', customerId: 'c3', number: 'RET-08', amount: 45, at: '2026-06-16T11:10:00Z' }],
+    outcomes: [
+      { customerId: 'c2', outcome: 'no_sale', reason: 'no_stock', at: '2026-06-16T10:22:00Z' },
+      { customerId: 'c4', outcome: 'no_sale', reason: 'closed', at: '2026-06-16T11:35:00Z' },
+      { customerId: 'c5', outcome: 'no_sale', reason: 'not_available', at: '2026-06-16T12:00:00Z' },
+    ],
+  };
+
+  it('builds one chronological timeline (ascending by time)', () => {
+    const rows = buildActivityTimeline(input);
+    expect(rows.map((r) => r.at)).toEqual([
+      '2026-06-16T09:14:00Z', '2026-06-16T10:05:00Z', '2026-06-16T10:22:00Z',
+      '2026-06-16T11:10:00Z', '2026-06-16T11:35:00Z', '2026-06-16T12:00:00Z',
+    ]);
+  });
+
+  it('maps document rows + classifies outcomes (no_sale vs not-reached visit)', () => {
+    const rows = buildActivityTimeline(input);
+    expect(rows[0]).toMatchObject({ type: 'invoice', doc: 'INV-44', amount: 79.8 });
+    expect(rows[2]).toMatchObject({ type: 'no_sale', reason: 'no_stock', doc: null, amount: null });
+    expect(rows.find((r) => r.reason === 'closed')!.type).toBe('visit');
+    expect(rows.find((r) => r.reason === 'not_available')!.type).toBe('visit');
+  });
+
+  it('totals: sums per type + classifies no-sale / closed / unavailable counts', () => {
+    const tot = activityTotals(buildActivityTimeline(input));
+    expect(tot).toEqual({
+      totalSales: 79.8, totalCollections: 344.8, totalReturns: 45,
+      noSalesCount: 1, closedCount: 1, unavailableCount: 1,
+    });
+  });
+
+  it('is empty for no activity', () => {
+    expect(buildActivityTimeline({ invoices: [], collections: [], returns: [], outcomes: [] })).toEqual([]);
+  });
+
+  it('carries the document id for drill-down (null for non-doc rows)', () => {
+    const rows = buildActivityTimeline(input);
+    expect(rows[0]).toMatchObject({ type: 'invoice', docId: 'inv1' });
+    expect(rows.find((r) => r.type === 'no_sale')!.docId).toBeNull();
+  });
+
+  it('summarizes no-sale reasons (most frequent first)', () => {
+    const rows = buildActivityTimeline({
+      invoices: [], collections: [], returns: [],
+      outcomes: [
+        { customerId: 'a', outcome: 'no_sale', reason: 'no_stock', at: '2026-06-16T09:00:00Z' },
+        { customerId: 'b', outcome: 'no_sale', reason: 'no_stock', at: '2026-06-16T09:10:00Z' },
+        { customerId: 'c', outcome: 'no_sale', reason: 'closed', at: '2026-06-16T09:20:00Z' },
+      ],
+    });
+    expect(noSaleReasonBreakdown(rows)).toEqual([{ reason: 'no_stock', count: 2 }, { reason: 'closed', count: 1 }]);
+  });
+});
+
+describe('rankSalesmen', () => {
+  const mk = (id: string, salesAmount: number, visits: number, collectionAmount: number): SalesmanDay => ({
+    salesmanId: id, name: id,
+    summary: { ...computeDailySummary(base), salesAmount, visits, collectionAmount },
+  });
+  const rows = [mk('a', 100, 5, 30), mk('b', 300, 2, 90), mk('c', 200, 9, 10)];
+
+  it('ranks by sales value desc', () => {
+    expect(rankSalesmen(rows, 'salesAmount').map((r) => r.salesmanId)).toEqual(['b', 'c', 'a']);
+  });
+  it('ranks by visits desc', () => {
+    expect(rankSalesmen(rows, 'visits').map((r) => r.salesmanId)).toEqual(['c', 'a', 'b']);
+  });
+  it('ranks by collections value desc', () => {
+    expect(rankSalesmen(rows, 'collectionAmount').map((r) => r.salesmanId)).toEqual(['b', 'a', 'c']);
+  });
+  it('does not mutate the input', () => {
+    const copy = [...rows];
+    rankSalesmen(rows, 'salesAmount');
+    expect(rows).toEqual(copy);
+  });
+});

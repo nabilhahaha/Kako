@@ -36,45 +36,46 @@ export async function homeSignals(): Promise<ActionResult<HomeSignals>> {
   const date = today();
 
   const monthStart = `${date.slice(0, 7)}-01`;
-  const salesMtd = await safe(async () => {
-    const { data } = await supabase
-      .from('erp_invoices')
-      .select('net_amount, created_at, status')
-      .gte('created_at', `${monthStart}T00:00:00`)
-      .in('status', ['issued', 'paid', 'partially_paid', 'overdue']);
-    return (data ?? []).reduce((n, r) => n + Number((r as { net_amount: number | null }).net_amount ?? 0), 0);
-  }, 0);
-
-  const overdue = await safe(async () => {
-    const { count } = await supabase
-      .from('erp_invoices')
-      .select('id', { count: 'exact', head: true })
-      .lt('due_date', date)
-      .in('status', ['issued', 'partially_paid', 'overdue']);
-    return count ?? 0;
-  }, 0);
-
-  const lostCustomers = await safe(async () => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
-    const recent = await supabase.from('erp_invoices').select('customer_id').gte('created_at', `${cutoffStr}T00:00:00`);
-    const activeIds = new Set((recent.data ?? []).map((r) => (r as { customer_id: string }).customer_id));
-    const { data: custs } = await supabase.from('erp_customers').select('id');
-    return (custs ?? []).filter((c) => !activeIds.has((c as { id: string }).id)).length;
-  }, 0);
-
-  const coveragePct = await safe(async () => {
-    const { data } = await supabase
-      .from('erp_work_sessions')
-      .select('coverage_pct')
-      .eq('salesman_id', ctx.userId)
-      .eq('work_date', date)
-      .neq('close_status', 'closed')
-      .maybeSingle();
-    const v = (data as { coverage_pct: number | null } | null)?.coverage_pct;
-    return v == null ? null : Number(v);
-  }, null);
+  // The four signals are independent → run them in parallel (one wave, not four
+  // serial round-trips). Same data/fallbacks as before; ordering is irrelevant.
+  const [salesMtd, overdue, lostCustomers, coveragePct] = await Promise.all([
+    safe(async () => {
+      const { data } = await supabase
+        .from('erp_invoices')
+        .select('net_amount, created_at, status')
+        .gte('created_at', `${monthStart}T00:00:00`)
+        .in('status', ['issued', 'paid', 'partially_paid', 'overdue']);
+      return (data ?? []).reduce((n, r) => n + Number((r as { net_amount: number | null }).net_amount ?? 0), 0);
+    }, 0),
+    safe(async () => {
+      const { count } = await supabase
+        .from('erp_invoices')
+        .select('id', { count: 'exact', head: true })
+        .lt('due_date', date)
+        .in('status', ['issued', 'partially_paid', 'overdue']);
+      return count ?? 0;
+    }, 0),
+    safe(async () => {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      const recent = await supabase.from('erp_invoices').select('customer_id').gte('created_at', `${cutoffStr}T00:00:00`);
+      const activeIds = new Set((recent.data ?? []).map((r) => (r as { customer_id: string }).customer_id));
+      const { data: custs } = await supabase.from('erp_customers').select('id');
+      return (custs ?? []).filter((c) => !activeIds.has((c as { id: string }).id)).length;
+    }, 0),
+    safe(async () => {
+      const { data } = await supabase
+        .from('erp_work_sessions')
+        .select('coverage_pct')
+        .eq('salesman_id', ctx.userId)
+        .eq('work_date', date)
+        .neq('close_status', 'closed')
+        .maybeSingle();
+      const v = (data as { coverage_pct: number | null } | null)?.coverage_pct;
+      return v == null ? null : Number(v);
+    }, null),
+  ]);
 
   return { ok: true, data: { salesMtd, overdue, lostCustomers, coveragePct } };
 }

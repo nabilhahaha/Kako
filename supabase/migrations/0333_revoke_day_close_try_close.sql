@@ -1,0 +1,19 @@
+-- 0333: Harden erp_day_close_try_close — pre-pilot audit finding V1.
+--
+-- erp_day_close_try_close(uuid) is a SECURITY DEFINER *internal helper* that closes
+-- a day-close request iff operational approval + all blocking settlement/recon stages
+-- are satisfied. It is only ever invoked from inside the guarded RPCs
+-- erp_submit_day_close / erp_decide_day_close_stage / erp_settle_day_cash /
+-- erp_reconcile_day_stock (migration 0330) — all SECURITY DEFINER, so those internal
+-- calls execute as the function OWNER and are unaffected by this REVOKE.
+--
+-- Unlike its siblings it carried neither an erp_guard_rpc() check NOR any REVOKE, so
+-- the default PUBLIC EXECUTE grant left it directly callable via PostgREST
+-- (/rpc/erp_day_close_try_close) — letting an authenticated caller flip a request to
+-- 'closed' and close the work session, bypassing the Supervisor/Settlement/Reconcile
+-- gates. A bare `REVOKE … FROM anon` is insufficient because the residual PUBLIC grant
+-- keeps it callable; this removes PUBLIC (and the explicit role grants) so the function
+-- is reachable only through the guarded RPCs that own the definer context.
+--
+-- No workflow behavior change. No UI change. No new permission introduced.
+REVOKE EXECUTE ON FUNCTION public.erp_day_close_try_close(uuid) FROM PUBLIC, anon, authenticated;

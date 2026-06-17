@@ -14,7 +14,13 @@ export default async function BranchesPage() {
 
   const { t } = await getT();
 
-  if (!ctx.isSuperAdmin) {
+  // A tenant Company Admin (settings.branches) manages their OWN company's
+  // branches; a platform super-admin manages any. Company creation stays the
+  // setup-only flow (never shown to an existing tenant). RLS + the server
+  // actions pin every write to the caller's own company.
+  const canManageBranches =
+    ctx.isSuperAdmin || (ctx.permissions as string[]).includes('settings.branches');
+  if (!canManageBranches) {
     return (
       <div>
         <PageHeader title={t('settings.branches.pageTitle')} />
@@ -28,10 +34,10 @@ export default async function BranchesPage() {
   }
 
   const supabase = await createClient();
-  const { data: companies } = await supabase
-    .from('erp_companies')
-    .select('*')
-    .order('created_at', { ascending: true });
+  // A tenant admin is scoped to their OWN company; a super-admin sees all.
+  const companyQuery = supabase.from('erp_companies').select('*');
+  if (!ctx.isSuperAdmin && ctx.companyId) companyQuery.eq('id', ctx.companyId);
+  const { data: companies } = await companyQuery.order('created_at', { ascending: true });
 
   const company = (companies?.[0] as Company | undefined) ?? null;
 

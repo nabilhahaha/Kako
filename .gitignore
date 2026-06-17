@@ -18,3 +18,7 @@ next-env.d.ts
 *.sw?
 *.log
 .claude/worktrees/
+
+# Python bytecode cache (md_to_docx helper)
+__pycache__/
+*.pyc
