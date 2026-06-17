@@ -94,11 +94,13 @@ describe('MJ-1 posting-action permission gates', () => {
     }
   });
 
-  it('Settlement ownership (day.close.settle): cashier/accountant/admin only — NOT supervisor', () => {
-    expect(can('supervisor', GATES.settleDay), 'supervisor must NOT settle').toBe(false);
-    // Supervisor still APPROVES + RECONCILES the close.
-    expect(permissionsForRole('supervisor')).toContain('day.close.supervisor');
-    expect(permissionsForRole('supervisor')).toContain('day.close.reconcile');
+  it('Settlement ownership (day.close.settle): cashier/accountant/admin only — NOT supervisor/branch_manager', () => {
+    // Neither supervisor nor branch_manager may settle (they approve/reconcile/oversee).
+    for (const role of ['supervisor', 'branch_manager'] as const) {
+      expect(can(role, GATES.settleDay), `${role} must NOT settle`).toBe(false);
+      expect(permissionsForRole(role)).toContain('day.close.supervisor');
+      expect(permissionsForRole(role)).toContain('day.close.reconcile');
+    }
     for (const role of ['cashier', 'accountant', 'admin', 'manager'] as const) {
       expect(can(role, GATES.settleDay), `${role} settles cash`).toBe(true);
     }

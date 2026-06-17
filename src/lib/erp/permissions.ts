@@ -312,7 +312,10 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'stock.adjust', 'stock.transfer.approve', 'visit.approve_out_of_route',
     'day.approve_close_exception', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve', 'stock.view', 'user.transfer',
     'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
-    'day.close.supervisor', 'day.close.reconcile', 'day.close.settle', 'day.close.reopen',
+    // Settlement (day.close.settle) deliberately NOT held — the branch manager
+    // approves/reconciles/oversees but does not perform FINANCIAL settlement
+    // (owned by Cashier/Accountant/Admin only). SoD.
+    'day.close.supervisor', 'day.close.reconcile', 'day.close.reopen',
     'stock_request.adjust', 'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
   ],
