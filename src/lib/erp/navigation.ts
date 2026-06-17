@@ -482,6 +482,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.authzConsole', href: '/settings/authz', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.actionPolicies', href: '/settings/action-policies', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.returnPolicy', href: '/settings/returns', icon: Undo2, perm: 'settings.users', group: 'nav.groups.governance' },
+      { label: 'nav.items.dayClosePolicy', href: '/settings/day-close', icon: CalendarDays, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.features', href: '/settings/features', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.tenantAudit', href: '/settings/audit-log', icon: ScrollText, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.copilotAnalytics', href: '/platform/copilot-analytics', icon: HelpCircle, perm: 'settings.users', showForPlatformOwner: true, group: 'nav.groups.governance' },
