@@ -55,22 +55,25 @@ export const BOTTOM_NAV_TABS: BottomNavTab[] = [
   // embedded picker → the visit context.)
   { href: '/fashion/customers', icon: Users, labelKey: 'nav.bottom.customers', perm: 'fashion.sell', module: 'fashion', group: 'customers' },
   { href: '/customers', icon: Users, labelKey: 'nav.bottom.customers', perm: 'customers.manage', module: 'sales', group: 'customers' },
-  // ── Sell (mutually-exclusive group 'sell') ──
-  // Fashion shops sell from the Fashion POS; everyone else from generic Sales.
-  // The resolver shows only one, gated by the enabled module so a fashion-only
-  // clothing company never lands on the `sales`-module-gated upgrade screen.
-  // The Van-Sell tab is hidden for the unified salesman (selling is Customer-first:
-  // Customer → Statement → Collect → Sell), so there's one operational entry.
-  { href: '/field/van-sales/sell', icon: Truck, labelKey: 'nav.bottom.sell', perm: 'field.sales', group: 'sell', vanSalesOnly: true, hideWhenUnified: true },
-  { href: '/fashion/sell', icon: ScanBarcode, labelKey: 'nav.bottom.sell', perm: 'fashion.sell', module: 'fashion', group: 'sell' },
-  { href: '/sales/invoices', icon: Zap, labelKey: 'nav.bottom.sell', perm: 'sales.sell', module: 'sales', group: 'sell' },
+  // ── Field Requests (van salesmen) — PROMOTED to a primary bottom tab so the rep
+  //    reaches the Requests hub without opening "More":
+  //    Today · Customers · Field Requests · Inventory · More.
+  //    `requestsOnly` → only van salesmen with platform.salesman_requests see it.
+  //    Distinct from the generic "Change Requests" (/change-requests) module. ──
+  { href: '/field/van-sales/requests', icon: Inbox, labelKey: 'nav.bottom.requests', perm: 'field.sales', requestsOnly: true },
   // ── Inventory (mutually-exclusive group 'inventory') ──
   // Van reps see their VAN stock (not the generic warehouse view) — F6.
   { href: '/field/stock', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'field.sales', group: 'inventory', vanSalesOnly: true },
   { href: '/fashion/inventory', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'fashion.inventory', module: 'fashion', group: 'inventory' },
   { href: '/inventory', icon: Boxes, labelKey: 'nav.bottom.inventory', perm: 'inventory.view', module: 'inventory', group: 'inventory' },
-  // Salesman Requests hub (flag platform.salesman_requests) — Today · Van Stock · Requests · More.
-  { href: '/field/van-sales/requests', icon: Inbox, labelKey: 'nav.bottom.requests', perm: 'field.sales', requestsOnly: true },
+  // ── Sell (mutually-exclusive group 'sell') — ordered AFTER Inventory so van
+  //    salesmen get Field Requests + Inventory in the primary bar and Sell falls
+  //    into "More" (selling is Customer-first: Customer → Statement → Collect → Sell).
+  //    Fashion shops sell from the Fashion POS; everyone else from generic Sales.
+  //    The Van-Sell tab is hidden for the unified salesman (one operational entry). ──
+  { href: '/field/van-sales/sell', icon: Truck, labelKey: 'nav.bottom.sell', perm: 'field.sales', group: 'sell', vanSalesOnly: true, hideWhenUnified: true },
+  { href: '/fashion/sell', icon: ScanBarcode, labelKey: 'nav.bottom.sell', perm: 'fashion.sell', module: 'fashion', group: 'sell' },
+  { href: '/sales/invoices', icon: Zap, labelKey: 'nav.bottom.sell', perm: 'sales.sell', module: 'sales', group: 'sell' },
 ];
 
 export interface BottomNavContext {
