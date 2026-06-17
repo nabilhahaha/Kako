@@ -16,6 +16,9 @@ const GATES: Record<string, Permission[]> = {
   createInvoice: ['sales.sell'],
   issueInvoice: ['sales.sell'],
   recordPayment: ['sales.collect'],
+  // SoD: recording a collection (sales.collect) and REVERSING one are different
+  // rights. Reversal is a Finance/Admin correction gated by accounting.post.
+  reverseCollection: ['accounting.post'],
   quickSale: ['sales.sell'],
   postVoucher: ['accounting.post'],
   createVoucher: ['accounting.post'],
@@ -62,6 +65,20 @@ describe('MJ-1 posting-action permission gates', () => {
   it('separation of duties: a rep who can REQUEST a load cannot APPROVE it', () => {
     expect(permissionsForRole('salesman')).toContain('stock_request.create');
     expect(can('salesman', GATES.approveStockRequest)).toBe(false);
+  });
+
+  it('SoD: a Sales Rep can RECORD a collection but cannot REVERSE one (Finance/Admin only)', () => {
+    // Rep records collections…
+    expect(can('salesman', GATES.recordPayment)).toBe(true);
+    expect(can('driver', GATES.recordPayment)).toBe(true);
+    // …but neither rep, supervisor, nor cashier may reverse a posted collection.
+    for (const role of ['salesman', 'driver', 'supervisor', 'cashier'] as const) {
+      expect(can(role, GATES.reverseCollection), `${role} must NOT reverse collections`).toBe(false);
+    }
+    // Finance + Admin/Manager can.
+    expect(can('accountant', GATES.reverseCollection)).toBe(true);
+    expect(can('admin', GATES.reverseCollection)).toBe(true);
+    expect(can('manager', GATES.reverseCollection)).toBe(true);
   });
 
   it('U-4: salesman/viewer cannot change product price or customer credit limit', () => {

@@ -29,10 +29,15 @@ export function CollectionsManager({
   customers,
   openInvoices,
   recent,
+  canReverse = false,
 }: {
   customers: ARCustomer[];
   openInvoices: OpenInvoice[];
   recent: RecentCollection[];
+  /** SoD: only Finance/Admin (accounting.post) may reverse a posted collection.
+   *  When false (e.g. a Sales Rep), the Reverse control is not rendered at all.
+   *  The server action enforces the same right, so hiding it is defence-in-depth. */
+  canReverse?: boolean;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -239,11 +244,13 @@ export function CollectionsManager({
                   <span className="font-medium">{formatCurrency(Number(r.amount))}</span>
                   {r.status === 'reversed' ? (
                     <span className="text-xs text-muted-foreground">{t('sales.collectionsReversed')}</span>
-                  ) : (
+                  ) : canReverse ? (
+                    // SoD: only Finance/Admin (accounting.post) sees the Reverse
+                    // control. A Sales Rep gets no Reverse button at all.
                     <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => onReverse(r)}>
                       {t('sales.collectionsReverse')}
                     </Button>
-                  )}
+                  ) : null}
                 </span>
               </div>
             ))}

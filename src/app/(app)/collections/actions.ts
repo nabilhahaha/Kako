@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { hasPermission } from '@/lib/erp/permissions';
 import { logAudit } from '@/lib/erp/audit';
 import { notifyManagers } from '@/lib/erp/notify';
 import { getActionPolicy } from '@/lib/erp/action-policy';
@@ -67,12 +68,17 @@ export async function recordCollection(input: {
  * disabled for the company — rather than hard-coded rules. The atomic
  * erp_reverse_collection RPC unwinds allocations + restores balances; this
  * wrapper enforces the permission, the policy, audits, and notifies managers.
+ *
+ * AUTHORITY (SoD): reversing a posted collection is a FINANCE/ADMIN correction —
+ * it is NOT the same right as recording a collection. It requires
+ * `accounting.post` (held by Finance/Accountant; admins/managers hold ALL).
+ * A Sales Rep (sales.collect) can record collections but CANNOT reverse them.
  */
 export async function reverseCollection(collectionId: string, reason?: string): Promise<ActionResult> {
   const ctx = await getUserContext();
   const { t } = await getT();
   if (!ctx) return { ok: false, error: t('sales.collectionsErrUnauthorized') };
-  if (!(ctx.permissions as string[]).includes('sales.collect'))
+  if (!hasPermission(ctx, 'accounting.post'))
     return { ok: false, error: t('sales.collectionsErrUnauthorized') };
   if (!collectionId) return { ok: false, error: t('sales.collectionsErrUnauthorized') };
 

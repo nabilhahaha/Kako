@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { getT } from '@/lib/i18n/server';
@@ -48,10 +49,16 @@ export default async function CollectionsPage() {
     .limit(20);
   const recent = (recentRaw as RecentCollection[]) ?? [];
 
+  // SoD: reversing a posted collection is a FINANCE/ADMIN correction, not a
+  // selling right. Only `accounting.post` (Finance/Accountant; admins hold ALL)
+  // may reverse — so the Reverse control is hidden for the Sales Rep. The server
+  // action enforces the same check, so this is defence-in-depth, not the gate.
+  const canReverse = hasPermission(ctx, 'accounting.post');
+
   return (
     <div>
       <PageHeader title={t('sales.collectionsTitle')} description={t('sales.collectionsDescription')} />
-      <CollectionsManager customers={customers} openInvoices={openInvoices} recent={recent} />
+      <CollectionsManager customers={customers} openInvoices={openInvoices} recent={recent} canReverse={canReverse} />
     </div>
   );
 }
