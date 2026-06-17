@@ -129,6 +129,17 @@ export const ar = {
     autoCarryForward: 'ترحيل النقدية المتبقية كعهدة',
     carryForwardHint: 'تظهر النقدية المتبقية في اليوم التالي كعهدة منفصلة عن تحصيلات اليوم.',
   },
+  dayCloseReport: {
+    title: 'تقرير إنهاء اليوم',
+    subtitle: 'حالات الأيام، النقدية المتبقية وتقادمها، الفروقات، وزمن الإغلاق.',
+    from: 'من', to: 'إلى', apply: 'تطبيق', empty: 'لا توجد بيانات.',
+    pendingSupervisor: 'بانتظار المشرف', pendingReconciliation: 'بانتظار الجرد', pendingSettlement: 'بانتظار التسوية',
+    closed: 'مُغلق', rejected: 'مرفوض', avgClose: 'متوسط زمن الإغلاق',
+    outstandingTotal: 'إجمالي المتبقي', aged: 'متأخر',
+    stockVariance: 'فرق المخزون', cashVariance: 'فرق النقدية',
+    outstandingAging: 'تقادم النقدية المتبقية', d0_7: '٠-٧ أيام', d8_30: '٨-٣٠ يوم', d31p: '+٣١ يوم',
+    outstandingBySalesman: 'المتبقي حسب المندوب',
+  },
 };
 
 export const en = {
@@ -260,5 +271,16 @@ export const en = {
     allowPartial: 'Allow partial settlement',
     autoCarryForward: 'Carry outstanding cash forward as custody',
     carryForwardHint: 'Outstanding cash appears the next day as a carried custody balance, separate from that day’s collections.',
+  },
+  dayCloseReport: {
+    title: 'End Day report',
+    subtitle: 'Day statuses, outstanding cash + aging, variances, and close time.',
+    from: 'From', to: 'To', apply: 'Apply', empty: 'No data.',
+    pendingSupervisor: 'Pending supervisor', pendingReconciliation: 'Pending reconciliation', pendingSettlement: 'Pending settlement',
+    closed: 'Closed', rejected: 'Rejected', avgClose: 'Avg close time',
+    outstandingTotal: 'Outstanding total', aged: 'Aged',
+    stockVariance: 'Stock variance', cashVariance: 'Cash variance',
+    outstandingAging: 'Outstanding cash aging', d0_7: '0-7 days', d8_30: '8-30 days', d31p: '31+ days',
+    outstandingBySalesman: 'Outstanding by salesman',
   },
 };
