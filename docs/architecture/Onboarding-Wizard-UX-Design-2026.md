@@ -1,0 +1,329 @@
+# Company Onboarding Wizard — UX & Product Design Package
+
+**Design only — no implementation.** A business-friendly, **mobile-first**, wizard-driven
+experience that lets a **non-technical Company Admin** stand up an entire company. Honors
+the frozen Core UX principle: no RLS / tables / `reports_to` / permission-matrix internals;
+visual, guided, safe by default.
+
+## Design principles
+- **Mobile-first**: every step works one-handed on a phone; desktop is an enhancement.
+- **Template-first**: pick an industry → everything pre-filled → admin edits, rarely builds from scratch.
+- **One concept per screen**: each step asks for one clear thing in business language.
+- **Always safe**: autosave + resume, undo, non-destructive, can't break the company.
+- **Show the effect, not the mechanism**: "Who can see what" previews instead of policy/`reports_to`.
+- **Bilingual / RTL**: Arabic & English, full RTL mirroring.
+
+---
+
+## 1. Complete user journey
+
+**Persona:** "Mona", an operations manager (non-technical) setting up her FMCG distributor.
+**Entry:** Platform Owner creates the company + emails Mona an invite → she lands in the wizard.
+
+```
+Invite ─► Welcome ─► Company basics ─► Pick industry ─► Organization ─► Reporting
+        ─► Roles ─► Products ─► Units ─► Invite users ─► Review ─► GO-LIVE ─► Dashboard
+                         (autosave + resume at any point; re-editable later from Settings)
+```
+
+| Stage | Mona's goal | She feels | Success signal |
+|---|---|---|---|
+| Welcome | "What do I need to do?" | oriented | sees a short checklist + time estimate |
+| Basics | enter company facts | quick | 6 fields, mostly pre-filled |
+| Industry | "start from something" | relieved | picks FMCG → rest pre-built |
+| Organization | draw my branches/teams | in control | drag-drop chart appears |
+| Reporting | who manages whom | clear | sees "who sees what" preview |
+| Roles | what each job can do | confident | toggles in plain words |
+| Products | classify my products | familiar | folder tree + import |
+| Units | pack/carton sizes | guided | "1 carton = 24 units" form |
+| Users | invite my team | done | invites sent |
+| Go-Live | "am I ready?" | reassured | green checklist → Activate |
+
+**Exit:** company is live; the same builders live under **Settings → Company Setup** for
+ongoing edits.
+
+---
+
+## 2. Navigation model (wizard shell)
+
+- **Top:** company name · step title · **Save & exit** (resumes later).
+- **Progress rail:** vertical on desktop, **horizontal scrollable chips** on mobile; each
+  chip shows ✓ done / ◐ in-progress / ○ to-do. Tap a done step to revisit.
+- **Bottom action bar (sticky):** `Back` · `Save` · **`Next`** (primary). `Next` is enabled
+  only when the step's required minimum is met (with inline hints, never a dead end).
+- **Resume:** re-entering the wizard returns to the last incomplete step; a banner shows
+  "3 of 9 done — pick up where you left off".
+- **Skip-safe:** non-blocking steps offer "I'll do this later" (flagged in the Go-Live
+  checklist, not lost).
+
+```
+ MOBILE shell                          DESKTOP shell
+┌─────────────────────────┐          ┌───────────┬───────────────────────────┐
+│ Acme Foods   [Save&exit]│          │ ① Basics ✓│  Step title                │
+│ ●─●─◐─○─○─○─○─○─○  (3/9) │          │ ② Industry│  ───────────────────────  │
+│─────────────────────────│          │ ③ Org    ◐│  [ screen content ]        │
+│                         │          │ ④ Report  │                            │
+│   [ screen content ]    │          │ ⑤ Roles   │                            │
+│                         │          │ ⑥ Products│                            │
+│                         │          │ ⑦ Units   │                            │
+│─────────────────────────│          │ ⑧ Users   │                            │
+│ [Back]  [Save]  [Next ▸]│          │ ⑨ Review  │  [Back]      [Save] [Next ▸]│
+└─────────────────────────┘          └───────────┴───────────────────────────┘
+```
+
+---
+
+## 3. Screen-by-screen flow (mobile-first wireframes)
+
+### Step 0 — Welcome
+Purpose: orient + set expectations. One CTA.
+```
+┌─────────────────────────┐
+│  👋 Welcome, Mona       │
+│  Let's set up Acme Foods│
+│                         │
+│  You'll do 9 quick steps│
+│  ~15 min · save anytime │
+│                         │
+│  ✓ Your branches & teams│
+│  ✓ Who reports to whom  │
+│  ✓ Roles, products, units│
+│                         │
+│      [ Start setup ▸ ]  │
+└─────────────────────────┘
+```
+
+### Step 1 — Company basics
+Validation-light, mostly pre-filled by the Platform Owner.
+```
+┌─────────────────────────┐
+│ Company basics          │
+│ Name   [ Acme Foods    ]│
+│ Country[ Egypt        ▾]│
+│ Currency [ EGP        ▾]│
+│ Time zone[ Africa/Cairo▾]│
+│ Logo   [  ⬆ upload ]    │
+│                         │
+│ [Back]  [Save]  [Next ▸]│
+└─────────────────────────┘
+```
+
+### Step 2 — Pick your industry (template)
+The pivotal "template-first" moment — seeds Org, Roles, Products, Units.
+```
+┌─────────────────────────┐
+│ What kind of business?  │
+│ ┌────────┐ ┌────────┐   │
+│ │ 🥫 FMCG │ │💊Pharma│   │
+│ └────────┘ └────────┘   │
+│ ┌────────┐ ┌────────┐   │
+│ │🚚Distrib│ │🛒Retail│   │
+│ └────────┘ └────────┘   │
+│  ○ Start blank          │
+│  "FMCG sets up regions, │
+│   teams, reps, roles &  │
+│   product levels for you"│
+│ [Back]  [Save]  [Next ▸]│
+└─────────────────────────┘
+```
+
+### Step 3 — Organization (drag-and-drop chart)
+Visual tree. Tap **+** to add under a node; long-press to drag/move; tap a node to edit/
+assign. Levels are renamable; "Add level" tucked in "More".
+```
+┌─────────────────────────┐
+│ Your organization       │
+│  Acme Foods             │
+│   └ North Region        │
+│      └ Cairo Area       │
+│         └ Cairo Branch  │
+│            └ Team Hany ⋮│
+│               └ + add   │
+│  [＋ Add branch]        │
+│  ⚙ More: rename levels  │
+│ Tip: drag a box to move │
+│ [Back]  [Save]  [Next ▸]│
+└─────────────────────────┘
+```
+Node editor (bottom sheet on mobile):
+```
+│ Team Hany               │
+│ Name [ Team Hany       ]│
+│ Manager [ pick person ▾]│
+│ Members [ + add people ]│
+│ [Delete]        [Done]  │
+```
+
+### Step 4 — Reporting (who reports to whom)
+Same tree, manager lens + the **plain-language visibility preview**.
+```
+┌─────────────────────────┐
+│ Who reports to whom?    │
+│  Mona (Director)        │
+│   └ Sara (Regional)     │
+│      └ Hany (Supervisor)│
+│         └ Ali (Rep)     │
+│         └ Omar (Rep)    │
+│ Drag a person under     │
+│ their manager.          │
+│ ┌─ Preview ───────────┐ │
+│ │ Hany will see: Ali &│ │
+│ │ Omar's customers,   │ │
+│ │ visits, sales.      │ │
+│ └─────────────────────┘ │
+│ ⚠ 1 person has no manager│
+│ [Back]  [Save]  [Next ▸]│
+└─────────────────────────┘
+```
+
+### Step 5 — Roles & permissions (plain language)
+Cards per role; **capability groups with descriptions**; clone/preset.
+```
+┌─────────────────────────┐
+│ Roles (from FMCG preset)│
+│ [Sales Rep]  [Supervisor]│
+│ [Cashier] [Accountant]…  │
+│  ▸ Sales Rep            │
+│   Selling               │
+│    ☑ Sell to customers  │
+│    ☑ Collect payments   │
+│   Cash                  │
+│    ☐ Open the cash box  │
+│   "This role can sell & │
+│    collect, not settle."│
+│  [Clone role] [+ New]   │
+│ [Back]  [Save]  [Next ▸]│
+└─────────────────────────┘
+```
+
+### Step 6 — Products (hierarchy + import)
+Folder-style levels (renamable) + drag products in / bulk import.
+```
+┌─────────────────────────┐
+│ Product structure       │
+│ Category ▸ Brand ▸ SKU  │
+│  Beverages              │
+│   └ Cola Co             │
+│      └ Cola 330ml       │
+│      └ Cola 1L          │
+│  [＋ Add level] [Import] │
+│  🔍 find product…       │
+│ [Back]  [Save]  [Next ▸]│
+└─────────────────────────┘
+```
+
+### Step 7 — Units of measure (guided)
+No factors/maths exposed — sentence-style forms + live preview.
+```
+┌─────────────────────────┐
+│ How are products packed?│
+│ Base unit  [ Piece    ▾]│
+│ 1 Pack   =  [ 6 ] Pieces│
+│ 1 Carton =  [ 4 ] Packs │
+│ ┌ Preview ─────────────┐│
+│ │ 1 Carton = 24 Pieces ││
+│ └──────────────────────┘│
+│ Barcode (optional) [   ]│
+│ ☑ Apply to all in Brand │
+│ [Back]  [Save]  [Next ▸]│
+└─────────────────────────┘
+```
+
+### Step 8 — Invite users & assign
+Invite by phone/email, pick role + place on the chart.
+```
+┌─────────────────────────┐
+│ Invite your team        │
+│ [ + Invite person ]     │
+│  Ali  · Sales Rep · Team│
+│  Hany · Supervisor      │
+│  …                      │
+│ [ Import from file ]    │
+│ 3 invited · 0 pending   │
+│ [Back]  [Save]  [Next ▸]│
+└─────────────────────────┘
+```
+
+### Step 9 — Review & Go-Live
+Business-language checklist; one **Activate** CTA.
+```
+┌─────────────────────────┐
+│ Ready to go live?       │
+│ ✓ Company details       │
+│ ✓ Organization chart    │
+│ ✓ Reporting set         │
+│ ✓ Roles ready           │
+│ ✓ Products & units      │
+│ ◐ 1 user pending invite │
+│                         │
+│   [ Activate company ✓ ]│
+│  "You can edit anything │
+│   later in Settings."   │
+└─────────────────────────┘
+```
+
+---
+
+## 4. Mobile-first UX patterns
+- **Touch targets** ≥ 44px; sticky bottom action bar; thumb-reachable primary CTA.
+- **Tree on mobile** = indented list with **+ / ⋮** per row; **long-press-drag** to re-parent;
+  "move to…" picker as a fallback for accessibility.
+- **Editors** open as **bottom sheets**, not modals (one-handed).
+- **Progress** = horizontal scrollable chips; **previews** collapse into expandable cards.
+- **Import** = file picker + camera (scan a list) where useful.
+- **Offline-tolerant**: autosave drafts locally; sync on reconnect.
+
+## 5. Validation rules (business language, never technical)
+| Step | Rule | Message |
+|---|---|---|
+| Basics | name, country, currency required | "Add a company name to continue." |
+| Industry | one selection (or blank) | — |
+| Organization | ≥1 branch-level node | "Add at least one branch." |
+| Reporting | every non-top person has a manager | "Omar still needs a manager." |
+| Roles | ≥1 admin-capable role; SoD presets safe | "Keep at least one admin role." |
+| Products | ≥1 level + a root node | "Add your first category." |
+| Units | one base unit; pack/carton > base | "A carton should be bigger than a piece." |
+| Users | ≥1 active admin user | "Invite at least one admin." |
+| Global | unique names per level; no cycles | "That would make a team report to itself." |
+
+Validation is **inline + non-blocking where possible** (warn, allow "fix later"), with a
+**hard gate only at Go-Live**.
+
+## 6. Go-live checklist (the only hard gate)
+```
+✓ Company details complete
+✓ Organization chart has ≥1 branch
+✓ Everyone has a manager (or is top)
+✓ Roles defined (≥1 admin)
+✓ Product structure + base units
+✓ ≥1 admin user active
+( ◐ optional items can remain — shown, not blocking )
+        → [ Activate company ]
+```
+On Activate: company status → live, dashboard opens, builders move to **Settings → Company
+Setup** (same components, re-runnable, non-destructive).
+
+## 7. Reusable component & interaction library (for the design system)
+- **HierarchyTree** (org / reporting / product) — add, rename, drag-reparent, assign.
+- **NodeCard / NodeEditor** (bottom sheet) — name, manager, members.
+- **PersonPicker** — search users; assign role + node.
+- **CapabilityGroup** — labeled permission group + description + toggles.
+- **VisibilityPreview** — "X will see …" plain-language panel (renders the frozen subtree result).
+- **UoMForm** — sentence-style conversions + live preview.
+- **TemplateGallery** — industry cards.
+- **ProgressRail / StickyActionBar / GoLiveChecklist**.
+- **EmptyState** (friendly first-run prompts), **UndoToast**, **AutosaveBadge**.
+
+## 8. Cross-cutting UX
+- **Empty states**: every builder opens with a friendly prompt + an example ("Add your
+  first branch — e.g., Cairo Branch").
+- **Errors**: human, actionable, no codes.
+- **Accessibility**: keyboard tree nav, screen-reader labels, contrast, drag alternatives.
+- **i18n / RTL**: Arabic + English, mirrored layout, localized examples.
+- **Help**: one-line "what this means" per step; no manual required.
+
+## Status
+UX & product design package — **design only, nothing implemented**. Conforms to the frozen
+Reference Architecture Baseline and Core UX principle. Next design targets (when scheduled):
+Organization Structure Builder deep-dive, Product Builder deep-dive, Role Template Builder
+deep-dive.
