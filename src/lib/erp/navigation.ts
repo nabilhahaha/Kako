@@ -10,6 +10,7 @@ import {
   CalendarClock,
   ClipboardList,
   ClipboardCheck,
+  Inbox,
   Warehouse,
   ShoppingCart,
   FileText,
@@ -368,6 +369,11 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.statementHub', href: '/field/van-sales/statement', icon: FileText, perm: ['field.sales', 'customers.view_balance', 'reports.view'] },
       { label: 'nav.items.dailySummary', href: '/field/van-sales/summary', icon: BarChart3, perm: ['field.sales', 'reports.view'] },
       { label: 'nav.items.cashCustody', href: '/field/van-sales/cash-custody', icon: Wallet, perm: ['field.sales', 'sales.collect'] },
+      // DF-003 — discoverable nav entry for the existing Salesman Requests Hub (New
+      // Customer / Update / GPS / Credit / Terms / Route Transfer / Reactivate / Close +
+      // Load / Cash handover / Reopen). Distinct from the generic "Change Requests"
+      // (/change-requests) module. Gated by the salesman_requests flag + field.sales.
+      { label: 'nav.items.fieldRequests', href: '/field/van-sales/requests', icon: Inbox, perm: 'field.sales', flag: 'platform.salesman_requests' },
       // F1 — Governance / Reports group: discoverable for reports/audit/view-all roles.
       { label: 'nav.items.returnReport', href: '/field/van-sales/approvals/reports', icon: Undo2, perm: ['reports.view', 'returns.view_all', 'returns.approve', 'audit.view'], group: 'nav.groups.reports' },
       { label: 'nav.items.dayCloseReport', href: '/field/van-sales/day-close-report', icon: CalendarDays, perm: ['reports.view', 'audit.view', 'day.close.supervisor', 'day.close.reconcile', 'day.close.settle'], group: 'nav.groups.reports' },
