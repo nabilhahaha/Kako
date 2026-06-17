@@ -77,6 +77,7 @@ import * as productStructure from './product-structure';
 import * as numbering from './numbering';
 import * as financeSetup from './finance-setup';
 import * as goLive from './go-live';
+import * as approvalMatrix from './approval-matrix';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -102,6 +103,7 @@ const MODULES = [
   numbering,
   financeSetup,
   goLive,
+  approvalMatrix,
 ];
 
 type Catalog = Record<string, unknown>;

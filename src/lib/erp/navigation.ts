@@ -510,6 +510,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.features', href: '/settings/features', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.tenantAudit', href: '/settings/audit-log', icon: ScrollText, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.copilotAnalytics', href: '/platform/copilot-analytics', icon: HelpCircle, perm: 'settings.users', showForPlatformOwner: true, group: 'nav.groups.governance' },
+      { label: 'nav.items.approvalMatrix', href: '/settings/approval-matrix', icon: ShieldCheck, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
       { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
       { label: 'nav.items.workflowTemplates', href: '/settings/workflows/templates', icon: LayoutGrid, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.governance' },

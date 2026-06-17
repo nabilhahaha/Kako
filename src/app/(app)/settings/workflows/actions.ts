@@ -9,7 +9,7 @@ import { simulateWorkflow, type SimulationResult } from '@/lib/workflow/builder/
 import type { StepPatch } from '@/lib/workflow/builder/graph-model';
 import type { RuntimeStep } from '@/lib/workflow/executors/types';
 import type { WorkflowStepType } from '@/lib/workflow/types';
-import { WORKFLOW_BUILDER_ENABLED, validateTemplateDefinition, templateToRows, type TemplateDefinition } from '@/lib/workflow-builder';
+import { validateTemplateDefinition, templateToRows, type TemplateDefinition } from '@/lib/workflow-builder';
 import { logAudit } from '@/lib/erp/audit';
 
 const STEP_TYPES = ['approval', 'reject', 'notification', 'task', 'update_record', 'api_call', 'delay', 'escalation', 'condition'];
@@ -447,7 +447,6 @@ export async function listWorkflowTemplates(): Promise<TemplateListItem[]> {
 export async function instantiateTemplate(templateId: string): Promise<Result<{ id: string }>> {
   const { ctx, error } = await guard();
   if (!ctx) return { ok: false, error };
-  if (!WORKFLOW_BUILDER_ENABLED()) return { ok: false, error: 'workflow builder disabled' };
   const supabase = await createClient();
 
   const { data: tpl } = await supabase
