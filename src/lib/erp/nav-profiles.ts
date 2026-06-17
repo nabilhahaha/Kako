@@ -52,6 +52,12 @@ const SALESMAN_MORE = [
   '/field/route', '/sales/journey', '/field/journey', '/rep', '/field/offline',
   '/attention', '/coaching', '/notifications', '/alerts', '/change-requests',
   '/approvals/queue',
+  // FMCG van-sales field tools — the Requests hub (DF-003) + the salesman's own
+  // field views (returns, statements, daily summary, cash custody). Without these
+  // the role profile's allowlist hid them from the menu even though permission +
+  // flags granted access. UI-only; permission/URL unchanged.
+  '/field/van-sales/requests', '/field/van-sales/my-returns', '/field/van-sales/statement',
+  '/field/van-sales/summary', '/field/van-sales/cash-custody',
   // Sell & money (secondary entry points behind the primary Sell/Collect)
   '/sales/invoices', '/sales/orders', '/sales/settlement', '/cashbox', '/sales/returns',
   '/customers/transfer',
