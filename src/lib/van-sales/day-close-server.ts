@@ -7,7 +7,7 @@ import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import type { UserContext } from '@/lib/erp/auth-context';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  buildChain, canActOnStage, dayCloseApprovalEnabled,
+  buildChain, canActOnStage, dayCloseApprovalEnabled, computeCashHeld,
   type DayClosePolicy, type DayCloseStage, type DayCloseStatus,
 } from './day-close-policy';
 
@@ -243,6 +243,84 @@ export interface PendingDayCloseRow {
 const STAGE_OF: Record<string, DayCloseStage> = {
   pending_supervisor: 'supervisor', pending_reconciliation: 'reconcile', pending_settlement: 'settle',
 };
+
+export interface CashCustody {
+  cashInCustodyPrevious: number;  // carried, unsettled from prior days
+  todaysCollections: number;
+  totalCashHeld: number;
+  settledToday: number;
+  outstandingCash: number;
+  lastSettlementDate: string | null;
+  lastSettlementAmount: number | null;
+}
+
+/** The signed-in salesman's cash custody view: carried outstanding (prior days) +
+ *  today's collections − settled today = outstanding, plus the last settlement.
+ *  Read-only; outstanding is a custody balance, not operational opening cash. */
+export async function loadMyCashCustody(): Promise<ActionResult<CashCustody>> {
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx) return { ok: false, error: error ?? 'Not authenticated.' };
+  const supabase = await createClient();
+  const uid = ctx.userId;
+  const today = new Date().toISOString().slice(0, 10);
+
+  // The salesman's day-close requests + their work dates.
+  const { data: reqs } = await supabase
+    .from('erp_day_close_requests')
+    .select('id, work_session_id, outstanding_cash')
+    .eq('salesman_id', uid);
+  const reqRows = (reqs ?? []) as { id: string; work_session_id: string; outstanding_cash: number | null }[];
+  const reqIds = reqRows.map((r) => r.id);
+
+  const wsIds = [...new Set(reqRows.map((r) => r.work_session_id))];
+  const dateById = new Map<string, string | null>();
+  if (wsIds.length) {
+    const { data: ws } = await supabase.from('erp_work_sessions').select('id, work_date').in('id', wsIds);
+    for (const s of (ws ?? []) as { id: string; work_date: string | null }[]) dateById.set(s.id, s.work_date);
+  }
+  // Carried custody = outstanding from PRIOR days (today's is shown live below).
+  const cashInCustodyPrevious = reqRows.reduce((s, r) => {
+    const d = dateById.get(r.work_session_id);
+    return d && d < today ? s + Number(r.outstanding_cash ?? 0) : s;
+  }, 0);
+
+  // Today's collections.
+  const { data: coll } = await supabase
+    .from('erp_collections').select('amount')
+    .eq('received_by', uid).gte('created_at', `${today}T00:00:00`).lte('created_at', `${today}T23:59:59`);
+  const todaysCollections = ((coll ?? []) as { amount: number }[]).reduce((s, c) => s + Number(c.amount ?? 0), 0);
+
+  // Settled today + last settlement (from settle stage events on the rep's requests).
+  let settledToday = 0;
+  let lastSettlementDate: string | null = null;
+  let lastSettlementAmount: number | null = null;
+  if (reqIds.length) {
+    const { data: ev } = await supabase
+      .from('erp_day_close_stage_events')
+      .select('decided_at, payload')
+      .in('request_id', reqIds).eq('stage', 'settle').order('decided_at', { ascending: false });
+    const events = (ev ?? []) as { decided_at: string; payload: { settled?: number } | null }[];
+    for (const e of events) {
+      const amt = Number(e.payload?.settled ?? 0);
+      if (String(e.decided_at).slice(0, 10) === today) settledToday += amt;
+    }
+    if (events[0]) { lastSettlementDate = String(events[0].decided_at).slice(0, 10); lastSettlementAmount = Number(events[0].payload?.settled ?? 0); }
+  }
+
+  const held = computeCashHeld({ cashInCustodyPrevious, todaysCollections, settledToday });
+  return {
+    ok: true,
+    data: {
+      cashInCustodyPrevious,
+      todaysCollections,
+      totalCashHeld: held.totalHeld,
+      settledToday,
+      outstandingCash: held.outstanding,
+      lastSettlementDate,
+      lastSettlementAmount,
+    },
+  };
+}
 
 export interface SettlementBoardRow {
   id: string;

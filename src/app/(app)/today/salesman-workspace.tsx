@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   Play, CheckCircle2, Lock, Clock, MapPin,
-  UserSquare, Boxes, BarChart3, FileText,
+  UserSquare, Boxes, BarChart3, FileText, Wallet,
 } from 'lucide-react';
 import { getT } from '@/lib/i18n/server';
 import type { UserContext } from '@/lib/erp/auth-context';
@@ -15,6 +15,7 @@ import type { VanDayState } from '@/lib/van-sales/day';
 import { loadNextCandidates } from '@/lib/van-sales/next-customer-server';
 import type { FeatureFlags } from '@/lib/erp/feature-flags';
 import { smartNextCustomerEnabled, dailySummaryEnabled, stockMovementReportEnabled } from '@/lib/van-sales/sell';
+import { dayCloseApprovalEnabled } from '@/lib/van-sales/day-close-policy';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
 import { MyDayHero } from './my-day-hero';
 import { PendingLink } from '@/components/shared/pending-link';
@@ -68,6 +69,7 @@ export async function SalesmanWorkspace({ ctx, flags }: Props) {
           ...(dailySummaryEnabled(flags) ? [{ key: 'summary', href: '/field/van-sales/summary', icon: BarChart3, label: 'vanSales.dailySummary.tile' }] : []),
           { key: 'offroute', href: '/field/van-sales/customers', icon: UserSquare, label: 'vanSales.offRouteTile' },
           { key: 'statement', href: '/field/van-sales/statement', icon: FileText, label: 'vanSales.statementTile' },
+          ...(dayCloseApprovalEnabled(flags) ? [{ key: 'custody', href: '/field/van-sales/cash-custody', icon: Wallet, label: 'vanSales.custody.tile' }] : []),
         ].map((s) => {
           const Icon = s.icon;
           return (
