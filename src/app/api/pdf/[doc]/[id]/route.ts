@@ -3,6 +3,8 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { isPdfDoc, printPathFor, pdfFilename } from '@/lib/pdf/documents';
 import { renderUrlToPdf } from '@/lib/pdf/render-pdf';
+import { createClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/erp/audit';
 
 // Document PDF endpoint — renders the EXISTING print page to a PDF (same template
 // as Print, so the output is identical to the print view) and returns it as
@@ -25,9 +27,9 @@ export async function GET(
 
   const ctx = await getUserContext();
   if (!ctx) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  // Field reps (field.sales) share their own documents; back-office (reports.view)
-  // and apex may also export. RLS on the print page is the row-level authority.
-  if (!hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'reports.view') && !ctx.isSuperAdmin) {
+  // Document export/share is a governed permission (R6). Apex bypasses. RLS on the
+  // print page remains the row-level authority.
+  if (!hasPermission(ctx, 'documents.share') && !hasPermission(ctx, 'documents.export') && !ctx.isSuperAdmin) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
@@ -38,6 +40,11 @@ export async function GET(
 
   try {
     const pdf = await renderUrlToPdf(url, cookies);
+    // Audit the financial-document export/share (best-effort; never blocks).
+    try {
+      const supabase = await createClient();
+      await logAudit(supabase, { action: 'document.export', entity: doc, entityId: id, details: { filename }, companyId: ctx.companyId });
+    } catch { /* ignore */ }
     return new NextResponse(Buffer.from(pdf), {
       status: 200,
       headers: {

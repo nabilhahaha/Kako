@@ -26,9 +26,10 @@ export default async function VanStatementSearchPage() {
 
   const { t } = await getT();
   const hub = await loadStatementHub(ctx);
-  // Credit-limit visibility is permission-controlled (sensitive). Those who manage
-  // customers, view reports, or are apex may see it; pure field sellers do not.
-  const canViewCreditLimit = hasPermission(ctx, 'customers.manage') || hasPermission(ctx, 'reports.view') || ctx.isSuperAdmin;
+  // Financial visibility is permission-controlled (R2/R3): credit limit and balance
+  // are now distinct, grantable permissions separate from customers.manage.
+  const canViewCreditLimit = hasPermission(ctx, 'customers.view_credit') || ctx.isSuperAdmin;
+  const canViewBalance = hasPermission(ctx, 'customers.view_balance') || ctx.isSuperAdmin;
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -37,7 +38,7 @@ export default async function VanStatementSearchPage() {
       {!hub ? (
         <Card><CardContent className="pt-6 text-sm text-muted-foreground">{t('vanSales.sell.noVan')}</CardContent></Card>
       ) : (
-        <StatementHubView customers={hub.customers} canViewCreditLimit={canViewCreditLimit} />
+        <StatementHubView customers={hub.customers} canViewCreditLimit={canViewCreditLimit} canViewBalance={canViewBalance} />
       )}
     </div>
   );

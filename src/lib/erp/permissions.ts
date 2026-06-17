@@ -15,12 +15,15 @@ export type Permission =
   | 'customers.manage'
   | 'customers.approve' // approve/reject customer onboarding + sensitive change requests
   | 'customers.change_status' // suspend / block / activate customers (FP-CS)
+  | 'customers.view_balance' // see a customer's outstanding balance (field/back-office)
+  | 'customers.view_credit' // see a customer's credit limit (sensitive; not field sellers by default)
   | 'inventory.view'
   | 'inventory.adjust' // manual stock adjustments / stocktake
   | 'inventory.transfer' // move stock between warehouses
   | 'inventory.count' // perform monthly physical counts
   | 'stock_request.create' // rep requests stock from a warehouse
   | 'stock_request.approve' // warehouse keeper / manager approves & loads
+  | 'stock_request.adjust' // edit approved quantities on a load request (split from approve)
   | 'purchasing.manage' // POs, receiving
   | 'purchasing.return' // supplier (purchase) returns
   | 'suppliers.manage' // suppliers + settlements
@@ -30,7 +33,13 @@ export type Permission =
   | 'settings.users' // users, roles, hierarchy
   | 'integrations.manage' // data import, API keys, webhooks, sync (Data Integration Layer)
   | 'settings.custom_fields' // define custom fields per entity (Custom Fields Engine)
+  | 'settings.workflow_policy' // edit approval / settlement / day-close company policies
   | 'workflow.manage' // define approval workflows (Workflow / Approval Engine)
+  | 'documents.print' // print financial/operational documents
+  | 'documents.share' // share document PDFs (native share / link)
+  | 'documents.export' // export/download document PDFs
+  | 'cash.view_outstanding' // see outstanding cash / custody balances (finance/settlement)
+  | 'audit.view' // read-only access to the audit trail (auditor)
   | 'reports.view'
   | 'hotel.manage' // rooms & bookings (hotel / furnished apartments)
   | 'clinic.manage' // full clinic access (admin/manager) — implies reception + doctor
@@ -118,6 +127,8 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'returns.override': { en: 'Override return approval', ar: 'تجاوز اعتماد المرتجع', group: 'sales' },
   'returns.view_all': { en: 'View all returns', ar: 'عرض كل المرتجعات', group: 'sales' },
   'customers.manage': { en: 'Manage customers', ar: 'إدارة العملاء', group: 'sales' },
+  'customers.view_balance': { en: 'View customer balance', ar: 'عرض رصيد العميل', group: 'sales' },
+  'customers.view_credit': { en: 'View customer credit limit', ar: 'عرض حد ائتمان العميل', group: 'sales' },
   'customers.approve': { en: 'Approve customers & changes', ar: 'اعتماد العملاء والتعديلات', group: 'sales' },
   'customers.change_status': { en: 'Suspend / block customers', ar: 'إيقاف / حظر العملاء', group: 'sales' },
   'inventory.view': { en: 'View stock balances', ar: 'عرض أرصدة المخزون', group: 'inventory' },
@@ -126,6 +137,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'inventory.count': { en: 'Monthly stocktake', ar: 'الجرد الشهري', group: 'inventory' },
   'stock_request.create': { en: 'Request stock loading', ar: 'طلب تحميل بضاعة', group: 'inventory' },
   'stock_request.approve': { en: 'Approve loading requests', ar: 'اعتماد طلبات التحميل', group: 'inventory' },
+  'stock_request.adjust': { en: 'Edit approved load quantities', ar: 'تعديل كميات التحميل المعتمدة', group: 'inventory' },
   'purchasing.manage': { en: 'Purchasing and receiving', ar: 'المشتريات والاستلام', group: 'purchasing' },
   'purchasing.return': { en: 'Supplier returns', ar: 'مرتجعات المشتريات', group: 'purchasing' },
   'suppliers.manage': { en: 'Suppliers and settlement', ar: 'الموردين والسداد', group: 'purchasing' },
@@ -136,7 +148,13 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'settings.users': { en: 'Manage users and permissions', ar: 'إدارة المستخدمين والصلاحيات', group: 'settings' },
   'integrations.manage': { en: 'Manage data import & integrations', ar: 'إدارة استيراد البيانات والتكاملات', group: 'settings' },
   'settings.custom_fields': { en: 'Manage custom fields', ar: 'إدارة الحقول المخصصة', group: 'settings' },
+  'settings.workflow_policy': { en: 'Edit workflow policies (approval / settlement / day close)', ar: 'تعديل سياسات المسارات (اعتماد / تسوية / إنهاء اليوم)', group: 'settings' },
   'workflow.manage': { en: 'Manage approval workflows', ar: 'إدارة مسارات الموافقات', group: 'settings' },
+  'documents.print': { en: 'Print documents', ar: 'طباعة المستندات', group: 'sales' },
+  'documents.share': { en: 'Share document PDFs', ar: 'مشاركة ملفات PDF', group: 'sales' },
+  'documents.export': { en: 'Export document PDFs', ar: 'تصدير ملفات PDF', group: 'sales' },
+  'cash.view_outstanding': { en: 'View outstanding cash / custody', ar: 'عرض النقدية المتبقية / العهدة', group: 'field_ops' },
+  'audit.view': { en: 'View the audit trail', ar: 'عرض سجل التدقيق', group: 'settings' },
   'hotel.manage': { en: 'Manage rooms and bookings', ar: 'إدارة الغرف والحجوزات', group: 'hotel' },
   'clinic.manage': { en: 'Full clinic management', ar: 'إدارة العيادة بالكامل', group: 'clinic' },
   'clinic.reception': { en: 'Reception (appointments/registration/billing)', ar: 'الاستقبال (مواعيد/تسجيل/تحصيل)', group: 'clinic' },
@@ -246,31 +264,39 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   sales_director: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
-    'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
+    'stock_request.approve', 'stock_request.adjust', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
     'assortment.manage', 'survey.manage', 'target.view',
     'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   national_sales_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
-    'stock_request.approve', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
+    'stock_request.approve', 'stock_request.adjust', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
     'assortment.manage', 'survey.manage', 'target.view',
     'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   // Regional / Area: commercial management (no finance posting / settings).
   regional_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
-    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
+    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve', 'stock_request.adjust',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
     'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   area_manager: [
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
-    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve',
+    'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve', 'stock_request.adjust',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
     'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   // Branch Manager: branch operations (NO settings/billing — distinct from Admin).
   branch_manager: [
@@ -283,11 +309,13 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'day.approve_close_exception', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve', 'stock.view', 'user.transfer',
     'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
     'day.close.supervisor', 'day.close.reconcile', 'day.close.settle', 'day.close.reopen', 'day.close.override',
+    'stock_request.adjust', 'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   // IT Admin: integrations / scheduler / governance / technical settings.
   it_admin: [
-    'integrations.manage', 'settings.custom_fields', 'workflow.manage',
-    'settings.users',
+    'integrations.manage', 'settings.custom_fields', 'workflow.manage', 'settings.workflow_policy',
+    'settings.users', 'audit.view',
     'customer.import', 'product.import', 'user.import', 'route.import', 'journey.import',
   ],
   supervisor: [
@@ -298,24 +326,32 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'reconciliation.view', 'reconciliation.manage', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve',
     'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
     'day.close.supervisor', 'day.close.reconcile', 'day.close.settle', 'day.close.reopen',
+    'stock_request.adjust', 'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
     'suppliers.manage', 'sales.collect', 'customers.change_status', 'cash.handover.confirm',
     'stock.view', 'fashion.reports', 'fashion.cashbox', 'fashion.installments', 'fashion.purchase',
     'returns.view_all', 'day.close.settle',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'documents.print', 'documents.share', 'documents.export',
   ],
-  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'cash.handover.confirm', 'day.close.settle', 'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos', 'fashion.sell', 'fashion.installments', 'fashion.cashbox'],
+  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'cash.handover.confirm', 'day.close.settle',
+    'customers.view_balance', 'cash.view_outstanding', 'documents.print', 'documents.share', 'documents.export',
+    'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos', 'fashion.sell', 'fashion.installments', 'fashion.cashbox'],
   salesman: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
     'day.close', 'day.reopen.request', 'cash.handover.request', 'customer.request', 'stock.view', 'stock.transfer', 'customer.create',
     'reconciliation.view', 'returns.create', 'day.close.submit',
+    'customers.view_balance', 'documents.print', 'documents.share', 'documents.export',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
     'returns.create', 'day.close.submit',
+    'customers.view_balance', 'documents.print', 'documents.share', 'documents.export',
   ],
   technician: [
     'customers.manage', 'sales.sell', 'inventory.view', 'stock_request.create',
@@ -326,13 +362,20 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   housekeeping: ['hotel.manage'],
   warehouse_keeper: [
     'inventory.view', 'inventory.adjust', 'inventory.transfer',
-    'inventory.count', 'stock_request.approve', 'purchasing.manage',
+    'inventory.count', 'stock_request.approve', 'stock_request.adjust', 'purchasing.manage',
     'stock.view', 'stock.adjust', 'stock.transfer', 'stock.transfer.approve',
     'fashion.inventory', 'fashion.purchase', 'reconciliation.view', 'reconciliation.manage',
-    'day.close.reconcile',
+    'day.close.reconcile', 'documents.print', 'documents.export',
   ],
   staff: ['inventory.view'],
-  viewer: ['reports.view', 'accounting.view', 'inventory.view'],
+  viewer: ['reports.view', 'accounting.view', 'inventory.view', 'documents.export'],
+  // Auditor: read-only oversight across approvals, settlement and the audit trail.
+  auditor: [
+    'reports.view', 'accounting.view', 'inventory.view', 'stock.view',
+    'returns.view_all', 'reconciliation.view',
+    'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
+    'audit.view', 'documents.export',
+  ],
 };
 
 export interface PermissionContext {

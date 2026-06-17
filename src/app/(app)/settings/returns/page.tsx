@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { returnApprovalEnabled } from '@/lib/van-sales/return-policy';
@@ -21,8 +22,7 @@ export default async function ReturnSettingsPage() {
   const { t } = await getT();
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
-  const isAdmin = ctx.isPlatformOwner === true || ctx.memberships.some((m) => m.role === 'admin');
-  if (!isAdmin) redirect('/dashboard');
+  if (!hasPermission(ctx, 'settings.workflow_policy')) redirect('/dashboard');
 
   const supabase = await createClient();
   const flags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;

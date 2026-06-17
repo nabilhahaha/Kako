@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, type ActionResult } from '@/lib/erp/guards';
+import { hasPermission } from '@/lib/erp/permissions';
 import { logAudit } from '@/lib/erp/audit';
 import type { PolicyMode, ReturnDecision, ApprovalLevel } from '@/lib/van-sales/return-policy';
 
@@ -15,8 +16,9 @@ interface AdminGuard { ok: true; companyId: string; userId: string; supabase: Aw
 async function requireCompanyAdmin(): Promise<AdminGuard | { ok: false; error: string }> {
   const { ctx, error } = await requireAuth();
   if (error || !ctx) return { ok: false, error: 'unauthorized' };
-  const isAdmin = ctx.isPlatformOwner === true || ctx.memberships.some((m) => m.role === 'admin');
-  if (!isAdmin || !ctx.companyId) return { ok: false, error: 'unauthorized' };
+  // Workflow-policy editing is now a grantable permission (not a hardcoded admin
+  // role). Apex tiers still pass via hasPermission.
+  if (!hasPermission(ctx, 'settings.workflow_policy') || !ctx.companyId) return { ok: false, error: 'unauthorized' };
   return { ok: true, companyId: ctx.companyId, userId: ctx.userId, supabase: await createClient() };
 }
 

@@ -32,7 +32,7 @@ const FILTER_LABEL: Record<HubFilter, string> = {
  *  sort + quick filters + per-customer financials and actions (open statement,
  *  start collection, print, share PDF, open profile). Credit limit is shown only
  *  when permitted. Pure prioritization lives in lib/van-sales/statement-hub. */
-export function StatementHubView({ customers, canViewCreditLimit }: { customers: StatementHubCustomer[]; canViewCreditLimit: boolean }) {
+export function StatementHubView({ customers, canViewCreditLimit, canViewBalance = true }: { customers: StatementHubCustomer[]; canViewCreditLimit: boolean; canViewBalance?: boolean }) {
   const { t, locale } = useI18n();
   const intl = INTL_LOCALE[locale];
   const ar = locale === 'ar';
@@ -109,8 +109,8 @@ export function StatementHubView({ customers, canViewCreditLimit }: { customers:
 
                 {/* Financials */}
                 <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs" dir="ltr">
-                  <Stat label={sl('balance')} value={formatCurrency(c.balance, 'EGP', intl)} />
-                  <Stat label={sl('overdue')} value={formatCurrency(c.overdueAmount, 'EGP', intl)} strong={c.overdueAmount > 0} danger={c.overdueAmount > 0} />
+                  {canViewBalance && <Stat label={sl('balance')} value={formatCurrency(c.balance, 'EGP', intl)} />}
+                  {canViewBalance && <Stat label={sl('overdue')} value={formatCurrency(c.overdueAmount, 'EGP', intl)} strong={c.overdueAmount > 0} danger={c.overdueAmount > 0} />}
                   <Stat label={sl('oldestDue')} value={c.oldestDueDate ?? '—'} />
                   {canViewCreditLimit && <Stat label={sl('creditLimit')} value={c.creditLimit > 0 ? formatCurrency(c.creditLimit, 'EGP', intl) : '—'} />}
                   <Stat label={sl('openCount')} value={String(c.openInvoices)} />

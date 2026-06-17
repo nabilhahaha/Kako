@@ -131,7 +131,8 @@ export async function adjustStockRequest(input: AdjustStockRequestInput): Promis
   const ctx = await getUserContext();
   if (!ctx) return { ok: false, error: 'unauthorized' };
   if (!ctx.companyId) return { ok: false, error: 'no company' };
-  if (!hasPermission(ctx, 'stock.adjust') && !ctx.isSuperAdmin) return { ok: false, error: 'unauthorized' };
+  // Editing approved load quantities is its own permission, split from approve.
+  if (!hasPermission(ctx, 'stock_request.adjust') && !ctx.isSuperAdmin) return { ok: false, error: 'unauthorized' };
   if (!input.requestId) return { ok: false, error: 'missing request' };
   if (!input.lines?.length) return { ok: false, error: 'no lines' };
 

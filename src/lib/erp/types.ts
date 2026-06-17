@@ -91,7 +91,8 @@ export type BranchRole =
   | 'housekeeping'
   | 'warehouse_keeper'
   | 'staff'
-  | 'viewer';
+  | 'viewer'
+  | 'auditor';
 
 /** Product unit of measure */
 export type ProductUnit =

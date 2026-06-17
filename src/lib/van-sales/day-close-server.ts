@@ -368,6 +368,9 @@ export async function loadDayCloseSettlementBoard(): Promise<ActionResult<Settle
   const canAny = ['day.close.settle', 'day.close.reconcile']
     .some((p) => ctx.permissions.includes(p as (typeof ctx.permissions)[number])) || ctx.isSuperAdmin;
   if (!canAny) return { ok: false, error: 'You do not have permission to settle/reconcile day closes.' };
+  // Cash figures require cash.view_outstanding (R1) — a reconcile-only user (e.g.
+  // Warehouse) must not see cash. settle holders implicitly qualify.
+  const canViewCash = ctx.permissions.includes('cash.view_outstanding') || ctx.permissions.includes('day.close.settle') || ctx.isSuperAdmin;
 
   const supabase = await createClient();
   const { data, error: qErr } = await supabase
@@ -402,9 +405,9 @@ export async function loadDayCloseSettlementBoard(): Promise<ActionResult<Settle
       workDate: dateById.get(r.work_session_id) ?? null,
       dayStatus: r.status,
       settlementStatus: r.settlement_status,
-      expectedCash: Number(r.expected_cash ?? 0),
-      settledCash: Number(r.settled_cash ?? 0),
-      outstandingCash: Number(r.outstanding_cash ?? 0),
+      expectedCash: canViewCash ? Number(r.expected_cash ?? 0) : 0,
+      settledCash: canViewCash ? Number(r.settled_cash ?? 0) : 0,
+      outstandingCash: canViewCash ? Number(r.outstanding_cash ?? 0) : 0,
       reconcileStatus: r.reconcile_status,
       expectedStock: r.expected_stock,
       countedStock: r.counted_stock,
@@ -601,12 +604,19 @@ export async function loadDayCloseReport(range: { from: string; to: string }): P
   }
   const avgCloseHours = closedDurations.length ? closedDurations.reduce((s, n) => s + n, 0) / closedDurations.length / 60 : null;
 
+  // Cash figures gated by cash.view_outstanding (R1): zero them otherwise.
+  const canViewCash = ctx.permissions.includes('cash.view_outstanding') || ctx.permissions.includes('day.close.settle') || ctx.isSuperAdmin;
+  const outstandingOut = canViewCash ? outstanding : { total: 0, d0_7: 0, d8_30: 0, d31p: 0 };
+  const varianceOut = { stockTotal: variance.stockTotal, cashTotal: canViewCash ? variance.cashTotal : 0 };
+
   return {
     ok: true,
     data: {
-      range, counts, outstanding, variance,
+      range, counts, outstanding: outstandingOut, variance: varianceOut,
       sla: { avgCloseHours, agedOver24h, agedOver48h },
-      bySalesman: [...bySalesman.entries()].map(([id, o]) => ({ salesmanId: id, salesmanName: nameById.get(id) || id.slice(0, 8), outstanding: o })).sort((a, b) => b.outstanding - a.outstanding),
+      bySalesman: canViewCash
+        ? [...bySalesman.entries()].map(([id, o]) => ({ salesmanId: id, salesmanName: nameById.get(id) || id.slice(0, 8), outstanding: o })).sort((a, b) => b.outstanding - a.outstanding)
+        : [],
     },
   };
 }

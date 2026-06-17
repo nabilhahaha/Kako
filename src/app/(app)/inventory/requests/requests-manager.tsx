@@ -62,6 +62,7 @@ export function RequestsManager({
   branches,
   products,
   canApprove,
+  canAdjust,
   canRequest,
 }: {
   requests: RequestRow[];
@@ -70,6 +71,7 @@ export function RequestsManager({
   products: ProductCatalog[];
   currentUserId: string;
   canApprove: boolean;
+  canAdjust: boolean;
   canRequest: boolean;
 }) {
   const router = useRouter();
@@ -300,7 +302,7 @@ export function RequestsManager({
                                   <tr key={pid} className="border-t">
                                     <td className="p-1.5">{productName(pid)}{!line && <span className="ms-1 text-[10px] text-primary">+{t('inventory.added')}</span>}</td>
                                     <td className="p-1.5 text-end tabular-nums text-muted-foreground" dir="ltr">{formatNumber(requested)}</td>
-                                    <td className="p-1.5 text-end"><Input type="number" min={0} step="0.001" dir="ltr" value={approved} onChange={(e) => setApproved(r.id, pid, Number(e.target.value))} className="ms-auto h-7 w-20 text-end text-xs" /></td>
+                                    <td className="p-1.5 text-end"><Input type="number" min={0} step="0.001" dir="ltr" disabled={!canAdjust} value={approved} onChange={(e) => setApproved(r.id, pid, Number(e.target.value))} className="ms-auto h-7 w-20 text-end text-xs" /></td>
                                     <td className={`p-1.5 text-end tabular-nums ${diff < 0 ? 'text-destructive' : diff > 0 ? 'text-success' : 'text-muted-foreground'}`} dir="ltr">{diff > 0 ? `+${formatNumber(diff)}` : formatNumber(diff)}</td>
                                   </tr>
                                 );
@@ -308,15 +310,17 @@ export function RequestsManager({
                             </tbody>
                           </table>
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <select value={addSku[r.id] ?? ''} onChange={(e) => setAddSku((m) => ({ ...m, [r.id]: e.target.value }))} className="h-7 min-w-[8rem] rounded-md border border-input bg-background px-2 text-xs">
-                            <option value="">{t('inventory.addSku')}</option>
-                            {products.filter((p) => !scopedProducts(r).includes(p.id)).map((p) => <option key={p.id} value={p.id}>{p.name_ar || p.name}</option>)}
-                          </select>
-                          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!addSku[r.id]} onClick={() => { const pid = addSku[r.id]; if (pid) { setApproved(r.id, pid, 1); setAddSku((m) => ({ ...m, [r.id]: '' })); } }}><Plus className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={pending || !approvedEdit[r.id]} onClick={() => saveAdjust(r)}>{t('inventory.saveAdjust')}</Button>
-                          <span className="text-[10px] text-muted-foreground">{t('inventory.zeroRemoves')}</span>
-                        </div>
+                        {canAdjust && (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <select value={addSku[r.id] ?? ''} onChange={(e) => setAddSku((m) => ({ ...m, [r.id]: e.target.value }))} className="h-7 min-w-[8rem] rounded-md border border-input bg-background px-2 text-xs">
+                              <option value="">{t('inventory.addSku')}</option>
+                              {products.filter((p) => !scopedProducts(r).includes(p.id)).map((p) => <option key={p.id} value={p.id}>{p.name_ar || p.name}</option>)}
+                            </select>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!addSku[r.id]} onClick={() => { const pid = addSku[r.id]; if (pid) { setApproved(r.id, pid, 1); setAddSku((m) => ({ ...m, [r.id]: '' })); } }}><Plus className="h-3.5 w-3.5" /></Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={pending || !approvedEdit[r.id]} onClick={() => saveAdjust(r)}>{t('inventory.saveAdjust')}</Button>
+                            <span className="text-[10px] text-muted-foreground">{t('inventory.zeroRemoves')}</span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="mt-1 text-xs text-muted-foreground">

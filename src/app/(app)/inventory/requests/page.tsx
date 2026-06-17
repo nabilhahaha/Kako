@@ -37,6 +37,7 @@ export default async function StockRequestsPage() {
         products={(products as ProductCatalog[]) ?? []}
         currentUserId={ctx.userId}
         canApprove={hasPermission(ctx, 'stock_request.approve')}
+        canAdjust={hasPermission(ctx, 'stock_request.adjust')}
         canRequest={hasPermission(ctx, 'stock_request.create')}
       />
     </div>
