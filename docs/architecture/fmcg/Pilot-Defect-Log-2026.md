@@ -11,6 +11,7 @@ Category · Disposition (In-Pilot / Post-Pilot) · Notes.
 | DF-002 | Salesman | Change Requests / Requests Hub | Medium | Workflow / Discoverability | **Post-Pilot** | Open — functionality exists & enabled (discoverability/naming) |
 | ENV-1 | All (salesman) | Mobile nav / van-sales UI | ~~High~~ → **Retracted** | Configuration / Environment | **Closed (incorrect)** | **RETRACTED by runtime logs** — `vanSalesActive=TRUE`; backend = vantora-staging (confirmed); no env change needed |
 | ENV-1b | Salesman | Mobile bottom nav | Low | Usability (stale layout) | **In-Pilot (no-op / hard-refresh)** | Open — `unifiedWorkspace` rendered false on a stale/transient layout; Requests is in "More" & reachable |
+| DF-003 | Salesman | Navigation → Requests Hub | **High** | Navigation / Discoverability | **In-Pilot (qualifies: blocks core workflow access)** | Open — runtime-confirmed: NO UI nav path to `/field/van-sales/requests`; only `/change-requests` (wrong page) is surfaced |
 
 ---
 
@@ -161,3 +162,27 @@ Stock tabs, labelled generically.)
   to re-render the layout with a clean session + current flags → expect `Today · Van Stock · Requests
   · More`. If it persists after a hard refresh, escalate for a deeper layout flag-read look.
 - **Immediate:** Requests is reachable now via **"More"** or directly at `/field/van-sales/requests`.
+
+---
+
+## DF-003 — No UI navigation path to the Requests Hub (runtime-confirmed)
+
+- **Role:** Salesman (`salesman@pilot.test`) · **Screen:** Navigation → Requests Hub
+- **Severity:** High · **Category:** Navigation / Discoverability · **Disposition:** In-Pilot
+  (qualifies: blocks discoverable access to a core workflow; fix is a nav entry, not a new feature).
+
+**Runtime evidence (deployed preview logs, source of truth):**
+- The salesman session repeatedly opened **`/change-requests`** (200) — 09:41 … 11:02 — i.e. the
+  user keeps landing on the generic, list-only "Change Requests" module (no create action).
+- **`/field/van-sales/requests`** (the real Hub) was served **200** at 09:37:35 and **not since** —
+  the current UI is not linking to it.
+- `/inventory/requests` (Load Requests) served 200 separately.
+
+**Conclusion (no inference):** In the current deployed UI there is **no user-accessible navigation
+path** to the Requests Hub. It is reachable **only** by directly opening
+`/field/van-sales/requests` (proven 200). The "Change Requests" entry in "More" routes to
+`/change-requests` — a different page that does not create requests.
+
+**Fix (Post-Pilot UX-P2, In-Pilot nav-only acceptable):** add a sidebar/"More" entry pointing to
+`/field/van-sales/requests` (gated `platform.salesman_requests` + `field.sales`), and disambiguate
+"Requests" vs "Change Requests". No new workflow — the Hub already exists and works.
