@@ -6,6 +6,7 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { today } from '@/lib/erp/work-session';
 import type { JourneySortMode } from '@/lib/erp/journey-sort';
 import { APPROVAL_DAYCLOSE, APPROVAL_VISIT, APPROVAL_CUSTTRANSFER, APPROVAL_VANTRANSFER } from '@/lib/erp/approval-flags';
+import { dayCloseChainActive, submitDayClose } from '@/lib/van-sales/day-close-server';
 
 /** ── FMCG field-execution server actions ───────────────────────────────────
  *  Thin, permission-gated wrappers over the validated 0128–0134 RPCs. Each
@@ -211,9 +212,22 @@ export async function closeDay(
 ): Promise<ActionResult> {
   const { ctx, error } = await requireAuth();
   if (error || !ctx) return { ok: false, error };
-  if (!hasPermission(ctx, 'day.close')) return { ok: false, error: 'unauthorized' };
+  if (!hasPermission(ctx, 'day.close') && !hasPermission(ctx, 'day.close.submit')) return { ok: false, error: 'unauthorized' };
 
   const supabase = await createClient();
+
+  // End Day Approval (platform.day_close_approval): when the company runs an
+  // approval chain, End Day SUBMITS (locks the day, status pending_<first stage>)
+  // instead of closing. Surfaced to existing callers as close_status
+  // 'pending_approval' so the journey screen shows the pending state. Flag OFF or
+  // no chain ⇒ the legacy direct close below is unchanged.
+  const { active } = await dayCloseChainActive(supabase, ctx);
+  if (active) {
+    const sub = await submitDayClose(workSessionId);
+    if (!sub.ok || !sub.data) return { ok: false, error: sub.error };
+    return { ok: true, data: { close_status: 'pending_approval', day_close_status: sub.data.status, request_id: sub.data.requestId } };
+  }
+
   const { data, error: rpcErr } = await supabase.rpc('erp_close_day', {
     p_work_session_id: workSessionId,
     p_skip_reasons: skipReasons,

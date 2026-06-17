@@ -46,11 +46,16 @@ export async function isVanDayOpen(userId: string): Promise<boolean> {
   const supabase = await createClient();
   const { data } = await supabase
     .from('erp_work_sessions')
-    .select('status')
+    .select('status, close_status')
     .eq('salesman_id', userId)
     .eq('work_date', today())
     .maybeSingle();
-  return Boolean(data) && (data as { status: string }).status !== 'closed';
+  if (!data) return false;
+  const row = data as { status: string; close_status: string | null };
+  // Closed OR submitted-for-close (close_status pending_approval) ⇒ the day is locked
+  // for further sell/collect/return; the End Day approval/settlement chain must finish
+  // (or a supervisor rejection re-opens it) before transactions resume.
+  return row.status !== 'closed' && row.close_status !== 'pending_approval';
 }
 
 // ============================================================================
