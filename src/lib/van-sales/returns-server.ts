@@ -635,6 +635,79 @@ export async function loadPendingReturnApprovals(): Promise<ActionResult<Pending
   return { ok: true, data: out };
 }
 
+// ── Salesman "My Returns" ────────────────────────────────────────────────────
+
+export type MyReturnStatus = 'pending' | 'approved' | 'rejected';
+export interface MyReturnRow {
+  id: string;
+  returnNumber: string;
+  customerName: string;
+  customerCode: string;
+  returnType: ReturnTypeKind;
+  value: number;
+  requestedAt: string | null;
+  status: MyReturnStatus;
+  approverName: string | null;
+  decisionAt: string | null;
+  rejectionReason: string | null;
+}
+
+/**
+ * The signed-in salesman's own return requests (the approval workflow only —
+ * requested_at set), newest first, with status, approver and decision date.
+ * Gated by the always-on returns.create permission; branch-scoped by RLS.
+ */
+export async function loadMyReturns(): Promise<ActionResult<MyReturnRow[]>> {
+  const { ctx, error: authErr } = await requireActionPermission('returns.create');
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'Not authenticated.' };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('erp_sales_returns')
+    .select('id, return_number, customer_id, total_amount, return_type, status, requested_at, approved_at, approved_by, rejected_at, rejected_by, rejection_reason')
+    .eq('requested_by', ctx.userId)
+    .not('requested_at', 'is', null)
+    .order('requested_at', { ascending: false })
+    .limit(300);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  const rows = (data ?? []) as {
+    id: string; return_number: string; customer_id: string; total_amount: number; return_type: string | null;
+    status: string; requested_at: string | null; approved_at: string | null; approved_by: string | null;
+    rejected_at: string | null; rejected_by: string | null; rejection_reason: string | null;
+  }[];
+  if (rows.length === 0) return { ok: true, data: [] };
+
+  const custIds = [...new Set(rows.map((r) => r.customer_id))];
+  const deciderIds = [...new Set(rows.flatMap((r) => [r.approved_by, r.rejected_by]).filter((x): x is string => !!x))];
+  const [{ data: custRows }, { data: profRows }] = await Promise.all([
+    supabase.from('erp_customers').select('id, name, code').in('id', custIds),
+    deciderIds.length ? supabase.from('erp_profiles').select('id, full_name').in('id', deciderIds) : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
+  ]);
+  const custById = new Map(((custRows ?? []) as { id: string; name: string; code: string }[]).map((c) => [c.id, c]));
+  const nameById = new Map(((profRows ?? []) as { id: string; full_name: string | null }[]).map((p) => [p.id, p.full_name ?? '']));
+
+  const out: MyReturnRow[] = rows.map((r) => {
+    const status: MyReturnStatus = r.status === 'rejected' ? 'rejected' : r.status === 'completed' ? 'approved' : 'pending';
+    const deciderId = status === 'rejected' ? r.rejected_by : status === 'approved' ? r.approved_by : null;
+    const cust = custById.get(r.customer_id);
+    return {
+      id: r.id,
+      returnNumber: r.return_number,
+      customerName: cust?.name ?? r.customer_id,
+      customerCode: cust?.code ?? '',
+      returnType: r.return_type === 'damage' ? 'damage' : 'saleable',
+      value: Number(r.total_amount ?? 0),
+      requestedAt: r.requested_at,
+      status,
+      approverName: deciderId ? (nameById.get(deciderId) || null) : null,
+      decisionAt: status === 'rejected' ? r.rejected_at : status === 'approved' ? r.approved_at : null,
+      rejectionReason: status === 'rejected' ? r.rejection_reason : null,
+    };
+  });
+  return { ok: true, data: out };
+}
+
 // ── Phase E: approval reports ────────────────────────────────────────────────
 
 export interface ApproverStat {

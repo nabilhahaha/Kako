@@ -357,6 +357,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.journey', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales', module: ['field_ops', 'distribution'] },
       { label: 'nav.items.todayJourney', href: '/field/journey', icon: MapPin, perm: 'field.sales', module: ['field_ops', 'distribution'] },
       { label: 'nav.items.fieldOffline', href: '/field/offline', icon: Smartphone, perm: 'field.sales', module: ['field_ops', 'distribution'] },
+      { label: 'nav.items.myReturns', href: '/field/van-sales/my-returns', icon: Undo2, perm: 'returns.create' },
       { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
       { label: 'nav.items.returnApprovals', href: '/field/van-sales/approvals', icon: Undo2, perm: 'returns.approve' },
       { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view', module: ['analytics', 'sales'] },

@@ -223,6 +223,9 @@ export function ReturnScreen({
               )
             )}
           </div>
+          <PendingLink href="/field/van-sales/my-returns" pendingLabel={t('common.opening')} className={`w-full ${buttonVariants({ variant: 'ghost' })}`}>
+            {t('vanSales.myReturns.title')}
+          </PendingLink>
           {!smartNext && <Button variant="ghost" className="w-full" onClick={() => router.push('/field/van-sales')}>{t('vanSales.return.back')}</Button>}
         </CardContent>
       </Card>
