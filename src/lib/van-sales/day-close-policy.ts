@@ -151,7 +151,9 @@ export function canActOnStage(args: ActOnStageArgs): boolean {
 //    balance (shown separately), never the next day's operational opening cash.
 
 export type SettlementStatus = 'not_required' | 'pending' | 'partial' | 'settled';
-export type ReconcileStatus = 'not_required' | 'pending' | 'partial' | 'reconciled';
+export type ReconcileStatus = 'not_required' | 'not_due_yet' | 'pending' | 'partial' | 'reconciled';
+/** How often inventory reconciliation is due. 'surprise' = ad-hoc (never auto-due). */
+export type ReconcileCadence = 'daily' | 'weekly' | 'monthly' | 'surprise' | 'not_required';
 
 /** Per-company track configuration layered on the policy (all default false/safe). */
 export interface DayCloseTracks {
@@ -161,6 +163,24 @@ export interface DayCloseTracks {
   reconcileBlocksClose?: boolean; // must reconciliation be satisfied before close?
   allowPartialSettlement?: boolean;
   autoCarryForward?: boolean;     // show outstanding as carried custody next day
+  reconcileCadence?: ReconcileCadence;
+}
+
+/** Is inventory reconciliation DUE on `workDate` given the cadence + last reconcile?
+ *  daily → always; weekly → ≥7d since last; monthly → ≥28d; surprise/not_required →
+ *  never auto-due. Pure. */
+export function reconcileDue(cadence: ReconcileCadence | undefined, workDate: string, lastReconciledDate?: string | null): boolean {
+  if (!cadence || cadence === 'not_required' || cadence === 'surprise') return false;
+  if (cadence === 'daily') return true;
+  if (!lastReconciledDate) return true; // never reconciled ⇒ due
+  const gapDays = Math.floor((Date.parse(`${workDate}T00:00:00Z`) - Date.parse(`${lastReconciledDate}T00:00:00Z`)) / 86400000);
+  return cadence === 'weekly' ? gapDays >= 7 : gapDays >= 28; // monthly
+}
+
+/** Initial reconciliation status before any count, from the cadence/dueness. Pure. */
+export function initialReconcileStatus(tracks: DayCloseTracks, workDate: string, lastReconciledDate?: string | null): ReconcileStatus {
+  if (!tracks.reconcileEnabled || tracks.reconcileCadence === 'not_required') return 'not_required';
+  return reconcileDue(tracks.reconcileCadence, workDate, lastReconciledDate) ? 'pending' : 'not_due_yet';
 }
 
 /** Settlement status + outstanding from expected vs settled cash. Pure.
@@ -194,8 +214,13 @@ export function canCloseDay(args: {
   reconcileStatus: ReconcileStatus;
 }): boolean {
   if (!args.operationalApproved) return false;
-  if (args.tracks.settleEnabled && args.tracks.settleBlocksClose && args.settlementStatus !== 'settled') return false;
-  if (args.tracks.reconcileEnabled && args.tracks.reconcileBlocksClose && args.reconcileStatus !== 'reconciled') return false;
+  // A blocking settlement gates the close unless it's settled (or not required).
+  if (args.tracks.settleEnabled && args.tracks.settleBlocksClose
+      && !(['settled', 'not_required'] as SettlementStatus[]).includes(args.settlementStatus)) return false;
+  // A blocking reconciliation gates the close only when it's actually DUE — i.e.
+  // pending/partial. 'not_due_yet' / 'reconciled' / 'not_required' never block.
+  if (args.tracks.reconcileEnabled && args.tracks.reconcileBlocksClose
+      && (['pending', 'partial'] as ReconcileStatus[]).includes(args.reconcileStatus)) return false;
   return true;
 }
 

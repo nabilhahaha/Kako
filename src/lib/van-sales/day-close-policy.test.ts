@@ -3,6 +3,7 @@ import {
   buildChain, firstStatus, nextStatusAfter, canActOnStage, assignedRole,
   pendingStatusFor, rejectedStatusFor, stageOfStatus, dayCloseApprovalEnabled,
   computeSettlement, computeReconciliation, canCloseDay, computeCashHeld,
+  reconcileDue, initialReconcileStatus,
   DEFAULT_DAY_CLOSE_POLICY, type DayClosePolicy,
 } from './day-close-policy';
 
@@ -152,5 +153,30 @@ describe('separated statuses — settlement / reconciliation / close gating', ()
     // Day 2 example: carried 2000 custody, 4000 collected today, settled 1000.
     expect(computeCashHeld({ cashInCustodyPrevious: 2000, todaysCollections: 4000, settledToday: 1000 }))
       .toEqual({ totalHeld: 6000, outstanding: 5000 });
+  });
+});
+
+describe('inventory reconciliation cadence (Not Due Yet)', () => {
+  it('reconcileDue: daily always; weekly/monthly by gap; surprise/not_required never auto-due', () => {
+    expect(reconcileDue('daily', '2026-06-17')).toBe(true);
+    expect(reconcileDue('weekly', '2026-06-17', '2026-06-12')).toBe(false); // 5d
+    expect(reconcileDue('weekly', '2026-06-17', '2026-06-09')).toBe(true);  // 8d
+    expect(reconcileDue('monthly', '2026-06-17', '2026-06-01')).toBe(false); // 16d
+    expect(reconcileDue('surprise', '2026-06-17')).toBe(false);
+    expect(reconcileDue('not_required', '2026-06-17')).toBe(false);
+    expect(reconcileDue('weekly', '2026-06-17', null)).toBe(true); // never reconciled
+  });
+
+  it('initialReconcileStatus: not_required / not_due_yet / pending', () => {
+    expect(initialReconcileStatus({ reconcileEnabled: false }, '2026-06-17')).toBe('not_required');
+    expect(initialReconcileStatus({ reconcileEnabled: true, reconcileCadence: 'not_required' }, '2026-06-17')).toBe('not_required');
+    expect(initialReconcileStatus({ reconcileEnabled: true, reconcileCadence: 'weekly' }, '2026-06-17', '2026-06-15')).toBe('not_due_yet');
+    expect(initialReconcileStatus({ reconcileEnabled: true, reconcileCadence: 'daily' }, '2026-06-17')).toBe('pending');
+  });
+
+  it('canCloseDay: a blocking reconciliation does NOT block when Not Due Yet', () => {
+    const base = { operationalApproved: true, settlementStatus: 'settled' as const };
+    expect(canCloseDay({ ...base, reconcileStatus: 'not_due_yet', tracks: { reconcileEnabled: true, reconcileBlocksClose: true } })).toBe(true);
+    expect(canCloseDay({ ...base, reconcileStatus: 'pending', tracks: { reconcileEnabled: true, reconcileBlocksClose: true } })).toBe(false);
   });
 });
