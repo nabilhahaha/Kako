@@ -36,6 +36,7 @@ export interface DayClosePolicyInput {
   allowPartialSettlement: boolean;
   autoCarryForward: boolean;
   reconcileCadence: 'daily' | 'weekly' | 'monthly' | 'surprise' | 'not_required';
+  custodyEscalationDays: number | null;
 }
 
 const CADENCES = ['daily', 'weekly', 'monthly', 'surprise', 'not_required'] as const;
@@ -68,6 +69,7 @@ export async function saveDayClosePolicy(input: DayClosePolicyInput): Promise<Ac
     allow_partial_settlement: input.allowPartialSettlement !== false,
     auto_carry_forward: input.autoCarryForward !== false,
     reconcile_cadence: CADENCES.includes(input.reconcileCadence) ? input.reconcileCadence : 'daily',
+    custody_escalation_days: input.custodyEscalationDays != null && input.custodyEscalationDays > 0 ? Math.trunc(input.custodyEscalationDays) : 7,
     updated_at: new Date().toISOString(),
     updated_by: g.userId,
   }, { onConflict: 'company_id' });

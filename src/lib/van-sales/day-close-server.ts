@@ -252,6 +252,10 @@ export interface CashCustody {
   outstandingCash: number;
   lastSettlementDate: string | null;
   lastSettlementAmount: number | null;
+  /** Age (days) of the OLDEST unsettled outstanding day-close; null if none. */
+  oldestOutstandingDays: number | null;
+  /** Company threshold (days) past which carried custody escalates. */
+  escalationDays: number;
 }
 
 /** The signed-in salesman's cash custody view: carried outstanding (prior days) +
@@ -279,10 +283,22 @@ export async function loadMyCashCustody(): Promise<ActionResult<CashCustody>> {
     for (const s of (ws ?? []) as { id: string; work_date: string | null }[]) dateById.set(s.id, s.work_date);
   }
   // Carried custody = outstanding from PRIOR days (today's is shown live below).
-  const cashInCustodyPrevious = reqRows.reduce((s, r) => {
+  let cashInCustodyPrevious = 0;
+  let oldestOutstandingDate: string | null = null;
+  for (const r of reqRows) {
     const d = dateById.get(r.work_session_id);
-    return d && d < today ? s + Number(r.outstanding_cash ?? 0) : s;
-  }, 0);
+    const out = Number(r.outstanding_cash ?? 0);
+    if (d && d < today && out > 0) {
+      cashInCustodyPrevious += out;
+      if (!oldestOutstandingDate || d < oldestOutstandingDate) oldestOutstandingDate = d;
+    }
+  }
+  const oldestOutstandingDays = oldestOutstandingDate
+    ? Math.floor((Date.parse(`${today}T00:00:00`) - Date.parse(`${oldestOutstandingDate}T00:00:00`)) / 86400000)
+    : null;
+  const { data: polRow } = await supabase
+    .from('erp_day_close_policies').select('custody_escalation_days').eq('company_id', ctx.companyId ?? '').maybeSingle();
+  const escalationDays = Number((polRow as { custody_escalation_days: number } | null)?.custody_escalation_days ?? 7);
 
   // Today's collections.
   const { data: coll } = await supabase
@@ -318,6 +334,8 @@ export async function loadMyCashCustody(): Promise<ActionResult<CashCustody>> {
       outstandingCash: held.outstanding,
       lastSettlementDate,
       lastSettlementAmount,
+      oldestOutstandingDays,
+      escalationDays,
     },
   };
 }
@@ -486,5 +504,109 @@ export async function loadPendingDayCloses(): Promise<ActionResult<PendingDayClo
       stockVariance: r.stock_variance,
       cashVariance: r.cash_variance,
     })),
+  };
+}
+
+// ── Phase D: End Day report ──────────────────────────────────────────────────
+
+export interface DayCloseReport {
+  range: { from: string; to: string };
+  counts: { pendingSupervisor: number; pendingReconciliation: number; pendingSettlement: number; rejected: number; closed: number };
+  outstanding: { total: number; d0_7: number; d8_30: number; d31p: number };
+  variance: { stockTotal: number; cashTotal: number };
+  sla: { avgCloseHours: number | null; agedOver24h: number; agedOver48h: number };
+  bySalesman: { salesmanId: string; salesmanName: string; outstanding: number }[];
+}
+
+/**
+ * End Day report (Phase D): status counts (decided by date in range), outstanding
+ * cash + aging (by work date, current backlog), stock/cash variance totals, and SLA
+ * (avg submitted→closed; aged pending > 24h/48h). Gated by reports.view / any
+ * day-close stage permission. Branch-scoped by RLS.
+ */
+export async function loadDayCloseReport(range: { from: string; to: string }): Promise<ActionResult<DayCloseReport>> {
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx) return { ok: false, error: error ?? 'Not authenticated.' };
+  const canAny = ['reports.view', 'day.close.supervisor', 'day.close.reconcile', 'day.close.settle', 'returns.view_all']
+    .some((p) => ctx.permissions.includes(p as (typeof ctx.permissions)[number])) || ctx.isSuperAdmin;
+  if (!canAny) return { ok: false, error: 'You do not have permission to view this report.' };
+
+  const supabase = await createClient();
+  const { data, error: qErr } = await supabase
+    .from('erp_day_close_requests')
+    .select('id, salesman_id, work_session_id, status, submitted_at, closed_at, outstanding_cash, stock_variance, cash_variance')
+    .limit(5000);
+  if (qErr) return { ok: false, error: friendlyDbError(qErr) };
+  const rows = (data ?? []) as {
+    id: string; salesman_id: string; work_session_id: string; status: DayCloseStatus;
+    submitted_at: string | null; closed_at: string | null; outstanding_cash: number | null; stock_variance: number | null; cash_variance: number | null;
+  }[];
+
+  const fromMs = Date.parse(`${range.from}T00:00:00`);
+  const toMs = Date.parse(`${range.to}T23:59:59`);
+  const inRange = (iso: string | null) => { if (!iso) return false; const t = Date.parse(iso); return t >= fromMs && t <= toMs; };
+  const now = Date.now();
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Work dates (for outstanding aging).
+  const wsIds = [...new Set(rows.map((r) => r.work_session_id))];
+  const dateById = new Map<string, string | null>();
+  if (wsIds.length) {
+    const { data: ws } = await supabase.from('erp_work_sessions').select('id, work_date').in('id', wsIds);
+    for (const s of (ws ?? []) as { id: string; work_date: string | null }[]) dateById.set(s.id, s.work_date);
+  }
+
+  const counts = { pendingSupervisor: 0, pendingReconciliation: 0, pendingSettlement: 0, rejected: 0, closed: 0 };
+  const outstanding = { total: 0, d0_7: 0, d8_30: 0, d31p: 0 };
+  const variance = { stockTotal: 0, cashTotal: 0 };
+  const bySalesman = new Map<string, number>();
+  const closedDurations: number[] = [];
+  let agedOver24h = 0; let agedOver48h = 0;
+
+  for (const r of rows) {
+    if (r.status === 'pending_supervisor') counts.pendingSupervisor += 1;
+    else if (r.status === 'pending_reconciliation') counts.pendingReconciliation += 1;
+    else if (r.status === 'pending_settlement') counts.pendingSettlement += 1;
+    else if (r.status === 'supervisor_rejected') { if (inRange(r.submitted_at)) counts.rejected += 1; }
+    else if (r.status === 'closed') { if (inRange(r.closed_at)) counts.closed += 1; }
+
+    // Pending aging (current backlog).
+    if (['pending_supervisor', 'pending_reconciliation', 'pending_settlement'].includes(r.status) && r.submitted_at) {
+      const h = (now - Date.parse(r.submitted_at)) / 3600000;
+      if (h >= 48) agedOver48h += 1; else if (h >= 24) agedOver24h += 1;
+    }
+    // Outstanding cash (current, by work-date age).
+    const out = Number(r.outstanding_cash ?? 0);
+    if (out > 0) {
+      outstanding.total += out;
+      variance.cashTotal += out;
+      bySalesman.set(r.salesman_id, (bySalesman.get(r.salesman_id) ?? 0) + out);
+      const wd = dateById.get(r.work_session_id);
+      const ageDays = wd ? Math.floor((Date.parse(`${today}T00:00:00`) - Date.parse(`${wd}T00:00:00`)) / 86400000) : 0;
+      if (ageDays >= 31) outstanding.d31p += out; else if (ageDays >= 8) outstanding.d8_30 += out; else outstanding.d0_7 += out;
+    }
+    if (r.stock_variance != null) variance.stockTotal += Math.abs(Number(r.stock_variance));
+    // Closed durations (submitted→closed) within range.
+    if (r.status === 'closed' && inRange(r.closed_at) && r.submitted_at && r.closed_at) {
+      const mins = (Date.parse(r.closed_at) - Date.parse(r.submitted_at)) / 60000;
+      if (mins >= 0) closedDurations.push(mins);
+    }
+  }
+
+  const ids = [...bySalesman.keys()];
+  const nameById = new Map<string, string>();
+  if (ids.length) {
+    const { data: profs } = await supabase.from('erp_profiles').select('id, full_name').in('id', ids);
+    for (const p of (profs ?? []) as { id: string; full_name: string | null }[]) nameById.set(p.id, p.full_name ?? '');
+  }
+  const avgCloseHours = closedDurations.length ? closedDurations.reduce((s, n) => s + n, 0) / closedDurations.length / 60 : null;
+
+  return {
+    ok: true,
+    data: {
+      range, counts, outstanding, variance,
+      sla: { avgCloseHours, agedOver24h, agedOver48h },
+      bySalesman: [...bySalesman.entries()].map(([id, o]) => ({ salesmanId: id, salesmanName: nameById.get(id) || id.slice(0, 8), outstanding: o })).sort((a, b) => b.outstanding - a.outstanding),
+    },
   };
 }

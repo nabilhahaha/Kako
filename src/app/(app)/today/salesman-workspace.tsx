@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, Suspense } from 'react';
 import Link from 'next/link';
 import {
   Play, CheckCircle2, Lock, Clock, MapPin,
@@ -18,6 +18,7 @@ import { smartNextCustomerEnabled, dailySummaryEnabled, stockMovementReportEnabl
 import { dayCloseApprovalEnabled } from '@/lib/van-sales/day-close-policy';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
 import { MyDayHero } from './my-day-hero';
+import { CashCustodyCard } from './cash-custody-card';
 import { PendingLink } from '@/components/shared/pending-link';
 
 
@@ -84,6 +85,11 @@ export async function SalesmanWorkspace({ ctx, flags }: Props) {
           );
         })}
       </div>
+      {/* Cash custody summary — surfaces unresolved carried cash (End Day approval on). */}
+      {dayCloseApprovalEnabled(flags) && (
+        <Suspense fallback={null}><CashCustodyCard /></Suspense>
+      )}
+
       {/* Operational KPIs live in the Daily Summary ("ملخص اليوم") dashboard now —
           no duplicate KPI block on Today (one source of truth). */}
     </div>

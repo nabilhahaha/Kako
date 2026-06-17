@@ -27,7 +27,7 @@ export default async function DayCloseSettingsPage() {
   const flags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;
   const { data } = await supabase
     .from('erp_day_close_policies')
-    .select('mode, supervisor_enabled, reconcile_enabled, settle_enabled, supervisor_role, reconcile_role, settle_role, stage_order, separation_of_duties, cash_variance_tol, stock_variance_tol, sla_hours, settle_blocks_close, reconcile_blocks_close, allow_partial_settlement, auto_carry_forward, reconcile_cadence')
+    .select('mode, supervisor_enabled, reconcile_enabled, settle_enabled, supervisor_role, reconcile_role, settle_role, stage_order, separation_of_duties, cash_variance_tol, stock_variance_tol, sla_hours, settle_blocks_close, reconcile_blocks_close, allow_partial_settlement, auto_carry_forward, reconcile_cadence, custody_escalation_days')
     .eq('company_id', ctx.companyId ?? '').maybeSingle();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,6 +50,7 @@ export default async function DayCloseSettingsPage() {
     allowPartialSettlement: p?.allow_partial_settlement ?? true,
     autoCarryForward: p?.auto_carry_forward ?? true,
     reconcileCadence: (p?.reconcile_cadence as DayClosePolicyView['reconcileCadence']) ?? 'daily',
+    custodyEscalationDays: p?.custody_escalation_days ?? 7,
   };
 
   return (

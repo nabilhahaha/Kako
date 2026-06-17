@@ -151,6 +151,8 @@ export const ar = {
       lastSettlementDate: 'تاريخ آخر تسوية',
       lastSettlementAmount: 'مبلغ آخر تسوية',
       note: 'المبلغ المتبقي عهدة عليك ويُرحّل إلى الأيام التالية حتى تسليمه.',
+      hasOutstanding: 'عهدة غير مُسوّاة',
+      escalated: 'متأخر {days} يوم',
     },
     kpi: {
       planned: 'العملاء المخطّطون',
@@ -1022,6 +1024,8 @@ export const en = {
       lastSettlementDate: 'Last settlement date',
       lastSettlementAmount: 'Last settlement amount',
       note: 'The outstanding amount is in your custody and carries forward to following days until handed over.',
+      hasOutstanding: 'Unsettled custody',
+      escalated: 'Overdue {days}d',
     },
     kpi: {
       planned: 'Planned',

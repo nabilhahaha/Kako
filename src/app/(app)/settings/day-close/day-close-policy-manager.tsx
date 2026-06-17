@@ -25,6 +25,7 @@ export interface DayClosePolicyView {
   allowPartialSettlement: boolean;
   autoCarryForward: boolean;
   reconcileCadence: 'daily' | 'weekly' | 'monthly' | 'surprise' | 'not_required';
+  custodyEscalationDays: number | null;
 }
 
 const CADENCES = ['daily', 'weekly', 'monthly', 'surprise', 'not_required'] as const;
@@ -63,7 +64,7 @@ export function DayClosePolicyManager({ policy, flagOn }: { policy: DayClosePoli
         cashVarianceTol: p.cashVarianceTol, stockVarianceTol: p.stockVarianceTol, slaHours: p.slaHours,
         settleBlocksClose: p.settleBlocksClose, reconcileBlocksClose: p.reconcileBlocksClose,
         allowPartialSettlement: p.allowPartialSettlement, autoCarryForward: p.autoCarryForward,
-        reconcileCadence: p.reconcileCadence,
+        reconcileCadence: p.reconcileCadence, custodyEscalationDays: p.custodyEscalationDays,
       });
       if (!res.ok) { toast.error(res.error ?? dl('error')); return; }
       toast.success(dl('saved'));
@@ -176,6 +177,8 @@ export function DayClosePolicyManager({ policy, flagOn }: { policy: DayClosePoli
                 <Input type="number" value={p.cashVarianceTol ?? ''} onChange={(e) => set('cashVarianceTol', e.target.value.trim() ? Number(e.target.value) : null)} placeholder="—" /></div>
               <div className="space-y-1"><Label className="text-xs">{dl('slaHours')}</Label>
                 <Input type="number" value={p.slaHours ?? ''} onChange={(e) => set('slaHours', e.target.value.trim() ? Number(e.target.value) : null)} placeholder="—" /></div>
+              <div className="space-y-1"><Label className="text-xs">{dl('custodyEscalationDays')}</Label>
+                <Input type="number" value={p.custodyEscalationDays ?? ''} onChange={(e) => set('custodyEscalationDays', e.target.value.trim() ? Number(e.target.value) : null)} placeholder="7" /></div>
             </div>
           </CardContent>
         </Card>
