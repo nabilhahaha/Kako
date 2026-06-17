@@ -151,7 +151,7 @@ export function canActOnStage(args: ActOnStageArgs): boolean {
 //    balance (shown separately), never the next day's operational opening cash.
 
 export type SettlementStatus = 'not_required' | 'pending' | 'partial' | 'settled';
-export type ReconcileStatus = 'not_required' | 'not_due_yet' | 'pending' | 'partial' | 'reconciled';
+export type ReconcileStatus = 'not_required' | 'not_due_yet' | 'pending' | 'reconciled';
 /** How often inventory reconciliation is due. 'surprise' = ad-hoc (never auto-due). */
 export type ReconcileCadence = 'daily' | 'weekly' | 'monthly' | 'surprise' | 'not_required';
 
@@ -195,11 +195,13 @@ export function computeSettlement(expectedCash: number, settledCash: number, all
   return { status: allowPartial ? 'partial' : 'pending', outstanding };
 }
 
-/** Reconciliation status from expected vs counted stock. Pure. */
+/** Reconciliation status from expected vs counted stock. A count marks the stage
+ *  'reconciled'; any non-zero variance is recorded and carries forward as the
+ *  Outstanding Inventory Variance (it does not create a separate status). Pure. */
 export function computeReconciliation(expectedStock: number, countedStock: number | null): { status: ReconcileStatus; variance: number } {
   if (countedStock == null) return { status: 'pending', variance: 0 };
   const variance = Math.round((Number(expectedStock || 0) - Number(countedStock || 0)) * 1000) / 1000;
-  return { status: variance === 0 ? 'reconciled' : 'partial', variance };
+  return { status: 'reconciled', variance };
 }
 
 /**
@@ -217,10 +219,11 @@ export function canCloseDay(args: {
   // A blocking settlement gates the close unless it's settled (or not required).
   if (args.tracks.settleEnabled && args.tracks.settleBlocksClose
       && !(['settled', 'not_required'] as SettlementStatus[]).includes(args.settlementStatus)) return false;
-  // A blocking reconciliation gates the close only when it's actually DUE — i.e.
-  // pending/partial. 'not_due_yet' / 'reconciled' / 'not_required' never block.
+  // A blocking reconciliation gates the close only when it is actually DUE and not
+  // yet counted — i.e. 'pending'. 'not_due_yet' / 'reconciled' / 'not_required'
+  // never block (a recorded variance carries forward, it doesn't block the close).
   if (args.tracks.reconcileEnabled && args.tracks.reconcileBlocksClose
-      && (['pending', 'partial'] as ReconcileStatus[]).includes(args.reconcileStatus)) return false;
+      && args.reconcileStatus === 'pending') return false;
   return true;
 }
 

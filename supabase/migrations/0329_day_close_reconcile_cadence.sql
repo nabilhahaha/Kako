@@ -9,8 +9,9 @@ ALTER TABLE erp_day_close_policies
   ADD COLUMN IF NOT EXISTS reconcile_cadence text NOT NULL DEFAULT 'daily'
     CHECK (reconcile_cadence IN ('daily','weekly','monthly','surprise','not_required'));
 
--- Extend the reconcile_status domain with 'not_due_yet'.
+-- Final reconcile_status domain: a count marks 'reconciled' (variance carries
+-- forward separately) — no 'partial' state for inventory.
 ALTER TABLE erp_day_close_requests DROP CONSTRAINT IF EXISTS erp_day_close_requests_reconcile_status_check;
 ALTER TABLE erp_day_close_requests
   ADD CONSTRAINT erp_day_close_requests_reconcile_status_check
-  CHECK (reconcile_status IN ('not_required','not_due_yet','pending','partial','reconciled'));
+  CHECK (reconcile_status IN ('not_required','not_due_yet','pending','reconciled'));

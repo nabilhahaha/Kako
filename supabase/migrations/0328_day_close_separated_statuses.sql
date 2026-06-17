@@ -22,7 +22,7 @@ ALTER TABLE erp_day_close_requests
   ADD COLUMN IF NOT EXISTS settlement_status text NOT NULL DEFAULT 'not_required'
     CHECK (settlement_status IN ('not_required','pending','partial','settled')),
   ADD COLUMN IF NOT EXISTS reconcile_status  text NOT NULL DEFAULT 'not_required'
-    CHECK (reconcile_status IN ('not_required','pending','partial','reconciled')),
+    CHECK (reconcile_status IN ('not_required','not_due_yet','pending','reconciled')),
   ADD COLUMN IF NOT EXISTS expected_cash   numeric,
   ADD COLUMN IF NOT EXISTS settled_cash    numeric NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS outstanding_cash numeric,

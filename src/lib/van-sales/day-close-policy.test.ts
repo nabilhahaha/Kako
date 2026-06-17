@@ -130,10 +130,10 @@ describe('separated statuses — settlement / reconciliation / close gating', ()
     expect(computeSettlement(5000, 3000, false)).toEqual({ status: 'pending', outstanding: 2000 });
   });
 
-  it('computeReconciliation: pending until counted, then reconciled/partial by variance', () => {
+  it('computeReconciliation: pending until counted, then reconciled (variance carries forward)', () => {
     expect(computeReconciliation(100, null)).toEqual({ status: 'pending', variance: 0 });
     expect(computeReconciliation(100, 100)).toEqual({ status: 'reconciled', variance: 0 });
-    expect(computeReconciliation(100, 95)).toEqual({ status: 'partial', variance: 5 });
+    expect(computeReconciliation(100, 95)).toEqual({ status: 'reconciled', variance: 5 });
   });
 
   it('canCloseDay: operational closes by default; blocking tracks gate when set', () => {
