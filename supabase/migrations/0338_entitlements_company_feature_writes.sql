@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0265: Entitlement Engine — E5: company-admin feature-level writes
+-- 0338: Entitlement Engine — E5: company-admin feature-level writes
 -- ----------------------------------------------------------------------------
 -- Adds a company-scoped write policy to the (new, E1) erp_company_entitlements
 -- table for FEATURE-level rows only (feature_key IS NOT NULL) — so a Company Admin
