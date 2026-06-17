@@ -11,7 +11,7 @@ Category · Disposition (In-Pilot / Post-Pilot) · Notes.
 | DF-002 | Salesman | Change Requests / Requests Hub | Medium | Workflow / Discoverability | **Post-Pilot** | Open — functionality exists & enabled (discoverability/naming) |
 | ENV-1 | All (salesman) | Mobile nav / van-sales UI | ~~High~~ → **Retracted** | Configuration / Environment | **Closed (incorrect)** | **RETRACTED by runtime logs** — `vanSalesActive=TRUE`; backend = vantora-staging (confirmed); no env change needed |
 | ENV-1b | Salesman | Mobile bottom nav | Low | Usability (stale layout) | **In-Pilot (no-op / hard-refresh)** | Open — `unifiedWorkspace` rendered false on a stale/transient layout; Requests is in "More" & reachable |
-| DF-003 | Salesman | Navigation → Requests Hub | **High** | Navigation / Discoverability | **In-Pilot (qualifies: blocks core workflow access)** | Open — runtime-confirmed: NO UI nav path to `/field/van-sales/requests`; only `/change-requests` (wrong page) is surfaced |
+| DF-003 | Salesman | Navigation → Requests Hub | **High** | Navigation / Discoverability | **In-Pilot — FIXED** | **Fixed (commit 6e9b458):** added "Field Requests" nav entry → `/field/van-sales/requests` (flag `platform.salesman_requests` + `field.sales`); distinct from "Change Requests". Nav-only. Redeploying on vantora-staging. |
 
 ---
 
