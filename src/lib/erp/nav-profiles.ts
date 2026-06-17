@@ -50,14 +50,17 @@ interface NavProfile {
  *  hidden from the rep menu (UI-only — permission + URL access unchanged; they
  *  remain reachable for the roles that own them). */
 const SALESMAN_MORE = [
-  '/sales/invoices',                  // Sales Order / Invoice (view/issue)
+  // Final pilot trim. Selling/invoicing run from My Day, so the standalone
+  // Sales Order/Invoice and Offline entries are dropped too. Field Requests is
+  // RETAINED because My Day exposes no path to request-creation (new customer /
+  // data change / credit / route transfer) — hiding it would orphan that
+  // workflow (verify #5/#6). UI-only; permission + URL access unchanged.
   '/field/van-sales/requests',        // Field Requests (new customer, data, GPS, credit, …)
   '/field/van-sales/my-returns',      // Returns
-  '/field/van-sales/statement',       // Customer Profile / Statements
+  '/field/van-sales/statement',       // Customer Statements / Profile
   '/field/van-sales/summary',         // My Daily Summary (read-only)
-  '/field/van-sales/cash-custody',    // My Cash Custody (the rep's own cash, not Treasury)
+  '/field/van-sales/cash-custody',    // My Cash Custody (own cash + collections + movement)
   '/inventory/requests',              // Load Request (van stock)
-  '/field/offline',                   // Offline field mode
   '/notifications',
 ];
 

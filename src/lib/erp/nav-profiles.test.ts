@@ -16,6 +16,8 @@ function sampleSections(): NavSection[] {
         item('nav.items.journey', '/today/journey'),
         item('nav.items.repApp', '/field'),
         item('nav.items.vanStock', '/field/stock'),
+        item('nav.items.fieldRequests', '/field/van-sales/requests'),
+        item('nav.items.notifications', '/notifications'),
       ],
     },
     {
@@ -84,11 +86,13 @@ describe('applyNavProfile', () => {
     for (const h of primary.items.map((i) => i.href)) {
       expect(moreHrefs).not.toContain(h);
     }
-    // Sales Order / Invoice stays as the rep's secondary selling entry…
-    expect(moreHrefs).toContain('/sales/invoices');
-    // …but simplified-out screens (POS Sell, standalone Orders, Cash Box / Treasury,
-    // back-office) are HIDDEN from the rep menu entirely (allowlist).
+    // Field Requests stays (only nav path to request-creation) + Notifications…
+    expect(moreHrefs).toContain('/field/van-sales/requests');
+    expect(moreHrefs).toContain('/notifications');
+    // …but simplified-out screens (POS Sell, Sales Order/Invoice, standalone Orders,
+    // Cash Box / Treasury, back-office) are HIDDEN from the rep menu (allowlist).
     expect(moreHrefs).not.toContain('/sales/pos');
+    expect(moreHrefs).not.toContain('/sales/invoices');
     expect(moreHrefs).not.toContain('/sales/orders');
     expect(moreHrefs).not.toContain('/cashbox');
     expect(moreHrefs).not.toContain('/dashboard');
@@ -104,20 +108,20 @@ describe('applyNavProfile', () => {
           { label: 'b', href: '/distribution/routes', icon: Circle },
           { label: 'c', href: '/warehouses', icon: Circle },
           { label: 'd', href: '/inventory/low-stock', icon: Circle },
-          { label: 'e', href: '/sales/invoices', icon: Circle }, // allowlisted
+          { label: 'e', href: '/field/van-sales/requests', icon: Circle }, // allowlisted
         ],
       },
     ];
     const out = applyNavProfile(sections, ['salesman']);
     const more = out.find((s) => s.title === 'nav.sections.more');
-    expect(more?.items.map((i) => i.href)).toEqual(['/sales/invoices']);
+    expect(more?.items.map((i) => i.href)).toEqual(['/field/van-sales/requests']);
   });
 
   it('tags More items with their source section for sub-headers', () => {
     const out = applyNavProfile(sampleSections(), ['salesman']);
     const more = out.find((s) => s.title === 'nav.sections.more')!;
-    const invoices = more.items.find((i) => i.href === '/sales/invoices');
-    expect(invoices?.group).toBe('nav.sections.sales');
+    const fieldReq = more.items.find((i) => i.href === '/field/van-sales/requests');
+    expect(fieldReq?.group).toBe('nav.sections.field');
   });
 
   it('applies a hide denylist (no allowlist) for the warehouse keeper', () => {
@@ -149,14 +153,14 @@ describe('applyNavProfile', () => {
   });
 
   it('de-duplicates More by href', () => {
-    // /sales/invoices is allowlisted for the salesman; appears in two sections.
+    // /field/van-sales/requests is allowlisted for the salesman; appears twice.
     const sections: NavSection[] = [
-      { title: 'a', items: [{ label: 'a', href: '/sales/invoices', icon: Circle }] },
-      { title: 'b', items: [{ label: 'b', href: '/sales/invoices', icon: Circle }] },
+      { title: 'a', items: [{ label: 'a', href: '/field/van-sales/requests', icon: Circle }] },
+      { title: 'b', items: [{ label: 'b', href: '/field/van-sales/requests', icon: Circle }] },
     ];
     const out = applyNavProfile(sections, ['salesman']);
     const more = out.find((s) => s.title === 'nav.sections.more');
-    expect(more?.items.filter((i) => i.href === '/sales/invoices')).toHaveLength(1);
+    expect(more?.items.filter((i) => i.href === '/field/van-sales/requests')).toHaveLength(1);
   });
 
   it('leaves sections unchanged for admin/manager', () => {
