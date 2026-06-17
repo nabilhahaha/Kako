@@ -189,6 +189,55 @@ const STAGE_OF: Record<string, DayCloseStage> = {
   pending_supervisor: 'supervisor', pending_reconciliation: 'reconcile', pending_settlement: 'settle',
 };
 
+export interface DayCloseReview {
+  workDate: string | null;
+  /** Inventory reconciliation: system expected closing (total units) + SKU count. */
+  expectedStockUnits: number | null;
+  skuCount: number | null;
+  warehouseName: string | null;
+  /** Financial settlement: expected cash = the salesman's collections for the day. */
+  expectedCash: number | null;
+}
+
+/** Stage review figures for a pending day-close: expected closing stock (from the
+ *  van movement ledger) and expected cash (the day's collections). Read-only; the
+ *  reviewer enters the physical count / actual cash and the variance is computed. */
+export async function loadDayCloseReview(requestId: string): Promise<ActionResult<DayCloseReview>> {
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx) return { ok: false, error: error ?? 'Not authenticated.' };
+  const supabase = await createClient();
+  const { data: reqRow } = await supabase
+    .from('erp_day_close_requests')
+    .select('work_session_id, salesman_id')
+    .eq('id', requestId).maybeSingle();
+  const req = reqRow as { work_session_id: string; salesman_id: string } | null;
+  if (!req) return { ok: false, error: RPC_ERRORS.request_not_found };
+
+  const { data: ws } = await supabase.from('erp_work_sessions').select('work_date').eq('id', req.work_session_id).maybeSingle();
+  const workDate = (ws as { work_date: string | null } | null)?.work_date ?? new Date().toISOString().slice(0, 10);
+
+  const { loadStockMovementReport } = await import('./stock-movement-server');
+  const report = await loadStockMovementReport(supabase, req.salesman_id, workDate, 'en');
+
+  const dayStart = `${workDate}T00:00:00`;
+  const dayEnd = `${workDate}T23:59:59`;
+  const { data: coll } = await supabase
+    .from('erp_collections').select('amount')
+    .eq('received_by', req.salesman_id).gte('created_at', dayStart).lte('created_at', dayEnd);
+  const expectedCash = ((coll ?? []) as { amount: number }[]).reduce((s, c) => s + Number(c.amount ?? 0), 0);
+
+  return {
+    ok: true,
+    data: {
+      workDate,
+      expectedStockUnits: report.totals.current ?? 0,
+      skuCount: report.rows.length,
+      warehouseName: report.warehouseName,
+      expectedCash,
+    },
+  };
+}
+
 /** Pending day-close requests the caller can act on (branch-scoped by RLS). Gated by
  *  holding any day-close stage permission. */
 export async function loadPendingDayCloses(): Promise<ActionResult<PendingDayCloseRow[]>> {

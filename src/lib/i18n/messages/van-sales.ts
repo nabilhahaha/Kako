@@ -117,6 +117,11 @@ export const ar = {
       notYourStage: 'هذه المرحلة ليست ضمن صلاحياتك.',
       withdraw: 'سحب الطلب',
       withdrawnToast: 'تم سحب طلب إنهاء اليوم',
+      expectedCash: 'النقدية المتوقعة',
+      expectedStock: 'المخزون المتوقع',
+      actualCash: 'النقدية الفعلية',
+      countedStock: 'المخزون المجرود',
+      skus: 'صنف',
     },
     kpi: {
       planned: 'العملاء المخطّطون',
@@ -954,6 +959,11 @@ export const en = {
       notYourStage: 'This stage is outside your permissions.',
       withdraw: 'Withdraw request',
       withdrawnToast: 'End Day request withdrawn',
+      expectedCash: 'Expected cash',
+      expectedStock: 'Expected stock',
+      actualCash: 'Actual cash',
+      countedStock: 'Counted stock',
+      skus: 'SKUs',
     },
     kpi: {
       planned: 'Planned',
