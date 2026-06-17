@@ -322,8 +322,124 @@ Setup** (same components, re-runnable, non-destructive).
 - **i18n / RTL**: Arabic + English, mirrored layout, localized examples.
 - **Help**: one-line "what this means" per step; no manual required.
 
+---
+
+# Part II — Reuse & Coverage Audit (extend, don't rebuild)
+
+**Finding:** the platform already has engines, tables, **and screens** for almost every
+onboarding area — including an existing **`setup-wizard.ts`** (per-business-type profiles,
+module toggles, auto-seeded roles via `erp_apply_setup_modules` / `erp_seed_company_roles`).
+**The onboarding wizard is primarily an ORCHESTRATION + EXPOSURE layer** that walks the
+admin through existing screens/engines in a guided, business-friendly order — not a set of
+new isolated features.
+
+## 1–2. Capability audit & classification
+Legend: ✅ Implemented & reusable · ◐ Partial · ✎ Designed-not-implemented · ✗ Missing.
+
+| Capability | Status | Existing engine / screen |
+|---|:--:|---|
+| Import jobs / Excel / CSV | ✅ | `erp_import_jobs`, `erp_import_mappings`; `settings/import`, `settings/data-onboarding` |
+| Customer import | ✅ | import system (`customer.import`) |
+| Product import | ✅ | import system (`product.import`) |
+| Supplier import | ✅ | import system + `suppliers`, `erp_suppliers` |
+| Opening balance / inventory import | ◐ | `erp_van_opening_balances` + import; general opening-stock UI partial |
+| User import | ✅ | import system (`user.import`); `settings/users`, `settings/staff` |
+| ERP / integration settings | ✅ | `erp_integrations/api_keys/webhooks/sync`; `settings/integrations(/*)`, `settings/integration-hub` |
+| Route / territory / journey plan | ✅ | `erp_routes/route_customers/territories/territory_customers/journey_plans`; `territory`, `distribution/routes`, `field/journey`, `sales/journey` |
+| Approval workflows / change requests | ✅ | `erp_workflow_*`, `erp_change_requests(+entities/targets/values)`; `settings/workflows`, `approvals/queue`, `approval-center` |
+| Credit limit / payment terms approval | ✅ | `erp_credit_limit_requests`, customer requests; `distribution/credit-requests` |
+| Customer closure / reactivation approval | ✅ | customer requests (close/reactivate) + the P-series rules (just shipped) |
+| Document numbering / invoice sequence | ◐ | `erp_sequences` (auto-numbering works); **admin-configurable numbering UI missing** |
+| Tax / VAT / currency | ✅ engine / ◐ settings UI | `erp_country_vat/tax_determination_rules/tax_registrations/tax_ledger`, `lib/tax/*`, `settings/einvoice`; company tax/currency **onboarding settings UI** partial |
+| Dashboard / module selection | ✅ | `erp_modules/company_modules/business_type_modules`; `settings/features`, setup-wizard toggles |
+| Workflow / operating templates (Cash Van, Pre-Sales, Hybrid, Retail, Pharmacy) | ✅ engine / ◐ operating-mode selector | `erp_workflow_templates`, `workflow-builder/templates.ts`, `settings/workflows/templates`, van-sales; explicit **operating-model picker** partial |
+| Multi-UoM | ✅ | `erp_product_uoms`, `settings/uom` |
+| Role templates & permission overrides | ✅ | `erp_role_template_versions`, `erp_company_role_permissions`, `settings/permissions`, setup-wizard role seeding |
+| Industry templates | ✅ engine / ◐ gallery | `setup-wizard.ts` SetupProfiles per `business_type`, `erp_business_type_modules`, `pharmacy/onboarding` |
+
+**Net:** ~14 ✅, ~4 ◐, **0 ✗**. The onboarding mostly **wires/exposes** what exists.
+
+## 3. Updated wizard structure (Core + Advanced; business-friendly)
+Keep the core flow short; group power-user areas under **Advanced Setup** (collapsible,
+optional, skippable — flagged in Go-Live, not lost).
+
+```
+CORE (most companies)                         ADVANCED SETUP (optional / skippable)
+1  Company Basics                ✅            7  Approval Matrix            ✅ (workflows/templates)
+2  Industry / Operating Template ✅◐ setup-wizard 12 Financial Settings (Tax/VAT/Currency) ✅◐
+3  Modules & Workflow Template   ✅            13 Document Numbering         ◐
+4  Organization Structure        ✎ builder    14 Integrations              ✅
+5  Reporting Hierarchy           ✅ (reports_to)
+6  Roles & Permissions           ✅            (Advanced steps are reachable from a single
+8  Product Hierarchy             ✅◐            "Advanced Setup" card on the Review screen,
+9  Multi-UoM                     ✅            so the Core path stays ~9 steps.)
+10 Data Import                   ✅
+11 Territory / Routes / Journey  ✅
+15 Users                         ✅
+16 Dashboards                    ✅
+17 Review / Sandbox / Go-Live    ✅◐ (sandbox = future)
+```
+Each step **embeds or deep-links the existing screen** in wizard chrome (progress rail +
+Back/Next), so onboarding reuses the real engines and the same screens remain available
+later under Settings.
+
+## 4. Existing Platform Reuse Map
+| Existing capability | Current location / module | How it appears in onboarding | Req/Opt | Gap / missing UI |
+|---|---|---|:--:|---|
+| Smart Setup Wizard (business profiles, modules, role seed) | `lib/erp/setup-wizard.ts` + platform/companies | **Steps 2–3 & 6 reuse it** (industry, modules, suggested roles) | Req | wrap in wizard chrome; richer gallery |
+| Module/feature selection | `settings/features`, `erp_company_modules` | Step 3 (Modules) | Req | — |
+| Workflow templates | `settings/workflows/templates` | Step 3/7 (operating + approval templates) | Req(core)/Opt(advanced) | operating-mode (Cash Van/Pre-Sales/Hybrid) labels |
+| Org / regions / branches | `settings/organization`, `regions`, `branches` | Step 4 (visual builder) | Req | **drag-drop org-chart UI (new)** |
+| Reporting (`reports_to`) | `settings/users`, frozen `erp_user_subtree` | Step 5 (visual reporting) | Req | visual tree on top of existing data |
+| Roles & permissions | `settings/permissions`, role templates | Step 6 | Req | plain-language grouping polish |
+| Approval matrix / change requests | `settings/workflows`, `approvals`, change-request engine | Step 7 (Advanced) | Opt | guided "approval matrix" summary view |
+| Product hierarchy | catalog + `settings/msl`/`outlet-grades` | Step 8 | Req | configurable product-levels UI |
+| Multi-UoM | `settings/uom`, `erp_product_uoms` | Step 9 (guided form) | Req | sentence-style UoM form |
+| Data import | `settings/import`, `settings/data-onboarding` | Step 10 (embed) | Req | reuse as-is |
+| Territory / routes / journey | `territory`, `distribution/routes`, `field/journey` | Step 11 | Opt | reuse; optional for some templates |
+| Tax / VAT / currency | `settings/einvoice`, `lib/tax/*`, company currency | Step 12 (Advanced) | Opt | company tax/currency **settings screen** |
+| Document numbering | `erp_sequences` (auto) | Step 13 (Advanced) | Opt | **numbering config UI (new)** |
+| Integrations | `settings/integrations(/*)`, `integration-hub` | Step 14 (Advanced) | Opt | reuse as-is |
+| Users | `settings/users`, `staff`, import | Step 15 | Req | reuse + invite flow |
+| Dashboards | `dashboard`, vertical dashboards, modules | Step 16 | Req | pick default dashboards |
+
+## 5. Template Differences (how onboarding changes per template)
+| Template | Operating model | Steps emphasized | Defaults seeded | Steps hidden/optional |
+|---|---|---|---|---|
+| **FMCG Cash Van** | Sell + collect from the van | Org→Reporting→**Routes/Journey**→Products→UoM→Van load/opening balance | van-sales workflow, Cash-Van approval template, Unit/Pack/Carton | Pre-sales delivery scheduling |
+| **FMCG Standard / Pre-Sales** | Order now, deliver later | Org→Reporting→**Routes/Journey**→Products→**Credit/terms approval** | pre-sales workflow, delivery step, credit approvals | Van opening balance |
+| **Distribution** | Multi-branch supply + suppliers | Org(Region→Branch)→**Suppliers/Purchasing**→Products→Routes→Tax | supplier import, purchasing module, pallet UoM | Field journey (optional) |
+| **Pharmacy** | Dispensing + batches | Org(Branch)→Products(**Generic→Brand**)→**Batches/expiry**→Tax | pharmacy workflow (reuse `pharmacy/onboarding`), strip/box UoM | Routes/journey |
+| **Retail / POS** | Store checkout | Org(Store)→Products(Dept→Category)→**POS/cashbox**→Tax | retail/POS workflow, each/pack UoM | Routes, journey, pre-sales |
+| **Custom** | Admin-defined | Blank levels; all steps available | none (build from scratch) | none |
+
+Template choice (Step 2) **pre-selects modules, workflow template, role set, product
+levels, and UoM presets**, then the admin edits — minimizing steps per vertical.
+
+## 6. Implementation Readiness
+- **Wire immediately (existing engine + screen — embed/deep-link):** Company Basics,
+  Industry/Modules (setup-wizard), Workflow templates, Roles & permissions, Multi-UoM,
+  Data Import, Integrations, Suppliers, Territory/Routes/Journey, Approvals/Change
+  Requests, Credit/terms & closure/reactivation approvals, Users, Dashboards, Reporting
+  (`reports_to` data exists; frozen subtree).
+- **Needs only UI exposure (engine exists, build a friendlier/visual screen):** Org-chart
+  drag-drop builder, visual reporting tree, configurable product-levels builder,
+  sentence-style UoM form, plain-language role grouping, company **tax/VAT/currency
+  settings** screen, **document-numbering config** screen, operating-mode (Cash Van /
+  Pre-Sales / Hybrid) selector labels.
+- **Requires backend work (small):** `erp_org_levels/nodes` + `erp_product_levels/nodes`
+  (configurable hierarchy tables), `erp_onboarding_state` (wizard resume), numbering-config
+  persistence, opening-stock import mapping for non-van inventory.
+- **Future roadmap:** sandbox/preview-before-go-live, full drag-drop org chart with live
+  "who sees what" simulation, industry-template gallery polish, multi-node user assignment.
+
+---
+
 ## Status
-UX & product design package — **design only, nothing implemented**. Conforms to the frozen
-Reference Architecture Baseline and Core UX principle. Next design targets (when scheduled):
-Organization Structure Builder deep-dive, Product Builder deep-dive, Role Template Builder
-deep-dive.
+UX & product design package — **design only, nothing implemented**. Now includes the
+**Reuse & Coverage Audit**, the 17-step Core+Advanced structure mapped to existing
+capabilities, the **Existing Platform Reuse Map**, **Template Differences**, and
+**Implementation Readiness**. Conforms to the frozen Reference Architecture Baseline and
+Core UX principle. The onboarding wizard **reuses and exposes existing engines/screens**
+rather than rebuilding them. Next design deep-dives (when scheduled): Org Structure
+Builder, Product Builder, Role Template Builder.
