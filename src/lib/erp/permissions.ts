@@ -87,7 +87,8 @@ export type Permission =
   | 'day.close.reconcile' // act on the Inventory Reconciliation stage of day close
   | 'day.close.settle' // act on the Financial Settlement stage of day close
   | 'day.close.reopen' // reopen a settled/closed day-close (special permission)
-  | 'day.close.override' // force-close past a stuck day-close stage
+  | 'day.close.override' // force-close past a stuck day-close stage (Override Center)
+  | 'day.reopen' // reopen a CLOSED day (Override Center) — controlled + audited
   | 'customer.request' // raise a governed customer request (new / data update / GPS) — rep
   | 'customer.request.approve' // approve/reject a customer request + apply it (supervisor/admin)
   // ── FMCG Value Acceleration Wave 1 ──
@@ -201,7 +202,8 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'day.close.reconcile': { en: 'Approve day close — Inventory reconciliation', ar: 'اعتماد إنهاء اليوم — جرد المخزون', group: 'field_ops' },
   'day.close.settle': { en: 'Approve day close — Financial settlement', ar: 'اعتماد إنهاء اليوم — التسوية المالية', group: 'field_ops' },
   'day.close.reopen': { en: 'Reopen a closed day', ar: 'إعادة فتح يوم مُغلق', group: 'field_ops' },
-  'day.close.override': { en: 'Override day close', ar: 'تجاوز إنهاء اليوم', group: 'field_ops' },
+  'day.close.override': { en: 'Override day close (force close)', ar: 'تجاوز إنهاء اليوم (إغلاق قسري)', group: 'field_ops' },
+  'day.reopen': { en: 'Reopen a closed day (Override Center)', ar: 'إعادة فتح يوم مُغلق (مركز التجاوز)', group: 'field_ops' },
   'customer.request': { en: 'Raise customer requests', ar: 'تقديم طلبات العملاء', group: 'sales' },
   'customer.request.approve': { en: 'Approve customer requests', ar: 'اعتماد طلبات العملاء', group: 'sales' },
   // ── FMCG Value Acceleration Wave 1 ──
@@ -267,7 +269,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'stock_request.approve', 'stock_request.adjust', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
     'assortment.manage', 'survey.manage', 'target.view',
-    'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
     'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
   ],
@@ -277,7 +279,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'stock_request.approve', 'stock_request.adjust', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
     'customer.transfer', 'route.create', 'journey.create', 'stock.view',
     'assortment.manage', 'survey.manage', 'target.view',
-    'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
     'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
   ],
@@ -286,7 +288,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve', 'stock_request.adjust',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
-    'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
     'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
   ],
@@ -294,7 +296,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve', 'stock_request.adjust',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
-    'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
     'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
   ],
@@ -307,8 +309,8 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'customer.transfer', 'customer.create', 'customer.edit', 'route.create', 'journey.create',
     'stock.adjust', 'stock.transfer.approve', 'visit.approve_out_of_route',
     'day.approve_close_exception', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve', 'stock.view', 'user.transfer',
-    'returns.create', 'returns.approve', 'returns.reject', 'returns.override', 'returns.view_all',
-    'day.close.supervisor', 'day.close.reconcile', 'day.close.settle', 'day.close.reopen', 'day.close.override',
+    'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
+    'day.close.supervisor', 'day.close.reconcile', 'day.close.settle', 'day.close.reopen',
     'stock_request.adjust', 'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
   ],
