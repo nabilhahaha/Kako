@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { UserPlus, FileEdit, MapPin, CreditCard, CalendarClock, Shuffle, RotateCcw, Ban, Send, LocateFixed } from 'lucide-react';
@@ -16,6 +17,9 @@ import { requestCustomerChange, type RequestCustomer, type RequestRoute, type Re
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
 
 type Open = 'new' | 'update' | 'gps' | 'credit' | 'terms' | 'route' | 'reactivate' | 'close' | null;
+/** The customer request kinds that each have a dedicated screen. */
+export type RequestFormKind = Exclude<Open, null>;
+export const REQUEST_FORM_KINDS: RequestFormKind[] = ['new', 'update', 'gps', 'credit', 'terms', 'route', 'reactivate', 'close'];
 type SimpleKind = 'data_update' | 'gps_correction' | 'credit_limit' | 'payment_terms' | 'route_transfer' | 'reactivate' | 'close';
 
 const ACTIVITIES = ['grocery', 'mini_market', 'supermarket', 'wholesale', 'bakery', 'roastery', 'pharmacy', 'other'] as const;
@@ -42,11 +46,11 @@ const NC0 = {
   payment_type: '', requested_credit_limit: '', requested_terms: '', notes: '', route_id: '',
 };
 
-export function CustomerRequestForms({ customers, routes, salesmen }: { customers: RequestCustomer[]; routes: RequestRoute[]; salesmen: RequestSalesman[] }) {
+export function CustomerRequestForms({ customers, routes, salesmen, only }: { customers: RequestCustomer[]; routes: RequestRoute[]; salesmen: RequestSalesman[]; only?: RequestFormKind }) {
   const { t, locale } = useI18n();
   const ar = locale === 'ar';
   const router = useRouter();
-  const [open, setOpen] = useState<Open>(null);
+  const [, setOpen] = useState<Open>(null);
   const [busy, setBusy] = useState(false);
   const cName = (c: RequestCustomer) => (ar && c.name_ar ? c.name_ar : c.name);
   const repName = (id: string | null | undefined) => (id ? (salesmen.find((s) => s.id === id)?.name ?? '—') : '—');
@@ -144,18 +148,17 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
   }
 
   // Presentation-only request-type tile for the responsive grid (icon + title +
-  // short description). Selecting it toggles `open`; the form for the selected
-  // type renders as a full-width row below the grid (same handlers/logic).
-  const tile = (key: Exclude<Open, null>, icon: ReactNode, title: string, desc: string) => (
-    <button type="button" className="block h-full w-full text-start" onClick={() => setOpen(open === key ? null : key)}>
-      <Card className={`h-full transition-colors hover:bg-secondary/50 ${open === key ? 'ring-2 ring-primary' : ''}`}>
+  // short description). Selecting it NAVIGATES to that request's dedicated screen.
+  const tile = (key: RequestFormKind, icon: ReactNode, title: string, desc: string) => (
+    <Link href={`/field/van-sales/requests/${key}`} className="block h-full">
+      <Card className="h-full transition-colors hover:bg-secondary/50">
         <CardContent className="flex h-full min-h-[96px] flex-col items-start gap-1.5 p-3">
           {icon}
           <div className="text-sm font-medium leading-tight">{title}</div>
           <div className="text-xs leading-snug text-muted-foreground">{desc}</div>
         </CardContent>
       </Card>
-    </button>
+    </Link>
   );
 
   const custSelect = (value: string, onChange: (v: string) => void, list: RequestCustomer[] = customers) => (
@@ -372,8 +375,11 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
     return null;
   }
 
-  // Tiles flow as cells of the parent responsive grid; the selected form renders
-  // as a full-width row (col-span-full) below the tiles.
+  // Focused mode (dedicated screen): render only the selected request's form.
+  if (only) return <div className="space-y-3">{form(only)}</div>;
+
+  // Hub mode: request-type tiles that NAVIGATE to their dedicated screen. They
+  // flow as cells of the parent responsive grid.
   return (
     <>
       {tile('new', <UserPlus className="h-5 w-5 text-primary" />, t('vanSales.requests.newCustomer'), t('vanSales.requests.newCustomerDesc'))}
@@ -384,11 +390,6 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
       {tile('route', <Shuffle className="h-5 w-5 text-primary" />, t('vanSales.requests.routeTransfer'), t('vanSales.requests.routeTransferDesc'))}
       {tile('reactivate', <RotateCcw className="h-5 w-5 text-primary" />, t('vanSales.requests.reactivate'), t('vanSales.requests.reactivateDesc'))}
       {tile('close', <Ban className="h-5 w-5 text-primary" />, t('vanSales.requests.closeCustomer'), t('vanSales.requests.closeCustomerDesc'))}
-      {open && (
-        <div className="col-span-full">
-          <Card><CardContent className="space-y-3 py-4 border-t-0">{form(open)}</CardContent></Card>
-        </div>
-      )}
     </>
   );
 
