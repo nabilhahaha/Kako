@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { UserPlus, FileEdit, MapPin, CreditCard, CalendarClock, Shuffle, RotateCcw, Ban, Send, LocateFixed, ChevronRight } from 'lucide-react';
+import { UserPlus, FileEdit, MapPin, CreditCard, CalendarClock, Shuffle, RotateCcw, Ban, Send, LocateFixed } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -142,17 +142,19 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
     } finally { setBusy(false); }
   }
 
+  // Presentation-only request-type tile for the responsive grid (icon + title +
+  // short description). Selecting it toggles `open`; the form for the selected
+  // type renders as a full-width row below the grid (same handlers/logic).
   const tile = (key: Exclude<Open, null>, icon: ReactNode, title: string, desc: string) => (
-    <Card>
-      <CardContent className="py-4">
-        <button type="button" className="flex w-full items-center gap-3 text-start" onClick={() => setOpen(open === key ? null : key)}>
+    <button type="button" className="block h-full w-full text-start" onClick={() => setOpen(open === key ? null : key)}>
+      <Card className={`h-full transition-colors hover:bg-secondary/50 ${open === key ? 'ring-2 ring-primary' : ''}`}>
+        <CardContent className="flex h-full min-h-[96px] flex-col items-start gap-1.5 p-3">
           {icon}
-          <div className="flex-1"><div className="text-sm font-medium">{title}</div><div className="text-xs text-muted-foreground">{desc}</div></div>
-          <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${open === key ? 'rotate-90' : 'rtl:rotate-180'}`} />
-        </button>
-        {open === key && <div className="mt-3 space-y-3 border-t pt-3">{form(key)}</div>}
-      </CardContent>
-    </Card>
+          <div className="text-sm font-medium leading-tight">{title}</div>
+          <div className="text-xs leading-snug text-muted-foreground">{desc}</div>
+        </CardContent>
+      </Card>
+    </button>
   );
 
   const custSelect = (value: string, onChange: (v: string) => void) => (
@@ -355,8 +357,10 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
     return null;
   }
 
+  // Tiles flow as cells of the parent responsive grid; the selected form renders
+  // as a full-width row (col-span-full) below the tiles.
   return (
-    <div className="space-y-3">
+    <>
       {tile('new', <UserPlus className="h-5 w-5 text-primary" />, t('vanSales.requests.newCustomer'), t('vanSales.requests.newCustomerDesc'))}
       {tile('update', <FileEdit className="h-5 w-5 text-primary" />, t('vanSales.requests.updateData'), t('vanSales.requests.updateDataDesc'))}
       {tile('gps', <MapPin className="h-5 w-5 text-primary" />, t('vanSales.requests.fixLocation'), t('vanSales.requests.fixLocationDesc'))}
@@ -365,7 +369,12 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
       {tile('route', <Shuffle className="h-5 w-5 text-primary" />, t('vanSales.requests.routeTransfer'), t('vanSales.requests.routeTransferDesc'))}
       {tile('reactivate', <RotateCcw className="h-5 w-5 text-primary" />, t('vanSales.requests.reactivate'), t('vanSales.requests.reactivateDesc'))}
       {tile('close', <Ban className="h-5 w-5 text-primary" />, t('vanSales.requests.closeCustomer'), t('vanSales.requests.closeCustomerDesc'))}
-    </div>
+      {open && (
+        <div className="col-span-full">
+          <Card><CardContent className="space-y-3 py-4 border-t-0">{form(open)}</CardContent></Card>
+        </div>
+      )}
+    </>
   );
 
   function GpsRow({ value, onCapture }: { value: { lat: number; lng: number } | null; onCapture: () => void }) {
