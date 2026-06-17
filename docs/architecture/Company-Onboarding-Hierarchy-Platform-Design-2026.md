@@ -241,8 +241,69 @@ policies remain untouchable by them.
 
 ---
 
+## 8. Usability & simplicity — FIRST-CLASS design goals
+
+**North star:** a **non-technical** Company Admin configures an entire company from the
+UI **without documentation, SQL, or developer support**. Every technical concept is
+hidden behind a **wizard-driven, visual** experience that uses **business language only**.
+
+### Technical concept → what the admin actually sees (never the jargon)
+| Under the hood (hidden) | What the Company Admin sees |
+|---|---|
+| RLS / data scoping | A **"Who can see what"** preview ("Hany sees his team's customers") — no policy language |
+| `reports_to` tree | A **visual org chart**: drag a person under their manager |
+| `erp_org_levels` / nodes / `parent_node_id` | **Named layers** ("Region", "Branch", "Team") and **boxes you drag** |
+| Permission keys (`day.close.settle`…) | **Plain-language capability groups** with descriptions ("Settle daily cash") + on/off |
+| `erp_product_levels` / nodes | **Add a level**, **drag** products into folders |
+| UoM `factor` / `is_case` | **Guided form**: "1 Carton = ___ Units" with a live example |
+| `company_id` isolation | Invisible — the admin only ever sees **their** company |
+
+### Per-builder usability design
+**Organization Builder** — a **drag-and-drop org chart**: add a box, name it, drag people
+in, drag a box under another to set reporting, click a node to **assign a manager / assign
+users**, move whole teams visually. A side panel shows **"This manager will see: …"** in
+plain words (the scoping preview) so the admin understands the effect without knowing RLS.
+
+**Product Builder** — **add levels visually** ("Category → Brand → SKU", rename inline),
+**drag-and-drop** products into the structure (search + bulk select), folder-style tree.
+**UoM setup = guided forms**: pick the base unit, then "1 Pack = N Units", "1 Carton = N
+Packs", with a **live conversion preview** and barcode field — no factors/maths exposed.
+
+**Role Templates** — **permission groups with descriptions** (grouped by job area, each a
+clear sentence), simple on/off toggles, **clone an existing template**, and **industry
+presets** ("Start from FMCG roles"). A **"what this role can do"** summary in business
+terms; no raw permission keys or matrices-of-codes.
+
+### Cross-cutting UX principles
+- **Template-first / sensible defaults:** picking an industry pre-fills org, products,
+  roles, and UoM — the admin **edits**, rarely builds from scratch.
+- **Progressive disclosure:** show the simple path first; advanced options tucked behind
+  "More". A 3-level company never sees 6-level complexity.
+- **Inline guidance & examples** on every step (a one-line "what this means" + a sample),
+  so **no external docs** are needed.
+- **Visual-first:** org/reporting/product are **diagrams you manipulate**, not forms of IDs.
+- **Forgiving:** autosave + resume, **undo**, non-destructive edits, friendly empty states
+  ("Add your first branch"), and **plain-language validation** ("Every person needs a
+  manager — 2 people still need one").
+- **Confirm in business terms:** Go-Live checklist reads "✓ Org chart set · ✓ Roles ready ·
+  ✓ Products & units · ✓ Users invited" — not technical gates.
+- **Responsive / mobile-friendly** so setup works on a tablet.
+
+### Never shown to a Company Admin
+RLS/policies · `reports_to`/table/column names · raw permission keys · SQL · `company_id` ·
+migration/DB concepts. These exist **only** in the engine layer.
+
+### Success criteria (usability acceptance)
+- A first-time, non-technical admin completes onboarding **unaided** (no docs/SQL/dev).
+- Setting "who reports to whom" and "who sees what" is done **visually**, with a correct
+  plain-language preview.
+- Renaming/adding a hierarchy level and adding a UoM each take **seconds via guided UI**.
+- Zero exposure of database/security terminology anywhere in the Company-Admin surface.
+
+---
+
 ## Status
 Design package only — **nothing implemented**. The frozen authorization/RLS/hierarchy
 baseline (P1–P4) is the foundation; this platform makes its inputs **UI-configurable per
-company** by the **Company Admin**, within hard tenant-isolation guardrails, without code
-changes.
+company** by a **non-technical Company Admin** — wizard-driven, visual, business-language
+only — within hard tenant-isolation guardrails, and without code changes.
