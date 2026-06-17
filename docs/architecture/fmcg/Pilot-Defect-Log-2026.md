@@ -9,7 +9,8 @@ Category · Disposition (In-Pilot / Post-Pilot) · Notes.
 |---|---|---|---|---|---|---|
 | DF-001 | Salesman | My Day / Mobile Navigation | Medium | Usability / Navigation | **Post-Pilot** | Open |
 | DF-002 | Salesman | Change Requests / Requests Hub | Medium | Workflow / Discoverability | **Post-Pilot** | Open — functionality exists & enabled (discoverability/naming) |
-| ENV-1 | All (salesman) | Mobile nav / van-sales UI | High (pilot blocker) | Configuration / Environment | **In-Pilot (config fix)** | Open — deployment `KAKO_VAN_SALES` off / backend mismatch → `vanSalesActive=false` |
+| ENV-1 | All (salesman) | Mobile nav / van-sales UI | ~~High~~ → **Retracted** | Configuration / Environment | **Closed (incorrect)** | **RETRACTED by runtime logs** — `vanSalesActive=TRUE`; backend = vantora-staging (confirmed); no env change needed |
+| ENV-1b | Salesman | Mobile bottom nav | Low | Usability (stale layout) | **In-Pilot (no-op / hard-refresh)** | Open — `unifiedWorkspace` rendered false on a stale/transient layout; Requests is in "More" & reachable |
 
 ---
 
@@ -128,5 +129,35 @@ workflow → fits the freeze.
 `Today · Van Stock · Requests · More`.
 
 **Note:** DF-001 and DF-002 were triaged against the *intended* (correctly-configured) tenant.
-ENV-1 means the live pilot UI has not been exercising that configuration — re-validate UI findings
-after the env fix.
+
+### ENV-1 — RETRACTED (corrected by deployment runtime logs)
+
+Runtime logs (Vercel preview, `kako`) **disprove** the `vanSalesActive=false` hypothesis:
+- Every `/field/van-sales/*` route returns **200** (GET+POST `/sell`, `/collect`, `/return`,
+  `/summary`, `/statement`, `/cash-custody`, `/customers`, **`/requests`**). Those pages
+  `notFound()` when `isVanSalesActive()` is false → **`vanSalesActive=TRUE`**; `KAKO_VAN_SALES`
+  is effectively **ON**.
+- Backend confirmed = **`vantora-staging`** (`rsjvgehvastmawzwnqcs`): the statement routes carry the
+  pilot company's own customer IDs (Al Nour Grocery, El Salam Market, Family Supermarket, City Mini
+  Market, Corner Shop — all company `612af0bd`).
+- `/field/van-sales/requests` → **200** proves the `platform.salesman_requests` flag reads **true**
+  at runtime; the hub is reachable.
+**No environment-variable change is needed.** (The earlier ENV-1 env-change recommendation was
+based on a misread of the bottom-bar labels — the "Sell"/"Inventory" tabs ARE the van Sell / Van
+Stock tabs, labelled generically.)
+
+### ENV-1b — Bottom bar rendered non-unified although flags are ON (stale/transient layout)
+
+- **Observed:** `Today · Customers · Sell · Inventory · More`; Requests not a primary tab.
+- **Reality:** `vanSalesActive=true`, `requestsEnabled=true` (hub 200), `isVanSalesman=true`, and
+  both `platform.unified_salesman_workspace` and `platform.salesman_requests` are single rows = TRUE.
+  So `unifiedWorkspace` *should* be true → unified bar. It rendered **non-unified**, which keeps the
+  4 generic slots and pushes the (working) Requests tab into **"More."**
+- **Cause:** the bottom nav is computed in the App Router **layout**, which is preserved across soft
+  client navigations — so it reflects the first full load. Two `AuthApiError`s at 10:03 indicate an
+  auth hiccup; a layout render during a degraded session (or before a hard refresh) yields the
+  non-unified bar even while subsequent page loads are correct.
+- **Severity:** Low. **Disposition:** In-Pilot, **no code/env change** — **hard refresh / re-login**
+  to re-render the layout with a clean session + current flags → expect `Today · Van Stock · Requests
+  · More`. If it persists after a hard refresh, escalate for a deeper layout flag-read look.
+- **Immediate:** Requests is reachable now via **"More"** or directly at `/field/van-sales/requests`.
