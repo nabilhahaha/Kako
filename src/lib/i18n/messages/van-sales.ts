@@ -122,6 +122,7 @@ export const ar = {
       actualCash: 'النقدية الفعلية',
       countedStock: 'المخزون المجرود',
       skus: 'صنف',
+      record: 'تسجيل',
     },
     kpi: {
       planned: 'العملاء المخطّطون',
@@ -964,6 +965,7 @@ export const en = {
       actualCash: 'Actual cash',
       countedStock: 'Counted stock',
       skus: 'SKUs',
+      record: 'Record',
     },
     kpi: {
       planned: 'Planned',

@@ -11,7 +11,7 @@ import { Check, X, Loader2, Clock, ChevronDown, ChevronUp, User } from 'lucide-r
 import { useI18n } from '@/lib/i18n/provider';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 import { pendingBucket, pendingAgeHours } from '@/lib/van-sales/return-sla';
-import { decideDayCloseStage, loadDayCloseReview, type PendingDayCloseRow, type DayCloseReview } from '@/lib/van-sales/day-close-server';
+import { decideDayCloseStage, settleDayCash, reconcileDayStock, loadDayCloseReview, type PendingDayCloseRow, type DayCloseReview } from '@/lib/van-sales/day-close-server';
 import type { DayCloseStage } from '@/lib/van-sales/day-close-policy';
 
 const STAGE_KEY: Record<string, string> = { supervisor: 'stSupervisor', reconcile: 'stReconcile', settle: 'stSettle' };
@@ -51,21 +51,25 @@ export function DayCloseQueue({ items, actableStages }: { items: PendingDayClose
   async function decide(r: PendingDayCloseRow, decision: 'approve' | 'reject') {
     if (!r.stage) return;
     if (decision === 'reject' && !reason.trim()) { toast.error(dl('reasonRequired')); return; }
-    // Variance = expected − actual (counted stock / actual cash), when entered.
-    const expected = expectedFor(r.stage);
-    const variance = (decision === 'approve' && expected != null && actual.trim() !== '')
-      ? Math.round((expected - Number(actual)) * 1000) / 1000 : undefined;
     setBusy(decision);
     try {
-      const res = await decideDayCloseStage({
-        requestId: r.id, stage: r.stage, decision,
-        reason: reason.trim() || undefined, comment: comment.trim() || undefined,
-        variance,
-      });
-      if (!res.ok) { toast.error(res.error ?? dl('error')); return; }
+      let ok = false; let closed = false; let err: string | undefined;
+      if (r.stage === 'settle') {
+        // Record cash settlement (the entered amount is the cash handed over now).
+        const res = await settleDayCash({ requestId: r.id, settledAmount: actual.trim() ? Number(actual) : 0, comment: comment.trim() || undefined });
+        ok = res.ok; err = res.error; closed = res.data?.dayStatus === 'closed';
+      } else if (r.stage === 'reconcile') {
+        const res = await reconcileDayStock({ requestId: r.id, countedStock: actual.trim() ? Number(actual) : 0, comment: comment.trim() || undefined });
+        ok = res.ok; err = res.error; closed = res.data?.dayStatus === 'closed';
+      } else {
+        // Operational supervisor review: approve / reject.
+        const res = await decideDayCloseStage({ requestId: r.id, stage: r.stage, decision, reason: reason.trim() || undefined, comment: comment.trim() || undefined });
+        ok = res.ok; err = res.error; closed = res.data?.status === 'closed';
+      }
+      if (!ok) { toast.error(err ?? dl('error')); return; }
       setRows((list) => list.filter((x) => x.id !== r.id));
       setOpen(null); setReason(''); setComment(''); setActual(''); setReview(null);
-      toast.success(res.data?.status === 'closed' ? dl('closedToast') : decision === 'approve' ? dl('approvedToast') : dl('rejectedToast'));
+      toast.success(closed ? dl('closedToast') : decision === 'reject' ? dl('rejectedToast') : dl('approvedToast'));
     } finally { setBusy(''); }
   }
 
@@ -145,18 +149,28 @@ export function DayCloseQueue({ items, actableStages }: { items: PendingDayClose
                         <Label className="text-xs">{dl('comment')} <span className="text-muted-foreground">({dl('optional')})</span></Label>
                         <Input value={comment} onChange={(e) => setComment(e.target.value)} placeholder={dl('commentPlaceholder')} />
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">{dl('reason')} <span className="text-muted-foreground">({dl('rejectOnly')})</span></Label>
-                        <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={dl('reasonPlaceholder')} />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" className="flex-1 border-destructive/40 text-destructive hover:bg-destructive/10" disabled={busy !== ''} onClick={() => decide(r, 'reject')}>
-                          {busy === 'reject' ? <Loader2 className="h-4 w-4 animate-spin" /> : <><X className="h-4 w-4" /> {dl('reject')}</>}
+                      {/* Operational supervisor review has approve + reject; the cash /
+                          inventory tracks only RECORD (no rejection). */}
+                      {r.stage === 'supervisor' ? (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">{dl('reason')} <span className="text-muted-foreground">({dl('rejectOnly')})</span></Label>
+                            <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={dl('reasonPlaceholder')} />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" className="flex-1 border-destructive/40 text-destructive hover:bg-destructive/10" disabled={busy !== ''} onClick={() => decide(r, 'reject')}>
+                              {busy === 'reject' ? <Loader2 className="h-4 w-4 animate-spin" /> : <><X className="h-4 w-4" /> {dl('reject')}</>}
+                            </Button>
+                            <Button className="flex-[2]" disabled={busy !== ''} onClick={() => decide(r, 'approve')}>
+                              {busy === 'approve' ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4" /> {dl('approve')}</>}
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <Button className="w-full" disabled={busy !== ''} onClick={() => decide(r, 'approve')}>
+                          {busy === 'approve' ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4" /> {dl('record')}</>}
                         </Button>
-                        <Button className="flex-[2]" disabled={busy !== ''} onClick={() => decide(r, 'approve')}>
-                          {busy === 'approve' ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4" /> {dl('approve')}</>}
-                        </Button>
-                      </div>
+                      )}
                     </div>
                   )}
                 </>

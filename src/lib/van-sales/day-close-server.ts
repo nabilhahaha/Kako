@@ -126,6 +126,61 @@ export async function decideDayCloseStage(input: {
   return { ok: true, data: { id: row.request_id, status: row.status } };
 }
 
+/** Record a cash settlement (full / partial / incremental) on a day-close request.
+ *  Independent of the operational close; may run before or after the day closes. */
+export async function settleDayCash(input: { requestId: string; settledAmount: number; comment?: string }): Promise<ActionResult<{ settlementStatus: string; outstanding: number; dayStatus: string }>> {
+  const { ctx, error } = await requireActionPermission('day.close.settle');
+  if (error || !ctx) return { ok: false, error: error ?? 'Not authenticated.' };
+  if (!(Number(input.settledAmount) >= 0)) return { ok: false, error: 'Enter a valid amount.' };
+
+  const supabase = await createClient();
+  const { data: reqRow } = await supabase.from('erp_day_close_requests').select('company_id, salesman_id').eq('id', input.requestId).maybeSingle();
+  const req = reqRow as { company_id: string; salesman_id: string } | null;
+  if (!req) return { ok: false, error: RPC_ERRORS.request_not_found };
+  const allowed = await actorAllowed(supabase, ctx, 'settle', input.requestId, req);
+  if (!allowed) return { ok: false, error: 'You are not authorized for this stage.' };
+
+  const { data, error: rpcErr } = await supabase.rpc('erp_settle_day_cash', { p_request_id: input.requestId, p_settled_amount: input.settledAmount, p_comment: input.comment ?? null });
+  if (rpcErr) return { ok: false, error: RPC_ERRORS[rpcErr.message] ?? friendlyDbError(rpcErr) };
+  const row = (Array.isArray(data) ? data[0] : data) as { settlement_status: string; outstanding: number; day_status: string } | undefined;
+  revalidatePath('/field/van-sales/day-close-approvals');
+  return { ok: true, data: { settlementStatus: row?.settlement_status ?? 'pending', outstanding: Number(row?.outstanding ?? 0), dayStatus: row?.day_status ?? '' } };
+}
+
+/** Record a physical stock count + variance on a day-close request. Independent of
+ *  the operational close. */
+export async function reconcileDayStock(input: { requestId: string; countedStock: number; comment?: string }): Promise<ActionResult<{ reconcileStatus: string; variance: number; dayStatus: string }>> {
+  const { ctx, error } = await requireActionPermission('day.close.reconcile');
+  if (error || !ctx) return { ok: false, error: error ?? 'Not authenticated.' };
+
+  const supabase = await createClient();
+  const { data: reqRow } = await supabase.from('erp_day_close_requests').select('company_id, salesman_id').eq('id', input.requestId).maybeSingle();
+  const req = reqRow as { company_id: string; salesman_id: string } | null;
+  if (!req) return { ok: false, error: RPC_ERRORS.request_not_found };
+  const allowed = await actorAllowed(supabase, ctx, 'reconcile', input.requestId, req);
+  if (!allowed) return { ok: false, error: 'You are not authorized for this stage.' };
+
+  const { data, error: rpcErr } = await supabase.rpc('erp_reconcile_day_stock', { p_request_id: input.requestId, p_counted_stock: input.countedStock, p_comment: input.comment ?? null });
+  if (rpcErr) return { ok: false, error: RPC_ERRORS[rpcErr.message] ?? friendlyDbError(rpcErr) };
+  const row = (Array.isArray(data) ? data[0] : data) as { reconcile_status: string; variance: number; day_status: string } | undefined;
+  revalidatePath('/field/van-sales/day-close-approvals');
+  return { ok: true, data: { reconcileStatus: row?.reconcile_status ?? 'reconciled', variance: Number(row?.variance ?? 0), dayStatus: row?.day_status ?? '' } };
+}
+
+/** Shared role/SoD/submitter authorization for a track action (pure check helper). */
+async function actorAllowed(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any, ctx: UserContext, stage: DayCloseStage, requestId: string, req: { company_id: string; salesman_id: string },
+): Promise<boolean> {
+  const policy = await loadDayClosePolicy(supabase, req.company_id);
+  const { data: events } = await supabase.from('erp_day_close_stage_events').select('actor').eq('request_id', requestId);
+  const priorActorIds = [...new Set(((events ?? []) as { actor: string }[]).map((e) => e.actor))];
+  return canActOnStage({
+    stage, policy, userId: ctx.userId, userRoles: ROLES_OF(ctx), userPerms: ctx.permissions,
+    submitterId: req.salesman_id, priorActorIds, isApex: ctx.isSuperAdmin || ctx.isPlatformOwner,
+  });
+}
+
 // ── Loaders ──────────────────────────────────────────────────────────────────
 
 export interface MyDayClose {
