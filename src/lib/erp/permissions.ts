@@ -320,8 +320,14 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'settings.users', 'audit.view',
     'customer.import', 'product.import', 'user.import', 'route.import', 'journey.import',
   ],
+  // Supervisor = operational manager & APPROVER, not a transaction executor.
+  // Deliberately holds NO sales.sell / sales.collect / sales.return /
+  // sales.discount (segregation of duties): the rep sells/collects/returns; the
+  // supervisor reviews, approves, monitors, coaches, and governs customers/routes.
+  // Route coverage for an absent rep is handled by route REASSIGNMENT (the
+  // supervisor keeps customer.transfer + route.create), with a time-boxed,
+  // audited "Acting Sales Rep" elevation reserved as an exceptional procedure.
   supervisor: [
-    'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'stock_request.approve', 'reports.view',
     'visit.approve_out_of_route', 'day.approve_close_exception', 'stock.transfer.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
