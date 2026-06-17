@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Boxes, HandCoins, LockOpen, Send, ChevronRight } from 'lucide-react';
+import { Boxes, HandCoins, LockOpen, Send } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,21 @@ import { requestCashHandover, type MyRequest, type RequestCustomer, type Request
 import { CustomerRequestForms } from './customer-request-forms';
 
 const TONE: Record<MyRequest['tone'], 'secondary' | 'success' | 'destructive'> = { pending: 'secondary', done: 'success', rejected: 'destructive' };
+
+/** Presentation-only request-type tile (icon + title + short description),
+ *  sized for a responsive grid and a comfortable mobile touch target. The
+ *  wrapping <Link>/<button> carries the (unchanged) action. */
+function RequestTile({ icon, title, desc, active, muted }: { icon: ReactNode; title: string; desc: string; active?: boolean; muted?: boolean }) {
+  return (
+    <Card className={`h-full transition-colors hover:bg-secondary/50 ${active ? 'ring-2 ring-primary' : ''}`}>
+      <CardContent className="flex h-full min-h-[96px] flex-col items-start gap-1.5 p-3">
+        <span className={muted ? 'text-muted-foreground' : 'text-primary'}>{icon}</span>
+        <div className="text-sm font-medium leading-tight">{title}</div>
+        <div className="text-xs leading-snug text-muted-foreground">{desc}</div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function RequestsHub({
   myRequests, canLoad, canCash, canReopen, dayClosed, canCustomer, customers, routes, salesmen,
@@ -49,36 +64,44 @@ export function RequestsHub({
 
   return (
     <div className="space-y-4">
-      {/* Request types */}
+      {/* Request types — responsive card/tile grid (presentation only; same
+          actions). 2 per row on mobile, expanding on larger screens. */}
       <div className="space-y-3">
-        {canLoad && (
-          <Link href="/field/van-sales/request" className="block">
-            <Card className="transition-colors hover:bg-secondary/50">
-              <CardContent className="flex items-center gap-3 py-4">
-                <Boxes className="h-5 w-5 text-primary" />
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{t('vanSales.requests.load')}</div>
-                  <div className="text-xs text-muted-foreground">{t('vanSales.requests.loadDesc')}</div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground rtl:rotate-180" />
-              </CardContent>
-            </Card>
-          </Link>
-        )}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {canLoad && (
+            <Link href="/field/van-sales/request" className="block h-full">
+              <RequestTile icon={<Boxes className="h-5 w-5" />} title={t('vanSales.requests.load')} desc={t('vanSales.requests.loadDesc')} />
+            </Link>
+          )}
 
-        {canCash && (
-          <Card>
-            <CardContent className="py-4">
-              <button type="button" className="flex w-full items-center gap-3 text-start" onClick={() => setCashOpen((v) => !v)}>
-                <HandCoins className="h-5 w-5 text-primary" />
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{t('vanSales.requests.cashHandover')}</div>
-                  <div className="text-xs text-muted-foreground">{t('vanSales.requests.cashDesc')}</div>
-                </div>
-                <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${cashOpen ? 'rotate-90' : 'rtl:rotate-180'}`} />
+          {canCash && (
+            <button type="button" className="block h-full w-full text-start" onClick={() => setCashOpen((v) => !v)}>
+              <RequestTile icon={<HandCoins className="h-5 w-5" />} title={t('vanSales.requests.cashHandover')} desc={t('vanSales.requests.cashDesc')} active={cashOpen} />
+            </button>
+          )}
+
+          {canReopen && (
+            dayClosed ? (
+              <Link href="/today" className="block h-full">
+                <RequestTile icon={<LockOpen className="h-5 w-5" />} title={t('vanSales.requests.reopen')} desc={t('vanSales.requests.reopenReady')} />
+              </Link>
+            ) : (
+              // Day is open → do NOT navigate; show the agreed message inline.
+              <button type="button" className="block h-full w-full text-start" onClick={() => toast.error(t('vanSales.requests.reopenDayOpen'))}>
+                <RequestTile icon={<LockOpen className="h-5 w-5" />} title={t('vanSales.requests.reopen')} desc={t('vanSales.requests.reopenWhenClosed')} muted />
               </button>
-              {cashOpen && (
-                <div className="mt-3 space-y-3 border-t pt-3">
+            )
+          )}
+
+          {/* Governed customer requests (new / data update / GPS / credit / terms /
+              route / reactivate / close) render their own tiles in the same grid. */}
+          {canCustomer && <CustomerRequestForms customers={customers} routes={routes} salesmen={salesmen} />}
+
+          {/* Cash handover form — full-width row within the grid when selected. */}
+          {canCash && cashOpen && (
+            <div className="col-span-full">
+              <Card>
+                <CardContent className="space-y-3 py-4">
                   <div className="space-y-1.5">
                     <Label>{t('vanSales.requests.amount')}</Label>
                     <Input type="number" inputMode="decimal" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
@@ -90,44 +113,11 @@ export function RequestsHub({
                   <Button className="w-full" disabled={busy} onClick={submitCash}>
                     <Send className="h-4 w-4" /> {busy ? t('vanSales.requests.submitting') : t('vanSales.requests.submit')}
                   </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {canReopen && (
-          dayClosed ? (
-            <Link href="/today" className="block">
-              <Card className="transition-colors hover:bg-secondary/50">
-                <CardContent className="flex items-center gap-3 py-4">
-                  <LockOpen className="h-5 w-5 text-primary" />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{t('vanSales.requests.reopen')}</div>
-                    <div className="text-xs text-muted-foreground">{t('vanSales.requests.reopenReady')}</div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground rtl:rotate-180" />
                 </CardContent>
               </Card>
-            </Link>
-          ) : (
-            // Day is open → do NOT navigate; show the agreed message inline.
-            <button type="button" className="block w-full text-start" onClick={() => toast.error(t('vanSales.requests.reopenDayOpen'))}>
-              <Card className="transition-colors hover:bg-secondary/50">
-                <CardContent className="flex items-center gap-3 py-4">
-                  <LockOpen className="h-5 w-5 text-muted-foreground" />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{t('vanSales.requests.reopen')}</div>
-                    <div className="text-xs text-muted-foreground">{t('vanSales.requests.reopenWhenClosed')}</div>
-                  </div>
-                </CardContent>
-              </Card>
-            </button>
-          )
-        )}
-
-        {/* Governed customer requests (new / data update / GPS / credit / terms) */}
-        {canCustomer && <CustomerRequestForms customers={customers} routes={routes} salesmen={salesmen} />}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* My requests */}
