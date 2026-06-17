@@ -8,6 +8,7 @@ Category · Disposition (In-Pilot / Post-Pilot) · Notes.
 | ID | Role | Screen | Severity | Category | Disposition | Status |
 |---|---|---|---|---|---|---|
 | DF-001 | Salesman | My Day / Mobile Navigation | Medium | Usability / Navigation | **Post-Pilot** | Open |
+| DF-002 | Salesman | Change Requests / Requests Hub | Medium | Workflow / Discoverability | **Post-Pilot** | Open — functionality exists & enabled (discoverability/naming) |
 
 ---
 
@@ -49,3 +50,50 @@ Category · Disposition (In-Pilot / Post-Pilot) · Notes.
 
 **Backlog:** UX-P1 (closed-day action-oriented experience). See Prioritized Backlog
 (end-of-pilot deliverable).
+
+---
+
+## DF-002 — Request creation not discoverable ("Change Requests" vs "Requests"; no desktop entry)
+
+- **Role:** Salesman
+- **Screen:** "Change Requests" (generic) vs Requests Hub (`/field/van-sales/requests`)
+- **Expected:** Salesman can create New Customer / Data Change / Transfer / Route Change /
+  other master-data requests from an obvious place.
+- **Actual:** Tester opened a "Change Requests" page showing an empty state with no create
+  action.
+- **Severity:** Medium · **Category:** Workflow / Discoverability · **Disposition:** **Post-Pilot**
+
+**Implementation status (verified — answer: the functionality EXISTS and is enabled):**
+- `platform.salesman_requests` = **ENABLED** on the pilot tenant.
+- Salesman role **has** `customer.request` (and `field.sales`) → `canCustomer = true`.
+- The create workflow is **fully implemented** in the Requests Hub
+  (`/field/van-sales/requests` → `requests-hub.tsx` + `customer-request-forms.tsx`):
+  kinds `new` (New Customer), `update` (Data Change), `gps`, `credit`, `terms`,
+  `route` (Transfer/Route Change), `reactivate`, `close` — all via `requestCustomerChange`.
+- NOT a permissions gap; NOT unimplemented.
+
+**Exact root cause (not the symptom):**
+1. **No desktop/sidebar entry exists for the Requests Hub.** `navigation.ts` has **zero**
+   nav items pointing to `/field/van-sales/requests`. Its *only* navigational entry point
+   is the **mobile bottom-nav "Requests" tab** (`bottom-nav-tabs.ts:73`, `requestsOnly`).
+   There is also no link from `/today`. On desktop the hub is reachable only by typing the URL.
+2. **Naming collision.** The create hub is labelled **"Requests"** (`nav.bottom.requests`),
+   while the tester looked under **"Change Requests"** — a *separate, list-only* module
+   (deployment flag `KAKO_CHANGE_REQUESTS`, no create action) that is **not enabled** for
+   the pilot (`change_requests` company flag not set). The mental model didn't map.
+3. The hub's **My Requests** list is empty for a new salesman ("no requests"), which can be
+   mistaken for "nothing here / no create" if the create cards above aren't recognised.
+
+**Reachability classification (Q4):** the hub **IS** reachable from **mobile** (Requests tab,
+within the visible first-4 → `Today · Van Stock · Requests · More`). It is **NOT** reachable
+from **desktop navigation** at all. → **Discoverability defect** (missing desktop entry +
+naming mismatch), not a functional/permission defect.
+
+**Recommended fix (Post-Pilot, no new workflow):** (a) add a **desktop sidebar entry** for
+the Requests Hub (e.g. under Sales/Field, flag `platform.salesman_requests`); (b) align
+**naming** so "Requests / Change Requests" don't compete (rename or cross-link); (c) make the
+**create actions prominent** above the My Requests list and add an empty-state CTA
+("Create a request"). Effort: nav entry + labels/copy. No schema, no permission, no new
+workflow → fits the freeze.
+
+**Backlog:** UX-P2 (request-creation discoverability: desktop entry + naming + empty-state CTA).
