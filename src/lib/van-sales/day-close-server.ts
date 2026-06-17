@@ -28,6 +28,8 @@ const RPC_ERRORS: Record<string, string> = {
   no_chain: 'No approval chain is configured.',
   request_not_found: 'Day-close request not found.',
   not_current_stage: 'This stage is not the current step.',
+  not_pending: 'This day is not awaiting approval.',
+  already_acted: 'An approver has already acted — you can no longer withdraw.',
   self_approval: 'You cannot approve your own day.',
   separation_of_duties: 'Separation of duties: you already acted on an earlier stage.',
   reason_required: 'A rejection reason is required.',
@@ -133,7 +135,11 @@ export interface MyDayClose {
   supervisorReason: string | null;
   reconcileReason: string | null;
   settleReason: string | null;
+  /** The salesman may withdraw ONLY while pending AND no stage has acted yet. */
+  canWithdraw: boolean;
 }
+
+const PENDING_STATUSES = ['pending_supervisor', 'pending_reconciliation', 'pending_settlement'];
 
 /** The salesman's day-close request for a work session (status + rejection reasons). */
 export async function loadMyDayClose(workSessionId: string): Promise<MyDayClose | null> {
@@ -146,7 +152,25 @@ export async function loadMyDayClose(workSessionId: string): Promise<MyDayClose 
     .eq('work_session_id', workSessionId).maybeSingle();
   const r = data as { id: string; status: DayCloseStatus; submitted_at: string | null; supervisor_reason: string | null; reconcile_reason: string | null; settle_reason: string | null } | null;
   if (!r) return null;
-  return { requestId: r.id, status: r.status, submittedAt: r.submitted_at, supervisorReason: r.supervisor_reason, reconcileReason: r.reconcile_reason, settleReason: r.settle_reason };
+  let canWithdraw = PENDING_STATUSES.includes(r.status);
+  if (canWithdraw) {
+    const { count } = await supabase.from('erp_day_close_stage_events').select('id', { count: 'exact', head: true }).eq('request_id', r.id);
+    canWithdraw = (count ?? 0) === 0;
+  }
+  return { requestId: r.id, status: r.status, submittedAt: r.submitted_at, supervisorReason: r.supervisor_reason, reconcileReason: r.reconcile_reason, settleReason: r.settle_reason, canWithdraw };
+}
+
+/** Withdraw a submitted End Day request — only while pending and no stage has acted. */
+export async function withdrawDayClose(requestId: string): Promise<ActionResult<{ workSessionId: string }>> {
+  const { ctx, error } = await requireActionPermission('day.close.submit');
+  if (error || !ctx) return { ok: false, error: error ?? 'Not authenticated.' };
+  const supabase = await createClient();
+  const { data, error: rpcErr } = await supabase.rpc('erp_withdraw_day_close', { p_request_id: requestId });
+  if (rpcErr) return { ok: false, error: RPC_ERRORS[rpcErr.message] ?? friendlyDbError(rpcErr) };
+  const row = (Array.isArray(data) ? data[0] : data) as { work_session_id: string } | undefined;
+  revalidatePath('/field/van-sales');
+  revalidatePath('/today');
+  return { ok: true, data: { workSessionId: row?.work_session_id ?? '' } };
 }
 
 export interface PendingDayCloseRow {

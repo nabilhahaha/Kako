@@ -20,6 +20,7 @@ import {
   type JourneyStopRow,
   type TodayJourneyData,
 } from '../actions';
+import { withdrawDayClose } from '@/lib/van-sales/day-close-server';
 import {
   MapPin,
   Navigation,
@@ -53,6 +54,8 @@ interface CheckInResult {
 
 interface CloseResult {
   close_status?: string;
+  request_id?: string;
+  day_close_status?: string;
   planned_count?: number;
   visited_count?: number;
   skipped_count?: number;
@@ -116,6 +119,19 @@ export function JourneyScreen({
   const [bulkReason, setBulkReason] = useState('');
   const [closing, setClosing] = useState(false);
   const [closeResult, setCloseResult] = useState<CloseResult | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
+
+  async function doWithdraw(requestId: string) {
+    setWithdrawing(true);
+    try {
+      const res = await withdrawDayClose(requestId);
+      if (!res.ok) { toast.error(res.error || t('fmcg.error')); return; }
+      toast.success(t('vanSales.dayClose.withdrawnToast'));
+      setCloseResult(null);
+      setCloseOpen(false);
+      router.refresh();
+    } finally { setWithdrawing(false); }
+  }
 
   // Deep link from the workspace "End Day & Settle" — open the close-day workflow.
   useEffect(() => { if (autoEndDay) setCloseOpen(true); }, [autoEndDay]);
@@ -702,6 +718,13 @@ export function JourneyScreen({
                   >
                     {closeResult.close_status === 'closed' ? t('fmcg.closedOk') : t('fmcg.pendingApproval')}
                   </Badge>
+                  {/* Withdraw is allowed only while pending and no stage has acted; the
+                      RPC enforces both — a stale button surfaces a clear error. */}
+                  {closeResult.request_id && closeResult.close_status !== 'closed' && (
+                    <Button className="mb-2 w-full" variant="outline" disabled={withdrawing} onClick={() => doWithdraw(closeResult.request_id!)}>
+                      {withdrawing ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t('vanSales.dayClose.withdraw')}
+                    </Button>
+                  )}
                   <Button className="w-full" variant="outline" onClick={() => setCloseOpen(false)}>
                     {t('fmcg.cancel')}
                   </Button>

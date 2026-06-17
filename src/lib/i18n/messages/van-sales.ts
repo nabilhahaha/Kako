@@ -115,6 +115,8 @@ export const ar = {
       stockVariance: 'فرق المخزون',
       cashVariance: 'فرق النقدية',
       notYourStage: 'هذه المرحلة ليست ضمن صلاحياتك.',
+      withdraw: 'سحب الطلب',
+      withdrawnToast: 'تم سحب طلب إنهاء اليوم',
     },
     kpi: {
       planned: 'العملاء المخطّطون',
@@ -950,6 +952,8 @@ export const en = {
       stockVariance: 'Stock variance',
       cashVariance: 'Cash variance',
       notYourStage: 'This stage is outside your permissions.',
+      withdraw: 'Withdraw request',
+      withdrawnToast: 'End Day request withdrawn',
     },
     kpi: {
       planned: 'Planned',
