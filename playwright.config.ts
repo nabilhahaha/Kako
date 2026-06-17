@@ -28,9 +28,14 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build && npm run start',
+    // The production build of this app takes several minutes (it nearly doubled
+    // after the FMCG suite landed on main), which blows past a webServer readiness
+    // timeout if the build runs here. In CI we BUILD IN A SEPARATE STEP and set
+    // PW_E2E_START_ONLY=1 so this only runs `next start` (ready in <1s). Locally
+    // (no flag) we still build+start, with a generous timeout.
+    command: process.env.PW_E2E_START_ONLY === '1' ? 'npm run start' : 'npm run build && npm run start',
     url: 'http://localhost:3000',
-    timeout: 180_000,
+    timeout: process.env.PW_E2E_START_ONLY === '1' ? 120_000 : 600_000,
     reuseExistingServer: !process.env.CI,
     env: {
       NEXT_PUBLIC_SUPABASE_URL:
