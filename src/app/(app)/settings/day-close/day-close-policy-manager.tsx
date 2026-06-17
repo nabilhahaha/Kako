@@ -20,7 +20,14 @@ export interface DayClosePolicyView {
   cashVarianceTol: number | null;
   stockVarianceTol: number | null;
   slaHours: number | null;
+  settleBlocksClose: boolean;
+  reconcileBlocksClose: boolean;
+  allowPartialSettlement: boolean;
+  autoCarryForward: boolean;
+  reconcileCadence: 'daily' | 'weekly' | 'monthly' | 'surprise' | 'not_required';
 }
+
+const CADENCES = ['daily', 'weekly', 'monthly', 'surprise', 'not_required'] as const;
 
 // Roles a company may assign to a stage (not hardcoded to one role per stage).
 const ROLE_OPTIONS = ['any', 'supervisor', 'branch_manager', 'warehouse_keeper', 'cashier', 'accountant', 'manager'];
@@ -54,6 +61,9 @@ export function DayClosePolicyManager({ policy, flagOn }: { policy: DayClosePoli
         stageOrder: p.stageOrder,
         separationOfDuties: p.separationOfDuties,
         cashVarianceTol: p.cashVarianceTol, stockVarianceTol: p.stockVarianceTol, slaHours: p.slaHours,
+        settleBlocksClose: p.settleBlocksClose, reconcileBlocksClose: p.reconcileBlocksClose,
+        allowPartialSettlement: p.allowPartialSettlement, autoCarryForward: p.autoCarryForward,
+        reconcileCadence: p.reconcileCadence,
       });
       if (!res.ok) { toast.error(res.error ?? dl('error')); return; }
       toast.success(dl('saved'));
@@ -113,6 +123,45 @@ export function DayClosePolicyManager({ policy, flagOn }: { policy: DayClosePoli
               roleNode={roleSelect(p.reconcileRole, (v) => set('reconcileRole', v))} enabledLabel={dl('enabled')} roleLabel={dl('assignedRole')} />
             <StageRow label={dl('stageSettle')} enabled={p.settleEnabled} onToggle={(v) => set('settleEnabled', v)}
               roleNode={roleSelect(p.settleRole, (v) => set('settleRole', v))} enabledLabel={dl('enabled')} roleLabel={dl('assignedRole')} />
+
+            {/* Reconciliation cadence (when the inventory track is on). */}
+            {p.reconcileEnabled && (
+              <div className="space-y-1 rounded-md bg-secondary/20 p-2.5">
+                <Label className="text-xs">{dl('reconcileCadence')}</Label>
+                <Select value={p.reconcileCadence} onChange={(e) => set('reconcileCadence', e.target.value as DayClosePolicyView['reconcileCadence'])}>
+                  {CADENCES.map((c) => <option key={c} value={c}>{dl(`cadence_${c}`)}</option>)}
+                </Select>
+                <p className="text-xs text-muted-foreground">{dl('cadenceHint')}</p>
+              </div>
+            )}
+
+            {/* Close-gating: which tracks must finish before the day can close. */}
+            <div className="space-y-2 rounded-md border p-3">
+              <p className="text-xs font-semibold">{dl('closeGating')}</p>
+              {p.settleEnabled && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={p.settleBlocksClose} onChange={(e) => set('settleBlocksClose', e.target.checked)} /> {dl('settleBlocksClose')}
+                </label>
+              )}
+              {p.reconcileEnabled && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={p.reconcileBlocksClose} onChange={(e) => set('reconcileBlocksClose', e.target.checked)} /> {dl('reconcileBlocksClose')}
+                </label>
+              )}
+              <p className="text-xs text-muted-foreground">{dl('closeGatingHint')}</p>
+            </div>
+
+            {p.settleEnabled && (
+              <>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" checked={p.allowPartialSettlement} onChange={(e) => set('allowPartialSettlement', e.target.checked)} /> {dl('allowPartial')}
+                </label>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" checked={p.autoCarryForward} onChange={(e) => set('autoCarryForward', e.target.checked)} /> {dl('autoCarryForward')}
+                </label>
+                <p className="text-xs text-muted-foreground">{dl('carryForwardHint')}</p>
+              </>
+            )}
 
             <label className="flex items-center gap-2 text-sm font-medium">
               <input type="checkbox" checked={p.separationOfDuties} onChange={(e) => set('separationOfDuties', e.target.checked)} />

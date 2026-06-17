@@ -30,7 +30,15 @@ export interface DayClosePolicyInput {
   cashVarianceTol: number | null;
   stockVarianceTol: number | null;
   slaHours: number | null;
+  // Separated-model flags: tracks gate the close only when their *_blocks_close is on.
+  settleBlocksClose: boolean;
+  reconcileBlocksClose: boolean;
+  allowPartialSettlement: boolean;
+  autoCarryForward: boolean;
+  reconcileCadence: 'daily' | 'weekly' | 'monthly' | 'surprise' | 'not_required';
 }
+
+const CADENCES = ['daily', 'weekly', 'monthly', 'surprise', 'not_required'] as const;
 
 /** Upsert the company's End Day close policy. */
 export async function saveDayClosePolicy(input: DayClosePolicyInput): Promise<ActionResult> {
@@ -55,6 +63,11 @@ export async function saveDayClosePolicy(input: DayClosePolicyInput): Promise<Ac
     cash_variance_tol: input.cashVarianceTol,
     stock_variance_tol: input.stockVarianceTol,
     sla_hours: input.slaHours,
+    settle_blocks_close: input.settleBlocksClose === true,
+    reconcile_blocks_close: input.reconcileBlocksClose === true,
+    allow_partial_settlement: input.allowPartialSettlement !== false,
+    auto_carry_forward: input.autoCarryForward !== false,
+    reconcile_cadence: CADENCES.includes(input.reconcileCadence) ? input.reconcileCadence : 'daily',
     updated_at: new Date().toISOString(),
     updated_by: g.userId,
   }, { onConflict: 'company_id' });
