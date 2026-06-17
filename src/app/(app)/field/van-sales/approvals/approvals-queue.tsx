@@ -12,7 +12,13 @@ import { useI18n } from '@/lib/i18n/provider';
 import { INTL_LOCALE } from '@/lib/i18n/config';
 import { formatCurrency } from '@/lib/utils';
 import { decideVanReturn, markReturnViewed, type PendingReturnRow } from '@/lib/van-sales/returns-server';
-import { pendingBucket, pendingAgeHours } from '@/lib/van-sales/return-sla';
+import { pendingBucket, pendingAgeHours, compareApprovalPriority } from '@/lib/van-sales/return-sla';
+
+const PRIORITY_META: Record<'over_48h' | 'over_24h' | 'under_24h', { emoji: string; variant: 'destructive' | 'warning' | 'success'; label: string }> = {
+  over_48h: { emoji: '🔴', variant: 'destructive', label: 'prOver48' },
+  over_24h: { emoji: '🟠', variant: 'warning', label: 'prOver24' },
+  under_24h: { emoji: '🟢', variant: 'success', label: 'prNew' },
+};
 
 const LEVEL_KEY: Record<string, string> = { supervisor: 'lvlSupervisor', branch_manager: 'lvlBranchManager', company_admin: 'lvlCompanyAdmin' };
 
@@ -41,6 +47,13 @@ export function ApprovalsQueue({ items, slaEnabled }: { items: PendingReturnRow[
     return { total: rows.length, o24, o48 };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows]);
+
+  // Attention-first order: SLA breach → highest value → oldest request.
+  const ordered = useMemo(
+    () => [...rows].sort((a, b) => compareApprovalPriority({ requestedAt: a.requestedAt, value: a.value }, { requestedAt: b.requestedAt, value: b.value }, now)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows],
+  );
 
   function toggle(r: PendingReturnRow) {
     if (open === r.id) { setOpen(null); return; }
@@ -78,9 +91,10 @@ export function ApprovalsQueue({ items, slaEnabled }: { items: PendingReturnRow[
         {summary.o48 > 0 && <Badge variant="destructive">{al('over48Count', { n: summary.o48 })}</Badge>}
       </div>
 
-      {rows.map((r) => {
+      {ordered.map((r) => {
         const bucket = pendingBucket(r.requestedAt, now);
         const ageH = Math.floor(pendingAgeHours(r.requestedAt, now) ?? 0);
+        const prio = PRIORITY_META[bucket];
         const isOpen = open === r.id;
         return (
           <Card key={r.id}>
@@ -97,9 +111,12 @@ export function ApprovalsQueue({ items, slaEnabled }: { items: PendingReturnRow[
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <span className="font-bold tabular-nums" dir="ltr">{formatCurrency(r.value, 'EGP', intl)}</span>
-                  <Badge variant={bucket === 'over_48h' ? 'destructive' : bucket === 'over_24h' ? 'warning' : 'outline'} className="gap-1">
-                    <Clock className="h-3 w-3" /> {al('ageHours', { h: ageH })}
+                  <Badge variant={prio.variant} className="gap-1">
+                    <span aria-hidden>{prio.emoji}</span> {al(prio.label)}
                   </Badge>
+                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground" dir="ltr">
+                    <Clock className="h-3 w-3" /> {ageH >= 48 ? al('ageDays', { d: (ageH / 24).toFixed(1) }) : al('ageHours', { h: ageH })}
+                  </span>
                 </div>
               </button>
 

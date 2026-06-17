@@ -51,6 +51,33 @@ export function pendingBucket(requestedAt: string | Date | null | undefined, now
   return 'under_24h';
 }
 
+/** SLA urgency tier for sorting/colour: 2 = breach (> 48h), 1 = warn (> 24h), 0 = new. */
+export function slaTier(requestedAt: string | Date | null | undefined, now: Date = new Date()): 0 | 1 | 2 {
+  const b = pendingBucket(requestedAt, now);
+  return b === 'over_48h' ? 2 : b === 'over_24h' ? 1 : 0;
+}
+
+/**
+ * Approver-queue priority comparator (who needs attention FIRST). Pure. Order:
+ *   1) SLA breach tier, most-breached first (> 48h, then > 24h, then new)
+ *   2) Highest return value first
+ *   3) Oldest request first
+ */
+export function compareApprovalPriority(
+  a: { requestedAt: string | Date | null | undefined; value: number },
+  b: { requestedAt: string | Date | null | undefined; value: number },
+  now: Date = new Date(),
+): number {
+  const ta = slaTier(a.requestedAt, now); const tb = slaTier(b.requestedAt, now);
+  if (ta !== tb) return tb - ta; // higher tier first
+
+  if (Number(b.value) !== Number(a.value)) return Number(b.value) - Number(a.value); // higher value first
+
+  const am = a.requestedAt ? Date.parse(a.requestedAt as string) : Number.POSITIVE_INFINITY;
+  const bm = b.requestedAt ? Date.parse(b.requestedAt as string) : Number.POSITIVE_INFINITY;
+  return am - bm; // oldest first
+}
+
 export interface SlaSummary {
   count: number;            // decided returns counted
   avgApproveMinutes: number | null;

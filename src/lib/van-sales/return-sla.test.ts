@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   timeToReviewMinutes, timeToApproveMinutes, pendingAgeHours, pendingBucket, summarizeSla, returnSlaEnabled,
+  slaTier, compareApprovalPriority,
 } from './return-sla';
 
 const T = (iso: string) => new Date(iso);
@@ -37,6 +38,36 @@ describe('return SLA — pure metrics', () => {
     expect(s.avgApproveMinutes).toBe(90);
     expect(s.pendingOver24h).toBe(2); // both exceed 24h
     expect(s.pendingOver48h).toBe(1); // only the 78h one
+  });
+
+  it('slaTier: 2 breach (>48h), 1 warn (>24h), 0 new', () => {
+    const now = T('2026-06-16T12:00:00Z');
+    expect(slaTier('2026-06-13T06:00:00Z', now)).toBe(2); // 78h
+    expect(slaTier('2026-06-15T06:00:00Z', now)).toBe(1); // 30h
+    expect(slaTier('2026-06-16T06:00:00Z', now)).toBe(0); // 6h
+  });
+
+  it('compareApprovalPriority: SLA breach > value > oldest', () => {
+    const now = T('2026-06-16T12:00:00Z');
+    const breachLow = { requestedAt: '2026-06-13T00:00:00Z', value: 10 };   // >48h
+    const warnHigh = { requestedAt: '2026-06-15T06:00:00Z', value: 9999 };  // >24h
+    const newHigh = { requestedAt: '2026-06-16T06:00:00Z', value: 5000 };   // new
+    // SLA tier dominates value: the >48h breach sorts before the high-value warn.
+    expect(compareApprovalPriority(breachLow, warnHigh, now)).toBeLessThan(0);
+    expect(compareApprovalPriority(warnHigh, newHigh, now)).toBeLessThan(0);
+
+    const sorted = [newHigh, breachLow, warnHigh].sort((a, b) => compareApprovalPriority(a, b, now));
+    expect(sorted).toEqual([breachLow, warnHigh, newHigh]);
+  });
+
+  it('compareApprovalPriority tie-breaks equal tier by value then oldest', () => {
+    const now = T('2026-06-16T12:00:00Z');
+    const a = { requestedAt: '2026-06-16T06:00:00Z', value: 100 };
+    const b = { requestedAt: '2026-06-16T08:00:00Z', value: 500 };
+    expect(compareApprovalPriority(a, b, now)).toBeGreaterThan(0); // b higher value → first
+    const c = { requestedAt: '2026-06-16T06:00:00Z', value: 500 };
+    const d = { requestedAt: '2026-06-16T09:00:00Z', value: 500 };
+    expect(compareApprovalPriority(c, d, now)).toBeLessThan(0); // equal value → c older → first
   });
 
   it('returnSlaEnabled reads the platform.return_approval_sla flag', () => {
