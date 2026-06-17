@@ -9,8 +9,9 @@ import { BackLink } from '@/components/shared/back-link';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { salesmanRequestsEnabled } from '@/lib/van-sales/sell';
 import { loadRequestCustomers, loadRequestRoutes, loadRequestSalesmen } from '@/lib/van-sales/requests-server';
-import { CustomerRequestForms, REQUEST_FORM_KINDS, type RequestFormKind } from '../customer-request-forms';
+import { CustomerRequestForms } from '../customer-request-forms';
 import { CashRequestForm } from '../cash-request-form';
+import { REQUEST_FORM_KINDS, type RequestFormKind } from '../request-kinds';
 
 export const dynamic = 'force-dynamic';
 

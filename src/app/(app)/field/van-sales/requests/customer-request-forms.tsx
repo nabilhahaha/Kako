@@ -13,13 +13,11 @@ import { Label } from '@/components/ui/label';
 import { useI18n } from '@/lib/i18n/provider';
 import { formatCurrency } from '@/lib/utils';
 import { distanceMeters } from '@/lib/erp/journey-sort';
+import type { RequestFormKind } from './request-kinds';
 import { requestCustomerChange, type RequestCustomer, type RequestRoute, type RequestSalesman } from '@/lib/van-sales/requests-server';
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
 
-type Open = 'new' | 'update' | 'gps' | 'credit' | 'terms' | 'route' | 'reactivate' | 'close' | null;
-/** The customer request kinds that each have a dedicated screen. */
-export type RequestFormKind = Exclude<Open, null>;
-export const REQUEST_FORM_KINDS: RequestFormKind[] = ['new', 'update', 'gps', 'credit', 'terms', 'route', 'reactivate', 'close'];
+type Open = RequestFormKind | null;
 type SimpleKind = 'data_update' | 'gps_correction' | 'credit_limit' | 'payment_terms' | 'route_transfer' | 'reactivate' | 'close';
 
 const ACTIVITIES = ['grocery', 'mini_market', 'supermarket', 'wholesale', 'bakery', 'roastery', 'pharmacy', 'other'] as const;
