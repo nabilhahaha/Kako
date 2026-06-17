@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildChain, firstStatus, nextStatusAfter, canActOnStage, assignedRole,
   pendingStatusFor, rejectedStatusFor, stageOfStatus, dayCloseApprovalEnabled,
+  computeSettlement, computeReconciliation, canCloseDay, computeCashHeld,
   DEFAULT_DAY_CLOSE_POLICY, type DayClosePolicy,
 } from './day-close-policy';
 
@@ -115,5 +116,41 @@ describe('day-close capability flag', () => {
     expect(dayCloseApprovalEnabled({ 'platform.day_close_approval': true })).toBe(true);
     expect(dayCloseApprovalEnabled({})).toBe(false);
     expect(dayCloseApprovalEnabled(null)).toBe(false);
+  });
+});
+
+describe('separated statuses — settlement / reconciliation / close gating', () => {
+  it('computeSettlement: full / partial / none + outstanding', () => {
+    expect(computeSettlement(5000, 5000)).toEqual({ status: 'settled', outstanding: 0 });
+    expect(computeSettlement(5000, 3000)).toEqual({ status: 'partial', outstanding: 2000 });
+    expect(computeSettlement(5000, 0)).toEqual({ status: 'pending', outstanding: 5000 });
+    expect(computeSettlement(0, 0)).toEqual({ status: 'settled', outstanding: 0 });
+    // allowPartial=false ⇒ short settlement stays pending (no partial state)
+    expect(computeSettlement(5000, 3000, false)).toEqual({ status: 'pending', outstanding: 2000 });
+  });
+
+  it('computeReconciliation: pending until counted, then reconciled/partial by variance', () => {
+    expect(computeReconciliation(100, null)).toEqual({ status: 'pending', variance: 0 });
+    expect(computeReconciliation(100, 100)).toEqual({ status: 'reconciled', variance: 0 });
+    expect(computeReconciliation(100, 95)).toEqual({ status: 'partial', variance: 5 });
+  });
+
+  it('canCloseDay: operational closes by default; blocking tracks gate when set', () => {
+    const base = { operationalApproved: true, settlementStatus: 'partial' as const, reconcileStatus: 'pending' as const };
+    // Default (non-blocking): day closes even with partial cash + pending stock.
+    expect(canCloseDay({ ...base, tracks: { settleEnabled: true, reconcileEnabled: true } })).toBe(true);
+    // Settlement blocks close → must be settled.
+    expect(canCloseDay({ ...base, tracks: { settleEnabled: true, settleBlocksClose: true } })).toBe(false);
+    expect(canCloseDay({ ...base, settlementStatus: 'settled', tracks: { settleEnabled: true, settleBlocksClose: true } })).toBe(true);
+    // Reconciliation blocks close → must be reconciled.
+    expect(canCloseDay({ ...base, tracks: { reconcileEnabled: true, reconcileBlocksClose: true } })).toBe(false);
+    // Not operationally approved → never closes.
+    expect(canCloseDay({ ...base, operationalApproved: false, tracks: {} })).toBe(false);
+  });
+
+  it('computeCashHeld: carried custody + collections − settled = outstanding (visible, separate)', () => {
+    // Day 2 example: carried 2000 custody, 4000 collected today, settled 1000.
+    expect(computeCashHeld({ cashInCustodyPrevious: 2000, todaysCollections: 4000, settledToday: 1000 }))
+      .toEqual({ totalHeld: 6000, outstanding: 5000 });
   });
 });

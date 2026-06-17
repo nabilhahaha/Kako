@@ -144,6 +144,76 @@ export function canActOnStage(args: ActOnStageArgs): boolean {
   return true;
 }
 
+// ── Separated statuses: Day (operational) vs Settlement (cash) vs Reconciliation
+//    (inventory). A day may be operationally CLOSED while cash settlement is
+//    partial/none and inventory reconciliation is pending — unless the company
+//    opts a track into BLOCKING the close. Outstanding cash is a carried CUSTODY
+//    balance (shown separately), never the next day's operational opening cash.
+
+export type SettlementStatus = 'not_required' | 'pending' | 'partial' | 'settled';
+export type ReconcileStatus = 'not_required' | 'pending' | 'partial' | 'reconciled';
+
+/** Per-company track configuration layered on the policy (all default false/safe). */
+export interface DayCloseTracks {
+  settleEnabled?: boolean;        // is the cash settlement track used at all?
+  reconcileEnabled?: boolean;     // is the inventory reconciliation track used?
+  settleBlocksClose?: boolean;    // must settlement be satisfied before Day = Closed?
+  reconcileBlocksClose?: boolean; // must reconciliation be satisfied before close?
+  allowPartialSettlement?: boolean;
+  autoCarryForward?: boolean;     // show outstanding as carried custody next day
+}
+
+/** Settlement status + outstanding from expected vs settled cash. Pure.
+ *  allowPartial=false ⇒ anything short of full is still 'pending' (no partial state). */
+export function computeSettlement(expectedCash: number, settledCash: number, allowPartial = true): { status: SettlementStatus; outstanding: number } {
+  const exp = Math.max(0, Number(expectedCash) || 0);
+  const settled = Math.max(0, Number(settledCash) || 0);
+  const outstanding = Math.max(0, Math.round((exp - settled) * 1000) / 1000);
+  if (exp === 0) return { status: 'settled', outstanding: 0 };
+  if (settled <= 0) return { status: 'pending', outstanding };
+  if (outstanding <= 0) return { status: 'settled', outstanding: 0 };
+  return { status: allowPartial ? 'partial' : 'pending', outstanding };
+}
+
+/** Reconciliation status from expected vs counted stock. Pure. */
+export function computeReconciliation(expectedStock: number, countedStock: number | null): { status: ReconcileStatus; variance: number } {
+  if (countedStock == null) return { status: 'pending', variance: 0 };
+  const variance = Math.round((Number(expectedStock || 0) - Number(countedStock || 0)) * 1000) / 1000;
+  return { status: variance === 0 ? 'reconciled' : 'partial', variance };
+}
+
+/**
+ * Can the DAY reach Closed? Operational chain must be approved, AND every track the
+ * company set to BLOCK the close must be satisfied. Non-blocking tracks never gate
+ * the close (they carry forward). Pure.
+ */
+export function canCloseDay(args: {
+  operationalApproved: boolean;
+  tracks: DayCloseTracks;
+  settlementStatus: SettlementStatus;
+  reconcileStatus: ReconcileStatus;
+}): boolean {
+  if (!args.operationalApproved) return false;
+  if (args.tracks.settleEnabled && args.tracks.settleBlocksClose && args.settlementStatus !== 'settled') return false;
+  if (args.tracks.reconcileEnabled && args.tracks.reconcileBlocksClose && args.reconcileStatus !== 'reconciled') return false;
+  return true;
+}
+
+/** Cash custody view for the salesman/day (all carried-forward custody is explicit,
+ *  separate from operational opening cash which stays 0). Pure. */
+export function computeCashHeld(args: {
+  cashInCustodyPrevious: number;  // sum of prior unsettled outstanding
+  todaysCollections: number;
+  settledToday: number;
+}): { totalHeld: number; outstanding: number } {
+  const prev = Number(args.cashInCustodyPrevious) || 0;
+  const coll = Number(args.todaysCollections) || 0;
+  const settled = Number(args.settledToday) || 0;
+  const totalHeld = Math.round((prev + coll) * 1000) / 1000;
+  const outstanding = Math.max(0, Math.round((totalHeld - settled) * 1000) / 1000);
+  return { totalHeld, outstanding };
+}
+
 /** Is the End Day approval capability active for this tenant? (`platform.day_close_approval`). Pure. */
 export function dayCloseApprovalEnabled(flags: Record<string, boolean | undefined> | null | undefined): boolean {
   return Boolean(flags?.['platform.day_close_approval']);
