@@ -22,7 +22,7 @@ export default async function VanStatementSearchPage() {
   if (!ctx) redirect('/login');
   const supabase = await createClient();
   if (!(await isVanSalesActive(supabase, ctx))) notFound();
-  if (!hasPermission(ctx, 'field.sales') && !ctx.isSuperAdmin) redirect('/dashboard');
+  if (!hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'customers.view_balance') && !hasPermission(ctx, 'reports.view') && !ctx.isSuperAdmin) redirect('/dashboard');
 
   const { t } = await getT();
   const hub = await loadStatementHub(ctx);

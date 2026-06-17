@@ -364,6 +364,14 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.dayCloseApprovals', href: '/field/van-sales/day-close-approvals', icon: CalendarDays, perm: ['day.close.supervisor', 'day.close.reconcile', 'day.close.settle'] },
       { label: 'nav.items.dayCloseSettlement', href: '/field/van-sales/day-close-settlement', icon: Wallet, perm: ['day.close.settle', 'day.close.reconcile'] },
       { label: 'nav.items.overrideCenter', href: '/field/van-sales/override-center', icon: ShieldAlert, perm: ['returns.override', 'day.close.override', 'day.reopen'] },
+      // F2 — discoverable field views (previously Today-tile only).
+      { label: 'nav.items.statementHub', href: '/field/van-sales/statement', icon: FileText, perm: ['field.sales', 'customers.view_balance', 'reports.view'] },
+      { label: 'nav.items.dailySummary', href: '/field/van-sales/summary', icon: BarChart3, perm: ['field.sales', 'reports.view'] },
+      { label: 'nav.items.cashCustody', href: '/field/van-sales/cash-custody', icon: Wallet, perm: ['field.sales', 'sales.collect'] },
+      // F1 — Governance / Reports group: discoverable for reports/audit/view-all roles.
+      { label: 'nav.items.returnReport', href: '/field/van-sales/approvals/reports', icon: Undo2, perm: ['reports.view', 'returns.view_all', 'returns.approve', 'audit.view'], group: 'nav.groups.reports' },
+      { label: 'nav.items.dayCloseReport', href: '/field/van-sales/day-close-report', icon: CalendarDays, perm: ['reports.view', 'audit.view', 'day.close.supervisor', 'day.close.reconcile', 'day.close.settle'], group: 'nav.groups.reports' },
+      { label: 'nav.items.overrideHistory', href: '/field/van-sales/override-center/history', icon: ShieldAlert, perm: ['audit.view', 'reports.view', 'returns.override', 'day.close.override', 'day.reopen'], group: 'nav.groups.reports' },
       { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view', module: ['analytics', 'sales'] },
       { label: 'nav.items.customers', href: '/customers', icon: Users, perm: 'customers.manage', module: ['crm', 'sales'] },
       { label: 'nav.items.customerTransfer', href: '/customers/transfer', icon: ArrowLeftRight, perm: 'customer.transfer' },

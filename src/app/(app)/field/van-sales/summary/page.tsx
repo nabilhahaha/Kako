@@ -39,7 +39,7 @@ export default async function DailySummaryPage() {
   if (!ctx) redirect('/login');
   const supabase = await createClient();
   if (!(await isVanSalesActive(supabase, ctx))) notFound();
-  if (!hasPermission(ctx, 'field.sales') && !ctx.isSuperAdmin) redirect('/dashboard');
+  if (!hasPermission(ctx, 'field.sales') && !hasPermission(ctx, 'reports.view') && !ctx.isSuperAdmin) redirect('/dashboard');
   const flags = ctx.companyId ? await getFeatureFlags(supabase, ctx.companyId) : null;
   if (!dailySummaryEnabled(flags)) notFound();
 
