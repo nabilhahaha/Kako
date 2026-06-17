@@ -76,6 +76,7 @@ import * as orgStructure from './org-structure';
 import * as productStructure from './product-structure';
 import * as numbering from './numbering';
 import * as financeSetup from './finance-setup';
+import * as goLive from './go-live';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -100,6 +101,7 @@ const MODULES = [
   productStructure,
   numbering,
   financeSetup,
+  goLive,
 ];
 
 type Catalog = Record<string, unknown>;

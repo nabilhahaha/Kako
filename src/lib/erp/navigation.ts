@@ -497,6 +497,7 @@ export const NAV_SECTIONS: NavSection[] = [
       //     the entitlement chain Plan → Company module → Nav is consistent)
       { label: 'nav.items.integrationHub', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.customerOnboarding', href: '/settings/onboarding', icon: Rocket, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.goLive', href: '/settings/go-live', icon: Rocket, perm: 'integrations.manage', group: 'nav.groups.integrations' },
       { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataOnboarding', href: '/settings/data-onboarding', icon: Download, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
