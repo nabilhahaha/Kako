@@ -26,12 +26,12 @@ page enforces a permission guard, the nav resolver matches the documented per-ro
 surfaces, and the Override path is fully hardened. Verification surfaced **3 real
 enforcement gaps** that the documented matrix does **not** hold for:
 
-| Sev | ID | Gap | Layer |
-|---|---|---|---|
-| **High** | V1 | `erp_day_close_try_close` is `SECURITY DEFINER` with **no permission guard and no `REVOKE EXECUTE`** → directly callable day-close bypass | RPC |
-| **Medium** | V2 | `erp_van_return` / `erp_decide_van_return` lack `erp_guard_rpc`; revoked `FROM anon` only (not `public`) → an authenticated branch user can post/approve returns directly, bypassing `field.sales` / `returns.approve` | RPC |
-| **Medium** | V3 | `loadDayCloseReview` + `loadPendingDayCloses` expose `expectedCash` / `cashVariance` **unmasked** → Warehouse (reconcile-only) sees cash, contradicting the matrix | Server loader |
-| Low | V4 | Requests-engine decide actions thin at the action layer (DB-enforced) — defense-in-depth inconsistency, **not** an escalation | Action/RPC |
+| Sev | ID | Gap | Layer | Status |
+|---|---|---|---|---|
+| **High** | V1 | `erp_day_close_try_close` is `SECURITY DEFINER` with **no permission guard and no `REVOKE EXECUTE`** → directly callable day-close bypass | RPC | **✅ RESOLVED** — migration `0333`; PUBLIC/anon/authenticated EXECUTE revoked; verified on staging |
+| **Medium** | V2 | `erp_van_return` / `erp_decide_van_return` lack `erp_guard_rpc`; revoked `FROM anon` only (not `public`) → an authenticated branch user can post/approve returns directly, bypassing `field.sales` / `returns.approve` | RPC | Documented for pilot (deferred per owner decision) |
+| **Medium** | V3 | `loadDayCloseReview` + `loadPendingDayCloses` expose `expectedCash` / `cashVariance` **unmasked** → Warehouse (reconcile-only) sees cash, contradicting the matrix | Server loader | Documented for pilot (deferred per owner decision) |
+| Low | V4 | Requests-engine decide actions thin at the action layer (DB-enforced) — defense-in-depth inconsistency, **not** an escalation | Action/RPC | Post-pilot |
 | Low | V5 | Approver inboxes (`reopen-approvals`, `cash-handovers`, `customer-requests`) have pages + enforcement but **no nav item** (hub-card only) | Nav/UX |
 | Low | V6 | `documents.print` granted but **not enforced** anywhere (only share/export gate the PDF route) | Route |
 | Info | V7 | Mobile **Approvals** bottom tab gated by a single perm vs desktop's 8-perm OR (under-exposure); Statement/Summary/Custody/My-Returns are "More"-drawer only | Mobile nav |
