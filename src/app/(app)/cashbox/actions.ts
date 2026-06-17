@@ -10,8 +10,10 @@ import { logAudit } from '@/lib/erp/audit';
  * Generic Shift / Cashbox actions — the business-agnostic counterpart of the
  * fashion cashbox. They reuse the company-scoped cash-session RPCs
  * (erp_fashion_open_cashbox / _add_expense / _close_cashbox), which authorize by
- * tenant membership (not by the "fashion" name), so any company member holding
- * `sales.collect` can run a shift. Every write is mirrored to the audit log via
+ * tenant membership (not by the "fashion" name). Operating the office Cash Box is a
+ * TREASURY function gated by `treasury.manage` (Cashier/Accountant/Admin) — NOT
+ * `sales.collect` — so field reps cannot open/close the till. Every write is
+ * mirrored to the audit log via
  * logAudit, and the close action returns a printable receipt href so the
  * Critical Action standard can offer the "Print now?" step.
  */
@@ -28,7 +30,7 @@ async function resolveBranch(companyId: string): Promise<string | null> {
 
 export async function openShift(openingFloat: number): Promise<ActionResult> {
   const { t } = await getT();
-  const ctx = await requirePermission('sales.collect');
+  const ctx = await requirePermission('treasury.manage');
   if (!ctx.companyId) return { ok: false, error: t('cashbox.noCompany') };
   const branchId = await resolveBranch(ctx.companyId);
   if (!branchId) return { ok: false, error: friendlyDbError({ message: 'no branch' }) };
@@ -52,7 +54,7 @@ export async function postExpense(input: {
   category: string; amount: number; note?: string | null; reason?: string | null;
 }): Promise<ActionResult> {
   const { t } = await getT();
-  const ctx = await requirePermission('sales.collect');
+  const ctx = await requirePermission('treasury.manage');
   if (!ctx.companyId) return { ok: false, error: t('cashbox.noCompany') };
   const amount = Number(input.amount);
   if (!amount || amount <= 0) return { ok: false, error: t('cashbox.amount') };
@@ -83,7 +85,7 @@ export async function closeShift(input: {
   sessionId: string; counted: number; reason?: string | null;
 }): Promise<ActionResult<{ expected: number; counted: number; variance: number; printHref: string }>> {
   const { t } = await getT();
-  const ctx = await requirePermission('sales.collect');
+  const ctx = await requirePermission('treasury.manage');
   if (!ctx.companyId) return { ok: false, error: t('cashbox.noCompany') };
 
   const supabase = await createClient();

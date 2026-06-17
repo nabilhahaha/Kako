@@ -29,6 +29,7 @@ export type Permission =
   | 'suppliers.manage' // suppliers + settlements
   | 'accounting.view' // chart, journal, reports
   | 'accounting.post' // post vouchers / journals
+  | 'treasury.manage' // operate the office Cash Box / treasury (open/close shift, expenses) — finance/treasury only
   | 'settings.branches' // company & branches
   | 'settings.users' // users, roles, hierarchy
   | 'integrations.manage' // data import, API keys, webhooks, sync (Data Integration Layer)
@@ -144,6 +145,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'suppliers.manage': { en: 'Suppliers and settlement', ar: 'الموردين والسداد', group: 'purchasing' },
   'accounting.view': { en: 'View accounts and reports', ar: 'عرض الحسابات والتقارير', group: 'accounting' },
   'accounting.post': { en: 'Post journals and vouchers', ar: 'ترحيل القيود والسندات', group: 'accounting' },
+  'treasury.manage': { en: 'Operate the cash box / treasury', ar: 'تشغيل صندوق النقدية / الخزينة', group: 'accounting' },
   'reports.view': { en: 'Reports', ar: 'التقارير', group: 'accounting' },
   'settings.branches': { en: 'Manage branches', ar: 'إدارة الفروع', group: 'settings' },
   'settings.users': { en: 'Manage users and permissions', ar: 'إدارة المستخدمين والصلاحيات', group: 'settings' },
@@ -333,7 +335,10 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
     'reconciliation.view', 'reconciliation.manage', 'day.reopen.approve', 'cash.handover.confirm', 'customer.request.approve',
     'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
-    'day.close.supervisor', 'day.close.reconcile', 'day.close.settle', 'day.close.reopen',
+    // Settlement (day.close.settle) deliberately NOT held: the supervisor APPROVES
+    // and RECONCILES the close (day.close.supervisor + day.close.reconcile) but does
+    // NOT settle the cash — settlement is owned by Cashier/Accountant/Admin (SoD).
+    'day.close.supervisor', 'day.close.reconcile', 'day.close.reopen',
     'stock_request.adjust', 'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
   ],
@@ -341,11 +346,11 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'accounting.view', 'accounting.post', 'reports.view',
     'suppliers.manage', 'sales.collect', 'customers.change_status', 'cash.handover.confirm',
     'stock.view', 'fashion.reports', 'fashion.cashbox', 'fashion.installments', 'fashion.purchase',
-    'returns.view_all', 'day.close.settle',
+    'returns.view_all', 'day.close.settle', 'treasury.manage',
     'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
   ],
-  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'cash.handover.confirm', 'day.close.settle',
+  cashier: ['sales.sell', 'sales.collect', 'customers.manage', 'cash.handover.confirm', 'day.close.settle', 'treasury.manage',
     'customers.view_balance', 'cash.view_outstanding', 'documents.print', 'documents.share', 'documents.export',
     'restaurant.manage', 'pharmacy.dispense', 'laundry.manage', 'market.pos', 'fashion.sell', 'fashion.installments', 'fashion.cashbox'],
   salesman: [

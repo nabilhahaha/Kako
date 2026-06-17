@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function CashboxPage() {
   const { t, locale } = await getT();
-  await requirePermission('sales.collect');
+  await requirePermission('treasury.manage');
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!ctx.companyId) {

@@ -19,6 +19,10 @@ const GATES: Record<string, Permission[]> = {
   // SoD: recording a collection (sales.collect) and REVERSING one are different
   // rights. Reversal is a Finance/Admin correction gated by accounting.post.
   reverseCollection: ['accounting.post'],
+  // Treasury Cash Box is a finance/treasury function — NOT a field-rep right.
+  openCashbox: ['treasury.manage'],
+  // Day-close financial settlement: cashier/accountant/admin own it (NOT supervisor).
+  settleDay: ['day.close.settle'],
   quickSale: ['sales.sell'],
   postVoucher: ['accounting.post'],
   createVoucher: ['accounting.post'],
@@ -79,6 +83,25 @@ describe('MJ-1 posting-action permission gates', () => {
     expect(can('accountant', GATES.reverseCollection)).toBe(true);
     expect(can('admin', GATES.reverseCollection)).toBe(true);
     expect(can('manager', GATES.reverseCollection)).toBe(true);
+  });
+
+  it('Treasury Cash Box (treasury.manage) excludes Sales Rep AND Supervisor', () => {
+    for (const role of ['salesman', 'driver', 'supervisor'] as const) {
+      expect(can(role, GATES.openCashbox), `${role} must NOT open the cash box`).toBe(false);
+    }
+    for (const role of ['cashier', 'accountant', 'admin', 'manager'] as const) {
+      expect(can(role, GATES.openCashbox), `${role} operates the cash box`).toBe(true);
+    }
+  });
+
+  it('Settlement ownership (day.close.settle): cashier/accountant/admin only — NOT supervisor', () => {
+    expect(can('supervisor', GATES.settleDay), 'supervisor must NOT settle').toBe(false);
+    // Supervisor still APPROVES + RECONCILES the close.
+    expect(permissionsForRole('supervisor')).toContain('day.close.supervisor');
+    expect(permissionsForRole('supervisor')).toContain('day.close.reconcile');
+    for (const role of ['cashier', 'accountant', 'admin', 'manager'] as const) {
+      expect(can(role, GATES.settleDay), `${role} settles cash`).toBe(true);
+    }
   });
 
   it('U-4: salesman/viewer cannot change product price or customer credit limit', () => {
