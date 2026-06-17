@@ -72,6 +72,10 @@ import * as returnPolicy from './return-policy';
 import * as features from './features';
 import * as pos from './pos';
 import * as pharmacyOps from './pharmacy-ops';
+import * as orgStructure from './org-structure';
+import * as productStructure from './product-structure';
+import * as numbering from './numbering';
+import * as financeSetup from './finance-setup';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -92,6 +96,10 @@ const MODULES = [
   features,
   pos,
   pharmacyOps,
+  orgStructure,
+  productStructure,
+  numbering,
+  financeSetup,
 ];
 
 type Catalog = Record<string, unknown>;
