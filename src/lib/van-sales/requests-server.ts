@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { requireAuth, friendlyDbError, type ActionResult } from '@/lib/erp/guards';
 import { hasPermission } from '@/lib/erp/permissions';
+import { getT } from '@/lib/i18n/server';
+import { formatCurrency } from '@/lib/utils';
 import type { UserContext } from '@/lib/erp/auth-context';
 import { isVanSalesActive } from './settings-server';
 import { salesmanRequestsEnabled, CUSTOMER_REQUEST_KINDS, type CustomerRequestKind } from './sell';
@@ -129,6 +131,11 @@ export interface RequestCustomer {
   credit_limit: number | null; payment_terms_days: number | null;
   latitude: number | null; longitude: number | null;
   route_id: string | null; salesman_id: string | null; last_purchase: string | null;
+  /** Current lifecycle status (active / inactive / suspended / blocked) — drives the
+   *  Reactivation dropdown filter and the close-with-balance business rule. */
+  customer_status: string | null;
+  /** Outstanding AR balance — a positive value gates Stop/Suspend/Close (Finance only). */
+  balance: number | null;
 }
 
 async function repBranch(supabase: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<string | null> {
@@ -144,7 +151,7 @@ export async function loadRequestCustomers(ctx: UserContext): Promise<RequestCus
   if (!branchId) return [];
   const [{ data }, { data: inv }] = await Promise.all([
     supabase.from('erp_customers')
-      .select('id, name, name_ar, code, phone, city, address, cr_number, tax_number, credit_limit, payment_terms_days, latitude, longitude, route_id, salesman_id')
+      .select('id, name, name_ar, code, phone, city, address, cr_number, tax_number, credit_limit, payment_terms_days, latitude, longitude, route_id, salesman_id, customer_status, balance')
       .eq('branch_id', branchId).order('name').limit(500),
     supabase.from('erp_invoices').select('customer_id, created_at').eq('branch_id', branchId).order('created_at', { ascending: false }).limit(2000),
   ]);
@@ -192,6 +199,33 @@ export async function requestCustomerChange(input: { kind: CustomerRequestKind; 
   if (!gate.ok) return gate;
   if (!(CUSTOMER_REQUEST_KINDS as readonly string[]).includes(input.kind)) return { ok: false, error: 'Invalid request.' };
 
+  const supabase = await createClient();
+
+  // ── Customer status-change business rules (server-side, authoritative) ───────
+  // Enforced here regardless of any client filtering.
+  if (input.kind === 'reactivate' || input.kind === 'close') {
+    const { t } = await getT();
+    const { data: cust } = await supabase
+      .from('erp_customers').select('customer_status, balance')
+      .eq('id', input.customerId ?? '').maybeSingle();
+    const row = cust as { customer_status: string | null; balance: number | null } | null;
+
+    if (input.kind === 'reactivate') {
+      // Reactivation applies ONLY to non-active customers (suspended / closed / inactive).
+      if (!row || (row.customer_status ?? 'active') === 'active') {
+        return { ok: false, error: t('vanSales.requests.reactivateOnlyInactive') };
+      }
+    } else {
+      // Stop / Suspend / Close: a customer carrying open AR must NOT be closed by the
+      // rep/supervisor directly — closing it could weaken collection responsibility.
+      // It requires Accountant / Finance authority (accounting.post; admins via ALL).
+      const bal = Number(row?.balance ?? 0);
+      if (bal > 0 && !(hasPermission(ctx, 'accounting.post') || ctx.isSuperAdmin)) {
+        return { ok: false, error: t('vanSales.requests.closeNeedsFinance', { amount: formatCurrency(bal) }) };
+      }
+    }
+  }
+
   const payload = { ...input.payload };
   if (input.kind === 'new_customer') {
     // Capture the rep's branch so the approver can create the customer in it.
@@ -199,7 +233,6 @@ export async function requestCustomerChange(input: { kind: CustomerRequestKind; 
     if (branchId) payload.branch_id = branchId;
   }
 
-  const supabase = await createClient();
   const { data, error } = await supabase.rpc('erp_request_customer_change', {
     p_kind: input.kind, p_customer_id: input.customerId ?? null, p_payload: payload,
   });

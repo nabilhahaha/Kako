@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useI18n } from '@/lib/i18n/provider';
+import { formatCurrency } from '@/lib/utils';
 import { distanceMeters } from '@/lib/erp/journey-sort';
 import { requestCustomerChange, type RequestCustomer, type RequestRoute, type RequestSalesman } from '@/lib/van-sales/requests-server';
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
@@ -157,10 +158,10 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
     </button>
   );
 
-  const custSelect = (value: string, onChange: (v: string) => void) => (
+  const custSelect = (value: string, onChange: (v: string) => void, list: RequestCustomer[] = customers) => (
     <Select value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">{t('vanSales.requests.pickCustomer')}</option>
-      {customers.map((c) => <option key={c.id} value={c.id}>{cName(c)} · {c.code}</option>)}
+      {list.map((c) => <option key={c.id} value={c.id}>{cName(c)} · {c.code}</option>)}
     </Select>
   );
 
@@ -327,10 +328,13 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
     }
 
     if (key === 'reactivate') {
+      // Reactivation applies only to NON-active customers (suspended / closed / inactive).
+      const reactivatable = customers.filter((x) => (x.customer_status ?? 'active') !== 'active');
       const c = customers.find((x) => x.id === raCust) ?? null;
       return (
         <>
-          <Field label={t('vanSales.requests.pickCustomer')}>{custSelect(raCust, setRaCust)}</Field>
+          <Field label={t('vanSales.requests.pickCustomer')}>{custSelect(raCust, setRaCust, reactivatable)}</Field>
+          {reactivatable.length === 0 && <div className="text-xs text-muted-foreground">{t('vanSales.requests.reactivateNoneEligible')}</div>}
           <div className="text-xs text-muted-foreground">{t('vanSales.requests.f_lastPurchase')}: <span className="font-medium text-foreground">{c?.last_purchase ?? '—'}</span></div>
           <Field label={t('vanSales.requests.f_reactivateReason')}><Input value={raReason} onChange={(e) => setRaReason(e.target.value)} /></Field>
           <Field label={t('vanSales.requests.f_notes')}><Input value={raNotes} onChange={(e) => setRaNotes(e.target.value)} /></Field>
@@ -340,9 +344,19 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
       );
     }
 
-    if (key === 'close') return (
+    if (key === 'close') {
+      // Stop / Suspend / Close: a customer carrying open AR needs Finance approval —
+      // warn here; the server action enforces it regardless of this hint.
+      const c = customers.find((x) => x.id === clxCust) ?? null;
+      const bal = Number(c?.balance ?? 0);
+      return (
       <>
         <Field label={t('vanSales.requests.pickCustomer')}>{custSelect(clxCust, setClxCust)}</Field>
+        {bal > 0 && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300">
+            {t('vanSales.requests.closeOutstandingWarn', { amount: formatCurrency(bal) })}
+          </div>
+        )}
         <Field label={t('vanSales.requests.f_closureReason')}>
           <Select value={clxReason} onChange={(e) => setClxReason(e.target.value)}>
             <option value="">—</option>{CLOSURE_REASONS.map((r) => <option key={r} value={r}>{t(`vanSales.requests.cr.${r}`)}</option>)}
@@ -353,7 +367,8 @@ export function CustomerRequestForms({ customers, routes, salesmen }: { customer
         <SubmitBtn busy={busy} onClick={() => submit('close', clxCust, { closure_reason: clxReason, notes: clxNotes },
           () => (!clxCust ? t('vanSales.requests.customerRequired') : !clxReason ? t('vanSales.requests.closureRequired') : null), clxFile)} />
       </>
-    );
+      );
+    }
     return null;
   }
 
