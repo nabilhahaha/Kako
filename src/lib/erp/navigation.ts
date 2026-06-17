@@ -361,6 +361,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
       { label: 'nav.items.returnApprovals', href: '/field/van-sales/approvals', icon: Undo2, perm: 'returns.approve' },
       { label: 'nav.items.dayCloseApprovals', href: '/field/van-sales/day-close-approvals', icon: CalendarDays, perm: ['day.close.supervisor', 'day.close.reconcile', 'day.close.settle'] },
+      { label: 'nav.items.dayCloseSettlement', href: '/field/van-sales/day-close-settlement', icon: Wallet, perm: ['day.close.settle', 'day.close.reconcile'] },
       { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view', module: ['analytics', 'sales'] },
       { label: 'nav.items.customers', href: '/customers', icon: Users, perm: 'customers.manage', module: ['crm', 'sales'] },
       { label: 'nav.items.customerTransfer', href: '/customers/transfer', icon: ArrowLeftRight, perm: 'customer.transfer' },

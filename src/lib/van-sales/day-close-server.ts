@@ -244,6 +244,79 @@ const STAGE_OF: Record<string, DayCloseStage> = {
   pending_supervisor: 'supervisor', pending_reconciliation: 'reconcile', pending_settlement: 'settle',
 };
 
+export interface SettlementBoardRow {
+  id: string;
+  salesmanId: string;
+  salesmanName: string;
+  workDate: string | null;
+  dayStatus: DayCloseStatus;
+  settlementStatus: string;
+  expectedCash: number;
+  settledCash: number;
+  outstandingCash: number;
+  reconcileStatus: string;
+  expectedStock: number | null;
+  countedStock: number | null;
+  stockVariance: number | null;
+}
+
+/**
+ * Settlement & custody board: requests with an open cash settlement (pending/
+ * partial) OR a due inventory reconciliation (pending), REGARDLESS of day status —
+ * so cashiers/warehouse can act on already-closed days. Branch-scoped by RLS; gated
+ * by holding the settle or reconcile permission. Powers Outstanding-Cash-by-salesman.
+ */
+export async function loadDayCloseSettlementBoard(): Promise<ActionResult<SettlementBoardRow[]>> {
+  const { ctx, error } = await requireAuth();
+  if (error || !ctx) return { ok: false, error: error ?? 'Not authenticated.' };
+  const canAny = ['day.close.settle', 'day.close.reconcile']
+    .some((p) => ctx.permissions.includes(p as (typeof ctx.permissions)[number])) || ctx.isSuperAdmin;
+  if (!canAny) return { ok: false, error: 'You do not have permission to settle/reconcile day closes.' };
+
+  const supabase = await createClient();
+  const { data, error: qErr } = await supabase
+    .from('erp_day_close_requests')
+    .select('id, salesman_id, work_session_id, status, settlement_status, expected_cash, settled_cash, outstanding_cash, reconcile_status, expected_stock, counted_stock, stock_variance')
+    .or('settlement_status.in.(pending,partial),reconcile_status.eq.pending')
+    .order('submitted_at', { ascending: true }).limit(300);
+  if (qErr) return { ok: false, error: friendlyDbError(qErr) };
+
+  const rows = (data ?? []) as {
+    id: string; salesman_id: string; work_session_id: string; status: DayCloseStatus;
+    settlement_status: string; expected_cash: number | null; settled_cash: number | null; outstanding_cash: number | null;
+    reconcile_status: string; expected_stock: number | null; counted_stock: number | null; stock_variance: number | null;
+  }[];
+  if (rows.length === 0) return { ok: true, data: [] };
+
+  const sIds = [...new Set(rows.map((r) => r.salesman_id))];
+  const wsIds = [...new Set(rows.map((r) => r.work_session_id))];
+  const [{ data: profs }, { data: sessions }] = await Promise.all([
+    supabase.from('erp_profiles').select('id, full_name').in('id', sIds),
+    supabase.from('erp_work_sessions').select('id, work_date').in('id', wsIds),
+  ]);
+  const nameById = new Map(((profs ?? []) as { id: string; full_name: string | null }[]).map((p) => [p.id, p.full_name ?? '']));
+  const dateById = new Map(((sessions ?? []) as { id: string; work_date: string | null }[]).map((s) => [s.id, s.work_date]));
+
+  return {
+    ok: true,
+    data: rows.map((r) => ({
+      id: r.id,
+      salesmanId: r.salesman_id,
+      salesmanName: nameById.get(r.salesman_id) || r.salesman_id.slice(0, 8),
+      workDate: dateById.get(r.work_session_id) ?? null,
+      dayStatus: r.status,
+      settlementStatus: r.settlement_status,
+      expectedCash: Number(r.expected_cash ?? 0),
+      settledCash: Number(r.settled_cash ?? 0),
+      outstandingCash: Number(r.outstanding_cash ?? 0),
+      reconcileStatus: r.reconcile_status,
+      expectedStock: r.expected_stock,
+      countedStock: r.counted_stock,
+      stockVariance: r.stock_variance,
+    })),
+  };
+}
+
 export interface DayCloseReview {
   workDate: string | null;
   /** Inventory reconciliation: system expected closing (total units) + SKU count. */
