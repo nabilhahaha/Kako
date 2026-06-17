@@ -9,6 +9,7 @@ Category · Disposition (In-Pilot / Post-Pilot) · Notes.
 |---|---|---|---|---|---|---|
 | DF-001 | Salesman | My Day / Mobile Navigation | Medium | Usability / Navigation | **Post-Pilot** | Open |
 | DF-002 | Salesman | Change Requests / Requests Hub | Medium | Workflow / Discoverability | **Post-Pilot** | Open — functionality exists & enabled (discoverability/naming) |
+| ENV-1 | All (salesman) | Mobile nav / van-sales UI | High (pilot blocker) | Configuration / Environment | **In-Pilot (config fix)** | Open — deployment `KAKO_VAN_SALES` off / backend mismatch → `vanSalesActive=false` |
 
 ---
 
@@ -97,3 +98,35 @@ the Requests Hub (e.g. under Sales/Field, flag `platform.salesman_requests`); (b
 workflow → fits the freeze.
 
 **Backlog:** UX-P2 (request-creation discoverability: desktop entry + naming + empty-state CTA).
+
+---
+
+## ENV-1 — Pilot deployment not reflecting seeded van-sales config (`vanSalesActive=false`)
+
+- **Role:** All field roles (observed as Salesman) · **Screen:** Mobile bottom nav + entire van-sales UI
+- **Expected:** `salesman@pilot.test` sees the unified field nav (`Today · Van Stock · Requests · More`)
+  and can reach `/field/van-sales/*`.
+- **Actual:** Bar renders `Today · Customers · Sell · Inventory · More` — no Van Stock, no Requests.
+- **Severity:** High (pilot blocker — the whole van-sales UI is suppressed) · **Category:** Configuration / Environment
+- **Disposition:** **In-Pilot** — this is a deployment **config** fix (env var), not product code; the freeze is preserved.
+
+**Root cause (verified):** `isVanSalesActive = VAN_SALES_ENABLED() && erp_van_sales_settings.is_enabled`.
+- In `vantora-staging` (`rsjvgehvastmawzwnqcs`), the pilot company has `is_enabled=true` and all
+  flags ON; `salesman@pilot.test` has a single membership there with every gate TRUE.
+- The other org projects don't hold the pilot: **`kako-fmcg`** (`nrvydmkxjnctdlaxdhur`) has no
+  `salesman@pilot.test`, no pilot company, and not even the `erp_van_sales_settings` /
+  `erp_feature_flags` tables.
+- Login as `salesman@pilot.test` works → the deployment reads `vantora-staging`. With the DB gates
+  true, the only thing that forces `vanSalesActive=false` is the **global kill-switch
+  `KAKO_VAN_SALES`** being `0`/`false`/`off` in the deployment env (or the deployment binding to a
+  non-seeded project). → `vanSalesActive=false` cascades to `unifiedWorkspace=false` and
+  `requestsEnabled=false`.
+
+**Fix (deployment-side; owner/devops):** in the `kako` Vercel project env (Preview): ensure
+`NEXT_PUBLIC_SUPABASE_URL = https://rsjvgehvastmawzwnqcs.supabase.co` and `KAKO_VAN_SALES` is not
+`0`/`false`/`off` (unset = ON); redeploy + hard-refresh. Re-test → bar should be
+`Today · Van Stock · Requests · More`.
+
+**Note:** DF-001 and DF-002 were triaged against the *intended* (correctly-configured) tenant.
+ENV-1 means the live pilot UI has not been exercising that configuration — re-validate UI findings
+after the env fix.
