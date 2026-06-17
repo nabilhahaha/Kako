@@ -66,16 +66,16 @@ describe('profileRoleFor', () => {
 });
 
 describe('applyNavProfile', () => {
-  it('builds a 5-item Primary + curated More for a salesman', () => {
+  it('builds a curated Primary + simplified More for a salesman', () => {
     const out = applyNavProfile(sampleSections(), ['salesman']);
     expect(out).toHaveLength(2);
     const [primary, more] = out;
     expect(primary.title).toBe('nav.sections.primary');
+    // Simplified daily-execution primary (Sell/POS dropped — selling runs from My Day).
     expect(primary.items.map((i) => i.href)).toEqual([
       '/today',
-      '/sales/pos',
-      '/collections',
       '/customers',
+      '/collections',
       '/field/stock',
     ]);
     expect(more.title).toBe('nav.sections.more');
@@ -84,12 +84,13 @@ describe('applyNavProfile', () => {
     for (const h of primary.items.map((i) => i.href)) {
       expect(moreHrefs).not.toContain(h);
     }
-    // Field-relevant secondary screens stay in More…
+    // Sales Order / Invoice stays as the rep's secondary selling entry…
     expect(moreHrefs).toContain('/sales/invoices');
-    expect(moreHrefs).toContain('/sales/orders');
-    expect(moreHrefs).toContain('/cashbox');
-    // …but wrong-role / back-office screens are HIDDEN from the menu entirely
-    // (allowlist), not merely demoted — this is the core of the simplification.
+    // …but simplified-out screens (POS Sell, standalone Orders, Cash Box / Treasury,
+    // back-office) are HIDDEN from the rep menu entirely (allowlist).
+    expect(moreHrefs).not.toContain('/sales/pos');
+    expect(moreHrefs).not.toContain('/sales/orders');
+    expect(moreHrefs).not.toContain('/cashbox');
     expect(moreHrefs).not.toContain('/dashboard');
     expect(moreHrefs).not.toContain('/products');
   });

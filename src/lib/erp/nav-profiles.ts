@@ -1,7 +1,7 @@
 import type { NavSection, NavItem } from './navigation';
 import type { BranchRole } from './types';
 import {
-  MapPin, Zap, Wallet, Users, Truck, ClipboardCheck, Map, PackageCheck, BarChart3,
+  MapPin, Wallet, Users, Truck, ClipboardCheck, Map, PackageCheck, BarChart3,
   LayoutDashboard, Receipt, Boxes, ClipboardList, ArrowLeftRight, ReceiptText, Clock, type LucideIcon,
 } from 'lucide-react';
 
@@ -43,34 +43,29 @@ interface NavProfile {
   hide?: string[];
 }
 
-/** Field-sales "More" — the only non-primary screens a van rep actually needs.
- *  Everything else a broadly-permissioned rep can see (dashboards, catalog,
- *  warehouses, distribution analytics, pricing, accounting…) is hidden from the
- *  menu so the rep app reads as a sell-collect tool, not an ERP. */
+/** Field-sales "More" — SIMPLIFIED to only the screens a rep uses during daily
+ *  field execution. Selling itself runs from My Day (van-sell), so the standalone
+ *  Sell/POS, Rep App, Rep Accounting/Settlement, Cash Box/Treasury, Attention,
+ *  Route Execution, Visit Planning, Rep Journey, and Vehicle Reconciliation are
+ *  hidden from the rep menu (UI-only — permission + URL access unchanged; they
+ *  remain reachable for the roles that own them). */
 const SALESMAN_MORE = [
-  // Field / day
-  '/field/route', '/sales/journey', '/field/journey', '/rep', '/field/offline',
-  '/attention', '/coaching', '/notifications', '/alerts', '/change-requests',
-  '/approvals/queue',
-  // FMCG van-sales field tools — the Requests hub (DF-003) + the salesman's own
-  // field views (returns, statements, daily summary, cash custody). Without these
-  // the role profile's allowlist hid them from the menu even though permission +
-  // flags granted access. UI-only; permission/URL unchanged.
-  '/field/van-sales/requests', '/field/van-sales/my-returns', '/field/van-sales/statement',
-  '/field/van-sales/summary', '/field/van-sales/cash-custody',
-  // Sell & money (secondary entry points behind the primary Sell/Collect)
-  '/sales/invoices', '/sales/orders', '/sales/settlement', '/cashbox', '/sales/returns',
-  '/customers/transfer',
-  // Van / stock the rep touches
-  '/inventory/requests', '/field/van-reconciliation', '/inventory/van-transfer', '/inventory/expiry',
+  '/sales/invoices',                  // Sales Order / Invoice (view/issue)
+  '/field/van-sales/requests',        // Field Requests (new customer, data, GPS, credit, …)
+  '/field/van-sales/my-returns',      // Returns
+  '/field/van-sales/statement',       // Customer Profile / Statements
+  '/field/van-sales/summary',         // My Daily Summary (read-only)
+  '/field/van-sales/cash-custody',    // My Cash Custody (the rep's own cash, not Treasury)
+  '/inventory/requests',              // Load Request (van stock)
+  '/field/offline',                   // Offline field mode
+  '/notifications',
 ];
 
 const SALESMAN: NavProfile = {
   primary: [
     { labelKey: 'nav.profile.today', href: '/today', icon: MapPin },
-    { labelKey: 'nav.profile.sell', href: '/sales/pos', icon: Zap },
-    { labelKey: 'nav.profile.collect', href: '/collections', icon: Wallet },
     { labelKey: 'nav.profile.customers', href: '/customers', icon: Users },
+    { labelKey: 'nav.profile.collect', href: '/collections', icon: Wallet },
     { labelKey: 'nav.profile.van', href: '/field/stock', icon: Truck },
   ],
   more: SALESMAN_MORE,
