@@ -6,6 +6,13 @@ roles/permissions entirely from the UI**, with **no code changes** and **no hard
 levels**. Builds on the frozen authorization/RLS/hierarchy baseline (P1–P4) and reuses
 existing platform infrastructure.
 
+> ## Core UX principle (overrides all design decisions)
+> **The Company Admin experience must be business-friendly and non-technical.** A Company
+> Admin should **never** need to understand RLS, database tables, `reports_to` internals,
+> or permission-matrix internals. **All setup must be wizard-driven, visual, guided, and
+> safe by default.** Any screen that violates this principle is a defect, regardless of
+> functional correctness.
+
 ## Frozen baseline this builds on
 - **Scoping** reads the recursive `reports_to` tree via `erp_user_subtree(uid)` (P4) —
   adding a tier needs only **edges**, not code.
