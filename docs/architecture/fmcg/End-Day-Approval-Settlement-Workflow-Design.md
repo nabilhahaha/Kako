@@ -360,3 +360,101 @@ Backed by a pure SLA summariser like `return-sla.ts`.
 > Sequencing mirrors the Return Approval delivery that the owner has already
 > validated. Implementation begins only on explicit go-ahead and after Return
 > Approval final validation.
+
+---
+
+## 12. ADDENDUM — Separate Day / Settlement / Reconciliation statuses (carry-forward)
+
+**Decision (owner, real-distribution model):** a day may be **operationally closed**
+even when cash is not fully handed over and inventory is not reconciled. So the
+single linear chain (where Financial Settlement closes the day) is **replaced** by
+**three independent statuses** on one day record:
+
+```
+Day Status            : open → pending_supervisor → Closed        (operational)
+Settlement Status     : not_required | pending | partial | settled (financial)
+Reconciliation Status : not_required | pending | partial | reconciled (inventory)
+```
+
+- **Operational close** (the Supervisor Review stage, or Direct) is what makes
+  **Day = Closed**. It no longer waits on cash or stock unless the company opts in.
+- **Settlement** and **Reconciliation** are **independent tracks** that may complete
+  before OR after the day closes, each on its own timeline. *"Day = Closed · Cash
+  Settlement = Partial · Inventory Reconciliation = Pending"* is a valid state.
+
+### 12.1 Settlement: Full / Partial / None + carry-forward
+
+Store on the day record:
+
+```
+expected_cash    -- the day's collections
+settled_cash     -- cash actually handed over / received
+outstanding_cash -- expected_cash − settled_cash  (≥ 0)
+```
+
+- **Full** settlement: settled = expected → outstanding 0 → status `settled`.
+- **Partial**: settled < expected → outstanding > 0 → status `partial`.
+- **None**: settled 0 → status `pending`.
+
+**Carry-forward (the key behaviour):** `outstanding_cash` remains assigned to the
+salesman and **rolls into the next day** as the **Opening Cash Balance**. When a new
+work session starts, `opening_cash_balance := previous session's outstanding_cash`.
+The settlement track can still be settled later against the originating day, reducing
+the carried balance.
+
+### 12.2 Reconciliation: the same shape
+
+`expected_stock` (from the movement ledger) · `counted_stock` (entered) ·
+`stock_variance`; status `pending | partial | reconciled`. Van **custody carries
+forward inherently** (van stock is persistent across days); reconciliation records the
+count/variance without forcing a daily count.
+
+### 12.3 Policy: blocking vs non-blocking (don't force daily)
+
+Each track gains a per-company flag on `erp_day_close_policies`:
+
+| Flag | Meaning |
+| --- | --- |
+| `settle_blocks_close` | If true, the day cannot reach Closed until settlement is at least … (full/none). If false, settlement is a **post-close track** (carry-forward). |
+| `reconcile_blocks_close` | Same for inventory. |
+
+- **Real distribution (owner's preference):** supervisor required to close;
+  `settle_blocks_close = false`, `reconcile_blocks_close = false` → day closes,
+  cash/stock custody carries forward.
+- **Strict enterprise:** set the blocks-close flags true → behaves like the linear
+  chain (must settle/reconcile before close).
+- **Small co:** Direct close, both tracks `not_required`.
+
+This keeps the engine policy-driven: a stage being *enabled* no longer implies it
+*blocks the close* — that is now a separate, configurable property.
+
+### 12.4 Schema delta (on top of 0325/0326)
+
+- `erp_day_close_requests`: add `settlement_status`, `reconcile_status`,
+  `expected_cash`, `settled_cash`, `outstanding_cash`, `expected_stock`,
+  `counted_stock` (keep existing `stock_variance` / `cash_variance`). Decouple the
+  main `status` to the operational lifecycle only.
+- `erp_work_sessions`: add `opening_cash_balance` (carried from prior day's
+  `outstanding_cash`) and `outstanding_cash` (closing).
+- `erp_day_close_policies`: add `settle_blocks_close`, `reconcile_blocks_close`
+  (default false), and a settlement granularity flag (allow partial Y/N).
+
+### 12.5 Engine rework (impact on Phases A–C already built)
+
+- The pure resolver gains: `operationalChain(policy)` (just the close-gating stages,
+  default = supervisor) vs `tracks(policy)` (settlement, reconciliation as
+  independent). `nextStatusAfter` applies only to the operational chain;
+  Day=Closed once the operational chain finishes AND any *blocking* tracks are
+  satisfied.
+- New/!revised RPCs: `erp_settle_day_cash(request_id, settled_amount)` (full/partial,
+  computes outstanding, sets settlement_status, audit) and
+  `erp_reconcile_day_stock(request_id, counted, …)`; the operational close stays
+  `erp_decide_day_close_stage` for the supervisor stage. A new-day start routine
+  carries `outstanding_cash → opening_cash_balance`.
+- Reports add: Outstanding Cash by salesman (aged), Settlement status board, Opening
+  balance carry-forward, separate from the operational Closed/Pending lists.
+
+**Status:** addendum captured. This supersedes the linear-chain assumption in §3.2
+for companies that don't block close on settlement/reconciliation. Implementation of
+the separation + carry-forward is the next End Day work item, pending confirmation of
+§12.3's default flags.
