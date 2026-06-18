@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { TopGroupingNav } from './top-grouping-nav';
 
 /** EntityHeader — center header: title, optional status badge, actions. */
 export function EntityHeader({
@@ -29,7 +30,9 @@ export function EntityHeader({
   );
 }
 
-/** EntityTabs — URL-wired tab bar for the center detail. */
+/** EntityTabs — record-facet tabs for the center detail. A thin wrapper over the
+ *  platform TopGroupingNav primitive (button mode) so every record's facets use
+ *  the same horizontal grouping as module sections. API unchanged. */
 export function EntityTabs({
   tabs,
   active,
@@ -40,16 +43,10 @@ export function EntityTabs({
   onChange: (key: string) => void;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap gap-1 border-b">
-      {tabs.map((t) => (
-        <button
-          key={t.key}
-          onClick={() => onChange(t.key)}
-          className={`-mb-px border-b-2 px-3 py-2 text-sm ${active === t.key ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-        >
-          {t.label}
-        </button>
-      ))}
+    <div className="mb-3">
+      <TopGroupingNav
+        items={tabs.map((t) => ({ key: t.key, label: t.label, active: active === t.key, onClick: () => onChange(t.key) }))}
+      />
     </div>
   );
 }
