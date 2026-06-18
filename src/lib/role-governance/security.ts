@@ -115,6 +115,33 @@ export interface AccessOverride {
   effect: 'grant' | 'revoke';
 }
 
+/** UI grouping for the delegable operational permissions (avoids a flat list).
+ *  Any delegable permission not mapped here falls into the 'other' group. */
+export const OPERATIONAL_PERMISSION_GROUPS: { key: string; permissions: string[] }[] = [
+  { key: 'requests', permissions: ['customer.request', 'stock_request.create', 'day.reopen.request'] },
+  { key: 'sales', permissions: ['sales.discount'] },
+  { key: 'collections', permissions: ['cash.handover.request'] },
+  { key: 'operations', permissions: ['returns.create'] },
+];
+
+/** Group a set of (delegable) permissions into the UI groups above, preserving
+ *  group order and appending an 'other' group for anything unmapped. Pure. */
+export function groupOperationalPermissions(
+  permissions: readonly string[],
+): { key: string; permissions: string[] }[] {
+  const set = new Set(permissions);
+  const mapped = new Set<string>();
+  const out: { key: string; permissions: string[] }[] = [];
+  for (const g of OPERATIONAL_PERMISSION_GROUPS) {
+    const inGroup = g.permissions.filter((p) => set.has(p));
+    inGroup.forEach((p) => mapped.add(p));
+    if (inGroup.length > 0) out.push({ key: g.key, permissions: inGroup });
+  }
+  const other = [...permissions].filter((p) => !mapped.has(p));
+  if (other.length > 0) out.push({ key: 'other', permissions: other });
+  return out;
+}
+
 /** Apply per-user operational overrides on top of a base permission set:
  *  grants add, revokes remove — both bounded by the delegable operational set
  *  (re-validated here, so a stored override outside the set is ignored). Pure. */

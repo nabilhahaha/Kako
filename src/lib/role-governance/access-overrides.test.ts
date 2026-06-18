@@ -5,6 +5,7 @@ import {
   isNonDelegablePermission,
   applyAccessOverrides,
   effectivePermissionsDiff,
+  groupOperationalPermissions,
   type AccessOverride,
 } from './index';
 
@@ -70,6 +71,24 @@ describe('user access overrides — application', () => {
     const { effective } = applyAccessOverrides(base, ov);
     const allowed = new Set([...base, ...DELEGABLE_OPERATIONAL_PERMISSIONS]);
     for (const p of effective) expect(allowed.has(p)).toBe(true);
+  });
+});
+
+describe('user access overrides — UI grouping', () => {
+  it('groups the operational seed into named groups (no flat list)', () => {
+    const groups = groupOperationalPermissions(DELEGABLE_OPERATIONAL_PERMISSIONS);
+    const keys = groups.map((g) => g.key);
+    expect(keys).toEqual(['requests', 'sales', 'collections', 'operations']);
+    const requests = groups.find((g) => g.key === 'requests')!;
+    expect(requests.permissions).toEqual(['customer.request', 'stock_request.create', 'day.reopen.request']);
+    // every operational permission is assigned to exactly one group
+    expect(groups.flatMap((g) => g.permissions).sort()).toEqual([...DELEGABLE_OPERATIONAL_PERMISSIONS].sort());
+  });
+
+  it('unmapped permissions fall into an "other" group', () => {
+    const groups = groupOperationalPermissions(['customer.request', 'some.future.op']);
+    expect(groups.map((g) => g.key)).toEqual(['requests', 'other']);
+    expect(groups.find((g) => g.key === 'other')!.permissions).toEqual(['some.future.op']);
   });
 });
 

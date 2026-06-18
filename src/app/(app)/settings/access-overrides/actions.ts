@@ -7,8 +7,10 @@ import { logAudit } from '@/lib/erp/audit';
 import {
   isDelegableOperationalPermission,
   effectivePermissionsDiff,
+  DELEGABLE_OPERATIONAL_PERMISSIONS,
   type AccessOverride,
 } from '@/lib/role-governance';
+import { loadMemberOverrideState, type MemberOverrideState } from '@/lib/erp/access-overrides-server';
 
 /**
  * User Access Overrides — write API (E3).
@@ -196,4 +198,76 @@ export async function getEffectivePermissionsDiff(
     effect: r.effect as 'grant' | 'revoke',
   }));
   return { ok: true, diff: effectivePermissionsDiff(baseline, overrides) };
+}
+
+/** Load a member's editor state (role baseline + current operational overrides).
+ *  Used by the console when an admin selects a user. */
+export async function loadMemberOverrideStateAction(
+  targetUserId: string,
+  roleKeys: string[],
+): Promise<{ ok: true; state: MemberOverrideState } | { ok: false; error: string }> {
+  const g = await requireCompanyAdmin();
+  if (!g.ok) return { ok: false, error: g.error };
+  const state = await loadMemberOverrideState(
+    g.supabase, g.companyId, targetUserId, roleKeys ?? [], DELEGABLE_OPERATIONAL_PERMISSIONS,
+  );
+  return { ok: true, state };
+}
+
+/** Override templates / cloning: copy one user's operational overrides onto a set
+ *  of target users. Only delegable operational overrides are copied (re-validated),
+ *  each application is audited, and a mandatory reason is required. */
+export async function cloneUserAccessOverrides(
+  sourceUserId: string,
+  targetUserIds: string[],
+  reason: string,
+): Promise<{ ok: true; applied: number } | { ok: false; error: string }> {
+  const g = await requireCompanyAdmin();
+  if (!g.ok) return { ok: false, error: g.error };
+  if (!sourceUserId) return { ok: false, error: 'invalid_source' };
+  const targets = [...new Set((targetUserIds ?? []).filter((id) => id && id !== sourceUserId))];
+  if (targets.length === 0) return { ok: false, error: 'no_targets' };
+  if (!validReason(reason)) return { ok: false, error: 'reason_required' };
+  const { supabase, companyId, userId, isPlatformOwner, permissions } = g;
+
+  // Source overrides — operational only.
+  const { data: srcRows, error: srcErr } = await supabase
+    .from('erp_temporary_access_grants')
+    .select('grant_key, effect')
+    .eq('company_id', companyId)
+    .eq('user_id', sourceUserId)
+    .eq('kind', 'override')
+    .is('expired_at', null);
+  if (srcErr) return { ok: false, error: friendlyDbError(srcErr) };
+
+  const src = (srcRows ?? [])
+    .map((r) => ({ permission: r.grant_key as string, effect: r.effect as 'grant' | 'revoke' }))
+    .filter((o) => isDelegableOperationalPermission(o.permission))
+    // a non-owner admin may only clone GRANTS for permissions they personally hold
+    .filter((o) => o.effect === 'revoke' || isPlatformOwner || permissions.includes(o.permission));
+  if (src.length === 0) return { ok: false, error: 'no_delegable_overrides' };
+
+  const reasonTrim = reason.trim();
+  let applied = 0;
+  for (const target of targets) {
+    const rows = src.map((o) => ({
+      company_id: companyId, user_id: target, grant_key: o.permission,
+      kind: 'override', effect: o.effect, effective_from: null, effective_to: null,
+      expired_at: null, reason: reasonTrim, granted_by: userId,
+    }));
+    const { error } = await supabase
+      .from('erp_temporary_access_grants')
+      .upsert(rows, { onConflict: 'company_id,user_id,grant_key' });
+    if (error) return { ok: false, error: friendlyDbError(error) };
+    applied += 1;
+    await logAudit(supabase, {
+      action: 'update',
+      entity: 'user_access_override',
+      entityId: target,
+      companyId,
+      details: { cloned_from: sourceUserId, permissions: src.map((o) => `${o.effect}:${o.permission}`), reason: reasonTrim },
+    });
+  }
+  revalidatePath(REVALIDATE);
+  return { ok: true, applied };
 }
