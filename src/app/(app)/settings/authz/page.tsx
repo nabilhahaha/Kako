@@ -6,7 +6,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { listEntities } from '@/lib/erp/entities';
 import { loadAuthzConsole } from '@/lib/erp/authz-console-server';
-import { AuthzConsole } from './authz-console';
+import { loadRoleOverridesConsole } from '@/lib/erp/role-overrides-server';
+import { loadAccessOverridesConsole } from '@/lib/erp/access-overrides-server';
+import { DELEGABLE_OPERATIONAL_PERMISSIONS, groupOperationalPermissions } from '@/lib/role-governance';
+import { RolesWorkbench } from './roles-workbench';
 
 /**
  * VANTORA Authorization Console — /settings/authz.
@@ -41,10 +44,24 @@ export default async function AuthzConsolePage() {
     .filter((e) => (e.fields?.length ?? 0) > 0)
     .map((e) => ({ key: e.key, labelAr: e.labelAr, labelEn: e.labelEn }));
 
+  // Authorization overrides (reused as workbench tabs) — gating decided server-side.
+  const [roleOv, uao] = await Promise.all([
+    loadRoleOverridesConsole(supabase, ctx),
+    loadAccessOverridesConsole(supabase, ctx),
+  ]);
+  const groups = groupOperationalPermissions(DELEGABLE_OPERATIONAL_PERMISSIONS);
+
   return (
     <div>
       <PageHeader title={t('authz.title')} description={t('authz.description')} />
-      <AuthzConsole data={data} entities={entities} />
+      <RolesWorkbench
+        data={data}
+        entities={entities}
+        groups={groups}
+        roleOverridesEnabled={roleOv.enabled}
+        uaoEnabled={uao.enabled}
+        uaoMembers={uao.members}
+      />
     </div>
   );
 }

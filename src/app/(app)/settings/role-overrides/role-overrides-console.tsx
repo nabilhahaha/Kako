@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Lock, ArrowRight, Copy, Users } from 'lucide-react';
@@ -22,10 +22,12 @@ type Setting = 'default' | 'grant' | 'revoke';
 
 const PROTECTED_SAMPLE = ['returns.approve', 'accounting.post', 'treasury.transfer', 'super.admin'];
 
-export function RoleOverridesConsole({ roles, groups }: { roles: Role[]; groups: Group[] }) {
+export function RoleOverridesConsole({ roles, groups, lockedRoleKey }: { roles: Role[]; groups: Group[]; lockedRoleKey?: string }) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<Role | null>(null);
+  const [selected, setSelected] = useState<Role | null>(
+    lockedRoleKey ? roles.find((r) => r.key === lockedRoleKey) ?? null : null,
+  );
   const [baselineHas, setBaselineHas] = useState<Record<string, boolean>>({});
   const [settings, setSettings] = useState<Record<string, Setting>>({});
   const [pending, start] = useTransition();
@@ -52,6 +54,15 @@ export function RoleOverridesConsole({ roles, groups }: { roles: Role[]; groups:
       setSettings(s);
     });
   }
+
+  // Embedded mode: auto-load the locked role's state on mount.
+  useEffect(() => {
+    if (lockedRoleKey) {
+      const r = roles.find((x) => x.key === lockedRoleKey);
+      if (r) selectRole(r);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockedRoleKey]);
 
   function onSelectChange(permission: string, value: Setting) {
     if (value === 'default') { applyChange(permission, 'default', ''); return; }
@@ -110,7 +121,8 @@ export function RoleOverridesConsole({ roles, groups }: { roles: Role[]; groups:
         {t('roleOverrides.safetyNote')}
       </p>
 
-      <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+      <div className={lockedRoleKey ? '' : 'grid gap-4 lg:grid-cols-[240px_1fr]'}>
+        {!lockedRoleKey && (
         <Card>
           <CardContent className="space-y-2 p-3">
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('roleOverrides.searchRoles')} />
@@ -128,6 +140,7 @@ export function RoleOverridesConsole({ roles, groups }: { roles: Role[]; groups:
             </div>
           </CardContent>
         </Card>
+        )}
 
         <div className="space-y-4">
           {!selected ? (

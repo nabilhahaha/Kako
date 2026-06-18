@@ -16,6 +16,14 @@ export const ar = {
     branches: 'الفروع',
     contextLabel: 'السياق',
     noContext: 'لا توجد بيانات.',
+    tabMatrix: 'مصفوفة الصلاحيات',
+    tabRoleOverrides: 'تجاوزات الدور',
+    tabUao: 'تجاوزات المستخدم',
+    tabMembers: 'الأعضاء',
+    rolePrompt: 'اختر دوراً لعرض صلاحياته.',
+    featureOff: 'الميزة غير مُفعّلة لشركتك.',
+    capabilities: 'القدرات',
+    members: 'الأعضاء',
   },
 };
 
@@ -36,5 +44,13 @@ export const en = {
     branches: 'Branches',
     contextLabel: 'Context',
     noContext: 'No data.',
+    tabMatrix: 'Permissions Matrix',
+    tabRoleOverrides: 'Role Overrides',
+    tabUao: 'User Access Overrides',
+    tabMembers: 'Members',
+    rolePrompt: 'Select a role to view its permissions.',
+    featureOff: 'Feature not enabled for your company.',
+    capabilities: 'Capabilities',
+    members: 'Members',
   },
 };
