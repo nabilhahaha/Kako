@@ -100,9 +100,38 @@ at a time) and **build sub-slices** (each design→build→verify→PR→prod-ap
 | B5 | **Odoo adapter** | Build | framework | Med | Med (JSON-RPC) | 5 | 🟡 built; in review (`ADAPTER-ODOO.md`); no migration; live validation pending a pilot |
 | B4 | **Oracle NetSuite adapter** | Build | framework | Med | Med–High (TBA OAuth1-HMAC) | 6 | 🟡 built; in review (`ADAPTER-NETSUITE.md`); shared oauth1.ts TBA signer; no migration; live validation pending a pilot |
 | BCA | **Critical Action Standard + FMCG catalog** | Build | audit, workflow engine | High | Med | now | 🟡 core + Shift/Cashbox + **notification delivery** shipped; **13 FMCG flows wired**, 2 ready, 7 planned — see `FMCG-CRITICAL-ACTIONS-CATALOG.md` |
+| RWD | **Role Workspace Designer** (per-role presentation overlay) | Build | pilot stabilization | **High** | Med | **post-pilot #1** | 🔜 **approved — design accepted; build is the first enhancement block after pilot stabilization** (no pilot-window build) |
 
 **Vendor-order override (standing):** a real pilot customer's ERP requirement
 overrides the default B2→B5 order.
+
+### Role Workspace Designer (RWD) — post-pilot Phase 1, Priority High
+
+**Decision (approved):** the Role Workspace Designer is approved as the **first
+enhancement block after pilot stabilization**. It will **not** be built during the
+pilot. **Phase 0** (registry / stable-ID refactor) *may* be folded into pilot
+hardening **only if it remains strictly zero-behavior-change**; Phases 1–3 are
+post-pilot.
+
+**What it is:** a Company-Admin tool to tailor, **per role**, which menu items,
+dashboard widgets, quick actions, and request types appear — and in what order —
+without code changes. It is an **additive presentation overlay** on top of the
+existing gates (a company-scoped `erp_role_workspace` table of visibility +
+ordering overrides; "no row = today's behavior").
+
+**Locked design principles (must not change):**
+1. **Presentation layer only.**
+2. **No permission grants.**
+3. **No replacement** of permissions, feature flags, or entitlements.
+4. **Hide and reorder only.**
+5. **The existing security model remains authoritative** (server routes keep
+   enforcing; hiding is cosmetic, never an access control).
+
+**Phasing & effort (≈13–19 eng-days total):** Phase 0 registry/IDs (~2–3 d, zero
+behavior change, optionally pilot-time) → Phase 1 nav overlay + `erp_role_workspace`
++ RLS (~3–5 d) → Phase 2 extend to widgets / quick actions / request types
+(~3–4 d) → Phase 3 `/settings/workspace` admin UI (~5–7 d). Design package:
+`docs/audits/` (Role Workspace Designer plan).
 
 ### Governance & Critical Actions (cross-cutting)
 
