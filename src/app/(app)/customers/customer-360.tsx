@@ -38,7 +38,8 @@ import {
   CUSTOMER_360_TAB_KEYS,
   customerBadgeState,
   customerNeedsDecision,
-  type CustomerBadgeState,
+  CUSTOMER_BADGE_VARIANT,
+  CUSTOMER_BADGE_KEY,
 } from './customer-360-tabs';
 import type { CustomerDetailBundle } from './[id]/load';
 import type { Area, Branch, CustomerLookup, ErpCustomer, Profile, Region } from '@/lib/erp/types';
@@ -46,21 +47,6 @@ import type { CustomFieldDef } from '@/lib/erp/custom-fields';
 import type { GovInputs } from '@/lib/erp/field-governance';
 
 type Rep = Pick<Profile, 'id' | 'full_name' | 'email'>;
-
-const BADGE_VARIANT: Record<CustomerBadgeState, 'secondary' | 'warning' | 'destructive' | 'success'> = {
-  draft: 'secondary',
-  pending: 'warning',
-  rejected: 'destructive',
-  active: 'success',
-  inactive: 'destructive',
-};
-const BADGE_KEY: Record<CustomerBadgeState, string> = {
-  draft: 'customers.statusDraft',
-  pending: 'customers.statusPending',
-  rejected: 'customers.statusRejected',
-  active: 'customers.statusActive',
-  inactive: 'customers.statusInactive',
-};
 
 export interface Customer360Props {
   /** Full record (from the workbench list selection) — header, form, related. */
@@ -173,7 +159,7 @@ export function Customer360({
       <EntityHeader
         title={name}
         subtitle={customer.code ? `${customer.code}${customer.phone ? ` · ${customer.phone}` : ''}` : customer.phone ?? undefined}
-        status={<Badge variant={BADGE_VARIANT[badge]}>{t(BADGE_KEY[badge])}</Badge>}
+        status={<Badge variant={CUSTOMER_BADGE_VARIANT[badge]}>{t(CUSTOMER_BADGE_KEY[badge])}</Badge>}
         actions={
           <EntityActionBar
             actions={[

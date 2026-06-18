@@ -23,6 +23,24 @@ export function isCustomer360Tab(value: string): value is Customer360Tab {
 
 export type CustomerBadgeState = 'draft' | 'pending' | 'rejected' | 'active' | 'inactive';
 
+/** Badge variant + i18n key per status state — one source for the header badge
+ *  (Customer360) and the context-panel summary (CustomersWorkbench). */
+export const CUSTOMER_BADGE_VARIANT: Record<CustomerBadgeState, 'secondary' | 'warning' | 'destructive' | 'success'> = {
+  draft: 'secondary',
+  pending: 'warning',
+  rejected: 'destructive',
+  active: 'success',
+  inactive: 'destructive',
+};
+
+export const CUSTOMER_BADGE_KEY: Record<CustomerBadgeState, string> = {
+  draft: 'customers.statusDraft',
+  pending: 'customers.statusPending',
+  rejected: 'customers.statusRejected',
+  active: 'customers.statusActive',
+  inactive: 'customers.statusInactive',
+};
+
 /** 4-state status (approval first, then active/suspended) — same order as the
  *  list badge in CustomersManager. */
 export function customerBadgeState(c: {
