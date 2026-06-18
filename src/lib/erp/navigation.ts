@@ -504,9 +504,10 @@ export const NAV_SECTIONS: NavSection[] = [
       // ── People & Roles ──
       { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.people' },
       { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.people' },
-      { label: 'nav.items.authzConsole', href: '/settings/authz', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.people' },
-      { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true, group: 'nav.groups.people' },
-      { label: 'nav.items.actionPolicies', href: '/settings/action-policies', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.people' },
+      // M3-D: Roles + Permissions (super-admin tab) + Action Policies are now tabs
+      // of the single Roles & Permissions page (/settings/authz); old routes
+      // redirect to ?tab=…
+      { label: 'nav.items.rolesAndPermissions', href: '/settings/authz', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.people' },
       { label: 'nav.items.tenantAudit', href: '/settings/audit-log', icon: ScrollText, perm: 'settings.users', group: 'nav.groups.people' },
       { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, group: 'nav.groups.people' },
       // ── Products & Data ──
