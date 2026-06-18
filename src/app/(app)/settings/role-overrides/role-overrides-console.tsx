@@ -117,9 +117,11 @@ export function RoleOverridesConsole({ roles, groups, lockedRoleKey }: { roles: 
 
   return (
     <div className="space-y-4">
-      <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
-        {t('roleOverrides.safetyNote')}
-      </p>
+      {!lockedRoleKey && (
+        <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
+          {t('roleOverrides.safetyNote')}
+        </p>
+      )}
 
       <div className={lockedRoleKey ? '' : 'grid gap-4 lg:grid-cols-[240px_1fr]'}>
         {!lockedRoleKey && (

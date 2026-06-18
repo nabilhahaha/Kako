@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { AdminWorkbench, useWorkbenchSelection } from '@/components/admin/admin-workbench';
 import { EntityListPanel } from '@/components/admin/entity-list-panel';
 import { EntityHeader, EntityTabs, DetailPlaceholder } from '@/components/admin/entity-detail';
-import { ContextPanel, ContextSection, SummaryList, ContextLink, RelatedChips } from '@/components/admin/context-panel';
+import { ContextPanel, ContextSection, SummaryList, RelatedChips } from '@/components/admin/context-panel';
+import { ActivityFeed } from '@/components/admin/activity-feed';
 import { Card, CardContent } from '@/components/ui/card';
 import type { AuthzConsoleData } from '@/lib/erp/authz-console-server';
 import { CapabilityMatrix } from './capability-matrix';
@@ -86,7 +87,7 @@ export function RolesWorkbench({
         <CapabilityMatrix roles={[selectedRole]} grants={data.capabilityGrants} fromBaseline={data.capabilityFromBaseline} />
       )}
       {tab === 'roleov' && (roleOverridesEnabled ? <RoleOverridesConsole roles={data.roles.map((r) => ({ key: r.key, nameAr: r.name_ar }))} groups={groups} lockedRoleKey={selectedRole.key} /> : featureOff)}
-      {tab === 'uao' && (uaoEnabled ? <AccessOverridesConsole members={membersInRole} groups={groups} /> : featureOff)}
+      {tab === 'uao' && (uaoEnabled ? <AccessOverridesConsole members={membersInRole} groups={groups} embedded /> : featureOff)}
       {tab === 'members' && (
         <Card>
           <CardContent className="space-y-1 p-4">
@@ -118,7 +119,7 @@ export function RolesWorkbench({
         ]} />
       </ContextSection>
       <ContextSection title={t('adminWb.audit')}>
-        <ContextLink href="/settings/audit-log" label={t('adminWb.viewAudit')} />
+        <ActivityFeed entityId={selectedRole.key} entities={['role_capability', 'role_scope', 'role_limit', 'role_permission_override']} />
       </ContextSection>
       <ContextSection title={t('adminWb.related')}>
         <RelatedChips items={membersInRole.slice(0, 8).map((m) => ({ label: m.name, href: '/settings/users' }))} />

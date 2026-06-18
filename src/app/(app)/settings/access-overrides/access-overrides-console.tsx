@@ -24,7 +24,7 @@ type Setting = 'default' | 'grant' | 'revoke';
 // exist and are deliberately non-delegable (the visible face of the deny-list).
 const PROTECTED_SAMPLE = ['returns.approve', 'accounting.post', 'integrations.manage', 'super.admin'];
 
-export function AccessOverridesConsole({ members, groups }: { members: Member[]; groups: Group[] }) {
+export function AccessOverridesConsole({ members, groups, embedded }: { members: Member[]; groups: Group[]; embedded?: boolean }) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Member | null>(null);
@@ -112,9 +112,11 @@ export function AccessOverridesConsole({ members, groups }: { members: Member[];
 
   return (
     <div className="space-y-4">
-      <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
-        {t('accessOverrides.safetyNote')}
-      </p>
+      {!embedded && (
+        <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
+          {t('accessOverrides.safetyNote')}
+        </p>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
         {/* User selection */}

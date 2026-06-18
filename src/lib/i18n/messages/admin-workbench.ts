@@ -24,6 +24,7 @@ export const ar = {
     featureOff: 'الميزة غير مُفعّلة لشركتك.',
     capabilities: 'القدرات',
     members: 'الأعضاء',
+    noActivity: 'لا يوجد نشاط حديث.',
   },
 };
 
@@ -52,5 +53,6 @@ export const en = {
     featureOff: 'Feature not enabled for your company.',
     capabilities: 'Capabilities',
     members: 'Members',
+    noActivity: 'No recent activity.',
   },
 };

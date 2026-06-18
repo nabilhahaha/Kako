@@ -14,7 +14,8 @@ import { AdminWorkbench, useWorkbenchSelection } from '@/components/admin/admin-
 import { EntityListPanel } from '@/components/admin/entity-list-panel';
 import { EntityHeader, EntityTabs, DetailPlaceholder } from '@/components/admin/entity-detail';
 import { SectionCard } from '@/components/admin/section-card';
-import { ContextPanel, ContextSection, SummaryList, ContextLink, RelatedChips } from '@/components/admin/context-panel';
+import { ContextPanel, ContextSection, SummaryList, RelatedChips } from '@/components/admin/context-panel';
+import { ActivityFeed } from '@/components/admin/activity-feed';
 import { initialsFromName } from '@/lib/utils';
 import type { Branch, Profile, UserBranch } from '@/lib/erp/types';
 import { createUser, assignBranch, removeAssignment, setUserFlags } from './actions';
@@ -182,7 +183,7 @@ export function UsersWorkbench({ currentUserId, profiles, branches, assignments,
         ]} />
       </ContextSection>
       <ContextSection title={t('adminWb.audit')}>
-        <ContextLink href="/settings/audit-log" label={t('adminWb.viewAudit')} />
+        <ActivityFeed entityId={selected.id} entities={['user', 'assignment', 'user_flags', 'user_access_override']} />
       </ContextSection>
       <ContextSection title={t('adminWb.related')}>
         <RelatedChips items={userAssignments.map((a) => ({ label: branchName(a.branch_id), href: '/settings/branches' }))} />
