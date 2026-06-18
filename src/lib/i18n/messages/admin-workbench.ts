@@ -25,6 +25,7 @@ export const ar = {
     capabilities: 'القدرات',
     members: 'الأعضاء',
     noActivity: 'لا يوجد نشاط حديث.',
+    tabPlans: 'الباقة', tabEntitlements: 'الوحدات والصلاحيات', tabBranches: 'الفروع', companyPrompt: 'اختر شركة لعرض تفاصيلها.', save: 'حفظ', active: 'نشطة', inactive: 'موقوفة', plan: 'الباقة', subscriptionEnd: 'نهاية الاشتراك', addBranch: 'إضافة فرع', companiesTitle: 'الشركات', newCompany: 'شركة جديدة', companyName: 'الاسم (إنجليزي)', companyNameAr: 'الاسم (عربي)', toastSaved: 'تم الحفظ.', toastError: 'تعذّر إكمال العملية.',
   },
 };
 
@@ -54,5 +55,6 @@ export const en = {
     capabilities: 'Capabilities',
     members: 'Members',
     noActivity: 'No recent activity.',
+    tabPlans: 'Plans', tabEntitlements: 'Entitlements', tabBranches: 'Branches', companyPrompt: 'Select a company to view its details.', save: 'Save', active: 'Active', inactive: 'Suspended', plan: 'Plan', subscriptionEnd: 'Subscription end', addBranch: 'Add branch', companiesTitle: 'Companies', newCompany: 'New company', companyName: 'Name (EN)', companyNameAr: 'Name (AR)', toastSaved: 'Saved.', toastError: 'Could not complete the action.',
   },
 };
