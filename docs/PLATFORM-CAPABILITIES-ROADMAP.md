@@ -202,7 +202,7 @@ Existing foundations are noted so we reuse, not rebuild.
 \* Must-Have for commercial-scale support; read-only first.
 
 ## 18. User Access Overrides (UAO)
-- **Status:** ✅ **Implemented · Validated · Enabled** (platform-wide). Shipped on branch `claude/pilot-ux` (PR #319); migration `0346` applied to `vantora-staging`.
+- **Status:** ✅ **Implemented · Validated · Activated · Production Ready** (platform-wide). Shipped on branch `claude/pilot-ux` (PR #319); migration `0346` applied to `vantora-staging`; flag ON + all companies entitled.
 - **Business value:** Company Admins self-serve per-user **operational** permission grant/revoke (the 6-permission operational seed) on top of role baselines — without platform involvement, fully audited.
 - **Architecture:** Generalizes the existing `erp_temporary_access_grants` engine (additive, backward-compatible) with `effect` + `kind` columns and a permanent-override path. Resolver Block 2 in `getUserContext` applies grants/revokes, re-validated against the delegable allowlist every resolve.
 - **Guardrails:** delegable allowlist (`erp_delegable_permissions`) + immutable deny-list (`erp_is_delegable_permission`); admin-gated writes via RLS `WITH CHECK`; mandatory reason (DB CHECK); full audit (`erp_audit_logs`); effective-permissions diff. Operational seed only — **no** approval/treasury/security/platform/RLS/system permissions.
