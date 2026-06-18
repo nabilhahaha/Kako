@@ -29,7 +29,15 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
+      # Build separately so the Playwright webServer only has to `next start`
+      # (ready in <1s). The full production build takes minutes and would
+      # otherwise exceed the webServer readiness timeout.
+      - name: Build app
+        run: npm run build
+
       - name: Run E2E smoke suite
+        env:
+          PW_E2E_START_ONLY: '1'
         run: npm run test:e2e
 
       - name: Upload Playwright report

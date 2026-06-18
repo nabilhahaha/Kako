@@ -1,0 +1,183 @@
+name: Branch Cleanup (archive + delete)
+
+# SAFE BY DEFAULT.
+#  - Default mode is DRY RUN: it only REPORTS what would happen and uploads an
+#    artifact. It creates/pushes nothing and deletes nothing.
+#  - To actually run, you must BOTH select mode = "execute" AND type the exact
+#    confirmation phrase. Either one missing = no deletion.
+#  - main and claude/fmcg-sell-collect-loop are HARD-EXCLUDED everywhere.
+#  - Every unique-code branch is archived as a tag AND the tag push is VERIFIED on
+#    the remote BEFORE any branch is deleted. Restorable from the tag at any time.
+#
+# Optional extra gate: set `environment: branch-cleanup` below and configure that
+# Environment in repo settings with "Required reviewers" for a native approval step.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run (report only) or execute (archive + delete)"
+        type: choice
+        options: [dry-run, execute]
+        default: dry-run
+      confirmation:
+        description: 'Type EXACTLY "ARCHIVE-AND-DELETE" to allow deletion (execute mode only)'
+        type: string
+        default: ""
+
+permissions:
+  contents: write   # needed to push tags and delete branches
+
+concurrency:
+  group: branch-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: "Branch cleanup (${{ github.event.inputs.mode }})"
+    runs-on: ubuntu-latest
+    # environment: branch-cleanup   # <- uncomment to require a reviewer approval
+    env:
+      KEEP_1: main
+      KEEP_2: claude/fmcg-sell-collect-loop
+      CONFIRM_PHRASE: ARCHIVE-AND-DELETE
+    steps:
+      - name: Checkout (all history + refs)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute lists (archive vs delete) — hard-excluding keep branches
+        id: compute
+        run: |
+          set -euo pipefail
+          git fetch origin --prune --tags
+          : > archive.txt   # unique-code -> tag + delete
+          : > delete.txt    # merged into main -> delete only
+          for b in $(git branch -r | grep -v HEAD | sed 's#^[ *]*origin/##' | sort -u); do
+            case "$b" in
+              "$KEEP_1"|"$KEEP_2") continue ;;
+            esac
+            cnt=$(git rev-list --count "origin/$b" --not "origin/main" 2>/dev/null || echo 0)
+            if [ "$cnt" = "0" ]; then echo "$b" >> delete.txt; else echo "$b" >> archive.txt; fi
+          done
+          # Guard: keep branches must NEVER appear in either list.
+          if grep -xqE "$KEEP_1|$KEEP_2" archive.txt delete.txt; then
+            echo "::error::Guard tripped — a keep branch is in a cleanup list. Aborting."; exit 1
+          fi
+          echo "archive_count=$(wc -l < archive.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "delete_count=$(wc -l < delete.txt | tr -d ' ')"   >> "$GITHUB_OUTPUT"
+
+      - name: Build report
+        id: report
+        run: |
+          set -euo pipefail
+          AC=${{ steps.compute.outputs.archive_count }}
+          DC=${{ steps.compute.outputs.delete_count }}
+          {
+            echo "# Branch Cleanup Report"
+            echo ""
+            echo "- Mode: **${{ github.event.inputs.mode }}**"
+            echo "- Triggered by: @${{ github.actor }}"
+            echo "- Keep (active): \`$KEEP_1\`, \`$KEEP_2\`"
+            echo "- Archive (tag + delete): **$AC**"
+            echo "- Delete only (merged, no unique code): **$DC**"
+            echo ""
+            echo "## Archive tags to create (one per unique-code branch)"
+            echo '```'
+            sed 's#^#archive/#' archive.txt
+            echo '```'
+            echo "## Branches to ARCHIVE then DELETE"
+            echo '```'; cat archive.txt; echo '```'
+            echo "## Branches to DELETE (already merged into main)"
+            echo '```'; cat delete.txt; echo '```'
+            echo "## Rollback (restore any archived branch)"
+            echo '```'
+            echo "git fetch origin --tags"
+            echo "git branch <branch> archive/<branch>            # local"
+            echo "git push origin <branch>                        # restore on remote"
+            echo "# archive tags are never auto-deleted; they remain the recovery point"
+            echo '```'
+          } > cleanup-report.md
+          cat cleanup-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-cleanup-report-${{ github.event.inputs.mode }}
+          path: |
+            cleanup-report.md
+            archive.txt
+            delete.txt
+
+      - name: DRY RUN — stop here (no changes)
+        if: ${{ github.event.inputs.mode != 'execute' }}
+        run: |
+          echo "Dry run only — nothing created or deleted. Review the artifact/summary."
+          echo "To execute: re-run with mode=execute AND confirmation=$CONFIRM_PHRASE"
+
+      - name: Confirmation gate (execute mode)
+        if: ${{ github.event.inputs.mode == 'execute' }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.inputs.confirmation }}" != "$CONFIRM_PHRASE" ]; then
+            echo "::error::Confirmation phrase mismatch. Type exactly '$CONFIRM_PHRASE' to proceed. No changes made."
+            exit 1
+          fi
+          echo "Confirmation accepted."
+
+      - name: Create + push archive tags
+        if: ${{ github.event.inputs.mode == 'execute' }}
+        run: |
+          set -euo pipefail
+          [ -s archive.txt ] || { echo "No unique-code branches to archive."; exit 0; }
+          while read -r b; do [ -z "$b" ] && continue
+            git tag -f "archive/$b" "origin/$b"
+          done < archive.txt
+          # push all archive tags
+          git push origin "refs/tags/archive/*"
+
+      - name: VERIFY archive tags on remote BEFORE any deletion
+        if: ${{ github.event.inputs.mode == 'execute' }}
+        run: |
+          set -euo pipefail
+          missing=0
+          while read -r b; do [ -z "$b" ] && continue
+            if ! git ls-remote --tags origin "refs/tags/archive/$b" | grep -q .; then
+              echo "::error::archive tag missing on remote for: $b"; missing=$((missing+1))
+            fi
+          done < archive.txt
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::$missing archive tag(s) not verified on remote — ABORTING before any deletion."
+            exit 1
+          fi
+          echo "All $(wc -l < archive.txt | tr -d ' ') archive tags verified on remote."
+
+      - name: Delete archived (unique-code) branches
+        if: ${{ github.event.inputs.mode == 'execute' }}
+        run: |
+          set -euo pipefail
+          # Final guard before destructive step.
+          grep -xqE "$KEEP_1|$KEEP_2" archive.txt && { echo "::error::keep branch in archive.txt"; exit 1; } || true
+          xargs -a archive.txt -r -n 40 git push origin --delete
+
+      - name: Delete fully-merged branches
+        if: ${{ github.event.inputs.mode == 'execute' }}
+        run: |
+          set -euo pipefail
+          grep -xqE "$KEEP_1|$KEEP_2" delete.txt && { echo "::error::keep branch in delete.txt"; exit 1; } || true
+          xargs -a delete.txt -r -n 40 git push origin --delete
+
+      - name: Verify final state (only keep branches remain)
+        if: ${{ github.event.inputs.mode == 'execute' }}
+        run: |
+          set -euo pipefail
+          git fetch origin --prune
+          echo "Remaining remote heads:"
+          git ls-remote --heads origin | awk '{print $2}' | sed 's#refs/heads/##' | sort | tee remaining.txt
+          extra=$(grep -vxE "$KEEP_1|$KEEP_2" remaining.txt || true)
+          if [ -n "$extra" ]; then
+            echo "::warning::branches still present beyond keep set:"; echo "$extra"
+          else
+            echo "✅ Only $KEEP_1 and $KEEP_2 remain."
+          fi

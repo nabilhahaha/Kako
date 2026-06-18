@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { hasPermission, type Permission } from '@/lib/erp/permissions';
 import type { UserContext } from '@/lib/erp/auth-context';
 import { ENTITLEMENTS_ENABLED } from './flags';
-import { requiredEntitlementModules, parseEntitlement, isEntitledIn } from './registry';
+import { requiredEntitlementModules, parseEntitlement, isEntitledIn, moduleEntitledOrFallback } from './registry';
 import type { CompanyEntitlement, CompanyEntitlementRow } from './types';
 
 // The entitlement GATE — additive on top of hasPermission. While KAKO_ENTITLEMENTS
@@ -48,4 +48,21 @@ export async function hasPermissionWithEntitlement(
   const ents = await loadEntitlements(supabase, ctx.companyId as string);
   const now = Date.now();
   return required.every((m) => isEntitledIn(ents, m, null, now));
+}
+
+/**
+ * Fallback-safe module gate for ENGINE activation (van_sales / alerts /
+ * change_requests). Allows when KAKO_ENTITLEMENTS is OFF or when no module
+ * entitlement row exists for the company; honors the row when an owner has set one.
+ * So existing engines keep working until an owner opts a company into entitlement
+ * control. RLS-scoped read (or service client for the alerts evaluator).
+ */
+export async function entitlementAllows(
+  supabase: SupabaseClient,
+  companyId: string,
+  moduleKey: string,
+): Promise<boolean> {
+  if (!ENTITLEMENTS_ENABLED()) return true;
+  const ents = await loadEntitlements(supabase, companyId);
+  return moduleEntitledOrFallback(ents, moduleKey, true, Date.now());
 }

@@ -67,6 +67,7 @@ import * as fashion from './fashion';
 import * as search from './search';
 import * as changeRequests from './change-requests';
 import * as alertsUi from './alerts';
+import * as entitlementsUi from './entitlements';
 import * as actionPolicies from './action-policies';
 import * as returnPolicy from './return-policy';
 import * as features from './features';
@@ -94,6 +95,7 @@ const MODULES = [
   search,
   changeRequests,
   alertsUi,
+  entitlementsUi,
   actionPolicies,
   returnPolicy,
   features,
