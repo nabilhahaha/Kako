@@ -521,9 +521,9 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.features', href: '/settings/features', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.products' },
       { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.products' },
       // ── Automation & Policies ──
-      { label: 'nav.items.approvalMatrix', href: '/settings/approval-matrix', icon: ShieldCheck, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.automation' },
+      // M3-A: Approvals + Builder + Templates are now tabs of the single Workflows
+      // page (/settings/workflows); the old routes redirect to ?tab=…
       { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.automation' },
-      { label: 'nav.items.workflowTemplates', href: '/settings/workflows/templates', icon: LayoutGrid, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.automation' },
       { label: 'nav.items.returnPolicy', href: '/settings/returns', icon: Undo2, perm: 'settings.workflow_policy', group: 'nav.groups.automation' },
       { label: 'nav.items.dayClosePolicy', href: '/settings/day-close', icon: CalendarDays, perm: 'settings.workflow_policy', group: 'nav.groups.automation' },
       // ── Integrations ──
