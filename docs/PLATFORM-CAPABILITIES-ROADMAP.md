@@ -201,6 +201,15 @@ Existing foundations are noted so we reuse, not rebuild.
 
 \* Must-Have for commercial-scale support; read-only first.
 
+## 18. User Access Overrides (UAO)
+- **Status:** ✅ **Implemented · Validated · Enabled** (platform-wide). Shipped on branch `claude/pilot-ux` (PR #319); migration `0346` applied to `vantora-staging`.
+- **Business value:** Company Admins self-serve per-user **operational** permission grant/revoke (the 6-permission operational seed) on top of role baselines — without platform involvement, fully audited.
+- **Architecture:** Generalizes the existing `erp_temporary_access_grants` engine (additive, backward-compatible) with `effect` + `kind` columns and a permanent-override path. Resolver Block 2 in `getUserContext` applies grants/revokes, re-validated against the delegable allowlist every resolve.
+- **Guardrails:** delegable allowlist (`erp_delegable_permissions`) + immutable deny-list (`erp_is_delegable_permission`); admin-gated writes via RLS `WITH CHECK`; mandatory reason (DB CHECK); full audit (`erp_audit_logs`); effective-permissions diff. Operational seed only — **no** approval/treasury/security/platform/RLS/system permissions.
+- **Activation model:** **Global flag `KAKO_USER_ACCESS_OVERRIDES` AND per-company entitlement** (`platform.user_access_overrides`). Platform-wide = flag ON + all companies entitled. Preserves a global kill-switch and per-company disable.
+- **Complexity:** delivered (≈ M, default-OFF through E0–E4).
+- **Class:** **Must-Have** (governance).
+
 ## Recommended execution order (maximize pilot readiness → commercial value)
 1. **Phase 0 — fold into current hardening:** **Quick Actions** + **Saved Views** (cheap, ride on S1; immediate daily-speed wins for the pilot).
 2. **Phase 1 — pre-commercial core:** **Feature Flags** (first — de-risks every later rollout) → **Global Search** → **Notification Center** → **Bulk Actions** → **Master Data Import Center** (onboarding) → start **Command Center (role dashboards)**.
