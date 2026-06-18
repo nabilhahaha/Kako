@@ -21,20 +21,22 @@ export interface AuditFeedRow {
  * narrowed to a set of entity names. No writes, no logic change.
  */
 export async function loadEntityAudit(
-  entityId: string,
+  entityId: string | null,
   entities?: string[],
   limit = 12,
 ): Promise<AuditFeedRow[]> {
   const ctx = await getUserContext();
-  if (!ctx || !ctx.companyId || !hasPermission(ctx, 'settings.users') || !entityId) return [];
+  // Need at least one filter (a specific entity_id, or an entity allowlist).
+  if (!ctx || !ctx.companyId || !hasPermission(ctx, 'settings.users')) return [];
+  if (!entityId && !(entities && entities.length > 0)) return [];
   const supabase = await createClient();
   let q = supabase
     .from('erp_audit_logs')
     .select('id, action, entity, entity_id, actor_email, details, created_at')
     .eq('company_id', ctx.companyId)
-    .eq('entity_id', entityId)
     .order('created_at', { ascending: false })
     .limit(limit);
+  if (entityId) q = q.eq('entity_id', entityId);
   if (entities && entities.length > 0) q = q.in('entity', entities);
   const { data } = await q;
   return (data ?? []) as AuditFeedRow[];

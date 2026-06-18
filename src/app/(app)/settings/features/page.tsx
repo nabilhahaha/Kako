@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { getT } from '@/lib/i18n/server';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
 import { FEATURES } from '@/lib/erp/feature-catalog';
-import { FeaturesManager, type FeatureView } from './features-manager';
+import { FeaturesWorkbench, type FeatureView } from './features-workbench';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +32,7 @@ export default async function FeaturesPage() {
   return (
     <div>
       <PageHeader title={t('features.title')} description={t('features.description')} />
-      <FeaturesManager features={features} />
+      <FeaturesWorkbench features={features} />
     </div>
   );
 }
