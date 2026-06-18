@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
+import { SettingsSubnav } from '@/components/shared/settings-subnav';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { loadCompanyFinance } from '@/lib/onboarding/finance-server';
@@ -38,6 +39,11 @@ export default async function FinancePage() {
 
   return (
     <div>
+      <SettingsSubnav
+        backLabel={t('related.backToSettings')}
+        relatedLabel={t('related.title')}
+        related={[{ href: '/settings/tax-registrations', label: t('settingsHome.taxReg') }, { href: '/settings/numbering', label: t('settingsHome.numbering') }]}
+      />
       <PageHeader title={t('finance.pageTitle')} description={t('finance.pageDescription')} />
       <FinanceManager
         country={data.country}

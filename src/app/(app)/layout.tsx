@@ -159,6 +159,15 @@ export default async function AppLayout({
     }
   }
 
+  // Permission-filtered "+ Quick action" shortcuts (pure navigation).
+  const quickActions = [
+    (ctx.isSuperAdmin || hasPermission(ctx, 'settings.users')) && { href: '/settings/users', labelKey: 'quickActions.addUser', icon: 'user' },
+    hasPermission(ctx, 'settings.branches') && { href: '/settings/branches', labelKey: 'quickActions.addBranch', icon: 'branch' },
+    hasPermission(ctx, 'product.edit') && { href: '/settings/product-structure', labelKey: 'quickActions.addProduct', icon: 'product' },
+    hasPermission(ctx, 'integrations.manage') && { href: '/settings/import', labelKey: 'quickActions.import', icon: 'import' },
+    hasPermission(ctx, 'integrations.manage') && { href: '/settings/go-live', labelKey: 'quickActions.goLive', icon: 'rocket' },
+  ].filter(Boolean) as { href: string; labelKey: string; icon: string }[];
+
   return (
     <ConfirmProvider>
      <PromptProvider>
@@ -195,6 +204,7 @@ export default async function AppLayout({
               role: m.role,
             }))}
             notifications={notifications}
+            quickActions={quickActions}
           />
           {MOBILE_ENABLED() && <OfflineStatusBar />}
           {state === 'expiring' && left !== null && (

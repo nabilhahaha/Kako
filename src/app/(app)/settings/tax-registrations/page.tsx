@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
+import { SettingsSubnav } from '@/components/shared/settings-subnav';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { loadTaxRegistrations } from '@/lib/onboarding/tax-registration-server';
@@ -34,6 +35,11 @@ export default async function TaxRegistrationsPage() {
 
   return (
     <div>
+      <SettingsSubnav
+        backLabel={t('related.backToSettings')}
+        relatedLabel={t('related.title')}
+        related={[{ href: '/settings/finance', label: t('settingsHome.finance') }, { href: '/settings/numbering', label: t('settingsHome.numbering') }]}
+      />
       <PageHeader title={t('taxReg.pageTitle')} description={t('taxReg.pageDescription')} />
       <TaxRegistrationsManager
         registrations={data.registrations}

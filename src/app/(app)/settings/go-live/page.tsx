@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
+import { SettingsSubnav } from '@/components/shared/settings-subnav';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { loadOnboardingState } from '@/lib/onboarding/state-server';
@@ -42,6 +43,7 @@ export default async function GoLivePage() {
 
   return (
     <div>
+      <SettingsSubnav backLabel={t('related.backToSettings')} relatedLabel={t('related.title')} />
       <PageHeader title={t('goLive.pageTitle')} description={t('goLive.pageDescription')} />
       <GoLiveChecklist
         steps={ONBOARDING_STEPS}

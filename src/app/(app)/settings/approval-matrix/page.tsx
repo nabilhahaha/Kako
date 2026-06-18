@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
+import { SettingsSubnav } from '@/components/shared/settings-subnav';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { loadApprovalMatrix } from '@/lib/onboarding/approval-matrix-server';
@@ -37,6 +38,11 @@ export default async function ApprovalMatrixPage() {
 
   return (
     <div>
+      <SettingsSubnav
+        backLabel={t('related.backToSettings')}
+        relatedLabel={t('related.title')}
+        related={[{ href: '/settings/workflows', label: t('settingsHome.workflows') }, { href: '/settings/workflows/templates', label: t('settingsHome.workflowTemplates') }]}
+      />
       <PageHeader title={t('approvalMatrix.pageTitle')} description={t('approvalMatrix.pageDescription')} />
       <ApprovalMatrixManager scenarios={data.scenarios} roles={data.roles} />
     </div>

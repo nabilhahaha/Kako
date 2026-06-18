@@ -4,11 +4,20 @@ import { useState, useRef, useEffect } from 'react';
 import { BRANCH_ROLES } from '@/lib/erp/constants';
 import { initialsFromName } from '@/lib/utils';
 import type { BranchRole } from '@/lib/erp/types';
-import { LogOut, ChevronDown, ShieldCheck, Search } from 'lucide-react';
+import Link from 'next/link';
+import {
+  LogOut, ChevronDown, ShieldCheck, Search, Plus, Building2, Users, Package,
+  Upload, Rocket, type LucideIcon,
+} from 'lucide-react';
 import { NotificationsBell, type NotificationItem } from './notifications-bell';
 import { LanguageToggle } from './language-toggle';
 import { ThemeToggle } from './theme-toggle';
 import { useI18n } from '@/lib/i18n/provider';
+
+export interface QuickAction { href: string; labelKey: string; icon: string }
+const QA_ICONS: Record<string, LucideIcon> = {
+  branch: Building2, user: Users, product: Package, import: Upload, rocket: Rocket,
+};
 
 interface TopBarProps {
   fullName: string | null;
@@ -16,6 +25,50 @@ interface TopBarProps {
   isSuperAdmin: boolean;
   memberships: { branchName: string; role: BranchRole }[];
   notifications?: NotificationItem[];
+  quickActions?: QuickAction[];
+}
+
+/** Global "+ Quick action" menu — fast access to the most common create/admin
+ *  tasks. Items are pre-filtered by permission server-side. Pure navigation. */
+function QuickActionsMenu({ items }: { items: QuickAction[] }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function onClick(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+  if (items.length === 0) return null;
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-secondary"
+        aria-label={t('quickActions.title')}
+      >
+        <Plus className="h-4 w-4" />
+        <span className="hidden sm:inline">{t('quickActions.title')}</span>
+      </button>
+      {open && (
+        <div className="absolute end-0 z-40 mt-2 w-52 rounded-lg border bg-card p-1.5 shadow-lg">
+          {items.map((a) => {
+            const Icon = QA_ICONS[a.icon] ?? Plus;
+            return (
+              <Link
+                key={a.href}
+                href={a.href}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-secondary"
+              >
+                <Icon className="h-4 w-4 text-muted-foreground" /> {t(a.labelKey)}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function TopBar({
@@ -24,6 +77,7 @@ export function TopBar({
   isSuperAdmin,
   memberships,
   notifications = [],
+  quickActions = [],
 }: TopBarProps) {
   const { t, locale } = useI18n();
   const [open, setOpen] = useState(false);
@@ -62,6 +116,8 @@ export function TopBar({
       </div>
 
       <div className="flex items-center gap-2">
+      <QuickActionsMenu items={quickActions} />
+
       <button
         onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
         className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary"

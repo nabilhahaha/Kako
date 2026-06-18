@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
+import { SettingsSubnav } from '@/components/shared/settings-subnav';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { listSync } from './actions';
@@ -26,6 +27,11 @@ export default async function SyncPage() {
   const res = await listSync();
   return (
     <div>
+      <SettingsSubnav
+        backLabel={t('related.backToSettings')}
+        relatedLabel={t('related.title')}
+        related={[{ href: '/settings/integrations/connections', label: t('settingsHome.connections') }]}
+      />
       <PageHeader title={t('integrations.sync.title')} description={t('integrations.sync.subtitle')} />
       <SyncManager
         initialJobs={res.data?.jobs ?? []}

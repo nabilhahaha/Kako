@@ -81,6 +81,7 @@ import * as goLive from './go-live';
 import * as approvalMatrix from './approval-matrix';
 import * as taxRegistrations from './tax-registrations';
 import * as settingsHome from './settings-home';
+import * as quickActions from './quick-actions';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -110,6 +111,7 @@ const MODULES = [
   approvalMatrix,
   taxRegistrations,
   settingsHome,
+  quickActions,
 ];
 
 type Catalog = Record<string, unknown>;
