@@ -84,6 +84,7 @@ import * as settingsHome from './settings-home';
 import * as quickActions from './quick-actions';
 import * as accessOverrides from './access-overrides';
 import * as roleOverrides from './role-overrides';
+import * as adminWb from './admin-workbench';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -116,6 +117,7 @@ const MODULES = [
   quickActions,
   accessOverrides,
   roleOverrides,
+  adminWb,
 ];
 
 type Catalog = Record<string, unknown>;
