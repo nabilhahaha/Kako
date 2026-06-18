@@ -492,6 +492,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.gradingSetup', href: '/settings/outlet-grades', icon: Star, perm: 'grade.manage', group: 'nav.groups.dataFields' },
       // ── Finance & Numbering ──
       { label: 'nav.items.taxCurrency', href: '/settings/finance', icon: Receipt, perm: 'settings.branches', group: 'nav.groups.finance' },
+      { label: 'nav.items.taxRegistrations', href: '/settings/tax-registrations', icon: Receipt, perm: 'settings.branches', group: 'nav.groups.finance' },
       { label: 'nav.items.documentNumbering', href: '/settings/numbering', icon: Hash, perm: 'settings.branches', group: 'nav.groups.finance' },
       // ── Integrations ── (gated by the `integrations` plan-capability module so
       //     the entitlement chain Plan → Company module → Nav is consistent)
