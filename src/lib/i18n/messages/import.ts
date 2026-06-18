@@ -22,6 +22,7 @@ export const ar = {
       fileLabel: 'الملف',
       rowsLoaded: 'تم تحميل {count} صف',
       noFile: 'لم يتم اختيار ملف بعد.',
+      templateHint: 'ليس لديك ملف؟ نزّل قالباً جاهزاً بالأعمدة الصحيحة، املأه، ثم ارفعه هنا.',
     },
     mapping: {
       title: 'اربط أعمدة الملف بحقول النظام',
@@ -168,6 +169,7 @@ export const en = {
       fileLabel: 'File',
       rowsLoaded: '{count} rows loaded',
       noFile: 'No file selected yet.',
+      templateHint: 'No file yet? Download a ready-made template with the right columns, fill it in, then upload it here.',
     },
     mapping: {
       title: 'Map file columns to system fields',

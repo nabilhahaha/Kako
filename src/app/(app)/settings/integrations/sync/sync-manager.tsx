@@ -132,7 +132,24 @@ export function SyncManager({ initialJobs, initialRuns, connections }: {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="sj-interval">{t('integrations.sync.interval')}</Label>
-                  <Input id="sj-interval" type="number" min={1} dir="ltr" value={interval} onChange={(e) => setIntervalMin(e.target.value)} />
+                  <Select
+                    id="sj-interval"
+                    value={['15', '60', '360', '1440'].includes(interval) ? interval : 'custom'}
+                    onChange={(e) => { if (e.target.value !== 'custom') setIntervalMin(e.target.value); else setIntervalMin(''); }}
+                  >
+                    <option value="15">{t('integrations.sync.every15m')}</option>
+                    <option value="60">{t('integrations.sync.hourly')}</option>
+                    <option value="360">{t('integrations.sync.every6h')}</option>
+                    <option value="1440">{t('integrations.sync.daily')}</option>
+                    <option value="custom">{t('integrations.sync.custom')}</option>
+                  </Select>
+                  {!['15', '60', '360', '1440'].includes(interval) && (
+                    <Input
+                      type="number" min={1} dir="ltr" value={interval}
+                      onChange={(e) => setIntervalMin(e.target.value)}
+                      placeholder={t('integrations.sync.customMinutes')}
+                    />
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="sj-conflict">{t('integrations.sync.conflict')}</Label>

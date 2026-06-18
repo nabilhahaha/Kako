@@ -64,6 +64,7 @@ import {
   GraduationCap,
   Rocket,
   Star,
+  Hash,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -476,21 +477,28 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users', group: 'nav.groups.organization' },
+      { label: 'nav.items.orgStructure', href: '/settings/organization-structure', icon: Network, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.regions', href: '/settings/regions', icon: Map, perm: 'settings.branches', group: 'nav.groups.organization' },
       { label: 'nav.items.vanSalesSettings', href: '/settings/van-sales', icon: Truck, perm: 'settings.branches', flag: 'van_sales', module: 'van_sales', group: 'nav.groups.organization' },
       { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.organization' },
       // ── Data & Fields ──
       { label: 'nav.items.customerData', href: '/settings/customer-data', icon: Tags, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
       { label: 'nav.items.unitsOfMeasure', href: '/settings/uom', icon: Layers, perm: 'uom.manage', group: 'nav.groups.dataFields' },
+      { label: 'nav.items.productStructure', href: '/settings/product-structure', icon: Layers, perm: 'product.edit', group: 'nav.groups.dataFields' },
       { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
       { label: 'nav.items.fieldGovernance', href: '/settings/field-governance', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
       { label: 'nav.items.mslMatrix', href: '/settings/msl', icon: Layers, perm: 'assortment.manage', group: 'nav.groups.dataFields' },
       { label: 'nav.items.surveys', href: '/settings/surveys', icon: ClipboardCheck, perm: 'survey.manage', group: 'nav.groups.dataFields' },
       { label: 'nav.items.gradingSetup', href: '/settings/outlet-grades', icon: Star, perm: 'grade.manage', group: 'nav.groups.dataFields' },
+      // ── Finance & Numbering ──
+      { label: 'nav.items.taxCurrency', href: '/settings/finance', icon: Receipt, perm: 'settings.branches', group: 'nav.groups.finance' },
+      { label: 'nav.items.taxRegistrations', href: '/settings/tax-registrations', icon: Receipt, perm: 'settings.branches', group: 'nav.groups.finance' },
+      { label: 'nav.items.documentNumbering', href: '/settings/numbering', icon: Hash, perm: 'settings.branches', group: 'nav.groups.finance' },
       // ── Integrations ── (gated by the `integrations` plan-capability module so
       //     the entitlement chain Plan → Company module → Nav is consistent)
       { label: 'nav.items.integrationHub', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.customerOnboarding', href: '/settings/onboarding', icon: Rocket, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.goLive', href: '/settings/go-live', icon: Rocket, perm: 'integrations.manage', group: 'nav.groups.integrations' },
       { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataOnboarding', href: '/settings/data-onboarding', icon: Download, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
@@ -503,6 +511,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.features', href: '/settings/features', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.tenantAudit', href: '/settings/audit-log', icon: ScrollText, perm: 'settings.users', group: 'nav.groups.governance' },
       { label: 'nav.items.copilotAnalytics', href: '/platform/copilot-analytics', icon: HelpCircle, perm: 'settings.users', showForPlatformOwner: true, group: 'nav.groups.governance' },
+      { label: 'nav.items.approvalMatrix', href: '/settings/approval-matrix', icon: ShieldCheck, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
       { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
       { label: 'nav.items.workflowTemplates', href: '/settings/workflows/templates', icon: LayoutGrid, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
       { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.governance' },
