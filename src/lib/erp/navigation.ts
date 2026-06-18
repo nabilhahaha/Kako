@@ -512,9 +512,9 @@ export const NAV_SECTIONS: NavSection[] = [
       // ── Products & Data ──
       { label: 'nav.items.productStructure', href: '/settings/product-structure', icon: Layers, perm: 'product.edit', group: 'nav.groups.products' },
       { label: 'nav.items.unitsOfMeasure', href: '/settings/uom', icon: Layers, perm: 'uom.manage', group: 'nav.groups.products' },
-      { label: 'nav.items.customerData', href: '/settings/customer-data', icon: Tags, perm: 'settings.custom_fields', group: 'nav.groups.products' },
+      // M3-B: Fields + Governance + Customer Data are now tabs of the single
+      // Custom Fields page (/settings/custom-fields); old routes redirect to ?tab=…
       { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.products' },
-      { label: 'nav.items.fieldGovernance', href: '/settings/field-governance', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.products' },
       { label: 'nav.items.mslMatrix', href: '/settings/msl', icon: Layers, perm: 'assortment.manage', group: 'nav.groups.products' },
       { label: 'nav.items.surveys', href: '/settings/surveys', icon: ClipboardCheck, perm: 'survey.manage', group: 'nav.groups.products' },
       { label: 'nav.items.gradingSetup', href: '/settings/outlet-grades', icon: Star, perm: 'grade.manage', group: 'nav.groups.products' },
