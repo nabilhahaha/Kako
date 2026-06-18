@@ -74,7 +74,10 @@ export async function loadOrgStructure(): Promise<Result<OrgStructure>> {
   if (!ctx) return { ok: false, error };
   const supabase = await createClient();
 
-  const [{ data: levels, error: lErr }, { data: nodes, error: nErr }] = await Promise.all([
+  // All three reads are independent (branchIds come from ctx, not from the
+  // first queries), so fetch them in a single parallel round-trip.
+  const branchIds = ctx.memberships.map((m) => m.branch.id);
+  const [{ data: levels, error: lErr }, { data: nodes, error: nErr }, { data: staff }] = await Promise.all([
     supabase
       .from('erp_org_levels')
       .select('id, name, name_ar, depth, sort_order, parent_level_id, can_hold_users, can_hold_manager, system_key')
@@ -83,16 +86,15 @@ export async function loadOrgStructure(): Promise<Result<OrgStructure>> {
       .from('erp_org_nodes')
       .select('id, level_id, parent_node_id, name, name_ar, manager_user_id, sort_order, is_active, legacy_ref_type, legacy_ref_id')
       .eq('company_id', ctx.companyId!),
+    supabase
+      .from('erp_user_branches')
+      .select('user_id, profile:erp_profiles(id, full_name)')
+      .in('branch_id', branchIds.length > 0 ? branchIds : ['']),
   ]);
   if (lErr) return { ok: false, error: lErr.message };
   if (nErr) return { ok: false, error: nErr.message };
 
   // Assignable people = members of the caller's branches (RLS-scoped), deduped.
-  const branchIds = ctx.memberships.map((m) => m.branch.id);
-  const { data: staff } = await supabase
-    .from('erp_user_branches')
-    .select('user_id, profile:erp_profiles(id, full_name)')
-    .in('branch_id', branchIds.length > 0 ? branchIds : ['']);
   const seen = new Set<string>();
   const people: OrgPerson[] = [];
   for (const r of (staff as unknown[] | null) ?? []) {

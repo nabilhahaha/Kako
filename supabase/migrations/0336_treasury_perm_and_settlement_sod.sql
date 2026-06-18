@@ -25,11 +25,15 @@ where role_key = 'supervisor'
   and permission = 'day.close.settle';
 
 -- ── C-1: grant treasury.manage to the treasury roles ──────────────────────────
--- Pilot company override.
+-- Pilot company override. Defensive guard: only applies when the pilot company
+-- actually exists in this database, so a fresh provision (CI / new environment)
+-- skips it cleanly instead of hitting the company_id FK. No behaviour change
+-- where the company exists (staging/prod) — the grant is identical.
 insert into erp_company_role_permissions (company_id, role_key, permission)
 select '612af0bd-973c-4fed-8e76-80cf444ef9e0', r, 'treasury.manage'
 from (values ('cashier'), ('accountant'), ('admin'), ('manager')) v(r)
-where not exists (
+where exists (select 1 from erp_companies where id = '612af0bd-973c-4fed-8e76-80cf444ef9e0')
+  and not exists (
   select 1 from erp_company_role_permissions x
   where x.company_id = '612af0bd-973c-4fed-8e76-80cf444ef9e0'
     and x.role_key = v.r and x.permission = 'treasury.manage'
