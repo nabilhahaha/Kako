@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getPlatformContext } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { DEFAULT_PAGE_SIZE, param, pageNumber, rangeFor, type SearchParams } from '@/lib/list-params';
@@ -51,14 +51,13 @@ export default async function PlatformBillingPage({
 
   if (!pctx.isOwner) {
     return (
-      <div>
-        <PageHeader title={t('billing.title')} />
+      <ModulePage title={t('billing.title')}>
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             {t('billing.ownerOnly')}
           </CardContent>
         </Card>
-      </div>
+      </ModulePage>
     );
   }
 
@@ -192,8 +191,7 @@ export default async function PlatformBillingPage({
   }));
 
   return (
-    <div>
-      <PageHeader title={t('billing.title')} description={t('billing.subtitle')} />
+    <ModulePage title={t('billing.title')} subtitle={t('billing.subtitle')}>
       <BillingAdmin
         plans={(plans as PlanRow[]) ?? []}
         prices={(prices as PriceRow[]) ?? []}
@@ -211,6 +209,6 @@ export default async function PlatformBillingPage({
         invFilters={{ q: invQ, status: invStatus, date: invDate }}
         pageSize={pageSize}
       />
-    </div>
+    </ModulePage>
   );
 }
