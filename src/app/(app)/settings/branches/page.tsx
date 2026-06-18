@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { Branch, Company } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
 import { CompanyForm } from './company-form';
-import { BranchManager } from './branch-manager';
+import { BranchesWorkbench } from './branches-workbench';
 
 export default async function BranchesPage() {
   const ctx = await getUserContext();
@@ -59,16 +59,33 @@ export default async function BranchesPage() {
     .eq('company_id', company.id)
     .order('created_at', { ascending: true });
 
+  const branchList = (branches as Branch[]) ?? [];
+  const branchIds = branchList.map((b) => b.id);
+  let members: { user_id: string; branch_id: string; role: string; name: string }[] = [];
+  if (branchIds.length > 0) {
+    const { data: ubs } = await supabase
+      .from('erp_user_branches')
+      .select('user_id, branch_id, role')
+      .in('branch_id', branchIds);
+    const ids = [...new Set((ubs ?? []).map((u) => u.user_id as string))];
+    const nameById = new Map<string, string>();
+    if (ids.length > 0) {
+      const { data: profiles } = await supabase.from('erp_profiles').select('id, full_name, email').in('id', ids);
+      for (const p of profiles ?? []) nameById.set(p.id as string, (p.full_name as string) || (p.email as string) || (p.id as string));
+    }
+    members = (ubs ?? []).map((u) => ({
+      user_id: u.user_id as string, branch_id: u.branch_id as string, role: u.role as string,
+      name: nameById.get(u.user_id as string) ?? (u.user_id as string),
+    }));
+  }
+
   return (
     <div>
       <PageHeader
         title={t('settings.branches.pageTitle')}
         description={t('settings.branches.pageDescription', { name: company.name_ar || company.name })}
       />
-      <BranchManager
-        company={company}
-        branches={(branches as Branch[]) ?? []}
-      />
+      <BranchesWorkbench company={company} branches={branchList} members={members} />
     </div>
   );
 }
