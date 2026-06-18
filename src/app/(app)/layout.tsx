@@ -166,6 +166,7 @@ export default async function AppLayout({
     hasPermission(ctx, 'product.edit') && { href: '/settings/product-structure', labelKey: 'quickActions.addProduct', icon: 'product' },
     hasPermission(ctx, 'integrations.manage') && { href: '/settings/import', labelKey: 'quickActions.import', icon: 'import' },
     hasPermission(ctx, 'integrations.manage') && { href: '/settings/go-live', labelKey: 'quickActions.goLive', icon: 'rocket' },
+    (salesmanRequestsEnabled(tenantFeatures) && vanSalesActive && (hasPermission(ctx, 'field.sales') || ctx.isSuperAdmin)) && { href: '/field/van-sales/requests', labelKey: 'quickActions.fieldRequests', icon: 'requests' },
   ].filter(Boolean) as { href: string; labelKey: string; icon: string }[];
 
   return (

@@ -7,7 +7,7 @@ import type { BranchRole } from '@/lib/erp/types';
 import Link from 'next/link';
 import {
   LogOut, ChevronDown, ShieldCheck, Search, Plus, Building2, Users, Package,
-  Upload, Rocket, type LucideIcon,
+  Upload, Rocket, Inbox, type LucideIcon,
 } from 'lucide-react';
 import { NotificationsBell, type NotificationItem } from './notifications-bell';
 import { LanguageToggle } from './language-toggle';
@@ -16,7 +16,7 @@ import { useI18n } from '@/lib/i18n/provider';
 
 export interface QuickAction { href: string; labelKey: string; icon: string }
 const QA_ICONS: Record<string, LucideIcon> = {
-  branch: Building2, user: Users, product: Package, import: Upload, rocket: Rocket,
+  branch: Building2, user: Users, product: Package, import: Upload, rocket: Rocket, requests: Inbox,
 };
 
 interface TopBarProps {

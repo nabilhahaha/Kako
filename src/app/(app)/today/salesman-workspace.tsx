@@ -14,7 +14,8 @@ import { loadVanDayState, loadDayReopenGate } from '@/lib/van-sales/day-server';
 import type { VanDayState } from '@/lib/van-sales/day';
 import { loadNextCandidates } from '@/lib/van-sales/next-customer-server';
 import type { FeatureFlags } from '@/lib/erp/feature-flags';
-import { smartNextCustomerEnabled, dailySummaryEnabled, stockMovementReportEnabled } from '@/lib/van-sales/sell';
+import { smartNextCustomerEnabled, dailySummaryEnabled, stockMovementReportEnabled, salesmanRequestsEnabled } from '@/lib/van-sales/sell';
+import { FieldRequestsEntry } from '@/components/field/field-requests-entry';
 import { dayCloseApprovalEnabled } from '@/lib/van-sales/day-close-policy';
 import { ReopenRequestForm } from '@/app/(app)/field/van-sales/reopen-request-form';
 import { MyDayHero } from './my-day-hero';
@@ -59,6 +60,10 @@ export async function SalesmanWorkspace({ ctx, flags }: Props) {
 
       {/* ── PRIMARY NEXT ACTION (first chunk, no competing primaries) ── */}
       {hero ?? <DayCard ctx={ctx} state={state} startHref={startHref} />}
+
+      {salesmanRequestsEnabled(flags) && (
+        <FieldRequestsEntry title={t('vanSales.requests.title')} desc={t('vanSales.requests.tileDesc')} />
+      )}
 
       {/* Secondary operational actions, presented as equal tiles: Van Stock
           (Movement report when enabled) · Daily Summary · Off-route customers. */}

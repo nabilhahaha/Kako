@@ -8,6 +8,7 @@ export const ar = {
     addProduct: 'إضافة منتج',
     import: 'استيراد بيانات',
     goLive: 'الإعداد والتشغيل',
+    fieldRequests: 'الطلبات',
   },
   related: {
     title: 'صفحات ذات صلة:',
@@ -23,6 +24,7 @@ export const en = {
     addProduct: 'Add product',
     import: 'Import data',
     goLive: 'Setup & Go-Live',
+    fieldRequests: 'Field requests',
   },
   related: {
     title: 'Related:',

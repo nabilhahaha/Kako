@@ -165,6 +165,7 @@ export const ar = {
     requests: {
       title: 'الطلبات',
       subtitle: 'طلباتك التشغيلية في مكان واحد ومتابعة حالتها.',
+      tileDesc: 'اعرض وأنشئ طلبات الميدان',
       load: 'طلب تحميل',
       loadDesc: 'طلب تحميل بضاعة على السيارة من المخزن.',
       cashHandover: 'تسليم نقدية',
@@ -1042,6 +1043,7 @@ export const en = {
     requests: {
       title: 'Requests',
       subtitle: 'Your operational requests in one place, with status tracking.',
+      tileDesc: 'View and create field requests',
       load: 'Load request',
       loadDesc: 'Ask a warehouse to load stock onto the van.',
       cashHandover: 'Cash handover',
