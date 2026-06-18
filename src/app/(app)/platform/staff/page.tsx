@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { StaffManager, type StaffRow, type RoleDefault, type OverrideRow } from './staff-manager';
@@ -18,14 +18,13 @@ export default async function PlatformStaffPage() {
 
   if (!hasPlatformPermission(ctx, 'manage_users')) {
     return (
-      <div>
-        <PageHeader title={t('platformStaff.title')} />
+      <ModulePage title={t('platformStaff.title')}>
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             {t('platformStaff.ownerOnly')}
           </CardContent>
         </Card>
-      </div>
+      </ModulePage>
     );
   }
 
@@ -80,8 +79,7 @@ export default async function PlatformStaffPage() {
   });
 
   return (
-    <div>
-      <PageHeader title={t('platformStaff.title')} description={t('platformStaff.subtitle')} />
+    <ModulePage title={t('platformStaff.title')} subtitle={t('platformStaff.subtitle')}>
       <Suspense fallback={null}>
         <StaffManager
           staff={staffRows}
@@ -90,6 +88,6 @@ export default async function PlatformStaffPage() {
           canInvite={ctx.isOwner}
         />
       </Suspense>
-    </div>
+    </ModulePage>
   );
 }
