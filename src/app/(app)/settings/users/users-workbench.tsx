@@ -14,6 +14,7 @@ import { AdminWorkbench, useWorkbenchSelection } from '@/components/admin/admin-
 import { EntityListPanel } from '@/components/admin/entity-list-panel';
 import { EntityHeader, EntityTabs, DetailPlaceholder } from '@/components/admin/entity-detail';
 import { SectionCard } from '@/components/admin/section-card';
+import { EntityActionBar } from '@/components/admin/entity-action-bar';
 import { ContextPanel, ContextSection, SummaryList, RelatedChips } from '@/components/admin/context-panel';
 import { ActivityFeed } from '@/components/admin/activity-feed';
 import { initialsFromName } from '@/lib/utils';
@@ -126,16 +127,24 @@ export function UsersWorkbench({ currentUserId, profiles, branches, assignments,
             {!selected.is_active && <Badge variant="destructive">{t('settings.users.badgeSuspended')}</Badge>}
           </>
         }
-        actions={!isSelf && (
-          <>
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => toggleFlag({ is_super_admin: !selected.is_super_admin })}>
-              {selected.is_super_admin ? t('settings.users.revokeSuperAdmin') : t('settings.users.setSuperAdmin')}
-            </Button>
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => toggleFlag({ is_active: !selected.is_active })}>
-              {selected.is_active ? t('settings.users.deactivate') : t('settings.users.activate')}
-            </Button>
-          </>
-        )}
+        actions={
+          <EntityActionBar
+            actions={[
+              {
+                key: 'superadmin',
+                label: selected.is_super_admin ? t('settings.users.revokeSuperAdmin') : t('settings.users.setSuperAdmin'),
+                run: () => toggleFlag({ is_super_admin: !selected.is_super_admin }),
+                hidden: isSelf, disabled: pending,
+              },
+              {
+                key: 'active',
+                label: selected.is_active ? t('settings.users.deactivate') : t('settings.users.activate'),
+                run: () => toggleFlag({ is_active: !selected.is_active }),
+                hidden: isSelf, disabled: pending, destructive: selected.is_active, overflow: true,
+              },
+            ]}
+          />
+        }
       />
       <EntityTabs
         active={tab}

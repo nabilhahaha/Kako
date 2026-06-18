@@ -32,7 +32,8 @@ export const USER_ACCESS_OVERRIDES_ENABLED = (): boolean => on(process.env.KAKO_
  *  Independent of the other flags for separate rollout. */
 export const ROLE_PERMISSION_OVERRIDES_ENABLED = (): boolean => on(process.env.KAKO_ROLE_PERMISSION_OVERRIDES);
 
-/** Admin Navigation Tree (unified /admin launcher) — additive, default OFF. */
+/** Admin Navigation Tree (unified /admin launcher) — additive, default OFF.
+ *  Enabled per environment via KAKO_ADMIN_NAV_TREE (preview first, then promote). */
 export const ADMIN_NAV_TREE_ENABLED = (): boolean => on(process.env.KAKO_ADMIN_NAV_TREE);
 
 export * from './data-scope';
