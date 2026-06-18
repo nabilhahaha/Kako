@@ -30,12 +30,32 @@ export interface MemberOverrideState {
   overrides: { permission: string; effect: 'grant' | 'revoke' }[];
 }
 
+/** True when the Platform Owner has entitled this company for user access
+ *  overrides (reference/demo tenant first). Read-only; platform-owner-controlled. */
+export async function companyHasAccessOverridesEntitlement(
+  supabase: SupabaseClient,
+  companyId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('erp_company_entitlements')
+    .select('is_enabled')
+    .eq('company_id', companyId)
+    .eq('feature_key', 'platform.user_access_overrides')
+    .eq('is_enabled', true)
+    .limit(1);
+  return (data?.length ?? 0) > 0;
+}
+
 /** Members of the caller's company (collapsed to one entry per user). */
 export async function loadAccessOverridesConsole(
   supabase: SupabaseClient,
   ctx: UserContext,
 ): Promise<AccessOverridesConsoleData> {
-  const enabled = USER_ACCESS_OVERRIDES_ENABLED();
+  // Enabled = global flag ON AND this company is entitled (per-tenant scope).
+  const enabled =
+    USER_ACCESS_OVERRIDES_ENABLED() &&
+    !!ctx.companyId &&
+    (await companyHasAccessOverridesEntitlement(supabase, ctx.companyId));
   if (!ctx.companyId || !enabled) return { enabled, members: [] };
 
   const { data: memberRows } = await supabase.rpc('erp_scoped_members');

@@ -10,7 +10,12 @@ import {
   DELEGABLE_OPERATIONAL_PERMISSIONS,
   type AccessOverride,
 } from '@/lib/role-governance';
-import { loadMemberOverrideState, type MemberOverrideState } from '@/lib/erp/access-overrides-server';
+import {
+  loadMemberOverrideState,
+  companyHasAccessOverridesEntitlement,
+  type MemberOverrideState,
+} from '@/lib/erp/access-overrides-server';
+import { USER_ACCESS_OVERRIDES_ENABLED } from '@/lib/role-governance';
 
 /**
  * User Access Overrides — write API (E3).
@@ -47,13 +52,19 @@ async function requireCompanyAdmin(): Promise<AdminGuard | { ok: false; error: s
     ctx.isSuperAdmin === true ||
     ctx.memberships.some((m) => m.role === 'admin');
   if (!isAdmin || !ctx.companyId) return { ok: false, error: 'unauthorized' };
+  const supabase = await createClient();
+  // Feature gate: global flag ON AND this company is entitled (reference tenant
+  // first). Non-entitled companies cannot create/modify overrides at all.
+  if (!USER_ACCESS_OVERRIDES_ENABLED() || !(await companyHasAccessOverridesEntitlement(supabase, ctx.companyId))) {
+    return { ok: false, error: 'feature_not_enabled' };
+  }
   return {
     ok: true,
     companyId: ctx.companyId,
     userId: ctx.userId,
     isPlatformOwner: ctx.isPlatformOwner === true || ctx.isSuperAdmin === true,
     permissions: ctx.permissions as string[],
-    supabase: await createClient(),
+    supabase,
   };
 }
 

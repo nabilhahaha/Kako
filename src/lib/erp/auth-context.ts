@@ -217,6 +217,19 @@ async function resolveUserContext(): Promise<UserContext | null> {
   // dated rows still honour it. No deny rules beyond revoke; no RLS/visibility/
   // approval changes. Super admins already hold everything.
   if (!superAdmin && companyId && USER_ACCESS_OVERRIDES_ENABLED()) {
+    // Per-company gate: even with the global flag on, the override path applies
+    // ONLY to companies the Platform Owner has entitled (reference/demo tenant
+    // first). Queried only when the flag is on, so default-OFF adds no work.
+    const { data: ent } = await supabase
+      .from('erp_company_entitlements')
+      .select('is_enabled')
+      .eq('company_id', companyId)
+      .eq('feature_key', 'platform.user_access_overrides')
+      .eq('is_enabled', true)
+      .limit(1);
+    if (!ent || ent.length === 0) {
+      // not entitled → skip the override path entirely for this company
+    } else {
     const nowIso = new Date().toISOString();
     const { data: ovRows } = await supabase
       .from('erp_temporary_access_grants')
@@ -239,6 +252,7 @@ async function resolveUserContext(): Promise<UserContext | null> {
       log.info('access_override.applied', {
         userId: user.id, companyId, grants: appliedGrants, revokes: appliedRevokes,
       });
+    }
     }
   }
 
