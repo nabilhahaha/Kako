@@ -70,3 +70,87 @@ export function partitionGrantKeys(
   for (const k of new Set(keys)) (permSet.has(k) ? perms : roleKeys).push(k);
   return { perms, roleKeys };
 }
+
+// ── User Access Overrides (operational, per-user grant/revoke) ───────────────
+// Pure delegability logic + override application. The DB function
+// erp_is_delegable_permission mirrors this exactly (belt-and-suspenders). The
+// operational allowlist is the only thing a Company Admin may grant/revoke; the
+// deny-list can NEVER be delegated regardless of the allowlist.
+
+/** The operational permissions a Company Admin may grant/revoke per user. */
+export const DELEGABLE_OPERATIONAL_PERMISSIONS = [
+  'customer.request',
+  'stock_request.create',
+  'cash.handover.request',
+  'day.reopen.request',
+  'returns.create',
+  'sales.discount',
+] as const;
+
+/** Immutable deny-list: classes that can NEVER be delegated, even if mistakenly
+ *  added to the allowlist. Mirrors the SQL belt in erp_is_delegable_permission. */
+export function isNonDelegablePermission(perm: string): boolean {
+  return (
+    /^platform\./.test(perm) ||
+    /^security\./.test(perm) ||
+    /^rls\./.test(perm) ||
+    /^treasury\./.test(perm) ||
+    perm === 'super.admin' ||
+    perm === 'integrations.manage' ||
+    perm === 'accounting.post' ||
+    perm === 'settings.users'
+  );
+}
+
+/** True when `perm` is an operational permission a Company Admin may delegate. */
+export function isDelegableOperationalPermission(perm: string): boolean {
+  return (
+    (DELEGABLE_OPERATIONAL_PERMISSIONS as readonly string[]).includes(perm) &&
+    !isNonDelegablePermission(perm)
+  );
+}
+
+export interface AccessOverride {
+  permission: string;
+  effect: 'grant' | 'revoke';
+}
+
+/** Apply per-user operational overrides on top of a base permission set:
+ *  grants add, revokes remove — both bounded by the delegable operational set
+ *  (re-validated here, so a stored override outside the set is ignored). Pure. */
+export function applyAccessOverrides(
+  base: readonly string[],
+  overrides: readonly AccessOverride[],
+  isDelegable: (perm: string) => boolean = isDelegableOperationalPermission,
+): { effective: string[]; appliedGrants: string[]; appliedRevokes: string[] } {
+  const valid = overrides.filter((o) => isDelegable(o.permission));
+  const appliedGrants = [...new Set(valid.filter((o) => o.effect === 'grant').map((o) => o.permission))];
+  const appliedRevokes = [...new Set(valid.filter((o) => o.effect === 'revoke').map((o) => o.permission))];
+  const set = new Set(base);
+  for (const p of appliedGrants) set.add(p);
+  for (const p of appliedRevokes) set.delete(p);
+  return { effective: [...set], appliedGrants, appliedRevokes };
+}
+
+/** Effective-permissions diff for a user: role baseline vs. effective, with the
+ *  applied operational grants/revokes that explain the difference. Pure. */
+export function effectivePermissionsDiff(
+  baseline: readonly string[],
+  overrides: readonly AccessOverride[],
+  isDelegable: (perm: string) => boolean = isDelegableOperationalPermission,
+): {
+  baseline: string[];
+  effective: string[];
+  addedByGrant: string[];
+  removedByRevoke: string[];
+} {
+  const { effective, appliedGrants, appliedRevokes } = applyAccessOverrides(baseline, overrides, isDelegable);
+  const baseSet = new Set(baseline);
+  return {
+    baseline: [...baseline],
+    effective,
+    // only count grants that actually changed the set (weren't already present)
+    addedByGrant: appliedGrants.filter((p) => !baseSet.has(p)),
+    removedByRevoke: appliedRevokes.filter((p) => baseSet.has(p)),
+  };
+}

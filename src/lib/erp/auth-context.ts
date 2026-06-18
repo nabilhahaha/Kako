@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { Branch, BranchRole, Company, Profile } from './types';
 import { ALL_PERMISSIONS, applyFashionUmbrella, type Permission } from './permissions';
 import { ALL_MODULES, type Module } from './navigation';
-import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys } from '@/lib/role-governance';
+import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys, USER_ACCESS_OVERRIDES_ENABLED, applyAccessOverrides } from '@/lib/role-governance';
 import { log } from '@/lib/observability';
 
 export interface BranchMembership {
@@ -206,6 +206,39 @@ async function resolveUserContext(): Promise<UserContext | null> {
         permissions = [...new Set([...permissions, ...granted])];
         log.info('temp_access.applied', { userId: user.id, companyId, grants: keys, added });
       }
+    }
+  }
+
+  // User Access Overrides (Block 2, flag-gated KAKO_USER_ACCESS_OVERRIDES, default
+  // OFF). Independent of temporary-access above. Applies a user's PERMANENT
+  // operational overrides (kind='override'): grants add, revokes remove — bounded
+  // by the delegable operational allowlist (re-validated here every resolve, so a
+  // stored override outside the set is ignored). Permanent rows have a NULL window;
+  // dated rows still honour it. No deny rules beyond revoke; no RLS/visibility/
+  // approval changes. Super admins already hold everything.
+  if (!superAdmin && companyId && USER_ACCESS_OVERRIDES_ENABLED()) {
+    const nowIso = new Date().toISOString();
+    const { data: ovRows } = await supabase
+      .from('erp_temporary_access_grants')
+      .select('grant_key, effect, effective_from, effective_to')
+      .eq('company_id', companyId)
+      .eq('user_id', user.id)
+      .eq('kind', 'override')
+      .is('expired_at', null);
+    const active = (ovRows ?? []).filter((r) => {
+      const from = r.effective_from as string | null;
+      const to = r.effective_to as string | null;
+      return (from === null || from <= nowIso) && (to === null || to >= nowIso);
+    });
+    if (active.length > 0) {
+      const { effective, appliedGrants, appliedRevokes } = applyAccessOverrides(
+        permissions,
+        active.map((r) => ({ permission: r.grant_key as string, effect: r.effect as 'grant' | 'revoke' })),
+      );
+      permissions = effective as Permission[];
+      log.info('access_override.applied', {
+        userId: user.id, companyId, grants: appliedGrants, revokes: appliedRevokes,
+      });
     }
   }
 
