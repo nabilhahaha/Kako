@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Plug, Plus, Ban, PlayCircle, CheckCircle2, XCircle, type LucideIcon } from 'lucide-react';
+import { Plug, Plus, Ban, PlayCircle, CheckCircle2, XCircle, Pencil, type LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ export function ConnectionsManager({ initialConnections }: { initialConnections:
   const adapters = listConnectorAdapters();
   const [rows, setRows] = useState<ConnectionRow[]>(initialConnections);
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [name, setName] = useState('');
   const [adapterKey, setAdapterKey] = useState(adapters[0]?.key ?? '');
@@ -51,6 +52,40 @@ export function ConnectionsManager({ initialConnections }: { initialConnections:
     setDirection(a?.directions[0] ?? 'in');
     setConfig({});
     setSecret('');
+  }
+
+  function startEdit(row: ConnectionRow) {
+    setEditingId(row.id);
+    setName(row.name);
+    setAdapterKey(row.adapter);
+    setDirection(row.direction as typeof direction);
+    setConfig(Object.fromEntries(Object.entries(row.config ?? {}).map(([k, v]) => [k, v == null ? '' : String(v)])));
+    setSecret('');
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setName(''); setConfig({}); setSecret('');
+    setAdapterKey(adapters[0]?.key ?? '');
+  }
+
+  /** Save config changes to an existing connection (reuses updateConnection /
+   *  erp_integration_update — config-only; name, adapter and secret are fixed). */
+  async function saveEdit() {
+    if (!adapter || !editingId) return;
+    const invalid = adapter.validateConfig(config);
+    if (invalid) return toast.error(invalid);
+    setBusy(true);
+    try {
+      const res = await updateConnection(editingId, config, null);
+      if (!res.ok) return toast.error(res.error ?? t('integrations.connections.error'));
+      setRows((r) => r.map((x) => (x.id === editingId ? { ...x, config } : x)));
+      toast.success(t('integrations.connections.updated'));
+      cancelEdit();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function create() {
@@ -119,15 +154,19 @@ export function ConnectionsManager({ initialConnections }: { initialConnections:
       {/* Create */}
       <Card>
         <CardContent className="space-y-4 p-6">
-          <SectionHeader icon={Plus} title={t('integrations.connections.newTitle')} hint={t('integrations.connections.newHint')} />
+          <SectionHeader
+            icon={Plus}
+            title={editingId ? t('integrations.connections.editTitle') : t('integrations.connections.newTitle')}
+            hint={editingId ? t('integrations.connections.editHint') : t('integrations.connections.newHint')}
+          />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="cx-name">{t('integrations.connections.name')}</Label>
-              <Input id="cx-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('integrations.connections.namePlaceholder')} />
+              <Input id="cx-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('integrations.connections.namePlaceholder')} disabled={!!editingId} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="cx-adapter">{t('integrations.connections.adapter')}</Label>
-              <Select id="cx-adapter" value={adapterKey} onChange={(e) => pickAdapter(e.target.value)}>
+              <Select id="cx-adapter" value={adapterKey} onChange={(e) => pickAdapter(e.target.value)} disabled={!!editingId}>
                 {adapters.map((a) => <option key={a.key} value={a.key}>{label(a.labelEn, a.labelAr)}</option>)}
               </Select>
             </div>
@@ -156,7 +195,7 @@ export function ConnectionsManager({ initialConnections }: { initialConnections:
                   )}
                 </div>
               ))}
-              {adapter.secretField && (
+              {adapter.secretField && !editingId && (
                 <div className="space-y-1.5">
                   <Label htmlFor="cx-secret">{label(adapter.secretField.labelEn, adapter.secretField.labelAr)}</Label>
                   <Input id="cx-secret" type="password" dir="ltr" value={secret} onChange={(e) => setSecret(e.target.value)}
@@ -166,9 +205,25 @@ export function ConnectionsManager({ initialConnections }: { initialConnections:
               )}
             </div>
           )}
-          <Button disabled={busy} onClick={create} className="w-full sm:w-auto">
-            <Plug className="h-4 w-4" /> {t('integrations.connections.create')}
-          </Button>
+          {editingId && adapter?.secretField && (
+            <p className="text-xs text-muted-foreground">{t('integrations.connections.editSecretNote')}</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {editingId ? (
+              <>
+                <Button disabled={busy} onClick={saveEdit} className="w-full sm:w-auto">
+                  <Plug className="h-4 w-4" /> {t('integrations.connections.saveChanges')}
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={cancelEdit} className="w-full sm:w-auto">
+                  {t('integrations.connections.cancel')}
+                </Button>
+              </>
+            ) : (
+              <Button disabled={busy} onClick={create} className="w-full sm:w-auto">
+                <Plug className="h-4 w-4" /> {t('integrations.connections.create')}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -210,6 +265,9 @@ export function ConnectionsManager({ initialConnections }: { initialConnections:
                         <div className="flex flex-wrap items-center justify-end gap-1">
                           <Button size="sm" variant="outline" disabled={busy} onClick={() => runTest(c.id)}>
                             <PlayCircle className="h-3.5 w-3.5" /> {t('integrations.connections.test')}
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={busy} onClick={() => startEdit(c)}>
+                            <Pencil className="h-3.5 w-3.5" /> {t('integrations.connections.edit')}
                           </Button>
                           <Button size="sm" variant="outline" disabled={busy} onClick={() => toggle(c)}>
                             {c.isActive ? t('integrations.connections.disable') : t('integrations.connections.enable')}
