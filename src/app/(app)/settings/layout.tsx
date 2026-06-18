@@ -1,23 +1,27 @@
 import { getUserContext } from '@/lib/erp/auth-context';
-import { allowedSettingsHrefs, visibleSettingsGroups } from '@/lib/erp/settings-sections';
+import { resolveSettingsNavGroups } from '@/lib/erp/settings-nav-server';
 import { ModulePage } from '@/components/admin/module-page';
 import { SettingsGroupNav } from '@/components/admin/settings-group-nav';
 
 /**
- * Settings layout — implements the VANTORA Navigation Standard ("One rail, then
- * rise"): the Settings hub is re-chunked into ≤5 top groups and the active
- * group's pages, both rendered as top-grouping tabs (no persistent side rail).
- * The selected settings page renders verbatim in the content area. UX
- * standardization only — every existing settings page is unchanged; no
- * business-logic / permission / RLS / workflow change. Visibility is computed
- * server-side and remains permission-aware.
+ * Settings layout — the canonical Settings navigator (Navigation Standard). The
+ * global sidebar collapses Settings to a single link; here the one settings
+ * catalog (navigation.ts, via resolveSettingsNavGroups) is rendered as the
+ * two-tier Top Grouping. One source of truth, permission-aware, no second
+ * taxonomy. Pages render verbatim in the content area — no business-logic /
+ * permission / RLS / workflow change.
  */
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getUserContext();
-  const groups = ctx ? visibleSettingsGroups(allowedSettingsHrefs(ctx)) : [];
+  const groups = ctx ? await resolveSettingsNavGroups(ctx) : [];
+  const navGroups = groups.map((g) => ({
+    key: g.key,
+    label: g.key,
+    items: g.items.map((i) => ({ label: i.label, href: i.href })),
+  }));
 
   return (
-    <ModulePage nav={<SettingsGroupNav groups={groups} />}>
+    <ModulePage nav={<SettingsGroupNav groups={navGroups} />}>
       {children}
     </ModulePage>
   );

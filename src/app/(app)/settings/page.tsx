@@ -3,14 +3,17 @@ import { redirect } from 'next/navigation';
 import { Rocket, ArrowRight } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
+import { resolveSettingsNavGroups } from '@/lib/erp/settings-nav-server';
+import { SETTINGS_DESCRIPTIONS } from '@/lib/erp/settings-sections';
 import { getT } from '@/lib/i18n/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
-import { SETTINGS_SECTIONS, canSeeSettingsItem } from '@/lib/erp/settings-sections';
 
 /**
  * Settings home — a business-friendly landing rendered in the center of the
- * persistent Settings navigation (the nav lives in settings/layout.tsx). Pure
+ * canonical Settings navigation (the Top Grouping lives in settings/layout.tsx).
+ * Derives its grouped cards from the SAME single source as the nav
+ * (resolveSettingsNavGroups), so the grid and the tabs never diverge. Pure
  * navigation/discoverability; permission-aware. No data writes, no logic change.
  */
 export default async function SettingsHomePage() {
@@ -18,10 +21,7 @@ export default async function SettingsHomePage() {
   if (!ctx) redirect('/login');
   const { t } = await getT();
 
-  const sections = SETTINGS_SECTIONS
-    .map((s) => ({ ...s, items: s.items.filter((i) => canSeeSettingsItem(ctx, i)) }))
-    .filter((s) => s.items.length > 0);
-
+  const groups = await resolveSettingsNavGroups(ctx);
   const showGoLive = hasPermission(ctx, 'integrations.manage');
 
   return (
@@ -46,25 +46,29 @@ export default async function SettingsHomePage() {
       )}
 
       <div className="space-y-6">
-        {sections.map((s) => (
-          <section key={s.title} className="space-y-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t(s.title)}</h2>
+        {groups.map((g) => (
+          <section key={g.key} className="space-y-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t(g.key)}</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {s.items.map((i) => (
-                <Link key={i.href} href={i.href} className="block h-full">
-                  <Card className="h-full transition-colors hover:bg-secondary/50">
-                    <CardContent className="flex h-full items-start gap-3 p-4">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
-                        <i.icon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium leading-tight">{t(i.label)}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{t(i.desc)}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
+              {g.items.map((i) => {
+                const desc = SETTINGS_DESCRIPTIONS[i.href];
+                const Icon = i.icon;
+                return (
+                  <Link key={i.href} href={i.href} className="block h-full">
+                    <Card className="h-full transition-colors hover:bg-secondary/50">
+                      <CardContent className="flex h-full items-start gap-3 p-4">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium leading-tight">{t(i.label)}</p>
+                          {desc && <p className="mt-0.5 text-xs text-muted-foreground">{t(desc)}</p>}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
           </section>
         ))}

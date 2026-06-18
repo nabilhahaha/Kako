@@ -468,58 +468,61 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'nav.sections.settings',
-    // UX-1: items grouped into labeled subsections (Organization / Data & Fields /
-    // Integrations / Governance / Personal), ordered most-used first within each.
+    // Navigation Standard (canonical Settings taxonomy): a single source of truth
+    // for Settings. The global sidebar collapses this whole section to one
+    // "Settings" link; the in-page Top Grouping (settings/layout.tsx) renders these
+    // items grouped by `group` into the canonical groups below. No page, gate, or
+    // route changed here — only the grouping + two M2 label renames (Reporting
+    // Lines, Connections). Groups: Organization · Finance & Compliance · People &
+    // Roles · Products & Data · Automation & Policies · Integrations · Personal.
     items: [
       { label: 'nav.items.settingsHome', href: '/settings', icon: LayoutDashboard },
       // ── Organization ──
       { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, perm: 'settings.branches', group: 'nav.groups.organization' },
-      { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.organization' },
-      { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.organization' },
-      { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.orgStructure', href: '/settings/organization-structure', icon: Network, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.regions', href: '/settings/regions', icon: Map, perm: 'settings.branches', group: 'nav.groups.organization' },
-      { label: 'nav.items.vanSalesSettings', href: '/settings/van-sales', icon: Truck, perm: 'settings.branches', flag: 'van_sales', module: 'van_sales', group: 'nav.groups.organization' },
-      { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.organization' },
-      // ── Data & Fields ──
-      { label: 'nav.items.customerData', href: '/settings/customer-data', icon: Tags, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.unitsOfMeasure', href: '/settings/uom', icon: Layers, perm: 'uom.manage', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.productStructure', href: '/settings/product-structure', icon: Layers, perm: 'product.edit', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.fieldGovernance', href: '/settings/field-governance', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.mslMatrix', href: '/settings/msl', icon: Layers, perm: 'assortment.manage', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.surveys', href: '/settings/surveys', icon: ClipboardCheck, perm: 'survey.manage', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.gradingSetup', href: '/settings/outlet-grades', icon: Star, perm: 'grade.manage', group: 'nav.groups.dataFields' },
-      // ── Finance & Numbering ──
+      // ── Finance & Compliance ──
       { label: 'nav.items.taxCurrency', href: '/settings/finance', icon: Receipt, perm: 'settings.branches', group: 'nav.groups.finance' },
       { label: 'nav.items.taxRegistrations', href: '/settings/tax-registrations', icon: Receipt, perm: 'settings.branches', group: 'nav.groups.finance' },
       { label: 'nav.items.documentNumbering', href: '/settings/numbering', icon: Hash, perm: 'settings.branches', group: 'nav.groups.finance' },
-      // ── Integrations ── (gated by the `integrations` plan-capability module so
-      //     the entitlement chain Plan → Company module → Nav is consistent)
+      { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.finance' },
+      // ── People & Roles ──
+      { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.people' },
+      { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.people' },
+      { label: 'nav.items.authzConsole', href: '/settings/authz', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.people' },
+      { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true, group: 'nav.groups.people' },
+      { label: 'nav.items.actionPolicies', href: '/settings/action-policies', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.people' },
+      { label: 'nav.items.tenantAudit', href: '/settings/audit-log', icon: ScrollText, perm: 'settings.users', group: 'nav.groups.people' },
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, group: 'nav.groups.people' },
+      // ── Products & Data ──
+      { label: 'nav.items.productStructure', href: '/settings/product-structure', icon: Layers, perm: 'product.edit', group: 'nav.groups.products' },
+      { label: 'nav.items.unitsOfMeasure', href: '/settings/uom', icon: Layers, perm: 'uom.manage', group: 'nav.groups.products' },
+      { label: 'nav.items.customerData', href: '/settings/customer-data', icon: Tags, perm: 'settings.custom_fields', group: 'nav.groups.products' },
+      { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.products' },
+      { label: 'nav.items.fieldGovernance', href: '/settings/field-governance', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.products' },
+      { label: 'nav.items.mslMatrix', href: '/settings/msl', icon: Layers, perm: 'assortment.manage', group: 'nav.groups.products' },
+      { label: 'nav.items.surveys', href: '/settings/surveys', icon: ClipboardCheck, perm: 'survey.manage', group: 'nav.groups.products' },
+      { label: 'nav.items.gradingSetup', href: '/settings/outlet-grades', icon: Star, perm: 'grade.manage', group: 'nav.groups.products' },
+      { label: 'nav.items.features', href: '/settings/features', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.products' },
+      { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.products' },
+      // ── Automation & Policies ──
+      { label: 'nav.items.approvalMatrix', href: '/settings/approval-matrix', icon: ShieldCheck, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.automation' },
+      { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.automation' },
+      { label: 'nav.items.workflowTemplates', href: '/settings/workflows/templates', icon: LayoutGrid, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.automation' },
+      { label: 'nav.items.returnPolicy', href: '/settings/returns', icon: Undo2, perm: 'settings.workflow_policy', group: 'nav.groups.automation' },
+      { label: 'nav.items.dayClosePolicy', href: '/settings/day-close', icon: CalendarDays, perm: 'settings.workflow_policy', group: 'nav.groups.automation' },
+      // ── Integrations ──
       { label: 'nav.items.integrationHub', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.customerOnboarding', href: '/settings/onboarding', icon: Rocket, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.goLive', href: '/settings/go-live', icon: Rocket, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataOnboarding', href: '/settings/data-onboarding', icon: Download, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
-      // ── Governance ──
-      { label: 'nav.items.authzConsole', href: '/settings/authz', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.governance' },
-      { label: 'nav.items.actionPolicies', href: '/settings/action-policies', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.governance' },
-      { label: 'nav.items.returnPolicy', href: '/settings/returns', icon: Undo2, perm: 'settings.workflow_policy', group: 'nav.groups.governance' },
-      { label: 'nav.items.dayClosePolicy', href: '/settings/day-close', icon: CalendarDays, perm: 'settings.workflow_policy', group: 'nav.groups.governance' },
-      { label: 'nav.items.features', href: '/settings/features', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.governance' },
-      { label: 'nav.items.tenantAudit', href: '/settings/audit-log', icon: ScrollText, perm: 'settings.users', group: 'nav.groups.governance' },
-      { label: 'nav.items.copilotAnalytics', href: '/platform/copilot-analytics', icon: HelpCircle, perm: 'settings.users', showForPlatformOwner: true, group: 'nav.groups.governance' },
-      { label: 'nav.items.approvalMatrix', href: '/settings/approval-matrix', icon: ShieldCheck, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
-      { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
-      { label: 'nav.items.workflowTemplates', href: '/settings/workflows/templates', icon: LayoutGrid, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
-      { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.governance' },
-      // Tenant super-admins reach the audit log here; the platform owner/staff
-      // see it under the Platform → Team & Access group (no duplicate).
-      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, group: 'nav.groups.governance' },
+      { label: 'nav.items.vanSalesSettings', href: '/settings/van-sales', icon: Truck, perm: 'settings.branches', flag: 'van_sales', module: 'van_sales', group: 'nav.groups.integrations' },
       // ── Personal ──
+      { label: 'nav.items.copilotAnalytics', href: '/platform/copilot-analytics', icon: HelpCircle, perm: 'settings.users', showForPlatformOwner: true, group: 'nav.groups.personal' },
       { label: 'nav.items.designSystem', href: '/design', icon: Palette, superAdminOnly: true, group: 'nav.groups.personal' },
       { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true, group: 'nav.groups.personal' },
     ],
