@@ -5,9 +5,42 @@ import {
   isNonDelegablePermission,
   applyAccessOverrides,
   effectivePermissionsDiff,
+  effectivePermissionsDiffLayered,
   groupOperationalPermissions,
   type AccessOverride,
 } from './index';
+
+describe('role + user overrides — layered resolution (user wins)', () => {
+  it('role grant adds for everyone; user revoke removes for that user', () => {
+    // Salesman role lacks customer.request; role grant adds it; Ahmed has a user revoke.
+    const baseline = ['sales.sell'];
+    const roleOv: AccessOverride[] = [{ permission: 'customer.request', effect: 'grant' }];
+    const userOv: AccessOverride[] = [{ permission: 'customer.request', effect: 'revoke' }];
+    const d = effectivePermissionsDiffLayered(baseline, roleOv, userOv);
+    expect(d.afterRole).toContain('customer.request');     // role granted it
+    expect(d.roleAdded).toEqual(['customer.request']);
+    expect(d.effective).not.toContain('customer.request'); // user revoke wins
+    expect(d.userRemoved).toEqual(['customer.request']);
+  });
+
+  it('without a user override, the role override stands', () => {
+    const d = effectivePermissionsDiffLayered(['sales.sell'], [{ permission: 'customer.request', effect: 'grant' }], []);
+    expect(d.effective).toContain('customer.request');
+    expect(d.userAdded).toEqual([]);
+  });
+
+  it('non-delegable role/user overrides are ignored at both layers', () => {
+    const d = effectivePermissionsDiffLayered(
+      ['sales.sell'],
+      [{ permission: 'accounting.post', effect: 'grant' }],
+      [{ permission: 'platform.manage', effect: 'grant' }],
+    );
+    expect(d.effective).not.toContain('accounting.post');
+    expect(d.effective).not.toContain('platform.manage');
+    expect(d.roleAdded).toEqual([]);
+    expect(d.userAdded).toEqual([]);
+  });
+});
 
 describe('user access overrides — delegability', () => {
   it('all six operational permissions are delegable', () => {

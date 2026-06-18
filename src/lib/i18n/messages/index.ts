@@ -83,6 +83,7 @@ import * as taxRegistrations from './tax-registrations';
 import * as settingsHome from './settings-home';
 import * as quickActions from './quick-actions';
 import * as accessOverrides from './access-overrides';
+import * as roleOverrides from './role-overrides';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -114,6 +115,7 @@ const MODULES = [
   settingsHome,
   quickActions,
   accessOverrides,
+  roleOverrides,
 ];
 
 type Catalog = Record<string, unknown>;

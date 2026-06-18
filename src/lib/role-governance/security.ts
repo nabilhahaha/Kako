@@ -122,6 +122,7 @@ export const OPERATIONAL_PERMISSION_GROUPS: { key: string; permissions: string[]
   { key: 'sales', permissions: ['sales.discount'] },
   { key: 'collections', permissions: ['cash.handover.request'] },
   { key: 'operations', permissions: ['returns.create'] },
+  { key: 'inventory', permissions: ['inventory.adjust', 'stock.transfer'] },
 ];
 
 /** Group a set of (delegable) permissions into the UI groups above, preserving
@@ -179,5 +180,37 @@ export function effectivePermissionsDiff(
     // only count grants that actually changed the set (weren't already present)
     addedByGrant: appliedGrants.filter((p) => !baseSet.has(p)),
     removedByRevoke: appliedRevokes.filter((p) => baseSet.has(p)),
+  };
+}
+
+/** Two-layer effective diff for a user: role baseline → ROLE overrides → USER
+ *  overrides → effective. User-level is applied last, so it wins. Each layer
+ *  reports the grants/revokes that actually changed the running set. Pure. */
+export function effectivePermissionsDiffLayered(
+  baseline: readonly string[],
+  roleOverrides: readonly AccessOverride[],
+  userOverrides: readonly AccessOverride[],
+  isDelegable: (perm: string) => boolean = isDelegableOperationalPermission,
+): {
+  baseline: string[];
+  afterRole: string[];
+  effective: string[];
+  roleAdded: string[];
+  roleRemoved: string[];
+  userAdded: string[];
+  userRemoved: string[];
+} {
+  const roleLayer = applyAccessOverrides(baseline, roleOverrides, isDelegable);
+  const baseSet = new Set(baseline);
+  const userLayer = applyAccessOverrides(roleLayer.effective, userOverrides, isDelegable);
+  const afterRoleSet = new Set(roleLayer.effective);
+  return {
+    baseline: [...baseline],
+    afterRole: roleLayer.effective,
+    effective: userLayer.effective,
+    roleAdded: roleLayer.appliedGrants.filter((p) => !baseSet.has(p)),
+    roleRemoved: roleLayer.appliedRevokes.filter((p) => baseSet.has(p)),
+    userAdded: userLayer.appliedGrants.filter((p) => !afterRoleSet.has(p)),
+    userRemoved: userLayer.appliedRevokes.filter((p) => afterRoleSet.has(p)),
   };
 }

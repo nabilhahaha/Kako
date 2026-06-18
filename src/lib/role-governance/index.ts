@@ -26,6 +26,12 @@ export const TEMP_ACCESS_ENFORCEMENT_ENABLED = (): boolean => on(process.env.KAK
  *  it can be enabled per environment after review. Default OFF → no tenant has it. */
 export const USER_ACCESS_OVERRIDES_ENABLED = (): boolean => on(process.env.KAKO_USER_ACCESS_OVERRIDES);
 
+/** Role Permission Overrides ENFORCEMENT flag (default OFF). When on (AND the
+ *  company is entitled), getUserContext applies a ROLE's operational overrides
+ *  (kind='role_override') before user overrides — so user-level always wins.
+ *  Independent of the other flags for separate rollout. */
+export const ROLE_PERMISSION_OVERRIDES_ENABLED = (): boolean => on(process.env.KAKO_ROLE_PERMISSION_OVERRIDES);
+
 export * from './data-scope';
 export * from './approval-authority';
 export * from './security';

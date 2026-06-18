@@ -35,12 +35,13 @@ export interface MemberOverrideState {
 export async function companyHasAccessOverridesEntitlement(
   supabase: SupabaseClient,
   companyId: string,
+  featureKey = 'platform.user_access_overrides',
 ): Promise<boolean> {
   const { data } = await supabase
     .from('erp_company_entitlements')
     .select('is_enabled')
     .eq('company_id', companyId)
-    .eq('feature_key', 'platform.user_access_overrides')
+    .eq('feature_key', featureKey)
     .eq('is_enabled', true)
     .limit(1);
   return (data?.length ?? 0) > 0;

@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { Branch, BranchRole, Company, Profile } from './types';
 import { ALL_PERMISSIONS, applyFashionUmbrella, type Permission } from './permissions';
 import { ALL_MODULES, type Module } from './navigation';
-import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys, USER_ACCESS_OVERRIDES_ENABLED, applyAccessOverrides } from '@/lib/role-governance';
+import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys, USER_ACCESS_OVERRIDES_ENABLED, ROLE_PERMISSION_OVERRIDES_ENABLED, applyAccessOverrides } from '@/lib/role-governance';
 import { log } from '@/lib/observability';
 
 export interface BranchMembership {
@@ -205,6 +205,39 @@ async function resolveUserContext(): Promise<UserContext | null> {
       if (added.length > 0) {
         permissions = [...new Set([...permissions, ...granted])];
         log.info('temp_access.applied', { userId: user.id, companyId, grants: keys, added });
+      }
+    }
+  }
+
+  // Role Permission Overrides (Block 1.5, flag-gated KAKO_ROLE_PERMISSION_OVERRIDES
+  // AND per-company entitlement, default OFF). Applies a ROLE's operational
+  // overrides (kind='role_override', role_key IN the user's roles) — grants add,
+  // revokes remove — bounded by the delegable operational allowlist. Applied
+  // BEFORE user overrides so user-level always wins. Super admins hold everything.
+  if (!superAdmin && companyId && ROLE_PERMISSION_OVERRIDES_ENABLED()) {
+    const { data: rent } = await supabase
+      .from('erp_company_entitlements')
+      .select('is_enabled')
+      .eq('company_id', companyId)
+      .eq('feature_key', 'platform.role_permission_overrides')
+      .eq('is_enabled', true)
+      .limit(1);
+    const userRoles = [...new Set(memberships.map((m) => m.role as string))];
+    if (rent && rent.length > 0 && userRoles.length > 0) {
+      const { data: roleRows } = await supabase
+        .from('erp_temporary_access_grants')
+        .select('grant_key, effect')
+        .eq('company_id', companyId)
+        .eq('kind', 'role_override')
+        .is('expired_at', null)
+        .in('role_key', userRoles);
+      if (roleRows && roleRows.length > 0) {
+        const { effective, appliedGrants, appliedRevokes } = applyAccessOverrides(
+          permissions,
+          roleRows.map((r) => ({ permission: r.grant_key as string, effect: r.effect as 'grant' | 'revoke' })),
+        );
+        permissions = effective as Permission[];
+        log.info('role_override.applied', { userId: user.id, companyId, roles: userRoles, grants: appliedGrants, revokes: appliedRevokes });
       }
     }
   }
