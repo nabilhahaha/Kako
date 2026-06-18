@@ -471,6 +471,7 @@ export const NAV_SECTIONS: NavSection[] = [
     // UX-1: items grouped into labeled subsections (Organization / Data & Fields /
     // Integrations / Governance / Personal), ordered most-used first within each.
     items: [
+      { label: 'nav.items.settingsHome', href: '/settings', icon: LayoutDashboard },
       // ── Organization ──
       { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, perm: 'settings.branches', group: 'nav.groups.organization' },
       { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.organization' },
