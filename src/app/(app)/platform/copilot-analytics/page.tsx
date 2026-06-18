@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { BarChart3, MessageCircleQuestion, MonitorX, ShieldAlert, Activity, Percent } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { StatCard } from '@/components/shared/stat-card';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,13 +32,12 @@ export default async function CopilotAnalyticsPage() {
 
   if (!res.ok || !res.data) {
     return (
-      <div>
-        <PageHeader title={t('copilot.analyticsTitle')} description={t('copilot.analyticsDescription')} />
+      <ModulePage title={t('copilot.analyticsTitle')} subtitle={t('copilot.analyticsDescription')}>
         <EmptyState
           icon={<BarChart3 />}
           title={t('copilot.analyticsAdminOnly')}
         />
-      </div>
+      </ModulePage>
     );
   }
 
@@ -70,8 +69,8 @@ export default async function CopilotAnalyticsPage() {
   const typeLabel = (key: string) => typeLabels[key] ?? key;
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t('copilot.analyticsTitle')} description={t('copilot.analyticsDescription')} />
+    <ModulePage title={t('copilot.analyticsTitle')} subtitle={t('copilot.analyticsDescription')}>
+      <div className="space-y-6">
 
       {data.total === 0 ? (
         <EmptyState icon={<BarChart3 />} title={t('copilot.analyticsEmpty')} />
@@ -125,7 +124,8 @@ export default async function CopilotAnalyticsPage() {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </ModulePage>
   );
 }
 

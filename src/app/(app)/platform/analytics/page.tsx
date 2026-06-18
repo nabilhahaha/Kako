@@ -18,7 +18,7 @@ import {
 import { getPlatformContext } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
 import { getT } from '@/lib/i18n/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { StatCard, type StatTone } from '@/components/shared/stat-card';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -89,14 +89,13 @@ export default async function PlatformAnalyticsPage({
 
   if (!pctx.isOwner) {
     return (
-      <div>
-        <PageHeader title={t('platformAnalytics.title')} />
+      <ModulePage title={t('platformAnalytics.title')}>
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             {t('platformAnalytics.ownerOnly')}
           </CardContent>
         </Card>
-      </div>
+      </ModulePage>
     );
   }
 
@@ -296,12 +295,11 @@ export default async function PlatformAnalyticsPage({
   ];
 
   return (
-    <div>
-      <PageHeader
-        title={t('platformAnalytics.title')}
-        description={t('platformAnalytics.description')}
-        action={<RangeSelector value={range} />}
-      />
+    <ModulePage
+      title={t('platformAnalytics.title')}
+      subtitle={t('platformAnalytics.description')}
+      actions={<RangeSelector value={range} />}
+    >
 
       {/* Cross-links to deeper screens */}
       <div className="mb-6 flex flex-wrap gap-2">
@@ -452,6 +450,6 @@ export default async function PlatformAnalyticsPage({
           </CardContent>
         </Card>
       </div>
-    </div>
+    </ModulePage>
   );
 }
