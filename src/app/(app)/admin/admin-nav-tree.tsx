@@ -38,6 +38,7 @@ export function AdminNavTree({ allowedTypes }: { allowedTypes: NavType[] }) {
 
   const groups = useMemo(() => ALL_GROUPS.filter((g) => allowedTypes.includes(g.type)), [allowedTypes]);
   const needle = q.trim().toLowerCase();
+  const RENDER_CAP = 300; // windowing-ready: cap large branches, hint to refine
 
   function toggle(type: NavType) {
     setOpen((prev) => {
@@ -88,16 +89,21 @@ export function AdminNavTree({ allowedTypes }: { allowedTypes: NavType[] }) {
                     ) : list.length === 0 ? (
                       <p className="px-1 py-1 text-xs text-muted-foreground">—</p>
                     ) : (
-                      list.map((n) => (
-                        <Link
-                          key={n.id}
-                          href={n.href}
-                          className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 text-sm ${isActive(n) ? 'bg-secondary font-medium text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'}`}
-                        >
-                          <span className="min-w-0 truncate">{n.label}</span>
-                          {n.secondary && <span className="shrink-0 text-[10px] text-muted-foreground" dir="ltr">{n.secondary}</span>}
-                        </Link>
-                      ))
+                      <>
+                        {list.slice(0, RENDER_CAP).map((n) => (
+                          <Link
+                            key={n.id}
+                            href={n.href}
+                            className={`flex h-8 items-center justify-between gap-2 rounded-md px-2 text-sm ${isActive(n) ? 'bg-secondary font-medium text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'}`}
+                          >
+                            <span className="min-w-0 truncate">{n.label}</span>
+                            {n.secondary && <span className="shrink-0 text-[10px] text-muted-foreground" dir="ltr">{n.secondary}</span>}
+                          </Link>
+                        ))}
+                        {list.length > RENDER_CAP && (
+                          <p className="px-2 py-1 text-[10px] text-muted-foreground">{list.length} · {t('adminWb.navSearch')}</p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
