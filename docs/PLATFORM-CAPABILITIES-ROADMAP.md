@@ -227,6 +227,14 @@ Existing foundations are noted so we reuse, not rebuild.
 - **Effort:** shell + component library ≈ 1 sprint; per-module migration S each. **Complexity:** **L** (breadth).
 - **Class:** **Must-Have** (enterprise admin UX). See `docs/audits/ADMIN-UX-STANDARDIZATION-DESIGN.md`.
 
+## 21. Admin Workbench — post-migration UX sequence (design-approved)
+After the Admin Workbench migration program completes (Users · Roles · Companies · Branches · Features · **Settings** · **Integrations**), execute in this order:
+1. **Navigation Tree** (+ persistent, lazy, searchable, role-aware) — see §20.
+2. **EntityActionBar** — a consistent action area across every entity: **contextual + permission-aware** actions, reusing existing actions only (no business-logic / permission / RLS change). Examples — Users: New User · Reset Password · Assign Role · Deactivate; Companies: New · Activate · Suspend · Renew · Change Plan; Roles: New · Clone · Archive. Likely a new `EntityActionBar` component in `src/components/admin/`.
+3. **Favorites** (`erp_admin_favorites`, user-scoped, additive).
+4. **Quick Create** (inline, from the tree/action bar).
+Then evaluate the transition to a unified **`/admin` shell**. The **Industry-Pack hierarchy** stays a separate architecture workstream (§19).
+
 ## Recommended execution order (maximize pilot readiness → commercial value)
 1. **Phase 0 — fold into current hardening:** **Quick Actions** + **Saved Views** (cheap, ride on S1; immediate daily-speed wins for the pilot).
 2. **Phase 1 — pre-commercial core:** **Feature Flags** (first — de-risks every later rollout) → **Global Search** → **Notification Center** → **Bulk Actions** → **Master Data Import Center** (onboarding) → start **Command Center (role dashboards)**.
