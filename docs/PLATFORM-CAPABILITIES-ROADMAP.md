@@ -210,6 +210,15 @@ Existing foundations are noted so we reuse, not rebuild.
 - **Complexity:** delivered (≈ M, default-OFF through E0–E4).
 - **Class:** **Must-Have** (governance).
 
+## 19. Role Permission Overrides (Bulk Role Overrides)
+- **Status:** 📐 **Design approved — not built** (next authorization enhancement after UAO).
+- **Business value:** Company Admins grant/revoke delegable **operational** permissions for an entire **role** at once (e.g. all Salesmen + `customer.request`), without editing users individually.
+- **Architecture:** Reuses the UAO engine — extends `erp_temporary_access_grants` with `role_key` + `kind='role_override'` (no new engine, no duplicate tables). Resolution order: **base role perms → role overrides → user overrides → effective**, so **user-level overrides always win** over role-level.
+- **Reuse:** delegable allowlist, immutable deny-list (`erp_is_delegable_permission`), admin-gated RLS, `applyAccessOverrides`/diff pure logic, audit, entitlement engine, grouping helper — all reused. New: `role_key` column, one `kind` value, a resolver block, role-scoped actions, and a Role Overrides page.
+- **Guardrails:** default OFF · flag `KAKO_ROLE_PERMISSION_OVERRIDES` AND entitlement `platform.role_permission_overrides` · global kill-switch · per-company disable · mandatory reason · full audit · RLS. No approval/treasury/security/platform/RLS/super-admin permissions.
+- **Effort:** ≈ 6–7 engineer-days (reuse-heavy). **Complexity:** **M**.
+- **Class:** **Must-Have** (governance). See design doc `docs/audits/ROLE-PERMISSION-OVERRIDES-DESIGN.md`.
+
 ## Recommended execution order (maximize pilot readiness → commercial value)
 1. **Phase 0 — fold into current hardening:** **Quick Actions** + **Saved Views** (cheap, ride on S1; immediate daily-speed wins for the pilot).
 2. **Phase 1 — pre-commercial core:** **Feature Flags** (first — de-risks every later rollout) → **Global Search** → **Notification Center** → **Bulk Actions** → **Master Data Import Center** (onboarding) → start **Command Center (role dashboards)**.
