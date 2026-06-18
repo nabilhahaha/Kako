@@ -1,99 +1,25 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import {
-  Building2, Receipt, Hash, Users, ShieldCheck, UserCog, Network, Map, Layers,
-  GitBranch, LayoutGrid, Plug, RefreshCw, Upload, Rocket, ArrowRight, Coins,
-  type LucideIcon,
-} from 'lucide-react';
+import { Rocket, ArrowRight } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
-import type { Permission } from '@/lib/erp/permissions';
-import type { Module } from '@/lib/erp/navigation';
 import { getT } from '@/lib/i18n/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
+import { SETTINGS_SECTIONS, canSeeSettingsItem } from '@/lib/erp/settings-sections';
 
 /**
- * Settings home — a business-friendly landing for the Back Office (per the Back
- * Office UX standard). Pure navigation/discoverability: surfaces every settings
- * area as a permission-aware card, grouped into business sections, so a Company
- * Admin can find things without scanning the sidebar. No data writes, no logic.
+ * Settings home — a business-friendly landing rendered in the center of the
+ * persistent Settings navigation (the nav lives in settings/layout.tsx). Pure
+ * navigation/discoverability; permission-aware. No data writes, no logic change.
  */
-
-interface Item { label: string; desc: string; href: string; icon: LucideIcon; perm?: Permission; superAdminOnly?: boolean; module?: Module }
-interface Section { title: string; items: Item[] }
-
-const SECTIONS: Section[] = [
-  {
-    title: 'settingsHome.sections.company',
-    items: [
-      { label: 'settingsHome.branches', desc: 'settingsHome.branchesDesc', href: '/settings/branches', icon: Building2, perm: 'settings.branches' },
-      { label: 'settingsHome.finance', desc: 'settingsHome.financeDesc', href: '/settings/finance', icon: Coins, perm: 'settings.branches' },
-      { label: 'settingsHome.taxReg', desc: 'settingsHome.taxRegDesc', href: '/settings/tax-registrations', icon: Receipt, perm: 'settings.branches' },
-      { label: 'settingsHome.numbering', desc: 'settingsHome.numberingDesc', href: '/settings/numbering', icon: Hash, perm: 'settings.branches' },
-    ],
-  },
-  {
-    title: 'settingsHome.sections.people',
-    items: [
-      { label: 'settingsHome.users', desc: 'settingsHome.usersDesc', href: '/settings/users', icon: Users, superAdminOnly: true },
-      { label: 'settingsHome.staff', desc: 'settingsHome.staffDesc', href: '/settings/staff', icon: UserCog, perm: 'settings.users' },
-      { label: 'settingsHome.permissions', desc: 'settingsHome.permissionsDesc', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true },
-    ],
-  },
-  {
-    title: 'settingsHome.sections.org',
-    items: [
-      { label: 'settingsHome.orgStructure', desc: 'settingsHome.orgStructureDesc', href: '/settings/organization-structure', icon: Network, perm: 'settings.users' },
-      { label: 'settingsHome.reporting', desc: 'settingsHome.reportingDesc', href: '/settings/organization', icon: UserCog, perm: 'settings.users' },
-      { label: 'settingsHome.regions', desc: 'settingsHome.regionsDesc', href: '/settings/regions', icon: Map, perm: 'settings.branches' },
-    ],
-  },
-  {
-    title: 'settingsHome.sections.products',
-    items: [
-      { label: 'settingsHome.productStructure', desc: 'settingsHome.productStructureDesc', href: '/settings/product-structure', icon: Layers, perm: 'product.edit' },
-      { label: 'settingsHome.uom', desc: 'settingsHome.uomDesc', href: '/settings/uom', icon: Layers, perm: 'uom.manage' },
-    ],
-  },
-  {
-    title: 'settingsHome.sections.workflows',
-    items: [
-      { label: 'settingsHome.approvalMatrix', desc: 'settingsHome.approvalMatrixDesc', href: '/settings/approval-matrix', icon: ShieldCheck, perm: 'workflow.manage', module: 'workflow' },
-      { label: 'settingsHome.workflows', desc: 'settingsHome.workflowsDesc', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow' },
-      { label: 'settingsHome.workflowTemplates', desc: 'settingsHome.workflowTemplatesDesc', href: '/settings/workflows/templates', icon: LayoutGrid, perm: 'workflow.manage', module: 'workflow' },
-    ],
-  },
-  {
-    title: 'settingsHome.sections.integrations',
-    items: [
-      { label: 'settingsHome.integrationHub', desc: 'settingsHome.integrationHubDesc', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', module: 'integrations' },
-      { label: 'settingsHome.import', desc: 'settingsHome.importDesc', href: '/settings/import', icon: Upload, perm: 'integrations.manage', module: 'integrations' },
-      { label: 'settingsHome.connections', desc: 'settingsHome.connectionsDesc', href: '/settings/integrations/connections', icon: Plug, perm: 'integrations.manage', module: 'integrations' },
-      { label: 'settingsHome.sync', desc: 'settingsHome.syncDesc', href: '/settings/integrations/sync', icon: RefreshCw, perm: 'integrations.manage', module: 'integrations' },
-    ],
-  },
-  {
-    title: 'settingsHome.sections.modules',
-    items: [
-      { label: 'settingsHome.features', desc: 'settingsHome.featuresDesc', href: '/settings/features', icon: LayoutGrid, perm: 'settings.users' },
-      { label: 'settingsHome.marketplace', desc: 'settingsHome.marketplaceDesc', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users' },
-    ],
-  },
-];
-
 export default async function SettingsHomePage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   const { t } = await getT();
 
-  const can = (i: Item) =>
-    (i.superAdminOnly ? ctx.isSuperAdmin : true) &&
-    (i.perm ? hasPermission(ctx, i.perm) : true) &&
-    (i.module ? ctx.modules.includes(i.module) : true);
-
-  const sections = SECTIONS
-    .map((s) => ({ ...s, items: s.items.filter(can) }))
+  const sections = SETTINGS_SECTIONS
+    .map((s) => ({ ...s, items: s.items.filter((i) => canSeeSettingsItem(ctx, i)) }))
     .filter((s) => s.items.length > 0);
 
   const showGoLive = hasPermission(ctx, 'integrations.manage');
