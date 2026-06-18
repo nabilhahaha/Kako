@@ -219,6 +219,14 @@ Existing foundations are noted so we reuse, not rebuild.
 - **Effort:** ≈ 6–7 engineer-days (reuse-heavy). **Complexity:** **M**.
 - **Class:** **Must-Have** (governance). See design doc `docs/audits/ROLE-PERMISSION-OVERRIDES-DESIGN.md`.
 
+## 20. Admin UX Standardization (Admin Workbench)
+- **Status:** 📐 **Design approved — not built.** UX architecture only.
+- **Business value:** One unified administration design system across ALL admin screens (Roles, Users, Companies, Branches, Plans, Features, Integrations, Reference Data, System Settings, future modules) — selected item always visible, no long pages, faster + consistent + tablet-friendly.
+- **Architecture:** A reusable three-panel **AdminWorkbench** (left: list/search/filters/quick-create · center: tabs/forms/config · right: summary/activity/audit/shortcuts/related) parameterized per entity. Existing long-form admin pages become tabs/configs within it. Reuses existing UI primitives, `erp_audit_logs`, and permissions — no new design language, no backend.
+- **Future-proof:** UAO, Role Overrides, Workspace Designer, Approval Matrix, Integrations are each just a workbench configuration.
+- **Effort:** shell + component library ≈ 1 sprint; per-module migration S each. **Complexity:** **L** (breadth).
+- **Class:** **Must-Have** (enterprise admin UX). See `docs/audits/ADMIN-UX-STANDARDIZATION-DESIGN.md`.
+
 ## Recommended execution order (maximize pilot readiness → commercial value)
 1. **Phase 0 — fold into current hardening:** **Quick Actions** + **Saved Views** (cheap, ride on S1; immediate daily-speed wins for the pilot).
 2. **Phase 1 — pre-commercial core:** **Feature Flags** (first — de-risks every later rollout) → **Global Search** → **Notification Center** → **Bulk Actions** → **Master Data Import Center** (onboarding) → start **Command Center (role dashboards)**.
