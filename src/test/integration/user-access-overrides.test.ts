@@ -85,6 +85,32 @@ describe.skipIf(!hasTestDb)('user access overrides · schema + resolution', () =
     });
   });
 
+  it('at most one override per (company,user,permission); legacy temporary grants may repeat', async () => {
+    await withRollback(async (c) => {
+      const co = (await c.query('insert into erp_companies(name) values ($1) returning id', ['UaoCo5'])).rows[0].id;
+      const user = randomUUID();
+      await c.query(
+        `insert into erp_temporary_access_grants(company_id,user_id,grant_key,kind,effect,reason)
+         values ($1,$2,'customer.request','override','grant','first')`, [co, user]);
+      // a second override for the same key is rejected by the partial unique index
+      // (savepoint so the expected error doesn't poison the outer transaction)
+      await c.query('savepoint sp');
+      await expect(
+        c.query(`insert into erp_temporary_access_grants(company_id,user_id,grant_key,kind,effect,reason)
+                 values ($1,$2,'customer.request','override','revoke','dup')`, [co, user]),
+      ).rejects.toThrow();
+      await c.query('rollback to savepoint sp');
+      // legacy temporary grants may still repeat the same key (partial index excludes them)
+      await c.query(`insert into erp_temporary_access_grants(company_id,user_id,grant_key,effective_from,effective_to)
+                     values ($1,$2,'reports.view',now(),now()+interval '1 day')`, [co, user]);
+      await c.query(`insert into erp_temporary_access_grants(company_id,user_id,grant_key,effective_from,effective_to)
+                     values ($1,$2,'reports.view',now(),now()+interval '2 day')`, [co, user]);
+      const { rows } = await c.query(
+        `select count(*)::int n from erp_temporary_access_grants where company_id=$1 and user_id=$2 and kind='temporary' and grant_key='reports.view'`, [co, user]);
+      expect(rows[0].n).toBe(2);
+    });
+  });
+
   it('operational allowlist is seeded (global rows)', async () => {
     await withRollback(async (c) => {
       const { rows } = await c.query(

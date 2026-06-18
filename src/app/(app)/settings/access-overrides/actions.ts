@@ -93,23 +93,30 @@ export async function setUserAccessOverride(
   }
   const { supabase, companyId, userId } = g;
 
+  // One override row per (company, user, permission): clear any existing override
+  // for this key, then insert. (The table allows repeated keys for legacy
+  // temporary grants, so we scope the delete to kind='override'.)
+  await supabase
+    .from('erp_temporary_access_grants')
+    .delete()
+    .eq('company_id', companyId)
+    .eq('user_id', targetUserId)
+    .eq('kind', 'override')
+    .eq('grant_key', permission);
   const { error } = await supabase
     .from('erp_temporary_access_grants')
-    .upsert(
-      {
-        company_id: companyId,
-        user_id: targetUserId,
-        grant_key: permission,
-        kind: 'override',
-        effect,
-        effective_from: null,
-        effective_to: null,
-        expired_at: null,
-        reason: reason.trim(),
-        granted_by: userId,
-      },
-      { onConflict: 'company_id,user_id,grant_key' },
-    );
+    .insert({
+      company_id: companyId,
+      user_id: targetUserId,
+      grant_key: permission,
+      kind: 'override',
+      effect,
+      effective_from: null,
+      effective_to: null,
+      expired_at: null,
+      reason: reason.trim(),
+      granted_by: userId,
+    });
   if (error) return { ok: false, error: friendlyDbError(error) };
 
   await logAudit(supabase, {
@@ -259,6 +266,7 @@ export async function cloneUserAccessOverrides(
   if (src.length === 0) return { ok: false, error: 'no_delegable_overrides' };
 
   const reasonTrim = reason.trim();
+  const keys = src.map((o) => o.permission);
   let applied = 0;
   for (const target of targets) {
     const rows = src.map((o) => ({
@@ -266,9 +274,15 @@ export async function cloneUserAccessOverrides(
       kind: 'override', effect: o.effect, effective_from: null, effective_to: null,
       expired_at: null, reason: reasonTrim, granted_by: userId,
     }));
-    const { error } = await supabase
+    // Replace the cloned keys on the target (leave the target's other overrides intact).
+    await supabase
       .from('erp_temporary_access_grants')
-      .upsert(rows, { onConflict: 'company_id,user_id,grant_key' });
+      .delete()
+      .eq('company_id', companyId)
+      .eq('user_id', target)
+      .eq('kind', 'override')
+      .in('grant_key', keys);
+    const { error } = await supabase.from('erp_temporary_access_grants').insert(rows);
     if (error) return { ok: false, error: friendlyDbError(error) };
     applied += 1;
     await logAudit(supabase, {

@@ -44,6 +44,13 @@ ALTER TABLE erp_temporary_access_grants ALTER COLUMN effective_to   DROP NOT NUL
 CREATE INDEX IF NOT EXISTS idx_temp_access_override
   ON erp_temporary_access_grants (company_id, user_id, kind);
 
+-- At most ONE override row per (company, user, permission). Partial to kind=
+-- 'override' so the legacy temporary-grant model (which may repeat a key across
+-- windows) is completely unaffected.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_temp_access_override_key
+  ON erp_temporary_access_grants (company_id, user_id, grant_key)
+  WHERE kind = 'override';
+
 -- ── E1: platform-owner delegability allowlist ───────────────────────────────
 CREATE TABLE IF NOT EXISTS erp_delegable_permissions (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -56,6 +63,9 @@ CREATE TABLE IF NOT EXISTS erp_delegable_permissions (
 -- One row per (scope, permission); global scope normalized via a sentinel uuid.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_delegable_perm
   ON erp_delegable_permissions (COALESCE(company_id, '00000000-0000-0000-0000-000000000000'::uuid), permission);
+
+-- Covering index for the company_id FK (schema-health invariant).
+CREATE INDEX IF NOT EXISTS idx_delegable_company ON erp_delegable_permissions (company_id);
 
 ALTER TABLE erp_delegable_permissions ENABLE ROW LEVEL SECURITY;
 -- Read: tenant-scoped (global rows + own-company rows). Write: platform-owner / super-admin only.
