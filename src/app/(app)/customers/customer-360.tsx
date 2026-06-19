@@ -43,6 +43,7 @@ import {
   CUSTOMER_BADGE_VARIANT,
   CUSTOMER_BADGE_KEY,
 } from './customer-360-tabs';
+import { customerHealth, HEALTH_BAND_VARIANT, HEALTH_BAND_KEY } from './customer-health';
 import type { CustomerDetailBundle } from './[id]/load';
 import type { Area, Branch, CustomerLookup, ErpCustomer, Profile, Region } from '@/lib/erp/types';
 import type { CustomFieldDef } from '@/lib/erp/custom-fields';
@@ -128,6 +129,13 @@ export function Customer360({
   const { summary } = bundle.statement.statement;
   const printHref = `/print/statement/${id}`;
 
+  // G3: derived health (separate from master status), reusing the existing scorer.
+  const health = customerHealth({
+    lastActivity: bundle.lastActivity,
+    timeline: bundle.timeline,
+    overdueAmount: summary.overdueAmount,
+  });
+
   // ── Reused actions (same server actions as the list) ───────────────────────
   function onApprove() {
     start(async () => {
@@ -172,7 +180,14 @@ export function Customer360({
       <EntityHeader
         title={name}
         subtitle={customer.code ? `${customer.code}${customer.phone ? ` · ${customer.phone}` : ''}` : customer.phone ?? undefined}
-        status={<Badge variant={CUSTOMER_BADGE_VARIANT[badge]}>{t(CUSTOMER_BADGE_KEY[badge])}</Badge>}
+        status={
+          <span className="flex items-center gap-1.5">
+            <Badge variant={CUSTOMER_BADGE_VARIANT[badge]}>{t(CUSTOMER_BADGE_KEY[badge])}</Badge>
+            <Badge variant={HEALTH_BAND_VARIANT[health.band]} title={t('customer360.healthScoreLabel')}>
+              {t(HEALTH_BAND_KEY[health.band])} · <span dir="ltr">{health.score}</span>
+            </Badge>
+          </span>
+        }
         actions={
           <EntityActionBar
             actions={[
@@ -236,6 +251,20 @@ export function Customer360({
             <StatCard label={t('customer360.statOverdue')} value={formatCurrency(summary.overdueAmount)} icon={AlertTriangle} tone={summary.overdueAmount > 0 ? 'destructive' : 'success'} />
             <StatCard label={t('customer360.statInvoices')} value={String(summary.openInvoiceCount)} icon={Receipt} tone="primary" />
           </div>
+          {/* G3: derived health — score + band + signals (separate from master status). */}
+          <SectionCard title={t('customer360.healthTitle')}>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-3xl font-bold tabular-nums" dir="ltr">{health.score}</span>
+              <Badge variant={HEALTH_BAND_VARIANT[health.band]}>{t(HEALTH_BAND_KEY[health.band])}</Badge>
+              <span className="text-xs text-muted-foreground">{t('customer360.healthScoreLabel')}</span>
+            </div>
+            <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+              <Row label={t('customer360.sigOrderDays')} value={health.inputs.daysSinceLastOrder != null ? String(health.inputs.daysSinceLastOrder) : null} ltr />
+              <Row label={t('customer360.sigVisitDays')} value={health.inputs.daysSinceLastVisit != null ? String(health.inputs.daysSinceLastVisit) : null} ltr />
+              <Row label={t('customer360.statOverdue')} value={health.inputs.hasOverdue ? t('customers.optionYes') : t('customers.optionNo')} />
+              <Row label={t('customer360.sigReturns90')} value={String(health.inputs.returnsLast90)} ltr />
+            </dl>
+          </SectionCard>
           <SectionCard title={t('customer360.identity')}>
             <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
               <Row label={t('customers.fieldCode')} value={customer.code} ltr />
