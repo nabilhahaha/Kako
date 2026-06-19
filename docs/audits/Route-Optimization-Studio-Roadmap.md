@@ -172,9 +172,10 @@ Studio** where the **map is a first-class planning surface, not only a visualiza
 Roadmap only.
 
 ### 7.1 Interactive Map Planning
-Click any customer on the map to view, inline: customer details · current route assignment ·
-current visit day · frequency (FR resolver) · **workload impact**. The map both plans and
-visualizes — not a reporting map.
+Click any customer on the map to view, inline: **customer name · route · salesman ·
+supervisor · current visit day · frequency** (FR resolver) · **coverage status** (CJ-3) ·
+**workload impact** · **sales value**. The map both plans and visualizes — not a reporting
+map.
 
 ### 7.2 Day Assignment from the Map
 Selecting a customer surfaces the seven days (**Sun · Mon · Tue · Wed · Thu · Fri · Sat**),
@@ -182,15 +183,19 @@ Selecting a customer surfaces the seven days (**Sun · Mon · Tue · Wed · Thu 
 (e.g. `Route A → Monday` ⇒ `Route A → Wednesday`); the preview updates immediately.
 
 ### 7.3 Drag & Drop Route Planning
-Drag a customer across:
+Drag a customer across **Customer → Route · Customer → Visit Day · Customer → Salesman**,
+from any of three interchangeable planning surfaces on the same dataset:
 
-- **Customer → Route** (Route A → Route B)
-- **Customer → Visit Day** (Monday → Tuesday)
-- **Customer → Salesman** (Salesman A → Salesman B)
+- **Route boards** (kanban-style per-route columns)
+- **Calendar view** (per-day columns, Sun–Sat)
+- **Map view** (geographic)
+
+Examples: Route A → Route B · Monday → Tuesday · Salesman A → Salesman B.
 
 ### 7.4 Live Route Preview (before Apply)
 Every planning change instantly recomputes: route **distance** · **drive time** · **visit
-workload** · **coverage load** · **route balance score** · **conflict warnings** — all before
+workload** · **coverage load** · **route balance score** · **conflict warnings** · **sales
+load** (§7.8) — all before
 Apply.
 
 ### 7.5 Scenario Planning
@@ -260,7 +265,44 @@ Apply publishes directly into the **Journey Plan Engine** using the single data 
 
 ---
 
-## 8. Indicative Phasing (when scheduled)
+## 8. Deployment Model — Standalone Product
+
+The Studio should be designed to operate in **two modes from one codebase**:
+
+1. **Embedded VANTORA module** — integrated with the platform (applies into the Journey
+   Plan Engine, reads live customer/sales/coverage data).
+2. **Standalone SaaS / service offering** — a self-contained product usable **even when
+   Sales, Inventory, Collections, and other ERP modules are not enabled.**
+
+**Standalone workflow:**
+```
+Upload Customer Data → Set Optimization Rules → Generate Route Scenarios → Map Planning
+  → Drag & Drop Adjustments → Scenario Comparison → Excel Export → (optional) Apply to Journey Plan
+```
+
+**Design implications (to honour now, so no refactor later):**
+
+- **Self-sufficient inputs:** the Studio must run from an **uploaded customer dataset**
+  (name · geo · classification · sales value · frequency · ownership) — it cannot assume
+  Sales/Inventory/Collections tables exist. Live ERP data is an *enrichment*, not a
+  prerequisite.
+- **Decoupled core:** the optimization + balancing + scenario engine depends only on the
+  **single route dataset model** (§4a) and the **FR-1 frequency value model**, never on ERP
+  module internals. Sales value, coverage, ownership arrive as **optional columns/layers**
+  that degrade gracefully when absent.
+- **Optional Apply:** "Apply to Journey Plan" is the *only* step that requires the embedded
+  platform; in standalone mode the terminal action is **Excel Export** (same single-model
+  schema, §4a), keeping the two modes on one data contract.
+- **Excel as the portability boundary:** because Export ≡ Journey-Plan import (§4a), a
+  standalone customer can hand the exported file to a VANTORA tenant and Apply it unchanged.
+
+> **Reuse:** the engines (`optimize.ts`, `territory.ts`, `generator.ts`, FR resolver,
+> conflict detection) are already pure/data-driven, so a standalone packaging is mostly a
+> **boundary + ingestion (upload) + licensing** concern, not a re-implementation.
+
+---
+
+## 9. Indicative Phasing (when scheduled)
 
 | Phase | Scope |
 | :--- | :--- |
@@ -273,6 +315,7 @@ Apply publishes directly into the **Journey Plan Engine** using the single data 
 | RO-7 | Visual Territory Planning Studio (§7): map-driven day assignment, drag & drop, live preview, scenario compare, map layers |
 | RO-8 | Sales Load Layer (§7.8): per-customer value + heatmap, route sales totals, sales-weighted balancing |
 | RO-9 | Territory Ownership Layer (§7.9): colour-coded salesman/supervisor/area/region ownership, boundaries, out-of-territory detection |
+| RO-10 | Standalone packaging (§8): customer-data upload/ingestion, decoupled engine boundary, Excel-export terminal mode, optional Apply, licensing |
 
 **Prerequisite:** Visit-Frequency Resolution Layer (workload weighting) and Geo Intelligence
 (map + distance) — both already recorded as roadmap items.
