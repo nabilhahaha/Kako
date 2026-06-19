@@ -13,6 +13,9 @@ export const ar = {
     monthly: 'شهري',
     annual: 'سنوي',
     perCycle: '{n}× {unit}',
+    everyNWeeks: 'كل {n} أسابيع',
+    everyNMonths: 'كل {n} أشهر',
+    everyNYears: 'كل {n} سنوات',
     // sources
     srcManual: 'يدوي',
     srcImport: 'مستورد',
@@ -36,6 +39,9 @@ export const en = {
     monthly: 'Monthly',
     annual: 'Annual',
     perCycle: '{n}× {unit}',
+    everyNWeeks: 'Every {n} weeks',
+    everyNMonths: 'Every {n} months',
+    everyNYears: 'Every {n} years',
     // sources
     srcManual: 'Manual',
     srcImport: 'Import',

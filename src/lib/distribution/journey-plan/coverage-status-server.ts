@@ -33,10 +33,10 @@ export async function loadCustomerCoverage(
   };
 
   const [plans, visits] = await Promise.all([
-    safe<{ customer_id: string; day_of_week: string; frequency: string; effective_from: string; effective_to: string | null }>(() =>
+    safe<{ customer_id: string; day_of_week: string; frequency: string; frequency_token: string | null; effective_from: string; effective_to: string | null }>(() =>
       supabase
         .from('erp_journey_plans')
-        .select('customer_id, day_of_week, frequency, effective_from, effective_to')
+        .select('customer_id, day_of_week, frequency, frequency_token, effective_from, effective_to')
         .in('customer_id', customerIds)
         .eq('status', 'active'),
     ),
@@ -53,7 +53,7 @@ export async function loadCustomerCoverage(
   const plansBy = new Map<string, PlanCadence[]>();
   for (const p of plans) {
     const list = plansBy.get(p.customer_id) ?? [];
-    list.push({ dayOfWeek: p.day_of_week, frequency: p.frequency, effectiveFrom: p.effective_from, effectiveTo: p.effective_to });
+    list.push({ dayOfWeek: p.day_of_week, frequency: p.frequency, frequencyToken: p.frequency_token, effectiveFrom: p.effective_from, effectiveTo: p.effective_to });
     plansBy.set(p.customer_id, list);
   }
   const visitsBy = new Map<string, string[]>();

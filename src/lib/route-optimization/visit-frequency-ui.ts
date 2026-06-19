@@ -43,9 +43,14 @@ export const FREQUENCY_OPTIONS: { token: string; key: string }[] = [
 export function frequencyLabel(freq: VisitFrequency, t: (k: string, vars?: Record<string, string | number>) => string): string {
   const tok = formatFrequency(freq);
   if (tok === 'weekly' || tok === 'biweekly' || tok === 'monthly' || tok === 'annual') return t(`visitFreq.${tok}`);
-  if (freq.visitsPerCycle > 1) {
-    const unit = freq.unit === 'week' ? t('visitFreq.weekly') : freq.unit === 'month' ? t('visitFreq.monthly') : t('visitFreq.annual');
-    return t('visitFreq.perCycle', { n: freq.visitsPerCycle, unit });
+  // Multi-visit weekly cadence (e.g. A-grade 3/week) → "3× Weekly".
+  if (freq.unit === 'week' && freq.visitsPerCycle > 1 && freq.everyN === 1) {
+    return t('visitFreq.perCycle', { n: freq.visitsPerCycle, unit: t('visitFreq.weekly') });
+  }
+  // FR-6 custom cadence: "every N weeks/months/years".
+  if (freq.visitsPerCycle === 1 && freq.everyN > 1) {
+    const key = freq.unit === 'week' ? 'visitFreq.everyNWeeks' : freq.unit === 'month' ? 'visitFreq.everyNMonths' : 'visitFreq.everyNYears';
+    return t(key, { n: freq.everyN });
   }
   return tok;
 }

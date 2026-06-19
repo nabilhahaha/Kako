@@ -7,7 +7,7 @@ import { DEFAULT_FREQUENCY_RULES, type FrequencyRule } from '@/lib/route-optimiz
 import { generateWeeklyPlan, type GenCustomer, type DayPlan } from '@/lib/route-optimization/generator';
 import { detectPlanConflicts, type ExistingPlanRow, type PlanConflict } from '@/lib/distribution/journey-plan/proposal';
 import { resolveFrequencyForCustomer, type CustomerFrequencyFields } from '@/lib/route-optimization/customer-frequency';
-import { frequencyToVisitsPerWeek, frequencyToJourneyEnum } from '@/lib/route-optimization/visit-frequency';
+import { frequencyToVisitsPerWeek, frequencyToJourneyEnum, formatFrequency } from '@/lib/route-optimization/visit-frequency';
 
 /** Load the company's visit-frequency rules (classification → visits/week),
  *  falling back to the code defaults when none are configured. Reuse-first: the
@@ -164,7 +164,10 @@ export async function applyJourneyProposal(input: {
         rules,
         classificationCanOverride: override,
       });
+      // FR-6: persist both the legacy enum (back-compat) and the canonical token
+      // (annual/custom authoritative). Token null ⇒ enum drives cadence as before.
       const frequency = resolved.frequency ? frequencyToJourneyEnum(resolved.frequency) : 'weekly';
+      const frequencyToken = resolved.frequency ? formatFrequency(resolved.frequency) : null;
       rows.push({
         company_id: ctx.companyId,
         route_id: input.routeId,
@@ -172,6 +175,7 @@ export async function applyJourneyProposal(input: {
         salesman_id: input.salesmanId || null,
         day_of_week: dp.day,
         frequency,
+        frequency_token: frequencyToken,
         sequence: i,
         status: 'active',
         updated_by: ctx.userId,
