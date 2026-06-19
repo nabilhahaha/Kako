@@ -110,6 +110,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const [selectingInfo, setSelectingInfo] = useState<{ count: number; sales: number } | null>(null);
   const [reviewStats, setReviewStats] = useState<{ initial: number; absorbed: number; final: number } | null>(null);
   const [approved, setApproved] = useState(false);
+  const [exported, setExported] = useState(false);
   const [importing, setImporting] = useState(false);
   const [mapState, setMapState] = useState<{ headers: string[]; records: Record<string, string>[]; map: Partial<Record<TisFieldKey, string>> } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
@@ -277,7 +278,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   /** Pick a route-creation method. */
   function chooseMethod(m: 'assisted' | 'manual' | 'current') {
     if (!dataset) return;
-    setMethod(m); setHistory([]); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set()); setReviewStats(null);
+    setMethod(m); setHistory([]); setApproved(false); setExported(false); setSelectedIds(new Set()); setFocusedRoutes(new Set()); setReviewStats(null);
     setBaseline(null); setAllocView('proposed');
     if (m === 'manual') {
       const blank = dataset.customers.reduce((s, c) => moveCustomer(s, c.id, null), emptyScenario());
@@ -297,7 +298,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     }
   }
   function reset() {
-    setDataset(null); setScenario(emptyScenario()); setMethod(null); setHistory([]); setGenerated(false); setApproved(false);
+    setDataset(null); setScenario(emptyScenario()); setMethod(null); setHistory([]); setGenerated(false); setApproved(false); setExported(false);
     setSelectedIds(new Set()); setFocusedRoutes(new Set()); setMapState(null); setMsg(null); setReviewStats(null);
     setBaseline(null); setAllocView('proposed');
   }
@@ -317,7 +318,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     const k = Math.max(1, Math.round(Number(routeCount)) || 1);
     const plan = simpleGeoSplit(dataset.customers, k);
     const sc = plan.assignments.reduce((s, a) => moveCustomer(s, a.customerId, a.routeId ?? null), emptyScenario());
-    setScenario(sc); setGenerated(true); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set());
+    setScenario(sc); setGenerated(true); setApproved(false); setExported(false); setSelectedIds(new Set()); setFocusedRoutes(new Set());
     setReviewStats({ initial: plan.needsReviewInitial ?? 0, absorbed: plan.needsReviewAbsorbed ?? 0, final: plan.needsReview ?? 0 });
     // Default the move target to the first real route (Route → Route is the primary flow).
     setTargetRoute(plan.routes[0]?.routeId ?? NEW_ROUTE);
@@ -372,6 +373,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
       }
       const assigned = sheets[0].rows.length - 1;
       downloadXlsx(buildXlsxWorkbook(sheets), 'route-allocation.xlsx');
+      setExported(true);
       setMsg({ tone: 'ok', text: t('routePlanner.exportOk').replace('{n}', String(assigned)).replace('{r}', String(ids.length)) });
     } catch (e) {
       setMsg({ tone: 'err', text: `${t('routePlanner.exportErr')} ${e instanceof Error ? e.message : ''}`.trim() });
@@ -554,6 +556,35 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     <div className={focus ? 'flex h-[calc(100dvh-0.75rem)] flex-col gap-2 p-2 lg:px-4' : 'space-y-3'}>
       {brandHeader}
       {subBanner}
+      {/* Workflow guide — frames the planner as a guided product (Map → … → Export),
+          not an ERP screen. Focus mode only, compact. */}
+      {focus && (() => {
+        const steps = [
+          { key: 'map', done: true },
+          { key: 'routes', done: generated },
+          { key: 'customers', done: history.length > 0 },
+          { key: 'review', done: focusedRoutes.size > 0 || approved },
+          { key: 'approve', done: approved },
+          { key: 'export', done: exported },
+        ];
+        const current = steps.findIndex((s) => !s.done);
+        return (
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 text-[11px]">
+            {steps.map((s, i) => {
+              const state = s.done ? 'done' : i === current ? 'current' : 'todo';
+              return (
+                <span key={s.key} className="inline-flex items-center gap-1.5">
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium ${state === 'current' ? 'border-primary bg-primary text-primary-foreground' : state === 'done' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-muted bg-muted/40 text-muted-foreground'}`}>
+                    {state === 'done' ? <Check className="h-3 w-3" /> : <span className="tabular-nums">{i + 1}</span>}
+                    {t(`routePlanner.wf_${s.key}` as Parameters<typeof t>[0])}
+                  </span>
+                  {i < steps.length - 1 && <span className="text-muted-foreground/40">›</span>}
+                </span>
+              );
+            })}
+          </div>
+        );
+      })()}
       {/* Toolbar */}
       <Card className={focus ? 'shrink-0 shadow-sm' : ''}>
         <CardContent className="flex flex-wrap items-end gap-x-4 gap-y-3 p-3">
