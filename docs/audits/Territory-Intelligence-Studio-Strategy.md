@@ -101,6 +101,43 @@ concern (consistent with RO Studio §8), not a re-implementation. Live ERP data 
 
 ---
 
+## 4a. Graceful Degradation Model (Modes A / B / C)
+
+**Architecture principle:** TIS exposes the **same workflow and UX in every mode**; individual
+capabilities **enable or disable based on available data and enabled modules**, never gate the
+product. One product family, three commercial entry points.
+
+```
+Upload / Select Customers → Audit → Sizing → Optimization → Planning → Export / Apply
+                         (identical journey in A, B and C)
+```
+
+| | **Mode A — Optimization Only** | **Mode B — Connected Sales** | **Mode C — Full VANTORA Distribution OS** |
+| :--- | :--- | :--- | :--- |
+| **Inputs** | Uploaded dataset (Excel/CSV): locations, optional sales value, optional ownership | + customer · journey · sales activity | + live customers · visits · GPS · journey execution · sales · collections · inventory |
+| **Available** | Territory Audit · Sales Force Sizing · Route Optimization · Visual Territory Planning · Scenario Compare · Map Planning · Excel Export | + Customer 360 · Journey Planning · Coverage Status · Customer Health · sales-based analysis | + Coverage Engine · GPS Compliance · Route Adherence · Geo Intelligence · full Territory + Geo Intelligence |
+| **Not available** | Live Coverage · GPS Compliance · Visit Execution · Customer Health · Collections · Inventory insights | GPS/execution-grade compliance · inventory-driven insights | — (full) |
+| **Terminal action** | Excel Export | Export **or** Apply to Journey Plan | Apply + publish + execute |
+
+### Design rules
+- **Capability availability is a function of present data**, resolved at runtime from a single
+  **capability matrix** (which inputs/modules each feature needs) — not hardcoded per build.
+- **Same screens, graceful empties:** a feature with missing inputs shows a clear "needs X"
+  state or hides, but the **navigation and flow never change** between modes.
+- **Upgrade is additive:** moving A→B→C **adds** capabilities over the same dataset/UX — no
+  migration, no relearning. A standalone (A) customer's exported plan Applies unchanged in a
+  VANTORA (C) tenant (single data model, §4 / RO §4a).
+- **Pure engines, layered enrichment:** Audit/Sizing/Optimization run on the uploaded core
+  (Mode A); Coverage/Health/GPS/Geo are **enrichment layers** that light up as their data
+  arrives (B, C). Consistent with the Coverage Engine façade and FR resolver patterns.
+
+### Commercial objective
+Maximum flexibility from one codebase: **Standalone Optimization** customers (A),
+**ERP-connected** customers (B), and **Full VANTORA** customers (C) — same product family, same
+user experience, capabilities scaled to the data they have.
+
+---
+
 ## 5. Remaining Gaps (to close before TIS is whole)
 
 | Gap | Severity | Note |
