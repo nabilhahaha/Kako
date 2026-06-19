@@ -35,7 +35,7 @@ export default async function CustomersPage({
   if (classification) listQuery = listQuery.eq('classification_id', classification);
   if (channel) listQuery = listQuery.eq('channel_id', channel);
 
-  const [{ data: customers, count }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }, selRes] = await Promise.all([
+  const [{ data: customers, count }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }, { data: routes }, selRes] = await Promise.all([
     listQuery.range(from, to),
     supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
     // Role-scoped reps (self/team/region/all) — see erp_assignable_reps / RLS.
@@ -43,6 +43,8 @@ export default async function CustomersPage({
     supabase.from('erp_customer_lookups').select('*').eq('is_active', true).order('sort').order('name'),
     supabase.from('erp_regions').select('*').eq('is_active', true).order('sort').order('name'),
     supabase.from('erp_areas').select('*').eq('is_active', true).order('sort').order('name'),
+    // G1: read-only territory display (route name).
+    supabase.from('erp_routes').select('id, name, name_ar').eq('is_active', true).order('name'),
     // Deep-link: load the selected record directly so it resolves regardless of
     // the current search/filter/pagination window.
     selectedId
@@ -79,6 +81,7 @@ export default async function CustomersPage({
         lookups={(lookups as CustomerLookup[]) ?? []}
         regions={(regions as Region[]) ?? []}
         areas={(areas as Area[]) ?? []}
+        routes={(routes as { id: string; name: string; name_ar: string | null }[]) ?? []}
         customFields={customFields}
         gov={gov}
         canApprove={hasPermission(ctx, 'customers.approve')}

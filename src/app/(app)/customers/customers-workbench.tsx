@@ -14,7 +14,7 @@ import { Pager } from '@/components/pager';
 import { AdminWorkbench, useWorkbenchSelection } from '@/components/admin/admin-workbench';
 import { DetailPlaceholder } from '@/components/admin/entity-detail';
 import { ContextPanel, ContextSection, SummaryList, RelatedChips } from '@/components/admin/context-panel';
-import { Customer360 } from './customer-360';
+import { Customer360, type RouteRef } from './customer-360';
 import { CustomerForm } from './customer-form';
 import { ImportDialog } from './customer-import-dialog';
 import { customerBadgeState, CUSTOMER_BADGE_VARIANT, CUSTOMER_BADGE_KEY } from './customer-360-tabs';
@@ -39,6 +39,7 @@ export interface CustomersWorkbenchProps {
   lookups: CustomerLookup[];
   regions: Region[];
   areas: Area[];
+  routes?: RouteRef[];
   customFields: CustomFieldDef[];
   gov?: GovInputs;
   canApprove?: boolean;
@@ -71,6 +72,7 @@ export function CustomersWorkbench({
   lookups,
   regions,
   areas,
+  routes = [],
   customFields,
   gov,
   canApprove = false,
@@ -165,6 +167,7 @@ export function CustomersWorkbench({
         lookups={lookups}
         regions={regions}
         areas={areas}
+        routes={routes}
         customFields={customFields}
         gov={gov}
         canApprove={canApprove}

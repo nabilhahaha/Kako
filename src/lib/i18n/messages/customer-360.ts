@@ -33,7 +33,11 @@ export const ar = {
     relArea: 'النطاق',
     relParent: 'العميل الأب',
     relChildren: 'الفروع التابعة',
+    relRoute: 'خط السير',
     relNone: 'لا توجد عناصر مرتبطة.',
+    // Read-only context blocks (G1)
+    commercialTitle: 'البيانات التجارية',
+    territoryTitle: 'التغطية والمنطقة',
     // Section titles
     statusTitle: 'حالة الحساب',
     notesTitle: 'الملاحظات',
@@ -69,7 +73,11 @@ export const en = {
     relArea: 'Area',
     relParent: 'Parent customer',
     relChildren: 'Sub-accounts',
+    relRoute: 'Route',
     relNone: 'No related records.',
+    // Read-only context blocks (G1)
+    commercialTitle: 'Commercial',
+    territoryTitle: 'Territory & coverage',
     statusTitle: 'Account status',
     notesTitle: 'Notes',
     auditTitle: 'Audit log',

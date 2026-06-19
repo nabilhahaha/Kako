@@ -462,6 +462,7 @@ export interface ErpCustomer {
   channel_id: string | null;
   region_id: string | null;
   area_id: string | null;
+  route_id: string | null;
   latitude: number | null;
   longitude: number | null;
   payment_terms_days: number | null;

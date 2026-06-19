@@ -21,7 +21,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { useCriticalAction } from '@/lib/critical-action';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
-import { CUSTOMER_STATUSES } from '@/lib/erp/constants';
+import { CUSTOMER_STATUSES, VISIT_DAYS } from '@/lib/erp/constants';
 import { StatCard, type StatTone } from '@/components/shared/stat-card';
 import { QuickNav, type QuickLink } from '@/components/home/home-widgets';
 import { ActivityTimeline } from '@/components/home/activity-timeline';
@@ -49,6 +49,8 @@ import type { CustomFieldDef } from '@/lib/erp/custom-fields';
 import type { GovInputs } from '@/lib/erp/field-governance';
 
 type Rep = Pick<Profile, 'id' | 'full_name' | 'email'>;
+/** Lightweight route reference (read-only territory display). */
+export type RouteRef = { id: string; name: string; name_ar: string | null };
 
 export interface Customer360Props {
   /** Full record (from the workbench list selection) — header, form, related. */
@@ -62,6 +64,8 @@ export interface Customer360Props {
   lookups: CustomerLookup[];
   regions: Region[];
   areas: Area[];
+  /** Active routes (read-only territory display). */
+  routes?: RouteRef[];
   customFields: CustomFieldDef[];
   gov?: GovInputs;
   // Reused permission gates (enforced server-side; here they only gate the UI).
@@ -95,6 +99,7 @@ export function Customer360({
   lookups,
   regions,
   areas,
+  routes = [],
   customFields,
   gov,
   canApprove = false,
@@ -238,6 +243,24 @@ export function Customer360({
               <Row label={t('customer360.relBranch')} value={branchName(customer.branch_id, branches)} />
             </dl>
           </SectionCard>
+          {/* G1: read-only commercial + territory context (display only; edits stay governed). */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SectionCard title={t('customer360.commercialTitle')}>
+              <dl className="space-y-1 text-sm">
+                <Row label={t('customers.fieldCreditLimit')} value={formatCurrency(customer.credit_limit)} ltr />
+                <Row label={t('customers.fieldPaymentTerms')} value={customer.payment_terms_days != null ? String(customer.payment_terms_days) : null} ltr />
+              </dl>
+            </SectionCard>
+            <SectionCard title={t('customer360.territoryTitle')}>
+              <dl className="space-y-1 text-sm">
+                <Row label={t('customers.fieldSalesman')} value={repName(customer.salesman_id, reps)} />
+                <Row label={t('customer360.relRoute')} value={refName(customer.route_id, routes, ar)} />
+                <Row label={t('customers.fieldRegion')} value={refName(customer.region_id, regions, ar)} />
+                <Row label={t('customers.fieldArea')} value={refName(customer.area_id, areas, ar)} />
+                <Row label={t('customers.fieldVisitDay')} value={visitDayLabel(customer.visit_day, locale)} />
+              </dl>
+            </SectionCard>
+          </div>
           <SectionCard title={t('customer360.quickActions')}>
             <QuickNav links={[
               { label: t('salesman.actNewInvoice'), href: '/sales/invoices', icon: Receipt },
@@ -338,6 +361,24 @@ function branchName(id: string | null, branches: Branch[]): string {
   if (!id) return '—';
   const b = branches.find((x) => x.id === id);
   return b ? b.name_ar || b.name : '—';
+}
+
+/** Resolve a bilingual named record (region/area/route) by id. */
+function refName(id: string | null, list: { id: string; name: string; name_ar: string | null }[], ar: boolean): string {
+  if (!id) return '—';
+  const r = list.find((x) => x.id === id);
+  return r ? (ar ? r.name_ar || r.name : r.name) : '—';
+}
+
+function repName(id: string | null, reps: Rep[]): string {
+  if (!id) return '—';
+  const r = reps.find((x) => x.id === id);
+  return r?.full_name || r?.email || '—';
+}
+
+function visitDayLabel(value: string | null, locale: 'ar' | 'en'): string {
+  if (!value) return '—';
+  return VISIT_DAYS.find((d) => d.value === value)?.[locale] ?? value;
 }
 
 /** Account-status context — same data the statement page surfaced (status badge,
