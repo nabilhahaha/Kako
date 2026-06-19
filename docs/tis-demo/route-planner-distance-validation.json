@@ -3,60 +3,90 @@
   "scenarios": [
     {
       "k": 40,
-      "generated": 40,
-      "exactK": true,
-      "needsReviewInitial": 209,
-      "absorbed": 86,
-      "needsReviewFinal": 123,
-      "refinedRadius": {
-        "avg": 90.8,
-        "max": 271.5
+      "before": {
+        "routes": 40,
+        "needsReview": 0,
+        "absorbed": 0,
+        "flagged": 0,
+        "avgRadiusKm": 151.1,
+        "medianRadiusKm": 110.1,
+        "maxRadiusKm": 527.4,
+        "avgMeanDistKm": 62.2,
+        "worstSpanKm": 854,
+        "routesUnder30kmPct": 33,
+        "workloadBalance": 99.7
       },
-      "refinedCompactness": 18,
-      "refinedSpan": {
-        "avg": 144.7,
-        "max": 413.2
-      },
-      "rawWorkloadBalance": 99.7,
-      "refinedWorkloadBalance": 67.6
+      "after": {
+        "routes": 40,
+        "needsReview": 125,
+        "absorbed": 84,
+        "flagged": 209,
+        "avgRadiusKm": 91.2,
+        "medianRadiusKm": 84.3,
+        "maxRadiusKm": 271.5,
+        "avgMeanDistKm": 26.4,
+        "worstSpanKm": 413.2,
+        "routesUnder30kmPct": 23,
+        "workloadBalance": 65.5
+      }
     },
     {
       "k": 86,
-      "generated": 86,
-      "exactK": true,
-      "needsReviewInitial": 150,
-      "absorbed": 115,
-      "needsReviewFinal": 35,
-      "refinedRadius": {
-        "avg": 54,
-        "max": 323.7
+      "before": {
+        "routes": 86,
+        "needsReview": 0,
+        "absorbed": 0,
+        "flagged": 0,
+        "avgRadiusKm": 80.1,
+        "medianRadiusKm": 25.2,
+        "maxRadiusKm": 443.6,
+        "avgMeanDistKm": 33.2,
+        "worstSpanKm": 634.5,
+        "routesUnder30kmPct": 55,
+        "workloadBalance": 99.7
       },
-      "refinedCompactness": 43,
-      "refinedSpan": {
-        "avg": 85.5,
-        "max": 473.6
-      },
-      "rawWorkloadBalance": 99.7,
-      "refinedWorkloadBalance": 71.5
+      "after": {
+        "routes": 86,
+        "needsReview": 36,
+        "absorbed": 114,
+        "flagged": 150,
+        "avgRadiusKm": 51.5,
+        "medianRadiusKm": 23.2,
+        "maxRadiusKm": 323.7,
+        "avgMeanDistKm": 16.6,
+        "worstSpanKm": 473.6,
+        "routesUnder30kmPct": 59,
+        "workloadBalance": 71.1
+      }
     },
     {
       "k": 120,
-      "generated": 120,
-      "exactK": true,
-      "needsReviewInitial": 155,
-      "absorbed": 99,
-      "needsReviewFinal": 56,
-      "refinedRadius": {
-        "avg": 33.7,
-        "max": 206.1
+      "before": {
+        "routes": 120,
+        "needsReview": 0,
+        "absorbed": 0,
+        "flagged": 0,
+        "avgRadiusKm": 60.9,
+        "medianRadiusKm": 19.4,
+        "maxRadiusKm": 338.8,
+        "avgMeanDistKm": 24,
+        "worstSpanKm": 632.3,
+        "routesUnder30kmPct": 60,
+        "workloadBalance": 99.3
       },
-      "refinedCompactness": 52,
-      "refinedSpan": {
-        "avg": 52.9,
-        "max": 350.2
-      },
-      "rawWorkloadBalance": 99.3,
-      "refinedWorkloadBalance": 70.8
+      "after": {
+        "routes": 120,
+        "needsReview": 61,
+        "absorbed": 94,
+        "flagged": 155,
+        "avgRadiusKm": 32.9,
+        "medianRadiusKm": 16.9,
+        "maxRadiusKm": 199.4,
+        "avgMeanDistKm": 13.2,
+        "worstSpanKm": 338.3,
+        "routesUnder30kmPct": 65,
+        "workloadBalance": 69.7
+      }
     }
   ]
 }

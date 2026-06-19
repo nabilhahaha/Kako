@@ -334,13 +334,13 @@ const RP_MIN_SLICE = 5;
  *  All named, not magic numbers. */
 const RP_MAX_ABSORB_KM = 25;          // max distance to a route's nearest customer to be a candidate
 const RP_MAX_WORKLOAD_IMBALANCE = 0.35; // a route may end up at most 35% above the mean route workload
-const RP_MAX_COMPACTNESS_IMPACT = 20;   // km a route's radius may grow by absorbing the customer
+const RP_MAX_COMPACTNESS_IMPACT = 15;   // km a route's radius may grow by absorbing the customer
 
 /** Distance-aware boundary smoothing — after the Hilbert cut, a customer is moved to a
  *  nearer route's centroid (Lloyd-style) when it is clearly closer and the target route
  *  is not overloaded, so workload balancing never leaves customers far from their route. */
 const RP_BOUNDARY_MARGIN_KM = 5;  // must be ≥ this much closer to the other route to move
-const RP_BOUNDARY_PASSES = 3;
+const RP_BOUNDARY_PASSES = 12;    // Lloyd iterations; converges early (breaks when no move helps)
 
 const median = (xs: number[]): number => {
   if (xs.length === 0) return 0;
