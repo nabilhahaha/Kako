@@ -12,9 +12,11 @@
 import { parseFrequency, type VisitFrequency } from './visit-frequency';
 import {
   resolveVisitFrequency,
+  classificationFrequency,
   type ResolvedFrequency,
   type FrequencyResolveInput,
 } from './frequency-resolver';
+import type { FrequencyRule } from './frequency';
 
 /** The customer-master frequency columns this layer reads (FR-2). */
 export interface CustomerFrequencyFields {
@@ -55,4 +57,24 @@ export function effectiveCustomerFrequency(input: {
     policy: { classificationCanOverride: input.classificationCanOverride === true },
   };
   return resolveVisitFrequency(args);
+}
+
+/**
+ * FR-5 generation/apply convenience: resolve a customer's effective frequency
+ * from its master columns + its A/B/C grade code (bridged to level #3 via the
+ * company rules) + the company override policy. Pure — the journey generator and
+ * apply path share this so they schedule by the SAME precedence.
+ */
+export function resolveFrequencyForCustomer(input: {
+  customerRow: CustomerFrequencyFields;
+  gradeCode: string | null;
+  rules: readonly FrequencyRule[];
+  classificationCanOverride?: boolean;
+}): ResolvedFrequency {
+  const classification = input.gradeCode ? classificationFrequency(input.rules, input.gradeCode) : null;
+  return effectiveCustomerFrequency({
+    customerRow: input.customerRow,
+    classification,
+    classificationCanOverride: input.classificationCanOverride,
+  });
 }

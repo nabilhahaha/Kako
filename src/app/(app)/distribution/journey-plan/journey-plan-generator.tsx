@@ -158,6 +158,7 @@ export function JourneyPlanGenerator({
               <h3 className="text-sm font-semibold">{t('journeyPlan.proposalTitle')}</h3>
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <Badge variant="secondary">{t('journeyPlan.graded', { n: proposal.gradedCount })}</Badge>
+                {proposal.customerLevelCount > 0 && <Badge variant="success">{t('journeyPlan.fromCustomer', { n: proposal.customerLevelCount })}</Badge>}
                 {proposal.ungradedCount > 0 && <Badge variant="warning">{t('journeyPlan.ungraded', { n: proposal.ungradedCount })}</Badge>}
                 {proposal.conflicts.length > 0 && <Badge variant="destructive"><AlertTriangle className="h-3 w-3" /> {t('journeyPlan.conflicts', { n: proposal.conflicts.length })}</Badge>}
               </div>
