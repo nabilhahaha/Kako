@@ -11,7 +11,7 @@ import { isValidGeo, type TisDataset } from '@/lib/tis/dataset';
 import { applyScenario, type Scenario } from '@/lib/tis/scenario';
 import { moveCustomer } from '@/lib/tis/plan-edit';
 import { simpleGeoSplit } from '@/lib/tis/optimize-routes';
-import { routeReview, routeColors, routeIdsOf, unassignedCount, unassignedIds, routeExportRows, needsReviewExportRows, routeChangeRows, changeSummaryRows, aggregateReview } from '@/lib/tis/route-planner';
+import { routeReview, routeColors, routeIdsOf, unassignedCount, unassignedIds, routeExportRows, needsReviewExportRows, routeChangeRows, changeSummaryRows, aggregateReview, hasSalesData } from '@/lib/tis/route-planner';
 import { formatFrequency } from '@/lib/route-optimization/visit-frequency';
 import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
 import { parseUploadColumns } from './import-actions';
@@ -21,6 +21,7 @@ const NEW_ROUTE = '__new';
 const UNASSIGNED = '__unassigned';
 
 function emptyScenario(): Scenario { return { id: 'plan', name: 'Route plan', assignments: [] }; }
+const fmt = (n: number) => Math.round(n).toLocaleString();
 
 /** Reliable cross-browser file download: the anchor MUST be in the document for
  *  `.click()` to trigger a download in Firefox/Safari (and reliably in Chrome). */
@@ -90,27 +91,33 @@ export function RoutePlannerWorkspace() {
   };
   const reviews = useMemo(() => (dataset ? routeReview(dataset, activeScenario) : []), [dataset, activeScenario]);
   const routeCountById = useMemo(() => new Map(reviews.map((r) => [r.routeId, r.customers])), [reviews]);
+  const hasSales = useMemo(() => (dataset ? hasSalesData(dataset) : false), [dataset]);
   const unassigned = useMemo(() => (dataset ? unassignedCount(dataset, activeScenario) : 0), [dataset, activeScenario]);
 
-  // Current → Proposed diff (Current Allocation Review).
+  // Current → Proposed diff (Current Allocation Review), incl. per-route sales when present.
   const diff = useMemo(() => {
     if (!dataset || !baseline) return null;
-    const baseR = new Map(applyScenario(dataset, baseline).customers.map((c) => [c.id, c.ownership.routeId]));
-    const workR = new Map(applyScenario(dataset, scenario).customers.map((c) => [c.id, c.ownership.routeId]));
+    const base = applyScenario(dataset, baseline).customers;
+    const work = applyScenario(dataset, scenario).customers;
+    const baseR = new Map(base.map((c) => [c.id, c.ownership.routeId]));
+    const workR = new Map(work.map((c) => [c.id, c.ownership.routeId]));
+    const salesOf = new Map(base.map((c) => [c.id, c.salesValue ?? 0]));
     let moved = 0, unchanged = 0;
     const before = new Map<string, number>(), after = new Map<string, number>();
-    for (const [, r] of baseR) if (r) before.set(r, (before.get(r) ?? 0) + 1);
-    for (const [, r] of workR) if (r) after.set(r, (after.get(r) ?? 0) + 1);
+    const beforeS = new Map<string, number>(), afterS = new Map<string, number>();
+    for (const [id, r] of baseR) if (r) { before.set(r, (before.get(r) ?? 0) + 1); beforeS.set(r, (beforeS.get(r) ?? 0) + (salesOf.get(id) ?? 0)); }
+    for (const [id, r] of workR) if (r) { after.set(r, (after.get(r) ?? 0) + 1); afterS.set(r, (afterS.get(r) ?? 0) + (salesOf.get(id) ?? 0)); }
     for (const [id, br] of baseR) (br === (workR.get(id) ?? null) ? unchanged++ : moved++);
     const baseRoutes = new Set(before.keys()), workRoutes = new Set(after.keys());
     const newRoutes = [...workRoutes].filter((r) => !baseRoutes.has(r)).length;
     const removedRoutes = [...baseRoutes].filter((r) => !workRoutes.has(r)).length;
     const perRoute = [...new Set([...baseRoutes, ...workRoutes])]
-      .map((r) => ({ route: r, before: before.get(r) ?? 0, after: after.get(r) ?? 0, diff: (after.get(r) ?? 0) - (before.get(r) ?? 0) }))
-      .filter((x) => x.diff !== 0)
-      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+      .map((r) => ({ route: r, before: before.get(r) ?? 0, after: after.get(r) ?? 0, diff: (after.get(r) ?? 0) - (before.get(r) ?? 0), beforeS: Math.round(beforeS.get(r) ?? 0), afterS: Math.round(afterS.get(r) ?? 0) }))
+      .filter((x) => x.diff !== 0 || x.afterS !== x.beforeS)
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff) || Math.abs(b.afterS - b.beforeS) - Math.abs(a.afterS - a.beforeS));
     return { moved, unchanged, newRoutes, removedRoutes, perRoute };
   }, [dataset, baseline, scenario]);
+  const datasetSales = useMemo(() => (dataset ? dataset.customers.reduce((s, c) => s + (c.salesValue ?? 0), 0) : 0), [dataset]);
 
   // Customer ids belonging to the focused routes (for fade + zoom-to-extent).
   const focusIds = useMemo(() => {
@@ -131,7 +138,7 @@ export function RoutePlannerWorkspace() {
         color: rid ? colors.get(rid) ?? '#94a3b8' : '#f59e0b',
         review: !rid,
         dim: focusing && !onlySel && !(rid && focusedRoutes.has(rid)),
-        meta: { code: c.code, route: rid, routeLabel: routeLabelOf(rid), routeColor: rid ? colors.get(rid) : undefined, routeCount: rid ? routeCountById.get(rid) : undefined, frequency: c.frequency ? formatFrequency(c.frequency) : '' },
+        meta: { code: c.code, route: rid, routeLabel: routeLabelOf(rid), routeColor: rid ? colors.get(rid) : undefined, routeCount: rid ? routeCountById.get(rid) : undefined, sales: c.salesValue != null ? fmt(c.salesValue) : undefined, frequency: c.frequency ? formatFrequency(c.frequency) : '' },
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -145,16 +152,19 @@ export function RoutePlannerWorkspace() {
 
   const summary = useMemo(() => aggregateReview(reviews, focusedRoutes), [reviews, focusedRoutes]);
 
-  // Move preview: how many selected, broken down by the route they currently sit on.
+  // Move preview: how many selected (+ sales), broken down by current route.
   const movePreview = useMemo(() => {
     if (!applied || selectedIds.size === 0) return null;
-    const byLabel = new Map<string, number>();
+    const byLabel = new Map<string, { n: number; sales: number }>();
+    let totalSales = 0;
     for (const c of applied.customers) if (selectedIds.has(c.id)) {
       const label = c.ownership.routeId ? routeLabelOf(c.ownership.routeId) : t('routePlanner.needsReview');
-      byLabel.set(label, (byLabel.get(label) ?? 0) + 1);
+      const e = byLabel.get(label) ?? { n: 0, sales: 0 };
+      e.n++; e.sales += c.salesValue ?? 0; byLabel.set(label, e);
+      totalSales += c.salesValue ?? 0;
     }
-    const breakdown = [...byLabel.entries()].map(([label, n]) => ({ label, n })).sort((a, b) => b.n - a.n);
-    return { count: selectedIds.size, breakdown };
+    const breakdown = [...byLabel.entries()].map(([label, v]) => ({ label, n: v.n, sales: Math.round(v.sales) })).sort((a, b) => b.n - a.n);
+    return { count: selectedIds.size, totalSales: Math.round(totalSales), breakdown };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applied, selectedIds, ids]);
 
@@ -168,6 +178,7 @@ export function RoutePlannerWorkspace() {
   ], [ids]);
   // Guard a stale target (e.g. a route that was emptied out) → fall back to the first route.
   const effectiveTarget = (targetRoute === NEW_ROUTE || targetRoute === UNASSIGNED || ids.includes(targetRoute)) ? targetRoute : (ids[0] ?? NEW_ROUTE);
+  const targetLabel = effectiveTarget === NEW_ROUTE ? t('routePlanner.newRoute') : effectiveTarget === UNASSIGNED ? t('routePlanner.keepUnassigned') : routeLabelOf(effectiveTarget);
 
   // ── Upload → column mapping ──
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -292,8 +303,8 @@ export function RoutePlannerWorkspace() {
       const sheets = [{ name: 'Route Allocation', rows: routeExportRows(dataset, scenario, routeLabelOf) }];
       if (unassigned > 0) sheets.push({ name: 'Needs Review', rows: needsReviewExportRows(dataset, scenario) });
       if (method === 'current' && baseline) {
-        sheets.push({ name: 'Route Changes', rows: routeChangeRows(dataset, baseline, scenario, routeLabelOf) });
-        sheets.push({ name: 'Change Summary', rows: changeSummaryRows(dataset, baseline, scenario, routeLabelOf) });
+        sheets.push({ name: 'Route Changes', rows: routeChangeRows(dataset, baseline, scenario, routeLabelOf, hasSales) });
+        sheets.push({ name: 'Change Summary', rows: changeSummaryRows(dataset, baseline, scenario, routeLabelOf, hasSales) });
       }
       const assigned = sheets[0].rows.length - 1;
       downloadXlsx(buildXlsxWorkbook(sheets), 'route-allocation.xlsx');
@@ -460,16 +471,26 @@ export function RoutePlannerWorkspace() {
             {diff.perRoute.length > 0 && (
               <div className="max-h-40 overflow-y-auto">
                 <table className="w-full text-xs tabular-nums">
-                  <thead className="text-muted-foreground"><tr className="text-start"><th className="py-1 text-start font-normal">{t('routePlanner.diffRoute')}</th><th className="text-end font-normal">{t('routePlanner.diffBefore')}</th><th className="text-end font-normal">{t('routePlanner.diffAfter')}</th><th className="text-end font-normal">{t('routePlanner.diffDelta')}</th></tr></thead>
+                  <thead className="text-muted-foreground"><tr className="text-start">
+                    <th className="py-1 text-start font-normal">{t('routePlanner.diffRoute')}</th>
+                    <th className="text-end font-normal">{t('routePlanner.diffBefore')}</th>
+                    <th className="text-end font-normal">{t('routePlanner.diffAfter')}</th>
+                    <th className="text-end font-normal">{t('routePlanner.diffDelta')}</th>
+                    {hasSales && <><th className="text-end font-normal">{t('routePlanner.diffSalesBefore')}</th><th className="text-end font-normal">{t('routePlanner.diffSalesAfter')}</th><th className="text-end font-normal">{t('routePlanner.diffSalesDelta')}</th></>}
+                  </tr></thead>
                   <tbody>
-                    {diff.perRoute.slice(0, 50).map((r) => (
-                      <tr key={r.route} className="border-t">
-                        <td className="py-0.5 truncate">{routeLabelOf(r.route)}</td>
-                        <td className="text-end">{r.before}</td>
-                        <td className="text-end">{r.after}</td>
-                        <td className={`text-end font-semibold ${r.diff > 0 ? 'text-emerald-600' : 'text-red-600'}`}>{r.diff > 0 ? '+' : ''}{r.diff}</td>
-                      </tr>
-                    ))}
+                    {diff.perRoute.slice(0, 50).map((r) => {
+                      const sd = r.afterS - r.beforeS;
+                      return (
+                        <tr key={r.route} className="border-t">
+                          <td className="py-0.5 truncate">{routeLabelOf(r.route)}</td>
+                          <td className="text-end">{r.before}</td>
+                          <td className="text-end">{r.after}</td>
+                          <td className={`text-end font-semibold ${r.diff > 0 ? 'text-emerald-600' : r.diff < 0 ? 'text-red-600' : ''}`}>{r.diff > 0 ? '+' : ''}{r.diff}</td>
+                          {hasSales && <><td className="text-end text-muted-foreground">{fmt(r.beforeS)}</td><td className="text-end text-muted-foreground">{fmt(r.afterS)}</td><td className={`text-end font-semibold ${sd > 0 ? 'text-emerald-600' : sd < 0 ? 'text-red-600' : ''}`}>{sd > 0 ? '+' : ''}{fmt(sd)}</td></>}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -498,13 +519,16 @@ export function RoutePlannerWorkspace() {
             {selectingCount != null ? (
               <span className="font-medium text-primary">{t('routePlanner.selectingN').replace('{n}', String(selectingCount))}</span>
             ) : (
-              <span className="font-medium">{t('routePlanner.selectedN').replace('{n}', String(selectedIds.size))}</span>
+              <span className="font-medium">
+                {t('routePlanner.selectedN').replace('{n}', String(selectedIds.size))}
+                {hasSales && movePreview && <span className="text-muted-foreground"> · {t('routePlanner.salesLabel')} {fmt(movePreview.totalSales)}</span>}
+              </span>
             )}
             {selectingCount == null && movePreview && movePreview.breakdown.length > 0 && (
               <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                 {t('routePlanner.fromLabel')}
                 {movePreview.breakdown.slice(0, 6).map((b) => (
-                  <span key={b.label} className="rounded bg-background px-1.5 py-0.5 tabular-nums">{b.label}: {b.n}</span>
+                  <span key={b.label} className="rounded bg-background px-1.5 py-0.5 tabular-nums">{b.label}: {b.n}{hasSales ? ` | ${fmt(b.sales)}` : ''}</span>
                 ))}
                 {movePreview.breakdown.length > 6 && <span>…</span>}
               </span>
@@ -516,6 +540,14 @@ export function RoutePlannerWorkspace() {
             <Button size="sm" disabled={selectedIds.size === 0 || viewingCurrent} onClick={moveSelected}><MapPin className="h-4 w-4" /> {t('routePlanner.apply')}{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}</Button>
             {selectedIds.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}><X className="h-4 w-4" /> {t('routePlanner.clear')}</Button>}
           </div>
+
+          {/* Move impact preview */}
+          {!viewingCurrent && selectingCount == null && movePreview && (
+            <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-1.5 text-xs text-emerald-800">
+              {t('routePlanner.movePreview').replace('{n}', String(movePreview.count)).replace('{target}', targetLabel)}
+              {hasSales && ` · ${t('routePlanner.salesImpact')} +${fmt(movePreview.totalSales)}`}
+            </p>
+          )}
 
           <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingCount} />
         </div>
@@ -536,6 +568,11 @@ export function RoutePlannerWorkspace() {
                   [t('routePlanner.colSpan'), `${summary.maxSpanKm}km`],
                   [t('routePlanner.colCompactness'), String(summary.compactness)],
                   [t('routePlanner.colSelected'), String(selectedIds.size)],
+                  ...(hasSales ? [
+                    [t('routePlanner.colTotalSales'), fmt(summary.totalSales)],
+                    [t('routePlanner.colAvgSales'), fmt(summary.avgSalesPerCustomer)],
+                    [t('routePlanner.colSalesPct'), datasetSales > 0 ? `${Math.round((summary.totalSales / datasetSales) * 100)}%` : '—'],
+                  ] as [string, string][] : []),
                 ] as [string, string][]).map(([label, value]) => (
                   <div key={label}><p className="text-[10px] text-muted-foreground">{label}</p><p className="font-semibold tabular-nums" dir="ltr">{value}</p></div>
                 ))}
@@ -551,7 +588,7 @@ export function RoutePlannerWorkspace() {
               </div>
             </div>
             <div className="grid grid-cols-[auto_auto_1fr_auto_auto_auto] items-center gap-x-2 text-[11px] text-muted-foreground">
-              <span /><span /><span /><span className="text-end">{t('routePlanner.colCustomers')}</span><span className="text-end">{t('routePlanner.colVisits')}</span><span className="text-end">{t('routePlanner.colWorkload')}</span>
+              <span /><span /><span /><span className="text-end">{t('routePlanner.colCustomers')}</span><span className="text-end">{hasSales ? t('routePlanner.colTotalSales') : t('routePlanner.colVisits')}</span><span className="text-end">{t('routePlanner.colWorkload')}</span>
             </div>
             <div className="max-h-[44vh] space-y-1 overflow-y-auto pe-1">
               {reviews.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">—</p>}
@@ -566,9 +603,9 @@ export function RoutePlannerWorkspace() {
                   >
                     <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'}`}>{on && <Check className="h-2.5 w-2.5" />}</span>
                     <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: s.color }} />
-                    <span className="truncate font-medium">{t('routePlanner.route')} {s.index}</span>
+                    <span className="truncate font-medium">{routeLabelOf(s.routeId)}</span>
                     <span className="text-end tabular-nums" dir="ltr">{s.customers}</span>
-                    <span className="text-end tabular-nums text-muted-foreground" dir="ltr">{s.weeklyVisits}</span>
+                    <span className="text-end tabular-nums text-muted-foreground" dir="ltr">{hasSales ? fmt(s.sales) : s.weeklyVisits}</span>
                     <span className="text-end tabular-nums text-muted-foreground" dir="ltr">{s.workloadHours}h</span>
                   </button>
                 );

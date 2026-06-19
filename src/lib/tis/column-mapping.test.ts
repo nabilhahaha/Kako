@@ -86,3 +86,16 @@ describe('applyColumnMapping', () => {
     expect(required).toEqual(['name', 'lat', 'lng']);
   });
 });
+
+describe('sales column auto-detection', () => {
+  it('detects Monthly Sales / Revenue / MTD / Arabic into the sales field', () => {
+    expect(suggestColumnMapping(['Name', 'Lat', 'Lng', 'Monthly Sales']).sales).toBe('Monthly Sales');
+    expect(suggestColumnMapping(['Revenue']).sales).toBe('Revenue');
+    expect(suggestColumnMapping(['MTD Sales']).sales).toBe('MTD Sales');
+    expect(suggestColumnMapping(['المبيعات']).sales).toBe('المبيعات');
+  });
+  it('maps the sales field onto salesValue', () => {
+    const rows = applyColumnMapping([{ N: 'A', Y: '21', X: '39', Rev: '12500' }], { name: 'N', lat: 'Y', lng: 'X', sales: 'Rev' });
+    expect(rows[0].salesValue).toBe('12500');
+  });
+});

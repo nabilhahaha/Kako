@@ -14,7 +14,7 @@ import { useI18n } from '@/lib/i18n/provider';
  * The parent owns the selection, focus, hulls and point colours; this just renders and
  * reports interactions. Client-only; keyless OSM raster base.
  */
-export interface SelMapMeta { code?: string | null; route?: string | null; routeLabel?: string | null; routeColor?: string | null; routeCount?: number; frequency?: string | null }
+export interface SelMapMeta { code?: string | null; route?: string | null; routeLabel?: string | null; routeColor?: string | null; routeCount?: number; sales?: string | null; frequency?: string | null }
 export interface RouteOption { value: string; label: string }
 export interface SelMapPoint { id: string; name: string; lat: number; lng: number; color: string; review?: boolean; dim?: boolean; meta?: SelMapMeta }
 export interface SelMapHull { id: string; color: string; ring: [number, number][] }
@@ -75,8 +75,8 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
   const selectingRef = useRef(onSelecting); selectingRef.current = onSelecting;
   const optionsRef = useRef(routeOptions); optionsRef.current = routeOptions;
   const modeRef = useRef(selectMode); modeRef.current = selectMode;
-  const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '', current: '', moveTo: '', routeCount: '' });
-  labelsRef.current = { code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), freq: t('routePlanner.colFrequency'), geo: t('routePlanner.colGeo2'), move: t('routePlanner.move'), current: t('routePlanner.currentRoute'), moveTo: t('routePlanner.moveTo'), routeCount: t('routePlanner.routeCustomers') };
+  const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '', current: '', moveTo: '', routeCount: '', sales: '' });
+  labelsRef.current = { code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), freq: t('routePlanner.colFrequency'), geo: t('routePlanner.colGeo2'), move: t('routePlanner.move'), current: t('routePlanner.currentRoute'), moveTo: t('routePlanner.moveTo'), routeCount: t('routePlanner.routeCustomers'), sales: t('routePlanner.colSales') };
   const fitOnce = useRef(false);
   const focusKey = [...focusIds].sort().join(',');
 
@@ -222,6 +222,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
       ${row(L.code, esc(m.code || ''))}
       ${row(L.current, swatch + esc(m.routeLabel || '—'))}
       ${m.routeCount != null ? row(L.routeCount, String(m.routeCount)) : ''}
+      ${m.sales ? row(L.sales, esc(m.sales)) : ''}
       ${row(L.freq, esc(m.frequency || '—'))}
       ${row(L.geo, `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`)}
       <div style="margin-top:6px;color:#64748b">${esc(L.moveTo)}</div>

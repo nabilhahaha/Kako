@@ -28,6 +28,8 @@ export interface RouteStat {
   weeklyVisits: number;
   /** Estimated field workload in hours/week (visits × visit-duration). */
   workloadHours: number;
+  /** Σ sales value across the route's customers (0 when no sales data). */
+  sales: number;
 }
 
 /** Stable sorted route ids for the scenario (unassigned excluded). */
@@ -69,8 +71,15 @@ export function routeStats(dataset: TisDataset, scenario: Scenario): RouteStat[]
       customers: list.length,
       weeklyVisits: Math.round(visits),
       workloadHours: Math.round((minutes / 60) * 10) / 10,
+      sales: Math.round(list.reduce((s, c) => s + (c.salesValue ?? 0), 0)),
     };
   });
+}
+
+/** True when any customer in the dataset carries a sales value (drives the optional
+ *  sales UI/exports). Pure. */
+export function hasSalesData(dataset: TisDataset): boolean {
+  return dataset.customers.some((c) => c.salesValue != null);
 }
 
 /** Customers not assigned to any route (the "Needs Review" bucket). */
@@ -173,21 +182,29 @@ export interface ReviewAggregate {
   maxSpanKm: number;
   /** Mean compactness across the set. */
   compactness: number;
+  /** Σ sales value across the set (0 when no sales data). */
+  totalSales: number;
+  /** Mean sales value per customer across the set. */
+  avgSalesPerCustomer: number;
 }
 
 /** Aggregate the review stats over a set of focused routes (all when `focused` empty). */
 export function aggregateReview(reviews: readonly RouteReview[], focused: ReadonlySet<string>): ReviewAggregate {
   const set = focused.size ? reviews.filter((r) => focused.has(r.routeId)) : reviews;
-  if (set.length === 0) return { routes: 0, customers: 0, weeklyVisits: 0, workloadHours: 0, maxRadiusKm: 0, avgMeanRadiusKm: 0, maxSpanKm: 0, compactness: 0 };
+  if (set.length === 0) return { routes: 0, customers: 0, weeklyVisits: 0, workloadHours: 0, maxRadiusKm: 0, avgMeanRadiusKm: 0, maxSpanKm: 0, compactness: 0, totalSales: 0, avgSalesPerCustomer: 0 };
+  const customers = set.reduce((n, r) => n + r.customers, 0);
+  const totalSales = set.reduce((n, r) => n + r.sales, 0);
   return {
     routes: set.length,
-    customers: set.reduce((n, r) => n + r.customers, 0),
+    customers,
     weeklyVisits: set.reduce((n, r) => n + r.weeklyVisits, 0),
     workloadHours: Math.round(set.reduce((n, r) => n + r.workloadHours, 0) * 10) / 10,
     maxRadiusKm: Math.round(Math.max(...set.map((r) => r.radiusKm)) * 10) / 10,
     avgMeanRadiusKm: Math.round((set.reduce((n, r) => n + r.meanRadiusKm, 0) / set.length) * 10) / 10,
     maxSpanKm: Math.round(Math.max(...set.map((r) => r.spanKm)) * 10) / 10,
     compactness: Math.round(set.reduce((n, r) => n + r.compactness, 0) / set.length),
+    totalSales,
+    avgSalesPerCustomer: customers ? Math.round(totalSales / customers) : 0,
   };
 }
 
@@ -253,56 +270,74 @@ export const ROUTE_CHANGES_COLUMNS = [
 /**
  * "Route Changes" sheet — one row per customer comparing the loaded baseline
  * allocation to the working one, with Previous/New labels and a change type
- * (Moved · Newly Assigned · Unchanged · Needs Review). `labelOf` renders a route id.
+ * (Moved · Newly Assigned · Unchanged · Needs Review). When `withSales`, appends the
+ * customer's Sales Value and its sales impact on the previous / new route. Pure.
  */
 export function routeChangeRows(
   dataset: TisDataset,
   baseline: Scenario,
   working: Scenario,
   labelOf: (routeId: string | null) => string,
+  withSales = false,
 ): (string | number)[][] {
   const base = applyScenario(dataset, baseline).customers;
   const next = new Map(applyScenario(dataset, working).customers.map((c) => [c.id, c.ownership.routeId]));
-  const rows: (string | number)[][] = [[...ROUTE_CHANGES_COLUMNS]];
+  const header: (string | number)[] = [...ROUTE_CHANGES_COLUMNS];
+  if (withSales) header.push('Sales Value', 'Previous Route Sales Impact', 'New Route Sales Impact');
+  const rows: (string | number)[][] = [header];
   for (const c of base) {
     const prev = c.ownership.routeId;
     const nxt = next.get(c.id) ?? null;
-    rows.push([
+    const row: (string | number)[] = [
       c.code ?? c.id, c.name,
       prev ? labelOf(prev) : '', nxt ? labelOf(nxt) : '(needs review)',
       changeTypeOf(prev, nxt),
       isValidGeo(c.geo) ? c.geo!.lat : '', isValidGeo(c.geo) ? c.geo!.lng : '',
-    ]);
+    ];
+    if (withSales) {
+      const sv = c.salesValue;
+      const changed = prev !== nxt;
+      row.push(
+        sv ?? '',
+        changed && prev && sv != null ? -sv : '',  // sales the previous route loses
+        changed && nxt && sv != null ? sv : '',     // sales the new route gains
+      );
+    }
+    rows.push(row);
   }
   return rows;
 }
 
 /**
  * "Change Summary" sheet — totals (unchanged · moved · newly assigned · needs review ·
- * affected routes) followed by a per-route Before / After / Difference table. Pure.
+ * affected routes) then a per-route Before/After/Difference table. When `withSales`,
+ * the totals add Total Sales and the per-route table adds Before/After/Diff sales. Pure.
  */
 export function changeSummaryRows(
   dataset: TisDataset,
   baseline: Scenario,
   working: Scenario,
   labelOf: (routeId: string | null) => string,
+  withSales = false,
 ): (string | number)[][] {
   const base = applyScenario(dataset, baseline).customers;
   const next = new Map(applyScenario(dataset, working).customers.map((c) => [c.id, c.ownership.routeId]));
-  let unchanged = 0, moved = 0, newly = 0, review = 0;
+  let unchanged = 0, moved = 0, newly = 0, review = 0, totalSales = 0;
   const before = new Map<string, number>(), after = new Map<string, number>();
+  const beforeSales = new Map<string, number>(), afterSales = new Map<string, number>();
   for (const c of base) {
-    const prev = c.ownership.routeId, nxt = next.get(c.id) ?? null;
+    const prev = c.ownership.routeId, nxt = next.get(c.id) ?? null, sv = c.salesValue ?? 0;
     const t = changeTypeOf(prev, nxt);
     if (t === 'Unchanged') unchanged++; else if (t === 'Moved') moved++; else if (t === 'Newly Assigned') newly++; else review++;
-    if (prev) before.set(prev, (before.get(prev) ?? 0) + 1);
-    if (nxt) after.set(nxt, (after.get(nxt) ?? 0) + 1);
+    totalSales += sv;
+    if (prev) { before.set(prev, (before.get(prev) ?? 0) + 1); beforeSales.set(prev, (beforeSales.get(prev) ?? 0) + sv); }
+    if (nxt) { after.set(nxt, (after.get(nxt) ?? 0) + 1); afterSales.set(nxt, (afterSales.get(nxt) ?? 0) + sv); }
   }
   const perRoute = [...new Set([...before.keys(), ...after.keys()])]
-    .map((r) => ({ r, before: before.get(r) ?? 0, after: after.get(r) ?? 0, diff: (after.get(r) ?? 0) - (before.get(r) ?? 0) }))
+    .map((r) => ({ r, before: before.get(r) ?? 0, after: after.get(r) ?? 0, diff: (after.get(r) ?? 0) - (before.get(r) ?? 0), beforeS: Math.round(beforeSales.get(r) ?? 0), afterS: Math.round(afterSales.get(r) ?? 0) }))
     .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
   const affected = perRoute.filter((x) => x.diff !== 0).length;
-  const rows: (string | number)[][] = [
+  const totals: (string | number)[][] = [
     ['Change Summary'],
     ['Total customers', base.length],
     ['Unchanged', unchanged],
@@ -310,9 +345,13 @@ export function changeSummaryRows(
     ['Newly assigned', newly],
     ['Needs Review', review],
     ['Affected routes', affected],
-    [],
-    ['Route / Salesman', 'Before', 'After', 'Difference'],
-    ...perRoute.map((x) => [labelOf(x.r), x.before, x.after, x.diff]),
   ];
-  return rows;
+  if (withSales) totals.push(['Total sales', Math.round(totalSales)]);
+  const head: (string | number)[] = withSales
+    ? ['Route / Salesman', 'Before Customers', 'After Customers', 'Customer Diff', 'Before Sales', 'After Sales', 'Sales Diff']
+    : ['Route / Salesman', 'Before', 'After', 'Difference'];
+  const table = perRoute.map((x) => (withSales
+    ? [labelOf(x.r), x.before, x.after, x.diff, x.beforeS, x.afterS, x.afterS - x.beforeS]
+    : [labelOf(x.r), x.before, x.after, x.diff]));
+  return [...totals, [], head, ...table];
 }

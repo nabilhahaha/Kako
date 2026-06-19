@@ -135,20 +135,20 @@ export function mapRecordsToUploadRows(records: readonly Record<string, string>[
 /** A user-mappable field. `required` ones must be mapped before import. */
 export interface TisMapField { key: TisFieldKey; required?: boolean }
 export type TisFieldKey =
-  | 'name' | 'lat' | 'lng' | 'code' | 'route' | 'frequency' | 'salesman'
+  | 'name' | 'lat' | 'lng' | 'code' | 'route' | 'frequency' | 'sales' | 'salesman'
   | 'branch' | 'city' | 'channel' | 'class' | 'address';
 
 /** The mappable fields in display order (Name/Lat/Lng required; the rest optional). */
 export const TIS_MAP_FIELDS: TisMapField[] = [
   { key: 'name', required: true }, { key: 'lat', required: true }, { key: 'lng', required: true },
-  { key: 'code' }, { key: 'route' }, { key: 'frequency' }, { key: 'salesman' },
+  { key: 'code' }, { key: 'route' }, { key: 'frequency' }, { key: 'sales' }, { key: 'salesman' },
   { key: 'branch' }, { key: 'city' }, { key: 'channel' }, { key: 'class' }, { key: 'address' },
 ];
 
 /** Field → the TisUploadRow property it fills. */
 const FIELD_TO_ROW: Record<TisFieldKey, keyof TisUploadRow> = {
   name: 'name', lat: 'lat', lng: 'lng', code: 'code', route: 'routeId', frequency: 'frequency',
-  salesman: 'salesmanId', branch: 'branch', city: 'city', channel: 'channel', class: 'grade', address: 'address',
+  sales: 'salesValue', salesman: 'salesmanId', branch: 'branch', city: 'city', channel: 'channel', class: 'grade', address: 'address',
 };
 
 /** Header aliases per field (normalised: lower-cased, spaces/underscores/dashes/dots
@@ -162,6 +162,7 @@ const FIELD_ALIASES: Record<TisFieldKey, string[]> = {
   code: ['code', 'customercode', 'custcode', 'outletcode', 'id', 'customerid', 'custid', 'outletid', 'accountcode', 'accountid', 'accountno', 'clientcode', 'كودالعميل', 'الكود', 'رقمالعميل', 'رمزالعميل', 'معرفالعميل'],
   route: ['route', 'routeid', 'routename', 'routeno', 'journey', 'الخط', 'المسار', 'خطالسير', 'رقمالخط'],
   frequency: ['frequency', 'cadence', 'visitfrequency', 'visitfreq', 'freq', 'visitcadence', 'التكرار', 'تكرارالزيارة', 'معدلالزيارة', 'التردد'],
+  sales: ['sales', 'salesvalue', 'salesamount', 'monthlysales', 'mtdsales', 'mtd', 'ytdsales', 'ytd', 'averagesales', 'avgsales', 'invoicevalue', 'invoiceamount', 'revenue', 'netsales', 'turnover', 'value', 'المبيعات', 'مبيعات', 'الإيراد', 'القيمة', 'صافيالمبيعات', 'قيمةالفاتورة'],
   salesman: ['salesman', 'salesmanid', 'salesmanname', 'rep', 'repid', 'salesrep', 'salesperson', 'salespersonid', 'agent', 'المندوب', 'مندوبالمبيعات', 'البائع', 'الممثل'],
   branch: ['branch', 'branchname', 'branchcode', 'depot', 'warehouse', 'الفرع', 'فرع', 'المستودع'],
   city: ['city', 'town', 'cityname', 'المدينة', 'مدينة', 'البلدة'],

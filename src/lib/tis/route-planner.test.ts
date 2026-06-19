@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { simpleGeoSplit } from './optimize-routes';
 import { buildTisDatasetFromRows } from './upload';
 import { currentPlanScenario, moveCustomer } from './plan-edit';
-import { routeStats, routeExportRows, needsReviewExportRows, unassignedCount, unassignedIds, routeColors, routeIdsOf, convexHull, routeReview, aggregateReview, routeChangeRows, changeSummaryRows } from './route-planner';
+import { routeStats, routeExportRows, needsReviewExportRows, unassignedCount, unassignedIds, routeColors, routeIdsOf, convexHull, routeReview, aggregateReview, routeChangeRows, changeSummaryRows, hasSalesData } from './route-planner';
 import { applyScenario, type Scenario } from './scenario';
 
 // Two tight clusters (Jeddah ~21.5/39.1 and Riyadh ~24.7/46.7), 6 each.
@@ -352,5 +352,44 @@ describe('Current Allocation Review export (Route Changes + Change Summary)', ()
     const r3 = sum.find((r) => r[0] === 'R-3'); const r7 = sum.find((r) => r[0] === 'R-7');
     expect(r3).toEqual(['R-3', 2, 1, -1]);
     expect(r7).toEqual(['R-7', 1, 2, 1]);
+  });
+});
+
+describe('Sales aggregation (optional)', () => {
+  function withSalesDs() {
+    const rows = [
+      { code: 'A', name: 'A', lat: 21.50, lng: 39.10, frequency: 'weekly', salesValue: 10000 },
+      { code: 'B', name: 'B', lat: 21.51, lng: 39.11, frequency: 'weekly', salesValue: 30000 },
+      { code: 'C', name: 'C', lat: 24.70, lng: 46.70, frequency: 'weekly', salesValue: 20000 },
+      { code: 'D', name: 'D', lat: 24.71, lng: 46.71, frequency: 'weekly', salesValue: 40000 },
+    ] as Parameters<typeof buildTisDatasetFromRows>[0][number][];
+    return buildTisDatasetFromRows(rows, { source: 'upload' });
+  }
+  it('hasSalesData true when sales present, false otherwise', () => {
+    expect(hasSalesData(withSalesDs())).toBe(true);
+    expect(hasSalesData(dataset())).toBe(false);
+  });
+  it('routeStats sums sales per route; aggregateReview totals + avg', () => {
+    const ds = withSalesDs();
+    const sc = scenarioFromSplit(ds, 2);
+    const stats = routeStats(ds, sc);
+    expect(stats.reduce((s, r) => s + r.sales, 0)).toBe(100000);
+    const agg = aggregateReview(routeReview(ds, sc), new Set());
+    expect(agg.totalSales).toBe(100000);
+    expect(agg.avgSalesPerCustomer).toBe(25000);
+  });
+  it('routeChangeRows/changeSummaryRows add sales columns only with withSales', () => {
+    const ds = withSalesDs();
+    const base = ds.customers.reduce((s, c) => moveCustomer(s, c.id, 'R1'), { id: 'b', name: 'b', assignments: [] as Scenario['assignments'] });
+    const work = moveCustomer(base, ds.customers[0].id, 'R2');
+    const plain = routeChangeRows(ds, base, work, (r) => r ?? '');
+    const sales = routeChangeRows(ds, base, work, (r) => r ?? '', true);
+    expect(plain[0]).toHaveLength(7);
+    expect(sales[0]).toHaveLength(10);
+    expect(sales[0][7]).toBe('Sales Value');
+    const sum = changeSummaryRows(ds, base, work, (r) => r ?? '', true);
+    expect(sum.find((r) => r[0] === 'Total sales')).toBeTruthy();
+    const head = sum.find((r) => r[0] === 'Route / Salesman')!;
+    expect(head).toContain('Sales Diff');
   });
 });
