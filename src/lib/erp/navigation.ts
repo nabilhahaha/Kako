@@ -405,6 +405,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       // ── Execution ──
       { label: 'nav.items.routes', href: '/distribution/routes', icon: Truck, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.execution' },
+      { label: 'nav.items.journeyPlanGen', href: '/distribution/journey-plan', icon: CalendarDays, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.execution' },
       { label: 'nav.items.vanAccounting', href: '/distribution/van-accounting', icon: Wallet, perm: 'reports.view', module: ['distribution', 'van_sales'], group: 'nav.groups.execution' },
       { label: 'nav.items.fieldSync', href: '/distribution/field-sync', icon: Smartphone, perm: 'reports.view', group: 'nav.groups.execution' },
       { label: 'nav.items.suggestedLoad', href: '/distribution/suggested-load', icon: Boxes, perm: 'reports.view', group: 'nav.groups.execution' },
