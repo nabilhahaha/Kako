@@ -51,19 +51,20 @@ const STANDALONE: Partial<Record<Stage, string>> = {
  * (auditTerritory · buildGeoLayers · balanceRoutes · scenario engine · PlanningCanvas).
  * Read-only + export; no Apply. Pure client-side over the shared dataset.
  */
-export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: { customers: TisCustomer[]; asOf: string; source: TisSource; demo: boolean; labels?: Record<string, string> }) {
+export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mode: workspaceMode = 'studio', initialStage }: { customers: TisCustomer[]; asOf: string; source: TisSource; demo: boolean; labels?: Record<string, string>; mode?: 'studio' | 'session'; initialStage?: Stage }) {
   const { t } = useI18n();
+  const session = workspaceMode === 'session'; // New Optimization: Excel-in/out, no live data
   // Imported customers (from an uploaded CSV/XLSX/JSON) replace the server-loaded
   // set for the rest of the session — Import → Audit → Optimize → Plan → Export.
   const [imported, setImported] = useState<TisCustomer[] | null>(null);
   const effective = imported ?? customers;
   const dataset = useMemo(() => buildTisDataset(effective, { asOf, source: imported ? 'upload' : source }), [effective, imported, asOf, source]);
   const defaultRouteCount = useMemo(() => Math.max(1, new Set(effective.map((c) => c.ownership.routeId).filter(Boolean)).size || 6), [effective]);
-  const sample = demo && !imported; // viewing the bundled demo, not the manager's data
+  const sample = demo && !imported && !session; // viewing the bundled demo, not the manager's data
 
   const [scenarios, setScenarios] = useState<Scenario[]>(() => [currentPlanScenario(dataset)]);
   const [activeId, setActiveId] = useState('current');
-  const [stage, setStage] = useState<Stage>('overview');
+  const [stage, setStage] = useState<Stage>(initialStage ?? 'overview');
   const [colorMode, setColorMode] = useState<ColorMode>('coverage');
   // Optimize config — Simple: routeCount · workingDays · balanceBy. Advanced: caps.
   const [opt, setOpt] = useState<OptConfig>({ routeCount: '', workingDays: '5', balanceBy: 'workload', maxPerRoute: '', maxVisitsPerDay: '', visitDurationMin: '20', advanced: false, expert: false });
@@ -287,7 +288,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
             gives the map full width and docks the route boards beneath it. */}
         <div className="min-w-0 flex-1 space-y-3">
           {stage === 'import' ? (
-            <ImportPanel t={t} importing={importing} message={importMsg} sample={sample} imported={imported != null} count={dataset.customers.length} preview={preview} onPick={() => fileRef.current?.click()} onTemplate={onTemplate} onConfirm={confirmImport} onCancel={cancelImport} onReset={resetToLive} />
+            <ImportPanel t={t} importing={importing} message={importMsg} sample={sample} imported={imported != null && !session} count={dataset.customers.length} preview={preview} onPick={() => fileRef.current?.click()} onTemplate={onTemplate} onConfirm={confirmImport} onCancel={cancelImport} onReset={resetToLive} />
           ) : stage === 'export' ? (
             <ExportPanel t={t} count={dataset.customers.length} scenarioName={active.name} onExport={onExport} />
           ) : stage === 'plan' ? (
@@ -296,7 +297,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
               {mapEl}
               {legendEl}
               <PlanningCanvas dataset={dataset} scenario={active} onChange={update} labels={labels} scopeIds={scopeIds} />
-              <StageLink href={STANDALONE.plan!} label={t('studio.openFull')} />
+              {!session && <StageLink href={STANDALONE.plan!} label={t('studio.openFull')} />}
             </>
           ) : (
             <div className="flex flex-col gap-3 xl:flex-row">
@@ -313,7 +314,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
                 {stage === 'map' && <p className="text-sm text-muted-foreground">{t('studio.mapLead')}</p>}
                 {stage === 'optimize' && <OptimizePanel dataset={scopedDataset} scenarios={scenarios} opt={opt} setOpt={setOpt} defaultRouteCount={scopedRouteCount || defaultRouteCount} onOptimize={onOptimize} t={t} />}
                 {stage === 'size' && <NeedsPanel text={t('studio.sizeSoon')} />}
-                {STANDALONE[stage] && <StageLink href={STANDALONE[stage]!} label={t('studio.openFull')} />}
+                {!session && STANDALONE[stage] && <StageLink href={STANDALONE[stage]!} label={t('studio.openFull')} />}
               </aside>
             </div>
           )}

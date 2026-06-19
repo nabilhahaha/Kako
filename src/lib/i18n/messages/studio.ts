@@ -50,6 +50,8 @@ export const ar = {
     exportLead: 'نزّل الخطة الحالية بصيغة النموذج الموحّد — قابلة لإعادة الاستيراد في Excel/Google Sheets.',
     exportScope: 'السيناريو «{name}» · {n} عميل.',
     exportNote: 'التصدير فقط — لا يتم أي تعديل على بيانات النظام.',
+    newOptTitle: 'تحسين جديد',
+    newOptDesc: 'جلسة تحسين مستقلة: ارفع ملف Excel/CSV ← حسّن الخطوط ← راجِع على الخريطة واسحب وأفلت ← صدّر. مؤقتة تماماً — لا تمسّ بيانات النظام.',
   },
 };
 
@@ -104,5 +106,7 @@ export const en = {
     exportLead: 'Download the current plan in the single-model schema — re-importable into Excel / Google Sheets.',
     exportScope: 'Scenario “{name}” · {n} customers.',
     exportNote: 'Export only — no live data is modified.',
+    newOptTitle: 'New Optimization',
+    newOptDesc: 'A standalone optimization session: upload Excel/CSV → optimize routes → review on the map & drag-and-drop → export. Fully temporary — it never touches live data.',
   },
 };
