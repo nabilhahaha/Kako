@@ -93,6 +93,7 @@ import * as territoryAudit from './territory-audit';
 import * as geo from './geo';
 import * as routeOpt from './route-opt';
 import * as planBoard from './plan-board';
+import * as studio from './studio';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -134,6 +135,7 @@ const MODULES = [
   geo,
   routeOpt,
   planBoard,
+  studio,
 ];
 
 type Catalog = Record<string, unknown>;
