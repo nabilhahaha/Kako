@@ -1,0 +1,86 @@
+# G6 — Field Governance Matrix (proposed) & Audit/Request Mapping
+
+**Branch:** `claude/pilot-ux` · **PR:** #319 · **Date:** 2026-06-19 · **Status:** *Design for approval — no implementation yet.*
+
+## Action-level model (field-level, not customer-level)
+
+| Level | Meaning | UI effect |
+|-------|---------|-----------|
+| **Hidden** | Field not visible | redacted (read-governance also nulls it server-side) |
+| **View** | Read-only | shown, no edit, no request affordance |
+| **Request Change** | Read-only **+** can submit a change request | shown read-only with a "Request change" action → `erp_customer_change_requests` |
+| **Edit** | Direct edit (audited) | editable in the form; writes immediately |
+| **Approve** | Can approve/apply others' change requests for the field | approval-queue capability (only when the data-update workflow is enabled) |
+
+**Engine mapping.** The existing `resolveLayout` engine has `hidden < view < edit < required`. G6 adds **`request`** (between `view` and `edit`). **`approve`** is **not** a per-field edit level — it's a workflow capability (the existing approval/`customers.approve`-style permission gating the change-request queue), so it's tracked separately. `required` stays an Edit sub-type (must-fill).
+
+---
+
+## Proposed matrix (per governed field × role)
+
+Roles: **Sal** = Salesman · **Sup** = Supervisor · **CrM** = Credit Manager · **Adm** = Company Admin · **Apr** = Approver (only if the data-update workflow is enabled).
+
+### Legal & commercial identity (high sensitivity)
+| Field | Sal | Sup | CrM | Adm | Apr |
+|-------|-----|-----|-----|-----|-----|
+| Legal name | View | View | View | **Edit** | Approve* |
+| CR number | View | View | View | **Edit** | Approve* |
+| VAT number | View | View | View | **Edit** | Approve* |
+| National address | View | **Request** | View | **Edit** | Approve* |
+
+### Contact (data-correction)
+| Field | Sal | Sup | CrM | Adm | Apr |
+|-------|-----|-----|-----|-----|-----|
+| Address | View | **Request** | View | **Edit** | Approve* |
+| Phone(s) | View | **Request** | View | **Edit** | Approve* |
+| Contact person | View | **Request** | View | **Edit** | Approve* |
+| Email | View | **Request** | View | **Edit** | Approve* |
+
+### Commercial controls
+| Field | Sal | Sup | CrM | Adm | Apr |
+|-------|-----|-----|-----|-----|-----|
+| Credit limit | View | **Request** | **Edit** | **Edit** | Approve* |
+| Payment terms | View | **Request** | **Edit** | **Edit** | Approve* |
+| Customer status (active/blocked) | View | **Request** | View | **Edit** (critical action) | Approve* |
+| Credit-control flags | View | View | **Edit** | **Edit** | — |
+| Approval status | View | View | View | View | — (system/workflow only) |
+
+### Territory & assignment *(changes also route through the transfer workflow)*
+| Field | Sal | Sup | CrM | Adm | Apr |
+|-------|-----|-----|-----|-----|-----|
+| Branch | View | **Request** | View | **Edit** | Approve* |
+| Region | View | **Request** | View | **Edit** | Approve* |
+| Area | View | **Request** | View | **Edit** | Approve* |
+| Route | View | **Request** | View | **Edit** | Approve* |
+| Assigned salesman | View | **Request** | View | **Edit** | Approve* |
+| Visit day | View | **Request** | View | **Edit** | Approve* |
+
+`*Approve` applies **only when the data-update-approval workflow is enabled** (action policy `customer.dataUpdateApproval`); when disabled, an **Edit** role writes directly and there is no Approve step.
+
+**Defaults & guards.** Any role not listed defaults to **View** for governed fields (Hidden only where read-governance already redacts). **Admin-lockout protection** is preserved: Company Admin never drops below **Edit** on governed fields. Company-level overrides still win over these defaults (the policy is the **baseline**, applied **opt-in per company** per the approved rollout).
+
+---
+
+## Audit vs Change-Request mapping (confirmation)
+
+| Action | Creates change request? | Generates audit event? | Audit detail (structured G5 envelope) |
+|--------|------------------------|------------------------|----------------------------------------|
+| **View / Hidden** | No | No | — |
+| **Request Change** (Sup etc.) | **Yes** → `erp_customer_change_requests` | **Yes** — a `request_created` event | `{ field, oldValue, newValue(requested), role, reason, requestRef }` |
+| **Edit** (Adm/CrM direct) | No | **Yes** — a field-change event | `{ field, oldValue, newValue, role, reason }` |
+| **Approve** a request | No (consumes one) | **Yes** — a `request_decided` event **and**, on apply, the field-change event | `{ requestRef, decision, role, reason }` + `{ field, oldValue, newValue, requestRef }` |
+| **Reject** a request | No | **Yes** — `request_decided` (rejected) | `{ requestRef, decision: rejected, role, reason }` |
+
+**In short:**
+- **Change requests** are created by **every Request-Change** action (and by Edit-capable roles only when the workflow forces approval).
+- **Audit events** are generated by **every direct Edit, every Request submission, and every Approve/Reject decision + apply** — all through the G5 structured envelope so old→new, actor, role, reason, and the request reference are always captured.
+
+---
+
+## Implementation note (for G6, on approval)
+- Add the **`request`** access level to the governance engine + a shared default sensitivity map (this matrix), applied as an **opt-in** baseline (company overrides win).
+- The **Request-Change** affordance reuses the existing `erp_customer_change_requests` submit + the existing approve/apply path (G7 surfaces the UI).
+- **Approve** maps to the existing approval workflow/permission — no new permission model.
+- Pairs with **G5** (structured audit envelope) so the audit columns above are guaranteed.
+
+**No implementation performed in this document. Awaiting approval of this matrix before building G5 → G6 → G7.**
