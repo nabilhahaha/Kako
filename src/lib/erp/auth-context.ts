@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { Branch, BranchRole, Company, Profile } from './types';
 import { ALL_PERMISSIONS, applyFashionUmbrella, type Permission } from './permissions';
 import { ALL_MODULES, type Module } from './navigation';
+import { isRoutePlannerDemoAccount } from './route-planner-demo';
 import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys, USER_ACCESS_OVERRIDES_ENABLED, ROLE_PERMISSION_OVERRIDES_ENABLED, applyAccessOverrides } from '@/lib/role-governance';
 import { log } from '@/lib/observability';
 
@@ -28,6 +29,10 @@ export interface UserContext {
   permissions: Permission[];
   /** Feature modules unlocked by the company's plan (all for owner/super admin). */
   modules: Module[];
+  /** True for the locked-down "Route Planner Demo" account — a chrome-free, single-
+   *  screen experience redirected to the Simple Route Planner. Computed by the single
+   *  `isRoutePlannerDemoAccount` helper (swap email→role there, not here). */
+  isRoutePlannerDemo: boolean;
 }
 
 const ROLE_RANK: Record<BranchRole, number> = {
@@ -338,6 +343,7 @@ async function resolveUserContext(): Promise<UserContext | null> {
     topRole,
     permissions,
     modules,
+    isRoutePlannerDemo: isRoutePlannerDemoAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
   };
 }
 

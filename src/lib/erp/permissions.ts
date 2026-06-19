@@ -111,6 +111,11 @@ export type Permission =
   | 'report.aggregate.view' // view scale-safe aggregated reports
   // ── Territory Intelligence / Planning ──
   | 'tis.run_optimization' // run a standalone optimization session (Excel-in/out; no live writes)
+  // ── Simple Route Planner (standalone, session-only) ──
+  | 'route_planner.view' // open the Simple Route Planner
+  | 'route_planner.upload' // upload a customer file / map columns
+  | 'route_planner.edit' // split, move, merge, rebalance routes
+  | 'route_planner.export' // export the plan to Excel
   // ── Fashion Store pack (clothing vertical) ──
   | 'fashion.manage' // full fashion-store management (owner) — implies all below
   | 'fashion.sell' // POS cash + installment sales, customers, returns
@@ -150,6 +155,10 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'treasury.manage': { en: 'Operate the cash box / treasury', ar: 'تشغيل صندوق النقدية / الخزينة', group: 'accounting' },
   'reports.view': { en: 'Reports', ar: 'التقارير', group: 'accounting' },
   'tis.run_optimization': { en: 'Run optimization (Excel-in/out)', ar: 'تشغيل التحسين (Excel)', group: 'sales' },
+  'route_planner.view': { en: 'Open Route Planner', ar: 'فتح مخطط الخطوط', group: 'field_ops' },
+  'route_planner.upload': { en: 'Upload / map columns', ar: 'رفع وربط الأعمدة', group: 'field_ops' },
+  'route_planner.edit': { en: 'Edit / move routes', ar: 'تعديل ونقل الخطوط', group: 'field_ops' },
+  'route_planner.export': { en: 'Export Route Planner Excel', ar: 'تصدير مخطط الخطوط', group: 'field_ops' },
   'settings.branches': { en: 'Manage branches', ar: 'إدارة الفروع', group: 'settings' },
   'settings.users': { en: 'Manage users and permissions', ar: 'إدارة المستخدمين والصلاحيات', group: 'settings' },
   'integrations.manage': { en: 'Manage data import & integrations', ar: 'إدارة استيراد البيانات والتكاملات', group: 'settings' },

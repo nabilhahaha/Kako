@@ -31,6 +31,19 @@ export default async function AppLayout({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  // Route Planner Demo: a locked-down, chrome-free single-screen experience. No
+  // sidebar / top bar / bottom nav / command palette, and it bypasses the tenant
+  // onboarding / setup / subscription gates — the page renders its own branding.
+  if (ctx.isRoutePlannerDemo) {
+    return (
+      <ConfirmProvider>
+        <PromptProvider>
+          <main className="min-h-screen bg-background">{children}</main>
+        </PromptProvider>
+      </ConfirmProvider>
+    );
+  }
+
   const { t, locale } = await getT();
 
   // Vendor-side internal employees (platform staff) belong to no tenant company;

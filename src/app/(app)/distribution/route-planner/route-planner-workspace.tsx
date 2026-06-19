@@ -47,7 +47,7 @@ function downloadXlsx(bytes: Uint8Array, filename: string) {
  * TIS upload pipeline, the shared scenario/plan-edit engine and a single-pass geo
  * split — the manager does the final shaping by box/click-selecting on the map.
  */
-export function RoutePlannerWorkspace() {
+export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {}) {
   const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
 

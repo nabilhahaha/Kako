@@ -21,7 +21,12 @@ export function resolveHomePath(ctx: {
    *  role lands on its own work screen instead of the generic dashboard. Absent
    *  (view-as preview / legacy callers) → falls back to dashboard routing. */
   memberships?: ReadonlyArray<{ role: BranchRole }>;
+  /** Locked-down Route Planner Demo account → lands directly on the planner. */
+  isRoutePlannerDemo?: boolean;
 }): string {
+  // Route Planner Demo: a single-screen experience — always land on the planner.
+  if (ctx.isRoutePlannerDemo) return '/distribution/route-planner';
+
   // The vendor platform owner runs the platform, not a tenant store.
   if (ctx.isPlatformOwner) return '/platform';
 
