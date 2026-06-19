@@ -49,7 +49,7 @@ function toHullGeoJSON(hulls: SelMapHull[]) {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
 
-export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, tall = false, onToggle, onBoxSelect, onMoveSingle, onContextMenu, onSelecting }: {
+export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, tall = false, fill = false, onToggle, onBoxSelect, onMoveSingle, onContextMenu, onSelecting }: {
   points: SelMapPoint[];
   hulls: SelMapHull[];
   selectedIds: Set<string>;
@@ -57,6 +57,8 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
   routeOptions: RouteOption[];
   selectMode: 'box' | 'draw';
   tall?: boolean;
+  /** Fill the parent's height (for the focus flex layout) instead of a fixed vh. */
+  fill?: boolean;
   onToggle: (id: string) => void;
   onBoxSelect: (ids: string[]) => void;
   onMoveSingle: (id: string, dest: string) => void;
@@ -279,7 +281,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusKey]);
 
-  return <div ref={containerRef} className={`w-full overflow-hidden rounded-xl border ${tall ? 'h-[82vh] min-h-[520px]' : 'h-[62vh] min-h-[380px]'}`} />;
+  return <div ref={containerRef} className={`w-full overflow-hidden rounded-xl border ${fill ? 'h-full min-h-[320px]' : tall ? 'h-[82vh] min-h-[520px]' : 'h-[62vh] min-h-[380px]'}`} />;
 }
 
 /** Ray-casting point-in-polygon on screen pixels (for freehand draw select). */

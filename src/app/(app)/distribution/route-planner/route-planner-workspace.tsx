@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass } from 'lucide-react';
+import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,13 @@ const UNASSIGNED = '__unassigned';
 
 function emptyScenario(): Scenario { return { id: 'plan', name: 'Route plan', assignments: [] }; }
 const fmt = (n: number) => Math.round(n).toLocaleString();
+/** Compact money/number: 1,140,000 → 1.14M · 425,000 → 425K. */
+const fmtShort = (n: number) => {
+  const a = Math.abs(n);
+  if (a >= 1e6) return `${(n / 1e6).toFixed(2).replace(/\.?0+$/, '')}M`;
+  if (a >= 1e4) return `${(n / 1e3).toFixed(1).replace(/\.?0+$/, '')}K`;
+  return Math.round(n).toLocaleString();
+};
 
 /** Lightweight inline territory/route illustration for the demo welcome (no images,
  *  no animation — keeps it fast). */
@@ -369,20 +376,23 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
   // focus mode only. The language toggle works in the chrome-free demo layout (the
   // i18n provider lives at the root and sets the locale cookie + flips RTL/LTR).
   const brandHeader = focus ? (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm"><RouteIcon className="h-5 w-5" /></div>
-        <div className="leading-tight">
-          <p className="text-base font-bold tracking-tight">VANTORA</p>
-          <p className="text-xs font-medium text-muted-foreground">Route Planner</p>
-        </div>
-      </div>
+    <div className={`flex flex-wrap items-center justify-between gap-2 ${dataset ? 'mb-1' : 'mb-3'}`}>
       <div className="flex items-center gap-2">
-        <div className="inline-flex overflow-hidden rounded-md border text-xs">
-          <button onClick={() => setLocale('en')} className={`px-2.5 py-1 ${locale === 'en' ? 'bg-primary font-semibold text-primary-foreground' : 'bg-background hover:bg-muted'}`}>EN</button>
-          <button onClick={() => setLocale('ar')} className={`border-s px-2.5 py-1 ${locale === 'ar' ? 'bg-primary font-semibold text-primary-foreground' : 'bg-background hover:bg-muted'}`}>العربية</button>
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"><RouteIcon className="h-4 w-4" /></div>
+        <p className="text-sm font-bold tracking-tight">VANTORA <span className="font-medium text-muted-foreground">Route Planner</span></p>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="hidden rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary sm:inline">{t('routePlanner.demoBadge')}</span>
+        <div className="inline-flex overflow-hidden rounded-md border text-[11px]">
+          <button onClick={() => setLocale('en')} className={`px-2 py-0.5 ${locale === 'en' ? 'bg-primary font-semibold text-primary-foreground' : 'bg-background hover:bg-muted'}`}>EN</button>
+          <button onClick={() => setLocale('ar')} className={`border-s px-2 py-0.5 ${locale === 'ar' ? 'bg-primary font-semibold text-primary-foreground' : 'bg-background hover:bg-muted'}`}>العربية</button>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">{t('routePlanner.demoBadge')}</span>
+        {/* Sign out — the chrome-free demo shell has no top bar, so we surface it here. */}
+        <form action="/auth/signout" method="post">
+          <button type="submit" className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium hover:bg-muted" title={t('common.signOut')}>
+            <LogOut className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t('common.signOut')}</span>
+          </button>
+        </form>
       </div>
     </div>
   ) : null;
@@ -461,14 +471,18 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
             ) : (
               <>
                 <p className="text-sm text-muted-foreground">{t('routePlanner.mappingLead').replace('{n}', String(mapState.records.length))}</p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                {/* Stacked label-above-field layout: a clean 2-column grid with generous
+                    column/row gaps so labels can never collide with adjacent fields — works
+                    symmetrically in RTL (Arabic) and LTR (English). */}
+                <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
                   {TIS_MAP_FIELDS.map((f) => (
-                    <div key={f.key} className="flex items-center gap-2">
-                      <label className="w-32 shrink-0 text-sm">
+                    <div key={f.key} className="flex min-w-0 flex-col gap-1">
+                      <label htmlFor={`map-${f.key}`} className="truncate text-sm font-medium">
                         {t(`routePlanner.map_${f.key}`)} {f.required && <span className="text-red-600">*</span>}
                       </label>
                       <select
-                        className={`h-9 flex-1 rounded-md border bg-background px-2 text-sm ${f.required && !mp?.[f.key] ? 'border-red-400' : ''}`}
+                        id={`map-${f.key}`}
+                        className={`h-9 w-full rounded-md border bg-background px-2 text-sm ${f.required && !mp?.[f.key] ? 'border-red-400' : ''}`}
                         value={mp?.[f.key] ?? ''}
                         onChange={(e) => setFieldMap(f.key, e.target.value)}
                       >
@@ -525,10 +539,10 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
 
   // ── Planning screen ──
   return (
-    <div className={focus ? 'space-y-3 p-3 lg:p-5' : 'space-y-3'}>
+    <div className={focus ? 'flex h-[calc(100dvh-0.75rem)] flex-col gap-2 p-2 lg:px-4' : 'space-y-3'}>
       {brandHeader}
       {/* Toolbar */}
-      <Card className={focus ? 'sticky top-2 z-20 shadow-md' : ''}>
+      <Card className={focus ? 'shrink-0 shadow-sm' : ''}>
         <CardContent className="flex flex-wrap items-end gap-x-4 gap-y-3 p-3">
           {method === 'assisted' ? (
             <div>
@@ -563,20 +577,21 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
         </CardContent>
       </Card>
 
-      {msg && <p className={`rounded-md border px-3 py-2 text-sm ${msg.tone === 'err' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>{msg.text}</p>}
-      {method === 'assisted' && !generated && <p className="rounded-md border bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.generateHint')}</p>}
-      {method === 'manual' && <p className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.manualHint')}</p>}
-      {method === 'current' && !viewingCurrent && <p className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.currentHint')}</p>}
-      {viewingCurrent && <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('routePlanner.viewingCurrentReadonly')}</p>}
-      {generated && method === 'assisted' && reviewStats && reviewStats.initial > 0 && (
+      {msg && <p className={`shrink-0 rounded-md border px-3 py-1.5 text-sm ${msg.tone === 'err' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>{msg.text}</p>}
+      {/* Verbose how-to hints are hidden in the chrome-free focus/demo mode to keep the map dominant. */}
+      {!focus && method === 'assisted' && !generated && <p className="rounded-md border bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.generateHint')}</p>}
+      {!focus && method === 'manual' && <p className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.manualHint')}</p>}
+      {!focus && method === 'current' && !viewingCurrent && <p className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.currentHint')}</p>}
+      {viewingCurrent && <p className="shrink-0 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-900">{t('routePlanner.viewingCurrentReadonly')}</p>}
+      {!focus && generated && method === 'assisted' && reviewStats && reviewStats.initial > 0 && (
         <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           {t('routePlanner.reviewSummary').replace('{flagged}', String(reviewStats.initial)).replace('{absorbed}', String(reviewStats.absorbed)).replace('{final}', String(reviewStats.final))}
         </p>
       )}
 
-      {/* Current → Proposed diff (Current Allocation Review) */}
+      {/* Current → Proposed diff (Current Allocation Review) — collapsible in focus mode so it never steals map space. */}
       {method === 'current' && diff && (diff.moved > 0 || diff.newRoutes > 0 || diff.removedRoutes > 0) && (
-        <Card>
+        <Card className={focus ? 'shrink-0' : ''}>
           <CardContent className="space-y-2 p-3">
             <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
               <span><span className="text-muted-foreground">{t('routePlanner.diffMoved')}: </span><b className="tabular-nums">{diff.moved}</b></span>
@@ -585,7 +600,11 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
               <span><span className="text-muted-foreground">{t('routePlanner.diffRemovedRoutes')}: </span><b className="tabular-nums">{diff.removedRoutes}</b></span>
             </div>
             {diff.perRoute.length > 0 && (
-              <div className="max-h-40 overflow-y-auto">
+              <details className="group" open={!focus}>
+                <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground hover:text-foreground">
+                  <span className="group-open:hidden">▸ </span><span className="hidden group-open:inline">▾ </span>{t('routePlanner.diffPerRoute').replace('{n}', String(diff.perRoute.length))}
+                </summary>
+                <div className="mt-1 max-h-40 overflow-y-auto">
                 <table className="w-full text-xs tabular-nums">
                   <thead className="text-muted-foreground"><tr className="text-start">
                     <th className="py-1 text-start font-normal">{t('routePlanner.diffRoute')}</th>
@@ -609,15 +628,16 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
                     })}
                   </tbody>
                 </table>
-              </div>
+                </div>
+              </details>
             )}
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
+      <div className={focus ? 'grid min-h-0 flex-1 gap-2 lg:grid-cols-[1fr_300px]' : 'grid gap-3 lg:grid-cols-[1fr_320px]'}>
         {/* Map + selection controls */}
-        <div className="space-y-2">
+        <div className={focus ? 'flex min-h-0 flex-col gap-1.5' : 'space-y-2'}>
           {/* Selection mode + boundaries + focus */}
           <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
             <span className="text-muted-foreground">{t('routePlanner.selectMode')}</span>
@@ -668,12 +688,14 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
             </p>
           )}
 
-          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} tall={focus} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingInfo} />
+          <div className={focus ? 'min-h-0 flex-1' : ''}>
+            <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} fill={focus} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingInfo} />
+          </div>
         </div>
 
         {/* Route side panel */}
-        <Card className="self-start">
-          <CardContent className="space-y-2 p-3">
+        <Card className={focus ? 'flex min-h-0 flex-col self-stretch' : 'self-start'}>
+          <CardContent className={focus ? 'flex min-h-0 flex-1 flex-col gap-2 p-3' : 'space-y-2 p-3'}>
             {/* Summary for selected route(s) / all */}
             <div className="rounded-md border bg-muted/40 p-2">
               <p className="text-xs font-semibold">{focusedRoutes.size ? t('routePlanner.summaryFocused').replace('{n}', String(focusedRoutes.size)) : t('routePlanner.summaryAll')}</p>
@@ -723,39 +745,35 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
                 <span /><span /><span /><span className="text-end">{t('routePlanner.colCustomers')}</span><span className="text-end">{hasSales ? t('routePlanner.colTotalSales') : t('routePlanner.colVisits')}</span><span className="text-end">{t('routePlanner.colWorkload')}</span>
               </div>
             )}
-            <div className={`overflow-y-auto pe-1 ${focus ? 'max-h-[60vh] space-y-2' : 'max-h-[44vh] space-y-1'}`}>
+            <div className={`overflow-y-auto pe-1 ${focus ? 'min-h-0 flex-1 space-y-1.5' : 'max-h-[44vh] space-y-1'}`}>
               {reviews.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">—</p>}
               {sortedReviews.map((s) => {
                 const on = focusedRoutes.has(s.routeId);
                 const tier = salesTier.get(s.routeId);
                 const pct = hasSales && datasetSales > 0 ? Math.round((s.sales / datasetSales) * 100) : 0;
                 if (focus) {
-                  // ── Vertical route card (presentation mode) ──
+                  // ── Compact route card (presentation mode): 2 lines, ~50% shorter ──
+                  // Line 1: "Route 31"  ·  Line 2: "207 Cust | 1.14M SAR"
                   return (
                     <button
                       key={s.routeId}
                       onClick={() => toggleFocus(s.routeId)}
                       title={t('routePlanner.focusHint')}
-                      className={`w-full overflow-hidden rounded-xl border text-start transition hover:shadow-md ${on ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/40'}`}
+                      className={`flex w-full items-center gap-2 rounded-lg border border-s-[3px] py-1.5 pe-2 ps-2 text-start transition hover:bg-muted/60 ${on ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'hover:border-primary/40'}`}
+                      style={{ borderInlineStartColor: s.color }}
                     >
-                      <div className="h-1.5 w-full" style={{ backgroundColor: s.color }} />
-                      <div className="p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="flex items-center gap-1.5 truncate font-semibold">
-                            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-                            <span className="truncate">{routeLabelOf(s.routeId)}</span>
-                            {tier === 'top' && <span className="rounded bg-emerald-100 px-1 text-[9px] font-semibold text-emerald-700">{t('routePlanner.tierTop')}</span>}
-                            {tier === 'bottom' && <span className="rounded bg-red-100 px-1 text-[9px] font-semibold text-red-700">{t('routePlanner.tierBottom')}</span>}
-                          </span>
-                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'}`}>{on && <Check className="h-3 w-3" />}</span>
-                        </div>
-                        <p className="mt-1 text-xl font-bold tabular-nums" dir="ltr">{s.customers} <span className="text-xs font-normal text-muted-foreground">{t('routePlanner.colCustomers')}</span></p>
-                        {hasSales ? (
-                          <p className="text-sm font-semibold tabular-nums text-primary" dir="ltr">{fmt(s.sales)} <span className="text-xs font-normal text-muted-foreground">· {pct}% {t('routePlanner.ofTotalSales')}</span></p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground" dir="ltr">{s.weeklyVisits} {t('routePlanner.colVisits')} · {s.workloadHours}h · {s.radiusKm}km</p>
-                        )}
-                      </div>
+                      <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'}`}>{on && <Check className="h-2.5 w-2.5" />}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1 truncate text-sm font-semibold leading-tight">
+                          <span className="truncate">{routeLabelOf(s.routeId)}</span>
+                          {tier === 'top' && <span className="rounded bg-emerald-100 px-1 text-[9px] font-semibold text-emerald-700">{t('routePlanner.tierTop')}</span>}
+                          {tier === 'bottom' && <span className="rounded bg-red-100 px-1 text-[9px] font-semibold text-red-700">{t('routePlanner.tierBottom')}</span>}
+                        </span>
+                        <span className="block truncate text-xs leading-tight text-muted-foreground tabular-nums" dir="ltr">
+                          {s.customers} {t('routePlanner.colCustomers')}
+                          {hasSales ? ` | ${fmtShort(s.sales)} SAR · ${pct}%` : ` | ${s.weeklyVisits} ${t('routePlanner.colVisits')} · ${s.workloadHours}h`}
+                        </span>
+                      </span>
                     </button>
                   );
                 }
