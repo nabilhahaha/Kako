@@ -413,6 +413,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.tradeSpend', href: '/distribution/trade-spend', icon: Receipt, perm: 'reports.view', module: ['distribution', 'trade_spend'], flag: 'trade_spend', group: 'nav.groups.execution' },
       // ── Coverage & Assortment ──
       { label: 'nav.items.coverage', href: '/distribution/coverage', icon: Map, perm: 'reports.view', flag: 'distribution', group: 'nav.groups.coverage' },
+      { label: 'nav.items.coverageCustomers', href: '/distribution/coverage-customers', icon: MapPin, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
       { label: 'nav.items.assortment', href: '/distribution/assortment', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'], group: 'nav.groups.coverage' },
       { label: 'nav.items.mslComplianceDash', href: '/distribution/msl-compliance', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'], group: 'nav.groups.coverage' },
       { label: 'nav.items.oosDash', href: '/distribution/oos', icon: PackageCheck, perm: 'reports.view', group: 'nav.groups.coverage' },

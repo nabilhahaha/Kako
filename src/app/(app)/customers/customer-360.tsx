@@ -44,6 +44,7 @@ import {
   CUSTOMER_BADGE_KEY,
 } from './customer-360-tabs';
 import { customerHealth, HEALTH_BAND_VARIANT, HEALTH_BAND_KEY } from './customer-health';
+import { COVERAGE_STATUS_KEY, COVERAGE_STATUS_VARIANT } from '@/lib/distribution/journey-plan/coverage-status-ui';
 import type { CustomerDetailBundle, CustomerTransferRow, CustomerPendingChange } from './[id]/load';
 import type { Area, Branch, CustomerLookup, ErpCustomer, Profile, Region } from '@/lib/erp/types';
 import type { CustomFieldDef } from '@/lib/erp/custom-fields';
@@ -291,6 +292,20 @@ export function Customer360({
                 <Row label={t('customers.fieldRegion')} value={refName(customer.region_id, regions, ar)} />
                 <Row label={t('customers.fieldArea')} value={refName(customer.area_id, areas, ar)} />
                 <Row label={t('customers.fieldVisitDay')} value={visitDayLabel(customer.visit_day, locale)} />
+                {/* CJ-3: coverage status (planned cadence vs actual visits, 28d). */}
+                {bundle.coverage && (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <dt className="text-muted-foreground">{t('coverage.statusTitle')}</dt>
+                    <dd className="flex items-center gap-2">
+                      <Badge variant={COVERAGE_STATUS_VARIANT[bundle.coverage.status]}>
+                        {t(COVERAGE_STATUS_KEY[bundle.coverage.status])}
+                      </Badge>
+                      <span className="text-xs tabular-nums text-muted-foreground" dir="ltr" title={t('coverage.windowLabel')}>
+                        {bundle.coverage.actual}/{bundle.coverage.expected}
+                      </span>
+                    </dd>
+                  </div>
+                )}
               </dl>
             </SectionCard>
           </div>

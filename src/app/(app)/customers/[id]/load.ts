@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadCustomerStatement, type CustomerStatementResult } from '@/lib/erp/customer-statement-server';
 import { customerActivity, type CustomerActivity } from '@/app/(app)/home-actions';
 import { sortTimeline, type TimelineEvent } from '@/lib/erp/timeline';
+import { loadCustomerCoverage, type CustomerCoverage } from '@/lib/distribution/journey-plan/coverage-status-server';
 
 /**
  * Customer detail bundle (P5-1) — the single parallel loader behind the Customer
@@ -60,6 +61,8 @@ export interface CustomerDetailBundle {
   transferNames: Record<string, string>;
   /** G7/visibility: open (pending) field-change requests — read-only transparency. */
   pendingChanges: CustomerPendingChange[];
+  /** CJ-3: coverage status read-model (planned cadence vs actual visits, 28d). */
+  coverage: CustomerCoverage | null;
 }
 
 /** G7: a pending customer change request (read-only visibility). */
@@ -137,6 +140,10 @@ export async function loadCustomerDetailBundle(
   );
   const transferNames = await resolveTransferNames(supabase, transfers);
 
+  // CJ-3: coverage status read-model (reuses the journey-plan + visits engines).
+  const coverageMap = await loadCustomerCoverage(supabase, [customerId]);
+  const coverage = coverageMap.get(customerId) ?? null;
+
   // G7 visibility: open (pending) change requests + the requester display name.
   const pendingRows = await safeRows<{ id: string; changes: Record<string, unknown>; reason: string | null; status: string; created_at: string; requested_by: string | null }>(() =>
     supabase
@@ -190,6 +197,7 @@ export async function loadCustomerDetailBundle(
     transfers,
     transferNames,
     pendingChanges,
+    coverage,
   };
 }
 

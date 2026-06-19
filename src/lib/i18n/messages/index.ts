@@ -87,6 +87,7 @@ import * as roleOverrides from './role-overrides';
 import * as adminWb from './admin-workbench';
 import * as customer360 from './customer-360';
 import * as journeyPlan from './journey-plan';
+import * as coverage from './coverage';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -122,6 +123,7 @@ const MODULES = [
   adminWb,
   customer360,
   journeyPlan,
+  coverage,
 ];
 
 type Catalog = Record<string, unknown>;
