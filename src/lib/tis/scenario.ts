@@ -11,6 +11,7 @@ import { optimizeRoute, type OptimizeCustomer } from '@/lib/route-optimization/o
 import { rollupCoverage } from '@/lib/distribution/coverage-engine';
 import type { CoverageStatus } from '@/lib/distribution/coverage-engine';
 import { customerWorkload, type TisCustomer, type TisDataset } from './dataset';
+import { balancePct } from './balance';
 
 export interface ScenarioAssignment {
   customerId: string;
@@ -112,16 +113,6 @@ export function scenarioMetrics(dataset: TisDataset): ScenarioMetrics {
     routeCount: byRoute.size,
     routeBalancePct,
   };
-}
-
-/** 100 = perfectly balanced; falls with the workload spread across routes. Pure. */
-function balancePct(values: number[]): number {
-  if (values.length < 2) return 100;
-  const mean = values.reduce((s, v) => s + v, 0) / values.length;
-  if (mean <= 0) return 100;
-  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
-  const cv = Math.sqrt(variance) / mean;
-  return round1(Math.max(0, Math.min(1, 1 - cv)) * 100);
 }
 
 export interface ScenarioComparison {
