@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { balanceRoutes, resolveRouteCount, workingDayList, validateConstraints } from './optimize-routes';
+import { balanceRoutes, resolveRouteCount, workingDayList, validateConstraints, validatePlanGeography, territoryCount, clusterTerritories } from './optimize-routes';
 import { buildTisCustomer } from './dataset';
 import type { VisitFrequency } from '@/lib/route-optimization/visit-frequency';
 
@@ -97,6 +97,51 @@ describe('validateConstraints (feasibility + recommendation)', () => {
     expect(r.feasible).toBe(false);
     expect(r.recommendedRoutes).toBe(5);
     expect(r.bind).toBe('visits');
+  });
+});
+
+describe('geography is a HARD constraint (Jeddah / Riyadh / Dammam)', () => {
+  // ~6000 customers across three distant cities (hundreds of km apart).
+  const CITIES = { jeddah: { lat: 21.54, lng: 39.19 }, riyadh: { lat: 24.71, lng: 46.68 }, dammam: { lat: 26.43, lng: 50.10 } };
+  const make = (city: keyof typeof CITIES, n: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const b = CITIES[city];
+      return buildTisCustomer({ id: `${city}-${i}`, name: `${city}-${i}`, geo: { lat: b.lat + (Math.random() - 0.5) * 0.3, lng: b.lng + (Math.random() - 0.5) * 0.3 }, frequency: weekly, salesValue: 100 });
+    });
+  const all = [...make('jeddah', 2200), ...make('riyadh', 2000), ...make('dammam', 1800)];
+
+  it('detects three distinct territories', () => {
+    expect(territoryCount(all)).toBe(3);
+  });
+
+  it('NEVER mixes cities in a route (default hard partition)', () => {
+    const plan = balanceRoutes(all, { routeCount: 8 });
+    const terr = clusterTerritories(all);
+    const byId = new Map(all.map((c) => [c.id, c]));
+    const routeTerr = new Map<string, Set<string>>();
+    for (const a of plan.assignments) {
+      const t = terr.get(a.customerId);
+      if (a.routeId && t) (routeTerr.get(a.routeId) ?? routeTerr.set(a.routeId, new Set()).get(a.routeId)!).add(t);
+    }
+    for (const set of routeTerr.values()) expect(set.size).toBe(1); // each route = one city
+    void byId;
+  });
+
+  it('validatePlanGeography reports VALID with no mixed routes', () => {
+    const plan = balanceRoutes(all, { routeCount: 8 });
+    const v = validatePlanGeography(all, plan.assignments);
+    expect(v.valid).toBe(true);
+    expect(v.invalidCount).toBe(0);
+    expect(v.territories).toBe(3);
+    expect(v.routes.every((r) => r.cities === 1)).toBe(true);
+  });
+
+  it('the OLD cross-territory mode would mix cities → flagged invalid', () => {
+    const plan = balanceRoutes(all, { routeCount: 8, crossTerritory: true });
+    const v = validatePlanGeography(all, plan.assignments);
+    // With a single cross-city pass, at least one route spans multiple cities.
+    expect(v.invalidCount).toBeGreaterThan(0);
+    expect(v.valid).toBe(false);
   });
 });
 

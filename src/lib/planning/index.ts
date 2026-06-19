@@ -48,10 +48,15 @@ export {
   balanceRoutes,
   resolveRouteCount,
   validateConstraints,
+  clusterTerritories,
+  territoryCount,
+  validatePlanGeography,
   type RouteConstraints,
   type RoutePlan,
   type RouteSummary,
   type FeasibilityResult,
+  type PlanGeoValidation,
+  type RouteGeoStat,
 } from '@/lib/tis/optimize-routes';
 
 // ── Scope (Region → Salesman → Route working set) ────────────────────────────

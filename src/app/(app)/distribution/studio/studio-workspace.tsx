@@ -17,7 +17,7 @@ import { datasetToCsv, TIS_CSV_COLUMNS } from '@/lib/tis/export';
 import { buildTisDatasetFromRows, type TisUploadRow } from '@/lib/tis/upload';
 import { auditTerritory } from '@/lib/tis/audit';
 import { initialScope, scopeCustomerIds, type ScopeState } from '@/lib/tis/scope';
-import { visitMinutesPerWeek } from '@/lib/planning';
+import { visitMinutesPerWeek, validatePlanGeography, type PlanGeoValidation } from '@/lib/planning';
 import { TerritoryAuditView } from '../territory-audit/territory-audit';
 import { PlanningMap, type PlanMapPoint } from '../planning-board/planning-map';
 import { PlanningCanvas, MetricsBar, routeColorMap, COVER_HEX, PALETTE } from '../planning-board/planning-canvas';
@@ -28,7 +28,7 @@ type Stage = 'import' | 'overview' | 'audit' | 'map' | 'optimize' | 'plan' | 'ex
 interface ImportPreview { rows: TisUploadRow[]; total: number; mapped: number; columns: string[] }
 type ColorMode = 'route' | 'salesman' | 'coverage' | 'territory' | 'grade';
 type BalanceBy = 'workload' | 'value' | 'count';
-interface OptConfig { routeCount: string; workingDays: string; balanceBy: BalanceBy; maxPerRoute: string; maxVisitsPerDay: string; visitDurationMin: string; advanced: boolean; expert: boolean }
+interface OptConfig { routeCount: string; workingDays: string; balanceBy: BalanceBy; maxPerRoute: string; maxVisitsPerDay: string; visitDurationMin: string; crossTerritory: boolean; advanced: boolean; expert: boolean }
 const GRADE_HEX: Record<string, string> = { a: '#16a34a', b: '#2563eb', c: '#d97706', d: '#dc2626' };
 const NEUTRAL = '#94a3b8';
 /** Sorted-id → palette colour map (categorical layers: salesman / region). */
@@ -67,7 +67,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
   const [stage, setStage] = useState<Stage>(initialStage ?? 'overview');
   const [colorMode, setColorMode] = useState<ColorMode>('coverage');
   // Optimize config — Simple: routeCount · workingDays · balanceBy. Advanced: caps.
-  const [opt, setOpt] = useState<OptConfig>({ routeCount: '', workingDays: '5', balanceBy: 'workload', maxPerRoute: '', maxVisitsPerDay: '', visitDurationMin: '20', advanced: false, expert: false });
+  const [opt, setOpt] = useState<OptConfig>({ routeCount: '', workingDays: '5', balanceBy: 'workload', maxPerRoute: '', maxVisitsPerDay: '', visitDurationMin: '20', crossTerritory: false, advanced: false, expert: false });
   const [scope, setScope] = useState<ScopeState>(() => initialScope(dataset.customers));
   const [importMsg, setImportMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [importing, setImporting] = useState(false);
@@ -133,6 +133,8 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
   // All findings/metrics are computed over the SCOPED working set.
   const audit = useMemo(() => auditTerritory(scopedDataset), [scopedDataset]);
   const metrics = useMemo(() => scenarioMetrics(scopedDataset), [scopedDataset]);
+  // Geographic validation of the active plan over the scoped working set.
+  const geo = useMemo<PlanGeoValidation>(() => validatePlanGeography(working, active.assignments), [working, active]);
 
   // ── Map colouring (Color By: Route · Salesman · Coverage · Territory · Grade) ──
   const routeColor = useMemo(() => routeColorMap(dataset, active), [dataset, active]);
@@ -184,6 +186,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
       routeCount: rc,
       workingDays: Number(opt.workingDays) || 5,
       balanceBy: opt.balanceBy,
+      crossTerritory: opt.crossTerritory,
       ...(Number(opt.maxPerRoute) > 0 ? { maxPerRoute: Number(opt.maxPerRoute) } : {}),
       ...(Number(opt.maxVisitsPerDay) > 0 ? { maxVisitsPerDay: Number(opt.maxVisitsPerDay) } : {}),
     };
@@ -201,6 +204,8 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
     setActiveId(id);
   }
   function onExport() {
+    // Geography is a hard gate: never export a plan with mixed-city / oversized routes.
+    if (!geo.valid) { setStage('export'); return; }
     downloadCsv(datasetToCsv(applyScenario(dataset, active)), `studio-plan-${active.id}.csv`);
   }
 
@@ -264,12 +269,26 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
           <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={importing}><Upload className="h-4 w-4" /> {t('studio.import')}</Button>
           <Button size="sm" variant="outline" onClick={onOptimize}><Wand2 className="h-4 w-4" /> {t('planBoard.optimize')}</Button>
           <Button size="sm" variant="outline" onClick={onClone}><Copy className="h-4 w-4" /> {t('planBoard.clone')}</Button>
-          <Button size="sm" variant="outline" onClick={onExport}><Download className="h-4 w-4" /> {t('routeOpt.exportCsv')}</Button>
+          <Button size="sm" variant="outline" onClick={onExport} disabled={!geo.valid} title={geo.valid ? '' : t('studio.geoExportBlocked')}><Download className="h-4 w-4" /> {t('routeOpt.exportCsv')}</Button>
         </div>
       </div>
 
       {/* Shared scope bar — Region → Salesman → Route drives EVERY stage + the map. */}
       {stage !== 'import' && <ScopeBar customers={applied.customers} scope={scope} onChange={setScope} labels={labels} />}
+
+      {/* Geography hard-constraint banner (validation report). */}
+      {stage !== 'import' && !geo.valid && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <Info className="h-4 w-4 shrink-0" />
+          <span>{t('studio.geoInvalid').replace('{n}', String(geo.invalidCount)).replace('{r}', String(geo.maxRouteRadiusKm))}</span>
+        </div>
+      )}
+      {stage !== 'import' && geo.valid && geo.territories > 1 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-info/40 bg-info/10 px-3 py-2 text-sm">
+          <Info className="h-4 w-4 shrink-0 text-info" />
+          <span>{t('studio.multiTerritory').replace('{n}', String(geo.territories))}</span>
+        </div>
+      )}
 
       {stage !== 'import' && <MetricsBar m={metrics} />}
 
@@ -290,7 +309,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
           {stage === 'import' ? (
             <ImportPanel t={t} importing={importing} message={importMsg} sample={sample} imported={imported != null && !session} count={dataset.customers.length} preview={preview} onPick={() => fileRef.current?.click()} onTemplate={onTemplate} onConfirm={confirmImport} onCancel={cancelImport} onReset={resetToLive} />
           ) : stage === 'export' ? (
-            <ExportPanel t={t} count={dataset.customers.length} scenarioName={active.name} onExport={onExport} />
+            <ExportPanel t={t} count={working.length} scenarioName={active.name} onExport={onExport} geo={geo} />
           ) : stage === 'plan' ? (
             <>
               {colorControls}
@@ -312,7 +331,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
                 {stage === 'overview' && <OverviewPanel audit={audit} onOptimize={onOptimize} onImport={() => setStage('import')} onDrill={setStage} t={t} sample={sample} />}
                 {stage === 'audit' && <TerritoryAuditView audit={audit} labels={labels} />}
                 {stage === 'map' && <p className="text-sm text-muted-foreground">{t('studio.mapLead')}</p>}
-                {stage === 'optimize' && <OptimizePanel dataset={scopedDataset} scenarios={scenarios} opt={opt} setOpt={setOpt} defaultRouteCount={scopedRouteCount || defaultRouteCount} onOptimize={onOptimize} t={t} />}
+                {stage === 'optimize' && <OptimizePanel dataset={scopedDataset} scenarios={scenarios} opt={opt} setOpt={setOpt} defaultRouteCount={scopedRouteCount || defaultRouteCount} onOptimize={onOptimize} geo={geo} t={t} />}
                 {stage === 'size' && <NeedsPanel text={t('studio.sizeSoon')} />}
                 {!session && STANDALONE[stage] && <StageLink href={STANDALONE[stage]!} label={t('studio.openFull')} />}
               </aside>
@@ -417,7 +436,7 @@ function ImportPanel({ t, importing, message, sample, imported, count, preview, 
   );
 }
 
-function ExportPanel({ t, count, scenarioName, onExport }: { t: (k: string) => string; count: number; scenarioName: string; onExport: () => void }) {
+function ExportPanel({ t, count, scenarioName, onExport, geo }: { t: (k: string) => string; count: number; scenarioName: string; onExport: () => void; geo: PlanGeoValidation }) {
   return (
     <Card>
       <CardContent className="space-y-4 p-6">
@@ -426,14 +445,17 @@ function ExportPanel({ t, count, scenarioName, onExport }: { t: (k: string) => s
           <p className="mt-1 text-sm text-muted-foreground">{t('studio.exportLead')}</p>
         </div>
         <p className="text-sm text-muted-foreground">{t('studio.exportScope').replace('{name}', scenarioName).replace('{n}', String(count))}</p>
-        <Button onClick={onExport}><Download className="h-4 w-4" /> {t('routeOpt.exportCsv')}</Button>
+        {!geo.valid && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{t('studio.geoExportBlocked')} ({t('studio.geo_invalidRoutes').replace('{n}', String(geo.invalidCount))})</p>
+        )}
+        <Button onClick={onExport} disabled={!geo.valid}><Download className="h-4 w-4" /> {t('routeOpt.exportCsv')}</Button>
         <p className="text-xs text-muted-foreground">{t('studio.exportNote')}</p>
       </CardContent>
     </Card>
   );
 }
 
-function OptimizePanel({ dataset, scenarios, opt, setOpt, defaultRouteCount, onOptimize, t }: { dataset: ReturnType<typeof buildTisDataset>; scenarios: Scenario[]; opt: OptConfig; setOpt: (v: OptConfig) => void; defaultRouteCount: number; onOptimize: () => void; t: (k: string) => string }) {
+function OptimizePanel({ dataset, scenarios, opt, setOpt, defaultRouteCount, onOptimize, geo, t }: { dataset: ReturnType<typeof buildTisDataset>; scenarios: Scenario[]; opt: OptConfig; setOpt: (v: OptConfig) => void; defaultRouteCount: number; onOptimize: () => void; geo: PlanGeoValidation; t: (k: string) => string }) {
   const current = scenarios.find((s) => s.id === 'current');
   const optimized = scenarios.find((s) => s.id === 'optimized');
   const cur = current ? scenarioMetrics(applyScenario(dataset, current)) : null;
@@ -480,6 +502,10 @@ function OptimizePanel({ dataset, scenarios, opt, setOpt, defaultRouteCount, onO
           <button onClick={() => set({ expert: !opt.expert })} className="text-xs text-primary hover:underline">{opt.expert ? t('routeOpt.hideExpert') : t('routeOpt.expert')}</button>
           {opt.expert && (
             <div className="space-y-2 rounded-md border border-dashed p-2">
+              <label className="flex items-center gap-2 text-xs">
+                <input type="checkbox" checked={opt.crossTerritory} onChange={(e) => set({ crossTerritory: e.target.checked })} />
+                {t('routeOpt.crossTerritory')}
+              </label>
               <p className="text-[11px] text-muted-foreground">{t('routeOpt.expertSoon')}</p>
               <div className="flex flex-wrap gap-2 opacity-60">
                 {(['exp_traffic', 'exp_timeWindows', 'exp_capacity', 'exp_weights'] as const).map((k) => (
@@ -511,6 +537,21 @@ function OptimizePanel({ dataset, scenarios, opt, setOpt, defaultRouteCount, onO
               ))}
             </tbody>
           </table>
+        </CardContent></Card>
+      )}
+
+      {/* Route quality / geography validation report. */}
+      {geo.routes.length > 0 && (
+        <Card><CardContent className="space-y-2 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('studio.geoReport')}</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm" dir="ltr">
+            <span>{t('studio.geo_territories').replace('{n}', String(geo.territories))}</span>
+            <span>{t('studio.geo_maxRadius').replace('{r}', String(geo.maxRouteRadiusKm))}</span>
+            <span className={geo.valid ? 'text-success' : 'text-destructive font-medium'}>{t('studio.geo_invalidRoutes').replace('{n}', String(geo.invalidCount))}</span>
+          </div>
+          {!geo.valid && (
+            <p className="text-xs text-destructive">{geo.routes.filter((r) => !r.valid).slice(0, 6).map((r) => `${r.routeId}: ${r.cities} cities · ${r.radiusKm}km`).join(' · ')}</p>
+          )}
         </CardContent></Card>
       )}
     </div>

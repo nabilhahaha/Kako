@@ -52,6 +52,13 @@ export const ar = {
     exportNote: 'التصدير فقط — لا يتم أي تعديل على بيانات النظام.',
     newOptTitle: 'تحسين جديد',
     newOptDesc: 'جلسة تحسين مستقلة: ارفع ملف Excel/CSV ← حسّن الخطوط ← راجِع على الخريطة واسحب وأفلت ← صدّر. مؤقتة تماماً — لا تمسّ بيانات النظام.',
+    multiTerritory: 'النطاق يحتوي {n} مناطق متباعدة — يتم التحسين لكل مدينة/منطقة على حدة.',
+    geoInvalid: '{n} خط يحتوي مدنًا متباعدة (أقصى نصف قطر {r} كم) — الخطة غير صالحة جغرافياً ولا يمكن تصديرها.',
+    geoExportBlocked: 'لا يمكن التصدير: قيود الجغرافيا غير مستوفاة.',
+    geoReport: 'تقرير جودة الخطوط',
+    geo_territories: 'المناطق: {n}',
+    geo_maxRadius: 'أقصى نصف قطر: {r} كم',
+    geo_invalidRoutes: 'خطوط غير صالحة: {n}',
   },
 };
 
@@ -108,5 +115,12 @@ export const en = {
     exportNote: 'Export only — no live data is modified.',
     newOptTitle: 'New Optimization',
     newOptDesc: 'A standalone optimization session: upload Excel/CSV → optimize routes → review on the map & drag-and-drop → export. Fully temporary — it never touches live data.',
+    multiTerritory: 'Scope spans {n} distant territories — each city/region is optimized separately.',
+    geoInvalid: '{n} route(s) span distant cities (max radius {r} km) — the plan is geographically invalid and cannot be exported.',
+    geoExportBlocked: 'Export blocked: geography constraints are not satisfied.',
+    geoReport: 'Route quality report',
+    geo_territories: 'Territories: {n}',
+    geo_maxRadius: 'Max radius: {r} km',
+    geo_invalidRoutes: 'Invalid routes: {n}',
   },
 };

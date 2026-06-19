@@ -1,0 +1,115 @@
+{
+  "valid": true,
+  "territories": 3,
+  "maxRouteRadiusKm": 28.9,
+  "invalidCount": 0,
+  "routes": [
+    {
+      "routeId": "opt-route-1",
+      "customers": 734,
+      "cities": 1,
+      "radiusKm": 18.5,
+      "outliers": [],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-2",
+      "customers": 733,
+      "cities": 1,
+      "radiusKm": 26.9,
+      "outliers": [
+        "Jeddah-552",
+        "Jeddah-617",
+        "Jeddah-632",
+        "Jeddah-688",
+        "Jeddah-702",
+        "Jeddah-882",
+        "Jeddah-958"
+      ],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-3",
+      "customers": 733,
+      "cities": 1,
+      "radiusKm": 27.1,
+      "outliers": [
+        "Jeddah-126",
+        "Jeddah-135",
+        "Jeddah-159",
+        "Jeddah-814"
+      ],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-4",
+      "customers": 667,
+      "cities": 1,
+      "radiusKm": 19.1,
+      "outliers": [],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-5",
+      "customers": 667,
+      "cities": 1,
+      "radiusKm": 27.8,
+      "outliers": [
+        "Riyadh-145",
+        "Riyadh-161",
+        "Riyadh-224",
+        "Riyadh-234",
+        "Riyadh-253",
+        "Riyadh-263",
+        "Riyadh-269",
+        "Riyadh-272",
+        "Riyadh-302",
+        "Riyadh-323",
+        "Riyadh-512",
+        "Riyadh-544",
+        "Riyadh-579"
+      ],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-6",
+      "customers": 666,
+      "cities": 1,
+      "radiusKm": 28.9,
+      "outliers": [
+        "Riyadh-15",
+        "Riyadh-41",
+        "Riyadh-124",
+        "Riyadh-208",
+        "Riyadh-241",
+        "Riyadh-267",
+        "Riyadh-280",
+        "Riyadh-312",
+        "Riyadh-350",
+        "Riyadh-403",
+        "Riyadh-406",
+        "Riyadh-616",
+        "Riyadh-631"
+      ],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-7",
+      "customers": 900,
+      "cities": 1,
+      "radiusKm": 22.8,
+      "outliers": [],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-8",
+      "customers": 900,
+      "cities": 1,
+      "radiusKm": 25.3,
+      "outliers": [
+        "Dammam-380"
+      ],
+      "valid": true
+    }
+  ]
+}
