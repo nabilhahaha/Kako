@@ -89,6 +89,7 @@ import * as customer360 from './customer-360';
 import * as journeyPlan from './journey-plan';
 import * as coverage from './coverage';
 import * as visitFreq from './visit-frequency';
+import * as territoryAudit from './territory-audit';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -126,6 +127,7 @@ const MODULES = [
   journeyPlan,
   coverage,
   visitFreq,
+  territoryAudit,
 ];
 
 type Catalog = Record<string, unknown>;

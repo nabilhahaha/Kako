@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { parseFrequency } from '@/lib/route-optimization/visit-frequency';
 import { loadCustomerCoverage } from '@/lib/distribution/coverage-engine/server';
 import { buildTisCustomer, buildTisDataset, type TisCustomer, type TisDataset } from './dataset';
+import { auditTerritory, type TerritoryAudit } from './audit';
 
 /**
  * TIS adapter — live DB → canonical dataset (TIS-0-4, I/O half). Composes the
@@ -68,4 +69,13 @@ export async function loadTisDataset(
   );
 
   return buildTisDataset(customers, { source: 'live', asOf: opts.asOf });
+}
+
+/** Run the Territory Audit (TA-1) over the live, RLS-scoped dataset. Read-only. */
+export async function loadTerritoryAudit(
+  supabase: SupabaseClient,
+  opts: { asOf?: string; salesmanId?: string; routeId?: string; regionId?: string; limit?: number } = {},
+): Promise<TerritoryAudit> {
+  const dataset = await loadTisDataset(supabase, opts);
+  return auditTerritory(dataset);
 }
