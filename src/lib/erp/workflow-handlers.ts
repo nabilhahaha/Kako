@@ -1,6 +1,8 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import { emitDomainEvent, EVENT, type EventType } from '@/lib/events/producer';
+import { logAudit } from '@/lib/erp/audit';
+import { auditEnvelope } from '@/lib/erp/audit-envelope';
 
 /** Entities that emit an `*.approved` domain event when their workflow outcome is
  *  approved (catalog-typed; reuses the event-producer backbone). */
@@ -42,10 +44,10 @@ const HANDLERS: Record<string, Handler> = {
     const supabase = await createClient();
     const { data: req } = await supabase
       .from('erp_customer_change_requests')
-      .select('customer_id, changes')
+      .select('customer_id, changes, company_id')
       .eq('id', recordId)
       .single();
-    const r = req as { customer_id: string; changes: Record<string, unknown> } | null;
+    const r = req as { customer_id: string; changes: Record<string, unknown>; company_id: string | null } | null;
     if (r && outcome === 'approved' && r.changes && Object.keys(r.changes).length > 0) {
       await supabase.from('erp_customers').update(r.changes).eq('id', r.customer_id);
     }
@@ -53,6 +55,21 @@ const HANDLERS: Record<string, Handler> = {
       .from('erp_customer_change_requests')
       .update({ status: outcome, reason: outcome === 'rejected' ? (comment ?? null) : null, decided_at: new Date().toISOString() })
       .eq('id', recordId);
+    // G7: structured audit of the decision (apply on approve / reject), with the
+    // applied field changes and the request reference.
+    if (r) {
+      await logAudit(supabase, {
+        action: 'update', entity: 'customer_change_request', entityId: r.customer_id,
+        details: auditEnvelope({
+          event: outcome === 'approved' ? 'request_applied' : 'request_rejected',
+          reason: comment ?? null, requestRef: recordId,
+          changes: outcome === 'approved'
+            ? Object.entries(r.changes ?? {}).map(([field, newValue]) => ({ field, oldValue: undefined, newValue }))
+            : undefined,
+        }),
+        companyId: r.company_id,
+      });
+    }
   },
 
   // Credit limit approval: on approve, apply the requested limit to the customer;

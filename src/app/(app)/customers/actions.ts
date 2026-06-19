@@ -440,6 +440,61 @@ export async function requestCustomerGpsChange(
   return { ok: true };
 }
 
+/** G7: submit a field-level change request for a customer (the "Request Change"
+ *  governance level). Stages the proposed values in erp_customer_change_requests
+ *  and starts the existing customer_update workflow; the approver's decision is
+ *  applied by the customer_change_request handler. Reuse-only — same backbone the
+ *  staged-sensitive-edit path already uses. */
+const CHANGE_REQUEST_NUMERIC = new Set(['payment_terms_days', 'credit_limit']);
+export async function submitCustomerChangeRequest(
+  customerId: string,
+  changes: Record<string, string>,
+  reason?: string,
+): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const { t } = await getT();
+  if (!customerId) return { ok: false, error: t('customers.errUnauthorized') };
+  // Coerce known numeric fields; pass the rest through as trimmed strings/null.
+  const payload: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(changes ?? {})) {
+    const s = String(v ?? '').trim();
+    payload[k] = CHANGE_REQUEST_NUMERIC.has(k) ? (s === '' ? null : Number(s)) : (s === '' ? null : s);
+  }
+  if (Object.keys(payload).length === 0) return { ok: false, error: t('customers.errNothingToRequest') };
+
+  const supabase = await createClient();
+  const { data: req, error: insErr } = await supabase
+    .from('erp_customer_change_requests')
+    .insert({ company_id: ctx.companyId, customer_id: customerId, changes: payload, reason: reason?.trim() || null, requested_by: ctx.userId })
+    .select('id')
+    .single();
+  if (insErr) return { ok: false, error: friendlyDbError(insErr) };
+  const reqId = (req as { id: string }).id;
+
+  const { error: wfErr } = await supabase.rpc('erp_workflow_start', {
+    p_key: 'customer_update', p_entity: 'customer_change_request', p_record_id: reqId, p_context: {},
+  });
+  if (wfErr) return { ok: false, error: friendlyDbError(wfErr) };
+
+  await logAudit(supabase, {
+    action: 'update', entity: 'customer_change_request', entityId: customerId,
+    details: auditEnvelope({
+      event: 'request_created', role: ctx.topRole, reason: reason?.trim() || null, requestRef: reqId,
+      changes: Object.entries(payload).map(([field, newValue]) => ({ field, oldValue: undefined, newValue })),
+    }),
+    companyId: ctx.companyId,
+  });
+  await notifyManagers(supabase, ctx.companyId, {
+    type: 'critical_action',
+    titleAr: 'طلب اعتماد تعديل بيانات عميل', titleEn: 'Customer data change awaiting approval',
+    body: reason?.trim() || '', link: '/approvals', entity: 'customer', recordId: customerId,
+  });
+  revalidatePath('/customers');
+  revalidatePath('/approvals');
+  return { ok: true };
+}
+
 /** Submit a customer for onboarding approval: mark it pending and start the
  *  generic workflow (an approval task routes to the company admin). */
 export async function requestCustomerApproval(id: string, reason?: string): Promise<ActionResult> {

@@ -14,7 +14,7 @@ import { Attachments } from '@/components/shared/attachments';
 import { DynamicCustomFields } from '@/components/forms/dynamic-custom-fields';
 import { VISIT_DAYS, CUSTOMER_ACCOUNT_TYPES, CUSTOMER_STATUSES, CUSTOMER_PAYMENT_TYPES } from '@/lib/erp/constants';
 import { resolveLayout, type GovInputs, type AccessLevel } from '@/lib/erp/field-governance';
-import { upsertCustomer, requestCustomerApproval, requestCreditLimitChange, requestCustomerGpsChange } from './actions';
+import { upsertCustomer, requestCustomerApproval, requestCreditLimitChange, requestCustomerGpsChange, submitCustomerChangeRequest } from './actions';
 import { loadActionPolicyConfig } from '../settings/action-policies/actions';
 import { useI18n } from '@/lib/i18n/provider';
 import { useCriticalAction } from '@/lib/critical-action';
@@ -33,6 +33,23 @@ type Rep = Pick<Profile, 'id' | 'full_name' | 'email'>;
  * setEditing(null)+router.refresh() behaviour). No business-logic, permission,
  * RLS, or workflow change.
  */
+/** G7: simple text/number fields eligible for the "Request Change" governance
+ *  flow (territory selects go via Transfer; credit-limit has its own request). */
+const REQUESTABLE_FIELDS: { key: string; labelKey: string }[] = [
+  { key: 'name', labelKey: 'customers.fieldNameEn' },
+  { key: 'name_ar', labelKey: 'customers.fieldNameAr' },
+  { key: 'phone', labelKey: 'customers.fieldPhone' },
+  { key: 'email', labelKey: 'customers.fieldEmail' },
+  { key: 'contact_person', labelKey: 'customers.fieldContactPerson' },
+  { key: 'contact_phone', labelKey: 'customers.fieldContactPhone' },
+  { key: 'address', labelKey: 'customers.fieldAddress' },
+  { key: 'city', labelKey: 'customers.fieldCity' },
+  { key: 'national_address', labelKey: 'customers.fieldNationalAddress' },
+  { key: 'cr_number', labelKey: 'customers.fieldCrNumber' },
+  { key: 'tax_number', labelKey: 'customers.fieldTaxNumber' },
+  { key: 'payment_terms_days', labelKey: 'customers.fieldPaymentTerms' },
+];
+
 export function CustomerForm({
   customer,
   customers,
@@ -66,6 +83,8 @@ export function CustomerForm({
   const [creditLimitInput, setCreditLimitInput] = useState('');
   const [gpsLat, setGpsLat] = useState('');
   const [gpsLng, setGpsLng] = useState('');
+  const [crValues, setCrValues] = useState<Record<string, string>>({});
+  const [crReason, setCrReason] = useState('');
   const [pending, startTransition] = useTransition();
 
   const ar = locale === 'ar';
@@ -88,6 +107,8 @@ export function CustomerForm({
   const ro = (k: string) => acc(k) === 'view' || acc(k) === 'request';
   const req = (k: string) => acc(k) === 'required';
   const gl = (label: string, required: boolean) => (required ? `${label} *` : label);
+  // G7: fields the current user may only change via a request (governance 'request').
+  const requestable = REQUESTABLE_FIELDS.filter((f) => acc(f.key) === 'request');
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -319,6 +340,50 @@ export function CustomerForm({
                 }}
               >
                 {t('customers.gpsRequestApproval')}
+              </Button>
+            </div>
+          )}
+          {/* G7: Request Change — read-only governed fields the user may propose
+              changes to (→ erp_customer_change_requests → approval → apply). */}
+          {current && requestable.length > 0 && (
+            <div className="space-y-3 rounded-lg border border-dashed p-3">
+              <div>
+                <p className="text-sm font-medium">{t('customers.requestChangeTitle')}</p>
+                <p className="text-xs text-muted-foreground">{t('customers.requestChangeHint')}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {requestable.map((f) => (
+                  <Field key={f.key} label={t(f.labelKey)}>
+                    <Input
+                      defaultValue={String((current as unknown as Record<string, unknown>)[f.key] ?? '')}
+                      onChange={(e) => setCrValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                    />
+                  </Field>
+                ))}
+              </div>
+              <Field label={t('customers.requestChangeReason')}>
+                <Input value={crReason} onChange={(e) => setCrReason(e.target.value)} />
+              </Field>
+              <Button
+                type="button" variant="secondary" disabled={pending}
+                onClick={() => {
+                  const changed: Record<string, string> = {};
+                  for (const f of requestable) {
+                    const cur = String((current as unknown as Record<string, unknown>)[f.key] ?? '');
+                    const next = crValues[f.key];
+                    if (next !== undefined && next !== cur) changed[f.key] = next;
+                  }
+                  if (Object.keys(changed).length === 0) { toast.error(t('customers.errNothingToRequest')); return; }
+                  startTransition(async () => {
+                    const res = await submitCustomerChangeRequest(current.id, changed, crReason);
+                    if (!res.ok) { toast.error(res.error ?? t('customers.toastError')); return; }
+                    toast.success(t('customers.requestChangeSubmitted'));
+                    setCrValues({}); setCrReason('');
+                    router.refresh();
+                  });
+                }}
+              >
+                {t('customers.requestChangeSubmit')}
               </Button>
             </div>
           )}
