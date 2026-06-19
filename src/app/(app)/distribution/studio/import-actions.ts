@@ -21,7 +21,8 @@ const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 export async function parseTisUpload(formData: FormData): Promise<ParseUploadResult> {
   const ctx = await getUserContext();
   if (!ctx) return { ok: false, error: 'err_unauthorized' };
-  if (!hasPermission(ctx, 'reports.view') && !hasPermission(ctx, 'customers.manage')) return { ok: false, error: 'err_unauthorized' };
+  // AC-6: Studio (reports.view) or New Optimization (tis.run_optimization). Not field reps.
+  if (!hasPermission(ctx, 'reports.view') && !hasPermission(ctx, 'tis.run_optimization')) return { ok: false, error: 'err_unauthorized' };
 
   const file = formData.get('file');
   if (!(file instanceof File)) return { ok: false, error: 'err_no_file' };

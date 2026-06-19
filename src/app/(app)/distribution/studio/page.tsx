@@ -51,7 +51,8 @@ async function resolveStudioLabels(supabase: SupabaseClient, customers: TisCusto
 export default async function StudioPage({ searchParams }: { searchParams: Promise<{ demo?: string }> }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
-  if (!hasPermission(ctx, 'reports.view') && !hasPermission(ctx, 'customers.manage')) redirect('/dashboard');
+  // AC-6: management roles only (reports.view) — hidden from field reps.
+  if (!hasPermission(ctx, 'reports.view')) redirect('/dashboard');
 
   const { t, locale } = await getT();
   const sp = await searchParams;
