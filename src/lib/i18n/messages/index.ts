@@ -88,6 +88,7 @@ import * as adminWb from './admin-workbench';
 import * as customer360 from './customer-360';
 import * as journeyPlan from './journey-plan';
 import * as coverage from './coverage';
+import * as visitFreq from './visit-frequency';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -124,6 +125,7 @@ const MODULES = [
   customer360,
   journeyPlan,
   coverage,
+  visitFreq,
 ];
 
 type Catalog = Record<string, unknown>;

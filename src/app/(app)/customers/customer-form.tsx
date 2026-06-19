@@ -13,6 +13,7 @@ import { FormSection } from '@/components/shared/form-section';
 import { Attachments } from '@/components/shared/attachments';
 import { DynamicCustomFields } from '@/components/forms/dynamic-custom-fields';
 import { VISIT_DAYS, CUSTOMER_ACCOUNT_TYPES, CUSTOMER_STATUSES, CUSTOMER_PAYMENT_TYPES } from '@/lib/erp/constants';
+import { FREQUENCY_OPTIONS } from '@/lib/route-optimization/visit-frequency-ui';
 import { resolveLayout, type GovInputs, type AccessLevel } from '@/lib/erp/field-governance';
 import { upsertCustomer, requestCustomerApproval, requestCreditLimitChange, requestCustomerGpsChange, submitCustomerChangeRequest } from './actions';
 import { loadActionPolicyConfig } from '../settings/action-policies/actions';
@@ -234,6 +235,18 @@ export function CustomerForm({
                   ))}
                 </select>
               </Field>
+              {/* FR-3: governed customer-level visit frequency (primary source of
+                  truth; classification is only a recommendation when this is unset). */}
+              {shown('visit_frequency') && (
+                <Field label={gl(t('visitFreq.fieldLabel'), req('visit_frequency'))}>
+                  <select name="visit_frequency" defaultValue={current?.visit_frequency ?? ''} disabled={ro('visit_frequency')} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">{t('visitFreq.optionInherit')}</option>
+                    {FREQUENCY_OPTIONS.map((o) => (
+                      <option key={o.token} value={o.token}>{t(o.key)}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
             </FormSection>
 
             <FormSection title={t('customers.sectionLocation')}>

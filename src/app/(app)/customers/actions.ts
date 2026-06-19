@@ -20,6 +20,7 @@ import { notifyManagers } from '@/lib/erp/notify';
 import { getActionPolicy } from '@/lib/erp/action-policy';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
 import { resolveLayout, applyWriteAccess } from '@/lib/erp/field-governance';
+import { parseFrequency } from '@/lib/route-optimization/visit-frequency';
 
 /** Parse the `custom` JSON bag from a form, validate it against the entity's
  *  active custom-field definitions (server-authoritative), and return the
@@ -112,6 +113,11 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   const cf = await resolveCustom('customer', formData.get('custom'));
   if (!cf.ok) return { ok: false, error: cf.error };
 
+  // FR-3: customer-level visit frequency (validated FR-1 token). Manually entered
+  // here ⇒ source 'manual'. Empty/invalid ⇒ null (falls through to classification).
+  const visitFrequencyRaw = String(formData.get('visit_frequency') || '').trim().toLowerCase();
+  const visitFrequency = visitFrequencyRaw && parseFrequency(visitFrequencyRaw) ? visitFrequencyRaw : null;
+
   const rawPayload = {
     code,
     name,
@@ -125,6 +131,8 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     branch_id: branchId || null,
     salesman_id: salesmanId || null,
     visit_day: visitDay || null,
+    visit_frequency: visitFrequency,
+    visit_frequency_source: visitFrequency ? ('manual' as const) : null,
     // FMCG hierarchy S3 — expanded customer model. FK ids (segment/class/channel
     // → company master data; region/area → S1 entities) are passed through;
     // tenant RLS + FK constraints keep them valid (invalid → insert fails).
@@ -212,6 +220,11 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     const enforced = applyWriteAccess(resolved, rawPayload as Record<string, unknown>, currentRow);
     if (enforced.missingRequired.length > 0) return { ok: false, error: t('customers.errRequiredMissing') };
     payload = enforced.data;
+    // FR-3: if governance kept the existing visit_frequency (field is read-only for
+    // this user), preserve its existing source rather than overwriting to 'manual'.
+    if (id && payload.visit_frequency === currentRow.visit_frequency && rawPayload.visit_frequency !== currentRow.visit_frequency) {
+      payload.visit_frequency_source = (currentRow.visit_frequency_source as string | null) ?? null;
+    }
   }
 
   // Per-company governance toggle (default off = today's behaviour).

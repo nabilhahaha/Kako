@@ -116,6 +116,10 @@ const REGISTRY: EntityDescriptor[] = [
       f('contact_person', 'مسؤول التواصل', 'Contact Person'),
       f('contact_phone', 'هاتف التواصل', 'Contact Phone'),
       f('payment_terms_days', 'مدة السداد (يوم)', 'Payment Terms (days)', { type: 'number' }),
+      // FR-2/FR-3: customer-level visit frequency (primary source of truth over
+      // classification). Canonical token (weekly|biweekly|monthly|annual or
+      // unit/everyN/visitsPerCycle). Governed core field.
+      f('visit_frequency', 'تكرار الزيارة', 'Visit Frequency'),
       f('latitude', 'خط العرض', 'Latitude', { type: 'number' }),
       f('longitude', 'خط الطول', 'Longitude', { type: 'number' }),
       f('allowed_gps_radius', 'نطاق GPS المسموح (متر)', 'Allowed GPS radius (m)', { type: 'number' }),
