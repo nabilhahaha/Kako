@@ -82,7 +82,7 @@ function downloadXlsx(bytes: Uint8Array, filename: string) {
  * TIS upload pipeline, the shared scenario/plan-edit engine and a single-pass geo
  * split — the manager does the final shaping by box/click-selecting on the map.
  */
-export function RoutePlannerWorkspace({ focus = false, subscription }: { focus?: boolean; subscription?: RoutePlannerSubscriptionView } = {}) {
+export function RoutePlannerWorkspace({ focus = false, demo = false, subscription }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView } = {}) {
   const { t, locale, setLocale } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -388,12 +388,12 @@ export function RoutePlannerWorkspace({ focus = false, subscription }: { focus?:
         <p className="text-sm font-bold tracking-tight">VANTORA <span className="font-medium text-muted-foreground">Route Planner</span></p>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="hidden rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary sm:inline">{t('routePlanner.demoBadge')}</span>
+        {demo && <span className="hidden rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary sm:inline">{t('routePlanner.demoBadge')}</span>}
         <div className="inline-flex overflow-hidden rounded-md border text-[11px]">
           <button onClick={() => setLocale('en')} className={`px-2 py-0.5 ${locale === 'en' ? 'bg-primary font-semibold text-primary-foreground' : 'bg-background hover:bg-muted'}`}>EN</button>
           <button onClick={() => setLocale('ar')} className={`border-s px-2 py-0.5 ${locale === 'ar' ? 'bg-primary font-semibold text-primary-foreground' : 'bg-background hover:bg-muted'}`}>العربية</button>
         </div>
-        {/* Sign out — the chrome-free demo shell has no top bar, so we surface it here. */}
+        {/* Sign out — the chrome-free shell has no top bar, so we surface it here. */}
         <form action="/auth/signout" method="post">
           <button type="submit" className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium hover:bg-muted" title={t('common.signOut')}>
             <LogOut className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t('common.signOut')}</span>

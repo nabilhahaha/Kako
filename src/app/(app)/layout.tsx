@@ -31,10 +31,11 @@ export default async function AppLayout({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
-  // Route Planner Demo: a locked-down, chrome-free single-screen experience. No
+  // Route Planner experience: a locked-down, chrome-free single-screen product. Driven by
+  // membership of a Route Planner tenant (the demo email is just a temporary trigger). No
   // sidebar / top bar / bottom nav / command palette, and it bypasses the tenant
   // onboarding / setup / subscription gates — the page renders its own branding.
-  if (ctx.isRoutePlannerDemo) {
+  if (ctx.isRoutePlannerExperience) {
     return (
       <ConfirmProvider>
         <PromptProvider>

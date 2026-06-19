@@ -5,6 +5,7 @@ import { ALL_PERMISSIONS, applyFashionUmbrella, type Permission } from './permis
 import { ALL_MODULES, type Module } from './navigation';
 import { isRoutePlannerDemoAccount } from './route-planner-demo';
 import { isRoutePlannerAdminAccount } from './route-planner-admin';
+import { isRoutePlannerExperience } from './route-planner-experience';
 import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys, USER_ACCESS_OVERRIDES_ENABLED, ROLE_PERMISSION_OVERRIDES_ENABLED, applyAccessOverrides } from '@/lib/role-governance';
 import { log } from '@/lib/observability';
 
@@ -30,9 +31,13 @@ export interface UserContext {
   permissions: Permission[];
   /** Feature modules unlocked by the company's plan (all for owner/super admin). */
   modules: Module[];
-  /** True for the locked-down "Route Planner Demo" account — a chrome-free, single-
-   *  screen experience redirected to the Simple Route Planner. Computed by the single
-   *  `isRoutePlannerDemoAccount` helper (swap email→role there, not here). */
+  /** True when the user gets the standalone, chrome-free Route Planner experience —
+   *  driven by membership of a Route Planner tenant (company.plan_key `route_planner*`),
+   *  with the demo email as a temporary trigger. THIS is what the layout / home / page
+   *  read. Computed by the single `isRoutePlannerExperience` helper. */
+  isRoutePlannerExperience: boolean;
+  /** True ONLY for the temporary demo account (email). Used for demo-specific labelling
+   *  (the "Route Planner Demo" badge); real tenants get the experience without the badge. */
   isRoutePlannerDemo: boolean;
   /** True for the limited, product-scoped "Route Planner Admin" — manages only Route
    *  Planner tenants/subscriptions, never the full platform. Computed by the single
@@ -348,6 +353,7 @@ async function resolveUserContext(): Promise<UserContext | null> {
     topRole,
     permissions,
     modules,
+    isRoutePlannerExperience: isRoutePlannerExperience({ email: (profile as Profile | null)?.email ?? user.email, companyPlanKey: company?.plan_key }),
     isRoutePlannerDemo: isRoutePlannerDemoAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
     isRoutePlannerAdmin: isRoutePlannerAdminAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
   };

@@ -24,7 +24,7 @@ export async function parseUploadColumns(formData: FormData): Promise<ParseColum
   if (!ctx) return { ok: false, error: 'err_unauthorized' };
   // Same audience as the page: the Route Planner Demo account, or anyone with the
   // dedicated route_planner.* permission, or a manager/supervisor with reports.view.
-  const allowed = ctx.isRoutePlannerDemo
+  const allowed = ctx.isRoutePlannerExperience
     || hasPermission(ctx, 'route_planner.upload') || hasPermission(ctx, 'route_planner.view')
     || hasPermission(ctx, 'reports.view');
   if (!allowed) return { ok: false, error: 'err_unauthorized' };

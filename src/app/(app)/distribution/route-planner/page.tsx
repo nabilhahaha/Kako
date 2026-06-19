@@ -19,15 +19,16 @@ export const metadata: Metadata = { title: 'VANTORA Route Planner' };
 export default async function RoutePlannerPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
-  const allowed = ctx.isRoutePlannerDemo || hasPermission(ctx, 'route_planner.view') || hasPermission(ctx, 'reports.view');
+  const allowed = ctx.isRoutePlannerExperience || hasPermission(ctx, 'route_planner.view') || hasPermission(ctx, 'reports.view');
   if (!allowed) redirect('/dashboard');
 
   const { t } = await getT();
   const subscription = resolveSubscription(subscriptionInputFor(ctx.company, { isDemo: ctx.isRoutePlannerDemo }));
-  if (ctx.isRoutePlannerDemo) {
+  if (ctx.isRoutePlannerExperience) {
     // Standalone, presentation-quality experience — the workspace renders its own
-    // branding header / badge; no platform PageHeader.
-    return <RoutePlannerWorkspace focus subscription={subscription} />;
+    // branding header / badge; no platform PageHeader. The demo badge shows only for the
+    // temporary demo account, not for real Route Planner tenants.
+    return <RoutePlannerWorkspace focus demo={ctx.isRoutePlannerDemo} subscription={subscription} />;
   }
   return (
     <div>
