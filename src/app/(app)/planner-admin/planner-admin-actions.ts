@@ -97,21 +97,40 @@ export async function listRoutePlannerTenants(): Promise<Result<PlannerTenantRow
   }
 }
 
+/**
+ * Ensure the Route Planner plan keys exist in erp_plans. `erp_companies.plan_key` is a
+ * FK to erp_plans(key), so a company can only carry a `route_planner_*` plan once these
+ * rows exist (migration 0352 seeds them; this is a self-healing belt-and-suspenders).
+ */
+async function ensureRoutePlannerPlans(svc: ReturnType<typeof createServiceClient>): Promise<void> {
+  await svc.from('erp_plans').upsert([
+    { key: ROUTE_PLANNER_PLAN_TRIAL, name_ar: 'مخطط الخطوط — تجربة', rank: 0 },
+    { key: ROUTE_PLANNER_PLAN_MONTHLY, name_ar: 'مخطط الخطوط — شهري', rank: 0 },
+    { key: ROUTE_PLANNER_PLAN_ANNUAL, name_ar: 'مخطط الخطوط — سنوي', rank: 0 },
+  ], { onConflict: 'key', ignoreDuplicates: true });
+}
+
 export async function createRoutePlannerTenant(name: string): Promise<Result<{ id: string }>> {
   if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
   const clean = name.trim();
   if (!clean) return { ok: false, error: 'err_name_required' };
   try {
     const svc = createServiceClient();
+    await ensureRoutePlannerPlans(svc);
     const { data, error } = await svc
       .from('erp_companies')
       .insert({ name: clean, currency: 'SAR', is_active: true, plan_key: ROUTE_PLANNER_PLAN_TRIAL, trial_ends_at: isoIn(ROUTE_PLANNER_TRIAL_DAYS) })
       .select('id')
       .single();
-    if (error || !data) return { ok: false, error: 'err_create' };
+    if (error || !data) {
+      // Surface the real cause in server logs so failures are diagnosable.
+      console.error('[planner-admin] createRoutePlannerTenant failed:', error?.message, error?.details, error?.hint);
+      return { ok: false, error: 'err_create' };
+    }
     revalidatePath('/planner-admin');
     return { ok: true, data: { id: data.id } };
-  } catch {
+  } catch (e) {
+    console.error('[planner-admin] createRoutePlannerTenant threw:', e instanceof Error ? e.message : e);
     return { ok: false, error: 'err_create' };
   }
 }
