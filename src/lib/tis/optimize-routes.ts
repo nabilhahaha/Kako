@@ -334,13 +334,16 @@ const RP_MIN_SLICE = 5;
  *  All named, not magic numbers. */
 const RP_MAX_ABSORB_KM = 25;          // max distance to a route's nearest customer to be a candidate
 const RP_MAX_WORKLOAD_IMBALANCE = 0.35; // a route may end up at most 35% above the mean route workload
-const RP_MAX_COMPACTNESS_IMPACT = 15;   // km a route's radius may grow by absorbing the customer
 
 /** Distance-aware boundary smoothing — after the Hilbert cut, a customer is moved to a
  *  nearer route's centroid (Lloyd-style) when it is clearly closer and the target route
  *  is not overloaded, so workload balancing never leaves customers far from their route. */
 const RP_BOUNDARY_MARGIN_KM = 5;  // must be ≥ this much closer to the other route to move
 const RP_BOUNDARY_PASSES = 12;    // Lloyd iterations; converges early (breaks when no move helps)
+/** Workload band kept DURING smoothing so compactness never over-corrects balance: a
+ *  route may not be filled above (1+band)×mean nor drained below (1-band)×mean. Keeps
+ *  customer-count/workload, AND geographic compactness, reasonable at the same time. */
+const RP_BALANCE_BAND = 0.25;
 
 const median = (xs: number[]): number => {
   if (xs.length === 0) return 0;
@@ -409,14 +412,11 @@ export function simpleGeoSplit(customers: readonly TisCustomer[], routeCount: nu
     const bGeo = buckets.map((b) => b.list.filter((c) => isValidGeo(c.geo)));
     const bWl = buckets.map((b) => b.list.reduce((s, c) => s + wl(c), 0));
     const bCentroid = buckets.map((b) => centroidOf(b.list));
-    const bRadius = buckets.map((b, i) => { const ct = bCentroid[i]; return ct ? bGeo[i].reduce((m, c) => Math.max(m, distKm(ct, c.geo!)), 0) : 0; });
     const meanWl = (bWl.reduce((s, w) => s + w, 0) / Math.max(1, buckets.length)) || 1;
     const nearestMember = (c: TisCustomer, gi: TisCustomer[]) => gi.reduce((m, o) => Math.min(m, distKm(c.geo!, o.geo!)), Infinity);
     const recompute = (i: number) => {
       bGeo[i] = buckets[i].list.filter((c) => isValidGeo(c.geo));
       bCentroid[i] = centroidOf(buckets[i].list);
-      const ct = bCentroid[i];
-      bRadius[i] = ct ? bGeo[i].reduce((m, c) => Math.max(m, distKm(ct, c.geo!)), 0) : 0;
       bWl[i] = buckets[i].list.reduce((s, c) => s + wl(c), 0);
     };
 
@@ -440,9 +440,11 @@ export function simpleGeoSplit(customers: readonly TisCustomer[], routeCount: nu
         moves.sort((a, b) => b.gain - a.gain);
         const size = buckets.map((b) => b.list.length);
         let applied = 0;
+        const upper = (1 + RP_BALANCE_BAND) * meanWl, lower = (1 - RP_BALANCE_BAND) * meanWl;
         for (const m of moves) {
           if (size[m.from] <= 1) continue;                                   // never empty a route (keep exactly K)
-          if (bWl[m.to] + wl(m.c) > (1 + RP_MAX_WORKLOAD_IMBALANCE) * meanWl) continue; // don't overload target
+          if (bWl[m.to] + wl(m.c) > upper) continue;                         // don't overfill the target route
+          if (bWl[m.from] - wl(m.c) < lower) continue;                       // don't drain the source route
           buckets[m.from].list = buckets[m.from].list.filter((x) => x.id !== m.c.id);
           buckets[m.to].list.push(m.c);
           bWl[m.from] -= wl(m.c); bWl[m.to] += wl(m.c);
@@ -467,11 +469,11 @@ export function simpleGeoSplit(customers: readonly TisCustomer[], routeCount: nu
         const g = bGeo[i];
         if (g.length === 0) continue;
         const dN = nearestMember(c, g);
+        // Locality is bounded by the nearest-MEMBER distance (25 km) — a customer next to a
+        // route's customers belongs to it, even if that route is elongated / far from its
+        // centroid. (A centroid/radius gate here wrongly rejects genuine boundary customers.)
         if (dN > RP_MAX_ABSORB_KM) continue;                                  // too far from this route
         if (bWl[i] + wl(c) > (1 + RP_MAX_WORKLOAD_IMBALANCE) * meanWl) continue; // would overload it
-        const ct = bCentroid[i];
-        const impact = ct ? Math.max(0, distKm(c.geo!, ct) - bRadius[i]) : 0;
-        if (impact > RP_MAX_COMPACTNESS_IMPACT) continue;                     // would bloat its radius
         if (dN < bestD) { bestD = dN; bestI = i; }                           // prefer the closest acceptable route
       }
       if (bestI >= 0) {
