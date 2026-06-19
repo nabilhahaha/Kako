@@ -23,6 +23,8 @@ export interface RouteConstraints {
   /** Capacity for auto route count from workload. */
   maxVisitsPerDay?: number;
   workingDays?: number;
+  /** Dimension to balance across routes. Default 'workload' (visits/week). */
+  balanceBy?: 'workload' | 'value' | 'count';
 }
 
 export interface RouteSummary {
@@ -89,7 +91,11 @@ export function balanceRoutes(customers: readonly TisCustomer[], constraints: Ro
   const k = resolveRouteCount(customers, constraints);
   if (k === 0) return { routeCount: 0, assignments: [], routes: [], workloadBalancePct: 100 };
 
-  const wl = (c: TisCustomer) => customerWorkload(c) ?? 1; // un-cadenced ⇒ count as 1 visit/wk
+  // Balance dimension: workload (default), sales value, or plain count.
+  const wl = (c: TisCustomer) =>
+    constraints.balanceBy === 'value' ? (c.salesValue ?? 0)
+    : constraints.balanceBy === 'count' ? 1
+    : (customerWorkload(c) ?? 1); // un-cadenced ⇒ count as 1 visit/wk
   const maxPer = constraints.maxPerRoute && constraints.maxPerRoute > 0 ? constraints.maxPerRoute : Infinity;
 
   const buckets: TisCustomer[][] = Array.from({ length: k }, () => []);
