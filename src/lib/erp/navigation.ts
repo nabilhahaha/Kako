@@ -420,6 +420,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.mslComplianceDash', href: '/distribution/msl-compliance', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'], group: 'nav.groups.coverage' },
       { label: 'nav.items.oosDash', href: '/distribution/oos', icon: PackageCheck, perm: 'reports.view', group: 'nav.groups.coverage' },
       { label: 'nav.items.territoryAudit', href: '/distribution/territory-audit', icon: Scale, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.geoMap', href: '/distribution/geo', icon: Map, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
       { label: 'nav.items.territoryIntel', href: '/distribution/territory-intel', icon: Activity, perm: 'reports.view', group: 'nav.groups.coverage' },
       { label: 'nav.items.retailCockpit', href: '/distribution/retail-cockpit', icon: LayoutGrid, perm: 'reports.view', group: 'nav.groups.coverage' },
       // ── Perfect Store ──
