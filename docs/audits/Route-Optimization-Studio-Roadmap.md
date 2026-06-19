@@ -198,11 +198,55 @@ Maintain **Current Plan · Scenario A · B · C** and compare before publishing,
 Customers · Visits · Sales Value · Distance · Coverage · Route Balance.
 
 ### 7.6 Map Layers (future)
-Customer Health (CJ Health) · Coverage Status (CJ-3) · A/B/C Classification · Sales Value ·
-Route Ownership · Territory Boundaries (`erp_territories`) · GPS Compliance
-(`erp_visit_compliance`) · White-Space Opportunities.
+Customer Health (CJ Health) · Coverage Status (CJ-3) · A/B/C Classification · Sales Value
+(§7.8) · Route Ownership (§7.9) · Territory Boundaries (`erp_territories`) · GPS Compliance
+(`erp_visit_compliance`) · White-Space Opportunities. Each toggleable.
 
-### 7.7 Apply
+### 7.8 Sales Load Layer
+Make **sales value** a first-class visibility + balancing dimension on the map and in the
+optimizer:
+
+- Display **per-customer sales value** on the map; support a **sales-value heatmap** view.
+- Display **route sales totals** and **estimated sales load per route**.
+- Route balancing optionally weights any combination of: customer count · visit workload ·
+  **sales value** · geography · rep capacity (multi-objective, configurable — see §1a).
+
+```
+Route A   120 customers   SAR 520,000
+Route B   115 customers   SAR 510,000
+Route C   122 customers   SAR 525,000
+```
+
+Managers can **balance routes by sales value, not customer count only** — a route with fewer
+but higher-value (or higher-workload) outlets stays balanced against a larger, lower-value one.
+
+> **Reuse:** sales value derives from existing sales/invoice history per customer (no new
+> source); the optimizer already accepts weighted objectives (§2). This layer adds a value
+> rollup + heatmap rendering, not new business logic.
+
+### 7.9 Territory Ownership Layer
+Make **ownership responsibility** a planning + management layer on the map (not only
+reporting):
+
+- Visualize **salesman · supervisor · area · region** ownership, **a distinct colour per
+  owner**, with **toggleable** ownership layers.
+- Selecting a customer shows its **assigned salesman + supervisor**; render **route ownership
+  boundaries**; **highlight customers assigned outside their expected territory** (exceptions).
+
+```
+Blue = Ahmed    Green = Mohamed    Orange = Ali
+```
+
+At a glance the manager sees **who owns the customer · who owns the route · who owns the
+territory**. Integrates with **Customer 360 · Coverage Status (CJ-3) · Journey Planning ·
+Route Optimization · Geo Intelligence**.
+
+> **Reuse:** ownership is existing data — `erp_customers.salesman_id`, the rep→supervisor
+> `reports_to` chain (already surfaced in Customer 360 G1), `route_id`, `region_id`/`area_id`,
+> and `erp_territories` boundaries. This layer is colour-coding + boundary rendering +
+> out-of-territory detection over those, not new business logic.
+
+### 7.10 Apply
 ```
 Generate → Preview → Drag & Drop → Scenario Compare → Apply
 ```
@@ -227,6 +271,8 @@ Apply publishes directly into the **Journey Plan Engine** using the single data 
 | RO-5 | Excel export + apply to Journey Plan (single data model, §4a) |
 | RO-6 | Geo Intelligence + Smart Next integration |
 | RO-7 | Visual Territory Planning Studio (§7): map-driven day assignment, drag & drop, live preview, scenario compare, map layers |
+| RO-8 | Sales Load Layer (§7.8): per-customer value + heatmap, route sales totals, sales-weighted balancing |
+| RO-9 | Territory Ownership Layer (§7.9): colour-coded salesman/supervisor/area/region ownership, boundaries, out-of-territory detection |
 
 **Prerequisite:** Visit-Frequency Resolution Layer (workload weighting) and Geo Intelligence
 (map + distance) — both already recorded as roadmap items.
