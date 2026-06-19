@@ -15,6 +15,7 @@ import { creditWorkflowKey } from '@/lib/erp/approval-flags';
 import { sensitiveChanges } from '@/lib/erp/customer-approval';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import { logAudit } from '@/lib/erp/audit';
+import { auditEnvelope, diffFields } from '@/lib/erp/audit-envelope';
 import { notifyManagers } from '@/lib/erp/notify';
 import { getActionPolicy } from '@/lib/erp/action-policy';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
@@ -186,7 +187,11 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     if (!statusChanged) return;
     await logAudit(supabase, {
       action: 'update', entity: 'customer_status', entityId: recordId,
-      details: { previous_status: prevStatus, new_status: customerStatus, reason_id: reasonId, reason_note: reasonNote },
+      details: auditEnvelope({
+        field: 'customer_status', oldValue: prevStatus, newValue: customerStatus,
+        role: ctx.topRole, reason: reasonNote,
+        extra: { previous_status: prevStatus, new_status: customerStatus, reason_id: reasonId, reason_note: reasonNote },
+      }),
       companyId: ctx.companyId,
     });
   };
@@ -263,9 +268,23 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     }
   }
 
+  // G5: capture the before-row for the structured audit envelope (direct edit).
+  const { data: beforeRow } = await supabase.from('erp_customers').select('*').eq('id', id).maybeSingle();
   const { error } = await supabase.from('erp_customers').update(payload).eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
   await auditStatus(id);
+  // Structured field-diff audit for the direct edit (status handled by auditStatus).
+  const STATUS_KEYS = ['customer_status', 'status_reason_id', 'status_reason_note'];
+  const changed = beforeRow
+    ? diffFields(beforeRow as Record<string, unknown>, payload, Object.keys(payload).filter((k) => !STATUS_KEYS.includes(k)))
+    : [];
+  if (changed.length > 0) {
+    await logAudit(supabase, {
+      action: 'update', entity: 'customer', entityId: id,
+      details: auditEnvelope({ changes: changed, role: ctx.topRole }),
+      companyId: ctx.companyId,
+    });
+  }
   await emitDomainEvent({ eventType: EVENT.CUSTOMER_UPDATED, entity: 'customer', recordId: id });
   revalidatePath('/customers');
   return { ok: true };
@@ -404,7 +423,12 @@ export async function requestCustomerGpsChange(
   const reqId = (req as { id: string } | null)?.id ?? customerId;
   await logAudit(supabase, {
     action: 'update', entity: 'customer_gps_change', entityId: customerId,
-    details: { latitude, longitude, reason: reason?.trim() || null, request_id: reqId }, companyId: ctx.companyId,
+    details: auditEnvelope({
+      field: 'gps', oldValue: null, newValue: { latitude, longitude },
+      role: ctx.topRole, reason: reason?.trim() || null, requestRef: reqId,
+      extra: { latitude, longitude, request_id: reqId },
+    }),
+    companyId: ctx.companyId,
   });
   await notifyManagers(supabase, ctx.companyId, {
     type: 'critical_action',
@@ -436,7 +460,8 @@ export async function requestCustomerApproval(id: string, reason?: string): Prom
   // Critical-action: customer.dataUpdateApproval (CR/VAT/National Address etc.).
   await logAudit(supabase, {
     action: 'update', entity: 'customer_change_request', entityId: id,
-    details: { event: 'data_update_submitted', reason: reason?.trim() || null }, companyId: ctx.companyId,
+    details: auditEnvelope({ event: 'data_update_submitted', role: ctx.topRole, reason: reason?.trim() || null, requestRef: id }),
+    companyId: ctx.companyId,
   });
   await notifyManagers(supabase, ctx.companyId, {
     type: 'critical_action',
@@ -479,7 +504,11 @@ export async function requestCreditLimitChange(customerId: string, requestedLimi
   // Critical-action: customer.creditLimitOverride (reason captured at the call site).
   await logAudit(supabase, {
     action: 'update', entity: 'credit_limit_request', entityId: (req as { id: string }).id,
-    details: { customer_id: customerId, old_limit: current, new_limit: requestedLimit, reason: reason?.trim() || null },
+    details: auditEnvelope({
+      field: 'credit_limit', oldValue: current, newValue: requestedLimit,
+      role: ctx.topRole, reason: reason?.trim() || null, requestRef: (req as { id: string }).id,
+      extra: { customer_id: customerId, old_limit: current, new_limit: requestedLimit },
+    }),
     companyId: ctx.companyId,
   });
   await notifyManagers(supabase, ctx.companyId, {
@@ -566,7 +595,12 @@ export async function toggleCustomerActive(
   // Critical-action audit: customer.statusChange (reason mandatory at call site).
   await logAudit(supabase, {
     action: isActive ? 'activate' : 'deactivate', entity: 'customer_status', entityId: id,
-    details: { is_active_new: isActive, reason: reason?.trim() || null }, companyId: ctx.companyId,
+    details: auditEnvelope({
+      field: 'is_active', oldValue: !isActive, newValue: isActive,
+      role: ctx.topRole, reason: reason?.trim() || null,
+      extra: { is_active_new: isActive },
+    }),
+    companyId: ctx.companyId,
   });
   revalidatePath('/customers');
   return { ok: true };
