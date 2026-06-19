@@ -14,7 +14,8 @@ import { useI18n } from '@/lib/i18n/provider';
  * The parent owns the selection, focus, hulls and point colours; this just renders and
  * reports interactions. Client-only; keyless OSM raster base.
  */
-export interface SelMapMeta { code?: string | null; routeLabel?: string | null; routeColor?: string | null; frequency?: string | null }
+export interface SelMapMeta { code?: string | null; route?: string | null; routeLabel?: string | null; routeColor?: string | null; frequency?: string | null }
+export interface RouteOption { value: string; label: string }
 export interface SelMapPoint { id: string; name: string; lat: number; lng: number; color: string; review?: boolean; dim?: boolean; meta?: SelMapMeta }
 export interface SelMapHull { id: string; color: string; ring: [number, number][] }
 
@@ -48,16 +49,16 @@ function toHullGeoJSON(hulls: SelMapHull[]) {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
 
-export function SelectionMap({ points, hulls, selectedIds, focusIds, targetLabel, selectMode, onToggle, onBoxSelect, onMoveSingle }: {
+export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, onToggle, onBoxSelect, onMoveSingle }: {
   points: SelMapPoint[];
   hulls: SelMapHull[];
   selectedIds: Set<string>;
   focusIds: Set<string>;
-  targetLabel: string;
+  routeOptions: RouteOption[];
   selectMode: 'box' | 'draw';
   onToggle: (id: string) => void;
   onBoxSelect: (ids: string[]) => void;
-  onMoveSingle: (id: string) => void;
+  onMoveSingle: (id: string, dest: string) => void;
 }) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -68,10 +69,10 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, targetLabel
   const toggleRef = useRef(onToggle); toggleRef.current = onToggle;
   const boxRef = useRef(onBoxSelect); boxRef.current = onBoxSelect;
   const moveRef = useRef(onMoveSingle); moveRef.current = onMoveSingle;
-  const targetRef = useRef(targetLabel); targetRef.current = targetLabel;
+  const optionsRef = useRef(routeOptions); optionsRef.current = routeOptions;
   const modeRef = useRef(selectMode); modeRef.current = selectMode;
-  const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '' });
-  labelsRef.current = { code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), freq: t('routePlanner.colFrequency'), geo: t('routePlanner.colGeo2'), move: t('routePlanner.move') };
+  const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '', current: '', moveTo: '' });
+  labelsRef.current = { code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), freq: t('routePlanner.colFrequency'), geo: t('routePlanner.colGeo2'), move: t('routePlanner.move'), current: t('routePlanner.currentRoute'), moveTo: t('routePlanner.moveTo') };
   const fitOnce = useRef(false);
   const focusKey = [...focusIds].sort().join(',');
 
@@ -197,16 +198,29 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, targetLabel
     const m = p.meta ?? {};
     const swatch = m.routeColor ? `<span style="display:inline-block;width:10px;height:10px;border-radius:9999px;background:${esc(m.routeColor)};margin-inline-end:4px;vertical-align:middle"></span>` : '';
     const row = (label: string, value: string) => (value ? `<div style="display:flex;gap:6px"><span style="color:#64748b">${esc(label)}</span><span>${value}</span></div>` : '');
-    const html = `<div style="font-size:12px;line-height:1.6;min-width:150px">
+    // Destination dropdown: existing routes first, "New route" last. Default to the
+    // customer's CURRENT route (so a stray click doesn't move it), else the first route.
+    const current = m.route || '';
+    const opts = optionsRef.current.map((o) => `<option value="${esc(o.value)}"${o.value === current ? ' selected' : ''}>${esc(o.label)}</option>`).join('');
+    const html = `<div style="font-size:12px;line-height:1.6;min-width:170px">
       <div style="font-weight:700;margin-bottom:2px">${esc(p.name || '')}</div>
       ${row(L.code, esc(m.code || ''))}
-      ${row(L.route, swatch + esc(m.routeLabel || '—'))}
+      ${row(L.current, swatch + esc(m.routeLabel || '—'))}
       ${row(L.freq, esc(m.frequency || '—'))}
       ${row(L.geo, `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`)}
-      <button id="rp-move-btn" style="margin-top:6px;width:100%;padding:4px 8px;border:1px solid #2563eb;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:12px">${esc(L.move)} → ${esc(targetRef.current)}</button>
+      <div style="margin-top:6px;color:#64748b">${esc(L.moveTo)}</div>
+      <div style="display:flex;gap:4px;margin-top:2px">
+        <select id="rp-move-sel" style="flex:1;height:28px;border:1px solid #cbd5e1;border-radius:6px;padding:0 4px;font-size:12px;background:#fff">${opts}</select>
+        <button id="rp-move-btn" style="padding:0 10px;border:1px solid #2563eb;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:12px">${esc(L.move)}</button>
+      </div>
     </div>`;
     const popup = new gl.Popup({ closeButton: true, closeOnClick: true, offset: 10 }).setLngLat(lngLat).setHTML(html).addTo(map);
-    popup.getElement()?.querySelector('#rp-move-btn')?.addEventListener('click', () => { moveRef.current(id); popup.remove(); });
+    const el = popup.getElement();
+    el?.querySelector('#rp-move-btn')?.addEventListener('click', () => {
+      const sel = el.querySelector('#rp-move-sel') as HTMLSelectElement | null;
+      if (sel) moveRef.current(id, sel.value);
+      popup.remove();
+    });
   }
 
   // Recolour / refilter when points change.

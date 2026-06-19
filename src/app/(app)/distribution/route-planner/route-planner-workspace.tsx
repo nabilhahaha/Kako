@@ -52,6 +52,7 @@ export function RoutePlannerWorkspace() {
   const [focusedRoutes, setFocusedRoutes] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState<'box' | 'draw'>('box');
   const [showAllBoundaries, setShowAllBoundaries] = useState(false);
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
   const [approved, setApproved] = useState(false);
   const [importing, setImporting] = useState(false);
   const [preview, setPreview] = useState<{ rows: Parameters<typeof buildTisDatasetFromRows>[0]; total: number; mapped: number } | null>(null);
@@ -73,18 +74,21 @@ export function RoutePlannerWorkspace() {
   const points = useMemo<SelMapPoint[]>(() => {
     if (!applied) return [];
     const focusing = focusedRoutes.size > 0;
-    return applied.customers.filter((c) => isValidGeo(c.geo)).map((c) => {
+    const onlySel = showOnlySelected && focusing; // hide everything except the focused routes
+    let cs = applied.customers.filter((c) => isValidGeo(c.geo));
+    if (onlySel) cs = cs.filter((c) => c.ownership.routeId && focusedRoutes.has(c.ownership.routeId));
+    return cs.map((c) => {
       const rid = c.ownership.routeId;
       return {
         id: c.id, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng,
         color: rid ? colors.get(rid) ?? '#94a3b8' : '#f59e0b',
         review: !rid,
-        dim: focusing && !(rid && focusedRoutes.has(rid)),
-        meta: { code: c.code, routeLabel: routeLabelOf(rid), routeColor: rid ? colors.get(rid) : undefined, frequency: c.frequency ? formatFrequency(c.frequency) : '' },
+        dim: focusing && !onlySel && !(rid && focusedRoutes.has(rid)),
+        meta: { code: c.code, route: rid, routeLabel: routeLabelOf(rid), routeColor: rid ? colors.get(rid) : undefined, frequency: c.frequency ? formatFrequency(c.frequency) : '' },
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [applied, colors, focusedRoutes, ids]);
+  }, [applied, colors, focusedRoutes, ids, showOnlySelected]);
 
   // Route boundaries: focused routes (always), or all when "show all boundaries" is on.
   const hulls = useMemo<SelMapHull[]>(() => {
@@ -103,7 +107,16 @@ export function RoutePlannerWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applied, selectedIds, ids]);
 
-  const targetLabel = targetRoute === NEW_ROUTE ? t('routePlanner.newRoute') : targetRoute === UNASSIGNED ? t('routePlanner.keepUnassigned') : `${t('routePlanner.route')} ${ids.indexOf(targetRoute) + 1}`;
+  // Destination options for both the popup and the toolbar: existing routes FIRST,
+  // then Keep-unassigned, then "New route" LAST (creating a route is secondary).
+  const routeOptions = useMemo(() => [
+    ...ids.map((id, i) => ({ value: id, label: `${t('routePlanner.route')} ${i + 1}` })),
+    { value: UNASSIGNED, label: t('routePlanner.keepUnassigned') },
+    { value: NEW_ROUTE, label: `＋ ${t('routePlanner.newRoute')}` },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [ids]);
+  // Guard a stale target (e.g. a route that was emptied out) → fall back to the first route.
+  const effectiveTarget = (targetRoute === NEW_ROUTE || targetRoute === UNASSIGNED || ids.includes(targetRoute)) ? targetRoute : (ids[0] ?? NEW_ROUTE);
 
   // ── Upload ──
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -164,27 +177,29 @@ export function RoutePlannerWorkspace() {
     const plan = simpleGeoSplit(dataset.customers, k);
     const sc = plan.assignments.reduce((s, a) => moveCustomer(s, a.customerId, a.routeId ?? null), emptyScenario());
     setScenario(sc); setGenerated(true); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set());
-    setTargetRoute(NEW_ROUTE);
+    // Default the move target to the first real route (Route → Route is the primary flow).
+    setTargetRoute(plan.routes[0]?.routeId ?? NEW_ROUTE);
   }
   function nextNewRouteId(): string {
     const present = new Set(ids);
     for (let n = 1; n <= present.size + 1; n++) { const id = `opt-route-${n}`; if (!present.has(id)) return id; }
     return `opt-route-${present.size + 1}`;
   }
-  function destRoute(): string | null {
-    return targetRoute === NEW_ROUTE ? nextNewRouteId() : targetRoute === UNASSIGNED ? null : targetRoute;
+  /** Resolve a dropdown value (route id | New | Unassigned) to a concrete route id/null. */
+  function resolveDest(value: string): string | null {
+    return value === NEW_ROUTE ? nextNewRouteId() : value === UNASSIGNED ? null : value;
   }
   function moveSelected() {
     if (selectedIds.size === 0) return;
     pushHistory(scenario);
-    const dest = destRoute();
+    const dest = resolveDest(effectiveTarget);
     let sc = scenario;
     for (const id of selectedIds) sc = moveCustomer(sc, id, dest);
     setScenario(sc); setApproved(false); setSelectedIds(new Set());
   }
-  function moveSingle(id: string) {
+  function moveSingle(id: string, value: string) {
     pushHistory(scenario);
-    setScenario(moveCustomer(scenario, id, destRoute())); setApproved(false);
+    setScenario(moveCustomer(scenario, id, resolveDest(value))); setApproved(false);
     setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
   }
   /** Map area-select callback. In Manual mode with "new territory on draw" on, the
@@ -196,6 +211,7 @@ export function RoutePlannerWorkspace() {
       let sc = scenario;
       for (const id of ids) sc = moveCustomer(sc, id, dest);
       setScenario(sc); setApproved(false); setSelectedIds(new Set());
+      if (targetRoute === NEW_ROUTE) setTargetRoute(dest); // default the move target to a real route
       return;
     }
     boxSelect(ids);
@@ -204,7 +220,7 @@ export function RoutePlannerWorkspace() {
     setFocusedRoutes((prev) => { const next = new Set(prev); next.has(routeId) ? next.delete(routeId) : next.add(routeId); return next; });
   }
   function focusAll() { setFocusedRoutes(new Set(ids)); }
-  function clearFocus() { setFocusedRoutes(new Set()); }
+  function clearFocus() { setFocusedRoutes(new Set()); setShowOnlySelected(false); }
   function toggle(id: string) {
     setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   }
@@ -337,16 +353,14 @@ export function RoutePlannerWorkspace() {
               <span className="text-xs text-muted-foreground">{t('routePlanner.fromRoutes').replace('{routes}', movePreview.from.slice(0, 3).join(', ') + (movePreview.from.length > 3 ? '…' : ''))}</span>
             )}
             <span className="text-muted-foreground">{t('routePlanner.moveTo')}</span>
-            <select className="h-9 rounded-md border bg-background px-2 text-sm" value={targetRoute} onChange={(e) => setTargetRoute(e.target.value)}>
-              <option value={NEW_ROUTE}>＋ {t('routePlanner.newRoute')}</option>
-              {ids.map((id, i) => <option key={id} value={id}>{t('routePlanner.route')} {i + 1}</option>)}
-              <option value={UNASSIGNED}>{t('routePlanner.keepUnassigned')}</option>
+            <select className="h-9 rounded-md border bg-background px-2 text-sm" value={effectiveTarget} onChange={(e) => setTargetRoute(e.target.value)}>
+              {routeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <Button size="sm" disabled={selectedIds.size === 0} onClick={moveSelected}><MapPin className="h-4 w-4" /> {t('routePlanner.move')}{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}</Button>
+            <Button size="sm" disabled={selectedIds.size === 0} onClick={moveSelected}><MapPin className="h-4 w-4" /> {t('routePlanner.apply')}{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}</Button>
             {selectedIds.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}><X className="h-4 w-4" /> {t('routePlanner.clear')}</Button>}
           </div>
 
-          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} targetLabel={targetLabel} selectMode={selectMode} onToggle={toggle} onBoxSelect={onAreaSelect} onMoveSingle={moveSingle} />
+          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} onToggle={toggle} onBoxSelect={onAreaSelect} onMoveSingle={moveSingle} />
         </div>
 
         {/* Route side panel */}
@@ -369,15 +383,16 @@ export function RoutePlannerWorkspace() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-1">
               <p className="text-sm font-semibold">{t('routePlanner.routesTitle')} <span className="text-xs font-normal text-muted-foreground">({reviews.length})</span></p>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap justify-end gap-1">
                 <button onClick={focusAll} className="rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted">{t('routePlanner.focusAll')}</button>
                 <button onClick={clearFocus} className="rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted">{t('routePlanner.clearFocus')}</button>
+                <button disabled={focusedRoutes.size === 0} onClick={() => setShowOnlySelected((v) => !v)} className={`rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted disabled:opacity-40 ${showOnlySelected ? 'border-primary bg-primary/10 text-primary' : ''}`}>{showOnlySelected ? t('routePlanner.showAll') : t('routePlanner.showOnly')}</button>
               </div>
             </div>
-            <div className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-x-2 text-[11px] text-muted-foreground">
-              <span /><span /><span className="text-end">{t('routePlanner.colCustomers')}</span><span className="text-end">{t('routePlanner.colVisits')}</span><span className="text-end">{t('routePlanner.colWorkload')}</span>
+            <div className="grid grid-cols-[auto_auto_1fr_auto_auto_auto] items-center gap-x-2 text-[11px] text-muted-foreground">
+              <span /><span /><span /><span className="text-end">{t('routePlanner.colCustomers')}</span><span className="text-end">{t('routePlanner.colVisits')}</span><span className="text-end">{t('routePlanner.colWorkload')}</span>
             </div>
             <div className="max-h-[44vh] space-y-1 overflow-y-auto pe-1">
               {reviews.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">—</p>}
@@ -388,9 +403,10 @@ export function RoutePlannerWorkspace() {
                     key={s.routeId}
                     onClick={() => toggleFocus(s.routeId)}
                     title={t('routePlanner.focusHint')}
-                    className={`grid w-full grid-cols-[auto_1fr_auto_auto_auto] items-center gap-x-2 rounded border px-2 py-1.5 text-start text-xs hover:bg-muted ${on ? 'border-primary bg-primary/5' : ''}`}
+                    className={`grid w-full grid-cols-[auto_auto_1fr_auto_auto_auto] items-center gap-x-2 rounded border px-2 py-1.5 text-start text-xs hover:bg-muted ${on ? 'border-primary bg-primary/5' : ''}`}
                   >
-                    <span className="inline-block h-3 w-3 rounded-full ring-2 ring-offset-1" style={{ backgroundColor: s.color, boxShadow: on ? `0 0 0 2px ${s.color}` : undefined }} />
+                    <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'}`}>{on && <Check className="h-2.5 w-2.5" />}</span>
+                    <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: s.color }} />
                     <span className="truncate font-medium">{t('routePlanner.route')} {s.index}</span>
                     <span className="text-end tabular-nums" dir="ltr">{s.customers}</span>
                     <span className="text-end tabular-nums text-muted-foreground" dir="ltr">{s.weeklyVisits}</span>
@@ -402,8 +418,9 @@ export function RoutePlannerWorkspace() {
                 <button
                   onClick={selectNeedsReview}
                   title={t('routePlanner.selectReview')}
-                  className="grid w-full grid-cols-[auto_1fr_auto_auto_auto] items-center gap-x-2 rounded border border-dashed border-amber-400 bg-amber-50 px-2 py-1.5 text-start text-xs hover:bg-amber-100"
+                  className="grid w-full grid-cols-[auto_auto_1fr_auto_auto_auto] items-center gap-x-2 rounded border border-dashed border-amber-400 bg-amber-50 px-2 py-1.5 text-start text-xs hover:bg-amber-100"
                 >
+                  <span />
                   <span className="inline-block h-3 w-3 rounded-full border-2 border-amber-800 bg-amber-500" />
                   <span className="truncate font-medium text-amber-900">{t('routePlanner.needsReview')}</span>
                   <span className="text-end tabular-nums text-amber-900" dir="ltr">{unassigned}</span>
