@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { LayoutDashboard, Scale, Map as MapIcon, Wand2, LayoutGrid, Users, Copy, Download } from 'lucide-react';
+import Link from 'next/link';
+import { LayoutDashboard, Scale, Map as MapIcon, Wand2, LayoutGrid, Users, Copy, Download, ArrowUpRight } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,13 @@ import { PlanningCanvas, MetricsBar, routeColorMap, scenarioMapPoints } from '..
 
 type Stage = 'overview' | 'audit' | 'map' | 'optimize' | 'plan' | 'size';
 const GEO_LAYERS: GeoLayerId[] = ['coverage', 'ownership', 'whitespace', 'imbalance', 'customers'];
+/** Each stage's standalone deep-link (discoverability + back-compat). */
+const STANDALONE: Partial<Record<Stage, string>> = {
+  audit: '/distribution/territory-audit',
+  map: '/distribution/geo',
+  optimize: '/distribution/route-optimizer',
+  plan: '/distribution/planning-board',
+};
 
 /**
  * Territory Intelligence Studio (STUDIO-1) — one map-centric workspace with sub-nav
@@ -116,6 +124,7 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
             <>
               <PlanningMap key="studio-map" points={mapPoints} onSelect={() => { /* Plan editing happens on the canvas below. */ }} />
               <PlanningCanvas dataset={dataset} scenario={active} onChange={update} />
+              <StageLink href={STANDALONE.plan!} label={t('studio.openFull')} />
             </>
           ) : (
             <div className="flex flex-col gap-3 xl:flex-row">
@@ -137,6 +146,7 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
                 {stage === 'map' && <p className="text-sm text-muted-foreground">{t('studio.mapLead')}</p>}
                 {stage === 'optimize' && <OptimizePanel dataset={dataset} scenarios={scenarios} workingDays={workingDays} setWorkingDays={setWorkingDays} onOptimize={onOptimize} t={t} />}
                 {stage === 'size' && <NeedsPanel text={t('studio.sizeSoon')} />}
+                {STANDALONE[stage] && <StageLink href={STANDALONE[stage]!} label={t('studio.openFull')} />}
               </aside>
             </div>
           )}
@@ -146,18 +156,28 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
   );
 }
 
+function StageLink({ href, label }: { href: string; label: string }) {
+  return <Link href={href} className="inline-flex items-center gap-0.5 text-xs text-primary hover:underline"><ArrowUpRight className="h-3.5 w-3.5" /> {label}</Link>;
+}
+
 function OverviewPanel({ audit, onOptimize, t, demo }: { audit: ReturnType<typeof auditTerritory>; onOptimize: () => void; t: (k: string) => string; demo: boolean }) {
   const h = audit.headline;
+  // Guided next-step: gaps first, then balance, else fine-tune in Plan.
+  const nextKey = h.gapCount > 0 ? 'studio.nextAudit' : h.worstBalancePct < 70 ? 'studio.nextOptimize' : 'studio.nextPlan';
   return (
     <div className="space-y-3">
       {demo && <p className="text-xs text-muted-foreground">{t('studio.demoNote')}</p>}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <StatCard label={t('coverage.headlineCoverage')} value={`${h.coveragePct}%`} icon={LayoutDashboard} tone="primary" hint={t('coverage.ofNCustomers').replace('{n}', String(h.customers))} />
         <StatCard label={t('territoryAudit.coverageGaps')} value={String(h.gapCount)} icon={Scale} tone="warning" />
         <StatCard label={t('territoryAudit.whiteSpace')} value={String(h.whiteSpaceCount)} icon={MapIcon} tone="info" />
         <StatCard label={t('territoryAudit.worstBalance')} value={`${h.worstBalancePct}%`} icon={Scale} tone={h.worstBalancePct >= 70 ? 'success' : 'destructive'} />
       </div>
-      <Button onClick={onOptimize}><Wand2 className="h-4 w-4" /> {t('studio.startOptimize')}</Button>
+      <Card className="bg-muted/40"><CardContent className="space-y-2 p-3">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('studio.nextStep')}</p>
+        <p className="text-sm">{t(nextKey)}</p>
+        <Button size="sm" onClick={onOptimize}><Wand2 className="h-4 w-4" /> {t('studio.startOptimize')}</Button>
+      </CardContent></Card>
     </div>
   );
 }
