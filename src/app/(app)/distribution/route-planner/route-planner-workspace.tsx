@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid } from 'lucide-react';
+import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,32 @@ const UNASSIGNED = '__unassigned';
 
 function emptyScenario(): Scenario { return { id: 'plan', name: 'Route plan', assignments: [] }; }
 const fmt = (n: number) => Math.round(n).toLocaleString();
+
+/** Lightweight inline territory/route illustration for the demo welcome (no images,
+ *  no animation — keeps it fast). */
+function RoutePlanArt() {
+  return (
+    <svg viewBox="0 0 320 220" className="h-auto w-full" role="img" aria-hidden>
+      <rect x="8" y="8" width="304" height="204" rx="14" fill="#f1f5f9" />
+      <path d="M40 150 C 90 90, 150 190, 210 110 S 290 60, 296 70" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeDasharray="6 6" />
+      <g>
+        <circle cx="70" cy="120" r="26" fill="#2563eb" fillOpacity="0.12" />
+        <circle cx="70" cy="120" r="6" fill="#2563eb" />
+        <circle cx="58" cy="108" r="4" fill="#2563eb" /><circle cx="86" cy="112" r="4" fill="#2563eb" /><circle cx="64" cy="134" r="4" fill="#2563eb" />
+      </g>
+      <g>
+        <circle cx="180" cy="150" r="30" fill="#16a34a" fillOpacity="0.12" />
+        <circle cx="180" cy="150" r="6" fill="#16a34a" />
+        <circle cx="166" cy="138" r="4" fill="#16a34a" /><circle cx="196" cy="142" r="4" fill="#16a34a" /><circle cx="186" cy="166" r="4" fill="#16a34a" /><circle cx="168" cy="162" r="4" fill="#16a34a" />
+      </g>
+      <g>
+        <circle cx="262" cy="92" r="24" fill="#d97706" fillOpacity="0.12" />
+        <circle cx="262" cy="92" r="6" fill="#d97706" />
+        <circle cx="250" cy="82" r="4" fill="#d97706" /><circle cx="274" cy="86" r="4" fill="#d97706" /><circle cx="258" cy="106" r="4" fill="#d97706" />
+      </g>
+    </svg>
+  );
+}
 
 /** Reliable cross-browser file download: the anchor MUST be in the document for
  *  `.click()` to trigger a download in Firefox/Safari (and reliably in Chrome). */
@@ -338,6 +364,60 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
     }
   }
 
+  // Demo branding header (wordmark + "Route Planner Demo" badge) — focus mode only.
+  const brandHeader = focus ? (
+    <div className="mb-4 flex items-center justify-between">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm"><RouteIcon className="h-5 w-5" /></div>
+        <div className="leading-tight">
+          <p className="text-base font-bold tracking-tight">VANTORA</p>
+          <p className="text-xs font-medium text-muted-foreground">Route Planner</p>
+        </div>
+      </div>
+      <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">{t('routePlanner.demoBadge')}</span>
+    </div>
+  ) : null;
+
+  // ── Focus-mode welcome (demo, before upload): branded hero + capabilities ──
+  if (focus && !dataset && !mapState) {
+    const caps = [
+      { icon: RouteIcon, title: t('routePlanner.cap_planning'), desc: t('routePlanner.cap_planningDesc') },
+      { icon: Compass, title: t('routePlanner.cap_optimization'), desc: t('routePlanner.cap_optimizationDesc') },
+      { icon: LayoutGrid, title: t('routePlanner.cap_current'), desc: t('routePlanner.cap_currentDesc') },
+      { icon: CalendarDays, title: t('routePlanner.cap_journey'), desc: t('routePlanner.cap_journeyDesc') },
+    ];
+    return (
+      <div className="mx-auto max-w-5xl">
+        <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
+        {brandHeader}
+        {msg && <p className={`mb-3 text-sm ${msg.tone === 'err' ? 'text-red-600' : 'text-emerald-600'}`}>{msg.text}</p>}
+        <div className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background shadow-sm">
+          <div className="grid items-center gap-6 p-8 md:grid-cols-2">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">{t('routePlanner.welcomeTitle')}</h1>
+              <p className="mt-2 text-muted-foreground">{t('routePlanner.welcomeLead')}</p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Button size="lg" onClick={() => fileRef.current?.click()} disabled={importing}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
+                <Button size="lg" variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
+            </div>
+            <div className="hidden md:block"><RoutePlanArt /></div>
+          </div>
+          <div className="grid gap-3 border-t bg-muted/20 p-6 sm:grid-cols-2 lg:grid-cols-4">
+            {caps.map((c) => (
+              <div key={c.title} className="rounded-xl border bg-background p-4 transition hover:border-primary/40 hover:shadow-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><c.icon className="h-4 w-4" /></div>
+                <p className="mt-3 text-sm font-semibold">{c.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{c.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Upload screen (file picker, then flexible column mapping) ──
   if (!dataset) {
     const mp = mapState?.map;
@@ -352,8 +432,9 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
       }
     }
     return (
-      <div className="space-y-4">
+      <div className="mx-auto max-w-3xl space-y-4">
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
+        {brandHeader}
         {msg && <p className={`text-sm ${msg.tone === 'err' ? 'text-red-600' : 'text-emerald-600'}`}>{msg.text}</p>}
         <Card>
           <CardContent className="space-y-4 p-6">
@@ -409,7 +490,8 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
     const canCurrent = hasRouteCol() || hasSalesmanCol();
     const currentDesc = hasRouteCol() ? t('routePlanner.methodCurrentDescRoute') : t('routePlanner.methodCurrentDescSalesman');
     return (
-      <div className="space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4">
+        {brandHeader}
         <p className="text-sm text-muted-foreground">{t('routePlanner.importOk').replace('{n}', String(dataset.customers.length))} {t('routePlanner.chooseMethod')}</p>
         <div className="grid gap-3 sm:grid-cols-3">
           {canCurrent && (
@@ -435,6 +517,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
   // ── Planning screen ──
   return (
     <div className="space-y-3">
+      {brandHeader}
       {/* Toolbar */}
       <Card>
         <CardContent className="flex flex-wrap items-end gap-x-4 gap-y-3 p-3">
