@@ -74,7 +74,7 @@ function downloadXlsx(bytes: Uint8Array, filename: string) {
  * split — the manager does the final shaping by box/click-selecting on the map.
  */
 export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {}) {
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [dataset, setDataset] = useState<TisDataset | null>(null);
@@ -365,9 +365,11 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
     }
   }
 
-  // Demo branding header (wordmark + "Route Planner Demo" badge) — focus mode only.
+  // Demo branding header (wordmark + language toggle + "Route Planner Demo" badge) —
+  // focus mode only. The language toggle works in the chrome-free demo layout (the
+  // i18n provider lives at the root and sets the locale cookie + flips RTL/LTR).
   const brandHeader = focus ? (
-    <div className="mb-4 flex items-center justify-between">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2.5">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm"><RouteIcon className="h-5 w-5" /></div>
         <div className="leading-tight">
@@ -375,7 +377,13 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
           <p className="text-xs font-medium text-muted-foreground">Route Planner</p>
         </div>
       </div>
-      <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">{t('routePlanner.demoBadge')}</span>
+      <div className="flex items-center gap-2">
+        <div className="inline-flex overflow-hidden rounded-md border text-xs">
+          <button onClick={() => setLocale('en')} className={`px-2.5 py-1 ${locale === 'en' ? 'bg-primary font-semibold text-primary-foreground' : 'bg-background hover:bg-muted'}`}>EN</button>
+          <button onClick={() => setLocale('ar')} className={`border-s px-2.5 py-1 ${locale === 'ar' ? 'bg-primary font-semibold text-primary-foreground' : 'bg-background hover:bg-muted'}`}>العربية</button>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">{t('routePlanner.demoBadge')}</span>
+      </div>
     </div>
   ) : null;
 
