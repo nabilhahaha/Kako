@@ -91,6 +91,7 @@ import * as coverage from './coverage';
 import * as visitFreq from './visit-frequency';
 import * as territoryAudit from './territory-audit';
 import * as geo from './geo';
+import * as routeOpt from './route-opt';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -130,6 +131,7 @@ const MODULES = [
   visitFreq,
   territoryAudit,
   geo,
+  routeOpt,
 ];
 
 type Catalog = Record<string, unknown>;
