@@ -17,6 +17,7 @@ import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
 import { parseUploadColumns } from './import-actions';
 import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map';
 import { TrialBanner } from './trial-banner';
+import { JourneyPanel, type JourneyInputCustomer } from './journey-panel';
 import { WhatsAppContact } from '@/components/route-planner/whatsapp-contact';
 import { buildSupportWhatsAppUrl, type RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
 
@@ -113,6 +114,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const [reviewStats, setReviewStats] = useState<{ initial: number; absorbed: number; final: number } | null>(null);
   const [approved, setApproved] = useState(false);
   const [exported, setExported] = useState(false);
+  const [journeyMode, setJourneyMode] = useState(false);
   const [importing, setImporting] = useState(false);
   const [mapState, setMapState] = useState<{ headers: string[]; records: Record<string, string>[]; map: Partial<Record<TisFieldKey, string>> } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
@@ -210,6 +212,15 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applied, colors, focusedRoutes, ids, showOnlySelected]);
+
+  // Journey Planning input: every assigned, geo-located customer with its route + sales.
+  const journeyCustomers = useMemo<JourneyInputCustomer[]>(() => {
+    if (!applied) return [];
+    return applied.customers
+      .filter((c) => c.ownership.routeId && isValidGeo(c.geo))
+      .map((c) => ({ id: c.id, lat: c.geo!.lat, lng: c.geo!.lng, code: c.code ?? null, name: c.name, routeId: c.ownership.routeId!, routeLabel: routeLabelOf(c.ownership.routeId!), sales: c.salesValue ?? undefined }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applied]);
 
   // Route boundaries: focused routes (always), or all when "show all boundaries" is on.
   const hulls = useMemo<SelMapHull[]>(() => {
@@ -623,6 +634,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
             <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><Check className="h-4 w-4" /> {t('routePlanner.approved')}</span>
           )}
           <Button size="sm" variant="outline" disabled={!approved || !subCaps.canExport} title={!subCaps.canExport ? t('routePlanner.subLockedAction') : undefined} onClick={exportRoutes}><FileDown className="h-4 w-4" /> {t('routePlanner.exportRoutes')}</Button>
+          <Button size="sm" variant="outline" disabled={reviews.length === 0} onClick={() => setJourneyMode(true)}><CalendarDays className="h-4 w-4" /> {t('routePlanner.jpOpenJourney')}</Button>
           <Button size="sm" variant="ghost" onClick={reset}><RotateCcw className="h-4 w-4" /> {t('routePlanner.newUpload')}</Button>
         </CardContent>
       </Card>
@@ -910,6 +922,9 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
           </div>
         </>
       )}
+
+      {/* Journey Planning V1 — full-screen overlay opened after the allocation is built. */}
+      {journeyMode && <JourneyPanel customers={journeyCustomers} hasSales={hasSales} onClose={() => setJourneyMode(false)} />}
     </div>
   );
 }
