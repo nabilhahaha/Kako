@@ -49,7 +49,7 @@ function toHullGeoJSON(hulls: SelMapHull[]) {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
 
-export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, onToggle, onBoxSelect, onMoveSingle }: {
+export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, onToggle, onBoxSelect, onMoveSingle, onContextMenu }: {
   points: SelMapPoint[];
   hulls: SelMapHull[];
   selectedIds: Set<string>;
@@ -59,6 +59,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
   onToggle: (id: string) => void;
   onBoxSelect: (ids: string[]) => void;
   onMoveSingle: (id: string, dest: string) => void;
+  onContextMenu: (x: number, y: number) => void;
 }) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -69,6 +70,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
   const toggleRef = useRef(onToggle); toggleRef.current = onToggle;
   const boxRef = useRef(onBoxSelect); boxRef.current = onBoxSelect;
   const moveRef = useRef(onMoveSingle); moveRef.current = onMoveSingle;
+  const ctxRef = useRef(onContextMenu); ctxRef.current = onContextMenu;
   const optionsRef = useRef(routeOptions); optionsRef.current = routeOptions;
   const modeRef = useRef(selectMode); modeRef.current = selectMode;
   const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '', current: '', moveTo: '' });
@@ -175,7 +177,10 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
           document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
         };
         canvas.addEventListener('mousedown', onDown, true);
-        (map as unknown as { _rpCleanup?: () => void })._rpCleanup = () => canvas.removeEventListener('mousedown', onDown, true);
+        // Right-click → context menu (acts on the current selection in the parent).
+        const onCtx = (ev: MouseEvent) => { ev.preventDefault(); ctxRef.current(ev.clientX, ev.clientY); };
+        canvas.addEventListener('contextmenu', onCtx);
+        (map as unknown as { _rpCleanup?: () => void })._rpCleanup = () => { canvas.removeEventListener('mousedown', onDown, true); canvas.removeEventListener('contextmenu', onCtx); };
 
         if (!fitOnce.current) { fit(map!, pointsRef.current); fitOnce.current = true; }
       });

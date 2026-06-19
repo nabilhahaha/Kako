@@ -53,6 +53,7 @@ export function RoutePlannerWorkspace() {
   const [selectMode, setSelectMode] = useState<'box' | 'draw'>('box');
   const [showAllBoundaries, setShowAllBoundaries] = useState(false);
   const [showOnlySelected, setShowOnlySelected] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [approved, setApproved] = useState(false);
   const [importing, setImporting] = useState(false);
   const [preview, setPreview] = useState<{ rows: Parameters<typeof buildTisDatasetFromRows>[0]; total: number; mapped: number } | null>(null);
@@ -189,14 +190,15 @@ export function RoutePlannerWorkspace() {
   function resolveDest(value: string): string | null {
     return value === NEW_ROUTE ? nextNewRouteId() : value === UNASSIGNED ? null : value;
   }
-  function moveSelected() {
+  function moveSelectedTo(value: string) {
     if (selectedIds.size === 0) return;
     pushHistory(scenario);
-    const dest = resolveDest(effectiveTarget);
+    const dest = resolveDest(value);
     let sc = scenario;
     for (const id of selectedIds) sc = moveCustomer(sc, id, dest);
-    setScenario(sc); setApproved(false); setSelectedIds(new Set());
+    setScenario(sc); setApproved(false); setSelectedIds(new Set()); setCtxMenu(null);
   }
+  function moveSelected() { moveSelectedTo(effectiveTarget); }
   function moveSingle(id: string, value: string) {
     pushHistory(scenario);
     setScenario(moveCustomer(scenario, id, resolveDest(value))); setApproved(false);
@@ -360,7 +362,7 @@ export function RoutePlannerWorkspace() {
             {selectedIds.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}><X className="h-4 w-4" /> {t('routePlanner.clear')}</Button>}
           </div>
 
-          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} onToggle={toggle} onBoxSelect={onAreaSelect} onMoveSingle={moveSingle} />
+          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} onToggle={toggle} onBoxSelect={onAreaSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} />
         </div>
 
         {/* Route side panel */}
@@ -431,6 +433,30 @@ export function RoutePlannerWorkspace() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Right-click context menu — a shortcut for the toolbar Move (acts on the selection). */}
+      {ctxMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); }} />
+          <div className="fixed z-50 w-56 rounded-md border bg-popover p-1 text-sm shadow-md" style={{ left: Math.min(ctxMenu.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 240), top: ctxMenu.y }}>
+            <p className="px-2 py-1 text-xs text-muted-foreground">{t('routePlanner.selectedN').replace('{n}', String(selectedIds.size))}</p>
+            {selectedIds.size === 0 ? (
+              <p className="px-2 py-1 text-xs text-muted-foreground">{t('routePlanner.ctxNoSel')}</p>
+            ) : (
+              <>
+                <p className="px-2 pt-1 text-[11px] font-medium text-muted-foreground">{t('routePlanner.moveTo')}</p>
+                <div className="max-h-52 overflow-y-auto">
+                  {routeOptions.map((o) => (
+                    <button key={o.value} onClick={() => moveSelectedTo(o.value)} className="block w-full rounded px-2 py-1 text-start hover:bg-muted">{o.label}</button>
+                  ))}
+                </div>
+              </>
+            )}
+            <div className="my-1 border-t" />
+            <button onClick={() => { setSelectedIds(new Set()); setCtxMenu(null); }} className="block w-full rounded px-2 py-1 text-start hover:bg-muted">{t('routePlanner.clearSelection')}</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
