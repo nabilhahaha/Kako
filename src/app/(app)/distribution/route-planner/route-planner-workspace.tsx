@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers } from 'lucide-react';
+import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { isValidGeo, type TisDataset } from '@/lib/tis/dataset';
 import { applyScenario, type Scenario } from '@/lib/tis/scenario';
 import { moveCustomer } from '@/lib/tis/plan-edit';
 import { simpleGeoSplit } from '@/lib/tis/optimize-routes';
-import { routeReview, routeColors, routeIdsOf, unassignedCount, unassignedIds, routeExportRows, needsReviewExportRows, aggregateReview } from '@/lib/tis/route-planner';
+import { routeReview, routeColors, routeIdsOf, unassignedCount, unassignedIds, routeExportRows, needsReviewExportRows, routeChangeRows, changeSummaryRows, aggregateReview } from '@/lib/tis/route-planner';
 import { formatFrequency } from '@/lib/route-optimization/visit-frequency';
 import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
 import { parseUploadColumns } from './import-actions';
@@ -52,7 +52,9 @@ export function RoutePlannerWorkspace() {
 
   const [dataset, setDataset] = useState<TisDataset | null>(null);
   const [scenario, setScenario] = useState<Scenario>(emptyScenario());
-  const [method, setMethod] = useState<'assisted' | 'manual' | null>(null);
+  const [method, setMethod] = useState<'assisted' | 'manual' | 'current' | null>(null);
+  const [baseline, setBaseline] = useState<Scenario | null>(null);       // the loaded "Current" allocation
+  const [allocView, setAllocView] = useState<'current' | 'proposed'>('proposed');
   const [history, setHistory] = useState<Scenario[]>([]);
   const [generated, setGenerated] = useState(false);
   const [routeCount, setRouteCount] = useState('8');
@@ -63,18 +65,52 @@ export function RoutePlannerWorkspace() {
   const [showAllBoundaries, setShowAllBoundaries] = useState(false);
   const [showOnlySelected, setShowOnlySelected] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [selectingCount, setSelectingCount] = useState<number | null>(null);
   const [reviewStats, setReviewStats] = useState<{ initial: number; absorbed: number; final: number } | null>(null);
   const [approved, setApproved] = useState(false);
   const [importing, setImporting] = useState(false);
   const [mapState, setMapState] = useState<{ headers: string[]; records: Record<string, string>[]; map: Partial<Record<TisFieldKey, string>> } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
 
-  const applied = useMemo(() => (dataset ? applyScenario(dataset, scenario) : null), [dataset, scenario]);
-  const colors = useMemo(() => (dataset ? routeColors(dataset, scenario) : new Map<string, string>()), [dataset, scenario]);
-  const ids = useMemo(() => (dataset ? routeIdsOf(dataset, scenario) : []), [dataset, scenario]);
-  const routeLabelOf = (rid: string | null) => (rid ? `${t('routePlanner.route')} ${ids.indexOf(rid) + 1}` : t('routePlanner.unassigned'));
-  const reviews = useMemo(() => (dataset ? routeReview(dataset, scenario) : []), [dataset, scenario]);
-  const unassigned = useMemo(() => (dataset ? unassignedCount(dataset, scenario) : 0), [dataset, scenario]);
+  // In Current Allocation Review the manager can flip the whole view between the loaded
+  // "Current" allocation (baseline) and the edited "Proposed" one. Edits always target the
+  // working `scenario`; viewing Current just renders the baseline read-only.
+  const viewingCurrent = method === 'current' && !!baseline && allocView === 'current';
+  const activeScenario = viewingCurrent ? baseline! : scenario;
+
+  const applied = useMemo(() => (dataset ? applyScenario(dataset, activeScenario) : null), [dataset, activeScenario]);
+  const colors = useMemo(() => (dataset ? routeColors(dataset, activeScenario) : new Map<string, string>()), [dataset, activeScenario]);
+  const ids = useMemo(() => (dataset ? routeIdsOf(dataset, activeScenario) : []), [dataset, activeScenario]);
+  // Generated routes (opt-route-*) read as "Route N"; routes loaded from the file
+  // (Current Allocation) keep their real id (route code / salesman name).
+  const routeLabelOf = (rid: string | null) => {
+    if (!rid) return t('routePlanner.unassigned');
+    if (rid.startsWith('opt-route-')) return `${t('routePlanner.route')} ${ids.indexOf(rid) + 1}`;
+    return rid;
+  };
+  const reviews = useMemo(() => (dataset ? routeReview(dataset, activeScenario) : []), [dataset, activeScenario]);
+  const routeCountById = useMemo(() => new Map(reviews.map((r) => [r.routeId, r.customers])), [reviews]);
+  const unassigned = useMemo(() => (dataset ? unassignedCount(dataset, activeScenario) : 0), [dataset, activeScenario]);
+
+  // Current → Proposed diff (Current Allocation Review).
+  const diff = useMemo(() => {
+    if (!dataset || !baseline) return null;
+    const baseR = new Map(applyScenario(dataset, baseline).customers.map((c) => [c.id, c.ownership.routeId]));
+    const workR = new Map(applyScenario(dataset, scenario).customers.map((c) => [c.id, c.ownership.routeId]));
+    let moved = 0, unchanged = 0;
+    const before = new Map<string, number>(), after = new Map<string, number>();
+    for (const [, r] of baseR) if (r) before.set(r, (before.get(r) ?? 0) + 1);
+    for (const [, r] of workR) if (r) after.set(r, (after.get(r) ?? 0) + 1);
+    for (const [id, br] of baseR) (br === (workR.get(id) ?? null) ? unchanged++ : moved++);
+    const baseRoutes = new Set(before.keys()), workRoutes = new Set(after.keys());
+    const newRoutes = [...workRoutes].filter((r) => !baseRoutes.has(r)).length;
+    const removedRoutes = [...baseRoutes].filter((r) => !workRoutes.has(r)).length;
+    const perRoute = [...new Set([...baseRoutes, ...workRoutes])]
+      .map((r) => ({ route: r, before: before.get(r) ?? 0, after: after.get(r) ?? 0, diff: (after.get(r) ?? 0) - (before.get(r) ?? 0) }))
+      .filter((x) => x.diff !== 0)
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+    return { moved, unchanged, newRoutes, removedRoutes, perRoute };
+  }, [dataset, baseline, scenario]);
 
   // Customer ids belonging to the focused routes (for fade + zoom-to-extent).
   const focusIds = useMemo(() => {
@@ -95,7 +131,7 @@ export function RoutePlannerWorkspace() {
         color: rid ? colors.get(rid) ?? '#94a3b8' : '#f59e0b',
         review: !rid,
         dim: focusing && !onlySel && !(rid && focusedRoutes.has(rid)),
-        meta: { code: c.code, route: rid, routeLabel: routeLabelOf(rid), routeColor: rid ? colors.get(rid) : undefined, frequency: c.frequency ? formatFrequency(c.frequency) : '' },
+        meta: { code: c.code, route: rid, routeLabel: routeLabelOf(rid), routeColor: rid ? colors.get(rid) : undefined, routeCount: rid ? routeCountById.get(rid) : undefined, frequency: c.frequency ? formatFrequency(c.frequency) : '' },
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,19 +145,23 @@ export function RoutePlannerWorkspace() {
 
   const summary = useMemo(() => aggregateReview(reviews, focusedRoutes), [reviews, focusedRoutes]);
 
-  // Move preview: how many selected, and which routes they currently sit on.
+  // Move preview: how many selected, broken down by the route they currently sit on.
   const movePreview = useMemo(() => {
     if (!applied || selectedIds.size === 0) return null;
-    const from = new Set<string>();
-    for (const c of applied.customers) if (selectedIds.has(c.id)) from.add(c.ownership.routeId ? routeLabelOf(c.ownership.routeId) : t('routePlanner.needsReview'));
-    return { count: selectedIds.size, from: [...from] };
+    const byLabel = new Map<string, number>();
+    for (const c of applied.customers) if (selectedIds.has(c.id)) {
+      const label = c.ownership.routeId ? routeLabelOf(c.ownership.routeId) : t('routePlanner.needsReview');
+      byLabel.set(label, (byLabel.get(label) ?? 0) + 1);
+    }
+    const breakdown = [...byLabel.entries()].map(([label, n]) => ({ label, n })).sort((a, b) => b.n - a.n);
+    return { count: selectedIds.size, breakdown };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applied, selectedIds, ids]);
 
   // Destination options for both the popup and the toolbar: existing routes FIRST,
   // then Keep-unassigned, then "New route" LAST (creating a route is secondary).
   const routeOptions = useMemo(() => [
-    ...ids.map((id, i) => ({ value: id, label: `${t('routePlanner.route')} ${i + 1}` })),
+    ...ids.map((id) => ({ value: id, label: routeLabelOf(id) })),
     { value: UNASSIGNED, label: t('routePlanner.keepUnassigned') },
     { value: NEW_ROUTE, label: `＋ ${t('routePlanner.newRoute')}` },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,14 +197,26 @@ export function RoutePlannerWorkspace() {
     setMapState(null);
     setMsg({ tone: 'ok', text: t('routePlanner.importOk').replace('{n}', String(ds.customers.length)) });
   }
-  /** Pick a route-creation method. Manual starts from a blank map (everyone unassigned). */
-  function chooseMethod(m: 'assisted' | 'manual') {
+  function hasRouteCol() { return !!dataset?.customers.some((c) => c.ownership.routeId); }
+  function hasSalesmanCol() { return !!dataset?.customers.some((c) => c.ownership.salesmanId); }
+  /** Pick a route-creation method. */
+  function chooseMethod(m: 'assisted' | 'manual' | 'current') {
     if (!dataset) return;
     setMethod(m); setHistory([]); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set()); setReviewStats(null);
+    setBaseline(null); setAllocView('proposed');
     if (m === 'manual') {
       const blank = dataset.customers.reduce((s, c) => moveCustomer(s, c.id, null), emptyScenario());
       setScenario(blank); setGenerated(true); setSelectMode('draw'); setShowAllBoundaries(true);
       setTargetRoute(NEW_ROUTE); // draw → select, then Apply to "New route" creates a territory
+    } else if (m === 'current') {
+      // Load the existing allocation EXACTLY: Route column if present, else Salesman.
+      const useRoute = hasRouteCol();
+      const loaded = dataset.customers.reduce((s, c) => {
+        const rid = useRoute ? c.ownership.routeId : c.ownership.salesmanId;
+        return rid ? moveCustomer(s, c.id, rid) : s;
+      }, emptyScenario());
+      setScenario(loaded); setBaseline(loaded); setGenerated(true); setSelectMode('box'); setShowAllBoundaries(false);
+      setTargetRoute(''); // → effectiveTarget picks the first existing route
     } else {
       setScenario(emptyScenario()); setGenerated(false); setSelectMode('box');
     }
@@ -172,6 +224,7 @@ export function RoutePlannerWorkspace() {
   function reset() {
     setDataset(null); setScenario(emptyScenario()); setMethod(null); setHistory([]); setGenerated(false); setApproved(false);
     setSelectedIds(new Set()); setFocusedRoutes(new Set()); setMapState(null); setMsg(null); setReviewStats(null);
+    setBaseline(null); setAllocView('proposed');
   }
   /** One-step-back history (drawing territories / moving). Keeps the last 30 states. */
   function pushHistory(prev: Scenario) { setHistory((h) => [...h.slice(-29), prev]); }
@@ -204,7 +257,7 @@ export function RoutePlannerWorkspace() {
     return value === NEW_ROUTE ? nextNewRouteId() : value === UNASSIGNED ? null : value;
   }
   function moveSelectedTo(value: string) {
-    if (selectedIds.size === 0) return;
+    if (viewingCurrent || selectedIds.size === 0) return;
     pushHistory(scenario);
     const dest = resolveDest(value);
     let sc = scenario;
@@ -213,6 +266,7 @@ export function RoutePlannerWorkspace() {
   }
   function moveSelected() { moveSelectedTo(effectiveTarget); }
   function moveSingle(id: string, value: string) {
+    if (viewingCurrent) return;
     pushHistory(scenario);
     setScenario(moveCustomer(scenario, id, resolveDest(value))); setApproved(false);
     setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
@@ -237,6 +291,10 @@ export function RoutePlannerWorkspace() {
     try {
       const sheets = [{ name: 'Route Allocation', rows: routeExportRows(dataset, scenario, routeLabelOf) }];
       if (unassigned > 0) sheets.push({ name: 'Needs Review', rows: needsReviewExportRows(dataset, scenario) });
+      if (method === 'current' && baseline) {
+        sheets.push({ name: 'Route Changes', rows: routeChangeRows(dataset, baseline, scenario, routeLabelOf) });
+        sheets.push({ name: 'Change Summary', rows: changeSummaryRows(dataset, baseline, scenario, routeLabelOf) });
+      }
       const assigned = sheets[0].rows.length - 1;
       downloadXlsx(buildXlsxWorkbook(sheets), 'route-allocation.xlsx');
       setMsg({ tone: 'ok', text: t('routePlanner.exportOk').replace('{n}', String(assigned)).replace('{r}', String(ids.length)) });
@@ -313,10 +371,18 @@ export function RoutePlannerWorkspace() {
 
   // ── Method chooser (after upload) ──
   if (method === null) {
+    const canCurrent = hasRouteCol() || hasSalesmanCol();
+    const currentDesc = hasRouteCol() ? t('routePlanner.methodCurrentDescRoute') : t('routePlanner.methodCurrentDescSalesman');
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{t('routePlanner.importOk').replace('{n}', String(dataset.customers.length))} {t('routePlanner.chooseMethod')}</p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
+          {canCurrent && (
+            <button onClick={() => chooseMethod('current')} className="rounded-lg border-2 border-primary/50 bg-primary/5 p-5 text-start transition hover:border-primary hover:bg-primary/10">
+              <div className="flex items-center gap-2 text-base font-semibold"><LayoutGrid className="h-5 w-5 text-primary" /> {t('routePlanner.methodCurrent')}</div>
+              <p className="mt-2 text-sm text-muted-foreground">{currentDesc}</p>
+            </button>
+          )}
           <button onClick={() => chooseMethod('assisted')} className="rounded-lg border bg-background p-5 text-start transition hover:border-primary hover:bg-primary/5">
             <div className="flex items-center gap-2 text-base font-semibold"><Wand2 className="h-5 w-5 text-primary" /> {t('routePlanner.methodAssisted')}</div>
             <p className="mt-2 text-sm text-muted-foreground">{t('routePlanner.methodAssistedDesc')}</p>
@@ -345,10 +411,19 @@ export function RoutePlannerWorkspace() {
                 <Button size="sm" onClick={generate}><Wand2 className="h-4 w-4" /> {generated ? t('routePlanner.regenerate') : t('routePlanner.generate')}</Button>
               </div>
             </div>
+          ) : method === 'current' ? (
+            <div className="inline-flex items-center gap-1.5 text-sm font-medium"><LayoutGrid className="h-4 w-4 text-primary" /> {t('routePlanner.methodCurrent')}</div>
           ) : (
             <div className="inline-flex items-center gap-1.5 text-sm font-medium"><PenTool className="h-4 w-4 text-primary" /> {t('routePlanner.methodManual')}</div>
           )}
-          <button onClick={() => chooseMethod(method === 'assisted' ? 'manual' : 'assisted')} className="self-center rounded border px-2 py-1 text-[11px] hover:bg-muted">{method === 'assisted' ? t('routePlanner.switchManual') : t('routePlanner.switchAssisted')}</button>
+          {/* Current Allocation Review: flip the whole view between Current and Proposed. */}
+          {method === 'current' && (
+            <div className="inline-flex self-center overflow-hidden rounded-md border">
+              <button onClick={() => setAllocView('current')} className={`px-2.5 py-1.5 text-xs ${allocView === 'current' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}>{t('routePlanner.viewCurrent')}</button>
+              <button onClick={() => setAllocView('proposed')} className={`border-s px-2.5 py-1.5 text-xs ${allocView === 'proposed' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}>{t('routePlanner.viewProposed')}</button>
+            </div>
+          )}
+          <button onClick={() => setMethod(null)} className="self-center rounded border px-2 py-1 text-[11px] hover:bg-muted">{t('routePlanner.changeMethod')}</button>
           <div className="flex-1" />
           <Button size="sm" variant="ghost" disabled={history.length === 0} onClick={undo}><RotateCcw className="h-4 w-4" /> {t('routePlanner.undo')}</Button>
           {!approved ? (
@@ -364,10 +439,43 @@ export function RoutePlannerWorkspace() {
       {msg && <p className={`rounded-md border px-3 py-2 text-sm ${msg.tone === 'err' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>{msg.text}</p>}
       {method === 'assisted' && !generated && <p className="rounded-md border bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.generateHint')}</p>}
       {method === 'manual' && <p className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.manualHint')}</p>}
+      {method === 'current' && !viewingCurrent && <p className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.currentHint')}</p>}
+      {viewingCurrent && <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('routePlanner.viewingCurrentReadonly')}</p>}
       {generated && method === 'assisted' && reviewStats && reviewStats.initial > 0 && (
         <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           {t('routePlanner.reviewSummary').replace('{flagged}', String(reviewStats.initial)).replace('{absorbed}', String(reviewStats.absorbed)).replace('{final}', String(reviewStats.final))}
         </p>
+      )}
+
+      {/* Current → Proposed diff (Current Allocation Review) */}
+      {method === 'current' && diff && (diff.moved > 0 || diff.newRoutes > 0 || diff.removedRoutes > 0) && (
+        <Card>
+          <CardContent className="space-y-2 p-3">
+            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+              <span><span className="text-muted-foreground">{t('routePlanner.diffMoved')}: </span><b className="tabular-nums">{diff.moved}</b></span>
+              <span><span className="text-muted-foreground">{t('routePlanner.diffUnchanged')}: </span><b className="tabular-nums">{diff.unchanged}</b></span>
+              <span><span className="text-muted-foreground">{t('routePlanner.diffNewRoutes')}: </span><b className="tabular-nums">{diff.newRoutes}</b></span>
+              <span><span className="text-muted-foreground">{t('routePlanner.diffRemovedRoutes')}: </span><b className="tabular-nums">{diff.removedRoutes}</b></span>
+            </div>
+            {diff.perRoute.length > 0 && (
+              <div className="max-h-40 overflow-y-auto">
+                <table className="w-full text-xs tabular-nums">
+                  <thead className="text-muted-foreground"><tr className="text-start"><th className="py-1 text-start font-normal">{t('routePlanner.diffRoute')}</th><th className="text-end font-normal">{t('routePlanner.diffBefore')}</th><th className="text-end font-normal">{t('routePlanner.diffAfter')}</th><th className="text-end font-normal">{t('routePlanner.diffDelta')}</th></tr></thead>
+                  <tbody>
+                    {diff.perRoute.slice(0, 50).map((r) => (
+                      <tr key={r.route} className="border-t">
+                        <td className="py-0.5 truncate">{routeLabelOf(r.route)}</td>
+                        <td className="text-end">{r.before}</td>
+                        <td className="text-end">{r.after}</td>
+                        <td className={`text-end font-semibold ${r.diff > 0 ? 'text-emerald-600' : 'text-red-600'}`}>{r.diff > 0 ? '+' : ''}{r.diff}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
@@ -385,21 +493,31 @@ export function RoutePlannerWorkspace() {
             {focusedRoutes.size > 0 && <Button size="sm" variant="ghost" onClick={clearFocus}><X className="h-4 w-4" /> {t('routePlanner.clearFocus')}</Button>}
           </div>
 
-          {/* Move bar with preview */}
+          {/* Move bar with live count + per-route breakdown */}
           <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
-            <span className="font-medium">{t('routePlanner.selectedN').replace('{n}', String(selectedIds.size))}</span>
-            {movePreview && movePreview.from.length > 0 && (
-              <span className="text-xs text-muted-foreground">{t('routePlanner.fromRoutes').replace('{routes}', movePreview.from.slice(0, 3).join(', ') + (movePreview.from.length > 3 ? '…' : ''))}</span>
+            {selectingCount != null ? (
+              <span className="font-medium text-primary">{t('routePlanner.selectingN').replace('{n}', String(selectingCount))}</span>
+            ) : (
+              <span className="font-medium">{t('routePlanner.selectedN').replace('{n}', String(selectedIds.size))}</span>
+            )}
+            {selectingCount == null && movePreview && movePreview.breakdown.length > 0 && (
+              <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                {t('routePlanner.fromLabel')}
+                {movePreview.breakdown.slice(0, 6).map((b) => (
+                  <span key={b.label} className="rounded bg-background px-1.5 py-0.5 tabular-nums">{b.label}: {b.n}</span>
+                ))}
+                {movePreview.breakdown.length > 6 && <span>…</span>}
+              </span>
             )}
             <span className="text-muted-foreground">{t('routePlanner.moveTo')}</span>
             <select className="h-9 rounded-md border bg-background px-2 text-sm" value={effectiveTarget} onChange={(e) => setTargetRoute(e.target.value)}>
               {routeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <Button size="sm" disabled={selectedIds.size === 0} onClick={moveSelected}><MapPin className="h-4 w-4" /> {t('routePlanner.apply')}{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}</Button>
+            <Button size="sm" disabled={selectedIds.size === 0 || viewingCurrent} onClick={moveSelected}><MapPin className="h-4 w-4" /> {t('routePlanner.apply')}{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}</Button>
             {selectedIds.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}><X className="h-4 w-4" /> {t('routePlanner.clear')}</Button>}
           </div>
 
-          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} />
+          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingCount} />
         </div>
 
         {/* Route side panel */}

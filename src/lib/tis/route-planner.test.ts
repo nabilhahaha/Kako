@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { simpleGeoSplit } from './optimize-routes';
 import { buildTisDatasetFromRows } from './upload';
 import { currentPlanScenario, moveCustomer } from './plan-edit';
-import { routeStats, routeExportRows, needsReviewExportRows, unassignedCount, unassignedIds, routeColors, routeIdsOf, convexHull, routeReview, aggregateReview } from './route-planner';
+import { routeStats, routeExportRows, needsReviewExportRows, unassignedCount, unassignedIds, routeColors, routeIdsOf, convexHull, routeReview, aggregateReview, routeChangeRows, changeSummaryRows } from './route-planner';
 import { applyScenario, type Scenario } from './scenario';
 
 // Two tight clusters (Jeddah ~21.5/39.1 and Riyadh ~24.7/46.7), 6 each.
@@ -306,5 +306,51 @@ describe('Distance-aware split (absorption + boundary smoothing)', () => {
     const plan = simpleGeoSplit(ds.customers, 3);
     expect(plan.needsReviewInitial).toBeGreaterThanOrEqual(0);
     expect(plan.needsReview!).toBeLessThanOrEqual(plan.needsReviewInitial!);
+  });
+});
+
+describe('Current Allocation Review export (Route Changes + Change Summary)', () => {
+  function loaded() {
+    const rows = [
+      { code: 'C1', name: 'A', lat: 21.50, lng: 39.10, route: 'R-3', frequency: 'weekly' },
+      { code: 'C2', name: 'B', lat: 21.51, lng: 39.11, route: 'R-3', frequency: 'weekly' },
+      { code: 'C3', name: 'C', lat: 21.52, lng: 39.12, route: 'R-7', frequency: 'weekly' },
+      { code: 'C4', name: 'D', lat: 21.53, lng: 39.13, frequency: 'weekly' }, // no route → unassigned
+    ] as Parameters<typeof buildTisDatasetFromRows>[0][number][];
+    // route column maps to routeId via header alias
+    return buildTisDatasetFromRows(rows.map((r) => ({ ...r, routeId: (r as { route?: string }).route })), { source: 'upload' });
+  }
+  const label = (rid: string | null) => rid ?? '';
+
+  it('classifies Moved / Newly Assigned / Unchanged / Needs Review', () => {
+    const ds = loaded();
+    const base = ds.customers.reduce((s, c) => (c.ownership.routeId ? moveCustomer(s, c.id, c.ownership.routeId) : s), { id: 'b', name: 'b', assignments: [] as Scenario['assignments'] });
+    // Working: move C1 from R-3 → R-7 (Moved); assign C4 → R-7 (Newly Assigned); C2 stays (Unchanged); C3 → unassigned (Needs Review)
+    let work = base;
+    work = moveCustomer(work, ds.customers[0].id, 'R-7');
+    work = moveCustomer(work, ds.customers[3].id, 'R-7');
+    work = moveCustomer(work, ds.customers[2].id, null);
+    const rows = routeChangeRows(ds, base, work, label);
+    const byCode = new Map(rows.slice(1).map((r) => [String(r[0]), r] as [string, (string | number)[]]));
+    expect(byCode.get('C1')![4]).toBe('Moved');
+    expect(String(byCode.get('C1')![2])).toBe('R-3'); // previous
+    expect(String(byCode.get('C1')![3])).toBe('R-7'); // new
+    expect(byCode.get('C2')![4]).toBe('Unchanged');
+    expect(byCode.get('C3')![4]).toBe('Needs Review');
+    expect(byCode.get('C4')![4]).toBe('Newly Assigned');
+  });
+
+  it('summary totals + per-route before/after/diff', () => {
+    const ds = loaded();
+    const base = ds.customers.reduce((s, c) => (c.ownership.routeId ? moveCustomer(s, c.id, c.ownership.routeId) : s), { id: 'b', name: 'b', assignments: [] as Scenario['assignments'] });
+    let work = moveCustomer(base, ds.customers[0].id, 'R-7'); // C1 R-3 -> R-7
+    const sum = changeSummaryRows(ds, base, work, label);
+    const flat = new Map(sum.filter((r) => r.length === 2).map((r) => [String(r[0]), Number(r[1])] as [string, number]));
+    expect(flat.get('Total customers')).toBe(4);
+    expect(flat.get('Moved')).toBe(1);
+    // per-route table: R-3 before 2 after 1 diff -1; R-7 before 1 after 2 diff +1
+    const r3 = sum.find((r) => r[0] === 'R-3'); const r7 = sum.find((r) => r[0] === 'R-7');
+    expect(r3).toEqual(['R-3', 2, 1, -1]);
+    expect(r7).toEqual(['R-7', 1, 2, 1]);
   });
 });

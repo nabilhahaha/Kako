@@ -14,7 +14,7 @@ import { useI18n } from '@/lib/i18n/provider';
  * The parent owns the selection, focus, hulls and point colours; this just renders and
  * reports interactions. Client-only; keyless OSM raster base.
  */
-export interface SelMapMeta { code?: string | null; route?: string | null; routeLabel?: string | null; routeColor?: string | null; frequency?: string | null }
+export interface SelMapMeta { code?: string | null; route?: string | null; routeLabel?: string | null; routeColor?: string | null; routeCount?: number; frequency?: string | null }
 export interface RouteOption { value: string; label: string }
 export interface SelMapPoint { id: string; name: string; lat: number; lng: number; color: string; review?: boolean; dim?: boolean; meta?: SelMapMeta }
 export interface SelMapHull { id: string; color: string; ring: [number, number][] }
@@ -49,7 +49,7 @@ function toHullGeoJSON(hulls: SelMapHull[]) {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
 
-export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, onToggle, onBoxSelect, onMoveSingle, onContextMenu }: {
+export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, onToggle, onBoxSelect, onMoveSingle, onContextMenu, onSelecting }: {
   points: SelMapPoint[];
   hulls: SelMapHull[];
   selectedIds: Set<string>;
@@ -60,6 +60,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
   onBoxSelect: (ids: string[]) => void;
   onMoveSingle: (id: string, dest: string) => void;
   onContextMenu: (x: number, y: number) => void;
+  onSelecting: (count: number | null) => void;
 }) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -71,10 +72,11 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
   const boxRef = useRef(onBoxSelect); boxRef.current = onBoxSelect;
   const moveRef = useRef(onMoveSingle); moveRef.current = onMoveSingle;
   const ctxRef = useRef(onContextMenu); ctxRef.current = onContextMenu;
+  const selectingRef = useRef(onSelecting); selectingRef.current = onSelecting;
   const optionsRef = useRef(routeOptions); optionsRef.current = routeOptions;
   const modeRef = useRef(selectMode); modeRef.current = selectMode;
-  const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '', current: '', moveTo: '' });
-  labelsRef.current = { code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), freq: t('routePlanner.colFrequency'), geo: t('routePlanner.colGeo2'), move: t('routePlanner.move'), current: t('routePlanner.currentRoute'), moveTo: t('routePlanner.moveTo') };
+  const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '', current: '', moveTo: '', routeCount: '' });
+  labelsRef.current = { code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), freq: t('routePlanner.colFrequency'), geo: t('routePlanner.colGeo2'), move: t('routePlanner.move'), current: t('routePlanner.currentRoute'), moveTo: t('routePlanner.moveTo'), routeCount: t('routePlanner.routeCustomers') };
   const fitOnce = useRef(false);
   const focusKey = [...focusIds].sort().join(',');
 
@@ -123,6 +125,9 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
         let poly: SVGPolygonElement | null = null;
 
         const clearOverlay = () => { if (boxEl) { boxEl.remove(); boxEl = null; } if (svg) { svg.remove(); svg = null; poly = null; } };
+        // Live count while drawing/boxing (throttled so a big polygon never slows the map).
+        let lastCount = 0;
+        const liveCount = (fn: () => number) => { const now = Date.now(); if (now - lastCount < 70) return; lastCount = now; selectingRef.current(fn()); };
 
         const onMove = (ev: MouseEvent) => {
           const cur = mousePos(ev);
@@ -136,16 +141,21 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
               svg.appendChild(poly); canvas.appendChild(svg);
             }
             poly!.setAttribute('points', path.map((p) => `${p.x},${p.y}`).join(' '));
+            if (path.length >= 3) liveCount(() => pointsRef.current.reduce((n, p) => n + (pointInPoly(map!.project([p.lng, p.lat]), path) ? 1 : 0), 0));
             return;
           }
           if (!startPt) return;
           if (!boxEl) { boxEl = document.createElement('div'); boxEl.style.cssText = 'position:absolute;background:rgba(37,99,235,0.12);border:1.5px solid #2563eb;pointer-events:none;z-index:10'; canvas.appendChild(boxEl); }
-          boxEl.style.left = `${Math.min(startPt.x, cur.x)}px`; boxEl.style.top = `${Math.min(startPt.y, cur.y)}px`;
-          boxEl.style.width = `${Math.abs(cur.x - startPt.x)}px`; boxEl.style.height = `${Math.abs(cur.y - startPt.y)}px`;
+          const sx = startPt;
+          boxEl.style.left = `${Math.min(sx.x, cur.x)}px`; boxEl.style.top = `${Math.min(sx.y, cur.y)}px`;
+          boxEl.style.width = `${Math.abs(cur.x - sx.x)}px`; boxEl.style.height = `${Math.abs(cur.y - sx.y)}px`;
+          const x1 = Math.min(sx.x, cur.x), x2 = Math.max(sx.x, cur.x), y1 = Math.min(sx.y, cur.y), y2 = Math.max(sx.y, cur.y);
+          liveCount(() => pointsRef.current.reduce((n, p) => { const px = map!.project([p.lng, p.lat]); return n + (px.x >= x1 && px.x <= x2 && px.y >= y1 && px.y <= y2 ? 1 : 0); }, 0));
         };
         const onUp = (ev: MouseEvent) => {
           document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
           map!.dragPan.enable();
+          selectingRef.current(null);
           const cur = mousePos(ev);
           if (drawing) {
             drawing = false; clearOverlay();
@@ -211,6 +221,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
       <div style="font-weight:700;margin-bottom:2px">${esc(p.name || '')}</div>
       ${row(L.code, esc(m.code || ''))}
       ${row(L.current, swatch + esc(m.routeLabel || '—'))}
+      ${m.routeCount != null ? row(L.routeCount, String(m.routeCount)) : ''}
       ${row(L.freq, esc(m.frequency || '—'))}
       ${row(L.geo, `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`)}
       <div style="margin-top:6px;color:#64748b">${esc(L.moveTo)}</div>

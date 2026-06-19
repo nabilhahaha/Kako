@@ -235,3 +235,84 @@ export function needsReviewExportRows(dataset: TisDataset, scenario: Scenario): 
     .sort((a, b) => (a.code ?? a.id).localeCompare(b.code ?? b.id));
   return [[...ROUTE_EXPORT_COLUMNS], ...review.map((c) => customerRow(c, 'Needs Review'))];
 }
+
+// ── Current Allocation Review: change export (baseline vs working) ─────────────
+
+export type RouteChangeType = 'Moved' | 'Newly Assigned' | 'Unchanged' | 'Needs Review';
+
+function changeTypeOf(prev: string | null, next: string | null): RouteChangeType {
+  if (!next) return 'Needs Review';
+  if (!prev) return 'Newly Assigned';
+  return prev === next ? 'Unchanged' : 'Moved';
+}
+
+export const ROUTE_CHANGES_COLUMNS = [
+  'Customer Code', 'Customer Name', 'Previous Route / Salesman', 'New Route / Salesman', 'Change Type', 'Latitude', 'Longitude',
+] as const;
+
+/**
+ * "Route Changes" sheet — one row per customer comparing the loaded baseline
+ * allocation to the working one, with Previous/New labels and a change type
+ * (Moved · Newly Assigned · Unchanged · Needs Review). `labelOf` renders a route id.
+ */
+export function routeChangeRows(
+  dataset: TisDataset,
+  baseline: Scenario,
+  working: Scenario,
+  labelOf: (routeId: string | null) => string,
+): (string | number)[][] {
+  const base = applyScenario(dataset, baseline).customers;
+  const next = new Map(applyScenario(dataset, working).customers.map((c) => [c.id, c.ownership.routeId]));
+  const rows: (string | number)[][] = [[...ROUTE_CHANGES_COLUMNS]];
+  for (const c of base) {
+    const prev = c.ownership.routeId;
+    const nxt = next.get(c.id) ?? null;
+    rows.push([
+      c.code ?? c.id, c.name,
+      prev ? labelOf(prev) : '', nxt ? labelOf(nxt) : '(needs review)',
+      changeTypeOf(prev, nxt),
+      isValidGeo(c.geo) ? c.geo!.lat : '', isValidGeo(c.geo) ? c.geo!.lng : '',
+    ]);
+  }
+  return rows;
+}
+
+/**
+ * "Change Summary" sheet — totals (unchanged · moved · newly assigned · needs review ·
+ * affected routes) followed by a per-route Before / After / Difference table. Pure.
+ */
+export function changeSummaryRows(
+  dataset: TisDataset,
+  baseline: Scenario,
+  working: Scenario,
+  labelOf: (routeId: string | null) => string,
+): (string | number)[][] {
+  const base = applyScenario(dataset, baseline).customers;
+  const next = new Map(applyScenario(dataset, working).customers.map((c) => [c.id, c.ownership.routeId]));
+  let unchanged = 0, moved = 0, newly = 0, review = 0;
+  const before = new Map<string, number>(), after = new Map<string, number>();
+  for (const c of base) {
+    const prev = c.ownership.routeId, nxt = next.get(c.id) ?? null;
+    const t = changeTypeOf(prev, nxt);
+    if (t === 'Unchanged') unchanged++; else if (t === 'Moved') moved++; else if (t === 'Newly Assigned') newly++; else review++;
+    if (prev) before.set(prev, (before.get(prev) ?? 0) + 1);
+    if (nxt) after.set(nxt, (after.get(nxt) ?? 0) + 1);
+  }
+  const perRoute = [...new Set([...before.keys(), ...after.keys()])]
+    .map((r) => ({ r, before: before.get(r) ?? 0, after: after.get(r) ?? 0, diff: (after.get(r) ?? 0) - (before.get(r) ?? 0) }))
+    .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+  const affected = perRoute.filter((x) => x.diff !== 0).length;
+  const rows: (string | number)[][] = [
+    ['Change Summary'],
+    ['Total customers', base.length],
+    ['Unchanged', unchanged],
+    ['Moved', moved],
+    ['Newly assigned', newly],
+    ['Needs Review', review],
+    ['Affected routes', affected],
+    [],
+    ['Route / Salesman', 'Before', 'After', 'Difference'],
+    ...perRoute.map((x) => [labelOf(x.r), x.before, x.after, x.diff]),
+  ];
+  return rows;
+}
