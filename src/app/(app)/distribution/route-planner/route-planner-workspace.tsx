@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut } from 'lucide-react';
+import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut, Hand } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -101,7 +101,7 @@ export function RoutePlannerWorkspace({ focus = false, subscription }: { focus?:
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [targetRoute, setTargetRoute] = useState<string>(NEW_ROUTE);
   const [focusedRoutes, setFocusedRoutes] = useState<Set<string>>(new Set());
-  const [selectMode, setSelectMode] = useState<'box' | 'draw'>('box');
+  const [selectMode, setSelectMode] = useState<'pan' | 'box' | 'draw'>('pan');
   const [showAllBoundaries, setShowAllBoundaries] = useState(false);
   const [showOnlySelected, setShowOnlySelected] = useState(false);
   const [sortKey, setSortKey] = useState<'route' | 'customers' | 'workload' | 'sales' | 'salesPerCustomer'>('route');
@@ -281,7 +281,7 @@ export function RoutePlannerWorkspace({ focus = false, subscription }: { focus?:
     setBaseline(null); setAllocView('proposed');
     if (m === 'manual') {
       const blank = dataset.customers.reduce((s, c) => moveCustomer(s, c.id, null), emptyScenario());
-      setScenario(blank); setGenerated(true); setSelectMode('draw'); setShowAllBoundaries(true);
+      setScenario(blank); setGenerated(true); setSelectMode('pan'); setShowAllBoundaries(true);
       setTargetRoute(NEW_ROUTE); // draw → select, then Apply to "New route" creates a territory
     } else if (m === 'current') {
       // Load the existing allocation EXACTLY: Route column if present, else Salesman.
@@ -290,10 +290,10 @@ export function RoutePlannerWorkspace({ focus = false, subscription }: { focus?:
         const rid = useRoute ? c.ownership.routeId : c.ownership.salesmanId;
         return rid ? moveCustomer(s, c.id, rid) : s;
       }, emptyScenario());
-      setScenario(loaded); setBaseline(loaded); setGenerated(true); setSelectMode('box'); setShowAllBoundaries(false);
+      setScenario(loaded); setBaseline(loaded); setGenerated(true); setSelectMode('pan'); setShowAllBoundaries(false);
       setTargetRoute(''); // → effectiveTarget picks the first existing route
     } else {
-      setScenario(emptyScenario()); setGenerated(false); setSelectMode('box');
+      setScenario(emptyScenario()); setGenerated(false); setSelectMode('pan');
     }
   }
   function reset() {
@@ -655,10 +655,11 @@ export function RoutePlannerWorkspace({ focus = false, subscription }: { focus?:
           <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
             <span className="text-muted-foreground">{t('routePlanner.selectMode')}</span>
             <div className="inline-flex overflow-hidden rounded-md border">
-              <button onClick={() => setSelectMode('box')} className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs ${selectMode === 'box' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><Square className="h-3.5 w-3.5" /> {t('routePlanner.boxSelect')}</button>
+              <button onClick={() => setSelectMode('pan')} className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs ${selectMode === 'pan' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><Hand className="h-3.5 w-3.5" /> {t('routePlanner.panMode')}</button>
+              <button onClick={() => setSelectMode('box')} className={`inline-flex items-center gap-1 border-s px-2.5 py-1.5 text-xs ${selectMode === 'box' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><Square className="h-3.5 w-3.5" /> {t('routePlanner.boxSelect')}</button>
               <button onClick={() => setSelectMode('draw')} className={`inline-flex items-center gap-1 border-s px-2.5 py-1.5 text-xs ${selectMode === 'draw' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><PenTool className="h-3.5 w-3.5" /> {t('routePlanner.drawSelect')}</button>
             </div>
-            <span className="text-xs text-muted-foreground">{selectMode === 'box' ? t('routePlanner.boxHint') : t('routePlanner.drawHint')}</span>
+            <span className="text-xs text-muted-foreground">{selectMode === 'pan' ? t('routePlanner.panHint') : selectMode === 'box' ? t('routePlanner.boxHint') : t('routePlanner.drawHint')}</span>
             <label className="ms-auto inline-flex cursor-pointer items-center gap-1 text-xs"><input type="checkbox" checked={showAllBoundaries} onChange={(e) => setShowAllBoundaries(e.target.checked)} /> <Layers className="h-3.5 w-3.5" /> {t('routePlanner.boundaries')}</label>
             {focusedRoutes.size > 0 && <Button size="sm" variant="ghost" onClick={clearFocus}><X className="h-4 w-4" /> {t('routePlanner.clearFocus')}</Button>}
           </div>
@@ -702,7 +703,7 @@ export function RoutePlannerWorkspace({ focus = false, subscription }: { focus?:
           )}
 
           <div className={focus ? 'min-h-0 flex-1' : ''}>
-            <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} fill={focus} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingInfo} />
+            <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} fill={focus} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingInfo} onSelectComplete={() => setSelectMode('pan')} />
           </div>
         </div>
 

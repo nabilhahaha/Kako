@@ -49,13 +49,14 @@ function toHullGeoJSON(hulls: SelMapHull[]) {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
 
-export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, tall = false, fill = false, onToggle, onBoxSelect, onMoveSingle, onContextMenu, onSelecting }: {
+export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, tall = false, fill = false, onToggle, onBoxSelect, onMoveSingle, onContextMenu, onSelecting, onSelectComplete }: {
   points: SelMapPoint[];
   hulls: SelMapHull[];
   selectedIds: Set<string>;
   focusIds: Set<string>;
   routeOptions: RouteOption[];
-  selectMode: 'box' | 'draw';
+  /** Interaction mode: pan the map, drag a selection box, or lasso-draw a selection. */
+  selectMode: 'pan' | 'box' | 'draw';
   tall?: boolean;
   /** Fill the parent's height (for the focus flex layout) instead of a fixed vh. */
   fill?: boolean;
@@ -64,6 +65,8 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
   onMoveSingle: (id: string, dest: string) => void;
   onContextMenu: (x: number, y: number) => void;
   onSelecting: (info: { count: number; sales: number } | null) => void;
+  /** Fired after a Box or Draw selection gesture finishes — the parent returns to Pan mode. */
+  onSelectComplete?: () => void;
 }) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,6 +81,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
   const selectingRef = useRef(onSelecting); selectingRef.current = onSelecting;
   const optionsRef = useRef(routeOptions); optionsRef.current = routeOptions;
   const modeRef = useRef(selectMode); modeRef.current = selectMode;
+  const selectDoneRef = useRef(onSelectComplete); selectDoneRef.current = onSelectComplete;
   const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '', current: '', moveTo: '', routeCount: '', sales: '' });
   labelsRef.current = { code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), freq: t('routePlanner.colFrequency'), geo: t('routePlanner.colGeo2'), move: t('routePlanner.move'), current: t('routePlanner.currentRoute'), moveTo: t('routePlanner.moveTo'), routeCount: t('routePlanner.routeCustomers'), sales: t('routePlanner.colSales') };
   const fitOnce = useRef(false);
@@ -174,27 +178,38 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
               const hits = pointsRef.current.filter((p) => pointInPoly(map!.project([p.lng, p.lat]), ring)).map((p) => p.id);
               if (hits.length) boxRef.current(hits);
             }
+            // A finished lasso returns to Pan mode (intuitive for reviewing big territories).
+            selectDoneRef.current?.();
             return;
           }
           clearOverlay();
           if (!startPt) return;
           const x1 = Math.min(startPt.x, cur.x), x2 = Math.max(startPt.x, cur.x), y1 = Math.min(startPt.y, cur.y), y2 = Math.max(startPt.y, cur.y);
           startPt = null;
-          if (x2 - x1 < 3 && y2 - y1 < 3) return;
+          if (x2 - x1 < 3 && y2 - y1 < 3) return; // a tiny box is a click, not a selection
           const hits: string[] = [];
           for (const p of pointsRef.current) { const px = map!.project([p.lng, p.lat]); if (px.x >= x1 && px.x <= x2 && px.y >= y1 && px.y <= y2) hits.push(p.id); }
           if (hits.length) boxRef.current(hits);
+          // A finished box returns to Pan mode too — select, then keep reviewing the map.
+          selectDoneRef.current?.();
         };
         const onDown = (ev: MouseEvent) => {
           if (ev.button !== 0) return;
-          if (modeRef.current === 'draw' && !ev.shiftKey) {
+          const mode = modeRef.current;
+          // Draw mode: left-drag draws a freehand lasso (Shift falls through to a box).
+          if (mode === 'draw' && !ev.shiftKey) {
             ev.preventDefault(); map!.dragPan.disable(); drawing = true; path = [mousePos(ev)];
             document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
             return;
           }
-          if (!ev.shiftKey) return; // box mode (or draw+shift) needs Shift to start a rectangle
-          ev.preventDefault(); map!.dragPan.disable(); startPt = mousePos(ev);
-          document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+          // Box mode: left-drag draws a rectangle directly (no Shift needed). Shift in any
+          // mode is also a box shortcut, so a Pan-mode power user can still Shift-box.
+          if (mode === 'box' || ev.shiftKey) {
+            ev.preventDefault(); map!.dragPan.disable(); startPt = mousePos(ev);
+            document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+            return;
+          }
+          // Pan mode: do nothing — MapLibre handles the drag-pan.
         };
         canvas.addEventListener('mousedown', onDown, true);
         // Right-click → context menu (acts on the current selection in the parent).
