@@ -72,16 +72,27 @@ async function tenantStats(svc: ReturnType<typeof createServiceClient>, companyI
   }
 }
 
+/** Construct the service-role client, or return a precise reason it is unavailable. */
+function serviceClientOrError(): { svc: ReturnType<typeof createServiceClient> } | { err: string } {
+  try {
+    return { svc: createServiceClient() };
+  } catch (e) {
+    return { err: `service_client: ${e instanceof Error ? e.message : 'unavailable'}` };
+  }
+}
+
 export async function listRoutePlannerTenants(): Promise<Result<PlannerTenantRow[]>> {
   if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  const sc = serviceClientOrError();
+  if ('err' in sc) { console.error('[planner-admin] list:', sc.err); return { ok: false, error: sc.err }; }
+  const svc = sc.svc;
   try {
-    const svc = createServiceClient();
     const { data, error } = await svc
       .from('erp_companies')
       .select('id, name, plan_key, is_active, trial_ends_at, subscription_start, subscription_end, created_at, updated_at')
       .like('plan_key', `${ROUTE_PLANNER_PLAN_PREFIX}%`)
       .order('created_at', { ascending: false });
-    if (error) return { ok: false, error: 'err_query' };
+    if (error) { console.error('[planner-admin] list query:', error.message); return { ok: false, error: `query: ${error.message}` }; }
     const tenants = await Promise.all((data ?? []).map(async (c): Promise<PlannerTenantRow> => {
       const stats = await tenantStats(svc, c.id);
       return {
@@ -92,8 +103,10 @@ export async function listRoutePlannerTenants(): Promise<Result<PlannerTenantRow
       };
     }));
     return { ok: true, data: tenants };
-  } catch {
-    return { ok: false, error: 'err_query' };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[planner-admin] list threw:', msg);
+    return { ok: false, error: `query: ${msg}` };
   }
 }
 
@@ -102,36 +115,43 @@ export async function listRoutePlannerTenants(): Promise<Result<PlannerTenantRow
  * FK to erp_plans(key), so a company can only carry a `route_planner_*` plan once these
  * rows exist (migration 0352 seeds them; this is a self-healing belt-and-suspenders).
  */
-async function ensureRoutePlannerPlans(svc: ReturnType<typeof createServiceClient>): Promise<void> {
-  await svc.from('erp_plans').upsert([
+async function ensureRoutePlannerPlans(svc: ReturnType<typeof createServiceClient>): Promise<string | null> {
+  const { error } = await svc.from('erp_plans').upsert([
     { key: ROUTE_PLANNER_PLAN_TRIAL, name_ar: 'مخطط الخطوط — تجربة', rank: 0 },
     { key: ROUTE_PLANNER_PLAN_MONTHLY, name_ar: 'مخطط الخطوط — شهري', rank: 0 },
     { key: ROUTE_PLANNER_PLAN_ANNUAL, name_ar: 'مخطط الخطوط — سنوي', rank: 0 },
   ], { onConflict: 'key', ignoreDuplicates: true });
+  return error ? error.message : null;
 }
 
 export async function createRoutePlannerTenant(name: string): Promise<Result<{ id: string }>> {
   if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
   const clean = name.trim();
   if (!clean) return { ok: false, error: 'err_name_required' };
+  const sc = serviceClientOrError();
+  if ('err' in sc) { console.error('[planner-admin] create:', sc.err); return { ok: false, error: sc.err }; }
+  const svc = sc.svc;
   try {
-    const svc = createServiceClient();
-    await ensureRoutePlannerPlans(svc);
+    // Self-heal the FK first; if even this fails we report exactly why.
+    const planErr = await ensureRoutePlannerPlans(svc);
+    if (planErr) { console.error('[planner-admin] ensure plans:', planErr); return { ok: false, error: `plans: ${planErr}` }; }
     const { data, error } = await svc
       .from('erp_companies')
       .insert({ name: clean, currency: 'SAR', is_active: true, plan_key: ROUTE_PLANNER_PLAN_TRIAL, trial_ends_at: isoIn(ROUTE_PLANNER_TRIAL_DAYS) })
       .select('id')
       .single();
     if (error || !data) {
-      // Surface the real cause in server logs so failures are diagnosable.
-      console.error('[planner-admin] createRoutePlannerTenant failed:', error?.message, error?.details, error?.hint);
-      return { ok: false, error: 'err_create' };
+      // Surface the REAL cause to the admin UI + server logs (admin-only tool).
+      const detail = error ? `${error.message}${error.hint ? ` | hint: ${error.hint}` : ''}${error.details ? ` | ${error.details}` : ''}` : 'no row returned';
+      console.error('[planner-admin] createRoutePlannerTenant failed:', detail);
+      return { ok: false, error: `insert: ${detail}` };
     }
     revalidatePath('/planner-admin');
     return { ok: true, data: { id: data.id } };
   } catch (e) {
-    console.error('[planner-admin] createRoutePlannerTenant threw:', e instanceof Error ? e.message : e);
-    return { ok: false, error: 'err_create' };
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[planner-admin] createRoutePlannerTenant threw:', msg);
+    return { ok: false, error: `exception: ${msg}` };
   }
 }
 

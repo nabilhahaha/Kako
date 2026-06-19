@@ -70,12 +70,16 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
     );
   }, [allRows, search, statusFilter]);
 
+  // The last server-action error (raw, for diagnosis) shown inline + in the toast.
+  const [actionError, setActionError] = useState<string | null>(null);
+
   // Optimistic refresh: re-run a server action then patch a single row from its result is
   // overkill — instead we apply the known field change locally so the table reflects it.
   function run(action: () => Promise<{ ok: boolean; error?: string }>, patch: (c: PlannerTenantRow) => PlannerTenantRow, id: string) {
     startTransition(async () => {
       const res = await action();
-      if (!res.ok) { toast.error(t('routePlanner.adminError')); return; }
+      if (!res.ok) { setActionError(res.error ?? null); toast.error(t('routePlanner.adminError'), { description: res.error }); return; }
+      setActionError(null);
       setTenants((prev) => prev.map((c) => (c.id === id ? patch(c) : c)));
       toast.success(t('routePlanner.adminUpdated'));
     });
@@ -88,7 +92,8 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
     if (!clean) return;
     startTransition(async () => {
       const res = await createRoutePlannerTenant(clean);
-      if (!res.ok || !res.data) { toast.error(t('routePlanner.adminError')); return; }
+      if (!res.ok || !res.data) { setActionError(res.ok ? null : res.error); toast.error(t('routePlanner.adminError'), { description: res.ok ? undefined : res.error }); return; }
+      setActionError(null);
       setTenants((prev) => [
         { id: res.data!.id, name: clean, planKey: 'route_planner_trial', isActive: true, trialEndsAt: isoIn(30), subscriptionStart: null, subscriptionEnd: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), customerCount: 0, routeCount: 0, lastActivity: null },
         ...prev,
@@ -158,7 +163,8 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
         <Button size="sm" variant="outline" onClick={saveWhatsApp}>{t('routePlanner.adminSave')}</Button>
       </CardContent></Card>
 
-      {loadError && <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{t('routePlanner.adminLoadError')}</p>}
+      {loadError && <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{t('routePlanner.adminLoadError')} <span className="font-mono text-xs opacity-80">{loadError}</span></p>}
+      {actionError && <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"><span className="font-semibold">{t('routePlanner.adminError')}</span> <span className="font-mono text-xs opacity-80">{actionError}</span></p>}
 
       {/* Search + status filter */}
       <div className="flex flex-wrap items-center gap-2">
