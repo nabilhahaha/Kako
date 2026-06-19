@@ -427,6 +427,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.geoMap', href: '/distribution/geo', icon: Map, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
       { label: 'nav.items.routeOptimizer', href: '/distribution/route-optimizer', icon: Wand2, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
       { label: 'nav.items.planningBoard', href: '/distribution/planning-board', icon: LayoutGrid, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.journeyBuilder', href: '/distribution/journey-builder', icon: CalendarDays, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
       { label: 'nav.items.territoryIntel', href: '/distribution/territory-intel', icon: Activity, perm: 'reports.view', group: 'nav.groups.coverage' },
       { label: 'nav.items.retailCockpit', href: '/distribution/retail-cockpit', icon: LayoutGrid, perm: 'reports.view', group: 'nav.groups.coverage' },
       // ── Perfect Store ──

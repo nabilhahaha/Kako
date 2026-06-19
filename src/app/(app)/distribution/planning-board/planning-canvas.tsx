@@ -46,12 +46,12 @@ function colStats(list: readonly TisCustomer[]) {
  * the SAME scoped customers. Pure client-side; no scope UI here (the parent renders
  * the shared ScopeBar).
  */
-export function PlanningCanvas({ dataset, scenario, onChange, labels = {}, scopeIds }: {
+export function PlanningCanvas({ dataset, scenario, onChange, labels = {}, scopeIds, initialView = 'route' }: {
   dataset: TisDataset; scenario: Scenario; onChange: (next: Scenario) => void;
-  labels?: Record<string, string>; scopeIds?: Set<string>;
+  labels?: Record<string, string>; scopeIds?: Set<string>; initialView?: View;
 }) {
   const { t } = useI18n();
-  const [view, setView] = useState<View>('route');
+  const [view, setView] = useState<View>(initialView);
   const [targetRoute, setTargetRoute] = useState('');
 
   const applied = useMemo(() => applyScenario(dataset, scenario), [dataset, scenario]);

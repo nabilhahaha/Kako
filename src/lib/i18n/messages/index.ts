@@ -94,6 +94,7 @@ import * as geo from './geo';
 import * as routeOpt from './route-opt';
 import * as planBoard from './plan-board';
 import * as studio from './studio';
+import * as journeyBuilder from './journey-builder';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -136,6 +137,7 @@ const MODULES = [
   routeOpt,
   planBoard,
   studio,
+  journeyBuilder,
 ];
 
 type Catalog = Record<string, unknown>;
