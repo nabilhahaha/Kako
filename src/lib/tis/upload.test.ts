@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rowToTisCustomer, buildTisDatasetFromRows } from './upload';
+import { rowToTisCustomer, buildTisDatasetFromRows, mapRecordsToUploadRows } from './upload';
 import { resolveCapabilities } from './capabilities';
 import { customerWorkload } from './dataset';
 
@@ -25,6 +25,27 @@ describe('rowToTisCustomer', () => {
   });
   it('reads a bare integer frequency as visits/week', () => {
     expect(customerWorkload(rowToTisCustomer({ name: 'X', frequency: '3' }))).toBe(3);
+  });
+});
+
+describe('mapRecordsToUploadRows (tolerant headers)', () => {
+  it('maps aliased / cased / spaced headers onto canonical fields', () => {
+    const rows = mapRecordsToUploadRows([
+      { 'Customer Name': 'Al-Noor', Latitude: '24.7', Longitude: '46.7', Rep: 's1', Route: 'R1', Cadence: 'weekly', Sales: '1500', Class: 'A' },
+    ]);
+    expect(rows[0]).toMatchObject({ name: 'Al-Noor', lat: '24.7', lng: '46.7', salesmanId: 's1', routeId: 'R1', frequency: 'weekly', salesValue: '1500', grade: 'A' });
+  });
+  it('ignores unknown columns and blanks → null', () => {
+    const rows = mapRecordsToUploadRows([{ name: 'X', Notes: 'ignore me', lat: '' }]);
+    expect(rows[0].name).toBe('X');
+    expect(rows[0].lat).toBeNull();
+    expect('Notes' in rows[0]).toBe(false);
+  });
+  it('round-trips through buildTisDatasetFromRows', () => {
+    const rows = mapRecordsToUploadRows([{ Name: 'A', latitude: '24.7', longitude: '46.7', frequency: 'weekly' }]);
+    const ds = buildTisDatasetFromRows(rows);
+    expect(ds.customers).toHaveLength(1);
+    expect(ds.customers[0].geo).toEqual({ lat: 24.7, lng: 46.7 });
   });
 });
 

@@ -68,6 +68,56 @@ export function rowToTisCustomer(row: TisUploadRow, index = 0): TisCustomer {
   });
 }
 
+/** Aliases per canonical field → tolerant of real-world spreadsheet headers
+ *  (case / spacing / underscores are normalised away before matching). */
+const HEADER_ALIASES: Record<keyof TisUploadRow, string[]> = {
+  id: ['id', 'customerid', 'outletid'],
+  code: ['code', 'customercode', 'outletcode'],
+  name: ['name', 'customername', 'outletname', 'customer', 'outlet'],
+  lat: ['lat', 'latitude'],
+  lng: ['lng', 'lon', 'long', 'longitude'],
+  salesmanId: ['salesmanid', 'salesman', 'repid', 'rep', 'salesrep'],
+  supervisorId: ['supervisorid', 'supervisor'],
+  areaId: ['areaid', 'area'],
+  regionId: ['regionid', 'region'],
+  routeId: ['routeid', 'route'],
+  grade: ['grade', 'class', 'classification', 'outletgrade'],
+  frequency: ['frequency', 'cadence', 'visitfrequency', 'visitfreq', 'freq'],
+  salesValue: ['salesvalue', 'sales', 'value', 'revenue', 'turnover'],
+  coverage: ['coverage', 'coveragestatus', 'status'],
+  health: ['health', 'healthscore', 'score'],
+};
+
+const normHeader = (h: string): string => h.toLowerCase().replace(/[\s_\-./]/g, '');
+
+/**
+ * Map generic spreadsheet records (header-keyed strings, as produced by the CSV /
+ * XLSX / JSON parsers) onto canonical upload rows — tolerant of header casing,
+ * spacing, and common aliases (latitude, rep, cadence, …). Unknown columns are
+ * ignored. Pure.
+ */
+export function mapRecordsToUploadRows(records: readonly Record<string, string>[]): TisUploadRow[] {
+  if (records.length === 0) return [];
+  // Resolve, once, which source header feeds each canonical field.
+  const headers = Object.keys(records[0]);
+  const normed = headers.map((h) => [h, normHeader(h)] as const);
+  const pick: Partial<Record<keyof TisUploadRow, string>> = {};
+  for (const field of Object.keys(HEADER_ALIASES) as (keyof TisUploadRow)[]) {
+    const aliases = HEADER_ALIASES[field];
+    const hit = normed.find(([, n]) => aliases.includes(n));
+    if (hit) pick[field] = hit[0];
+  }
+  return records.map((rec) => {
+    const row: TisUploadRow = {};
+    for (const field of Object.keys(pick) as (keyof TisUploadRow)[]) {
+      const src = pick[field]!;
+      const v = (rec[src] ?? '').toString().trim();
+      (row as Record<string, string | null>)[field] = v ? v : null;
+    }
+    return row;
+  });
+}
+
 /** Build a dataset from uploaded rows. Pure. */
 export function buildTisDatasetFromRows(
   rows: readonly TisUploadRow[],

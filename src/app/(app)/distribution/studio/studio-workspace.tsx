@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Scale, Map as MapIcon, Wand2, LayoutGrid, Users, Copy, Download, ArrowUpRight } from 'lucide-react';
+import { LayoutDashboard, Scale, Map as MapIcon, Wand2, LayoutGrid, Users, Copy, Download, ArrowUpRight, Upload, FileDown, Info } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,14 +13,16 @@ import { buildTisDataset, type TisCustomer, type TisSource } from '@/lib/tis/dat
 import { applyScenario, scenarioMetrics, type Scenario } from '@/lib/tis/scenario';
 import { currentPlanScenario, cloneScenario, liveMetrics } from '@/lib/tis/plan-edit';
 import { balanceRoutes } from '@/lib/tis/optimize-routes';
-import { datasetToCsv } from '@/lib/tis/export';
+import { datasetToCsv, TIS_CSV_COLUMNS } from '@/lib/tis/export';
+import { buildTisDatasetFromRows } from '@/lib/tis/upload';
 import { auditTerritory } from '@/lib/tis/audit';
 import { buildGeoLayers, type GeoLayerId } from '@/lib/tis/geo';
 import { TerritoryAuditView } from '../territory-audit/territory-audit';
 import { PlanningMap, type PlanMapPoint } from '../planning-board/planning-map';
 import { PlanningCanvas, MetricsBar, routeColorMap, scenarioMapPoints } from '../planning-board/planning-canvas';
+import { parseTisUpload } from './import-actions';
 
-type Stage = 'overview' | 'audit' | 'map' | 'optimize' | 'plan' | 'size';
+type Stage = 'import' | 'overview' | 'audit' | 'map' | 'optimize' | 'plan' | 'size';
 const GEO_LAYERS: GeoLayerId[] = ['coverage', 'ownership', 'whitespace', 'imbalance', 'customers'];
 /** Each stage's standalone deep-link (discoverability + back-compat). */
 const STANDALONE: Partial<Record<Stage, string>> = {
@@ -37,10 +39,15 @@ const STANDALONE: Partial<Record<Stage, string>> = {
  * (auditTerritory · buildGeoLayers · balanceRoutes · scenario engine · PlanningCanvas).
  * Read-only + export; no Apply. Pure client-side over the shared dataset.
  */
-export function StudioWorkspace({ customers, asOf, source, demo }: { customers: TisCustomer[]; asOf: string; source: TisSource; demo: boolean }) {
+export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: { customers: TisCustomer[]; asOf: string; source: TisSource; demo: boolean; labels?: Record<string, string> }) {
   const { t } = useI18n();
-  const dataset = useMemo(() => buildTisDataset(customers, { asOf, source }), [customers, asOf, source]);
-  const defaultRouteCount = useMemo(() => Math.max(1, new Set(customers.map((c) => c.ownership.routeId).filter(Boolean)).size || 6), [customers]);
+  // Imported customers (from an uploaded CSV/XLSX/JSON) replace the server-loaded
+  // set for the rest of the session — Import → Audit → Optimize → Plan → Export.
+  const [imported, setImported] = useState<TisCustomer[] | null>(null);
+  const effective = imported ?? customers;
+  const dataset = useMemo(() => buildTisDataset(effective, { asOf, source: imported ? 'upload' : source }), [effective, imported, asOf, source]);
+  const defaultRouteCount = useMemo(() => Math.max(1, new Set(effective.map((c) => c.ownership.routeId).filter(Boolean)).size || 6), [effective]);
+  const sample = demo && !imported; // viewing the bundled demo, not the manager's data
 
   const [scenarios, setScenarios] = useState<Scenario[]>(() => [currentPlanScenario(dataset)]);
   const [activeId, setActiveId] = useState('current');
@@ -48,8 +55,41 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
   const [geoLayer, setGeoLayer] = useState<GeoLayerId>('coverage');
   const [workingDays, setWorkingDays] = useState('5');
   const [routeCountInput, setRouteCountInput] = useState(''); // '' = auto (current route count)
+  const [importMsg, setImportMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const active = scenarios.find((s) => s.id === activeId) ?? scenarios[0];
   const update = (next: Scenario) => setScenarios((list) => list.map((s) => (s.id === next.id ? next : s)));
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    setImporting(true); setImportMsg(null);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const res = await parseTisUpload(fd);
+      if (!res.ok) { setImportMsg({ tone: 'err', text: t(`studio.${res.error}`) }); return; }
+      const ds = buildTisDatasetFromRows(res.rows, { source: 'upload' });
+      setImported(ds.customers);
+      setScenarios([currentPlanScenario(ds)]);
+      setActiveId('current');
+      setImportMsg({ tone: 'ok', text: t('studio.importOk').replace('{n}', String(ds.customers.length)).replace('{total}', String(res.total)) });
+      setStage('audit');
+    } catch {
+      setImportMsg({ tone: 'err', text: t('studio.err_parse') });
+    } finally {
+      setImporting(false);
+    }
+  }
+  function onTemplate() {
+    const example = [
+      'C001,C001,Sample Market,21.5810,39.1650,sm-1,,,R-1,R-1,a,weekly,12000,on_track,82',
+      'C002,C002,Sample Grocery,21.5430,39.1720,sm-1,,,R-1,R-1,c,monthly,3000,under_covered,55',
+    ];
+    const csv = [TIS_CSV_COLUMNS.join(','), ...example].join('\n');
+    downloadCsv(csv, 'tis-import-template.csv');
+  }
 
   const audit = useMemo(() => auditTerritory(dataset), [dataset]);
   const geoLayers = useMemo(() => buildGeoLayers(dataset, audit), [dataset, audit]);
@@ -69,10 +109,7 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
     setActiveId(id);
   }
   function onExport() {
-    const blob = new Blob([datasetToCsv(applyScenario(dataset, active))], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `studio-plan-${active.id}.csv`;
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    downloadCsv(datasetToCsv(applyScenario(dataset, active)), `studio-plan-${active.id}.csv`);
   }
 
   // Persistent map: scenario-route colour in Optimize/Plan, else the chosen geo layer.
@@ -84,6 +121,7 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
   }, [stage, geoLayer, geoLayers, dataset, active, routeColor]);
 
   const STAGES: { key: Stage; icon: typeof MapIcon; label: string }[] = [
+    { key: 'import', icon: Upload, label: t('studio.import') },
     { key: 'overview', icon: LayoutDashboard, label: t('studio.overview') },
     { key: 'audit', icon: Scale, label: t('studio.audit') },
     { key: 'map', icon: MapIcon, label: t('studio.map') },
@@ -94,12 +132,24 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
 
   return (
     <div className="space-y-3">
+      <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
+
+      {/* First-run / sample-data banner — explains the demo and points to Import. */}
+      {sample && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-info/40 bg-info/10 px-3 py-2 text-sm">
+          <Info className="h-4 w-4 shrink-0 text-info" />
+          <span>{t('studio.sampleBanner')}</span>
+          <Button size="sm" className="ms-auto" onClick={() => fileRef.current?.click()} disabled={importing}><Upload className="h-4 w-4" /> {t('studio.importData')}</Button>
+        </div>
+      )}
+
       {/* Shared toolbar: scenario tabs + actions. */}
       <div className="flex flex-wrap items-center gap-2">
         {scenarios.map((s) => (
           <button key={s.id} onClick={() => setActiveId(s.id)} className={`rounded-md border px-3 py-1.5 text-sm ${s.id === activeId ? 'bg-secondary font-medium' : 'hover:bg-muted'}`}>{s.name}</button>
         ))}
         <div className="ms-auto flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={importing}><Upload className="h-4 w-4" /> {t('studio.import')}</Button>
           <Button size="sm" variant="outline" onClick={onOptimize}><Wand2 className="h-4 w-4" /> {t('planBoard.optimize')}</Button>
           <Button size="sm" variant="outline" onClick={onClone}><Copy className="h-4 w-4" /> {t('planBoard.clone')}</Button>
           <Button size="sm" variant="outline" onClick={onExport}><Download className="h-4 w-4" /> {t('routeOpt.exportCsv')}</Button>
@@ -122,7 +172,9 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
             beside the map (right on wide screens, below on narrow); the Plan stage
             gives the map full width and docks the route boards beneath it. */}
         <div className="min-w-0 flex-1 space-y-3">
-          {stage === 'plan' ? (
+          {stage === 'import' ? (
+            <ImportPanel t={t} importing={importing} message={importMsg} sample={sample} count={dataset.customers.length} onPick={() => fileRef.current?.click()} onTemplate={onTemplate} />
+          ) : stage === 'plan' ? (
             <>
               <PlanningMap key="studio-map" points={mapPoints} onSelect={() => { /* Plan editing happens on the canvas below. */ }} />
               <PlanningCanvas dataset={dataset} scenario={active} onChange={update} />
@@ -143,8 +195,8 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
 
               {/* Contextual panel. */}
               <aside className="min-w-0 space-y-3 xl:w-[380px] xl:shrink-0">
-                {stage === 'overview' && <OverviewPanel audit={audit} onOptimize={onOptimize} t={t} demo={demo} />}
-                {stage === 'audit' && <TerritoryAuditView audit={audit} labels={{}} />}
+                {stage === 'overview' && <OverviewPanel audit={audit} onOptimize={onOptimize} onImport={() => setStage('import')} t={t} sample={sample} />}
+                {stage === 'audit' && <TerritoryAuditView audit={audit} labels={labels} />}
                 {stage === 'map' && <p className="text-sm text-muted-foreground">{t('studio.mapLead')}</p>}
                 {stage === 'optimize' && <OptimizePanel dataset={dataset} scenarios={scenarios} workingDays={workingDays} setWorkingDays={setWorkingDays} routeCount={routeCountInput} setRouteCount={setRouteCountInput} defaultRouteCount={defaultRouteCount} onOptimize={onOptimize} t={t} />}
                 {stage === 'size' && <NeedsPanel text={t('studio.sizeSoon')} />}
@@ -158,17 +210,23 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
   );
 }
 
+function downloadCsv(csv: string, filename: string) {
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
 function StageLink({ href, label }: { href: string; label: string }) {
   return <Link href={href} className="inline-flex items-center gap-0.5 text-xs text-primary hover:underline"><ArrowUpRight className="h-3.5 w-3.5" /> {label}</Link>;
 }
 
-function OverviewPanel({ audit, onOptimize, t, demo }: { audit: ReturnType<typeof auditTerritory>; onOptimize: () => void; t: (k: string) => string; demo: boolean }) {
+function OverviewPanel({ audit, onOptimize, onImport, t, sample }: { audit: ReturnType<typeof auditTerritory>; onOptimize: () => void; onImport: () => void; t: (k: string) => string; sample: boolean }) {
   const h = audit.headline;
-  // Guided next-step: gaps first, then balance, else fine-tune in Plan.
-  const nextKey = h.gapCount > 0 ? 'studio.nextAudit' : h.worstBalancePct < 70 ? 'studio.nextOptimize' : 'studio.nextPlan';
+  // Guided next-step: when on sample data, import first; else gaps → balance → Plan.
+  const nextKey = sample ? 'studio.nextImport' : h.gapCount > 0 ? 'studio.nextAudit' : h.worstBalancePct < 70 ? 'studio.nextOptimize' : 'studio.nextPlan';
   return (
     <div className="space-y-3">
-      {demo && <p className="text-xs text-muted-foreground">{t('studio.demoNote')}</p>}
+      {sample && <p className="text-xs text-muted-foreground">{t('studio.demoNote')}</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         <StatCard label={t('coverage.headlineCoverage')} value={`${h.coveragePct}%`} icon={LayoutDashboard} tone="primary" hint={t('coverage.ofNCustomers').replace('{n}', String(h.customers))} />
         <StatCard label={t('territoryAudit.coverageGaps')} value={String(h.gapCount)} icon={Scale} tone="warning" />
@@ -178,9 +236,39 @@ function OverviewPanel({ audit, onOptimize, t, demo }: { audit: ReturnType<typeo
       <Card className="bg-muted/40"><CardContent className="space-y-2 p-3">
         <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('studio.nextStep')}</p>
         <p className="text-sm">{t(nextKey)}</p>
-        <Button size="sm" onClick={onOptimize}><Wand2 className="h-4 w-4" /> {t('studio.startOptimize')}</Button>
+        {sample
+          ? <Button size="sm" onClick={onImport}><Upload className="h-4 w-4" /> {t('studio.importData')}</Button>
+          : <Button size="sm" onClick={onOptimize}><Wand2 className="h-4 w-4" /> {t('studio.startOptimize')}</Button>}
       </CardContent></Card>
     </div>
+  );
+}
+
+function ImportPanel({ t, importing, message, sample, count, onPick, onTemplate }: { t: (k: string) => string; importing: boolean; message: { tone: 'ok' | 'err'; text: string } | null; sample: boolean; count: number; onPick: () => void; onTemplate: () => void }) {
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-6">
+        <div>
+          <h2 className="text-lg font-semibold">{t('studio.importTitle')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('studio.importLead')}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={onPick} disabled={importing}><Upload className="h-4 w-4" /> {importing ? t('studio.importing') : t('studio.chooseFile')}</Button>
+          <Button variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('studio.downloadTemplate')}</Button>
+        </div>
+        {message && (
+          <p className={`text-sm ${message.tone === 'ok' ? 'text-success' : 'text-destructive'}`}>{message.text}</p>
+        )}
+        <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+          <p className="font-medium text-foreground">{t('studio.importColumns')}</p>
+          <p className="mt-1 break-words font-mono" dir="ltr">{TIS_CSV_COLUMNS.join(', ')}</p>
+          <p className="mt-2">{t('studio.importHint')}</p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {sample ? t('studio.importSampleNote') : t('studio.importCurrentNote').replace('{n}', String(count))}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
