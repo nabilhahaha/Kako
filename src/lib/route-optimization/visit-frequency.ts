@@ -103,6 +103,38 @@ export function frequencyFromVisitsPerWeek(visitsPerWeek: number): VisitFrequenc
   return makeFrequency('month', 1, 1); // monthly (coarsest weekly-ish bucket)
 }
 
+/** Lenient synonyms accepted from spreadsheet imports (FR-4), mapped to a
+ *  canonical alias. Keys are pre-lowercased/trimmed. */
+const IMPORT_SYNONYMS: Record<string, string> = {
+  'every week': 'weekly', 'once a week': 'weekly', '1/week': 'weekly', '1 per week': 'weekly', 'w': 'weekly',
+  'fortnightly': 'biweekly', 'bi-weekly': 'biweekly', 'bi weekly': 'biweekly',
+  'every 2 weeks': 'biweekly', 'every two weeks': 'biweekly', 'every other week': 'biweekly',
+  'every month': 'monthly', 'once a month': 'monthly', '1/month': 'monthly', 'm': 'monthly',
+  'every year': 'annual', 'once a year': 'annual', 'y': 'annual',
+};
+
+/**
+ * Coerce a free-text spreadsheet cell into a CANONICAL frequency token, or null
+ * when unrecognized (FR-4 import). Accepts: the strict forms (`parseFrequency`),
+ * common synonyms (fortnightly, every 2 weeks, every month…), and a bare integer
+ * 1–7 read as "N visits per week". Always returns the normalized token (so the
+ * stored value round-trips). Pure.
+ */
+export function coerceFrequencyToken(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const s = String(raw).trim().toLowerCase();
+  if (!s) return null;
+  const direct = parseFrequency(s);
+  if (direct) return formatFrequency(direct);
+  if (s in IMPORT_SYNONYMS) return IMPORT_SYNONYMS[s];
+  const n = Number(s);
+  if (Number.isInteger(n) && n >= 1 && n <= 7) {
+    const f = makeFrequency('week', 1, n);
+    return f ? formatFrequency(f) : null;
+  }
+  return null;
+}
+
 /**
  * Map a VisitFrequency onto the existing `weekly|biweekly|monthly` enum used by
  * erp_journey_plans.frequency / the cadence engine (CJ-2). Forward-compatible:

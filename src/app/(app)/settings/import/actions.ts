@@ -11,6 +11,7 @@ import {
 import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
 import { validateCustomValue, coerceCustomValue } from '@/lib/erp/custom-fields';
 import { resolveRowRefs, type RefFieldDef } from '@/lib/erp/import-refs';
+import { coerceFrequencyToken } from '@/lib/route-optimization/visit-frequency';
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 type RefMaps = Map<string, Map<string, string>>;
@@ -119,6 +120,9 @@ function validateCore(
       if (v && fld.type === 'email' && !EMAIL_RE.test(v)) add(sev === 'error' ? 'warning' : sev, 'invalid email');
       if (v && fld.type === 'number' && isNaN(Number(v))) add('error', `${fld.labelEn}: invalid number`);
       if (v && fld.type === 'date' && isNaN(Date.parse(v))) add('warning', `${fld.labelEn}: invalid date`);
+      // FR-4: visit_frequency is free text but must coerce to a known cadence —
+      // unrecognized values are imported as null (warning, never blocks the row).
+      if (v && fld.key === 'visit_frequency' && !coerceFrequencyToken(v)) add('warning', `${fld.labelEn}: unrecognized frequency (ignored)`);
     }
     // Referential integrity: a provided ref value that doesn't resolve is an error.
     const { missing } = resolveRowRefs(r, refFields, refMaps);
@@ -220,6 +224,14 @@ export async function runImport(
       if (!allowed.has(k) || refKeys.has(k)) continue; // refs resolved separately
       const raw = (rows[i][k] ?? '').trim();
       if (raw === '') continue;
+      if (k === 'visit_frequency') {
+        // FR-4: coerce to a canonical token + stamp provenance. Unrecognized
+        // values are dropped (left null) so we never store garbage; validation
+        // already surfaced a warning. source='import' feeds the FR precedence.
+        const tok = coerceFrequencyToken(raw);
+        if (tok) { p.visit_frequency = tok; p.visit_frequency_source = 'import'; }
+        continue;
+      }
       if (numberKeys.has(k)) p[k] = Number(raw);
       else if (booleanKeys.has(k)) { const b = parseBool(raw); if (b !== undefined) p[k] = b; }
       else p[k] = raw;

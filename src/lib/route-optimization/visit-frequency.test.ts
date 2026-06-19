@@ -6,6 +6,7 @@ import {
   frequencyToVisitsPerWeek,
   frequencyFromVisitsPerWeek,
   frequencyToJourneyEnum,
+  coerceFrequencyToken,
   WEEKS_PER_MONTH,
   type VisitFrequency,
 } from './visit-frequency';
@@ -74,6 +75,32 @@ describe('frequencyFromVisitsPerWeek (classification bucket parity)', () => {
   it('non-positive ⇒ null', () => {
     expect(frequencyFromVisitsPerWeek(0)).toBeNull();
     expect(frequencyFromVisitsPerWeek(-1)).toBeNull();
+  });
+});
+
+describe('coerceFrequencyToken (FR-4 lenient import)', () => {
+  it('accepts strict forms + normalizes', () => {
+    expect(coerceFrequencyToken('Weekly')).toBe('weekly');
+    expect(coerceFrequencyToken(' BIWEEKLY ')).toBe('biweekly');
+    expect(coerceFrequencyToken('week/1/1')).toBe('weekly');     // normalized
+    expect(coerceFrequencyToken('week/1/3')).toBe('week/1/3');
+    expect(coerceFrequencyToken('yearly')).toBe('annual');
+  });
+  it('accepts common synonyms', () => {
+    expect(coerceFrequencyToken('fortnightly')).toBe('biweekly');
+    expect(coerceFrequencyToken('every 2 weeks')).toBe('biweekly');
+    expect(coerceFrequencyToken('once a month')).toBe('monthly');
+    expect(coerceFrequencyToken('every week')).toBe('weekly');
+  });
+  it('reads a bare integer as visits/week (1–7)', () => {
+    expect(coerceFrequencyToken('1')).toBe('weekly');
+    expect(coerceFrequencyToken('3')).toBe('week/1/3');
+    expect(coerceFrequencyToken('8')).toBeNull(); // out of range
+  });
+  it('returns null for unrecognized / empty', () => {
+    expect(coerceFrequencyToken('')).toBeNull();
+    expect(coerceFrequencyToken(null)).toBeNull();
+    expect(coerceFrequencyToken('whenever')).toBeNull();
   });
 });
 
