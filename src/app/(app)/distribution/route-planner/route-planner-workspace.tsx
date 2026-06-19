@@ -43,7 +43,6 @@ export function RoutePlannerWorkspace() {
   const [dataset, setDataset] = useState<TisDataset | null>(null);
   const [scenario, setScenario] = useState<Scenario>(emptyScenario());
   const [method, setMethod] = useState<'assisted' | 'manual' | null>(null);
-  const [territoryOnDraw, setTerritoryOnDraw] = useState(true);
   const [history, setHistory] = useState<Scenario[]>([]);
   const [generated, setGenerated] = useState(false);
   const [routeCount, setRouteCount] = useState('8');
@@ -149,7 +148,8 @@ export function RoutePlannerWorkspace() {
     setMethod(m); setHistory([]); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set());
     if (m === 'manual') {
       const blank = dataset.customers.reduce((s, c) => moveCustomer(s, c.id, null), emptyScenario());
-      setScenario(blank); setGenerated(true); setSelectMode('draw'); setTerritoryOnDraw(true); setShowAllBoundaries(true);
+      setScenario(blank); setGenerated(true); setSelectMode('draw'); setShowAllBoundaries(true);
+      setTargetRoute(NEW_ROUTE); // draw → select, then Apply to "New route" creates a territory
     } else {
       setScenario(emptyScenario()); setGenerated(false); setSelectMode('box');
     }
@@ -203,20 +203,6 @@ export function RoutePlannerWorkspace() {
     pushHistory(scenario);
     setScenario(moveCustomer(scenario, id, resolveDest(value))); setApproved(false);
     setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-  }
-  /** Map area-select callback. In Manual mode with "new territory on draw" on, the
-   *  enclosed customers become a brand-new route; otherwise they're added to the selection. */
-  function onAreaSelect(ids: string[]) {
-    if (method === 'manual' && territoryOnDraw && ids.length > 0) {
-      pushHistory(scenario);
-      const dest = nextNewRouteId();
-      let sc = scenario;
-      for (const id of ids) sc = moveCustomer(sc, id, dest);
-      setScenario(sc); setApproved(false); setSelectedIds(new Set());
-      if (targetRoute === NEW_ROUTE) setTargetRoute(dest); // default the move target to a real route
-      return;
-    }
-    boxSelect(ids);
   }
   function toggleFocus(routeId: string) {
     setFocusedRoutes((prev) => { const next = new Set(prev); next.has(routeId) ? next.delete(routeId) : next.add(routeId); return next; });
@@ -341,9 +327,6 @@ export function RoutePlannerWorkspace() {
               <button onClick={() => setSelectMode('draw')} className={`inline-flex items-center gap-1 border-s px-2.5 py-1.5 text-xs ${selectMode === 'draw' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><PenTool className="h-3.5 w-3.5" /> {t('routePlanner.drawSelect')}</button>
             </div>
             <span className="text-xs text-muted-foreground">{selectMode === 'box' ? t('routePlanner.boxHint') : t('routePlanner.drawHint')}</span>
-            {method === 'manual' && (
-              <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-xs font-medium"><input type="checkbox" checked={territoryOnDraw} onChange={(e) => setTerritoryOnDraw(e.target.checked)} /> {t('routePlanner.newTerritoryOnDraw')}</label>
-            )}
             <label className="ms-auto inline-flex cursor-pointer items-center gap-1 text-xs"><input type="checkbox" checked={showAllBoundaries} onChange={(e) => setShowAllBoundaries(e.target.checked)} /> <Layers className="h-3.5 w-3.5" /> {t('routePlanner.boundaries')}</label>
             {focusedRoutes.size > 0 && <Button size="sm" variant="ghost" onClick={clearFocus}><X className="h-4 w-4" /> {t('routePlanner.clearFocus')}</Button>}
           </div>
@@ -362,7 +345,7 @@ export function RoutePlannerWorkspace() {
             {selectedIds.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}><X className="h-4 w-4" /> {t('routePlanner.clear')}</Button>}
           </div>
 
-          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} onToggle={toggle} onBoxSelect={onAreaSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} />
+          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} />
         </div>
 
         {/* Route side panel */}

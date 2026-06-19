@@ -247,3 +247,21 @@ describe('Iterative manual correction (move many times before approval)', () => 
     expect(String(aRow![0])).toBe(`Route ${ids.indexOf('opt-route-new') + 1}`);
   });
 });
+
+describe('Select then Apply (selection and moving are separate)', () => {
+  it('moves the whole selected set to a target route in one Apply', () => {
+    const ds = dataset();
+    let sc = scenarioFromSplit(ds, 3);
+    const ids = [...routeColors(ds, sc).keys()];
+    const [r1, , r3] = ids;
+    // "Box/draw/click" select = a set of customer ids; here, all of route 1.
+    const selected = applyScenario(ds, sc).customers.filter((c) => c.ownership.routeId === r1).map((c) => c.id);
+    expect(selected.length).toBeGreaterThan(0);
+    const r3Before = routeReview(ds, sc).find((r) => r.routeId === r3)!.customers;
+    // Apply: move the whole selection to r3 (one operation).
+    for (const id of selected) sc = moveCustomer(sc, id, r3);
+    const after = routeReview(ds, sc);
+    expect(after.find((r) => r.routeId === r1)).toBeUndefined(); // route 1 emptied
+    expect(after.find((r) => r.routeId === r3)!.customers).toBe(r3Before + selected.length);
+  });
+});
