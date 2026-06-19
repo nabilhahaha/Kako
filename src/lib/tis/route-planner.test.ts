@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { simpleGeoSplit } from './optimize-routes';
 import { buildTisDatasetFromRows } from './upload';
 import { currentPlanScenario, moveCustomer } from './plan-edit';
-import { routeStats, routeExportRows, needsReviewExportRows, unassignedCount, unassignedIds, routeColors, convexHull, routeReview, aggregateReview } from './route-planner';
+import { routeStats, routeExportRows, needsReviewExportRows, unassignedCount, unassignedIds, routeColors, routeIdsOf, convexHull, routeReview, aggregateReview } from './route-planner';
 import { applyScenario, type Scenario } from './scenario';
 
 // Two tight clusters (Jeddah ~21.5/39.1 and Riyadh ~24.7/46.7), 6 each.
@@ -212,5 +212,38 @@ describe('Manual Territory Design (data path)', () => {
     reviews = routeReview(ds, sc);
     expect(reviews.length).toBe(2);
     expect(unassignedCount(ds, sc)).toBe(0);
+  });
+});
+
+describe('Iterative manual correction (move many times before approval)', () => {
+  it('moves customers across routes repeatedly; counts and export reflect every move', () => {
+    const ds = dataset();
+    let sc = scenarioFromSplit(ds, 3);
+    const ids0 = routeColors(ds, sc); // R1,R2,R3 ids in sorted order
+    const [r1, r2, r3] = [...ids0.keys()];
+    const countOf = (s: typeof sc, rid: string) => routeReview(ds, s).find((r) => r.routeId === rid)?.customers ?? 0;
+
+    // Move one customer R1 → R2
+    const a = applyScenario(ds, sc).customers.find((c) => c.ownership.routeId === r1)!;
+    const r1c0 = countOf(sc, r1), r2c0 = countOf(sc, r2);
+    sc = moveCustomer(sc, a.id, r2);
+    expect(countOf(sc, r1)).toBe(r1c0 - 1);
+    expect(countOf(sc, r2)).toBe(r2c0 + 1);
+
+    // Then move that same customer R2 → R3 (no regenerate)
+    sc = moveCustomer(sc, a.id, r3);
+    expect(countOf(sc, r2)).toBe(r2c0); // back to original
+    expect(applyScenario(ds, sc).customers.find((c) => c.id === a.id)!.ownership.routeId).toBe(r3);
+
+    // Then move a R3 customer to a brand-new route
+    sc = moveCustomer(sc, a.id, 'opt-route-new');
+    expect(countOf(sc, 'opt-route-new')).toBe(1);
+
+    // Export reflects the final state (customer a sits on the new route).
+    const ids = routeIdsOf(ds, sc);
+    const rows = routeExportRows(ds, sc, (rid) => (rid ? `Route ${ids.indexOf(rid) + 1}` : 'Unassigned'));
+    const aRow = rows.find((r) => String(r[1]) === (a.code ?? a.id));
+    expect(aRow).toBeTruthy();
+    expect(String(aRow![0])).toBe(`Route ${ids.indexOf('opt-route-new') + 1}`);
   });
 });

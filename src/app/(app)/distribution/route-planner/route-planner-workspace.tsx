@@ -377,7 +377,7 @@ export function RoutePlannerWorkspace() {
               </div>
             </div>
             <div className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-x-2 text-[11px] text-muted-foreground">
-              <span /><span /><span className="text-end">{t('routePlanner.colCustomers')}</span><span className="text-end">{t('routePlanner.colVisits')}</span><span className="text-end">{t('routePlanner.colRadius')}</span>
+              <span /><span /><span className="text-end">{t('routePlanner.colCustomers')}</span><span className="text-end">{t('routePlanner.colVisits')}</span><span className="text-end">{t('routePlanner.colWorkload')}</span>
             </div>
             <div className="max-h-[44vh] space-y-1 overflow-y-auto pe-1">
               {reviews.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">—</p>}
@@ -394,7 +394,7 @@ export function RoutePlannerWorkspace() {
                     <span className="truncate font-medium">{t('routePlanner.route')} {s.index}</span>
                     <span className="text-end tabular-nums" dir="ltr">{s.customers}</span>
                     <span className="text-end tabular-nums text-muted-foreground" dir="ltr">{s.weeklyVisits}</span>
-                    <span className="text-end tabular-nums text-muted-foreground" dir="ltr">{s.radiusKm}km</span>
+                    <span className="text-end tabular-nums text-muted-foreground" dir="ltr">{s.workloadHours}h</span>
                   </button>
                 );
               })}
