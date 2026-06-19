@@ -24,6 +24,31 @@ Upload / Select Customers
 
 ---
 
+## 1a. Cross-Cutting Principle — **Simple Mode for every capability**
+
+**Every advanced capability ships a simple mode.** A sales manager must be able to produce a
+usable territory plan **in minutes**, without understanding optimization theory, weights, or
+technical settings. This is a **product requirement across all six stages**, not a feature of
+one.
+
+- **Zero-configuration default per stage.** Audit, Sizing, Optimization, and Planning each open
+  on a one-click happy path with engine-derived defaults (frequency/workload from the FR
+  resolver, priority from A/B/C grade, capacity/geo from existing data). Expert controls
+  (weights, caps, scenarios) are **opt-in behind an "Advanced" affordance** (progressive
+  disclosure).
+- **Plain-language everywhere.** Results read in business terms ("balanced by visits and
+  travel time," "2 reps under-utilized"), not raw scores; technical detail lives in Advanced.
+- **Safe escalation.** Simple output is real engine output, so switching to Advanced refines
+  the *same* result — no rework, no second algorithm.
+- **Standalone-friendly.** The simple path also defines the minimal upload schema for
+  standalone mode (§4), keeping the low-friction entry consistent in both shells.
+
+> Acceptance bar for any TIS stage: *a non-expert reaches a usable, applyable result without
+> opening a single advanced control.* (Detailed Simple/Advanced split for optimization in the
+> Route Optimization Studio roadmap §1b.)
+
+---
+
 ## 2. Stage Map — capability · current status · reuse anchor
 
 | # | Stage | Sub-capabilities | Status today | Reuse anchor |

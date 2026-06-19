@@ -60,6 +60,41 @@ no-hardcoded-values principle used in CJ-1 frequency rules).
 
 ---
 
+## 1b. Simple Mode vs Advanced Mode — **every advanced capability has a simple mode**
+
+**Product principle (applies to the whole family):** a sales manager must be able to generate
+a **usable territory plan in minutes** without understanding optimization theory, weights, or
+technical settings. Advanced power is opt-in, never a prerequisite.
+
+| | **Simple Mode (default)** | **Advanced Mode (opt-in)** |
+| :--- | :--- | :--- |
+| Inputs | Pick customers + working days. That's it. | Full constraint set (§1a) + objective weights (§2) |
+| Route count | Auto-calculated from workload | User-set or auto |
+| Balancing | Sensible default blend (workload + distance) | User-tuned weights (count · workload · sales · geo · capacity) |
+| Output | One recommended plan + preview | Multiple scenarios + compare |
+| Vocabulary | Plain language ("balanced by visits & travel") | Technical (weights, caps, scores) |
+
+**How Simple Mode stays smart without exposing knobs:**
+
+- **Defaults come from the engines, not the user** — frequency/workload from the FR resolver,
+  priority from A/B/C grade, capacity from rep defaults, distance from geo. The optimizer is
+  fully configured out of the box; Advanced Mode only *reveals* those defaults for tuning.
+- **Progressive disclosure** — one primary action ("Generate Plan") up front; constraints,
+  weights, and scenarios live behind an "Advanced" affordance. Nothing technical on the
+  default screen.
+- **Plain-language results** — outputs read as "≈120 stops/route, balanced by visits and
+  travel time," not raw scores. Scores/weights appear only in Advanced.
+- **One-click happy path** — `Select customers → Generate → Preview → Apply/Export`. A
+  manager never has to touch a weight to get a usable plan.
+- **Safe escalation** — Simple results are real engine output (not a lesser algorithm), so a
+  manager can switch to Advanced and keep refining the *same* plan — no rework.
+
+This principle is **cross-cutting**: it governs Route Optimization, Visual Territory Planning,
+Territory Audit, and Sales Force Sizing alike (see TIS strategy). Each stage ships a
+zero-configuration default before any expert controls.
+
+---
+
 ## 2. Core Principle — balance by **workload & value**, not count
 
 A customer needing **3 visits/week** must **not** be treated the same as one needing
