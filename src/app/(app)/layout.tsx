@@ -44,6 +44,19 @@ export default async function AppLayout({
     );
   }
 
+  // Route Planner Admin: a limited, product-scoped console — same chrome-free shell, no
+  // platform sidebar / nav / module gates. It can only reach its own /planner-admin pages
+  // (the pages themselves enforce the route_planner.admin guard).
+  if (ctx.isRoutePlannerAdmin) {
+    return (
+      <ConfirmProvider>
+        <PromptProvider>
+          <main className="min-h-screen bg-background">{children}</main>
+        </PromptProvider>
+      </ConfirmProvider>
+    );
+  }
+
   const { t, locale } = await getT();
 
   // Vendor-side internal employees (platform staff) belong to no tenant company;

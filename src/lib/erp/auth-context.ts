@@ -4,6 +4,7 @@ import type { Branch, BranchRole, Company, Profile } from './types';
 import { ALL_PERMISSIONS, applyFashionUmbrella, type Permission } from './permissions';
 import { ALL_MODULES, type Module } from './navigation';
 import { isRoutePlannerDemoAccount } from './route-planner-demo';
+import { isRoutePlannerAdminAccount } from './route-planner-admin';
 import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys, USER_ACCESS_OVERRIDES_ENABLED, ROLE_PERMISSION_OVERRIDES_ENABLED, applyAccessOverrides } from '@/lib/role-governance';
 import { log } from '@/lib/observability';
 
@@ -33,6 +34,10 @@ export interface UserContext {
    *  screen experience redirected to the Simple Route Planner. Computed by the single
    *  `isRoutePlannerDemoAccount` helper (swap email→role there, not here). */
   isRoutePlannerDemo: boolean;
+  /** True for the limited, product-scoped "Route Planner Admin" — manages only Route
+   *  Planner tenants/subscriptions, never the full platform. Computed by the single
+   *  `isRoutePlannerAdminAccount` helper. */
+  isRoutePlannerAdmin: boolean;
 }
 
 const ROLE_RANK: Record<BranchRole, number> = {
@@ -344,6 +349,7 @@ async function resolveUserContext(): Promise<UserContext | null> {
     permissions,
     modules,
     isRoutePlannerDemo: isRoutePlannerDemoAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
+    isRoutePlannerAdmin: isRoutePlannerAdminAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
   };
 }
 

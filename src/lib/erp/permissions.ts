@@ -116,6 +116,7 @@ export type Permission =
   | 'route_planner.upload' // upload a customer file / map columns
   | 'route_planner.edit' // split, move, merge, rebalance routes
   | 'route_planner.export' // export the plan to Excel
+  | 'route_planner.admin' // manage Route Planner tenants/subscriptions (product-scoped admin)
   // ── Fashion Store pack (clothing vertical) ──
   | 'fashion.manage' // full fashion-store management (owner) — implies all below
   | 'fashion.sell' // POS cash + installment sales, customers, returns
@@ -159,6 +160,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'route_planner.upload': { en: 'Upload / map columns', ar: 'رفع وربط الأعمدة', group: 'field_ops' },
   'route_planner.edit': { en: 'Edit / move routes', ar: 'تعديل ونقل الخطوط', group: 'field_ops' },
   'route_planner.export': { en: 'Export Route Planner Excel', ar: 'تصدير مخطط الخطوط', group: 'field_ops' },
+  'route_planner.admin': { en: 'Manage Route Planner tenants', ar: 'إدارة عملاء مخطط الخطوط', group: 'field_ops' },
   'settings.branches': { en: 'Manage branches', ar: 'إدارة الفروع', group: 'settings' },
   'settings.users': { en: 'Manage users and permissions', ar: 'إدارة المستخدمين والصلاحيات', group: 'settings' },
   'integrations.manage': { en: 'Manage data import & integrations', ar: 'إدارة استيراد البيانات والتكاملات', group: 'settings' },
