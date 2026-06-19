@@ -66,6 +66,8 @@ export interface Customer360Props {
   areas: Area[];
   /** Active routes (read-only territory display). */
   routes?: RouteRef[];
+  /** rep id → supervisor display name (read-only territory display). */
+  supervisorByRep?: Record<string, string>;
   customFields: CustomFieldDef[];
   gov?: GovInputs;
   // Reused permission gates (enforced server-side; here they only gate the UI).
@@ -100,6 +102,7 @@ export function Customer360({
   regions,
   areas,
   routes = [],
+  supervisorByRep = {},
   customFields,
   gov,
   canApprove = false,
@@ -254,6 +257,7 @@ export function Customer360({
             <SectionCard title={t('customer360.territoryTitle')}>
               <dl className="space-y-1 text-sm">
                 <Row label={t('customers.fieldSalesman')} value={repName(customer.salesman_id, reps)} />
+                <Row label={t('customer360.relSupervisor')} value={customer.salesman_id ? supervisorByRep[customer.salesman_id] ?? null : null} />
                 <Row label={t('customer360.relRoute')} value={refName(customer.route_id, routes, ar)} />
                 <Row label={t('customers.fieldRegion')} value={refName(customer.region_id, regions, ar)} />
                 <Row label={t('customers.fieldArea')} value={refName(customer.area_id, areas, ar)} />

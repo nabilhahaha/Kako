@@ -40,6 +40,7 @@ export interface CustomersWorkbenchProps {
   regions: Region[];
   areas: Area[];
   routes?: RouteRef[];
+  supervisorByRep?: Record<string, string>;
   customFields: CustomFieldDef[];
   gov?: GovInputs;
   canApprove?: boolean;
@@ -73,6 +74,7 @@ export function CustomersWorkbench({
   regions,
   areas,
   routes = [],
+  supervisorByRep = {},
   customFields,
   gov,
   canApprove = false,
@@ -168,6 +170,7 @@ export function CustomersWorkbench({
         regions={regions}
         areas={areas}
         routes={routes}
+        supervisorByRep={supervisorByRep}
         customFields={customFields}
         gov={gov}
         canApprove={canApprove}

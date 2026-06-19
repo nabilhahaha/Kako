@@ -35,7 +35,7 @@ export default async function CustomersPage({
   if (classification) listQuery = listQuery.eq('classification_id', classification);
   if (channel) listQuery = listQuery.eq('channel_id', channel);
 
-  const [{ data: customers, count }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }, { data: routes }, selRes] = await Promise.all([
+  const [{ data: customers, count }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }, { data: routes }, { data: allProfiles }, selRes] = await Promise.all([
     listQuery.range(from, to),
     supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
     // Role-scoped reps (self/team/region/all) — see erp_assignable_reps / RLS.
@@ -45,6 +45,8 @@ export default async function CustomersPage({
     supabase.from('erp_areas').select('*').eq('is_active', true).order('sort').order('name'),
     // G1: read-only territory display (route name).
     supabase.from('erp_routes').select('id, name, name_ar').eq('is_active', true).order('name'),
+    // G1: supervisor ownership — resolve each rep's supervisor via reports_to.
+    supabase.from('erp_profiles').select('id, full_name, email, reports_to'),
     // Deep-link: load the selected record directly so it resolves regardless of
     // the current search/filter/pagination window.
     selectedId
@@ -67,6 +69,17 @@ export default async function CustomersPage({
   const selRow = (selRes as { data: ErpCustomer | null }).data;
   const selectedCustomer = selRow ? redact(selRow) : null;
 
+  // G1: rep → supervisor display name, via erp_profiles.reports_to.
+  const profs = (allProfiles as { id: string; full_name: string | null; email: string | null; reports_to: string | null }[]) ?? [];
+  const nameById = new Map(profs.map((p) => [p.id, p.full_name || p.email || '']));
+  const supervisorByRep: Record<string, string> = {};
+  for (const p of profs) {
+    if (p.reports_to) {
+      const n = nameById.get(p.reports_to);
+      if (n) supervisorByRep[p.id] = n;
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -82,6 +95,7 @@ export default async function CustomersPage({
         regions={(regions as Region[]) ?? []}
         areas={(areas as Area[]) ?? []}
         routes={(routes as { id: string; name: string; name_ar: string | null }[]) ?? []}
+        supervisorByRep={supervisorByRep}
         customFields={customFields}
         gov={gov}
         canApprove={hasPermission(ctx, 'customers.approve')}

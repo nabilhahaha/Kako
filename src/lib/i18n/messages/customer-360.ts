@@ -34,6 +34,7 @@ export const ar = {
     relParent: 'العميل الأب',
     relChildren: 'الفروع التابعة',
     relRoute: 'خط السير',
+    relSupervisor: 'المشرف',
     relNone: 'لا توجد عناصر مرتبطة.',
     // Read-only context blocks (G1)
     commercialTitle: 'البيانات التجارية',
@@ -74,6 +75,7 @@ export const en = {
     relParent: 'Parent customer',
     relChildren: 'Sub-accounts',
     relRoute: 'Route',
+    relSupervisor: 'Supervisor',
     relNone: 'No related records.',
     // Read-only context blocks (G1)
     commercialTitle: 'Commercial',
