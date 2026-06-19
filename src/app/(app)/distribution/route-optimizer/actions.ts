@@ -5,12 +5,15 @@ import { requireAuth } from '@/lib/erp/guards';
 import { hasPermission } from '@/lib/erp/permissions';
 import { loadTisDataset } from '@/lib/tis/server';
 import { balanceRoutes, type RouteConstraints, type RoutePlan } from '@/lib/tis/optimize-routes';
-import { compareScenarios, type ScenarioComparison } from '@/lib/tis/scenario';
+import { compareScenarios, applyScenario, type ScenarioComparison } from '@/lib/tis/scenario';
+import { datasetToCsv } from '@/lib/tis/export';
 
 export interface RouteOptimizationResult {
   plan: RoutePlan;
   /** [Current Plan, Optimized] on identical TIS-0 metrics. */
   compare: ScenarioComparison[];
+  /** RO-3: the optimized plan in the single-model CSV (re-importable, no remap). */
+  csv: string;
 }
 
 /**
@@ -32,6 +35,9 @@ export async function generateRoutePlan(
   const plan = balanceRoutes(dataset.customers, constraints);
   if (plan.routeCount === 0) return { ok: false, error: 'no_customers' };
 
-  const compare = compareScenarios(dataset, [{ id: 'optimized', name: 'Optimized', assignments: plan.assignments }]);
-  return { ok: true, data: { plan, compare } };
+  const optimizedScenario = { id: 'optimized', name: 'Optimized', assignments: plan.assignments };
+  const compare = compareScenarios(dataset, [optimizedScenario]);
+  // RO-3: single-model CSV of the optimized dataset (Export ≡ Import ≡ Apply).
+  const csv = datasetToCsv(applyScenario(dataset, optimizedScenario));
+  return { ok: true, data: { plan, compare, csv } };
 }

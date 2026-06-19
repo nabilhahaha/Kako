@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Wand2 } from 'lucide-react';
+import { Loader2, Wand2, Download } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +52,16 @@ export function RouteOptimizer() {
     });
   }
 
+  function onExport() {
+    if (!result) return;
+    const blob = new Blob([result.csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `route-plan-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   const fmt = (key: keyof ScenarioMetrics, v: number) =>
     key === 'distanceM' ? `${(v / 1000).toFixed(1)} km` : key === 'routeBalancePct' || key === 'coveragePct' ? `${v}%` : key === 'salesValue' ? v.toLocaleString() : String(v);
 
@@ -82,10 +92,15 @@ export function RouteOptimizer() {
 
       {result && (
         <>
-          {/* Plain-language headline. */}
-          <p className="text-sm">
-            {t('routeOpt.summary').replace('{routes}', String(result.plan.routeCount)).replace('{balance}', String(result.plan.workloadBalancePct))}
-          </p>
+          {/* Plain-language headline + export. */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm">
+              {t('routeOpt.summary').replace('{routes}', String(result.plan.routeCount)).replace('{balance}', String(result.plan.workloadBalancePct))}
+            </p>
+            <Button type="button" variant="outline" size="sm" onClick={onExport}>
+              <Download className="h-4 w-4" /> {t('routeOpt.exportCsv')}
+            </Button>
+          </div>
 
           {/* Current vs Optimized — identical metrics. */}
           <Card>
