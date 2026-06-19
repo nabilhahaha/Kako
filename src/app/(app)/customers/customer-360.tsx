@@ -27,6 +27,8 @@ import { QuickNav, type QuickLink } from '@/components/home/home-widgets';
 import { ActivityTimeline } from '@/components/home/activity-timeline';
 import { CustomerStatementView } from '@/components/customers/customer-statement';
 import { EntityNotes } from '@/components/entity/entity-notes';
+import { WhatsAppButton } from '@/components/whatsapp-button';
+import { CreditRequestButton } from './[id]/credit-request-button';
 import { EntityHeader, EntityTabs } from '@/components/admin/entity-detail';
 import { SectionCard } from '@/components/admin/section-card';
 import { EntityActionBar } from '@/components/admin/entity-action-bar';
@@ -66,6 +68,8 @@ export interface Customer360Props {
   canApprove?: boolean;
   canCollect?: boolean;
   canTransfer?: boolean;
+  /** credit.request.create — surfaces the FMCG credit-request panel (Statement). */
+  canRequestCredit?: boolean;
   /** URL-addressable facet tab, controlled by the workbench (?tab=). */
   tab: string;
   onTabChange: (tab: string) => void;
@@ -96,6 +100,7 @@ export function Customer360({
   canApprove = false,
   canCollect = false,
   canTransfer = false,
+  canRequestCredit = false,
   tab,
   onTabChange,
   onChanged,
@@ -264,6 +269,19 @@ export function Customer360({
       {tab === 'statement' && (
         <div className="space-y-4">
           <StatusContext customer={customer} lookups={lookups} reps={reps} ar={ar} locale={locale} t={t} />
+          {(Number(customer.balance) > 0 || canRequestCredit) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {Number(customer.balance) > 0 && (
+                <WhatsAppButton
+                  phone={customer.phone}
+                  label={t('customers.stmtWhatsAppLabel')}
+                  message={t('customers.stmtWhatsAppMsg', { name, amount: formatCurrency(customer.balance) })}
+                  className="h-9 border px-3"
+                />
+              )}
+              {canRequestCredit && <CreditRequestButton customerId={id} currentLimit={Number(customer.credit_limit)} />}
+            </div>
+          )}
           <CustomerStatementView
             statement={bundle.statement.statement}
             printHref={printHref}
