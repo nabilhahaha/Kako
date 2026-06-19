@@ -138,6 +138,54 @@ user experience, capabilities scaled to the data they have.
 
 ---
 
+## 4b. Integration Framework (future architecture requirement)
+
+**Goal:** TIS works with external **SFA / DMS / ERP / Route-Planning** systems **without
+requiring VANTORA adoption**. External systems are **integrations, not dependencies** — TIS
+runs standalone, connected, or embedded, on one connector architecture. No vendor-specific
+code paths. **Roadmap only.**
+
+### Integration maturity model
+
+| Level | Capability | Notes |
+| :--- | :--- | :--- |
+| **L1 — File-based** | Excel/CSV **Import + Export** | **Mandatory, permanent** — the universal fallback (already the single data model, §4 / RO §4a). |
+| **L2 — API Connectors** | A **generic connector framework** (not per-system code) | Providers below; vendor connectors plug in. |
+| **L3 — Scheduled Sync** | Scheduled import/export · **delta sync** · refresh jobs | Reuse the scheduler/job pattern. |
+| **L4 — Near-real-time** | Bi-directional `External ↔ TIS`: customer · journey-plan · route · visit · **coverage** sync | Forward-looking. |
+
+### Connector framework (L2) — provider interfaces, not implementations
+
+A small set of **provider contracts** the platform consumes; every external system is just an
+adapter that satisfies them:
+
+```
+CustomerProvider · SalesProvider · VisitProvider ·
+JourneyPlanProvider · RouteProvider · TerritoryProvider
+```
+
+- Each provider maps an external system's data to the **TIS canonical dataset** (§4 single
+  model) — so Audit / Sizing / Optimization / Coverage consume one shape regardless of source.
+- Vendor connectors — **SalesBuzz · SAP · Odoo · Dynamics · Salesforce** — are **consumers of
+  the same framework**, shipped/maintained independently of the core. No connector is special.
+- The framework is **capability-aware** (§4a): a connector that supplies only customers+sales
+  lights up Mode B; one that adds visits/GPS reaches Mode C.
+
+### Design principles
+1. **Excel is supported permanently** (L1 never deprecated).
+2. **No vendor-specific architecture** — one framework, many adapters.
+3. **Build the connector framework first**, then connectors.
+4. TIS must operate **standalone · connected to external systems · embedded in VANTORA**.
+5. **External systems are integrations, not dependencies** — absence degrades gracefully (§4a),
+   never blocks.
+
+### Reuse anchors
+Existing import/export pipeline (entity descriptors, ref resolution) → L1; the integration
+ingest path (`integration-ingest.ts`) and feature/connector patterns → L2/L3; the single data
+model + FR/Coverage read-models → the canonical target every provider maps to.
+
+---
+
 ## 5. Remaining Gaps (to close before TIS is whole)
 
 | Gap | Severity | Note |
