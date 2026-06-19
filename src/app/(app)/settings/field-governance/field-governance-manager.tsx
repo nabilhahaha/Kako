@@ -82,6 +82,7 @@ export function FieldGovernanceManager({
     { v: 'inherit', label: t('fieldGov.accessInherit') },
     { v: 'hidden', label: t('fieldGov.accessHidden') },
     { v: 'view', label: t('fieldGov.accessView') },
+    { v: 'request', label: t('fieldGov.accessRequest') },
     { v: 'edit', label: t('fieldGov.accessEdit') },
     { v: 'required', label: t('fieldGov.accessRequired') },
   ];
@@ -164,7 +165,7 @@ export function FieldGovernanceManager({
 
   // ── Preview as a role (simulate resolved access, read-only) ─────────────────
   const ACCESS_LABEL: Record<string, string> = {
-    hidden: t('fieldGov.accessHidden'), view: t('fieldGov.accessView'), edit: t('fieldGov.accessEdit'), required: t('fieldGov.accessRequired'),
+    hidden: t('fieldGov.accessHidden'), view: t('fieldGov.accessView'), request: t('fieldGov.accessRequest'), edit: t('fieldGov.accessEdit'), required: t('fieldGov.accessRequired'),
   };
   function previewAccess(f: AdminField): ResolvedLevel {
     const isAdmin = previewRole === 'admin' || previewRole === 'it_admin';
@@ -438,6 +439,7 @@ export function FieldGovernanceManager({
                 <option value="">{t('fieldGov.bulkSetAccess')}</option>
                 <option value="hidden">{t('fieldGov.accessHidden')}</option>
                 <option value="view">{t('fieldGov.accessView')}</option>
+                <option value="request">{t('fieldGov.accessRequest')}</option>
                 <option value="edit">{t('fieldGov.accessEdit')}</option>
                 <option value="required">{t('fieldGov.accessRequired')}</option>
               </Select>

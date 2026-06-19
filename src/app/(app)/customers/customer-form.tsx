@@ -84,7 +84,8 @@ export function CustomerForm({
     : new Map();
   const acc = (k: string): AccessLevel => govLayout.get(k) ?? 'edit';
   const shown = (k: string) => acc(k) !== 'hidden';
-  const ro = (k: string) => acc(k) === 'view';
+  // 'request' is read-only for direct edits (a change-request affordance is added in G7).
+  const ro = (k: string) => acc(k) === 'view' || acc(k) === 'request';
   const req = (k: string) => acc(k) === 'required';
   const gl = (label: string, required: boolean) => (required ? `${label} *` : label);
 
