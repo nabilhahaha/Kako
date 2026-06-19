@@ -105,6 +105,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const [selectMode, setSelectMode] = useState<'pan' | 'box' | 'draw'>('pan');
   const [showAllBoundaries, setShowAllBoundaries] = useState(false);
   const [showOnlySelected, setShowOnlySelected] = useState(false);
+  const [compactList, setCompactList] = useState(true);
   const [sortKey, setSortKey] = useState<'route' | 'customers' | 'workload' | 'sales' | 'salesPerCustomer'>('route');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
@@ -592,7 +593,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
       })()}
       {/* Toolbar */}
       <Card className={focus ? 'shrink-0 shadow-sm' : ''}>
-        <CardContent className="flex flex-wrap items-end gap-x-4 gap-y-3 p-3">
+        <CardContent className={`flex flex-wrap items-end gap-x-4 ${focus ? 'gap-y-2 p-2' : 'gap-y-3 p-3'}`}>
           {method === 'assisted' ? (
             <div>
               <label className="block text-[11px] text-muted-foreground">{t('routePlanner.routeCount')}</label>
@@ -684,11 +685,13 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         </Card>
       )}
 
-      <div className={focus ? 'grid min-h-0 flex-1 gap-2 lg:grid-cols-[1fr_300px]' : 'grid gap-3 lg:grid-cols-[1fr_320px]'}>
-        {/* Map + selection controls */}
-        <div className={focus ? 'flex min-h-0 flex-col gap-1.5' : 'space-y-2'}>
+      <div className={focus ? 'grid min-h-0 flex-1 gap-2 lg:grid-cols-[1fr_270px]' : 'grid gap-3 lg:grid-cols-[1fr_320px]'}>
+        {/* Map + selection controls. In focus mode the controls FLOAT over the map so the
+            map itself fills the whole column (map-as-hero). */}
+        <div className={focus ? 'relative min-h-0 flex-1' : 'space-y-2'}>
+          <div className={focus ? 'pointer-events-none absolute start-2 top-2 z-[5] flex w-[min(44rem,calc(100%-3.5rem))] flex-col gap-1.5' : 'space-y-2'}>
           {/* Selection mode + boundaries + focus */}
-          <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm ${focus ? 'bg-background/85 shadow-sm backdrop-blur' : 'bg-muted/30'}`}>
             <span className="text-muted-foreground">{t('routePlanner.selectMode')}</span>
             <div className="inline-flex overflow-hidden rounded-md border">
               <button onClick={() => setSelectMode('pan')} className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs ${selectMode === 'pan' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><Hand className="h-3.5 w-3.5" /> {t('routePlanner.panMode')}</button>
@@ -701,7 +704,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
           </div>
 
           {/* Move bar with live count + per-route breakdown */}
-          <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm ${focus ? 'bg-background/85 shadow-sm backdrop-blur' : 'bg-muted/30'}`}>
             {selectingInfo != null ? (
               <span className="font-medium text-primary">
                 {t('routePlanner.selectingN').replace('{n}', String(selectingInfo.count))}
@@ -732,13 +735,14 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
 
           {/* Move impact preview */}
           {!viewingCurrent && selectingInfo == null && movePreview && (
-            <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-1.5 text-xs text-emerald-800">
+            <p className="pointer-events-auto rounded-md border border-emerald-200 bg-emerald-50/90 px-3 py-1.5 text-xs text-emerald-800 backdrop-blur">
               {t('routePlanner.movePreview').replace('{n}', String(movePreview.count)).replace('{target}', targetLabel)}
               {hasSales && ` · ${t('routePlanner.salesImpact')} +${fmt(movePreview.totalSales)}`}
             </p>
           )}
+          </div>
 
-          <div className={focus ? 'min-h-0 flex-1' : ''}>
+          <div className={focus ? 'h-full' : ''}>
             <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} fill={focus} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingInfo} onSelectComplete={() => setSelectMode('pan')} />
           </div>
         </div>
@@ -746,9 +750,12 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         {/* Route side panel */}
         <Card className={focus ? 'flex min-h-0 flex-col self-stretch' : 'self-start'}>
           <CardContent className={focus ? 'flex min-h-0 flex-1 flex-col gap-2 p-3' : 'space-y-2 p-3'}>
-            {/* Summary for selected route(s) / all */}
-            <div className="rounded-md border bg-muted/40 p-2">
-              <p className="text-xs font-semibold">{focusedRoutes.size ? t('routePlanner.summaryFocused').replace('{n}', String(focusedRoutes.size)) : t('routePlanner.summaryAll')}</p>
+            {/* Summary for selected route(s) / all — collapsed by default in focus mode so
+                the route list dominates the panel. */}
+            <details className="rounded-md border bg-muted/40 p-2" open={!focus}>
+              <summary className="cursor-pointer list-none text-xs font-semibold hover:text-primary">
+                {focusedRoutes.size ? t('routePlanner.summaryFocused').replace('{n}', String(focusedRoutes.size)) : t('routePlanner.summaryAll')}
+              </summary>
               <div className="mt-1 grid grid-cols-3 gap-x-2 gap-y-1.5 text-xs">
                 {([
                   [t('routePlanner.colCustomers'), String(summary.customers)],
@@ -768,11 +775,12 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
                   <div key={label}><p className="text-[10px] text-muted-foreground">{label}</p><p className="font-semibold tabular-nums" dir="ltr">{value}</p></div>
                 ))}
               </div>
-            </div>
+            </details>
 
             <div className="flex items-center justify-between gap-1">
               <p className="text-sm font-semibold">{t('routePlanner.routesTitle')} <span className="text-xs font-normal text-muted-foreground">({reviews.length})</span></p>
               <div className="flex flex-wrap justify-end gap-1">
+                {focus && <button onClick={() => setCompactList((v) => !v)} className={`rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted ${compactList ? 'border-primary bg-primary/10 text-primary' : ''}`} title={t('routePlanner.compactList')}>{compactList ? '≣' : '☰'}</button>}
                 <button onClick={focusAll} className="rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted">{t('routePlanner.focusAll')}</button>
                 <button onClick={clearFocus} className="rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted">{t('routePlanner.clearFocus')}</button>
                 <button disabled={focusedRoutes.size === 0} onClick={() => setShowOnlySelected((v) => !v)} className={`rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted disabled:opacity-40 ${showOnlySelected ? 'border-primary bg-primary/10 text-primary' : ''}`}>{showOnlySelected ? t('routePlanner.showAll') : t('routePlanner.showOnly')}</button>
@@ -801,6 +809,24 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
                 const on = focusedRoutes.has(s.routeId);
                 const tier = salesTier.get(s.routeId);
                 const pct = hasSales && datasetSales > 0 ? Math.round((s.sales / datasetSales) * 100) : 0;
+                if (focus && compactList) {
+                  // ── Dense single-line row (Compact List mode): max routes on screen ──
+                  return (
+                    <button
+                      key={s.routeId}
+                      onClick={() => toggleFocus(s.routeId)}
+                      title={t('routePlanner.focusHint')}
+                      className={`flex w-full items-center gap-1.5 rounded border border-s-[3px] py-1 pe-1.5 ps-1.5 text-start text-xs transition hover:bg-muted/60 ${on ? 'border-primary bg-primary/5' : 'hover:border-primary/40'}`}
+                      style={{ borderInlineStartColor: s.color }}
+                    >
+                      <span className={`flex h-3 w-3 shrink-0 items-center justify-center rounded-sm border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'}`}>{on && <Check className="h-2 w-2" />}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium">{routeLabelOf(s.routeId)}</span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground" dir="ltr">{s.customers}{hasSales ? ` · ${fmtShort(s.sales)}` : `· ${s.workloadHours}h`}</span>
+                      {tier === 'top' && <span className="shrink-0 rounded bg-emerald-100 px-1 text-[9px] font-semibold text-emerald-700">▲</span>}
+                      {tier === 'bottom' && <span className="shrink-0 rounded bg-red-100 px-1 text-[9px] font-semibold text-red-700">▼</span>}
+                    </button>
+                  );
+                }
                 if (focus) {
                   // ── Compact route card (presentation mode): 2 lines, ~50% shorter ──
                   // Line 1: "Route 31"  ·  Line 2: "207 Cust | 1.14M SAR"
