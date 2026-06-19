@@ -39,6 +39,8 @@ export interface ScenarioMetrics {
   routeCount: number;
   /** Workload balance across routes (100 = perfectly even). */
   routeBalancePct: number;
+  /** Sales-value balance across routes (100 = perfectly even). */
+  valueBalancePct: number;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -96,11 +98,12 @@ export function scenarioMetrics(dataset: TisDataset): ScenarioMetrics {
     if (opt.length > 1) distanceM += optimizeRoute(opt, null).totalDistanceM;
   }
 
-  // Route balance: coefficient of variation of per-route workload (100 = even).
-  const routeWorkloads = [...byRoute.values()].map((list) =>
-    list.reduce((s, c) => s + (customerWorkload(c) ?? 0), 0),
-  );
+  // Route balance: coefficient of variation of per-route workload / value (100 = even).
+  const routeLists = [...byRoute.values()];
+  const routeWorkloads = routeLists.map((list) => list.reduce((s, c) => s + (customerWorkload(c) ?? 0), 0));
+  const routeValues = routeLists.map((list) => list.reduce((s, c) => s + (c.salesValue ?? 0), 0));
   const routeBalancePct = balancePct(routeWorkloads);
+  const valueBalancePct = balancePct(routeValues);
 
   const cov = rollupCoverage(statuses);
 
@@ -112,6 +115,7 @@ export function scenarioMetrics(dataset: TisDataset): ScenarioMetrics {
     coveragePct: cov.coveragePct,
     routeCount: byRoute.size,
     routeBalancePct,
+    valueBalancePct,
   };
 }
 
