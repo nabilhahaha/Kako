@@ -12,7 +12,7 @@ import { StatCard } from '@/components/shared/stat-card';
 import { buildTisDataset, isValidGeo, type TisCustomer, type TisDataset, type TisSource } from '@/lib/tis/dataset';
 import { applyScenario, scenarioMetrics, type Scenario } from '@/lib/tis/scenario';
 import { currentPlanScenario, cloneScenario, setAssignment } from '@/lib/tis/plan-edit';
-import { balanceRoutes } from '@/lib/tis/optimize-routes';
+import { balanceRoutes, validateConstraints, type RouteConstraints } from '@/lib/tis/optimize-routes';
 import { datasetToCsv, TIS_CSV_COLUMNS } from '@/lib/tis/export';
 import { buildTisDatasetFromRows } from '@/lib/tis/upload';
 import { auditTerritory } from '@/lib/tis/audit';
@@ -25,6 +25,8 @@ import { parseTisUpload } from './import-actions';
 
 type Stage = 'import' | 'overview' | 'audit' | 'map' | 'optimize' | 'plan' | 'size';
 type ColorMode = 'route' | 'salesman' | 'coverage' | 'territory' | 'grade';
+type BalanceBy = 'workload' | 'value' | 'count';
+interface OptConfig { routeCount: string; workingDays: string; balanceBy: BalanceBy; maxPerRoute: string; maxVisitsPerDay: string; advanced: boolean }
 const GRADE_HEX: Record<string, string> = { a: '#16a34a', b: '#2563eb', c: '#d97706', d: '#dc2626' };
 const NEUTRAL = '#94a3b8';
 /** Sorted-id → palette colour map (categorical layers: salesman / region). */
@@ -61,8 +63,8 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
   const [activeId, setActiveId] = useState('current');
   const [stage, setStage] = useState<Stage>('overview');
   const [colorMode, setColorMode] = useState<ColorMode>('coverage');
-  const [workingDays, setWorkingDays] = useState('5');
-  const [routeCountInput, setRouteCountInput] = useState(''); // '' = auto (current route count)
+  // Optimize config — Simple: routeCount · workingDays · balanceBy. Advanced: caps.
+  const [opt, setOpt] = useState<OptConfig>({ routeCount: '', workingDays: '5', balanceBy: 'workload', maxPerRoute: '', maxVisitsPerDay: '', advanced: false });
   const [scope, setScope] = useState<ScopeState>(() => initialScope(dataset.customers));
   const [importMsg, setImportMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [importing, setImporting] = useState(false);
@@ -155,10 +157,17 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
   }, [working, mode, labels, routeColor, salesmanColors, regionColors]);
 
   function onOptimize() {
-    const rc = Math.max(0, Math.round(Number(routeCountInput))) || scopedRouteCount || defaultRouteCount;
+    const rc = Math.max(0, Math.round(Number(opt.routeCount))) || scopedRouteCount || defaultRouteCount;
     // Optimize only the in-scope customers; overlay onto the active plan so
     // out-of-scope routes are untouched.
-    const plan = balanceRoutes(working, { routeCount: rc, workingDays: Number(workingDays) || 5 });
+    const constraints: RouteConstraints = {
+      routeCount: rc,
+      workingDays: Number(opt.workingDays) || 5,
+      balanceBy: opt.balanceBy,
+      ...(Number(opt.maxPerRoute) > 0 ? { maxPerRoute: Number(opt.maxPerRoute) } : {}),
+      ...(Number(opt.maxVisitsPerDay) > 0 ? { maxVisitsPerDay: Number(opt.maxVisitsPerDay) } : {}),
+    };
+    const plan = balanceRoutes(working, constraints);
     const merged = plan.assignments.reduce((sc, a) => setAssignment(sc, a), { ...active, id: 'optimized', name: t('planBoard.optimized') });
     setScenarios((list) => [...list.filter((s) => s.id !== 'optimized'), merged]);
     setActiveId('optimized');
@@ -280,7 +289,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
                 {stage === 'overview' && <OverviewPanel audit={audit} onOptimize={onOptimize} onImport={() => setStage('import')} t={t} sample={sample} />}
                 {stage === 'audit' && <TerritoryAuditView audit={audit} labels={labels} />}
                 {stage === 'map' && <p className="text-sm text-muted-foreground">{t('studio.mapLead')}</p>}
-                {stage === 'optimize' && <OptimizePanel dataset={scopedDataset} scenarios={scenarios} workingDays={workingDays} setWorkingDays={setWorkingDays} routeCount={routeCountInput} setRouteCount={setRouteCountInput} defaultRouteCount={scopedRouteCount || defaultRouteCount} onOptimize={onOptimize} t={t} />}
+                {stage === 'optimize' && <OptimizePanel dataset={scopedDataset} scenarios={scenarios} opt={opt} setOpt={setOpt} defaultRouteCount={scopedRouteCount || defaultRouteCount} onOptimize={onOptimize} t={t} />}
                 {stage === 'size' && <NeedsPanel text={t('studio.sizeSoon')} />}
                 {STANDALONE[stage] && <StageLink href={STANDALONE[stage]!} label={t('studio.openFull')} />}
               </aside>
@@ -354,24 +363,61 @@ function ImportPanel({ t, importing, message, sample, count, onPick, onTemplate 
   );
 }
 
-function OptimizePanel({ dataset, scenarios, workingDays, setWorkingDays, routeCount, setRouteCount, defaultRouteCount, onOptimize, t }: { dataset: ReturnType<typeof buildTisDataset>; scenarios: Scenario[]; workingDays: string; setWorkingDays: (v: string) => void; routeCount: string; setRouteCount: (v: string) => void; defaultRouteCount: number; onOptimize: () => void; t: (k: string) => string }) {
+function OptimizePanel({ dataset, scenarios, opt, setOpt, defaultRouteCount, onOptimize, t }: { dataset: ReturnType<typeof buildTisDataset>; scenarios: Scenario[]; opt: OptConfig; setOpt: (v: OptConfig) => void; defaultRouteCount: number; onOptimize: () => void; t: (k: string) => string }) {
   const current = scenarios.find((s) => s.id === 'current');
   const optimized = scenarios.find((s) => s.id === 'optimized');
   const cur = current ? scenarioMetrics(applyScenario(dataset, current)) : null;
-  const opt = optimized ? scenarioMetrics(applyScenario(dataset, optimized)) : null;
+  const optM = optimized ? scenarioMetrics(applyScenario(dataset, optimized)) : null;
+  const set = (patch: Partial<OptConfig>) => setOpt({ ...opt, ...patch });
+  // Feasibility: validate the requested constraints over the in-scope customers.
+  const rc = Math.max(0, Math.round(Number(opt.routeCount))) || defaultRouteCount;
+  const feas = validateConstraints(dataset.customers, {
+    routeCount: rc, workingDays: Number(opt.workingDays) || 5,
+    ...(Number(opt.maxPerRoute) > 0 ? { maxPerRoute: Number(opt.maxPerRoute) } : {}),
+    ...(Number(opt.maxVisitsPerDay) > 0 ? { maxVisitsPerDay: Number(opt.maxVisitsPerDay) } : {}),
+  });
+  const BALANCE: BalanceBy[] = ['workload', 'value', 'count'];
   return (
     <div className="space-y-3">
+      {/* Simple Mode: the whole job for most companies. */}
       <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1"><Label className="text-xs">{t('routeOpt.routeCount')}</Label><Input type="number" min={1} dir="ltr" className="w-24" placeholder={`${t('routeOpt.auto')} (${defaultRouteCount})`} value={routeCount} onChange={(e) => setRouteCount(e.target.value)} /></div>
-        <div className="space-y-1"><Label className="text-xs">{t('routeOpt.workingDays')}</Label><Input type="number" min={1} max={7} dir="ltr" className="w-24" value={workingDays} onChange={(e) => setWorkingDays(e.target.value)} /></div>
-        <Button onClick={onOptimize}><Wand2 className="h-4 w-4" /> {t('routeOpt.generate')}</Button>
+        <div className="space-y-1"><Label className="text-xs">{t('routeOpt.routeCount')}</Label><Input type="number" min={1} dir="ltr" className="w-24" placeholder={`${t('routeOpt.auto')} (${defaultRouteCount})`} value={opt.routeCount} onChange={(e) => set({ routeCount: e.target.value })} /></div>
+        <div className="space-y-1"><Label className="text-xs">{t('routeOpt.workingDays')}</Label><Input type="number" min={1} max={7} dir="ltr" className="w-24" value={opt.workingDays} onChange={(e) => set({ workingDays: e.target.value })} /></div>
       </div>
-      {cur && opt && (
+      <div className="space-y-1">
+        <Label className="text-xs">{t('routeOpt.balanceBy')}</Label>
+        <div className="flex flex-wrap gap-1">
+          {BALANCE.map((b) => (
+            <button key={b} onClick={() => set({ balanceBy: b })} className={`rounded-md border px-2.5 py-1 text-xs ${opt.balanceBy === b ? 'border-primary bg-secondary font-medium' : 'hover:bg-muted'}`}>{t(`routeOpt.bal_${b}`)}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Advanced (collapsed by default — Simplicity Model). */}
+      <button onClick={() => set({ advanced: !opt.advanced })} className="text-xs text-primary hover:underline">{opt.advanced ? t('routeOpt.hideAdvanced') : t('routeOpt.advanced')}</button>
+      {opt.advanced && (
+        <div className="flex flex-wrap items-end gap-3 rounded-md border bg-muted/20 p-2">
+          <div className="space-y-1"><Label className="text-xs">{t('routeOpt.maxPerRoute')}</Label><Input type="number" min={1} dir="ltr" className="w-24" value={opt.maxPerRoute} onChange={(e) => set({ maxPerRoute: e.target.value })} /></div>
+          <div className="space-y-1"><Label className="text-xs">{t('routeOpt.maxVisitsPerDay')}</Label><Input type="number" min={1} dir="ltr" className="w-24" value={opt.maxVisitsPerDay} onChange={(e) => set({ maxVisitsPerDay: e.target.value })} /></div>
+        </div>
+      )}
+
+      {/* Inline feasibility recommendation (shown in Simple — no need to open Advanced). */}
+      {!feas.feasible && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          <span>{t('routeOpt.infeasibleHint').replace('{n}', String(feas.recommendedRoutes))}</span>
+          <Button size="sm" variant="outline" className="ms-auto" onClick={() => set({ routeCount: String(feas.recommendedRoutes) })}>{t('routeOpt.useRecommended').replace('{n}', String(feas.recommendedRoutes))}</Button>
+        </div>
+      )}
+
+      <Button onClick={onOptimize}><Wand2 className="h-4 w-4" /> {t('routeOpt.generate')}</Button>
+
+      {cur && optM && (
         <Card><CardContent className="p-0">
           <table className="w-full text-sm">
             <thead className="border-b text-xs text-muted-foreground"><tr><th className="px-3 py-2 text-start font-medium">{t('routeOpt.metric')}</th><th className="px-3 py-2 text-end font-medium">{t('routeOpt.current')}</th><th className="px-3 py-2 text-end font-medium">{t('routeOpt.optimized')}</th></tr></thead>
             <tbody>
-              {([['routeOpt.routes', cur.routeCount, opt.routeCount], ['routeOpt.distance', `${(cur.distanceM / 1000).toFixed(0)} km`, `${(opt.distanceM / 1000).toFixed(0)} km`], ['routeOpt.balance', `${cur.routeBalancePct}%`, `${opt.routeBalancePct}%`], ['planBoard.valueBalance', `${cur.valueBalancePct}%`, `${opt.valueBalancePct}%`]] as const).map(([k, a, b]) => (
+              {([['routeOpt.routes', cur.routeCount, optM.routeCount], ['routeOpt.distance', `${(cur.distanceM / 1000).toFixed(0)} km`, `${(optM.distanceM / 1000).toFixed(0)} km`], ['routeOpt.balance', `${cur.routeBalancePct}%`, `${optM.routeBalancePct}%`], ['planBoard.valueBalance', `${cur.valueBalancePct}%`, `${optM.valueBalancePct}%`]] as const).map(([k, a, b]) => (
                 <tr key={k} className="border-b last:border-0"><td className="px-3 py-2">{t(k)}</td><td className="px-3 py-2 text-end tabular-nums text-muted-foreground" dir="ltr">{a}</td><td className="px-3 py-2 text-end font-medium tabular-nums" dir="ltr">{b}</td></tr>
               ))}
             </tbody>

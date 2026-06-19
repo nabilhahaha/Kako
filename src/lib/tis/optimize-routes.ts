@@ -64,6 +64,40 @@ function distKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
 
+export interface FeasibilityResult {
+  /** Is the requested route count enough to satisfy the caps? (true when no count/caps). */
+  feasible: boolean;
+  /** Routes the user requested (null = auto). */
+  requestedRoutes: number | null;
+  /** Minimum routes needed to satisfy the caps. */
+  recommendedRoutes: number;
+  /** Which cap binds the recommendation. */
+  bind: 'customers' | 'visits' | null;
+}
+
+/**
+ * Validate optimization constraints and, when infeasible, recommend the route count
+ * that WOULD fit — surfaced inline in Simple Mode so a supervisor never has to open
+ * Advanced to learn a plan won't fit. Pure.
+ */
+export function validateConstraints(customers: readonly TisCustomer[], c: RouteConstraints): FeasibilityResult {
+  const n = customers.length;
+  const requested = c.routeCount && c.routeCount > 0 ? c.routeCount : null;
+  let recCustomers = 1, recVisits = 1;
+  if (c.maxPerRoute && c.maxPerRoute > 0) recCustomers = Math.max(1, Math.ceil(n / c.maxPerRoute));
+  if (c.maxVisitsPerDay && c.maxVisitsPerDay > 0) {
+    const days = c.workingDays && c.workingDays > 0 ? c.workingDays : 5;
+    const totalWl = customers.reduce((s, x) => s + (customerWorkload(x) ?? 1), 0);
+    const perRoute = c.maxVisitsPerDay * days;
+    if (perRoute > 0) recVisits = Math.max(1, Math.ceil(totalWl / perRoute));
+  }
+  const hasCaps = !!((c.maxPerRoute && c.maxPerRoute > 0) || (c.maxVisitsPerDay && c.maxVisitsPerDay > 0));
+  const recommendedRoutes = Math.max(1, recCustomers, recVisits);
+  const bind = !hasCaps ? null : recCustomers >= recVisits ? 'customers' : 'visits';
+  const feasible = requested == null ? true : requested >= recommendedRoutes;
+  return { feasible, requestedRoutes: requested, recommendedRoutes, bind };
+}
+
 /** Resolve K from the most specific constraint provided; never a hardcoded count. */
 export function resolveRouteCount(customers: readonly TisCustomer[], c: RouteConstraints): number {
   const n = customers.length;

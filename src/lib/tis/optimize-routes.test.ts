@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { balanceRoutes, resolveRouteCount, workingDayList } from './optimize-routes';
+import { balanceRoutes, resolveRouteCount, workingDayList, validateConstraints } from './optimize-routes';
 import { buildTisCustomer } from './dataset';
 import type { VisitFrequency } from '@/lib/route-optimization/visit-frequency';
 
@@ -70,6 +70,33 @@ describe('balanceRoutes', () => {
       const routeDays = new Set(plan.assignments.filter((a) => a.routeId === r.routeId).map((a) => a.dayOfWeek));
       expect(routeDays.size).toBeGreaterThan(1);
     }
+  });
+});
+
+describe('validateConstraints (feasibility + recommendation)', () => {
+  const many = Array.from({ length: 100 }, (_, i) => cluster(`c${i}`, 0)); // 100 customers, 1 visit/wk each
+  it('feasible when no caps', () => {
+    const r = validateConstraints(many, { routeCount: 5 });
+    expect(r.feasible).toBe(true);
+    expect(r.recommendedRoutes).toBe(1);
+    expect(r.bind).toBeNull();
+  });
+  it('infeasible by max customers/route → recommends enough routes', () => {
+    // 100 customers, max 20/route, requested 3 → need ceil(100/20)=5.
+    const r = validateConstraints(many, { routeCount: 3, maxPerRoute: 20 });
+    expect(r.feasible).toBe(false);
+    expect(r.recommendedRoutes).toBe(5);
+    expect(r.bind).toBe('customers');
+  });
+  it('feasible when requested ≥ recommended', () => {
+    expect(validateConstraints(many, { routeCount: 5, maxPerRoute: 20 }).feasible).toBe(true);
+  });
+  it('infeasible by max visits/day capacity', () => {
+    // 100 visits/wk; cap 5/day × 4 days = 20/route → need ceil(100/20)=5 routes.
+    const r = validateConstraints(many, { routeCount: 2, maxVisitsPerDay: 5, workingDays: 4 });
+    expect(r.feasible).toBe(false);
+    expect(r.recommendedRoutes).toBe(5);
+    expect(r.bind).toBe('visits');
   });
 });
 
