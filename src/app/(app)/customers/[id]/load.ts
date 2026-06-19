@@ -58,6 +58,18 @@ export interface CustomerDetailBundle {
    *  involved salesmen/routes/regions/branches. */
   transfers: CustomerTransferRow[];
   transferNames: Record<string, string>;
+  /** G7/visibility: open (pending) field-change requests — read-only transparency. */
+  pendingChanges: CustomerPendingChange[];
+}
+
+/** G7: a pending customer change request (read-only visibility). */
+export interface CustomerPendingChange {
+  id: string;
+  changes: Record<string, unknown>;
+  reason: string | null;
+  status: string;
+  created_at: string;
+  requesterName: string;
 }
 
 async function safeRows<T>(fn: () => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
@@ -125,6 +137,33 @@ export async function loadCustomerDetailBundle(
   );
   const transferNames = await resolveTransferNames(supabase, transfers);
 
+  // G7 visibility: open (pending) change requests + the requester display name.
+  const pendingRows = await safeRows<{ id: string; changes: Record<string, unknown>; reason: string | null; status: string; created_at: string; requested_by: string | null }>(() =>
+    supabase
+      .from('erp_customer_change_requests')
+      .select('id, changes, reason, status, created_at, requested_by')
+      .eq('customer_id', customerId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(20),
+  );
+  const requesterIds = [...new Set(pendingRows.map((r) => r.requested_by).filter((x): x is string => !!x))];
+  const requesterNames: Record<string, string> = {};
+  if (requesterIds.length > 0) {
+    const profs = await safeRows<{ id: string; full_name: string | null; email: string | null }>(() =>
+      supabase.from('erp_profiles').select('id, full_name, email').in('id', requesterIds),
+    );
+    for (const p of profs) requesterNames[p.id] = p.full_name || p.email || '';
+  }
+  const pendingChanges: CustomerPendingChange[] = pendingRows.map((r) => ({
+    id: r.id,
+    changes: r.changes ?? {},
+    reason: r.reason,
+    status: r.status,
+    created_at: r.created_at,
+    requesterName: r.requested_by ? requesterNames[r.requested_by] || '—' : '—',
+  }));
+
   const extra: TimelineEvent[] = [
     ...requests.map((r) => ({ date: r.created_at, kind: 'note' as const, title: `request:${r.kind}`, status: r.status })),
     ...visits.map((v) => ({ date: v.created_at, kind: 'visit' as const, title: `visit:${v.outcome}`, status: v.note ?? undefined })),
@@ -150,6 +189,7 @@ export async function loadCustomerDetailBundle(
     lastActivity,
     transfers,
     transferNames,
+    pendingChanges,
   };
 }
 

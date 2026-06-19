@@ -13,6 +13,7 @@ import {
   type SubjectType,
   type SectionAccessLevel,
 } from '@/lib/erp/field-governance';
+import { CUSTOMER_GOVERNANCE_BASELINE } from '@/lib/erp/customer-governance-baseline';
 
 /**
  * Dynamic Field Governance — write API (DFG-1). Company admins configure the
@@ -125,6 +126,29 @@ export async function setFieldAccess(
     entityId: `${entity}:${fieldKey}`,
     details: { subject_type: subjectType, subject_key: subjectKey, before: before?.access ?? null, after: access },
     companyId,
+  });
+  revalidatePath('/settings/field-governance');
+  return { ok: true };
+}
+
+/** G6b: apply the recommended customer governance baseline (opt-in, one click).
+ *  Upserts the baseline role→field access rows for the customer entity; never
+ *  auto-applied. The admin can re-customize afterwards (overrides win). */
+export async function applyCustomerGovernanceBaseline(): Promise<ActionResult> {
+  const g = await guard();
+  if (!g.ok) return { ok: false, error: g.error };
+  const { supabase, companyId, userId } = g;
+  const rows = CUSTOMER_GOVERNANCE_BASELINE.map((r) => ({
+    company_id: companyId, entity: 'customer', field_key: r.field,
+    subject_type: 'role', subject_key: r.role, access: r.access, updated_by: userId,
+  }));
+  const { error } = await supabase
+    .from('erp_field_access')
+    .upsert(rows, { onConflict: 'company_id,entity,field_key,subject_type,subject_key' });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, {
+    action: 'update', entity: 'field_access', entityId: 'customer:baseline',
+    details: { event: 'recommended_baseline_applied', rows: rows.length }, companyId,
   });
   revalidatePath('/settings/field-governance');
   return { ok: true };

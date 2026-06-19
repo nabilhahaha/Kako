@@ -44,7 +44,7 @@ import {
   CUSTOMER_BADGE_KEY,
 } from './customer-360-tabs';
 import { customerHealth, HEALTH_BAND_VARIANT, HEALTH_BAND_KEY } from './customer-health';
-import type { CustomerDetailBundle, CustomerTransferRow } from './[id]/load';
+import type { CustomerDetailBundle, CustomerTransferRow, CustomerPendingChange } from './[id]/load';
 import type { Area, Branch, CustomerLookup, ErpCustomer, Profile, Region } from '@/lib/erp/types';
 import type { CustomFieldDef } from '@/lib/erp/custom-fields';
 import type { GovInputs } from '@/lib/erp/field-governance';
@@ -316,19 +316,22 @@ export function Customer360({
 
       {/* ── Profile (the shared edit form) ────────────────────────────────── */}
       {tab === 'profile' && (
-        <CustomerForm
-          customer={customer}
-          customers={customers}
-          branches={branches}
-          reps={reps}
-          lookups={lookups}
-          regions={regions}
-          areas={areas}
-          customFields={customFields}
-          gov={gov}
-          onSaved={refresh}
-          onCancel={() => onTabChange('overview')}
-        />
+        <div className="space-y-3">
+          <PendingChangesCard requests={bundle.pendingChanges} t={t} />
+          <CustomerForm
+            customer={customer}
+            customers={customers}
+            branches={branches}
+            reps={reps}
+            lookups={lookups}
+            regions={regions}
+            areas={areas}
+            customFields={customFields}
+            gov={gov}
+            onSaved={refresh}
+            onCancel={() => onTabChange('overview')}
+          />
+        </div>
       )}
 
       {/* ── Statement (verbatim) ──────────────────────────────────────────── */}
@@ -514,6 +517,41 @@ function RelatedTab({
 const TRANSFER_STATUS_VARIANT: Record<string, 'warning' | 'success' | 'destructive' | 'secondary'> = {
   pending: 'warning', applied: 'success', rejected: 'destructive', cancelled: 'secondary',
 };
+
+/** Read-only visibility of open change requests (transparency, not approval).
+ *  Shows the request's fields, status, requester, and submission date. */
+function PendingChangesCard({
+  requests, t,
+}: {
+  requests: CustomerPendingChange[];
+  t: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  if (requests.length === 0) return null;
+  return (
+    <SectionCard title={t('customer360.pendingTitle')} description={t('customer360.pendingHint')}>
+      <ul className="divide-y">
+        {requests.map((r) => (
+          <li key={r.id} className="space-y-1 py-2 text-sm first:pt-0 last:pb-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">{t('customer360.pendingType')}</span>
+              <Badge variant="warning">{t(`customer360.tfStatus_${r.status}`)}</Badge>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
+              {Object.entries(r.changes).map(([field, value]) => (
+                <span key={field}>
+                  <span className="text-muted-foreground">{field}:</span> <span dir="ltr">{String(value ?? '')}</span>
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {r.requesterName} · <span dir="ltr">{formatDate(r.created_at)}</span>{r.reason ? ` · ${r.reason}` : ''}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </SectionCard>
+  );
+}
 
 /** G4: read-only transfer history (prev → new salesman/route/region, reason,
  *  date, status). Names resolved server-side; only changed dimensions shown. */

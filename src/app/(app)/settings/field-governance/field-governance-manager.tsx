@@ -18,7 +18,7 @@ import {
   setFieldSection, deleteFieldSection, reorderFieldSections, reorderFields,
   bulkSetFieldConfig, resetEntityGovernance, exportFieldGovernance, importFieldGovernance,
   copyEntityConfig, saveAsTemplate, applyTemplate, getFieldGovernanceHistory,
-  publishFieldGovernance, rollbackToVersion,
+  publishFieldGovernance, rollbackToVersion, applyCustomerGovernanceBaseline,
 } from './actions';
 import {
   Briefcase, DollarSign, Scale, Phone, MapPin, CreditCard, Tag, User, Building2,
@@ -260,6 +260,19 @@ export function FieldGovernanceManager({
         <Button size="sm" variant="outline" disabled={pending} onClick={doExport}><Download className="h-4 w-4" /> {t('fieldGov.export')}</Button>
         <Button size="sm" variant="outline" disabled={pending} onClick={() => setImportText('')}><Upload className="h-4 w-4" /> {t('fieldGov.import')}</Button>
         <Button size="sm" variant="outline" className="text-destructive" disabled={pending} onClick={resetDefaults}><RotateCcw className="h-4 w-4" /> {t('fieldGov.reset')}</Button>
+        {/* G6b: opt-in recommended baseline (customer only). Never auto-applied. */}
+        {entity === 'customer' && (
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={() => {
+              if (!window.confirm(t('fieldGov.baselineConfirm'))) return;
+              run(() => applyCustomerGovernanceBaseline(), () => router.refresh());
+            }}
+          >
+            <ShieldAlert className="h-4 w-4" /> {t('fieldGov.useBaseline')}
+          </Button>
+        )}
       </div>
 
       {importText != null && (
