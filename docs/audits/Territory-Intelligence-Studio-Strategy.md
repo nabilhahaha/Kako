@@ -171,12 +171,40 @@ JourneyPlanProvider · RouteProvider · TerritoryProvider
 - The framework is **capability-aware** (§4a): a connector that supplies only customers+sales
   lights up Mode B; one that adds visits/GPS reaches Mode C.
 
+### Google Sheets — first-class connector target
+
+Beyond Excel/CSV files, **Google Sheets is a first-class connector** (not a generic adapter),
+to serve SMBs that operate directly from spreadsheets without ERP adoption. It supports:
+
+- **Import · Export** (live sheet ↔ TIS canonical dataset)
+- **Scheduled Sync** (L3 pattern — periodic refresh + delta)
+- **Write-back** of **optimized routes and journey plans** into the user's sheet
+
+This makes the full `Upload → Audit → Sizing → Optimization → Planning → Export/Write-back`
+loop work end-to-end on a Google Sheet — the lightest-weight Mode A entry point.
+
+### Connector Priority Ladder (rollout order)
+
+Distinct from the *maturity model* (capability axis) above, this is the **sequencing** of which
+sources to build, lightest/highest-reach first:
+
+| Tier | Connectors | Rationale |
+| :--- | :--- | :--- |
+| **P1** | **Excel · CSV** | Universal, mandatory, permanent (L1) |
+| **P2** | **Google Sheets** | SMB spreadsheet-native; import/export/scheduled/write-back |
+| **P3** | **SalesBuzz · Mira · Mirna · Odoo** | Regional SFA/DMS + accessible ERP |
+| **P4** | **SAP · Dynamics · Salesforce · Oracle** | Enterprise ERP/CRM |
+
+All tiers are **adapters over the same connector framework** (provider contracts above) — no tier
+gets bespoke architecture. Higher tiers ship later but plug into the identical interfaces.
+
 ### Design principles
-1. **Excel is supported permanently** (L1 never deprecated).
-2. **No vendor-specific architecture** — one framework, many adapters.
-3. **Build the connector framework first**, then connectors.
-4. TIS must operate **standalone · connected to external systems · embedded in VANTORA**.
-5. **External systems are integrations, not dependencies** — absence degrades gracefully (§4a),
+1. **Excel/CSV supported permanently** (P1 never deprecated).
+2. **Google Sheets is first-class** (P2) — full import/export/scheduled-sync/write-back.
+3. **No vendor-specific architecture** — one framework, many adapters (P1–P4).
+4. **Build the connector framework first**, then connectors in priority order.
+5. TIS must operate **standalone · connected to external systems · embedded in VANTORA**.
+6. **External systems are integrations, not dependencies** — absence degrades gracefully (§4a),
    never blocks.
 
 ### Reuse anchors
