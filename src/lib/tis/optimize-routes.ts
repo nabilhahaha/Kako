@@ -308,6 +308,54 @@ function allocateExact(parts: TisCustomer[][], K: number, wlOf: (c: TisCustomer)
 }
 
 /**
+ * Simple Route Planner "rough first cut" (MVP): split a customer set into EXACTLY K
+ * geographically contiguous, workload-balanced routes via a SINGLE Hilbert pass — no
+ * territory hard-partition, no small-territory absorption, no forced extra routes. It
+ * deliberately trades the optimizer's hard geo-correctness for a predictable K and a
+ * clean starting point the manager then corrects by hand on the map. Pure.
+ */
+export function simpleGeoSplit(customers: readonly TisCustomer[], routeCount: number): RoutePlan {
+  const all = [...customers];
+  const k = Math.max(1, Math.min(Math.round(routeCount) || 1, Math.max(1, all.length)));
+  if (all.length === 0) return { routeCount: 0, assignments: [], routes: [], workloadBalancePct: 100, requestedRoutes: k, absorbedTerritories: 0, geographyRequiresRoutes: null };
+
+  const wl = (c: TisCustomer) => customerWorkload(c) ?? 1;
+  const geo = all.filter((c) => isValidGeo(c.geo));
+  const noGeo = all.filter((c) => !isValidGeo(c.geo));
+
+  // Order located customers along a Hilbert curve over their bounding box, so each
+  // contiguous slice is a compact sub-area. Geo-less rows trail the sequence.
+  let seq = all;
+  if (geo.length > 0) {
+    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+    for (const c of geo) { minLat = Math.min(minLat, c.geo!.lat); maxLat = Math.max(maxLat, c.geo!.lat); minLng = Math.min(minLng, c.geo!.lng); maxLng = Math.max(maxLng, c.geo!.lng); }
+    const spanLat = Math.max(1e-9, maxLat - minLat), spanLng = Math.max(1e-9, maxLng - minLng);
+    const SIDE = 1 << 16;
+    const code = (c: TisCustomer) => {
+      const x = Math.min(SIDE - 1, Math.max(0, Math.round((c.geo!.lng - minLng) / spanLng * (SIDE - 1))));
+      const y = Math.min(SIDE - 1, Math.max(0, Math.round((c.geo!.lat - minLat) / spanLat * (SIDE - 1))));
+      return hilbertD(SIDE, x, y);
+    };
+    seq = [...geo.map((c) => ({ c, h: code(c) })).sort((a, b) => a.h - b.h).map((o) => o.c), ...noGeo];
+  }
+
+  // Cut into EXACTLY K contiguous equal-count slices (guaranteed non-empty since k ≤ N).
+  const routes: RouteSummary[] = [];
+  const assignments: ScenarioAssignment[] = [];
+  const loads: number[] = [];
+  for (let i = 0; i < k; i++) {
+    const list = seq.slice(Math.floor((i * seq.length) / k), Math.floor(((i + 1) * seq.length) / k));
+    if (list.length === 0) continue;
+    const rid = ROUTE_ID(i);
+    const load = list.reduce((s, c) => s + wl(c), 0);
+    routes.push({ routeId: rid, customerIds: list.map((c) => c.id), customers: list.length, workload: round1(load), salesValue: round1(list.reduce((s, c) => s + (c.salesValue ?? 0), 0)) });
+    loads.push(load);
+    for (const c of list) assignments.push({ customerId: c.id, routeId: rid });
+  }
+  return { routeCount: routes.length, assignments, routes, workloadBalancePct: balancePct(loads), requestedRoutes: k, absorbedTerritories: 0, geographyRequiresRoutes: null };
+}
+
+/**
  * Balance a customer set into workload-even, geographically COMPACT routes — geography
  * is a HARD constraint. Territories are clustered (clusterTerritories), small/remote ones
  * are absorbed into the nearest (P1-A/C), then EXACTLY K routes are allocated across the
