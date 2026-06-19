@@ -94,7 +94,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
   const [sortKey, setSortKey] = useState<'route' | 'customers' | 'workload' | 'sales' | 'salesPerCustomer'>('route');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
-  const [selectingCount, setSelectingCount] = useState<number | null>(null);
+  const [selectingInfo, setSelectingInfo] = useState<{ count: number; sales: number } | null>(null);
   const [reviewStats, setReviewStats] = useState<{ initial: number; absorbed: number; final: number } | null>(null);
   const [approved, setApproved] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -187,6 +187,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
         id: c.id, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng,
         color: rid ? colors.get(rid) ?? '#94a3b8' : '#f59e0b',
         review: !rid,
+        sales: c.salesValue ?? 0,
         dim: focusing && !onlySel && !(rid && focusedRoutes.has(rid)),
         meta: { code: c.code, route: rid, routeLabel: routeLabelOf(rid), routeColor: rid ? colors.get(rid) : undefined, routeCount: rid ? routeCountById.get(rid) : undefined, sales: c.salesValue != null ? fmt(c.salesValue) : undefined, frequency: c.frequency ? formatFrequency(c.frequency) : '' },
       };
@@ -516,10 +517,10 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
 
   // ── Planning screen ──
   return (
-    <div className="space-y-3">
+    <div className={focus ? 'space-y-3 p-3 lg:p-5' : 'space-y-3'}>
       {brandHeader}
       {/* Toolbar */}
-      <Card>
+      <Card className={focus ? 'sticky top-2 z-20 shadow-md' : ''}>
         <CardContent className="flex flex-wrap items-end gap-x-4 gap-y-3 p-3">
           {method === 'assisted' ? (
             <div>
@@ -623,15 +624,18 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
 
           {/* Move bar with live count + per-route breakdown */}
           <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
-            {selectingCount != null ? (
-              <span className="font-medium text-primary">{t('routePlanner.selectingN').replace('{n}', String(selectingCount))}</span>
+            {selectingInfo != null ? (
+              <span className="font-medium text-primary">
+                {t('routePlanner.selectingN').replace('{n}', String(selectingInfo.count))}
+                {hasSales && <span> · {t('routePlanner.salesLabel')} {fmt(selectingInfo.sales)}</span>}
+              </span>
             ) : (
               <span className="font-medium">
                 {t('routePlanner.selectedN').replace('{n}', String(selectedIds.size))}
                 {hasSales && movePreview && <span className="text-muted-foreground"> · {t('routePlanner.salesLabel')} {fmt(movePreview.totalSales)}</span>}
               </span>
             )}
-            {selectingCount == null && movePreview && movePreview.breakdown.length > 0 && (
+            {selectingInfo == null && movePreview && movePreview.breakdown.length > 0 && (
               <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                 {t('routePlanner.fromLabel')}
                 {movePreview.breakdown.slice(0, 6).map((b) => (
@@ -649,14 +653,14 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
           </div>
 
           {/* Move impact preview */}
-          {!viewingCurrent && selectingCount == null && movePreview && (
+          {!viewingCurrent && selectingInfo == null && movePreview && (
             <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-1.5 text-xs text-emerald-800">
               {t('routePlanner.movePreview').replace('{n}', String(movePreview.count)).replace('{target}', targetLabel)}
               {hasSales && ` · ${t('routePlanner.salesImpact')} +${fmt(movePreview.totalSales)}`}
             </p>
           )}
 
-          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingCount} />
+          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} tall={focus} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingInfo} />
         </div>
 
         {/* Route side panel */}
@@ -706,14 +710,47 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
               </select>
               <button onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))} className="rounded border px-1.5 py-0.5 hover:bg-muted" title={sortDir === 'desc' ? t('routePlanner.sortDesc') : t('routePlanner.sortAsc')}>{sortDir === 'desc' ? '↓' : '↑'}</button>
             </div>
-            <div className="grid grid-cols-[auto_auto_1fr_auto_auto_auto] items-center gap-x-2 text-[11px] text-muted-foreground">
-              <span /><span /><span /><span className="text-end">{t('routePlanner.colCustomers')}</span><span className="text-end">{hasSales ? t('routePlanner.colTotalSales') : t('routePlanner.colVisits')}</span><span className="text-end">{t('routePlanner.colWorkload')}</span>
-            </div>
-            <div className="max-h-[44vh] space-y-1 overflow-y-auto pe-1">
+            {!focus && (
+              <div className="grid grid-cols-[auto_auto_1fr_auto_auto_auto] items-center gap-x-2 text-[11px] text-muted-foreground">
+                <span /><span /><span /><span className="text-end">{t('routePlanner.colCustomers')}</span><span className="text-end">{hasSales ? t('routePlanner.colTotalSales') : t('routePlanner.colVisits')}</span><span className="text-end">{t('routePlanner.colWorkload')}</span>
+              </div>
+            )}
+            <div className={`overflow-y-auto pe-1 ${focus ? 'max-h-[60vh] space-y-2' : 'max-h-[44vh] space-y-1'}`}>
               {reviews.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">—</p>}
               {sortedReviews.map((s) => {
                 const on = focusedRoutes.has(s.routeId);
                 const tier = salesTier.get(s.routeId);
+                const pct = hasSales && datasetSales > 0 ? Math.round((s.sales / datasetSales) * 100) : 0;
+                if (focus) {
+                  // ── Vertical route card (presentation mode) ──
+                  return (
+                    <button
+                      key={s.routeId}
+                      onClick={() => toggleFocus(s.routeId)}
+                      title={t('routePlanner.focusHint')}
+                      className={`w-full overflow-hidden rounded-xl border text-start transition hover:shadow-md ${on ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/40'}`}
+                    >
+                      <div className="h-1.5 w-full" style={{ backgroundColor: s.color }} />
+                      <div className="p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-1.5 truncate font-semibold">
+                            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                            <span className="truncate">{routeLabelOf(s.routeId)}</span>
+                            {tier === 'top' && <span className="rounded bg-emerald-100 px-1 text-[9px] font-semibold text-emerald-700">{t('routePlanner.tierTop')}</span>}
+                            {tier === 'bottom' && <span className="rounded bg-red-100 px-1 text-[9px] font-semibold text-red-700">{t('routePlanner.tierBottom')}</span>}
+                          </span>
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'}`}>{on && <Check className="h-3 w-3" />}</span>
+                        </div>
+                        <p className="mt-1 text-xl font-bold tabular-nums" dir="ltr">{s.customers} <span className="text-xs font-normal text-muted-foreground">{t('routePlanner.colCustomers')}</span></p>
+                        {hasSales ? (
+                          <p className="text-sm font-semibold tabular-nums text-primary" dir="ltr">{fmt(s.sales)} <span className="text-xs font-normal text-muted-foreground">· {pct}% {t('routePlanner.ofTotalSales')}</span></p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground" dir="ltr">{s.weeklyVisits} {t('routePlanner.colVisits')} · {s.workloadHours}h · {s.radiusKm}km</p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                }
                 return (
                   <button
                     key={s.routeId}

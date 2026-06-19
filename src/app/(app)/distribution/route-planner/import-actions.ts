@@ -22,7 +22,12 @@ const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 export async function parseUploadColumns(formData: FormData): Promise<ParseColumnsResult> {
   const ctx = await getUserContext();
   if (!ctx) return { ok: false, error: 'err_unauthorized' };
-  if (!hasPermission(ctx, 'reports.view')) return { ok: false, error: 'err_unauthorized' };
+  // Same audience as the page: the Route Planner Demo account, or anyone with the
+  // dedicated route_planner.* permission, or a manager/supervisor with reports.view.
+  const allowed = ctx.isRoutePlannerDemo
+    || hasPermission(ctx, 'route_planner.upload') || hasPermission(ctx, 'route_planner.view')
+    || hasPermission(ctx, 'reports.view');
+  if (!allowed) return { ok: false, error: 'err_unauthorized' };
 
   const file = formData.get('file');
   if (!(file instanceof File)) return { ok: false, error: 'err_no_file' };

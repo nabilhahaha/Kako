@@ -16,7 +16,7 @@ import { useI18n } from '@/lib/i18n/provider';
  */
 export interface SelMapMeta { code?: string | null; route?: string | null; routeLabel?: string | null; routeColor?: string | null; routeCount?: number; sales?: string | null; frequency?: string | null }
 export interface RouteOption { value: string; label: string }
-export interface SelMapPoint { id: string; name: string; lat: number; lng: number; color: string; review?: boolean; dim?: boolean; meta?: SelMapMeta }
+export interface SelMapPoint { id: string; name: string; lat: number; lng: number; color: string; review?: boolean; dim?: boolean; sales?: number; meta?: SelMapMeta }
 export interface SelMapHull { id: string; color: string; ring: [number, number][] }
 
 const RASTER_STYLE = {
@@ -49,18 +49,19 @@ function toHullGeoJSON(hulls: SelMapHull[]) {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
 
-export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, onToggle, onBoxSelect, onMoveSingle, onContextMenu, onSelecting }: {
+export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, tall = false, onToggle, onBoxSelect, onMoveSingle, onContextMenu, onSelecting }: {
   points: SelMapPoint[];
   hulls: SelMapHull[];
   selectedIds: Set<string>;
   focusIds: Set<string>;
   routeOptions: RouteOption[];
   selectMode: 'box' | 'draw';
+  tall?: boolean;
   onToggle: (id: string) => void;
   onBoxSelect: (ids: string[]) => void;
   onMoveSingle: (id: string, dest: string) => void;
   onContextMenu: (x: number, y: number) => void;
-  onSelecting: (count: number | null) => void;
+  onSelecting: (info: { count: number; sales: number } | null) => void;
 }) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -125,9 +126,16 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
         let poly: SVGPolygonElement | null = null;
 
         const clearOverlay = () => { if (boxEl) { boxEl.remove(); boxEl = null; } if (svg) { svg.remove(); svg = null; poly = null; } };
-        // Live count while drawing/boxing (throttled so a big polygon never slows the map).
+        // Live count + sales while drawing/boxing (throttled so a big polygon never slows the map).
         let lastCount = 0;
-        const liveCount = (fn: () => number) => { const now = Date.now(); if (now - lastCount < 70) return; lastCount = now; selectingRef.current(fn()); };
+        const liveCount = (pred: (p: SelMapPoint) => boolean) => {
+          const now = Date.now();
+          if (now - lastCount < 70) return;
+          lastCount = now;
+          let count = 0, sales = 0;
+          for (const p of pointsRef.current) if (pred(p)) { count++; sales += p.sales ?? 0; }
+          selectingRef.current({ count, sales });
+        };
 
         const onMove = (ev: MouseEvent) => {
           const cur = mousePos(ev);
@@ -141,7 +149,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
               svg.appendChild(poly); canvas.appendChild(svg);
             }
             poly!.setAttribute('points', path.map((p) => `${p.x},${p.y}`).join(' '));
-            if (path.length >= 3) liveCount(() => pointsRef.current.reduce((n, p) => n + (pointInPoly(map!.project([p.lng, p.lat]), path) ? 1 : 0), 0));
+            if (path.length >= 3) liveCount((p) => pointInPoly(map!.project([p.lng, p.lat]), path));
             return;
           }
           if (!startPt) return;
@@ -150,7 +158,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
           boxEl.style.left = `${Math.min(sx.x, cur.x)}px`; boxEl.style.top = `${Math.min(sx.y, cur.y)}px`;
           boxEl.style.width = `${Math.abs(cur.x - sx.x)}px`; boxEl.style.height = `${Math.abs(cur.y - sx.y)}px`;
           const x1 = Math.min(sx.x, cur.x), x2 = Math.max(sx.x, cur.x), y1 = Math.min(sx.y, cur.y), y2 = Math.max(sx.y, cur.y);
-          liveCount(() => pointsRef.current.reduce((n, p) => { const px = map!.project([p.lng, p.lat]); return n + (px.x >= x1 && px.x <= x2 && px.y >= y1 && px.y <= y2 ? 1 : 0); }, 0));
+          liveCount((p) => { const px = map!.project([p.lng, p.lat]); return px.x >= x1 && px.x <= x2 && px.y >= y1 && px.y <= y2; });
         };
         const onUp = (ev: MouseEvent) => {
           document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
@@ -271,7 +279,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusKey]);
 
-  return <div ref={containerRef} className="h-[62vh] min-h-[380px] w-full overflow-hidden rounded-md border" />;
+  return <div ref={containerRef} className={`w-full overflow-hidden rounded-xl border ${tall ? 'h-[82vh] min-h-[520px]' : 'h-[62vh] min-h-[380px]'}`} />;
 }
 
 /** Ray-casting point-in-polygon on screen pixels (for freehand draw select). */
