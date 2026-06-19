@@ -192,3 +192,25 @@ describe('routeReview & aggregateReview', () => {
     expect(one.customers).toBe(reviews[0].customers);
   });
 });
+
+describe('Manual Territory Design (data path)', () => {
+  it('draws territories from a blank plan: each drawn set becomes a new route', () => {
+    const ds = dataset(); // 6 Jeddah + 6 Riyadh
+    // Manual mode starts blank — everyone unassigned.
+    let sc = ds.customers.reduce((s, c) => moveCustomer(s, c.id, null), { id: 'm', name: 'm', assignments: [] as Scenario['assignments'] });
+    expect(unassignedCount(ds, sc)).toBe(12);
+    // Draw territory 1 → the 6 Jeddah customers become a new route.
+    const jeddah = ds.customers.filter((c) => c.name.startsWith('Jeddah')).map((c) => c.id);
+    for (const id of jeddah) sc = moveCustomer(sc, id, 'opt-route-1');
+    let reviews = routeReview(ds, sc);
+    expect(reviews.length).toBe(1);
+    expect(reviews[0].customers).toBe(6);
+    expect(unassignedCount(ds, sc)).toBe(6);
+    // Draw territory 2 → the 6 Riyadh customers become a second route.
+    const riyadh = ds.customers.filter((c) => c.name.startsWith('Riyadh')).map((c) => c.id);
+    for (const id of riyadh) sc = moveCustomer(sc, id, 'opt-route-2');
+    reviews = routeReview(ds, sc);
+    expect(reviews.length).toBe(2);
+    expect(unassignedCount(ds, sc)).toBe(0);
+  });
+});

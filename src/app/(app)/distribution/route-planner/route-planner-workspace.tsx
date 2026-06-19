@@ -42,6 +42,9 @@ export function RoutePlannerWorkspace() {
 
   const [dataset, setDataset] = useState<TisDataset | null>(null);
   const [scenario, setScenario] = useState<Scenario>(emptyScenario());
+  const [method, setMethod] = useState<'assisted' | 'manual' | null>(null);
+  const [territoryOnDraw, setTerritoryOnDraw] = useState(true);
+  const [history, setHistory] = useState<Scenario[]>([]);
   const [generated, setGenerated] = useState(false);
   const [routeCount, setRouteCount] = useState('8');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -122,14 +125,28 @@ export function RoutePlannerWorkspace() {
     const ds = buildTisDatasetFromRows(preview.rows, { source: 'upload' });
     setDataset(ds);
     setScenario(emptyScenario());
-    setGenerated(false); setApproved(false); setSelectedIds(new Set());
+    setMethod(null); setHistory([]); setGenerated(false); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set());
     setPreview(null);
     setMsg({ tone: 'ok', text: t('routePlanner.importOk').replace('{n}', String(ds.customers.length)) });
   }
+  /** Pick a route-creation method. Manual starts from a blank map (everyone unassigned). */
+  function chooseMethod(m: 'assisted' | 'manual') {
+    if (!dataset) return;
+    setMethod(m); setHistory([]); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set());
+    if (m === 'manual') {
+      const blank = dataset.customers.reduce((s, c) => moveCustomer(s, c.id, null), emptyScenario());
+      setScenario(blank); setGenerated(true); setSelectMode('draw'); setTerritoryOnDraw(true); setShowAllBoundaries(true);
+    } else {
+      setScenario(emptyScenario()); setGenerated(false); setSelectMode('box');
+    }
+  }
   function reset() {
-    setDataset(null); setScenario(emptyScenario()); setGenerated(false); setApproved(false);
+    setDataset(null); setScenario(emptyScenario()); setMethod(null); setHistory([]); setGenerated(false); setApproved(false);
     setSelectedIds(new Set()); setFocusedRoutes(new Set()); setPreview(null); setMsg(null);
   }
+  /** One-step-back history (drawing territories / moving). Keeps the last 30 states. */
+  function pushHistory(prev: Scenario) { setHistory((h) => [...h.slice(-29), prev]); }
+  function undo() { setHistory((h) => { if (h.length === 0) return h; setScenario(h[h.length - 1]); setApproved(false); setSelectedIds(new Set()); return h.slice(0, -1); }); }
   function onTemplate() {
     const header = 'code,name,lat,lng,route,frequency';
     const rows = ['C001,Sample Market,21.5810,39.1650,R-1,weekly', 'C002,Sample Grocery,24.7100,46.6700,R-2,2'];
@@ -142,6 +159,7 @@ export function RoutePlannerWorkspace() {
   // ── Split / Correct / Approve / Export ──
   function generate() {
     if (!dataset) return;
+    pushHistory(scenario);
     const k = Math.max(1, Math.round(Number(routeCount)) || 1);
     const plan = simpleGeoSplit(dataset.customers, k);
     const sc = plan.assignments.reduce((s, a) => moveCustomer(s, a.customerId, a.routeId ?? null), emptyScenario());
@@ -158,14 +176,29 @@ export function RoutePlannerWorkspace() {
   }
   function moveSelected() {
     if (selectedIds.size === 0) return;
+    pushHistory(scenario);
     const dest = destRoute();
     let sc = scenario;
     for (const id of selectedIds) sc = moveCustomer(sc, id, dest);
     setScenario(sc); setApproved(false); setSelectedIds(new Set());
   }
   function moveSingle(id: string) {
+    pushHistory(scenario);
     setScenario(moveCustomer(scenario, id, destRoute())); setApproved(false);
     setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+  }
+  /** Map area-select callback. In Manual mode with "new territory on draw" on, the
+   *  enclosed customers become a brand-new route; otherwise they're added to the selection. */
+  function onAreaSelect(ids: string[]) {
+    if (method === 'manual' && territoryOnDraw && ids.length > 0) {
+      pushHistory(scenario);
+      const dest = nextNewRouteId();
+      let sc = scenario;
+      for (const id of ids) sc = moveCustomer(sc, id, dest);
+      setScenario(sc); setApproved(false); setSelectedIds(new Set());
+      return;
+    }
+    boxSelect(ids);
   }
   function toggleFocus(routeId: string) {
     setFocusedRoutes((prev) => { const next = new Set(prev); next.has(routeId) ? next.delete(routeId) : next.add(routeId); return next; });
@@ -223,22 +256,48 @@ export function RoutePlannerWorkspace() {
     );
   }
 
+  // ── Method chooser (after upload) ──
+  if (method === null) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">{t('routePlanner.importOk').replace('{n}', String(dataset.customers.length))} {t('routePlanner.chooseMethod')}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button onClick={() => chooseMethod('assisted')} className="rounded-lg border bg-background p-5 text-start transition hover:border-primary hover:bg-primary/5">
+            <div className="flex items-center gap-2 text-base font-semibold"><Wand2 className="h-5 w-5 text-primary" /> {t('routePlanner.methodAssisted')}</div>
+            <p className="mt-2 text-sm text-muted-foreground">{t('routePlanner.methodAssistedDesc')}</p>
+          </button>
+          <button onClick={() => chooseMethod('manual')} className="rounded-lg border bg-background p-5 text-start transition hover:border-primary hover:bg-primary/5">
+            <div className="flex items-center gap-2 text-base font-semibold"><PenTool className="h-5 w-5 text-primary" /> {t('routePlanner.methodManual')}</div>
+            <p className="mt-2 text-sm text-muted-foreground">{t('routePlanner.methodManualDesc')}</p>
+          </button>
+        </div>
+        <Button variant="ghost" size="sm" onClick={reset}><RotateCcw className="h-4 w-4" /> {t('routePlanner.newUpload')}</Button>
+      </div>
+    );
+  }
+
   // ── Planning screen ──
   return (
     <div className="space-y-3">
       {/* Toolbar */}
       <Card>
         <CardContent className="flex flex-wrap items-end gap-x-4 gap-y-3 p-3">
-          <div>
-            <label className="block text-[11px] text-muted-foreground">{t('routePlanner.routeCount')}</label>
-            <div className="flex items-center gap-2">
-              <Input type="number" min={1} value={routeCount} onChange={(e) => setRouteCount(e.target.value)} className="h-9 w-24" dir="ltr" />
-              <Button size="sm" onClick={generate}><Wand2 className="h-4 w-4" /> {generated ? t('routePlanner.regenerate') : t('routePlanner.generate')}</Button>
+          {method === 'assisted' ? (
+            <div>
+              <label className="block text-[11px] text-muted-foreground">{t('routePlanner.routeCount')}</label>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={1} value={routeCount} onChange={(e) => setRouteCount(e.target.value)} className="h-9 w-24" dir="ltr" />
+                <Button size="sm" onClick={generate}><Wand2 className="h-4 w-4" /> {generated ? t('routePlanner.regenerate') : t('routePlanner.generate')}</Button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 text-sm font-medium"><PenTool className="h-4 w-4 text-primary" /> {t('routePlanner.methodManual')}</div>
+          )}
+          <button onClick={() => chooseMethod(method === 'assisted' ? 'manual' : 'assisted')} className="self-center rounded border px-2 py-1 text-[11px] hover:bg-muted">{method === 'assisted' ? t('routePlanner.switchManual') : t('routePlanner.switchAssisted')}</button>
           <div className="flex-1" />
+          <Button size="sm" variant="ghost" disabled={history.length === 0} onClick={undo}><RotateCcw className="h-4 w-4" /> {t('routePlanner.undo')}</Button>
           {!approved ? (
-            <Button size="sm" variant="default" disabled={!generated} onClick={() => setApproved(true)}><Check className="h-4 w-4" /> {t('routePlanner.approve')}</Button>
+            <Button size="sm" variant="default" disabled={reviews.length === 0} onClick={() => setApproved(true)}><Check className="h-4 w-4" /> {t('routePlanner.approve')}</Button>
           ) : (
             <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><Check className="h-4 w-4" /> {t('routePlanner.approved')}</span>
           )}
@@ -247,8 +306,9 @@ export function RoutePlannerWorkspace() {
         </CardContent>
       </Card>
 
-      {!generated && <p className="rounded-md border bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.generateHint')}</p>}
-      {generated && unassigned > 0 && (
+      {method === 'assisted' && !generated && <p className="rounded-md border bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.generateHint')}</p>}
+      {method === 'manual' && <p className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.manualHint')}</p>}
+      {generated && unassigned > 0 && method === 'assisted' && (
         <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('routePlanner.reviewBanner').replace('{n}', String(unassigned))}</p>
       )}
 
@@ -263,6 +323,9 @@ export function RoutePlannerWorkspace() {
               <button onClick={() => setSelectMode('draw')} className={`inline-flex items-center gap-1 border-s px-2.5 py-1.5 text-xs ${selectMode === 'draw' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><PenTool className="h-3.5 w-3.5" /> {t('routePlanner.drawSelect')}</button>
             </div>
             <span className="text-xs text-muted-foreground">{selectMode === 'box' ? t('routePlanner.boxHint') : t('routePlanner.drawHint')}</span>
+            {method === 'manual' && (
+              <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-xs font-medium"><input type="checkbox" checked={territoryOnDraw} onChange={(e) => setTerritoryOnDraw(e.target.checked)} /> {t('routePlanner.newTerritoryOnDraw')}</label>
+            )}
             <label className="ms-auto inline-flex cursor-pointer items-center gap-1 text-xs"><input type="checkbox" checked={showAllBoundaries} onChange={(e) => setShowAllBoundaries(e.target.checked)} /> <Layers className="h-3.5 w-3.5" /> {t('routePlanner.boundaries')}</label>
             {focusedRoutes.size > 0 && <Button size="sm" variant="ghost" onClick={clearFocus}><X className="h-4 w-4" /> {t('routePlanner.clearFocus')}</Button>}
           </div>
@@ -283,7 +346,7 @@ export function RoutePlannerWorkspace() {
             {selectedIds.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}><X className="h-4 w-4" /> {t('routePlanner.clear')}</Button>}
           </div>
 
-          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} targetLabel={targetLabel} selectMode={selectMode} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} />
+          <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} targetLabel={targetLabel} selectMode={selectMode} onToggle={toggle} onBoxSelect={onAreaSelect} onMoveSingle={moveSingle} />
         </div>
 
         {/* Route side panel */}
