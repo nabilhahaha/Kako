@@ -177,7 +177,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
           ) : stage === 'plan' ? (
             <>
               <PlanningMap key="studio-map" points={mapPoints} onSelect={() => { /* Plan editing happens on the canvas below. */ }} />
-              <PlanningCanvas dataset={dataset} scenario={active} onChange={update} />
+              <PlanningCanvas dataset={dataset} scenario={active} onChange={update} labels={labels} />
               <StageLink href={STANDALONE.plan!} label={t('studio.openFull')} />
             </>
           ) : (

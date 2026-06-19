@@ -120,4 +120,44 @@ describe('STUDIO-1 layout snapshot (Jeddah demo)', () => {
     // Every working day carries visits on at least one route (calendar populated).
     for (const d of days) expect(routeIds.some((r) => counts.get(r)!.get(d)! > 0)).toBe(true);
   });
+
+  it('renders the Salesman View (columns = salesmen, workload/value) to docs/tis-demo/jeddah-salesman-view.svg', () => {
+    const ds = buildJeddahDemoDataset();
+    const bySalesman = new Map<string, typeof ds.customers>();
+    for (const c of ds.customers) {
+      const k = c.ownership.salesmanId ?? '__none';
+      (bySalesman.get(k) ?? bySalesman.set(k, []).get(k)!).push(c);
+    }
+    const cols = [...bySalesman.entries()].sort((a, b) => (a[0] === '__none' ? 1 : b[0] === '__none' ? -1 : a[0].localeCompare(b[0])));
+    const wl = (list: typeof ds.customers) => list.reduce((s, c) => s + (c.frequency?.visitsPerCycle ?? 1), 0);
+    const colW = 150, gap = 12, pad = 16, headerH = 70, colTop = headerH + 12, cardH = 12, maxCards = 22;
+    const W = pad * 2 + cols.length * (colW + gap), H = colTop + 40 + maxCards * (cardH + 2) + 30;
+    const parts: string[] = [
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`,
+      `<rect width="${W}" height="${H}" fill="#f8fafc"/>`,
+      `<text x="${pad}" y="22" font-size="15" font-weight="700" fill="#0f172a">Salesman View · drag a customer between salesmen (Jeddah demo, 500 customers)</text>`,
+      `<text x="${pad}" y="40" font-size="11" fill="#64748b">Columns = salesmen; header shows customers · visits/wk · value — the real balancing signals.</text>`,
+    ];
+    cols.forEach(([sid, list], i) => {
+      const x = pad + i * (colW + gap);
+      const value = list.reduce((s, c) => s + (c.salesValue ?? 0), 0);
+      parts.push(`<rect x="${x}" y="${colTop}" width="${colW}" height="${H - colTop - 12}" rx="6" fill="#ffffff" stroke="#e2e8f0"/>`);
+      parts.push(`<text x="${x + 8}" y="${colTop + 18}" font-size="11" font-weight="700" fill="#0f172a">${sid === '__none' ? 'No salesman' : `Salesman ${sid.replace('sm-', '')}`}</text>`);
+      parts.push(`<text x="${x + 8}" y="${colTop + 32}" font-size="9" fill="#64748b">${list.length} cust · ${Math.round(wl(list))}v · ${Math.round(value / 1000)}k SAR</text>`);
+      list.slice(0, maxCards).forEach((c, j) => {
+        const cy = colTop + 42 + j * (cardH + 2);
+        parts.push(`<rect x="${x + 6}" y="${cy}" width="${colW - 12}" height="${cardH}" rx="2" fill="#f8fafc" stroke="#e2e8f0"/><text x="${x + 11}" y="${cy + 9}" font-size="7.5" fill="#334155">${(c.grade ?? '').toUpperCase()} · ${escapeXml(c.name).slice(0, 20)}</text>`);
+      });
+      if (list.length > maxCards) parts.push(`<text x="${x + 8}" y="${colTop + 46 + maxCards * (cardH + 2)}" font-size="9" fill="#94a3b8">+${list.length - maxCards} more</text>`);
+    });
+    parts.push('</svg>');
+
+    mkdirSync(resolve(process.cwd(), 'docs/tis-demo'), { recursive: true });
+    writeFileSync(resolve(process.cwd(), 'docs/tis-demo/jeddah-salesman-view.svg'), parts.join(''));
+    expect(cols.length).toBeGreaterThan(1);
+  });
 });
+
+function escapeXml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
+}
