@@ -43,6 +43,12 @@ export interface TisCustomer {
   coverage: CoverageStatus | null;
   /** Optional customer-health score (0–100). */
   health: number | null;
+  /** Optional descriptive metadata carried from import (not used by balancing).
+   *  channel feeds the visit-duration engine; branch/city/address are reference only. */
+  channel?: string | null;
+  branch?: string | null;
+  city?: string | null;
+  address?: string | null;
 }
 
 export type TisMode = 'A' | 'B' | 'C';
@@ -82,6 +88,10 @@ export function buildTisCustomer(
     salesValue: typeof input.salesValue === 'number' && Number.isFinite(input.salesValue) ? input.salesValue : null,
     coverage: input.coverage ?? null,
     health: typeof input.health === 'number' && Number.isFinite(input.health) ? input.health : null,
+    channel: input.channel ? String(input.channel) : null,
+    branch: input.branch ? String(input.branch) : null,
+    city: input.city ? String(input.city) : null,
+    address: input.address ? String(input.address) : null,
   };
 }
 

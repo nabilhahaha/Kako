@@ -6,7 +6,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { buildTisDatasetFromRows } from '@/lib/tis/upload';
+import { buildTisDatasetFromRows, applyColumnMapping, TIS_MAP_FIELDS, type TisFieldKey } from '@/lib/tis/upload';
 import { isValidGeo, type TisDataset } from '@/lib/tis/dataset';
 import { applyScenario, type Scenario } from '@/lib/tis/scenario';
 import { moveCustomer } from '@/lib/tis/plan-edit';
@@ -14,7 +14,7 @@ import { simpleGeoSplit } from '@/lib/tis/optimize-routes';
 import { routeReview, routeColors, routeIdsOf, unassignedCount, unassignedIds, routeExportRows, needsReviewExportRows, aggregateReview } from '@/lib/tis/route-planner';
 import { formatFrequency } from '@/lib/route-optimization/visit-frequency';
 import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
-import { parseTisUpload } from '../studio/import-actions';
+import { parseUploadColumns } from './import-actions';
 import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map';
 
 const NEW_ROUTE = '__new';
@@ -65,7 +65,7 @@ export function RoutePlannerWorkspace() {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [approved, setApproved] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [preview, setPreview] = useState<{ rows: Parameters<typeof buildTisDatasetFromRows>[0]; total: number; mapped: number } | null>(null);
+  const [mapState, setMapState] = useState<{ headers: string[]; records: Record<string, string>[]; map: Partial<Record<TisFieldKey, string>> } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
 
   const applied = useMemo(() => (dataset ? applyScenario(dataset, scenario) : null), [dataset, scenario]);
@@ -128,7 +128,7 @@ export function RoutePlannerWorkspace() {
   // Guard a stale target (e.g. a route that was emptied out) → fall back to the first route.
   const effectiveTarget = (targetRoute === NEW_ROUTE || targetRoute === UNASSIGNED || ids.includes(targetRoute)) ? targetRoute : (ids[0] ?? NEW_ROUTE);
 
-  // ── Upload ──
+  // ── Upload → column mapping ──
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (e.target) e.target.value = '';
@@ -136,20 +136,24 @@ export function RoutePlannerWorkspace() {
     setImporting(true); setMsg(null);
     try {
       const fd = new FormData(); fd.append('file', file);
-      const res = await parseTisUpload(fd);
+      const res = await parseUploadColumns(fd);
       if (!res.ok) { setMsg({ tone: 'err', text: t(`routePlanner.${res.error}`) }); return; }
-      setPreview({ rows: res.rows, total: res.total, mapped: res.mapped });
+      setMapState({ headers: res.headers, records: res.records, map: res.suggested });
     } catch {
       setMsg({ tone: 'err', text: t('routePlanner.err_parse') });
     } finally { setImporting(false); }
   }
-  function confirmImport() {
-    if (!preview) return;
-    const ds = buildTisDatasetFromRows(preview.rows, { source: 'upload' });
+  function setFieldMap(field: TisFieldKey, header: string) {
+    setMapState((m) => (m ? { ...m, map: { ...m.map, [field]: header || undefined } } : m));
+  }
+  function confirmMapping() {
+    if (!mapState) return;
+    const rows = applyColumnMapping(mapState.records, mapState.map);
+    const ds = buildTisDatasetFromRows(rows, { source: 'upload' });
     setDataset(ds);
     setScenario(emptyScenario());
     setMethod(null); setHistory([]); setGenerated(false); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set());
-    setPreview(null);
+    setMapState(null);
     setMsg({ tone: 'ok', text: t('routePlanner.importOk').replace('{n}', String(ds.customers.length)) });
   }
   /** Pick a route-creation method. Manual starts from a blank map (everyone unassigned). */
@@ -166,7 +170,7 @@ export function RoutePlannerWorkspace() {
   }
   function reset() {
     setDataset(null); setScenario(emptyScenario()); setMethod(null); setHistory([]); setGenerated(false); setApproved(false);
-    setSelectedIds(new Set()); setFocusedRoutes(new Set()); setPreview(null); setMsg(null);
+    setSelectedIds(new Set()); setFocusedRoutes(new Set()); setMapState(null); setMsg(null);
   }
   /** One-step-back history (drawing territories / moving). Keeps the last 30 states. */
   function pushHistory(prev: Scenario) { setHistory((h) => [...h.slice(-29), prev]); }
@@ -239,8 +243,19 @@ export function RoutePlannerWorkspace() {
     }
   }
 
-  // ── Upload screen ──
+  // ── Upload screen (file picker, then flexible column mapping) ──
   if (!dataset) {
+    const mp = mapState?.map;
+    const requiredOk = !!(mp?.name && mp?.lat && mp?.lng);
+    let ready = 0;
+    if (mapState && mp?.name && mp.lat && mp.lng) {
+      const toNum = (v: string | undefined) => Number(String(v ?? '').trim());
+      for (const r of mapState.records) {
+        const nm = (r[mp.name] ?? '').toString().trim();
+        const la = toNum(r[mp.lat]); const lo = toNum(r[mp.lng]);
+        if (nm && Number.isFinite(la) && Number.isFinite(lo) && !(la === 0 && lo === 0)) ready++;
+      }
+    }
     return (
       <div className="space-y-4">
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
@@ -248,25 +263,46 @@ export function RoutePlannerWorkspace() {
         <Card>
           <CardContent className="space-y-4 p-6">
             <div className="flex items-center gap-2 text-lg font-semibold"><Upload className="h-5 w-5" /> {t('routePlanner.uploadTitle')}</div>
-            <p className="text-sm text-muted-foreground">{t('routePlanner.uploadLead')}</p>
-            <ul className="list-inside list-disc text-sm text-muted-foreground">
-              <li>{t('routePlanner.colCode')}</li><li>{t('routePlanner.colName')}</li>
-              <li>{t('routePlanner.colGeo')}</li><li>{t('routePlanner.colRouteFreq')}</li>
-            </ul>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => fileRef.current?.click()} disabled={importing}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
-              <Button variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
-            </div>
-            {preview && (
-              <div className="rounded-md border bg-muted/30 p-4">
-                <p className="text-sm">{t('routePlanner.previewSummary').replace('{n}', String(preview.rows.length)).replace('{total}', String(preview.total)).replace('{mapped}', String(preview.mapped))}</p>
-                <div className="mt-3 flex gap-2">
-                  <Button size="sm" onClick={confirmImport}><Check className="h-4 w-4" /> {t('routePlanner.confirmImport')}</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setPreview(null)}>{t('routePlanner.cancel')}</Button>
+
+            {!mapState ? (
+              <>
+                <p className="text-sm text-muted-foreground">{t('routePlanner.uploadLead2')}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => fileRef.current?.click()} disabled={importing}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
+                  <Button variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
                 </div>
-              </div>
+                <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">{t('routePlanner.mappingLead').replace('{n}', String(mapState.records.length))}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {TIS_MAP_FIELDS.map((f) => (
+                    <div key={f.key} className="flex items-center gap-2">
+                      <label className="w-32 shrink-0 text-sm">
+                        {t(`routePlanner.map_${f.key}`)} {f.required && <span className="text-red-600">*</span>}
+                      </label>
+                      <select
+                        className={`h-9 flex-1 rounded-md border bg-background px-2 text-sm ${f.required && !mp?.[f.key] ? 'border-red-400' : ''}`}
+                        value={mp?.[f.key] ?? ''}
+                        onChange={(e) => setFieldMap(f.key, e.target.value)}
+                      >
+                        <option value="">{t('routePlanner.map_none')}</option>
+                        {mapState.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+                <p className={`text-sm ${requiredOk && ready > 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {requiredOk ? t('routePlanner.mapReady').replace('{ready}', String(ready)).replace('{total}', String(mapState.records.length)) : t('routePlanner.mapRequired')}
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={!requiredOk || ready === 0} onClick={confirmMapping}><Check className="h-4 w-4" /> {t('routePlanner.confirmImport')}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setMapState(null)}>{t('routePlanner.cancel')}</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
+              </>
             )}
-            <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
           </CardContent>
         </Card>
       </div>
