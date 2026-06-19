@@ -51,9 +51,13 @@ export interface RoutePlan {
   /** When geography needs MORE routes than requested (distinct far territories > K),
    *  the minimum feasible route count to keep cities un-mixed — null otherwise. */
   geographyRequiresRoutes?: number | null;
-  /** Customers pulled out of their slice as remote/highway outliers (left unassigned
-   *  with an explicit null route) so one far point cannot distort a route. */
+  /** Customers left as Needs Review (unassigned) AFTER the dynamic absorption pass —
+   *  the genuinely isolated / route-distorting / all-routes-overloaded cases. */
   needsReview?: number;
+  /** Customers initially flagged as remote outliers (before absorption). */
+  needsReviewInitial?: number;
+  /** Flagged customers reclaimed into a nearby route by the absorption pass. */
+  needsReviewAbsorbed?: number;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -325,6 +329,19 @@ const RP_REMOTE_FLOOR_KM = 40;
 const RP_REMOTE_FACTOR = 3;
 const RP_MIN_SLICE = 5;
 
+/** Dynamic absorption thresholds — a flagged customer is pulled back into the nearest
+ *  route when it reasonably fits, so Needs Review is a LAST RESORT (not the default).
+ *  All named, not magic numbers. */
+const RP_MAX_ABSORB_KM = 25;          // max distance to a route's nearest customer to be a candidate
+const RP_MAX_WORKLOAD_IMBALANCE = 0.35; // a route may end up at most 35% above the mean route workload
+const RP_MAX_COMPACTNESS_IMPACT = 20;   // km a route's radius may grow by absorbing the customer
+
+/** Distance-aware boundary smoothing — after the Hilbert cut, a customer is moved to a
+ *  nearer route's centroid (Lloyd-style) when it is clearly closer and the target route
+ *  is not overloaded, so workload balancing never leaves customers far from their route. */
+const RP_BOUNDARY_MARGIN_KM = 5;  // must be ≥ this much closer to the other route to move
+const RP_BOUNDARY_PASSES = 3;
+
 const median = (xs: number[]): number => {
   if (xs.length === 0) return 0;
   const s = [...xs].sort((a, b) => a - b);
@@ -359,15 +376,12 @@ export function simpleGeoSplit(customers: readonly TisCustomer[], routeCount: nu
   }
 
   // Cut into EXACTLY K contiguous equal-count slices (guaranteed non-empty since k ≤ N).
-  const routes: RouteSummary[] = [];
-  const assignments: ScenarioAssignment[] = [];
-  const loads: number[] = [];
-  let needsReview = 0;
+  // Per slice, pull out remote/highway outliers so one far point cannot distort the route.
+  const buckets: { rid: string; list: TisCustomer[] }[] = [];
+  const reviewList: TisCustomer[] = [];
   for (let i = 0; i < k; i++) {
     const slice = seq.slice(Math.floor((i * seq.length) / k), Math.floor(((i + 1) * seq.length) / k));
     if (slice.length === 0) continue;
-
-    // Pull out remote/highway outliers so one far point cannot distort the route.
     let kept = slice;
     if (flagRemote && slice.length >= RP_MIN_SLICE) {
       const centre = centroidOf(slice);
@@ -378,18 +392,116 @@ export function simpleGeoSplit(customers: readonly TisCustomer[], routeCount: nu
         const review = slice.filter(isRemote);
         if (review.length > 0 && review.length < slice.length) {
           kept = slice.filter((c) => !isRemote(c));
-          for (const c of review) { assignments.push({ customerId: c.id, routeId: null }); needsReview++; }
+          reviewList.push(...review);
         }
       }
     }
-
-    const rid = ROUTE_ID(i);
-    const load = kept.reduce((s, c) => s + wl(c), 0);
-    routes.push({ routeId: rid, customerIds: kept.map((c) => c.id), customers: kept.length, workload: round1(load), salesValue: round1(kept.reduce((s, c) => s + (c.salesValue ?? 0), 0)) });
-    loads.push(load);
-    for (const c of kept) assignments.push({ customerId: c.id, routeId: rid });
+    buckets.push({ rid: ROUTE_ID(buckets.length), list: kept });
   }
-  return { routeCount: routes.length, assignments, routes, workloadBalancePct: balancePct(loads), requestedRoutes: k, absorbedTerritories: 0, geographyRequiresRoutes: null, needsReview };
+
+  // Dynamic absorption: reclaim each flagged customer into the NEAREST route that can
+  // reasonably take it — close enough, not overloaded, and without bloating its radius.
+  // Only the genuinely isolated / route-distorting / all-routes-overloaded remain.
+  const needsReviewInitial = reviewList.length;
+  let absorbed = 0;
+  let remainingReview: TisCustomer[] = reviewList;
+  if (flagRemote && buckets.length > 0) {
+    const bGeo = buckets.map((b) => b.list.filter((c) => isValidGeo(c.geo)));
+    const bWl = buckets.map((b) => b.list.reduce((s, c) => s + wl(c), 0));
+    const bCentroid = buckets.map((b) => centroidOf(b.list));
+    const bRadius = buckets.map((b, i) => { const ct = bCentroid[i]; return ct ? bGeo[i].reduce((m, c) => Math.max(m, distKm(ct, c.geo!)), 0) : 0; });
+    const meanWl = (bWl.reduce((s, w) => s + w, 0) / Math.max(1, buckets.length)) || 1;
+    const nearestMember = (c: TisCustomer, gi: TisCustomer[]) => gi.reduce((m, o) => Math.min(m, distKm(c.geo!, o.geo!)), Infinity);
+    const recompute = (i: number) => {
+      bGeo[i] = buckets[i].list.filter((c) => isValidGeo(c.geo));
+      bCentroid[i] = centroidOf(buckets[i].list);
+      const ct = bCentroid[i];
+      bRadius[i] = ct ? bGeo[i].reduce((m, c) => Math.max(m, distKm(ct, c.geo!)), 0) : 0;
+      bWl[i] = buckets[i].list.reduce((s, c) => s + wl(c), 0);
+    };
+
+    // (A) Distance-aware boundary smoothing: move each customer to the route whose
+    // centroid is clearly closer, as long as that route is not overloaded — keeps routes
+    // compact without letting workload balancing scatter a route across distant areas.
+    if (buckets.length > 1) {
+      for (let pass = 0; pass < RP_BOUNDARY_PASSES; pass++) {
+        const moves: { c: TisCustomer; from: number; to: number; gain: number }[] = [];
+        for (let i = 0; i < buckets.length; i++) {
+          const ci = bCentroid[i];
+          if (!ci) continue;
+          for (const c of buckets[i].list) {
+            if (!isValidGeo(c.geo)) continue;
+            const dCur = distKm(c.geo!, ci);
+            let bj = -1, bd = Infinity;
+            for (let j = 0; j < buckets.length; j++) { if (j === i) continue; const cj = bCentroid[j]; if (!cj) continue; const d = distKm(c.geo!, cj); if (d < bd) { bd = d; bj = j; } }
+            if (bj >= 0 && bd < dCur - RP_BOUNDARY_MARGIN_KM) moves.push({ c, from: i, to: bj, gain: dCur - bd });
+          }
+        }
+        moves.sort((a, b) => b.gain - a.gain);
+        const size = buckets.map((b) => b.list.length);
+        let applied = 0;
+        for (const m of moves) {
+          if (size[m.from] <= 1) continue;                                   // never empty a route (keep exactly K)
+          if (bWl[m.to] + wl(m.c) > (1 + RP_MAX_WORKLOAD_IMBALANCE) * meanWl) continue; // don't overload target
+          buckets[m.from].list = buckets[m.from].list.filter((x) => x.id !== m.c.id);
+          buckets[m.to].list.push(m.c);
+          bWl[m.from] -= wl(m.c); bWl[m.to] += wl(m.c);
+          size[m.from]--; size[m.to]++;
+          applied++;
+        }
+        for (let i = 0; i < buckets.length; i++) recompute(i);
+        if (applied === 0) break;
+      }
+    }
+
+    // (B) Absorb flagged review customers into the nearest route that can take them.
+    const geoReview = reviewList.filter((c) => isValidGeo(c.geo));
+    const remaining: TisCustomer[] = reviewList.filter((c) => !isValidGeo(c.geo)); // geo-less can't be placed
+    // Easiest (closest to any route) first, so greedy workload accounting is sensible.
+    const ordered = geoReview
+      .map((c) => ({ c, near: Math.min(...bGeo.map((g) => (g.length ? nearestMember(c, g) : Infinity))) }))
+      .sort((a, b) => a.near - b.near);
+    for (const { c } of ordered) {
+      let bestI = -1, bestD = Infinity;
+      for (let i = 0; i < buckets.length; i++) {
+        const g = bGeo[i];
+        if (g.length === 0) continue;
+        const dN = nearestMember(c, g);
+        if (dN > RP_MAX_ABSORB_KM) continue;                                  // too far from this route
+        if (bWl[i] + wl(c) > (1 + RP_MAX_WORKLOAD_IMBALANCE) * meanWl) continue; // would overload it
+        const ct = bCentroid[i];
+        const impact = ct ? Math.max(0, distKm(c.geo!, ct) - bRadius[i]) : 0;
+        if (impact > RP_MAX_COMPACTNESS_IMPACT) continue;                     // would bloat its radius
+        if (dN < bestD) { bestD = dN; bestI = i; }                           // prefer the closest acceptable route
+      }
+      if (bestI >= 0) {
+        buckets[bestI].list.push(c); absorbed++;
+        recompute(bestI);
+      } else {
+        remaining.push(c);
+      }
+    }
+    remainingReview = remaining;
+  }
+
+  // Build the final routes + assignments (absorbed customers now carry their route).
+  const routes: RouteSummary[] = [];
+  const assignments: ScenarioAssignment[] = [];
+  const loads: number[] = [];
+  for (const b of buckets) {
+    if (b.list.length === 0) continue;
+    const load = b.list.reduce((s, c) => s + wl(c), 0);
+    routes.push({ routeId: b.rid, customerIds: b.list.map((c) => c.id), customers: b.list.length, workload: round1(load), salesValue: round1(b.list.reduce((s, c) => s + (c.salesValue ?? 0), 0)) });
+    loads.push(load);
+    for (const c of b.list) assignments.push({ customerId: c.id, routeId: b.rid });
+  }
+  for (const c of remainingReview) assignments.push({ customerId: c.id, routeId: null });
+
+  return {
+    routeCount: routes.length, assignments, routes, workloadBalancePct: balancePct(loads),
+    requestedRoutes: k, absorbedTerritories: 0, geographyRequiresRoutes: null,
+    needsReview: remainingReview.length, needsReviewInitial, needsReviewAbsorbed: absorbed,
+  };
 }
 
 /**

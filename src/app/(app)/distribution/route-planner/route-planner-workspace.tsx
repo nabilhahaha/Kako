@@ -63,6 +63,7 @@ export function RoutePlannerWorkspace() {
   const [showAllBoundaries, setShowAllBoundaries] = useState(false);
   const [showOnlySelected, setShowOnlySelected] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [reviewStats, setReviewStats] = useState<{ initial: number; absorbed: number; final: number } | null>(null);
   const [approved, setApproved] = useState(false);
   const [importing, setImporting] = useState(false);
   const [mapState, setMapState] = useState<{ headers: string[]; records: Record<string, string>[]; map: Partial<Record<TisFieldKey, string>> } | null>(null);
@@ -159,7 +160,7 @@ export function RoutePlannerWorkspace() {
   /** Pick a route-creation method. Manual starts from a blank map (everyone unassigned). */
   function chooseMethod(m: 'assisted' | 'manual') {
     if (!dataset) return;
-    setMethod(m); setHistory([]); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set());
+    setMethod(m); setHistory([]); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set()); setReviewStats(null);
     if (m === 'manual') {
       const blank = dataset.customers.reduce((s, c) => moveCustomer(s, c.id, null), emptyScenario());
       setScenario(blank); setGenerated(true); setSelectMode('draw'); setShowAllBoundaries(true);
@@ -170,7 +171,7 @@ export function RoutePlannerWorkspace() {
   }
   function reset() {
     setDataset(null); setScenario(emptyScenario()); setMethod(null); setHistory([]); setGenerated(false); setApproved(false);
-    setSelectedIds(new Set()); setFocusedRoutes(new Set()); setMapState(null); setMsg(null);
+    setSelectedIds(new Set()); setFocusedRoutes(new Set()); setMapState(null); setMsg(null); setReviewStats(null);
   }
   /** One-step-back history (drawing territories / moving). Keeps the last 30 states. */
   function pushHistory(prev: Scenario) { setHistory((h) => [...h.slice(-29), prev]); }
@@ -189,6 +190,7 @@ export function RoutePlannerWorkspace() {
     const plan = simpleGeoSplit(dataset.customers, k);
     const sc = plan.assignments.reduce((s, a) => moveCustomer(s, a.customerId, a.routeId ?? null), emptyScenario());
     setScenario(sc); setGenerated(true); setApproved(false); setSelectedIds(new Set()); setFocusedRoutes(new Set());
+    setReviewStats({ initial: plan.needsReviewInitial ?? 0, absorbed: plan.needsReviewAbsorbed ?? 0, final: plan.needsReview ?? 0 });
     // Default the move target to the first real route (Route → Route is the primary flow).
     setTargetRoute(plan.routes[0]?.routeId ?? NEW_ROUTE);
   }
@@ -362,8 +364,10 @@ export function RoutePlannerWorkspace() {
       {msg && <p className={`rounded-md border px-3 py-2 text-sm ${msg.tone === 'err' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>{msg.text}</p>}
       {method === 'assisted' && !generated && <p className="rounded-md border bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.generateHint')}</p>}
       {method === 'manual' && <p className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.manualHint')}</p>}
-      {generated && unassigned > 0 && method === 'assisted' && (
-        <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('routePlanner.reviewBanner').replace('{n}', String(unassigned))}</p>
+      {generated && method === 'assisted' && reviewStats && reviewStats.initial > 0 && (
+        <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {t('routePlanner.reviewSummary').replace('{flagged}', String(reviewStats.initial)).replace('{absorbed}', String(reviewStats.absorbed)).replace('{final}', String(reviewStats.final))}
+        </p>
       )}
 
       <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
@@ -410,6 +414,8 @@ export function RoutePlannerWorkspace() {
                   [t('routePlanner.colVisits'), String(summary.weeklyVisits)],
                   [t('routePlanner.colWorkload'), `${summary.workloadHours}h`],
                   [t('routePlanner.colRadius'), `${summary.maxRadiusKm}km`],
+                  [t('routePlanner.colMeanDist'), `${summary.avgMeanRadiusKm}km`],
+                  [t('routePlanner.colSpan'), `${summary.maxSpanKm}km`],
                   [t('routePlanner.colCompactness'), String(summary.compactness)],
                   [t('routePlanner.colSelected'), String(selectedIds.size)],
                 ] as [string, string][]).map(([label, value]) => (

@@ -265,3 +265,46 @@ describe('Select then Apply (selection and moving are separate)', () => {
     expect(after.find((r) => r.routeId === r3)!.customers).toBe(r3Before + selected.length);
   });
 });
+
+describe('Distance-aware split (absorption + boundary smoothing)', () => {
+  // Two tight cities + a customer midway that is near one city.
+  function spread() {
+    const rows = [] as Parameters<typeof buildTisDatasetFromRows>[0][number][];
+    for (let i = 0; i < 10; i++) rows.push({ code: `A${i}`, name: `A ${i}`, lat: 21.50 + i * 0.003, lng: 39.10 + i * 0.003, frequency: 'weekly' });
+    for (let i = 0; i < 10; i++) rows.push({ code: `B${i}`, name: `B ${i}`, lat: 24.70 + i * 0.003, lng: 46.70 + i * 0.003, frequency: 'weekly' });
+    return buildTisDatasetFromRows(rows, { source: 'upload' });
+  }
+
+  it('absorption: a flagged customer near a route is reclaimed, not left for review', () => {
+    const rows = [] as Parameters<typeof buildTisDatasetFromRows>[0][number][];
+    for (let i = 0; i < 9; i++) rows.push({ code: `J${i}`, name: `J ${i}`, lat: 21.50 + i * 0.004, lng: 39.10 + i * 0.004, frequency: 'weekly' });
+    // ~15 km from the cluster edge — within RP_MAX_ABSORB_KM (25), should be absorbed back.
+    rows.push({ code: 'NEAR', name: 'Near', lat: 21.40, lng: 39.05, frequency: 'weekly' });
+    const ds = buildTisDatasetFromRows(rows, { source: 'upload' });
+    const plan = simpleGeoSplit(ds.customers, 1);
+    expect(plan.needsReviewInitial!).toBeGreaterThanOrEqual(plan.needsReview!);
+    expect(plan.needsReview).toBe(0); // reclaimed
+    expect((plan.needsReviewAbsorbed ?? 0) + plan.routes[0].customers).toBe(ds.customers.length);
+  });
+
+  it('boundary smoothing: each city forms its own compact route at K=2', () => {
+    const ds = spread();
+    const plan = simpleGeoSplit(ds.customers, 2);
+    expect(plan.routes.length).toBe(2);
+    const sc = plan.assignments.reduce((s, a) => moveCustomer(s, a.customerId, a.routeId ?? null), { id: 'p', name: 'p', assignments: [] as Scenario['assignments'] });
+    const rev = routeReview(ds, sc);
+    // Compact cities → small radius each, and a non-zero span/mean reported.
+    for (const r of rev) {
+      expect(r.radiusKm).toBeLessThan(20);
+      expect(r.meanRadiusKm).toBeGreaterThanOrEqual(0);
+      expect(r.spanKm).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('exposes flagged/absorbed/final counts and never increases review by absorbing', () => {
+    const ds = spread();
+    const plan = simpleGeoSplit(ds.customers, 3);
+    expect(plan.needsReviewInitial).toBeGreaterThanOrEqual(0);
+    expect(plan.needsReview!).toBeLessThanOrEqual(plan.needsReviewInitial!);
+  });
+});

@@ -103,12 +103,31 @@ export function convexHull(points: readonly { lng: number; lat: number }[]): Lng
 }
 
 export interface RouteReview extends RouteStat {
-  /** Max distance from the route centroid (km). */
+  /** Max distance from the route centroid (km) — the route radius. */
   radiusKm: number;
+  /** Mean distance from the route centroid (km). */
+  meanRadiusKm: number;
+  /** Span: distance across the route's bounding box (km) — farthest-apart proxy. */
+  spanKm: number;
   /** Compactness score 0–100 (100 = tight). */
   compactness: number;
   /** Convex-hull ring [lng,lat] of the route's located customers (open). */
   hull: LngLat[];
+}
+
+const haversineKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+  const R = 6371, toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+};
+
+/** Bounding-box diagonal (km) of a route's points — a cheap farthest-apart proxy. */
+function spanKmOf(points: readonly { lng: number; lat: number }[]): number {
+  if (points.length < 2) return 0;
+  let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+  for (const p of points) { minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat); minLng = Math.min(minLng, p.lng); maxLng = Math.max(maxLng, p.lng); }
+  return Math.round(haversineKm({ lat: minLat, lng: minLng }, { lat: maxLat, lng: maxLng }) * 10) / 10;
 }
 
 /**
@@ -128,12 +147,17 @@ export function routeReview(dataset: TisDataset, scenario: Scenario): RouteRevie
     if (!r || !isValidGeo(c.geo)) continue;
     (byRoute.get(r) ?? byRoute.set(r, []).get(r)!).push({ lng: c.geo!.lng, lat: c.geo!.lat });
   }
-  return stats.map((s) => ({
-    ...s,
-    radiusKm: geoById.get(s.routeId)?.radiusKm ?? 0,
-    compactness: geoById.get(s.routeId)?.compactness ?? 0,
-    hull: convexHull(byRoute.get(s.routeId) ?? []),
-  }));
+  return stats.map((s) => {
+    const pts = byRoute.get(s.routeId) ?? [];
+    return {
+      ...s,
+      radiusKm: geoById.get(s.routeId)?.radiusKm ?? 0,
+      meanRadiusKm: geoById.get(s.routeId)?.meanRadiusKm ?? 0,
+      spanKm: spanKmOf(pts),
+      compactness: geoById.get(s.routeId)?.compactness ?? 0,
+      hull: convexHull(pts),
+    };
+  });
 }
 
 export interface ReviewAggregate {
@@ -143,6 +167,10 @@ export interface ReviewAggregate {
   workloadHours: number;
   /** Max route radius across the set (km). */
   maxRadiusKm: number;
+  /** Mean of per-route mean-distance-from-centre across the set (km). */
+  avgMeanRadiusKm: number;
+  /** Max route span across the set (km). */
+  maxSpanKm: number;
   /** Mean compactness across the set. */
   compactness: number;
 }
@@ -150,13 +178,15 @@ export interface ReviewAggregate {
 /** Aggregate the review stats over a set of focused routes (all when `focused` empty). */
 export function aggregateReview(reviews: readonly RouteReview[], focused: ReadonlySet<string>): ReviewAggregate {
   const set = focused.size ? reviews.filter((r) => focused.has(r.routeId)) : reviews;
-  if (set.length === 0) return { routes: 0, customers: 0, weeklyVisits: 0, workloadHours: 0, maxRadiusKm: 0, compactness: 0 };
+  if (set.length === 0) return { routes: 0, customers: 0, weeklyVisits: 0, workloadHours: 0, maxRadiusKm: 0, avgMeanRadiusKm: 0, maxSpanKm: 0, compactness: 0 };
   return {
     routes: set.length,
     customers: set.reduce((n, r) => n + r.customers, 0),
     weeklyVisits: set.reduce((n, r) => n + r.weeklyVisits, 0),
     workloadHours: Math.round(set.reduce((n, r) => n + r.workloadHours, 0) * 10) / 10,
     maxRadiusKm: Math.round(Math.max(...set.map((r) => r.radiusKm)) * 10) / 10,
+    avgMeanRadiusKm: Math.round((set.reduce((n, r) => n + r.meanRadiusKm, 0) / set.length) * 10) / 10,
+    maxSpanKm: Math.round(Math.max(...set.map((r) => r.spanKm)) * 10) / 10,
     compactness: Math.round(set.reduce((n, r) => n + r.compactness, 0) / set.length),
   };
 }
