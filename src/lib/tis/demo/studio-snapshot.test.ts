@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildJeddahDemoDataset } from './jeddah';
 import { PALETTE } from './svg';
-import { balanceRoutes } from '../optimize-routes';
+import { balanceRoutes, workingDayList } from '../optimize-routes';
 import { applyScenario, scenarioMetrics } from '../scenario';
 import { isValidGeo } from '../dataset';
 
@@ -77,5 +77,47 @@ describe('STUDIO-1 layout snapshot (Jeddah demo)', () => {
     mkdirSync(resolve(process.cwd(), 'docs/tis-demo'), { recursive: true });
     writeFileSync(resolve(process.cwd(), 'docs/tis-demo/jeddah-studio.svg'), parts.join(''));
     expect(routeIds).toHaveLength(6);
+  });
+
+  it('renders the Plan calendar (visits per working day × route) to docs/tis-demo/jeddah-calendar.svg', () => {
+    const ds = buildJeddahDemoDataset();
+    const plan = balanceRoutes(ds.customers, { routeCount: 6, workingDays: 5 });
+    const routeIds = [...new Set(plan.assignments.map((a) => a.routeId!).filter(Boolean))].sort();
+    const days = workingDayList(5); // sun..thu
+    const DAY_LABEL: Record<string, string> = { sun: 'Sun', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat' };
+    // counts[route][day]
+    const counts = new Map<string, Map<string, number>>(routeIds.map((r) => [r, new Map(days.map((d) => [d, 0]))]));
+    for (const a of plan.assignments) {
+      if (a.routeId && a.dayOfWeek && counts.get(a.routeId)?.has(a.dayOfWeek)) {
+        const m = counts.get(a.routeId)!; m.set(a.dayOfWeek, m.get(a.dayOfWeek)! + 1);
+      }
+    }
+    const colW = 150, rowH = 30, pad = 16, headerH = 64, gridX = pad + 90, gridTop = headerH + 24;
+    const W = gridX + days.length * colW + pad, H = gridTop + routeIds.length * rowH + 30;
+    const maxCell = Math.max(1, ...routeIds.flatMap((r) => days.map((d) => counts.get(r)!.get(d)!)));
+    const parts: string[] = [
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`,
+      `<rect width="${W}" height="${H}" fill="#f8fafc"/>`,
+      `<text x="${pad}" y="24" font-size="16" font-weight="700" fill="#0f172a">Plan Calendar · visits per working day (Jeddah demo, 6 routes)</text>`,
+      `<text x="${pad}" y="44" font-size="11" fill="#64748b">Each route's customers are spread across Sun–Thu by workload — the calendar is no longer empty.</text>`,
+    ];
+    days.forEach((d, i) => parts.push(`<text x="${gridX + i * colW + colW / 2}" y="${gridTop - 8}" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">${DAY_LABEL[d]}</text>`));
+    routeIds.forEach((r, ri) => {
+      const y = gridTop + ri * rowH;
+      parts.push(`<text x="${pad}" y="${y + 20}" font-size="12" fill="#0f172a">Route ${ri + 1}</text>`);
+      days.forEach((d, di) => {
+        const n = counts.get(r)!.get(d)!;
+        const x = gridX + di * colW;
+        const intensity = 0.15 + 0.75 * (n / maxCell);
+        parts.push(`<rect x="${x + 4}" y="${y + 3}" width="${colW - 8}" height="${rowH - 6}" rx="4" fill="rgba(37,99,235,${intensity.toFixed(2)})"/>`);
+        parts.push(`<text x="${x + colW / 2}" y="${y + 20}" font-size="11" font-weight="700" fill="#0f172a" text-anchor="middle">${n}</text>`);
+      });
+    });
+    parts.push('</svg>');
+
+    mkdirSync(resolve(process.cwd(), 'docs/tis-demo'), { recursive: true });
+    writeFileSync(resolve(process.cwd(), 'docs/tis-demo/jeddah-calendar.svg'), parts.join(''));
+    // Every working day carries visits on at least one route (calendar populated).
+    for (const d of days) expect(routeIds.some((r) => counts.get(r)!.get(d)! > 0)).toBe(true);
   });
 });
