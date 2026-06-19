@@ -16,6 +16,8 @@ import { formatFrequency } from '@/lib/route-optimization/visit-frequency';
 import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
 import { parseUploadColumns } from './import-actions';
 import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map';
+import { TrialBanner } from './trial-banner';
+import type { RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
 
 const NEW_ROUTE = '__new';
 const UNASSIGNED = '__unassigned';
@@ -80,9 +82,13 @@ function downloadXlsx(bytes: Uint8Array, filename: string) {
  * TIS upload pipeline, the shared scenario/plan-edit engine and a single-pass geo
  * split — the manager does the final shaping by box/click-selecting on the map.
  */
-export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {}) {
+export function RoutePlannerWorkspace({ focus = false, subscription }: { focus?: boolean; subscription?: RoutePlannerSubscriptionView } = {}) {
   const { t, locale, setLocale } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Trial / subscription gating. When a trial or subscription has lapsed the planner
+  // stays viewable but the mutating actions (upload, split, approve, export) are locked.
+  const subCaps = subscription?.capabilities ?? { canUpload: true, canRunSplit: true, canApprove: true, canExport: true };
 
   const [dataset, setDataset] = useState<TisDataset | null>(null);
   const [scenario, setScenario] = useState<Scenario>(emptyScenario());
@@ -306,7 +312,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
 
   // ── Split / Correct / Approve / Export ──
   function generate() {
-    if (!dataset) return;
+    if (!dataset || !subCaps.canRunSplit) return;
     pushHistory(scenario);
     const k = Math.max(1, Math.round(Number(routeCount)) || 1);
     const plan = simpleGeoSplit(dataset.customers, k);
@@ -356,7 +362,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
     setSelectedIds(new Set(unassignedIds(dataset, scenario)));
   }
   function exportRoutes() {
-    if (!dataset || !approved) return;
+    if (!dataset || !approved || !subCaps.canExport) return;
     try {
       const sheets = [{ name: 'Route Allocation', rows: routeExportRows(dataset, scenario, routeLabelOf) }];
       if (unassigned > 0) sheets.push({ name: 'Needs Review', rows: needsReviewExportRows(dataset, scenario) });
@@ -397,6 +403,9 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
     </div>
   ) : null;
 
+  // Trial / subscription banner (shown whenever a subscription view is supplied).
+  const subBanner = subscription ? <div className={focus ? 'shrink-0' : 'mb-3'}><TrialBanner sub={subscription} compact={focus} /></div> : null;
+
   // ── Focus-mode welcome (demo, before upload): branded hero + capabilities ──
   if (focus && !dataset && !mapState) {
     const caps = [
@@ -409,6 +418,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
       <div className="mx-auto max-w-5xl">
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
         {brandHeader}
+        {subBanner}
         {msg && <p className={`mb-3 text-sm ${msg.tone === 'err' ? 'text-red-600' : 'text-emerald-600'}`}>{msg.text}</p>}
         <div className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background shadow-sm">
           <div className="grid items-center gap-6 p-8 md:grid-cols-2">
@@ -416,7 +426,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
               <h1 className="text-3xl font-bold tracking-tight">{t('routePlanner.welcomeTitle')}</h1>
               <p className="mt-2 text-muted-foreground">{t('routePlanner.welcomeLead')}</p>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Button size="lg" onClick={() => fileRef.current?.click()} disabled={importing}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
+                <Button size="lg" onClick={() => fileRef.current?.click()} disabled={importing || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
                 <Button size="lg" variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
@@ -454,6 +464,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
       <div className="mx-auto max-w-3xl space-y-4">
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
         {brandHeader}
+        {subBanner}
         {msg && <p className={`text-sm ${msg.tone === 'err' ? 'text-red-600' : 'text-emerald-600'}`}>{msg.text}</p>}
         <Card>
           <CardContent className="space-y-4 p-6">
@@ -463,7 +474,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
               <>
                 <p className="text-sm text-muted-foreground">{t('routePlanner.uploadLead2')}</p>
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => fileRef.current?.click()} disabled={importing}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
+                  <Button onClick={() => fileRef.current?.click()} disabled={importing || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
                   <Button variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
                 </div>
                 <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
@@ -515,6 +526,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
     return (
       <div className="mx-auto max-w-5xl space-y-4">
         {brandHeader}
+        {subBanner}
         <p className="text-sm text-muted-foreground">{t('routePlanner.importOk').replace('{n}', String(dataset.customers.length))} {t('routePlanner.chooseMethod')}</p>
         <div className="grid gap-3 sm:grid-cols-3">
           {canCurrent && (
@@ -541,6 +553,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
   return (
     <div className={focus ? 'flex h-[calc(100dvh-0.75rem)] flex-col gap-2 p-2 lg:px-4' : 'space-y-3'}>
       {brandHeader}
+      {subBanner}
       {/* Toolbar */}
       <Card className={focus ? 'shrink-0 shadow-sm' : ''}>
         <CardContent className="flex flex-wrap items-end gap-x-4 gap-y-3 p-3">
@@ -549,7 +562,7 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
               <label className="block text-[11px] text-muted-foreground">{t('routePlanner.routeCount')}</label>
               <div className="flex items-center gap-2">
                 <Input type="number" min={1} value={routeCount} onChange={(e) => setRouteCount(e.target.value)} className="h-9 w-24" dir="ltr" />
-                <Button size="sm" onClick={generate}><Wand2 className="h-4 w-4" /> {generated ? t('routePlanner.regenerate') : t('routePlanner.generate')}</Button>
+                <Button size="sm" onClick={generate} disabled={!subCaps.canRunSplit} title={!subCaps.canRunSplit ? t('routePlanner.subLockedAction') : undefined}><Wand2 className="h-4 w-4" /> {generated ? t('routePlanner.regenerate') : t('routePlanner.generate')}</Button>
               </div>
             </div>
           ) : method === 'current' ? (
@@ -568,11 +581,11 @@ export function RoutePlannerWorkspace({ focus = false }: { focus?: boolean } = {
           <div className="flex-1" />
           <Button size="sm" variant="ghost" disabled={history.length === 0} onClick={undo}><RotateCcw className="h-4 w-4" /> {t('routePlanner.undo')}</Button>
           {!approved ? (
-            <Button size="sm" variant="default" disabled={reviews.length === 0} onClick={() => setApproved(true)}><Check className="h-4 w-4" /> {t('routePlanner.approve')}</Button>
+            <Button size="sm" variant="default" disabled={reviews.length === 0 || !subCaps.canApprove} title={!subCaps.canApprove ? t('routePlanner.subLockedAction') : undefined} onClick={() => setApproved(true)}><Check className="h-4 w-4" /> {t('routePlanner.approve')}</Button>
           ) : (
             <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><Check className="h-4 w-4" /> {t('routePlanner.approved')}</span>
           )}
-          <Button size="sm" variant="outline" disabled={!approved} onClick={exportRoutes}><FileDown className="h-4 w-4" /> {t('routePlanner.exportRoutes')}</Button>
+          <Button size="sm" variant="outline" disabled={!approved || !subCaps.canExport} title={!subCaps.canExport ? t('routePlanner.subLockedAction') : undefined} onClick={exportRoutes}><FileDown className="h-4 w-4" /> {t('routePlanner.exportRoutes')}</Button>
           <Button size="sm" variant="ghost" onClick={reset}><RotateCcw className="h-4 w-4" /> {t('routePlanner.newUpload')}</Button>
         </CardContent>
       </Card>

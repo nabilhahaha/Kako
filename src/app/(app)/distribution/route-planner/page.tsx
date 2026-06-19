@@ -4,6 +4,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
 import { getT } from '@/lib/i18n/server';
+import { resolveSubscription, subscriptionInputFor } from '@/lib/erp/route-planner-subscription';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
 
 export const metadata: Metadata = { title: 'VANTORA Route Planner' };
@@ -22,15 +23,16 @@ export default async function RoutePlannerPage() {
   if (!allowed) redirect('/dashboard');
 
   const { t } = await getT();
+  const subscription = resolveSubscription(subscriptionInputFor(ctx.company, { isDemo: ctx.isRoutePlannerDemo }));
   if (ctx.isRoutePlannerDemo) {
     // Standalone, presentation-quality experience — the workspace renders its own
     // branding header / badge; no platform PageHeader.
-    return <RoutePlannerWorkspace focus />;
+    return <RoutePlannerWorkspace focus subscription={subscription} />;
   }
   return (
     <div>
       <PageHeader title={t('routePlanner.title')} description={t('routePlanner.description')} />
-      <RoutePlannerWorkspace />
+      <RoutePlannerWorkspace subscription={subscription} />
     </div>
   );
 }
