@@ -689,22 +689,22 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         {/* Map + selection controls. In focus mode the controls FLOAT over the map so the
             map itself fills the whole column (map-as-hero). */}
         <div className={focus ? 'relative min-h-0 flex-1' : 'space-y-2'}>
-          <div className={focus ? 'pointer-events-none absolute start-2 top-2 z-[5] flex w-[min(44rem,calc(100%-3.5rem))] flex-col gap-1.5' : 'space-y-2'}>
+          <div className={focus ? 'pointer-events-none absolute end-2 top-2 z-[5] flex w-[min(18rem,calc(100%-1rem))] flex-col items-stretch gap-1.5' : 'space-y-2'}>
           {/* Selection mode + boundaries + focus */}
-          <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm ${focus ? 'bg-background/85 shadow-sm backdrop-blur' : 'bg-muted/30'}`}>
-            <span className="text-muted-foreground">{t('routePlanner.selectMode')}</span>
-            <div className="inline-flex overflow-hidden rounded-md border">
-              <button onClick={() => setSelectMode('pan')} className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs ${selectMode === 'pan' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><Hand className="h-3.5 w-3.5" /> {t('routePlanner.panMode')}</button>
-              <button onClick={() => setSelectMode('box')} className={`inline-flex items-center gap-1 border-s px-2.5 py-1.5 text-xs ${selectMode === 'box' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><Square className="h-3.5 w-3.5" /> {t('routePlanner.boxSelect')}</button>
-              <button onClick={() => setSelectMode('draw')} className={`inline-flex items-center gap-1 border-s px-2.5 py-1.5 text-xs ${selectMode === 'draw' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><PenTool className="h-3.5 w-3.5" /> {t('routePlanner.drawSelect')}</button>
+          <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-lg border text-sm ${focus ? 'border-white/50 bg-background/75 px-2 py-1.5 shadow-md backdrop-blur-md dark:border-white/10' : 'rounded-md bg-muted/30 px-3 py-2'}`}>
+            {!focus && <span className="text-muted-foreground">{t('routePlanner.selectMode')}</span>}
+            <div className={`inline-flex overflow-hidden rounded-md border ${focus ? '' : ''}`}>
+              <button onClick={() => setSelectMode('pan')} title={t('routePlanner.panMode')} className={`inline-flex items-center gap-1 px-2 py-1 text-xs ${selectMode === 'pan' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><Hand className="h-3.5 w-3.5" /> {t('routePlanner.panMode')}</button>
+              <button onClick={() => setSelectMode('box')} title={t('routePlanner.boxSelect')} className={`inline-flex items-center gap-1 border-s px-2 py-1 text-xs ${selectMode === 'box' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><Square className="h-3.5 w-3.5" /> {focus ? '' : t('routePlanner.boxSelect')}</button>
+              <button onClick={() => setSelectMode('draw')} title={t('routePlanner.drawSelect')} className={`inline-flex items-center gap-1 border-s px-2 py-1 text-xs ${selectMode === 'draw' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}><PenTool className="h-3.5 w-3.5" /> {focus ? '' : t('routePlanner.drawSelect')}</button>
             </div>
-            <span className="text-xs text-muted-foreground">{selectMode === 'pan' ? t('routePlanner.panHint') : selectMode === 'box' ? t('routePlanner.boxHint') : t('routePlanner.drawHint')}</span>
+            {!focus && <span className="text-xs text-muted-foreground">{selectMode === 'pan' ? t('routePlanner.panHint') : selectMode === 'box' ? t('routePlanner.boxHint') : t('routePlanner.drawHint')}</span>}
             <label className="ms-auto inline-flex cursor-pointer items-center gap-1 text-xs"><input type="checkbox" checked={showAllBoundaries} onChange={(e) => setShowAllBoundaries(e.target.checked)} /> <Layers className="h-3.5 w-3.5" /> {t('routePlanner.boundaries')}</label>
             {focusedRoutes.size > 0 && <Button size="sm" variant="ghost" onClick={clearFocus}><X className="h-4 w-4" /> {t('routePlanner.clearFocus')}</Button>}
           </div>
 
           {/* Move bar with live count + per-route breakdown */}
-          <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm ${focus ? 'bg-background/85 shadow-sm backdrop-blur' : 'bg-muted/30'}`}>
+          <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-lg border text-sm ${focus ? 'border-white/50 bg-background/75 px-2 py-1.5 shadow-md backdrop-blur-md dark:border-white/10' : 'rounded-md bg-muted/30 px-3 py-2'}`}>
             {selectingInfo != null ? (
               <span className="font-medium text-primary">
                 {t('routePlanner.selectingN').replace('{n}', String(selectingInfo.count))}
@@ -716,7 +716,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
                 {hasSales && movePreview && <span className="text-muted-foreground"> · {t('routePlanner.salesLabel')} {fmt(movePreview.totalSales)}</span>}
               </span>
             )}
-            {selectingInfo == null && movePreview && movePreview.breakdown.length > 0 && (
+            {!focus && selectingInfo == null && movePreview && movePreview.breakdown.length > 0 && (
               <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                 {t('routePlanner.fromLabel')}
                 {movePreview.breakdown.slice(0, 6).map((b) => (

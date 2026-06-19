@@ -96,7 +96,9 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
       if (cancelled || !containerRef.current) return;
       glRef.current = maplibregl as unknown as typeof import('maplibre-gl');
       map = new maplibregl.Map({ container: containerRef.current, style: RASTER_STYLE as never, center: [39.17, 21.58], zoom: 9 });
-      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      // Zoom control on the LEFT so the focus-mode floating tool panel (top-right) never
+      // collides with it.
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
       mapRef.current = map;
 
       map.on('load', () => {
