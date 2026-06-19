@@ -44,7 +44,7 @@ import {
   CUSTOMER_BADGE_KEY,
 } from './customer-360-tabs';
 import { customerHealth, HEALTH_BAND_VARIANT, HEALTH_BAND_KEY } from './customer-health';
-import type { CustomerDetailBundle } from './[id]/load';
+import type { CustomerDetailBundle, CustomerTransferRow } from './[id]/load';
 import type { Area, Branch, CustomerLookup, ErpCustomer, Profile, Region } from '@/lib/erp/types';
 import type { CustomFieldDef } from '@/lib/erp/custom-fields';
 import type { GovInputs } from '@/lib/erp/field-governance';
@@ -378,7 +378,10 @@ export function Customer360({
 
       {/* ── Related ───────────────────────────────────────────────────────── */}
       {tab === 'related' && (
-        <RelatedTab customer={customer} customers={customers} branches={branches} reps={reps} regions={regions} areas={areas} ar={ar} t={t} />
+        <div className="space-y-3">
+          <RelatedTab customer={customer} customers={customers} branches={branches} reps={reps} regions={regions} areas={areas} ar={ar} t={t} />
+          <TransferHistorySection transfers={bundle.transfers} names={bundle.transferNames} t={t} />
+        </div>
       )}
 
       {/* ── Audit ─────────────────────────────────────────────────────────── */}
@@ -503,6 +506,61 @@ function RelatedTab({
             </div>
           ))}
         </div>
+      )}
+    </SectionCard>
+  );
+}
+
+const TRANSFER_STATUS_VARIANT: Record<string, 'warning' | 'success' | 'destructive' | 'secondary'> = {
+  pending: 'warning', applied: 'success', rejected: 'destructive', cancelled: 'secondary',
+};
+
+/** G4: read-only transfer history (prev → new salesman/route/region, reason,
+ *  date, status). Names resolved server-side; only changed dimensions shown. */
+function TransferHistorySection({
+  transfers, names, t,
+}: {
+  transfers: CustomerTransferRow[];
+  names: Record<string, string>;
+  t: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  const nm = (id: string | null) => (id ? names[id] || '—' : '—');
+  const change = (label: string, from: string | null, to: string | null) =>
+    from === to ? null : (
+      <span className="inline-flex items-center gap-1">
+        <span className="text-muted-foreground">{label}:</span>
+        <span>{nm(from)}</span>
+        <span className="text-muted-foreground" dir="ltr">→</span>
+        <span className="font-medium">{nm(to)}</span>
+      </span>
+    );
+  return (
+    <SectionCard title={t('customer360.transferHistoryTitle')}>
+      {transfers.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t('customer360.transferNone')}</p>
+      ) : (
+        <ul className="divide-y">
+          {transfers.map((tr) => {
+            const changes = [
+              change(t('customer360.relSalesman'), tr.from_salesman_id, tr.to_salesman_id),
+              change(t('customer360.relRoute'), tr.from_route_id, tr.to_route_id),
+              change(t('customer360.relRegion'), tr.from_region_id, tr.to_region_id),
+              change(t('customer360.relBranch'), tr.from_branch_id, tr.to_branch_id),
+            ].filter(Boolean);
+            return (
+              <li key={tr.id} className="space-y-1 py-2 text-sm first:pt-0 last:pb-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground" dir="ltr">{formatDate(tr.created_at)}</span>
+                  <Badge variant={TRANSFER_STATUS_VARIANT[tr.status] ?? 'secondary'}>
+                    {t(`customer360.tfStatus_${tr.status}`)}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">{changes}</div>
+                {tr.reason && <p className="text-xs text-muted-foreground">{t('customer360.tfReason')}: {tr.reason}</p>}
+              </li>
+            );
+          })}
+        </ul>
       )}
     </SectionCard>
   );

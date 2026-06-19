@@ -27,6 +27,24 @@ export interface CustomerLastActivity {
   lastReturn: string | null;
 }
 
+/** G4: one customer transfer record (read-only history). */
+export interface CustomerTransferRow {
+  id: string;
+  from_salesman_id: string | null;
+  to_salesman_id: string | null;
+  from_route_id: string | null;
+  to_route_id: string | null;
+  from_region_id: string | null;
+  to_region_id: string | null;
+  from_branch_id: string | null;
+  to_branch_id: string | null;
+  reason: string | null;
+  status: string;
+  created_at: string;
+  applied_at: string | null;
+  decided_at: string | null;
+}
+
 export interface CustomerDetailBundle {
   statement: CustomerStatementResult;
   activity: CustomerActivity;
@@ -36,6 +54,10 @@ export interface CustomerDetailBundle {
   visitCount: number;
   /** G2: last visit · order · invoice · collection · return. */
   lastActivity: CustomerLastActivity;
+  /** G4: transfer history (newest-first) + an id→display-name map for the
+   *  involved salesmen/routes/regions/branches. */
+  transfers: CustomerTransferRow[];
+  transferNames: Record<string, string>;
 }
 
 async function safeRows<T>(fn: () => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
@@ -92,6 +114,17 @@ export async function loadCustomerDetailBundle(
     ),
   ]);
 
+  // G4: transfer history + resolve the involved entity display names.
+  const transfers = await safeRows<CustomerTransferRow>(() =>
+    supabase
+      .from('erp_customer_transfers')
+      .select('id, from_salesman_id, to_salesman_id, from_route_id, to_route_id, from_region_id, to_region_id, from_branch_id, to_branch_id, reason, status, created_at, applied_at, decided_at')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false })
+      .limit(50),
+  );
+  const transferNames = await resolveTransferNames(supabase, transfers);
+
   const extra: TimelineEvent[] = [
     ...requests.map((r) => ({ date: r.created_at, kind: 'note' as const, title: `request:${r.kind}`, status: r.status })),
     ...visits.map((v) => ({ date: v.created_at, kind: 'visit' as const, title: `visit:${v.outcome}`, status: v.note ?? undefined })),
@@ -115,5 +148,32 @@ export async function loadCustomerDetailBundle(
     requestCount: requests.length,
     visitCount: visits.length,
     lastActivity,
+    transfers,
+    transferNames,
   };
+}
+
+/** Batch-resolve the salesman/route/region/branch ids referenced by the transfer
+ *  rows into display names (read-only, RLS-scoped). Empty when there are none. */
+async function resolveTransferNames(
+  supabase: SupabaseClient,
+  transfers: CustomerTransferRow[],
+): Promise<Record<string, string>> {
+  if (transfers.length === 0) return {};
+  const uniq = (...ids: (string | null)[]) => [...new Set(ids.filter((x): x is string => !!x))];
+  const salesmanIds = uniq(...transfers.flatMap((t) => [t.from_salesman_id, t.to_salesman_id]));
+  const routeIds = uniq(...transfers.flatMap((t) => [t.from_route_id, t.to_route_id]));
+  const regionIds = uniq(...transfers.flatMap((t) => [t.from_region_id, t.to_region_id]));
+  const branchIds = uniq(...transfers.flatMap((t) => [t.from_branch_id, t.to_branch_id]));
+
+  const [profs, rts, rgs, brs] = await Promise.all([
+    salesmanIds.length ? safeRows<{ id: string; full_name: string | null; email: string | null }>(() => supabase.from('erp_profiles').select('id, full_name, email').in('id', salesmanIds)) : Promise.resolve([]),
+    routeIds.length ? safeRows<{ id: string; name: string; name_ar: string | null }>(() => supabase.from('erp_routes').select('id, name, name_ar').in('id', routeIds)) : Promise.resolve([]),
+    regionIds.length ? safeRows<{ id: string; name: string; name_ar: string | null }>(() => supabase.from('erp_regions').select('id, name, name_ar').in('id', regionIds)) : Promise.resolve([]),
+    branchIds.length ? safeRows<{ id: string; name: string; name_ar: string | null }>(() => supabase.from('erp_branches').select('id, name, name_ar').in('id', branchIds)) : Promise.resolve([]),
+  ]);
+  const names: Record<string, string> = {};
+  for (const p of profs) names[p.id] = p.full_name || p.email || '';
+  for (const r of [...rts, ...rgs, ...brs]) names[r.id] = r.name_ar || r.name;
+  return names;
 }
