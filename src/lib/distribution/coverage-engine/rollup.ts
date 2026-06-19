@@ -7,6 +7,9 @@
  */
 import type { CoverageStatus } from '@/lib/distribution/journey-plan/coverage-status';
 
+/** The dimension a coverage rollup is grouped by (manager/supervisor views). */
+export type CoverageGroupBy = 'salesman' | 'route' | 'region';
+
 export interface CoverageRollup {
   total: number;
   onTrack: number;

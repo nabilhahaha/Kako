@@ -2,7 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadCustomerCoverage } from '@/lib/distribution/journey-plan/coverage-status-server';
 import type { CoverageStatus } from '@/lib/distribution/journey-plan/coverage-status';
-import { rollupCoverage, groupCoverageRollup, type CoverageRollup, type CoverageGroupRollup } from './rollup';
+import { rollupCoverage, groupCoverageRollup, type CoverageRollup, type CoverageGroupRollup, type CoverageGroupBy } from './rollup';
 
 /**
  * Coverage Engine — server rollup loader (CV-1). Read-only: reuses the single
@@ -10,7 +10,7 @@ import { rollupCoverage, groupCoverageRollup, type CoverageRollup, type Coverage
  * aggregates it. Manager/supervisor visibility follows existing branch/territory
  * RLS; optional filters narrow by salesman / route / region. No new logic.
  */
-export type CoverageGroupBy = 'salesman' | 'route' | 'region';
+export type { CoverageGroupBy };
 
 export interface CoverageRollupResult {
   overall: CoverageRollup;

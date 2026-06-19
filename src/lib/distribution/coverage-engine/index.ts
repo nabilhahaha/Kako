@@ -32,4 +32,5 @@ export {
   groupCoverageRollup,
   type CoverageRollup,
   type CoverageGroupRollup,
+  type CoverageGroupBy,
 } from './rollup';

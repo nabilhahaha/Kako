@@ -27,6 +27,14 @@ export const ar = {
     colRoute: 'الخط',
     empty: 'لا يوجد عملاء مطابقون.',
     countLabel: '{n} عميل',
+    // CV-2 manager/supervisor dashboard
+    dashTitle: 'لوحة التغطية',
+    dashDescription: 'نظرة سريعة على تغطية عملائك خلال آخر ٢٨ يوماً.',
+    dashHint: 'اضغط أي رقم للانتقال إلى قائمة العملاء.',
+    headlineCoverage: 'نسبة التغطية',
+    ofNCustomers: 'من {n} عميل',
+    groupByLabel: 'التجميع حسب',
+    unassigned: 'غير معيّن',
   },
 };
 
@@ -58,5 +66,13 @@ export const en = {
     colRoute: 'Route',
     empty: 'No matching customers.',
     countLabel: '{n} customers',
+    // CV-2 manager/supervisor dashboard
+    dashTitle: 'Coverage Dashboard',
+    dashDescription: 'A glance at how well your customers are covered over the last 28 days.',
+    dashHint: 'Tap any number to open the customer list.',
+    headlineCoverage: 'Coverage %',
+    ofNCustomers: 'of {n} customers',
+    groupByLabel: 'Group by',
+    unassigned: 'Unassigned',
   },
 };
