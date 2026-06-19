@@ -30,6 +30,16 @@ export { resolveVisitFrequency } from '@/lib/route-optimization/frequency-resolv
 // ── Workload primitive (per-customer field-load source of truth) ─────────────
 export { customerWorkload } from '@/lib/tis/dataset';
 
+// ── Expected visit duration (customer → channel → class → global default) ────
+export {
+  DEFAULT_VISIT_DURATION_MIN,
+  defaultVisitDurationConfig,
+  resolveVisitDuration,
+  visitMinutesPerWeek,
+  type VisitDurationConfig,
+  type VisitDurationInputs,
+} from './visit-duration';
+
 // ── Working days & day assignment ────────────────────────────────────────────
 export { BUSINESS_DOW, workingDayList } from '@/lib/tis/optimize-routes';
 

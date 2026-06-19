@@ -17,6 +17,7 @@ import { datasetToCsv, TIS_CSV_COLUMNS } from '@/lib/tis/export';
 import { buildTisDatasetFromRows, type TisUploadRow } from '@/lib/tis/upload';
 import { auditTerritory } from '@/lib/tis/audit';
 import { initialScope, scopeCustomerIds, type ScopeState } from '@/lib/tis/scope';
+import { visitMinutesPerWeek } from '@/lib/planning';
 import { TerritoryAuditView } from '../territory-audit/territory-audit';
 import { PlanningMap, type PlanMapPoint } from '../planning-board/planning-map';
 import { PlanningCanvas, MetricsBar, routeColorMap, COVER_HEX, PALETTE } from '../planning-board/planning-canvas';
@@ -27,7 +28,7 @@ type Stage = 'import' | 'overview' | 'audit' | 'map' | 'optimize' | 'plan' | 'ex
 interface ImportPreview { rows: TisUploadRow[]; total: number; mapped: number; columns: string[] }
 type ColorMode = 'route' | 'salesman' | 'coverage' | 'territory' | 'grade';
 type BalanceBy = 'workload' | 'value' | 'count';
-interface OptConfig { routeCount: string; workingDays: string; balanceBy: BalanceBy; maxPerRoute: string; maxVisitsPerDay: string; advanced: boolean }
+interface OptConfig { routeCount: string; workingDays: string; balanceBy: BalanceBy; maxPerRoute: string; maxVisitsPerDay: string; visitDurationMin: string; advanced: boolean; expert: boolean }
 const GRADE_HEX: Record<string, string> = { a: '#16a34a', b: '#2563eb', c: '#d97706', d: '#dc2626' };
 const NEUTRAL = '#94a3b8';
 /** Sorted-id → palette colour map (categorical layers: salesman / region). */
@@ -65,7 +66,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
   const [stage, setStage] = useState<Stage>('overview');
   const [colorMode, setColorMode] = useState<ColorMode>('coverage');
   // Optimize config — Simple: routeCount · workingDays · balanceBy. Advanced: caps.
-  const [opt, setOpt] = useState<OptConfig>({ routeCount: '', workingDays: '5', balanceBy: 'workload', maxPerRoute: '', maxVisitsPerDay: '', advanced: false });
+  const [opt, setOpt] = useState<OptConfig>({ routeCount: '', workingDays: '5', balanceBy: 'workload', maxPerRoute: '', maxVisitsPerDay: '', visitDurationMin: '20', advanced: false, expert: false });
   const [scope, setScope] = useState<ScopeState>(() => initialScope(dataset.customers));
   const [importMsg, setImportMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [importing, setImporting] = useState(false);
@@ -445,6 +446,9 @@ function OptimizePanel({ dataset, scenarios, opt, setOpt, defaultRouteCount, onO
     ...(Number(opt.maxVisitsPerDay) > 0 ? { maxVisitsPerDay: Number(opt.maxVisitsPerDay) } : {}),
   });
   const BALANCE: BalanceBy[] = ['workload', 'value', 'count'];
+  // Estimated weekly in-store field time from the global default visit duration.
+  const fieldMin = dataset.customers.reduce((s, c) => s + visitMinutesPerWeek({ frequency: c.frequency, grade: c.grade }, { globalDefaultMin: Number(opt.visitDurationMin) || 20 }), 0);
+  const fieldHours = (fieldMin / 60).toFixed(1);
   return (
     <div className="space-y-3">
       {/* Simple Mode: the whole job for most companies. */}
@@ -464,9 +468,25 @@ function OptimizePanel({ dataset, scenarios, opt, setOpt, defaultRouteCount, onO
       {/* Advanced (collapsed by default — Simplicity Model). */}
       <button onClick={() => set({ advanced: !opt.advanced })} className="text-xs text-primary hover:underline">{opt.advanced ? t('routeOpt.hideAdvanced') : t('routeOpt.advanced')}</button>
       {opt.advanced && (
-        <div className="flex flex-wrap items-end gap-3 rounded-md border bg-muted/20 p-2">
-          <div className="space-y-1"><Label className="text-xs">{t('routeOpt.maxPerRoute')}</Label><Input type="number" min={1} dir="ltr" className="w-24" value={opt.maxPerRoute} onChange={(e) => set({ maxPerRoute: e.target.value })} /></div>
-          <div className="space-y-1"><Label className="text-xs">{t('routeOpt.maxVisitsPerDay')}</Label><Input type="number" min={1} dir="ltr" className="w-24" value={opt.maxVisitsPerDay} onChange={(e) => set({ maxVisitsPerDay: e.target.value })} /></div>
+        <div className="space-y-2 rounded-md border bg-muted/20 p-2">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1"><Label className="text-xs">{t('routeOpt.maxPerRoute')}</Label><Input type="number" min={1} dir="ltr" className="w-24" value={opt.maxPerRoute} onChange={(e) => set({ maxPerRoute: e.target.value })} /></div>
+            <div className="space-y-1"><Label className="text-xs">{t('routeOpt.maxVisitsPerDay')}</Label><Input type="number" min={1} dir="ltr" className="w-24" value={opt.maxVisitsPerDay} onChange={(e) => set({ maxVisitsPerDay: e.target.value })} /></div>
+            <div className="space-y-1"><Label className="text-xs">{t('routeOpt.visitDuration')}</Label><Input type="number" min={1} dir="ltr" className="w-24" value={opt.visitDurationMin} onChange={(e) => set({ visitDurationMin: e.target.value })} /></div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">{t('routeOpt.fieldTimeEst').replace('{h}', fieldHours).replace('{m}', String(Number(opt.visitDurationMin) || 20))}</p>
+          {/* Expert — hidden by default; placeholders for future shared engines. */}
+          <button onClick={() => set({ expert: !opt.expert })} className="text-xs text-primary hover:underline">{opt.expert ? t('routeOpt.hideExpert') : t('routeOpt.expert')}</button>
+          {opt.expert && (
+            <div className="space-y-2 rounded-md border border-dashed p-2">
+              <p className="text-[11px] text-muted-foreground">{t('routeOpt.expertSoon')}</p>
+              <div className="flex flex-wrap gap-2 opacity-60">
+                {(['exp_traffic', 'exp_timeWindows', 'exp_capacity', 'exp_weights'] as const).map((k) => (
+                  <span key={k} className="rounded-md border bg-background px-2 py-1 text-xs">{t(`routeOpt.${k}`)}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
