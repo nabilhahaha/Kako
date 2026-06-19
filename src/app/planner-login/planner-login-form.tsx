@@ -6,10 +6,11 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Route as RouteIcon, Compass, LayoutGrid, CalendarDays } from 'lucide-react';
+import { Loader2, Route as RouteIcon, Compass, LayoutGrid, CalendarDays, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n/provider';
 import { RoutePlannerLogo } from '@/components/route-planner/brand-logo';
+import { buildSupportWhatsAppUrl } from '@/lib/erp/route-planner-subscription';
 
 /**
  * Standalone Route Planner login — a self-contained, SaaS-styled sign-in that feels
@@ -114,6 +115,12 @@ export function PlannerLoginForm() {
           </form>
 
           <p className="text-center text-xs text-muted-foreground">{t('routePlanner.plannerLoginFootnote')}</p>
+          <p className="text-center text-xs text-muted-foreground">
+            {t('routePlanner.needHelp')}{' '}
+            <a href={buildSupportWhatsAppUrl()} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-[#16a34a] hover:underline">
+              <MessageCircle className="h-3.5 w-3.5" /> {t('routePlanner.contactWhatsApp')}
+            </a>
+          </p>
         </div>
       </div>
     </div>

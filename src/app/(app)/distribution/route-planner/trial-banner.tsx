@@ -71,7 +71,8 @@ export function TrialBanner({ sub, compact = false }: { sub: RoutePlannerSubscri
       </span>
       <span className="text-xs font-medium tabular-nums">{detail}</span>
       <span className="ms-auto inline-flex items-center gap-2">
-        {(sub.warning === 'warn' || sub.warning === 'renew') && renewBtn}
+        {/* Any winding-down trial warning gets a direct WhatsApp action. */}
+        {(sub.warning === 'notice' || sub.warning === 'warn' || sub.warning === 'renew') && renewBtn}
       </span>
     </div>
   );

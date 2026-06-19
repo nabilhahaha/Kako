@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Route as RouteIcon, LogOut, Plus, Clock, CheckCircle2, XCircle, Ban, Loader2, RotateCcw, ExternalLink } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { resolveSubscription, type RoutePlannerStatus } from '@/lib/erp/route-planner-subscription';
+import { resolveSubscription, renewWhatsAppNumber, ROUTE_PLANNER_WHATSAPP_KEY, type RoutePlannerStatus } from '@/lib/erp/route-planner-subscription';
 import {
   type PlannerTenantRow,
   createRoutePlannerTenant,
@@ -30,7 +30,18 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
   const [name, setName] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<RoutePlannerStatus | 'all'>('all');
+  const [whatsApp, setWhatsApp] = useState('');
   const [pending, startTransition] = useTransition();
+
+  // Load the current (possibly overridden) support WhatsApp number once on mount.
+  useEffect(() => { setWhatsApp(renewWhatsAppNumber()); }, []);
+
+  function saveWhatsApp() {
+    const digits = whatsApp.replace(/[^\d]/g, '');
+    try { window.localStorage.setItem(ROUTE_PLANNER_WHATSAPP_KEY, digits); } catch { /* ignore */ }
+    setWhatsApp(digits);
+    toast.success(t('routePlanner.adminWhatsAppSaved'));
+  }
 
   // Derive each tenant's live subscription status (same resolver the planner uses).
   const allRows = useMemo(
@@ -135,6 +146,16 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('routePlanner.adminTenantNamePlaceholder')} className="h-9" />
         </div>
         <Button size="sm" onClick={onCreate} disabled={pending || !name.trim()}><Plus className="h-4 w-4" /> {t('routePlanner.adminCreate')}</Button>
+      </CardContent></Card>
+
+      {/* Configurable WhatsApp contact (used by renewal / support buttons product-wide). */}
+      <Card><CardContent className="flex flex-wrap items-end gap-2 p-3">
+        <div className="flex-1">
+          <label className="block text-[11px] text-muted-foreground">{t('routePlanner.adminWhatsApp')}</label>
+          <Input value={whatsApp} onChange={(e) => setWhatsApp(e.target.value)} placeholder="966567628842" dir="ltr" className="h-9 max-w-xs" />
+          <p className="mt-1 text-[11px] text-muted-foreground">{t('routePlanner.adminWhatsAppHint')}</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={saveWhatsApp}>{t('routePlanner.adminSave')}</Button>
       </CardContent></Card>
 
       {loadError && <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{t('routePlanner.adminLoadError')}</p>}

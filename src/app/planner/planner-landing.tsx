@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Route as RouteIcon, LayoutGrid, Compass, CalendarDays, Upload, MousePointerClick, CheckCircle2, FileDown, ArrowRight, MessageCircle } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { RoutePlannerLogo } from '@/components/route-planner/brand-logo';
-import { buildRenewWhatsAppUrl } from '@/lib/erp/route-planner-subscription';
+import { buildSupportWhatsAppUrl } from '@/lib/erp/route-planner-subscription';
 
 /**
  * Public marketing landing for the standalone Route Planner product. Branded, AR/EN,
@@ -25,7 +25,7 @@ export function PlannerLanding() {
     { icon: CheckCircle2, label: t('routePlanner.lpStep3') },
     { icon: FileDown, label: t('routePlanner.lpStep4') },
   ];
-  const contact = buildRenewWhatsAppUrl('', '');
+  const contact = buildSupportWhatsAppUrl();
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground">

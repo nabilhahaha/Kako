@@ -181,13 +181,35 @@ export function subscriptionInputFor(
   return freshTrial('VANTORA Route Planner', 'standalone', now);
 }
 
-/** Configurable WhatsApp number for renewals (digits only, intl format, no +). */
+/** Default product WhatsApp contact (digits only, intl format, no +). */
+export const ROUTE_PLANNER_WHATSAPP_DEFAULT = '966567628842';
+/** localStorage key so the Route Planner Admin can override the number without a deploy. */
+export const ROUTE_PLANNER_WHATSAPP_KEY = 'rp_whatsapp';
+
+/**
+ * Configurable WhatsApp number. Precedence: an admin override saved in localStorage →
+ * the NEXT_PUBLIC_ROUTE_PLANNER_WHATSAPP env var → the built-in default. (Link building
+ * always happens client-side, so localStorage is available.)
+ */
 export function renewWhatsAppNumber(): string {
-  return (process.env.NEXT_PUBLIC_ROUTE_PLANNER_WHATSAPP || '966500000000').replace(/[^\d]/g, '');
+  let override = '';
+  if (typeof window !== 'undefined') {
+    try { override = window.localStorage.getItem(ROUTE_PLANNER_WHATSAPP_KEY) || ''; } catch { /* ignore */ }
+  }
+  const raw = override || process.env.NEXT_PUBLIC_ROUTE_PLANNER_WHATSAPP || ROUTE_PLANNER_WHATSAPP_DEFAULT;
+  return raw.replace(/[^\d]/g, '');
+}
+
+function waUrl(message: string): string {
+  return `https://wa.me/${renewWhatsAppNumber()}?text=${encodeURIComponent(message)}`;
 }
 
 /** Build the wa.me deep-link with a pre-filled renewal message (company + tenant). */
 export function buildRenewWhatsAppUrl(companyName: string, tenantId: string): string {
-  const msg = `Hello,\n\nI would like to renew my VANTORA Route Planner subscription.\n\nCompany:\n${companyName || '-'}\n\nTenant:\n${tenantId || '-'}`;
-  return `https://wa.me/${renewWhatsAppNumber()}?text=${encodeURIComponent(msg)}`;
+  return waUrl(`Hello,\n\nI would like to renew my VANTORA Route Planner subscription.\n\nCompany:\n${companyName || '-'}\n\nTenant:\n${tenantId || '-'}`);
+}
+
+/** Build the wa.me deep-link with a pre-filled support / onboarding message. */
+export function buildSupportWhatsAppUrl(companyName = '', tenantId = ''): string {
+  return waUrl(`Hello,\n\nI would like assistance with VANTORA Route Planner.\n\nCompany:\n${companyName || '-'}\n\nTenant:\n${tenantId || '-'}`);
 }
