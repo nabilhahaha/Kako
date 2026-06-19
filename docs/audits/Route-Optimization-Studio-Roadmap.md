@@ -26,6 +26,38 @@ business factors, not customer count alone.
 | Geographic distance balancing | On |
 | Customer priority / classification | A/B/C |
 
+> All numeric targets in this table are **examples**, not system rules.
+
+---
+
+## 1a. Configurable Constraints — **no hardcoded counts**
+
+Customer count is a **planning constraint set by the user**, never a fixed system rule.
+Every example figure above (10 routes, ~120 customers, 35 visits/day) is illustrative
+only. The optimizer must accept, and balance against, a **fully user-configurable**
+constraint set:
+
+| Constraint | Meaning | Default |
+| :--- | :--- | :--- |
+| Target customers per route | Soft target the balancer aims for | **User-set** (no default count) |
+| Maximum customers per route | Hard cap per route | **User-set** |
+| Maximum visits per day | Daily workload ceiling per rep | **User-set** |
+| Maximum visits per week | Weekly workload ceiling per rep | **User-set** |
+| Target sales load | Sales-value target/ceiling per route | **User-set** |
+| Route count | Number of routes to generate | **User-set OR auto-calculated** |
+
+**Auto-calculate route count:** when the user does not fix a route count, the optimizer
+derives it from the constraints + the selected customer set's **visit workload** (not
+customer count) — e.g. `ceil(total weekly visits / (max visits per day × working days))`,
+also respecting max-customers-per-route and target sales load. Conversely, when route
+count is fixed, per-route targets are derived. The two modes are duals; neither hardcodes
+a count.
+
+**Targets vs. caps:** "target" values are soft objectives the balancer optimizes toward;
+"maximum" values are hard constraints it must never exceed. Both are data, supplied per
+optimization run and storable as reusable company templates (consistent with the
+no-hardcoded-values principle used in CJ-1 frequency rules).
+
 ---
 
 ## 2. Core Principle — balance by **workload & value**, not count
