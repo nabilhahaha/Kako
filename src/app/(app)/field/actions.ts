@@ -7,6 +7,8 @@ import { today } from '@/lib/erp/work-session';
 import type { JourneySortMode } from '@/lib/erp/journey-sort';
 import { APPROVAL_DAYCLOSE, APPROVAL_VISIT, APPROVAL_CUSTTRANSFER, APPROVAL_VANTRANSFER } from '@/lib/erp/approval-flags';
 import { dayCloseChainActive, submitDayClose } from '@/lib/van-sales/day-close-server';
+import { logAudit } from '@/lib/erp/audit';
+import { auditEnvelope } from '@/lib/erp/audit-envelope';
 
 /** ── FMCG field-execution server actions ───────────────────────────────────
  *  Thin, permission-gated wrappers over the validated 0128–0134 RPCs. Each
@@ -188,12 +190,39 @@ export async function decideVisitCompliance(
   if (!hasPermission(ctx, 'visit.approve_out_of_route')) return { ok: false, error: 'unauthorized' };
 
   const supabase = await createClient();
+  // CV-4: capture the pre-decision context for the G5 audit envelope.
+  const { data: before } = await supabase
+    .from('erp_visit_compliance')
+    .select('kind, status, visit_id, customer_lat, customer_lng, distance_m')
+    .eq('id', complianceId)
+    .maybeSingle();
+  const prev = before as { kind?: string; status?: string; visit_id?: string; distance_m?: number | null } | null;
+
   const { data, error: rpcErr } = await supabase.rpc('erp_decide_visit_compliance', {
     p_id: complianceId,
     p_approve: approve,
     p_note: note ?? null,
   });
   if (rpcErr) return { ok: false, error: rpcErr.message };
+
+  // CV-4: structured governance audit on the GPS/route compliance decision —
+  // same G5 envelope used for customer status/credit/data changes.
+  await logAudit(supabase, {
+    action: approve ? 'approve' : 'reject',
+    entity: 'visit_compliance',
+    entityId: complianceId,
+    details: auditEnvelope({
+      field: 'status',
+      oldValue: prev?.status ?? 'pending_approval',
+      newValue: approve ? 'approved' : 'rejected',
+      role: ctx.topRole,
+      reason: note ?? null,
+      requestRef: complianceId,
+      event: approve ? 'compliance_approved' : 'compliance_rejected',
+      extra: { kind: prev?.kind ?? null, visit_id: prev?.visit_id ?? null, distance_m: prev?.distance_m ?? null },
+    }),
+    companyId: ctx.companyId,
+  });
   return { ok: true, data };
 }
 
