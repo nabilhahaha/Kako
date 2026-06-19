@@ -7,7 +7,7 @@ import { parseCsv, parseJson } from '@/lib/erp/import-parse';
 import { mapRecordsToUploadRows, type TisUploadRow } from '@/lib/tis/upload';
 
 export type ParseUploadResult =
-  | { ok: true; rows: TisUploadRow[]; total: number; mapped: number }
+  | { ok: true; rows: TisUploadRow[]; total: number; mapped: number; columns: string[] }
   | { ok: false; error: string };
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
@@ -42,7 +42,9 @@ export async function parseTisUpload(formData: FormData): Promise<ParseUploadRes
     const rows = mapRecordsToUploadRows(records);
     const mapped = rows.filter((r) => (r.name || r.code || r.id) && (r.lat != null || r.salesmanId || r.routeId || r.grade)).length;
     if (rows.length === 0) return { ok: false, error: 'err_no_rows' };
-    return { ok: true, rows, total: records.length, mapped };
+    // Canonical fields that actually received a value (for the preview).
+    const columns = [...new Set(rows.flatMap((r) => Object.entries(r).filter(([, v]) => v != null).map(([k]) => k)))];
+    return { ok: true, rows, total: records.length, mapped, columns };
   } catch {
     return { ok: false, error: 'err_parse' };
   }
