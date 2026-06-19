@@ -32,8 +32,8 @@ describe('geography validation export (6000 customers)', () => {
     expect(v.routes.every((r) => r.cities === 1)).toBe(true);
   });
 
-  it('INVALID — expert cross-territory: routes span distant cities', () => {
-    const plan = balanceRoutes(all, { routeCount: 8, crossTerritory: true });
+  it('INVALID — expert cross-territory with fewer routes than cities', () => {
+    const plan = balanceRoutes(all, { routeCount: 2, crossTerritory: true });
     const v = validatePlanGeography(all, plan.assignments);
     writeFileSync(resolve(dir, 'validation-invalid.json'), JSON.stringify(v, null, 2));
     writeFileSync(resolve(dir, 'validation-invalid-routes.csv'), routeCsv(v));

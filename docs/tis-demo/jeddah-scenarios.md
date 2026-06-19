@@ -5,10 +5,10 @@ Coverage: {"customers":500,"coveragePct":59.8,"gapCount":201,"worstBalancePct":7
 
 | Scenario | Routes | Visits/wk | Sales | Distance | Workload balance | Value balance |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 4 routes (workload) | 4 | 747 | 8,081,848 | 423.6 km | 99.5% | 70.4% |
-| 6 routes (workload) | 6 | 747 | 8,081,848 | 436.4 km | 99.5% | 79.3% |
-| 8 routes (workload) | 8 | 747 | 8,081,848 | 498 km | 98.2% | 79.4% |
-| 6 routes (value) | 6 | 747 | 8,081,848 | 439.3 km | 99% | 99% |
+| 4 routes (workload) | 4 | 747 | 8,081,848 | 317.4 km | 99.2% | 96.3% |
+| 6 routes (workload) | 6 | 747 | 8,081,848 | 351.9 km | 98.1% | 94.1% |
+| 8 routes (workload) | 8 | 747 | 8,081,848 | 322.7 km | 98.8% | 93.1% |
+| 6 routes (value) | 6 | 747 | 8,081,848 | 336.7 km | 95.5% | 95.5% |
 
 ## Maps
 - jeddah-coverage.svg

@@ -136,12 +136,49 @@ describe('geography is a HARD constraint (Jeddah / Riyadh / Dammam)', () => {
     expect(v.routes.every((r) => r.cities === 1)).toBe(true);
   });
 
-  it('the OLD cross-territory mode would mix cities → flagged invalid', () => {
-    const plan = balanceRoutes(all, { routeCount: 8, crossTerritory: true });
+  it('cross-territory with FEWER routes than cities mixes → flagged invalid', () => {
+    // 2 routes over 3 distant cities ⇒ at least one route must span cities.
+    const plan = balanceRoutes(all, { routeCount: 2, crossTerritory: true });
     const v = validatePlanGeography(all, plan.assignments);
-    // With a single cross-city pass, at least one route spans multiple cities.
     expect(v.invalidCount).toBeGreaterThan(0);
     expect(v.valid).toBe(false);
+  });
+
+  it('default never exceeds the requested route count (3 cities, K=8)', () => {
+    const plan = balanceRoutes(all, { routeCount: 8 });
+    expect(plan.requestedRoutes).toBe(8);
+    expect(plan.routeCount).toBeLessThanOrEqual(8);
+    expect(plan.geographyRequiresRoutes).toBeNull();
+  });
+
+  it('P1-A: warns when geography needs MORE routes than requested', () => {
+    // 3 distant cities but only 2 routes requested ⇒ default keeps cities un-mixed by
+    // producing 3 routes and flagging the shortfall (never silently mixes).
+    const plan = balanceRoutes(all, { routeCount: 2 });
+    expect(plan.geographyRequiresRoutes).toBe(3);
+    expect(plan.routeCount).toBe(3);
+    expect(validatePlanGeography(all, plan.assignments).valid).toBe(true);
+  });
+});
+
+describe('P1-A fragmentation control + P1-C remote handling', () => {
+  const city = (name: string, c: { lat: number; lng: number }, n: number) =>
+    Array.from({ length: n }, (_, i) => buildTisCustomer({ id: `${name}-${i}`, name: `${name}-${i}`, geo: { lat: c.lat + (Math.random() - 0.5) * 0.2, lng: c.lng + (Math.random() - 0.5) * 0.2 }, frequency: weekly, salesValue: 100 }));
+  // A big city + several NEAR singletons (within ~60–100 km) that should be absorbed.
+  const near = [
+    buildTisCustomer({ id: 'near-1', name: 'near-1', geo: { lat: 24.0, lng: 46.7 }, frequency: weekly }),  // ~80km S of Riyadh
+    buildTisCustomer({ id: 'near-2', name: 'near-2', geo: { lat: 25.3, lng: 46.7 }, frequency: weekly }),  // ~75km N of Riyadh
+    buildTisCustomer({ id: 'near-3', name: 'near-3', geo: { lat: 24.7, lng: 45.9 }, frequency: weekly }),  // ~80km W of Riyadh
+  ];
+  const all = [...city('riyadh', { lat: 24.71, lng: 46.68 }, 400), ...near];
+
+  it('absorbs near singletons (no 1-customer routes for nearby points)', () => {
+    const plan = balanceRoutes(all, { routeCount: 5 });
+    expect((plan.absorbedTerritories ?? 0)).toBeGreaterThan(0);
+    expect(plan.routeCount).toBeLessThanOrEqual(5);
+    const v = validatePlanGeography(all, plan.assignments);
+    expect(v.singletonRoutes).toBe(0); // nearby singletons were absorbed
+    expect(v.compactnessScore).toBeGreaterThan(0);
   });
 });
 

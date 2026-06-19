@@ -1,51 +1,49 @@
 {
   "valid": true,
   "territories": 3,
-  "maxRouteRadiusKm": 28.9,
+  "maxRouteRadiusKm": 21.6,
   "invalidCount": 0,
+  "singletonRoutes": 0,
+  "remoteCustomers": 0,
+  "compactnessScore": 64,
   "routes": [
     {
       "routeId": "opt-route-1",
       "customers": 734,
       "cities": 1,
-      "radiusKm": 18.5,
+      "radiusKm": 21.6,
+      "meanRadiusKm": 8.4,
+      "compactness": 57,
       "outliers": [],
       "valid": true
     },
     {
       "routeId": "opt-route-2",
-      "customers": 733,
+      "customers": 734,
       "cities": 1,
-      "radiusKm": 26.9,
-      "outliers": [
-        "Jeddah-552",
-        "Jeddah-617",
-        "Jeddah-632",
-        "Jeddah-688",
-        "Jeddah-702",
-        "Jeddah-882",
-        "Jeddah-958"
-      ],
+      "radiusKm": 16.2,
+      "meanRadiusKm": 7.3,
+      "compactness": 68,
+      "outliers": [],
       "valid": true
     },
     {
       "routeId": "opt-route-3",
-      "customers": 733,
+      "customers": 732,
       "cities": 1,
-      "radiusKm": 27.1,
-      "outliers": [
-        "Jeddah-126",
-        "Jeddah-135",
-        "Jeddah-159",
-        "Jeddah-814"
-      ],
+      "radiusKm": 19.2,
+      "meanRadiusKm": 7.9,
+      "compactness": 62,
+      "outliers": [],
       "valid": true
     },
     {
       "routeId": "opt-route-4",
       "customers": 667,
       "cities": 1,
-      "radiusKm": 19.1,
+      "radiusKm": 17.2,
+      "meanRadiusKm": 7.4,
+      "compactness": 66,
       "outliers": [],
       "valid": true
     },
@@ -53,51 +51,29 @@
       "routeId": "opt-route-5",
       "customers": 667,
       "cities": 1,
-      "radiusKm": 27.8,
-      "outliers": [
-        "Riyadh-145",
-        "Riyadh-161",
-        "Riyadh-224",
-        "Riyadh-234",
-        "Riyadh-253",
-        "Riyadh-263",
-        "Riyadh-269",
-        "Riyadh-272",
-        "Riyadh-302",
-        "Riyadh-323",
-        "Riyadh-512",
-        "Riyadh-544",
-        "Riyadh-579"
-      ],
+      "radiusKm": 16.7,
+      "meanRadiusKm": 7.8,
+      "compactness": 67,
+      "outliers": [],
       "valid": true
     },
     {
       "routeId": "opt-route-6",
       "customers": 666,
       "cities": 1,
-      "radiusKm": 28.9,
-      "outliers": [
-        "Riyadh-15",
-        "Riyadh-41",
-        "Riyadh-124",
-        "Riyadh-208",
-        "Riyadh-241",
-        "Riyadh-267",
-        "Riyadh-280",
-        "Riyadh-312",
-        "Riyadh-350",
-        "Riyadh-403",
-        "Riyadh-406",
-        "Riyadh-616",
-        "Riyadh-631"
-      ],
+      "radiusKm": 19.7,
+      "meanRadiusKm": 7.9,
+      "compactness": 61,
+      "outliers": [],
       "valid": true
     },
     {
       "routeId": "opt-route-7",
       "customers": 900,
       "cities": 1,
-      "radiusKm": 22.8,
+      "radiusKm": 17.9,
+      "meanRadiusKm": 9.7,
+      "compactness": 64,
       "outliers": [],
       "valid": true
     },
@@ -105,10 +81,10 @@
       "routeId": "opt-route-8",
       "customers": 900,
       "cities": 1,
-      "radiusKm": 25.3,
-      "outliers": [
-        "Dammam-380"
-      ],
+      "radiusKm": 18.4,
+      "meanRadiusKm": 9.5,
+      "compactness": 63,
+      "outliers": [],
       "valid": true
     }
   ]

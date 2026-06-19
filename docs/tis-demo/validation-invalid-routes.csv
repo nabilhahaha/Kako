@@ -1,9 +1,3 @@
 routeId,customers,cities,radiusKm,status
-opt-route-1,750,1,22.1,valid
-opt-route-2,750,2,965.5,INVALID
-opt-route-3,750,2,554.8,INVALID
-opt-route-4,750,2,518.9,INVALID
-opt-route-5,750,2,1236.8,INVALID
-opt-route-6,750,2,643.3,INVALID
-opt-route-7,750,2,615.6,INVALID
-opt-route-8,750,2,816.3,INVALID
+opt-route-1,3000,2,630,INVALID
+opt-route-2,3000,2,253.7,INVALID

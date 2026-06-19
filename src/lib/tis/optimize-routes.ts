@@ -44,6 +44,13 @@ export interface RoutePlan {
   routes: RouteSummary[];
   /** Workload balance across routes (100 = even). */
   workloadBalancePct: number;
+  /** Routes the user requested (P1-A). */
+  requestedRoutes?: number;
+  /** Small/singleton territories merged into a nearby one (P1-A). */
+  absorbedTerritories?: number;
+  /** When geography needs MORE routes than requested (distinct far territories > K),
+   *  the minimum feasible route count to keep cities un-mixed — null otherwise. */
+  geographyRequiresRoutes?: number | null;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -117,20 +124,16 @@ export function resolveRouteCount(customers: readonly TisCustomer[], c: RouteCon
   return 1;
 }
 
-/** Farthest-point sampling of K seeds among geo-located customers. Deterministic. */
-function pickSeeds(geoCustomers: TisCustomer[], k: number): TisCustomer[] {
-  if (geoCustomers.length <= k) return [...geoCustomers];
-  const seeds: TisCustomer[] = [geoCustomers[0]];
-  while (seeds.length < k) {
-    let best: TisCustomer | null = null, bestD = -1;
-    for (const c of geoCustomers) {
-      const d = Math.min(...seeds.map((s) => distKm(c.geo!, s.geo!)));
-      if (d > bestD) { bestD = d; best = c; }
-    }
-    if (!best) break;
-    seeds.push(best);
+/** Hilbert curve index (locality-preserving, no quadrant jumps). side = 2^bits. */
+function hilbertD(side: number, x: number, y: number): number {
+  let d = 0;
+  for (let s = side >> 1; s > 0; s >>= 1) {
+    const rx = (x & s) > 0 ? 1 : 0;
+    const ry = (y & s) > 0 ? 1 : 0;
+    d += s * s * ((3 * rx) ^ ry);
+    if (ry === 0) { if (rx === 1) { x = s - 1 - x; y = s - 1 - y; } const t = x; x = y; y = t; }
   }
-  return seeds;
+  return d;
 }
 
 /** Grid + union-find geo clustering → a territory key per geo-located customer.
@@ -163,7 +166,17 @@ export function territoryCount(customers: readonly TisCustomer[]): number {
   return new Set(clusterTerritories(customers).values()).size;
 }
 
-/** Core balancer for ONE territory: K workload-even, compact routes. Pure. */
+/** Mean geo centroid of a customer list (null when none located). Pure. */
+function centroidOf(list: readonly TisCustomer[]): { lat: number; lng: number } | null {
+  const geo = list.filter((c) => isValidGeo(c.geo));
+  if (geo.length === 0) return null;
+  return { lat: geo.reduce((s, c) => s + c.geo!.lat, 0) / geo.length, lng: geo.reduce((s, c) => s + c.geo!.lng, 0) / geo.length };
+}
+
+/** Core balancer for ONE territory: K workload-even, geographically COMPACT routes via a
+ *  Hilbert space-filling curve — customers are ordered along the locality-preserving
+ *  curve and cut into K contiguous, workload-balanced segments (P1-B). Each segment is a
+ *  compact sub-area (no north/south mixing), with no outlier-seed fragmentation. Pure. */
 function balanceWithin(customers: readonly TisCustomer[], k: number, constraints: RouteConstraints, idOffset: number): { routes: RouteSummary[]; assignments: ScenarioAssignment[]; loads: number[] } {
   const wl = (c: TisCustomer) =>
     constraints.balanceBy === 'value' ? (c.salesValue ?? 0)
@@ -171,49 +184,56 @@ function balanceWithin(customers: readonly TisCustomer[], k: number, constraints
     : (customerWorkload(c) ?? 1);
   const maxPer = constraints.maxPerRoute && constraints.maxPerRoute > 0 ? constraints.maxPerRoute : Infinity;
 
-  const buckets: TisCustomer[][] = Array.from({ length: k }, () => []);
-  const loads = new Array(k).fill(0);
-  const lightest = () => { let m = 0; for (let i = 1; i < k; i++) if (buckets[i].length < maxPer && loads[i] < loads[m]) m = i; return m; };
+  const geo = customers.filter((c) => isValidGeo(c.geo));
+  const noGeo = customers.filter((c) => !isValidGeo(c.geo));
+  let buckets: TisCustomer[][] = [];
 
-  const geoCustomers = customers.filter((c) => c.geo);
-  const seeds = pickSeeds(geoCustomers, k);
-  for (const c of geoCustomers) {
-    let bi = -1, bd = Infinity;
-    for (let i = 0; i < seeds.length; i++) {
-      if (buckets[i].length >= maxPer) continue;
-      const d = distKm(c.geo!, seeds[i].geo!);
-      if (d < bd) { bd = d; bi = i; }
+  if (geo.length === 0) {
+    // No geography: round-robin into ≤k buckets by workload.
+    const kk = Math.min(k, Math.max(1, customers.length));
+    buckets = Array.from({ length: kk }, () => []);
+    const loads0 = new Array(kk).fill(0);
+    for (const c of customers) { let m = 0; for (let i = 1; i < kk; i++) if (loads0[i] < loads0[m]) m = i; buckets[m].push(c); loads0[m] += wl(c); }
+  } else {
+    // Hilbert order over the territory bounding box.
+    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+    for (const c of geo) { minLat = Math.min(minLat, c.geo!.lat); maxLat = Math.max(maxLat, c.geo!.lat); minLng = Math.min(minLng, c.geo!.lng); maxLng = Math.max(maxLng, c.geo!.lng); }
+    const spanLat = Math.max(1e-9, maxLat - minLat), spanLng = Math.max(1e-9, maxLng - minLng);
+    const SIDE = 1 << 16;
+    const code = (c: TisCustomer) => {
+      const x = Math.min(SIDE - 1, Math.max(0, Math.round((c.geo!.lng - minLng) / spanLng * (SIDE - 1))));
+      const y = Math.min(SIDE - 1, Math.max(0, Math.round((c.geo!.lat - minLat) / spanLat * (SIDE - 1))));
+      return hilbertD(SIDE, x, y);
+    };
+    const ordered = geo.map((c) => ({ c, h: code(c) })).sort((a, b) => a.h - b.h).map((o) => o.c);
+    const totalWl = ordered.reduce((s, c) => s + wl(c), 0) || 1;
+    const kk = Math.min(k, ordered.length);
+    const target = totalWl / kk;
+    let cur: TisCustomer[] = [], curWl = 0;
+    for (const c of ordered) {
+      cur.push(c); curWl += wl(c);
+      // Cut into a new segment once the workload target (or the per-route cap) is hit,
+      // keeping at least one segment for the remainder.
+      if (buckets.length < kk - 1 && (curWl >= target || cur.length >= maxPer)) { buckets.push(cur); cur = []; curWl = 0; }
     }
-    if (bi < 0) bi = lightest();
-    buckets[bi].push(c); loads[bi] += wl(c);
-  }
-  for (const c of customers.filter((x) => !x.geo)) {
-    const i = lightest();
-    buckets[i].push(c); loads[i] += wl(c);
+    if (cur.length) buckets.push(cur);
+    // Geo-less customers → the lightest segment.
+    const loads0 = buckets.map((b) => b.reduce((s, c) => s + wl(c), 0));
+    for (const c of noGeo) { let m = 0; for (let i = 1; i < buckets.length; i++) if (loads0[i] < loads0[m]) m = i; buckets[m].push(c); loads0[m] += wl(c); }
   }
 
-  // Greedy workload rebalance — SAFE here because every customer is already in the
-  // same territory, so moving one between routes never mixes distant cities.
-  for (let pass = 0; pass < customers.length; pass++) {
-    let hi = 0, lo = 0;
-    for (let i = 1; i < k; i++) { if (loads[i] > loads[hi]) hi = i; if (loads[i] < loads[lo]) lo = i; }
-    if (hi === lo || buckets[lo].length >= maxPer || buckets[hi].length <= 1) break;
-    let mi = 0; for (let j = 1; j < buckets[hi].length; j++) if (wl(buckets[hi][j]) < wl(buckets[hi][mi])) mi = j;
-    const mover = buckets[hi][mi];
-    if (loads[hi] - wl(mover) < loads[lo] + wl(mover)) break;
-    buckets[hi].splice(mi, 1); loads[hi] -= wl(mover);
-    buckets[lo].push(mover); loads[lo] += wl(mover);
-  }
-
-  const routes: RouteSummary[] = buckets.map((list, i) => ({
-    routeId: ROUTE_ID(idOffset + i),
-    customerIds: list.map((c) => c.id),
-    customers: list.length,
-    workload: round1(list.reduce((s, c) => s + wl(c), 0)),
-    salesValue: round1(list.reduce((s, c) => s + (c.salesValue ?? 0), 0)),
-  }));
+  // Build routes from non-empty buckets (contiguous ids), with day assignment.
   const dayList = workingDayList(constraints.workingDays ?? 5);
-  const assignments: ScenarioAssignment[] = buckets.flatMap((list, i) => {
+  const routes: RouteSummary[] = [];
+  const assignments: ScenarioAssignment[] = [];
+  const outLoads: number[] = [];
+  let li = 0;
+  for (const list of buckets) {
+    if (list.length === 0) continue;
+    const rid = ROUTE_ID(idOffset + li); li++;
+    const load = list.reduce((s, c) => s + wl(c), 0);
+    routes.push({ routeId: rid, customerIds: list.map((c) => c.id), customers: list.length, workload: round1(load), salesValue: round1(list.reduce((s, c) => s + (c.salesValue ?? 0), 0)) });
+    outLoads.push(load);
     const dayLoads = new Array(dayList.length).fill(0);
     const dayOf = new Map<string, string>();
     for (const c of [...list].sort((a, b) => wl(b) - wl(a))) {
@@ -222,29 +242,76 @@ function balanceWithin(customers: readonly TisCustomer[], k: number, constraints
       dayLoads[d] += wl(c);
       dayOf.set(c.id, dayList[d]);
     }
-    return list.map((c) => ({ customerId: c.id, routeId: ROUTE_ID(idOffset + i), dayOfWeek: dayOf.get(c.id)! }));
-  });
+    for (const c of list) assignments.push({ customerId: c.id, routeId: rid, dayOfWeek: dayOf.get(c.id)! });
+  }
 
-  return { routes, assignments, loads };
+  return { routes, assignments, loads: outLoads };
+}
+
+/** P1-A/C: absorb each small/singleton territory into the NEAREST territory within
+ *  ABSORB_KM, so isolated points don't each spawn a route. Truly remote small clusters
+ *  (no neighbour within range) are kept (a justified route). Returns merged groups +
+ *  how many territories were absorbed. Pure. */
+const ABSORB_KM = 120;
+function absorbTerritories(groups: Map<string, TisCustomer[]>, totalCustomers: number): { merged: Map<string, TisCustomer[]>; absorbed: number } {
+  const mergeBelow = Math.max(3, Math.round(totalCustomers * 0.005));
+  const map = new Map<string, TisCustomer[]>([...groups.entries()].map(([k, v]) => [k, [...v]]));
+  const kept = new Set<string>(); // genuinely remote small territories (justified routes)
+  let absorbed = 0;
+  for (let guard = 0; guard < groups.size + 1; guard++) {
+    const small = [...map.entries()].filter(([k]) => !kept.has(k)).sort((a, b) => a[1].length - b[1].length);
+    if (small.length === 0 || map.size - kept.size <= 1) break;
+    const [skey, slist] = small[0];
+    if (slist.length >= mergeBelow) break; // no small territory left
+    const sc = centroidOf(slist);
+    let bestKey: string | null = null, bestD = Infinity;
+    for (const [k2, l2] of map) {
+      if (k2 === skey) continue;
+      const c2 = centroidOf(l2);
+      const d = sc && c2 ? distKm(sc, c2) : Infinity;
+      if ((!sc || !c2) ? l2.length > (bestKey ? map.get(bestKey)!.length : -1) : d < bestD) { bestKey = k2; bestD = d; }
+    }
+    if (bestKey && (!sc || bestD <= ABSORB_KM)) { map.get(bestKey)!.push(...slist); map.delete(skey); absorbed++; }
+    else kept.add(skey); // genuinely remote → keep it, and keep absorbing the rest
+  }
+  return { merged: map, absorbed };
+}
+
+/** P1-A: allocate exactly K routes across territories (never exceed K). Each territory
+ *  gets ≥1; the remaining routes go to the highest-workload territories (capped at the
+ *  territory's customer count). Pure. */
+function allocateExact(parts: TisCustomer[][], K: number, wlOf: (c: TisCustomer) => number): number[] {
+  const wl = parts.map((p) => p.reduce((s, c) => s + wlOf(c), 0));
+  const total = wl.reduce((a, b) => a + b, 0) || 1;
+  const alloc = parts.map(() => 1);
+  let remaining = K - parts.length;
+  const order = parts.map((_, i) => i).sort((a, b) => (K * wl[b] / total) - (K * wl[a] / total));
+  while (remaining > 0) {
+    let placed = false;
+    for (const i of order) { if (remaining <= 0) break; if (alloc[i] < parts[i].length) { alloc[i]++; remaining--; placed = true; } }
+    if (!placed) break;
+  }
+  return alloc;
 }
 
 /**
- * Balance a customer set into workload-even, geographically COMPACT routes — with
- * geography as a HARD constraint. The set is first partitioned into territories
- * (clusterTerritories); each territory is balanced independently, so a route never
- * mixes distant cities. K is allocated across territories ∝ workload (≥1 each).
- * `crossTerritory: true` opts out (legacy single-pass). Pure.
+ * Balance a customer set into workload-even, geographically COMPACT routes — geography
+ * is a HARD constraint. Territories are clustered (clusterTerritories), small/remote ones
+ * are absorbed into the nearest (P1-A/C), then EXACTLY K routes are allocated across the
+ * remaining territories (never exceeding the request); each territory is balanced
+ * independently with adjacency-aware moves (P1-B). When more distinct far territories
+ * exist than K, the minimum feasible count is produced and `geographyRequiresRoutes` is
+ * set (the caller warns). `crossTerritory: true` opts out (legacy single-pass). Pure.
  */
 export function balanceRoutes(customers: readonly TisCustomer[], constraints: RouteConstraints = {}): RoutePlan {
   const totalK = resolveRouteCount(customers, constraints);
-  if (totalK === 0) return { routeCount: 0, assignments: [], routes: [], workloadBalancePct: 100 };
+  if (totalK === 0) return { routeCount: 0, assignments: [], routes: [], workloadBalancePct: 100, requestedRoutes: 0, absorbedTerritories: 0, geographyRequiresRoutes: null };
 
   const wlOf = (c: TisCustomer) =>
     constraints.balanceBy === 'value' ? (c.salesValue ?? 0)
     : constraints.balanceBy === 'count' ? 1
     : (customerWorkload(c) ?? 1);
 
-  // Partition by territory (unless explicitly disabled or there is no geo at all).
   const terr = constraints.crossTerritory ? new Map<string, string>() : clusterTerritories(customers);
   const groups = new Map<string, TisCustomer[]>();
   for (const c of customers) if (isValidGeo(c.geo) && terr.has(c.id)) {
@@ -254,30 +321,32 @@ export function balanceRoutes(customers: readonly TisCustomer[], constraints: Ro
 
   if (constraints.crossTerritory || groups.size <= 1) {
     const r = balanceWithin(customers, Math.min(totalK, Math.max(1, customers.length)), constraints, 0);
-    return { routeCount: r.routes.length, assignments: r.assignments, routes: r.routes, workloadBalancePct: balancePct(r.loads) };
+    return { routeCount: r.routes.length, assignments: r.assignments, routes: r.routes, workloadBalancePct: balancePct(r.loads), requestedRoutes: totalK, absorbedTerritories: 0, geographyRequiresRoutes: null };
   }
 
-  // Geo-less customers attach to the largest territory (they carry no location, so
-  // they cannot violate geography).
+  // Geo-less customers attach to the largest territory.
   const largest = [...groups.entries()].sort((a, b) => b[1].length - a[1].length)[0][0];
   for (const c of customers) if (!isValidGeo(c.geo)) groups.get(largest)!.push(c);
 
-  // Allocate K across territories ∝ workload (≥1 each); geography wins over the exact K.
-  const parts = [...groups.values()];
-  const partWl = parts.map((p) => p.reduce((s, c) => s + wlOf(c), 0));
-  const totalWl = partWl.reduce((a, b) => a + b, 0) || 1;
+  // P1-A/C: absorb small/remote territories, then allocate EXACTLY K (or warn).
+  const { merged, absorbed } = absorbTerritories(groups, customers.length);
+  const parts = [...merged.values()];
+  let geographyRequiresRoutes: number | null = null;
+  let alloc: number[];
+  if (parts.length > totalK) { alloc = parts.map(() => 1); geographyRequiresRoutes = parts.length; }
+  else { alloc = allocateExact(parts, totalK, wlOf); }
 
   let offset = 0;
   const allRoutes: RouteSummary[] = [], allAssign: ScenarioAssignment[] = [];
   let allLoads: number[] = [];
   parts.forEach((p, idx) => {
-    const kp = Math.max(1, Math.min(Math.round(totalK * partWl[idx] / totalWl) || 1, p.length));
+    const kp = Math.max(1, Math.min(alloc[idx], p.length));
     const r = balanceWithin(p, kp, constraints, offset);
     offset += r.routes.length;
     allRoutes.push(...r.routes); allAssign.push(...r.assignments); allLoads = allLoads.concat(r.loads);
   });
 
-  return { routeCount: allRoutes.length, assignments: allAssign, routes: allRoutes, workloadBalancePct: balancePct(allLoads) };
+  return { routeCount: allRoutes.length, assignments: allAssign, routes: allRoutes, workloadBalancePct: balancePct(allLoads), requestedRoutes: totalK, absorbedTerritories: absorbed, geographyRequiresRoutes };
 }
 
 /** Per-route geographic report line. */
@@ -288,6 +357,10 @@ export interface RouteGeoStat {
   cities: number;
   /** Max distance from the route centroid (km) — the route radius. */
   radiusKm: number;
+  /** Mean distance from the route centroid (km). */
+  meanRadiusKm: number;
+  /** Compactness score 0–100 (100 = all customers at the centroid). */
+  compactness: number;
   /** Outlier customer ids (> 2× the route's mean centroid distance, beyond 25 km). */
   outliers: string[];
   valid: boolean;
@@ -301,7 +374,13 @@ export interface PlanGeoValidation {
   maxRouteRadiusKm: number;
   /** Count of invalid (mixed-city / oversized) routes. */
   invalidCount: number;
-  /** Per-route report: customers · cities · radius · outliers. */
+  /** Routes with a single customer (P1-C). */
+  singletonRoutes: number;
+  /** Customers far (> 50 km) from their route centroid (P1-C). */
+  remoteCustomers: number;
+  /** Plan compactness 0–100 (mean of route compactness). */
+  compactnessScore: number;
+  /** Per-route report. */
   routes: RouteGeoStat[];
 }
 
@@ -319,24 +398,28 @@ export function validatePlanGeography(customers: readonly TisCustomer[], assignm
     const c = byId.get(a.customerId);
     if (c) (routeCust.get(a.routeId) ?? routeCust.set(a.routeId, []).get(a.routeId)!).push(c);
   }
-  let maxRadius = 0;
+  const REMOTE_KM = 50;
+  let maxRadius = 0, remoteCustomers = 0;
   const routes: RouteGeoStat[] = [];
   for (const [rid, list] of routeCust) {
     const geo = list.filter((c) => isValidGeo(c.geo));
     const cities = new Set(geo.map((c) => terr.get(c.id)).filter((x): x is string => !!x)).size;
-    let radius = 0; const outliers: string[] = [];
+    let radius = 0, mean = 0; const outliers: string[] = [];
     if (geo.length > 0) {
       const cLat = geo.reduce((s, c) => s + c.geo!.lat, 0) / geo.length;
       const cLng = geo.reduce((s, c) => s + c.geo!.lng, 0) / geo.length;
       const dists = geo.map((c) => ({ id: c.id, d: distKm({ lat: cLat, lng: cLng }, c.geo!) }));
       radius = Math.max(0, ...dists.map((x) => x.d));
-      const mean = dists.reduce((s, x) => s + x.d, 0) / dists.length;
-      for (const x of dists) if (x.d > 25 && x.d > 2 * mean) outliers.push(x.id);
+      mean = dists.reduce((s, x) => s + x.d, 0) / dists.length;
+      for (const x of dists) { if (x.d > 25 && x.d > 2 * mean) outliers.push(x.id); if (x.d > REMOTE_KM) remoteCustomers++; }
     }
     maxRadius = Math.max(maxRadius, radius);
+    const compactness = Math.round(100 * Math.max(0, 1 - radius / 50));
     const valid = cities <= 1 && radius <= maxKm;
-    routes.push({ routeId: rid, customers: list.length, cities, radiusKm: round1(radius), outliers, valid });
+    routes.push({ routeId: rid, customers: list.length, cities, radiusKm: round1(radius), meanRadiusKm: round1(mean), compactness, outliers, valid });
   }
   const invalidCount = routes.filter((r) => !r.valid).length;
-  return { valid: invalidCount === 0, territories: new Set(terr.values()).size, maxRouteRadiusKm: round1(maxRadius), invalidCount, routes };
+  const singletonRoutes = routes.filter((r) => r.customers === 1).length;
+  const compactnessScore = routes.length ? Math.round(routes.reduce((s, r) => s + r.compactness, 0) / routes.length) : 100;
+  return { valid: invalidCount === 0, territories: new Set(terr.values()).size, maxRouteRadiusKm: round1(maxRadius), invalidCount, singletonRoutes, remoteCustomers, compactnessScore, routes };
 }

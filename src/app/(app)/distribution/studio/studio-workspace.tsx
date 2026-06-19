@@ -73,6 +73,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
   const [importMsg, setImportMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [importing, setImporting] = useState(false);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [geoNeed, setGeoNeed] = useState<number | null>(null); // P1-A: routes geography requires
   const fileRef = useRef<HTMLInputElement>(null);
   const active = scenarios.find((s) => s.id === activeId) ?? scenarios[0];
   const update = (next: Scenario) => setScenarios((list) => list.map((s) => (s.id === next.id ? next : s)));
@@ -201,6 +202,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
       ...(Number(opt.maxVisitsPerDay) > 0 ? { maxVisitsPerDay: Number(opt.maxVisitsPerDay) } : {}),
     };
     const plan = balanceRoutes(working, constraints);
+    setGeoNeed(plan.geographyRequiresRoutes ?? null);
     const merged = plan.assignments.reduce((sc, a) => setAssignment(sc, a), { ...active, id: 'optimized', name: t('planBoard.optimized') });
     setScenarios((list) => [...list.filter((s) => s.id !== 'optimized'), merged]);
     setActiveId('optimized');
@@ -292,6 +294,12 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-info/40 bg-info/10 px-3 py-2 text-sm">
           <Info className="h-4 w-4 shrink-0 text-info" />
           <span>{t('studio.multiTerritory').replace('{n}', String(geo.territories))}</span>
+        </div>
+      )}
+      {stage !== 'import' && geoNeed != null && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          <Info className="h-4 w-4 shrink-0 text-warning" />
+          <span>{t('studio.geoNeedRoutes').replace('{n}', String(geoNeed))}</span>
         </div>
       )}
 

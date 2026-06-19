@@ -59,6 +59,7 @@ export const ar = {
     geo_territories: 'المناطق: {n}',
     geo_maxRadius: 'أقصى نصف قطر: {r} كم',
     geo_invalidRoutes: 'خطوط غير صالحة: {n}',
+    geoNeedRoutes: 'الجغرافيا تتطلب {n} خطاً (أكثر من المطلوب) لإبقاء المدن غير مختلطة. زِد عدد الخطوط أو فعّل وضع الخبير.',
   },
 };
 
@@ -122,5 +123,6 @@ export const en = {
     geo_territories: 'Territories: {n}',
     geo_maxRadius: 'Max radius: {r} km',
     geo_invalidRoutes: 'Invalid routes: {n}',
+    geoNeedRoutes: 'Geography requires {n} routes (more than requested) to keep cities un-mixed. Increase routes or enable Expert mode.',
   },
 };
