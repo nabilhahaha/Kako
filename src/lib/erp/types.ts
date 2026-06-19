@@ -463,6 +463,12 @@ export interface ErpCustomer {
   region_id: string | null;
   area_id: string | null;
   route_id: string | null;
+  // FR-2: customer-level visit frequency (primary source of truth) + provenance.
+  // All additive/nullable; null = derive from classification as today. Token is
+  // the FR-1 canonical form (e.g. weekly|biweekly|monthly|annual or week/1/3).
+  visit_frequency: string | null;
+  visit_frequency_source: 'manual' | 'import' | 'classification' | 'system' | null;
+  visit_frequency_meta: Record<string, unknown> | null;
   latitude: number | null;
   longitude: number | null;
   payment_terms_days: number | null;
