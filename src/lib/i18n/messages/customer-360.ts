@@ -39,6 +39,14 @@ export const ar = {
     // Read-only context blocks (G1)
     commercialTitle: 'البيانات التجارية',
     territoryTitle: 'التغطية والمنطقة',
+    // Last Activity (G2)
+    lastActivityTitle: 'آخر نشاط',
+    lastVisit: 'آخر زيارة',
+    lastOrder: 'آخر طلب',
+    lastInvoice: 'آخر فاتورة',
+    lastCollection: 'آخر تحصيل',
+    lastReturn: 'آخر مرتجع',
+    never: 'لا يوجد',
     // Section titles
     statusTitle: 'حالة الحساب',
     notesTitle: 'الملاحظات',
@@ -80,6 +88,14 @@ export const en = {
     // Read-only context blocks (G1)
     commercialTitle: 'Commercial',
     territoryTitle: 'Territory & coverage',
+    // Last Activity (G2)
+    lastActivityTitle: 'Last activity',
+    lastVisit: 'Last visit',
+    lastOrder: 'Last order',
+    lastInvoice: 'Last invoice',
+    lastCollection: 'Last collection',
+    lastReturn: 'Last return',
+    never: 'None',
     statusTitle: 'Account status',
     notesTitle: 'Notes',
     auditTitle: 'Audit log',

@@ -20,7 +20,7 @@ import {
 import { useI18n } from '@/lib/i18n/provider';
 import { useCriticalAction } from '@/lib/critical-action';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { CUSTOMER_STATUSES, VISIT_DAYS } from '@/lib/erp/constants';
 import { StatCard, type StatTone } from '@/components/shared/stat-card';
 import { QuickNav, type QuickLink } from '@/components/home/home-widgets';
@@ -265,6 +265,16 @@ export function Customer360({
               </dl>
             </SectionCard>
           </div>
+          {/* G2: last activity per kind — the highest-frequency FMCG question. */}
+          <SectionCard title={t('customer360.lastActivityTitle')}>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+              <Row label={t('customer360.lastVisit')} value={lastDate(bundle.lastActivity.lastVisit, t)} ltr />
+              <Row label={t('customer360.lastOrder')} value={lastDate(bundle.lastActivity.lastOrder, t)} ltr />
+              <Row label={t('customer360.lastInvoice')} value={lastDate(bundle.lastActivity.lastInvoice, t)} ltr />
+              <Row label={t('customer360.lastCollection')} value={lastDate(bundle.lastActivity.lastCollection, t)} ltr />
+              <Row label={t('customer360.lastReturn')} value={lastDate(bundle.lastActivity.lastReturn, t)} ltr />
+            </dl>
+          </SectionCard>
           <SectionCard title={t('customer360.quickActions')}>
             <QuickNav links={[
               { label: t('salesman.actNewInvoice'), href: '/sales/invoices', icon: Receipt },
@@ -383,6 +393,11 @@ function repName(id: string | null, reps: Rep[]): string {
 function visitDayLabel(value: string | null, locale: 'ar' | 'en'): string {
   if (!value) return '—';
   return VISIT_DAYS.find((d) => d.value === value)?.[locale] ?? value;
+}
+
+/** Format a last-activity ISO date, or the localized "never" placeholder. */
+function lastDate(iso: string | null, t: (k: string) => string): string {
+  return iso ? formatDate(iso) : t('customer360.never');
 }
 
 /** Account-status context — same data the statement page surfaced (status badge,

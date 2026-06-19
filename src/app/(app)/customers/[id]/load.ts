@@ -16,6 +16,17 @@ import { sortTimeline, type TimelineEvent } from '@/lib/erp/timeline';
  * outcomes** (→ `visit`), reusing the existing `TimelineEvent`/`sortTimeline`
  * types so the existing ActivityTimeline renderer is unchanged.
  */
+/** G2: last-event-per-kind summary (ISO date strings or null). Orders come from
+ *  `erp_sales_orders` (distinct from invoices); the rest derive from the merged
+ *  360 timeline. */
+export interface CustomerLastActivity {
+  lastVisit: string | null;
+  lastOrder: string | null;
+  lastInvoice: string | null;
+  lastCollection: string | null;
+  lastReturn: string | null;
+}
+
 export interface CustomerDetailBundle {
   statement: CustomerStatementResult;
   activity: CustomerActivity;
@@ -23,6 +34,8 @@ export interface CustomerDetailBundle {
   timeline: TimelineEvent[];
   requestCount: number;
   visitCount: number;
+  /** G2: last visit · order · invoice · collection · return. */
+  lastActivity: CustomerLastActivity;
 }
 
 async function safeRows<T>(fn: () => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
@@ -50,7 +63,7 @@ export async function loadCustomerDetailBundle(
     : { name: statement.customer.name, balance: statement.customer.balance, overdue: 0, invoiceCount: 0, timeline: [] };
 
   // Enrich the 360 with existing field data (read-only, RLS-scoped).
-  const [requests, visits] = await Promise.all([
+  const [requests, visits, lastOrders] = await Promise.all([
     safeRows<{ id: string; kind: string; status: string; created_at: string }>(() =>
       supabase
         .from('erp_customer_requests')
@@ -67,6 +80,16 @@ export async function loadCustomerDetailBundle(
         .order('created_at', { ascending: false })
         .limit(30),
     ),
+    // G2: last sales ORDER (distinct from invoices), excluding drafts.
+    safeRows<{ created_at: string }>(() =>
+      supabase
+        .from('erp_sales_orders')
+        .select('created_at')
+        .eq('customer_id', customerId)
+        .neq('status', 'draft')
+        .order('created_at', { ascending: false })
+        .limit(1),
+    ),
   ]);
 
   const extra: TimelineEvent[] = [
@@ -74,11 +97,23 @@ export async function loadCustomerDetailBundle(
     ...visits.map((v) => ({ date: v.created_at, kind: 'visit' as const, title: `visit:${v.outcome}`, status: v.note ?? undefined })),
   ];
 
+  const timeline = sortTimeline([...activity.timeline, ...extra]);
+  // Last-event-per-kind: timeline is newest-first, so the first match wins.
+  const firstOf = (k: TimelineEvent['kind']) => timeline.find((e) => e.kind === k)?.date ?? null;
+  const lastActivity: CustomerLastActivity = {
+    lastVisit: firstOf('visit'),
+    lastOrder: lastOrders[0]?.created_at ?? null,
+    lastInvoice: firstOf('invoice'),
+    lastCollection: firstOf('payment'),
+    lastReturn: firstOf('return'),
+  };
+
   return {
     statement,
     activity,
-    timeline: sortTimeline([...activity.timeline, ...extra]),
+    timeline,
     requestCount: requests.length,
     visitCount: visits.length,
+    lastActivity,
   };
 }
