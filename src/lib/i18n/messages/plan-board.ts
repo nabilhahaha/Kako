@@ -30,6 +30,10 @@ export const ar = {
     allSalesmen: 'كل المندوبين',
     clearScope: 'مسح النطاق',
     showingScope: 'عرض {r} من {total} خط · {n} عميل',
+    colorBy: 'تلوين حسب',
+    color_route: 'الخط', color_salesman: 'المندوب', color_coverage: 'التغطية', color_territory: 'المنطقة', color_grade: 'التصنيف',
+    legend: 'مفتاح الخريطة',
+    pop_code: 'الرمز', pop_route: 'الخط', pop_salesman: 'المندوب', pop_grade: 'التصنيف', pop_coverage: 'التغطية',
     day_sun: 'الأحد', day_mon: 'الإثنين', day_tue: 'الثلاثاء', day_wed: 'الأربعاء', day_thu: 'الخميس', day_fri: 'الجمعة', day_sat: 'السبت',
   },
 };
@@ -65,6 +69,10 @@ export const en = {
     allSalesmen: 'All salesmen',
     clearScope: 'Clear scope',
     showingScope: 'Showing {r} of {total} routes · {n} customers',
+    colorBy: 'Color by',
+    color_route: 'Route', color_salesman: 'Salesman', color_coverage: 'Coverage', color_territory: 'Territory', color_grade: 'Grade',
+    legend: 'Legend',
+    pop_code: 'Code', pop_route: 'Route', pop_salesman: 'Salesman', pop_grade: 'Grade', pop_coverage: 'Coverage',
     day_sun: 'Sun', day_mon: 'Mon', day_tue: 'Tue', day_wed: 'Wed', day_thu: 'Thu', day_fri: 'Fri', day_sat: 'Sat',
   },
 };

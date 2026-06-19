@@ -2,14 +2,15 @@
 
 import { useEffect, useRef } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { useI18n } from '@/lib/i18n/provider';
 
 /**
- * VTP-3 planning map — MapLibre points coloured by scenario route; click a point
- * to assign it to the currently-selected target route (select-then-assign;
- * dragging points across map space is fiddly, so this is the robust map edit).
- * Client-only; reuses the keyless OSM raster base.
+ * VTP planning map — MapLibre points coloured by the active mode; click a point to
+ * see its details (popup) and, when a target route is selected, assign it
+ * (select-then-assign). Client-only; reuses the keyless OSM raster base.
  */
-export interface PlanMapPoint { id: string; name: string; lat: number; lng: number; color: string }
+export interface PlanMapMeta { code?: string | null; route?: string | null; salesman?: string | null; grade?: string | null; coverage?: string | null }
+export interface PlanMapPoint { id: string; name: string; lat: number; lng: number; color: string; meta?: PlanMapMeta }
 
 const RASTER_STYLE = {
   version: 8 as const,
@@ -18,14 +19,34 @@ const RASTER_STYLE = {
 };
 
 function toGeoJSON(points: PlanMapPoint[]) {
-  return { type: 'FeatureCollection' as const, features: points.map((p) => ({ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] }, properties: { id: p.id, color: p.color } })) };
+  return {
+    type: 'FeatureCollection' as const,
+    features: points.map((p) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
+      properties: {
+        id: p.id, color: p.color, name: p.name,
+        code: p.meta?.code ?? '', route: p.meta?.route ?? '', salesman: p.meta?.salesman ?? '',
+        grade: p.meta?.grade ?? '', coverage: p.meta?.coverage ?? '',
+      },
+    })),
+  };
 }
 
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
+
 export function PlanningMap({ points, onSelect }: { points: PlanMapPoint[]; onSelect: (id: string) => void }) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
   const selectRef = useRef(onSelect);
   selectRef.current = onSelect;
+  // Field labels for the popup, kept current for the load-time click handler.
+  const labelsRef = useRef<Record<string, string>>({});
+  labelsRef.current = {
+    code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), salesman: t('planBoard.pop_salesman'),
+    grade: t('planBoard.pop_grade'), coverage: t('planBoard.pop_coverage'),
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -39,7 +60,16 @@ export function PlanningMap({ points, onSelect }: { points: PlanMapPoint[]; onSe
       map.on('load', () => {
         map!.addSource('pts', { type: 'geojson', data: toGeoJSON(points) });
         map!.addLayer({ id: 'pts', type: 'circle', source: 'pts', paint: { 'circle-radius': 5, 'circle-color': ['get', 'color'], 'circle-stroke-width': 1, 'circle-stroke-color': '#ffffff' } });
-        map!.on('click', 'pts', (e) => { const f = e.features?.[0]; if (f) selectRef.current((f.properties as { id: string }).id); });
+        map!.on('click', 'pts', (e) => {
+          const f = e.features?.[0];
+          if (!f) return;
+          const p = f.properties as Record<string, string>;
+          selectRef.current(p.id);
+          const L = labelsRef.current;
+          const row = (label: string, value: string) => (value ? `<div style="display:flex;gap:6px"><span style="color:#64748b">${esc(label)}</span><span>${esc(value)}</span></div>` : '');
+          const html = `<div style="font-size:12px;line-height:1.5"><div style="font-weight:700;margin-bottom:2px">${esc(p.name || '')}</div>${row(L.code, p.code)}${row(L.route, p.route)}${row(L.salesman, p.salesman)}${row(L.grade, (p.grade || '').toUpperCase())}${row(L.coverage, (p.coverage || '').replace(/_/g, ' '))}</div>`;
+          new maplibregl.Popup({ closeButton: true, closeOnClick: true, offset: 10 }).setLngLat(e.lngLat).setHTML(html).addTo(map!);
+        });
         map!.on('mouseenter', 'pts', () => { map!.getCanvas().style.cursor = 'pointer'; });
         map!.on('mouseleave', 'pts', () => { map!.getCanvas().style.cursor = ''; });
         fit(map!, points);
@@ -49,7 +79,7 @@ export function PlanningMap({ points, onSelect }: { points: PlanMapPoint[]; onSe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Recolour when assignments change.
+  // Recolour / refilter when points change.
   useEffect(() => {
     const map = mapRef.current as import('maplibre-gl').Map | null;
     const src = map?.getSource?.('pts') as { setData?: (d: unknown) => void } | undefined;

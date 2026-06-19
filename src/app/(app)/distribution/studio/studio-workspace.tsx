@@ -16,16 +16,22 @@ import { balanceRoutes } from '@/lib/tis/optimize-routes';
 import { datasetToCsv, TIS_CSV_COLUMNS } from '@/lib/tis/export';
 import { buildTisDatasetFromRows } from '@/lib/tis/upload';
 import { auditTerritory } from '@/lib/tis/audit';
-import { buildGeoLayers, type GeoLayerId } from '@/lib/tis/geo';
 import { initialScope, scopeCustomerIds, type ScopeState } from '@/lib/tis/scope';
 import { TerritoryAuditView } from '../territory-audit/territory-audit';
 import { PlanningMap, type PlanMapPoint } from '../planning-board/planning-map';
-import { PlanningCanvas, MetricsBar, routeColorMap } from '../planning-board/planning-canvas';
+import { PlanningCanvas, MetricsBar, routeColorMap, COVER_HEX, PALETTE } from '../planning-board/planning-canvas';
 import { ScopeBar } from '../planning-board/scope-bar';
 import { parseTisUpload } from './import-actions';
 
 type Stage = 'import' | 'overview' | 'audit' | 'map' | 'optimize' | 'plan' | 'size';
-const GEO_LAYERS: GeoLayerId[] = ['coverage', 'ownership', 'whitespace', 'imbalance', 'customers'];
+type ColorMode = 'route' | 'salesman' | 'coverage' | 'territory' | 'grade';
+const GRADE_HEX: Record<string, string> = { a: '#16a34a', b: '#2563eb', c: '#d97706', d: '#dc2626' };
+const NEUTRAL = '#94a3b8';
+/** Sorted-id → palette colour map (categorical layers: salesman / region). */
+function catColors(ids: (string | null | undefined)[]): Map<string, string> {
+  const u = [...new Set(ids.filter((x): x is string => !!x))].sort();
+  return new Map(u.map((id, i) => [id, PALETTE[i % PALETTE.length]]));
+}
 /** Each stage's standalone deep-link (discoverability + back-compat). */
 const STANDALONE: Partial<Record<Stage, string>> = {
   audit: '/distribution/territory-audit',
@@ -54,7 +60,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
   const [scenarios, setScenarios] = useState<Scenario[]>(() => [currentPlanScenario(dataset)]);
   const [activeId, setActiveId] = useState('current');
   const [stage, setStage] = useState<Stage>('overview');
-  const [geoLayer, setGeoLayer] = useState<GeoLayerId>('coverage');
+  const [colorMode, setColorMode] = useState<ColorMode>('coverage');
   const [workingDays, setWorkingDays] = useState('5');
   const [routeCountInput, setRouteCountInput] = useState(''); // '' = auto (current route count)
   const [scope, setScope] = useState<ScopeState>(() => initialScope(dataset.customers));
@@ -102,10 +108,51 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
     downloadCsv(csv, 'tis-import-template.csv');
   }
 
-  // All findings/layers/metrics are computed over the SCOPED working set.
+  // All findings/metrics are computed over the SCOPED working set.
   const audit = useMemo(() => auditTerritory(scopedDataset), [scopedDataset]);
-  const geoLayers = useMemo(() => buildGeoLayers(scopedDataset, audit), [scopedDataset, audit]);
   const metrics = useMemo(() => scenarioMetrics(scopedDataset), [scopedDataset]);
+
+  // ── Map colouring (Color By: Route · Salesman · Coverage · Territory · Grade) ──
+  const routeColor = useMemo(() => routeColorMap(dataset, active), [dataset, active]);
+  const routeIndex = useMemo(() => {
+    const ids = [...new Set(applied.customers.map((c) => c.ownership.routeId).filter((r): r is string => !!r))].sort();
+    return new Map(ids.map((id, i) => [id, i]));
+  }, [applied]);
+  const routeLabel = (id: string | null | undefined) => (id ? labels[id] ?? `${t('routeOpt.route')} ${(routeIndex.get(id) ?? 0) + 1}` : '');
+  const nameLabel = (id: string | null | undefined) => (id ? labels[id] ?? id : '');
+  const salesmanColors = useMemo(() => catColors(working.map((c) => c.ownership.salesmanId)), [working]);
+  const regionColors = useMemo(() => catColors(working.map((c) => c.ownership.regionId)), [working]);
+  const availableModes = useMemo<ColorMode[]>(() => ([
+    working.some((c) => c.ownership.routeId) ? 'route' : null,
+    working.some((c) => c.ownership.salesmanId) ? 'salesman' : null,
+    working.some((c) => c.coverage) ? 'coverage' : null,
+    working.some((c) => c.ownership.regionId) ? 'territory' : null,
+    working.some((c) => c.grade) ? 'grade' : null,
+  ].filter((m): m is ColorMode => m != null)), [working]);
+  const mode: ColorMode = availableModes.includes(colorMode) ? colorMode : (availableModes[0] ?? 'coverage');
+  const colorOf = (c: TisCustomer): string => {
+    switch (mode) {
+      case 'route': return c.ownership.routeId ? routeColor.get(c.ownership.routeId) ?? NEUTRAL : '#cbd5e1';
+      case 'salesman': return c.ownership.salesmanId ? salesmanColors.get(c.ownership.salesmanId) ?? NEUTRAL : '#cbd5e1';
+      case 'coverage': return c.coverage ? COVER_HEX[c.coverage] ?? NEUTRAL : '#cbd5e1';
+      case 'territory': return c.ownership.regionId ? regionColors.get(c.ownership.regionId) ?? NEUTRAL : '#cbd5e1';
+      case 'grade': return c.grade ? GRADE_HEX[c.grade] ?? NEUTRAL : '#cbd5e1';
+    }
+  };
+  const legend = useMemo<{ label: string; color: string }[]>(() => {
+    const seen = new Map<string, string>();
+    for (const c of working) {
+      let key = '', label = '', col = '';
+      if (mode === 'route') { key = c.ownership.routeId ?? ''; label = routeLabel(c.ownership.routeId) || t('planBoard.unassigned'); col = colorOf(c); }
+      else if (mode === 'salesman') { key = c.ownership.salesmanId ?? ''; label = nameLabel(c.ownership.salesmanId) || t('planBoard.unassignedSalesman'); col = colorOf(c); }
+      else if (mode === 'coverage') { key = c.coverage ?? ''; label = (c.coverage ?? '—').replace(/_/g, ' '); col = colorOf(c); }
+      else if (mode === 'territory') { key = c.ownership.regionId ?? ''; label = nameLabel(c.ownership.regionId) || t('planBoard.unassigned'); col = colorOf(c); }
+      else { key = c.grade ?? ''; label = (c.grade ?? '—').toUpperCase(); col = colorOf(c); }
+      if (!seen.has(key)) seen.set(key, JSON.stringify({ label, color: col }));
+    }
+    return [...seen.values()].map((v) => JSON.parse(v) as { label: string; color: string }).slice(0, 16);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [working, mode, labels, routeColor, salesmanColors, regionColors]);
 
   function onOptimize() {
     const rc = Math.max(0, Math.round(Number(routeCountInput))) || scopedRouteCount || defaultRouteCount;
@@ -115,6 +162,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
     const merged = plan.assignments.reduce((sc, a) => setAssignment(sc, a), { ...active, id: 'optimized', name: t('planBoard.optimized') });
     setScenarios((list) => [...list.filter((s) => s.id !== 'optimized'), merged]);
     setActiveId('optimized');
+    setColorMode('route');
     setStage('plan');
   }
   function onClone() {
@@ -127,19 +175,13 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
     downloadCsv(datasetToCsv(applyScenario(dataset, active)), `studio-plan-${active.id}.csv`);
   }
 
-  // Persistent map (always the SCOPED working set): scenario-route colour in
-  // Optimize/Plan, else the chosen geo layer — so map and board never disagree.
-  const routeColor = useMemo(() => routeColorMap(dataset, active), [dataset, active]);
-  const mapPoints = useMemo<PlanMapPoint[]>(() => {
-    if (stage === 'optimize' || stage === 'plan') {
-      return working.filter((c) => isValidGeo(c.geo)).map((c) => ({
-        id: c.id, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng,
-        color: c.ownership.routeId ? routeColor.get(c.ownership.routeId) ?? '#94a3b8' : '#cbd5e1',
-      }));
-    }
-    const layer = stage === 'map' ? geoLayer : 'coverage';
-    return geoLayers[layer].features.map((f) => ({ id: f.id, name: f.name, lat: f.lat, lng: f.lng, color: f.color }));
-  }, [stage, geoLayer, geoLayers, working, routeColor]);
+  // Persistent map = the SCOPED working set, coloured by the active mode, with full
+  // customer meta for the click popup — so map and board always agree.
+  const mapPoints = useMemo<PlanMapPoint[]>(() => working.filter((c) => isValidGeo(c.geo)).map((c) => ({
+    id: c.id, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng, color: colorOf(c),
+    meta: { code: c.code, route: routeLabel(c.ownership.routeId), salesman: nameLabel(c.ownership.salesmanId), grade: c.grade, coverage: c.coverage },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  })), [working, mode, routeColor, salesmanColors, regionColors, labels]);
 
   const STAGES: { key: Stage; icon: typeof MapIcon; label: string }[] = [
     { key: 'import', icon: Upload, label: t('studio.import') },
@@ -150,6 +192,25 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
     { key: 'plan', icon: LayoutGrid, label: t('studio.plan') },
     { key: 'size', icon: Users, label: t('studio.size') },
   ];
+
+  // Shared map block: Color By control + legend + the persistent (read-only) map.
+  const colorControls = availableModes.length > 1 ? (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-muted-foreground">{t('planBoard.colorBy')}:</span>
+      {availableModes.map((m) => (
+        <button key={m} onClick={() => setColorMode(m)} className={`rounded-md border px-2.5 py-1 text-xs ${mode === m ? 'bg-secondary font-medium' : 'hover:bg-muted'}`}>{t(`planBoard.color_${m}`)}</button>
+      ))}
+    </div>
+  ) : null;
+  const legendEl = legend.length > 0 ? (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border bg-muted/20 px-2 py-1.5 text-xs">
+      <span className="text-muted-foreground">{t('planBoard.legend')}:</span>
+      {legend.map((l) => (
+        <span key={l.label + l.color} className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: l.color }} />{l.label}</span>
+      ))}
+    </div>
+  ) : null;
+  const mapEl = <PlanningMap key="studio-map" points={mapPoints} onSelect={() => { /* read-only popups in the Studio map */ }} />;
 
   return (
     <div className="space-y-3">
@@ -200,21 +261,18 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
             <ImportPanel t={t} importing={importing} message={importMsg} sample={sample} count={dataset.customers.length} onPick={() => fileRef.current?.click()} onTemplate={onTemplate} />
           ) : stage === 'plan' ? (
             <>
-              <PlanningMap key="studio-map" points={mapPoints} onSelect={() => { /* Plan editing happens on the canvas below. */ }} />
+              {colorControls}
+              {mapEl}
+              {legendEl}
               <PlanningCanvas dataset={dataset} scenario={active} onChange={update} labels={labels} scopeIds={scopeIds} />
               <StageLink href={STANDALONE.plan!} label={t('studio.openFull')} />
             </>
           ) : (
             <div className="flex flex-col gap-3 xl:flex-row">
               <div className="min-w-0 space-y-2 xl:flex-1">
-                {stage === 'map' && (
-                  <div className="flex flex-wrap gap-1 text-sm">
-                    {GEO_LAYERS.filter((id) => geoLayers[id].available).map((id) => (
-                      <button key={id} onClick={() => setGeoLayer(id)} className={`rounded-md border px-2.5 py-1 ${geoLayer === id ? 'bg-secondary font-medium' : 'hover:bg-muted'}`}>{t(`geo.layer_${id}`)}</button>
-                    ))}
-                  </div>
-                )}
-                <PlanningMap key="studio-map" points={mapPoints} onSelect={() => { /* read-only on non-Plan stages */ }} />
+                {colorControls}
+                {mapEl}
+                {legendEl}
               </div>
 
               {/* Contextual panel. */}
