@@ -35,6 +35,9 @@ export const ar = {
     ofNCustomers: 'من {n} عميل',
     groupByLabel: 'التجميع حسب',
     unassigned: 'غير معيّن',
+    viewDashboard: 'اللوحة',
+    viewCustomers: 'قائمة العملاء',
+    viewTeam: 'تغطية الفريق اليومية',
   },
 };
 
@@ -74,5 +77,8 @@ export const en = {
     ofNCustomers: 'of {n} customers',
     groupByLabel: 'Group by',
     unassigned: 'Unassigned',
+    viewDashboard: 'Dashboard',
+    viewCustomers: 'Customer List',
+    viewTeam: 'Team Daily Coverage',
   },
 };

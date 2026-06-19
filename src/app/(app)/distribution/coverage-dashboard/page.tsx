@@ -5,7 +5,9 @@ import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
 import { getT } from '@/lib/i18n/server';
 import { loadCoverageRollup, type CoverageGroupBy } from '@/lib/distribution/coverage-engine/server';
+import { DISTRIBUTION_ENABLED } from '@/lib/distribution/flags';
 import { CoverageDashboard, type CoverageGroupView } from './coverage-dashboard';
+import { CoverageViews } from './coverage-views';
 
 /**
  * CV-2 — Manager / Supervisor Coverage Dashboard (Simple Mode). One screen:
@@ -56,6 +58,7 @@ export default async function CoverageDashboardPage({
   return (
     <div>
       <PageHeader title={t('coverage.dashTitle')} description={t('coverage.dashDescription')} />
+      <CoverageViews active="dashboard" showTeam={DISTRIBUTION_ENABLED()} />
       <CoverageDashboard overall={rollup.overall} groups={groups} groupBy={groupBy} />
     </div>
   );

@@ -6,6 +6,8 @@ import { PageHeader } from '@/components/shared/page-header';
 import { getT } from '@/lib/i18n/server';
 import { loadCustomerCoverage } from '@/lib/distribution/journey-plan/coverage-status-server';
 import type { CoverageStatus } from '@/lib/distribution/journey-plan/coverage-status';
+import { DISTRIBUTION_ENABLED } from '@/lib/distribution/flags';
+import { CoverageViews } from '../coverage-dashboard/coverage-views';
 import { CoverageList, type CoverageRow } from './coverage-list';
 
 const STATUSES: CoverageStatus[] = ['on_track', 'under_covered', 'over_covered', 'never_visited'];
@@ -82,6 +84,7 @@ export default async function CoverageCustomersPage({
   return (
     <div>
       <PageHeader title={t('coverage.pageTitle')} description={t('coverage.pageDescription')} />
+      <CoverageViews active="customers" showTeam={DISTRIBUTION_ENABLED()} />
       <CoverageList
         rows={rows}
         salesmen={repRows.map((r) => ({ id: r.id, name: r.full_name || r.email || '' }))}
