@@ -108,24 +108,38 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
           ))}
         </nav>
 
-        {/* Centre: persistent map + the stage panel beneath it. */}
+        {/* Centre: the map is the anchor. Non-Plan stages keep a contextual panel
+            beside the map (right on wide screens, below on narrow); the Plan stage
+            gives the map full width and docks the route boards beneath it. */}
         <div className="min-w-0 flex-1 space-y-3">
-          {stage === 'map' && (
-            <div className="flex flex-wrap gap-1 text-sm">
-              {GEO_LAYERS.filter((id) => geoLayers[id].available).map((id) => (
-                <button key={id} onClick={() => setGeoLayer(id)} className={`rounded-md border px-2.5 py-1 ${geoLayer === id ? 'bg-secondary font-medium' : 'hover:bg-muted'}`}>{t(`geo.layer_${id}`)}</button>
-              ))}
+          {stage === 'plan' ? (
+            <>
+              <PlanningMap key="studio-map" points={mapPoints} onSelect={() => { /* Plan editing happens on the canvas below. */ }} />
+              <PlanningCanvas dataset={dataset} scenario={active} onChange={update} />
+            </>
+          ) : (
+            <div className="flex flex-col gap-3 xl:flex-row">
+              <div className="min-w-0 space-y-2 xl:flex-1">
+                {stage === 'map' && (
+                  <div className="flex flex-wrap gap-1 text-sm">
+                    {GEO_LAYERS.filter((id) => geoLayers[id].available).map((id) => (
+                      <button key={id} onClick={() => setGeoLayer(id)} className={`rounded-md border px-2.5 py-1 ${geoLayer === id ? 'bg-secondary font-medium' : 'hover:bg-muted'}`}>{t(`geo.layer_${id}`)}</button>
+                    ))}
+                  </div>
+                )}
+                <PlanningMap key="studio-map" points={mapPoints} onSelect={() => { /* read-only on non-Plan stages */ }} />
+              </div>
+
+              {/* Contextual panel. */}
+              <aside className="min-w-0 space-y-3 xl:w-[380px] xl:shrink-0">
+                {stage === 'overview' && <OverviewPanel audit={audit} onOptimize={onOptimize} t={t} demo={demo} />}
+                {stage === 'audit' && <TerritoryAuditView audit={audit} labels={{}} />}
+                {stage === 'map' && <p className="text-sm text-muted-foreground">{t('studio.mapLead')}</p>}
+                {stage === 'optimize' && <OptimizePanel dataset={dataset} scenarios={scenarios} workingDays={workingDays} setWorkingDays={setWorkingDays} onOptimize={onOptimize} t={t} />}
+                {stage === 'size' && <NeedsPanel text={t('studio.sizeSoon')} />}
+              </aside>
             </div>
           )}
-          <PlanningMap key="studio-map" points={mapPoints} onSelect={() => { /* selection wired per stage in Plan via its own canvas */ }} />
-
-          {/* Stage panel. */}
-          {stage === 'overview' && <OverviewPanel audit={audit} onOptimize={onOptimize} t={t} demo={demo} />}
-          {stage === 'audit' && <TerritoryAuditView audit={audit} labels={{}} />}
-          {stage === 'map' && <p className="text-xs text-muted-foreground">{t('studio.mapLead')}</p>}
-          {stage === 'optimize' && <OptimizePanel dataset={dataset} scenarios={scenarios} workingDays={workingDays} setWorkingDays={setWorkingDays} onOptimize={onOptimize} t={t} />}
-          {stage === 'plan' && <PlanningCanvas dataset={dataset} scenario={active} onChange={update} />}
-          {stage === 'size' && <NeedsPanel text={t('studio.sizeSoon')} />}
         </div>
       </div>
     </div>
