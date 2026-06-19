@@ -108,6 +108,33 @@ Upload / Select Customers
 
 ---
 
+## 4a. Single Data Model — Export ≡ Journey-Plan Import/Apply
+
+The optimized route dataset is the **single source of truth**. There must **not** be a
+separate "optimization" data model maintained alongside the Journey-Plan model — the Studio
+operates on, and emits, the **same shape** the Journey-Plan engine already imports/applies
+(`erp_journey_plans`: customer · route · salesman · day_of_week · frequency · sequence).
+
+**Both terminal actions consume the identical dataset:**
+
+```
+Generate → Preview → Drag & Drop Adjustments → ┬─ Export Excel
+                                               └─ Apply to Journey Plan
+```
+
+- **Export Excel** writes the **same columns** the Journey-Plan import expects, so a file
+  exported from the Studio is **re-importable with no transformation, no validation issues,
+  and no field remapping** (round-trip safe: Export → edit offline → Import → Apply).
+- **Apply to Journey Plan** publishes the in-memory dataset directly via the existing
+  apply path — Export and Apply are two serializations of one model, never two models.
+- Frequency uses the FR-1 canonical token (already the journey-plan vocabulary), so workload
+  semantics survive the round-trip unchanged.
+
+> Design rule: if a field exists in the export, it exists in the import, with the same name,
+> type, and meaning. The Excel schema is owned by the Journey-Plan import contract.
+
+---
+
 ## 5. Future Integrations
 
 | System | Role |
@@ -138,7 +165,58 @@ these engines — it does not re-implement routing, frequency, or grading.
 
 ---
 
-## 7. Indicative Phasing (when scheduled)
+## 7. Future Enhancement — Visual Territory Planning Studio
+
+Evolves the Studio from a route *generator* into an interactive **Territory Planning
+Studio** where the **map is a first-class planning surface, not only a visualization.**
+Roadmap only.
+
+### 7.1 Interactive Map Planning
+Click any customer on the map to view, inline: customer details · current route assignment ·
+current visit day · frequency (FR resolver) · **workload impact**. The map both plans and
+visualizes — not a reporting map.
+
+### 7.2 Day Assignment from the Map
+Selecting a customer surfaces the seven days (**Sun · Mon · Tue · Wed · Thu · Fri · Sat**),
+**each with its own colour**. The manager assigns/reassigns the visit day directly on the map
+(e.g. `Route A → Monday` ⇒ `Route A → Wednesday`); the preview updates immediately.
+
+### 7.3 Drag & Drop Route Planning
+Drag a customer across:
+
+- **Customer → Route** (Route A → Route B)
+- **Customer → Visit Day** (Monday → Tuesday)
+- **Customer → Salesman** (Salesman A → Salesman B)
+
+### 7.4 Live Route Preview (before Apply)
+Every planning change instantly recomputes: route **distance** · **drive time** · **visit
+workload** · **coverage load** · **route balance score** · **conflict warnings** — all before
+Apply.
+
+### 7.5 Scenario Planning
+Maintain **Current Plan · Scenario A · B · C** and compare before publishing, on:
+Customers · Visits · Sales Value · Distance · Coverage · Route Balance.
+
+### 7.6 Map Layers (future)
+Customer Health (CJ Health) · Coverage Status (CJ-3) · A/B/C Classification · Sales Value ·
+Route Ownership · Territory Boundaries (`erp_territories`) · GPS Compliance
+(`erp_visit_compliance`) · White-Space Opportunities.
+
+### 7.7 Apply
+```
+Generate → Preview → Drag & Drop → Scenario Compare → Apply
+```
+Apply publishes directly into the **Journey Plan Engine** using the single data model
+(§4a) — Export and Apply remain two serializations of one dataset.
+
+> **Reuse:** layers and metrics are existing read-models (Coverage Status CJ-3, Customer
+> Health, outlet grade, frequency/workload from the FR resolver, GPS compliance, territories).
+> The enhancement is a **map interaction + scenario-state** layer over them, not new business
+> logic. Heavy dependency on **Geo Intelligence & Territory Mapping** (separate roadmap item).
+
+---
+
+## 8. Indicative Phasing (when scheduled)
 
 | Phase | Scope |
 | :--- | :--- |
@@ -146,8 +224,9 @@ these engines — it does not re-implement routing, frequency, or grading.
 | RO-2 | Multi-objective balancer (count · workload · value · distance · capacity) → scenarios |
 | RO-3 | Map preview + conflict detection |
 | RO-4 | Drag & drop scenario adjustment |
-| RO-5 | Excel export + apply to Journey Plan |
+| RO-5 | Excel export + apply to Journey Plan (single data model, §4a) |
 | RO-6 | Geo Intelligence + Smart Next integration |
+| RO-7 | Visual Territory Planning Studio (§7): map-driven day assignment, drag & drop, live preview, scenario compare, map layers |
 
 **Prerequisite:** Visit-Frequency Resolution Layer (workload weighting) and Geo Intelligence
 (map + distance) — both already recorded as roadmap items.
