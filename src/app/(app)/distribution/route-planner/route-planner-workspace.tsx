@@ -22,12 +22,22 @@ const UNASSIGNED = '__unassigned';
 
 function emptyScenario(): Scenario { return { id: 'plan', name: 'Route plan', assignments: [] }; }
 
-function downloadXlsx(bytes: Uint8Array, filename: string) {
-  const blob = new Blob([bytes as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+/** Reliable cross-browser file download: the anchor MUST be in the document for
+ *  `.click()` to trigger a download in Firefox/Safari (and reliably in Chrome). */
+function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  a.href = url; a.download = filename; a.rel = 'noopener'; a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+function downloadXlsx(bytes: Uint8Array, filename: string) {
+  // Copy into a fresh ArrayBuffer so the Blob owns contiguous bytes (avoids any
+  // shared-buffer/view edge cases across engines).
+  const buf = bytes.slice().buffer;
+  downloadBlob(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), filename);
 }
 
 /**
@@ -164,10 +174,7 @@ export function RoutePlannerWorkspace() {
   function onTemplate() {
     const header = 'code,name,lat,lng,route,frequency';
     const rows = ['C001,Sample Market,21.5810,39.1650,R-1,weekly', 'C002,Sample Grocery,24.7100,46.6700,R-2,2'];
-    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'route-planner-template.csv'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadBlob(new Blob([[header, ...rows].join('\n')], { type: 'text/csv;charset=utf-8' }), 'route-planner-template.csv');
   }
 
   // ── Split / Correct / Approve / Export ──
@@ -221,9 +228,15 @@ export function RoutePlannerWorkspace() {
   }
   function exportRoutes() {
     if (!dataset || !approved) return;
-    const sheets = [{ name: 'Route Allocation', rows: routeExportRows(dataset, scenario, routeLabelOf) }];
-    if (unassigned > 0) sheets.push({ name: 'Needs Review', rows: needsReviewExportRows(dataset, scenario) });
-    downloadXlsx(buildXlsxWorkbook(sheets), 'route-allocation.xlsx');
+    try {
+      const sheets = [{ name: 'Route Allocation', rows: routeExportRows(dataset, scenario, routeLabelOf) }];
+      if (unassigned > 0) sheets.push({ name: 'Needs Review', rows: needsReviewExportRows(dataset, scenario) });
+      const assigned = sheets[0].rows.length - 1;
+      downloadXlsx(buildXlsxWorkbook(sheets), 'route-allocation.xlsx');
+      setMsg({ tone: 'ok', text: t('routePlanner.exportOk').replace('{n}', String(assigned)).replace('{r}', String(ids.length)) });
+    } catch (e) {
+      setMsg({ tone: 'err', text: `${t('routePlanner.exportErr')} ${e instanceof Error ? e.message : ''}`.trim() });
+    }
   }
 
   // ── Upload screen ──
@@ -310,6 +323,7 @@ export function RoutePlannerWorkspace() {
         </CardContent>
       </Card>
 
+      {msg && <p className={`rounded-md border px-3 py-2 text-sm ${msg.tone === 'err' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>{msg.text}</p>}
       {method === 'assisted' && !generated && <p className="rounded-md border bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.generateHint')}</p>}
       {method === 'manual' && <p className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.manualHint')}</p>}
       {generated && unassigned > 0 && method === 'assisted' && (

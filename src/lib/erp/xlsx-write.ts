@@ -29,6 +29,10 @@ function crc32(bytes: Uint8Array): number {
 // ── little-endian helpers ──────────────────────────────────────────────────────
 const u16 = (n: number) => [n & 0xff, (n >>> 8) & 0xff];
 const u32 = (n: number) => [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff];
+// A VALID DOS date/time (1980-01-01 00:00). Zero is an invalid DOS date (month 0 /
+// day 0) and makes strict readers (Excel) flag the file for repair.
+const DOS_TIME = 0;
+const DOS_DATE = (1 << 5) | 1; // month=1, day=1, year=1980
 
 const xmlEsc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -122,7 +126,7 @@ export function buildXlsxWorkbook(sheets: readonly XlsxSheet[]): Uint8Array {
   for (const f of files) {
     const crc = crc32(f.data);
     const local = [
-      ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(DOS_TIME), ...u16(DOS_DATE),
       ...u32(crc), ...u32(f.data.length), ...u32(f.data.length),
       ...u16(f.nameBytes.length), ...u16(0),
     ];
@@ -134,7 +138,7 @@ export function buildXlsxWorkbook(sheets: readonly XlsxSheet[]): Uint8Array {
   const cdStart = offset;
   for (const c of central) {
     const cd = [
-      ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(DOS_TIME), ...u16(DOS_DATE),
       ...u32(c.crc), ...u32(c.size), ...u32(c.size),
       ...u16(c.nameBytes.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
       ...u32(0), ...u32(c.offset),
