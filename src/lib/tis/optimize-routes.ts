@@ -277,19 +277,32 @@ function absorbTerritories(groups: Map<string, TisCustomer[]>, totalCustomers: n
   return { merged: map, absorbed };
 }
 
-/** P1-A: allocate exactly K routes across territories (never exceed K). Each territory
- *  gets ≥1; the remaining routes go to the highest-workload territories (capped at the
- *  territory's customer count). Pure. */
+/** P1-A: allocate exactly K routes across territories PROPORTIONALLY to workload
+ *  (largest-remainder / Hamilton method). Each territory gets ≥1 and at most its
+ *  customer count; the total is adjusted to K. A territory with 10× the workload gets
+ *  ~10× the routes (so a 2,800-customer city gets ~40 of 86, not 3). Pure. */
 function allocateExact(parts: TisCustomer[][], K: number, wlOf: (c: TisCustomer) => number): number[] {
   const wl = parts.map((p) => p.reduce((s, c) => s + wlOf(c), 0));
   const total = wl.reduce((a, b) => a + b, 0) || 1;
-  const alloc = parts.map(() => 1);
-  let remaining = K - parts.length;
-  const order = parts.map((_, i) => i).sort((a, b) => (K * wl[b] / total) - (K * wl[a] / total));
-  while (remaining > 0) {
-    let placed = false;
-    for (const i of order) { if (remaining <= 0) break; if (alloc[i] < parts[i].length) { alloc[i]++; remaining--; placed = true; } }
-    if (!placed) break;
+  const ideal = wl.map((w) => K * w / total);
+  const alloc = parts.map((p, i) => Math.max(1, Math.min(p.length, Math.floor(ideal[i]))));
+  let sum = alloc.reduce((a, b) => a + b, 0);
+  if (sum < K) {
+    // Grow: give extra routes to the largest fractional remainders, respecting capacity.
+    const order = parts.map((_, i) => i).sort((a, b) => (ideal[b] - Math.floor(ideal[b])) - (ideal[a] - Math.floor(ideal[a])) || ideal[b] - ideal[a]);
+    for (let guard = 0; sum < K && guard < K * 4; guard++) {
+      let placed = false;
+      for (const i of order) { if (sum >= K) break; if (alloc[i] < parts[i].length) { alloc[i]++; sum++; placed = true; } }
+      if (!placed) break;
+    }
+  } else if (sum > K) {
+    // Shrink: take from the smallest-ideal territories first (keep ≥ 1).
+    const order = parts.map((_, i) => i).sort((a, b) => ideal[a] - ideal[b]);
+    for (let guard = 0; sum > K && guard < K * 4; guard++) {
+      let removed = false;
+      for (const i of order) { if (sum <= K) break; if (alloc[i] > 1) { alloc[i]--; sum--; removed = true; } }
+      if (!removed) break;
+    }
   }
   return alloc;
 }
