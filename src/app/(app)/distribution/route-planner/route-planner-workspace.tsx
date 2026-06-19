@@ -11,8 +11,8 @@ import { isValidGeo, type TisDataset } from '@/lib/tis/dataset';
 import { applyScenario, type Scenario } from '@/lib/tis/scenario';
 import { moveCustomer } from '@/lib/tis/plan-edit';
 import { simpleGeoSplit } from '@/lib/tis/optimize-routes';
-import { routeStats, routeColors, routeIdsOf, unassignedCount, routeExportRows } from '@/lib/tis/route-planner';
-import { buildXlsx } from '@/lib/erp/xlsx-write';
+import { routeStats, routeColors, routeIdsOf, unassignedCount, unassignedIds, routeExportRows, needsReviewExportRows } from '@/lib/tis/route-planner';
+import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
 import { parseTisUpload } from '../studio/import-actions';
 import { SelectionMap, type SelMapPoint } from './selection-map';
 
@@ -61,7 +61,8 @@ export function RoutePlannerWorkspace() {
     if (!applied) return [];
     return applied.customers.filter((c) => isValidGeo(c.geo)).map((c) => ({
       id: c.id, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng,
-      color: c.ownership.routeId ? colors.get(c.ownership.routeId) ?? '#94a3b8' : '#cbd5e1',
+      color: c.ownership.routeId ? colors.get(c.ownership.routeId) ?? '#94a3b8' : '#f59e0b',
+      review: !c.ownership.routeId,
     }));
   }, [applied, colors]);
 
@@ -129,10 +130,15 @@ export function RoutePlannerWorkspace() {
   function boxSelect(hits: string[]) {
     setSelectedIds((prev) => { const next = new Set(prev); for (const h of hits) next.add(h); return next; });
   }
+  function selectNeedsReview() {
+    if (!dataset) return;
+    setSelectedIds(new Set(unassignedIds(dataset, scenario)));
+  }
   function exportRoutes() {
     if (!dataset || !approved) return;
-    const rows = routeExportRows(dataset, scenario, routeLabelOf);
-    downloadXlsx(buildXlsx(rows, 'Route Allocation'), 'route-allocation.xlsx');
+    const sheets = [{ name: 'Route Allocation', rows: routeExportRows(dataset, scenario, routeLabelOf) }];
+    if (unassigned > 0) sheets.push({ name: 'Needs Review', rows: needsReviewExportRows(dataset, scenario) });
+    downloadXlsx(buildXlsxWorkbook(sheets), 'route-allocation.xlsx');
   }
 
   // ── Upload screen ──
@@ -194,6 +200,9 @@ export function RoutePlannerWorkspace() {
       </Card>
 
       {!generated && <p className="rounded-md border bg-blue-50 px-3 py-2 text-sm text-blue-900">{t('routePlanner.generateHint')}</p>}
+      {generated && unassigned > 0 && (
+        <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('routePlanner.reviewBanner').replace('{n}', String(unassigned))}</p>
+      )}
 
       <div className="grid gap-3 lg:grid-cols-[1fr_300px]">
         {/* Map + selection controls */}
@@ -204,7 +213,7 @@ export function RoutePlannerWorkspace() {
             <select className="h-9 rounded-md border bg-background px-2 text-sm" value={targetRoute} onChange={(e) => setTargetRoute(e.target.value)}>
               <option value={NEW_ROUTE}>＋ {t('routePlanner.newRoute')}</option>
               {ids.map((id, i) => <option key={id} value={id}>{t('routePlanner.route')} {i + 1}</option>)}
-              <option value={UNASSIGNED}>{t('routePlanner.unassigned')}</option>
+              <option value={UNASSIGNED}>{t('routePlanner.keepUnassigned')}</option>
             </select>
             <Button size="sm" disabled={selectedIds.size === 0} onClick={moveSelected}><MapPin className="h-4 w-4" /> {t('routePlanner.move')}</Button>
             {selectedIds.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}><X className="h-4 w-4" /> {t('routePlanner.clear')}</Button>}
@@ -239,12 +248,16 @@ export function RoutePlannerWorkspace() {
                 </button>
               ))}
               {unassigned > 0 && (
-                <div className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-x-2 rounded border border-dashed px-2 py-1.5 text-xs">
-                  <span className="inline-block h-3 w-3 rounded-full bg-slate-300" />
-                  <span className="truncate font-medium text-muted-foreground">{t('routePlanner.unassigned')}</span>
-                  <span className="text-end tabular-nums" dir="ltr">{unassigned}</span>
+                <button
+                  onClick={selectNeedsReview}
+                  title={t('routePlanner.selectReview')}
+                  className="grid w-full grid-cols-[auto_1fr_auto_auto_auto] items-center gap-x-2 rounded border border-dashed border-amber-400 bg-amber-50 px-2 py-1.5 text-start text-xs hover:bg-amber-100"
+                >
+                  <span className="inline-block h-3 w-3 rounded-full border-2 border-amber-800 bg-amber-500" />
+                  <span className="truncate font-medium text-amber-900">{t('routePlanner.needsReview')}</span>
+                  <span className="text-end tabular-nums text-amber-900" dir="ltr">{unassigned}</span>
                   <span /><span />
-                </div>
+                </button>
               )}
             </div>
             {generated && (

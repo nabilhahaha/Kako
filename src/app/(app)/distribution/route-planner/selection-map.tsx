@@ -11,7 +11,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
  * point colours (by route), so a "Move to route" recolours instantly via setData.
  * Client-only; reuses the keyless OSM raster base (same as the planning board).
  */
-export interface SelMapPoint { id: string; name: string; lat: number; lng: number; color: string }
+export interface SelMapPoint { id: string; name: string; lat: number; lng: number; color: string; review?: boolean }
 
 const RASTER_STYLE = {
   version: 8 as const,
@@ -25,7 +25,7 @@ function toGeoJSON(points: SelMapPoint[]) {
     features: points.map((p) => ({
       type: 'Feature' as const,
       geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
-      properties: { id: p.id, color: p.color, name: p.name },
+      properties: { id: p.id, color: p.color, name: p.name, review: p.review ? 1 : 0 },
     })),
   };
 }
@@ -58,6 +58,8 @@ export function SelectionMap({ points, selectedIds, onToggle, onBoxSelect }: {
       map.on('load', () => {
         map!.addSource('pts', { type: 'geojson', data: toGeoJSON(pointsRef.current) });
         map!.addLayer({ id: 'pts', type: 'circle', source: 'pts', paint: { 'circle-radius': 5, 'circle-color': ['get', 'color'], 'circle-stroke-width': 1, 'circle-stroke-color': '#ffffff' } });
+        // Needs-review points: a distinct larger amber marker with a dark outline, drawn above.
+        map!.addLayer({ id: 'review', type: 'circle', source: 'pts', filter: ['==', ['get', 'review'], 1], paint: { 'circle-radius': 6, 'circle-color': '#f59e0b', 'circle-stroke-width': 2, 'circle-stroke-color': '#7c2d12' } });
         // Selection ring (filtered to selected ids; updated separately).
         map!.addLayer({ id: 'sel', type: 'circle', source: 'pts', filter: ['in', ['get', 'id'], ['literal', []]], paint: { 'circle-radius': 8, 'circle-color': '#000000', 'circle-opacity': 0, 'circle-stroke-width': 3, 'circle-stroke-color': '#0f172a' } });
 

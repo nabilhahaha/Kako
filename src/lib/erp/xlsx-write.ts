@@ -62,16 +62,21 @@ function sheetXml(rows: readonly XlsxCell[][]): string {
 }
 
 /** A worksheet name Excel accepts: ≤31 chars, no \ / ? * [ ] : characters. */
-function safeSheetName(name: string): string {
-  return (name || 'Sheet1').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31) || 'Sheet1';
+function safeSheetName(name: string, fallback: string): string {
+  return (name || fallback).replace(/[\\/?*[\]:]/g, ' ').slice(0, 31) || fallback;
 }
 
-function parts(rows: readonly XlsxCell[][], sheetName: string): { name: string; xml: string }[] {
-  const sn = xmlEsc(safeSheetName(sheetName));
+export interface XlsxSheet { name: string; rows: readonly XlsxCell[][] }
+
+function parts(sheets: readonly XlsxSheet[]): { name: string; xml: string }[] {
+  const list = sheets.length ? sheets : [{ name: 'Sheet1', rows: [] }];
+  const overrides = list.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('');
+  const sheetTags = list.map((s, i) => `<sheet name="${xmlEsc(safeSheetName(s.name, `Sheet${i + 1}`))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('');
+  const rels = list.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('');
   return [
     {
       name: '[Content_Types].xml',
-      xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`,
+      xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${overrides}</Types>`,
     },
     {
       name: '_rels/.rels',
@@ -79,13 +84,13 @@ function parts(rows: readonly XlsxCell[][], sheetName: string): { name: string; 
     },
     {
       name: 'xl/workbook.xml',
-      xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${sn}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+      xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetTags}</sheets></workbook>`,
     },
     {
       name: 'xl/_rels/workbook.xml.rels',
-      xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`,
+      xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`,
     },
-    { name: 'xl/worksheets/sheet1.xml', xml: sheetXml(rows) },
+    ...list.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, xml: sheetXml(s.rows) })),
   ];
 }
 
@@ -103,8 +108,13 @@ function concat(chunks: Uint8Array[]): Uint8Array {
  * wrap in a Blob to download in the browser, or Buffer.from(...) on Node. Pure.
  */
 export function buildXlsx(rows: readonly XlsxCell[][], sheetName = 'Sheet1'): Uint8Array {
+  return buildXlsxWorkbook([{ name: sheetName, rows }]);
+}
+
+/** Build a multi-sheet .xlsx workbook. Each sheet's `rows[0]` is its header. Pure. */
+export function buildXlsxWorkbook(sheets: readonly XlsxSheet[]): Uint8Array {
   const enc = new TextEncoder();
-  const files = parts(rows, sheetName).map((p) => ({ nameBytes: enc.encode(p.name), data: enc.encode(p.xml) }));
+  const files = parts(sheets).map((p) => ({ nameBytes: enc.encode(p.name), data: enc.encode(p.xml) }));
 
   const chunks: Uint8Array[] = [];
   const central: { crc: number; size: number; nameBytes: Uint8Array; offset: number }[] = [];

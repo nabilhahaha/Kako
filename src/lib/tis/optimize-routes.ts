@@ -51,6 +51,9 @@ export interface RoutePlan {
   /** When geography needs MORE routes than requested (distinct far territories > K),
    *  the minimum feasible route count to keep cities un-mixed — null otherwise. */
   geographyRequiresRoutes?: number | null;
+  /** Customers pulled out of their slice as remote/highway outliers (left unassigned
+   *  with an explicit null route) so one far point cannot distort a route. */
+  needsReview?: number;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -314,10 +317,26 @@ function allocateExact(parts: TisCustomer[][], K: number, wlOf: (c: TisCustomer)
  * deliberately trades the optimizer's hard geo-correctness for a predictable K and a
  * clean starting point the manager then corrects by hand on the map. Pure.
  */
-export function simpleGeoSplit(customers: readonly TisCustomer[], routeCount: number): RoutePlan {
+/** Remote-outlier thresholds for simpleGeoSplit. A customer is "Needs Review" when it
+ *  sits both far in absolute terms (> 40 km) AND far relative to its slice (> 3× the
+ *  slice's median distance-to-centre) — the highway/outstation case. Small slices
+ *  (< 5 customers) are never stripped. */
+const RP_REMOTE_FLOOR_KM = 40;
+const RP_REMOTE_FACTOR = 3;
+const RP_MIN_SLICE = 5;
+
+const median = (xs: number[]): number => {
+  if (xs.length === 0) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+export function simpleGeoSplit(customers: readonly TisCustomer[], routeCount: number, opts: { flagRemote?: boolean } = {}): RoutePlan {
+  const flagRemote = opts.flagRemote !== false;
   const all = [...customers];
   const k = Math.max(1, Math.min(Math.round(routeCount) || 1, Math.max(1, all.length)));
-  if (all.length === 0) return { routeCount: 0, assignments: [], routes: [], workloadBalancePct: 100, requestedRoutes: k, absorbedTerritories: 0, geographyRequiresRoutes: null };
+  if (all.length === 0) return { routeCount: 0, assignments: [], routes: [], workloadBalancePct: 100, requestedRoutes: k, absorbedTerritories: 0, geographyRequiresRoutes: null, needsReview: 0 };
 
   const wl = (c: TisCustomer) => customerWorkload(c) ?? 1;
   const geo = all.filter((c) => isValidGeo(c.geo));
@@ -343,16 +362,34 @@ export function simpleGeoSplit(customers: readonly TisCustomer[], routeCount: nu
   const routes: RouteSummary[] = [];
   const assignments: ScenarioAssignment[] = [];
   const loads: number[] = [];
+  let needsReview = 0;
   for (let i = 0; i < k; i++) {
-    const list = seq.slice(Math.floor((i * seq.length) / k), Math.floor(((i + 1) * seq.length) / k));
-    if (list.length === 0) continue;
+    const slice = seq.slice(Math.floor((i * seq.length) / k), Math.floor(((i + 1) * seq.length) / k));
+    if (slice.length === 0) continue;
+
+    // Pull out remote/highway outliers so one far point cannot distort the route.
+    let kept = slice;
+    if (flagRemote && slice.length >= RP_MIN_SLICE) {
+      const centre = centroidOf(slice);
+      if (centre) {
+        const dist = new Map(slice.filter((c) => isValidGeo(c.geo)).map((c) => [c.id, distKm(centre, c.geo!)]));
+        const med = median([...dist.values()]);
+        const isRemote = (c: TisCustomer) => { const d = dist.get(c.id); return d != null && d > RP_REMOTE_FLOOR_KM && d > RP_REMOTE_FACTOR * med; };
+        const review = slice.filter(isRemote);
+        if (review.length > 0 && review.length < slice.length) {
+          kept = slice.filter((c) => !isRemote(c));
+          for (const c of review) { assignments.push({ customerId: c.id, routeId: null }); needsReview++; }
+        }
+      }
+    }
+
     const rid = ROUTE_ID(i);
-    const load = list.reduce((s, c) => s + wl(c), 0);
-    routes.push({ routeId: rid, customerIds: list.map((c) => c.id), customers: list.length, workload: round1(load), salesValue: round1(list.reduce((s, c) => s + (c.salesValue ?? 0), 0)) });
+    const load = kept.reduce((s, c) => s + wl(c), 0);
+    routes.push({ routeId: rid, customerIds: kept.map((c) => c.id), customers: kept.length, workload: round1(load), salesValue: round1(kept.reduce((s, c) => s + (c.salesValue ?? 0), 0)) });
     loads.push(load);
-    for (const c of list) assignments.push({ customerId: c.id, routeId: rid });
+    for (const c of kept) assignments.push({ customerId: c.id, routeId: rid });
   }
-  return { routeCount: routes.length, assignments, routes, workloadBalancePct: balancePct(loads), requestedRoutes: k, absorbedTerritories: 0, geographyRequiresRoutes: null };
+  return { routeCount: routes.length, assignments, routes, workloadBalancePct: balancePct(loads), requestedRoutes: k, absorbedTerritories: 0, geographyRequiresRoutes: null, needsReview };
 }
 
 /**

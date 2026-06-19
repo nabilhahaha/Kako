@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildXlsx } from './xlsx-write';
+import { buildXlsx, buildXlsxWorkbook } from './xlsx-write';
 import { parseXlsxBuffer } from './xlsx-read';
 
 describe('buildXlsx', () => {
@@ -31,5 +31,18 @@ describe('buildXlsx', () => {
     const bytes = buildXlsx([['x'], ['y']]);
     expect(bytes[0]).toBe(0x50); // 'P'
     expect(bytes[1]).toBe(0x4b); // 'K'
+  });
+
+  it('writes a multi-sheet workbook (first sheet parses; both sheet names present)', () => {
+    const bytes = buildXlsxWorkbook([
+      { name: 'Route Allocation', rows: [['Route', 'Code'], ['Route 1', 'C001']] },
+      { name: 'Needs Review', rows: [['Route', 'Code'], ['Needs Review', 'HW1']] },
+    ]);
+    const parsed = parseXlsxBuffer(Buffer.from(bytes));
+    expect(parsed.rows[0]['Code']).toBe('C001'); // reader returns the first sheet
+    // Both worksheet parts + names exist in the package.
+    const xml = Buffer.from(bytes).toString('latin1');
+    expect(xml).toContain('worksheets/sheet2.xml');
+    expect(xml).toContain('Needs Review');
   });
 });

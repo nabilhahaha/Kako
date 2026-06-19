@@ -118,13 +118,22 @@ export function mapRecordsToUploadRows(records: readonly Record<string, string>[
   });
 }
 
-/** Build a dataset from uploaded rows. Pure. */
+/** Build a dataset from uploaded rows. Pure. Ids are made UNIQUE: real files often
+ *  repeat a customer code (JPFOOD has ~500), and two distinct outlets must never
+ *  collapse into one record — duplicates get a `-2`, `-3`… suffix on the id (the
+ *  code is left untouched). */
 export function buildTisDatasetFromRows(
   rows: readonly TisUploadRow[],
   meta: { asOf?: string; source?: TisSource } = {},
 ): TisDataset {
-  return buildTisDataset(
-    rows.map((r, i) => rowToTisCustomer(r, i)),
-    { source: meta.source ?? 'upload', asOf: meta.asOf },
-  );
+  const customers = rows.map((r, i) => rowToTisCustomer(r, i));
+  const used = new Set<string>();
+  const unique = customers.map((c) => {
+    if (!used.has(c.id)) { used.add(c.id); return c; }
+    let n = 2, id = `${c.id}-${n}`;
+    while (used.has(id)) { n++; id = `${c.id}-${n}`; }
+    used.add(id);
+    return { ...c, id };
+  });
+  return buildTisDataset(unique, { source: meta.source ?? 'upload', asOf: meta.asOf });
 }

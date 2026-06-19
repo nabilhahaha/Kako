@@ -1,0 +1,51 @@
+{
+  "dataset": {
+    "rows": 6017,
+    "customers": 6017,
+    "located": 6017
+  },
+  "scenarios": [
+    {
+      "requestedRoutes": 40,
+      "generatedRoutes": 40,
+      "needsReview": 209,
+      "assigned": 5808,
+      "unassignedInScenario": 209,
+      "customersPerRoute": {
+        "min": 103,
+        "avg": 145,
+        "max": 151
+      },
+      "workloadBalancePct": 93,
+      "twoSheets": true
+    },
+    {
+      "requestedRoutes": 86,
+      "generatedRoutes": 86,
+      "needsReview": 150,
+      "assigned": 5867,
+      "unassignedInScenario": 150,
+      "customersPerRoute": {
+        "min": 55,
+        "avg": 68,
+        "max": 70
+      },
+      "workloadBalancePct": 94.4,
+      "twoSheets": true
+    },
+    {
+      "requestedRoutes": 120,
+      "generatedRoutes": 120,
+      "needsReview": 155,
+      "assigned": 5862,
+      "unassignedInScenario": 155,
+      "customersPerRoute": {
+        "min": 36,
+        "avg": 49,
+        "max": 51
+      },
+      "workloadBalancePct": 94.3,
+      "twoSheets": true
+    }
+  ]
+}

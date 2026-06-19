@@ -72,9 +72,19 @@ export function routeStats(dataset: TisDataset, scenario: Scenario): RouteStat[]
   });
 }
 
-/** Count of customers not yet assigned to any route (within the scenario). */
+/** Customers not assigned to any route (the "Needs Review" bucket). */
+export function needsReviewCustomers(dataset: TisDataset, scenario: Scenario): TisCustomer[] {
+  return applyScenario(dataset, scenario).customers.filter((c) => !c.ownership.routeId);
+}
+
+/** Count of customers in the Needs Review / Unassigned bucket. */
 export function unassignedCount(dataset: TisDataset, scenario: Scenario): number {
-  return applyScenario(dataset, scenario).customers.filter((c) => !c.ownership.routeId).length;
+  return needsReviewCustomers(dataset, scenario).length;
+}
+
+/** Ids of Needs Review / Unassigned customers (for "select all" on the map). */
+export function unassignedIds(dataset: TisDataset, scenario: Scenario): string[] {
+  return needsReviewCustomers(dataset, scenario).map((c) => c.id);
 }
 
 /** Column header for the approved route-allocation export. */
@@ -82,10 +92,19 @@ export const ROUTE_EXPORT_COLUMNS = [
   'Route', 'Customer Code', 'Customer Name', 'Frequency', 'Latitude', 'Longitude',
 ] as const;
 
+const customerRow = (c: TisCustomer, label: string): (string | number)[] => [
+  label,
+  c.code ?? c.id,
+  c.name,
+  c.frequency ? formatFrequency(c.frequency) : '',
+  isValidGeo(c.geo) ? c.geo!.lat : '',
+  isValidGeo(c.geo) ? c.geo!.lng : '',
+];
+
 /**
- * Build the approved route-allocation matrix (header + one row per customer) for the
- * .xlsx export. `routeLabelOf` maps a route id to its display label (e.g. "Route 3").
- * Customers are grouped by route (sorted), unassigned last. Pure.
+ * Approved route-allocation matrix (header + one row per ASSIGNED customer), grouped
+ * by route (sorted). `routeLabelOf` maps a route id to its display label. Needs Review
+ * customers are NOT here — they go to their own sheet (see `needsReviewExportRows`). Pure.
  */
 export function routeExportRows(
   dataset: TisDataset,
@@ -95,22 +114,15 @@ export function routeExportRows(
   const applied = applyScenario(dataset, scenario);
   const ids = routeIdsOf(dataset, scenario);
   const order = new Map(ids.map((id, i) => [id, i]));
-  const sorted = [...applied.customers].sort((a, b) => {
-    const ra = a.ownership.routeId, rb = b.ownership.routeId;
-    const oa = ra ? order.get(ra) ?? 1e9 : 1e9 + 1;
-    const ob = rb ? order.get(rb) ?? 1e9 : 1e9 + 1;
-    return oa - ob || (a.code ?? a.id).localeCompare(b.code ?? b.id);
-  });
-  const rows: (string | number)[][] = [[...ROUTE_EXPORT_COLUMNS]];
-  for (const c of sorted) {
-    rows.push([
-      routeLabelOf(c.ownership.routeId),
-      c.code ?? c.id,
-      c.name,
-      c.frequency ? formatFrequency(c.frequency) : '',
-      isValidGeo(c.geo) ? c.geo!.lat : '',
-      isValidGeo(c.geo) ? c.geo!.lng : '',
-    ]);
-  }
-  return rows;
+  const sorted = applied.customers
+    .filter((c) => c.ownership.routeId)
+    .sort((a, b) => (order.get(a.ownership.routeId!) ?? 1e9) - (order.get(b.ownership.routeId!) ?? 1e9) || (a.code ?? a.id).localeCompare(b.code ?? b.id));
+  return [[...ROUTE_EXPORT_COLUMNS], ...sorted.map((c) => customerRow(c, routeLabelOf(c.ownership.routeId)))];
+}
+
+/** The "Needs Review" sheet matrix — one row per unassigned customer. Pure. */
+export function needsReviewExportRows(dataset: TisDataset, scenario: Scenario): (string | number)[][] {
+  const review = needsReviewCustomers(dataset, scenario)
+    .sort((a, b) => (a.code ?? a.id).localeCompare(b.code ?? b.id));
+  return [[...ROUTE_EXPORT_COLUMNS], ...review.map((c) => customerRow(c, 'Needs Review'))];
 }

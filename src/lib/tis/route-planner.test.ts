@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { simpleGeoSplit } from './optimize-routes';
 import { buildTisDatasetFromRows } from './upload';
 import { currentPlanScenario, moveCustomer } from './plan-edit';
-import { routeStats, routeExportRows, unassignedCount, routeColors } from './route-planner';
+import { routeStats, routeExportRows, needsReviewExportRows, unassignedCount, unassignedIds, routeColors } from './route-planner';
 import { applyScenario, type Scenario } from './scenario';
 
 // Two tight clusters (Jeddah ~21.5/39.1 and Riyadh ~24.7/46.7), 6 each.
@@ -84,7 +84,7 @@ describe('unassignedCount', () => {
 });
 
 describe('routeExportRows', () => {
-  it('emits a header + one row per customer with route label, code, name, freq, geo', () => {
+  it('emits a header + one row per ASSIGNED customer with route label, code, name, freq, geo', () => {
     const ds = dataset();
     const scenario = scenarioFromSplit(ds, 2);
     const colors = routeColors(ds, scenario);
@@ -92,11 +92,64 @@ describe('routeExportRows', () => {
     const label = (rid: string | null) => (rid ? `Route ${ids.indexOf(rid) + 1}` : 'Unassigned');
     const rows = routeExportRows(ds, scenario, label);
     expect(rows[0]).toEqual(['Route', 'Customer Code', 'Customer Name', 'Frequency', 'Latitude', 'Longitude']);
+    // Tight clusters → nothing flagged → all 12 assigned.
     expect(rows.length).toBe(ds.customers.length + 1);
-    // Each data row has a non-empty route label and a code.
     for (const r of rows.slice(1)) {
       expect(String(r[0])).toMatch(/^Route /);
       expect(String(r[1])).toBeTruthy();
     }
+  });
+});
+
+// A tight cluster + one far highway outlier in the same slice.
+function datasetWithOutlier() {
+  const rows = [] as Parameters<typeof buildTisDatasetFromRows>[0][number][];
+  for (let i = 0; i < 8; i++) rows.push({ code: `J${i}`, name: `Jeddah ${i}`, lat: 21.5 + i * 0.005, lng: 39.1 + i * 0.005, frequency: 'weekly' });
+  rows.push({ code: 'HW1', name: 'Highway stop', lat: 23.9, lng: 42.8, frequency: 'weekly' }); // ~350 km away
+  return buildTisDatasetFromRows(rows, { source: 'upload' });
+}
+
+describe('Needs Review (remote-outlier flagging)', () => {
+  it('pulls a far highway customer out of the route into Needs Review', () => {
+    const ds = datasetWithOutlier();
+    const plan = simpleGeoSplit(ds.customers, 1);
+    expect(plan.needsReview).toBe(1);
+    // The flagged customer carries an explicit null route assignment.
+    const hw = ds.customers.find((c) => c.code === 'HW1')!;
+    expect(plan.assignments.find((a) => a.customerId === hw.id)?.routeId).toBeNull();
+    // The route excludes it.
+    expect(plan.routes[0].customerIds).not.toContain(hw.id);
+  });
+
+  it('keeps the outlier unassigned in the scenario and lists it on the Needs Review sheet', () => {
+    const ds = datasetWithOutlier();
+    const plan = simpleGeoSplit(ds.customers, 1);
+    const scenario = plan.assignments.reduce((sc, a) => moveCustomer(sc, a.customerId, a.routeId ?? null), { id: 'p', name: 'p', assignments: [] as Scenario['assignments'] });
+    expect(unassignedCount(ds, scenario)).toBe(1);
+    expect(unassignedIds(ds, scenario)).toHaveLength(1);
+    const review = needsReviewExportRows(ds, scenario);
+    expect(review[0][0]).toBe('Route'); // header
+    expect(review.length).toBe(2); // header + 1
+    expect(review[1][0]).toBe('Needs Review');
+    expect(String(review[1][1])).toBe('HW1');
+  });
+
+  it('does not flag anything when flagRemote is disabled', () => {
+    const ds = datasetWithOutlier();
+    const plan = simpleGeoSplit(ds.customers, 1, { flagRemote: false });
+    expect(plan.needsReview).toBe(0);
+  });
+
+  it('never strips small slices below the minimum', () => {
+    // 4 customers, K=1 → slice of 4 (< RP_MIN_SLICE=5) is never stripped even with spread.
+    const rows = [
+      { code: 'A', name: 'A', lat: 21.5, lng: 39.1, frequency: 'weekly' },
+      { code: 'B', name: 'B', lat: 21.51, lng: 39.11, frequency: 'weekly' },
+      { code: 'C', name: 'C', lat: 21.52, lng: 39.12, frequency: 'weekly' },
+      { code: 'FAR', name: 'Far', lat: 24.0, lng: 43.0, frequency: 'weekly' },
+    ];
+    const ds = buildTisDatasetFromRows(rows, { source: 'upload' });
+    const plan = simpleGeoSplit(ds.customers, 1);
+    expect(plan.needsReview).toBe(0);
   });
 });
