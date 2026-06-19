@@ -11,6 +11,14 @@ export const ar = {
     unassigned: 'غير مُسند',
     valueBalance: 'توازن القيمة',
     hint: 'اسحب بطاقة عميل إلى عمود خط آخر — تتحدث المؤشرات فوراً. التصدير بصيغة النموذج الموحّد.',
+    viewBoard: 'اللوحة',
+    viewMap: 'الخريطة',
+    viewCalendar: 'التقويم',
+    assignTo: 'الإسناد إلى',
+    pickRoute: 'اختر خطاً',
+    mapHint: 'اختر خطاً ثم اضغط النقاط على الخريطة لإسنادها.',
+    unscheduled: 'غير مجدول',
+    day_sun: 'الأحد', day_mon: 'الإثنين', day_tue: 'الثلاثاء', day_wed: 'الأربعاء', day_thu: 'الخميس', day_fri: 'الجمعة', day_sat: 'السبت',
   },
 };
 
@@ -26,5 +34,13 @@ export const en = {
     unassigned: 'Unassigned',
     valueBalance: 'Value balance',
     hint: 'Drag a customer card to another route column — metrics update instantly. Export uses the single-model schema.',
+    viewBoard: 'Board',
+    viewMap: 'Map',
+    viewCalendar: 'Calendar',
+    assignTo: 'Assign to',
+    pickRoute: 'Pick a route',
+    mapHint: 'Pick a route, then click points on the map to assign them.',
+    unscheduled: 'Unscheduled',
+    day_sun: 'Sun', day_mon: 'Mon', day_tue: 'Tue', day_wed: 'Wed', day_thu: 'Thu', day_fri: 'Fri', day_sat: 'Sat',
   },
 };
