@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { balanceRoutes, resolveRouteCount } from './optimize-routes';
+import { balanceRoutes, resolveRouteCount, workingDayList } from './optimize-routes';
 import { buildTisCustomer } from './dataset';
 import type { VisitFrequency } from '@/lib/route-optimization/visit-frequency';
 
@@ -57,5 +57,29 @@ describe('balanceRoutes', () => {
 
   it('empty set ⇒ empty plan', () => {
     expect(balanceRoutes([], {}).routes).toHaveLength(0);
+  });
+
+  it('distributes each route across the working days (calendar populated)', () => {
+    const cs = Array.from({ length: 30 }, (_, i) => cluster(`c${i}`, i < 15 ? 0 : 1));
+    const plan = balanceRoutes(cs, { routeCount: 2, workingDays: 5 });
+    // Every assignment carries a day, and only the 5 working days are used.
+    const days = workingDayList(5);
+    expect(plan.assignments.every((a) => a.dayOfWeek && days.includes(a.dayOfWeek))).toBe(true);
+    // Both routes spread their customers across multiple days (not one pile).
+    for (const r of plan.routes) {
+      const routeDays = new Set(plan.assignments.filter((a) => a.routeId === r.routeId).map((a) => a.dayOfWeek));
+      expect(routeDays.size).toBeGreaterThan(1);
+    }
+  });
+});
+
+describe('workingDayList', () => {
+  it('returns the first N business days (Sun–Thu work week)', () => {
+    expect(workingDayList(5)).toEqual(['sun', 'mon', 'tue', 'wed', 'thu']);
+    expect(workingDayList(6)).toEqual(['sun', 'mon', 'tue', 'wed', 'thu', 'sat']);
+  });
+  it('clamps out-of-range counts', () => {
+    expect(workingDayList(0)).toHaveLength(5); // 0 → default 5
+    expect(workingDayList(9)).toHaveLength(7);
   });
 });

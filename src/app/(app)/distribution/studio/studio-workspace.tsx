@@ -47,6 +47,7 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
   const [stage, setStage] = useState<Stage>('overview');
   const [geoLayer, setGeoLayer] = useState<GeoLayerId>('coverage');
   const [workingDays, setWorkingDays] = useState('5');
+  const [routeCountInput, setRouteCountInput] = useState(''); // '' = auto (current route count)
   const active = scenarios.find((s) => s.id === activeId) ?? scenarios[0];
   const update = (next: Scenario) => setScenarios((list) => list.map((s) => (s.id === next.id ? next : s)));
 
@@ -55,7 +56,8 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
   const metrics = useMemo(() => liveMetrics(dataset, active), [dataset, active]);
 
   function onOptimize() {
-    const plan = balanceRoutes(dataset.customers, { routeCount: defaultRouteCount, workingDays: Number(workingDays) || 5 });
+    const rc = Math.max(0, Math.round(Number(routeCountInput))) || defaultRouteCount;
+    const plan = balanceRoutes(dataset.customers, { routeCount: rc, workingDays: Number(workingDays) || 5 });
     setScenarios((list) => [...list.filter((s) => s.id !== 'optimized'), { id: 'optimized', name: t('planBoard.optimized'), assignments: plan.assignments }]);
     setActiveId('optimized');
     setStage('plan');
@@ -144,7 +146,7 @@ export function StudioWorkspace({ customers, asOf, source, demo }: { customers: 
                 {stage === 'overview' && <OverviewPanel audit={audit} onOptimize={onOptimize} t={t} demo={demo} />}
                 {stage === 'audit' && <TerritoryAuditView audit={audit} labels={{}} />}
                 {stage === 'map' && <p className="text-sm text-muted-foreground">{t('studio.mapLead')}</p>}
-                {stage === 'optimize' && <OptimizePanel dataset={dataset} scenarios={scenarios} workingDays={workingDays} setWorkingDays={setWorkingDays} onOptimize={onOptimize} t={t} />}
+                {stage === 'optimize' && <OptimizePanel dataset={dataset} scenarios={scenarios} workingDays={workingDays} setWorkingDays={setWorkingDays} routeCount={routeCountInput} setRouteCount={setRouteCountInput} defaultRouteCount={defaultRouteCount} onOptimize={onOptimize} t={t} />}
                 {stage === 'size' && <NeedsPanel text={t('studio.sizeSoon')} />}
                 {STANDALONE[stage] && <StageLink href={STANDALONE[stage]!} label={t('studio.openFull')} />}
               </aside>
@@ -182,7 +184,7 @@ function OverviewPanel({ audit, onOptimize, t, demo }: { audit: ReturnType<typeo
   );
 }
 
-function OptimizePanel({ dataset, scenarios, workingDays, setWorkingDays, onOptimize, t }: { dataset: ReturnType<typeof buildTisDataset>; scenarios: Scenario[]; workingDays: string; setWorkingDays: (v: string) => void; onOptimize: () => void; t: (k: string) => string }) {
+function OptimizePanel({ dataset, scenarios, workingDays, setWorkingDays, routeCount, setRouteCount, defaultRouteCount, onOptimize, t }: { dataset: ReturnType<typeof buildTisDataset>; scenarios: Scenario[]; workingDays: string; setWorkingDays: (v: string) => void; routeCount: string; setRouteCount: (v: string) => void; defaultRouteCount: number; onOptimize: () => void; t: (k: string) => string }) {
   const current = scenarios.find((s) => s.id === 'current');
   const optimized = scenarios.find((s) => s.id === 'optimized');
   const cur = current ? scenarioMetrics(applyScenario(dataset, current)) : null;
@@ -190,6 +192,7 @@ function OptimizePanel({ dataset, scenarios, workingDays, setWorkingDays, onOpti
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1"><Label className="text-xs">{t('routeOpt.routeCount')}</Label><Input type="number" min={1} dir="ltr" className="w-24" placeholder={`${t('routeOpt.auto')} (${defaultRouteCount})`} value={routeCount} onChange={(e) => setRouteCount(e.target.value)} /></div>
         <div className="space-y-1"><Label className="text-xs">{t('routeOpt.workingDays')}</Label><Input type="number" min={1} max={7} dir="ltr" className="w-24" value={workingDays} onChange={(e) => setWorkingDays(e.target.value)} /></div>
         <Button onClick={onOptimize}><Wand2 className="h-4 w-4" /> {t('routeOpt.generate')}</Button>
       </div>

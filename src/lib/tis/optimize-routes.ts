@@ -46,6 +46,16 @@ export interface RoutePlan {
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const ROUTE_ID = (i: number) => `opt-route-${i + 1}`;
 
+/** Business-day order (Sun–Thu work week first, then Sat, then Fri last). The
+ *  calendar surface renders the canonical Sun→Sat order; this only controls which
+ *  N days the optimizer fills. */
+export const BUSINESS_DOW = ['sun', 'mon', 'tue', 'wed', 'thu', 'sat', 'fri'] as const;
+
+/** The first N business days (1–7) the optimizer distributes visits across. */
+export function workingDayList(n: number): string[] {
+  return BUSINESS_DOW.slice(0, Math.min(7, Math.max(1, Math.round(n) || 5)));
+}
+
 /** Haversine distance (km). Pure. */
 function distKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371, toRad = (d: number) => (d * Math.PI) / 180;
@@ -143,7 +153,22 @@ export function balanceRoutes(customers: readonly TisCustomer[], constraints: Ro
     workload: round1(list.reduce((s, c) => s + wl(c), 0)),
     salesValue: round1(list.reduce((s, c) => s + (c.salesValue ?? 0), 0)),
   }));
-  const assignments: ScenarioAssignment[] = buckets.flatMap((list, i) => list.map((c) => ({ customerId: c.id, routeId: ROUTE_ID(i) })));
+  // Distribute each route's customers across the working days, balanced by
+  // workload (greedy lightest-day), so the Plan calendar shows real day-by-day
+  // visits — not one undifferentiated "Unscheduled" pile.
+  const dayList = workingDayList(constraints.workingDays ?? 5);
+  const assignments: ScenarioAssignment[] = buckets.flatMap((list, i) => {
+    const dayLoads = new Array(dayList.length).fill(0);
+    const dayOf = new Map<string, string>();
+    // Heaviest-first placement balances the day bins better.
+    for (const c of [...list].sort((a, b) => wl(b) - wl(a))) {
+      let d = 0;
+      for (let j = 1; j < dayList.length; j++) if (dayLoads[j] < dayLoads[d]) d = j;
+      dayLoads[d] += wl(c);
+      dayOf.set(c.id, dayList[d]);
+    }
+    return list.map((c) => ({ customerId: c.id, routeId: ROUTE_ID(i), dayOfWeek: dayOf.get(c.id)! }));
+  });
 
   return { routeCount: k, assignments, routes, workloadBalancePct: balancePct(loads) };
 }
