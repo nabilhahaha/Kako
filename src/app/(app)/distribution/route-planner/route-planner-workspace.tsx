@@ -65,6 +65,8 @@ export function RoutePlannerWorkspace() {
   const [selectMode, setSelectMode] = useState<'box' | 'draw'>('box');
   const [showAllBoundaries, setShowAllBoundaries] = useState(false);
   const [showOnlySelected, setShowOnlySelected] = useState(false);
+  const [sortKey, setSortKey] = useState<'route' | 'customers' | 'workload' | 'sales' | 'salesPerCustomer'>('route');
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [selectingCount, setSelectingCount] = useState<number | null>(null);
   const [reviewStats, setReviewStats] = useState<{ initial: number; absorbed: number; final: number } | null>(null);
@@ -93,6 +95,28 @@ export function RoutePlannerWorkspace() {
   const routeCountById = useMemo(() => new Map(reviews.map((r) => [r.routeId, r.customers])), [reviews]);
   const hasSales = useMemo(() => (dataset ? hasSalesData(dataset) : false), [dataset]);
   const unassigned = useMemo(() => (dataset ? unassignedCount(dataset, activeScenario) : 0), [dataset, activeScenario]);
+
+  // Route list sorting + top/bottom-10%-by-sales highlight.
+  const effectiveSortKey = (!hasSales && (sortKey === 'sales' || sortKey === 'salesPerCustomer')) ? 'route' : sortKey;
+  const sortedReviews = useMemo(() => {
+    const val = (r: typeof reviews[number]) =>
+      effectiveSortKey === 'customers' ? r.customers
+      : effectiveSortKey === 'workload' ? r.workloadHours
+      : effectiveSortKey === 'sales' ? r.sales
+      : effectiveSortKey === 'salesPerCustomer' ? (r.customers ? r.sales / r.customers : 0)
+      : r.index;
+    if (effectiveSortKey === 'route') return [...reviews].sort((a, b) => sortDir === 'asc' ? b.index - a.index : a.index - b.index);
+    return [...reviews].sort((a, b) => sortDir === 'desc' ? val(b) - val(a) : val(a) - val(b));
+  }, [reviews, effectiveSortKey, sortDir]);
+  const salesTier = useMemo(() => {
+    const m = new Map<string, 'top' | 'bottom'>();
+    if (!hasSales || reviews.length < 5) return m;
+    const bySales = [...reviews].sort((a, b) => b.sales - a.sales);
+    const n = Math.max(1, Math.ceil(bySales.length * 0.1));
+    bySales.slice(0, n).forEach((r) => m.set(r.routeId, 'top'));
+    bySales.slice(-n).forEach((r) => { if (!m.has(r.routeId)) m.set(r.routeId, 'bottom'); });
+    return m;
+  }, [reviews, hasSales]);
 
   // Current → Proposed diff (Current Allocation Review), incl. per-route sales when present.
   const diff = useMemo(() => {
@@ -587,23 +611,36 @@ export function RoutePlannerWorkspace() {
                 <button disabled={focusedRoutes.size === 0} onClick={() => setShowOnlySelected((v) => !v)} className={`rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted disabled:opacity-40 ${showOnlySelected ? 'border-primary bg-primary/10 text-primary' : ''}`}>{showOnlySelected ? t('routePlanner.showAll') : t('routePlanner.showOnly')}</button>
               </div>
             </div>
+            {/* Sort routes by count / workload / sales / sales-per-customer */}
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-muted-foreground">{t('routePlanner.sortBy')}</span>
+              <select className="h-7 rounded border bg-background px-1 text-[11px]" value={effectiveSortKey} onChange={(e) => setSortKey(e.target.value as typeof sortKey)}>
+                <option value="route">{t('routePlanner.sort_route')}</option>
+                <option value="customers">{t('routePlanner.sort_customers')}</option>
+                <option value="workload">{t('routePlanner.sort_workload')}</option>
+                {hasSales && <option value="sales">{t('routePlanner.sort_sales')}</option>}
+                {hasSales && <option value="salesPerCustomer">{t('routePlanner.sort_salesPerCustomer')}</option>}
+              </select>
+              <button onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))} className="rounded border px-1.5 py-0.5 hover:bg-muted" title={sortDir === 'desc' ? t('routePlanner.sortDesc') : t('routePlanner.sortAsc')}>{sortDir === 'desc' ? '↓' : '↑'}</button>
+            </div>
             <div className="grid grid-cols-[auto_auto_1fr_auto_auto_auto] items-center gap-x-2 text-[11px] text-muted-foreground">
               <span /><span /><span /><span className="text-end">{t('routePlanner.colCustomers')}</span><span className="text-end">{hasSales ? t('routePlanner.colTotalSales') : t('routePlanner.colVisits')}</span><span className="text-end">{t('routePlanner.colWorkload')}</span>
             </div>
             <div className="max-h-[44vh] space-y-1 overflow-y-auto pe-1">
               {reviews.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">—</p>}
-              {reviews.map((s) => {
+              {sortedReviews.map((s) => {
                 const on = focusedRoutes.has(s.routeId);
+                const tier = salesTier.get(s.routeId);
                 return (
                   <button
                     key={s.routeId}
                     onClick={() => toggleFocus(s.routeId)}
                     title={t('routePlanner.focusHint')}
-                    className={`grid w-full grid-cols-[auto_auto_1fr_auto_auto_auto] items-center gap-x-2 rounded border px-2 py-1.5 text-start text-xs hover:bg-muted ${on ? 'border-primary bg-primary/5' : ''}`}
+                    className={`grid w-full grid-cols-[auto_auto_1fr_auto_auto_auto] items-center gap-x-2 rounded border border-s-2 px-2 py-1.5 text-start text-xs hover:bg-muted ${on ? 'border-primary bg-primary/5' : tier === 'top' ? 'border-s-emerald-500' : tier === 'bottom' ? 'border-s-red-400' : ''}`}
                   >
                     <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'}`}>{on && <Check className="h-2.5 w-2.5" />}</span>
                     <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: s.color }} />
-                    <span className="truncate font-medium">{routeLabelOf(s.routeId)}</span>
+                    <span className="flex items-center gap-1 truncate font-medium">{routeLabelOf(s.routeId)}{tier === 'top' && <span className="rounded bg-emerald-100 px-1 text-[9px] font-semibold text-emerald-700">{t('routePlanner.tierTop')}</span>}{tier === 'bottom' && <span className="rounded bg-red-100 px-1 text-[9px] font-semibold text-red-700">{t('routePlanner.tierBottom')}</span>}</span>
                     <span className="text-end tabular-nums" dir="ltr">{s.customers}</span>
                     <span className="text-end tabular-nums text-muted-foreground" dir="ltr">{hasSales ? fmt(s.sales) : s.weeklyVisits}</span>
                     <span className="text-end tabular-nums text-muted-foreground" dir="ltr">{s.workloadHours}h</span>
