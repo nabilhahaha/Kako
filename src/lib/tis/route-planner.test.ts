@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { simpleGeoSplit } from './optimize-routes';
 import { buildTisDatasetFromRows } from './upload';
 import { currentPlanScenario, moveCustomer } from './plan-edit';
-import { routeStats, routeExportRows, needsReviewExportRows, unassignedCount, unassignedIds, routeColors } from './route-planner';
+import { routeStats, routeExportRows, needsReviewExportRows, unassignedCount, unassignedIds, routeColors, convexHull, routeReview, aggregateReview } from './route-planner';
 import { applyScenario, type Scenario } from './scenario';
 
 // Two tight clusters (Jeddah ~21.5/39.1 and Riyadh ~24.7/46.7), 6 each.
@@ -140,7 +140,7 @@ describe('Needs Review (remote-outlier flagging)', () => {
     expect(plan.needsReview).toBe(0);
   });
 
-  it('never strips small slices below the minimum', () => {
+  it('never strips small slices below the minimum (regression guard)', () => {
     // 4 customers, K=1 → slice of 4 (< RP_MIN_SLICE=5) is never stripped even with spread.
     const rows = [
       { code: 'A', name: 'A', lat: 21.5, lng: 39.1, frequency: 'weekly' },
@@ -151,5 +151,44 @@ describe('Needs Review (remote-outlier flagging)', () => {
     const ds = buildTisDatasetFromRows(rows, { source: 'upload' });
     const plan = simpleGeoSplit(ds.customers, 1);
     expect(plan.needsReview).toBe(0);
+  });
+});
+
+describe('convexHull', () => {
+  it('returns a hull ring enclosing a square cloud', () => {
+    const hull = convexHull([
+      { lng: 0, lat: 0 }, { lng: 0, lat: 1 }, { lng: 1, lat: 0 }, { lng: 1, lat: 1 }, { lng: 0.5, lat: 0.5 },
+    ]);
+    // The interior point is excluded; the 4 corners form the hull.
+    expect(hull.length).toBe(4);
+  });
+  it('returns the points themselves when fewer than 3', () => {
+    expect(convexHull([{ lng: 0, lat: 0 }, { lng: 1, lat: 1 }]).length).toBe(2);
+  });
+});
+
+describe('routeReview & aggregateReview', () => {
+  it('adds radius, compactness and a hull per route', () => {
+    const ds = dataset();
+    const scenario = scenarioFromSplit(ds, 2);
+    const reviews = routeReview(ds, scenario);
+    expect(reviews.length).toBe(2);
+    for (const r of reviews) {
+      expect(r.radiusKm).toBeGreaterThanOrEqual(0);
+      expect(r.compactness).toBeGreaterThanOrEqual(0);
+      expect(r.compactness).toBeLessThanOrEqual(100);
+      expect(Array.isArray(r.hull)).toBe(true);
+    }
+  });
+  it('aggregates over focused routes (and all when focus is empty)', () => {
+    const ds = dataset();
+    const scenario = scenarioFromSplit(ds, 2);
+    const reviews = routeReview(ds, scenario);
+    const all = aggregateReview(reviews, new Set());
+    expect(all.routes).toBe(2);
+    expect(all.customers).toBe(ds.customers.length);
+    const one = aggregateReview(reviews, new Set([reviews[0].routeId]));
+    expect(one.routes).toBe(1);
+    expect(one.customers).toBe(reviews[0].customers);
   });
 });

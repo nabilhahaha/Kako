@@ -8,6 +8,7 @@
  */
 import { applyScenario, type Scenario } from './scenario';
 import { customerWorkload, isValidGeo, type TisCustomer, type TisDataset } from './dataset';
+import { validatePlanGeography } from './optimize-routes';
 import { formatFrequency } from '@/lib/route-optimization/visit-frequency';
 import { defaultVisitDurationConfig, visitMinutesPerWeek } from '@/lib/planning/visit-duration';
 
@@ -80,6 +81,84 @@ export function needsReviewCustomers(dataset: TisDataset, scenario: Scenario): T
 /** Count of customers in the Needs Review / Unassigned bucket. */
 export function unassignedCount(dataset: TisDataset, scenario: Scenario): number {
   return needsReviewCustomers(dataset, scenario).length;
+}
+
+// ── Route geometry (boundaries + radius/compactness) for the review workflow ───
+
+export type LngLat = [number, number];
+
+/** Convex hull (Andrew's monotone chain) over lng/lat points. Returns an open ring
+ *  (caller closes it for a GeoJSON polygon). Planar approximation — fine for drawing
+ *  a territory outline at city scale. < 3 points → the points themselves. Pure. */
+export function convexHull(points: readonly { lng: number; lat: number }[]): LngLat[] {
+  const pts = points.map((p) => [p.lng, p.lat] as LngLat).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (pts.length < 3) return pts;
+  const cross = (o: LngLat, a: LngLat, b: LngLat) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower: LngLat[] = [];
+  for (const p of pts) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
+  const upper: LngLat[] = [];
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+  lower.pop(); upper.pop();
+  return lower.concat(upper);
+}
+
+export interface RouteReview extends RouteStat {
+  /** Max distance from the route centroid (km). */
+  radiusKm: number;
+  /** Compactness score 0–100 (100 = tight). */
+  compactness: number;
+  /** Convex-hull ring [lng,lat] of the route's located customers (open). */
+  hull: LngLat[];
+}
+
+/**
+ * Per-route review record: the side-panel stats plus geographic radius, compactness
+ * and a convex-hull boundary — everything the map and the route-summary panel need.
+ * Radius/compactness reuse the shared `validatePlanGeography` engine. Pure.
+ */
+export function routeReview(dataset: TisDataset, scenario: Scenario): RouteReview[] {
+  const stats = routeStats(dataset, scenario);
+  const applied = applyScenario(dataset, scenario);
+  const assignments = applied.customers.map((c) => ({ customerId: c.id, routeId: c.ownership.routeId }));
+  const geo = validatePlanGeography(applied.customers, assignments);
+  const geoById = new Map(geo.routes.map((r) => [r.routeId, r]));
+  const byRoute = new Map<string, { lng: number; lat: number }[]>();
+  for (const c of applied.customers) {
+    const r = c.ownership.routeId;
+    if (!r || !isValidGeo(c.geo)) continue;
+    (byRoute.get(r) ?? byRoute.set(r, []).get(r)!).push({ lng: c.geo!.lng, lat: c.geo!.lat });
+  }
+  return stats.map((s) => ({
+    ...s,
+    radiusKm: geoById.get(s.routeId)?.radiusKm ?? 0,
+    compactness: geoById.get(s.routeId)?.compactness ?? 0,
+    hull: convexHull(byRoute.get(s.routeId) ?? []),
+  }));
+}
+
+export interface ReviewAggregate {
+  routes: number;
+  customers: number;
+  weeklyVisits: number;
+  workloadHours: number;
+  /** Max route radius across the set (km). */
+  maxRadiusKm: number;
+  /** Mean compactness across the set. */
+  compactness: number;
+}
+
+/** Aggregate the review stats over a set of focused routes (all when `focused` empty). */
+export function aggregateReview(reviews: readonly RouteReview[], focused: ReadonlySet<string>): ReviewAggregate {
+  const set = focused.size ? reviews.filter((r) => focused.has(r.routeId)) : reviews;
+  if (set.length === 0) return { routes: 0, customers: 0, weeklyVisits: 0, workloadHours: 0, maxRadiusKm: 0, compactness: 0 };
+  return {
+    routes: set.length,
+    customers: set.reduce((n, r) => n + r.customers, 0),
+    weeklyVisits: set.reduce((n, r) => n + r.weeklyVisits, 0),
+    workloadHours: Math.round(set.reduce((n, r) => n + r.workloadHours, 0) * 10) / 10,
+    maxRadiusKm: Math.round(Math.max(...set.map((r) => r.radiusKm)) * 10) / 10,
+    compactness: Math.round(set.reduce((n, r) => n + r.compactness, 0) / set.length),
+  };
 }
 
 /** Ids of Needs Review / Unassigned customers (for "select all" on the map). */

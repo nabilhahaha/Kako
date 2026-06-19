@@ -2,16 +2,21 @@
 
 import { useEffect, useRef } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { useI18n } from '@/lib/i18n/provider';
 
 /**
- * Route Planner selection map — MapLibre points the manager corrects by hand:
- *  • click a point to toggle it in/out of the selection;
- *  • SHIFT-drag a box to add every point inside it to the selection.
- * Selected points get a dark ring. The parent owns the selection set and the
- * point colours (by route), so a "Move to route" recolours instantly via setData.
- * Client-only; reuses the keyless OSM raster base (same as the planning board).
+ * Route Planner review/selection map (MapLibre). It is the manager's visual workspace:
+ *  • click a point → a details popup (code · name · route + colour · frequency · lat/lng)
+ *    with a "Move to {target}" action, and the point toggles in/out of the selection;
+ *  • SHIFT-drag a box → add every point inside to the selection;
+ *  • focused routes are drawn at full opacity with a convex-hull boundary while the rest
+ *    fade, and the view zooms to the focused extent.
+ * The parent owns the selection, focus, hulls and point colours; this just renders and
+ * reports interactions. Client-only; keyless OSM raster base.
  */
-export interface SelMapPoint { id: string; name: string; lat: number; lng: number; color: string; review?: boolean }
+export interface SelMapMeta { code?: string | null; routeLabel?: string | null; routeColor?: string | null; frequency?: string | null }
+export interface SelMapPoint { id: string; name: string; lat: number; lng: number; color: string; review?: boolean; dim?: boolean; meta?: SelMapMeta }
+export interface SelMapHull { id: string; color: string; ring: [number, number][] }
 
 const RASTER_STYLE = {
   version: 8 as const,
@@ -19,30 +24,56 @@ const RASTER_STYLE = {
   layers: [{ id: 'osm', type: 'raster' as const, source: 'osm' }],
 };
 
-function toGeoJSON(points: SelMapPoint[]) {
+function toPointGeoJSON(points: SelMapPoint[]) {
   return {
     type: 'FeatureCollection' as const,
     features: points.map((p) => ({
       type: 'Feature' as const,
       geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
-      properties: { id: p.id, color: p.color, name: p.name, review: p.review ? 1 : 0 },
+      properties: { id: p.id, color: p.color, review: p.review ? 1 : 0, dim: p.dim ? 1 : 0 },
     })),
   };
 }
 
-export function SelectionMap({ points, selectedIds, onToggle, onBoxSelect }: {
+function toHullGeoJSON(hulls: SelMapHull[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: hulls.filter((h) => h.ring.length >= 3).map((h) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Polygon' as const, coordinates: [[...h.ring, h.ring[0]]] },
+      properties: { color: h.color },
+    })),
+  };
+}
+
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
+
+export function SelectionMap({ points, hulls, selectedIds, focusIds, targetLabel, selectMode, onToggle, onBoxSelect, onMoveSingle }: {
   points: SelMapPoint[];
+  hulls: SelMapHull[];
   selectedIds: Set<string>;
+  focusIds: Set<string>;
+  targetLabel: string;
+  selectMode: 'box' | 'draw';
   onToggle: (id: string) => void;
   onBoxSelect: (ids: string[]) => void;
+  onMoveSingle: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import('maplibre-gl').Map | null>(null);
-  // Keep handlers/data current for the once-only map init closures.
+  const glRef = useRef<typeof import('maplibre-gl') | null>(null);
   const pointsRef = useRef(points); pointsRef.current = points;
+  const metaRef = useRef(new Map<string, SelMapPoint>()); metaRef.current = new Map(points.map((p) => [p.id, p]));
   const toggleRef = useRef(onToggle); toggleRef.current = onToggle;
   const boxRef = useRef(onBoxSelect); boxRef.current = onBoxSelect;
+  const moveRef = useRef(onMoveSingle); moveRef.current = onMoveSingle;
+  const targetRef = useRef(targetLabel); targetRef.current = targetLabel;
+  const modeRef = useRef(selectMode); modeRef.current = selectMode;
+  const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '' });
+  labelsRef.current = { code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), freq: t('routePlanner.colFrequency'), geo: t('routePlanner.colGeo2'), move: t('routePlanner.move') };
   const fitOnce = useRef(false);
+  const focusKey = [...focusIds].sort().join(',');
 
   // ── init once ──
   useEffect(() => {
@@ -51,68 +82,96 @@ export function SelectionMap({ points, selectedIds, onToggle, onBoxSelect }: {
     (async () => {
       const maplibregl = (await import('maplibre-gl')).default;
       if (cancelled || !containerRef.current) return;
+      glRef.current = maplibregl as unknown as typeof import('maplibre-gl');
       map = new maplibregl.Map({ container: containerRef.current, style: RASTER_STYLE as never, center: [39.17, 21.58], zoom: 9 });
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
       mapRef.current = map;
 
       map.on('load', () => {
-        map!.addSource('pts', { type: 'geojson', data: toGeoJSON(pointsRef.current) });
-        map!.addLayer({ id: 'pts', type: 'circle', source: 'pts', paint: { 'circle-radius': 5, 'circle-color': ['get', 'color'], 'circle-stroke-width': 1, 'circle-stroke-color': '#ffffff' } });
-        // Needs-review points: a distinct larger amber marker with a dark outline, drawn above.
-        map!.addLayer({ id: 'review', type: 'circle', source: 'pts', filter: ['==', ['get', 'review'], 1], paint: { 'circle-radius': 6, 'circle-color': '#f59e0b', 'circle-stroke-width': 2, 'circle-stroke-color': '#7c2d12' } });
-        // Selection ring (filtered to selected ids; updated separately).
+        // Route boundaries (under the points).
+        map!.addSource('hulls', { type: 'geojson', data: toHullGeoJSON(hulls) });
+        map!.addLayer({ id: 'hull-fill', type: 'fill', source: 'hulls', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.1 } });
+        map!.addLayer({ id: 'hull-line', type: 'line', source: 'hulls', paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.9 } });
+
+        map!.addSource('pts', { type: 'geojson', data: toPointGeoJSON(pointsRef.current) });
+        const dimOpacity = ['case', ['==', ['get', 'dim'], 1], 0.18, 0.9] as never;
+        map!.addLayer({ id: 'pts', type: 'circle', source: 'pts', paint: { 'circle-radius': 5, 'circle-color': ['get', 'color'], 'circle-opacity': dimOpacity, 'circle-stroke-width': 1, 'circle-stroke-color': '#ffffff' } });
+        map!.addLayer({ id: 'review', type: 'circle', source: 'pts', filter: ['==', ['get', 'review'], 1], paint: { 'circle-radius': 6, 'circle-color': '#f59e0b', 'circle-opacity': dimOpacity, 'circle-stroke-width': 2, 'circle-stroke-color': '#7c2d12' } });
         map!.addLayer({ id: 'sel', type: 'circle', source: 'pts', filter: ['in', ['get', 'id'], ['literal', []]], paint: { 'circle-radius': 8, 'circle-color': '#000000', 'circle-opacity': 0, 'circle-stroke-width': 3, 'circle-stroke-color': '#0f172a' } });
 
         map!.on('click', 'pts', (e) => {
           const f = e.features?.[0];
-          if (f) toggleRef.current((f.properties as { id: string }).id);
+          if (!f) return;
+          const id = (f.properties as { id: string }).id;
+          toggleRef.current(id);
+          showPopup(map!, e.lngLat, id);
         });
         map!.on('mouseenter', 'pts', () => { map!.getCanvas().style.cursor = 'pointer'; });
         map!.on('mouseleave', 'pts', () => { map!.getCanvas().style.cursor = ''; });
 
-        // ── SHIFT-drag box select ──
+        // Area select: BOX mode = Shift-drag a rectangle; DRAW mode = freehand polygon.
         const canvas = map!.getCanvasContainer();
         const mousePos = (ev: MouseEvent) => { const r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
         let startPt: { x: number; y: number } | null = null;
         let boxEl: HTMLDivElement | null = null;
+        let drawing = false;
+        let path: { x: number; y: number }[] = [];
+        let svg: SVGSVGElement | null = null;
+        let poly: SVGPolygonElement | null = null;
+
+        const clearOverlay = () => { if (boxEl) { boxEl.remove(); boxEl = null; } if (svg) { svg.remove(); svg = null; poly = null; } };
 
         const onMove = (ev: MouseEvent) => {
-          if (!startPt) return;
           const cur = mousePos(ev);
-          if (!boxEl) {
-            boxEl = document.createElement('div');
-            boxEl.style.cssText = 'position:absolute;background:rgba(37,99,235,0.12);border:1.5px solid #2563eb;pointer-events:none;z-index:10';
-            canvas.appendChild(boxEl);
+          if (drawing) {
+            path.push(cur);
+            if (!svg) {
+              svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+              svg.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10');
+              poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+              poly.setAttribute('fill', 'rgba(37,99,235,0.12)'); poly.setAttribute('stroke', '#2563eb'); poly.setAttribute('stroke-width', '1.5');
+              svg.appendChild(poly); canvas.appendChild(svg);
+            }
+            poly!.setAttribute('points', path.map((p) => `${p.x},${p.y}`).join(' '));
+            return;
           }
-          const minX = Math.min(startPt.x, cur.x), minY = Math.min(startPt.y, cur.y);
-          boxEl.style.left = `${minX}px`; boxEl.style.top = `${minY}px`;
+          if (!startPt) return;
+          if (!boxEl) { boxEl = document.createElement('div'); boxEl.style.cssText = 'position:absolute;background:rgba(37,99,235,0.12);border:1.5px solid #2563eb;pointer-events:none;z-index:10'; canvas.appendChild(boxEl); }
+          boxEl.style.left = `${Math.min(startPt.x, cur.x)}px`; boxEl.style.top = `${Math.min(startPt.y, cur.y)}px`;
           boxEl.style.width = `${Math.abs(cur.x - startPt.x)}px`; boxEl.style.height = `${Math.abs(cur.y - startPt.y)}px`;
         };
         const onUp = (ev: MouseEvent) => {
-          document.removeEventListener('mousemove', onMove);
-          document.removeEventListener('mouseup', onUp);
+          document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
           map!.dragPan.enable();
-          if (boxEl) { boxEl.remove(); boxEl = null; }
-          if (!startPt) return;
           const cur = mousePos(ev);
-          const x1 = Math.min(startPt.x, cur.x), x2 = Math.max(startPt.x, cur.x);
-          const y1 = Math.min(startPt.y, cur.y), y2 = Math.max(startPt.y, cur.y);
-          startPt = null;
-          if (x2 - x1 < 3 && y2 - y1 < 3) return; // a click, not a box
-          const hits: string[] = [];
-          for (const p of pointsRef.current) {
-            const px = map!.project([p.lng, p.lat]);
-            if (px.x >= x1 && px.x <= x2 && px.y >= y1 && px.y <= y2) hits.push(p.id);
+          if (drawing) {
+            drawing = false; clearOverlay();
+            const ring = path; path = [];
+            if (ring.length >= 3) {
+              const hits = pointsRef.current.filter((p) => pointInPoly(map!.project([p.lng, p.lat]), ring)).map((p) => p.id);
+              if (hits.length) boxRef.current(hits);
+            }
+            return;
           }
+          clearOverlay();
+          if (!startPt) return;
+          const x1 = Math.min(startPt.x, cur.x), x2 = Math.max(startPt.x, cur.x), y1 = Math.min(startPt.y, cur.y), y2 = Math.max(startPt.y, cur.y);
+          startPt = null;
+          if (x2 - x1 < 3 && y2 - y1 < 3) return;
+          const hits: string[] = [];
+          for (const p of pointsRef.current) { const px = map!.project([p.lng, p.lat]); if (px.x >= x1 && px.x <= x2 && px.y >= y1 && px.y <= y2) hits.push(p.id); }
           if (hits.length) boxRef.current(hits);
         };
         const onDown = (ev: MouseEvent) => {
-          if (!ev.shiftKey || ev.button !== 0) return;
-          ev.preventDefault();
-          map!.dragPan.disable();
-          startPt = mousePos(ev);
-          document.addEventListener('mousemove', onMove);
-          document.addEventListener('mouseup', onUp);
+          if (ev.button !== 0) return;
+          if (modeRef.current === 'draw' && !ev.shiftKey) {
+            ev.preventDefault(); map!.dragPan.disable(); drawing = true; path = [mousePos(ev)];
+            document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+            return;
+          }
+          if (!ev.shiftKey) return; // box mode (or draw+shift) needs Shift to start a rectangle
+          ev.preventDefault(); map!.dragPan.disable(); startPt = mousePos(ev);
+          document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
         };
         canvas.addEventListener('mousedown', onDown, true);
         (map as unknown as { _rpCleanup?: () => void })._rpCleanup = () => canvas.removeEventListener('mousedown', onDown, true);
@@ -130,30 +189,73 @@ export function SelectionMap({ points, selectedIds, onToggle, onBoxSelect }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Recolour when points change (after Generate / Move).
+  function showPopup(map: import('maplibre-gl').Map, lngLat: import('maplibre-gl').LngLatLike, id: string) {
+    const gl = glRef.current;
+    const p = metaRef.current.get(id);
+    if (!gl || !p) return;
+    const L = labelsRef.current;
+    const m = p.meta ?? {};
+    const swatch = m.routeColor ? `<span style="display:inline-block;width:10px;height:10px;border-radius:9999px;background:${esc(m.routeColor)};margin-inline-end:4px;vertical-align:middle"></span>` : '';
+    const row = (label: string, value: string) => (value ? `<div style="display:flex;gap:6px"><span style="color:#64748b">${esc(label)}</span><span>${value}</span></div>` : '');
+    const html = `<div style="font-size:12px;line-height:1.6;min-width:150px">
+      <div style="font-weight:700;margin-bottom:2px">${esc(p.name || '')}</div>
+      ${row(L.code, esc(m.code || ''))}
+      ${row(L.route, swatch + esc(m.routeLabel || '—'))}
+      ${row(L.freq, esc(m.frequency || '—'))}
+      ${row(L.geo, `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`)}
+      <button id="rp-move-btn" style="margin-top:6px;width:100%;padding:4px 8px;border:1px solid #2563eb;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:12px">${esc(L.move)} → ${esc(targetRef.current)}</button>
+    </div>`;
+    const popup = new gl.Popup({ closeButton: true, closeOnClick: true, offset: 10 }).setLngLat(lngLat).setHTML(html).addTo(map);
+    popup.getElement()?.querySelector('#rp-move-btn')?.addEventListener('click', () => { moveRef.current(id); popup.remove(); });
+  }
+
+  // Recolour / refilter when points change.
   useEffect(() => {
     const map = mapRef.current;
     const src = map?.getSource?.('pts') as { setData?: (d: unknown) => void } | undefined;
     if (src?.setData) {
-      src.setData(toGeoJSON(points));
+      src.setData(toPointGeoJSON(points));
       if (!fitOnce.current && points.length) { fit(map!, points); fitOnce.current = true; }
     }
   }, [points]);
 
-  // Update the selection ring filter when the selection changes.
+  // Update route boundaries.
+  useEffect(() => {
+    const src = mapRef.current?.getSource?.('hulls') as { setData?: (d: unknown) => void } | undefined;
+    if (src?.setData) src.setData(toHullGeoJSON(hulls));
+  }, [hulls]);
+
+  // Update the selection ring.
   useEffect(() => {
     const map = mapRef.current;
-    if (map?.getLayer?.('sel')) {
-      map.setFilter('sel', ['in', ['get', 'id'], ['literal', [...selectedIds]]] as never);
-    }
+    if (map?.getLayer?.('sel')) map.setFilter('sel', ['in', ['get', 'id'], ['literal', [...selectedIds]]] as never);
   }, [selectedIds]);
+
+  // Zoom to the focused routes' extent when the focus changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || focusIds.size === 0) return;
+    const pts = pointsRef.current.filter((p) => focusIds.has(p.id));
+    if (pts.length) fit(map, pts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey]);
 
   return <div ref={containerRef} className="h-[62vh] min-h-[380px] w-full overflow-hidden rounded-md border" />;
 }
 
-function fit(map: import('maplibre-gl').Map, points: SelMapPoint[]) {
+/** Ray-casting point-in-polygon on screen pixels (for freehand draw select). */
+function pointInPoly(pt: { x: number; y: number }, poly: { x: number; y: number }[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+    if (((yi > pt.y) !== (yj > pt.y)) && (pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+function fit(map: import('maplibre-gl').Map, points: { lat: number; lng: number }[]) {
   if (points.length === 0) return;
   let a = 180, b = 90, c = -180, d = -90;
   for (const p of points) { a = Math.min(a, p.lng); c = Math.max(c, p.lng); b = Math.min(b, p.lat); d = Math.max(d, p.lat); }
-  try { map.fitBounds([[a, b], [c, d]], { padding: 40, maxZoom: 13, duration: 300 }); } catch { /* noop */ }
+  try { map.fitBounds([[a, b], [c, d]], { padding: 50, maxZoom: 13, duration: 400 }); } catch { /* noop */ }
 }
