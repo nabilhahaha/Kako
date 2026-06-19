@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut, Hand, MessageCircle } from 'lucide-react';
+import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut, Hand } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
 import { parseUploadColumns } from './import-actions';
 import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map';
 import { TrialBanner } from './trial-banner';
+import { WhatsAppContact } from '@/components/route-planner/whatsapp-contact';
 import { buildSupportWhatsAppUrl, type RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
 
 const NEW_ROUTE = '__new';
@@ -432,12 +433,10 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
                 <Button size="lg" variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t('routePlanner.needHelp')}{' '}
-                <a href={buildSupportWhatsAppUrl(subscription?.companyName, subscription?.tenantId)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-[#16a34a] hover:underline">
-                  <MessageCircle className="h-3.5 w-3.5" /> {t('routePlanner.contactWhatsApp')}
-                </a>
-              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">{t('routePlanner.needHelp')}</span>
+                <WhatsAppContact url={buildSupportWhatsAppUrl(subscription?.companyName, subscription?.tenantId, subscription?.status)} label={t('routePlanner.contactWhatsApp')} tone="outline" />
+              </div>
             </div>
             <div className="hidden md:block"><RoutePlanArt /></div>
           </div>

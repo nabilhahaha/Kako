@@ -204,12 +204,29 @@ function waUrl(message: string): string {
   return `https://wa.me/${renewWhatsAppNumber()}?text=${encodeURIComponent(message)}`;
 }
 
-/** Build the wa.me deep-link with a pre-filled renewal message (company + tenant). */
-export function buildRenewWhatsAppUrl(companyName: string, tenantId: string): string {
-  return waUrl(`Hello,\n\nI would like to renew my VANTORA Route Planner subscription.\n\nCompany:\n${companyName || '-'}\n\nTenant:\n${tenantId || '-'}`);
+/** The shared context block appended to every WhatsApp message (company + tenant + status). */
+function contextBlock(companyName = '', tenantId = '', status = ''): string {
+  let b = `Company:\n${companyName || '-'}\n\nTenant:\n${tenantId || '-'}`;
+  if (status) b += `\n\nStatus:\n${status}`;
+  return b;
+}
+
+/** Build the wa.me deep-link with a pre-filled renewal message (company + tenant + status). */
+export function buildRenewWhatsAppUrl(companyName = '', tenantId = '', status = ''): string {
+  return waUrl(`Hello,\n\nI would like to renew my VANTORA Route Planner subscription.\n\n${contextBlock(companyName, tenantId, status)}`);
 }
 
 /** Build the wa.me deep-link with a pre-filled support / onboarding message. */
-export function buildSupportWhatsAppUrl(companyName = '', tenantId = ''): string {
-  return waUrl(`Hello,\n\nI would like assistance with VANTORA Route Planner.\n\nCompany:\n${companyName || '-'}\n\nTenant:\n${tenantId || '-'}`);
+export function buildSupportWhatsAppUrl(companyName = '', tenantId = '', status = ''): string {
+  return waUrl(`Hello,\n\nI would like assistance with VANTORA Route Planner.\n\n${contextBlock(companyName, tenantId, status)}`);
+}
+
+/**
+ * Human-readable WhatsApp number for display & copy (e.g. "+966 56 762 8842"). Falls back
+ * to a plain "+digits" for non-Saudi / unusual lengths.
+ */
+export function formatWhatsAppNumber(): string {
+  const d = renewWhatsAppNumber();
+  if (d.startsWith('966') && d.length === 12) return `+966 ${d.slice(3, 5)} ${d.slice(5, 8)} ${d.slice(8)}`;
+  return `+${d}`;
 }

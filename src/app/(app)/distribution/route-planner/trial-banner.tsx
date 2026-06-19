@@ -1,7 +1,8 @@
 'use client';
 
-import { CheckCircle2, AlertTriangle, Clock, XCircle, MessageCircle } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Clock, XCircle } from 'lucide-react';
 import { buildRenewWhatsAppUrl, type RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
+import { WhatsAppContact } from '@/components/route-planner/whatsapp-contact';
 import { useI18n } from '@/lib/i18n/provider';
 
 /**
@@ -11,7 +12,9 @@ import { useI18n } from '@/lib/i18n/provider';
  */
 export function TrialBanner({ sub, compact = false }: { sub: RoutePlannerSubscriptionView; compact?: boolean }) {
   const { t } = useI18n();
-  const renewUrl = buildRenewWhatsAppUrl(sub.companyName, sub.tenantId);
+  // A readable status line for the pre-filled WhatsApp message (status + days remaining).
+  const statusLine = `${t(`routePlanner.adminStatus${sub.status[0].toUpperCase()}${sub.status.slice(1)}` as Parameters<typeof t>[0])}${sub.isActive && sub.daysRemaining > 0 ? ` · ${sub.daysRemaining}d` : ''}`;
+  const renewUrl = buildRenewWhatsAppUrl(sub.companyName, sub.tenantId, statusLine);
 
   // Banner skin per warning level.
   const skin = {
@@ -38,16 +41,7 @@ export function TrialBanner({ sub, compact = false }: { sub: RoutePlannerSubscri
       ? t('routePlanner.subRenewalRequired')
       : t('routePlanner.subDaysRemaining').replace('{n}', String(sub.daysRemaining));
 
-  const renewBtn = (
-    <a
-      href={renewUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[#25D366] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-95"
-    >
-      <MessageCircle className="h-3.5 w-3.5" /> {t('routePlanner.subRenewWhatsApp')}
-    </a>
-  );
+  const renewBtn = <WhatsAppContact url={renewUrl} label={t('routePlanner.subRenewWhatsApp')} />;
 
   if (lapsed) {
     // Stronger, blocking-style notice — the action buttons are disabled alongside this.

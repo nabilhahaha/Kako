@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveSubscription,
   buildRenewWhatsAppUrl,
+  buildSupportWhatsAppUrl,
+  formatWhatsAppNumber,
   freshTrial,
   type RoutePlannerSubscriptionInput,
 } from './route-planner-subscription';
@@ -60,5 +62,17 @@ describe('buildRenewWhatsAppUrl', () => {
     expect(url.startsWith('https://wa.me/')).toBe(true);
     expect(decodeURIComponent(url)).toContain('Acme Foods');
     expect(decodeURIComponent(url)).toContain('tenant-9');
+  });
+
+  it('includes the subscription status when provided', () => {
+    const text = decodeURIComponent(buildSupportWhatsAppUrl('Acme', 't1', 'Trial · 5d'));
+    expect(text).toContain('Status:');
+    expect(text).toContain('Trial · 5d');
+  });
+});
+
+describe('formatWhatsAppNumber', () => {
+  it('formats the default Saudi number for display', () => {
+    expect(formatWhatsAppNumber()).toBe('+966 56 762 8842');
   });
 });
