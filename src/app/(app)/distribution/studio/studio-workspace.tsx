@@ -22,6 +22,7 @@ import { TerritoryAuditView } from '../territory-audit/territory-audit';
 import { PlanningMap, type PlanMapPoint } from '../planning-board/planning-map';
 import { PlanningCanvas, MetricsBar, routeColorMap, COVER_HEX, PALETTE } from '../planning-board/planning-canvas';
 import { ScopeBar } from '../planning-board/scope-bar';
+import { ColorByControl, type ColorMode as MapColorMode } from '../planning-board/color-modes';
 import { parseTisUpload } from './import-actions';
 
 type Stage = 'import' | 'overview' | 'audit' | 'map' | 'optimize' | 'plan' | 'export' | 'size';
@@ -153,6 +154,15 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
     working.some((c) => c.ownership.regionId) ? 'territory' : null,
     working.some((c) => c.grade) ? 'grade' : null,
   ].filter((m): m is ColorMode => m != null)), [working]);
+  // Availability for ALL modes (unavailable ones render disabled with a reason — req #8).
+  const colorAvail = useMemo<Record<MapColorMode, boolean>>(() => ({
+    route: working.some((c) => c.ownership.routeId),
+    salesman: working.some((c) => c.ownership.salesmanId),
+    coverage: working.some((c) => c.coverage),
+    territory: working.some((c) => c.ownership.regionId),
+    grade: working.some((c) => c.grade),
+    day: false,
+  }), [working]);
   const mode: ColorMode = availableModes.includes(colorMode) ? colorMode : (availableModes[0] ?? 'coverage');
   const colorOf = (c: TisCustomer): string => {
     switch (mode) {
@@ -228,15 +238,10 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {}, mo
     { key: 'size', icon: Users, label: t('studio.size') },
   ];
 
-  // Shared map block: Color By control + legend + the persistent (read-only) map.
-  const colorControls = availableModes.length > 1 ? (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-xs text-muted-foreground">{t('planBoard.colorBy')}:</span>
-      {availableModes.map((m) => (
-        <button key={m} onClick={() => setColorMode(m)} className={`rounded-md border px-2.5 py-1 text-xs ${mode === m ? 'bg-secondary font-medium' : 'hover:bg-muted'}`}>{t(`planBoard.color_${m}`)}</button>
-      ))}
-    </div>
-  ) : null;
+  // Shared map block: Color By control (all modes, disabled-with-reason) + legend + map.
+  const colorControls = (
+    <ColorByControl modes={['route', 'salesman', 'coverage', 'territory', 'grade']} value={mode} available={colorAvail} onChange={(m) => setColorMode(m as ColorMode)} />
+  );
   const legendEl = legend.length > 0 ? (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border bg-muted/20 px-2 py-1.5 text-xs">
       <span className="text-muted-foreground">{t('planBoard.legend')}:</span>

@@ -9,6 +9,7 @@ import { applyScenario, type Scenario, type ScenarioMetrics } from '@/lib/tis/sc
 import { moveCustomer, reassignDay, reassignSalesman } from '@/lib/tis/plan-edit';
 import { customerWorkload, isValidGeo, type TisCustomer, type TisDataset } from '@/lib/tis/dataset';
 import { PlanningMap, type PlanMapPoint } from './planning-map';
+import { ColorByControl, MapLegend, buildColorContext, colorOf, modeAvailability, legendFor, ALL_COLOR_MODES, type ColorMode } from './color-modes';
 
 export const COVER_HEX: Record<string, string> = { on_track: '#16a34a', under_covered: '#d97706', over_covered: '#2563eb', never_visited: '#dc2626' };
 export const PALETTE = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5', '#0d9488', '#9333ea'];
@@ -77,10 +78,18 @@ export function PlanningCanvas({ dataset, scenario, onChange, labels = {}, scope
     return order.filter((d) => m.has(d)).map((d) => [d, m.get(d)!] as const);
   }, [working, scenario]);
 
+  // Map "Color by": consistent modes (Route · Salesman · Coverage · Territory · Grade
+  // · Day); unavailable modes render disabled with a reason. Persists while mounted.
+  const [mapColor, setMapColor] = useState<ColorMode>(initialView === 'day' ? 'day' : 'route');
+  const colorCtx = useMemo(() => buildColorContext(dataset, scenario), [dataset, scenario]);
+  const colorAvail = useMemo(() => modeAvailability(working, colorCtx), [working, colorCtx]);
+  const effColor: ColorMode = colorAvail[mapColor] ? mapColor : (ALL_COLOR_MODES.find((m) => colorAvail[m]) ?? 'route');
   const mapPoints = useMemo<PlanMapPoint[]>(() => working.filter((c) => isValidGeo(c.geo)).map((c) => ({
-    id: c.id, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng,
-    color: c.ownership.routeId ? color.get(c.ownership.routeId) ?? '#94a3b8' : '#cbd5e1',
-  })), [working, color]);
+    id: c.id, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng, color: colorOf(c, effColor, colorCtx),
+    meta: { code: c.code, route: routeLabel(c.ownership.routeId ?? ''), salesman: salesmanLabel(c.ownership.salesmanId ?? ''), grade: c.grade, coverage: c.coverage },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  })), [working, effColor, colorCtx]);
+  const mapLegend = useMemo(() => legendFor(working, effColor, colorCtx, labels, (d) => t(`planBoard.day_${d}`)), [working, effColor, colorCtx, labels, t]);
 
   const dropRoute = (routeId: string, e: React.DragEvent) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) onChange(moveCustomer(scenario, id, routeId === UNASSIGNED ? null : routeId)); };
   const dropSalesman = (salesmanId: string, e: React.DragEvent) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) onChange(reassignSalesman(scenario, id, salesmanId === UNASSIGNED ? null : salesmanId)); };
@@ -97,6 +106,7 @@ export function PlanningCanvas({ dataset, scenario, onChange, labels = {}, scope
 
       {view === 'map' && (
         <div className="space-y-2">
+          <ColorByControl modes={ALL_COLOR_MODES} value={effColor} available={colorAvail} onChange={setMapColor} />
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-muted-foreground">{t('planBoard.assignTo')}</span>
             <select className="h-9 rounded-md border bg-background px-2 text-sm" value={targetRoute} onChange={(e) => setTargetRoute(e.target.value)}>
@@ -107,6 +117,7 @@ export function PlanningCanvas({ dataset, scenario, onChange, labels = {}, scope
             <span className="text-xs text-muted-foreground">{t('planBoard.mapHint')}</span>
           </div>
           <PlanningMap points={mapPoints} onSelect={assignTarget} />
+          <MapLegend items={mapLegend} />
         </div>
       )}
 
