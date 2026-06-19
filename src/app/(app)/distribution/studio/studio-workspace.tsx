@@ -9,17 +9,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatCard } from '@/components/shared/stat-card';
-import { buildTisDataset, type TisCustomer, type TisSource } from '@/lib/tis/dataset';
+import { buildTisDataset, isValidGeo, type TisCustomer, type TisDataset, type TisSource } from '@/lib/tis/dataset';
 import { applyScenario, scenarioMetrics, type Scenario } from '@/lib/tis/scenario';
-import { currentPlanScenario, cloneScenario, liveMetrics } from '@/lib/tis/plan-edit';
+import { currentPlanScenario, cloneScenario, setAssignment } from '@/lib/tis/plan-edit';
 import { balanceRoutes } from '@/lib/tis/optimize-routes';
 import { datasetToCsv, TIS_CSV_COLUMNS } from '@/lib/tis/export';
 import { buildTisDatasetFromRows } from '@/lib/tis/upload';
 import { auditTerritory } from '@/lib/tis/audit';
 import { buildGeoLayers, type GeoLayerId } from '@/lib/tis/geo';
+import { initialScope, scopeCustomerIds, type ScopeState } from '@/lib/tis/scope';
 import { TerritoryAuditView } from '../territory-audit/territory-audit';
 import { PlanningMap, type PlanMapPoint } from '../planning-board/planning-map';
-import { PlanningCanvas, MetricsBar, routeColorMap, scenarioMapPoints } from '../planning-board/planning-canvas';
+import { PlanningCanvas, MetricsBar, routeColorMap } from '../planning-board/planning-canvas';
+import { ScopeBar } from '../planning-board/scope-bar';
 import { parseTisUpload } from './import-actions';
 
 type Stage = 'import' | 'overview' | 'audit' | 'map' | 'optimize' | 'plan' | 'size';
@@ -55,11 +57,19 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
   const [geoLayer, setGeoLayer] = useState<GeoLayerId>('coverage');
   const [workingDays, setWorkingDays] = useState('5');
   const [routeCountInput, setRouteCountInput] = useState(''); // '' = auto (current route count)
+  const [scope, setScope] = useState<ScopeState>(() => initialScope(dataset.customers));
   const [importMsg, setImportMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const active = scenarios.find((s) => s.id === activeId) ?? scenarios[0];
   const update = (next: Scenario) => setScenarios((list) => list.map((s) => (s.id === next.id ? next : s)));
+
+  // ── Shared scope: ONE working set drives every stage + the persistent map ──
+  const applied = useMemo(() => applyScenario(dataset, active), [dataset, active]);
+  const scopeIds = useMemo(() => scopeCustomerIds(applied.customers, scope), [applied, scope]);
+  const working = useMemo(() => applied.customers.filter((c) => scopeIds.has(c.id)), [applied, scopeIds]);
+  const scopedDataset: TisDataset = useMemo(() => ({ ...dataset, customers: working }), [dataset, working]);
+  const scopedRouteCount = useMemo(() => new Set(working.map((c) => c.ownership.routeId).filter(Boolean)).size, [working]);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -74,6 +84,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
       setImported(ds.customers);
       setScenarios([currentPlanScenario(ds)]);
       setActiveId('current');
+      setScope(initialScope(ds.customers));
       setImportMsg({ tone: 'ok', text: t('studio.importOk').replace('{n}', String(ds.customers.length)).replace('{total}', String(res.total)) });
       setStage('audit');
     } catch {
@@ -91,14 +102,18 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
     downloadCsv(csv, 'tis-import-template.csv');
   }
 
-  const audit = useMemo(() => auditTerritory(dataset), [dataset]);
-  const geoLayers = useMemo(() => buildGeoLayers(dataset, audit), [dataset, audit]);
-  const metrics = useMemo(() => liveMetrics(dataset, active), [dataset, active]);
+  // All findings/layers/metrics are computed over the SCOPED working set.
+  const audit = useMemo(() => auditTerritory(scopedDataset), [scopedDataset]);
+  const geoLayers = useMemo(() => buildGeoLayers(scopedDataset, audit), [scopedDataset, audit]);
+  const metrics = useMemo(() => scenarioMetrics(scopedDataset), [scopedDataset]);
 
   function onOptimize() {
-    const rc = Math.max(0, Math.round(Number(routeCountInput))) || defaultRouteCount;
-    const plan = balanceRoutes(dataset.customers, { routeCount: rc, workingDays: Number(workingDays) || 5 });
-    setScenarios((list) => [...list.filter((s) => s.id !== 'optimized'), { id: 'optimized', name: t('planBoard.optimized'), assignments: plan.assignments }]);
+    const rc = Math.max(0, Math.round(Number(routeCountInput))) || scopedRouteCount || defaultRouteCount;
+    // Optimize only the in-scope customers; overlay onto the active plan so
+    // out-of-scope routes are untouched.
+    const plan = balanceRoutes(working, { routeCount: rc, workingDays: Number(workingDays) || 5 });
+    const merged = plan.assignments.reduce((sc, a) => setAssignment(sc, a), { ...active, id: 'optimized', name: t('planBoard.optimized') });
+    setScenarios((list) => [...list.filter((s) => s.id !== 'optimized'), merged]);
     setActiveId('optimized');
     setStage('plan');
   }
@@ -112,13 +127,19 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
     downloadCsv(datasetToCsv(applyScenario(dataset, active)), `studio-plan-${active.id}.csv`);
   }
 
-  // Persistent map: scenario-route colour in Optimize/Plan, else the chosen geo layer.
+  // Persistent map (always the SCOPED working set): scenario-route colour in
+  // Optimize/Plan, else the chosen geo layer — so map and board never disagree.
   const routeColor = useMemo(() => routeColorMap(dataset, active), [dataset, active]);
   const mapPoints = useMemo<PlanMapPoint[]>(() => {
-    if (stage === 'optimize' || stage === 'plan') return scenarioMapPoints(dataset, active, routeColor);
+    if (stage === 'optimize' || stage === 'plan') {
+      return working.filter((c) => isValidGeo(c.geo)).map((c) => ({
+        id: c.id, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng,
+        color: c.ownership.routeId ? routeColor.get(c.ownership.routeId) ?? '#94a3b8' : '#cbd5e1',
+      }));
+    }
     const layer = stage === 'map' ? geoLayer : 'coverage';
     return geoLayers[layer].features.map((f) => ({ id: f.id, name: f.name, lat: f.lat, lng: f.lng, color: f.color }));
-  }, [stage, geoLayer, geoLayers, dataset, active, routeColor]);
+  }, [stage, geoLayer, geoLayers, working, routeColor]);
 
   const STAGES: { key: Stage; icon: typeof MapIcon; label: string }[] = [
     { key: 'import', icon: Upload, label: t('studio.import') },
@@ -156,7 +177,10 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
         </div>
       </div>
 
-      <MetricsBar m={metrics} />
+      {/* Shared scope bar — Region → Salesman → Route drives EVERY stage + the map. */}
+      {stage !== 'import' && <ScopeBar customers={applied.customers} scope={scope} onChange={setScope} labels={labels} />}
+
+      {stage !== 'import' && <MetricsBar m={metrics} />}
 
       <div className="flex flex-col gap-3 lg:flex-row">
         {/* Sub-nav (left on desktop, horizontal scroll on mobile). */}
@@ -177,7 +201,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
           ) : stage === 'plan' ? (
             <>
               <PlanningMap key="studio-map" points={mapPoints} onSelect={() => { /* Plan editing happens on the canvas below. */ }} />
-              <PlanningCanvas dataset={dataset} scenario={active} onChange={update} labels={labels} />
+              <PlanningCanvas dataset={dataset} scenario={active} onChange={update} labels={labels} scopeIds={scopeIds} />
               <StageLink href={STANDALONE.plan!} label={t('studio.openFull')} />
             </>
           ) : (
@@ -198,7 +222,7 @@ export function StudioWorkspace({ customers, asOf, source, demo, labels = {} }: 
                 {stage === 'overview' && <OverviewPanel audit={audit} onOptimize={onOptimize} onImport={() => setStage('import')} t={t} sample={sample} />}
                 {stage === 'audit' && <TerritoryAuditView audit={audit} labels={labels} />}
                 {stage === 'map' && <p className="text-sm text-muted-foreground">{t('studio.mapLead')}</p>}
-                {stage === 'optimize' && <OptimizePanel dataset={dataset} scenarios={scenarios} workingDays={workingDays} setWorkingDays={setWorkingDays} routeCount={routeCountInput} setRouteCount={setRouteCountInput} defaultRouteCount={defaultRouteCount} onOptimize={onOptimize} t={t} />}
+                {stage === 'optimize' && <OptimizePanel dataset={scopedDataset} scenarios={scenarios} workingDays={workingDays} setWorkingDays={setWorkingDays} routeCount={routeCountInput} setRouteCount={setRouteCountInput} defaultRouteCount={scopedRouteCount || defaultRouteCount} onOptimize={onOptimize} t={t} />}
                 {stage === 'size' && <NeedsPanel text={t('studio.sizeSoon')} />}
                 {STANDALONE[stage] && <StageLink href={STANDALONE[stage]!} label={t('studio.openFull')} />}
               </aside>
