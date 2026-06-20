@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Upload, Wand2, FileDown, Share2, Printer, Map as MapIcon, ArrowUp, ArrowDown, RotateCcw, Trash2, LassoSelect, Check, Save, Search, Link2, Smartphone, Navigation, Square, ChevronLeft, ChevronRight, Filter, Send } from 'lucide-react';
+import { X, Upload, Wand2, FileDown, Share2, Printer, Map as MapIcon, ArrowUp, ArrowDown, RotateCcw, Trash2, LassoSelect, Check, Save, Search, Link2, Smartphone, Navigation, Square, ChevronLeft, ChevronRight, Filter, Send, Target } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import { loadDpTemplates, syncDpTemplates, persistDpTemplate, findBestTemplate, 
 import { saveDayPlannerDraft, loadDayPlannerDraft, clearDayPlannerDraft, type DayPlannerDraft } from './day-planner-draft';
 import { loadDpPlans, syncDpPlans, persistDpPlan, removeDpPlan, getDpPlan, getDpPlanAsync, planShareUrl, type DpSavedPlan } from './day-planner-plans';
 import { submitPlanForApproval } from './rp-plan-actions';
+import { createMissionFromDayPlan } from './rp-mission-actions';
 import { loadSegments, syncSegments, filterBySegment, type RpSegment } from './route-planner-segments';
 import { getDpLocation, setDpLocation, type DpLocationKey } from './day-planner-locations';
 
@@ -330,6 +331,11 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
   function onSubmitPlan(id: string) {
     void submitPlanForApproval('daily', id).then((r) => setMsg(r.ok ? t('rpShell.pa_pending') : (r.error === 'err_no_flow' ? t('rpShell.pa_noFlow') : r.error)));
   }
+  // Day Planning → My Missions: turn a saved day plan into a (draft) supervisor mission,
+  // reusing the plan's optimized stop order. The manager assigns it in the Missions board.
+  function onPlanToMission(id: string) {
+    void createMissionFromDayPlan(id, {}).then((r) => setMsg(r.ok ? t('rpShell.mn_createdDraft') : (r.error === 'err_no_create_perm' ? t('rpShell.mn_errNoCreate') : r.error)));
+  }
 
   async function copyLink() {
     let url = '';
@@ -486,7 +492,8 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
                         <span className="truncate text-sm font-medium">{p.name}</span>
                         <span className="shrink-0 text-[11px] text-muted-foreground">· {p.order.length} {t('dayPlanner.stops')}</span>
                       </button>
-                      <button onClick={() => onSubmitPlan(p.id)} title={t('rpShell.pa_submit')} className="ms-2 shrink-0 text-muted-foreground hover:text-violet-600"><Send className="h-4 w-4" /></button>
+                      <button onClick={() => onPlanToMission(p.id)} title={t('rpShell.mn_toMission')} className="ms-2 shrink-0 text-muted-foreground hover:text-primary"><Target className="h-4 w-4" /></button>
+                      <button onClick={() => onSubmitPlan(p.id)} title={t('rpShell.pa_submit')} className="ms-1 shrink-0 text-muted-foreground hover:text-violet-600"><Send className="h-4 w-4" /></button>
                       <button onClick={() => onDeletePlan(p.id)} className="ms-1 shrink-0 text-muted-foreground hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   ))}
