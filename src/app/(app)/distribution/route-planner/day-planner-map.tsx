@@ -18,7 +18,7 @@ const RASTER_STYLE = {
  * markers (the keyless raster base has no glyphs, so MapLibre text symbols can't render).
  * Click a pin to toggle selection. Client-only.
  */
-export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, onMapClick, picking }: {
+export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, onMapClick, picking, drawing, onBoxSelect }: {
   points: DayMapPoint[];
   path: [number, number][]; // ordered [lng,lat] incl. start & end
   endpoints: DayMapEndpoint[];
@@ -26,14 +26,17 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
   onToggle: (id: string) => void;
   onMapClick: (lat: number, lng: number) => void;
   picking: boolean; // when true, a map click sets a point instead of panning-only
+  drawing?: boolean; // when true, drag a rectangle to select the customers inside it
+  onBoxSelect?: (ids: string[], additive: boolean) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import('maplibre-gl').Map | null>(null);
   const glRef = useRef<typeof import('maplibre-gl') | null>(null);
   const markersRef = useRef<import('maplibre-gl').Marker[]>([]);
   const fitOnce = useRef(false);
-  const cb = useRef({ onToggle, onMapClick, picking });
-  cb.current = { onToggle, onMapClick, picking };
+  const cb = useRef({ onToggle, onMapClick, picking, drawing, onBoxSelect });
+  cb.current = { onToggle, onMapClick, picking, drawing, onBoxSelect };
   const dataRef = useRef({ points, path, endpoints, selectedIds });
   dataRef.current = { points, path, endpoints, selectedIds };
 
@@ -51,10 +54,68 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
       map.on('click', (e) => {
         if (cb.current.picking) cb.current.onMapClick(e.lngLat.lat, e.lngLat.lng);
       });
+
+      // ── Box / area draw-select: drag a rectangle to select the points inside. ──
+      let startPt: { x: number; y: number } | null = null;
+      let additive = false;
+      const canvas = map.getCanvasContainer();
+      const onMove = (ev: MouseEvent) => {
+        if (!startPt || !boxRef.current) return;
+        const r = canvas.getBoundingClientRect();
+        const x = ev.clientX - r.left, y = ev.clientY - r.top;
+        const left = Math.min(startPt.x, x), top = Math.min(startPt.y, y);
+        Object.assign(boxRef.current.style, { display: 'block', left: `${left}px`, top: `${top}px`, width: `${Math.abs(x - startPt.x)}px`, height: `${Math.abs(y - startPt.y)}px` });
+      };
+      const onUp = (ev: MouseEvent) => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        if (boxRef.current) boxRef.current.style.display = 'none';
+        const m = mapRef.current;
+        if (!startPt || !m) { startPt = null; return; }
+        const r = canvas.getBoundingClientRect();
+        const x = ev.clientX - r.left, y = ev.clientY - r.top;
+        const minX = Math.min(startPt.x, x), maxX = Math.max(startPt.x, x);
+        const minY = Math.min(startPt.y, y), maxY = Math.max(startPt.y, y);
+        startPt = null;
+        if (maxX - minX < 4 && maxY - minY < 4) return; // a click, not a drag
+        const ids: string[] = [];
+        for (const p of dataRef.current.points) {
+          const pt = m.project([p.lng, p.lat]);
+          if (pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY) ids.push(p.id);
+        }
+        cb.current.onBoxSelect?.(ids, additive);
+      };
+      const onDown = (ev: MouseEvent) => {
+        if (!cb.current.drawing || ev.button !== 0) return;
+        ev.preventDefault(); ev.stopPropagation();
+        additive = ev.shiftKey || ev.ctrlKey || ev.metaKey;
+        const r = canvas.getBoundingClientRect();
+        startPt = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      };
+      canvas.addEventListener('mousedown', onDown);
+      (map as unknown as { __cleanupDraw?: () => void }).__cleanupDraw = () => {
+        canvas.removeEventListener('mousedown', onDown);
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
     })();
-    return () => { cancelled = true; markersRef.current.forEach((m) => m.remove()); if (map) map.remove(); mapRef.current = null; };
+    return () => {
+      cancelled = true;
+      markersRef.current.forEach((m) => m.remove());
+      if (map) { (map as unknown as { __cleanupDraw?: () => void }).__cleanupDraw?.(); map.remove(); }
+      mapRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Disable map panning while drawing so a drag draws a box instead of moving the map.
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    if (drawing) m.dragPan.disable(); else m.dragPan.enable();
+  }, [drawing]);
 
   // Re-sync the path line + markers whenever data changes.
   useEffect(() => { sync(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [points, path, endpoints, selectedIds]);
@@ -108,5 +169,11 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
     }
   }
 
-  return <div ref={containerRef} className={`h-full w-full overflow-hidden rounded-xl border ${picking ? 'cursor-crosshair' : ''}`} style={{ minHeight: 320 }} />;
+  return (
+    <div className="relative h-full w-full" style={{ minHeight: 320 }}>
+      <div ref={containerRef} className={`h-full w-full overflow-hidden rounded-xl border ${picking || drawing ? 'cursor-crosshair' : ''}`} style={{ minHeight: 320 }} />
+      {/* Drag-select rectangle overlay (positioned in JS; hidden by default). */}
+      <div ref={boxRef} className="pointer-events-none absolute z-10 hidden rounded border-2 border-primary bg-primary/15" style={{ display: 'none' }} />
+    </div>
+  );
 }

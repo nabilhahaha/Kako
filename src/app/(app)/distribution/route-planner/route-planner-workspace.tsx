@@ -19,6 +19,7 @@ import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map
 import { TrialBanner } from './trial-banner';
 import { JourneyPanel, type JourneyInputCustomer } from './journey-panel';
 import { DayPlanner } from './day-planner';
+import type { DpCustomer } from '@/lib/tis/day-planner-import';
 import { savePlannerDraft, loadPlannerDraft, clearPlannerDraft, type PlannerDraft } from './planner-draft';
 import { WhatsAppContact } from '@/components/route-planner/whatsapp-contact';
 import { buildSupportWhatsAppUrl, type RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
@@ -200,6 +201,15 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const routeCountById = useMemo(() => new Map(reviews.map((r) => [r.routeId, r.customers])), [reviews]);
   const hasSales = useMemo(() => (dataset ? hasSalesData(dataset) : false), [dataset]);
   const unassigned = useMemo(() => (dataset ? unassignedCount(dataset, activeScenario) : 0), [dataset, activeScenario]);
+
+  // Customers (with coordinates) handed to the Day Planner as its "existing dataset"
+  // source, so the user can plan a day without re-uploading a file.
+  const daySeedCustomers = useMemo<DpCustomer[]>(() => {
+    if (!dataset) return [];
+    return dataset.customers
+      .filter((c) => c.geo && Number.isFinite(c.geo.lat) && Number.isFinite(c.geo.lng))
+      .map((c) => ({ id: c.id, code: c.code, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng, sales: c.salesValue ?? undefined }));
+  }, [dataset]);
 
   // Route list sorting + top/bottom-10%-by-sales highlight.
   const effectiveSortKey = (!hasSales && (sortKey === 'sales' || sortKey === 'salesPerCustomer')) ? 'route' : sortKey;
@@ -1007,7 +1017,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
 
       {/* Journey Planning V1 — full-screen overlay opened after the allocation is built. */}
       {journeyMode && <JourneyPanel customers={journeyCustomers} hasSales={hasSales} onClose={() => setJourneyMode(false)} />}
-      {dayPlannerOpen && <DayPlanner hasSalesDefault={hasSales} onClose={() => setDayPlannerOpen(false)} />}
+      {dayPlannerOpen && <DayPlanner hasSalesDefault={hasSales} seedCustomers={daySeedCustomers} onClose={() => setDayPlannerOpen(false)} />}
     </div>
   );
 }
