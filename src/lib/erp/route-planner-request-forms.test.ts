@@ -10,9 +10,11 @@ describe('REQUEST_FORMS', () => {
       expect(form.fields.some((f) => f.required), ty).toBe(true);
     }
   });
-  it('new_customer covers the required business fields', () => {
+  it('new_customer covers identity, compliance, structured address and ops fields', () => {
     const keys = REQUEST_FORMS.new_customer.fields.map((f) => f.key);
-    for (const k of ['name', 'channel', 'city', 'area', 'address', 'gps', 'contact', 'mobile', 'reason']) {
+    for (const k of ['name', 'channel', 'cr', 'vat', 'contact', 'mobile', 'email',
+                     'buildingNo', 'street', 'district', 'city', 'postalCode', 'additionalNo', 'unitNo',
+                     'gps', 'creditLimit', 'paymentTerms', 'reason']) {
       expect(keys, k).toContain(k);
     }
   });
@@ -21,13 +23,15 @@ describe('REQUEST_FORMS', () => {
 describe('validateRequest', () => {
   it('flags every empty required field', () => {
     const missing = validateRequest(REQUEST_FORMS.new_customer, {});
-    // 9 required fields on new_customer (name, channel, city, area, address, gps, contact, mobile, reason)
-    expect(missing).toHaveLength(9);
+    // 12 required: name, channel, contact, mobile, buildingNo, street, district, city,
+    // postalCode, additionalNo, gps, reason
+    expect(missing).toHaveLength(12);
   });
   it('passes once required fields are filled (gps needs both lat+lng)', () => {
     const v = {
-      name: 'Al Noor', channel: 'retail', city: 'Riyadh', area: 'Olaya', address: '123 St',
-      gps_lat: '24.7', gps_lng: '46.6', contact: 'Sami', mobile: '0500000000', reason: 'new outlet',
+      name: 'Al Noor', channel: 'retail', contact: 'Sami', mobile: '0500000000',
+      buildingNo: '3210', street: 'King Fahd Rd', district: 'Olaya', city: 'Riyadh',
+      postalCode: '12211', additionalNo: '7788', gps_lat: '24.7', gps_lng: '46.6', reason: 'new outlet',
     };
     expect(validateRequest(REQUEST_FORMS.new_customer, v)).toEqual([]);
   });

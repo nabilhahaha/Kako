@@ -61,8 +61,10 @@ const STATUS_TONE: Record<string, string> = {
  * ticket is implemented by the Admin in the external system, then closed here. Visibility
  * follows the reporting graph (RLS); this UI surfaces what the caller may see.
  */
-export function RequestCenterView({ meId = null }: { meId?: string | null }) {
+export function RequestCenterView({ meId = null, customers = [] }: { meId?: string | null; customers?: { code?: string | null; name: string }[] }) {
   const { t } = useI18n();
+  // Customer options for the searchable reference (loaded planning dataset).
+  const custOptions = useMemo(() => customers.map((c) => ({ code: c.code ?? '', name: c.name })).filter((c) => c.name), [customers]);
   const [requests, setRequests] = useState<Req[]>([]);
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<'all' | 'mine' | 'approvals'>('all');
@@ -74,6 +76,7 @@ export function RequestCenterView({ meId = null }: { meId?: string | null }) {
   const [wfBusy, setWfBusy] = useState(false);
   const [atts, setAtts] = useState<AttachmentView[]>([]);
   const [attBusy, setAttBusy] = useState(false);
+  const [attAdded, setAttAdded] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   // create form — schema-driven per ticket type
@@ -146,7 +149,7 @@ export function RequestCenterView({ meId = null }: { meId?: string | null }) {
   useEffect(() => {
     if (!selected) { setApproval(null); setAtts([]); return; }
     let live = true;
-    setApproval(null); setAtts([]);
+    setApproval(null); setAtts([]); setAttAdded(false);
     const id = String(selected.id);
     void getRequestApproval(id).then((r) => { if (live && r.ok) setApproval(r.data!); });
     void listAttachments(ATTACH_ENTITY, id).then((a) => { if (live) setAtts(a); });
@@ -163,6 +166,7 @@ export function RequestCenterView({ meId = null }: { meId?: string | null }) {
     if (e.target) e.target.value = '';
     if (!r.ok) { setMsg(t('rpShell.rc_att_failed')); return; }
     setAtts(await listAttachments(ATTACH_ENTITY, String(selected.id)));
+    setAttAdded(true);
   }
 
   async function act(action: 'approve' | 'reject' | 'need_info') {
@@ -324,7 +328,7 @@ export function RequestCenterView({ meId = null }: { meId?: string | null }) {
 
           <div className="mt-1">
             {form.fields.map((f) => (
-              <FieldInput key={f.key} field={f} values={values} setVal={setVal} type={type} setType={setType} invalid={errors.includes(f.labelKey)} t={t} />
+              <FieldInput key={f.key} field={f} values={values} setVal={setVal} type={type} setType={setType} invalid={errors.includes(f.labelKey)} customers={custOptions} t={t} />
             ))}
           </div>
 
@@ -338,6 +342,22 @@ export function RequestCenterView({ meId = null }: { meId?: string | null }) {
       {/* Detail slide-over */}
       {selected && !creating && (
         <Drawer title={String(selected.ticket_no ?? t('rpShell.rc_ticket'))} onClose={() => setSelected(null)}>
+          {/* Always-visible NEXT ACTION — so the user is never stranded (e.g. after uploading). */}
+          {approval?.hasFlow && approval.done ? (
+            <div className="mb-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800"><CheckCircle2 className="h-4 w-4" /> {t('rpShell.rc_na_done')}</div>
+          ) : approval?.hasFlow && approval.pending?.canAct ? (
+            <div className="mb-2 rounded-lg border border-primary/40 bg-primary/5 p-2.5">
+              <p className="mb-1.5 text-xs font-semibold text-primary">{t('rpShell.rc_na_yourTurn')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Button size="sm" onClick={() => act('approve')} disabled={wfBusy}><CheckCircle2 className="h-4 w-4" /> {t('rpShell.rc_wf_approve')}</Button>
+                <Button size="sm" variant="outline" onClick={() => act('need_info')} disabled={wfBusy}>{t('rpShell.rc_wf_needInfo')}</Button>
+                <Button size="sm" variant="outline" onClick={() => act('reject')} disabled={wfBusy} className="text-red-600">{t('rpShell.rc_wf_reject')}</Button>
+              </div>
+            </div>
+          ) : approval?.hasFlow && approval.pending ? (
+            <div className="mb-2 flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"><Bell className="h-3.5 w-3.5" /> {t('rpShell.rc_na_awaiting').replace('{who}', approval.pending.assignees.map((a) => a.name).join('، ') || '—')}</div>
+          ) : null}
+
           <Field label={t('rpShell.rc_type')} value={t(`rpShell.rc_type_${String(selected.type)}` as Parameters<typeof t>[0])} />
           <Field label={t('rpShell.rc_customer')} value={String(selected.customer_ref ?? '—')} />
           <Field label={t('rpShell.rc_status')}>
@@ -351,7 +371,7 @@ export function RequestCenterView({ meId = null }: { meId?: string | null }) {
           {/* Attachments / photo evidence (shared erp_attachments store). */}
           <div className="mt-4">
             <div className="mb-1.5 flex items-center justify-between">
-              <p className="flex items-center gap-1.5 text-xs font-semibold"><Paperclip className="h-3.5 w-3.5 text-primary" /> {t('rpShell.rc_att_title')} {atts.length > 0 && <span className="text-muted-foreground">({atts.length})</span>}</p>
+              <p className="flex items-center gap-1.5 text-xs font-semibold"><Paperclip className="h-3.5 w-3.5 text-primary" /> {t('rpShell.rc_att_title')} {atts.length > 0 && <span className="text-muted-foreground">({atts.length})</span>}{attAdded && <span className="inline-flex items-center gap-0.5 text-emerald-700"><CheckCircle2 className="h-3 w-3" /> {t('rpShell.rc_att_added')}</span>}</p>
               <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-[11px] hover:bg-muted">
                 <Upload className="h-3.5 w-3.5" /> {attBusy ? t('routePlanner.importing') : t('rpShell.rc_att_add')}
                 <input type="file" accept="image/*,.pdf" className="hidden" onChange={onAttach} disabled={attBusy} />
@@ -461,11 +481,18 @@ function Field({ label, value, children }: { label: string; value?: string; chil
 const INPUT = 'w-full rounded-md border px-2 py-2 text-sm';
 
 /** One schema-driven form control with a required/optional label and mobile-friendly sizing. */
-function FieldInput({ field, values, setVal, type, setType, invalid, t }: {
+function FieldInput({ field, values, setVal, type, setType, invalid, customers = [], t }: {
   field: FormField; values: Record<string, string>; setVal: (k: string, v: string) => void;
-  type: RpTicketType; setType: (t: RpTicketType) => void; invalid: boolean; t: ReturnType<typeof useI18n>['t'];
+  type: RpTicketType; setType: (t: RpTicketType) => void; invalid: boolean;
+  customers?: { code: string; name: string }[]; t: ReturnType<typeof useI18n>['t'];
 }) {
   const tk = (k: string) => t(k as Parameters<typeof t>[0]);
+
+  // Section divider — groups fields (Compliance, Contact, National Address, …).
+  if (field.kind === 'section') {
+    return <p className="mt-4 mb-0.5 border-b pb-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{tk(`rpShell.${field.labelKey}`)}</p>;
+  }
+
   const label = (
     <label className="mt-3 flex items-center gap-1.5 text-xs font-medium">
       {tk(`rpShell.${field.labelKey}`)}
@@ -474,6 +501,19 @@ function FieldInput({ field, values, setVal, type, setType, invalid, t }: {
   );
   const cls = `${INPUT} ${invalid ? 'border-red-400 bg-red-50/40' : ''}`;
   const hint = field.hintKey ? <p className="mt-0.5 text-[10px] text-muted-foreground">{tk(`rpShell.${field.hintKey}`)}</p> : null;
+
+  // Searchable customer reference — pick from the loaded planning dataset (no free typing of codes).
+  if (field.kind === 'customerRef') {
+    const listId = `cust-${field.key}`;
+    return <div>{label}
+      <input list={listId} value={values[field.key] ?? ''} onChange={(e) => setVal(field.key, e.target.value)}
+        placeholder={customers.length ? t('rpShell.rc_custSearch') : t('rpShell.rc_customerHint')} className={cls} autoComplete="off" />
+      <datalist id={listId}>
+        {customers.slice(0, 1000).map((c) => { const v = c.code ? `${c.code} · ${c.name}` : c.name; return <option key={v} value={v} />; })}
+      </datalist>
+      {customers.length === 0 ? <p className="mt-0.5 text-[10px] text-amber-700">{t('rpShell.rc_custNone')}</p> : hint}
+    </div>;
+  }
 
   if (field.kind === 'attachments') {
     return <div>{label}<div className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-center text-[11px] text-muted-foreground">{tk(`rpShell.${field.hintKey ?? 'rc_h_attachments'}`)}</div></div>;
@@ -502,8 +542,8 @@ function FieldInput({ field, values, setVal, type, setType, invalid, t }: {
   if (field.kind === 'textarea') {
     return <div>{label}<textarea value={values[field.key] ?? ''} onChange={(e) => setVal(field.key, e.target.value)} rows={3} className={cls} />{hint}</div>;
   }
-  const inputType = field.kind === 'number' ? 'number' : field.kind === 'tel' ? 'tel' : field.kind === 'date' ? 'date' : 'text';
-  const extra = field.kind === 'number' ? { inputMode: 'decimal' as const } : field.kind === 'tel' ? { inputMode: 'tel' as const, dir: 'ltr' as const } : field.kind === 'date' ? { dir: 'ltr' as const } : {};
+  const inputType = field.kind === 'number' ? 'number' : field.kind === 'tel' ? 'tel' : field.kind === 'email' ? 'email' : field.kind === 'date' ? 'date' : 'text';
+  const extra = field.kind === 'number' ? { inputMode: 'decimal' as const } : field.kind === 'tel' ? { inputMode: 'tel' as const, dir: 'ltr' as const } : field.kind === 'email' ? { inputMode: 'email' as const, dir: 'ltr' as const } : field.kind === 'date' ? { dir: 'ltr' as const } : {};
   return <div>{label}<input type={inputType} value={values[field.key] ?? ''} onChange={(e) => setVal(field.key, e.target.value)} className={cls} {...extra} />{hint}</div>;
 }
 

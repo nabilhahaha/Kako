@@ -8,7 +8,7 @@ import type { RpTicketType } from './route-planner-backend';
  * approved change in the external system, then closes the ticket.
  */
 
-export type FieldKind = 'text' | 'tel' | 'number' | 'date' | 'textarea' | 'select' | 'gps' | 'attachments' | 'stopType';
+export type FieldKind = 'text' | 'tel' | 'email' | 'number' | 'date' | 'textarea' | 'select' | 'gps' | 'attachments' | 'stopType' | 'customerRef' | 'section';
 
 export interface FormField {
   key: string;
@@ -39,7 +39,7 @@ export const OPTION_SETS: Record<OptionSet, string[]> = {
   channel: ['retail', 'wholesale', 'horeca', 'pharmacy', 'other'],
   custClass: ['a', 'b', 'c', 'd'],
   paymentTerms: ['cash', 'net15', 'net30', 'net60'],
-  updateField: ['name', 'address', 'contact', 'mobile', 'credit', 'payment', 'class', 'channel', 'other'],
+  updateField: ['name', 'cr', 'vat', 'address', 'contact', 'mobile', 'email', 'credit', 'payment', 'class', 'channel', 'other'],
 };
 
 const ATTACH: FormField = { key: 'attachments', labelKey: 'rc_f_attachments', kind: 'attachments', hintKey: 'rc_h_attachments' };
@@ -49,20 +49,36 @@ export const REQUEST_FORMS: Record<RpTicketType, RequestForm> = {
   new_customer: {
     descKey: 'rc_desc_new_customer', customerRefKey: 'name', reasonKey: 'reason',
     fields: [
+      // Identity
       { key: 'name', labelKey: 'rc_f_name', kind: 'text', required: true },
       { key: 'code', labelKey: 'rc_f_code', kind: 'text', hintKey: 'rc_h_code' },
       { key: 'channel', labelKey: 'rc_f_channel', kind: 'select', options: 'channel', required: true },
-      { key: 'city', labelKey: 'rc_f_city', kind: 'text', required: true },
-      { key: 'area', labelKey: 'rc_f_area', kind: 'text', required: true },
-      { key: 'address', labelKey: 'rc_f_address', kind: 'textarea', required: true },
-      { key: 'gps', labelKey: 'rc_f_gps', kind: 'gps', required: true, primaryGps: true },
-      { key: 'salesmanRoute', labelKey: 'rc_f_salesmanRoute', kind: 'text' },
+      { key: 'class', labelKey: 'rc_f_class', kind: 'select', options: 'custClass' },
+      // Compliance / taxation
+      { key: '_sec_compliance', labelKey: 'rc_sec_compliance', kind: 'section' },
+      { key: 'cr', labelKey: 'rc_f_cr', kind: 'text', hintKey: 'rc_h_cr' },
+      { key: 'vat', labelKey: 'rc_f_vat', kind: 'text', hintKey: 'rc_h_vat' },
+      // Communication
+      { key: '_sec_contact', labelKey: 'rc_sec_contact', kind: 'section' },
       { key: 'contact', labelKey: 'rc_f_contact', kind: 'text', required: true },
       { key: 'mobile', labelKey: 'rc_f_mobile', kind: 'tel', required: true },
-      { key: 'tax', labelKey: 'rc_f_tax', kind: 'text' },
+      { key: 'email', labelKey: 'rc_f_email', kind: 'email' },
+      // National Address (structured) — GPS kept separate
+      { key: '_sec_address', labelKey: 'rc_sec_address', kind: 'section' },
+      { key: 'buildingNo', labelKey: 'rc_f_buildingNo', kind: 'text', required: true },
+      { key: 'street', labelKey: 'rc_f_street', kind: 'text', required: true },
+      { key: 'district', labelKey: 'rc_f_district', kind: 'text', required: true },
+      { key: 'city', labelKey: 'rc_f_city', kind: 'text', required: true },
+      { key: 'postalCode', labelKey: 'rc_f_postalCode', kind: 'text', required: true },
+      { key: 'additionalNo', labelKey: 'rc_f_additionalNo', kind: 'text', required: true, hintKey: 'rc_h_additionalNo' },
+      { key: 'unitNo', labelKey: 'rc_f_unitNo', kind: 'text' },
+      { key: 'gps', labelKey: 'rc_f_gps', kind: 'gps', required: true, primaryGps: true },
+      // Routing & credit
+      { key: '_sec_ops', labelKey: 'rc_sec_ops', kind: 'section' },
+      { key: 'salesmanRoute', labelKey: 'rc_f_salesmanRoute', kind: 'text' },
       { key: 'creditLimit', labelKey: 'rc_f_creditLimit', kind: 'number' },
       { key: 'paymentTerms', labelKey: 'rc_f_paymentTerms', kind: 'select', options: 'paymentTerms' },
-      { key: 'class', labelKey: 'rc_f_class', kind: 'select', options: 'custClass' },
+      // Justification
       { key: 'reason', labelKey: 'rc_f_justification', kind: 'textarea', required: true },
       ATTACH, NOTES,
     ],
@@ -70,7 +86,7 @@ export const REQUEST_FORMS: Record<RpTicketType, RequestForm> = {
   update: {
     descKey: 'rc_desc_update', customerRefKey: 'customerRef', reasonKey: 'reason',
     fields: [
-      { key: 'customerRef', labelKey: 'rc_f_customerRef', kind: 'text', required: true },
+      { key: 'customerRef', labelKey: 'rc_f_customerRef', kind: 'customerRef', required: true, hintKey: 'rc_h_customerRef' },
       { key: 'field', labelKey: 'rc_f_field', kind: 'select', options: 'updateField', required: true },
       { key: 'currentValue', labelKey: 'rc_f_currentValue', kind: 'text', required: true },
       { key: 'newValue', labelKey: 'rc_f_newValue', kind: 'text', required: true },
@@ -83,7 +99,7 @@ export const REQUEST_FORMS: Record<RpTicketType, RequestForm> = {
   location_fix: {
     descKey: 'rc_desc_location_fix', customerRefKey: 'customerRef', reasonKey: 'reason',
     fields: [
-      { key: 'customerRef', labelKey: 'rc_f_customerRef', kind: 'text', required: true },
+      { key: 'customerRef', labelKey: 'rc_f_customerRef', kind: 'customerRef', required: true, hintKey: 'rc_h_customerRef' },
       { key: 'currentGps', labelKey: 'rc_f_currentGps', kind: 'gps' },
       { key: 'newGps', labelKey: 'rc_f_newGps', kind: 'gps', required: true, primaryGps: true },
       { key: 'addressNotes', labelKey: 'rc_f_addressNotes', kind: 'textarea' },
@@ -99,7 +115,7 @@ function stopForm(descKey: string): RequestForm {
   return {
     descKey, customerRefKey: 'customerRef', reasonKey: 'reason',
     fields: [
-      { key: 'customerRef', labelKey: 'rc_f_customerRef', kind: 'text', required: true },
+      { key: 'customerRef', labelKey: 'rc_f_customerRef', kind: 'customerRef', required: true, hintKey: 'rc_h_customerRef' },
       { key: 'stopType', labelKey: 'rc_f_stopType', kind: 'stopType', required: true },
       { key: 'effectiveDate', labelKey: 'rc_f_effectiveDate', kind: 'date', required: true },
       { key: 'reason', labelKey: 'rc_f_stopReason', kind: 'textarea', required: true },
@@ -112,7 +128,7 @@ function routeForm(descKey: string): RequestForm {
   return {
     descKey, customerRefKey: 'customerRef', reasonKey: 'reason',
     fields: [
-      { key: 'customerRef', labelKey: 'rc_f_customerRef', kind: 'text', required: true },
+      { key: 'customerRef', labelKey: 'rc_f_customerRef', kind: 'customerRef', required: true, hintKey: 'rc_h_customerRef' },
       { key: 'currentRoute', labelKey: 'rc_f_currentRoute', kind: 'text', required: true },
       { key: 'requestedRoute', labelKey: 'rc_f_requestedRoute', kind: 'text', required: true },
       { key: 'effectiveDate', labelKey: 'rc_f_effectiveDate', kind: 'date', required: true },
@@ -123,7 +139,7 @@ function routeForm(descKey: string): RequestForm {
 
 /** Value accessor for a field given the flat form-values map (gps uses `${key}_lat/_lng`). */
 export function fieldFilled(field: FormField, values: Record<string, string>): boolean {
-  if (field.kind === 'attachments' || field.kind === 'stopType') return true; // not user-required text
+  if (field.kind === 'attachments' || field.kind === 'stopType' || field.kind === 'section') return true; // not user-required text
   if (field.kind === 'gps') {
     const lat = values[`${field.key}_lat`]?.trim(); const lng = values[`${field.key}_lng`]?.trim();
     return Boolean(lat && lng && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)));
@@ -140,7 +156,7 @@ export function validateRequest(form: RequestForm, values: Record<string, string
 export function buildDetails(form: RequestForm, values: Record<string, string>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const f of form.fields) {
-    if (f.kind === 'attachments' || f.kind === 'stopType') continue;
+    if (f.kind === 'attachments' || f.kind === 'stopType' || f.kind === 'section') continue;
     if (f.kind === 'gps') {
       const lat = values[`${f.key}_lat`]?.trim(); const lng = values[`${f.key}_lng`]?.trim();
       if (lat && lng) out[f.key] = { lat: Number(lat), lng: Number(lng) };

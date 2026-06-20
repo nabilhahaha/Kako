@@ -267,7 +267,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
           {/* Request Center — trackable customer/route tickets (routing only). */}
           {view === 'requests' && (
             <div className="h-full">
-              <RequestCenterView meId={userId} />
+              <RequestCenterView meId={userId} customers={seed} />
             </div>
           )}
 
