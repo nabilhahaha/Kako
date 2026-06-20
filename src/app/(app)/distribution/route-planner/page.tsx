@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
 import { getT } from '@/lib/i18n/server';
 import { resolveSubscription, subscriptionInputFor } from '@/lib/erp/route-planner-subscription';
+import { missionPermsOf } from '@/lib/erp/route-planner-access';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { RoutePlannerShell } from './route-planner-shell';
 
@@ -38,6 +39,7 @@ export default async function RoutePlannerPage() {
         features={null}
         isAdmin={ctx.isSuperAdmin || ctx.isPlatformOwner || ctx.topRole === 'admin' || ctx.isRoutePlannerAdmin}
         integrationAdmin={ctx.isSuperAdmin || ctx.isPlatformOwner || ctx.topRole === 'admin' || ctx.isRoutePlannerAdmin || ctx.routePlannerAccess?.role === 'route_planner_admin'}
+        missionPerms={missionPermsOf(ctx.routePlannerAccess ?? null)}
       />
     );
   }

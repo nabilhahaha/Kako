@@ -202,6 +202,25 @@ export async function addStopObservation(input: {
   return { ok: true, data: { id: data.id as string } };
 }
 
+/**
+ * Users the caller may assign a mission to — their reporting subtree (rp_visible_users),
+ * with display names. Excludes the caller. Drives the "select supervisor" step. RLS-safe.
+ */
+export async function listAssignableUsers(): Promise<Result<{ id: string; name: string }[]>> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const { data: vis, error } = await sb.rpc('rp_visible_users', { p_company: ctx.companyId });
+  if (error) return { ok: false, error: error.message };
+  const ids = (vis as { user_id: string }[] | null ?? []).map((r) => r.user_id).filter((id) => id !== ctx.userId);
+  if (ids.length === 0) return { ok: true, data: [] };
+  const { data: profs } = await sb.from('erp_profiles').select('id, full_name, email').in('id', ids);
+  const rows = (profs ?? []).map((p) => ({
+    id: p.id as string,
+    name: (p.full_name as string | null) || (p.email as string | null) || String(p.id).slice(0, 8),
+  })).sort((a, b) => a.name.localeCompare(b.name));
+  return { ok: true, data: rows };
+}
+
 export async function deleteMission(missionId: string): Promise<Result> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();

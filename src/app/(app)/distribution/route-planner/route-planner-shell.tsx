@@ -5,7 +5,7 @@ import {
   Home, Map as MapIcon, CalendarRange, Bookmark, LayoutTemplate, Users, UsersRound, Filter, UploadCloud,
   Globe2, Building2, PencilRuler, UserCheck, ClipboardCheck, History, Images, AlertTriangle, Swords,
   Lightbulb, ListChecks, PieChart, Gauge, Timer, Repeat, UserX, ChevronDown, ChevronRight, Menu, X,
-  Route as RouteIcon, LogOut, User as UserIcon, Database, Activity, ClipboardList, Inbox, Network, ShieldCheck, GitBranch, type LucideIcon,
+  Route as RouteIcon, LogOut, User as UserIcon, Database, Activity, ClipboardList, Inbox, Network, ShieldCheck, GitBranch, Target, type LucideIcon,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { LanguageToggle } from '@/components/layout/language-toggle';
@@ -18,6 +18,8 @@ import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { DayPlanner } from './day-planner';
 import { CustomersView } from './customers-view';
 import { TerritoriesView } from './territories-view';
+import { MissionsView } from './missions-view';
+import type { MissionPerms } from '@/lib/erp/route-planner-access';
 import { IntegrationView } from './integration-view';
 import { RequestCenterView } from './request-center-view';
 import { ReportingAdminView } from './reporting-admin-view';
@@ -27,7 +29,7 @@ import { ApprovalBuilderView } from './approval-builder-view';
  *  (erp_route_planner_access); kept local here so this PR stays independent of #310. */
 type RpFeature = 'route_planning' | 'day_planner' | 'field_missions' | 'reports';
 
-type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'soon';
+type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'missions' | 'soon';
 type Section = 'planning' | 'data' | 'operations' | 'admin';
 interface NavItem { key: string; labelKey: string; icon: LucideIcon; action: Action }
 interface NavGroup { key: string; labelKey: string; icon: LucideIcon; section: Section; feature?: RpFeature; adminOnly?: boolean; items: NavItem[] }
@@ -61,6 +63,7 @@ const NAV: NavGroup[] = [
     { key: 'territoryAssignment', labelKey: 'i_territoryAssignment', icon: UserCheck, action: 'soon' },
   ] },
   { key: 'execution', labelKey: 'g_execution', icon: ClipboardCheck, section: 'operations', feature: 'field_missions', items: [
+    { key: 'missions', labelKey: 'i_missions', icon: Target, action: 'missions' },
     { key: 'supervisorVisits', labelKey: 'i_supervisorVisits', icon: ClipboardCheck, action: 'soon' },
     { key: 'customerVisitHistory', labelKey: 'i_customerVisitHistory', icon: History, action: 'soon' },
     { key: 'photosEvidence', labelKey: 'i_photosEvidence', icon: Images, action: 'soon' },
@@ -99,7 +102,7 @@ const NAV: NavGroup[] = [
  * runs on the existing, dataset-fed engine (no logic rebuilt). Groups the user's
  * `features` (erp_route_planner_access) don't include are hidden.
  */
-export function RoutePlannerShell({ subscription, demo = false, userEmail, userId = null, features, isAdmin = false, integrationAdmin = false }: {
+export function RoutePlannerShell({ subscription, demo = false, userEmail, userId = null, features, isAdmin = false, integrationAdmin = false, missionPerms }: {
   subscription?: RoutePlannerSubscriptionView;
   demo?: boolean;
   userEmail?: string | null;
@@ -111,9 +114,11 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
   isAdmin?: boolean;
   /** Can manage Integrations/connectors — company admin OR the tenant route_planner_admin. */
   integrationAdmin?: boolean;
+  /** Resolved Supervisor-Mission capabilities (create / assign / execute / review). */
+  missionPerms?: MissionPerms;
 }) {
   const { t } = useI18n();
-  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'soon'>('home');
+  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'missions' | 'soon'>('home');
   const [custFocusSegments, setCustFocusSegments] = useState(false);
   const [terrGroup, setTerrGroup] = useState<'region' | 'city' | 'area'>('region');
   const [soonLabel, setSoonLabel] = useState('');
@@ -151,6 +156,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
     else if (item.action === 'requests') setView('requests');
     else if (item.action === 'reporting') setView('reporting');
     else if (item.action === 'approvals') setView('approvals');
+    else if (item.action === 'missions') setView('missions');
     else { setSoonLabel(t(`rpShell.${item.labelKey}` as Parameters<typeof t>[0])); setView('soon'); }
   }
   function goHome() { setActive('home'); setView('home'); setDrawer(false); }
@@ -284,6 +290,13 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
           {view === 'integration' && (
             <div className="h-full">
               <IntegrationView canManage={isAdmin || integrationAdmin} onDatasetChange={reloadActiveDataset} />
+            </div>
+          )}
+
+          {/* Supervisor Missions — manager builder + list (field operations). */}
+          {view === 'missions' && (
+            <div className="h-full">
+              <MissionsView customers={effectiveSeed} perms={missionPerms ?? { canCreate: true, canAssign: true, canExecute: true, canReview: true }} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
             </div>
           )}
 
