@@ -641,6 +641,15 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
           </table>
         </div>
       )}
+
+      {/* Sticky mobile action bar — the two most-used actions within thumb reach.
+          Only on small screens (desktop uses the header) and only after a plan exists. */}
+      {step === 'plan' && order && !mobileView && (
+        <div className="flex shrink-0 items-center gap-2 border-t bg-background p-2 lg:hidden print:hidden">
+          <Button className="h-11 flex-1 text-sm" onClick={shareWhatsApp}><Share2 className="h-4 w-4" /> {t('dayPlanner.share')}</Button>
+          <Button variant="outline" className="h-11 flex-1 text-sm" onClick={() => setMobileView(true)}><Smartphone className="h-4 w-4" /> {t('dayPlanner.mobileView')}</Button>
+        </div>
+      )}
     </div>
   );
 }
