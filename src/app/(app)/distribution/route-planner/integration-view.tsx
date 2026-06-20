@@ -149,6 +149,9 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
         <p className="text-sm font-bold">{t('rpShell.g_integrations')}</p>
       </div>
 
+      <p className="flex items-start gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+        <Activity className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{t('rpShell.intg_purpose')}</span>
+      </p>
       {!canManage && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('rpShell.intg_readOnly')}</p>
       )}

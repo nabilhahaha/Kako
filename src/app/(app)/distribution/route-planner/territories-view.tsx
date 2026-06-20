@@ -44,6 +44,7 @@ export function TerritoriesView({ customers, initialGroup = 'region', onImport }
         <p className="text-lg font-semibold">{t('rpShell.g_territories')}</p>
         <p className="max-w-sm text-sm text-muted-foreground">{t('rpShell.cust_empty')}</p>
         <Button onClick={onImport}><UploadCloud className="h-4 w-4" /> {t('rpShell.i_importCustomers')}</Button>
+        <p className="max-w-md text-xs text-muted-foreground/80">{t('rpShell.rp_session')}</p>
       </div>
     );
   }
