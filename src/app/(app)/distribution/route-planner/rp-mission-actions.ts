@@ -272,6 +272,33 @@ export async function deleteMission(missionId: string): Promise<Result> {
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
+/**
+ * Customer insight — Planner-only visit history for one customer (by code), aggregated
+ * from mission stops + events visible to the caller (RLS). No ERP sales data is produced
+ * here; sales/last-invoice come only from the imported dataset attrs (passed by the UI).
+ */
+export async function customerInsight(code: string): Promise<Result<{ visits: number; lastVisitAt: number | null; issues: number; opportunities: number; competitors: number; photos: number; followUps: number; notes: number }>> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  if (!code) return { ok: true, data: { visits: 0, lastVisitAt: null, issues: 0, opportunities: 0, competitors: 0, photos: 0, followUps: 0, notes: 0 } };
+  const sb = await createClient();
+  const { data: stops } = await sb.from('erp_rp_mission_stops').select('id, status, check_out_at').eq('company_id', ctx.companyId).eq('customer_code', code);
+  const stopIds = (stops ?? []).map((s) => s.id as string);
+  const visits = (stops ?? []).filter((s) => s.status === 'done').length;
+  let lastVisitAt: number | null = null;
+  for (const s of stops ?? []) if (s.check_out_at) { const t = new Date(s.check_out_at as string).getTime(); if (lastVisitAt === null || t > lastVisitAt) lastVisitAt = t; }
+  const counts = { issues: 0, opportunities: 0, competitors: 0, photos: 0, followUps: 0, notes: 0 };
+  if (stopIds.length) {
+    const { data: events } = await sb.from('erp_rp_mission_events').select('kind').in('stop_id', stopIds);
+    for (const e of events ?? []) {
+      const k = e.kind as string;
+      if (k === 'issue') counts.issues++; else if (k === 'opportunity') counts.opportunities++;
+      else if (k === 'competitor') counts.competitors++; else if (k === 'photo') counts.photos++;
+      else if (k === 'follow_up') counts.followUps++; else if (k === 'note') counts.notes++;
+    }
+  }
+  return { ok: true, data: { visits, lastVisitAt, ...counts } };
+}
+
 /** Stops of active/planned missions (visible via RLS) for the manager dashboard map. */
 export async function missionMapStops(): Promise<Result<{ id: string; name: string; lat: number; lng: number; status: string; mission: string }[]>> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };

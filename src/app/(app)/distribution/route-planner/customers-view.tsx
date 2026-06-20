@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { DpCustomer } from '@/lib/tis/day-planner-import';
 import { loadSegments, syncSegments, persistSegment, removeSegment, isFilterActive, type SegmentFilter, type RpSegment } from './route-planner-segments';
+import { CustomerInsightPanel } from './customer-insight-panel';
 
 type FacetKey = 'city' | 'area' | 'salesman' | 'channel' | 'class';
 
@@ -28,6 +29,7 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
   const [filter, setFilter] = useState<Partial<Record<FacetKey, string>>>({});
   const [segments, setSegments] = useState<RpSegment[]>([]);
   const [segName, setSegName] = useState('');
+  const [insightCustomer, setInsightCustomer] = useState<DpCustomer | null>(null);
 
   // Instant paint from the cache, then reconcile with the server (migrates local-only
   // segments up on first load; falls back to the cache when offline / unauthenticated).
@@ -137,7 +139,7 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
             {filtered.slice(0, 2000).map((c) => {
               const gps = Number.isFinite(c.lat) && Number.isFinite(c.lng) && !(c.lat === 0 && c.lng === 0);
               return (
-                <tr key={c.id} className="border-t hover:bg-muted/40">
+                <tr key={c.id} onClick={() => setInsightCustomer(c)} className="cursor-pointer border-t hover:bg-muted/40">
                   <td className="whitespace-nowrap px-2 py-1 text-muted-foreground" dir="ltr">{c.code ?? ''}</td>
                   <td className="px-2 py-1 font-medium">{c.name}
                     {/* Surface city/salesman under the name where those columns are hidden. */}
@@ -155,6 +157,7 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
           </tbody>
         </table>
       </div>
+      {insightCustomer && <CustomerInsightPanel customer={insightCustomer} onClose={() => setInsightCustomer(null)} />}
     </div>
   );
 }
