@@ -19,6 +19,7 @@ import { DayPlannerMap, type DayMapPoint, type DayMapEndpoint, type DaySelectMod
 import { loadDpTemplates, saveDpTemplate, deleteDpTemplate, findBestTemplate, type DpTemplate } from './day-planner-templates';
 import { saveDayPlannerDraft, loadDayPlannerDraft, clearDayPlannerDraft, type DayPlannerDraft } from './day-planner-draft';
 import { loadDpPlans, saveDpPlan, deleteDpPlan, getDpPlan, planShareUrl, type DpSavedPlan } from './day-planner-plans';
+import { loadSegments, filterBySegment, type RpSegment } from './route-planner-segments';
 import { getDpLocation, setDpLocation, type DpLocationKey } from './day-planner-locations';
 
 /** Estimated minutes spent at each stop (service time), used for the day-effort estimate. */
@@ -91,10 +92,11 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
   const [importing, setImporting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const [segments, setSegments] = useState<RpSegment[]>([]);
   const [pendingDraft, setPendingDraft] = useState<DayPlannerDraft | null>(null);
   const decided = useRef(false);
 
-  useEffect(() => { setTemplates(loadDpTemplates()); setPlans(loadDpPlans()); }, []);
+  useEffect(() => { setTemplates(loadDpTemplates()); setPlans(loadDpPlans()); setSegments(loadSegments()); }, []);
 
   // ── On mount: a ?plan=<id> link reopens a saved plan; else offer draft recovery;
   //    else (dataset present) open straight onto it. ──
@@ -179,6 +181,12 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
     if (!seedCustomers || seedCustomers.length === 0) return;
     loadIntoPlan(seedCustomers);
     if (startDrawing) setSelectMode('box');
+  }
+  function useSegment(s: RpSegment) {
+    if (!seedCustomers || seedCustomers.length === 0) return;
+    const subset = filterBySegment(seedCustomers, s.filter);
+    if (subset.length === 0) { setMsg(t('dayPlanner.segEmpty')); return; }
+    loadIntoPlan(subset);
   }
   function loadIntoPlan(cs: DpCustomer[]) {
     decided.current = true;
@@ -433,6 +441,20 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
                   <p className="text-xs text-muted-foreground">{t('dayPlanner.srcUploadHint')}</p>
                 </div>
               </button>
+            )}
+
+            {/* Plan a saved segment — pick a named segment to plan its customers. */}
+            {hasSeed && segments.length > 0 && (
+              <div className="rounded-xl border p-3">
+                <p className="mb-2 text-xs font-semibold text-muted-foreground">{t('dayPlanner.planSegment')}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {segments.map((s) => (
+                    <button key={s.id} onClick={() => useSegment(s)} className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs hover:border-primary hover:bg-muted">
+                      <Filter className="h-3.5 w-3.5 text-primary" /> {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Saved plans — prominent, one tap to reopen. */}

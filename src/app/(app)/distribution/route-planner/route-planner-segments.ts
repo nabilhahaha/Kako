@@ -63,3 +63,18 @@ export function deleteSegment(id: string): RpSegment[] {
 export function isFilterActive(f: SegmentFilter): boolean {
   return !!(f.search || f.city || f.area || f.salesman || f.channel || f.class);
 }
+
+/** Apply a segment filter to a customer list. Shared by Customers + Day Planner. Pure. */
+export function filterBySegment<T extends { name: string; code?: string | null; city?: string | null; area?: string | null; salesman?: string | null; channel?: string | null; class?: string | null }>(
+  customers: readonly T[],
+  f: SegmentFilter,
+): T[] {
+  const q = (f.search ?? '').trim().toLowerCase();
+  return customers.filter((c) => {
+    if (q && !(c.name.toLowerCase().includes(q) || (c.code ?? '').toLowerCase().includes(q))) return false;
+    for (const k of ['city', 'area', 'salesman', 'channel', 'class'] as const) {
+      if (f[k] && ((c[k] ?? '') as string).toString().trim() !== f[k]) return false;
+    }
+    return true;
+  });
+}
