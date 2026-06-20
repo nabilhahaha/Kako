@@ -43,10 +43,13 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
   const [uEmail, setUEmail] = useState('');
   const [uPassword, setUPassword] = useState('');
   const [uRole, setURole] = useState<'admin' | 'user'>('user');
+  // After a successful create we keep the modal open showing the exact credentials, so the
+  // admin hands over the precise email/password (the #1 cause of "can't log in" is a typo).
+  const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string } | null>(null);
 
   function openAddUser(c: PlannerTenantRow) {
     setAddUserFor({ id: c.id, name: c.name });
-    setUName(''); setUEmail(''); setUPassword(''); setURole('user'); setActionError(null);
+    setUName(''); setUEmail(''); setUPassword(''); setURole('user'); setActionError(null); setCreatedCreds(null);
   }
   function submitAddUser() {
     if (!addUserFor) return;
@@ -54,8 +57,8 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
       const res = await addRoutePlannerUser(addUserFor.id, { name: uName, email: uEmail, password: uPassword, role: uRole });
       if (!res.ok) { setActionError(res.error ?? null); toast.error(t('routePlanner.adminError'), { description: res.error }); return; }
       setActionError(null);
+      setCreatedCreds({ email: uEmail.trim().toLowerCase(), password: uPassword });
       toast.success(t('routePlanner.adminUserCreated'));
-      setAddUserFor(null);
     });
   }
 
@@ -285,6 +288,20 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
               <p className="text-sm font-bold">{t('routePlanner.adminAddUser')} · <span className="font-medium text-muted-foreground">{addUserFor.name}</span></p>
               <button onClick={() => setAddUserFor(null)} className="rounded p-1 hover:bg-muted"><X className="h-4 w-4" /></button>
             </div>
+            {createdCreds ? (
+              <div className="space-y-3">
+                <p className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600"><CheckCircle2 className="h-4 w-4" /> {t('routePlanner.adminUserCreated')}</p>
+                <div className="space-y-1 rounded-md border bg-muted/40 p-2 font-mono text-xs">
+                  <p>email: <b>{createdCreds.email}</b></p>
+                  <p>password: <b>{createdCreds.password}</b></p>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{t('routePlanner.adminUserCredsNote')}</p>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { navigator.clipboard?.writeText(`${createdCreds.email} / ${createdCreds.password}`).then(() => toast.success(t('routePlanner.copiedNumber'))).catch(() => {}); }}>{t('routePlanner.copyNumber')}</Button>
+                  <Button size="sm" onClick={() => setAddUserFor(null)}>{t('routePlanner.adminUserDone')}</Button>
+                </div>
+              </div>
+            ) : (
             <div className="space-y-2.5">
               <div>
                 <label className="block text-[11px] text-muted-foreground">{t('routePlanner.adminUserName')}</label>
@@ -311,6 +328,7 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
                 <Button size="sm" onClick={submitAddUser} disabled={pending || !uEmail.trim() || uPassword.length < 6}><UserPlus className="h-4 w-4" /> {t('routePlanner.adminUserCreate')}</Button>
               </div>
             </div>
+            )}
           </div>
         </div>
       )}
