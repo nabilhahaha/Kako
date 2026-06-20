@@ -5,6 +5,11 @@ import {
   journeyExportRows,
   journeyRouteKpis,
   validateJourneyPlan,
+  sequenceStops,
+  buildJourneySequences,
+  sequenceNumberOf,
+  validateSequencing,
+  seqKey,
   dayColorOf,
   JOURNEY_DAY_COLORS,
   visitsPerCycle,
@@ -136,13 +141,53 @@ describe('validateJourneyPlan', () => {
   });
 });
 
+describe('sequencing', () => {
+  const start = { lat: 24.70, lng: 46.58, name: 'Depot' };
+  const end = { lat: 24.72, lng: 46.86, name: 'Home' };
+
+  it('orders stops from start, ending at the customer nearest the end', () => {
+    const members = [
+      { id: 'a', lat: 24.70, lng: 46.60 },
+      { id: 'b', lat: 24.71, lng: 46.85 }, // nearest the end → must be last
+      { id: 'c', lat: 24.70, lng: 46.70 },
+    ];
+    const order = sequenceStops(members, start, end);
+    expect(order.length).toBe(3);
+    expect(new Set(order).size).toBe(3);
+    expect(order[order.length - 1]).toBe('b');
+    expect(order[0]).toBe('a'); // nearest the start
+  });
+
+  it('builds per-(route,day) sequences with fallback flags and 1-based numbers', () => {
+    const cs: JourneyRoutedCustomer[] = grid().map((c) => ({ ...c, routeId: c.lng < 46.71 ? 'R-W' : 'R-E' }));
+    const plan = generateJourneyPlan(cs);
+    const seqs = buildJourneySequences(cs, plan, new Map()); // no start/end → all fallback
+    expect(seqs.size).toBeGreaterThan(0);
+    for (const s of seqs.values()) { expect(s.startFallback).toBe(true); expect(s.endFallback).toBe(true); }
+    // every sequenced customer gets a positive number on its day
+    const first = [...seqs.values()][0];
+    expect(sequenceNumberOf(seqs, first.routeId, first.day, first.order[0])).toBe(1);
+    // validation flags the fallback start/end
+    const w = validateSequencing(cs, plan, seqs);
+    expect(w.some((x) => x.kind === 'seq_missing_start')).toBe(true);
+  });
+
+  it('respects a configured start/end (no fallback flag)', () => {
+    const cs: JourneyRoutedCustomer[] = grid().map((c) => ({ ...c, routeId: 'R1' }));
+    const plan = generateJourneyPlan(cs);
+    const seqs = buildJourneySequences(cs, plan, new Map([['R1', { start, end }]]));
+    for (const s of seqs.values()) { expect(s.startFallback).toBe(false); expect(s.endFallback).toBe(false); }
+    expect([...seqs.keys()][0]).toBe(seqKey([...seqs.values()][0].routeId, [...seqs.values()][0].day));
+  });
+});
+
 describe('journeyExportRows', () => {
   it('emits one row per customer-day with the required columns', () => {
     const cs = grid();
     const plan = generateJourneyPlan(cs);
-    const ex: JourneyExportCustomer[] = cs.map((c) => ({ ...c, code: c.id.toUpperCase(), name: `Cust ${c.id}`, routeLabel: 'Route 1', sales: 1000 }));
+    const ex: JourneyExportCustomer[] = cs.map((c) => ({ ...c, code: c.id.toUpperCase(), name: `Cust ${c.id}`, routeId: 'R1', routeLabel: 'Route 1', sales: 1000 }));
     const rows = journeyExportRows(ex, plan, (d) => d, true);
-    expect(rows[0]).toEqual(['Route / Salesman', 'Customer Code', 'Customer Name', 'Frequency', 'Visit Day', 'Week Pattern', 'Visit Count', 'Sequence', 'Latitude', 'Longitude', 'Sales']);
+    expect(rows[0]).toEqual(['Route / Salesman', 'Visit Day', 'Week Pattern', 'Customer Code', 'Customer Name', 'Frequency', 'Visit Count', 'Sequence Number', 'Start Point', 'End Point', 'Latitude', 'Longitude', 'Sales']);
     // 24 customers, all 1×/week → 24 data rows.
     expect(rows.length).toBe(1 + 24);
     expect(computeDayLoads(cs, plan.assignments).reduce((s, d) => s + d.customers, 0)).toBe(24);

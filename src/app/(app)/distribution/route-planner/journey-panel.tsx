@@ -107,7 +107,7 @@ export function JourneyPanel({ customers, hasSales, onClose }: { customers: Jour
 
   function exportJourney() {
     if (!plan) return;
-    const ex: JourneyExportCustomer[] = customers.map((c) => ({ id: c.id, lat: c.lat, lng: c.lng, frequency: freq.get(c.id) ?? 'w1', sales: c.sales, code: c.code, name: c.name, routeLabel: c.routeLabel }));
+    const ex: JourneyExportCustomer[] = customers.map((c) => ({ id: c.id, lat: c.lat, lng: c.lng, frequency: freq.get(c.id) ?? 'w1', sales: c.sales, code: c.code, name: c.name, routeId: c.routeId, routeLabel: c.routeLabel }));
     const rows = journeyExportRows(ex, plan, dayLabel, hasSales);
     const bytes = buildXlsxWorkbook([{ name: 'Journey Plan', rows }]);
     downloadXlsx(new Blob([bytes as unknown as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'journey-plan.xlsx');
