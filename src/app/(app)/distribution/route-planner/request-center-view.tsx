@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ClipboardList, Plus, X, MapPin, Info, ChevronRight, UserPlus, FileEdit, PauseCircle, StopCircle, Repeat, Crosshair, Route as RouteIcon, type LucideIcon } from 'lucide-react';
+import { ClipboardList, Plus, X, Info, ChevronRight, UserPlus, FileEdit, PauseCircle, StopCircle, Repeat, Crosshair, Route as RouteIcon, type LucideIcon } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
-import { RP_TICKET_TYPES, RP_TICKET_STATUSES, RP_PROOF_REQUIRED, type RpTicketType, type RpTicketStatus } from '@/lib/erp/route-planner-backend';
+import { RP_TICKET_TYPES, RP_TICKET_STATUSES, type RpTicketType, type RpTicketStatus } from '@/lib/erp/route-planner-backend';
+import { REQUEST_FORMS, OPTION_SETS, validateRequest, buildDetails, primaryGps, type FormField } from '@/lib/erp/route-planner-request-forms';
 import { createRequest, listRequests, transitionRequest } from './rp-backend-actions';
 
 type Req = Record<string, unknown>;
@@ -56,12 +57,10 @@ export function RequestCenterView() {
   const [selected, setSelected] = useState<Req | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // create form
-  const [type, setType] = useState<RpTicketType>('update');
-  const [customerRef, setCustomerRef] = useState('');
-  const [reason, setReason] = useState('');
-  const [lat, setLat] = useState('');
-  const [lng, setLng] = useState('');
+  // create form — schema-driven per ticket type
+  const [type, setType] = useState<RpTicketType>('new_customer');
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { void refresh(); }, []);
@@ -73,18 +72,27 @@ export function RequestCenterView() {
     setLoading(false);
   }
 
-  const proofNeeded = RP_PROOF_REQUIRED.includes(type);
+  const form = REQUEST_FORMS[type];
   const shown = filter === 'all' ? requests : requests.filter((r) => String(r.status) === filter);
 
+  function setVal(k: string, v: string) { setValues((s) => ({ ...s, [k]: v })); }
+
   async function submit() {
-    setMsg(null); setBusy(true);
+    setMsg(null);
+    const missing = validateRequest(form, values);
+    if (missing.length) { setErrors(missing); return; }
+    setErrors([]); setBusy(true);
+    const gps = primaryGps(form, values);
     const r = await createRequest({
-      type, customerRef: customerRef.trim() || null, reason: reason.trim() || undefined,
-      gpsLat: lat ? Number(lat) : null, gpsLng: lng ? Number(lng) : null,
+      type,
+      customerRef: values[form.customerRefKey]?.trim() || null,
+      reason: form.reasonKey ? values[form.reasonKey]?.trim() || undefined : undefined,
+      details: buildDetails(form, values),
+      gpsLat: gps?.lat ?? null, gpsLng: gps?.lng ?? null,
     });
     setBusy(false);
     if (!r.ok) { setMsg(r.error); return; }
-    setCreating(false); setCustomerRef(''); setReason(''); setLat(''); setLng(''); setType('update');
+    setCreating(false); setValues({});
     await refresh();
   }
 
@@ -97,8 +105,8 @@ export function RequestCenterView() {
   }
 
   function openCreate(preset?: RpTicketType) {
-    if (preset) setType(preset);
-    setSelected(null); setCreating(true);
+    setType(preset ?? 'new_customer');
+    setValues({}); setErrors([]); setSelected(null); setCreating(true);
   }
 
   const isEmpty = !loading && requests.length === 0;
@@ -181,29 +189,27 @@ export function RequestCenterView() {
       </div>
       )}
 
-      {/* Create slide-over */}
+      {/* Create slide-over — schema-driven smart form per ticket type */}
       {creating && (
         <Drawer title={t('rpShell.rc_new')} onClose={() => setCreating(false)}>
           <label className="block text-xs font-medium">{t('rpShell.rc_type')}</label>
-          <select value={type} onChange={(e) => setType(e.target.value as RpTicketType)} className="w-full rounded-md border px-2 py-1.5 text-sm">
+          <select value={type} onChange={(e) => { setType(e.target.value as RpTicketType); setErrors([]); }} className="w-full rounded-md border px-2 py-2 text-sm">
             {RP_TICKET_TYPES.map((ty) => <option key={ty} value={ty}>{t(`rpShell.rc_type_${ty}` as Parameters<typeof t>[0])}</option>)}
           </select>
+          <p className="mt-1.5 text-[11px] text-muted-foreground">{t(`rpShell.${form.descKey}` as Parameters<typeof t>[0])}</p>
 
-          <label className="mt-3 block text-xs font-medium">{t('rpShell.rc_customer')}</label>
-          <input value={customerRef} onChange={(e) => setCustomerRef(e.target.value)} placeholder={t('rpShell.rc_customerHint')} className="w-full rounded-md border px-2 py-1.5 text-sm" />
-
-          <label className="mt-3 block text-xs font-medium">{t('rpShell.rc_reason')}</label>
-          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} className="w-full rounded-md border px-2 py-1.5 text-sm" />
-
-          {proofNeeded && (
-            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2">
-              <p className="mb-1.5 flex items-center gap-1 text-[11px] font-medium text-amber-800"><MapPin className="h-3.5 w-3.5" /> {t('rpShell.rc_gpsRequired')}</p>
-              <div className="flex gap-2">
-                <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder={t('dayPlanner.f_lat')} dir="ltr" className="w-1/2 rounded-md border px-2 py-1.5 text-sm" />
-                <input value={lng} onChange={(e) => setLng(e.target.value)} placeholder={t('dayPlanner.f_lng')} dir="ltr" className="w-1/2 rounded-md border px-2 py-1.5 text-sm" />
-              </div>
+          {errors.length > 0 && (
+            <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+              <p className="font-medium">{t('rpShell.rc_fixErrors')}</p>
+              <p>{errors.map((lk) => t(`rpShell.${lk}` as Parameters<typeof t>[0])).join('، ')}</p>
             </div>
           )}
+
+          <div className="mt-1">
+            {form.fields.map((f) => (
+              <FieldInput key={f.key} field={f} values={values} setVal={setVal} type={type} setType={setType} invalid={errors.includes(f.labelKey)} t={t} />
+            ))}
+          </div>
 
           <div className="mt-4 flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={() => setCreating(false)}>{t('dayPlanner.back')}</Button>
@@ -220,8 +226,10 @@ export function RequestCenterView() {
           <Field label={t('rpShell.rc_status')}>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_TONE[String(selected.status)] ?? 'bg-muted'}`}>{t(`rpShell.rc_status_${String(selected.status)}` as Parameters<typeof t>[0])}</span>
           </Field>
-          {selected.reason ? <Field label={t('rpShell.rc_reason')} value={String(selected.reason)} /> : null}
           {(selected.gps_lat != null && selected.gps_lng != null) ? <Field label={t('rpShell.rc_gps')} value={`${selected.gps_lat}, ${selected.gps_lng}`} /> : null}
+
+          {/* Submitted request details (per-type fields). Routing/tracking only. */}
+          <DetailFields request={selected} t={t} />
 
           <p className="mt-4 mb-1.5 text-xs font-semibold">{t('rpShell.rc_moveTo')}</p>
           <div className="flex flex-wrap gap-1.5">
@@ -264,4 +272,71 @@ function Field({ label, value, children }: { label: string; value?: string; chil
       {children ?? <p className="text-sm">{value}</p>}
     </div>
   );
+}
+
+const INPUT = 'w-full rounded-md border px-2 py-2 text-sm';
+
+/** One schema-driven form control with a required/optional label and mobile-friendly sizing. */
+function FieldInput({ field, values, setVal, type, setType, invalid, t }: {
+  field: FormField; values: Record<string, string>; setVal: (k: string, v: string) => void;
+  type: RpTicketType; setType: (t: RpTicketType) => void; invalid: boolean; t: ReturnType<typeof useI18n>['t'];
+}) {
+  const tk = (k: string) => t(k as Parameters<typeof t>[0]);
+  const label = (
+    <label className="mt-3 flex items-center gap-1.5 text-xs font-medium">
+      {tk(`rpShell.${field.labelKey}`)}
+      {field.required ? <span className="text-red-500">*</span> : <span className="text-[10px] font-normal text-muted-foreground">{t('rpShell.rc_optional')}</span>}
+    </label>
+  );
+  const cls = `${INPUT} ${invalid ? 'border-red-400 bg-red-50/40' : ''}`;
+  const hint = field.hintKey ? <p className="mt-0.5 text-[10px] text-muted-foreground">{tk(`rpShell.${field.hintKey}`)}</p> : null;
+
+  if (field.kind === 'attachments') {
+    return <div>{label}<div className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-center text-[11px] text-muted-foreground">{tk(`rpShell.${field.hintKey ?? 'rc_h_attachments'}`)}</div></div>;
+  }
+  if (field.kind === 'stopType') {
+    return <div>{label}
+      <select value={type} onChange={(e) => setType(e.target.value as RpTicketType)} className={INPUT}>
+        <option value="temp_stop">{t('rpShell.rc_type_temp_stop')}</option>
+        <option value="perm_stop">{t('rpShell.rc_type_perm_stop')}</option>
+      </select></div>;
+  }
+  if (field.kind === 'gps') {
+    return <div>{label}
+      <div className="flex gap-2">
+        <input value={values[`${field.key}_lat`] ?? ''} onChange={(e) => setVal(`${field.key}_lat`, e.target.value)} placeholder={t('dayPlanner.f_lat')} dir="ltr" inputMode="decimal" className={cls} />
+        <input value={values[`${field.key}_lng`] ?? ''} onChange={(e) => setVal(`${field.key}_lng`, e.target.value)} placeholder={t('dayPlanner.f_lng')} dir="ltr" inputMode="decimal" className={cls} />
+      </div>{hint}</div>;
+  }
+  if (field.kind === 'select' && field.options) {
+    return <div>{label}
+      <select value={values[field.key] ?? ''} onChange={(e) => setVal(field.key, e.target.value)} className={cls}>
+        <option value="">{t('rpShell.rc_choose')}</option>
+        {OPTION_SETS[field.options].map((code) => <option key={code} value={code}>{tk(`rpShell.rc_opt_${field.options}_${code}`)}</option>)}
+      </select>{hint}</div>;
+  }
+  if (field.kind === 'textarea') {
+    return <div>{label}<textarea value={values[field.key] ?? ''} onChange={(e) => setVal(field.key, e.target.value)} rows={3} className={cls} />{hint}</div>;
+  }
+  const inputType = field.kind === 'number' ? 'number' : field.kind === 'tel' ? 'tel' : field.kind === 'date' ? 'date' : 'text';
+  const extra = field.kind === 'number' ? { inputMode: 'decimal' as const } : field.kind === 'tel' ? { inputMode: 'tel' as const, dir: 'ltr' as const } : field.kind === 'date' ? { dir: 'ltr' as const } : {};
+  return <div>{label}<input type={inputType} value={values[field.key] ?? ''} onChange={(e) => setVal(field.key, e.target.value)} className={cls} {...extra} />{hint}</div>;
+}
+
+/** Renders the submitted per-type detail fields (read-only) in the ticket detail drawer. */
+function DetailFields({ request, t }: { request: Record<string, unknown>; t: ReturnType<typeof useI18n>['t'] }) {
+  const type = String(request.type) as RpTicketType;
+  const form = REQUEST_FORMS[type];
+  const changes = (request.changes && typeof request.changes === 'object') ? request.changes as Record<string, unknown> : {};
+  const rows = form.fields.filter((f) => f.kind !== 'attachments' && f.kind !== 'stopType' && !f.primaryGps && changes[f.key] != null);
+  if (rows.length === 0) return null;
+  const val = (f: FormField, v: unknown): string => {
+    if (v == null) return '—';
+    if (f.kind === 'gps' && typeof v === 'object') { const o = v as { lat?: number; lng?: number }; return `${o.lat}, ${o.lng}`; }
+    if (f.kind === 'select' && f.options) return t(`rpShell.rc_opt_${f.options}_${String(v)}` as Parameters<typeof t>[0]);
+    return String(v);
+  };
+  return <div className="mt-1 rounded-md border bg-muted/20 p-2">{rows.map((f) => (
+    <Field key={f.key} label={t(`rpShell.${f.labelKey}` as Parameters<typeof t>[0])} value={val(f, changes[f.key])} />
+  ))}</div>;
 }

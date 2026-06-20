@@ -83,7 +83,7 @@ export async function listSyncRuns(limit = 50): Promise<Result<unknown[]>> {
 // ── Request Center ──────────────────────────────────────────────────────────
 export async function createRequest(input: {
   type: RpTicketType; customerRef?: string | null; changes?: Record<string, { old?: string; new?: string }>;
-  reason?: string; gpsLat?: number | null; gpsLng?: number | null;
+  details?: Record<string, unknown>; reason?: string; gpsLat?: number | null; gpsLng?: number | null;
 }): Promise<Result<{ id: string; ticketNo: string | null }>> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
@@ -91,7 +91,7 @@ export async function createRequest(input: {
   const { data, error } = await sb.from('erp_route_planner_requests').insert({
     company_id: ctx.companyId, ticket_no: (tn as string | null) ?? null, type: input.type,
     requested_by: ctx.userId, requested_role: ctx.topRole, customer_ref: input.customerRef ?? null,
-    changes: input.changes ?? {}, reason: input.reason ?? null, gps_lat: input.gpsLat ?? null, gps_lng: input.gpsLng ?? null,
+    changes: input.details ?? input.changes ?? {}, reason: input.reason ?? null, gps_lat: input.gpsLat ?? null, gps_lng: input.gpsLng ?? null,
     status: 'created',
   }).select('id, ticket_no').single();
   return error || !data ? { ok: false, error: error?.message ?? 'insert_failed' } : { ok: true, data: { id: data.id, ticketNo: data.ticket_no } };
