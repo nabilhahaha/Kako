@@ -1,11 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { X, Wand2, Check, FileDown, CalendarDays, MapPin, AlertTriangle, Hand, Square, PenTool, Eye } from 'lucide-react';
+import { X, Wand2, Check, FileDown, CalendarDays, MapPin, AlertTriangle, Hand, Square, PenTool, Eye, Save } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
+import { saveJourneyPlan } from './rp-plan-actions';
+import { serializeAssignments, serializeFrequencies, type StoredAssignment } from '@/lib/erp/route-planner-daily-plan';
 import { SelectionMap, type SelMapPoint } from './selection-map';
 import {
   generateJourneyPlan, computeDayLoads, journeyExportRows, journeyRouteKpis, validateJourneyPlan,
@@ -47,6 +50,9 @@ export function JourneyPanel({ customers, hasSales, onClose }: { customers: Jour
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [moveDay, setMoveDay] = useState<JourneyDay>('sat');
   const [selectMode, setSelectMode] = useState<'pan' | 'box' | 'draw'>('pan');
+  const [jpName, setJpName] = useState('');     // Wave C: save the journey plan to the server
+  const [jpSaving, setJpSaving] = useState(false);
+  const [jpSaved, setJpSaved] = useState(false);
 
   const byId = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
   const freqLabel = (f: JourneyFrequency) => t(`routePlanner.jpFreq_${f}` as Parameters<typeof t>[0]);
@@ -113,6 +119,20 @@ export function JourneyPanel({ customers, hasSales, onClose }: { customers: Jour
     downloadXlsx(new Blob([bytes as unknown as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'journey-plan.xlsx');
   }
 
+  // Wave C: persist the journey plan to the server (reopen across devices; basis for
+  // generating Daily Visit Plans). Serialises the assignments + frequency Maps and embeds
+  // the (geo-ordered) customer list so the plan is self-contained.
+  async function saveJourney() {
+    if (!plan) return;
+    setJpSaving(true);
+    const assignments = serializeAssignments(plan.assignments as unknown as Map<string, StoredAssignment>);
+    const frequencies = serializeFrequencies(freq as unknown as Map<string, string>);
+    const custs = customers.map((c) => ({ id: c.id, code: c.code, name: c.name, lat: c.lat, lng: c.lng, routeId: c.routeId, routeLabel: c.routeLabel }));
+    const res = await saveJourneyPlan(jpName.trim() || t('routePlanner.jpTitle'), frequencies, { assignments, dayLoads: plan.dayLoads, customers: custs });
+    setJpSaving(false);
+    if (res.ok) { setJpSaved(true); setJpName(''); setTimeout(() => setJpSaved(false), 2500); }
+  }
+
   const kpis = useMemo(() => (plan ? journeyRouteKpis(routed(), plan) : []), [plan, freq, customers]); // eslint-disable-line react-hooks/exhaustive-deps
   const warnings = useMemo(() => (plan ? validateJourneyPlan(routed(), plan) : []), [plan, freq, customers]); // eslint-disable-line react-hooks/exhaustive-deps
   const warnLabel = (w: JourneyWarning) => t(`routePlanner.jw_${w.kind}` as Parameters<typeof t>[0]);
@@ -162,6 +182,14 @@ export function JourneyPanel({ customers, hasSales, onClose }: { customers: Jour
           {plan && !approved && <Button size="sm" variant="default" onClick={() => setApproved(true)}><Check className="h-4 w-4" /> {t('routePlanner.jpApprove')}</Button>}
           {approved && <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><Check className="h-4 w-4" /> {t('routePlanner.jpApproved')}</span>}
           <Button size="sm" variant="outline" disabled={!approved} onClick={exportJourney}><FileDown className="h-4 w-4" /> {t('routePlanner.jpExport')}</Button>
+          {plan && (
+            <div className="flex items-center gap-1">
+              <Input value={jpName} onChange={(e) => setJpName(e.target.value)} placeholder={t('routePlanner.jpSaveName')} className="h-8 w-36 text-xs" />
+              <Button size="sm" variant="outline" disabled={jpSaving} onClick={() => void saveJourney()}>
+                {jpSaved ? <Check className="h-4 w-4 text-emerald-600" /> : <Save className="h-4 w-4" />} {jpSaved ? t('routePlanner.jpSaved') : t('routePlanner.jpSave')}
+              </Button>
+            </div>
+          )}
           <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /> {t('routePlanner.cancel')}</Button>
         </div>
       </div>

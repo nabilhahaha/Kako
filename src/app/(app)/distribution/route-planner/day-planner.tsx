@@ -18,7 +18,7 @@ import { ImportMapper, RejectedRowsBar } from './import-mapper';
 import { DayPlannerMap, type DayMapPoint, type DayMapEndpoint, type DaySelectMode } from './day-planner-map';
 import { loadDpTemplates, syncDpTemplates, persistDpTemplate, findBestTemplate, type DpTemplate } from './day-planner-templates';
 import { saveDayPlannerDraft, loadDayPlannerDraft, clearDayPlannerDraft, type DayPlannerDraft } from './day-planner-draft';
-import { loadDpPlans, saveDpPlan, deleteDpPlan, getDpPlan, planShareUrl, type DpSavedPlan } from './day-planner-plans';
+import { loadDpPlans, syncDpPlans, persistDpPlan, removeDpPlan, getDpPlan, getDpPlanAsync, planShareUrl, type DpSavedPlan } from './day-planner-plans';
 import { loadSegments, syncSegments, filterBySegment, type RpSegment } from './route-planner-segments';
 import { getDpLocation, setDpLocation, type DpLocationKey } from './day-planner-locations';
 
@@ -102,6 +102,7 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
     setTemplates(loadDpTemplates()); setPlans(loadDpPlans()); setSegments(loadSegments());
     let alive = true;
     void syncDpTemplates().then((list) => { if (alive) setTemplates(list); });
+    void syncDpPlans().then((list) => { if (alive) setPlans(list); });
     void syncSegments().then((list) => { if (alive) setSegments(list); });
     return () => { alive = false; };
   }, []);
@@ -113,7 +114,7 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
     (async () => {
       const planId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('plan') : null;
       if (planId) {
-        const p = getDpPlan(planId);
+        const p = getDpPlan(planId) ?? await getDpPlanAsync(planId);   // cache, then server (cross-device)
         if (p && on) { openSavedPlan(p); decided.current = true; return; }
       }
       const d = await loadDayPlannerDraft();
@@ -316,20 +317,24 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
   function onSavePlan() {
     if (!order || !planName.trim()) return;
     const subset = order.map((id) => byId.get(id)!).filter(Boolean);
-    const { plans: next, id } = saveDpPlan(planName, { customers: subset, order, start, end, hasSales });
-    setPlans(next); setSavedId(id); setPlanName('');
+    const name = planName; setPlanName('');
+    void persistDpPlan(name, { customers: subset, order, start, end, hasSales }).then(({ plans: next, id }) => { setPlans(next); setSavedId(id); });
   }
   function openSavedPlan(p: DpSavedPlan) {
     setCustomers(p.customers); setHasSales(p.hasSales); setSelectedIds(new Set());
     setStart(p.start); setEnd(p.end); setEndKind(p.end ? 'customer' : 'last'); setStartKind(p.start ? 'map' : 'current');
     setOrder(p.order); setConfirming(false); setSavedId(p.id); setStep('plan');
   }
-  function onDeletePlan(id: string) { setPlans(deleteDpPlan(id)); if (savedId === id) setSavedId(null); }
+  function onDeletePlan(id: string) { if (savedId === id) setSavedId(null); void removeDpPlan(id).then(setPlans); }
 
   async function copyLink() {
     let url = '';
     if (savedId) url = planShareUrl(savedId);
-    else { const subset = order!.map((id) => byId.get(id)!).filter(Boolean); const { id } = saveDpPlan(planName.trim() || t('dayPlanner.untitledPlan'), { customers: subset, order: order!, start, end, hasSales }); setPlans(loadDpPlans()); setSavedId(id); url = id ? planShareUrl(id) : ''; }
+    else {
+      const subset = order!.map((id) => byId.get(id)!).filter(Boolean);
+      const { plans: next, id } = await persistDpPlan(planName.trim() || t('dayPlanner.untitledPlan'), { customers: subset, order: order!, start, end, hasSales });
+      setPlans(next); setSavedId(id); url = id ? planShareUrl(id) : '';
+    }
     try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { setMsg(url); }
   }
 
