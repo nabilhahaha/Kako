@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut, Hand } from 'lucide-react';
+import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut, Hand, Database } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,8 @@ import { JourneyPanel, type JourneyInputCustomer } from './journey-panel';
 import { DayPlanner } from './day-planner';
 import { ImportMapper } from './import-mapper';
 import type { DpCustomer } from '@/lib/tis/day-planner-import';
+import { loadActiveDataset } from './rp-dataset-load';
+import type { DatasetHeader } from './rp-dataset-actions';
 import { savePlannerDraft, loadPlannerDraft, clearPlannerDraft, type PlannerDraft } from './planner-draft';
 import { WhatsAppContact } from '@/components/route-planner/whatsapp-contact';
 import { buildSupportWhatsAppUrl, type RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
@@ -88,7 +90,7 @@ function downloadXlsx(bytes: Uint8Array, filename: string) {
  * TIS upload pipeline, the shared scenario/plan-edit engine and a single-pass geo
  * split — the manager does the final shaping by box/click-selecting on the map.
  */
-export function RoutePlannerWorkspace({ focus = false, demo = false, subscription, embedded = false, registerOpenDayPlanner, onSeedChange }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView; embedded?: boolean; registerOpenDayPlanner?: (fn: () => void) => void; onSeedChange?: (seed: DpCustomer[]) => void } = {}) {
+export function RoutePlannerWorkspace({ focus = false, demo = false, subscription, embedded = false, registerOpenDayPlanner, onSeedChange, activeDataset = null }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView; embedded?: boolean; registerOpenDayPlanner?: (fn: () => void) => void; onSeedChange?: (seed: DpCustomer[]) => void; activeDataset?: DatasetHeader | null } = {}) {
   const { t, locale, setLocale } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -366,6 +368,20 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     setMapState(null);
     setMsg({ tone: 'ok', text: t('routePlanner.importOk').replace('{n}', String(ds.customers.length)) });
   }
+  // Wave D — rehydrate the saved (active) dataset into the live workspace, exactly like a
+  // fresh upload. Lets Route Builder open a persisted dataset without re-uploading.
+  const [loadingDs, setLoadingDs] = useState(false);
+  async function loadSavedDataset() {
+    setLoadingDs(true);
+    const loaded = await loadActiveDataset();
+    setLoadingDs(false);
+    if (!loaded) { setMsg({ tone: 'err', text: t('routePlanner.dsLoadEmpty') }); return; }
+    setDataset(loaded.tis);
+    setScenario(emptyScenario());
+    setMethod(null); setHistory([]); setGenerated(false); setApproved(false); setExported(false);
+    setSelectedIds(new Set()); setFocusedRoutes(new Set()); setMapState(null);
+    setMsg({ tone: 'ok', text: t('routePlanner.importOk').replace('{n}', String(loaded.tis.customers.length)) });
+  }
   function hasRouteCol() { return !!dataset?.customers.some((c) => c.ownership.routeId); }
   function hasSalesmanCol() { return !!dataset?.customers.some((c) => c.ownership.salesmanId); }
   /** Pick a route-creation method. */
@@ -580,6 +596,11 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
               <p className="mt-2 text-muted-foreground">{t('routePlanner.welcomeLead')}</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button size="lg" onClick={() => fileRef.current?.click()} disabled={importing || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
+                {activeDataset && (
+                  <Button size="lg" variant="outline" onClick={() => void loadSavedDataset()} disabled={loadingDs}>
+                    <Database className="h-4 w-4" /> {loadingDs ? t('routePlanner.importing') : t('routePlanner.dsLoadActive', { name: activeDataset.name })}
+                  </Button>
+                )}
                 <Button size="lg" variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
                 <Button size="lg" variant="outline" onClick={() => setDayPlannerOpen(true)}><MapIcon className="h-4 w-4" /> {t('dayPlanner.title')}</Button>
               </div>

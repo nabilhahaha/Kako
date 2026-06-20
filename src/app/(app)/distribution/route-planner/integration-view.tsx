@@ -34,7 +34,7 @@ type NewType = 'manual_upload' | 'google_sheets' | 'api_erp';
  * Sync History → Audit. The connector only fetches; everything after fetch is shared.
  * Connector config is admin-managed; API tokens are write-only and never shown back.
  */
-export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
+export function IntegrationView({ canManage = true, onDatasetChange }: { canManage?: boolean; onDatasetChange?: () => void | Promise<void> }) {
   const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
   const [sources, setSources] = useState<Source[]>([]);
@@ -157,7 +157,7 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
       if (!r.ok) { setMsg(connErr(r.error)); return; }
       setReport(null); setConnQuality(r.data!.quality);
       setSaved({ imported: r.data!.imported, updated: r.data!.updated, rejected: r.data!.rejected });
-      setStep('report'); void refreshRuns(); void refreshSources();
+      setStep('report'); void refreshRuns(); void refreshSources(); void onDatasetChange?.();  // connector persisted a new active dataset
     }
   }
 
@@ -175,7 +175,7 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
     });
     if (!res.ok) { setMsg(res.error); return; }
     setSaved({ imported: res.data!.imported, updated: res.data!.updated, rejected: res.data!.rejected });
-    void refreshRuns(); void refreshSources();
+    void refreshRuns(); void refreshSources(); void onDatasetChange?.();  // a new active dataset was persisted
   }
 
   // Total issues for either source of the report.
@@ -284,7 +284,7 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
           )}
           {msg && <p className="text-sm text-amber-700">{msg}</p>}
           {/* Wave B: persisted customer working sets (own + reporting subtree). */}
-          <div className="w-full max-w-2xl text-start"><DatasetsPanel canManage={canManage} /></div>
+          <div className="w-full max-w-2xl text-start"><DatasetsPanel canManage={canManage} onChange={onDatasetChange} /></div>
           {runs.length > 0 && <SyncHistory runs={runs} t={t} />}
         </div>
       )}

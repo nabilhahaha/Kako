@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Home, Map as MapIcon, CalendarRange, Bookmark, LayoutTemplate, Users, UsersRound, Filter, UploadCloud,
   Globe2, Building2, PencilRuler, UserCheck, ClipboardCheck, History, Images, AlertTriangle, Swords,
@@ -12,6 +12,8 @@ import { LanguageToggle } from '@/components/layout/language-toggle';
 import { Button } from '@/components/ui/button';
 import type { RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
 import type { DpCustomer } from '@/lib/tis/day-planner-import';
+import { loadActiveDataset } from './rp-dataset-load';
+import type { DatasetHeader } from './rp-dataset-actions';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { DayPlanner } from './day-planner';
 import { CustomersView } from './customers-view';
@@ -119,7 +121,19 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
   const [open, setOpen] = useState<Record<string, boolean>>({ planning: true });
   const [drawer, setDrawer] = useState(false); // mobile sidebar
   const [profileOpen, setProfileOpen] = useState(false);
-  const [seed, setSeed] = useState<DpCustomer[]>([]); // customers from the Route Builder upload
+  const [seed, setSeed] = useState<DpCustomer[]>([]); // customers from the Route Builder upload (this session)
+  // Wave D — rehydration: the owner's active persisted dataset, loaded on mount. The live
+  // upload (seed) takes precedence; otherwise screens are fed by the saved dataset.
+  const [datasetSeed, setDatasetSeed] = useState<DpCustomer[]>([]);
+  const [activeDs, setActiveDs] = useState<DatasetHeader | null>(null);
+  const effectiveSeed = seed.length > 0 ? seed : datasetSeed;
+
+  const reloadActiveDataset = useCallback(async () => {
+    const loaded = await loadActiveDataset();
+    setActiveDs(loaded?.header ?? null);
+    setDatasetSeed(loaded?.dpCustomers ?? []);
+  }, []);
+  useEffect(() => { void reloadActiveDataset(); }, [reloadActiveDataset]);
 
   const can = (f?: RpFeature) => !f || features === null || features.includes(f);
   const groups = NAV.filter((g) => (g.adminOnly ? isAdmin : can(g.feature)));
@@ -192,6 +206,13 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
         <button onClick={goHome} className={`ms-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${view === 'home' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
           <Home className="h-4 w-4" /> <span className="hidden sm:inline">{t('rpShell.home')}</span>
         </button>
+        {/* Wave D — active dataset indicator: which saved working set the planning screens are using. */}
+        {activeDs && seed.length === 0 && (
+          <span className="ms-2 hidden items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 sm:inline-flex" title={t('rpShell.ds_activeIndicator')}>
+            <Database className="h-3 w-3" /> <span className="max-w-[160px] truncate">{activeDs.name}</span>
+            <span className="text-emerald-500">· {activeDs.validCount}</span>
+          </span>
+        )}
         <div className="ms-auto flex items-center gap-2">
           <LanguageToggle />
           <div className="relative">
@@ -232,28 +253,28 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
           {/* Workspace stays mounted to preserve its dataset + feed the Day Planner seed;
               shown only in the planning view. */}
           <div className={view === 'planning' ? 'h-full' : 'hidden'}>
-            <RoutePlannerWorkspace focus embedded demo={demo} subscription={subscription} onSeedChange={setSeed} />
+            <RoutePlannerWorkspace focus embedded demo={demo} subscription={subscription} onSeedChange={setSeed} activeDataset={activeDs} />
           </div>
 
           {/* Day Planner — runs INSIDE the content area (sidebar + top bar stay visible),
               on the existing engine, fed by the Route Builder's uploaded customers. */}
           {view === 'dayPlanner' && (
             <div className="h-full">
-              <DayPlanner embedded hasSalesDefault={seed.some((c) => (c.sales ?? 0) > 0)} seedCustomers={seed} autoUseDataset={seed.length > 0} onClose={goHome} />
+              <DayPlanner embedded hasSalesDefault={effectiveSeed.some((c) => (c.sales ?? 0) > 0)} seedCustomers={effectiveSeed} autoUseDataset={effectiveSeed.length > 0} onClose={goHome} />
             </div>
           )}
 
           {/* Customers — list + filters + saved segments over the loaded dataset. */}
           {view === 'customers' && (
             <div className="h-full">
-              <CustomersView customers={seed} focusSegments={custFocusSegments} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
+              <CustomersView customers={effectiveSeed} focusSegments={custFocusSegments} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
             </div>
           )}
 
           {/* Territories — Region/City/Area aggregates over the loaded dataset. */}
           {view === 'territories' && (
             <div className="h-full">
-              <TerritoriesView customers={seed} initialGroup={terrGroup} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
+              <TerritoriesView customers={effectiveSeed} initialGroup={terrGroup} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
             </div>
           )}
 
@@ -262,14 +283,14 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
               so they are gated here to match. */}
           {view === 'integration' && (
             <div className="h-full">
-              <IntegrationView canManage={isAdmin || integrationAdmin} />
+              <IntegrationView canManage={isAdmin || integrationAdmin} onDatasetChange={reloadActiveDataset} />
             </div>
           )}
 
           {/* Request Center — trackable customer/route tickets (routing only). */}
           {view === 'requests' && (
             <div className="h-full">
-              <RequestCenterView meId={userId} customers={seed} />
+              <RequestCenterView meId={userId} customers={effectiveSeed} />
             </div>
           )}
 

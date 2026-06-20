@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isValidDatasetCustomer, datasetBbox, splitDatasetColumns, countValid, DATASET_KNOWN_KEYS } from './route-planner-dataset';
+import { isValidDatasetCustomer, datasetBbox, splitDatasetColumns, countValid, DATASET_KNOWN_KEYS, datasetRowsToDpCustomers, datasetRowsToTisDataset } from './route-planner-dataset';
 
 describe('route-planner-dataset — validation', () => {
   it('valid requires a name + finite, non-(0,0) coordinates', () => {
@@ -54,5 +54,35 @@ describe('route-planner-dataset — column split', () => {
     expect(DATASET_KNOWN_KEYS).toContain('lat');
     expect(DATASET_KNOWN_KEYS).toContain('region');
     expect(DATASET_KNOWN_KEYS.length).toBe(11);
+  });
+});
+
+describe('route-planner-dataset — rehydration (rows → planner models)', () => {
+  const rows = [
+    { seq: 0, code: 'C1', name: 'Shop One', lat: 24.7, lng: 46.7, salesman: 'S1', route: 'R1', channel: 'GT', class: 'A', city: 'Riyadh', area: 'N', region: 'Central', attrs: { supervisor: 'sup1', sales: 1500, phone: '0500' } },
+    { seq: 1, code: 'C2', name: 'Bad Geo', lat: 0, lng: 0, attrs: {} },                 // dropped from DpCustomers (invalid geo)
+    { seq: 2, code: null, name: 'No Code', lat: 21.5, lng: 39.2, attrs: null },
+  ];
+
+  it('datasetRowsToDpCustomers keeps only plannable rows + maps attrs', () => {
+    const dp = datasetRowsToDpCustomers(rows);
+    expect(dp.map((c) => c.name)).toEqual(['Shop One', 'No Code']);   // bad-geo dropped
+    const one = dp[0];
+    expect(one).toMatchObject({ id: 'C1', code: 'C1', lat: 24.7, lng: 46.7, salesman: 'S1', channel: 'GT', class: 'A', city: 'Riyadh', supervisor: 'sup1', sales: 1500 });
+    expect(dp[1].id).toBe('ds-2');   // null code → seq-based id
+  });
+
+  it('datasetRowsToTisDataset builds canonical TisCustomers (ownership + geo)', () => {
+    const ds = datasetRowsToTisDataset(rows);
+    expect(ds.source).toBe('connector');
+    expect(ds.customers).toHaveLength(3);                  // TIS keeps all rows (invalid geo → null)
+    const c1 = ds.customers[0];
+    expect(c1.code).toBe('C1');
+    expect(c1.geo).toEqual({ lat: 24.7, lng: 46.7 });
+    expect(c1.ownership.salesmanId).toBe('S1');
+    expect(c1.ownership.routeId).toBe('R1');
+    expect(c1.ownership.supervisorId).toBe('sup1');
+    expect(c1.salesValue).toBe(1500);
+    expect(ds.customers[1].geo).toBeNull();                // (0,0) rejected by isValidGeo
   });
 });

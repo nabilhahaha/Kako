@@ -10,7 +10,7 @@ import { listDatasets, setActiveDataset, deleteDataset, type DatasetHeader } fro
  * visible to the user (own + reporting subtree), shows row / valid counts and the active
  * marker, and lets the owner set-active or delete. Read-mostly; mobile-friendly stacked rows.
  */
-export function DatasetsPanel({ canManage = true }: { canManage?: boolean }) {
+export function DatasetsPanel({ canManage = true, onChange }: { canManage?: boolean; onChange?: () => void | Promise<void> }) {
   const { t } = useI18n();
   const [rows, setRows] = useState<DatasetHeader[]>([]);
   const [busy, setBusy] = useState(false);
@@ -27,13 +27,13 @@ export function DatasetsPanel({ canManage = true }: { canManage?: boolean }) {
   async function onSetActive(id: string) {
     setBusy(true);
     const res = await setActiveDataset(id);
-    if (res.ok) await refresh();
+    if (res.ok) { await refresh(); await onChange?.(); }  // re-feed the planning screens
     setBusy(false);
   }
   async function onDelete(id: string) {
     setBusy(true);
     const res = await deleteDataset(id);
-    if (res.ok) { setConfirmId(null); await refresh(); }
+    if (res.ok) { setConfirmId(null); await refresh(); await onChange?.(); }
     setBusy(false);
   }
 
@@ -44,6 +44,7 @@ export function DatasetsPanel({ canManage = true }: { canManage?: boolean }) {
         <p className="text-xs font-bold">{t('rpShell.ds_title')}</p>
         {rows.length > 0 && <span className="text-[11px] text-muted-foreground">({rows.length})</span>}
       </div>
+      {rows.length > 0 && <p className="border-b bg-muted/20 px-3 py-1.5 text-[11px] text-muted-foreground">{t('rpShell.ds_loadHint')}</p>}
 
       {loaded && rows.length === 0 && (
         <p className="px-3 py-4 text-center text-xs text-muted-foreground">{t('rpShell.ds_empty')}</p>
