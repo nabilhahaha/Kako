@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardList, Plus, X, Info, ChevronRight, UserPlus, FileEdit, PauseCircle, StopCircle, Repeat, Crosshair, Route as RouteIcon, GitBranch, CheckCircle2, type LucideIcon } from 'lucide-react';
+import { ClipboardList, Plus, X, Info, ChevronRight, UserPlus, FileEdit, PauseCircle, StopCircle, Repeat, Crosshair, Route as RouteIcon, GitBranch, CheckCircle2, Bell, type LucideIcon } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { RP_TICKET_TYPES, RP_TICKET_STATUSES, type RpTicketType, type RpTicketStatus } from '@/lib/erp/route-planner-backend';
 import { REQUEST_FORMS, OPTION_SETS, validateRequest, buildDetails, primaryGps, type FormField } from '@/lib/erp/route-planner-request-forms';
-import { createRequest, listRequests, transitionRequest, getRequestApproval, advanceRequest, type RequestApprovalView } from './rp-backend-actions';
+import { createRequest, listRequests, transitionRequest, getRequestApproval, advanceRequest, listMyApprovals, type RequestApprovalView } from './rp-backend-actions';
 
 type Req = Record<string, unknown>;
 
@@ -57,10 +57,12 @@ const STATUS_TONE: Record<string, string> = {
  * ticket is implemented by the Admin in the external system, then closed here. Visibility
  * follows the reporting graph (RLS); this UI surfaces what the caller may see.
  */
-export function RequestCenterView() {
+export function RequestCenterView({ meId = null }: { meId?: string | null }) {
   const { t } = useI18n();
   const [requests, setRequests] = useState<Req[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scope, setScope] = useState<'all' | 'mine' | 'approvals'>('all');
+  const [myApprovalIds, setMyApprovalIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<RpTicketStatus | 'all' | 'overdue'>('all');
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<Req | null>(null);
@@ -77,16 +79,21 @@ export function RequestCenterView() {
   useEffect(() => { void refresh(); }, []);
   async function refresh() {
     setLoading(true);
-    const r = await listRequests();
+    const [r, a] = await Promise.all([listRequests(), listMyApprovals()]);
     if (r.ok) setRequests((r.data as Req[]) ?? []);
     else setMsg(r.error);
+    if (a.ok) setMyApprovalIds(new Set(a.data!.ids));
     setLoading(false);
   }
 
   const form = REQUEST_FORMS[type];
-  const shown = filter === 'all' ? requests
-    : filter === 'overdue' ? requests.filter(isOverdue)
-    : requests.filter((r) => String(r.status) === filter);
+  // Scope (All / My Requests / My Approvals) then the status/overdue filter.
+  const scoped = scope === 'mine' ? requests.filter((r) => meId && String(r.requested_by) === meId)
+    : scope === 'approvals' ? requests.filter((r) => myApprovalIds.has(String(r.id)))
+    : requests;
+  const shown = filter === 'all' ? scoped
+    : filter === 'overdue' ? scoped.filter(isOverdue)
+    : scoped.filter((r) => String(r.status) === filter);
 
   // Operational KPIs over ALL requests (independent of the active filter).
   const kpis = useMemo(() => {
@@ -174,6 +181,28 @@ export function RequestCenterView() {
       <div className="flex items-start gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{t('rpShell.rc_disclaimer')}</span>
       </div>
+
+      {/* Notification — pending approvals waiting on me. */}
+      {meId && myApprovalIds.size > 0 && scope !== 'approvals' && (
+        <button onClick={() => setScope('approvals')} className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-start text-xs text-amber-900 hover:bg-amber-100">
+          <Bell className="h-4 w-4 shrink-0" />
+          <span className="font-medium">{t('rpShell.rc_notifyApprovals').replace('{n}', String(myApprovalIds.size))}</span>
+          <ChevronRight className="ms-auto h-4 w-4 rtl:rotate-180" />
+        </button>
+      )}
+
+      {/* Scope: All / My Requests / My Approvals. */}
+      {meId && !isEmpty && (
+        <div className="flex flex-wrap gap-1.5">
+          {([['all', t('rpShell.rc_scopeAll')], ['mine', t('rpShell.rc_scopeMine')], ['approvals', t('rpShell.rc_scopeApprovals')]] as const).map(([s, label]) => (
+            <button key={s} onClick={() => setScope(s)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition ${scope === s ? 'border-primary bg-primary/10 font-medium text-primary' : 'hover:bg-muted'}`}>
+              {label}
+              {s === 'approvals' && myApprovalIds.size > 0 && <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white" dir="ltr">{myApprovalIds.size}</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* KPI summary — clickable quick-filters above the grid. */}
       {!isEmpty && (

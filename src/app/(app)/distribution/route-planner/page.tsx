@@ -34,6 +34,7 @@ export default async function RoutePlannerPage() {
         demo={ctx.isRoutePlannerDemo}
         subscription={subscription}
         userEmail={ctx.profile?.email ?? null}
+        userId={ctx.userId}
         features={null}
         isAdmin={ctx.isSuperAdmin || ctx.isPlatformOwner || ctx.topRole === 'admin' || ctx.isRoutePlannerAdmin}
       />

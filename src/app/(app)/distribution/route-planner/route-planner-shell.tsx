@@ -97,10 +97,12 @@ const NAV: NavGroup[] = [
  * runs on the existing, dataset-fed engine (no logic rebuilt). Groups the user's
  * `features` (erp_route_planner_access) don't include are hidden.
  */
-export function RoutePlannerShell({ subscription, demo = false, userEmail, features, isAdmin = false }: {
+export function RoutePlannerShell({ subscription, demo = false, userEmail, userId = null, features, isAdmin = false }: {
   subscription?: RoutePlannerSubscriptionView;
   demo?: boolean;
   userEmail?: string | null;
+  /** Signed-in user id — for "My Requests / My Approvals". */
+  userId?: string | null;
   /** Route Planner feature grants; null = unrestricted (sees all groups). */
   features: RpFeature[] | null;
   /** Company admin (or platform/super/RP admin) — gates the Administration group. */
@@ -265,7 +267,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
           {/* Request Center — trackable customer/route tickets (routing only). */}
           {view === 'requests' && (
             <div className="h-full">
-              <RequestCenterView />
+              <RequestCenterView meId={userId} />
             </div>
           )}
 

@@ -222,6 +222,36 @@ export async function listRequests(): Promise<Result<unknown[]>> {
   return error ? { ok: false, error: error.message } : { ok: true, data: data ?? [] };
 }
 
+/**
+ * Ticket ids where the caller is the PENDING approver right now — the "My Approvals"
+ * queue. A ticket qualifies when its active flow's current step resolves to the caller
+ * (direct assignment) and the caller is not the requester (no self-approval).
+ */
+export async function listMyApprovals(): Promise<Result<{ ids: string[] }>> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const [{ data: reqs }, { data: flowRows }] = await Promise.all([
+    sb.from('erp_route_planner_requests').select('id, type, requested_by, events, status').eq('company_id', ctx.companyId),
+    sb.from('erp_rp_approval_flows').select('ticket_type, steps, is_active').eq('company_id', ctx.companyId),
+  ]);
+  const flows = new Map<string, RpApprovalStep[]>();
+  for (const f of flowRows ?? []) if (f.is_active !== false) flows.set(f.ticket_type as string, (f.steps as RpApprovalStep[]) ?? []);
+  if ((reqs ?? []).length === 0 || flows.size === 0) return { ok: true, data: { ids: [] } };
+
+  const nodes = await loadNodes(sb, ctx.companyId!);
+  const terminal = new Set(['closed', 'rejected', 'cancelled', 'implemented_externally']);
+  const ids: string[] = [];
+  for (const r of reqs ?? []) {
+    if (terminal.has(String(r.status))) continue;
+    const steps = flows.get(String(r.type)); if (!steps || !flowHasSteps(steps)) continue;
+    const requesterId = String(r.requested_by);
+    if (requesterId === ctx.userId) continue; // never my own ticket
+    const st = stageState(steps, { requesterId, nodes }, (r.events as FlowEvent[]) ?? []);
+    if (st.pending && st.pending.assignees.includes(ctx.userId)) ids.push(String(r.id));
+  }
+  return { ok: true, data: { ids } };
+}
+
 export async function transitionRequest(id: string, status: RpTicketStatus, note?: string): Promise<Result> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
