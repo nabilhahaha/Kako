@@ -82,6 +82,11 @@ export interface AdminDiagnostics {
 export async function routePlannerAdminDiagnostics(): Promise<Result<AdminDiagnostics>> {
   const ctx = await getUserContext();
   if (!ctx?.isRoutePlannerAdmin) return { ok: false, error: 'err_unauthorized' };
+  // Hidden by default in production — it exposes env/service-role/project details that must
+  // never reach a customer UI. Only shown outside production, OR when an explicit
+  // developer flag (ROUTE_PLANNER_ADMIN_DEBUG=1) is set on the server.
+  const debugAllowed = process.env.VERCEL_ENV !== 'production' || process.env.ROUTE_PLANNER_ADMIN_DEBUG === '1';
+  if (!debugAllowed) return { ok: false, error: 'diag_disabled' };
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://rsjvgehvastmawzwnqcs.supabase.co';
   const supabaseRef = url.match(/https?:\/\/([a-z0-9]+)\.supabase\.co/i)?.[1] ?? null;
@@ -286,4 +291,62 @@ export async function resetDemoData(companyId: string): Promise<Result> {
   if (error) return { ok: false, error: 'err_reset' };
   revalidatePath('/planner-admin');
   return { ok: true };
+}
+
+/**
+ * Create a login for a Route Planner company and attach it to that company. The new user
+ * can sign in with the email/password and — because they belong to a `route_planner_*`
+ * tenant — automatically gets ONLY that company's chrome-free Route Planner experience.
+ * Strictly scoped to Route Planner tenants. Uses the service-role Admin API to create the
+ * auth user (with a password); ensures the company has a default branch to attach to.
+ */
+export async function addRoutePlannerUser(
+  companyId: string,
+  input: { name: string; email: string; password: string; role: 'admin' | 'user' },
+): Promise<Result<{ id: string }>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  const svc = await loadScopedCompany(companyId);
+  if (!svc) return { ok: false, error: 'err_not_route_planner_tenant' };
+
+  const email = input.email.trim().toLowerCase();
+  const name = input.name.trim();
+  if (!email || !/.+@.+\..+/.test(email)) return { ok: false, error: 'err_email' };
+  if (input.password.length < 6) return { ok: false, error: 'err_password' };
+
+  try {
+    // 1) Create the auth user (auto-confirmed so they can log in immediately).
+    const { data: created, error: cErr } = await svc.auth.admin.createUser({
+      email, password: input.password, email_confirm: true, user_metadata: { full_name: name },
+    });
+    if (cErr || !created?.user) {
+      console.error('[planner-admin] addUser create:', cErr?.message);
+      return { ok: false, error: `create_user: ${cErr?.message ?? 'failed'}` };
+    }
+    const uid = created.user.id;
+
+    // 2) Mirror into erp_profiles (id = auth uid).
+    await svc.from('erp_profiles').upsert({ id: uid, email, full_name: name || email, is_active: true }, { onConflict: 'id' });
+
+    // 3) Ensure the company has a branch to attach the membership to.
+    const { data: existing } = await svc.from('erp_branches').select('id').eq('company_id', companyId).order('created_at', { ascending: true }).limit(1).maybeSingle();
+    let branchId = (existing as { id: string } | null)?.id ?? null;
+    if (!branchId) {
+      const { data: nb, error: bErr } = await svc.from('erp_branches').insert({ company_id: companyId, code: 'MAIN', name: 'Main', is_hq: true }).select('id').single();
+      if (bErr || !nb) { console.error('[planner-admin] addUser branch:', bErr?.message); return { ok: false, error: `branch: ${bErr?.message ?? 'failed'}` }; }
+      branchId = nb.id;
+    }
+
+    // 4) Attach the membership. Company-driven experience → any role gets the planner;
+    //    'admin' = company admin, 'user' = viewer.
+    const branchRole = input.role === 'admin' ? 'admin' : 'viewer';
+    const { error: mErr } = await svc.from('erp_user_branches').upsert({ user_id: uid, branch_id: branchId, role: branchRole, is_default: true }, { onConflict: 'user_id,branch_id' });
+    if (mErr) { console.error('[planner-admin] addUser membership:', mErr.message); return { ok: false, error: `membership: ${mErr.message}` }; }
+
+    revalidatePath('/planner-admin');
+    return { ok: true, data: { id: uid } };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[planner-admin] addRoutePlannerUser threw:', msg);
+    return { ok: false, error: `exception: ${msg}` };
+  }
 }
