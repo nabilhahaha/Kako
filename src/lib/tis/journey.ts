@@ -98,6 +98,137 @@ export interface JourneyPlan {
   dayLoads: JourneyDayLoad[];
 }
 
+/** A distinct map colour per working day (the journey map's primary visual signal). */
+export const JOURNEY_DAY_COLORS: Record<JourneyDay, string> = {
+  sat: '#2563eb', // blue
+  sun: '#16a34a', // green
+  mon: '#f59e0b', // amber
+  tue: '#db2777', // pink
+  wed: '#7c3aed', // violet
+  thu: '#0891b2', // cyan
+};
+export function dayColorOf(day: JourneyDay): string {
+  return JOURNEY_DAY_COLORS[day] ?? '#94a3b8';
+}
+
+/** A customer plus its assigned route (the unit the journey UI/KPIs work with). */
+export type JourneyRoutedCustomer = JourneyCustomer & { routeId: string };
+
+export interface JourneyRouteKpi {
+  routeId: string;
+  customers: number;
+  visitsPerCycle: number;
+  /** Bounding-box diagonal of the route's customers (km) — a quick "route length" estimate. */
+  distanceKm: number;
+  /** Daily-visit balance across the route's working days (100 = perfectly even). */
+  workloadBalance: number;
+  /** Customers with no assigned visit day. */
+  uncovered: number;
+  /** Working days whose visit count exceeds the route's per-day average by > 35%. */
+  overloadedDays: JourneyDay[];
+}
+
+function bboxDiagonalKm(pts: { lat: number; lng: number }[]): number {
+  if (pts.length < 2) return 0;
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const p of pts) { minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat); minLng = Math.min(minLng, p.lng); maxLng = Math.max(maxLng, p.lng); }
+  return Math.round(haversineKm({ lat: minLat, lng: minLng }, { lat: maxLat, lng: maxLng }) * 10) / 10;
+}
+
+/** Per-route KPIs for the route-by-route journey view. */
+export function journeyRouteKpis(
+  customers: JourneyRoutedCustomer[],
+  plan: JourneyPlan,
+  days: readonly JourneyDay[] = JOURNEY_WORKING_DAYS,
+): JourneyRouteKpi[] {
+  const byRoute = new Map<string, JourneyRoutedCustomer[]>();
+  for (const c of customers) {
+    if (!byRoute.has(c.routeId)) byRoute.set(c.routeId, []);
+    byRoute.get(c.routeId)!.push(c);
+  }
+  const out: JourneyRouteKpi[] = [];
+  for (const [routeId, list] of byRoute) {
+    let visits = 0, uncovered = 0;
+    const dayCount: Record<string, number> = {};
+    for (const d of days) dayCount[d] = 0;
+    for (const c of list) {
+      visits += visitsPerCycle(c.frequency);
+      const a = plan.assignments.get(c.id);
+      if (!a || a.days.length === 0) { uncovered++; continue; }
+      for (const d of a.days) if (dayCount[d] != null) dayCount[d] += 1;
+    }
+    const active = days.map((d) => dayCount[d]).filter((n) => n > 0);
+    const max = active.length ? Math.max(...active) : 0;
+    const min = active.length ? Math.min(...active) : 0;
+    const workloadBalance = max > 0 ? Math.round((1 - (max - min) / max) * 100) : 100;
+    const avg = active.length ? active.reduce((s, n) => s + n, 0) / active.length : 0;
+    const overloadedDays = days.filter((d) => dayCount[d] > avg * 1.35 && dayCount[d] > 0);
+    out.push({ routeId, customers: list.length, visitsPerCycle: visits, distanceKm: bboxDiagonalKm(list), workloadBalance, uncovered, overloadedDays });
+  }
+  return out.sort((a, b) => a.routeId.localeCompare(b.routeId));
+}
+
+export type JourneyWarningKind =
+  | 'no_visit_day' | 'frequency_unsatisfied' | 'duplicate_day'
+  | 'day_overloaded' | 'route_too_long' | 'far_from_cluster' | 'unassigned';
+
+export interface JourneyWarning {
+  kind: JourneyWarningKind;
+  routeId?: string;
+  customerId?: string;
+  detail: string;
+}
+
+/** Quality checks over a built plan — surfaced as warnings in the workspace. */
+export function validateJourneyPlan(
+  customers: JourneyRoutedCustomer[],
+  plan: JourneyPlan,
+  opts: { routeTooLongKm?: number; farFromClusterKm?: number; dayOverloadFactor?: number } = {},
+  days: readonly JourneyDay[] = JOURNEY_WORKING_DAYS,
+): JourneyWarning[] {
+  const routeTooLongKm = opts.routeTooLongKm ?? 60;
+  const farKm = opts.farFromClusterKm ?? 25;
+  const overloadFactor = opts.dayOverloadFactor ?? 1.5;
+  const warnings: JourneyWarning[] = [];
+  const byId = new Map(customers.map((c) => [c.id, c]));
+
+  // Per-customer checks.
+  for (const c of customers) {
+    if (!c.routeId) { warnings.push({ kind: 'unassigned', customerId: c.id, detail: c.id }); continue; }
+    const a = plan.assignments.get(c.id);
+    if (!a || a.days.length === 0) { warnings.push({ kind: 'no_visit_day', routeId: c.routeId, customerId: c.id, detail: c.id }); continue; }
+    if (new Set(a.days).size !== a.days.length) warnings.push({ kind: 'duplicate_day', routeId: c.routeId, customerId: c.id, detail: c.id });
+    if (a.days.length !== daysPerWeek(c.frequency)) warnings.push({ kind: 'frequency_unsatisfied', routeId: c.routeId, customerId: c.id, detail: `${c.frequency}: ${a.days.length}/${daysPerWeek(c.frequency)} days` });
+  }
+
+  // Per-day cluster cohesion (far-from-cluster) + global day overload.
+  const dayMembers = new Map<JourneyDay, JourneyRoutedCustomer[]>();
+  for (const d of days) dayMembers.set(d, []);
+  for (const a of plan.assignments.values()) {
+    const c = byId.get(a.customerId); if (!c) continue;
+    for (const d of a.days) dayMembers.get(d)?.push(c);
+  }
+  const dayTotals = days.map((d) => dayMembers.get(d)!.length);
+  const dayAvg = dayTotals.filter((n) => n > 0).reduce((s, n, _, arr) => s + n / arr.length, 0);
+  for (const d of days) {
+    const members = dayMembers.get(d)!;
+    if (members.length === 0) continue;
+    if (members.length > dayAvg * overloadFactor) warnings.push({ kind: 'day_overloaded', detail: `${d}: ${members.length} customers` });
+    // centroid
+    const cx = members.reduce((s, c) => s + c.lat, 0) / members.length;
+    const cy = members.reduce((s, c) => s + c.lng, 0) / members.length;
+    for (const c of members) {
+      if (haversineKm(c, { lat: cx, lng: cy }) > farKm) warnings.push({ kind: 'far_from_cluster', routeId: c.routeId, customerId: c.id, detail: `${d}` });
+    }
+  }
+
+  // Route length.
+  for (const k of journeyRouteKpis(customers, plan, days)) {
+    if (k.distanceKm > routeTooLongKm) warnings.push({ kind: 'route_too_long', routeId: k.routeId, detail: `${k.distanceKm} km` });
+  }
+  return warnings;
+}
+
 const R = 6371;
 const toRad = (d: number) => (d * Math.PI) / 180;
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {

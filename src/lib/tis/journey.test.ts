@@ -3,6 +3,10 @@ import {
   generateJourneyPlan,
   computeDayLoads,
   journeyExportRows,
+  journeyRouteKpis,
+  validateJourneyPlan,
+  dayColorOf,
+  JOURNEY_DAY_COLORS,
   visitsPerCycle,
   weeksForCadence,
   weekPatternLabel,
@@ -10,6 +14,7 @@ import {
   JOURNEY_WORKING_DAYS,
   type JourneyCustomer,
   type JourneyExportCustomer,
+  type JourneyRoutedCustomer,
 } from './journey';
 
 // Two tight geographic clusters: west (lng ~46.6) and east (lng ~46.8).
@@ -84,6 +89,50 @@ describe('generateJourneyPlan', () => {
     const a = plan.assignments.get('c0')!;
     expect(a.days.length).toBe(3);
     expect(new Set(a.days).size).toBe(3);
+  });
+});
+
+describe('day colours', () => {
+  it('gives every working day a distinct colour', () => {
+    const colours = JOURNEY_WORKING_DAYS.map((d) => dayColorOf(d));
+    expect(new Set(colours).size).toBe(JOURNEY_WORKING_DAYS.length);
+    expect(Object.keys(JOURNEY_DAY_COLORS).length).toBe(6);
+  });
+});
+
+describe('journeyRouteKpis', () => {
+  it('reports per-route customers, visits, distance and balance', () => {
+    const cs: JourneyRoutedCustomer[] = grid().map((c, i) => ({ ...c, routeId: i < 12 ? 'R-W' : 'R-E' }));
+    const plan = generateJourneyPlan(cs);
+    const kpis = journeyRouteKpis(cs, plan);
+    expect(kpis.map((k) => k.routeId).sort()).toEqual(['R-E', 'R-W']);
+    for (const k of kpis) {
+      expect(k.customers).toBe(12);
+      expect(k.visitsPerCycle).toBe(12 * 4); // all 1×/week → 4 visits/cycle each
+      expect(k.distanceKm).toBeGreaterThanOrEqual(0);
+      expect(k.workloadBalance).toBeGreaterThanOrEqual(0);
+      expect(k.workloadBalance).toBeLessThanOrEqual(100);
+    }
+  });
+});
+
+describe('validateJourneyPlan', () => {
+  it('flags a frequency that is not satisfied and a customer with no visit day', () => {
+    const cs: JourneyRoutedCustomer[] = grid().map((c) => ({ ...c, routeId: 'R1' }));
+    const plan = generateJourneyPlan(cs);
+    // Corrupt one assignment: remove its day.
+    const a = plan.assignments.get('c0')!;
+    plan.assignments.set('c0', { ...a, days: [] });
+    const w = validateJourneyPlan(cs, plan);
+    expect(w.some((x) => x.kind === 'no_visit_day' && x.customerId === 'c0')).toBe(true);
+  });
+
+  it('returns no critical warnings for a clean compact plan', () => {
+    const cs: JourneyRoutedCustomer[] = grid().map((c) => ({ ...c, routeId: c.lng < 46.71 ? 'R-W' : 'R-E' }));
+    const plan = generateJourneyPlan(cs);
+    const w = validateJourneyPlan(cs, plan);
+    expect(w.some((x) => x.kind === 'no_visit_day')).toBe(false);
+    expect(w.some((x) => x.kind === 'duplicate_day')).toBe(false);
   });
 });
 
