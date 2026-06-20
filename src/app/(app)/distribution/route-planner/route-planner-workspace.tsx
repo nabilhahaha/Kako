@@ -537,6 +537,17 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     );
   };
 
+  // Full-screen overlays (Journey Planning + Day Planner). These MUST be rendered in
+  // EVERY screen's return — the workspace has several early returns (welcome, upload,
+  // method chooser, planning), and a capability-nav button only opens an overlay if
+  // that screen's tree actually mounts it. Kept in one fragment so all returns share it.
+  const overlays = (
+    <>
+      {journeyMode && <JourneyPanel customers={journeyCustomers} hasSales={hasSales} onClose={() => setJourneyMode(false)} />}
+      {dayPlannerOpen && <DayPlanner hasSalesDefault={hasSales} seedCustomers={daySeedCustomers} autoUseDataset={daySeedCustomers.length > 0} onClose={() => setDayPlannerOpen(false)} />}
+    </>
+  );
+
   // ── Focus-mode welcome (demo, before upload): branded hero + capabilities ──
   if (focus && !dataset && !mapState) {
     const caps = [
@@ -547,6 +558,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     ];
     return (
       <div className="mx-auto max-w-5xl">
+        {overlays}
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
         {brandHeader}
         {subBanner}
@@ -599,6 +611,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     }
     return (
       <div className="mx-auto max-w-3xl space-y-4">
+        {overlays}
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
         {brandHeader}
         {subBanner}
@@ -666,6 +679,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
       <div className="mx-auto max-w-5xl space-y-4">
         {brandHeader}
         {subBanner}
+        {overlays}
         {capabilityNav()}
         <p className="text-sm text-muted-foreground">{t('routePlanner.importOk').replace('{n}', String(dataset.customers.length))} {t('routePlanner.chooseMethod')}</p>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -1047,9 +1061,8 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         </>
       )}
 
-      {/* Journey Planning V1 — full-screen overlay opened after the allocation is built. */}
-      {journeyMode && <JourneyPanel customers={journeyCustomers} hasSales={hasSales} onClose={() => setJourneyMode(false)} />}
-      {dayPlannerOpen && <DayPlanner hasSalesDefault={hasSales} seedCustomers={daySeedCustomers} autoUseDataset={daySeedCustomers.length > 0} onClose={() => setDayPlannerOpen(false)} />}
+      {/* Journey Planning + Day Planner overlays (shared across all screen returns). */}
+      {overlays}
     </div>
   );
 }
