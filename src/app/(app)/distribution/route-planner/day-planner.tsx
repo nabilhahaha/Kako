@@ -366,11 +366,11 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {step === 'plan' && order && <>
+            <Button size="sm" onClick={shareWhatsApp}><Share2 className="h-4 w-4" /> {t('dayPlanner.share')}</Button>
             <Button size="sm" variant="outline" onClick={() => setMobileView(true)}><Smartphone className="h-4 w-4" /> {t('dayPlanner.mobileView')}</Button>
-            <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> {t('dayPlanner.printPdf')}</Button>
-            <Button size="sm" variant="outline" onClick={exportExcel}><FileDown className="h-4 w-4" /> Excel</Button>
             <Button size="sm" variant="outline" onClick={copyLink}><Link2 className="h-4 w-4" /> {copied ? t('dayPlanner.copied') : t('dayPlanner.copyLink')}</Button>
-            <Button size="sm" variant="outline" onClick={shareWhatsApp}><Share2 className="h-4 w-4" /> {t('dayPlanner.share')}</Button>
+            <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> {t('dayPlanner.printPdf')}</Button>
+            <Button size="sm" variant="ghost" onClick={exportExcel}><FileDown className="h-4 w-4" /> Excel</Button>
           </>}
           <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /> {t('routePlanner.cancel')}</Button>
         </div>
@@ -485,9 +485,10 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
             </div>
 
             {!order && <>
-              {/* Selection tools */}
+              <p className="text-[11px] text-muted-foreground">{t('dayPlanner.pickHint')}</p>
+              {/* Selection tools — Rectangle is the primary/default tool, Polygon secondary */}
               <div className="flex flex-wrap items-center gap-1.5">
-                <button onClick={() => { setSelectMode((m) => m === 'box' ? 'none' : 'box'); setPolyVerts([]); setPicking(null); }} className={`flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted ${selectMode === 'box' ? 'border-primary bg-primary/10' : ''}`}><Square className="h-3.5 w-3.5" /> {t('dayPlanner.selBox')}</button>
+                <button onClick={() => { setSelectMode((m) => m === 'box' ? 'none' : 'box'); setPolyVerts([]); setPicking(null); }} className={`flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium hover:bg-muted ${selectMode === 'box' ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/40 text-primary'}`}><Square className="h-3.5 w-3.5" /> {t('dayPlanner.selBox')}</button>
                 <button onClick={() => { setSelectMode((m) => m === 'polygon' ? 'none' : 'polygon'); setPolyVerts([]); setPicking(null); }} className={`flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted ${selectMode === 'polygon' ? 'border-primary bg-primary/10' : ''}`}><Hexagon className="h-3.5 w-3.5" /> {t('dayPlanner.selPolygon')}</button>
               </div>
               {selectMode === 'polygon' && <div className="flex items-center gap-1.5"><Button size="sm" className="flex-1" disabled={polyVerts.length < 3} onClick={finishPolygon}><Check className="h-4 w-4" /> {t('dayPlanner.finishPolygon')} ({polyVerts.length})</Button><button onClick={() => { setPolyVerts([]); setSelectMode('none'); }} className="rounded border px-2 py-1.5 hover:bg-muted"><X className="h-4 w-4" /></button></div>}
@@ -512,8 +513,7 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
                   <div key={which} className="rounded-md border p-2">
                     <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold">
                       <span className={`inline-block h-3 w-3 rounded-full ${isStart ? 'bg-green-600' : 'bg-red-600'}`} />{isStart ? t('dayPlanner.start') : t('dayPlanner.end')}
-                      {pt && <span className="ms-auto font-mono text-[10px] font-normal text-muted-foreground" dir="ltr">{pt.lat.toFixed(3)}, {pt.lng.toFixed(3)}</span>}
-                      {!pt && !isStart && kind === 'last' && <span className="ms-auto text-[10px] font-normal text-muted-foreground">{t('dayPlanner.ek_last')}</span>}
+                      {(pt || (!isStart && kind === 'last')) && <span className="ms-auto inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600"><Check className="h-3 w-3" /> {t('dayPlanner.ready')}</span>}
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <select value={kind} onChange={(e) => isStart ? resolveStartKind(e.target.value as StartKind) : resolveEndKind(e.target.value as EndKind)} className="h-7 flex-1 rounded border bg-background px-1 text-[11px]">
