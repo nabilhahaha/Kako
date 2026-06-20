@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Network, Eye, Users, Info, ArrowUp, ArrowDown, ShieldCheck, CircleDot, Circle, AlertTriangle } from 'lucide-react';
+import { Network, Eye, Users, Info, ArrowUp, ArrowDown, ShieldCheck, CircleDot, Circle, AlertTriangle, Target, PlusCircle, Send, ClipboardCheck } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { visibleUsers, directReports, managerChain, visibilityExplain, reverseVisibility, visibilitySource, type RpNode, type VisibilityReason, type VisibilityFact } from '@/lib/erp/route-planner-reporting';
-import { listReportingGraph, setReporting } from './rp-reporting-actions';
+import { listReportingGraph, setReporting, setMissionPerms } from './rp-reporting-actions';
+import { resolveMissionPerms, type MissionPermOverride, type RpRole } from '@/lib/erp/route-planner-access';
 
-type Tab = 'graph' | 'explorer';
+type Tab = 'graph' | 'explorer' | 'missions';
 
 /**
  * Reporting Graph Admin + Visibility Explorer. Manages the primary/secondary manager
@@ -24,14 +25,22 @@ export function ReportingAdminView() {
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [selected, setSelected] = useState<string>('');
+  const [missionPerms, setMissionPermsMap] = useState<Record<string, MissionPermOverride>>({});
 
   useEffect(() => { void refresh(); }, []);
   async function refresh() {
     setLoading(true);
     const r = await listReportingGraph();
-    if (r.ok) { setNodes(r.data!.nodes); setMeId(r.data!.meId); if (!selected && r.data!.nodes[0]) setSelected(r.data!.nodes[0].userId); }
+    if (r.ok) { setNodes(r.data!.nodes); setMeId(r.data!.meId); setMissionPermsMap(r.data!.missionPermsById ?? {}); if (!selected && r.data!.nodes[0]) setSelected(r.data!.nodes[0].userId); }
     else setMsg(errLabel(r.error));
     setLoading(false);
+  }
+  async function toggleMissionPerm(userId: string, key: keyof MissionPermOverride, value: boolean) {
+    setBusy(userId);
+    const res = await setMissionPerms(userId, { [key]: value });
+    if (res.ok) { setMissionPermsMap((m) => ({ ...m, [userId]: { ...(m[userId] ?? {}), [key]: value } })); }
+    else setMsg(errLabel(res.error));
+    setBusy(null);
   }
   function errLabel(code: string) {
     const map: Record<string, string> = {
@@ -79,11 +88,11 @@ export function ReportingAdminView() {
       </div>
 
       <div className="flex gap-1.5">
-        {(['graph', 'explorer'] as Tab[]).map((tb) => (
+        {(['graph', 'explorer', 'missions'] as Tab[]).map((tb) => (
           <button key={tb} onClick={() => setTab(tb)}
             className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition ${tab === tb ? 'border-primary bg-primary/10 font-medium text-primary' : 'hover:bg-muted'}`}>
-            {tb === 'graph' ? <Network className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            {tb === 'graph' ? t('rpShell.rg_tabGraph') : t('rpShell.rg_tabExplorer')}
+            {tb === 'graph' ? <Network className="h-3.5 w-3.5" /> : tb === 'explorer' ? <Eye className="h-3.5 w-3.5" /> : <Target className="h-3.5 w-3.5" />}
+            {tb === 'graph' ? t('rpShell.rg_tabGraph') : tb === 'explorer' ? t('rpShell.rg_tabExplorer') : t('rpShell.mp_tab')}
           </button>
         ))}
       </div>
@@ -163,8 +172,10 @@ export function ReportingAdminView() {
             </tbody>
           </table>
         </div>
-      ) : (
+      ) : tab === 'explorer' ? (
         <Explorer nodes={nodes} selected={selected} setSelected={setSelected} nameOf={nameOf} meId={meId} t={t} />
+      ) : (
+        <MissionPermsPanel nodes={nodes} overrides={missionPerms} onToggle={toggleMissionPerm} busy={busy} t={t} />
       )}
     </div>
   );
@@ -287,6 +298,63 @@ function Explorer({ nodes, selected, setSelected, nameOf, meId, t }: {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Mission Permissions (thin admin slice) — per user, toggle Can create / Can assign / Can
+ * review missions. Execute is implicit for everyone. Each toggle shows the EFFECTIVE state
+ * (role default unless overridden); clicking sets an explicit override. Clean, scannable,
+ * mobile-friendly rows. Drives the upcoming Supervisor Missions flow.
+ */
+function MissionPermsPanel({ nodes, overrides, onToggle, busy, t }: {
+  nodes: RpNode[];
+  overrides: Record<string, MissionPermOverride>;
+  onToggle: (userId: string, key: keyof MissionPermOverride, value: boolean) => void;
+  busy: string | null;
+  t: ReturnType<typeof useI18n>['t'];
+}) {
+  const caps: { key: 'create' | 'assign' | 'review'; label: string; icon: typeof PlusCircle }[] = [
+    { key: 'create', label: t('rpShell.mp_create'), icon: PlusCircle },
+    { key: 'assign', label: t('rpShell.mp_assign'), icon: Send },
+    { key: 'review', label: t('rpShell.mp_review'), icon: ClipboardCheck },
+  ];
+  return (
+    <div className="space-y-2">
+      <p className="flex items-start gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{t('rpShell.mp_intro')}</span>
+      </p>
+      <ul className="divide-y rounded-lg border">
+        {nodes.map((n) => {
+          const role = (n.role ?? 'field_user') as RpRole;
+          const eff = resolveMissionPerms(role, overrides[n.userId]);
+          const effFor: Record<'create' | 'assign' | 'review', boolean> = { create: eff.canCreate, assign: eff.canAssign, review: eff.canReview };
+          return (
+            <li key={n.userId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{n.name}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {n.role ? t(`rpShell.rg_role_${role}` as Parameters<typeof t>[0]) : t('rpShell.mp_executeOnly')}
+                  <span className="ms-1 text-emerald-600">· {t('rpShell.mp_canExecute')}</span>
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {caps.map((c) => {
+                  const on = effFor[c.key];
+                  return (
+                    <button key={c.key} disabled={busy === n.userId} onClick={() => onToggle(n.userId, c.key, !on)} title={c.label}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition disabled:opacity-50 ${on ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-muted bg-muted/30 text-muted-foreground hover:bg-muted'}`}>
+                      <c.icon className="h-3 w-3" /> {c.label}
+                      {on ? <CircleDot className="h-3 w-3" /> : <Circle className="h-3 w-3 opacity-40" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

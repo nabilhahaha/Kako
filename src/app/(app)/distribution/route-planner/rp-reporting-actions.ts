@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { wouldCycle, type RpNode } from '@/lib/erp/route-planner-reporting';
+import type { MissionPermOverride } from '@/lib/erp/route-planner-access';
 
 /**
  * Reporting Graph Admin — server actions over the reporting edges on
@@ -26,6 +27,8 @@ export interface ReportingGraphData {
   nodes: RpNode[];
   /** The signed-in admin's own id (for "you" markers). */
   meId: string;
+  /** Per-user raw mission-permission overrides (thin admin slice). Absent → role default. */
+  missionPermsById: Record<string, MissionPermOverride>;
 }
 
 /**
@@ -49,10 +52,12 @@ export async function listReportingGraph(): Promise<Result<ReportingGraphData>> 
   // 2) Access rows (reporting edges) for this company.
   const { data: accessRows, error: aErr } = await sb
     .from('erp_route_planner_access')
-    .select('user_id, role, primary_manager_id, secondary_manager_id, see_all, is_active')
+    .select('user_id, role, primary_manager_id, secondary_manager_id, see_all, mission_perms, is_active')
     .eq('company_id', companyId);
   if (aErr) return { ok: false, error: aErr.message };
   const accessById = new Map((accessRows ?? []).map((r) => [r.user_id as string, r]));
+  const missionPermsById: Record<string, MissionPermOverride> = {};
+  for (const r of accessRows ?? []) if (r.mission_perms) missionPermsById[r.user_id as string] = r.mission_perms as MissionPermOverride;
 
   // Union of all ids we need profile names for (members + any referenced managers).
   const ids = new Set<string>(memberIds);
@@ -81,7 +86,29 @@ export async function listReportingGraph(): Promise<Result<ReportingGraphData>> 
     };
   }).sort((x, y) => x.name.localeCompare(y.name));
 
-  return { ok: true, data: { nodes, meId: ctx.userId } };
+  return { ok: true, data: { nodes, meId: ctx.userId, missionPermsById } };
+}
+
+/**
+ * Thin admin slice — set a user's Supervisor-Mission capability overrides (create / assign
+ * / review; execute is implicit). Company-admin gated (same as reporting edges). Upserts the
+ * access row, merging only the mission_perms jsonb. A null value clears that key (→ role
+ * default). Reuses the Reporting Graph for hierarchy; no new table.
+ */
+export async function setMissionPerms(userId: string, perms: MissionPermOverride): Promise<Result> {
+  const ctx = await adminCtx(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  // Merge with the existing override so toggling one capability keeps the others.
+  const { data: cur } = await sb.from('erp_route_planner_access')
+    .select('mission_perms').eq('company_id', ctx.companyId).eq('user_id', userId).maybeSingle();
+  const merged: MissionPermOverride = { ...((cur?.mission_perms as MissionPermOverride) ?? {}) };
+  for (const k of ['create', 'assign', 'execute', 'review'] as const) {
+    if (k in perms) { if (perms[k] === null || perms[k] === undefined) delete merged[k]; else merged[k] = perms[k]; }
+  }
+  const { error } = await sb.from('erp_route_planner_access').upsert({
+    company_id: ctx.companyId, user_id: userId, mission_perms: merged, updated_at: new Date().toISOString(),
+  }, { onConflict: 'company_id,user_id' });
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 /**

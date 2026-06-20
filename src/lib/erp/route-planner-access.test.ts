@@ -3,6 +3,8 @@ import {
   mapRoutePlannerAccess,
   rpHasFeature,
   rpIsManagerial,
+  resolveMissionPerms,
+  missionPermsOf,
   RP_ROLE_DEFAULT_FEATURES,
   RP_ROLE_DEFAULT_SCOPE,
   type RoutePlannerAccessRow,
@@ -72,5 +74,31 @@ describe('route-planner-access', () => {
     expect(a.areaId).toBe('area-1');
     expect(a.regionId).toBe('reg-1');
     expect(a.isDefault).toBe(false);
+  });
+});
+
+describe('mission permissions (thin admin slice)', () => {
+  it('role defaults: managers author+assign+review, field roles execute-only', () => {
+    expect(resolveMissionPerms('manager')).toEqual({ canCreate: true, canAssign: true, canExecute: true, canReview: true });
+    expect(resolveMissionPerms('area_manager')).toEqual({ canCreate: true, canAssign: true, canExecute: true, canReview: true });
+    expect(resolveMissionPerms('supervisor')).toEqual({ canCreate: false, canAssign: false, canExecute: true, canReview: false });
+    expect(resolveMissionPerms('field_user')).toEqual({ canCreate: false, canAssign: false, canExecute: true, canReview: false });
+  });
+
+  it('a per-user override wins over the role default (in both directions)', () => {
+    // promote a supervisor to create + review
+    expect(resolveMissionPerms('supervisor', { create: true, review: true })).toMatchObject({ canCreate: true, canReview: true, canExecute: true });
+    // restrict a manager from assigning
+    expect(resolveMissionPerms('manager', { assign: false })).toMatchObject({ canCreate: true, canAssign: false });
+  });
+
+  it('mapRoutePlannerAccess resolves missionPerms from the row override', () => {
+    const a = mapRoutePlannerAccess(row({ role: 'supervisor', mission_perms: { create: true } }))!;
+    expect(a.missionPerms).toEqual({ canCreate: true, canAssign: false, canExecute: true, canReview: false });
+  });
+
+  it('missionPermsOf is default-permissive for null access', () => {
+    expect(missionPermsOf(null)).toEqual({ canCreate: true, canAssign: true, canExecute: true, canReview: true });
+    expect(missionPermsOf(mapRoutePlannerAccess(row({ role: 'field_user' })))).toMatchObject({ canCreate: false, canExecute: true });
   });
 });

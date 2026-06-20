@@ -359,7 +359,7 @@ async function resolveUserContext(): Promise<UserContext | null> {
   if (rpExperience && companyId) {
     const { data: accessRow } = await supabase
       .from('erp_route_planner_access')
-      .select('role, features, scope_level, region_id, area_id, supervisor_id, team_id')
+      .select('role, features, scope_level, region_id, area_id, supervisor_id, team_id, mission_perms')
       .eq('company_id', companyId)
       .eq('user_id', user.id)
       .eq('is_active', true)

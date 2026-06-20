@@ -24,6 +24,44 @@ export type RpRole = (typeof RP_ROLES)[number];
 export const RP_SCOPE_LEVELS = ['company', 'region', 'area', 'team', 'self'] as const;
 export type RpScopeLevel = (typeof RP_SCOPE_LEVELS)[number];
 
+/**
+ * Supervisor-Mission capabilities (the "thin admin slice"): finer-grained than the
+ * `field_missions` feature. Execute = run an assigned mission; Create = author a mission;
+ * Assign = give a mission to another user; Review = sign off on mission reports.
+ */
+export interface MissionPerms { canCreate: boolean; canAssign: boolean; canExecute: boolean; canReview: boolean }
+
+/** Stored per-user override (jsonb on the access row). A present key wins over the role default. */
+export interface MissionPermOverride { create?: boolean; assign?: boolean; execute?: boolean; review?: boolean }
+
+/** Role defaults for mission capabilities. Managerial roles author+assign+review; field
+ *  roles execute-only — overridable per user by a company admin. */
+export const RP_ROLE_DEFAULT_MISSION_PERMS: Record<RpRole, MissionPerms> = {
+  route_planner_admin: { canCreate: true,  canAssign: true,  canExecute: true, canReview: true },
+  manager:             { canCreate: true,  canAssign: true,  canExecute: true, canReview: true },
+  area_manager:        { canCreate: true,  canAssign: true,  canExecute: true, canReview: true },
+  supervisor:          { canCreate: false, canAssign: false, canExecute: true, canReview: false },
+  field_user:          { canCreate: false, canAssign: false, canExecute: true, canReview: false },
+};
+
+/** Resolve effective mission perms from a role + optional per-user override. Pure. */
+export function resolveMissionPerms(role: RpRole, override?: MissionPermOverride | null): MissionPerms {
+  const base = RP_ROLE_DEFAULT_MISSION_PERMS[role];
+  const o = override ?? {};
+  return {
+    canCreate: o.create ?? base.canCreate,
+    canAssign: o.assign ?? base.canAssign,
+    canExecute: o.execute ?? base.canExecute,
+    canReview: o.review ?? base.canReview,
+  };
+}
+
+/** Mission perms for a resolved access (DEFAULT-PERMISSIVE: null access → all true). */
+export function missionPermsOf(access: RoutePlannerAccess | null): MissionPerms {
+  if (!access) return { canCreate: true, canAssign: true, canExecute: true, canReview: true };
+  return access.missionPerms;
+}
+
 /** Resolved Route Planner access for the current user (within their company). */
 export interface RoutePlannerAccess {
   role: RpRole;
@@ -33,6 +71,8 @@ export interface RoutePlannerAccess {
   areaId: string | null;
   supervisorId: string | null;
   teamId: string | null;
+  /** Effective Supervisor-Mission capabilities (role default + per-user override). */
+  missionPerms: MissionPerms;
   /** True when this was synthesised from a default (no explicit DB row exists). */
   isDefault: boolean;
 }
@@ -64,6 +104,7 @@ export interface RoutePlannerAccessRow {
   area_id: string | null;
   supervisor_id: string | null;
   team_id: string | null;
+  mission_perms?: MissionPermOverride | null;
 }
 
 function isRpRole(v: string | null | undefined): v is RpRole {
@@ -92,6 +133,7 @@ export function mapRoutePlannerAccess(row: RoutePlannerAccessRow | null | undefi
     areaId: row.area_id ?? null,
     supervisorId: row.supervisor_id ?? null,
     teamId: row.team_id ?? null,
+    missionPerms: resolveMissionPerms(role, row.mission_perms),
     isDefault: false,
   };
 }
