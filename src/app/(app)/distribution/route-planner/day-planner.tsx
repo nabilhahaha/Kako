@@ -16,10 +16,10 @@ import {
 import { parseUploadColumns } from './import-actions';
 import { ImportMapper, RejectedRowsBar } from './import-mapper';
 import { DayPlannerMap, type DayMapPoint, type DayMapEndpoint, type DaySelectMode } from './day-planner-map';
-import { loadDpTemplates, saveDpTemplate, deleteDpTemplate, findBestTemplate, type DpTemplate } from './day-planner-templates';
+import { loadDpTemplates, syncDpTemplates, persistDpTemplate, findBestTemplate, type DpTemplate } from './day-planner-templates';
 import { saveDayPlannerDraft, loadDayPlannerDraft, clearDayPlannerDraft, type DayPlannerDraft } from './day-planner-draft';
 import { loadDpPlans, saveDpPlan, deleteDpPlan, getDpPlan, planShareUrl, type DpSavedPlan } from './day-planner-plans';
-import { loadSegments, filterBySegment, type RpSegment } from './route-planner-segments';
+import { loadSegments, syncSegments, filterBySegment, type RpSegment } from './route-planner-segments';
 import { getDpLocation, setDpLocation, type DpLocationKey } from './day-planner-locations';
 
 /** Estimated minutes spent at each stop (service time), used for the day-effort estimate. */
@@ -96,7 +96,15 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
   const [pendingDraft, setPendingDraft] = useState<DayPlannerDraft | null>(null);
   const decided = useRef(false);
 
-  useEffect(() => { setTemplates(loadDpTemplates()); setPlans(loadDpPlans()); setSegments(loadSegments()); }, []);
+  // Instant paint from the cache, then reconcile templates + segments with the server
+  // (migrates local-only items up on first load; falls back to cache when offline).
+  useEffect(() => {
+    setTemplates(loadDpTemplates()); setPlans(loadDpPlans()); setSegments(loadSegments());
+    let alive = true;
+    void syncDpTemplates().then((list) => { if (alive) setTemplates(list); });
+    void syncSegments().then((list) => { if (alive) setSegments(list); });
+    return () => { alive = false; };
+  }, []);
 
   // ── On mount: a ?plan=<id> link reopens a saved plan; else offer draft recovery;
   //    else (dataset present) open straight onto it. ──
@@ -523,7 +531,7 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
               <div className="mt-1 space-y-1.5 border-t pt-2">
                 <p className="text-[11px] font-semibold text-muted-foreground">{t('dayPlanner.tplTitle')}</p>
                 {templates.length > 0 && <select onChange={(e) => { const tp = templates.find((x) => x.id === e.target.value); if (tp) { setMapping(tp.mapping); setAppliedTemplate(tp.name); } }} value="" className="h-7 w-full rounded border bg-background px-1 text-[11px]"><option value="">{t('dayPlanner.tplApply')}</option>{templates.map((tp) => <option key={tp.id} value={tp.id}>{tp.name}</option>)}</select>}
-                <div className="flex items-center gap-1.5"><Input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder={t('dayPlanner.tplName')} className="h-7 flex-1 text-[11px]" /><button onClick={() => { if (tplName.trim()) { setTemplates(saveDpTemplate(tplName, headers, mapping)); setAppliedTemplate(tplName.trim()); setTplName(''); } }} disabled={!tplName.trim()} className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50"><Save className="h-3 w-3" /> {t('dayPlanner.tplSave')}</button></div>
+                <div className="flex items-center gap-1.5"><Input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder={t('dayPlanner.tplName')} className="h-7 flex-1 text-[11px]" /><button onClick={() => { if (tplName.trim()) { const nm = tplName.trim(); setAppliedTemplate(nm); setTplName(''); void persistDpTemplate(nm, headers, mapping).then(setTemplates); } }} disabled={!tplName.trim()} className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50"><Save className="h-3 w-3" /> {t('dayPlanner.tplSave')}</button></div>
               </div>
             </>}
           />
