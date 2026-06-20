@@ -45,6 +45,15 @@ export async function saveFieldMapping(sourceId: string, entity: RpEntity, mappi
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
+export async function getFieldMapping(sourceId: string, entity: RpEntity): Promise<Result<Record<string, string> | null>> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const { data, error } = await sb.from('erp_rp_field_mappings')
+    .select('mapping').eq('company_id', ctx.companyId).eq('source_id', sourceId).eq('entity', entity).maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: (data as { mapping?: Record<string, string> } | null)?.mapping ?? null };
+}
+
 // ── Integration: run a manual sync + history ────────────────────────────────
 export async function runManualSync(input: {
   sourceId?: string | null; sourceLabel?: string | null;

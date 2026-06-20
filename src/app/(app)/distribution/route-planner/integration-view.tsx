@@ -1,17 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { UploadCloud, Database, Activity, CheckCircle2, AlertTriangle, History } from 'lucide-react';
+import { UploadCloud, Database, Activity, CheckCircle2, AlertTriangle, History, Plus, X, Cloud, Link2, Clock } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { parseUploadColumns } from './import-actions';
 import { ImportMapper } from './import-mapper';
 import { runDataHealth, dataHealthTotal, type HCustomer, type DataHealthReport } from '@/lib/erp/route-planner-data-health';
 import { RP_QUALITY_CHECKS } from '@/lib/erp/route-planner-backend';
-import { runManualSync, listSyncRuns } from './rp-backend-actions';
+import { runManualSync, listSyncRuns, listDataSources, createDataSource, saveFieldMapping, getFieldMapping } from './rp-backend-actions';
 
 type Step = 'upload' | 'map' | 'report';
 type Mapping = Record<string, string | undefined>;
+type Source = Record<string, unknown>;
 
 /** Customer Master fields that drive Data Health (the rest of the datasets come later). */
 const CM_FIELDS = [
@@ -22,6 +23,8 @@ const CM_FIELDS = [
   { key: 'salesman', labelKey: 'dayPlanner.f_salesman' },
   { key: 'route', labelKey: 'routePlanner.map_route' },
 ] as const;
+
+const SOURCE_ICON: Record<string, typeof Database> = { manual_upload: UploadCloud, google_sheets: Cloud, api_erp: Link2, scheduled: Clock };
 
 const str = (v: unknown) => { const s = (v ?? '').toString().trim(); return s || null; };
 const num = (v: unknown) => { const n = Number((v ?? '').toString().trim()); return Number.isFinite(n) ? n : null; };
@@ -38,14 +41,19 @@ function toCustomers(records: Record<string, string>[], m: Mapping): HCustomer[]
 }
 
 /**
- * Integration UI — Manual Upload connector + Data Health + Sync History. Upload a
- * customer file → map columns (shared ImportMapper) → see the Data Health report (pure,
- * runs now) → record the sync to erp_rp_sync_runs (once the backend tables are applied).
- * Sources / Field-Mapping persistence and Google Sheets / API connectors follow.
+ * Integration UI — Data Sources + Manual Upload connector + Field Mapping + Data Health +
+ * Sync History. Pick (or create) a source → upload a customer file → map columns (shared
+ * ImportMapper, persisted to erp_rp_field_mappings) → review the Data Health report (pure)
+ * → record the sync to erp_rp_sync_runs. The Data Health report runs client-side, so it
+ * works without a source; persistence (mapping save, sync history) needs a selected source.
  */
 export function IntegrationView() {
   const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
   const [step, setStep] = useState<Step>('upload');
   const [fileName, setFileName] = useState<string | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -55,11 +63,32 @@ export function IntegrationView() {
   const [customers, setCustomers] = useState<HCustomer[]>([]);
   const [importing, setImporting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [mapSaved, setMapSaved] = useState(false);
   const [saved, setSaved] = useState<{ imported: number; updated: number; rejected: number } | null>(null);
   const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
 
-  useEffect(() => { void refreshRuns(); }, []);
+  useEffect(() => { void refreshSources(); void refreshRuns(); }, []);
+  async function refreshSources() { const r = await listDataSources(); if (r.ok) setSources((r.data as Source[]) ?? []); }
   async function refreshRuns() { const r = await listSyncRuns(20); if (r.ok) setRuns((r.data as Record<string, unknown>[]) ?? []); }
+
+  const activeSource = sources.find((s) => String(s.id) === activeId) ?? null;
+
+  async function selectSource(id: string) {
+    setActiveId(id);
+    // Preload any saved customer_master mapping for this source.
+    const r = await getFieldMapping(id, 'customer_master');
+    if (r.ok && r.data) setMapping(r.data as Mapping);
+  }
+
+  async function addSource() {
+    const name = newName.trim(); if (!name) return;
+    setMsg(null);
+    const r = await createDataSource({ name, type: 'manual_upload' });
+    if (!r.ok) { setMsg(r.error); return; }
+    setNewName(''); setCreating(false);
+    await refreshSources();
+    setActiveId(r.data!.id);
+  }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
@@ -69,9 +98,15 @@ export function IntegrationView() {
       const res = await parseUploadColumns(fd);
       if (!res.ok) { setMsg(t('dayPlanner.uploadErr')); return; }
       setFileName(file.name); setHeaders(res.headers); setRecords(res.records);
-      // Auto-detect: reuse the suggested TIS mapping where keys line up.
+      // Keep a preloaded saved mapping if its columns still exist; otherwise auto-detect.
       const sg = res.suggested as Record<string, string | undefined>;
-      setMapping({ name: sg.name, lat: sg.lat, lng: sg.lng, code: sg.code, salesman: sg.salesman, route: sg.route });
+      setMapping((prev) => {
+        const keep = (v?: string) => (v && res.headers.includes(v) ? v : undefined);
+        const hasPrev = Object.values(prev).some(Boolean);
+        return hasPrev
+          ? { name: keep(prev.name) ?? sg.name, lat: keep(prev.lat) ?? sg.lat, lng: keep(prev.lng) ?? sg.lng, code: keep(prev.code) ?? sg.code, salesman: keep(prev.salesman) ?? sg.salesman, route: keep(prev.route) ?? sg.route }
+          : { name: sg.name, lat: sg.lat, lng: sg.lng, code: sg.code, salesman: sg.salesman, route: sg.route };
+      });
       setStep('map');
     } catch { setMsg(t('dayPlanner.uploadErr')); }
     finally { setImporting(false); if (fileRef.current) fileRef.current.value = ''; }
@@ -80,20 +115,30 @@ export function IntegrationView() {
   const requiredOk = !!(mapping.name && mapping.lat && mapping.lng);
   const validCount = requiredOk ? toCustomers(records, mapping).filter((c) => c.name && c.lat != null && c.lng != null).length : 0;
 
-  function continueToReport() {
+  async function continueToReport() {
     const cs = toCustomers(records, mapping);
     setCustomers(cs);
     setReport(runDataHealth({ customers: cs }));
-    setStep('report'); setSaved(null);
+    setStep('report'); setSaved(null); setMapSaved(false);
+    // Persist the field mapping for the active source (only mapped, defined columns).
+    if (activeId) {
+      const clean: Record<string, string> = {};
+      for (const k of Object.keys(mapping)) { const v = mapping[k]; if (v) clean[k] = v; }
+      const r = await saveFieldMapping(activeId, 'customer_master', clean);
+      if (r.ok) { setMapSaved(true); void refreshSources(); }
+    }
   }
 
   async function recordSync() {
     setMsg(null);
     const valid = customers.filter((c) => c.name && c.lat != null && c.lng != null);
-    const res = await runManualSync({ sourceLabel: fileName, master: { customers: valid }, existingCodes: [], rejected: customers.filter((c) => !(c.name && c.lat != null && c.lng != null)).map((_, i) => ({ row: i + 1, reason: 'missing_required' })) });
+    const res = await runManualSync({
+      sourceId: activeId, sourceLabel: fileName, master: { customers: valid }, existingCodes: [],
+      rejected: customers.filter((c) => !(c.name && c.lat != null && c.lng != null)).map((_, i) => ({ row: i + 1, reason: 'missing_required' })),
+    });
     if (!res.ok) { setMsg(res.error); return; }
     setSaved({ imported: res.data!.imported, updated: res.data!.updated, rejected: res.data!.rejected });
-    void refreshRuns();
+    void refreshRuns(); void refreshSources();
   }
 
   return (
@@ -104,10 +149,44 @@ export function IntegrationView() {
         <p className="text-sm font-bold">{t('rpShell.g_integrations')}</p>
       </div>
 
+      {/* Data Sources strip */}
+      <div className="rounded-lg border p-2">
+        <div className="mb-1.5 flex items-center justify-between">
+          <p className="text-xs font-semibold text-muted-foreground">{t('rpShell.intg_sources')}</p>
+          {!creating && <Button size="sm" variant="outline" onClick={() => setCreating(true)}><Plus className="h-3.5 w-3.5" /> {t('rpShell.intg_newSource')}</Button>}
+        </div>
+        {creating && (
+          <div className="mb-2 flex items-center gap-2">
+            <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addSource(); if (e.key === 'Escape') setCreating(false); }}
+              placeholder={t('rpShell.intg_sourceName')} className="flex-1 rounded-md border px-2 py-1.5 text-sm" />
+            <Button size="sm" onClick={addSource} disabled={!newName.trim()}>{t('rpShell.intg_create')}</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setCreating(false); setNewName(''); }}><X className="h-4 w-4" /></Button>
+          </div>
+        )}
+        {sources.length === 0 && !creating ? (
+          <p className="py-1 text-xs text-muted-foreground">{t('rpShell.intg_noSources')}</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {sources.map((s) => {
+              const id = String(s.id); const Icon = SOURCE_ICON[String(s.type)] ?? Database; const on = id === activeId;
+              return (
+                <button key={id} onClick={() => selectSource(id)}
+                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${on ? 'border-primary bg-primary/10 font-medium text-primary' : 'hover:bg-muted'}`}>
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="max-w-[160px] truncate">{String(s.name)}</span>
+                  {s.last_status ? <span className={`rounded-full px-1.5 text-[10px] ${String(s.last_status) === 'success' ? 'bg-emerald-100 text-emerald-700' : String(s.last_status) === 'failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{String(s.last_status)}</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {step === 'upload' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
           <UploadCloud className="h-10 w-10 text-primary" />
           <p className="max-w-md text-sm text-muted-foreground">{t('rpShell.intg_intro')}</p>
+          <p className="text-xs text-muted-foreground">{activeSource ? `${t('rpShell.intg_activeSource')}: ${String(activeSource.name)}` : t('rpShell.intg_adhoc')}</p>
           <Button onClick={() => fileRef.current?.click()} disabled={importing}><UploadCloud className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('rpShell.intg_upload')}</Button>
           {msg && <p className="text-sm text-amber-700">{msg}</p>}
           {runs.length > 0 && <SyncHistory runs={runs} t={t} />}
@@ -138,6 +217,7 @@ export function IntegrationView() {
               <Button size="sm" onClick={recordSync}><History className="h-4 w-4" /> {t('rpShell.intg_record')}</Button>
             </div>
           </div>
+          {mapSaved && <p className="rounded bg-sky-50 px-3 py-1.5 text-xs text-sky-700">{t('rpShell.intg_mappingSaved')}</p>}
           {saved && <p className="rounded bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{t('rpShell.intg_recorded').replace('{i}', String(saved.imported)).replace('{u}', String(saved.updated)).replace('{r}', String(saved.rejected))}</p>}
           {msg && <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('rpShell.intg_recordPending')} <span className="text-muted-foreground">({msg})</span></p>}
 
