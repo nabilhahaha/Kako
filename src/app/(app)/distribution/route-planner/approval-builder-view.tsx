@@ -5,8 +5,8 @@ import { GitBranch, Plus, Trash2, ArrowUp, ArrowDown, Info, CheckCircle2, Save, 
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import {
-  RP_TICKET_TYPES, RP_APPROVAL_STAGES, RP_ASSIGN_METHODS, RP_RELATIONS, RP_ROLES, RP_APPROVAL_TEMPLATES,
-  type RpTicketType, type RpApprovalStep, type RpApprovalStage, type RpAssignMethod, type RpRelation, type RpRole,
+  RP_TICKET_TYPES, RP_APPROVAL_STAGES, RP_ASSIGN_METHODS, RP_RELATIONS, RP_ROLES, RP_STEP_MODES, RP_APPROVAL_TEMPLATES,
+  type RpTicketType, type RpApprovalStep, type RpApprovalStage, type RpAssignMethod, type RpRelation, type RpRole, type RpStepMode,
 } from '@/lib/erp/route-planner-backend';
 import { listApprovalFlows, saveApprovalFlow } from './rp-backend-actions';
 import { listReportingGraph } from './rp-reporting-actions';
@@ -169,6 +169,19 @@ export function ApprovalBuilderView() {
                           {users.length === 0 ? <option value="">—</option> : users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                         </select>
                       )}
+                    </label>
+                  </div>
+                  {/* Step semantics: All Of / Any Of + Skip if empty */}
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t pt-2 text-[11px]">
+                    <label className="flex items-center gap-1.5">
+                      <span className="font-medium text-muted-foreground">{t('rpShell.ab_mode')}</span>
+                      <select value={st.mode ?? 'all'} onChange={(e) => update(i, { mode: e.target.value as RpStepMode })} className="rounded border bg-background px-1.5 py-1">
+                        {RP_STEP_MODES.map((m) => <option key={m} value={m}>{t(`rpShell.ab_mode_${m}` as Parameters<typeof t>[0])}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex items-center gap-1.5">
+                      <input type="checkbox" checked={!!st.skipIfEmpty} onChange={(e) => update(i, { skipIfEmpty: e.target.checked })} />
+                      {t('rpShell.ab_skipIfEmpty')}
                     </label>
                   </div>
                 </div>

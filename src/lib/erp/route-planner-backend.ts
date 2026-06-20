@@ -85,12 +85,21 @@ export type RpApprovalStage = (typeof RP_APPROVAL_STAGES)[number];
 export const RP_ASSIGN_METHODS = ['role', 'relation', 'user'] as const;
 export type RpAssignMethod = (typeof RP_ASSIGN_METHODS)[number];
 
+/** How a step is satisfied when it resolves to MULTIPLE assignees. */
+export const RP_STEP_MODES = ['all', 'any'] as const;
+export type RpStepMode = (typeof RP_STEP_MODES)[number];
+
 export interface RpApprovalStep {
   stage: RpApprovalStage;
   assignBy: RpAssignMethod;
   role?: string;
   relation?: RpRelation;
   userId?: string;
+  /** 'all' (every assignee must approve, default) | 'any' (any one assignee approves). */
+  mode?: RpStepMode;
+  /** When the step resolves to NO assignee (e.g. no manager in the line), skip it
+   *  instead of blocking the flow. */
+  skipIfEmpty?: boolean;
 }
 export interface RpApprovalFlow { id: string; companyId: string; ticketType: RpTicketType; steps: RpApprovalStep[]; isActive: boolean }
 

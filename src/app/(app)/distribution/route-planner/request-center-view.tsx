@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Plus, X, Info, ChevronRight, UserPlus, FileEdit, PauseCircle, StopCircle, Repeat, Crosshair, Route as RouteIcon, type LucideIcon } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,15 @@ const TYPE_ICON: Record<RpTicketType, LucideIcon> = {
   reassignment: Repeat, location_fix: Crosshair, route_change: RouteIcon,
 };
 
+/** Overdue = an OPEN ticket that has been sitting longer than the aging threshold. */
+const OVERDUE_DAYS = 7;
+const OPEN_STATUSES: RpTicketStatus[] = ['created', 'pending_manager_review', 'approved', 'pending_admin_action', 'need_more_info'];
+function isOverdue(r: Record<string, unknown>): boolean {
+  if (!OPEN_STATUSES.includes(String(r.status) as RpTicketStatus)) return false;
+  const created = r.created_at ? new Date(String(r.created_at)).getTime() : NaN;
+  return Number.isFinite(created) && Date.now() - created > OVERDUE_DAYS * 86_400_000;
+}
+
 const STATUS_TONE: Record<string, string> = {
   created: 'bg-slate-100 text-slate-700',
   pending_manager_review: 'bg-amber-100 text-amber-700',
@@ -52,7 +61,7 @@ export function RequestCenterView() {
   const { t } = useI18n();
   const [requests, setRequests] = useState<Req[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<RpTicketStatus | 'all'>('all');
+  const [filter, setFilter] = useState<RpTicketStatus | 'all' | 'overdue'>('all');
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<Req | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -73,7 +82,21 @@ export function RequestCenterView() {
   }
 
   const form = REQUEST_FORMS[type];
-  const shown = filter === 'all' ? requests : requests.filter((r) => String(r.status) === filter);
+  const shown = filter === 'all' ? requests
+    : filter === 'overdue' ? requests.filter(isOverdue)
+    : requests.filter((r) => String(r.status) === filter);
+
+  // Operational KPIs over ALL requests (independent of the active filter).
+  const kpis = useMemo(() => {
+    const by = (sts: RpTicketStatus[]) => requests.filter((r) => sts.includes(String(r.status) as RpTicketStatus)).length;
+    return {
+      total: requests.length,
+      review: by(['pending_manager_review', 'need_more_info']),
+      impl: by(['approved', 'pending_admin_action']),
+      closed: by(['closed', 'implemented_externally']),
+      overdue: requests.filter(isOverdue).length,
+    };
+  }, [requests]);
 
   function setVal(k: string, v: string) { setValues((s) => ({ ...s, [k]: v })); }
 
@@ -121,6 +144,17 @@ export function RequestCenterView() {
       <div className="flex items-start gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{t('rpShell.rc_disclaimer')}</span>
       </div>
+
+      {/* KPI summary — clickable quick-filters above the grid. */}
+      {!isEmpty && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <KpiTile label={t('rpShell.rc_kpi_total')} value={kpis.total} tone="slate" active={filter === 'all'} onClick={() => setFilter('all')} />
+          <KpiTile label={t('rpShell.rc_kpi_pendingReview')} value={kpis.review} tone="amber" active={filter === 'pending_manager_review'} onClick={() => setFilter('pending_manager_review')} />
+          <KpiTile label={t('rpShell.rc_kpi_pendingImpl')} value={kpis.impl} tone="indigo" active={filter === 'pending_admin_action'} onClick={() => setFilter('pending_admin_action')} />
+          <KpiTile label={t('rpShell.rc_kpi_closed')} value={kpis.closed} tone="emerald" active={filter === 'closed'} onClick={() => setFilter('closed')} />
+          <KpiTile label={t('rpShell.rc_kpi_overdue')} value={kpis.overdue} tone="red" active={filter === 'overdue'} onClick={() => setFilter('overdue')} />
+        </div>
+      )}
 
       {/* Status filter — only once there are requests to filter. */}
       {!isEmpty && (
@@ -247,6 +281,18 @@ export function RequestCenterView() {
         </Drawer>
       )}
     </div>
+  );
+}
+
+const KPI_TONE: Record<string, string> = {
+  slate: 'text-slate-700', amber: 'text-amber-700', indigo: 'text-indigo-700', emerald: 'text-emerald-700', red: 'text-red-700',
+};
+function KpiTile({ label, value, tone, active, onClick }: { label: string; value: number; tone: keyof typeof KPI_TONE | string; active: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className={`rounded-lg border p-2.5 text-start transition hover:bg-muted/40 ${active ? 'border-primary ring-1 ring-primary/30' : ''}`}>
+      <p className={`text-xl font-bold tabular-nums ${KPI_TONE[tone] ?? ''}`} dir="ltr">{value}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+    </button>
   );
 }
 

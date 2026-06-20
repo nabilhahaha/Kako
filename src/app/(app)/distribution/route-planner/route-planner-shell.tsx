@@ -26,30 +26,39 @@ import { ApprovalBuilderView } from './approval-builder-view';
 type RpFeature = 'route_planning' | 'day_planner' | 'field_missions' | 'reports';
 
 type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'soon';
+type Section = 'planning' | 'data' | 'operations' | 'admin';
 interface NavItem { key: string; labelKey: string; icon: LucideIcon; action: Action }
-interface NavGroup { key: string; labelKey: string; icon: LucideIcon; feature?: RpFeature; adminOnly?: boolean; items: NavItem[] }
+interface NavGroup { key: string; labelKey: string; icon: LucideIcon; section: Section; feature?: RpFeature; adminOnly?: boolean; items: NavItem[] }
+
+/** Top-level sidebar sections (a light header above the collapsible groups). */
+const SECTIONS: { key: Section; labelKey: string }[] = [
+  { key: 'planning', labelKey: 'sec_planning' },
+  { key: 'data', labelKey: 'sec_data' },
+  { key: 'operations', labelKey: 'sec_operations' },
+  { key: 'admin', labelKey: 'sec_admin' },
+];
 
 const NAV: NavGroup[] = [
-  { key: 'planning', labelKey: 'g_planning', icon: RouteIcon, feature: 'route_planning', items: [
+  { key: 'planning', labelKey: 'g_planning', icon: RouteIcon, section: 'planning', feature: 'route_planning', items: [
     { key: 'dayPlanner', labelKey: 'i_dayPlanner', icon: MapIcon, action: 'dayPlanner' },
     { key: 'routeBuilder', labelKey: 'i_routeBuilder', icon: RouteIcon, action: 'planning' },
     { key: 'weeklyPlanner', labelKey: 'i_weeklyPlanner', icon: CalendarRange, action: 'soon' },
     { key: 'savedPlans', labelKey: 'i_savedPlans', icon: Bookmark, action: 'soon' },
     { key: 'routeTemplates', labelKey: 'i_routeTemplates', icon: LayoutTemplate, action: 'soon' },
   ] },
-  { key: 'customers', labelKey: 'g_customers', icon: Users, feature: 'route_planning', items: [
+  { key: 'customers', labelKey: 'g_customers', icon: Users, section: 'data', feature: 'route_planning', items: [
     { key: 'customerList', labelKey: 'i_customerList', icon: Users, action: 'customers' },
     { key: 'customerGroups', labelKey: 'i_customerGroups', icon: UsersRound, action: 'soon' },
     { key: 'savedSegments', labelKey: 'i_savedSegments', icon: Filter, action: 'segments' },
     { key: 'importCustomers', labelKey: 'i_importCustomers', icon: UploadCloud, action: 'import' },
   ] },
-  { key: 'territories', labelKey: 'g_territories', icon: Globe2, feature: 'route_planning', items: [
+  { key: 'territories', labelKey: 'g_territories', icon: Globe2, section: 'data', feature: 'route_planning', items: [
     { key: 'regions', labelKey: 'i_regions', icon: Globe2, action: 'territories' },
     { key: 'cities', labelKey: 'i_cities', icon: Building2, action: 'territories' },
     { key: 'drawAreas', labelKey: 'i_drawAreas', icon: PencilRuler, action: 'soon' },
     { key: 'territoryAssignment', labelKey: 'i_territoryAssignment', icon: UserCheck, action: 'soon' },
   ] },
-  { key: 'execution', labelKey: 'g_execution', icon: ClipboardCheck, feature: 'field_missions', items: [
+  { key: 'execution', labelKey: 'g_execution', icon: ClipboardCheck, section: 'operations', feature: 'field_missions', items: [
     { key: 'supervisorVisits', labelKey: 'i_supervisorVisits', icon: ClipboardCheck, action: 'soon' },
     { key: 'customerVisitHistory', labelKey: 'i_customerVisitHistory', icon: History, action: 'soon' },
     { key: 'photosEvidence', labelKey: 'i_photosEvidence', icon: Images, action: 'soon' },
@@ -58,23 +67,23 @@ const NAV: NavGroup[] = [
     { key: 'opportunities', labelKey: 'i_opportunities', icon: Lightbulb, action: 'soon' },
     { key: 'followUpActions', labelKey: 'i_followUpActions', icon: ListChecks, action: 'soon' },
   ] },
-  { key: 'analytics', labelKey: 'g_analytics', icon: PieChart, feature: 'reports', items: [
+  { key: 'analytics', labelKey: 'g_analytics', icon: PieChart, section: 'operations', feature: 'reports', items: [
     { key: 'coverage', labelKey: 'i_coverage', icon: PieChart, action: 'soon' },
     { key: 'routeEfficiency', labelKey: 'i_routeEfficiency', icon: Gauge, action: 'soon' },
     { key: 'distanceTime', labelKey: 'i_distanceTime', icon: Timer, action: 'soon' },
     { key: 'visitFrequency', labelKey: 'i_visitFrequency', icon: Repeat, action: 'soon' },
     { key: 'unvisitedCustomers', labelKey: 'i_unvisitedCustomers', icon: UserX, action: 'soon' },
   ] },
-  { key: 'integrations', labelKey: 'g_integrations', icon: Database, feature: 'route_planning', items: [
+  { key: 'integrations', labelKey: 'g_integrations', icon: Database, section: 'data', feature: 'route_planning', items: [
     { key: 'dataSources', labelKey: 'i_dataSources', icon: Database, action: 'integration' },
     { key: 'syncHistory', labelKey: 'i_syncHistory', icon: History, action: 'integration' },
     { key: 'dataHealth', labelKey: 'i_dataHealth', icon: Activity, action: 'integration' },
   ] },
-  { key: 'requests', labelKey: 'g_requests', icon: ClipboardList, feature: 'route_planning', items: [
+  { key: 'requests', labelKey: 'g_requests', icon: ClipboardList, section: 'operations', feature: 'route_planning', items: [
     { key: 'allRequests', labelKey: 'i_allRequests', icon: Inbox, action: 'requests' },
     { key: 'newRequest', labelKey: 'i_newRequest', icon: ClipboardList, action: 'requests' },
   ] },
-  { key: 'admin', labelKey: 'g_admin', icon: ShieldCheck, adminOnly: true, items: [
+  { key: 'admin', labelKey: 'g_admin', icon: ShieldCheck, section: 'admin', adminOnly: true, items: [
     { key: 'reportingGraph', labelKey: 'i_reportingGraph', icon: Network, action: 'reporting' },
     { key: 'approvalBuilder', labelKey: 'i_approvalBuilder', icon: GitBranch, action: 'approvals' },
   ] },
@@ -128,27 +137,38 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
   }
   function goHome() { setActive('home'); setView('home'); setDrawer(false); }
 
+  const renderGroup = (g: NavGroup) => {
+    const isOpen = open[g.key] ?? false;
+    return (
+      <div key={g.key}>
+        <button onClick={() => setOpen((s) => ({ ...s, [g.key]: !isOpen }))} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 font-semibold text-foreground/80 hover:bg-muted">
+          <g.icon className="h-4 w-4 shrink-0" />
+          <span className="flex-1 text-start">{t(`rpShell.${g.labelKey}` as Parameters<typeof t>[0])}</span>
+          {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" />}
+        </button>
+        {isOpen && (
+          <div className="ms-3 border-s ps-1">
+            {g.items.map((it) => (
+              <button key={it.key} onClick={() => go(it)} className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start transition ${active === it.key ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
+                <it.icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{t(`rpShell.${it.labelKey}` as Parameters<typeof t>[0])}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const Sidebar = (
     <nav className="flex h-full w-60 shrink-0 flex-col gap-0.5 overflow-y-auto border-e bg-muted/20 p-2 text-sm">
-      {groups.map((g) => {
-        const isOpen = open[g.key] ?? false;
+      {SECTIONS.map((sec) => {
+        const secGroups = groups.filter((g) => g.section === sec.key);
+        if (secGroups.length === 0) return null;
         return (
-          <div key={g.key}>
-            <button onClick={() => setOpen((s) => ({ ...s, [g.key]: !isOpen }))} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 font-semibold text-foreground/80 hover:bg-muted">
-              <g.icon className="h-4 w-4 shrink-0" />
-              <span className="flex-1 text-start">{t(`rpShell.${g.labelKey}` as Parameters<typeof t>[0])}</span>
-              {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" />}
-            </button>
-            {isOpen && (
-              <div className="ms-3 border-s ps-1">
-                {g.items.map((it) => (
-                  <button key={it.key} onClick={() => go(it)} className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start transition ${active === it.key ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
-                    <it.icon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{t(`rpShell.${it.labelKey}` as Parameters<typeof t>[0])}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+          <div key={sec.key} className="mb-1">
+            <p className="px-2 pb-0.5 pt-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{t(`rpShell.${sec.labelKey}` as Parameters<typeof t>[0])}</p>
+            {secGroups.map(renderGroup)}
           </div>
         );
       })}
