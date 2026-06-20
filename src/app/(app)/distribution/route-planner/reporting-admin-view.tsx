@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Network, Eye, Users, Info, ArrowUp, ArrowDown, ShieldCheck, CircleDot, Circle } from 'lucide-react';
+import { Network, Eye, Users, Info, ArrowUp, ArrowDown, ShieldCheck, CircleDot, Circle, AlertTriangle } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { visibleUsers, directReports, managerChain, visibilityExplain, reverseVisibility, visibilitySource, type RpNode, type VisibilityReason, type VisibilityFact } from '@/lib/erp/route-planner-reporting';
@@ -58,6 +58,16 @@ export function ReportingAdminView() {
     await refresh();
   }
 
+  // First-run signals: no members at all, vs members present but no reporting edges
+  // anywhere (→ everyone sees only themselves, the classic "self-only" confusion).
+  const graphEmpty = nodes.length === 0;
+  const noEdges = !graphEmpty && nodes.every((n) => !n.primaryManagerId && !n.secondaryManagerId && !n.seeAll);
+
+  async function grantMeSeeAll() {
+    if (!meId) return;
+    await save(meId, { seeAll: true });
+  }
+
   if (loading) return <div className="p-6 text-sm text-muted-foreground">{t('routePlanner.importing')}</div>;
 
   return (
@@ -80,7 +90,27 @@ export function ReportingAdminView() {
 
       {msg && <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">{msg}</p>}
 
-      {tab === 'graph' ? (
+      {/* First-run guidance — prevent the "self-only visibility" confusion. */}
+      {!graphEmpty && noEdges && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <p className="flex items-center gap-1.5 font-semibold"><AlertTriangle className="h-4 w-4" /> {t('rpShell.rg_firstRunTitle')}</p>
+          <p className="mt-1">{t('rpShell.rg_firstRunHint')}</p>
+          <ol className="mt-1.5 ms-4 list-decimal space-y-0.5">
+            <li>{t('rpShell.rg_step1')}</li>
+            <li>{t('rpShell.rg_step2')}</li>
+            <li>{t('rpShell.rg_step3')}</li>
+          </ol>
+          <Button size="sm" className="mt-2.5" onClick={grantMeSeeAll}><ShieldCheck className="h-4 w-4" /> {t('rpShell.rg_grantMeSeeAll')}</Button>
+        </div>
+      )}
+
+      {graphEmpty ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center">
+          <Users className="h-10 w-10 text-muted-foreground/40" />
+          <p className="mt-3 text-base font-bold">{t('rpShell.rg_emptyTitle')}</p>
+          <p className="mt-1 max-w-md px-4 text-sm text-muted-foreground">{t('rpShell.rg_emptyHint')}</p>
+        </div>
+      ) : tab === 'graph' ? (
         <div className="min-h-0 flex-1 overflow-auto rounded-lg border">
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-muted"><tr>
