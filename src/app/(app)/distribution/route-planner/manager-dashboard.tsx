@@ -101,13 +101,18 @@ export function ManagerDashboard({ userId, perms, onOpenMissions, onNewMission }
     <div className="space-y-4">
       {/* KPI row + completion gauge */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {kpis.map((c) => (
-          <div key={c.label} className="rounded-2xl border bg-card p-3 shadow-sm">
-            <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${c.tone}`}><c.icon className="h-4 w-4" /></div>
-            <p className="text-2xl font-bold tabular-nums">{c.v}</p>
-            <p className="text-[11px] text-muted-foreground">{c.label}</p>
-          </div>
-        ))}
+        {(all.length === 0 && kpis.length === 0 ? Array.from({ length: 5 }) : kpis).map((c, i) => {
+          const card = c as typeof kpis[number] | undefined;
+          return (
+            <div key={card?.label ?? i} className="rounded-2xl border bg-card p-3 shadow-sm">
+              {card ? <>
+                <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${card.tone}`}><card.icon className="h-4 w-4" /></div>
+                <p className="text-2xl font-bold tabular-nums">{card.v}</p>
+                <p className="text-[11px] text-muted-foreground">{card.label}</p>
+              </> : <div className="space-y-2"><div className="h-8 w-8 animate-pulse rounded-lg bg-muted" /><div className="h-6 w-10 animate-pulse rounded bg-muted" /><div className="h-3 w-16 animate-pulse rounded bg-muted/60" /></div>}
+            </div>
+          );
+        })}
         <div className="col-span-2 flex items-center justify-center rounded-2xl border bg-card p-3 shadow-sm sm:col-span-1">
           <Gauge pct={completionPct} label={t('rpShell.kpi_completedVisits')} />
         </div>
