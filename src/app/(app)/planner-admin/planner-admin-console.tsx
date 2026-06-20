@@ -176,6 +176,9 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
         <div className={`rounded-md border px-3 py-2 text-xs ${diag.serviceKeyPresent && diag.keyMatchesUrl !== false ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-amber-400 bg-amber-50 text-amber-900'}`}>
           <p className="mb-1 font-semibold">{t('routePlanner.adminDiag')}</p>
           <div className="grid grid-cols-1 gap-x-6 gap-y-0.5 font-mono sm:grid-cols-2">
+            <span>account = <b>{diag.email ?? '—'}</b></span>
+            <span>isRoutePlannerAdmin = <b>{String(diag.isRoutePlannerAdmin)}</b> · experience = <b>{String(diag.isRoutePlannerExperience)}</b></span>
+            <span>memberships = <b>{diag.memberships}</b> · companyId = <b>{diag.companyId ? 'set' : 'null'}</b></span>
             <span>SUPABASE_SERVICE_ROLE_KEY present = <b>{String(diag.serviceKeyPresent)}</b>{diag.serviceKeyPresent ? ` (len ${diag.serviceKeyLength})` : ''}</span>
             <span>VERCEL_ENV = <b>{diag.vercelEnv ?? '—'}</b>{diag.gitRef ? ` · ${diag.gitRef}` : ''}</span>
             <span>NEXT_PUBLIC_SUPABASE_URL = <b>{diag.supabaseRef ?? diag.supabaseUrl}</b></span>

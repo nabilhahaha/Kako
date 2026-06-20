@@ -49,6 +49,11 @@ async function requireAdmin(): Promise<boolean> {
 }
 
 export interface AdminDiagnostics {
+  email: string | null;
+  isRoutePlannerAdmin: boolean;
+  isRoutePlannerExperience: boolean;
+  memberships: number;
+  companyId: string | null;
   serviceKeyPresent: boolean;
   serviceKeyLength: number;
   /** Project ref decoded from the service key's JWT payload (NOT the secret) — for legacy keys. */
@@ -69,7 +74,8 @@ export interface AdminDiagnostics {
  * presence/length, and the public project ref decoded from the JWT payload).
  */
 export async function routePlannerAdminDiagnostics(): Promise<Result<AdminDiagnostics>> {
-  if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  const ctx = await getUserContext();
+  if (!ctx?.isRoutePlannerAdmin) return { ok: false, error: 'err_unauthorized' };
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://rsjvgehvastmawzwnqcs.supabase.co';
   const supabaseRef = url.match(/https?:\/\/([a-z0-9]+)\.supabase\.co/i)?.[1] ?? null;
@@ -89,6 +95,11 @@ export async function routePlannerAdminDiagnostics(): Promise<Result<AdminDiagno
   return {
     ok: true,
     data: {
+      email: ctx.profile?.email ?? null,
+      isRoutePlannerAdmin: ctx.isRoutePlannerAdmin,
+      isRoutePlannerExperience: ctx.isRoutePlannerExperience,
+      memberships: ctx.memberships.length,
+      companyId: ctx.companyId,
       serviceKeyPresent: key.length > 0,
       serviceKeyLength: key.length,
       serviceKeyRef,
