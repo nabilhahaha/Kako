@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardList, Plus, X, Info, ChevronRight, UserPlus, FileEdit, PauseCircle, StopCircle, Repeat, Crosshair, Route as RouteIcon, type LucideIcon } from 'lucide-react';
+import { ClipboardList, Plus, X, Info, ChevronRight, UserPlus, FileEdit, PauseCircle, StopCircle, Repeat, Crosshair, Route as RouteIcon, GitBranch, CheckCircle2, type LucideIcon } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { RP_TICKET_TYPES, RP_TICKET_STATUSES, type RpTicketType, type RpTicketStatus } from '@/lib/erp/route-planner-backend';
 import { REQUEST_FORMS, OPTION_SETS, validateRequest, buildDetails, primaryGps, type FormField } from '@/lib/erp/route-planner-request-forms';
-import { createRequest, listRequests, transitionRequest } from './rp-backend-actions';
+import { createRequest, listRequests, transitionRequest, getRequestApproval, advanceRequest, type RequestApprovalView } from './rp-backend-actions';
 
 type Req = Record<string, unknown>;
 
@@ -64,6 +64,8 @@ export function RequestCenterView() {
   const [filter, setFilter] = useState<RpTicketStatus | 'all' | 'overdue'>('all');
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<Req | null>(null);
+  const [approval, setApproval] = useState<RequestApprovalView | null>(null);
+  const [wfBusy, setWfBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   // create form — schema-driven per ticket type
@@ -125,6 +127,34 @@ export function RequestCenterView() {
     if (!r.ok) { setMsg(r.error); return; }
     await refresh();
     setSelected((s) => (s && String(s.id) === id ? { ...s, status } : s));
+  }
+
+  // Load the live approval state whenever a ticket is opened.
+  useEffect(() => {
+    if (!selected) { setApproval(null); return; }
+    let live = true;
+    setApproval(null);
+    void getRequestApproval(String(selected.id)).then((r) => { if (live && r.ok) setApproval(r.data!); });
+    return () => { live = false; };
+  }, [selected]);
+
+  async function act(action: 'approve' | 'reject' | 'need_info') {
+    if (!selected) return;
+    setWfBusy(true); setMsg(null);
+    const r = await advanceRequest(String(selected.id), action);
+    setWfBusy(false);
+    if (!r.ok) { setMsg(wfError(r.error)); return; }
+    const a = await getRequestApproval(String(selected.id));
+    if (a.ok) setApproval(a.data!);
+    setSelected((s) => (s ? { ...s, status: r.data!.status } : s));
+    await refresh();
+  }
+  function wfError(code: string) {
+    const m: Record<string, string> = {
+      err_not_authorized: t('rpShell.rc_wf_errAuth'), err_already_done: t('rpShell.rc_wf_errDone'),
+      err_no_flow: t('rpShell.rc_wf_errNoFlow'),
+    };
+    return m[code] ?? code;
   }
 
   function openCreate(preset?: RpTicketType) {
@@ -265,17 +295,47 @@ export function RequestCenterView() {
           {/* Submitted request details (per-type fields). Routing/tracking only. */}
           <DetailFields request={selected} t={t} />
 
-          <p className="mt-4 mb-1.5 text-xs font-semibold">{t('rpShell.rc_moveTo')}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {(NEXT[String(selected.status) as RpTicketStatus] ?? []).map((ns) => (
-              <Button key={ns} size="sm" variant="outline" onClick={() => move(String(selected.id), ns)}>
-                {t(`rpShell.rc_status_${ns}` as Parameters<typeof t>[0])}
-              </Button>
-            ))}
-            {(NEXT[String(selected.status) as RpTicketStatus] ?? []).length === 0 && (
-              <span className="text-xs text-muted-foreground">{t('rpShell.rc_terminal')}</span>
-            )}
-          </div>
+          {approval?.hasFlow ? (
+            /* Enforced workflow — driven by the configured Approval Builder flow. */
+            <div className="mt-4 rounded-lg border p-3">
+              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold"><GitBranch className="h-3.5 w-3.5 text-primary" /> {t('rpShell.rc_wf_title')}</p>
+              {approval.done ? (
+                <p className="flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4" /> {t('rpShell.rc_wf_done')}</p>
+              ) : approval.pending ? (
+                <>
+                  <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">{t(`rpShell.ab_stage_${approval.pending.stage}` as Parameters<typeof t>[0])}</span>
+                    <span className="text-muted-foreground">{t(`rpShell.ab_mode_${approval.pending.mode}` as Parameters<typeof t>[0])}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{t('rpShell.rc_wf_awaiting')}: {approval.pending.assignees.length ? approval.pending.assignees.map((a) => a.name).join('، ') : t('rpShell.rc_wf_noAssignee')}</p>
+                  {approval.pending.canAct ? (
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      <Button size="sm" onClick={() => act('approve')} disabled={wfBusy}><CheckCircle2 className="h-4 w-4" /> {t('rpShell.rc_wf_approve')}</Button>
+                      <Button size="sm" variant="outline" onClick={() => act('need_info')} disabled={wfBusy}>{t('rpShell.rc_wf_needInfo')}</Button>
+                      <Button size="sm" variant="outline" onClick={() => act('reject')} disabled={wfBusy} className="text-red-600">{t('rpShell.rc_wf_reject')}</Button>
+                    </div>
+                  ) : (
+                    <p className="mt-2 rounded bg-muted/60 px-2 py-1.5 text-[11px] text-muted-foreground">{t('rpShell.rc_wf_cannotAct')}</p>
+                  )}
+                </>
+              ) : null}
+            </div>
+          ) : (
+            /* No flow configured for this type → manual status transitions. */
+            <>
+              <p className="mt-4 mb-1.5 text-xs font-semibold">{t('rpShell.rc_moveTo')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(NEXT[String(selected.status) as RpTicketStatus] ?? []).map((ns) => (
+                  <Button key={ns} size="sm" variant="outline" onClick={() => move(String(selected.id), ns)}>
+                    {t(`rpShell.rc_status_${ns}` as Parameters<typeof t>[0])}
+                  </Button>
+                ))}
+                {(NEXT[String(selected.status) as RpTicketStatus] ?? []).length === 0 && (
+                  <span className="text-xs text-muted-foreground">{t('rpShell.rc_terminal')}</span>
+                )}
+              </div>
+            </>
+          )}
 
           <p className="mt-4 rounded-md bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">{t('rpShell.rc_disclaimer')}</p>
         </Drawer>
