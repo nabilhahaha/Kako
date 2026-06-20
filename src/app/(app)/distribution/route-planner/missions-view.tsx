@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Target, Plus, MapPin, Users, Wand2, Check, ArrowRight, ArrowLeft, Calendar, Search, X, Send, Trash2, ChevronRight, Play, LogIn, LogOut, Camera, MessageSquare, AlertTriangle, Swords, Lightbulb, ListChecks, Flag, CheckCircle2, Navigation } from 'lucide-react';
+import { Target, Plus, MapPin, Users, Wand2, Check, ArrowRight, ArrowLeft, Calendar, Search, X, Send, Trash2, ChevronRight, Play, LogIn, LogOut, Camera, MessageSquare, AlertTriangle, Swords, Lightbulb, ListChecks, Flag, CheckCircle2, Navigation, Image as ImageIcon } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ import {
 } from './rp-mission-actions';
 import { listDayPlans, listJourneyPlans, type SavedPlanRow } from './rp-plan-actions';
 import { JOURNEY_DAYS, type JourneyDayKey } from '@/lib/erp/route-planner-daily-plan';
-import { uploadAttachment } from '@/app/(app)/attachments/actions';
+import { uploadAttachment, listAttachments, type AttachmentView } from '@/app/(app)/attachments/actions';
 
 const STATUS_TONE: Record<MissionStatus, string> = {
   draft: 'bg-slate-100 text-slate-700', assigned: 'bg-sky-100 text-sky-700', in_progress: 'bg-amber-100 text-amber-700',
@@ -173,11 +173,15 @@ export function MissionDetail({ missionId, perms, nameOf, onClose }: {
   const [busy, setBusy] = useState(false);
   const [composer, setComposer] = useState<{ stopId: string; kind: StopObservationKind } | null>(null);
   const [text, setText] = useState('');
+  const [photos, setPhotos] = useState<AttachmentView[]>([]);
   async function load() {
     const r = await getMission(missionId);
     if (r.ok && r.data) { setHeader(r.data.header); setStops(r.data.stops as unknown as StopRow[]); setReport(r.data.report); }
   }
-  useEffect(() => { void load(); }, [missionId]);
+  async function loadPhotos() {
+    try { const a = await listAttachments(ATTACH_ENTITY, missionId); setPhotos(a.filter((x) => (x.mime_type ?? '').startsWith('image/') && x.url)); } catch { /* ignore */ }
+  }
+  useEffect(() => { void load(); void loadPhotos(); }, [missionId]);
 
   const progress = useMemo(() => missionProgress(stops), [stops]);
   const status = header?.status;
@@ -199,7 +203,7 @@ export function MissionDetail({ missionId, perms, nameOf, onClose }: {
     const fd = new FormData(); fd.append('entity', ATTACH_ENTITY); fd.append('record_id', missionId); fd.append('file', file);
     const up = await uploadAttachment(fd);
     await addStopObservation({ missionId, stopId, kind: 'photo', text: file.name, attachments: up && typeof up === 'object' && 'id' in up ? [String((up as { id: unknown }).id)] : [] });
-    await load(); setBusy(false);
+    await load(); await loadPhotos(); setBusy(false);
   }
 
   if (!header) return <p className="p-6 text-center text-sm text-muted-foreground">{t('rpShell.mn_loading')}</p>;
@@ -244,6 +248,21 @@ export function MissionDetail({ missionId, perms, nameOf, onClose }: {
           ].map((x) => (
             <div key={x.k}><p className="text-lg font-bold tabular-nums">{x.v}</p><p className="text-[10px] text-muted-foreground">{t(`rpShell.${x.k}` as Parameters<typeof t>[0])}</p></div>
           ))}
+        </div>
+      )}
+
+      {/* Mission photos — evidence captured during execution (shared erp_attachments). */}
+      {photos.length > 0 && (status === 'completed' || status === 'reviewed' || running) && (
+        <div>
+          <p className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold text-muted-foreground"><ImageIcon className="h-3.5 w-3.5" /> {t('rpShell.mn_obsPhoto')} · {photos.length}</p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {photos.map((p) => (
+              <a key={p.id} href={p.url ?? '#'} target="_blank" rel="noreferrer" className="block h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url ?? ''} alt={p.file_name} className="h-full w-full object-cover" loading="lazy" />
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
