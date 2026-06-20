@@ -87,7 +87,14 @@ export function MissionsView({ customers, perms, onImport }: { customers: DpCust
       {msg && <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">{msg}</p>}
 
       {loading ? (
-        <p className="p-6 text-center text-sm text-muted-foreground">{t('rpShell.mn_loading')}</p>
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <li key={i} className="rounded-xl border bg-card p-3 shadow-sm">
+              <div className="mb-2 h-4 w-2/3 animate-pulse rounded bg-muted" />
+              <div className="space-y-1.5"><div className="h-3 w-1/2 animate-pulse rounded bg-muted/60" /><div className="h-3 w-1/3 animate-pulse rounded bg-muted/60" /></div>
+            </li>
+          ))}
+        </ul>
       ) : missions.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed p-8 text-center">
           <Target className="h-10 w-10 text-muted-foreground/40" />
