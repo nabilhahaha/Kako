@@ -5,7 +5,7 @@ import {
   Home, Map as MapIcon, CalendarRange, Bookmark, LayoutTemplate, Users, UsersRound, Filter, UploadCloud,
   Globe2, Building2, PencilRuler, UserCheck, ClipboardCheck, History, Images, AlertTriangle, Swords,
   Lightbulb, ListChecks, PieChart, Gauge, Timer, Repeat, UserX, ChevronDown, ChevronRight, Menu, X,
-  Route as RouteIcon, LogOut, User as UserIcon, Database, Activity, ClipboardList, Inbox, type LucideIcon,
+  Route as RouteIcon, LogOut, User as UserIcon, Database, Activity, ClipboardList, Inbox, Network, ShieldCheck, type LucideIcon,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { LanguageToggle } from '@/components/layout/language-toggle';
@@ -18,14 +18,15 @@ import { CustomersView } from './customers-view';
 import { TerritoriesView } from './territories-view';
 import { IntegrationView } from './integration-view';
 import { RequestCenterView } from './request-center-view';
+import { ReportingAdminView } from './reporting-admin-view';
 
 /** Route Planner feature grants. Mirrors the Field Missions Phase 0 access model
  *  (erp_route_planner_access); kept local here so this PR stays independent of #310. */
 type RpFeature = 'route_planning' | 'day_planner' | 'field_missions' | 'reports';
 
-type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'soon';
+type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'reporting' | 'soon';
 interface NavItem { key: string; labelKey: string; icon: LucideIcon; action: Action }
-interface NavGroup { key: string; labelKey: string; icon: LucideIcon; feature?: RpFeature; items: NavItem[] }
+interface NavGroup { key: string; labelKey: string; icon: LucideIcon; feature?: RpFeature; adminOnly?: boolean; items: NavItem[] }
 
 const NAV: NavGroup[] = [
   { key: 'planning', labelKey: 'g_planning', icon: RouteIcon, feature: 'route_planning', items: [
@@ -72,6 +73,9 @@ const NAV: NavGroup[] = [
     { key: 'allRequests', labelKey: 'i_allRequests', icon: Inbox, action: 'requests' },
     { key: 'newRequest', labelKey: 'i_newRequest', icon: ClipboardList, action: 'requests' },
   ] },
+  { key: 'admin', labelKey: 'g_admin', icon: ShieldCheck, adminOnly: true, items: [
+    { key: 'reportingGraph', labelKey: 'i_reportingGraph', icon: Network, action: 'reporting' },
+  ] },
 ];
 
 /**
@@ -82,15 +86,17 @@ const NAV: NavGroup[] = [
  * runs on the existing, dataset-fed engine (no logic rebuilt). Groups the user's
  * `features` (erp_route_planner_access) don't include are hidden.
  */
-export function RoutePlannerShell({ subscription, demo = false, userEmail, features }: {
+export function RoutePlannerShell({ subscription, demo = false, userEmail, features, isAdmin = false }: {
   subscription?: RoutePlannerSubscriptionView;
   demo?: boolean;
   userEmail?: string | null;
   /** Route Planner feature grants; null = unrestricted (sees all groups). */
   features: RpFeature[] | null;
+  /** Company admin (or platform/super/RP admin) — gates the Administration group. */
+  isAdmin?: boolean;
 }) {
   const { t } = useI18n();
-  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'soon'>('home');
+  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'reporting' | 'soon'>('home');
   const [custFocusSegments, setCustFocusSegments] = useState(false);
   const [terrGroup, setTerrGroup] = useState<'region' | 'city' | 'area'>('region');
   const [soonLabel, setSoonLabel] = useState('');
@@ -101,7 +107,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
   const [seed, setSeed] = useState<DpCustomer[]>([]); // customers from the Route Builder upload
 
   const can = (f?: RpFeature) => !f || features === null || features.includes(f);
-  const groups = NAV.filter((g) => can(g.feature));
+  const groups = NAV.filter((g) => (g.adminOnly ? isAdmin : can(g.feature)));
 
   function go(item: NavItem) {
     setActive(item.key);
@@ -114,6 +120,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
     else if (item.action === 'territories') { setTerrGroup(item.key === 'cities' ? 'city' : 'region'); setView('territories'); }
     else if (item.action === 'integration') setView('integration');
     else if (item.action === 'requests') setView('requests');
+    else if (item.action === 'reporting') setView('reporting');
     else { setSoonLabel(t(`rpShell.${item.labelKey}` as Parameters<typeof t>[0])); setView('soon'); }
   }
   function goHome() { setActive('home'); setView('home'); setDrawer(false); }
@@ -234,6 +241,13 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
           {view === 'requests' && (
             <div className="h-full">
               <RequestCenterView />
+            </div>
+          )}
+
+          {/* Administration — Reporting Graph + Visibility Explorer (admin only). */}
+          {view === 'reporting' && (
+            <div className="h-full">
+              <ReportingAdminView />
             </div>
           )}
 

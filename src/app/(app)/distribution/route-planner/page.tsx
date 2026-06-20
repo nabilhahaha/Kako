@@ -35,6 +35,7 @@ export default async function RoutePlannerPage() {
         subscription={subscription}
         userEmail={ctx.profile?.email ?? null}
         features={null}
+        isAdmin={ctx.isSuperAdmin || ctx.isPlatformOwner || ctx.topRole === 'admin' || ctx.isRoutePlannerAdmin}
       />
     );
   }
