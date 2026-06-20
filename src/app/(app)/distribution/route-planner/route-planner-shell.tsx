@@ -20,6 +20,7 @@ import { CustomersView } from './customers-view';
 import { TerritoriesView } from './territories-view';
 import { MissionsView } from './missions-view';
 import { PlannerDashboard } from './planner-dashboard';
+import { CompanyAdminView, type AdminNavTarget } from './company-admin-view';
 import type { MissionPerms } from '@/lib/erp/route-planner-access';
 import { IntegrationView } from './integration-view';
 import { RequestCenterView } from './request-center-view';
@@ -30,7 +31,7 @@ import { ApprovalBuilderView } from './approval-builder-view';
  *  (erp_route_planner_access); kept local here so this PR stays independent of #310. */
 type RpFeature = 'route_planning' | 'day_planner' | 'field_missions' | 'reports';
 
-type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'missions' | 'soon';
+type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'missions' | 'companyConsole' | 'soon';
 type Section = 'planning' | 'data' | 'operations' | 'admin';
 interface NavItem { key: string; labelKey: string; icon: LucideIcon; action: Action }
 interface NavGroup { key: string; labelKey: string; icon: LucideIcon; section: Section; feature?: RpFeature; adminOnly?: boolean; items: NavItem[] }
@@ -90,6 +91,7 @@ const NAV: NavGroup[] = [
     { key: 'newRequest', labelKey: 'i_newRequest', icon: ClipboardList, action: 'requests' },
   ] },
   { key: 'admin', labelKey: 'g_admin', icon: ShieldCheck, section: 'admin', adminOnly: true, items: [
+    { key: 'companyConsole', labelKey: 'i_companyConsole', icon: Building2, action: 'companyConsole' },
     { key: 'reportingGraph', labelKey: 'i_reportingGraph', icon: Network, action: 'reporting' },
     { key: 'approvalBuilder', labelKey: 'i_approvalBuilder', icon: GitBranch, action: 'approvals' },
   ] },
@@ -119,7 +121,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
   missionPerms?: MissionPerms;
 }) {
   const { t, dir } = useI18n();
-  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'missions' | 'soon'>('home');
+  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'missions' | 'companyConsole' | 'soon'>('home');
   const [custFocusSegments, setCustFocusSegments] = useState(false);
   const [terrGroup, setTerrGroup] = useState<'region' | 'city' | 'area'>('region');
   const [soonLabel, setSoonLabel] = useState('');
@@ -158,6 +160,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
     else if (item.action === 'reporting') setView('reporting');
     else if (item.action === 'approvals') setView('approvals');
     else if (item.action === 'missions') setView('missions');
+    else if (item.action === 'companyConsole') setView('companyConsole');
     else { setSoonLabel(t(`rpShell.${item.labelKey}` as Parameters<typeof t>[0])); setView('soon'); }
   }
   function goHome() { setActive('home'); setView('home'); setDrawer(false); }
@@ -305,6 +308,14 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
           {view === 'requests' && (
             <div className="h-full">
               <RequestCenterView meId={userId} customers={effectiveSeed} />
+            </div>
+          )}
+
+          {/* Administration — Company Admin Console (company-scoped; admin only). */}
+          {view === 'companyConsole' && (
+            <div className="h-full">
+              <CompanyAdminView subscription={subscription} companyName={subscription?.companyName ?? null}
+                onNavigate={(target: AdminNavTarget) => { setActive(target === 'integration' ? 'integration' : target); setView(target); }} />
             </div>
           )}
 
