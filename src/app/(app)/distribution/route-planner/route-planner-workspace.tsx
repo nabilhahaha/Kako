@@ -655,6 +655,18 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
             <p className="mt-2 text-sm text-muted-foreground">{t('routePlanner.methodManualDesc')}</p>
           </button>
         </div>
+        {/* Day Planner — a separate same-day sequencing tool (not a route-planning
+            method), kept reachable from this landing screen too. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed bg-muted/20 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><MapIcon className="h-5 w-5" /></div>
+            <div>
+              <p className="text-sm font-semibold">{t('dayPlanner.title')}</p>
+              <p className="text-xs text-muted-foreground">{t('dayPlanner.intro')}</p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={() => setDayPlannerOpen(true)}><MapIcon className="h-4 w-4" /> {t('dayPlanner.open')}</Button>
+        </div>
         <Button variant="ghost" size="sm" onClick={reset}><RotateCcw className="h-4 w-4" /> {t('routePlanner.newUpload')}</Button>
       </div>
     );
@@ -665,6 +677,10 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     <div className={focus ? 'flex h-[calc(100dvh-0.75rem)] flex-col gap-2 p-2 lg:px-4' : 'space-y-3'}>
       {brandHeader}
       {subBanner}
+      {/* Day Planner stays one click away from the planning screen too. */}
+      <div className="flex shrink-0 items-center justify-end print:hidden">
+        <button onClick={() => setDayPlannerOpen(true)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted"><MapIcon className="h-3.5 w-3.5" /> {t('dayPlanner.open')}</button>
+      </div>
       {/* Workflow guide — frames the planner as a guided product (Map → … → Export),
           not an ERP screen. Focus mode only, compact. */}
       {focus && (() => {

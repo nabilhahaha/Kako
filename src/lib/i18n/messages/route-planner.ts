@@ -280,6 +280,7 @@ export const ar = {
   },
   dayPlanner: {
     title: 'مخطط اليوم',
+    open: 'فتح مخطط اليوم',
     intro: 'ابنِ أفضل تسلسل زيارات لليوم: ارفع العملاء، حدّد نقطة البداية والنهاية، ثم أنشئ الترتيب.',
     uploadErr: 'تعذّر رفع الملف.',
     needCols: 'الملف يحتاج أعمدة: الاسم، خط العرض، خط الطول.',
@@ -646,6 +647,7 @@ export const en = {
   },
   dayPlanner: {
     title: 'Day Planner',
+    open: 'Open Day Planner',
     intro: 'Build the best visit sequence for today: upload customers, set a Start and End point, then generate the order.',
     uploadErr: 'Could not upload the file.',
     needCols: 'The file needs columns: Name, Latitude, Longitude.',
