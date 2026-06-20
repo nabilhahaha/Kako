@@ -19,6 +19,7 @@ import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map
 import { TrialBanner } from './trial-banner';
 import { JourneyPanel, type JourneyInputCustomer } from './journey-panel';
 import { DayPlanner } from './day-planner';
+import { ImportMapper } from './import-mapper';
 import type { DpCustomer } from '@/lib/tis/day-planner-import';
 import { savePlannerDraft, loadPlannerDraft, clearPlannerDraft, type PlannerDraft } from './planner-draft';
 import { WhatsAppContact } from '@/components/route-planner/whatsapp-contact';
@@ -617,6 +618,37 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         if (nm && Number.isFinite(la) && Number.isFinite(lo) && !(la === 0 && lo === 0)) ready++;
       }
     }
+    // Mapping step — the SHARED ImportMapper wizard (identical UX to the Day Planner).
+    if (mapState) {
+      const fields = TIS_MAP_FIELDS.map((f) => ({ key: f.key, label: t(`routePlanner.map_${f.key}` as Parameters<typeof t>[0]), required: f.required }));
+      return (
+        <div className="mx-auto flex h-[calc(100dvh-7rem)] w-full max-w-5xl flex-col gap-2 p-2">
+          {overlays}
+          <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
+          {msg && <p className={`shrink-0 text-sm ${msg.tone === 'err' ? 'text-red-600' : 'text-emerald-600'}`}>{msg.text}</p>}
+          <ImportMapper
+            title={t('routePlanner.uploadTitle')}
+            rowCount={mapState.records.length}
+            headers={mapState.headers}
+            records={mapState.records}
+            fields={fields}
+            mapping={mp ?? {}}
+            onMap={(key, header) => setFieldMap(key as TisFieldKey, header ?? '')}
+            stats={[
+              { label: t('dayPlanner.v_total'), value: mapState.records.length },
+              { label: t('dayPlanner.v_valid'), value: ready, tone: 'ok' },
+              { label: t('dayPlanner.v_skipped'), value: Math.max(0, mapState.records.length - ready), tone: 'warn' },
+            ]}
+            requiredOk={requiredOk}
+            warning={t('routePlanner.mapRequired')}
+            canContinue={requiredOk && ready > 0}
+            continueLabel={t('routePlanner.confirmImport')}
+            onBack={() => setMapState(null)}
+            onContinue={confirmMapping}
+          />
+        </div>
+      );
+    }
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         {overlays}
@@ -628,51 +660,13 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         <Card>
           <CardContent className="space-y-4 p-6">
             <div className="flex items-center gap-2 text-lg font-semibold"><Upload className="h-5 w-5" /> {t('routePlanner.uploadTitle')}</div>
-
-            {!mapState ? (
-              <>
-                <p className="text-sm text-muted-foreground">{t('routePlanner.uploadLead2')}</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => fileRef.current?.click()} disabled={importing || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
-                  <Button variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
-                  <Button variant="outline" onClick={() => setDayPlannerOpen(true)}><MapIcon className="h-4 w-4" /> {t('dayPlanner.title')}</Button>
-                </div>
-                <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground">{t('routePlanner.mappingLead').replace('{n}', String(mapState.records.length))}</p>
-                {/* Stacked label-above-field layout: a clean 2-column grid with generous
-                    column/row gaps so labels can never collide with adjacent fields — works
-                    symmetrically in RTL (Arabic) and LTR (English). */}
-                <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-                  {TIS_MAP_FIELDS.map((f) => (
-                    <div key={f.key} className="flex min-w-0 flex-col gap-1">
-                      <label htmlFor={`map-${f.key}`} className="truncate text-sm font-medium">
-                        {t(`routePlanner.map_${f.key}`)} {f.required && <span className="text-red-600">*</span>}
-                      </label>
-                      <select
-                        id={`map-${f.key}`}
-                        className={`h-9 w-full rounded-md border bg-background px-2 text-sm ${f.required && !mp?.[f.key] ? 'border-red-400' : ''}`}
-                        value={mp?.[f.key] ?? ''}
-                        onChange={(e) => setFieldMap(f.key, e.target.value)}
-                      >
-                        <option value="">{t('routePlanner.map_none')}</option>
-                        {mapState.headers.map((h) => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-                <p className={`text-sm ${requiredOk && ready > 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                  {requiredOk ? t('routePlanner.mapReady').replace('{ready}', String(ready)).replace('{total}', String(mapState.records.length)) : t('routePlanner.mapRequired')}
-                </p>
-                <div className="flex gap-2">
-                  <Button size="sm" disabled={!requiredOk || ready === 0} onClick={confirmMapping}><Check className="h-4 w-4" /> {t('routePlanner.confirmImport')}</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setMapState(null)}>{t('routePlanner.cancel')}</Button>
-                </div>
-                <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
-              </>
-            )}
+            <p className="text-sm text-muted-foreground">{t('routePlanner.uploadLead2')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => fileRef.current?.click()} disabled={importing || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
+              <Button variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
+              <Button variant="outline" onClick={() => setDayPlannerOpen(true)}><MapIcon className="h-4 w-4" /> {t('dayPlanner.title')}</Button>
+            </div>
+            <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
           </CardContent>
         </Card>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Upload, Wand2, FileDown, Share2, Printer, Map as MapIcon, ArrowUp, ArrowDown, RotateCcw, Trash2, LassoSelect, Check, AlertTriangle, Save, Search, Link2, Smartphone, Navigation, Square, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { X, Upload, Wand2, FileDown, Share2, Printer, Map as MapIcon, ArrowUp, ArrowDown, RotateCcw, Trash2, LassoSelect, Check, Save, Search, Link2, Smartphone, Navigation, Square, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import {
   type DpMapping, type DpCustomer,
 } from '@/lib/tis/day-planner-import';
 import { parseUploadColumns } from './import-actions';
+import { ImportMapper, RejectedRowsBar } from './import-mapper';
 import { DayPlannerMap, type DayMapPoint, type DayMapEndpoint, type DaySelectMode } from './day-planner-map';
 import { loadDpTemplates, saveDpTemplate, deleteDpTemplate, findBestTemplate, type DpTemplate } from './day-planner-templates';
 import { saveDayPlannerDraft, loadDayPlannerDraft, clearDayPlannerDraft, type DayPlannerDraft } from './day-planner-draft';
@@ -467,55 +468,43 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
         </div>
       )}
 
-      {/* STEP: column mapping + validation */}
+      {/* STEP: column mapping + validation — shared ImportMapper (same wizard everywhere) */}
       {step === 'map' && (
-        <div className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <Card className="flex min-h-0 flex-col"><CardContent className="flex min-h-0 flex-1 flex-col gap-3 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-bold">{t('dayPlanner.mapStep')}</p>
-              {fileName && <span className="truncate text-[11px] text-muted-foreground">{fileName} · {records.length} {t('dayPlanner.rows')}</span>}
-              {appliedTemplate && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">{t('dayPlanner.tplApplied').replace('{name}', appliedTemplate)}</span>}
-            </div>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {DP_FIELDS.map((f) => {
-                const sample = mapping[f.key] ? (records[0]?.[mapping[f.key]!] ?? '') : '';
-                return (
-                  <label key={f.key} className="flex items-center gap-2 rounded border px-2 py-1 text-xs">
-                    <span className="w-28 shrink-0 font-medium">{t(`dayPlanner.f_${f.key}`)}{f.required && <span className="text-red-500"> *</span>}</span>
-                    <select value={mapping[f.key] ?? ''} onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value || undefined }))} className={`h-7 min-w-0 flex-1 rounded border bg-background px-1 text-[11px] ${f.required && !mapping[f.key] ? 'border-red-300' : ''}`}>
-                      <option value="">{t('dayPlanner.notMapped')}</option>
-                      {headers.map((h) => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                    {sample && <span className="hidden max-w-[80px] shrink-0 truncate text-[10px] text-muted-foreground sm:inline" dir="ltr" title={sample}>{sample}</span>}
-                  </label>
-                );
-              })}
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto rounded border">
-              <table className="w-full text-[11px]"><thead className="sticky top-0 bg-muted"><tr>{headers.map((h) => <th key={h} className="whitespace-nowrap px-2 py-1 text-start font-semibold">{h}</th>)}</tr></thead>
-                <tbody>{records.slice(0, 8).map((rec, i) => <tr key={i} className="border-t">{headers.map((h) => <td key={h} className="whitespace-nowrap px-2 py-1 text-muted-foreground" dir="ltr">{rec[h]}</td>)}</tr>)}</tbody></table>
-            </div>
-          </CardContent></Card>
-          <Card className="flex min-h-0 flex-col"><CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
-            <p className="text-sm font-bold">{t('dayPlanner.validation')}</p>
-            {!requiredMapped && <p className="flex items-center gap-1.5 rounded bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800"><AlertTriangle className="h-3.5 w-3.5" /> {t('dayPlanner.needRequired')}</p>}
-            <div className="space-y-1 text-xs">
-              {([['total', validation.total, ''], ['valid', validation.valid, 'text-emerald-600'], ['missing', validation.missingCoords, 'text-amber-600'], ['invalid', validation.invalidCoords, 'text-amber-600'], ['dupes', validation.duplicates, 'text-amber-600'], ['skipped', validation.skipped, 'text-red-600']] as const).map(([k, v, cls]) => (
-                <div key={k} className="flex items-center justify-between rounded border px-2 py-1"><span>{t(`dayPlanner.v_${k}`)}</span><span className={`tabular-nums font-semibold ${cls}`} dir="ltr">{v}</span></div>
-              ))}
-            </div>
-            {validation.rejected.length > 0 && <div className="flex flex-wrap gap-2"><button onClick={() => setShowRejected((s) => !s)} className="rounded border px-2 py-1 text-[11px] hover:bg-muted">{showRejected ? t('dayPlanner.hideRejected') : t('dayPlanner.viewRejected')}</button><button onClick={downloadRejected} className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted"><FileDown className="h-3 w-3" /> {t('dayPlanner.downloadRejected')}</button></div>}
-            {showRejected && <div className="max-h-40 overflow-y-auto rounded border text-[10px]">{validation.rejected.slice(0, 200).map((r) => <div key={r.row} className="flex items-center justify-between border-t px-2 py-0.5 first:border-t-0"><span className="truncate">{r.row}. {r.name}</span><span className="shrink-0 text-amber-700">{t(`dayPlanner.r${r.reason === 'missing_coords' ? 'Missing' : r.reason === 'invalid_coords' ? 'Invalid' : 'Duplicate'}`)}</span></div>)}</div>}
-            <div className="mt-1 space-y-1.5 border-t pt-2">
-              <p className="text-[11px] font-semibold text-muted-foreground">{t('dayPlanner.tplTitle')}</p>
-              {templates.length > 0 && <select onChange={(e) => { const tp = templates.find((x) => x.id === e.target.value); if (tp) { setMapping(tp.mapping); setAppliedTemplate(tp.name); } }} value="" className="h-7 w-full rounded border bg-background px-1 text-[11px]"><option value="">{t('dayPlanner.tplApply')}</option>{templates.map((tp) => <option key={tp.id} value={tp.id}>{tp.name}</option>)}</select>}
-              <div className="flex items-center gap-1.5"><Input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder={t('dayPlanner.tplName')} className="h-7 flex-1 text-[11px]" /><button onClick={() => { if (tplName.trim()) { setTemplates(saveDpTemplate(tplName, headers, mapping)); setAppliedTemplate(tplName.trim()); setTplName(''); } }} disabled={!tplName.trim()} className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50"><Save className="h-3 w-3" /> {t('dayPlanner.tplSave')}</button></div>
-            </div>
-            <div className="mt-auto flex items-center gap-2 pt-2">
-              <Button size="sm" variant="outline" className="flex-1" onClick={() => setStep('upload')}>{t('dayPlanner.back')}</Button>
-              <Button size="sm" className="flex-1" disabled={!requiredMapped || validation.valid === 0} onClick={continueFromMapping}><Check className="h-4 w-4" /> {t('dayPlanner.continue')}</Button>
-            </div>
-          </CardContent></Card>
+        <div className="flex min-h-0 flex-1 flex-col p-2">
+          <ImportMapper
+            title={t('dayPlanner.mapStep')}
+            fileName={fileName}
+            rowCount={records.length}
+            headers={headers}
+            records={records}
+            fields={DP_FIELDS.map((f) => ({ key: f.key, label: t(`dayPlanner.f_${f.key}`), required: f.required }))}
+            mapping={mapping}
+            onMap={(key, header) => setMapping((m) => ({ ...m, [key]: header }))}
+            stats={[
+              { label: t('dayPlanner.v_total'), value: validation.total },
+              { label: t('dayPlanner.v_valid'), value: validation.valid, tone: 'ok' },
+              { label: t('dayPlanner.v_missing'), value: validation.missingCoords, tone: 'warn' },
+              { label: t('dayPlanner.v_invalid'), value: validation.invalidCoords, tone: 'warn' },
+              { label: t('dayPlanner.v_dupes'), value: validation.duplicates, tone: 'warn' },
+              { label: t('dayPlanner.v_skipped'), value: validation.skipped, tone: 'bad' },
+            ]}
+            requiredOk={requiredMapped}
+            warning={t('dayPlanner.needRequired')}
+            canContinue={requiredMapped && validation.valid > 0}
+            continueLabel={t('dayPlanner.continue')}
+            onBack={() => setStep('upload')}
+            onContinue={continueFromMapping}
+            badge={appliedTemplate ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">{t('dayPlanner.tplApplied').replace('{name}', appliedTemplate)}</span> : null}
+            aside={<>
+              <RejectedRowsBar count={validation.rejected.length} viewing={showRejected} onView={() => setShowRejected((s) => !s)} onDownload={downloadRejected} viewLabel={t('dayPlanner.viewRejected')} hideLabel={t('dayPlanner.hideRejected')} downloadLabel={t('dayPlanner.downloadRejected')} />
+              {showRejected && <div className="max-h-40 overflow-y-auto rounded border text-[10px]">{validation.rejected.slice(0, 200).map((r) => <div key={r.row} className="flex items-center justify-between border-t px-2 py-0.5 first:border-t-0"><span className="truncate">{r.row}. {r.name}</span><span className="shrink-0 text-amber-700">{t(`dayPlanner.r${r.reason === 'missing_coords' ? 'Missing' : r.reason === 'invalid_coords' ? 'Invalid' : 'Duplicate'}`)}</span></div>)}</div>}
+              <div className="mt-1 space-y-1.5 border-t pt-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">{t('dayPlanner.tplTitle')}</p>
+                {templates.length > 0 && <select onChange={(e) => { const tp = templates.find((x) => x.id === e.target.value); if (tp) { setMapping(tp.mapping); setAppliedTemplate(tp.name); } }} value="" className="h-7 w-full rounded border bg-background px-1 text-[11px]"><option value="">{t('dayPlanner.tplApply')}</option>{templates.map((tp) => <option key={tp.id} value={tp.id}>{tp.name}</option>)}</select>}
+                <div className="flex items-center gap-1.5"><Input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder={t('dayPlanner.tplName')} className="h-7 flex-1 text-[11px]" /><button onClick={() => { if (tplName.trim()) { setTemplates(saveDpTemplate(tplName, headers, mapping)); setAppliedTemplate(tplName.trim()); setTplName(''); } }} disabled={!tplName.trim()} className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50"><Save className="h-3 w-3" /> {t('dayPlanner.tplSave')}</button></div>
+              </div>
+            </>}
+          />
         </div>
       )}
 
