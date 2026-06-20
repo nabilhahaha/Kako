@@ -167,6 +167,32 @@ function serviceClientOrError(): { svc: ReturnType<typeof createServiceClient> }
   }
 }
 
+export interface PlatformOverview {
+  totalUsers: number;
+  activeMissions: number;
+  datasets: number;
+  failedSyncs: number;
+}
+
+/** Platform-wide Planner aggregates (service-role; across all tenants). Admin-only. */
+export async function platformOverview(): Promise<Result<PlatformOverview>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  const sc = serviceClientOrError();
+  if ('err' in sc) return { ok: false, error: sc.err };
+  const svc = sc.svc;
+  try {
+    const [users, activeMissions, datasets, failedSyncs] = await Promise.all([
+      svc.from('erp_route_planner_access').select('id', { count: 'exact', head: true }),
+      svc.from('erp_rp_missions').select('id', { count: 'exact', head: true }).in('status', ['assigned', 'in_progress']),
+      svc.from('erp_rp_datasets').select('id', { count: 'exact', head: true }),
+      svc.from('erp_rp_sync_runs').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
+    ]);
+    return { ok: true, data: { totalUsers: users.count ?? 0, activeMissions: activeMissions.count ?? 0, datasets: datasets.count ?? 0, failedSyncs: failedSyncs.count ?? 0 } };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'overview_failed' };
+  }
+}
+
 export async function listRoutePlannerTenants(): Promise<Result<PlannerTenantRow[]>> {
   if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
   const sc = serviceClientOrError();

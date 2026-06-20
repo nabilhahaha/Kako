@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Route as RouteIcon, LogOut, Plus, Clock, CheckCircle2, XCircle, Ban, Loader2, RotateCcw, ExternalLink, UserPlus, X } from 'lucide-react';
+import { Route as RouteIcon, LogOut, Plus, Clock, CheckCircle2, XCircle, Ban, Loader2, RotateCcw, ExternalLink, UserPlus, X, Building2, Users, Target, Database, AlertTriangle, Activity } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,8 @@ import {
   resetDemoData,
   addRoutePlannerUser,
   routePlannerAdminDiagnostics,
+  platformOverview,
+  type PlatformOverview,
 } from './planner-admin-actions';
 
 const STATUS_SKIN: Record<RoutePlannerStatus, string> = {
@@ -26,6 +28,53 @@ const STATUS_SKIN: Record<RoutePlannerStatus, string> = {
   expired: 'bg-red-100 text-red-700',
   suspended: 'bg-zinc-200 text-zinc-700',
 };
+
+/**
+ * Platform Overview band — platform-wide Planner KPIs + a system-health summary for the
+ * platform owner. English-first (internal owner tool). Real aggregates across all tenants
+ * (platformOverview, service-role) + the per-tenant list + runtime diagnostics. Honest
+ * placeholders where a metric isn't measured yet (storage TB, monthly usage %).
+ */
+function PlatformOverviewBand({ tenants, counts }: { tenants: PlannerTenantRow[]; counts: Record<string, number> }) {
+  const [ov, setOv] = useState<PlatformOverview | null>(null);
+  const [health, setHealth] = useState<AdminDiagnostics | null>(null);
+  useEffect(() => {
+    void platformOverview().then((r) => { if (r.ok) setOv(r.data ?? null); });
+    void routePlannerAdminDiagnostics().then((r) => { if (r.ok) setHealth(r.data ?? null); });
+  }, []);
+  const num = (v: number | undefined) => (v === undefined ? '·' : v);
+  const kpis: { icon: typeof Building2; label: string; v: number | string; tone: string }[] = [
+    { icon: Building2, label: 'Companies', v: tenants.length, tone: 'bg-sky-50 text-sky-600' },
+    { icon: CheckCircle2, label: 'Active subscriptions', v: counts.active ?? 0, tone: 'bg-emerald-50 text-emerald-600' },
+    { icon: Users, label: 'Planner users', v: num(ov?.totalUsers), tone: 'bg-violet-50 text-violet-600' },
+    { icon: Target, label: 'Active missions', v: num(ov?.activeMissions), tone: 'bg-amber-50 text-amber-600' },
+    { icon: Database, label: 'Datasets', v: num(ov?.datasets), tone: 'bg-indigo-50 text-indigo-600' },
+    { icon: AlertTriangle, label: 'Failed syncs', v: num(ov?.failedSyncs), tone: 'bg-orange-50 text-orange-600' },
+  ];
+  const healthy = health ? (health.serviceKeyLooksValid && health.keyMatchesUrl !== false) : null;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {kpis.map((c) => (
+          <div key={c.label} className="rounded-2xl border bg-card p-3 shadow-sm">
+            <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${c.tone}`}><c.icon className="h-4 w-4" /></div>
+            <p className="text-2xl font-bold tabular-nums">{c.v}</p>
+            <p className="text-[11px] text-muted-foreground">{c.label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border p-3 text-xs">
+        <span className="inline-flex items-center gap-1.5 font-semibold"><Activity className="h-4 w-4 text-primary" /> System health</span>
+        <span className={`inline-flex items-center gap-1 font-medium ${healthy === false ? 'text-red-600' : healthy ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+          <span className={`h-2 w-2 rounded-full ${healthy === false ? 'bg-red-500' : healthy ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+          {healthy === null ? 'Checking…' : healthy ? 'Operational' : 'Attention needed'}
+        </span>
+        {health && <span className="text-muted-foreground">· env {health.vercelEnv ?? '—'}{health.commitSha ? ` · ${health.commitSha}` : ''}</span>}
+        {ov && ov.failedSyncs > 0 && <span className="text-amber-600">· {ov.failedSyncs} failed syncs</span>}
+      </div>
+    </div>
+  );
+}
 
 export function PlannerAdminConsole({ initialTenants, loadError }: { initialTenants: PlannerTenantRow[]; loadError: string | null }) {
   const { t, locale, setLocale } = useI18n();
@@ -156,6 +205,9 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
       </div>
 
       <p className="text-sm text-muted-foreground">{t('routePlanner.adminSubtitle')}</p>
+
+      {/* Platform Overview — platform-wide Planner KPIs + system health (owner scope). */}
+      <PlatformOverviewBand tenants={tenants} counts={counts} />
 
       {/* Usage overview */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
