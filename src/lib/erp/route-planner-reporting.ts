@@ -161,6 +161,32 @@ function subtreeStructural(nodes: RpNode[], userId: string): Set<string> {
   return seen;
 }
 
+/**
+ * The reverse direction: WHO CAN SEE the target, and why. For every other user whose
+ * effective visibility includes the target, returns the explaining fact (reason / edge /
+ * path), where `path` runs viewer → … → target. Powers the "Who can see me?" view, so
+ * visibility is explainable in both directions.
+ */
+export function reverseVisibility(nodes: RpNode[], targetId: string): { viewerId: string; fact: VisibilityFact }[] {
+  const out: { viewerId: string; fact: VisibilityFact }[] = [];
+  for (const v of nodes) {
+    if (v.userId === targetId) continue;
+    const fact = visibilityExplain(nodes, v.userId).find((f) => f.targetId === targetId);
+    if (fact) out.push({ viewerId: v.userId, fact });
+  }
+  return out;
+}
+
+/**
+ * Human "visibility source" for an explaining fact: which mechanism grants the sightline —
+ * the target's Primary/Secondary manager edge, the See-All override, or self.
+ */
+export function visibilitySource(fact: VisibilityFact): 'self' | 'see_all' | 'primary' | 'secondary' {
+  if (fact.reason === 'self') return 'self';
+  if (fact.reason === 'see_all') return 'see_all';
+  return fact.via ?? 'primary';
+}
+
 /** Roots of the graph: in-graph users with no manager edge (company root(s)). */
 export function graphRoots(nodes: RpNode[]): string[] {
   return nodes.filter((n) => n.inGraph && !n.primaryManagerId && !n.secondaryManagerId).map((n) => n.userId);

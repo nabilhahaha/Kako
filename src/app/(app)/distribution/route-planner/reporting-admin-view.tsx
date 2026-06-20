@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Network, Eye, Users, Info, ArrowUp, ArrowDown, ShieldCheck, CircleDot, Circle } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
-import { visibleUsers, directReports, managerChain, visibilityExplain, type RpNode, type VisibilityReason } from '@/lib/erp/route-planner-reporting';
+import { visibleUsers, directReports, managerChain, visibilityExplain, reverseVisibility, visibilitySource, type RpNode, type VisibilityReason, type VisibilityFact } from '@/lib/erp/route-planner-reporting';
 import { listReportingGraph, setReporting } from './rp-reporting-actions';
 
 type Tab = 'graph' | 'explorer';
@@ -140,73 +140,68 @@ export function ReportingAdminView() {
   );
 }
 
+type Dir = 'out' | 'in';
+
 function Explorer({ nodes, selected, setSelected, nameOf, meId, t }: {
   nodes: RpNode[]; selected: string; setSelected: (v: string) => void;
   nameOf: (id: string | null) => string; meId: string; t: ReturnType<typeof useI18n>['t'];
 }) {
+  const [dir, setDir] = useState<Dir>('out');
   const me = nodes.find((n) => n.userId === selected) ?? null;
   const vis = useMemo(() => (me ? visibleUsers(nodes, selected) : new Set<string>()), [nodes, selected, me]);
-  const facts = useMemo(() => (me ? visibilityExplain(nodes, selected).sort((a, b) => a.depth - b.depth || a.targetId.localeCompare(b.targetId)) : []), [nodes, selected, me]);
   const reports = me ? directReports(nodes, selected) : [];
   const chain = me ? managerChain(nodes, selected) : [];
+
+  // Outbound rows ("who can I see?"): the other party is the target of each fact.
+  // Inbound rows ("who can see me?"): the other party is the viewer; path = viewer → me.
+  const rows: { who: string; fact: VisibilityFact }[] = useMemo(() => {
+    if (!me) return [];
+    if (dir === 'out') {
+      return visibilityExplain(nodes, selected)
+        .filter((f) => f.targetId !== selected)
+        .map((f) => ({ who: f.targetId, fact: f }))
+        .sort((a, b) => a.fact.depth - b.fact.depth || nameOf(a.who).localeCompare(nameOf(b.who)));
+    }
+    return reverseVisibility(nodes, selected)
+      .map((r) => ({ who: r.viewerId, fact: r.fact }))
+      .sort((a, b) => a.fact.depth - b.fact.depth || nameOf(a.who).localeCompare(nameOf(b.who)));
+  }, [nodes, selected, dir, me, nameOf]);
+
   const reasonLabel: Record<VisibilityReason, string> = {
     self: t('rpShell.rg_rSelf'), see_all: t('rpShell.rg_rSeeAll'), direct: t('rpShell.rg_rDirect'), subtree: t('rpShell.rg_rSubtree'),
   };
   const reasonTone: Record<VisibilityReason, string> = {
     self: 'bg-primary/10 text-primary', see_all: 'bg-violet-100 text-violet-700', direct: 'bg-emerald-100 text-emerald-700', subtree: 'bg-sky-100 text-sky-700',
   };
-  // Who can see the selected user (reverse visibility).
-  const seenBy = useMemo(() => (me ? nodes.filter((n) => n.userId !== selected && visibleUsers(nodes, n.userId).has(selected)) : []), [nodes, selected, me]);
+  const sourceLabel = (f: VisibilityFact) => {
+    const s = visibilitySource(f);
+    return s === 'primary' ? t('rpShell.rg_srcPrimary') : s === 'secondary' ? t('rpShell.rg_srcSecondary') : s === 'see_all' ? t('rpShell.rg_srcSeeAll') : t('rpShell.rg_srcSelf');
+  };
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground">{t('rpShell.rg_pickUser')}</span>
         <select value={selected} onChange={(e) => setSelected(e.target.value)} className="rounded border bg-background px-2 py-1.5 text-sm">
           {nodes.map((n) => <option key={n.userId} value={n.userId}>{n.name}</option>)}
         </select>
+        {/* Direction toggle */}
+        <div className="ms-1 inline-flex overflow-hidden rounded-full border">
+          <button onClick={() => setDir('out')} className={`inline-flex items-center gap-1 px-3 py-1 text-xs ${dir === 'out' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
+            <Eye className="h-3.5 w-3.5" /> {t('rpShell.rg_dirOut')}
+          </button>
+          <button onClick={() => setDir('in')} className={`inline-flex items-center gap-1 px-3 py-1 text-xs ${dir === 'in' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
+            <Users className="h-3.5 w-3.5" /> {t('rpShell.rg_dirIn')}
+          </button>
+        </div>
       </div>
 
       {!me ? <p className="text-sm text-muted-foreground">{t('rpShell.rg_pickUser')}</p> : (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {/* Effective visibility — WHY each user is visible (auditable) */}
-          <div className="rounded-lg border p-3 lg:col-span-2">
-            <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold"><Eye className="h-4 w-4 text-primary" /> {t('rpShell.rg_effective')}</p>
-            <p className="text-sm">
-              {me.seeAll
-                ? t('rpShell.rg_explainAll').replace('{u}', me.name).replace('{n}', String(nodes.length))
-                : t('rpShell.rg_explain').replace('{u}', me.name).replace('{n}', String(vis.size)).replace('{m}', String(nodes.length))}
-            </p>
-            <div className="mt-2 overflow-hidden rounded-lg border">
-              <table className="w-full text-xs">
-                <thead className="bg-muted"><tr>
-                  <th className="px-3 py-1.5 text-start font-semibold">{t('rpShell.rg_user')}</th>
-                  <th className="px-3 py-1.5 text-start font-semibold">{t('rpShell.rg_reason')}</th>
-                  <th className="px-3 py-1.5 text-start font-semibold">{t('rpShell.rg_path')}</th>
-                </tr></thead>
-                <tbody>
-                  {facts.map((f) => (
-                    <tr key={f.targetId} className="border-t">
-                      <td className="px-3 py-1.5 font-medium">{nameOf(f.targetId)}{f.targetId === selected ? ` (${t('rpShell.rg_self')})` : ''}</td>
-                      <td className="px-3 py-1.5">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${reasonTone[f.reason]}`}>{reasonLabel[f.reason]}</span>
-                        {f.via && f.reason !== 'self' && <span className="ms-1.5 text-[10px] text-muted-foreground">· {f.via === 'primary' ? t('rpShell.rg_primary') : t('rpShell.rg_secondary')}</span>}
-                      </td>
-                      <td className="px-3 py-1.5 text-muted-foreground">
-                        {f.reason === 'see_all' ? <span className="italic">{t('rpShell.rg_overrideNote')}</span>
-                          : f.path.map((id, i) => <span key={id}>{i > 0 ? <span className="text-muted-foreground/60"> → </span> : null}{nameOf(id)}</span>)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
+        <div className="grid gap-3 lg:grid-cols-3">
           {/* Reporting chain */}
-          <div className="rounded-lg border p-3">
+          <div className="rounded-lg border p-3 lg:col-span-1">
             <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold"><Network className="h-4 w-4 text-primary" /> {t('rpShell.rg_chain')}</p>
-            <div className="flex items-center gap-1 text-xs">
+            <div className="flex flex-wrap items-center gap-1 text-xs">
               <ArrowUp className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="rounded bg-primary/10 px-2 py-0.5 font-medium text-primary">{me.name}</span>
               {chain.length === 0 ? <span className="ms-1 text-muted-foreground">{t('rpShell.rg_isRoot')}</span> :
@@ -221,12 +216,43 @@ function Explorer({ nodes, selected, setSelected, nameOf, meId, t }: {
             </div>
           </div>
 
-          {/* Reverse: who can see this user */}
+          {/* Directional relationship table — Reason · Source · Path */}
           <div className="rounded-lg border p-3 lg:col-span-2">
-            <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold"><Users className="h-4 w-4 text-primary" /> {t('rpShell.rg_seenBy').replace('{u}', me.name)}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {seenBy.length === 0 ? <span className="text-[11px] text-muted-foreground">{t('rpShell.rg_seenByNone')}</span> :
-                seenBy.map((n) => <span key={n.userId} className={`rounded-full border px-2 py-0.5 text-[11px] ${n.userId === meId ? 'border-primary text-primary' : ''}`}>{n.name}{n.seeAll ? ` · ${t('rpShell.rg_all')}` : ''}</span>)}
+            <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+              {dir === 'out' ? <Eye className="h-4 w-4 text-primary" /> : <Users className="h-4 w-4 text-primary" />}
+              {dir === 'out' ? t('rpShell.rg_dirOut') : t('rpShell.rg_dirIn')}
+            </p>
+            <p className="text-sm">
+              {dir === 'out'
+                ? (me.seeAll
+                    ? t('rpShell.rg_explainAll').replace('{u}', me.name).replace('{n}', String(nodes.length))
+                    : t('rpShell.rg_explain').replace('{u}', me.name).replace('{n}', String(vis.size)).replace('{m}', String(nodes.length)))
+                : t('rpShell.rg_explainIn').replace('{u}', me.name).replace('{n}', String(rows.length))}
+            </p>
+            <div className="mt-2 overflow-hidden rounded-lg border">
+              <table className="w-full text-xs">
+                <thead className="bg-muted"><tr>
+                  <th className="px-3 py-1.5 text-start font-semibold">{dir === 'out' ? t('rpShell.rg_colTarget') : t('rpShell.rg_colViewer')}</th>
+                  <th className="px-3 py-1.5 text-start font-semibold">{t('rpShell.rg_reason')}</th>
+                  <th className="px-3 py-1.5 text-start font-semibold">{t('rpShell.rg_source')}</th>
+                  <th className="px-3 py-1.5 text-start font-semibold">{t('rpShell.rg_path')}</th>
+                </tr></thead>
+                <tbody>
+                  {rows.length === 0 ? (
+                    <tr><td colSpan={4} className="px-3 py-3 text-center text-muted-foreground">{dir === 'in' ? t('rpShell.rg_seenByNone') : t('rpShell.rg_noReports')}</td></tr>
+                  ) : rows.map(({ who, fact }) => (
+                    <tr key={who} className="border-t">
+                      <td className="px-3 py-1.5 font-medium">{nameOf(who)}{who === meId ? ` (${t('rpShell.rg_you')})` : ''}</td>
+                      <td className="px-3 py-1.5"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${reasonTone[fact.reason]}`}>{reasonLabel[fact.reason]}</span></td>
+                      <td className="px-3 py-1.5 text-muted-foreground">{sourceLabel(fact)}</td>
+                      <td className="px-3 py-1.5 text-muted-foreground">
+                        {fact.reason === 'see_all' ? <span className="italic">{t('rpShell.rg_overrideNote')}</span>
+                          : fact.path.map((id, i) => <span key={id}>{i > 0 ? <span className="text-muted-foreground/60"> → </span> : null}{nameOf(id)}</span>)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

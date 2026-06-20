@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { visibleUsers, canSee, directReports, managerChain, wouldCycle, graphRoots, visibilityExplain, type RpNode } from './route-planner-reporting';
+import { visibleUsers, canSee, directReports, managerChain, wouldCycle, graphRoots, visibilityExplain, reverseVisibility, visibilitySource, type RpNode } from './route-planner-reporting';
 
 const node = (userId: string, p: string | null = null, s: string | null = null, seeAll = false): RpNode => ({
   userId, name: userId, email: null, role: null, primaryManagerId: p, secondaryManagerId: s, seeAll, inGraph: true,
@@ -107,5 +107,28 @@ describe('visibilityExplain (auditable WHY)', () => {
     expect(f['root'].reason).toBe('see_all');
     expect(f['repB1'].reason).toBe('see_all');
     expect(visibilityExplain(g2, 'mgrA')).toHaveLength(g2.length);
+  });
+});
+
+describe('reverseVisibility + visibilitySource ("Who can see me?")', () => {
+  it('lists every viewer that can see the target, with reason + path', () => {
+    const rev = reverseVisibility(G, 'repA2');
+    const byViewer = Object.fromEntries(rev.map((r) => [r.viewerId, r.fact]));
+    // repA2 reports to mgrA (primary) and mgrB (secondary); root sees all transitively.
+    expect(Object.keys(byViewer).sort()).toEqual(['mgrA', 'mgrB', 'root']);
+    expect(byViewer['mgrA']).toMatchObject({ reason: 'direct', via: 'primary' });
+    expect(byViewer['mgrB']).toMatchObject({ reason: 'direct', via: 'secondary' });
+    expect(byViewer['root'].reason).toBe('subtree');
+    expect(byViewer['root'].path).toEqual(['root', 'mgrA', 'repA2']);
+  });
+  it('maps the visibility source from the fact', () => {
+    const rev = Object.fromEntries(reverseVisibility(G, 'repA2').map((r) => [r.viewerId, r.fact]));
+    expect(visibilitySource(rev['mgrA'])).toBe('primary');
+    expect(visibilitySource(rev['mgrB'])).toBe('secondary');
+  });
+  it('see_all viewers appear as a source of see_all', () => {
+    const g2 = G.map((n) => (n.userId === 'root' ? { ...n, seeAll: true } : n));
+    const rev = Object.fromEntries(reverseVisibility(g2, 'repA1').map((r) => [r.viewerId, r.fact]));
+    expect(visibilitySource(rev['root'])).toBe('see_all');
   });
 });
