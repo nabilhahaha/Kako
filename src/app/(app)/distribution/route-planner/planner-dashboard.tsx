@@ -8,6 +8,7 @@ import { computeMissionKpis, bucketMissions, type MissionLite, type VisitKpis } 
 import type { MissionPerms } from '@/lib/erp/route-planner-access';
 import { missionDashboard } from './rp-mission-actions';
 import { listMyPlanApprovals, advancePlanApproval, type PlanKind } from './rp-plan-actions';
+import { ManagerDashboard } from './manager-dashboard';
 
 const TODAY = () => new Date().toISOString().slice(0, 10);
 
@@ -17,6 +18,17 @@ const TODAY = () => new Date().toISOString().slice(0, 10);
  * (assign capability) also sees a team status strip. Clean cards, obvious next actions.
  */
 export function PlannerDashboard({ userId, perms, onOpenMissions, onNewMission }: {
+  userId: string | null; perms: MissionPerms; onOpenMissions: (scope: 'all' | 'assigned') => void; onNewMission: () => void;
+}) {
+  const { t } = useI18n();
+  // Managers (assign/review capability) get the premium operations cockpit.
+  if (perms.canAssign || perms.canReview) {
+    return <ManagerDashboard userId={userId} perms={perms} onOpenMissions={onOpenMissions} onNewMission={onNewMission} />;
+  }
+  return <SupervisorDashboard userId={userId} perms={perms} onOpenMissions={onOpenMissions} onNewMission={onNewMission} />;
+}
+
+function SupervisorDashboard({ userId, perms, onOpenMissions, onNewMission }: {
   userId: string | null; perms: MissionPerms; onOpenMissions: (scope: 'all' | 'assigned') => void; onNewMission: () => void;
 }) {
   const { t } = useI18n();

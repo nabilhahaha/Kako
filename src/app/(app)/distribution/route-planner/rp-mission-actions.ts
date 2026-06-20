@@ -229,6 +229,46 @@ export async function deleteMission(missionId: string): Promise<Result> {
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
+/** Stops of active/planned missions (visible via RLS) for the manager dashboard map. */
+export async function missionMapStops(): Promise<Result<{ id: string; name: string; lat: number; lng: number; status: string; mission: string }[]>> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const { data, error } = await sb.from('erp_rp_mission_stops')
+    .select('id, customer_name, lat, lng, status, mission:erp_rp_missions!inner(name, status)')
+    .eq('company_id', ctx.companyId).in('mission.status', ['assigned', 'in_progress'])
+    .not('lat', 'is', null).not('lng', 'is', null).limit(2000);
+  if (error) return { ok: false, error: error.message };
+  const rows = (data ?? []).map((r) => {
+    const m = r.mission as unknown as { name?: string } | { name?: string }[];
+    const mname = Array.isArray(m) ? (m[0]?.name ?? '') : (m?.name ?? '');
+    return { id: r.id as string, name: (r.customer_name as string) ?? '', lat: r.lat as number, lng: r.lng as number, status: (r.status as string) ?? 'pending', mission: mname };
+  });
+  return { ok: true, data: rows };
+}
+
+/** Recent field observations (issues / opportunities / competitor / photos) for the feed. */
+export async function recentFieldObservations(limit = 12): Promise<Result<{ id: string; kind: string; text: string | null; customer: string | null; mission: string; at: number; photos: number }[]>> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const { data, error } = await sb.from('erp_rp_mission_events')
+    .select('id, kind, payload, at, stop:erp_rp_mission_stops(customer_name), mission:erp_rp_missions!inner(name)')
+    .eq('company_id', ctx.companyId).in('kind', ['issue', 'opportunity', 'competitor', 'photo'])
+    .order('at', { ascending: false }).limit(limit);
+  if (error) return { ok: false, error: error.message };
+  const rows = (data ?? []).map((r) => {
+    const stop = r.stop as unknown as { customer_name?: string } | { customer_name?: string }[] | null;
+    const mission = r.mission as unknown as { name?: string } | { name?: string }[];
+    const payload = (r.payload as { text?: string; attachments?: string[] } | null) ?? {};
+    return {
+      id: r.id as string, kind: (r.kind as string), text: payload.text ?? null,
+      customer: Array.isArray(stop) ? (stop[0]?.customer_name ?? null) : (stop?.customer_name ?? null),
+      mission: Array.isArray(mission) ? (mission[0]?.name ?? '') : (mission?.name ?? ''),
+      at: new Date(r.at as string).getTime(), photos: (payload.attachments?.length ?? 0) + (r.kind === 'photo' ? 1 : 0),
+    };
+  });
+  return { ok: true, data: rows };
+}
+
 /**
  * Dashboard data — visible mission headers (for mission-level KPIs + buckets) plus
  * visit/observation aggregates (stop statuses + event kinds) via cheap count queries.
