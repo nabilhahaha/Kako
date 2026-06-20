@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { summarizeSync } from '@/lib/erp/route-planner-sync';
+import { dataHealthCounts } from '@/lib/erp/route-planner-data-health';
 import { fetchConnector, redactConfig, type ConnectorType, type ConnectorConfig } from '@/lib/erp/route-planner-connectors';
 import { toCustomers, isValidCustomer, type CmMapping } from '@/lib/erp/route-planner-customer-map';
 import { suggestColumnMapping } from '@/lib/tis/upload';
@@ -11,8 +12,11 @@ import type { RpEntity, RpSourceType, RpTicketType, RpTicketStatus, RpApprovalSt
 import type { RpNode } from '@/lib/erp/route-planner-reporting';
 import { stageState, canApprove, statusForStage, flowHasSteps, type FlowEvent } from '@/lib/erp/route-planner-approval-engine';
 
-function isAdminCtx(ctx: { isSuperAdmin: boolean; isPlatformOwner: boolean; topRole: string; isRoutePlannerAdmin: boolean }) {
-  return ctx.isSuperAdmin || ctx.isPlatformOwner || ctx.topRole === 'admin' || ctx.isRoutePlannerAdmin;
+function isAdminCtx(ctx: { isSuperAdmin: boolean; isPlatformOwner: boolean; topRole: string; isRoutePlannerAdmin: boolean; routePlannerAccess?: { role?: string | null } | null }) {
+  // A company admin, the platform owner / super admin, OR the tenant's Route Planner
+  // admin (route_planner_admin access role). The DB RLS is aligned to match (0358).
+  return ctx.isSuperAdmin || ctx.isPlatformOwner || ctx.topRole === 'admin' || ctx.isRoutePlannerAdmin
+    || ctx.routePlannerAccess?.role === 'route_planner_admin';
 }
 
 /** Load the company's reporting/role rows as engine nodes (edges + role only). */
@@ -126,7 +130,9 @@ async function recordSync(
   }).select('id').single();
   if (error || !data) return { ok: false, error: error?.message ?? 'insert_failed' };
   if (input.sourceId) await sb.from('erp_rp_data_sources').update({ last_sync_at: new Date().toISOString(), last_status: summary.status }).eq('id', input.sourceId);
-  return { ok: true, data: { runId: data.id, imported: summary.rowsImported, updated: summary.rowsUpdated, rejected: summary.rowsRejected, issues: summary.qualityIssues, quality: (summary.quality as Record<string, number>) ?? {} } };
+  // Return a FLAT { check: count } map — the full report has nested objects that must
+  // never be sent for direct rendering (caused the Fetch & Sync crash).
+  return { ok: true, data: { runId: data.id, imported: summary.rowsImported, updated: summary.rowsUpdated, rejected: summary.rowsRejected, issues: summary.qualityIssues, quality: dataHealthCounts(summary.quality) } };
 }
 
 /** Manual Upload sync — client has already parsed + mapped to HCustomer; runs the shared pipeline. */

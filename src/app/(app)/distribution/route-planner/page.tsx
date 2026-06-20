@@ -37,6 +37,7 @@ export default async function RoutePlannerPage() {
         userId={ctx.userId}
         features={null}
         isAdmin={ctx.isSuperAdmin || ctx.isPlatformOwner || ctx.topRole === 'admin' || ctx.isRoutePlannerAdmin}
+        integrationAdmin={ctx.isSuperAdmin || ctx.isPlatformOwner || ctx.topRole === 'admin' || ctx.isRoutePlannerAdmin || ctx.routePlannerAccess?.role === 'route_planner_admin'}
       />
     );
   }

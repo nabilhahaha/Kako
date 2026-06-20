@@ -97,7 +97,7 @@ const NAV: NavGroup[] = [
  * runs on the existing, dataset-fed engine (no logic rebuilt). Groups the user's
  * `features` (erp_route_planner_access) don't include are hidden.
  */
-export function RoutePlannerShell({ subscription, demo = false, userEmail, userId = null, features, isAdmin = false }: {
+export function RoutePlannerShell({ subscription, demo = false, userEmail, userId = null, features, isAdmin = false, integrationAdmin = false }: {
   subscription?: RoutePlannerSubscriptionView;
   demo?: boolean;
   userEmail?: string | null;
@@ -107,6 +107,8 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
   features: RpFeature[] | null;
   /** Company admin (or platform/super/RP admin) — gates the Administration group. */
   isAdmin?: boolean;
+  /** Can manage Integrations/connectors — company admin OR the tenant route_planner_admin. */
+  integrationAdmin?: boolean;
 }) {
   const { t } = useI18n();
   const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'soon'>('home');
@@ -260,7 +262,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
               so they are gated here to match. */}
           {view === 'integration' && (
             <div className="h-full">
-              <IntegrationView canManage={isAdmin} />
+              <IntegrationView canManage={isAdmin || integrationAdmin} />
             </div>
           )}
 

@@ -175,8 +175,10 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
   }
 
   // Total issues for either source of the report.
-  const issues = report ? dataHealthTotal(report) : connQuality ? Object.values(connQuality).reduce((a, b) => a + b, 0) : 0;
-  const qcount = (k: string): number => report ? (report[k as keyof DataHealthReport]?.count ?? 0) : (connQuality?.[k] ?? 0);
+  // Defensive: connQuality is a flat { check: number } map; coerce in case a nested value slips through.
+  const num = (v: unknown): number => typeof v === 'number' ? v : (typeof v === 'object' && v ? Number((v as { count?: number }).count ?? 0) : 0);
+  const qcount = (k: string): number => report ? (report[k as keyof DataHealthReport]?.count ?? 0) : num(connQuality?.[k]);
+  const issues = report ? dataHealthTotal(report) : connQuality ? Object.keys(connQuality).reduce((a, k) => a + num(connQuality[k]), 0) : 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-3">
