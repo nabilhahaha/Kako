@@ -5,7 +5,7 @@ import {
   Home, Map as MapIcon, CalendarRange, Bookmark, LayoutTemplate, Users, UsersRound, Filter, UploadCloud,
   Globe2, Building2, PencilRuler, UserCheck, ClipboardCheck, History, Images, AlertTriangle, Swords,
   Lightbulb, ListChecks, PieChart, Gauge, Timer, Repeat, UserX, ChevronDown, ChevronRight, Menu, X,
-  Route as RouteIcon, LogOut, User as UserIcon, Database, Activity, type LucideIcon,
+  Route as RouteIcon, LogOut, User as UserIcon, Database, Activity, ClipboardList, Inbox, type LucideIcon,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { LanguageToggle } from '@/components/layout/language-toggle';
@@ -17,12 +17,13 @@ import { DayPlanner } from './day-planner';
 import { CustomersView } from './customers-view';
 import { TerritoriesView } from './territories-view';
 import { IntegrationView } from './integration-view';
+import { RequestCenterView } from './request-center-view';
 
 /** Route Planner feature grants. Mirrors the Field Missions Phase 0 access model
  *  (erp_route_planner_access); kept local here so this PR stays independent of #310. */
 type RpFeature = 'route_planning' | 'day_planner' | 'field_missions' | 'reports';
 
-type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'soon';
+type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'soon';
 interface NavItem { key: string; labelKey: string; icon: LucideIcon; action: Action }
 interface NavGroup { key: string; labelKey: string; icon: LucideIcon; feature?: RpFeature; items: NavItem[] }
 
@@ -67,6 +68,10 @@ const NAV: NavGroup[] = [
     { key: 'syncHistory', labelKey: 'i_syncHistory', icon: History, action: 'integration' },
     { key: 'dataHealth', labelKey: 'i_dataHealth', icon: Activity, action: 'integration' },
   ] },
+  { key: 'requests', labelKey: 'g_requests', icon: ClipboardList, feature: 'route_planning', items: [
+    { key: 'allRequests', labelKey: 'i_allRequests', icon: Inbox, action: 'requests' },
+    { key: 'newRequest', labelKey: 'i_newRequest', icon: ClipboardList, action: 'requests' },
+  ] },
 ];
 
 /**
@@ -85,7 +90,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
   features: RpFeature[] | null;
 }) {
   const { t } = useI18n();
-  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'soon'>('home');
+  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'soon'>('home');
   const [custFocusSegments, setCustFocusSegments] = useState(false);
   const [terrGroup, setTerrGroup] = useState<'region' | 'city' | 'area'>('region');
   const [soonLabel, setSoonLabel] = useState('');
@@ -108,6 +113,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
     else if (item.action === 'import') setView('planning'); // shared import wizard lives in the Route Builder
     else if (item.action === 'territories') { setTerrGroup(item.key === 'cities' ? 'city' : 'region'); setView('territories'); }
     else if (item.action === 'integration') setView('integration');
+    else if (item.action === 'requests') setView('requests');
     else { setSoonLabel(t(`rpShell.${item.labelKey}` as Parameters<typeof t>[0])); setView('soon'); }
   }
   function goHome() { setActive('home'); setView('home'); setDrawer(false); }
@@ -221,6 +227,13 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
           {view === 'integration' && (
             <div className="h-full">
               <IntegrationView />
+            </div>
+          )}
+
+          {/* Request Center — trackable customer/route tickets (routing only). */}
+          {view === 'requests' && (
+            <div className="h-full">
+              <RequestCenterView />
             </div>
           )}
 
