@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut, Hand } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { parseUploadColumns } from './import-actions';
 import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map';
 import { TrialBanner } from './trial-banner';
 import { JourneyPanel, type JourneyInputCustomer } from './journey-panel';
+import { savePlannerDraft, loadPlannerDraft, clearPlannerDraft, type PlannerDraft } from './planner-draft';
 import { WhatsAppContact } from '@/components/route-planner/whatsapp-contact';
 import { buildSupportWhatsAppUrl, type RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
 
@@ -118,6 +119,64 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const [importing, setImporting] = useState(false);
   const [mapState, setMapState] = useState<{ headers: string[]; records: Record<string, string>[]; map: Partial<Record<TisFieldKey, string>> } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
+
+  // ── Auto Save + Draft Recovery (session work survives Back / Refresh / close) ──
+  const [pendingDraft, setPendingDraft] = useState<PlannerDraft | null>(null); // found on load, awaiting decision
+  const decidedDraft = useRef(false); // once restored/discarded, stop offering recovery
+
+  // On first mount, look for a saved draft. Offer recovery only on a fresh load
+  // (no dataset yet) so we never clobber a session already in progress.
+  useEffect(() => {
+    let alive = true;
+    loadPlannerDraft().then((d) => { if (alive && d && !dataset && !decidedDraft.current) setPendingDraft(d); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-save the full snapshot (debounced) after every meaningful change. Suspended while
+  // the recovery prompt is open so we don't overwrite the found draft before the user decides.
+  useEffect(() => {
+    if (!dataset || pendingDraft) return;
+    const id = setTimeout(() => {
+      void savePlannerDraft({
+        v: 1, savedAt: Date.now(), dataset, scenario, baseline, method, allocView,
+        generated, approved, exported, routeCount, targetRoute,
+        focusedRoutes: [...focusedRoutes], selectedIds: [...selectedIds], selectMode,
+        showAllBoundaries, showOnlySelected, compactList, sortKey, sortDir,
+      });
+    }, 600);
+    return () => clearTimeout(id);
+  }, [dataset, scenario, baseline, method, allocView, generated, approved, exported, routeCount, targetRoute, focusedRoutes, selectedIds, selectMode, showAllBoundaries, showOnlySelected, compactList, sortKey, sortDir, pendingDraft]);
+
+  // Unsaved-changes guard: warn before Refresh / Close / Back-out when work is in progress
+  // and not yet exported. (Auto-save still has it covered, but the manager gets a heads-up.)
+  const dirty = !!dataset && !exported;
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [dirty]);
+
+  function restoreDraft() {
+    const d = pendingDraft;
+    if (!d) return;
+    decidedDraft.current = true;
+    setDataset(d.dataset); setScenario(d.scenario); setBaseline(d.baseline);
+    setMethod(d.method); setAllocView(d.allocView); setGenerated(d.generated);
+    setApproved(d.approved); setExported(d.exported); setRouteCount(d.routeCount);
+    setTargetRoute(d.targetRoute); setFocusedRoutes(new Set(d.focusedRoutes));
+    setSelectedIds(new Set(d.selectedIds)); setSelectMode(d.selectMode);
+    setShowAllBoundaries(d.showAllBoundaries); setShowOnlySelected(d.showOnlySelected);
+    setCompactList(d.compactList); setSortKey(d.sortKey); setSortDir(d.sortDir);
+    setPendingDraft(null);
+    setMsg({ tone: 'ok', text: t('routePlanner.draftRestored') });
+  }
+  function discardDraft() {
+    decidedDraft.current = true;
+    setPendingDraft(null);
+    void clearPlannerDraft();
+  }
 
   // In Current Allocation Review the manager can flip the whole view between the loaded
   // "Current" allocation (baseline) and the edited "Proposed" one. Edits always target the
@@ -421,6 +480,23 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   // Trial / subscription banner (shown whenever a subscription view is supplied).
   const subBanner = subscription ? <div className={focus ? 'shrink-0' : 'mb-3'}><TrialBanner sub={subscription} compact={focus} /></div> : null;
 
+  // Draft-recovery banner (shown on a fresh load when a saved session is found).
+  const draftBanner = pendingDraft ? (
+    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-900 shadow-sm">
+      <RotateCcw className="h-5 w-5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">{t('routePlanner.draftFound')}</p>
+        <p className="text-xs opacity-90">
+          {t('routePlanner.draftDetail')
+            .replace('{n}', String(pendingDraft.dataset.customers.length))
+            .replace('{when}', new Date(pendingDraft.savedAt).toLocaleString(locale === 'ar' ? 'ar' : 'en'))}
+        </p>
+      </div>
+      <Button size="sm" onClick={restoreDraft}><RotateCcw className="h-4 w-4" /> {t('routePlanner.draftRestore')}</Button>
+      <Button size="sm" variant="ghost" onClick={discardDraft}><X className="h-4 w-4" /> {t('routePlanner.draftDiscard')}</Button>
+    </div>
+  ) : null;
+
   // ── Focus-mode welcome (demo, before upload): branded hero + capabilities ──
   if (focus && !dataset && !mapState) {
     const caps = [
@@ -434,6 +510,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
         {brandHeader}
         {subBanner}
+        {draftBanner}
         {msg && <p className={`mb-3 text-sm ${msg.tone === 'err' ? 'text-red-600' : 'text-emerald-600'}`}>{msg.text}</p>}
         <div className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background shadow-sm">
           <div className="grid items-center gap-6 p-8 md:grid-cols-2">
@@ -484,6 +561,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
         {brandHeader}
         {subBanner}
+        {draftBanner}
         {msg && <p className={`text-sm ${msg.tone === 'err' ? 'text-red-600' : 'text-emerald-600'}`}>{msg.text}</p>}
         <Card>
           <CardContent className="space-y-4 p-6">
