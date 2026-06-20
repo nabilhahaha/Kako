@@ -3,7 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 import type { Branch, BranchRole, Company, Profile } from './types';
 import { ALL_PERMISSIONS, applyFashionUmbrella, type Permission } from './permissions';
 import { ALL_MODULES, type Module } from './navigation';
-import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys } from '@/lib/role-governance';
+import { isRoutePlannerDemoAccount } from './route-planner-demo';
+import { isRoutePlannerAdminAccount } from './route-planner-admin';
+import { isRoutePlannerExperience } from './route-planner-experience';
+import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys, USER_ACCESS_OVERRIDES_ENABLED, ROLE_PERMISSION_OVERRIDES_ENABLED, applyAccessOverrides } from '@/lib/role-governance';
 import { log } from '@/lib/observability';
 
 export interface BranchMembership {
@@ -28,6 +31,18 @@ export interface UserContext {
   permissions: Permission[];
   /** Feature modules unlocked by the company's plan (all for owner/super admin). */
   modules: Module[];
+  /** True when the user gets the standalone, chrome-free Route Planner experience —
+   *  driven by membership of a Route Planner tenant (company.plan_key `route_planner*`),
+   *  with the demo email as a temporary trigger. THIS is what the layout / home / page
+   *  read. Computed by the single `isRoutePlannerExperience` helper. */
+  isRoutePlannerExperience: boolean;
+  /** True ONLY for the temporary demo account (email). Used for demo-specific labelling
+   *  (the "Route Planner Demo" badge); real tenants get the experience without the badge. */
+  isRoutePlannerDemo: boolean;
+  /** True for the limited, product-scoped "Route Planner Admin" — manages only Route
+   *  Planner tenants/subscriptions, never the full platform. Computed by the single
+   *  `isRoutePlannerAdminAccount` helper. */
+  isRoutePlannerAdmin: boolean;
 }
 
 const ROLE_RANK: Record<BranchRole, number> = {
@@ -209,6 +224,86 @@ async function resolveUserContext(): Promise<UserContext | null> {
     }
   }
 
+  // Role Permission Overrides (Block 1.5, flag-gated KAKO_ROLE_PERMISSION_OVERRIDES
+  // AND per-company entitlement, default OFF). Applies a ROLE's operational
+  // overrides (kind='role_override', role_key IN the user's roles) — grants add,
+  // revokes remove — bounded by the delegable operational allowlist. Applied
+  // BEFORE user overrides so user-level always wins. Super admins hold everything.
+  if (!superAdmin && companyId && ROLE_PERMISSION_OVERRIDES_ENABLED()) {
+    const { data: rent } = await supabase
+      .from('erp_company_entitlements')
+      .select('is_enabled')
+      .eq('company_id', companyId)
+      .eq('feature_key', 'platform.role_permission_overrides')
+      .eq('is_enabled', true)
+      .limit(1);
+    const userRoles = [...new Set(memberships.map((m) => m.role as string))];
+    if (rent && rent.length > 0 && userRoles.length > 0) {
+      const { data: roleRows } = await supabase
+        .from('erp_temporary_access_grants')
+        .select('grant_key, effect')
+        .eq('company_id', companyId)
+        .eq('kind', 'role_override')
+        .is('expired_at', null)
+        .in('role_key', userRoles);
+      if (roleRows && roleRows.length > 0) {
+        const { effective, appliedGrants, appliedRevokes } = applyAccessOverrides(
+          permissions,
+          roleRows.map((r) => ({ permission: r.grant_key as string, effect: r.effect as 'grant' | 'revoke' })),
+        );
+        permissions = effective as Permission[];
+        log.info('role_override.applied', { userId: user.id, companyId, roles: userRoles, grants: appliedGrants, revokes: appliedRevokes });
+      }
+    }
+  }
+
+  // User Access Overrides (Block 2, flag-gated KAKO_USER_ACCESS_OVERRIDES, default
+  // OFF). Independent of temporary-access above. Applies a user's PERMANENT
+  // operational overrides (kind='override'): grants add, revokes remove — bounded
+  // by the delegable operational allowlist (re-validated here every resolve, so a
+  // stored override outside the set is ignored). Permanent rows have a NULL window;
+  // dated rows still honour it. No deny rules beyond revoke; no RLS/visibility/
+  // approval changes. Super admins already hold everything.
+  if (!superAdmin && companyId && USER_ACCESS_OVERRIDES_ENABLED()) {
+    // Per-company gate: even with the global flag on, the override path applies
+    // ONLY to companies the Platform Owner has entitled (reference/demo tenant
+    // first). Queried only when the flag is on, so default-OFF adds no work.
+    const { data: ent } = await supabase
+      .from('erp_company_entitlements')
+      .select('is_enabled')
+      .eq('company_id', companyId)
+      .eq('feature_key', 'platform.user_access_overrides')
+      .eq('is_enabled', true)
+      .limit(1);
+    if (!ent || ent.length === 0) {
+      // not entitled → skip the override path entirely for this company
+    } else {
+    const nowIso = new Date().toISOString();
+    const { data: ovRows } = await supabase
+      .from('erp_temporary_access_grants')
+      .select('grant_key, effect, effective_from, effective_to')
+      .eq('company_id', companyId)
+      .eq('user_id', user.id)
+      .eq('kind', 'override')
+      .is('expired_at', null);
+    const active = (ovRows ?? []).filter((r) => {
+      const from = r.effective_from as string | null;
+      const to = r.effective_to as string | null;
+      return (from === null || from <= nowIso) && (to === null || to >= nowIso);
+    });
+    if (active.length > 0) {
+      const { effective, appliedGrants, appliedRevokes } = applyAccessOverrides(
+        permissions,
+        active.map((r) => ({ permission: r.grant_key as string, effect: r.effect as 'grant' | 'revoke' })),
+      );
+      permissions = effective as Permission[];
+      log.info('access_override.applied', {
+        userId: user.id, companyId, grants: appliedGrants, revokes: appliedRevokes,
+      });
+    }
+    }
+  }
+
   // Feature modules: the owner / super admin see everything. A tenant sees the
   // intersection of (a) the modules its business type / company enables and
   // (b) the modules its plan unlocks — so a hotel never shows inventory, and a
@@ -258,6 +353,9 @@ async function resolveUserContext(): Promise<UserContext | null> {
     topRole,
     permissions,
     modules,
+    isRoutePlannerExperience: isRoutePlannerExperience({ email: (profile as Profile | null)?.email ?? user.email, companyPlanKey: company?.plan_key }),
+    isRoutePlannerDemo: isRoutePlannerDemoAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
+    isRoutePlannerAdmin: isRoutePlannerAdminAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
   };
 }
 

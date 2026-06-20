@@ -1,0 +1,645 @@
+'use client';
+
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import {
+  Wallet,
+  CreditCard,
+  AlertTriangle,
+  Receipt,
+  MapPin,
+  Inbox,
+  BadgeCheck,
+  Power,
+  Printer,
+  ArrowRightLeft,
+  Boxes,
+  FileText,
+} from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
+import { useCriticalAction } from '@/lib/critical-action';
+import { Badge } from '@/components/ui/badge';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { CUSTOMER_STATUSES, VISIT_DAYS } from '@/lib/erp/constants';
+import { StatCard, type StatTone } from '@/components/shared/stat-card';
+import { QuickNav, type QuickLink } from '@/components/home/home-widgets';
+import { ActivityTimeline } from '@/components/home/activity-timeline';
+import { CustomerStatementView } from '@/components/customers/customer-statement';
+import { EntityNotes } from '@/components/entity/entity-notes';
+import { WhatsAppButton } from '@/components/whatsapp-button';
+import { CreditRequestButton } from './[id]/credit-request-button';
+import { EntityHeader, EntityTabs } from '@/components/admin/entity-detail';
+import { SectionCard } from '@/components/admin/section-card';
+import { EntityActionBar } from '@/components/admin/entity-action-bar';
+import { RelatedChips } from '@/components/admin/context-panel';
+import { ActivityFeed } from '@/components/admin/activity-feed';
+import { CustomerForm } from './customer-form';
+import { toggleCustomerActive, approveCustomer, rejectCustomer } from './actions';
+import {
+  CUSTOMER_360_TAB_KEYS,
+  customerBadgeState,
+  customerNeedsDecision,
+  CUSTOMER_BADGE_VARIANT,
+  CUSTOMER_BADGE_KEY,
+} from './customer-360-tabs';
+import { customerHealth, HEALTH_BAND_VARIANT, HEALTH_BAND_KEY } from './customer-health';
+import { COVERAGE_STATUS_KEY, COVERAGE_STATUS_VARIANT } from '@/lib/distribution/journey-plan/coverage-status-ui';
+import { FREQUENCY_SOURCE_KEY, FREQUENCY_SOURCE_VARIANT, frequencyLabel } from '@/lib/route-optimization/visit-frequency-ui';
+import type { CustomerDetailBundle, CustomerTransferRow, CustomerPendingChange } from './[id]/load';
+import type { Area, Branch, CustomerLookup, ErpCustomer, Profile, Region } from '@/lib/erp/types';
+import type { CustomFieldDef } from '@/lib/erp/custom-fields';
+import type { GovInputs } from '@/lib/erp/field-governance';
+
+type Rep = Pick<Profile, 'id' | 'full_name' | 'email'>;
+/** Lightweight route reference (read-only territory display). */
+export type RouteRef = { id: string; name: string; name_ar: string | null };
+
+export interface Customer360Props {
+  /** Full record (from the workbench list selection) — header, form, related. */
+  customer: ErpCustomer;
+  /** Lazily-loaded detail bundle (statement · activity · merged 360 timeline). */
+  bundle: CustomerDetailBundle;
+  // Form-support data (Profile tab → CustomerForm), reused verbatim.
+  customers: ErpCustomer[];
+  branches: Branch[];
+  reps: Rep[];
+  lookups: CustomerLookup[];
+  regions: Region[];
+  areas: Area[];
+  /** Active routes (read-only territory display). */
+  routes?: RouteRef[];
+  /** rep id → supervisor display name (read-only territory display). */
+  supervisorByRep?: Record<string, string>;
+  customFields: CustomFieldDef[];
+  gov?: GovInputs;
+  // Reused permission gates (enforced server-side; here they only gate the UI).
+  canApprove?: boolean;
+  canCollect?: boolean;
+  canTransfer?: boolean;
+  /** credit.request.create — surfaces the FMCG credit-request panel (Statement). */
+  canRequestCredit?: boolean;
+  /** URL-addressable facet tab, controlled by the workbench (?tab=). */
+  tab: string;
+  onTabChange: (tab: string) => void;
+  /** Called after a successful mutation so the workbench can refresh. */
+  onChanged?: () => void;
+}
+
+/**
+ * Customer 360 — the canonical tabbed customer detail for the Customer Workbench,
+ * mirroring the Companies/Users pattern (EntityHeader + EntityTabs + SectionCards).
+ * Pure composition: every tab reuses an existing component/loader/action — the
+ * statement (CustomerStatementView), the unified activity timeline (financial +
+ * customer requests + visit outcomes, from loadCustomerDetailBundle), the edit
+ * form (the shared CustomerForm), notes (EntityNotes) and audit (ActivityFeed).
+ * No business-logic, permission, RLS, or workflow change; no new actions.
+ */
+export function Customer360({
+  customer,
+  bundle,
+  customers,
+  branches,
+  reps,
+  lookups,
+  regions,
+  areas,
+  routes = [],
+  supervisorByRep = {},
+  customFields,
+  gov,
+  canApprove = false,
+  canCollect = false,
+  canTransfer = false,
+  canRequestCredit = false,
+  tab,
+  onTabChange,
+  onChanged,
+}: Customer360Props) {
+  const { t, locale } = useI18n();
+  const ar = locale === 'ar';
+  const router = useRouter();
+  const runCritical = useCriticalAction();
+  const [pending, start] = useTransition();
+
+  const id = customer.id;
+  const name = customer.name_ar || customer.name;
+  const badge = customerBadgeState(customer);
+  const needsDecision = customerNeedsDecision(customer);
+  const refresh = () => { onChanged?.(); router.refresh(); };
+
+  const { summary } = bundle.statement.statement;
+  const printHref = `/print/statement/${id}`;
+
+  // G3: derived health (separate from master status), reusing the existing scorer.
+  const health = customerHealth({
+    lastActivity: bundle.lastActivity,
+    timeline: bundle.timeline,
+    overdueAmount: summary.overdueAmount,
+  });
+
+  // ── Reused actions (same server actions as the list) ───────────────────────
+  function onApprove() {
+    start(async () => {
+      const res = await approveCustomer(id);
+      if (!res.ok) toast.error(res.error ?? t('customers.toastError'));
+      else { toast.success(t('customers.toastApproved')); refresh(); }
+    });
+  }
+  function onReject() {
+    const reason = window.prompt(t('customers.rejectReasonPrompt'));
+    if (!reason || !reason.trim()) return;
+    start(async () => {
+      const res = await rejectCustomer(id, reason.trim());
+      if (!res.ok) toast.error(res.error ?? t('customers.toastError'));
+      else { toast.success(t('customers.toastUpdated')); refresh(); }
+    });
+  }
+  function onToggle() {
+    void runCritical({
+      catalogKey: 'customer.statusChange',
+      action: t('critical.actions.customerStatusChange'),
+      record: name,
+      execute: async (reason) => {
+        const res = await toggleCustomerActive(id, !customer.is_active, reason);
+        return { ok: res.ok, error: res.error };
+      },
+      onDone: refresh,
+    });
+  }
+
+  const tabLabels: Record<(typeof CUSTOMER_360_TAB_KEYS)[number], string> = {
+    overview: t('customer360.tabOverview'),
+    profile: t('customer360.tabProfile'),
+    statement: t('customer360.tabStatement'),
+    activity: t('customer360.tabActivity'),
+    related: t('customer360.tabRelated'),
+    audit: t('customer360.tabAudit'),
+  };
+
+  return (
+    <div>
+      <EntityHeader
+        title={name}
+        subtitle={customer.code ? `${customer.code}${customer.phone ? ` · ${customer.phone}` : ''}` : customer.phone ?? undefined}
+        status={
+          <span className="flex items-center gap-1.5">
+            <Badge variant={CUSTOMER_BADGE_VARIANT[badge]}>{t(CUSTOMER_BADGE_KEY[badge])}</Badge>
+            <Badge variant={HEALTH_BAND_VARIANT[health.band]} title={t('customer360.healthScoreLabel')}>
+              {t(HEALTH_BAND_KEY[health.band])} · <span dir="ltr">{health.score}</span>
+            </Badge>
+          </span>
+        }
+        actions={
+          <EntityActionBar
+            actions={[
+              {
+                key: 'approve',
+                label: t('customers.btnApprove'),
+                icon: <BadgeCheck className="h-4 w-4" />,
+                run: onApprove,
+                hidden: !canApprove || !needsDecision,
+                disabled: pending,
+              },
+              {
+                key: 'reject',
+                label: t('customers.btnReject'),
+                run: onReject,
+                hidden: !canApprove || !needsDecision,
+                disabled: pending,
+                destructive: true,
+                overflow: true,
+              },
+              {
+                key: 'toggle',
+                label: customer.is_active ? t('customers.btnDeactivate') : t('customers.btnActivate'),
+                icon: <Power className="h-4 w-4" />,
+                run: onToggle,
+                disabled: pending,
+                destructive: !!customer.is_active,
+              },
+              {
+                key: 'print',
+                label: t('customers.stmtBtnPrint'),
+                icon: <Printer className="h-4 w-4" />,
+                run: () => window.open(printHref, '_blank'),
+                overflow: true,
+              },
+              {
+                key: 'transfer',
+                label: t('transferReq.customerTitle'),
+                icon: <ArrowRightLeft className="h-4 w-4" />,
+                run: () => router.push('/customers/transfer'),
+                hidden: !canTransfer,
+                overflow: true,
+              },
+            ]}
+          />
+        }
+      />
+
+      <EntityTabs
+        active={tab}
+        onChange={onTabChange}
+        tabs={CUSTOMER_360_TAB_KEYS.map((k) => ({ key: k, label: tabLabels[k] }))}
+      />
+
+      {/* ── Overview ──────────────────────────────────────────────────────── */}
+      {tab === 'overview' && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label={t('customer360.statBalance')} value={formatCurrency(summary.currentBalance)} icon={Wallet} tone={summary.currentBalance > 0 ? 'warning' : 'success'} />
+            <StatCard label={t('customer360.statCreditLimit')} value={formatCurrency(summary.creditLimit)} icon={CreditCard} tone="info" />
+            <StatCard label={t('customer360.statOverdue')} value={formatCurrency(summary.overdueAmount)} icon={AlertTriangle} tone={summary.overdueAmount > 0 ? 'destructive' : 'success'} />
+            <StatCard label={t('customer360.statInvoices')} value={String(summary.openInvoiceCount)} icon={Receipt} tone="primary" />
+          </div>
+          {/* G3: derived health — score + band + signals (separate from master status). */}
+          <SectionCard title={t('customer360.healthTitle')}>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-3xl font-bold tabular-nums" dir="ltr">{health.score}</span>
+              <Badge variant={HEALTH_BAND_VARIANT[health.band]}>{t(HEALTH_BAND_KEY[health.band])}</Badge>
+              <span className="text-xs text-muted-foreground">{t('customer360.healthScoreLabel')}</span>
+            </div>
+            <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+              <Row label={t('customer360.sigOrderDays')} value={health.inputs.daysSinceLastOrder != null ? String(health.inputs.daysSinceLastOrder) : null} ltr />
+              <Row label={t('customer360.sigVisitDays')} value={health.inputs.daysSinceLastVisit != null ? String(health.inputs.daysSinceLastVisit) : null} ltr />
+              <Row label={t('customer360.statOverdue')} value={health.inputs.hasOverdue ? t('customers.optionYes') : t('customers.optionNo')} />
+              <Row label={t('customer360.sigReturns90')} value={String(health.inputs.returnsLast90)} ltr />
+            </dl>
+          </SectionCard>
+          <SectionCard title={t('customer360.identity')}>
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+              <Row label={t('customers.fieldCode')} value={customer.code} ltr />
+              <Row label={t('customers.fieldPhone')} value={customer.phone} ltr />
+              <Row label={t('customers.fieldEmail')} value={customer.email} ltr />
+              <Row label={t('customers.fieldCity')} value={customer.city} />
+              <Row label={t('customers.fieldAddress')} value={customer.address} />
+              <Row label={t('customer360.relBranch')} value={branchName(customer.branch_id, branches)} />
+            </dl>
+          </SectionCard>
+          {/* G1: read-only commercial + territory context (display only; edits stay governed). */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SectionCard title={t('customer360.commercialTitle')}>
+              <dl className="space-y-1 text-sm">
+                <Row label={t('customers.fieldCreditLimit')} value={formatCurrency(customer.credit_limit)} ltr />
+                <Row label={t('customers.fieldPaymentTerms')} value={customer.payment_terms_days != null ? String(customer.payment_terms_days) : null} ltr />
+              </dl>
+            </SectionCard>
+            <SectionCard title={t('customer360.territoryTitle')}>
+              <dl className="space-y-1 text-sm">
+                <Row label={t('customers.fieldSalesman')} value={repName(customer.salesman_id, reps)} />
+                <Row label={t('customer360.relSupervisor')} value={customer.salesman_id ? supervisorByRep[customer.salesman_id] ?? null : null} />
+                <Row label={t('customer360.relRoute')} value={refName(customer.route_id, routes, ar)} />
+                <Row label={t('customers.fieldRegion')} value={refName(customer.region_id, regions, ar)} />
+                <Row label={t('customers.fieldArea')} value={refName(customer.area_id, areas, ar)} />
+                <Row label={t('customers.fieldVisitDay')} value={visitDayLabel(customer.visit_day, locale)} />
+                {/* FR-3: resolved visit frequency + provenance (customer-level wins;
+                    classification shown as recommendation). */}
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <dt className="text-muted-foreground">{t('visitFreq.resolvedTitle')}</dt>
+                  <dd className="flex flex-wrap items-center justify-end gap-2">
+                    {bundle.frequency.frequency ? (
+                      <>
+                        <span>{frequencyLabel(bundle.frequency.frequency, t)}</span>
+                        <Badge variant={FREQUENCY_SOURCE_VARIANT[bundle.frequency.source]}>
+                          {t(FREQUENCY_SOURCE_KEY[bundle.frequency.source])}
+                        </Badge>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">{t('visitFreq.none')}</span>
+                    )}
+                  </dd>
+                </div>
+                {/* Recommendation hint when classification differs from the resolved value. */}
+                {bundle.frequency.recommendation && bundle.frequency.source !== 'classification' && (
+                  <div className="flex items-center justify-between gap-2">
+                    <dt className="text-muted-foreground">{t('visitFreq.recommendedLabel')}</dt>
+                    <dd className="text-xs text-muted-foreground">{frequencyLabel(bundle.frequency.recommendation, t)}</dd>
+                  </div>
+                )}
+                {/* CJ-3: coverage status (planned cadence vs actual visits, 28d). */}
+                {bundle.coverage && (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <dt className="text-muted-foreground">{t('coverage.statusTitle')}</dt>
+                    <dd className="flex items-center gap-2">
+                      <Badge variant={COVERAGE_STATUS_VARIANT[bundle.coverage.status]}>
+                        {t(COVERAGE_STATUS_KEY[bundle.coverage.status])}
+                      </Badge>
+                      <span className="text-xs tabular-nums text-muted-foreground" dir="ltr" title={t('coverage.windowLabel')}>
+                        {bundle.coverage.actual}/{bundle.coverage.expected}
+                      </span>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </SectionCard>
+          </div>
+          {/* G2: last activity per kind — the highest-frequency FMCG question. */}
+          <SectionCard title={t('customer360.lastActivityTitle')}>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+              <Row label={t('customer360.lastVisit')} value={lastDate(bundle.lastActivity.lastVisit, t)} ltr />
+              <Row label={t('customer360.lastOrder')} value={lastDate(bundle.lastActivity.lastOrder, t)} ltr />
+              <Row label={t('customer360.lastInvoice')} value={lastDate(bundle.lastActivity.lastInvoice, t)} ltr />
+              <Row label={t('customer360.lastCollection')} value={lastDate(bundle.lastActivity.lastCollection, t)} ltr />
+              <Row label={t('customer360.lastReturn')} value={lastDate(bundle.lastActivity.lastReturn, t)} ltr />
+            </dl>
+          </SectionCard>
+          <SectionCard title={t('customer360.quickActions')}>
+            <QuickNav links={[
+              { label: t('salesman.actNewInvoice'), href: '/sales/invoices', icon: Receipt },
+              { label: t('salesman.actPrintStatement'), href: printHref, icon: FileText },
+              { label: t('salesman.actStock'), href: '/inventory', icon: Boxes },
+            ] satisfies QuickLink[]} />
+          </SectionCard>
+        </div>
+      )}
+
+      {/* ── Profile (the shared edit form) ────────────────────────────────── */}
+      {tab === 'profile' && (
+        <div className="space-y-3">
+          <PendingChangesCard requests={bundle.pendingChanges} t={t} />
+          <CustomerForm
+            customer={customer}
+            customers={customers}
+            branches={branches}
+            reps={reps}
+            lookups={lookups}
+            regions={regions}
+            areas={areas}
+            customFields={customFields}
+            gov={gov}
+            onSaved={refresh}
+            onCancel={() => onTabChange('overview')}
+          />
+        </div>
+      )}
+
+      {/* ── Statement (verbatim) ──────────────────────────────────────────── */}
+      {tab === 'statement' && (
+        <div className="space-y-4">
+          <StatusContext customer={customer} lookups={lookups} reps={reps} ar={ar} locale={locale} t={t} />
+          {(Number(customer.balance) > 0 || canRequestCredit) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {Number(customer.balance) > 0 && (
+                <WhatsAppButton
+                  phone={customer.phone}
+                  label={t('customers.stmtWhatsAppLabel')}
+                  message={t('customers.stmtWhatsAppMsg', { name, amount: formatCurrency(customer.balance) })}
+                  className="h-9 border px-3"
+                />
+              )}
+              {canRequestCredit && <CreditRequestButton customerId={id} currentLimit={Number(customer.credit_limit)} />}
+            </div>
+          )}
+          <CustomerStatementView
+            statement={bundle.statement.statement}
+            printHref={printHref}
+            collectHref="/collections"
+            canCollect={canCollect}
+            showRecon
+          />
+          <SectionCard title={t('customer360.notesTitle')}>
+            <EntityNotes entity="customer" recordId={id} />
+          </SectionCard>
+        </div>
+      )}
+
+      {/* ── Activity (richer: financial + requests + visits) ──────────────── */}
+      {tab === 'activity' && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label={t('customer360.statBalance')} value={formatCurrency(bundle.activity.balance)} icon={Wallet} tone={bundle.activity.balance > 0 ? 'warning' : 'success'} />
+            <StatCard label={t('customer360.statInvoices')} value={String(bundle.activity.invoiceCount)} icon={Receipt} tone="info" />
+            <StatCard label={t('customer360.statRequests')} value={String(bundle.requestCount)} icon={Inbox} tone="primary" />
+            <StatCard label={t('customer360.statVisits')} value={String(bundle.visitCount)} icon={MapPin} tone="primary" />
+          </div>
+          <SectionCard title={t('customer360.activityTitle')} description={t('customer360.activityScope')}>
+            <ActivityTimeline events={bundle.timeline} emptyTitle={t('customer360.activityEmpty')} />
+          </SectionCard>
+        </div>
+      )}
+
+      {/* ── Related ───────────────────────────────────────────────────────── */}
+      {tab === 'related' && (
+        <div className="space-y-3">
+          <RelatedTab customer={customer} customers={customers} branches={branches} reps={reps} regions={regions} areas={areas} ar={ar} t={t} />
+          <TransferHistorySection transfers={bundle.transfers} names={bundle.transferNames} t={t} />
+        </div>
+      )}
+
+      {/* ── Audit ─────────────────────────────────────────────────────────── */}
+      {tab === 'audit' && (
+        <SectionCard title={t('customer360.auditTitle')}>
+          <ActivityFeed entityId={id} entities={['customer']} />
+        </SectionCard>
+      )}
+    </div>
+  );
+}
+
+function Row({ label, value, ltr }: { label: string; value?: string | null; ltr?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2 border-b py-1 last:border-0">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-end font-medium" dir={ltr ? 'ltr' : undefined}>{value || '—'}</dd>
+    </div>
+  );
+}
+
+function branchName(id: string | null, branches: Branch[]): string {
+  if (!id) return '—';
+  const b = branches.find((x) => x.id === id);
+  return b ? b.name_ar || b.name : '—';
+}
+
+/** Resolve a bilingual named record (region/area/route) by id. */
+function refName(id: string | null, list: { id: string; name: string; name_ar: string | null }[], ar: boolean): string {
+  if (!id) return '—';
+  const r = list.find((x) => x.id === id);
+  return r ? (ar ? r.name_ar || r.name : r.name) : '—';
+}
+
+function repName(id: string | null, reps: Rep[]): string {
+  if (!id) return '—';
+  const r = reps.find((x) => x.id === id);
+  return r?.full_name || r?.email || '—';
+}
+
+function visitDayLabel(value: string | null, locale: 'ar' | 'en'): string {
+  if (!value) return '—';
+  return VISIT_DAYS.find((d) => d.value === value)?.[locale] ?? value;
+}
+
+/** Format a last-activity ISO date, or the localized "never" placeholder. */
+function lastDate(iso: string | null, t: (k: string) => string): string {
+  return iso ? formatDate(iso) : t('customer360.never');
+}
+
+/** Account-status context — same data the statement page surfaced (status badge,
+ *  reason, last change), resolved from the already-loaded lookups/reps. */
+function StatusContext({
+  customer, lookups, reps, ar, locale, t,
+}: {
+  customer: ErpCustomer; lookups: CustomerLookup[]; reps: Rep[]; ar: boolean;
+  locale: 'ar' | 'en'; t: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  const statusLabel = CUSTOMER_STATUSES.find((s) => s.value === customer.customer_status)?.[locale] ?? customer.customer_status ?? '';
+  const tone = customer.customer_status === 'active' ? 'success' : customer.customer_status === 'blocked' ? 'destructive' : 'warning';
+  const reason = lookups.find((l) => l.id === customer.status_reason_id);
+  const reasonName = reason ? (ar ? reason.name_ar || reason.name : reason.name) : '';
+  const changedBy = reps.find((r) => r.id === customer.status_changed_by);
+  const changedByName = changedBy?.full_name || changedBy?.email || '';
+  return (
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border p-3 text-sm ${customer.customer_status !== 'active' ? 'border-warning/40 bg-warning/5' : ''}`}>
+      <span className="flex items-center gap-2">
+        <span className="text-muted-foreground">{t('customers.statusLabel')}:</span>
+        <Badge variant={tone}>{statusLabel}</Badge>
+      </span>
+      {reasonName && (
+        <span><span className="text-muted-foreground">{t('customers.fieldStatusReason')}:</span> {reasonName}{customer.status_reason_note ? ` — ${customer.status_reason_note}` : ''}</span>
+      )}
+      {customer.status_changed_at && (
+        <span className="text-muted-foreground">
+          {t('customers.statusSinceLabel')}: <span dir="ltr">{new Date(customer.status_changed_at).toLocaleDateString()}</span>
+          {changedByName ? ` · ${changedByName}` : ''}
+        </span>
+      )}
+      {customer.customer_status !== 'active' && (
+        <span className="text-xs text-muted-foreground">{t('customers.statusCollectionsNote')}</span>
+      )}
+    </div>
+  );
+}
+
+/** Related records as deep-linking chips (branch · salesman · region · area ·
+ *  parent · sub-accounts). Parent/children deep-link into the workbench by id. */
+function RelatedTab({
+  customer, customers, branches, reps, regions, areas, ar, t,
+}: {
+  customer: ErpCustomer; customers: ErpCustomer[]; branches: Branch[]; reps: Rep[];
+  regions: Region[]; areas: Area[]; ar: boolean;
+  t: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  const lk = (n: { name: string; name_ar: string | null } | undefined) => (n ? (ar ? n.name_ar || n.name : n.name) : '');
+  const branch = branches.find((b) => b.id === customer.branch_id);
+  const rep = reps.find((r) => r.id === customer.salesman_id);
+  const region = regions.find((r) => r.id === customer.region_id);
+  const area = areas.find((a) => a.id === customer.area_id);
+  const parent = customers.find((c) => c.id === customer.parent_customer_id);
+  const children = customers.filter((c) => c.parent_customer_id === customer.id);
+
+  const sections: { title: string; items: { label: string; href?: string }[] }[] = [];
+  if (branch) sections.push({ title: t('customer360.relBranch'), items: [{ label: branch.name_ar || branch.name, href: '/settings/branches' }] });
+  if (rep) sections.push({ title: t('customer360.relSalesman'), items: [{ label: rep.full_name || rep.email || '—' }] });
+  if (region) sections.push({ title: t('customer360.relRegion'), items: [{ label: lk(region) }] });
+  if (area) sections.push({ title: t('customer360.relArea'), items: [{ label: lk(area) }] });
+  if (parent) sections.push({ title: t('customer360.relParent'), items: [{ label: parent.name_ar || parent.name, href: `/customers?id=${parent.id}` }] });
+  if (children.length) sections.push({ title: t('customer360.relChildren'), items: children.map((c) => ({ label: c.name_ar || c.name, href: `/customers?id=${c.id}` })) });
+
+  return (
+    <SectionCard title={t('customer360.relatedTitle')}>
+      {sections.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t('customer360.relNone')}</p>
+      ) : (
+        <div className="space-y-3">
+          {sections.map((s) => (
+            <div key={s.title} className="space-y-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{s.title}</p>
+              <RelatedChips items={s.items} />
+            </div>
+          ))}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+const TRANSFER_STATUS_VARIANT: Record<string, 'warning' | 'success' | 'destructive' | 'secondary'> = {
+  pending: 'warning', applied: 'success', rejected: 'destructive', cancelled: 'secondary',
+};
+
+/** Read-only visibility of open change requests (transparency, not approval).
+ *  Shows the request's fields, status, requester, and submission date. */
+function PendingChangesCard({
+  requests, t,
+}: {
+  requests: CustomerPendingChange[];
+  t: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  if (requests.length === 0) return null;
+  return (
+    <SectionCard title={t('customer360.pendingTitle')} description={t('customer360.pendingHint')}>
+      <ul className="divide-y">
+        {requests.map((r) => (
+          <li key={r.id} className="space-y-1 py-2 text-sm first:pt-0 last:pb-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">{t('customer360.pendingType')}</span>
+              <Badge variant="warning">{t(`customer360.tfStatus_${r.status}`)}</Badge>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
+              {Object.entries(r.changes).map(([field, value]) => (
+                <span key={field}>
+                  <span className="text-muted-foreground">{field}:</span> <span dir="ltr">{String(value ?? '')}</span>
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {r.requesterName} · <span dir="ltr">{formatDate(r.created_at)}</span>{r.reason ? ` · ${r.reason}` : ''}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </SectionCard>
+  );
+}
+
+/** G4: read-only transfer history (prev → new salesman/route/region, reason,
+ *  date, status). Names resolved server-side; only changed dimensions shown. */
+function TransferHistorySection({
+  transfers, names, t,
+}: {
+  transfers: CustomerTransferRow[];
+  names: Record<string, string>;
+  t: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  const nm = (id: string | null) => (id ? names[id] || '—' : '—');
+  const change = (label: string, from: string | null, to: string | null) =>
+    from === to ? null : (
+      <span className="inline-flex items-center gap-1">
+        <span className="text-muted-foreground">{label}:</span>
+        <span>{nm(from)}</span>
+        <span className="text-muted-foreground" dir="ltr">→</span>
+        <span className="font-medium">{nm(to)}</span>
+      </span>
+    );
+  return (
+    <SectionCard title={t('customer360.transferHistoryTitle')}>
+      {transfers.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t('customer360.transferNone')}</p>
+      ) : (
+        <ul className="divide-y">
+          {transfers.map((tr) => {
+            const changes = [
+              change(t('customer360.relSalesman'), tr.from_salesman_id, tr.to_salesman_id),
+              change(t('customer360.relRoute'), tr.from_route_id, tr.to_route_id),
+              change(t('customer360.relRegion'), tr.from_region_id, tr.to_region_id),
+              change(t('customer360.relBranch'), tr.from_branch_id, tr.to_branch_id),
+            ].filter(Boolean);
+            return (
+              <li key={tr.id} className="space-y-1 py-2 text-sm first:pt-0 last:pb-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground" dir="ltr">{formatDate(tr.created_at)}</span>
+                  <Badge variant={TRANSFER_STATUS_VARIANT[tr.status] ?? 'secondary'}>
+                    {t(`customer360.tfStatus_${tr.status}`)}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">{changes}</div>
+                {tr.reason && <p className="text-xs text-muted-foreground">{t('customer360.tfReason')}: {tr.reason}</p>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}

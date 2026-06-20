@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getPlatformContext, hasPlatformPermission } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Company } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
@@ -33,14 +33,13 @@ export default async function AuditLogPage({
 
   if (!ctx.isPlatformOwner && !ctx.isSuperAdmin && !hasPlatformPermission(pctx, 'access_audit_logs')) {
     return (
-      <div>
-        <PageHeader title={t('platform.audit.title')} />
+      <ModulePage title={t('platform.audit.title')}>
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             {t('platform.ownerOrSuperAdminOnly')}
           </CardContent>
         </Card>
-      </div>
+      </ModulePage>
     );
   }
 
@@ -107,11 +106,7 @@ export default async function AuditLogPage({
   const eventInPage = event ? rows.some((r) => r.id === event) : true;
 
   return (
-    <div>
-      <PageHeader
-        title={t('platform.audit.title')}
-        description={t('platform.audit.description')}
-      />
+    <ModulePage title={t('platform.audit.title')} subtitle={t('platform.audit.description')}>
       <Suspense fallback={null}>
         <AuditLog
           rows={rows}
@@ -125,6 +120,6 @@ export default async function AuditLogPage({
           eventInPage={eventInPage}
         />
       </Suspense>
-    </div>
+    </ModulePage>
   );
 }

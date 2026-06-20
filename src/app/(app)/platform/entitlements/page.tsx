@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { Card, CardContent } from '@/components/ui/card';
 import { ENTITLEMENTS_ENABLED } from '@/lib/entitlements';
 import { loadCompanies } from '@/lib/entitlements/matrix-server';
@@ -23,8 +23,7 @@ export default async function EntitlementsPage() {
   const companies = await loadCompanies(supabase);
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t('entitlements.title')} description={t('entitlements.pickCompany')} />
+    <ModulePage title={t('entitlements.title')} subtitle={t('entitlements.pickCompany')}>
       {companies.length === 0 ? (
         <Card><CardContent className="pt-6 text-sm text-muted-foreground">{t('entitlements.none')}</CardContent></Card>
       ) : (
@@ -41,6 +40,6 @@ export default async function EntitlementsPage() {
           ))}
         </div>
       )}
-    </div>
+    </ModulePage>
   );
 }

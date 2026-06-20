@@ -3,9 +3,8 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
-import { Pager } from '@/components/pager';
 import type { Area, Branch, CustomerLookup, ErpCustomer, Profile, Region } from '@/lib/erp/types';
-import { CustomersManager } from './customers-manager';
+import { CustomersWorkbench } from './customers-workbench';
 import { getActiveCustomFields } from '@/lib/erp/custom-fields-server';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
 import { resolveLayout, type GovInputs } from '@/lib/erp/field-governance';
@@ -15,7 +14,7 @@ import { getT } from '@/lib/i18n/server';
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; segment?: string; classification?: string; channel?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; segment?: string; classification?: string; channel?: string; id?: string }>;
 }) {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
@@ -26,6 +25,7 @@ export default async function CustomersPage({
   const segment = sp.segment ?? '';
   const classification = sp.classification ?? '';
   const channel = sp.channel ?? '';
+  const selectedId = sp.id ?? '';
 
   const supabase = await createClient();
   // S1: server pagination + search + filters (the standard list pattern).
@@ -35,7 +35,7 @@ export default async function CustomersPage({
   if (classification) listQuery = listQuery.eq('classification_id', classification);
   if (channel) listQuery = listQuery.eq('channel_id', channel);
 
-  const [{ data: customers, count }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }] = await Promise.all([
+  const [{ data: customers, count }, { data: branches }, { data: profiles }, { data: lookups }, { data: regions }, { data: areas }, { data: routes }, { data: allProfiles }, selRes] = await Promise.all([
     listQuery.range(from, to),
     supabase.from('erp_branches').select('*').eq('is_active', true).order('code'),
     // Role-scoped reps (self/team/region/all) — see erp_assignable_reps / RLS.
@@ -43,19 +43,42 @@ export default async function CustomersPage({
     supabase.from('erp_customer_lookups').select('*').eq('is_active', true).order('sort').order('name'),
     supabase.from('erp_regions').select('*').eq('is_active', true).order('sort').order('name'),
     supabase.from('erp_areas').select('*').eq('is_active', true).order('sort').order('name'),
+    // G1: read-only territory display (route name).
+    supabase.from('erp_routes').select('id, name, name_ar').eq('is_active', true).order('name'),
+    // G1: supervisor ownership — resolve each rep's supervisor via reports_to.
+    supabase.from('erp_profiles').select('id, full_name, email, reports_to'),
+    // Deep-link: load the selected record directly so it resolves regardless of
+    // the current search/filter/pagination window.
+    selectedId
+      ? supabase.from('erp_customers').select('*').eq('id', selectedId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const customFields = await getActiveCustomFields('customer');
 
-  // DFG-3 + S2: governance read redaction applied to the CURRENT PAGE only
-  // (≤ pageSize rows) — hidden fields nulled out before reaching the client.
+  // DFG-3 + S2: governance read redaction (hidden fields nulled before reaching
+  // the client) applied to the current page AND the deep-linked record.
   const gov: GovInputs = await loadGovernanceInputs(supabase, ctx, 'customer');
-  const rows = ((customers as ErpCustomer[]) ?? []).map((c) => {
+  const redact = (c: ErpCustomer): ErpCustomer => {
     if (gov.fields.length === 0) return c;
     const layout = resolveLayout(gov, c as unknown as Record<string, unknown>);
     const o = { ...c } as Record<string, unknown>;
     for (const [k, a] of layout) if (a === 'hidden') o[k] = null;
     return o as unknown as ErpCustomer;
-  });
+  };
+  const rows = ((customers as ErpCustomer[]) ?? []).map(redact);
+  const selRow = (selRes as { data: ErpCustomer | null }).data;
+  const selectedCustomer = selRow ? redact(selRow) : null;
+
+  // G1: rep → supervisor display name, via erp_profiles.reports_to.
+  const profs = (allProfiles as { id: string; full_name: string | null; email: string | null; reports_to: string | null }[]) ?? [];
+  const nameById = new Map(profs.map((p) => [p.id, p.full_name || p.email || '']));
+  const supervisorByRep: Record<string, string> = {};
+  for (const p of profs) {
+    if (p.reports_to) {
+      const n = nameById.get(p.reports_to);
+      if (n) supervisorByRep[p.id] = n;
+    }
+  }
 
   return (
     <div>
@@ -63,27 +86,29 @@ export default async function CustomersPage({
         title={t('customers.pageTitle')}
         description={t('customers.pageDescription')}
       />
-      <CustomersManager
+      <CustomersWorkbench
         customers={rows}
+        selectedCustomer={selectedCustomer}
         branches={(branches as Branch[]) ?? []}
         reps={(profiles as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []}
         lookups={(lookups as CustomerLookup[]) ?? []}
         regions={(regions as Region[]) ?? []}
         areas={(areas as Area[]) ?? []}
-        canApprove={hasPermission(ctx, 'customers.approve')}
+        routes={(routes as { id: string; name: string; name_ar: string | null }[]) ?? []}
+        supervisorByRep={supervisorByRep}
         customFields={customFields}
         gov={gov}
+        canApprove={hasPermission(ctx, 'customers.approve')}
+        canCollect={hasPermission(ctx, 'sales.collect') || ctx.isSuperAdmin}
+        canTransfer={hasPermission(ctx, 'customer.transfer')}
+        canRequestCredit={hasPermission(ctx, 'credit.request.create')}
         q={q}
         filterSegment={segment}
         filterClassification={classification}
         filterChannel={channel}
-      />
-      <Pager
         page={page}
         pageSize={pageSize}
         total={count ?? 0}
-        basePath="/customers"
-        query={{ q: q || undefined, segment: segment || undefined, classification: classification || undefined, channel: channel || undefined }}
       />
     </div>
   );

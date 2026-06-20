@@ -1,0 +1,506 @@
+{
+  "customers": 6017,
+  "scenarios": [
+    {
+      "k": 40,
+      "before": {
+        "routes": 40,
+        "needsReview": 0,
+        "customersPerRoute": {
+          "min": 150,
+          "avg": 150.4,
+          "max": 151
+        },
+        "workloadPerRoute": {
+          "min": 150,
+          "avg": 150.4,
+          "max": 151
+        },
+        "workloadBalancePct": 99.7,
+        "avgRadiusKm": 151.1,
+        "avgMeanDistKm": 62.2,
+        "worstSpanKm": 854,
+        "top5Largest": [
+          {
+            "route": 2,
+            "customers": 151,
+            "visits": 151,
+            "radiusKm": 21.2
+          },
+          {
+            "route": 4,
+            "customers": 151,
+            "visits": 151,
+            "radiusKm": 57.3
+          },
+          {
+            "route": 7,
+            "customers": 151,
+            "visits": 151,
+            "radiusKm": 430.3
+          },
+          {
+            "route": 9,
+            "customers": 151,
+            "visits": 151,
+            "radiusKm": 215.5
+          },
+          {
+            "route": 11,
+            "customers": 151,
+            "visits": 151,
+            "radiusKm": 486.8
+          }
+        ],
+        "top5Smallest": [
+          {
+            "route": 40,
+            "customers": 150,
+            "visits": 150,
+            "radiusKm": 51.8
+          },
+          {
+            "route": 38,
+            "customers": 150,
+            "visits": 150,
+            "radiusKm": 12.8
+          },
+          {
+            "route": 37,
+            "customers": 150,
+            "visits": 150,
+            "radiusKm": 7
+          },
+          {
+            "route": 34,
+            "customers": 150,
+            "visits": 150,
+            "radiusKm": 265.5
+          },
+          {
+            "route": 33,
+            "customers": 150,
+            "visits": 150,
+            "radiusKm": 106.1
+          }
+        ]
+      },
+      "after": {
+        "routes": 40,
+        "needsReview": 112,
+        "customersPerRoute": {
+          "min": 109,
+          "avg": 147.6,
+          "max": 196
+        },
+        "workloadPerRoute": {
+          "min": 109,
+          "avg": 147.6,
+          "max": 196
+        },
+        "workloadBalancePct": 80,
+        "avgRadiusKm": 105.4,
+        "avgMeanDistKm": 33.1,
+        "worstSpanKm": 608.5,
+        "top5Largest": [
+          {
+            "route": 13,
+            "customers": 196,
+            "visits": 196,
+            "radiusKm": 267.3
+          },
+          {
+            "route": 3,
+            "customers": 188,
+            "visits": 188,
+            "radiusKm": 26.8
+          },
+          {
+            "route": 33,
+            "customers": 184,
+            "visits": 184,
+            "radiusKm": 60.5
+          },
+          {
+            "route": 4,
+            "customers": 181,
+            "visits": 181,
+            "radiusKm": 48
+          },
+          {
+            "route": 17,
+            "customers": 181,
+            "visits": 181,
+            "radiusKm": 13.4
+          }
+        ],
+        "top5Smallest": [
+          {
+            "route": 29,
+            "customers": 109,
+            "visits": 109,
+            "radiusKm": 271.7
+          },
+          {
+            "route": 28,
+            "customers": 109,
+            "visits": 109,
+            "radiusKm": 83.4
+          },
+          {
+            "route": 26,
+            "customers": 109,
+            "visits": 109,
+            "radiusKm": 225.3
+          },
+          {
+            "route": 15,
+            "customers": 109,
+            "visits": 109,
+            "radiusKm": 120.3
+          },
+          {
+            "route": 8,
+            "customers": 109,
+            "visits": 109,
+            "radiusKm": 185.3
+          }
+        ]
+      }
+    },
+    {
+      "k": 86,
+      "before": {
+        "routes": 86,
+        "needsReview": 0,
+        "customersPerRoute": {
+          "min": 69,
+          "avg": 70,
+          "max": 70
+        },
+        "workloadPerRoute": {
+          "min": 69,
+          "avg": 70,
+          "max": 70
+        },
+        "workloadBalancePct": 99.7,
+        "avgRadiusKm": 80.1,
+        "avgMeanDistKm": 33.2,
+        "worstSpanKm": 634.5,
+        "top5Largest": [
+          {
+            "route": 2,
+            "customers": 70,
+            "visits": 70,
+            "radiusKm": 4
+          },
+          {
+            "route": 3,
+            "customers": 70,
+            "visits": 70,
+            "radiusKm": 4
+          },
+          {
+            "route": 4,
+            "customers": 70,
+            "visits": 70,
+            "radiusKm": 3.9
+          },
+          {
+            "route": 5,
+            "customers": 70,
+            "visits": 70,
+            "radiusKm": 5.4
+          },
+          {
+            "route": 6,
+            "customers": 70,
+            "visits": 70,
+            "radiusKm": 3
+          }
+        ],
+        "top5Smallest": [
+          {
+            "route": 54,
+            "customers": 69,
+            "visits": 69,
+            "radiusKm": 28.7
+          },
+          {
+            "route": 22,
+            "customers": 69,
+            "visits": 69,
+            "radiusKm": 308.7
+          },
+          {
+            "route": 1,
+            "customers": 69,
+            "visits": 69,
+            "radiusKm": 5
+          },
+          {
+            "route": 86,
+            "customers": 70,
+            "visits": 70,
+            "radiusKm": 14.1
+          },
+          {
+            "route": 85,
+            "customers": 70,
+            "visits": 70,
+            "radiusKm": 203.7
+          }
+        ]
+      },
+      "after": {
+        "routes": 86,
+        "needsReview": 42,
+        "customersPerRoute": {
+          "min": 52,
+          "avg": 69.5,
+          "max": 92
+        },
+        "workloadPerRoute": {
+          "min": 52,
+          "avg": 69.5,
+          "max": 92
+        },
+        "workloadBalancePct": 83.1,
+        "avgRadiusKm": 63.2,
+        "avgMeanDistKm": 23.2,
+        "worstSpanKm": 608.8,
+        "top5Largest": [
+          {
+            "route": 62,
+            "customers": 92,
+            "visits": 92,
+            "radiusKm": 140.7
+          },
+          {
+            "route": 16,
+            "customers": 89,
+            "visits": 89,
+            "radiusKm": 16.9
+          },
+          {
+            "route": 14,
+            "customers": 88,
+            "visits": 88,
+            "radiusKm": 30
+          },
+          {
+            "route": 1,
+            "customers": 85,
+            "visits": 85,
+            "radiusKm": 8.5
+          },
+          {
+            "route": 6,
+            "customers": 85,
+            "visits": 85,
+            "radiusKm": 6.7
+          }
+        ],
+        "top5Smallest": [
+          {
+            "route": 85,
+            "customers": 52,
+            "visits": 52,
+            "radiusKm": 256.6
+          },
+          {
+            "route": 81,
+            "customers": 52,
+            "visits": 52,
+            "radiusKm": 24.2
+          },
+          {
+            "route": 72,
+            "customers": 52,
+            "visits": 52,
+            "radiusKm": 362.6
+          },
+          {
+            "route": 54,
+            "customers": 52,
+            "visits": 52,
+            "radiusKm": 116.1
+          },
+          {
+            "route": 44,
+            "customers": 52,
+            "visits": 52,
+            "radiusKm": 15.9
+          }
+        ]
+      }
+    },
+    {
+      "k": 120,
+      "before": {
+        "routes": 120,
+        "needsReview": 0,
+        "customersPerRoute": {
+          "min": 50,
+          "avg": 50.1,
+          "max": 51
+        },
+        "workloadPerRoute": {
+          "min": 50,
+          "avg": 50.1,
+          "max": 51
+        },
+        "workloadBalancePct": 99.3,
+        "avgRadiusKm": 60.9,
+        "avgMeanDistKm": 24,
+        "worstSpanKm": 632.3,
+        "top5Largest": [
+          {
+            "route": 9,
+            "customers": 51,
+            "visits": 51,
+            "radiusKm": 6.1
+          },
+          {
+            "route": 17,
+            "customers": 51,
+            "visits": 51,
+            "radiusKm": 15.8
+          },
+          {
+            "route": 25,
+            "customers": 51,
+            "visits": 51,
+            "radiusKm": 259.8
+          },
+          {
+            "route": 28,
+            "customers": 51,
+            "visits": 51,
+            "radiusKm": 2.2
+          },
+          {
+            "route": 36,
+            "customers": 51,
+            "visits": 51,
+            "radiusKm": 26.6
+          }
+        ],
+        "top5Smallest": [
+          {
+            "route": 119,
+            "customers": 50,
+            "visits": 50,
+            "radiusKm": 10.8
+          },
+          {
+            "route": 118,
+            "customers": 50,
+            "visits": 50,
+            "radiusKm": 5.2
+          },
+          {
+            "route": 117,
+            "customers": 50,
+            "visits": 50,
+            "radiusKm": 92.6
+          },
+          {
+            "route": 116,
+            "customers": 50,
+            "visits": 50,
+            "radiusKm": 50.4
+          },
+          {
+            "route": 115,
+            "customers": 50,
+            "visits": 50,
+            "radiusKm": 2.7
+          }
+        ]
+      },
+      "after": {
+        "routes": 120,
+        "needsReview": 55,
+        "customersPerRoute": {
+          "min": 37,
+          "avg": 49.7,
+          "max": 65
+        },
+        "workloadPerRoute": {
+          "min": 37,
+          "avg": 49.7,
+          "max": 65
+        },
+        "workloadBalancePct": 83.9,
+        "avgRadiusKm": 39.9,
+        "avgMeanDistKm": 16.8,
+        "worstSpanKm": 606.4,
+        "top5Largest": [
+          {
+            "route": 16,
+            "customers": 65,
+            "visits": 65,
+            "radiusKm": 46.8
+          },
+          {
+            "route": 47,
+            "customers": 65,
+            "visits": 65,
+            "radiusKm": 16.1
+          },
+          {
+            "route": 84,
+            "customers": 65,
+            "visits": 65,
+            "radiusKm": 19.5
+          },
+          {
+            "route": 113,
+            "customers": 65,
+            "visits": 65,
+            "radiusKm": 19.3
+          },
+          {
+            "route": 48,
+            "customers": 64,
+            "visits": 64,
+            "radiusKm": 21.3
+          }
+        ],
+        "top5Smallest": [
+          {
+            "route": 98,
+            "customers": 37,
+            "visits": 37,
+            "radiusKm": 55.8
+          },
+          {
+            "route": 97,
+            "customers": 37,
+            "visits": 37,
+            "radiusKm": 62.7
+          },
+          {
+            "route": 85,
+            "customers": 37,
+            "visits": 37,
+            "radiusKm": 37.6
+          },
+          {
+            "route": 79,
+            "customers": 37,
+            "visits": 37,
+            "radiusKm": 215.9
+          },
+          {
+            "route": 77,
+            "customers": 37,
+            "visits": 37,
+            "radiusKm": 41.3
+          }
+        ]
+      }
+    }
+  ]
+}

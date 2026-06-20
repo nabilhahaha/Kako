@@ -12,6 +12,11 @@ import type { LatLng } from '@/lib/erp/journey-sort';
 
 export interface GenCustomer extends OptimizeCustomer {
   classification: string;
+  /** FR-5: pre-resolved visits/week (customer-level frequency wins over
+   *  classification). When provided, it overrides the classification rule
+   *  lookup; when omitted/null, the generator falls back to the rules by
+   *  `classification` (today's behaviour). */
+  visitsPerWeek?: number | null;
 }
 
 export interface DayPlan {
@@ -32,7 +37,9 @@ export function generateWeeklyPlan(
 ): DayPlan[] {
   const perDay = new Map<string, GenCustomer[]>(workingDays.map((d) => [d, []]));
   for (const c of customers) {
-    const vpw = visitsPerWeekFor(rules, c.classification);
+    // FR-5: customer-level resolved frequency wins; fall back to the rule by
+    // classification only when no pre-resolved value was supplied.
+    const vpw = c.visitsPerWeek != null ? c.visitsPerWeek : visitsPerWeekFor(rules, c.classification);
     if (vpw == null || vpw <= 0) continue;
     for (const day of visitDaysFor(vpw, workingDays)) perDay.get(day)!.push(c);
   }

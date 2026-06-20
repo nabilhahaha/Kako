@@ -15,10 +15,12 @@ import { creditWorkflowKey } from '@/lib/erp/approval-flags';
 import { sensitiveChanges } from '@/lib/erp/customer-approval';
 import { statusBlocks, statusBlockMessageKey } from '@/lib/erp/customer-status';
 import { logAudit } from '@/lib/erp/audit';
+import { auditEnvelope, diffFields } from '@/lib/erp/audit-envelope';
 import { notifyManagers } from '@/lib/erp/notify';
 import { getActionPolicy } from '@/lib/erp/action-policy';
 import { loadGovernanceInputs } from '@/lib/erp/field-governance-server';
 import { resolveLayout, applyWriteAccess } from '@/lib/erp/field-governance';
+import { parseFrequency } from '@/lib/route-optimization/visit-frequency';
 
 /** Parse the `custom` JSON bag from a form, validate it against the entity's
  *  active custom-field definitions (server-authoritative), and return the
@@ -111,6 +113,11 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
   const cf = await resolveCustom('customer', formData.get('custom'));
   if (!cf.ok) return { ok: false, error: cf.error };
 
+  // FR-3: customer-level visit frequency (validated FR-1 token). Manually entered
+  // here ⇒ source 'manual'. Empty/invalid ⇒ null (falls through to classification).
+  const visitFrequencyRaw = String(formData.get('visit_frequency') || '').trim().toLowerCase();
+  const visitFrequency = visitFrequencyRaw && parseFrequency(visitFrequencyRaw) ? visitFrequencyRaw : null;
+
   const rawPayload = {
     code,
     name,
@@ -124,6 +131,8 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     branch_id: branchId || null,
     salesman_id: salesmanId || null,
     visit_day: visitDay || null,
+    visit_frequency: visitFrequency,
+    visit_frequency_source: visitFrequency ? ('manual' as const) : null,
     // FMCG hierarchy S3 — expanded customer model. FK ids (segment/class/channel
     // → company master data; region/area → S1 entities) are passed through;
     // tenant RLS + FK constraints keep them valid (invalid → insert fails).
@@ -186,7 +195,11 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     if (!statusChanged) return;
     await logAudit(supabase, {
       action: 'update', entity: 'customer_status', entityId: recordId,
-      details: { previous_status: prevStatus, new_status: customerStatus, reason_id: reasonId, reason_note: reasonNote },
+      details: auditEnvelope({
+        field: 'customer_status', oldValue: prevStatus, newValue: customerStatus,
+        role: ctx.topRole, reason: reasonNote,
+        extra: { previous_status: prevStatus, new_status: customerStatus, reason_id: reasonId, reason_note: reasonNote },
+      }),
       companyId: ctx.companyId,
     });
   };
@@ -207,6 +220,11 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     const enforced = applyWriteAccess(resolved, rawPayload as Record<string, unknown>, currentRow);
     if (enforced.missingRequired.length > 0) return { ok: false, error: t('customers.errRequiredMissing') };
     payload = enforced.data;
+    // FR-3: if governance kept the existing visit_frequency (field is read-only for
+    // this user), preserve its existing source rather than overwriting to 'manual'.
+    if (id && payload.visit_frequency === currentRow.visit_frequency && rawPayload.visit_frequency !== currentRow.visit_frequency) {
+      payload.visit_frequency_source = (currentRow.visit_frequency_source as string | null) ?? null;
+    }
   }
 
   // Per-company governance toggle (default off = today's behaviour).
@@ -263,9 +281,23 @@ export async function upsertCustomer(formData: FormData): Promise<ActionResult> 
     }
   }
 
+  // G5: capture the before-row for the structured audit envelope (direct edit).
+  const { data: beforeRow } = await supabase.from('erp_customers').select('*').eq('id', id).maybeSingle();
   const { error } = await supabase.from('erp_customers').update(payload).eq('id', id);
   if (error) return { ok: false, error: friendlyDbError(error) };
   await auditStatus(id);
+  // Structured field-diff audit for the direct edit (status handled by auditStatus).
+  const STATUS_KEYS = ['customer_status', 'status_reason_id', 'status_reason_note'];
+  const changed = beforeRow
+    ? diffFields(beforeRow as Record<string, unknown>, payload, Object.keys(payload).filter((k) => !STATUS_KEYS.includes(k)))
+    : [];
+  if (changed.length > 0) {
+    await logAudit(supabase, {
+      action: 'update', entity: 'customer', entityId: id,
+      details: auditEnvelope({ changes: changed, role: ctx.topRole }),
+      companyId: ctx.companyId,
+    });
+  }
   await emitDomainEvent({ eventType: EVENT.CUSTOMER_UPDATED, entity: 'customer', recordId: id });
   revalidatePath('/customers');
   return { ok: true };
@@ -404,11 +436,71 @@ export async function requestCustomerGpsChange(
   const reqId = (req as { id: string } | null)?.id ?? customerId;
   await logAudit(supabase, {
     action: 'update', entity: 'customer_gps_change', entityId: customerId,
-    details: { latitude, longitude, reason: reason?.trim() || null, request_id: reqId }, companyId: ctx.companyId,
+    details: auditEnvelope({
+      field: 'gps', oldValue: null, newValue: { latitude, longitude },
+      role: ctx.topRole, reason: reason?.trim() || null, requestRef: reqId,
+      extra: { latitude, longitude, request_id: reqId },
+    }),
+    companyId: ctx.companyId,
   });
   await notifyManagers(supabase, ctx.companyId, {
     type: 'critical_action',
     titleAr: 'طلب اعتماد تغيير موقع عميل', titleEn: 'Customer GPS change awaiting approval',
+    body: reason?.trim() || '', link: '/approvals', entity: 'customer', recordId: customerId,
+  });
+  revalidatePath('/customers');
+  revalidatePath('/approvals');
+  return { ok: true };
+}
+
+/** G7: submit a field-level change request for a customer (the "Request Change"
+ *  governance level). Stages the proposed values in erp_customer_change_requests
+ *  and starts the existing customer_update workflow; the approver's decision is
+ *  applied by the customer_change_request handler. Reuse-only — same backbone the
+ *  staged-sensitive-edit path already uses. */
+const CHANGE_REQUEST_NUMERIC = new Set(['payment_terms_days', 'credit_limit']);
+export async function submitCustomerChangeRequest(
+  customerId: string,
+  changes: Record<string, string>,
+  reason?: string,
+): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requireAuth();
+  if (authErr || !ctx) return { ok: false, error: authErr ?? 'unauthorized' };
+  const { t } = await getT();
+  if (!customerId) return { ok: false, error: t('customers.errUnauthorized') };
+  // Coerce known numeric fields; pass the rest through as trimmed strings/null.
+  const payload: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(changes ?? {})) {
+    const s = String(v ?? '').trim();
+    payload[k] = CHANGE_REQUEST_NUMERIC.has(k) ? (s === '' ? null : Number(s)) : (s === '' ? null : s);
+  }
+  if (Object.keys(payload).length === 0) return { ok: false, error: t('customers.errNothingToRequest') };
+
+  const supabase = await createClient();
+  const { data: req, error: insErr } = await supabase
+    .from('erp_customer_change_requests')
+    .insert({ company_id: ctx.companyId, customer_id: customerId, changes: payload, reason: reason?.trim() || null, requested_by: ctx.userId })
+    .select('id')
+    .single();
+  if (insErr) return { ok: false, error: friendlyDbError(insErr) };
+  const reqId = (req as { id: string }).id;
+
+  const { error: wfErr } = await supabase.rpc('erp_workflow_start', {
+    p_key: 'customer_update', p_entity: 'customer_change_request', p_record_id: reqId, p_context: {},
+  });
+  if (wfErr) return { ok: false, error: friendlyDbError(wfErr) };
+
+  await logAudit(supabase, {
+    action: 'update', entity: 'customer_change_request', entityId: customerId,
+    details: auditEnvelope({
+      event: 'request_created', role: ctx.topRole, reason: reason?.trim() || null, requestRef: reqId,
+      changes: Object.entries(payload).map(([field, newValue]) => ({ field, oldValue: undefined, newValue })),
+    }),
+    companyId: ctx.companyId,
+  });
+  await notifyManagers(supabase, ctx.companyId, {
+    type: 'critical_action',
+    titleAr: 'طلب اعتماد تعديل بيانات عميل', titleEn: 'Customer data change awaiting approval',
     body: reason?.trim() || '', link: '/approvals', entity: 'customer', recordId: customerId,
   });
   revalidatePath('/customers');
@@ -436,7 +528,8 @@ export async function requestCustomerApproval(id: string, reason?: string): Prom
   // Critical-action: customer.dataUpdateApproval (CR/VAT/National Address etc.).
   await logAudit(supabase, {
     action: 'update', entity: 'customer_change_request', entityId: id,
-    details: { event: 'data_update_submitted', reason: reason?.trim() || null }, companyId: ctx.companyId,
+    details: auditEnvelope({ event: 'data_update_submitted', role: ctx.topRole, reason: reason?.trim() || null, requestRef: id }),
+    companyId: ctx.companyId,
   });
   await notifyManagers(supabase, ctx.companyId, {
     type: 'critical_action',
@@ -479,7 +572,11 @@ export async function requestCreditLimitChange(customerId: string, requestedLimi
   // Critical-action: customer.creditLimitOverride (reason captured at the call site).
   await logAudit(supabase, {
     action: 'update', entity: 'credit_limit_request', entityId: (req as { id: string }).id,
-    details: { customer_id: customerId, old_limit: current, new_limit: requestedLimit, reason: reason?.trim() || null },
+    details: auditEnvelope({
+      field: 'credit_limit', oldValue: current, newValue: requestedLimit,
+      role: ctx.topRole, reason: reason?.trim() || null, requestRef: (req as { id: string }).id,
+      extra: { customer_id: customerId, old_limit: current, new_limit: requestedLimit },
+    }),
     companyId: ctx.companyId,
   });
   await notifyManagers(supabase, ctx.companyId, {
@@ -566,7 +663,12 @@ export async function toggleCustomerActive(
   // Critical-action audit: customer.statusChange (reason mandatory at call site).
   await logAudit(supabase, {
     action: isActive ? 'activate' : 'deactivate', entity: 'customer_status', entityId: id,
-    details: { is_active_new: isActive, reason: reason?.trim() || null }, companyId: ctx.companyId,
+    details: auditEnvelope({
+      field: 'is_active', oldValue: !isActive, newValue: isActive,
+      role: ctx.topRole, reason: reason?.trim() || null,
+      extra: { is_active_new: isActive },
+    }),
+    companyId: ctx.companyId,
   });
   revalidatePath('/customers');
   return { ok: true };

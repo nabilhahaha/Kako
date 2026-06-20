@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { getT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/shared/page-header';
+import { CoverageViews } from '../coverage-dashboard/coverage-views';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { DISTRIBUTION_ENABLED } from '@/lib/distribution/flags';
@@ -68,6 +69,7 @@ export default async function CoverageDashboard({ searchParams }: { searchParams
   return (
     <div className="space-y-6">
       <PageHeader title={t('distribution.coverageTitle')} description={`${t('distribution.coverageDescription')} · ${t('distribution.coverageAsOf')} ${date}`} />
+      <CoverageViews active="team" showTeam />
 
       {rows.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">{t('distribution.coverageEmpty')}</CardContent></Card>

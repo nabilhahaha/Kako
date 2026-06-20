@@ -201,6 +201,40 @@ Existing foundations are noted so we reuse, not rebuild.
 
 \* Must-Have for commercial-scale support; read-only first.
 
+## 18. User Access Overrides (UAO)
+- **Status:** ✅ **Implemented · Validated · Activated · Production Ready** (platform-wide). Shipped on branch `claude/pilot-ux` (PR #319); migration `0346` applied to `vantora-staging`; flag ON + all companies entitled.
+- **Business value:** Company Admins self-serve per-user **operational** permission grant/revoke (the 6-permission operational seed) on top of role baselines — without platform involvement, fully audited.
+- **Architecture:** Generalizes the existing `erp_temporary_access_grants` engine (additive, backward-compatible) with `effect` + `kind` columns and a permanent-override path. Resolver Block 2 in `getUserContext` applies grants/revokes, re-validated against the delegable allowlist every resolve.
+- **Guardrails:** delegable allowlist (`erp_delegable_permissions`) + immutable deny-list (`erp_is_delegable_permission`); admin-gated writes via RLS `WITH CHECK`; mandatory reason (DB CHECK); full audit (`erp_audit_logs`); effective-permissions diff. Operational seed only — **no** approval/treasury/security/platform/RLS/system permissions.
+- **Activation model:** **Global flag `KAKO_USER_ACCESS_OVERRIDES` AND per-company entitlement** (`platform.user_access_overrides`). Platform-wide = flag ON + all companies entitled. Preserves a global kill-switch and per-company disable.
+- **Complexity:** delivered (≈ M, default-OFF through E0–E4).
+- **Class:** **Must-Have** (governance).
+
+## 19. Role Permission Overrides (Bulk Role Overrides)
+- **Status:** 📐 **Design approved — not built** (next authorization enhancement after UAO).
+- **Business value:** Company Admins grant/revoke delegable **operational** permissions for an entire **role** at once (e.g. all Salesmen + `customer.request`), without editing users individually.
+- **Architecture:** Reuses the UAO engine — extends `erp_temporary_access_grants` with `role_key` + `kind='role_override'` (no new engine, no duplicate tables). Resolution order: **base role perms → role overrides → user overrides → effective**, so **user-level overrides always win** over role-level.
+- **Reuse:** delegable allowlist, immutable deny-list (`erp_is_delegable_permission`), admin-gated RLS, `applyAccessOverrides`/diff pure logic, audit, entitlement engine, grouping helper — all reused. New: `role_key` column, one `kind` value, a resolver block, role-scoped actions, and a Role Overrides page.
+- **Guardrails:** default OFF · flag `KAKO_ROLE_PERMISSION_OVERRIDES` AND entitlement `platform.role_permission_overrides` · global kill-switch · per-company disable · mandatory reason · full audit · RLS. No approval/treasury/security/platform/RLS/super-admin permissions.
+- **Effort:** ≈ 6–7 engineer-days (reuse-heavy). **Complexity:** **M**.
+- **Class:** **Must-Have** (governance). See design doc `docs/audits/ROLE-PERMISSION-OVERRIDES-DESIGN.md`.
+
+## 20. Admin UX Standardization (Admin Workbench)
+- **Status:** 📐 **Design approved — not built.** UX architecture only.
+- **Business value:** One unified administration design system across ALL admin screens (Roles, Users, Companies, Branches, Plans, Features, Integrations, Reference Data, System Settings, future modules) — selected item always visible, no long pages, faster + consistent + tablet-friendly.
+- **Architecture:** A reusable three-panel **AdminWorkbench** (left: list/search/filters/quick-create · center: tabs/forms/config · right: summary/activity/audit/shortcuts/related) parameterized per entity. Existing long-form admin pages become tabs/configs within it. Reuses existing UI primitives, `erp_audit_logs`, and permissions — no new design language, no backend.
+- **Future-proof:** UAO, Role Overrides, Workspace Designer, Approval Matrix, Integrations are each just a workbench configuration.
+- **Effort:** shell + component library ≈ 1 sprint; per-module migration S each. **Complexity:** **L** (breadth).
+- **Class:** **Must-Have** (enterprise admin UX). See `docs/audits/ADMIN-UX-STANDARDIZATION-DESIGN.md`.
+
+## 21. Admin Workbench — post-migration UX sequence (design-approved)
+After the Admin Workbench migration program completes (Users · Roles · Companies · Branches · Features · **Settings** · **Integrations**), execute in this order:
+1. **Navigation Tree** (+ persistent, lazy, searchable, role-aware) — see §20.
+2. **EntityActionBar** — a consistent action area across every entity: **contextual + permission-aware** actions, reusing existing actions only (no business-logic / permission / RLS change). Examples — Users: New User · Reset Password · Assign Role · Deactivate; Companies: New · Activate · Suspend · Renew · Change Plan; Roles: New · Clone · Archive. Likely a new `EntityActionBar` component in `src/components/admin/`.
+3. **Favorites** (`erp_admin_favorites`, user-scoped, additive).
+4. **Quick Create** (inline, from the tree/action bar).
+Then evaluate the transition to a unified **`/admin` shell**. The **Industry-Pack hierarchy** stays a separate architecture workstream (§19).
+
 ## Recommended execution order (maximize pilot readiness → commercial value)
 1. **Phase 0 — fold into current hardening:** **Quick Actions** + **Saved Views** (cheap, ride on S1; immediate daily-speed wins for the pilot).
 2. **Phase 1 — pre-commercial core:** **Feature Flags** (first — de-risks every later rollout) → **Global Search** → **Notification Center** → **Bulk Actions** → **Master Data Import Center** (onboarding) → start **Command Center (role dashboards)**.

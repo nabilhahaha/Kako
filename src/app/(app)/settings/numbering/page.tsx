@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
+import { SettingsSubnav } from '@/components/shared/settings-subnav';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { loadNumbering } from '@/lib/onboarding/numbering-server';
@@ -36,6 +37,11 @@ export default async function NumberingPage() {
 
   return (
     <div>
+      <SettingsSubnav
+        backLabel={t('related.backToSettings')}
+        relatedLabel={t('related.title')}
+        related={[{ href: '/settings/finance', label: t('settingsHome.finance') }, { href: '/settings/tax-registrations', label: t('settingsHome.taxReg') }]}
+      />
       <PageHeader title={t('numbering.pageTitle')} description={t('numbering.pageDescription')} />
       <NumberingManager
         branches={data.branches}

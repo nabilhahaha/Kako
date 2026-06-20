@@ -13,14 +13,17 @@
  *    access rules, and protected fields stay ≥ 'edit' for them.
  */
 
-export type AccessLevel = 'hidden' | 'view' | 'edit' | 'required';
+/** Field access levels (low → high). `request` (G6) sits between view and edit:
+ *  the field is read-only for direct writes, but the user may submit a change
+ *  request for it (the request UI is wired in G7). */
+export type AccessLevel = 'hidden' | 'view' | 'request' | 'edit' | 'required';
 /** A field/section access row is keyed by a SUBJECT: a legacy role, a legacy
  *  flat permission, or (P5) a granular capability (module.resource.action). */
 export type SubjectType = 'role' | 'permission' | 'capability';
 export type FieldSource = 'core' | 'custom';
 export type InheritanceMode = 'none' | 'inherit' | 'inherit_locked';
 
-export const ACCESS_RANK: Record<AccessLevel, number> = { hidden: 0, view: 1, edit: 2, required: 3 };
+export const ACCESS_RANK: Record<AccessLevel, number> = { hidden: 0, view: 1, request: 2, edit: 3, required: 4 };
 export const REGISTRY_DEFAULT_ACCESS: AccessLevel = 'edit';
 
 /** Highest (most-permissive) of the given levels; 'hidden' when empty. */
@@ -159,7 +162,7 @@ export function accessLockoutViolation(
   const isAdminSubject = subjectType === 'role' && ADMIN_SUBJECT_ROLES.includes(subjectKey);
   if (!isAdminSubject) return null;
   if (access === 'hidden') return 'cannot_hide_from_admin';
-  if (isProtected && access === 'view') return 'protected_field_admin_must_edit';
+  if (isProtected && (access === 'view' || access === 'request')) return 'protected_field_admin_must_edit';
   return null;
 }
 
@@ -230,7 +233,9 @@ export function applyWriteAccess(
   const data: Record<string, unknown> = { ...input };
   const missingRequired: string[] = [];
   for (const f of fields) {
-    if (f.access === 'hidden' || f.access === 'view') {
+    // hidden/view/request are all read-only for a DIRECT write — keep the current
+    // value (request additionally offers a change-request path in the UI, G7).
+    if (f.access === 'hidden' || f.access === 'view' || f.access === 'request') {
       if (f.key in current) data[f.key] = current[f.key];
       else delete data[f.key];
     } else if (f.access === 'required') {

@@ -19,6 +19,23 @@ export const ROLE_GOVERNANCE_ENABLED = (): boolean => on(process.env.KAKO_ROLE_G
  *  ROLE_GOVERNANCE so it can be piloted on its own. */
 export const TEMP_ACCESS_ENFORCEMENT_ENABLED = (): boolean => on(process.env.KAKO_TEMP_ACCESS_ENFORCEMENT);
 
+/** User Access Overrides ENFORCEMENT flag (default OFF). When on, getUserContext
+ *  applies a user's PERMANENT operational overrides (kind='override') on top of
+ *  role permissions — grant adds, revoke removes — bounded by the delegable
+ *  operational allowlist (never the deny-list). Independent of the other flags so
+ *  it can be enabled per environment after review. Default OFF → no tenant has it. */
+export const USER_ACCESS_OVERRIDES_ENABLED = (): boolean => on(process.env.KAKO_USER_ACCESS_OVERRIDES);
+
+/** Role Permission Overrides ENFORCEMENT flag (default OFF). When on (AND the
+ *  company is entitled), getUserContext applies a ROLE's operational overrides
+ *  (kind='role_override') before user overrides — so user-level always wins.
+ *  Independent of the other flags for separate rollout. */
+export const ROLE_PERMISSION_OVERRIDES_ENABLED = (): boolean => on(process.env.KAKO_ROLE_PERMISSION_OVERRIDES);
+
+/** Admin Navigation Tree (unified /admin launcher) — additive, default OFF.
+ *  Enabled per environment via KAKO_ADMIN_NAV_TREE (preview first, then promote). */
+export const ADMIN_NAV_TREE_ENABLED = (): boolean => on(process.env.KAKO_ADMIN_NAV_TREE);
+
 export * from './data-scope';
 export * from './approval-authority';
 export * from './security';

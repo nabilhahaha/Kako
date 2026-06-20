@@ -10,6 +10,9 @@ import { SetupWizard } from './setup-wizard';
 export default async function SetupPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
+  // Route Planner product accounts have their own destinations — never trap them in setup.
+  if (ctx.isRoutePlannerAdmin) redirect('/planner-admin');
+  if (ctx.isRoutePlannerExperience) redirect('/distribution/route-planner');
 
   // Only the company owner (admin) runs setup; everyone else (or no profile /
   // already done) goes to their normal home.

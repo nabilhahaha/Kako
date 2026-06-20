@@ -7,7 +7,8 @@ import { hasPermission } from '@/lib/erp/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { isVanSalesActive } from '@/lib/van-sales/settings-server';
 import { getFeatureFlags } from '@/lib/erp/feature-flags';
-import { unifiedSalesmanWorkspaceEnabled } from '@/lib/van-sales/sell';
+import { unifiedSalesmanWorkspaceEnabled, salesmanRequestsEnabled } from '@/lib/van-sales/sell';
+import { FieldRequestsEntry } from '@/components/field/field-requests-entry';
 import { SalesmanWorkspace } from './salesman-workspace';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard, type StatTone } from '@/components/shared/stat-card';
@@ -74,6 +75,10 @@ export default async function TodayHomePage() {
         <Play className="h-5 w-5 rtl:rotate-180" />
         {t('home.startJourney')}
       </Link>
+
+      {salesmanRequestsEnabled(flags) && (hasPermission(ctx, 'field.sales') || ctx.isSuperAdmin) && (
+        <FieldRequestsEntry title={t('vanSales.requests.title')} desc={t('vanSales.requests.tileDesc')} />
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label={t('home.coverage')} value={sig.coveragePct == null ? '—' : `${Math.round(sig.coveragePct)}%`} icon={MapPin} tone={COVERAGE_TONE[coverageBand(sig.coveragePct)]} />

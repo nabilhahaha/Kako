@@ -151,6 +151,26 @@ function ScenarioCard({ scenario, roles }: { scenario: ScenarioState; roles: Rol
           <Plus className="h-4 w-4" /> {t('approvalMatrix.addApprover')}
         </Button>
 
+        {/* Live preview — who approves, derived from the current tiers (cumulative). */}
+        {(() => {
+          const named = (tt: MatrixTier) =>
+            tt.approverType === 'company_admin' ? t('approvalMatrix.companyAdmin') : roleName(tt.approverRef ?? '');
+          const lines = scenario.amountTiered
+            ? [...tiers].sort((a, b) => a.aboveAmount - b.aboveAmount).map((tt) =>
+                tt.aboveAmount > 0
+                  ? t('approvalMatrix.previewOver', { amount: tt.aboveAmount.toLocaleString(), who: named(tt) })
+                  : t('approvalMatrix.previewAlways', { who: named(tt) }))
+            : [t('approvalMatrix.previewEvery', { who: tiers.map(named).join('، ') })];
+          return (
+            <div className="rounded-lg bg-secondary/50 px-3 py-2">
+              <p className="text-xs font-medium text-muted-foreground">{t('approvalMatrix.previewTitle')}</p>
+              <ul className="mt-1 space-y-0.5">
+                {lines.map((l, i) => <li key={i} className="text-sm">{l}</li>)}
+              </ul>
+            </div>
+          );
+        })()}
+
         <div className="flex gap-2 border-t pt-3">
           <Button size="sm" onClick={save} disabled={pending}>
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

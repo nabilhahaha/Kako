@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Company } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
@@ -46,14 +46,13 @@ export default async function ActivityFeedPage({
   // Platform owner only — this is a cross-tenant vendor surface.
   if (!ctx.isPlatformOwner) {
     return (
-      <div>
-        <PageHeader title={t('activity.title')} />
+      <ModulePage title={t('activity.title')}>
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             {t('platform.ownerOnly')}
           </CardContent>
         </Card>
-      </div>
+      </ModulePage>
     );
   }
 
@@ -145,8 +144,7 @@ export default async function ActivityFeedPage({
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <div>
-      <PageHeader title={t('activity.title')} description={t('activity.description')} />
+    <ModulePage title={t('activity.title')} subtitle={t('activity.description')}>
       <Suspense fallback={null}>
         <ActivityFeed
           rows={rows}
@@ -159,6 +157,6 @@ export default async function ActivityFeedPage({
           summary={{ today: todayCount ?? 0, week: weekCount ?? 0 }}
         />
       </Suspense>
-    </div>
+    </ModulePage>
   );
 }

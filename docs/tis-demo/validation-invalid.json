@@ -1,0 +1,31 @@
+{
+  "valid": false,
+  "territories": 3,
+  "maxRouteRadiusKm": 630,
+  "invalidCount": 2,
+  "singletonRoutes": 0,
+  "remoteCustomers": 6000,
+  "compactnessScore": 0,
+  "routes": [
+    {
+      "routeId": "opt-route-1",
+      "customers": 3000,
+      "cities": 2,
+      "radiusKm": 630,
+      "meanRadiusKm": 329.6,
+      "compactness": 0,
+      "outliers": [],
+      "valid": false
+    },
+    {
+      "routeId": "opt-route-2",
+      "customers": 3000,
+      "cities": 2,
+      "radiusKm": 253.7,
+      "meanRadiusKm": 187.8,
+      "compactness": 0,
+      "outliers": [],
+      "valid": false
+    }
+  ]
+}

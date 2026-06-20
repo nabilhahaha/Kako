@@ -1,0 +1,9 @@
+routeId,customers,cities,radiusKm,status
+opt-route-1,734,1,21.6,valid
+opt-route-2,734,1,16.2,valid
+opt-route-3,732,1,19.2,valid
+opt-route-4,667,1,17.2,valid
+opt-route-5,667,1,16.7,valid
+opt-route-6,666,1,19.7,valid
+opt-route-7,900,1,17.9,valid
+opt-route-8,900,1,18.4,valid

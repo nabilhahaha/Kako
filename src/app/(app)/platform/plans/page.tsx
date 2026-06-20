@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { ALL_MODULES, type Module } from '@/lib/erp/navigation';
@@ -18,12 +18,11 @@ export default async function PlatformPlansPage() {
 
   if (!ctx.isPlatformOwner) {
     return (
-      <div>
-        <PageHeader title={t('platform.plans.title')} />
+      <ModulePage title={t('platform.plans.title')}>
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">{t('platform.ownerOnly')}</CardContent>
         </Card>
-      </div>
+      </ModulePage>
     );
   }
 
@@ -89,9 +88,8 @@ export default async function PlatformPlansPage() {
     .sort((a, b) => a.businessType.localeCompare(b.businessType));
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t('platform.plans.title')} description={t('platform.plans.description')} />
+    <ModulePage title={t('platform.plans.title')} subtitle={t('platform.plans.description')}>
       <PlansManager plans={plans} businessTypes={businessTypes} />
-    </div>
+    </ModulePage>
   );
 }

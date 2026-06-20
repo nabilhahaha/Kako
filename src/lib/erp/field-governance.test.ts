@@ -202,4 +202,21 @@ describe('field-governance · applyWriteAccess', () => {
     expect(data).toEqual(input);
     expect(missingRequired).toEqual([]);
   });
+
+  it('request (G6) is read-only for a direct write — reverts to current', () => {
+    const fields = [{ key: 'cr_number', access: 'request' as const }];
+    const { data } = applyWriteAccess(fields, { cr_number: 'CHANGED' }, { cr_number: 'CR-100' });
+    expect(data.cr_number).toBe('CR-100');
+  });
+});
+
+describe('field-governance · request level (G6)', () => {
+  it('ranks request between view and edit', () => {
+    expect(mostPermissive(['view', 'request'])).toBe('request');
+    expect(mostPermissive(['request', 'edit'])).toBe('edit');
+  });
+  it('a request-level admin row on a protected field is a lockout violation', () => {
+    expect(accessLockoutViolation(true, 'role', 'admin', 'request')).toBe('protected_field_admin_must_edit');
+    expect(accessLockoutViolation(false, 'role', 'admin', 'request')).toBeNull();
+  });
 });

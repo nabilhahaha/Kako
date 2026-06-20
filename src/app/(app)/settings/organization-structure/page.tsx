@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
+import { SettingsSubnav } from '@/components/shared/settings-subnav';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { loadOrgStructure } from '@/lib/onboarding/org-hierarchy-server';
@@ -39,6 +40,11 @@ export default async function OrganizationStructurePage() {
 
   return (
     <div>
+      <SettingsSubnav
+        backLabel={t('related.backToSettings')}
+        relatedLabel={t('related.title')}
+        related={[{ href: '/settings/organization', label: t('settingsHome.reporting') }]}
+      />
       <PageHeader
         title={t('orgStructure.pageTitle')}
         description={t('orgStructure.pageDescription')}

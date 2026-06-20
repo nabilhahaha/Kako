@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { PageHeader } from '@/components/shared/page-header';
+import { SettingsSubnav } from '@/components/shared/settings-subnav';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { loadProductStructure } from '@/lib/onboarding/product-hierarchy-server';
@@ -37,6 +38,11 @@ export default async function ProductStructurePage() {
 
   return (
     <div>
+      <SettingsSubnav
+        backLabel={t('related.backToSettings')}
+        relatedLabel={t('related.title')}
+        related={[{ href: '/settings/uom', label: t('settingsHome.uom') }]}
+      />
       <PageHeader
         title={t('productStructure.pageTitle')}
         description={t('productStructure.pageDescription')}

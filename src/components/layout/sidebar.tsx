@@ -60,7 +60,33 @@ export function Sidebar({
         <Logo withWordmark />
       </div>
 
-      {sections.map((section) => (
+      {sections.map((section) => {
+        // Navigation Standard: the Settings hub collapses to a single rail entry
+        // ("One rail, then rise") — its pages are navigated via the in-page Top
+        // Grouping (settings/layout.tsx), the single Settings navigator. The
+        // command palette still indexes every settings page (search ≠ nav).
+        if (section.title === 'nav.sections.settings') {
+          const home = section.items.find((i) => i.href === '/settings') ?? section.items[0];
+          if (!home) return null;
+          const active = pathname === '/settings' || pathname.startsWith('/settings/');
+          const Icon = home.icon;
+          return (
+            <div key={section.title} className="mb-2">
+              <Link
+                href="/settings"
+                onClick={() => setOpen(false)}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  active ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-secondary',
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{t('nav.sections.settings')}</span>
+              </Link>
+            </div>
+          );
+        }
+        return (
         <div key={section.title} className="mb-2">
           <p className="px-3 py-1 text-xs font-medium text-muted-foreground">
             {t(section.title)}
@@ -95,7 +121,8 @@ export function Sidebar({
             );
           })}
         </div>
-      ))}
+        );
+      })}
     </nav>
   );
 

@@ -70,3 +70,147 @@ export function partitionGrantKeys(
   for (const k of new Set(keys)) (permSet.has(k) ? perms : roleKeys).push(k);
   return { perms, roleKeys };
 }
+
+// ── User Access Overrides (operational, per-user grant/revoke) ───────────────
+// Pure delegability logic + override application. The DB function
+// erp_is_delegable_permission mirrors this exactly (belt-and-suspenders). The
+// operational allowlist is the only thing a Company Admin may grant/revoke; the
+// deny-list can NEVER be delegated regardless of the allowlist.
+
+/** The operational permissions a Company Admin may grant/revoke per user. */
+export const DELEGABLE_OPERATIONAL_PERMISSIONS = [
+  'customer.request',
+  'stock_request.create',
+  'cash.handover.request',
+  'day.reopen.request',
+  'returns.create',
+  'sales.discount',
+] as const;
+
+/** Immutable deny-list: classes that can NEVER be delegated, even if mistakenly
+ *  added to the allowlist. Mirrors the SQL belt in erp_is_delegable_permission. */
+export function isNonDelegablePermission(perm: string): boolean {
+  return (
+    /^platform\./.test(perm) ||
+    /^security\./.test(perm) ||
+    /^rls\./.test(perm) ||
+    /^treasury\./.test(perm) ||
+    perm === 'super.admin' ||
+    perm === 'integrations.manage' ||
+    perm === 'accounting.post' ||
+    perm === 'settings.users'
+  );
+}
+
+/** True when `perm` is an operational permission a Company Admin may delegate. */
+export function isDelegableOperationalPermission(perm: string): boolean {
+  return (
+    (DELEGABLE_OPERATIONAL_PERMISSIONS as readonly string[]).includes(perm) &&
+    !isNonDelegablePermission(perm)
+  );
+}
+
+export interface AccessOverride {
+  permission: string;
+  effect: 'grant' | 'revoke';
+}
+
+/** UI grouping for the delegable operational permissions (avoids a flat list).
+ *  Any delegable permission not mapped here falls into the 'other' group. */
+export const OPERATIONAL_PERMISSION_GROUPS: { key: string; permissions: string[] }[] = [
+  { key: 'requests', permissions: ['customer.request', 'stock_request.create', 'day.reopen.request'] },
+  { key: 'sales', permissions: ['sales.discount'] },
+  { key: 'collections', permissions: ['cash.handover.request'] },
+  { key: 'operations', permissions: ['returns.create'] },
+  { key: 'inventory', permissions: ['inventory.adjust', 'stock.transfer'] },
+];
+
+/** Group a set of (delegable) permissions into the UI groups above, preserving
+ *  group order and appending an 'other' group for anything unmapped. Pure. */
+export function groupOperationalPermissions(
+  permissions: readonly string[],
+): { key: string; permissions: string[] }[] {
+  const set = new Set(permissions);
+  const mapped = new Set<string>();
+  const out: { key: string; permissions: string[] }[] = [];
+  for (const g of OPERATIONAL_PERMISSION_GROUPS) {
+    const inGroup = g.permissions.filter((p) => set.has(p));
+    inGroup.forEach((p) => mapped.add(p));
+    if (inGroup.length > 0) out.push({ key: g.key, permissions: inGroup });
+  }
+  const other = [...permissions].filter((p) => !mapped.has(p));
+  if (other.length > 0) out.push({ key: 'other', permissions: other });
+  return out;
+}
+
+/** Apply per-user operational overrides on top of a base permission set:
+ *  grants add, revokes remove — both bounded by the delegable operational set
+ *  (re-validated here, so a stored override outside the set is ignored). Pure. */
+export function applyAccessOverrides(
+  base: readonly string[],
+  overrides: readonly AccessOverride[],
+  isDelegable: (perm: string) => boolean = isDelegableOperationalPermission,
+): { effective: string[]; appliedGrants: string[]; appliedRevokes: string[] } {
+  const valid = overrides.filter((o) => isDelegable(o.permission));
+  const appliedGrants = [...new Set(valid.filter((o) => o.effect === 'grant').map((o) => o.permission))];
+  const appliedRevokes = [...new Set(valid.filter((o) => o.effect === 'revoke').map((o) => o.permission))];
+  const set = new Set(base);
+  for (const p of appliedGrants) set.add(p);
+  for (const p of appliedRevokes) set.delete(p);
+  return { effective: [...set], appliedGrants, appliedRevokes };
+}
+
+/** Effective-permissions diff for a user: role baseline vs. effective, with the
+ *  applied operational grants/revokes that explain the difference. Pure. */
+export function effectivePermissionsDiff(
+  baseline: readonly string[],
+  overrides: readonly AccessOverride[],
+  isDelegable: (perm: string) => boolean = isDelegableOperationalPermission,
+): {
+  baseline: string[];
+  effective: string[];
+  addedByGrant: string[];
+  removedByRevoke: string[];
+} {
+  const { effective, appliedGrants, appliedRevokes } = applyAccessOverrides(baseline, overrides, isDelegable);
+  const baseSet = new Set(baseline);
+  return {
+    baseline: [...baseline],
+    effective,
+    // only count grants that actually changed the set (weren't already present)
+    addedByGrant: appliedGrants.filter((p) => !baseSet.has(p)),
+    removedByRevoke: appliedRevokes.filter((p) => baseSet.has(p)),
+  };
+}
+
+/** Two-layer effective diff for a user: role baseline → ROLE overrides → USER
+ *  overrides → effective. User-level is applied last, so it wins. Each layer
+ *  reports the grants/revokes that actually changed the running set. Pure. */
+export function effectivePermissionsDiffLayered(
+  baseline: readonly string[],
+  roleOverrides: readonly AccessOverride[],
+  userOverrides: readonly AccessOverride[],
+  isDelegable: (perm: string) => boolean = isDelegableOperationalPermission,
+): {
+  baseline: string[];
+  afterRole: string[];
+  effective: string[];
+  roleAdded: string[];
+  roleRemoved: string[];
+  userAdded: string[];
+  userRemoved: string[];
+} {
+  const roleLayer = applyAccessOverrides(baseline, roleOverrides, isDelegable);
+  const baseSet = new Set(baseline);
+  const userLayer = applyAccessOverrides(roleLayer.effective, userOverrides, isDelegable);
+  const afterRoleSet = new Set(roleLayer.effective);
+  return {
+    baseline: [...baseline],
+    afterRole: roleLayer.effective,
+    effective: userLayer.effective,
+    roleAdded: roleLayer.appliedGrants.filter((p) => !baseSet.has(p)),
+    roleRemoved: roleLayer.appliedRevokes.filter((p) => baseSet.has(p)),
+    userAdded: userLayer.appliedGrants.filter((p) => !afterRoleSet.has(p)),
+    userRemoved: userLayer.appliedRevokes.filter((p) => afterRoleSet.has(p)),
+  };
+}

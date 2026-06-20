@@ -31,6 +31,33 @@ export default async function AppLayout({
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
 
+  // Route Planner experience: a locked-down, chrome-free single-screen product. Driven by
+  // membership of a Route Planner tenant (the demo email is just a temporary trigger). No
+  // sidebar / top bar / bottom nav / command palette, and it bypasses the tenant
+  // onboarding / setup / subscription gates — the page renders its own branding.
+  if (ctx.isRoutePlannerExperience) {
+    return (
+      <ConfirmProvider>
+        <PromptProvider>
+          <main className="min-h-screen bg-background">{children}</main>
+        </PromptProvider>
+      </ConfirmProvider>
+    );
+  }
+
+  // Route Planner Admin: a limited, product-scoped console — same chrome-free shell, no
+  // platform sidebar / nav / module gates. It can only reach its own /planner-admin pages
+  // (the pages themselves enforce the route_planner.admin guard).
+  if (ctx.isRoutePlannerAdmin) {
+    return (
+      <ConfirmProvider>
+        <PromptProvider>
+          <main className="min-h-screen bg-background">{children}</main>
+        </PromptProvider>
+      </ConfirmProvider>
+    );
+  }
+
   const { t, locale } = await getT();
 
   // Vendor-side internal employees (platform staff) belong to no tenant company;
@@ -159,6 +186,16 @@ export default async function AppLayout({
     }
   }
 
+  // Permission-filtered "+ Quick action" shortcuts (pure navigation).
+  const quickActions = [
+    (ctx.isSuperAdmin || hasPermission(ctx, 'settings.users')) && { href: '/settings/users', labelKey: 'quickActions.addUser', icon: 'user' },
+    hasPermission(ctx, 'settings.branches') && { href: '/settings/branches', labelKey: 'quickActions.addBranch', icon: 'branch' },
+    hasPermission(ctx, 'product.edit') && { href: '/settings/product-structure', labelKey: 'quickActions.addProduct', icon: 'product' },
+    hasPermission(ctx, 'integrations.manage') && { href: '/settings/import', labelKey: 'quickActions.import', icon: 'import' },
+    hasPermission(ctx, 'integrations.manage') && { href: '/settings/go-live', labelKey: 'quickActions.goLive', icon: 'rocket' },
+    (salesmanRequestsEnabled(tenantFeatures) && vanSalesActive && (hasPermission(ctx, 'field.sales') || ctx.isSuperAdmin)) && { href: '/field/van-sales/requests', labelKey: 'quickActions.fieldRequests', icon: 'requests' },
+  ].filter(Boolean) as { href: string; labelKey: string; icon: string }[];
+
   return (
     <ConfirmProvider>
      <PromptProvider>
@@ -195,6 +232,7 @@ export default async function AppLayout({
               role: m.role,
             }))}
             notifications={notifications}
+            quickActions={quickActions}
           />
           {MOBILE_ENABLED() && <OfflineStatusBar />}
           {state === 'expiring' && left !== null && (

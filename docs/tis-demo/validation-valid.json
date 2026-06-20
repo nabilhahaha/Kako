@@ -1,0 +1,91 @@
+{
+  "valid": true,
+  "territories": 3,
+  "maxRouteRadiusKm": 21.6,
+  "invalidCount": 0,
+  "singletonRoutes": 0,
+  "remoteCustomers": 0,
+  "compactnessScore": 64,
+  "routes": [
+    {
+      "routeId": "opt-route-1",
+      "customers": 734,
+      "cities": 1,
+      "radiusKm": 21.6,
+      "meanRadiusKm": 8.4,
+      "compactness": 57,
+      "outliers": [],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-2",
+      "customers": 734,
+      "cities": 1,
+      "radiusKm": 16.2,
+      "meanRadiusKm": 7.3,
+      "compactness": 68,
+      "outliers": [],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-3",
+      "customers": 732,
+      "cities": 1,
+      "radiusKm": 19.2,
+      "meanRadiusKm": 7.9,
+      "compactness": 62,
+      "outliers": [],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-4",
+      "customers": 667,
+      "cities": 1,
+      "radiusKm": 17.2,
+      "meanRadiusKm": 7.4,
+      "compactness": 66,
+      "outliers": [],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-5",
+      "customers": 667,
+      "cities": 1,
+      "radiusKm": 16.7,
+      "meanRadiusKm": 7.8,
+      "compactness": 67,
+      "outliers": [],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-6",
+      "customers": 666,
+      "cities": 1,
+      "radiusKm": 19.7,
+      "meanRadiusKm": 7.9,
+      "compactness": 61,
+      "outliers": [],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-7",
+      "customers": 900,
+      "cities": 1,
+      "radiusKm": 17.9,
+      "meanRadiusKm": 9.7,
+      "compactness": 64,
+      "outliers": [],
+      "valid": true
+    },
+    {
+      "routeId": "opt-route-8",
+      "customers": 900,
+      "cities": 1,
+      "radiusKm": 18.4,
+      "meanRadiusKm": 9.5,
+      "compactness": 63,
+      "outliers": [],
+      "valid": true
+    }
+  ]
+}

@@ -80,6 +80,22 @@ import * as financeSetup from './finance-setup';
 import * as goLive from './go-live';
 import * as approvalMatrix from './approval-matrix';
 import * as taxRegistrations from './tax-registrations';
+import * as settingsHome from './settings-home';
+import * as quickActions from './quick-actions';
+import * as accessOverrides from './access-overrides';
+import * as roleOverrides from './role-overrides';
+import * as adminWb from './admin-workbench';
+import * as customer360 from './customer-360';
+import * as journeyPlan from './journey-plan';
+import * as coverage from './coverage';
+import * as visitFreq from './visit-frequency';
+import * as territoryAudit from './territory-audit';
+import * as geo from './geo';
+import * as routeOpt from './route-opt';
+import * as planBoard from './plan-board';
+import * as studio from './studio';
+import * as journeyBuilder from './journey-builder';
+import * as routePlanner from './route-planner';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -108,6 +124,22 @@ const MODULES = [
   goLive,
   approvalMatrix,
   taxRegistrations,
+  settingsHome,
+  quickActions,
+  accessOverrides,
+  roleOverrides,
+  adminWb,
+  customer360,
+  journeyPlan,
+  coverage,
+  visitFreq,
+  territoryAudit,
+  geo,
+  routeOpt,
+  planBoard,
+  studio,
+  journeyBuilder,
+  routePlanner,
 ];
 
 type Catalog = Record<string, unknown>;

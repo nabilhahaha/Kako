@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { Card, CardContent } from '@/components/ui/card';
 import { getT } from '@/lib/i18n/server';
 import { ALL_PERMISSIONS, PERMISSION_LABELS, PERMISSION_GROUP_LABELS, type Permission } from '@/lib/erp/permissions';
@@ -18,10 +18,9 @@ export default async function PlatformRolesPage() {
 
   if (!ctx.isPlatformOwner) {
     return (
-      <div>
-        <PageHeader title={t('platform.roles.title')} />
+      <ModulePage title={t('platform.roles.title')}>
         <Card><CardContent className="p-8 text-center text-muted-foreground">{t('platform.ownerOnly')}</CardContent></Card>
-      </div>
+      </ModulePage>
     );
   }
 
@@ -50,9 +49,8 @@ export default async function PlatformRolesPage() {
   const groups = Object.entries(PERMISSION_GROUP_LABELS).map(([key, label]) => ({ key, en: label.en, ar: label.ar }));
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t('platform.roles.title')} description={t('platform.roles.description')} />
+    <ModulePage title={t('platform.roles.title')} subtitle={t('platform.roles.description')}>
       <RolesManager roles={roles} perms={perms} groups={groups} />
-    </div>
+    </ModulePage>
   );
 }

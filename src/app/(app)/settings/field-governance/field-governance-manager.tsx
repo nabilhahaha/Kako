@@ -18,7 +18,7 @@ import {
   setFieldSection, deleteFieldSection, reorderFieldSections, reorderFields,
   bulkSetFieldConfig, resetEntityGovernance, exportFieldGovernance, importFieldGovernance,
   copyEntityConfig, saveAsTemplate, applyTemplate, getFieldGovernanceHistory,
-  publishFieldGovernance, rollbackToVersion,
+  publishFieldGovernance, rollbackToVersion, applyCustomerGovernanceBaseline,
 } from './actions';
 import {
   Briefcase, DollarSign, Scale, Phone, MapPin, CreditCard, Tag, User, Building2,
@@ -82,6 +82,7 @@ export function FieldGovernanceManager({
     { v: 'inherit', label: t('fieldGov.accessInherit') },
     { v: 'hidden', label: t('fieldGov.accessHidden') },
     { v: 'view', label: t('fieldGov.accessView') },
+    { v: 'request', label: t('fieldGov.accessRequest') },
     { v: 'edit', label: t('fieldGov.accessEdit') },
     { v: 'required', label: t('fieldGov.accessRequired') },
   ];
@@ -164,7 +165,7 @@ export function FieldGovernanceManager({
 
   // ── Preview as a role (simulate resolved access, read-only) ─────────────────
   const ACCESS_LABEL: Record<string, string> = {
-    hidden: t('fieldGov.accessHidden'), view: t('fieldGov.accessView'), edit: t('fieldGov.accessEdit'), required: t('fieldGov.accessRequired'),
+    hidden: t('fieldGov.accessHidden'), view: t('fieldGov.accessView'), request: t('fieldGov.accessRequest'), edit: t('fieldGov.accessEdit'), required: t('fieldGov.accessRequired'),
   };
   function previewAccess(f: AdminField): ResolvedLevel {
     const isAdmin = previewRole === 'admin' || previewRole === 'it_admin';
@@ -259,6 +260,19 @@ export function FieldGovernanceManager({
         <Button size="sm" variant="outline" disabled={pending} onClick={doExport}><Download className="h-4 w-4" /> {t('fieldGov.export')}</Button>
         <Button size="sm" variant="outline" disabled={pending} onClick={() => setImportText('')}><Upload className="h-4 w-4" /> {t('fieldGov.import')}</Button>
         <Button size="sm" variant="outline" className="text-destructive" disabled={pending} onClick={resetDefaults}><RotateCcw className="h-4 w-4" /> {t('fieldGov.reset')}</Button>
+        {/* G6b: opt-in recommended baseline (customer only). Never auto-applied. */}
+        {entity === 'customer' && (
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={() => {
+              if (!window.confirm(t('fieldGov.baselineConfirm'))) return;
+              run(() => applyCustomerGovernanceBaseline(), () => router.refresh());
+            }}
+          >
+            <ShieldAlert className="h-4 w-4" /> {t('fieldGov.useBaseline')}
+          </Button>
+        )}
       </div>
 
       {importText != null && (
@@ -438,6 +452,7 @@ export function FieldGovernanceManager({
                 <option value="">{t('fieldGov.bulkSetAccess')}</option>
                 <option value="hidden">{t('fieldGov.accessHidden')}</option>
                 <option value="view">{t('fieldGov.accessView')}</option>
+                <option value="request">{t('fieldGov.accessRequest')}</option>
                 <option value="edit">{t('fieldGov.accessEdit')}</option>
                 <option value="required">{t('fieldGov.accessRequired')}</option>
               </Select>

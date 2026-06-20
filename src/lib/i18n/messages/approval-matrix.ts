@@ -7,6 +7,10 @@ export const ar = {
     pageDescription: 'حدّد من يعتمد كل إجراء، وأضف مستويات اعتماد حسب المبلغ عند الحاجة.',
     adminOnly: 'هذه الصفحة متاحة لمدير الشركة فقط.',
     cumulativeNote: 'كل مستوى أعلى يضيف معتمِداً إضافياً فوق المستويات الأقل — وليس بدلاً منها.',
+    previewTitle: 'من يعتمد:',
+    previewAlways: 'دائماً: {who}',
+    previewOver: 'فوق {amount}: أيضاً {who}',
+    previewEvery: 'في كل مرة: {who}',
 
     byAmount: 'اعتماد متدرّج حسب المبلغ',
     everyTime: 'اعتماد في كل مرة',
@@ -47,6 +51,10 @@ export const en = {
     pageDescription: 'Decide who approves each action, with amount-based approval levels where needed.',
     adminOnly: 'This page is available to the company admin only.',
     cumulativeNote: 'Each higher level adds an approver on top of the lower ones — not instead of them.',
+    previewTitle: 'Who approves:',
+    previewAlways: 'Always: {who}',
+    previewOver: 'Over {amount}: also {who}',
+    previewEvery: 'Every time: {who}',
 
     byAmount: 'Stepped approval by amount',
     everyTime: 'Approval every time',

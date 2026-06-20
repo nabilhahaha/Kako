@@ -1,0 +1,108 @@
+{
+  "dataset": {
+    "rows": 6017,
+    "customers": 6017,
+    "located": 6017
+  },
+  "scenarios": [
+    {
+      "requestedRoutes": 40,
+      "generatedRoutes": 40,
+      "exactK": true,
+      "unassigned": 0,
+      "customersPerRoute": {
+        "min": 149,
+        "avg": 150.4,
+        "max": 152
+      },
+      "weeklyVisitsPerRoute": {
+        "min": 149,
+        "avg": 150.4,
+        "max": 152
+      },
+      "workloadHoursPerRoute": {
+        "min": 49.7,
+        "avg": 50.1,
+        "max": 50.7
+      },
+      "workloadBalancePct": 99.6,
+      "exportRows": 6017,
+      "exportHeaders": [
+        "Route",
+        "Customer Code",
+        "Customer Name",
+        "Frequency",
+        "Latitude",
+        "Longitude"
+      ]
+    },
+    {
+      "requestedRoutes": 86,
+      "generatedRoutes": 86,
+      "exactK": true,
+      "unassigned": 0,
+      "customersPerRoute": {
+        "min": 68,
+        "avg": 70,
+        "max": 71
+      },
+      "weeklyVisitsPerRoute": {
+        "min": 68,
+        "avg": 70,
+        "max": 71
+      },
+      "workloadHoursPerRoute": {
+        "min": 22.7,
+        "avg": 23.3,
+        "max": 23.7
+      },
+      "workloadBalancePct": 99.4,
+      "exportRows": 6017,
+      "exportHeaders": [
+        "Route",
+        "Customer Code",
+        "Customer Name",
+        "Frequency",
+        "Latitude",
+        "Longitude"
+      ]
+    },
+    {
+      "requestedRoutes": 120,
+      "generatedRoutes": 120,
+      "exactK": true,
+      "unassigned": 0,
+      "customersPerRoute": {
+        "min": 49,
+        "avg": 50.1,
+        "max": 51
+      },
+      "weeklyVisitsPerRoute": {
+        "min": 49,
+        "avg": 50.1,
+        "max": 51
+      },
+      "workloadHoursPerRoute": {
+        "min": 16.3,
+        "avg": 16.7,
+        "max": 17
+      },
+      "workloadBalancePct": 99,
+      "exportRows": 6017,
+      "exportHeaders": [
+        "Route",
+        "Customer Code",
+        "Customer Name",
+        "Frequency",
+        "Latitude",
+        "Longitude"
+      ]
+    }
+  ],
+  "manualMove": {
+    "movedCount": 50,
+    "route1Before": 149,
+    "route1After": 99,
+    "newRouteCustomers": 50
+  }
+}

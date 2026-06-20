@@ -1,0 +1,47 @@
+{
+  "existing": {
+    "label": "Existing manual (86)",
+    "routes": 86,
+    "customersPerRoute": {
+      "min": 1,
+      "avg": 70,
+      "max": 1487
+    },
+    "routeRadiusKm": {
+      "min": 0,
+      "avg": 18.2,
+      "max": 176.4
+    },
+    "compactnessScore": 73,
+    "workloadBalancePct": 0,
+    "outlierCustomers": 592,
+    "remoteCustomers": 887,
+    "singletonRoutes": 10,
+    "invalidRoutes": 1,
+    "valid": false
+  },
+  "opt86": {
+    "label": "Optimizer K=86",
+    "routes": 86,
+    "customersPerRoute": {
+      "min": 1,
+      "avg": 70,
+      "max": 209
+    },
+    "routeRadiusKm": {
+      "min": 0,
+      "avg": 46.2,
+      "max": 300.8
+    },
+    "compactnessScore": 48,
+    "workloadBalancePct": 47.8,
+    "outlierCustomers": 221,
+    "remoteCustomers": 590,
+    "singletonRoutes": 1,
+    "invalidRoutes": 10,
+    "valid": false,
+    "absorbedTerritories": 6,
+    "geographyRequiresRoutes": null
+  },
+  "note": "Per-area K is N/A: the dataset City/area column is empty; K=86 global is the equal-count benchmark."
+}

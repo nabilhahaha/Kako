@@ -2,7 +2,12 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
-const PUBLIC_PATHS = ['/login', '/register', '/auth', '/forgot-password', '/reset-password'];
+// `/planner` (marketing) and `/planner-login` are the standalone Route Planner product's
+// public entry points. `/planner` also matches `/planner-admin` via startsWith, which is
+// safe because that page guards itself (redirects unauthenticated → /planner-login,
+// non-admins → /dashboard) — letting it fall through to the page keeps the product's own
+// login as the bounce target instead of the ERP /login.
+const PUBLIC_PATHS = ['/login', '/register', '/auth', '/forgot-password', '/reset-password', '/planner'];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { createClient } from '@/lib/supabase/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { StatCard } from '@/components/shared/stat-card';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Card, CardContent } from '@/components/ui/card';
@@ -110,14 +110,13 @@ export default async function PlatformOverviewPage() {
 
   if (!ctx.isPlatformOwner) {
     return (
-      <div>
-        <PageHeader title={t('platform.overview.title')} />
+      <ModulePage title={t('platform.overview.title')}>
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             {t('platform.ownerOnly')}
           </CardContent>
         </Card>
-      </div>
+      </ModulePage>
     );
   }
 
@@ -504,19 +503,18 @@ export default async function PlatformOverviewPage() {
   ];
 
   return (
-    <div>
-      <PageHeader
-        title={t('platform.overview.title')}
-        description={t('platform.overview.description')}
-        action={
-          <Link href="/platform/companies">
-            <Button variant="secondary">
-              <Settings2 className="h-4 w-4" />
-              {t('platform.overview.manageCompanies')}
-            </Button>
-          </Link>
-        }
-      />
+    <ModulePage
+      title={t('platform.overview.title')}
+      subtitle={t('platform.overview.description')}
+      actions={
+        <Link href="/platform/companies">
+          <Button variant="secondary">
+            <Settings2 className="h-4 w-4" />
+            {t('platform.overview.manageCompanies')}
+          </Button>
+        </Link>
+      }
+    >
 
       {/* ── T1: Attention summary (above the fold) ─────────────────────────
           Top ~3 items needing attention, severity-ordered, each labelled
@@ -886,6 +884,6 @@ export default async function PlatformOverviewPage() {
       </div>
         </div>
       </details>
-    </div>
+    </ModulePage>
   );
 }

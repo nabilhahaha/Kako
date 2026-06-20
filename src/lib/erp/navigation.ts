@@ -64,6 +64,10 @@ import {
   GraduationCap,
   Rocket,
   Star,
+  Scale,
+  Wand2,
+  Compass,
+  Route,
   Hash,
   type LucideIcon,
 } from 'lucide-react';
@@ -297,9 +301,9 @@ export const NAV_SECTIONS: NavSection[] = [
     module: 'salon',
     items: [
       { label: 'nav.items.salonDashboard', href: '/salon', icon: LayoutDashboard, perm: 'salon.manage' },
-      { label: 'nav.items.appointments', href: '/salon/appointments', icon: CalendarClock, perm: 'salon.manage' },
+      { label: 'nav.items.salonAppointments', href: '/salon/appointments', icon: CalendarClock, perm: 'salon.manage' },
       { label: 'nav.items.tickets', href: '/salon/tickets', icon: Scissors, perm: 'salon.manage' },
-      { label: 'nav.items.services', href: '/salon/services', icon: Tags, perm: 'salon.manage' },
+      { label: 'nav.items.salonServices', href: '/salon/services', icon: Tags, perm: 'salon.manage' },
     ],
   },
   {
@@ -313,7 +317,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.pharmacyPurchasing', href: '/pharmacy/purchasing', icon: ShoppingCart, perm: ['inventory.adjust', 'purchasing.manage'], flag: 'pharmacy.purchase_orders' },
       { label: 'nav.items.pharmacyReturns', href: '/pharmacy/returns', icon: Undo2, perm: 'sales.return', flag: 'pharmacy.batch_aware_returns' },
       { label: 'nav.items.pharmacyDispense', href: '/pharmacy/dispense', icon: Pill, perm: 'pharmacy.dispense' },
-      { label: 'nav.items.expiryNear', href: '/pharmacy/expiry', icon: CalendarClock, perm: ['pharmacy.dispense', 'inventory.adjust', 'inventory.view'], flag: 'pharmacy.near_expiry_alerts' },
+      { label: 'nav.items.pharmacyExpiry', href: '/pharmacy/expiry', icon: CalendarClock, perm: ['pharmacy.dispense', 'inventory.adjust', 'inventory.view'], flag: 'pharmacy.near_expiry_alerts' },
       { label: 'nav.items.pharmacyValuation', href: '/pharmacy/valuation', icon: Wallet, perm: ['inventory.view', 'reports.view'], flag: 'pharmacy.inventory_valuation' },
       { label: 'nav.items.pharmacyBranches', href: '/pharmacy/branches', icon: Network, perm: ['inventory.view', 'inventory.transfer'], flag: 'pharmacy.multi_branch' },
       { label: 'nav.items.pharmacyLoyalty', href: '/pharmacy/loyalty', icon: Star, perm: ['reports.view', 'settings.users'], flag: 'pharmacy.loyalty' },
@@ -341,6 +345,24 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    // CRM umbrella (P2) — the canonical entry point that SURFACES existing
+    // customer-facing pages under one roof. Each item is relocated verbatim from
+    // Sales/Distribution: it keeps its exact perm/flag and carries an explicit
+    // `module` gate equal to its prior section context, and the section gate is
+    // the ANY-of UNION of those item modules — so the section never hides an item
+    // its own gate would show, and effective visibility is byte-identical. No new
+    // pages or features; no permission/RLS/workflow change.
+    title: 'nav.sections.crm',
+    module: ['crm', 'sales', 'analytics', 'field_ops', 'distribution', 'route_management', 'van_sales', 'trade_spend', 'merchandising'],
+    items: [
+      { label: 'nav.items.customers', href: '/customers', icon: Users, perm: 'customers.manage', module: ['crm', 'sales'] },
+      { label: 'nav.items.customerTransfer', href: '/customers/transfer', icon: ArrowLeftRight, perm: 'customer.transfer', module: ['sales', 'crm', 'analytics', 'field_ops', 'distribution'] },
+      { label: 'nav.items.fieldRequests', href: '/field/van-sales/requests', icon: Inbox, perm: 'field.sales', module: ['sales', 'crm', 'analytics', 'field_ops', 'distribution'], flag: 'platform.salesman_requests' },
+      { label: 'nav.items.creditRequests', href: '/distribution/credit-requests', icon: CreditCard, perm: ['credit.request.approve', 'credit.request.create'], module: ['distribution', 'route_management', 'van_sales', 'trade_spend', 'merchandising'] },
+      { label: 'nav.items.visitOutcomes', href: '/distribution/visit-outcomes', icon: ClipboardList, perm: 'reports.view', module: ['distribution', 'route_management', 'van_sales', 'trade_spend', 'merchandising'] },
+    ],
+  },
+  {
     title: 'nav.sections.sales',
     // Any-of: the section shows if the company has Sales OR a capability whose
     // item lives here (CRM→Customers, Analytics→report, Field Ops→rep). Every
@@ -348,40 +370,34 @@ export const NAV_SECTIONS: NavSection[] = [
     // in practice (no regression); each item's own module gate then refines.
     module: ['sales', 'crm', 'analytics', 'field_ops', 'distribution'],
     items: [
-      { label: 'nav.items.quickSale', href: '/sales/pos', icon: Zap, perm: 'sales.sell', module: 'pos' },
-      { label: 'nav.items.repApp', href: '/rep', icon: Smartphone, perm: 'field.sales', module: ['field_ops', 'distribution'] },
-      { label: 'nav.items.repSettlement', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'], module: ['field_ops', 'distribution'] },
-      { label: 'nav.items.salesOrders', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell', module: 'sales_orders' },
-      { label: 'nav.items.invoices', href: '/sales/invoices', icon: FileText, perm: 'sales.sell' },
-      { label: 'nav.items.collections', href: '/collections', icon: Wallet, perm: 'sales.collect' },
-      { label: 'nav.items.cashbox', href: '/cashbox', icon: Wallet, perm: 'treasury.manage' },
-      { label: 'nav.items.pricing', href: '/sales/pricing', icon: Tags, perm: 'pricing.manage' },
-      { label: 'nav.items.priceBook', href: '/sales/price-book', icon: Tags, perm: ['pricing.manage', 'pricing.view'] },
-      { label: 'nav.items.journey', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales', module: ['field_ops', 'distribution'] },
-      { label: 'nav.items.todayJourney', href: '/field/journey', icon: MapPin, perm: 'field.sales', module: ['field_ops', 'distribution'] },
-      { label: 'nav.items.fieldOffline', href: '/field/offline', icon: Smartphone, perm: 'field.sales', module: ['field_ops', 'distribution'] },
-      { label: 'nav.items.myReturns', href: '/field/van-sales/my-returns', icon: Undo2, perm: 'returns.create' },
-      { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns' },
-      { label: 'nav.items.returnApprovals', href: '/field/van-sales/approvals', icon: Undo2, perm: 'returns.approve' },
-      { label: 'nav.items.dayCloseApprovals', href: '/field/van-sales/day-close-approvals', icon: CalendarDays, perm: ['day.close.supervisor', 'day.close.reconcile', 'day.close.settle'] },
-      { label: 'nav.items.dayCloseSettlement', href: '/field/van-sales/day-close-settlement', icon: Wallet, perm: ['day.close.settle', 'day.close.reconcile'] },
-      { label: 'nav.items.overrideCenter', href: '/field/van-sales/override-center', icon: ShieldAlert, perm: ['returns.override', 'day.close.override', 'day.reopen'] },
-      // F2 — discoverable field views (previously Today-tile only).
-      { label: 'nav.items.statementHub', href: '/field/van-sales/statement', icon: FileText, perm: ['field.sales', 'customers.view_balance', 'reports.view'] },
-      { label: 'nav.items.dailySummary', href: '/field/van-sales/summary', icon: BarChart3, perm: ['field.sales', 'reports.view'] },
-      { label: 'nav.items.cashCustody', href: '/field/van-sales/cash-custody', icon: Wallet, perm: ['field.sales', 'sales.collect'] },
-      // DF-003 — discoverable nav entry for the existing Salesman Requests Hub (New
-      // Customer / Update / GPS / Credit / Terms / Route Transfer / Reactivate / Close +
-      // Load / Cash handover / Reopen). Distinct from the generic "Change Requests"
-      // (/change-requests) module. Gated by the salesman_requests flag + field.sales.
-      { label: 'nav.items.fieldRequests', href: '/field/van-sales/requests', icon: Inbox, perm: 'field.sales', flag: 'platform.salesman_requests' },
-      // F1 — Governance / Reports group: discoverable for reports/audit/view-all roles.
+      // ── Selling ──
+      { label: 'nav.items.quickSale', href: '/sales/pos', icon: Zap, perm: 'sales.sell', module: 'pos', group: 'nav.groups.selling' },
+      { label: 'nav.items.salesOrders', href: '/sales/orders', icon: ShoppingCart, perm: 'sales.sell', module: 'sales_orders', group: 'nav.groups.selling' },
+      { label: 'nav.items.invoices', href: '/sales/invoices', icon: FileText, perm: 'sales.sell', group: 'nav.groups.selling' },
+      { label: 'nav.items.collections', href: '/collections', icon: Wallet, perm: 'sales.collect', group: 'nav.groups.selling' },
+      { label: 'nav.items.cashbox', href: '/cashbox', icon: Wallet, perm: 'treasury.manage', group: 'nav.groups.selling' },
+      { label: 'nav.items.pricing', href: '/sales/pricing', icon: Tags, perm: 'pricing.manage', group: 'nav.groups.selling' },
+      { label: 'nav.items.priceBook', href: '/sales/price-book', icon: Tags, perm: ['pricing.manage', 'pricing.view'], group: 'nav.groups.selling' },
+      { label: 'nav.items.salesReturns', href: '/sales/returns', icon: Undo2, perm: 'sales.return', module: 'returns', group: 'nav.groups.selling' },
+      // ── Field / Van Sales ──
+      { label: 'nav.items.repApp', href: '/rep', icon: Smartphone, perm: 'field.sales', module: ['field_ops', 'distribution'], group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.repSettlement', href: '/sales/settlement', icon: Wallet, perm: ['field.sales', 'reports.view'], module: ['field_ops', 'distribution'], group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.journey', href: '/sales/journey', icon: CalendarDays, perm: 'field.sales', module: ['field_ops', 'distribution'], group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.todayJourney', href: '/field/journey', icon: MapPin, perm: 'field.sales', module: ['field_ops', 'distribution'], group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.fieldOffline', href: '/field/offline', icon: Smartphone, perm: 'field.sales', module: ['field_ops', 'distribution'], group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.myReturns', href: '/field/van-sales/my-returns', icon: Undo2, perm: 'returns.create', group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.returnApprovals', href: '/field/van-sales/approvals', icon: Undo2, perm: 'returns.approve', group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.dayCloseApprovals', href: '/field/van-sales/day-close-approvals', icon: CalendarDays, perm: ['day.close.supervisor', 'day.close.reconcile', 'day.close.settle'], group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.dayCloseSettlement', href: '/field/van-sales/day-close-settlement', icon: Wallet, perm: ['day.close.settle', 'day.close.reconcile'], group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.overrideCenter', href: '/field/van-sales/override-center', icon: ShieldAlert, perm: ['returns.override', 'day.close.override', 'day.reopen'], group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.statementHub', href: '/field/van-sales/statement', icon: FileText, perm: ['field.sales', 'customers.view_balance', 'reports.view'], group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.dailySummary', href: '/field/van-sales/summary', icon: BarChart3, perm: ['field.sales', 'reports.view'], group: 'nav.groups.fieldSales' },
+      { label: 'nav.items.cashCustody', href: '/field/van-sales/cash-custody', icon: Wallet, perm: ['field.sales', 'sales.collect'], group: 'nav.groups.fieldSales' },
+      // ── Reports ──
+      { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view', module: ['analytics', 'sales'], group: 'nav.groups.reports' },
       { label: 'nav.items.returnReport', href: '/field/van-sales/approvals/reports', icon: Undo2, perm: ['reports.view', 'returns.view_all', 'returns.approve', 'audit.view'], group: 'nav.groups.reports' },
       { label: 'nav.items.dayCloseReport', href: '/field/van-sales/day-close-report', icon: CalendarDays, perm: ['reports.view', 'audit.view', 'day.close.supervisor', 'day.close.reconcile', 'day.close.settle'], group: 'nav.groups.reports' },
       { label: 'nav.items.overrideHistory', href: '/field/van-sales/override-center/history', icon: ShieldAlert, perm: ['audit.view', 'reports.view', 'returns.override', 'day.close.override', 'day.reopen'], group: 'nav.groups.reports' },
-      { label: 'nav.items.salesReport', href: '/sales/report', icon: BarChart3, perm: 'reports.view', module: ['analytics', 'sales'] },
-      { label: 'nav.items.customers', href: '/customers', icon: Users, perm: 'customers.manage', module: ['crm', 'sales'] },
-      { label: 'nav.items.customerTransfer', href: '/customers/transfer', icon: ArrowLeftRight, perm: 'customer.transfer' },
     ],
   },
   {
@@ -391,30 +407,43 @@ export const NAV_SECTIONS: NavSection[] = [
     // sees its engine screens. Cannot regress a distribution-only tenant.
     module: ['distribution', 'route_management', 'van_sales', 'trade_spend', 'merchandising'],
     items: [
-      { label: 'nav.items.routes', href: '/distribution/routes', icon: Truck, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'] },
-      { label: 'nav.items.vanAccounting', href: '/distribution/van-accounting', icon: Wallet, perm: 'reports.view', module: ['distribution', 'van_sales'] },
-      { label: 'nav.items.fieldSync', href: '/distribution/field-sync', icon: Smartphone, perm: 'reports.view' },
-      { label: 'nav.items.perfectStoreScores', href: '/distribution/perfect-store-scores', icon: Star, perm: 'reports.view', module: ['distribution', 'merchandising'] },
-      { label: 'nav.items.territoryIntel', href: '/distribution/territory-intel', icon: Activity, perm: 'reports.view' },
-      { label: 'nav.items.suggestedLoad', href: '/distribution/suggested-load', icon: Boxes, perm: 'reports.view' },
-      { label: 'nav.items.distributionReport', href: '/distribution/report', icon: BarChart3, perm: 'reports.view' },
-      { label: 'nav.items.journeyCompliance', href: '/distribution/journey-compliance', icon: ClipboardCheck, perm: 'reports.view' },
-      { label: 'nav.items.visitOutcomes', href: '/distribution/visit-outcomes', icon: ClipboardList, perm: 'reports.view' },
-      { label: 'nav.items.dailySummary', href: '/distribution/daily-summary', icon: BarChart3, perm: 'reports.view', flag: 'platform.daily_summary' },
-      { label: 'nav.items.coverage', href: '/distribution/coverage', icon: Map, perm: 'reports.view', flag: 'distribution' },
-      { label: 'nav.items.repTargets', href: '/distribution/targets', icon: Target, perm: 'reports.view' },
-      { label: 'nav.items.targetsAchievement', href: '/distribution/targets-achievement', icon: Target, perm: ['target.view', 'target.manage'] },
-      { label: 'nav.items.assortment', href: '/distribution/assortment', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'] },
-      { label: 'nav.items.retailCockpit', href: '/distribution/retail-cockpit', icon: LayoutGrid, perm: 'reports.view' },
-      { label: 'nav.items.mslComplianceDash', href: '/distribution/msl-compliance', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'] },
-      { label: 'nav.items.distributionDash', href: '/distribution/distribution-dashboard', icon: Layers, perm: 'reports.view' },
-      { label: 'nav.items.oosDash', href: '/distribution/oos', icon: PackageCheck, perm: 'reports.view' },
-      { label: 'nav.items.perfectStoreDash', href: '/distribution/perfect-store', icon: Target, perm: 'reports.view', module: ['distribution', 'merchandising'] },
-      { label: 'nav.items.outletGrading', href: '/distribution/grading', icon: Star, perm: 'reports.view', module: ['distribution', 'merchandising'] },
-      { label: 'nav.items.returnsAnalysis', href: '/distribution/returns-analysis', icon: Undo2, perm: ['report.aggregate.view', 'reports.view'] },
-      { label: 'nav.items.creditRequests', href: '/distribution/credit-requests', icon: CreditCard, perm: ['credit.request.approve', 'credit.request.create'] },
-      { label: 'nav.items.tradeSpend', href: '/distribution/trade-spend', icon: Receipt, perm: 'reports.view', module: ['distribution', 'trade_spend'], flag: 'trade_spend' },
-      { label: 'nav.items.salesSummary', href: '/distribution/sales-summary', icon: BarChart3, perm: 'report.aggregate.view' },
+      // ── Execution ──
+      { label: 'nav.items.routes', href: '/distribution/routes', icon: Truck, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.execution' },
+      { label: 'nav.items.journeyPlanGen', href: '/distribution/journey-plan', icon: CalendarDays, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.execution' },
+      { label: 'nav.items.vanAccounting', href: '/distribution/van-accounting', icon: Wallet, perm: 'reports.view', module: ['distribution', 'van_sales'], group: 'nav.groups.execution' },
+      { label: 'nav.items.fieldSync', href: '/distribution/field-sync', icon: Smartphone, perm: 'reports.view', group: 'nav.groups.execution' },
+      { label: 'nav.items.suggestedLoad', href: '/distribution/suggested-load', icon: Boxes, perm: 'reports.view', group: 'nav.groups.execution' },
+      { label: 'nav.items.journeyCompliance', href: '/distribution/journey-compliance', icon: ClipboardCheck, perm: 'reports.view', group: 'nav.groups.execution' },
+      { label: 'nav.items.tradeSpend', href: '/distribution/trade-spend', icon: Receipt, perm: 'reports.view', module: ['distribution', 'trade_spend'], flag: 'trade_spend', group: 'nav.groups.execution' },
+      // ── Coverage & Assortment ──
+      { label: 'nav.items.coverage', href: '/distribution/coverage', icon: Map, perm: 'reports.view', flag: 'distribution', group: 'nav.groups.coverage' },
+      { label: 'nav.items.coverageDashboard', href: '/distribution/coverage-dashboard', icon: Target, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.coverageCustomers', href: '/distribution/coverage-customers', icon: MapPin, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.assortment', href: '/distribution/assortment', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.mslComplianceDash', href: '/distribution/msl-compliance', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.oosDash', href: '/distribution/oos', icon: PackageCheck, perm: 'reports.view', group: 'nav.groups.coverage' },
+      { label: 'nav.items.routePlanner', href: '/distribution/route-planner', icon: Route, perm: 'reports.view', module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.studio', href: '/distribution/studio', icon: Compass, perm: 'reports.view', module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.newOptimization', href: '/distribution/new-optimization', icon: Wand2, perm: 'tis.run_optimization', group: 'nav.groups.coverage' },
+      { label: 'nav.items.territoryAudit', href: '/distribution/territory-audit', icon: Scale, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.geoMap', href: '/distribution/geo', icon: Map, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.routeOptimizer', href: '/distribution/route-optimizer', icon: Wand2, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.planningBoard', href: '/distribution/planning-board', icon: LayoutGrid, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.journeyBuilder', href: '/distribution/journey-builder', icon: CalendarDays, perm: 'reports.view', module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      { label: 'nav.items.territoryIntel', href: '/distribution/territory-intel', icon: Activity, perm: 'reports.view', group: 'nav.groups.coverage' },
+      { label: 'nav.items.retailCockpit', href: '/distribution/retail-cockpit', icon: LayoutGrid, perm: 'reports.view', group: 'nav.groups.coverage' },
+      // ── Perfect Store ──
+      { label: 'nav.items.perfectStoreScores', href: '/distribution/perfect-store-scores', icon: Star, perm: 'reports.view', module: ['distribution', 'merchandising'], group: 'nav.groups.perfectStore' },
+      { label: 'nav.items.perfectStoreDash', href: '/distribution/perfect-store', icon: Target, perm: 'reports.view', module: ['distribution', 'merchandising'], group: 'nav.groups.perfectStore' },
+      { label: 'nav.items.outletGrading', href: '/distribution/grading', icon: Star, perm: 'reports.view', module: ['distribution', 'merchandising'], group: 'nav.groups.perfectStore' },
+      // ── Reports ──
+      { label: 'nav.items.distributionReport', href: '/distribution/report', icon: BarChart3, perm: 'reports.view', group: 'nav.groups.reports' },
+      { label: 'nav.items.distributionDash', href: '/distribution/distribution-dashboard', icon: Layers, perm: 'reports.view', group: 'nav.groups.reports' },
+      { label: 'nav.items.distributionDailySummary', href: '/distribution/daily-summary', icon: BarChart3, perm: 'reports.view', flag: 'platform.daily_summary', group: 'nav.groups.reports' },
+      { label: 'nav.items.returnsAnalysis', href: '/distribution/returns-analysis', icon: Undo2, perm: ['report.aggregate.view', 'reports.view'], group: 'nav.groups.reports' },
+      { label: 'nav.items.repTargets', href: '/distribution/targets', icon: Target, perm: 'reports.view', group: 'nav.groups.reports' },
+      { label: 'nav.items.targetsAchievement', href: '/distribution/targets-achievement', icon: Target, perm: ['target.view', 'target.manage'], group: 'nav.groups.reports' },
+      { label: 'nav.items.salesSummary', href: '/distribution/sales-summary', icon: BarChart3, perm: 'report.aggregate.view', group: 'nav.groups.reports' },
     ],
   },
   {
@@ -468,57 +497,63 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'nav.sections.settings',
-    // UX-1: items grouped into labeled subsections (Organization / Data & Fields /
-    // Integrations / Governance / Personal), ordered most-used first within each.
+    // Navigation Standard (canonical Settings taxonomy): a single source of truth
+    // for Settings. The global sidebar collapses this whole section to one
+    // "Settings" link; the in-page Top Grouping (settings/layout.tsx) renders these
+    // items grouped by `group` into the canonical groups below. No page, gate, or
+    // route changed here — only the grouping + two M2 label renames (Reporting
+    // Lines, Connections). Groups: Organization · Finance & Compliance · People &
+    // Roles · Products & Data · Automation & Policies · Integrations · Personal.
     items: [
+      { label: 'nav.items.settingsHome', href: '/settings', icon: LayoutDashboard },
       // ── Organization ──
       { label: 'nav.items.branches', href: '/settings/branches', icon: Building2, perm: 'settings.branches', group: 'nav.groups.organization' },
-      { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.organization' },
-      { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.organization' },
-      { label: 'nav.items.permissions', href: '/settings/permissions', icon: ShieldCheck, superAdminOnly: true, group: 'nav.groups.organization' },
       { label: 'nav.items.organization', href: '/settings/organization', icon: Network, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.orgStructure', href: '/settings/organization-structure', icon: Network, perm: 'settings.users', group: 'nav.groups.organization' },
       { label: 'nav.items.regions', href: '/settings/regions', icon: Map, perm: 'settings.branches', group: 'nav.groups.organization' },
-      { label: 'nav.items.vanSalesSettings', href: '/settings/van-sales', icon: Truck, perm: 'settings.branches', flag: 'van_sales', module: 'van_sales', group: 'nav.groups.organization' },
-      { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.organization' },
-      // ── Data & Fields ──
-      { label: 'nav.items.customerData', href: '/settings/customer-data', icon: Tags, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.unitsOfMeasure', href: '/settings/uom', icon: Layers, perm: 'uom.manage', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.productStructure', href: '/settings/product-structure', icon: Layers, perm: 'product.edit', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.fieldGovernance', href: '/settings/field-governance', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.mslMatrix', href: '/settings/msl', icon: Layers, perm: 'assortment.manage', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.surveys', href: '/settings/surveys', icon: ClipboardCheck, perm: 'survey.manage', group: 'nav.groups.dataFields' },
-      { label: 'nav.items.gradingSetup', href: '/settings/outlet-grades', icon: Star, perm: 'grade.manage', group: 'nav.groups.dataFields' },
-      // ── Finance & Numbering ──
+      // ── Finance & Compliance ──
       { label: 'nav.items.taxCurrency', href: '/settings/finance', icon: Receipt, perm: 'settings.branches', group: 'nav.groups.finance' },
       { label: 'nav.items.taxRegistrations', href: '/settings/tax-registrations', icon: Receipt, perm: 'settings.branches', group: 'nav.groups.finance' },
       { label: 'nav.items.documentNumbering', href: '/settings/numbering', icon: Hash, perm: 'settings.branches', group: 'nav.groups.finance' },
-      // ── Integrations ── (gated by the `integrations` plan-capability module so
-      //     the entitlement chain Plan → Company module → Nav is consistent)
+      { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.finance' },
+      // ── People & Roles ──
+      { label: 'nav.items.users', href: '/settings/users', icon: Users, superAdminOnly: true, group: 'nav.groups.people' },
+      { label: 'nav.items.staff', href: '/settings/staff', icon: UserCog, perm: 'settings.users', group: 'nav.groups.people' },
+      // M3-D: Roles + Permissions (super-admin tab) + Action Policies are now tabs
+      // of the single Roles & Permissions page (/settings/authz); old routes
+      // redirect to ?tab=…
+      { label: 'nav.items.rolesAndPermissions', href: '/settings/authz', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.people' },
+      { label: 'nav.items.tenantAudit', href: '/settings/audit-log', icon: ScrollText, perm: 'settings.users', group: 'nav.groups.people' },
+      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, group: 'nav.groups.people' },
+      // ── Products & Data ──
+      { label: 'nav.items.productStructure', href: '/settings/product-structure', icon: Layers, perm: 'product.edit', group: 'nav.groups.products' },
+      { label: 'nav.items.unitsOfMeasure', href: '/settings/uom', icon: Layers, perm: 'uom.manage', group: 'nav.groups.products' },
+      // M3-B: Fields + Governance + Customer Data are now tabs of the single
+      // Custom Fields page (/settings/custom-fields); old routes redirect to ?tab=…
+      { label: 'nav.items.customFields', href: '/settings/custom-fields', icon: SlidersHorizontal, perm: 'settings.custom_fields', group: 'nav.groups.products' },
+      { label: 'nav.items.mslMatrix', href: '/settings/msl', icon: Layers, perm: 'assortment.manage', group: 'nav.groups.products' },
+      { label: 'nav.items.surveys', href: '/settings/surveys', icon: ClipboardCheck, perm: 'survey.manage', group: 'nav.groups.products' },
+      { label: 'nav.items.gradingSetup', href: '/settings/outlet-grades', icon: Star, perm: 'grade.manage', group: 'nav.groups.products' },
+      { label: 'nav.items.features', href: '/settings/features', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.products' },
+      { label: 'nav.items.marketplace', href: '/settings/marketplace', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.products' },
+      // ── Automation & Policies ──
+      // M3-A: Approvals + Builder + Templates are now tabs of the single Workflows
+      // page (/settings/workflows); the old routes redirect to ?tab=…
+      { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.automation' },
+      { label: 'nav.items.returnPolicy', href: '/settings/returns', icon: Undo2, perm: 'settings.workflow_policy', group: 'nav.groups.automation' },
+      { label: 'nav.items.dayClosePolicy', href: '/settings/day-close', icon: CalendarDays, perm: 'settings.workflow_policy', group: 'nav.groups.automation' },
+      // ── Integrations ──
       { label: 'nav.items.integrationHub', href: '/settings/integration-hub', icon: Network, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.customerOnboarding', href: '/settings/onboarding', icon: Rocket, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.goLive', href: '/settings/go-live', icon: Rocket, perm: 'integrations.manage', group: 'nav.groups.integrations' },
-      { label: 'nav.items.integrations', href: '/settings/integrations', icon: Upload, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
       { label: 'nav.items.dataOnboarding', href: '/settings/data-onboarding', icon: Download, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
-      { label: 'nav.items.dataImport', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
-      { label: 'nav.items.dataExport', href: '/settings/export', icon: FileDown, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
-      // ── Governance ──
-      { label: 'nav.items.authzConsole', href: '/settings/authz', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.governance' },
-      { label: 'nav.items.actionPolicies', href: '/settings/action-policies', icon: ShieldCheck, perm: 'settings.users', group: 'nav.groups.governance' },
-      { label: 'nav.items.returnPolicy', href: '/settings/returns', icon: Undo2, perm: 'settings.workflow_policy', group: 'nav.groups.governance' },
-      { label: 'nav.items.dayClosePolicy', href: '/settings/day-close', icon: CalendarDays, perm: 'settings.workflow_policy', group: 'nav.groups.governance' },
-      { label: 'nav.items.features', href: '/settings/features', icon: LayoutGrid, perm: 'settings.users', group: 'nav.groups.governance' },
-      { label: 'nav.items.tenantAudit', href: '/settings/audit-log', icon: ScrollText, perm: 'settings.users', group: 'nav.groups.governance' },
-      { label: 'nav.items.copilotAnalytics', href: '/platform/copilot-analytics', icon: HelpCircle, perm: 'settings.users', showForPlatformOwner: true, group: 'nav.groups.governance' },
-      { label: 'nav.items.approvalMatrix', href: '/settings/approval-matrix', icon: ShieldCheck, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
-      { label: 'nav.items.workflows', href: '/settings/workflows', icon: GitBranch, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
-      { label: 'nav.items.workflowTemplates', href: '/settings/workflows/templates', icon: LayoutGrid, perm: 'workflow.manage', module: 'workflow', group: 'nav.groups.governance' },
-      { label: 'nav.items.einvoice', href: '/settings/einvoice', icon: ReceiptText, superAdminOnly: true, group: 'nav.groups.governance' },
-      // Tenant super-admins reach the audit log here; the platform owner/staff
-      // see it under the Platform → Team & Access group (no duplicate).
-      { label: 'nav.items.auditLog', href: '/platform/audit', icon: ScrollText, superAdminOnly: true, group: 'nav.groups.governance' },
+      // M3-C: Import + Export are now tabs of the single Data Exchange page
+      // (/settings/import); the export route redirects to ?tab=export.
+      { label: 'nav.items.dataExchange', href: '/settings/import', icon: FileSpreadsheet, perm: 'integrations.manage', module: 'integrations', group: 'nav.groups.integrations' },
+      { label: 'nav.items.vanSalesSettings', href: '/settings/van-sales', icon: Truck, perm: 'settings.branches', flag: 'van_sales', module: 'van_sales', group: 'nav.groups.integrations' },
       // ── Personal ──
+      { label: 'nav.items.copilotAnalytics', href: '/platform/copilot-analytics', icon: HelpCircle, perm: 'settings.users', showForPlatformOwner: true, group: 'nav.groups.personal' },
       { label: 'nav.items.designSystem', href: '/design', icon: Palette, superAdminOnly: true, group: 'nav.groups.personal' },
       { label: 'nav.items.myAccount', href: '/account', icon: UserCog, showForPlatformOwner: true, group: 'nav.groups.personal' },
     ],

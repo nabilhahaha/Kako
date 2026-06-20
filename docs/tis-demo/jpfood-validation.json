@@ -1,0 +1,165 @@
+{
+  "dataset": {
+    "rows": 6017,
+    "customers": 6017,
+    "withGeo": 6017,
+    "branchProxy": {
+      "Makkah": 221,
+      "Jeddah": 1035,
+      "Taif": 242,
+      "Remote": 910,
+      "Dammam": 657,
+      "Riyadh": 962,
+      "Hail": 143,
+      "Buraidah": 199,
+      "Tabuk": 102,
+      "Abha": 631,
+      "Najran": 253,
+      "Jizan": 252,
+      "Madinah": 129,
+      "Hofuf": 201,
+      "Yanbu": 80
+    }
+  },
+  "existing": {
+    "label": "Existing (Route column)",
+    "generatedRoutes": 86,
+    "routesPerBranch": {
+      "Jeddah": 1,
+      "Remote": 52,
+      "Dammam": 2,
+      "Riyadh": 2,
+      "Hail": 6,
+      "Buraidah": 5,
+      "Tabuk": 2,
+      "Abha": 4,
+      "Jizan": 1,
+      "Madinah": 3,
+      "Hofuf": 3,
+      "Yanbu": 3,
+      "Najran": 1,
+      "Taif": 1
+    },
+    "customersPerRoute": {
+      "min": 1,
+      "avg": 70,
+      "max": 1487
+    },
+    "routeRadiusKm": {
+      "min": 0,
+      "avg": 18.2,
+      "max": 176.4
+    },
+    "compactnessScore": 73,
+    "singletonRoutes": 10,
+    "invalidRoutes": 1,
+    "remoteOutlierCustomers": 887,
+    "territories": 37,
+    "valid": false
+  },
+  "optimized": [
+    {
+      "label": "Optimized K=20",
+      "generatedRoutes": 31,
+      "routesPerBranch": {
+        "Jeddah": 1,
+        "Remote": 23,
+        "Dammam": 1,
+        "Riyadh": 1,
+        "Hail": 1,
+        "Buraidah": 1,
+        "Tabuk": 1,
+        "Madinah": 1,
+        "Yanbu": 1
+      },
+      "customersPerRoute": {
+        "min": 1,
+        "avg": 194.1,
+        "max": 2796
+      },
+      "routeRadiusKm": {
+        "min": 0,
+        "avg": 69.7,
+        "max": 452.6
+      },
+      "compactnessScore": 42,
+      "singletonRoutes": 1,
+      "invalidRoutes": 9,
+      "remoteOutlierCustomers": 3573,
+      "territories": 37,
+      "valid": false,
+      "requestedRoutes": 20,
+      "absorbedTerritories": 6,
+      "geographyRequiresRoutes": 31
+    },
+    {
+      "label": "Optimized K=30",
+      "generatedRoutes": 31,
+      "routesPerBranch": {
+        "Jeddah": 1,
+        "Remote": 23,
+        "Dammam": 1,
+        "Riyadh": 1,
+        "Hail": 1,
+        "Buraidah": 1,
+        "Tabuk": 1,
+        "Madinah": 1,
+        "Yanbu": 1
+      },
+      "customersPerRoute": {
+        "min": 1,
+        "avg": 194.1,
+        "max": 2796
+      },
+      "routeRadiusKm": {
+        "min": 0,
+        "avg": 69.7,
+        "max": 452.6
+      },
+      "compactnessScore": 42,
+      "singletonRoutes": 1,
+      "invalidRoutes": 9,
+      "remoteOutlierCustomers": 3573,
+      "territories": 37,
+      "valid": false,
+      "requestedRoutes": 30,
+      "absorbedTerritories": 6,
+      "geographyRequiresRoutes": 31
+    },
+    {
+      "label": "Optimized K=40",
+      "generatedRoutes": 40,
+      "routesPerBranch": {
+        "Jeddah": 1,
+        "Abha": 1,
+        "Remote": 25,
+        "Dammam": 2,
+        "Riyadh": 2,
+        "Hail": 2,
+        "Buraidah": 2,
+        "Tabuk": 2,
+        "Madinah": 2,
+        "Yanbu": 1
+      },
+      "customersPerRoute": {
+        "min": 1,
+        "avg": 150.4,
+        "max": 1398
+      },
+      "routeRadiusKm": {
+        "min": 0,
+        "avg": 74.2,
+        "max": 429.4
+      },
+      "compactnessScore": 36,
+      "singletonRoutes": 1,
+      "invalidRoutes": 10,
+      "remoteOutlierCustomers": 2015,
+      "territories": 37,
+      "valid": false,
+      "requestedRoutes": 40,
+      "absorbedTerritories": 6,
+      "geographyRequiresRoutes": null
+    }
+  ]
+}

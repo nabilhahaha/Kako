@@ -109,6 +109,14 @@ export type Permission =
   | 'survey.manage' // build in-store surveys
   | 'grade.manage' // manage outlet grading (bands, weights, recompute)
   | 'report.aggregate.view' // view scale-safe aggregated reports
+  // ── Territory Intelligence / Planning ──
+  | 'tis.run_optimization' // run a standalone optimization session (Excel-in/out; no live writes)
+  // ── Simple Route Planner (standalone, session-only) ──
+  | 'route_planner.view' // open the Simple Route Planner
+  | 'route_planner.upload' // upload a customer file / map columns
+  | 'route_planner.edit' // split, move, merge, rebalance routes
+  | 'route_planner.export' // export the plan to Excel
+  | 'route_planner.admin' // manage Route Planner tenants/subscriptions (product-scoped admin)
   // ── Fashion Store pack (clothing vertical) ──
   | 'fashion.manage' // full fashion-store management (owner) — implies all below
   | 'fashion.sell' // POS cash + installment sales, customers, returns
@@ -147,6 +155,12 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'accounting.post': { en: 'Post journals and vouchers', ar: 'ترحيل القيود والسندات', group: 'accounting' },
   'treasury.manage': { en: 'Operate the cash box / treasury', ar: 'تشغيل صندوق النقدية / الخزينة', group: 'accounting' },
   'reports.view': { en: 'Reports', ar: 'التقارير', group: 'accounting' },
+  'tis.run_optimization': { en: 'Run optimization (Excel-in/out)', ar: 'تشغيل التحسين (Excel)', group: 'sales' },
+  'route_planner.view': { en: 'Open Route Planner', ar: 'فتح مخطط الخطوط', group: 'field_ops' },
+  'route_planner.upload': { en: 'Upload / map columns', ar: 'رفع وربط الأعمدة', group: 'field_ops' },
+  'route_planner.edit': { en: 'Edit / move routes', ar: 'تعديل ونقل الخطوط', group: 'field_ops' },
+  'route_planner.export': { en: 'Export Route Planner Excel', ar: 'تصدير مخطط الخطوط', group: 'field_ops' },
+  'route_planner.admin': { en: 'Manage Route Planner tenants', ar: 'إدارة عملاء مخطط الخطوط', group: 'field_ops' },
   'settings.branches': { en: 'Manage branches', ar: 'إدارة الفروع', group: 'settings' },
   'settings.users': { en: 'Manage users and permissions', ar: 'إدارة المستخدمين والصلاحيات', group: 'settings' },
   'integrations.manage': { en: 'Manage data import & integrations', ar: 'إدارة استيراد البيانات والتكاملات', group: 'settings' },
@@ -266,6 +280,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   // ── FMCG sales hierarchy (S2) — role layer only; scope/visibility is S4 ──
   // Sales Director / NSM: full commercial visibility (no company settings/billing).
   sales_director: [
+    'tis.run_optimization',
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
     'stock_request.approve', 'stock_request.adjust', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
@@ -276,6 +291,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'documents.print', 'documents.share', 'documents.export',
   ],
   national_sales_manager: [
+    'tis.run_optimization',
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'accounting.view',
     'stock_request.approve', 'stock_request.adjust', 'pricing.manage', 'settings.custom_fields', 'integrations.manage',
@@ -287,6 +303,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   ],
   // Regional / Area: commercial management (no finance posting / settings).
   regional_manager: [
+    'tis.run_optimization',
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve', 'stock_request.adjust',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
@@ -295,6 +312,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'documents.print', 'documents.share', 'documents.export',
   ],
   area_manager: [
+    'tis.run_optimization',
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'reports.view', 'stock_request.approve', 'stock_request.adjust',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',
@@ -304,6 +322,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   ],
   // Branch Manager: branch operations (NO settings/billing — distinct from Admin).
   branch_manager: [
+    'tis.run_optimization',
     'sales.sell', 'sales.discount', 'sales.collect', 'sales.return',
     'customers.manage', 'customers.change_status', 'inventory.view', 'inventory.adjust', 'inventory.transfer',
     'inventory.count', 'stock_request.approve', 'purchasing.manage',
@@ -333,6 +352,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   // supervisor keeps customer.transfer + route.create), with a time-boxed,
   // audited "Acting Sales Rep" elevation reserved as an exceptional procedure.
   supervisor: [
+    'tis.run_optimization',
     'customers.manage', 'customers.change_status', 'inventory.view', 'stock_request.approve', 'reports.view',
     'visit.approve_out_of_route', 'day.approve_close_exception', 'stock.transfer.approve',
     'customer.transfer', 'journey.create', 'route.create', 'stock.view',

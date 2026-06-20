@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUserContext } from '@/lib/erp/auth-context';
-import { PageHeader } from '@/components/shared/page-header';
+import { ModulePage } from '@/components/admin/module-page';
 import { drugReferenceCount } from '../../clinic/reference-actions';
 import { DrugImporter } from './drug-importer';
 import { getT } from '@/lib/i18n/server';
@@ -14,12 +14,8 @@ export default async function PlatformDrugsPage() {
   const count = await drugReferenceCount();
 
   return (
-    <div>
-      <PageHeader
-        title={t('platform.drugs.title')}
-        description={t('platform.drugs.description')}
-      />
+    <ModulePage title={t('platform.drugs.title')} subtitle={t('platform.drugs.description')}>
       <DrugImporter initialCount={count} />
-    </div>
+    </ModulePage>
   );
 }

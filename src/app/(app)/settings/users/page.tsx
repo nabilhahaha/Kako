@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Branch, Profile, UserBranch } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
-import { UsersManager } from './users-manager';
+import { UsersWorkbench } from './users-workbench';
 
 export default async function UsersPage() {
   const ctx = await getUserContext();
@@ -45,7 +45,7 @@ export default async function UsersPage() {
         title={t('settings.users.pageTitle')}
         description={t('settings.users.pageDescription')}
       />
-      <UsersManager
+      <UsersWorkbench
         currentUserId={ctx.userId}
         profiles={(profiles as Profile[]) ?? []}
         branches={(branches as Branch[]) ?? []}
