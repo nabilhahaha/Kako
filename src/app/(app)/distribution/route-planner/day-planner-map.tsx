@@ -5,6 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 export interface DayMapPoint { id: string; name: string; lat: number; lng: number; seq?: number }
 export interface DayMapEndpoint { lat: number; lng: number; kind: 'start' | 'end' }
+export type DaySelectMode = 'none' | 'box' | 'area';
 
 const RASTER_STYLE = {
   version: 8 as const,
@@ -12,15 +13,24 @@ const RASTER_STYLE = {
   layers: [{ id: 'osm', type: 'raster' as const, source: 'osm' }],
 };
 
-/**
- * Day Planner map — shows the selected customers, an ordered path line (Start → 1 → 2 → …
- * → End) and numbered HTML markers, plus a green Start and red End marker. Numbers are DOM
- * markers (the keyless raster base has no glyphs, so MapLibre text symbols can't render).
- * Click a pin to toggle selection. Client-only.
- */
-export type DaySelectMode = 'none' | 'box' | 'polygon';
+/** Ray-casting point-in-polygon in screen (pixel) space. */
+function inScreenPoly(x: number, y: number, poly: { x: number; y: number }[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+    if (((yi > y) !== (yj > y)) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
 
-export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, onMapClick, picking, selectMode = 'none', polygon = [], onBoxSelect, onPolyVertex }: {
+/**
+ * Day Planner map — selected customers, an ordered path line (Start → 1 → 2 → … → End)
+ * and numbered HTML markers, plus a green Start and red End marker. Two simple selection
+ * modes: Rectangle (drag a box) and Draw Area (freehand — draw a shape and release; the
+ * customers inside are selected). Forced LTR so markers don't drift under the panel in the
+ * Arabic (RTL) layout. Client-only.
+ */
+export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, onMapClick, picking, selectMode = 'none', onBoxSelect }: {
   points: DayMapPoint[];
   path: [number, number][]; // ordered [lng,lat] incl. start & end
   endpoints: DayMapEndpoint[];
@@ -28,21 +38,20 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
   onToggle: (id: string) => void;
   onMapClick: (lat: number, lng: number) => void;
   picking: boolean; // when true, a map click sets a point instead of panning-only
-  selectMode?: DaySelectMode; // 'box' = drag a rectangle; 'polygon' = click vertices
-  polygon?: [number, number][]; // in-progress polygon ring [lng,lat] (rendered)
+  selectMode?: DaySelectMode;
   onBoxSelect?: (ids: string[], additive: boolean) => void;
-  onPolyVertex?: (lat: number, lng: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const polyRef = useRef<SVGPolylineElement>(null);
   const mapRef = useRef<import('maplibre-gl').Map | null>(null);
   const glRef = useRef<typeof import('maplibre-gl') | null>(null);
   const markersRef = useRef<import('maplibre-gl').Marker[]>([]);
   const fitOnce = useRef(false);
-  const cb = useRef({ onToggle, onMapClick, picking, selectMode, onBoxSelect, onPolyVertex });
-  cb.current = { onToggle, onMapClick, picking, selectMode, onBoxSelect, onPolyVertex };
-  const dataRef = useRef({ points, path, endpoints, selectedIds, polygon });
-  dataRef.current = { points, path, endpoints, selectedIds, polygon };
+  const cb = useRef({ onToggle, onMapClick, picking, selectMode, onBoxSelect });
+  cb.current = { onToggle, onMapClick, picking, selectMode, onBoxSelect };
+  const dataRef = useRef({ points, path, endpoints, selectedIds });
+  dataRef.current = { points, path, endpoints, selectedIds };
 
   useEffect(() => {
     let cancelled = false;
@@ -55,52 +64,60 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
       mapRef.current = map;
       map.on('load', () => { sync(); });
-      map.on('click', (e) => {
-        if (cb.current.picking) cb.current.onMapClick(e.lngLat.lat, e.lngLat.lng);
-        else if (cb.current.selectMode === 'polygon') cb.current.onPolyVertex?.(e.lngLat.lat, e.lngLat.lng);
-      });
+      map.on('click', (e) => { if (cb.current.picking) cb.current.onMapClick(e.lngLat.lat, e.lngLat.lng); });
 
-      // ── Box / area draw-select: drag a rectangle to select the points inside. ──
-      let startPt: { x: number; y: number } | null = null;
-      let additive = false;
       const canvas = map.getCanvasContainer();
+      let mode: DaySelectMode = 'none';
+      let additive = false;
+      let start: { x: number; y: number } | null = null;     // box anchor
+      let free: { x: number; y: number }[] = [];             // freehand path
+      const rel = (ev: MouseEvent) => { const r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
+
+      const selectInside = (test: (x: number, y: number) => boolean) => {
+        const m = mapRef.current; if (!m) return;
+        const ids: string[] = [];
+        for (const p of dataRef.current.points) { const pt = m.project([p.lng, p.lat]); if (test(pt.x, pt.y)) ids.push(p.id); }
+        cb.current.onBoxSelect?.(ids, additive);
+      };
+
       const onMove = (ev: MouseEvent) => {
-        if (!startPt || !boxRef.current) return;
-        const r = canvas.getBoundingClientRect();
-        const x = ev.clientX - r.left, y = ev.clientY - r.top;
-        const left = Math.min(startPt.x, x), top = Math.min(startPt.y, y);
-        Object.assign(boxRef.current.style, { display: 'block', left: `${left}px`, top: `${top}px`, width: `${Math.abs(x - startPt.x)}px`, height: `${Math.abs(y - startPt.y)}px` });
+        const { x, y } = rel(ev);
+        if (mode === 'box' && start && boxRef.current) {
+          const left = Math.min(start.x, x), top = Math.min(start.y, y);
+          Object.assign(boxRef.current.style, { display: 'block', left: `${left}px`, top: `${top}px`, width: `${Math.abs(x - start.x)}px`, height: `${Math.abs(y - start.y)}px` });
+        } else if (mode === 'area' && polyRef.current) {
+          free.push({ x, y });
+          polyRef.current.setAttribute('points', free.map((p) => `${p.x},${p.y}`).join(' '));
+        }
       };
       const onUp = (ev: MouseEvent) => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
-        if (boxRef.current) boxRef.current.style.display = 'none';
-        const m = mapRef.current;
-        if (!startPt || !m) { startPt = null; return; }
-        const r = canvas.getBoundingClientRect();
-        const x = ev.clientX - r.left, y = ev.clientY - r.top;
-        const minX = Math.min(startPt.x, x), maxX = Math.max(startPt.x, x);
-        const minY = Math.min(startPt.y, y), maxY = Math.max(startPt.y, y);
-        startPt = null;
-        if (maxX - minX < 4 && maxY - minY < 4) return; // a click, not a drag
-        const ids: string[] = [];
-        for (const p of dataRef.current.points) {
-          const pt = m.project([p.lng, p.lat]);
-          if (pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY) ids.push(p.id);
+        const { x, y } = rel(ev);
+        if (mode === 'box' && start) {
+          if (boxRef.current) boxRef.current.style.display = 'none';
+          const minX = Math.min(start.x, x), maxX = Math.max(start.x, x), minY = Math.min(start.y, y), maxY = Math.max(start.y, y);
+          if (maxX - minX >= 4 || maxY - minY >= 4) selectInside((px, py) => px >= minX && px <= maxX && py >= minY && py <= maxY);
+        } else if (mode === 'area') {
+          const poly = [...free];
+          if (polyRef.current) polyRef.current.setAttribute('points', '');
+          if (poly.length >= 3) selectInside((px, py) => inScreenPoly(px, py, poly));
         }
-        cb.current.onBoxSelect?.(ids, additive);
+        start = null; free = []; mode = 'none';
       };
       const onDown = (ev: MouseEvent) => {
-        if (cb.current.selectMode !== 'box' || ev.button !== 0) return;
+        if (ev.button !== 0 || (cb.current.selectMode !== 'box' && cb.current.selectMode !== 'area')) return;
         ev.preventDefault(); ev.stopPropagation();
+        mode = cb.current.selectMode;
         additive = ev.shiftKey || ev.ctrlKey || ev.metaKey;
-        const r = canvas.getBoundingClientRect();
-        startPt = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+        const { x, y } = rel(ev);
+        if (mode === 'box') start = { x, y };
+        else free = [{ x, y }];
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
       };
       canvas.addEventListener('mousedown', onDown);
-      (map as unknown as { __cleanupDraw?: () => void }).__cleanupDraw = () => {
+      (map as unknown as { __cleanup?: () => void }).__cleanup = () => {
         canvas.removeEventListener('mousedown', onDown);
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
@@ -109,38 +126,26 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
     return () => {
       cancelled = true;
       markersRef.current.forEach((m) => m.remove());
-      if (map) { (map as unknown as { __cleanupDraw?: () => void }).__cleanupDraw?.(); map.remove(); }
+      if (map) { (map as unknown as { __cleanup?: () => void }).__cleanup?.(); map.remove(); }
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Disable map panning while box-drawing so a drag draws a rectangle, not a pan.
+  // Disable map panning while selecting so a drag draws the box/area, not a pan.
   useEffect(() => {
     const m = mapRef.current;
     if (!m) return;
-    if (selectMode === 'box') m.dragPan.disable(); else m.dragPan.enable();
+    if (selectMode === 'box' || selectMode === 'area') m.dragPan.disable(); else m.dragPan.enable();
   }, [selectMode]);
 
-  // Re-sync the path line + markers + polygon whenever data changes.
-  useEffect(() => { sync(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [points, path, endpoints, selectedIds, polygon]);
+  useEffect(() => { sync(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [points, path, endpoints, selectedIds]);
 
   function sync() {
     const map = mapRef.current, gl = glRef.current;
     if (!map || !gl || !map.isStyleLoaded()) return;
-    const { points: pts, path: line, endpoints: eps, selectedIds: sel, polygon: poly } = dataRef.current;
+    const { points: pts, path: line, endpoints: eps, selectedIds: sel } = dataRef.current;
 
-    // In-progress polygon (closed for display).
-    const ring = poly.length >= 2 ? [...poly, poly[0]] : [];
-    const polyData = { type: 'FeatureCollection' as const, features: ring.length >= 2 ? [{ type: 'Feature' as const, geometry: { type: 'LineString' as const, coordinates: ring }, properties: {} }] : [] };
-    const polySrc = map.getSource('day-poly') as import('maplibre-gl').GeoJSONSource | undefined;
-    if (polySrc) polySrc.setData(polyData);
-    else {
-      map.addSource('day-poly', { type: 'geojson', data: polyData });
-      map.addLayer({ id: 'day-poly-line', type: 'line', source: 'day-poly', paint: { 'line-color': '#7c3aed', 'line-width': 2, 'line-dasharray': [1.5, 1] } });
-    }
-
-    // Path line.
     const lineData = { type: 'FeatureCollection' as const, features: line.length >= 2 ? [{ type: 'Feature' as const, geometry: { type: 'LineString' as const, coordinates: line }, properties: {} }] : [] };
     const src = map.getSource('day-path') as import('maplibre-gl').GeoJSONSource | undefined;
     if (src) src.setData(lineData);
@@ -149,7 +154,6 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
       map.addLayer({ id: 'day-path-line', type: 'line', source: 'day-path', paint: { 'line-color': '#2563eb', 'line-width': 2.5, 'line-opacity': 0.7, 'line-dasharray': [2, 1] } });
     }
 
-    // Rebuild HTML markers (small list — one salesman's day).
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
     for (const p of pts) {
@@ -157,9 +161,12 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
       const on = sel.has(p.id);
       if (p.seq != null) {
         el.textContent = String(p.seq);
-        el.style.cssText = `display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:9999px;background:${on ? '#0f172a' : '#2563eb'};color:#fff;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:pointer`;
+        el.style.cssText = `display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:9999px;background:#2563eb;color:#fff;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:pointer`;
+      } else if (on) {
+        // Strong highlight for a selected customer.
+        el.style.cssText = `width:16px;height:16px;border-radius:9999px;background:#16a34a;border:3px solid #fff;box-shadow:0 0 0 2px #16a34a,0 1px 3px rgba(0,0,0,.5);cursor:pointer`;
       } else {
-        el.style.cssText = `width:11px;height:11px;border-radius:9999px;background:${on ? '#0f172a' : '#94a3b8'};border:2px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.4);cursor:pointer`;
+        el.style.cssText = `width:11px;height:11px;border-radius:9999px;background:#94a3b8;border:2px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.4);cursor:pointer`;
       }
       el.title = p.name;
       el.addEventListener('click', (ev) => { ev.stopPropagation(); cb.current.onToggle(p.id); });
@@ -171,14 +178,7 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
       el.style.cssText = `display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:9999px;background:${ep.kind === 'start' ? '#16a34a' : '#dc2626'};color:#fff;font-size:12px;font-weight:800;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)`;
       markersRef.current.push(new gl.Marker({ element: el }).setLngLat([ep.lng, ep.lat]).addTo(map));
     }
-    // Polygon vertex dots (purple) while drawing a free-form area.
-    for (const v of poly) {
-      const el = document.createElement('div');
-      el.style.cssText = 'width:9px;height:9px;border-radius:9999px;background:#7c3aed;border:2px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.4)';
-      markersRef.current.push(new gl.Marker({ element: el }).setLngLat([v[0], v[1]]).addTo(map));
-    }
 
-    // Fit once to the data.
     if (!fitOnce.current) {
       const all = [...pts.map((p) => [p.lng, p.lat] as [number, number]), ...eps.map((e) => [e.lng, e.lat] as [number, number])];
       if (all.length) {
@@ -190,11 +190,15 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
     }
   }
 
+  // Forced LTR: MapLibre positions DOM markers with absolute offsets that get mirrored
+  // inside an RTL (Arabic) document, making markers drift under the side panel.
   return (
-    <div className="relative h-full w-full" style={{ minHeight: 320 }}>
+    <div dir="ltr" className="relative h-full w-full overflow-hidden" style={{ minHeight: 320 }}>
       <div ref={containerRef} className={`h-full w-full overflow-hidden rounded-xl border ${picking || selectMode !== 'none' ? 'cursor-crosshair' : ''}`} style={{ minHeight: 320 }} />
-      {/* Drag-select rectangle overlay (positioned in JS; hidden by default). */}
+      {/* Box selection rectangle (positioned in JS). */}
       <div ref={boxRef} className="pointer-events-none absolute z-10 hidden rounded border-2 border-primary bg-primary/15" style={{ display: 'none' }} />
+      {/* Freehand area path. */}
+      <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full"><polyline ref={polyRef} points="" fill="rgba(37,99,235,0.12)" stroke="#2563eb" strokeWidth={2} /></svg>
     </div>
   );
 }

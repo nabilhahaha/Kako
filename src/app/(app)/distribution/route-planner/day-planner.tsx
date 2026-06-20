@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Upload, Wand2, FileDown, Share2, Printer, Map as MapIcon, ArrowUp, ArrowDown, RotateCcw, Trash2, Database, LassoSelect, Check, AlertTriangle, Save, Search, Link2, Smartphone, Navigation, Square, Hexagon, ChevronLeft } from 'lucide-react';
+import { X, Upload, Wand2, FileDown, Share2, Printer, Map as MapIcon, ArrowUp, ArrowDown, RotateCcw, Trash2, LassoSelect, Check, AlertTriangle, Save, Search, Link2, Smartphone, Navigation, Square, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
 import { type JourneyPoint } from '@/lib/tis/journey';
 import {
   DP_FIELDS, DP_REQUIRED_FIELDS, suggestDpMapping, validateDpImport,
-  routeMetrics, formatDistanceKm, formatDriveMinutes, pointInPolygon, nearestNeighbourOrder,
+  routeMetrics, formatDistanceKm, formatDriveMinutes, nearestNeighbourOrder,
   type DpMapping, type DpCustomer,
 } from '@/lib/tis/day-planner-import';
 import { parseUploadColumns } from './import-actions';
@@ -68,7 +68,6 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [selectMode, setSelectMode] = useState<DaySelectMode>('none');
-  const [polyVerts, setPolyVerts] = useState<[number, number][]>([]);
   const [pendingSel, setPendingSel] = useState<string[] | null>(null);
   // Start / End
   const [startKind, setStartKind] = useState<StartKind>('current');
@@ -198,15 +197,24 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
     else setSelectedIds(new Set(pendingSel));
     setPendingSel(null); setOrder(null);
   }
-  function finishPolygon() {
-    if (polyVerts.length >= 3) {
-      const ring = polyVerts.map(([lng, lat]) => ({ lat, lng }));
-      const ids = customers.filter((c) => pointInPolygon({ lat: c.lat, lng: c.lng }, ring)).map((c) => c.id);
-      applySelection(ids, false);
-    }
-    setPolyVerts([]); setSelectMode('none');
-  }
   function clearSelection() { setSelectedIds(new Set()); setOrder(null); }
+  function removeFromSelection(id: string) { setSelectedIds((s) => { const n = new Set(s); n.delete(id); return n; }); setOrder(null); }
+
+  // Quick-filter facets (City / Salesman / Channel / Class) — distinct values with
+  // counts, so a user can build a route for a segment in one click.
+  const facets = useMemo(() => {
+    const make = (key: 'city' | 'salesman' | 'channel' | 'class'): [string, number][] => {
+      const m = new Map<string, number>();
+      for (const c of customers) { const v = ((c[key] ?? '') as string).toString().trim(); if (v) m.set(v, (m.get(v) ?? 0) + 1); }
+      return [...m.entries()].sort((a, b) => b[1] - a[1]);
+    };
+    return { city: make('city'), salesman: make('salesman'), channel: make('channel'), class: make('class') };
+  }, [customers]);
+  const hasFacets = facets.city.length + facets.salesman.length + facets.channel.length + facets.class.length > 0;
+  function selectByFacet(key: 'city' | 'salesman' | 'channel' | 'class', value: string) {
+    const ids = customers.filter((c) => ((c[key] ?? '') as string).toString().trim() === value).map((c) => c.id);
+    applySelection(ids, false);
+  }
 
   // ── Start / End ──
   function resolveStartKind(kind: StartKind) {
@@ -248,23 +256,32 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
   }
 
   // ── Generate / metrics ──
-  const startReady = !!start;
+  // Start point defaults to the centre of the planned customers, so "Review" is enabled
+  // as soon as customers are selected — the user never has to fiddle with a Start point
+  // unless they want to (Current Location / Warehouse / etc. just override this).
+  const centroid = useMemo(() => {
+    if (planned.length === 0) return null;
+    const la = planned.reduce((s, c) => s + c.lat, 0) / planned.length;
+    const ln = planned.reduce((s, c) => s + c.lng, 0) / planned.length;
+    return { lat: la, lng: ln, name: t('dayPlanner.sk_center') };
+  }, [planned, t]);
+  const effStart = start ?? centroid;
   const endReady = endKind === 'last' || !!end;
-  const canReview = planned.length > 0 && startReady && endReady;
+  const canReview = planned.length > 0 && endReady;
 
   const previewOrder = useMemo(() => {
-    if (!start || planned.length === 0) return [];
-    return nearestNeighbourOrder(planned.map((c) => ({ id: c.id, lat: c.lat, lng: c.lng })), start, endKind === 'last' ? null : end);
-  }, [planned, start, end, endKind]);
+    if (!effStart || planned.length === 0) return [];
+    return nearestNeighbourOrder(planned.map((c) => ({ id: c.id, lat: c.lat, lng: c.lng })), effStart, endKind === 'last' ? null : end);
+  }, [planned, effStart, end, endKind]);
 
   const metricsFor = (ids: string[]) => {
-    if (!start || ids.length === 0) return { distanceKm: 0, driveMinutes: 0 };
-    const pts = [{ lat: start.lat, lng: start.lng }, ...ids.map((id) => byId.get(id)!).filter(Boolean).map((c) => ({ lat: c.lat, lng: c.lng }))];
+    if (!effStart || ids.length === 0) return { distanceKm: 0, driveMinutes: 0 };
+    const pts = [{ lat: effStart.lat, lng: effStart.lng }, ...ids.map((id) => byId.get(id)!).filter(Boolean).map((c) => ({ lat: c.lat, lng: c.lng }))];
     if (endKind !== 'last' && end) pts.push({ lat: end.lat, lng: end.lng });
     return routeMetrics(pts);
   };
-  const previewMetrics = useMemo(() => metricsFor(previewOrder), [previewOrder, start, end, endKind]); // eslint-disable-line react-hooks/exhaustive-deps
-  const resultMetrics = useMemo(() => metricsFor(order ?? []), [order, start, end, endKind]); // eslint-disable-line react-hooks/exhaustive-deps
+  const previewMetrics = useMemo(() => metricsFor(previewOrder), [previewOrder, effStart, end, endKind]); // eslint-disable-line react-hooks/exhaustive-deps
+  const resultMetrics = useMemo(() => metricsFor(order ?? []), [order, effStart, end, endKind]); // eslint-disable-line react-hooks/exhaustive-deps
   const visitMinutes = (order?.length ?? 0) * VISIT_MIN;
 
   function review() { if (canReview) { setConfirming(true); setMsg(null); } else setMsg(t('dayPlanner.needSelectStart')); }
@@ -299,27 +316,27 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
   // ── Derived map data ──
   const orderedList = order ? order.map((id) => byId.get(id)).filter(Boolean) as DpCustomer[] : [];
   const path: [number, number][] = useMemo(() => {
-    if (!order || !start) return [];
-    const pts: [number, number][] = [[start.lng, start.lat], ...orderedList.map((c) => [c.lng, c.lat] as [number, number])];
+    if (!order || !effStart) return [];
+    const pts: [number, number][] = [[effStart.lng, effStart.lat], ...orderedList.map((c) => [c.lng, c.lat] as [number, number])];
     if (endKind !== 'last' && end) pts.push([end.lng, end.lat]);
     return pts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order, start, end, endKind, customers]);
+  }, [order, effStart, end, endKind, customers]);
   const mapPoints: DayMapPoint[] = useMemo(() => {
     const seqOf = new Map(order ? order.map((id, i) => [id, i + 1]) : []);
     return customers.map((c) => ({ id: c.id, name: c.name, lat: c.lat, lng: c.lng, seq: seqOf.get(c.id) }));
   }, [customers, order]);
   const endpoints: DayMapEndpoint[] = [
-    ...(start ? [{ lat: start.lat, lng: start.lng, kind: 'start' as const }] : []),
+    ...(order && effStart ? [{ lat: effStart.lat, lng: effStart.lng, kind: 'start' as const }] : []),
     ...(endKind !== 'last' && end ? [{ lat: end.lat, lng: end.lng, kind: 'end' as const }] : []),
   ];
 
   function gmapsUrl(): string {
-    if (!order || !start) return '';
+    if (!order || !effStart) return '';
     const stops = orderedList.slice(0, 23);
     const wp = stops.map((c) => `${c.lat},${c.lng}`).join('|');
-    const dest = endKind !== 'last' && end ? `${end.lat},${end.lng}` : (orderedList.length ? `${orderedList[orderedList.length - 1].lat},${orderedList[orderedList.length - 1].lng}` : `${start.lat},${start.lng}`);
-    return `https://www.google.com/maps/dir/?api=1&origin=${start.lat},${start.lng}&destination=${dest}${wp ? `&waypoints=${encodeURIComponent(wp)}` : ''}&travelmode=driving`;
+    const dest = endKind !== 'last' && end ? `${end.lat},${end.lng}` : (orderedList.length ? `${orderedList[orderedList.length - 1].lat},${orderedList[orderedList.length - 1].lng}` : `${effStart.lat},${effStart.lng}`);
+    return `https://www.google.com/maps/dir/?api=1&origin=${effStart.lat},${effStart.lng}&destination=${dest}${wp ? `&waypoints=${encodeURIComponent(wp)}` : ''}&travelmode=driving`;
   }
   function exportExcel() {
     if (!order) return;
@@ -347,7 +364,7 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
     void clearDayPlannerDraft();
     setStep('upload'); setFileName(null); setHeaders([]); setRecords([]); setMapping({});
     setCustomers([]); setSelectedIds(new Set()); setStart(null); setEnd(null); setOrder(null);
-    setSelectMode('none'); setPolyVerts([]); setConfirming(false); setSavedId(null); setMsg(null);
+    setSelectMode('none'); setConfirming(false); setSavedId(null); setMsg(null);
   }
 
   const hasSeed = !!seedCustomers && seedCustomers.length > 0;
@@ -387,37 +404,63 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
 
       {/* STEP: source picker */}
       {step === 'upload' && (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-          <MapIcon className="h-10 w-10 text-primary" />
-          <p className="max-w-md text-sm text-muted-foreground">{t('dayPlanner.intro')}</p>
-          <div className="grid w-full max-w-3xl gap-3 sm:grid-cols-3">
-            <button onClick={() => useDataset(false)} disabled={!hasSeed} className="flex flex-col items-center gap-2 rounded-xl border p-5 hover:border-primary hover:bg-muted/40 disabled:opacity-50">
-              <Database className="h-7 w-7 text-primary" /><span className="text-sm font-semibold">{t('dayPlanner.srcDataset')}</span>
-              <span className="text-[11px] text-muted-foreground">{hasSeed ? t('dayPlanner.srcDatasetHint').replace('{n}', String(seedCustomers!.length)) : t('dayPlanner.srcDatasetEmpty')}</span>
-            </button>
-            <button onClick={() => useDataset(true)} disabled={!hasSeed} className="flex flex-col items-center gap-2 rounded-xl border p-5 hover:border-primary hover:bg-muted/40 disabled:opacity-50">
-              <LassoSelect className="h-7 w-7 text-primary" /><span className="text-sm font-semibold">{t('dayPlanner.srcDraw')}</span>
-              <span className="text-[11px] text-muted-foreground">{hasSeed ? t('dayPlanner.srcDrawHint') : t('dayPlanner.srcDatasetEmpty')}</span>
-            </button>
-            <button onClick={() => fileRef.current?.click()} disabled={importing} className="flex flex-col items-center gap-2 rounded-xl border p-5 hover:border-primary hover:bg-muted/40 disabled:opacity-60">
-              <Upload className="h-7 w-7 text-primary" /><span className="text-sm font-semibold">{importing ? t('routePlanner.importing') : t('dayPlanner.srcUpload')}</span>
-              <span className="text-[11px] text-muted-foreground">{t('dayPlanner.srcUploadHint')}</span>
-            </button>
-          </div>
-          {plans.length > 0 && (
-            <div className="mt-2 w-full max-w-3xl text-start">
-              <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{t('dayPlanner.savedPlans')}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {plans.map((p) => (
-                  <span key={p.id} className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px]">
-                    <button onClick={() => openSavedPlan(p)} className="hover:text-primary">{p.name} · {p.order.length}</button>
-                    <button onClick={() => onDeletePlan(p.id)} className="text-muted-foreground hover:text-red-600"><Trash2 className="h-3 w-3" /></button>
-                  </span>
-                ))}
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 overflow-y-auto p-6">
+          <div className="w-full max-w-xl space-y-4">
+            <div className="text-center">
+              <MapIcon className="mx-auto h-9 w-9 text-primary" />
+              <p className="mt-2 text-sm text-muted-foreground">{t('dayPlanner.intro')}</p>
+            </div>
+
+            {/* Primary action — focused on the goal (build a route), not the data source. */}
+            {hasSeed ? (
+              <button onClick={() => useDataset(false)} className="flex w-full items-center gap-4 rounded-2xl border-2 border-primary bg-primary/5 p-5 text-start transition hover:bg-primary/10">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Wand2 className="h-6 w-6" /></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-base font-bold">{t('dayPlanner.buildToday')}</p>
+                  <p className="text-xs text-muted-foreground">{t('dayPlanner.buildTodayHint').replace('{n}', String(seedCustomers!.length))}</p>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-primary rtl:rotate-180" />
+              </button>
+            ) : (
+              <button onClick={() => fileRef.current?.click()} disabled={importing} className="flex w-full items-center gap-4 rounded-2xl border-2 border-primary bg-primary/5 p-5 text-start hover:bg-primary/10 disabled:opacity-60">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Upload className="h-6 w-6" /></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-base font-bold">{importing ? t('routePlanner.importing') : t('dayPlanner.srcUpload')}</p>
+                  <p className="text-xs text-muted-foreground">{t('dayPlanner.srcUploadHint')}</p>
+                </div>
+              </button>
+            )}
+
+            {/* Saved plans — prominent, one tap to reopen. */}
+            {plans.length > 0 && (
+              <div className="rounded-xl border p-3">
+                <p className="mb-2 text-xs font-semibold text-muted-foreground">{t('dayPlanner.savedPlans')}</p>
+                <div className="space-y-1">
+                  {plans.slice(0, 6).map((p) => (
+                    <div key={p.id} className="flex items-center justify-between rounded-lg border px-3 py-2 hover:bg-muted/40">
+                      <button onClick={() => openSavedPlan(p)} className="flex min-w-0 flex-1 items-center gap-2 text-start">
+                        <Navigation className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="truncate text-sm font-medium">{p.name}</span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">· {p.order.length} {t('dayPlanner.stops')}</span>
+                      </button>
+                      <button onClick={() => onDeletePlan(p.id)} className="ms-2 shrink-0 text-muted-foreground hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Secondary ways to start. */}
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-[11px] text-muted-foreground"><span className="h-px flex-1 bg-border" />{t('dayPlanner.moreWays')}<span className="h-px flex-1 bg-border" /></div>
+              <div className="flex flex-wrap justify-center gap-2">
+                {hasSeed && <button onClick={() => useDataset(true)} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs hover:bg-muted"><LassoSelect className="h-4 w-4" /> {t('dayPlanner.srcDraw')}</button>}
+                {hasSeed && <button onClick={() => fileRef.current?.click()} disabled={importing} className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs hover:bg-muted disabled:opacity-60"><Upload className="h-4 w-4" /> {t('dayPlanner.srcUpload')}</button>}
               </div>
             </div>
-          )}
-          {msg && <p className="text-sm text-amber-700">{msg}</p>}
+
+            {msg && <p className="text-center text-sm text-amber-700">{msg}</p>}
+          </div>
         </div>
       )}
 
@@ -486,12 +529,12 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
 
             {!order && <>
               <p className="text-[11px] text-muted-foreground">{t('dayPlanner.pickHint')}</p>
-              {/* Selection tools — Rectangle is the primary/default tool, Polygon secondary */}
+              {/* Selection tools — Rectangle (primary) + Draw Area (freehand). Click to arm,
+                  then drag on the map and release; customers inside are selected. */}
               <div className="flex flex-wrap items-center gap-1.5">
-                <button onClick={() => { setSelectMode((m) => m === 'box' ? 'none' : 'box'); setPolyVerts([]); setPicking(null); }} className={`flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium hover:bg-muted ${selectMode === 'box' ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/40 text-primary'}`}><Square className="h-3.5 w-3.5" /> {t('dayPlanner.selBox')}</button>
-                <button onClick={() => { setSelectMode((m) => m === 'polygon' ? 'none' : 'polygon'); setPolyVerts([]); setPicking(null); }} className={`flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted ${selectMode === 'polygon' ? 'border-primary bg-primary/10' : ''}`}><Hexagon className="h-3.5 w-3.5" /> {t('dayPlanner.selPolygon')}</button>
+                <button onClick={() => { setSelectMode((m) => m === 'box' ? 'none' : 'box'); setPicking(null); }} className={`flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium hover:bg-muted ${selectMode === 'box' ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/40 text-primary'}`}><Square className="h-3.5 w-3.5" /> {t('dayPlanner.selBox')}</button>
+                <button onClick={() => { setSelectMode((m) => m === 'area' ? 'none' : 'area'); setPicking(null); }} className={`flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium hover:bg-muted ${selectMode === 'area' ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/40 text-primary'}`}><LassoSelect className="h-3.5 w-3.5" /> {t('dayPlanner.drawArea')}</button>
               </div>
-              {selectMode === 'polygon' && <div className="flex items-center gap-1.5"><Button size="sm" className="flex-1" disabled={polyVerts.length < 3} onClick={finishPolygon}><Check className="h-4 w-4" /> {t('dayPlanner.finishPolygon')} ({polyVerts.length})</Button><button onClick={() => { setPolyVerts([]); setSelectMode('none'); }} className="rounded border px-2 py-1.5 hover:bg-muted"><X className="h-4 w-4" /></button></div>}
 
               {/* Search */}
               <div className="relative"><Search className="pointer-events-none absolute start-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('dayPlanner.searchPlaceholder')} className="h-8 ps-7 text-xs" /></div>
@@ -502,6 +545,21 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
                       <span className="truncate">{c.name}</span>{on && <Check className="h-3 w-3 text-primary" />}
                     </button>); })}
                   {filtered.length === 0 && <p className="px-2 py-2 text-center text-muted-foreground">{t('dayPlanner.noMatch')}</p>}
+                </div>
+              )}
+
+              {/* Quick filters — pick a segment (City / Salesman / Channel / Class) → selects it */}
+              {hasFacets && (
+                <div className="space-y-1">
+                  <p className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Filter className="h-3 w-3" /> {t('dayPlanner.quickFilters')}</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(['city', 'salesman', 'channel', 'class'] as const).map((key) => facets[key].length > 0 && (
+                      <select key={key} value="" onChange={(e) => { if (e.target.value) selectByFacet(key, e.target.value); }} className="h-7 rounded border bg-background px-1 text-[11px]">
+                        <option value="">{t(`dayPlanner.filter_${key}`)}</option>
+                        {facets[key].map(([v, n]) => <option key={v} value={v}>{v} ({n})</option>)}
+                      </select>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -528,6 +586,21 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
 
               <Button className="mt-1" disabled={!canReview} onClick={review}><Wand2 className="h-4 w-4" /> {t('dayPlanner.review')}</Button>
               {msg && <p className="text-[11px] text-amber-700">{msg}</p>}
+
+              {/* Selected customers — inspect / remove before generating. */}
+              {selCount > 0 && (
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{t('dayPlanner.selList')} ({selCount})</p>
+                  <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto pe-1">
+                    {[...selectedIds].map((id) => byId.get(id)).filter(Boolean).slice(0, 500).map((c) => (
+                      <div key={c!.id} className="flex items-center gap-2 rounded border px-1.5 py-1 text-xs">
+                        <span className="min-w-0 flex-1 truncate" title={c!.code ?? ''}>{c!.name}</span>
+                        <button onClick={() => removeFromSelection(c!.id)} title={t('dayPlanner.remove')} className="shrink-0 text-muted-foreground hover:text-red-600"><X className="h-3 w-3" /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>}
 
             {/* Result: stats + ordered list */}
@@ -560,14 +633,14 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
           <div className="relative min-h-0 print:hidden">
             <DayPlannerMap
               points={mapPoints} path={path} endpoints={endpoints} selectedIds={selectedIds}
-              picking={picking != null} selectMode={selectMode} polygon={polyVerts}
-              onBoxSelect={applySelection} onPolyVertex={(lat, lng) => setPolyVerts((v) => [...v, [lng, lat]])}
+              picking={picking != null} selectMode={selectMode}
+              onBoxSelect={applySelection}
               onToggle={(id) => { setSelectedIds((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }); setOrder(null); }}
               onMapClick={onMapClick}
             />
             {picking && <div className="absolute inset-x-0 top-2 z-10 mx-auto w-fit rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow">{'setLoc' in picking ? t('dayPlanner.setLocHint').replace('{name}', t(`dayPlanner.sk_${picking.setLoc}`)) : (picking.which === 'start' ? t('dayPlanner.clickStart') : t('dayPlanner.clickEnd'))}</div>}
             {!picking && selectMode === 'box' && <div className="absolute inset-x-0 top-2 z-10 mx-auto w-fit rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow">{t('dayPlanner.drawHint')}</div>}
-            {!picking && selectMode === 'polygon' && <div className="absolute inset-x-0 top-2 z-10 mx-auto w-fit rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow">{t('dayPlanner.polyHint')}</div>}
+            {!picking && selectMode === 'area' && <div className="absolute inset-x-0 top-2 z-10 mx-auto w-fit rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow">{t('dayPlanner.areaHint')}</div>}
           </div>
         </div>
       )}

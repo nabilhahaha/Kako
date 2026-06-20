@@ -208,7 +208,10 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     if (!dataset) return [];
     return dataset.customers
       .filter((c) => c.geo && Number.isFinite(c.geo.lat) && Number.isFinite(c.geo.lng))
-      .map((c) => ({ id: c.id, code: c.code, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng, sales: c.salesValue ?? undefined }));
+      .map((c) => ({
+        id: c.id, code: c.code, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng, sales: c.salesValue ?? undefined,
+        city: c.city, channel: c.channel, class: c.grade, salesman: c.ownership.salesmanId,
+      }));
   }, [dataset]);
 
   // Route list sorting + top/bottom-10%-by-sales highlight.

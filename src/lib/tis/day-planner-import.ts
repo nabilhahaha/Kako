@@ -13,7 +13,7 @@
 export type DpFieldKey =
   | 'name' | 'lat' | 'lng'
   | 'code' | 'phone' | 'address' | 'city' | 'area' | 'region'
-  | 'salesman' | 'supervisor' | 'channel' | 'lastSales' | 'lastInvoiceDate' | 'notes';
+  | 'salesman' | 'supervisor' | 'channel' | 'class' | 'lastSales' | 'lastInvoiceDate' | 'notes';
 
 export interface DpField { key: DpFieldKey; required?: boolean }
 
@@ -21,7 +21,7 @@ export interface DpField { key: DpFieldKey; required?: boolean }
 export const DP_FIELDS: DpField[] = [
   { key: 'name', required: true }, { key: 'lat', required: true }, { key: 'lng', required: true },
   { key: 'code' }, { key: 'phone' }, { key: 'address' }, { key: 'city' }, { key: 'area' },
-  { key: 'region' }, { key: 'salesman' }, { key: 'supervisor' }, { key: 'channel' },
+  { key: 'region' }, { key: 'salesman' }, { key: 'supervisor' }, { key: 'channel' }, { key: 'class' },
   { key: 'lastSales' }, { key: 'lastInvoiceDate' }, { key: 'notes' },
 ];
 
@@ -43,6 +43,7 @@ const DP_ALIASES: Record<DpFieldKey, string[]> = {
   salesman: ['salesman', 'salesrep', 'rep', 'salesperson', 'salespersonname', 'agent', 'salesmanname', 'المندوب', 'مندوب', 'البائع', 'الممثل'],
   supervisor: ['supervisor', 'manager', 'teamleader', 'المشرف', 'مشرف', 'المدير'],
   channel: ['channel', 'tradechannel', 'outlettype', 'channeltype', 'customertype', 'القناة', 'قناةالبيع', 'نوعالمنفذ', 'نوعالعميل'],
+  class: ['class', 'classification', 'grade', 'category', 'tier', 'outletgrade', 'segment', 'التصنيف', 'الفئة', 'الدرجة', 'تصنيفالعميل'],
   lastSales: ['lastsales', 'sales', 'salesvalue', 'salesamount', 'lastsalesvalue', 'monthlysales', 'revenue', 'turnover', 'value', 'invoicevalue', 'netsales', 'المبيعات', 'مبيعات', 'آخرمبيعات', 'القيمة'],
   lastInvoiceDate: ['lastinvoicedate', 'lastinvoice', 'invoicedate', 'lastvisitdate', 'lastvisit', 'lastorderdate', 'تاريخآخرفاتورة', 'آخرفاتورة', 'تاريخالفاتورة', 'تاريخآخرزيارة'],
   notes: ['notes', 'note', 'remark', 'remarks', 'comment', 'comments', 'description', 'ملاحظات', 'ملاحظة', 'تعليق'],
@@ -104,6 +105,7 @@ export interface DpCustomer {
   salesman?: string | null;
   supervisor?: string | null;
   channel?: string | null;
+  class?: string | null;
   lastInvoiceDate?: string | null;
   notes?: string | null;
 }
@@ -299,6 +301,7 @@ export function validateDpImport(
       salesman: get(rec, 'salesman'),
       supervisor: get(rec, 'supervisor'),
       channel: get(rec, 'channel'),
+      class: get(rec, 'class'),
       lastInvoiceDate: get(rec, 'lastInvoiceDate'),
       notes: get(rec, 'notes'),
     });
