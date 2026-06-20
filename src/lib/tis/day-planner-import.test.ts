@@ -5,6 +5,12 @@ import {
   headersFingerprint,
   mappingMatchScore,
   isValidLatLng,
+  haversineKm,
+  routeMetrics,
+  formatDistanceKm,
+  formatDriveMinutes,
+  pointInPolygon,
+  nearestNeighbourOrder,
   DP_REQUIRED_FIELDS,
 } from './day-planner-import';
 
@@ -125,5 +131,64 @@ describe('day-planner-import — templates', () => {
     expect(isValidLatLng(91, 39)).toBe(false);
     expect(isValidLatLng(21, 181)).toBe(false);
     expect(isValidLatLng(null, 39)).toBe(false);
+  });
+});
+
+describe('day-planner-import — travel metrics', () => {
+  it('haversine ~111km per degree of latitude', () => {
+    expect(haversineKm({ lat: 0, lng: 0 }, { lat: 1, lng: 0 })).toBeCloseTo(111.19, 0);
+    expect(haversineKm({ lat: 21.5, lng: 39.1 }, { lat: 21.5, lng: 39.1 })).toBe(0);
+  });
+
+  it('routeMetrics sums the legs and applies the road factor + speed', () => {
+    // Two 1°-lat legs ≈ 222.38 km straight; ×1.3 ≈ 289 km; /30 km/h ×60 ≈ 578 min.
+    const m = routeMetrics([{ lat: 0, lng: 0 }, { lat: 1, lng: 0 }, { lat: 2, lng: 0 }]);
+    expect(m.distanceKm).toBeCloseTo(289.1, 0);
+    expect(m.driveMinutes).toBeCloseTo(578.2, 0);
+  });
+
+  it('routeMetrics is zero for <2 points', () => {
+    expect(routeMetrics([{ lat: 1, lng: 1 }])).toEqual({ distanceKm: 0, driveMinutes: 0 });
+    expect(routeMetrics([])).toEqual({ distanceKm: 0, driveMinutes: 0 });
+  });
+
+  it('formatters', () => {
+    expect(formatDistanceKm(48)).toBe('48 km');
+    expect(formatDistanceKm(0.8)).toBe('0.8 km');
+    expect(formatDriveMinutes(72)).toBe('1h 12m');
+    expect(formatDriveMinutes(45)).toBe('45m');
+    expect(formatDriveMinutes(0)).toBe('0m');
+  });
+});
+
+describe('day-planner-import — polygon selection', () => {
+  const square = [{ lat: 0, lng: 0 }, { lat: 0, lng: 10 }, { lat: 10, lng: 10 }, { lat: 10, lng: 0 }];
+  it('detects points inside / outside a polygon', () => {
+    expect(pointInPolygon({ lat: 5, lng: 5 }, square)).toBe(true);
+    expect(pointInPolygon({ lat: 15, lng: 5 }, square)).toBe(false);
+    expect(pointInPolygon({ lat: 5, lng: -1 }, square)).toBe(false);
+  });
+  it('needs at least 3 vertices', () => {
+    expect(pointInPolygon({ lat: 1, lng: 1 }, [{ lat: 0, lng: 0 }, { lat: 0, lng: 2 }])).toBe(false);
+  });
+});
+
+describe('day-planner-import — nearest neighbour order', () => {
+  const members = [
+    { id: 'a', lat: 0, lng: 0 },
+    { id: 'b', lat: 0, lng: 1 },
+    { id: 'c', lat: 0, lng: 2 },
+    { id: 'd', lat: 0, lng: 3 },
+  ];
+  it('open route: walks nearest from start, ends at the furthest', () => {
+    expect(nearestNeighbourOrder(members, { lat: 0, lng: 0 })).toEqual(['a', 'b', 'c', 'd']);
+  });
+  it('closed route: reserves the end-nearest member as last', () => {
+    // start near a, end near d → d is reserved last; the rest walk a→b→c.
+    expect(nearestNeighbourOrder(members, { lat: 0, lng: 0 }, { lat: 0, lng: 3 })).toEqual(['a', 'b', 'c', 'd']);
+  });
+  it('handles 0 and 1 members', () => {
+    expect(nearestNeighbourOrder([], { lat: 0, lng: 0 })).toEqual([]);
+    expect(nearestNeighbourOrder([members[0]], { lat: 0, lng: 0 })).toEqual(['a']);
   });
 });

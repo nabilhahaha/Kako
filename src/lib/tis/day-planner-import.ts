@@ -139,6 +139,98 @@ const parseNum = (v: string | null | undefined): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+// ── Travel metrics (distance + estimated drive time) ────────────────────────
+
+export interface LatLng { lat: number; lng: number }
+
+/** Great-circle distance between two points, in km. Pure. */
+export function haversineKm(a: LatLng, b: LatLng): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+export interface RouteMetrics { distanceKm: number; driveMinutes: number }
+
+/**
+ * Estimated travel for an ordered list of points (Start → stops → End). No road
+ * routing is available offline, so we approximate: straight-line distance × a road
+ * winding factor, then drive time at an average urban speed. Pure.
+ */
+export function routeMetrics(orderedPoints: readonly LatLng[], roadFactor = 1.3, avgSpeedKmh = 30): RouteMetrics {
+  if (orderedPoints.length < 2 || avgSpeedKmh <= 0) return { distanceKm: 0, driveMinutes: 0 };
+  let straight = 0;
+  for (let i = 1; i < orderedPoints.length; i++) straight += haversineKm(orderedPoints[i - 1], orderedPoints[i]);
+  const distanceKm = straight * roadFactor;
+  return { distanceKm, driveMinutes: (distanceKm / avgSpeedKmh) * 60 };
+}
+
+/** "48 km" / "0.8 km". Pure. */
+export function formatDistanceKm(km: number): string {
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
+
+/** "1h 12m" / "45m". Pure. */
+export function formatDriveMinutes(min: number): string {
+  const m = Math.max(0, Math.round(min));
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return h > 0 ? `${h}h ${r}m` : `${r}m`;
+}
+
+// ── Geographic selection (polygon) + sequencing ─────────────────────────────
+
+/** Ray-casting point-in-polygon test in lng/lat space. `poly` is a ring of LatLng. Pure. */
+export function pointInPolygon(pt: LatLng, poly: readonly LatLng[]): boolean {
+  if (poly.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].lng, yi = poly[i].lat;
+    const xj = poly[j].lng, yj = poly[j].lat;
+    const intersect = (yi > pt.lat) !== (yj > pt.lat) &&
+      pt.lng < ((xj - xi) * (pt.lat - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+export interface SeqMember { id: string; lat: number; lng: number }
+
+/**
+ * Nearest-neighbour visit order from `start`. When `end` is given, the member nearest
+ * the end is reserved as the last stop (a closed route Start → … → End); when `end` is
+ * null the route is OPEN (ends at the last/furthest customer — "End = Last Customer").
+ * Self-contained (mirrors the Journey engine) so the Day Planner needs no extra deps. Pure.
+ */
+export function nearestNeighbourOrder(members: readonly SeqMember[], start: LatLng, end: LatLng | null = null): string[] {
+  if (members.length === 0) return [];
+  if (members.length === 1) return [members[0].id];
+  const remaining = [...members];
+  let lastId: string | null = null;
+  if (end) {
+    let bi = 0, bd = Infinity;
+    remaining.forEach((m, i) => { const d = haversineKm(m, end); if (d < bd) { bd = d; bi = i; } });
+    lastId = remaining[bi].id;
+    remaining.splice(bi, 1);
+  }
+  const order: string[] = [];
+  let cur: LatLng = start;
+  while (remaining.length) {
+    let bi = 0, bd = Infinity;
+    remaining.forEach((m, i) => { const d = haversineKm(cur, m); if (d < bd) { bd = d; bi = i; } });
+    const next = remaining.splice(bi, 1)[0];
+    order.push(next.id);
+    cur = next;
+  }
+  if (lastId) order.push(lastId);
+  return order;
+}
+
 /** A coordinate is valid when both parse, are in range, and are not the 0,0 null-island. */
 export function isValidLatLng(lat: number | null, lng: number | null): boolean {
   if (lat == null || lng == null) return false;
