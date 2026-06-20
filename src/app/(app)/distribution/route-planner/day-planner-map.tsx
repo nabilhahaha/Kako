@@ -9,8 +9,13 @@ export type DaySelectMode = 'none' | 'box' | 'area';
 
 const RASTER_STYLE = {
   version: 8 as const,
-  sources: { osm: { type: 'raster' as const, tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } },
-  layers: [{ id: 'osm', type: 'raster' as const, source: 'osm' }],
+  sources: { osm: { type: 'raster' as const, tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', 'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png', 'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, minzoom: 0, maxzoom: 19, attribution: '© OpenStreetMap contributors' } },
+  // An opaque background layer UNDER the tiles: if a tile is slow/blocked the map shows
+  // neutral grey instead of the page's (possibly dark) background bleeding through black.
+  layers: [
+    { id: 'bg', type: 'background' as const, paint: { 'background-color': '#e9eef2' } },
+    { id: 'osm', type: 'raster' as const, source: 'osm' },
+  ],
 };
 
 /** Ray-casting point-in-polygon in screen (pixel) space. */
@@ -63,7 +68,15 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
       map = new maplibregl.Map({ container: containerRef.current, style: RASTER_STYLE as never, center: [39.17, 21.58], zoom: 9 });
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
       mapRef.current = map;
-      map.on('load', () => { sync(); });
+      // Embedded in a flex/grid dashboard panel the container can settle AFTER init, which
+      // leaves the WebGL canvas mis-sized (blank/black). Force a resize on load + shortly
+      // after, and keep it in sync with the container via a ResizeObserver.
+      map.on('load', () => { sync(); mapRef.current?.resize(); setTimeout(() => mapRef.current?.resize(), 250); });
+      if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+        const ro = new ResizeObserver(() => mapRef.current?.resize());
+        ro.observe(containerRef.current);
+        (map! as unknown as { __ro?: ResizeObserver }).__ro = ro;
+      }
       map.on('click', (e) => { if (cb.current.picking) cb.current.onMapClick(e.lngLat.lat, e.lngLat.lng); });
 
       const canvas = map.getCanvasContainer();
@@ -126,7 +139,7 @@ export function DayPlannerMap({ points, path, endpoints, selectedIds, onToggle, 
     return () => {
       cancelled = true;
       markersRef.current.forEach((m) => m.remove());
-      if (map) { (map as unknown as { __cleanup?: () => void }).__cleanup?.(); map.remove(); }
+      if (map) { (map as unknown as { __cleanup?: () => void; __ro?: ResizeObserver }).__cleanup?.(); (map as unknown as { __ro?: ResizeObserver }).__ro?.disconnect(); map.remove(); }
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
