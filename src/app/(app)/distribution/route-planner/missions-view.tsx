@@ -1,16 +1,20 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Target, Plus, MapPin, Users, Wand2, Check, ArrowRight, ArrowLeft, Calendar, Search, X, Send, Trash2, ClipboardList, ChevronRight } from 'lucide-react';
+import { Target, Plus, MapPin, Users, Wand2, Check, ArrowRight, ArrowLeft, Calendar, Search, X, Send, Trash2, ChevronRight, Play, LogIn, LogOut, Camera, MessageSquare, AlertTriangle, Swords, Lightbulb, ListChecks, Flag, CheckCircle2, Navigation } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { DpCustomer } from '@/lib/tis/day-planner-import';
 import { sequenceStops, type JourneyPoint } from '@/lib/tis/journey';
 import type { MissionPerms } from '@/lib/erp/route-planner-access';
-import type { MissionStatus } from '@/lib/erp/route-planner-mission';
+import { missionProgress, type MissionStatus, type StopObservationKind } from '@/lib/erp/route-planner-mission';
 import { SelectionMap, type SelMapPoint } from './selection-map';
-import { createMission, listMissions, listAssignableUsers, deleteMission, type MissionHeader } from './rp-mission-actions';
+import {
+  createMission, listMissions, listAssignableUsers, deleteMission, getMission, transitionMission,
+  checkInStop, checkOutStop, addStopObservation, type MissionHeader,
+} from './rp-mission-actions';
+import { uploadAttachment } from '@/app/(app)/attachments/actions';
 
 const STATUS_TONE: Record<MissionStatus, string> = {
   draft: 'bg-slate-100 text-slate-700', assigned: 'bg-sky-100 text-sky-700', in_progress: 'bg-amber-100 text-amber-700',
@@ -27,24 +31,29 @@ const STATUS_TONE: Record<MissionStatus, string> = {
 export function MissionsView({ customers, perms, onImport }: { customers: DpCustomer[]; perms: MissionPerms; onImport: () => void }) {
   const { t } = useI18n();
   const [mode, setMode] = useState<'list' | 'build'>('list');
+  const [scope, setScope] = useState<'all' | 'assigned'>('all');
+  const [openId, setOpenId] = useState<string | null>(null);
   const [missions, setMissions] = useState<MissionHeader[]>([]);
   const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
-    const [m, u] = await Promise.all([listMissions('all'), listAssignableUsers()]);
+    const [m, u] = await Promise.all([listMissions(scope), listAssignableUsers()]);
     if (m.ok) setMissions(m.data ?? []);
     if (u.ok) setPeople(u.data ?? []);
     setLoading(false);
   }
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { void refresh(); }, [scope]);
   const nameOf = useMemo(() => { const map = new Map(people.map((p) => [p.id, p.name])); return (id: string | null) => (id ? map.get(id) ?? t('rpShell.mn_someone') : t('rpShell.mn_unassigned')); }, [people, t]);
 
   if (mode === 'build') {
     return <MissionBuilder customers={customers} people={people} perms={perms} onImport={onImport}
       onCancel={() => setMode('list')} onSaved={() => { setMode('list'); void refresh(); }} />;
+  }
+  if (openId) {
+    return <MissionDetail missionId={openId} perms={perms} nameOf={(id) => nameOf(id)} onClose={() => { setOpenId(null); void refresh(); }} />;
   }
 
   const grouped = useMemo(() => {
@@ -60,9 +69,18 @@ export function MissionsView({ customers, perms, onImport }: { customers: DpCust
           <p className="text-sm font-bold">{t('rpShell.mn_title')}</p>
           {missions.length > 0 && <span className="text-xs text-muted-foreground">({missions.length})</span>}
         </div>
-        {perms.canCreate && (
-          <Button onClick={() => setMode('build')}><Plus className="h-4 w-4" /> {t('rpShell.mn_new')}</Button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex overflow-hidden rounded-full border text-xs">
+            {(['all', 'assigned'] as const).map((s) => (
+              <button key={s} onClick={() => setScope(s)} className={`px-3 py-1 ${scope === s ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
+                {s === 'all' ? t('rpShell.mn_scopeAll') : t('rpShell.mn_scopeMine')}
+              </button>
+            ))}
+          </div>
+          {perms.canCreate && (
+            <Button onClick={() => setMode('build')}><Plus className="h-4 w-4" /> {t('rpShell.mn_new')}</Button>
+          )}
+        </div>
       </div>
       {msg && <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">{msg}</p>}
 
@@ -85,16 +103,18 @@ export function MissionsView({ customers, perms, onImport }: { customers: DpCust
               </p>
               <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {g.items.map((m) => (
-                  <li key={m.id} className="rounded-xl border bg-card p-3 shadow-sm transition hover:shadow">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="min-w-0 truncate font-medium">{m.name}</p>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_TONE[m.status]}`}>{t(`rpShell.ms_${m.status}` as Parameters<typeof t>[0])}</span>
-                    </div>
-                    <div className="mt-1.5 space-y-1 text-[11px] text-muted-foreground">
-                      <p className="flex items-center gap-1"><Users className="h-3 w-3" /> {nameOf(m.assignedTo)}</p>
-                      <p className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {t('rpShell.mn_stops', { n: m.stopCount })}</p>
-                      {m.missionDate && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {m.missionDate}</p>}
-                    </div>
+                  <li key={m.id} className="rounded-xl border bg-card p-3 shadow-sm transition hover:border-primary/40 hover:shadow">
+                    <button onClick={() => setOpenId(m.id)} className="block w-full text-start">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 truncate font-medium">{m.name}</p>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_TONE[m.status]}`}>{t(`rpShell.ms_${m.status}` as Parameters<typeof t>[0])}</span>
+                      </div>
+                      <div className="mt-1.5 space-y-1 text-[11px] text-muted-foreground">
+                        <p className="flex items-center gap-1"><Users className="h-3 w-3" /> {nameOf(m.assignedTo)}</p>
+                        <p className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {t('rpShell.mn_stops', { n: m.stopCount })}</p>
+                        {m.missionDate && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {m.missionDate}</p>}
+                      </div>
+                    </button>
                     {(m.status === 'draft') && perms.canCreate && (
                       <button onClick={async () => { await deleteMission(m.id); void refresh(); }} className="mt-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-red-600">
                         <Trash2 className="h-3 w-3" /> {t('rpShell.mn_delete')}
@@ -107,6 +127,168 @@ export function MissionsView({ customers, perms, onImport }: { customers: DpCust
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Mobile execution: My Mission detail ─────────────────────────────────────
+const ATTACH_ENTITY = 'rp_mission';
+
+interface StopRow { id: string; seq: number; customer_name: string; customer_code: string | null; status: string; lat: number | null; lng: number | null; follow_up: boolean }
+
+function getGps(): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => resolve(null), { enableHighAccuracy: true, timeout: 6000 },
+    );
+  });
+}
+
+const OBS: { kind: StopObservationKind; icon: typeof MessageSquare; key: string }[] = [
+  { kind: 'note', icon: MessageSquare, key: 'mn_obsNote' },
+  { kind: 'issue', icon: AlertTriangle, key: 'mn_obsIssue' },
+  { kind: 'competitor', icon: Swords, key: 'mn_obsCompetitor' },
+  { kind: 'opportunity', icon: Lightbulb, key: 'mn_obsOpportunity' },
+  { kind: 'follow_up', icon: ListChecks, key: 'mn_obsFollowUp' },
+];
+
+function MissionDetail({ missionId, perms, nameOf, onClose }: {
+  missionId: string; perms: MissionPerms; nameOf: (id: string | null) => string; onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [header, setHeader] = useState<MissionHeader | null>(null);
+  const [stops, setStops] = useState<StopRow[]>([]);
+  const [report, setReport] = useState<ReturnType<typeof import('@/lib/erp/route-planner-mission')['missionReport']> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [composer, setComposer] = useState<{ stopId: string; kind: StopObservationKind } | null>(null);
+  const [text, setText] = useState('');
+  async function load() {
+    const r = await getMission(missionId);
+    if (r.ok && r.data) { setHeader(r.data.header); setStops(r.data.stops as unknown as StopRow[]); setReport(r.data.report); }
+  }
+  useEffect(() => { void load(); }, [missionId]);
+
+  const progress = useMemo(() => missionProgress(stops), [stops]);
+  const status = header?.status;
+  const running = status === 'in_progress';
+
+  async function doTransition(to: MissionStatus) { setBusy(true); await transitionMission(missionId, to); await load(); setBusy(false); }
+  async function doCheckIn(stopId: string) { setBusy(true); const gps = await getGps(); await checkInStop(stopId, gps ?? undefined); await load(); setBusy(false); }
+  async function doCheckOut(stopId: string, done: boolean) { setBusy(true); await checkOutStop(stopId, done); await load(); setBusy(false); }
+  async function sendObs() {
+    if (!composer) return;
+    setBusy(true);
+    await addStopObservation({ missionId, stopId: composer.stopId, kind: composer.kind, text: text.trim() || null });
+    setComposer(null); setText(''); await load(); setBusy(false);
+  }
+  async function onPhoto(e: React.ChangeEvent<HTMLInputElement>, stopId: string) {
+    const file = e.target.files?.[0]; if (e.target) e.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    const fd = new FormData(); fd.append('entity', ATTACH_ENTITY); fd.append('record_id', missionId); fd.append('file', file);
+    const up = await uploadAttachment(fd);
+    await addStopObservation({ missionId, stopId, kind: 'photo', text: file.name, attachments: up && typeof up === 'object' && 'id' in up ? [String((up as { id: unknown }).id)] : [] });
+    await load(); setBusy(false);
+  }
+
+  if (!header) return <p className="p-6 text-center text-sm text-muted-foreground">{t('rpShell.mn_loading')}</p>;
+
+  return (
+    <div className="mx-auto flex h-full min-h-0 max-w-2xl flex-col gap-3 p-3">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted"><ArrowLeft className="h-5 w-5" /></button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-base font-bold">{header.name}</p>
+          <p className="text-[11px] text-muted-foreground"><Users className="me-1 inline h-3 w-3" />{nameOf(header.assignedTo)}{header.missionDate ? ` · ${header.missionDate}` : ''}</p>
+        </div>
+        <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${STATUS_TONE[header.status]}`}>{t(`rpShell.ms_${header.status}` as Parameters<typeof t>[0])}</span>
+      </div>
+
+      {/* Progress */}
+      <div>
+        <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+          <span>{t('rpShell.mn_progress', { done: progress.visited, total: progress.total })}</span><span>{progress.pct}%</span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress.pct}%` }} /></div>
+      </div>
+
+      {/* Primary lifecycle action */}
+      {status === 'assigned' && perms.canExecute && (
+        <Button size="lg" disabled={busy} onClick={() => doTransition('in_progress')}><Play className="h-4 w-4" /> {t('rpShell.mn_start')}</Button>
+      )}
+      {running && (
+        <Button size="lg" disabled={busy || progress.total === 0} onClick={() => doTransition('completed')}><CheckCircle2 className="h-4 w-4" /> {t('rpShell.mn_complete')}</Button>
+      )}
+      {status === 'completed' && perms.canReview && (
+        <Button size="lg" variant="outline" disabled={busy} onClick={() => doTransition('reviewed')}><Check className="h-4 w-4" /> {t('rpShell.mn_markReviewed')}</Button>
+      )}
+
+      {/* Report (completed / reviewed) */}
+      {report && (status === 'completed' || status === 'reviewed') && (
+        <div className="grid grid-cols-3 gap-2 rounded-xl border bg-muted/20 p-3 text-center">
+          {[
+            { v: report.stopsCompleted, k: 'mn_rCompleted' }, { v: report.stopsMissed, k: 'mn_rMissed' }, { v: report.stopsSkipped, k: 'mn_rSkipped' },
+            { v: report.issues, k: 'mn_obsIssue' }, { v: report.opportunities, k: 'mn_obsOpportunity' }, { v: report.followUps, k: 'mn_obsFollowUp' },
+          ].map((x) => (
+            <div key={x.k}><p className="text-lg font-bold tabular-nums">{x.v}</p><p className="text-[10px] text-muted-foreground">{t(`rpShell.${x.k}` as Parameters<typeof t>[0])}</p></div>
+          ))}
+        </div>
+      )}
+
+      {/* Ordered stops */}
+      <ul className="min-h-0 flex-1 space-y-2 overflow-auto">
+        {stops.map((s) => (
+          <li key={s.id} className="rounded-xl border bg-card p-3">
+            <div className="flex items-center gap-2">
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${s.status === 'done' ? 'bg-emerald-100 text-emerald-700' : s.status === 'skipped' ? 'bg-muted text-muted-foreground' : s.status === 'checked_in' ? 'bg-amber-100 text-amber-700' : 'bg-primary/10 text-primary'}`}>
+                {s.status === 'done' ? <Check className="h-3.5 w-3.5" /> : s.seq + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{s.customer_name}</p>
+                {s.customer_code && <p className="text-[11px] text-muted-foreground">{s.customer_code}</p>}
+              </div>
+              {Number.isFinite(s.lat) && Number.isFinite(s.lng) && (
+                <a href={`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}`} target="_blank" rel="noreferrer" className="rounded-lg border p-1.5 hover:bg-muted" title={t('rpShell.mn_navigate')}><Navigation className="h-4 w-4 text-primary" /></a>
+              )}
+            </div>
+
+            {running && (
+              <>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {s.status === 'pending' && <button disabled={busy} onClick={() => doCheckIn(s.id)} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"><LogIn className="h-3.5 w-3.5" /> {t('rpShell.mn_checkIn')}</button>}
+                  {s.status === 'checked_in' && <>
+                    <button disabled={busy} onClick={() => doCheckOut(s.id, true)} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"><LogOut className="h-3.5 w-3.5" /> {t('rpShell.mn_checkOut')}</button>
+                    <button disabled={busy} onClick={() => doCheckOut(s.id, false)} className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-50">{t('rpShell.mn_skip')}</button>
+                  </>}
+                </div>
+                {/* Observation quick-actions */}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {OBS.map((o) => (
+                    <button key={o.kind} onClick={() => { setComposer({ stopId: s.id, kind: o.kind }); setText(''); }} title={t(`rpShell.${o.key}` as Parameters<typeof t>[0])}
+                      className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"><o.icon className="h-3 w-3" /> {t(`rpShell.${o.key}` as Parameters<typeof t>[0])}</button>
+                  ))}
+                  <label className="inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted">
+                    <Camera className="h-3 w-3" /> {t('rpShell.mn_obsPhoto')}
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onPhoto(e, s.id)} />
+                  </label>
+                </div>
+                {s.follow_up && <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-amber-700"><Flag className="h-3 w-3" /> {t('rpShell.mn_followFlagged')}</p>}
+                {composer?.stopId === s.id && (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <Input autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={t(`rpShell.${OBS.find((o) => o.kind === composer.kind)!.key}` as Parameters<typeof t>[0])} className="h-8 flex-1 text-xs" />
+                    <Button size="sm" disabled={busy} onClick={() => void sendObs()}><Send className="h-4 w-4" /></Button>
+                    <button onClick={() => setComposer(null)} className="rounded p-1 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
+                  </div>
+                )}
+              </>
+            )}
+          </li>
+        ))}
+        {stops.length === 0 && <p className="p-4 text-center text-xs text-muted-foreground">{t('rpShell.mn_noStops')}</p>}
+      </ul>
     </div>
   );
 }
