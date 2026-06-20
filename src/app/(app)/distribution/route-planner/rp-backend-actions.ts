@@ -6,6 +6,7 @@ import { summarizeSync } from '@/lib/erp/route-planner-sync';
 import { dataHealthCounts } from '@/lib/erp/route-planner-data-health';
 import { fetchConnector, redactConfig, type ConnectorType, type ConnectorConfig } from '@/lib/erp/route-planner-connectors';
 import { toCustomers, isValidCustomer, type CmMapping } from '@/lib/erp/route-planner-customer-map';
+import { persistDataset, type DatasetCustomerInput } from './rp-dataset-actions';
 import { suggestColumnMapping } from '@/lib/tis/upload';
 import type { DataHealthInput } from '@/lib/erp/route-planner-data-health';
 import type { RpEntity, RpSourceType, RpTicketType, RpTicketStatus, RpApprovalStep } from '@/lib/erp/route-planner-backend';
@@ -135,14 +136,25 @@ async function recordSync(
   return { ok: true, data: { runId: data.id, imported: summary.rowsImported, updated: summary.rowsUpdated, rejected: summary.rowsRejected, issues: summary.qualityIssues, quality: dataHealthCounts(summary.quality) } };
 }
 
-/** Manual Upload sync — client has already parsed + mapped to HCustomer; runs the shared pipeline. */
+/** Manual Upload sync — client has already parsed + mapped to HCustomer; runs the shared
+ *  pipeline. When `datasetName` is supplied the working set is also persisted into the
+ *  SHARED dataset model (same path the connectors use) and made the active dataset. */
 export async function runManualSync(input: {
   sourceId?: string | null; sourceLabel?: string | null;
   master: DataHealthInput; existingCodes?: string[]; rejected?: { row: number; reason: string }[];
+  datasetName?: string | null; columns?: Record<string, unknown>;
 }): Promise<SyncResult> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
-  return recordSync(sb, ctx.companyId!, { ...input, trigger: 'manual' });
+  const synced = await recordSync(sb, ctx.companyId!, { ...input, trigger: 'manual' });
+  if (synced.ok && input.datasetName?.trim()) {
+    await persistDataset({
+      name: input.datasetName.trim(), source: 'manual_upload', sourceId: input.sourceId ?? null,
+      syncRunId: synced.data?.runId ?? null, columns: input.columns ?? {}, setActive: true,
+      customers: (input.master.customers ?? []).map((c) => ({ code: c.code ?? null, name: c.name ?? '', lat: c.lat ?? null, lng: c.lng ?? null, salesman: c.salesman ?? null, route: c.route ?? null })) as DatasetCustomerInput[],
+    });
+  }
+  return synced;
 }
 
 // ── Connectors: Fetch (server) → then the SAME shared pipeline ───────────────
@@ -190,7 +202,20 @@ export async function runConnectorSync(sourceId: string, mapping: CmMapping): Pr
   const clean: Record<string, string> = {}; for (const k of Object.keys(mapping)) { const v = mapping[k]; if (v) clean[k] = v; }
   await sb.from('erp_rp_field_mappings').upsert({ source_id: sourceId, company_id: ctx.companyId, entity: CONNECTOR_ENTITY, mapping: clean, updated_at: new Date().toISOString() }, { onConflict: 'source_id,entity' });
 
-  return recordSync(sb, ctx.companyId!, { sourceId, sourceLabel: src.name, trigger: 'manual', master: { customers: valid }, existingCodes: [], rejected });
+  const synced = await recordSync(sb, ctx.companyId!, { sourceId, sourceLabel: src.name, trigger: 'manual', master: { customers: valid }, existingCodes: [], rejected });
+
+  // Wave B: persist the fetched working set into the SHARED dataset model (same path as
+  // Manual Upload) and make it the active planning dataset. Connectors are no longer
+  // write-only metrics — the rows now land in erp_rp_datasets/_customers.
+  if (synced.ok) {
+    const source = src.type === 'google_sheets' ? 'google_sheets' : 'api_erp';
+    await persistDataset({
+      name: src.name, source, sourceId, syncRunId: synced.data?.runId ?? null,
+      columns: clean, setActive: true,
+      customers: valid.map((c) => ({ code: c.code ?? null, name: c.name ?? '', lat: c.lat ?? null, lng: c.lng ?? null, salesman: c.salesman ?? null, route: c.route ?? null })) as DatasetCustomerInput[],
+    });
+  }
+  return synced;
 }
 
 export async function listSyncRuns(limit = 50): Promise<Result<unknown[]>> {
