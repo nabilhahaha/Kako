@@ -56,6 +56,10 @@ export interface AdminDiagnostics {
   companyId: string | null;
   serviceKeyPresent: boolean;
   serviceKeyLength: number;
+  /** 'jwt' (eyJ…) | 'sb_secret' (sb_secret_…) | 'other' (wrong/truncated) | 'empty'. */
+  serviceKeyShape: 'jwt' | 'sb_secret' | 'other' | 'empty';
+  /** Heuristic: does the value look like a real service-role key (right shape + length)? */
+  serviceKeyLooksValid: boolean;
   /** Project ref decoded from the service key's JWT payload (NOT the secret) — for legacy keys. */
   serviceKeyRef: string | null;
   supabaseUrl: string;
@@ -65,6 +69,8 @@ export interface AdminDiagnostics {
   keyMatchesUrl: boolean | null;
   vercelEnv: string | null;
   gitRef: string | null;
+  /** Short commit SHA of THIS deployment — so you can confirm you're reading the latest build. */
+  commitSha: string | null;
 }
 
 /**
@@ -92,6 +98,13 @@ export async function routePlannerAdminDiagnostics(): Promise<Result<AdminDiagno
   }
   const keyMatchesUrl = serviceKeyRef && supabaseRef ? serviceKeyRef === supabaseRef : null;
 
+  const serviceKeyShape: AdminDiagnostics['serviceKeyShape'] =
+    key.length === 0 ? 'empty' : key.startsWith('sb_secret') ? 'sb_secret' : parts.length === 3 ? 'jwt' : 'other';
+  // A real service-role key is a long JWT (decodable ref) or an sb_secret_ token.
+  const serviceKeyLooksValid =
+    serviceKeyShape === 'jwt' ? serviceKeyRef !== null && key.length > 100 :
+    serviceKeyShape === 'sb_secret' ? key.length >= 40 : false;
+
   return {
     ok: true,
     data: {
@@ -102,12 +115,15 @@ export async function routePlannerAdminDiagnostics(): Promise<Result<AdminDiagno
       companyId: ctx.companyId,
       serviceKeyPresent: key.length > 0,
       serviceKeyLength: key.length,
+      serviceKeyShape,
+      serviceKeyLooksValid,
       serviceKeyRef,
       supabaseUrl: url,
       supabaseRef,
       keyMatchesUrl,
       vercelEnv: process.env.VERCEL_ENV ?? null,
       gitRef: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+      commitSha: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
     },
   };
 }
