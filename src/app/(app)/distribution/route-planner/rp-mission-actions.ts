@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { missionPermsOf } from '@/lib/erp/route-planner-access';
 import { canTransition, transitionCapability, missionReport, type MissionStatus, type StopObservationKind } from '@/lib/erp/route-planner-mission';
+import { dailyVisitPlanFromJourney, type JourneyDayKey, type StoredAssignment } from '@/lib/erp/route-planner-daily-plan';
 import type { MissionLite, VisitKpis } from '@/lib/erp/route-planner-kpi';
 
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
@@ -76,6 +77,48 @@ export async function createMission(input: {
     if (sErr) { await sb.from('erp_rp_missions').delete().eq('id', missionId); return { ok: false, error: sErr.message }; }
   }
   return { ok: true, data: { id: missionId } };
+}
+
+/**
+ * Wave F connect — turn a saved DAY PLAN into a mission (the plan's ordered customers
+ * become the mission's stops, preserving the optimized sequence). Reuses the planning
+ * output; no separate selection logic.
+ */
+export async function createMissionFromDayPlan(dayPlanId: string, opts?: { assignedTo?: string | null; missionDate?: string | null; name?: string }): Promise<Result<{ id: string }>> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  if (!perms(ctx).canCreate) return { ok: false, error: 'err_no_create_perm' };
+  const sb = await createClient();
+  const { data: dp } = await sb.from('erp_rp_day_plans').select('name, plan, dataset_id').eq('id', dayPlanId).eq('company_id', ctx.companyId).maybeSingle();
+  if (!dp) return { ok: false, error: 'not_found' };
+  const plan = (dp.plan as { customers?: { id: string; code?: string | null; name: string; lat?: number; lng?: number }[]; order?: string[] }) ?? {};
+  const byId = new Map((plan.customers ?? []).map((c) => [c.id, c]));
+  const order = plan.order?.length ? plan.order : (plan.customers ?? []).map((c) => c.id);
+  const stops: MissionStopInput[] = order.map((id) => byId.get(id)).filter((c): c is NonNullable<typeof c> => !!c)
+    .filter((c) => typeof c.lat === 'number' && typeof c.lng === 'number')   // GPS-validated
+    .map((c, i) => ({ customerCode: c.code ?? null, customerName: c.name, lat: c.lat, lng: c.lng, seq: i }));
+  return createMission({ name: opts?.name || (dp.name as string), missionDate: opts?.missionDate ?? null, assignedTo: opts?.assignedTo ?? null, datasetId: (dp.dataset_id as string | null) ?? null, stops, meta: { source: 'day_plan', dayPlanId } });
+}
+
+/**
+ * Wave F connect — generate a daily mission from a JOURNEY PLAN's day (reuses the same
+ * dailyVisitPlanFromJourney derivation used for daily plans, so the stop set + order come
+ * from the journey engine, not a new selection path).
+ */
+export async function createMissionFromJourneyDay(journeyId: string, day: JourneyDayKey, opts?: { assignedTo?: string | null; missionDate?: string | null; name?: string }): Promise<Result<{ id: string; count: number }>> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  if (!perms(ctx).canCreate) return { ok: false, error: 'err_no_create_perm' };
+  const sb = await createClient();
+  const { data: jp } = await sb.from('erp_rp_journey_plans').select('name, plan, dataset_id').eq('id', journeyId).eq('company_id', ctx.companyId).maybeSingle();
+  if (!jp) return { ok: false, error: 'not_found' };
+  const planObj = (jp.plan as { assignments?: Record<string, StoredAssignment>; customers?: { id: string; code?: string | null; name?: string; lat?: number; lng?: number }[] }) ?? {};
+  const customers = planObj.customers ?? [];
+  const stopsForDay = dailyVisitPlanFromJourney(planObj.assignments ?? {}, customers, day);
+  const stops: MissionStopInput[] = stopsForDay.map((s) => s.customer)
+    .filter((c) => typeof c.lat === 'number' && typeof c.lng === 'number')
+    .map((c, i) => ({ customerCode: c.code ?? null, customerName: c.name ?? '', lat: c.lat, lng: c.lng, seq: i }));
+  if (stops.length === 0) return { ok: false, error: 'err_no_stops_for_day' };
+  const res = await createMission({ name: opts?.name || `${jp.name as string} — ${day}`, missionDate: opts?.missionDate ?? null, assignedTo: opts?.assignedTo ?? null, datasetId: (jp.dataset_id as string | null) ?? null, stops, meta: { source: 'journey_plan', journeyId, day } });
+  return res.ok ? { ok: true, data: { id: res.data!.id, count: stops.length } } : res;
 }
 
 /** Replace a mission's stops (draft/assigned only). Keeps the optimized order the manager set. */

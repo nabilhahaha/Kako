@@ -12,8 +12,10 @@ import { missionProgress, type MissionStatus, type StopObservationKind } from '@
 import { SelectionMap, type SelMapPoint } from './selection-map';
 import {
   createMission, listMissions, listAssignableUsers, deleteMission, getMission, transitionMission,
-  checkInStop, checkOutStop, addStopObservation, type MissionHeader,
+  checkInStop, checkOutStop, addStopObservation, createMissionFromDayPlan, createMissionFromJourneyDay, type MissionHeader,
 } from './rp-mission-actions';
+import { listDayPlans, listJourneyPlans, type SavedPlanRow } from './rp-plan-actions';
+import { JOURNEY_DAYS, type JourneyDayKey } from '@/lib/erp/route-planner-daily-plan';
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
 
 const STATUS_TONE: Record<MissionStatus, string> = {
@@ -299,6 +301,7 @@ function MissionBuilder({ customers, people, perms, onCancel, onSaved, onImport 
   onCancel: () => void; onSaved: () => void; onImport: () => void;
 }) {
   const { t } = useI18n();
+  const [source, setSource] = useState<'manual' | 'day_plan' | 'journey'>('manual');
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [supervisorId, setSupervisorId] = useState<string>('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -308,6 +311,24 @@ function MissionBuilder({ customers, people, perms, onCancel, onSaved, onImport 
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // Plan-sourced creation (Wave F connect): a Day/Journey plan becomes the mission.
+  const [dayPlans, setDayPlans] = useState<SavedPlanRow[]>([]);
+  const [journeyPlans, setJourneyPlans] = useState<SavedPlanRow[]>([]);
+  const [planId, setPlanId] = useState<string>('');
+  const [journeyDay, setJourneyDay] = useState<JourneyDayKey>('sat');
+  useEffect(() => {
+    void listDayPlans().then((r) => { if (r.ok) setDayPlans(r.data ?? []); });
+    void listJourneyPlans().then((r) => { if (r.ok) setJourneyPlans(r.data ?? []); });
+  }, []);
+  async function createFromPlan() {
+    setSaving(true); setMsg(null);
+    const res = source === 'day_plan'
+      ? await createMissionFromDayPlan(planId, { assignedTo: supervisorId || null, missionDate: date })
+      : await createMissionFromJourneyDay(planId, journeyDay, { assignedTo: supervisorId || null, missionDate: date });
+    setSaving(false);
+    if (!res.ok) { setMsg(errLabel(res.error)); return; }
+    onSaved();
+  }
 
   const byId = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
   const withGeo = useMemo(() => customers.filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng) && !(c.lat === 0 && c.lng === 0)), [customers]);
@@ -383,6 +404,69 @@ function MissionBuilder({ customers, people, perms, onCancel, onSaved, onImport 
         <div className="flex items-center gap-2"><Target className="h-5 w-5 text-primary" /><p className="text-sm font-bold">{t('rpShell.mn_new')}</p></div>
         <button onClick={onCancel} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /> {t('routePlanner.cancel')}</button>
       </div>
+
+      {/* Start-from source — a mission is the EXECUTION of a plan. Reuse planning outputs. */}
+      <div>
+        <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{t('rpShell.mn_startFrom')}</p>
+        <div className="flex flex-wrap gap-1.5">
+          {([['manual', 'mn_srcManual'], ['day_plan', 'mn_srcDayPlan'], ['journey', 'mn_srcJourney']] as const).map(([s, key]) => (
+            <button key={s} onClick={() => { setSource(s); setPlanId(''); setMsg(null); }}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${source === s ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
+              {t(`rpShell.${key}` as Parameters<typeof t>[0])}
+            </button>
+          ))}
+        </div>
+      </div>
+      {msg && <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">{msg}</p>}
+
+      {/* Plan-sourced flow: pick a saved Day/Journey plan + supervisor → create. */}
+      {source !== 'manual' && (
+        <div className="min-h-0 flex-1 space-y-3 overflow-auto">
+          {source === 'journey' && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-medium text-muted-foreground">{t('rpShell.mn_pickDay')}</span>
+              {JOURNEY_DAYS.map((d) => (
+                <button key={d} onClick={() => setJourneyDay(d)} className={`rounded-full border px-2.5 py-1 text-[11px] ${journeyDay === d ? 'border-primary bg-primary/10 text-primary' : 'hover:bg-muted'}`}>{t(`routePlanner.jpDay_${d}` as Parameters<typeof t>[0])}</button>
+              ))}
+            </div>
+          )}
+          <p className="text-[11px] font-medium text-muted-foreground">{source === 'day_plan' ? t('rpShell.mn_pickDayPlan') : t('rpShell.mn_pickJourney')}</p>
+          {(source === 'day_plan' ? dayPlans : journeyPlans).length === 0 ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('rpShell.mn_noPlans')}</p>
+          ) : (
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {(source === 'day_plan' ? dayPlans : journeyPlans).map((p) => (
+                <li key={p.id}>
+                  <button onClick={() => setPlanId(p.id)} className={`flex w-full items-center gap-2 rounded-xl border p-3 text-start transition ${planId === p.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-muted'}`}>
+                    <Target className="h-4 w-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate text-sm font-medium">{p.name}</span>
+                    {planId === p.id && <Check className="h-4 w-4 text-primary" />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {/* Supervisor + date + create */}
+          {people.length > 0 && (
+            <div>
+              <p className="mb-1 text-[11px] font-medium text-muted-foreground">{t('rpShell.mn_step1')}</p>
+              <select value={supervisorId} onChange={(e) => setSupervisorId(e.target.value)} className="h-9 w-full rounded-lg border bg-background px-2 text-sm sm:max-w-xs">
+                <option value="">{t('rpShell.mn_unassigned')}</option>
+                {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          )}
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9 text-sm sm:max-w-xs" />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled={!planId || saving} onClick={() => void createFromPlan()}>{t('rpShell.mn_saveDraft')}</Button>
+            {perms.canAssign && supervisorId && (
+              <Button disabled={!planId || saving} onClick={() => void createFromPlan()}><Send className="h-4 w-4" /> {t('rpShell.mn_assign')}</Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Manual flow: the 3-step builder. */}
+      {source === 'manual' && (<>
       <div className="flex items-center gap-1.5 text-[11px]">
         {steps.map((s, i) => (
           <span key={s.n} className="inline-flex items-center gap-1.5">
@@ -482,6 +566,7 @@ function MissionBuilder({ customers, people, perms, onCancel, onSaved, onImport 
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }
