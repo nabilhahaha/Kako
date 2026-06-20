@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS erp_rp_data_sources (
   CONSTRAINT rp_src_status_chk CHECK (status IN ('active','paused','error'))
 );
 CREATE INDEX IF NOT EXISTS idx_rp_src_company ON erp_rp_data_sources (company_id);
+CREATE INDEX IF NOT EXISTS idx_rp_src_created_by ON erp_rp_data_sources (created_by);  -- FK covering index (schema-health invariant)
 
 -- ── Per-entity field mappings (one row per source + dataset) ─────────────────
 CREATE TABLE IF NOT EXISTS erp_rp_field_mappings (

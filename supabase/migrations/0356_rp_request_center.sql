@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS erp_rp_approval_flows (
   CONSTRAINT uq_rp_flow UNIQUE (company_id, ticket_type)
 );
 CREATE INDEX IF NOT EXISTS idx_rp_flow_company ON erp_rp_approval_flows (company_id);
+CREATE INDEX IF NOT EXISTS idx_rp_flow_updated_by ON erp_rp_approval_flows (updated_by);  -- FK covering index
 
 -- ── RLS ─────────────────────────────────────────────────────────────────────
 ALTER TABLE erp_rp_request_counters ENABLE ROW LEVEL SECURITY;
@@ -90,22 +91,23 @@ CREATE POLICY rp_counter_all ON erp_rp_request_counters FOR ALL
 -- are assigned to them; company admins see all in the company. Create = own ticket;
 -- updates = company admin / assignee (workflow transitions enforced in the action layer).
 ALTER TABLE erp_route_planner_requests ENABLE ROW LEVEL SECURITY;
+-- auth.uid() is wrapped as (select auth.uid()) per the RLS init-plan invariant.
 DROP POLICY IF EXISTS rp_req_sel ON erp_route_planner_requests;
 CREATE POLICY rp_req_sel ON erp_route_planner_requests FOR SELECT
   USING (
     erp_is_platform_owner() OR erp_is_super_admin()
     OR (company_id = erp_user_company_id() AND (
         erp_is_company_admin(company_id)
-        OR requested_by = auth.uid()
-        OR assignee_id = auth.uid()
+        OR requested_by = (select auth.uid())
+        OR assignee_id = (select auth.uid())
         OR rp_can_see_user(requested_by, company_id)))
   );
 DROP POLICY IF EXISTS rp_req_ins ON erp_route_planner_requests;
 CREATE POLICY rp_req_ins ON erp_route_planner_requests FOR INSERT
-  WITH CHECK (company_id = erp_user_company_id() AND requested_by = auth.uid());
+  WITH CHECK (company_id = erp_user_company_id() AND requested_by = (select auth.uid()));
 DROP POLICY IF EXISTS rp_req_upd ON erp_route_planner_requests;
 CREATE POLICY rp_req_upd ON erp_route_planner_requests FOR UPDATE
-  USING (erp_is_platform_owner() OR (company_id = erp_user_company_id() AND (erp_is_company_admin(company_id) OR assignee_id = auth.uid() OR requested_by = auth.uid())))
+  USING (erp_is_platform_owner() OR (company_id = erp_user_company_id() AND (erp_is_company_admin(company_id) OR assignee_id = (select auth.uid()) OR requested_by = (select auth.uid()))))
   WITH CHECK (company_id = erp_user_company_id());
 
 ALTER TABLE erp_rp_approval_flows ENABLE ROW LEVEL SECURITY;
