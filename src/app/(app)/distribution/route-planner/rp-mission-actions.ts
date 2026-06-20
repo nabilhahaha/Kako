@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { missionPermsOf } from '@/lib/erp/route-planner-access';
 import { canTransition, transitionCapability, missionReport, type MissionStatus, type StopObservationKind } from '@/lib/erp/route-planner-mission';
+import type { MissionLite, VisitKpis } from '@/lib/erp/route-planner-kpi';
 
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -226,4 +227,32 @@ export async function deleteMission(missionId: string): Promise<Result> {
   const sb = await createClient();
   const { error } = await sb.from('erp_rp_missions').delete().eq('id', missionId).eq('company_id', ctx.companyId);
   return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+/**
+ * Dashboard data — visible mission headers (for mission-level KPIs + buckets) plus
+ * visit/observation aggregates (stop statuses + event kinds) via cheap count queries.
+ * All RLS-scoped to what the caller can see (own + reporting subtree). Planner-only.
+ */
+export async function missionDashboard(): Promise<Result<{ all: MissionLite[]; visit: VisitKpis }>> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const cid = ctx.companyId;
+  const { data: rows, error } = await sb.from('erp_rp_missions')
+    .select('status, mission_date, stop_count, assigned_to, created_by').eq('company_id', cid);
+  if (error) return { ok: false, error: error.message };
+  const all: MissionLite[] = (rows ?? []).map((r) => ({
+    status: r.status as MissionStatus, missionDate: (r.mission_date as string | null) ?? null,
+    stopCount: (r.stop_count as number) ?? 0, assignedTo: (r.assigned_to as string | null) ?? null, createdBy: r.created_by as string,
+  }));
+  const countOf = async (tbl: string, col: string, val: string) =>
+    (await sb.from(tbl).select('id', { count: 'exact', head: true }).eq('company_id', cid).eq(col, val)).count ?? 0;
+  const [done, skipped, issues, opps, follows] = await Promise.all([
+    countOf('erp_rp_mission_stops', 'status', 'done'),
+    countOf('erp_rp_mission_stops', 'status', 'skipped'),
+    countOf('erp_rp_mission_events', 'kind', 'issue'),
+    countOf('erp_rp_mission_events', 'kind', 'opportunity'),
+    countOf('erp_rp_mission_events', 'kind', 'follow_up'),
+  ]);
+  return { ok: true, data: { all, visit: { completedVisits: done, missedVisits: skipped, stopsWithIssues: issues, stopsWithOpportunities: opps, followUps: follows } } };
 }

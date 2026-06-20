@@ -19,6 +19,7 @@ import { DayPlanner } from './day-planner';
 import { CustomersView } from './customers-view';
 import { TerritoriesView } from './territories-view';
 import { MissionsView } from './missions-view';
+import { PlannerDashboard } from './planner-dashboard';
 import type { MissionPerms } from '@/lib/erp/route-planner-access';
 import { IntegrationView } from './integration-view';
 import { RequestCenterView } from './request-center-view';
@@ -322,9 +323,13 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
           )}
 
           {view === 'home' && (
-            <div className="mx-auto max-w-3xl p-6">
+            <div className="mx-auto max-w-4xl space-y-5 p-6">
               <h1 className="text-xl font-bold">{t('rpShell.dashboardWelcome')}</h1>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {/* Planner Dashboard — KPIs + my missions today + (managers) team status. */}
+              <PlannerDashboard userId={userId} perms={missionPerms ?? { canCreate: true, canAssign: true, canExecute: true, canReview: true }}
+                onOpenMissions={(s) => { setActive('missions'); setView('missions'); void s; }}
+                onNewMission={() => { setActive('missions'); setView('missions'); }} />
+              <div className="grid gap-3 sm:grid-cols-2">
                 <button onClick={() => { setActive('dayPlanner'); setView('dayPlanner'); }} className="flex items-start gap-3 rounded-2xl border-2 border-primary bg-primary/5 p-5 text-start hover:bg-primary/10">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><MapIcon className="h-5 w-5" /></div>
                   <div><p className="font-bold">{t('rpShell.buildTodayRoute')}</p><p className="text-xs text-muted-foreground">{t('rpShell.buildTodayRouteHint')}</p></div>
