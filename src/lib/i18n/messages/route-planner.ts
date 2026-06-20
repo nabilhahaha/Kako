@@ -446,6 +446,7 @@ export const ar = {
     i_coverage: 'التغطية', i_routeEfficiency: 'كفاءة الخط', i_distanceTime: 'المسافة والزمن', i_visitFrequency: 'تكرار الزيارة', i_unvisitedCustomers: 'عملاء لم تتم زيارتهم',
     cust_empty: 'لا يوجد عملاء محمّلون بعد. استورد ملفًا لعرض العملاء وتصفيتهم وحفظ الشرائح.',
     cust_withGps: 'بإحداثيات', cust_segments: 'الشرائح', cust_segName: 'اسم الشريحة',
+    cust_count: 'العدد', terr_unassigned: 'بدون مندوب',
   },
 };
 
@@ -896,5 +897,6 @@ export const en = {
     i_coverage: 'Coverage', i_routeEfficiency: 'Route Efficiency', i_distanceTime: 'Distance / Time', i_visitFrequency: 'Visit Frequency', i_unvisitedCustomers: 'Unvisited Customers',
     cust_empty: 'No customers loaded yet. Import a file to view, filter and save segments.',
     cust_withGps: 'with GPS', cust_segments: 'Segments', cust_segName: 'Segment name',
+    cust_count: 'Count', terr_unassigned: 'Unassigned',
   },
 };

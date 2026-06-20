@@ -15,12 +15,13 @@ import type { DpCustomer } from '@/lib/tis/day-planner-import';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { DayPlanner } from './day-planner';
 import { CustomersView } from './customers-view';
+import { TerritoriesView } from './territories-view';
 
 /** Route Planner feature grants. Mirrors the Field Missions Phase 0 access model
  *  (erp_route_planner_access); kept local here so this PR stays independent of #310. */
 type RpFeature = 'route_planning' | 'day_planner' | 'field_missions' | 'reports';
 
-type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'soon';
+type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'soon';
 interface NavItem { key: string; labelKey: string; icon: LucideIcon; action: Action }
 interface NavGroup { key: string; labelKey: string; icon: LucideIcon; feature?: RpFeature; items: NavItem[] }
 
@@ -39,8 +40,8 @@ const NAV: NavGroup[] = [
     { key: 'importCustomers', labelKey: 'i_importCustomers', icon: UploadCloud, action: 'import' },
   ] },
   { key: 'territories', labelKey: 'g_territories', icon: Globe2, feature: 'route_planning', items: [
-    { key: 'regions', labelKey: 'i_regions', icon: Globe2, action: 'soon' },
-    { key: 'cities', labelKey: 'i_cities', icon: Building2, action: 'soon' },
+    { key: 'regions', labelKey: 'i_regions', icon: Globe2, action: 'territories' },
+    { key: 'cities', labelKey: 'i_cities', icon: Building2, action: 'territories' },
     { key: 'drawAreas', labelKey: 'i_drawAreas', icon: PencilRuler, action: 'soon' },
     { key: 'territoryAssignment', labelKey: 'i_territoryAssignment', icon: UserCheck, action: 'soon' },
   ] },
@@ -78,8 +79,9 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
   features: RpFeature[] | null;
 }) {
   const { t } = useI18n();
-  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'soon'>('home');
+  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'soon'>('home');
   const [custFocusSegments, setCustFocusSegments] = useState(false);
+  const [terrGroup, setTerrGroup] = useState<'region' | 'city' | 'area'>('region');
   const [soonLabel, setSoonLabel] = useState('');
   const [active, setActive] = useState<string>('home');
   const [open, setOpen] = useState<Record<string, boolean>>({ planning: true });
@@ -98,6 +100,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
     else if (item.action === 'customers') { setCustFocusSegments(false); setView('customers'); }
     else if (item.action === 'segments') { setCustFocusSegments(true); setView('customers'); }
     else if (item.action === 'import') setView('planning'); // shared import wizard lives in the Route Builder
+    else if (item.action === 'territories') { setTerrGroup(item.key === 'cities' ? 'city' : 'region'); setView('territories'); }
     else { setSoonLabel(t(`rpShell.${item.labelKey}` as Parameters<typeof t>[0])); setView('soon'); }
   }
   function goHome() { setActive('home'); setView('home'); setDrawer(false); }
@@ -197,6 +200,13 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
           {view === 'customers' && (
             <div className="h-full">
               <CustomersView customers={seed} focusSegments={custFocusSegments} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
+            </div>
+          )}
+
+          {/* Territories — Region/City/Area aggregates over the loaded dataset. */}
+          {view === 'territories' && (
+            <div className="h-full">
+              <TerritoriesView customers={seed} initialGroup={terrGroup} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
             </div>
           )}
 
