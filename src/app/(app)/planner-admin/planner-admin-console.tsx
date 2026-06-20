@@ -10,11 +10,13 @@ import { toast } from 'sonner';
 import { resolveSubscription, renewWhatsAppNumber, ROUTE_PLANNER_WHATSAPP_KEY, type RoutePlannerStatus } from '@/lib/erp/route-planner-subscription';
 import {
   type PlannerTenantRow,
+  type AdminDiagnostics,
   createRoutePlannerTenant,
   extendTrial,
   activateSubscription,
   setTenantSuspended,
   resetDemoData,
+  routePlannerAdminDiagnostics,
 } from './planner-admin-actions';
 
 const STATUS_SKIN: Record<RoutePlannerStatus, string> = {
@@ -33,8 +35,11 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
   const [whatsApp, setWhatsApp] = useState('');
   const [pending, startTransition] = useTransition();
 
-  // Load the current (possibly overridden) support WhatsApp number once on mount.
+  const [diag, setDiag] = useState<AdminDiagnostics | null>(null);
+
+  // Load the current (possibly overridden) support WhatsApp number + runtime diagnostics.
   useEffect(() => { setWhatsApp(renewWhatsAppNumber()); }, []);
+  useEffect(() => { routePlannerAdminDiagnostics().then((r) => { if (r.ok && r.data) setDiag(r.data); }); }, []);
 
   function saveWhatsApp() {
     const digits = whatsApp.replace(/[^\d]/g, '');
@@ -165,6 +170,19 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
 
       {loadError && <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{t('routePlanner.adminLoadError')} <span className="font-mono text-xs opacity-80">{loadError}</span></p>}
       {actionError && <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"><span className="font-semibold">{t('routePlanner.adminError')}</span> <span className="font-mono text-xs opacity-80">{actionError}</span></p>}
+
+      {/* Safe runtime diagnostics (no secret) — confirms the service-role key + Supabase target. */}
+      {diag && (
+        <div className={`rounded-md border px-3 py-2 text-xs ${diag.serviceKeyPresent && diag.keyMatchesUrl !== false ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-amber-400 bg-amber-50 text-amber-900'}`}>
+          <p className="mb-1 font-semibold">{t('routePlanner.adminDiag')}</p>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-0.5 font-mono sm:grid-cols-2">
+            <span>SUPABASE_SERVICE_ROLE_KEY present = <b>{String(diag.serviceKeyPresent)}</b>{diag.serviceKeyPresent ? ` (len ${diag.serviceKeyLength})` : ''}</span>
+            <span>VERCEL_ENV = <b>{diag.vercelEnv ?? '—'}</b>{diag.gitRef ? ` · ${diag.gitRef}` : ''}</span>
+            <span>NEXT_PUBLIC_SUPABASE_URL = <b>{diag.supabaseRef ?? diag.supabaseUrl}</b></span>
+            <span>key project ref = <b>{diag.serviceKeyRef ?? '—'}</b>{diag.keyMatchesUrl === false ? ' ⚠ mismatch' : diag.keyMatchesUrl === true ? ' ✓ match' : ''}</span>
+          </div>
+        </div>
+      )}
 
       {/* Search + status filter */}
       <div className="flex flex-wrap items-center gap-2">

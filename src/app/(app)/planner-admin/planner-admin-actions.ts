@@ -48,6 +48,60 @@ async function requireAdmin(): Promise<boolean> {
   return Boolean(ctx?.isRoutePlannerAdmin);
 }
 
+export interface AdminDiagnostics {
+  serviceKeyPresent: boolean;
+  serviceKeyLength: number;
+  /** Project ref decoded from the service key's JWT payload (NOT the secret) — for legacy keys. */
+  serviceKeyRef: string | null;
+  supabaseUrl: string;
+  /** Project ref taken from NEXT_PUBLIC_SUPABASE_URL (public). */
+  supabaseRef: string | null;
+  /** Does the key's project match the URL's project? null when undecidable (new-format key). */
+  keyMatchesUrl: boolean | null;
+  vercelEnv: string | null;
+  gitRef: string | null;
+}
+
+/**
+ * SAFE runtime diagnostic for the Route Planner Admin — confirms whether the service-role
+ * key is actually present in THIS deployment's environment, which Supabase project the app
+ * + the key point at, and the Vercel environment name. Never returns the secret (only its
+ * presence/length, and the public project ref decoded from the JWT payload).
+ */
+export async function routePlannerAdminDiagnostics(): Promise<Result<AdminDiagnostics>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://rsjvgehvastmawzwnqcs.supabase.co';
+  const supabaseRef = url.match(/https?:\/\/([a-z0-9]+)\.supabase\.co/i)?.[1] ?? null;
+
+  // Legacy Supabase service keys are JWTs; the middle segment (base64url) carries a public
+  // `ref` claim = the project ref. Decoding it exposes NO secret (the signature is dropped).
+  let serviceKeyRef: string | null = null;
+  const parts = key.split('.');
+  if (parts.length === 3) {
+    try {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as { ref?: string };
+      serviceKeyRef = payload.ref ?? null;
+    } catch { /* not a JWT / undecodable */ }
+  }
+  const keyMatchesUrl = serviceKeyRef && supabaseRef ? serviceKeyRef === supabaseRef : null;
+
+  return {
+    ok: true,
+    data: {
+      serviceKeyPresent: key.length > 0,
+      serviceKeyLength: key.length,
+      serviceKeyRef,
+      supabaseUrl: url,
+      supabaseRef,
+      keyMatchesUrl,
+      vercelEnv: process.env.VERCEL_ENV ?? null,
+      gitRef: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+    },
+  };
+}
+
+
 /** A company is manageable only if it is a Route Planner tenant. */
 async function loadScopedCompany(id: string) {
   const svc = createServiceClient();
