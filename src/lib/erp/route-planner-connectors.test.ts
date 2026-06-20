@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sheetCsvUrl, rowsFromJson, redactConfig } from './route-planner-connectors';
+import { sheetCsvUrl, rowsFromJson, redactConfig, fetchConnector } from './route-planner-connectors';
 import { toCustomers, isValidCustomer } from './route-planner-customer-map';
 
 describe('sheetCsvUrl', () => {
@@ -49,6 +49,17 @@ describe('redactConfig (secret safety)', () => {
   it('hasToken=false when no token set', () => {
     expect(redactConfig({ sheetUrl: 'u' })).toEqual({ sheetUrl: 'u', hasToken: false });
     expect(redactConfig(null)).toEqual({ hasToken: false });
+  });
+});
+
+describe('fetchConnector error handling (no network, codes only)', () => {
+  it('rejects a Google Sheets source with an unusable URL', async () => {
+    await expect(fetchConnector('google_sheets', { sheetUrl: 'not-a-sheet' })).rejects.toThrow('bad_sheet_url');
+    await expect(fetchConnector('google_sheets', {})).rejects.toThrow('bad_sheet_url');
+  });
+  it('rejects an API source with a non-http endpoint', async () => {
+    await expect(fetchConnector('api_erp', { endpoint: 'ftp://x' })).rejects.toThrow('bad_endpoint');
+    await expect(fetchConnector('api_erp', {})).rejects.toThrow('bad_endpoint');
   });
 });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { UploadCloud, Database, Activity, CheckCircle2, AlertTriangle, History, Plus, X, Cloud, Link2, Clock, RefreshCw } from 'lucide-react';
+import { UploadCloud, Database, Activity, CheckCircle2, AlertTriangle, History, Plus, X, Cloud, Link2, Clock, RefreshCw, Trash2, KeyRound } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { parseUploadColumns } from './import-actions';
@@ -9,7 +9,7 @@ import { ImportMapper } from './import-mapper';
 import { runDataHealth, dataHealthTotal, type DataHealthReport } from '@/lib/erp/route-planner-data-health';
 import { toCustomers, isValidCustomer, type CmMapping } from '@/lib/erp/route-planner-customer-map';
 import { RP_QUALITY_CHECKS } from '@/lib/erp/route-planner-backend';
-import { runManualSync, listSyncRuns, listDataSources, createDataSource, saveFieldMapping, getFieldMapping, fetchConnectorColumns, runConnectorSync } from './rp-backend-actions';
+import { runManualSync, listSyncRuns, listDataSources, createDataSource, deleteDataSource, saveFieldMapping, getFieldMapping, fetchConnectorColumns, runConnectorSync } from './rp-backend-actions';
 
 type Step = 'home' | 'map' | 'report';
 type Source = Record<string, unknown>;
@@ -58,6 +58,15 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ imported: number; updated: number; rejected: number } | null>(null);
   const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
+  const [confirmDel, setConfirmDel] = useState(false);
+
+  async function removeSource() {
+    if (!activeId) return;
+    const r = await deleteDataSource(activeId);
+    if (!r.ok) { setMsg(t('rpShell.intg_createErr')); return; }
+    setConfirmDel(false); setActiveId(null); setStep('home');
+    await refreshSources();
+  }
 
   useEffect(() => { void refreshSources(); void refreshRuns(); }, []);
   async function refreshSources() { const r = await listDataSources(); if (r.ok) setSources((r.data as Source[]) ?? []); }
@@ -226,6 +235,32 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
                 </button>
               );
             })}
+          </div>
+        )}
+
+        {/* Active source details + management (admin). Config is redacted server-side. */}
+        {activeSource && canManage && (
+          <div className="mt-2 rounded-md border bg-muted/20 p-2 text-[11px]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="space-y-0.5">
+                <p><span className="font-medium">{t('rpShell.intg_type')}:</span> {t(`rpShell.intg_t_${activeType}` as Parameters<typeof t>[0])}</p>
+                {activeType === 'google_sheets' && <p className="truncate text-muted-foreground" dir="ltr">{String((activeSource.config as Record<string, unknown> | null)?.sheetUrl ?? '—')}</p>}
+                {activeType === 'api_erp' && (<>
+                  <p className="truncate text-muted-foreground" dir="ltr">{String((activeSource.config as Record<string, unknown> | null)?.endpoint ?? '—')}</p>
+                  <p className="inline-flex items-center gap-1"><KeyRound className="h-3 w-3" /> {(activeSource.config as Record<string, unknown> | null)?.hasToken ? t('rpShell.intg_tokenSet') : t('rpShell.intg_tokenNone')}</p>
+                </>)}
+                {activeSource.last_sync_at ? <p className="text-muted-foreground">{t('rpShell.intg_lastSync')}: <span dir="ltr">{new Date(String(activeSource.last_sync_at)).toLocaleString()}</span></p> : null}
+              </div>
+              {confirmDel ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-red-700">{t('rpShell.intg_delConfirm')}</span>
+                  <Button size="sm" variant="outline" className="text-red-600" onClick={removeSource}>{t('rpShell.intg_delYes')}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmDel(false)}>{t('dayPlanner.back')}</Button>
+                </span>
+              ) : (
+                <Button size="sm" variant="ghost" className="text-red-600" onClick={() => setConfirmDel(true)}><Trash2 className="h-3.5 w-3.5" /> {t('rpShell.intg_delete')}</Button>
+              )}
+            </div>
           </div>
         )}
       </div>

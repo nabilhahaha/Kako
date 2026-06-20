@@ -81,6 +81,15 @@ export async function updateDataSource(sourceId: string, input: { name?: string;
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
+/** Delete a data source (and its mappings/runs via FK). Admin-only. */
+export async function deleteDataSource(sourceId: string): Promise<Result> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  if (!isAdminCtx(ctx)) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const { error } = await sb.from('erp_rp_data_sources').delete().eq('id', sourceId).eq('company_id', ctx.companyId);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
 export async function saveFieldMapping(sourceId: string, entity: RpEntity, mapping: Record<string, string>): Promise<Result> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
