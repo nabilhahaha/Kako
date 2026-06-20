@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ClipboardList, Plus, X, MapPin, Info, ChevronRight } from 'lucide-react';
+import { ClipboardList, Plus, X, MapPin, Info, ChevronRight, UserPlus, FileEdit, PauseCircle, StopCircle, Repeat, Crosshair, Route as RouteIcon, type LucideIcon } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { RP_TICKET_TYPES, RP_TICKET_STATUSES, RP_PROOF_REQUIRED, type RpTicketType, type RpTicketStatus } from '@/lib/erp/route-planner-backend';
@@ -21,6 +21,12 @@ const NEXT: Record<RpTicketStatus, RpTicketStatus[]> = {
   closed: [],
   rejected: [],
   cancelled: [],
+};
+
+/** Icon per ticket type — drives the empty-state type cards and the list. */
+const TYPE_ICON: Record<RpTicketType, LucideIcon> = {
+  new_customer: UserPlus, update: FileEdit, temp_stop: PauseCircle, perm_stop: StopCircle,
+  reassignment: Repeat, location_fix: Crosshair, route_change: RouteIcon,
 };
 
 const STATUS_TONE: Record<string, string> = {
@@ -90,35 +96,66 @@ export function RequestCenterView() {
     setSelected((s) => (s && String(s.id) === id ? { ...s, status } : s));
   }
 
+  function openCreate(preset?: RpTicketType) {
+    if (preset) setType(preset);
+    setSelected(null); setCreating(true);
+  }
+
+  const isEmpty = !loading && requests.length === 0;
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2"><ClipboardList className="h-5 w-5 text-primary" /><p className="text-sm font-bold">{t('rpShell.g_requests')}</p></div>
-        <Button size="sm" onClick={() => { setCreating(true); setSelected(null); }}><Plus className="h-4 w-4" /> {t('rpShell.rc_new')}</Button>
+        <Button size="sm" onClick={() => openCreate()}><Plus className="h-4 w-4" /> {t('rpShell.rc_new')}</Button>
       </div>
 
       <div className="flex items-start gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{t('rpShell.rc_disclaimer')}</span>
       </div>
 
-      {/* Status filter */}
-      <div className="flex flex-wrap gap-1.5">
-        {(['all', ...RP_TICKET_STATUSES] as const).map((s) => (
-          <button key={s} onClick={() => setFilter(s)}
-            className={`rounded-full border px-2.5 py-1 text-xs transition ${filter === s ? 'border-primary bg-primary/10 font-medium text-primary' : 'hover:bg-muted'}`}>
-            {s === 'all' ? t('rpShell.rc_all') : t(`rpShell.rc_status_${s}` as Parameters<typeof t>[0])}
-          </button>
-        ))}
-      </div>
+      {/* Status filter — only once there are requests to filter. */}
+      {!isEmpty && (
+        <div className="flex flex-wrap gap-1.5">
+          {(['all', ...RP_TICKET_STATUSES] as const).map((s) => (
+            <button key={s} onClick={() => setFilter(s)}
+              className={`rounded-full border px-2.5 py-1 text-xs transition ${filter === s ? 'border-primary bg-primary/10 font-medium text-primary' : 'hover:bg-muted'}`}>
+              {s === 'all' ? t('rpShell.rc_all') : t(`rpShell.rc_status_${s}` as Parameters<typeof t>[0])}
+            </button>
+          ))}
+        </div>
+      )}
 
       {msg && <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">{msg}</p>}
 
-      {/* List */}
+      {/* First-time empty state — guide the user to create their first request. */}
+      {isEmpty ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto rounded-lg border border-dashed py-8 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><ClipboardList className="h-7 w-7" /></div>
+          <p className="mt-3 text-base font-bold">{t('rpShell.rc_emptyTitle')}</p>
+          <p className="mt-1 max-w-md px-4 text-sm text-muted-foreground">{t('rpShell.rc_emptyHint')}</p>
+          <Button className="mt-4" onClick={() => openCreate()}><Plus className="h-4 w-4" /> {t('rpShell.rc_new')}</Button>
+          <p className="mt-6 mb-2 text-xs font-semibold text-muted-foreground">{t('rpShell.rc_pickType')}</p>
+          <div className="grid w-full max-w-2xl grid-cols-2 gap-2 px-4 sm:grid-cols-3 lg:grid-cols-4">
+            {RP_TICKET_TYPES.map((ty) => {
+              const Icon = TYPE_ICON[ty];
+              return (
+                <button key={ty} onClick={() => openCreate(ty)}
+                  className="flex items-center gap-2 rounded-xl border p-3 text-start transition hover:border-primary hover:bg-primary/5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground"><Icon className="h-4 w-4" /></span>
+                  <span className="text-xs font-medium">{t(`rpShell.rc_type_${ty}` as Parameters<typeof t>[0])}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+      /* List */
       <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border">
         {loading ? (
           <p className="p-4 text-center text-sm text-muted-foreground">{t('routePlanner.importing')}</p>
         ) : shown.length === 0 ? (
-          <p className="p-6 text-center text-sm text-muted-foreground">{t('rpShell.rc_empty')}</p>
+          <p className="p-6 text-center text-sm text-muted-foreground">{t('rpShell.rc_noMatch')}</p>
         ) : (
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-muted"><tr>
@@ -142,6 +179,7 @@ export function RequestCenterView() {
           </table>
         )}
       </div>
+      )}
 
       {/* Create slide-over */}
       {creating && (
