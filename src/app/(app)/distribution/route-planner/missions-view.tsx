@@ -15,6 +15,7 @@ import {
   checkInStop, checkOutStop, addStopObservation, createMissionFromDayPlan, createMissionFromJourneyDay, type MissionHeader,
 } from './rp-mission-actions';
 import { listDayPlans, listJourneyPlans, type SavedPlanRow } from './rp-plan-actions';
+import { loadSegments, syncSegments, filterBySegment, type RpSegment } from './route-planner-segments';
 import { JOURNEY_DAYS, type JourneyDayKey } from '@/lib/erp/route-planner-daily-plan';
 import { uploadAttachment, listAttachments, type AttachmentView } from '@/app/(app)/attachments/actions';
 
@@ -327,7 +328,8 @@ function MissionBuilder({ customers, people, perms, onCancel, onSaved, onImport 
   onCancel: () => void; onSaved: () => void; onImport: () => void;
 }) {
   const { t } = useI18n();
-  const [source, setSource] = useState<'manual' | 'day_plan' | 'journey'>('manual');
+  const [source, setSource] = useState<'manual' | 'day_plan' | 'journey' | 'segment'>('manual');
+  const [segments, setSegments] = useState<RpSegment[]>([]);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [supervisorId, setSupervisorId] = useState<string>('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -345,7 +347,15 @@ function MissionBuilder({ customers, people, perms, onCancel, onSaved, onImport 
   useEffect(() => {
     void listDayPlans().then((r) => { if (r.ok) setDayPlans(r.data ?? []); });
     void listJourneyPlans().then((r) => { if (r.ok) setJourneyPlans(r.data ?? []); });
+    setSegments(loadSegments()); void syncSegments().then(setSegments);
   }, []);
+  // Saved segment → mission: apply the segment's filter to the active dataset to preselect
+  // its customers, then drop into the manual sequence/save flow (reuses filterBySegment).
+  function applySegment(seg: RpSegment) {
+    const ids = filterBySegment(withGeo, seg.filter).map((c) => c.id);
+    setSelected(new Set(ids)); setOrder([]); setName(seg.name); setSource('manual'); setStep(3);
+    setTimeout(() => optimize(), 0);
+  }
   async function createFromPlan() {
     setSaving(true); setMsg(null);
     const res = source === 'day_plan'
@@ -435,7 +445,7 @@ function MissionBuilder({ customers, people, perms, onCancel, onSaved, onImport 
       <div>
         <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{t('rpShell.mn_startFrom')}</p>
         <div className="flex flex-wrap gap-1.5">
-          {([['manual', 'mn_srcManual'], ['day_plan', 'mn_srcDayPlan'], ['journey', 'mn_srcJourney']] as const).map(([s, key]) => (
+          {([['manual', 'mn_srcManual'], ['day_plan', 'mn_srcDayPlan'], ['journey', 'mn_srcJourney'], ['segment', 'mn_srcSegment']] as const).map(([s, key]) => (
             <button key={s} onClick={() => { setSource(s); setPlanId(''); setMsg(null); }}
               className={`rounded-full border px-3 py-1 text-xs font-medium transition ${source === s ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
               {t(`rpShell.${key}` as Parameters<typeof t>[0])}
@@ -445,8 +455,32 @@ function MissionBuilder({ customers, people, perms, onCancel, onSaved, onImport 
       </div>
       {msg && <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">{msg}</p>}
 
+      {/* Segment-sourced: pick a saved segment → preselect its customers → manual sequence. */}
+      {source === 'segment' && (
+        <div className="min-h-0 flex-1 space-y-2 overflow-auto">
+          <p className="text-[11px] font-medium text-muted-foreground">{t('rpShell.mn_pickSegment')}</p>
+          {segments.length === 0 ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('rpShell.mn_noSegments')}</p>
+          ) : (
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {segments.map((s) => {
+                const count = filterBySegment(withGeo, s.filter).length;
+                return (
+                  <li key={s.id}>
+                    <button onClick={() => applySegment(s)} className="flex w-full items-center gap-2 rounded-xl border p-3 text-start transition hover:border-primary hover:bg-muted">
+                      <Search className="h-4 w-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate text-sm font-medium">{s.name}</span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">{t('rpShell.mn_selected', { n: count })}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Plan-sourced flow: pick a saved Day/Journey plan + supervisor → create. */}
-      {source !== 'manual' && (
+      {(source === 'day_plan' || source === 'journey') && (
         <div className="min-h-0 flex-1 space-y-3 overflow-auto">
           {source === 'journey' && (
             <div className="flex flex-wrap items-center gap-1.5">
