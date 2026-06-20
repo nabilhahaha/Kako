@@ -5,7 +5,7 @@ import {
   Home, Map as MapIcon, CalendarRange, Bookmark, LayoutTemplate, Users, UsersRound, Filter, UploadCloud,
   Globe2, Building2, PencilRuler, UserCheck, ClipboardCheck, History, Images, AlertTriangle, Swords,
   Lightbulb, ListChecks, PieChart, Gauge, Timer, Repeat, UserX, ChevronDown, ChevronRight, Menu, X,
-  Route as RouteIcon, LogOut, User as UserIcon, type LucideIcon,
+  Route as RouteIcon, LogOut, User as UserIcon, Database, Activity, type LucideIcon,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { LanguageToggle } from '@/components/layout/language-toggle';
@@ -16,12 +16,13 @@ import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { DayPlanner } from './day-planner';
 import { CustomersView } from './customers-view';
 import { TerritoriesView } from './territories-view';
+import { IntegrationView } from './integration-view';
 
 /** Route Planner feature grants. Mirrors the Field Missions Phase 0 access model
  *  (erp_route_planner_access); kept local here so this PR stays independent of #310. */
 type RpFeature = 'route_planning' | 'day_planner' | 'field_missions' | 'reports';
 
-type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'soon';
+type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'soon';
 interface NavItem { key: string; labelKey: string; icon: LucideIcon; action: Action }
 interface NavGroup { key: string; labelKey: string; icon: LucideIcon; feature?: RpFeature; items: NavItem[] }
 
@@ -61,6 +62,11 @@ const NAV: NavGroup[] = [
     { key: 'visitFrequency', labelKey: 'i_visitFrequency', icon: Repeat, action: 'soon' },
     { key: 'unvisitedCustomers', labelKey: 'i_unvisitedCustomers', icon: UserX, action: 'soon' },
   ] },
+  { key: 'integrations', labelKey: 'g_integrations', icon: Database, feature: 'route_planning', items: [
+    { key: 'dataSources', labelKey: 'i_dataSources', icon: Database, action: 'integration' },
+    { key: 'syncHistory', labelKey: 'i_syncHistory', icon: History, action: 'integration' },
+    { key: 'dataHealth', labelKey: 'i_dataHealth', icon: Activity, action: 'integration' },
+  ] },
 ];
 
 /**
@@ -79,7 +85,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
   features: RpFeature[] | null;
 }) {
   const { t } = useI18n();
-  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'soon'>('home');
+  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'soon'>('home');
   const [custFocusSegments, setCustFocusSegments] = useState(false);
   const [terrGroup, setTerrGroup] = useState<'region' | 'city' | 'area'>('region');
   const [soonLabel, setSoonLabel] = useState('');
@@ -101,6 +107,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
     else if (item.action === 'segments') { setCustFocusSegments(true); setView('customers'); }
     else if (item.action === 'import') setView('planning'); // shared import wizard lives in the Route Builder
     else if (item.action === 'territories') { setTerrGroup(item.key === 'cities' ? 'city' : 'region'); setView('territories'); }
+    else if (item.action === 'integration') setView('integration');
     else { setSoonLabel(t(`rpShell.${item.labelKey}` as Parameters<typeof t>[0])); setView('soon'); }
   }
   function goHome() { setActive('home'); setView('home'); setDrawer(false); }
@@ -207,6 +214,13 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
           {view === 'territories' && (
             <div className="h-full">
               <TerritoriesView customers={seed} initialGroup={terrGroup} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
+            </div>
+          )}
+
+          {/* Integrations — Manual Upload connector + Data Health + Sync History. */}
+          {view === 'integration' && (
+            <div className="h-full">
+              <IntegrationView />
             </div>
           )}
 
