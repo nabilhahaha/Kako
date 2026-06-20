@@ -1,13 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { X, Wand2, Check, FileDown, CalendarDays, MapPin, AlertTriangle, Hand, Square, PenTool, Eye, Save } from 'lucide-react';
+import { X, Wand2, Check, FileDown, CalendarDays, MapPin, AlertTriangle, Hand, Square, PenTool, Eye, Save, Send } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
-import { saveJourneyPlan } from './rp-plan-actions';
+import { saveJourneyPlan, submitPlanForApproval } from './rp-plan-actions';
 import { serializeAssignments, serializeFrequencies, type StoredAssignment } from '@/lib/erp/route-planner-daily-plan';
 import { SelectionMap, type SelMapPoint } from './selection-map';
 import {
@@ -53,6 +53,8 @@ export function JourneyPanel({ customers, hasSales, onClose }: { customers: Jour
   const [jpName, setJpName] = useState('');     // Wave C: save the journey plan to the server
   const [jpSaving, setJpSaving] = useState(false);
   const [jpSaved, setJpSaved] = useState(false);
+  const [jpSavedId, setJpSavedId] = useState<string | null>(null);   // Wave K: submit for approval
+  const [jpMsg, setJpMsg] = useState<string | null>(null);
 
   const byId = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
   const freqLabel = (f: JourneyFrequency) => t(`routePlanner.jpFreq_${f}` as Parameters<typeof t>[0]);
@@ -130,7 +132,14 @@ export function JourneyPanel({ customers, hasSales, onClose }: { customers: Jour
     const custs = customers.map((c) => ({ id: c.id, code: c.code, name: c.name, lat: c.lat, lng: c.lng, routeId: c.routeId, routeLabel: c.routeLabel }));
     const res = await saveJourneyPlan(jpName.trim() || t('routePlanner.jpTitle'), frequencies, { assignments, dayLoads: plan.dayLoads, customers: custs });
     setJpSaving(false);
-    if (res.ok) { setJpSaved(true); setJpName(''); setTimeout(() => setJpSaved(false), 2500); }
+    if (res.ok) { setJpSaved(true); setJpSavedId(res.data?.id ?? null); setJpName(''); setTimeout(() => setJpSaved(false), 2500); }
+  }
+  async function submitJourney() {
+    if (!jpSavedId) return;
+    setJpSaving(true);
+    const res = await submitPlanForApproval('journey', jpSavedId);
+    setJpSaving(false);
+    setJpMsg(res.ok ? t('rpShell.pa_pending') : (res.error === 'err_no_flow' ? t('rpShell.pa_noFlow') : res.error));
   }
 
   const kpis = useMemo(() => (plan ? journeyRouteKpis(routed(), plan) : []), [plan, freq, customers]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -188,8 +197,14 @@ export function JourneyPanel({ customers, hasSales, onClose }: { customers: Jour
               <Button size="sm" variant="outline" disabled={jpSaving} onClick={() => void saveJourney()}>
                 {jpSaved ? <Check className="h-4 w-4 text-emerald-600" /> : <Save className="h-4 w-4" />} {jpSaved ? t('routePlanner.jpSaved') : t('routePlanner.jpSave')}
               </Button>
+              {jpSavedId && (
+                <Button size="sm" variant="outline" disabled={jpSaving} onClick={() => void submitJourney()} title={t('rpShell.pa_submit')}>
+                  <Send className="h-4 w-4" /> {t('rpShell.pa_submit')}
+                </Button>
+              )}
             </div>
           )}
+          {jpMsg && <span className="text-[11px] text-violet-700">{jpMsg}</span>}
           <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /> {t('routePlanner.cancel')}</Button>
         </div>
       </div>

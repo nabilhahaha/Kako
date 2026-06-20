@@ -60,6 +60,12 @@ export type RpRelation = (typeof RP_RELATIONS)[number];
 export const RP_TICKET_TYPES = ['new_customer', 'update', 'temp_stop', 'perm_stop', 'reassignment', 'location_fix', 'route_change'] as const;
 export type RpTicketType = (typeof RP_TICKET_TYPES)[number];
 
+/** Plan sign-off flow keys — reuse the same Approval Builder + engine as tickets (Wave K). */
+export const RP_PLAN_APPROVAL_TYPES = ['journey_plan', 'daily_plan'] as const;
+export type RpPlanApprovalType = (typeof RP_PLAN_APPROVAL_TYPES)[number];
+/** Any key the Approval Builder can configure a flow for (tickets OR plans). */
+export type RpApprovalKey = RpTicketType | RpPlanApprovalType;
+
 export const RP_TICKET_STATUSES = [
   'created', 'pending_manager_review', 'approved', 'pending_admin_action',
   'implemented_externally', 'closed', 'rejected', 'need_more_info', 'cancelled',

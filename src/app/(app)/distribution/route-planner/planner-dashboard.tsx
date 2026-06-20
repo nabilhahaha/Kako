@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { computeMissionKpis, bucketMissions, type MissionLite, type VisitKpis } from '@/lib/erp/route-planner-kpi';
 import type { MissionPerms } from '@/lib/erp/route-planner-access';
 import { missionDashboard } from './rp-mission-actions';
+import { listMyPlanApprovals, advancePlanApproval, type PlanKind } from './rp-plan-actions';
 
 const TODAY = () => new Date().toISOString().slice(0, 10);
 
@@ -22,12 +23,23 @@ export function PlannerDashboard({ userId, perms, onOpenMissions, onNewMission }
   const [all, setAll] = useState<MissionLite[]>([]);
   const [visit, setVisit] = useState<VisitKpis>({ completedVisits: 0, missedVisits: 0, stopsWithIssues: 0, stopsWithOpportunities: 0, followUps: 0 });
   const [loading, setLoading] = useState(true);
+  const [approvals, setApprovals] = useState<{ kind: PlanKind; id: string; name: string }[]>([]);
+  const [busyAppr, setBusyAppr] = useState<string | null>(null);
 
+  function loadApprovals() { void listMyPlanApprovals().then((r) => { if (r.ok) setApprovals(r.data ?? []); }); }
   useEffect(() => {
     let on = true;
     void missionDashboard().then((r) => { if (on && r.ok && r.data) { setAll(r.data.all); setVisit(r.data.visit); } if (on) setLoading(false); });
+    loadApprovals();
     return () => { on = false; };
   }, []);
+
+  async function actOnPlan(kind: PlanKind, id: string, action: 'approve' | 'reject') {
+    setBusyAppr(id);
+    await advancePlanApproval(kind, id, action);
+    setBusyAppr(null);
+    loadApprovals();
+  }
 
   const today = TODAY();
   const k = useMemo(() => computeMissionKpis(all, today), [all, today]);
@@ -95,6 +107,24 @@ export function PlannerDashboard({ userId, perms, onOpenMissions, onNewMission }
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Plan approvals inbox (Wave K) — where I'm the pending approver. */}
+      {approvals.length > 0 && (
+        <div className="rounded-2xl border border-violet-200 bg-violet-50/40 p-4">
+          <p className="mb-2 flex items-center gap-2 text-sm font-bold"><ClipboardCheck className="h-4 w-4 text-violet-600" /> {t('rpShell.pa_inbox')} <span className="text-violet-600">({approvals.length})</span></p>
+          <ul className="space-y-1.5">
+            {approvals.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-sm">{a.name} <span className="text-[11px] text-muted-foreground">· {t(`rpShell.rc_type_${a.kind === 'journey' ? 'journey_plan' : 'daily_plan'}` as Parameters<typeof t>[0])}</span></span>
+                <div className="flex gap-1.5">
+                  <button disabled={busyAppr === a.id} onClick={() => void actOnPlan(a.kind, a.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50">{t('rpShell.pa_approve')}</button>
+                  <button disabled={busyAppr === a.id} onClick={() => void actOnPlan(a.kind, a.id, 'reject')} className="rounded-lg border px-3 py-1 text-xs hover:bg-muted disabled:opacity-50">{t('rpShell.pa_reject')}</button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

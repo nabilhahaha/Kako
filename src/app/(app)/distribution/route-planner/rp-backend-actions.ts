@@ -9,7 +9,7 @@ import { toCustomers, isValidCustomer, type CmMapping } from '@/lib/erp/route-pl
 import { persistDataset, type DatasetCustomerInput } from './rp-dataset-actions';
 import { suggestColumnMapping } from '@/lib/tis/upload';
 import type { DataHealthInput } from '@/lib/erp/route-planner-data-health';
-import type { RpEntity, RpSourceType, RpTicketType, RpTicketStatus, RpApprovalStep } from '@/lib/erp/route-planner-backend';
+import type { RpEntity, RpSourceType, RpTicketType, RpTicketStatus, RpApprovalStep, RpApprovalKey } from '@/lib/erp/route-planner-backend';
 import type { RpNode } from '@/lib/erp/route-planner-reporting';
 import { stageState, canApprove, statusForStage, flowHasSteps, type FlowEvent } from '@/lib/erp/route-planner-approval-engine';
 
@@ -390,9 +390,10 @@ export async function transitionRequest(id: string, status: RpTicketStatus, note
 }
 
 // ── Approval Builder ─────────────────────────────────────────────────────────
-export interface RpApprovalFlowRow { ticketType: RpTicketType; steps: RpApprovalStep[]; isActive: boolean }
+// Configures flows for ticket types AND plan sign-off keys (journey_plan/daily_plan, Wave K).
+export interface RpApprovalFlowRow { ticketType: RpApprovalKey; steps: RpApprovalStep[]; isActive: boolean }
 
-export async function getApprovalFlow(ticketType: RpTicketType): Promise<Result<RpApprovalStep[] | null>> {
+export async function getApprovalFlow(ticketType: RpApprovalKey): Promise<Result<RpApprovalStep[] | null>> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
   const { data } = await sb.from('erp_rp_approval_flows').select('steps').eq('company_id', ctx.companyId).eq('ticket_type', ticketType).maybeSingle();
@@ -406,14 +407,14 @@ export async function listApprovalFlows(): Promise<Result<RpApprovalFlowRow[]>> 
   const { data, error } = await sb.from('erp_rp_approval_flows').select('ticket_type, steps, is_active').eq('company_id', ctx.companyId);
   if (error) return { ok: false, error: error.message };
   const rows = (data ?? []).map((r) => ({
-    ticketType: r.ticket_type as RpTicketType,
+    ticketType: r.ticket_type as RpApprovalKey,
     steps: (r.steps as RpApprovalStep[]) ?? [],
     isActive: r.is_active !== false,
   }));
   return { ok: true, data: rows };
 }
 
-export async function saveApprovalFlow(ticketType: RpTicketType, steps: RpApprovalStep[], isActive = true): Promise<Result> {
+export async function saveApprovalFlow(ticketType: RpApprovalKey, steps: RpApprovalStep[], isActive = true): Promise<Result> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
   const { error } = await sb.from('erp_rp_approval_flows')
