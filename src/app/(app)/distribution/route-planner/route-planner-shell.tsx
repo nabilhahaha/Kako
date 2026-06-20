@@ -5,7 +5,7 @@ import {
   Home, Map as MapIcon, CalendarRange, Bookmark, LayoutTemplate, Users, UsersRound, Filter, UploadCloud,
   Globe2, Building2, PencilRuler, UserCheck, ClipboardCheck, History, Images, AlertTriangle, Swords,
   Lightbulb, ListChecks, PieChart, Gauge, Timer, Repeat, UserX, ChevronDown, ChevronRight, Menu, X,
-  Route as RouteIcon, LogOut, User as UserIcon, Database, Activity, ClipboardList, Inbox, Network, ShieldCheck, type LucideIcon,
+  Route as RouteIcon, LogOut, User as UserIcon, Database, Activity, ClipboardList, Inbox, Network, ShieldCheck, GitBranch, type LucideIcon,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { LanguageToggle } from '@/components/layout/language-toggle';
@@ -19,12 +19,13 @@ import { TerritoriesView } from './territories-view';
 import { IntegrationView } from './integration-view';
 import { RequestCenterView } from './request-center-view';
 import { ReportingAdminView } from './reporting-admin-view';
+import { ApprovalBuilderView } from './approval-builder-view';
 
 /** Route Planner feature grants. Mirrors the Field Missions Phase 0 access model
  *  (erp_route_planner_access); kept local here so this PR stays independent of #310. */
 type RpFeature = 'route_planning' | 'day_planner' | 'field_missions' | 'reports';
 
-type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'reporting' | 'soon';
+type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'soon';
 interface NavItem { key: string; labelKey: string; icon: LucideIcon; action: Action }
 interface NavGroup { key: string; labelKey: string; icon: LucideIcon; feature?: RpFeature; adminOnly?: boolean; items: NavItem[] }
 
@@ -75,6 +76,7 @@ const NAV: NavGroup[] = [
   ] },
   { key: 'admin', labelKey: 'g_admin', icon: ShieldCheck, adminOnly: true, items: [
     { key: 'reportingGraph', labelKey: 'i_reportingGraph', icon: Network, action: 'reporting' },
+    { key: 'approvalBuilder', labelKey: 'i_approvalBuilder', icon: GitBranch, action: 'approvals' },
   ] },
 ];
 
@@ -96,7 +98,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
   isAdmin?: boolean;
 }) {
   const { t } = useI18n();
-  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'reporting' | 'soon'>('home');
+  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'soon'>('home');
   const [custFocusSegments, setCustFocusSegments] = useState(false);
   const [terrGroup, setTerrGroup] = useState<'region' | 'city' | 'area'>('region');
   const [soonLabel, setSoonLabel] = useState('');
@@ -121,6 +123,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
     else if (item.action === 'integration') setView('integration');
     else if (item.action === 'requests') setView('requests');
     else if (item.action === 'reporting') setView('reporting');
+    else if (item.action === 'approvals') setView('approvals');
     else { setSoonLabel(t(`rpShell.${item.labelKey}` as Parameters<typeof t>[0])); setView('soon'); }
   }
   function goHome() { setActive('home'); setView('home'); setDrawer(false); }
@@ -248,6 +251,13 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
           {view === 'reporting' && (
             <div className="h-full">
               <ReportingAdminView />
+            </div>
+          )}
+
+          {/* Administration — Approval Builder (admin only). */}
+          {view === 'approvals' && (
+            <div className="h-full">
+              <ApprovalBuilderView />
             </div>
           )}
 

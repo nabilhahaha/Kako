@@ -115,6 +115,8 @@ export async function transitionRequest(id: string, status: RpTicketStatus, note
 }
 
 // ── Approval Builder ─────────────────────────────────────────────────────────
+export interface RpApprovalFlowRow { ticketType: RpTicketType; steps: RpApprovalStep[]; isActive: boolean }
+
 export async function getApprovalFlow(ticketType: RpTicketType): Promise<Result<RpApprovalStep[] | null>> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
@@ -122,10 +124,24 @@ export async function getApprovalFlow(ticketType: RpTicketType): Promise<Result<
   return { ok: true, data: (data as { steps?: RpApprovalStep[] } | null)?.steps ?? null };
 }
 
-export async function saveApprovalFlow(ticketType: RpTicketType, steps: RpApprovalStep[]): Promise<Result> {
+/** All configured approval flows for the company (for the Approval Builder overview). */
+export async function listApprovalFlows(): Promise<Result<RpApprovalFlowRow[]>> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const { data, error } = await sb.from('erp_rp_approval_flows').select('ticket_type, steps, is_active').eq('company_id', ctx.companyId);
+  if (error) return { ok: false, error: error.message };
+  const rows = (data ?? []).map((r) => ({
+    ticketType: r.ticket_type as RpTicketType,
+    steps: (r.steps as RpApprovalStep[]) ?? [],
+    isActive: r.is_active !== false,
+  }));
+  return { ok: true, data: rows };
+}
+
+export async function saveApprovalFlow(ticketType: RpTicketType, steps: RpApprovalStep[], isActive = true): Promise<Result> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
   const { error } = await sb.from('erp_rp_approval_flows')
-    .upsert({ company_id: ctx.companyId, ticket_type: ticketType, steps, updated_by: ctx.userId, updated_at: new Date().toISOString() }, { onConflict: 'company_id,ticket_type' });
+    .upsert({ company_id: ctx.companyId, ticket_type: ticketType, steps, is_active: isActive, updated_by: ctx.userId, updated_at: new Date().toISOString() }, { onConflict: 'company_id,ticket_type' });
   return error ? { ok: false, error: error.message } : { ok: true };
 }

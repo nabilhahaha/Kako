@@ -48,6 +48,10 @@ export interface DataConnector {
   fetchRows(config: Record<string, unknown>, entity: RpEntity): Promise<RawRow[]>;
 }
 
+// ── Roles (Route Planner product roles; for Approval-Builder "By Role" steps) ──
+export const RP_ROLES = ['route_planner_admin', 'manager', 'area_manager', 'supervisor', 'field_user'] as const;
+export type RpRole = (typeof RP_ROLES)[number];
+
 // ── Reporting graph (visibility) ─────────────────────────────────────────────
 export const RP_RELATIONS = ['direct_manager', 'managers_manager', 'subtree'] as const;
 export type RpRelation = (typeof RP_RELATIONS)[number];
