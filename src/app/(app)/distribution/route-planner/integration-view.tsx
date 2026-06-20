@@ -1,17 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { UploadCloud, Database, Activity, CheckCircle2, AlertTriangle, History, Plus, X, Cloud, Link2, Clock } from 'lucide-react';
+import { UploadCloud, Database, Activity, CheckCircle2, AlertTriangle, History, Plus, X, Cloud, Link2, Clock, RefreshCw } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { parseUploadColumns } from './import-actions';
 import { ImportMapper } from './import-mapper';
-import { runDataHealth, dataHealthTotal, type HCustomer, type DataHealthReport } from '@/lib/erp/route-planner-data-health';
+import { runDataHealth, dataHealthTotal, type DataHealthReport } from '@/lib/erp/route-planner-data-health';
+import { toCustomers, isValidCustomer, type CmMapping } from '@/lib/erp/route-planner-customer-map';
 import { RP_QUALITY_CHECKS } from '@/lib/erp/route-planner-backend';
-import { runManualSync, listSyncRuns, listDataSources, createDataSource, saveFieldMapping, getFieldMapping } from './rp-backend-actions';
+import { runManualSync, listSyncRuns, listDataSources, createDataSource, saveFieldMapping, getFieldMapping, fetchConnectorColumns, runConnectorSync } from './rp-backend-actions';
 
-type Step = 'upload' | 'map' | 'report';
-type Mapping = Record<string, string | undefined>;
+type Step = 'home' | 'map' | 'report';
 type Source = Record<string, unknown>;
 
 /** Customer Master fields that drive Data Health (the rest of the datasets come later). */
@@ -25,45 +25,37 @@ const CM_FIELDS = [
 ] as const;
 
 const SOURCE_ICON: Record<string, typeof Database> = { manual_upload: UploadCloud, google_sheets: Cloud, api_erp: Link2, scheduled: Clock };
-
-const str = (v: unknown) => { const s = (v ?? '').toString().trim(); return s || null; };
-const num = (v: unknown) => { const n = Number((v ?? '').toString().trim()); return Number.isFinite(n) ? n : null; };
-
-function toCustomers(records: Record<string, string>[], m: Mapping): HCustomer[] {
-  return records.map((r) => ({
-    code: m.code ? str(r[m.code]) : null,
-    name: m.name ? str(r[m.name]) : null,
-    lat: m.lat ? num(r[m.lat]) : null,
-    lng: m.lng ? num(r[m.lng]) : null,
-    salesman: m.salesman ? str(r[m.salesman]) : null,
-    route: m.route ? str(r[m.route]) : null,
-  }));
-}
+type NewType = 'manual_upload' | 'google_sheets' | 'api_erp';
 
 /**
- * Integration UI — Data Sources + Manual Upload connector + Field Mapping + Data Health +
- * Sync History. Pick (or create) a source → upload a customer file → map columns (shared
- * ImportMapper, persisted to erp_rp_field_mappings) → review the Data Health report (pure)
- * → record the sync to erp_rp_sync_runs. The Data Health report runs client-side, so it
- * works without a source; persistence (mapping save, sync history) needs a selected source.
+ * Integration UI — Data Sources (Manual Upload + Google Sheets + Generic API) on ONE
+ * pipeline: Fetch → Map (shared ImportMapper + toCustomers) → Validate / Data Health →
+ * Sync History → Audit. The connector only fetches; everything after fetch is shared.
+ * Connector config is admin-managed; API tokens are write-only and never shown back.
  */
 export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
   const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
   const [sources, setSources] = useState<Source[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>('home');
+  // create-source form
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
-  const [step, setStep] = useState<Step>('upload');
+  const [newType, setNewType] = useState<NewType>('google_sheets');
+  const [cfgUrl, setCfgUrl] = useState('');
+  const [cfgToken, setCfgToken] = useState('');
+  const [cfgPath, setCfgPath] = useState('');
+  // map / report
   const [fileName, setFileName] = useState<string | null>(null);
+  const [origin, setOrigin] = useState<'file' | 'connector'>('file');
   const [headers, setHeaders] = useState<string[]>([]);
   const [records, setRecords] = useState<Record<string, string>[]>([]);
-  const [mapping, setMapping] = useState<Mapping>({});
+  const [mapping, setMapping] = useState<CmMapping>({});
   const [report, setReport] = useState<DataHealthReport | null>(null);
-  const [customers, setCustomers] = useState<HCustomer[]>([]);
-  const [importing, setImporting] = useState(false);
+  const [connQuality, setConnQuality] = useState<Record<string, number> | null>(null);
+  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [mapSaved, setMapSaved] = useState(false);
   const [saved, setSaved] = useState<{ imported: number; updated: number; rejected: number } | null>(null);
   const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
 
@@ -72,74 +64,110 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
   async function refreshRuns() { const r = await listSyncRuns(20); if (r.ok) setRuns((r.data as Record<string, unknown>[]) ?? []); }
 
   const activeSource = sources.find((s) => String(s.id) === activeId) ?? null;
+  const activeType = activeSource ? String(activeSource.type) : null;
 
   async function selectSource(id: string) {
-    setActiveId(id);
-    // Preload any saved customer_master mapping for this source.
+    setActiveId(id); setStep('home'); setReport(null); setConnQuality(null); setSaved(null);
     const r = await getFieldMapping(id, 'customer_master');
-    if (r.ok && r.data) setMapping(r.data as Mapping);
+    if (r.ok && r.data) setMapping(r.data as CmMapping);
   }
 
   async function addSource() {
     const name = newName.trim(); if (!name) return;
     setMsg(null);
-    const r = await createDataSource({ name, type: 'manual_upload' });
-    if (!r.ok) { setMsg(r.error); return; }
-    setNewName(''); setCreating(false);
+    const config: Record<string, unknown> = newType === 'google_sheets' ? { sheetUrl: cfgUrl.trim() }
+      : newType === 'api_erp' ? { endpoint: cfgUrl.trim(), token: cfgToken.trim() || undefined, rowsPath: cfgPath.trim() || undefined }
+      : {};
+    const r = await createDataSource({ name, type: newType, config });
+    if (!r.ok) { setMsg(t('rpShell.intg_createErr')); return; }
+    setCreating(false); setNewName(''); setCfgUrl(''); setCfgToken(''); setCfgPath('');
     await refreshSources();
-    setActiveId(r.data!.id);
+    void selectSource(r.data!.id);
   }
 
+  // ── Fetch step (differs per source) → both land on the shared map step ──
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
-    setImporting(true); setMsg(null);
+    setBusy(true); setMsg(null);
     try {
       const fd = new FormData(); fd.append('file', file);
       const res = await parseUploadColumns(fd);
       if (!res.ok) { setMsg(t('dayPlanner.uploadErr')); return; }
-      setFileName(file.name); setHeaders(res.headers); setRecords(res.records);
-      // Keep a preloaded saved mapping if its columns still exist; otherwise auto-detect.
-      const sg = res.suggested as Record<string, string | undefined>;
-      setMapping((prev) => {
-        const keep = (v?: string) => (v && res.headers.includes(v) ? v : undefined);
-        const hasPrev = Object.values(prev).some(Boolean);
-        return hasPrev
-          ? { name: keep(prev.name) ?? sg.name, lat: keep(prev.lat) ?? sg.lat, lng: keep(prev.lng) ?? sg.lng, code: keep(prev.code) ?? sg.code, salesman: keep(prev.salesman) ?? sg.salesman, route: keep(prev.route) ?? sg.route }
-          : { name: sg.name, lat: sg.lat, lng: sg.lng, code: sg.code, salesman: sg.salesman, route: sg.route };
-      });
+      setOrigin('file'); setFileName(file.name); setHeaders(res.headers); setRecords(res.records);
+      applySuggested(res.suggested as Record<string, string | undefined>);
       setStep('map');
     } catch { setMsg(t('dayPlanner.uploadErr')); }
-    finally { setImporting(false); if (fileRef.current) fileRef.current.value = ''; }
+    finally { setBusy(false); if (fileRef.current) fileRef.current.value = ''; }
   }
 
-  const requiredOk = !!(mapping.name && mapping.lat && mapping.lng);
-  const validCount = requiredOk ? toCustomers(records, mapping).filter((c) => c.name && c.lat != null && c.lng != null).length : 0;
+  async function fetchFromConnector() {
+    if (!activeId) return;
+    setBusy(true); setMsg(null);
+    const r = await fetchConnectorColumns(activeId);
+    setBusy(false);
+    if (!r.ok) { setMsg(connErr(r.error)); return; }
+    setOrigin('connector'); setFileName(String(activeSource?.name ?? '')); setHeaders(r.data!.headers); setRecords(r.data!.records);
+    applySuggested(r.data!.suggested);
+    setStep('map');
+  }
+  function connErr(code: string) {
+    if (code.startsWith('fetch_')) return t('rpShell.intg_fetchErr');
+    return t('rpShell.intg_createErr');
+  }
+  function applySuggested(sg: Record<string, string | undefined>) {
+    setMapping((prev) => {
+      const keep = (v?: string) => (v && headersHas(v) ? v : undefined);
+      const hasPrev = Object.values(prev).some(Boolean);
+      return hasPrev
+        ? { name: keep(prev.name) ?? sg.name, lat: keep(prev.lat) ?? sg.lat, lng: keep(prev.lng) ?? sg.lng, code: keep(prev.code) ?? sg.code, salesman: keep(prev.salesman) ?? sg.salesman, route: keep(prev.route) ?? sg.route }
+        : { name: sg.name, lat: sg.lat, lng: sg.lng, code: sg.code, salesman: sg.salesman, route: sg.route };
+    });
+  }
+  // headers may not be set yet inside applySuggested closure; compare against the just-fetched list
+  function headersHas(v: string) { return headers.includes(v); }
 
-  async function continueToReport() {
-    const cs = toCustomers(records, mapping);
-    setCustomers(cs);
-    setReport(runDataHealth({ customers: cs }));
-    setStep('report'); setSaved(null); setMapSaved(false);
-    // Persist the field mapping for the active source (only mapped, defined columns).
-    if (activeId && canManage) {
-      const clean: Record<string, string> = {};
-      for (const k of Object.keys(mapping)) { const v = mapping[k]; if (v) clean[k] = v; }
-      const r = await saveFieldMapping(activeId, 'customer_master', clean);
-      if (r.ok) { setMapSaved(true); void refreshSources(); }
+  const requiredOk = !!(mapping.name && mapping.lat && mapping.lng);
+  const validCount = requiredOk ? toCustomers(records, mapping).filter(isValidCustomer).length : 0;
+
+  // ── Shared Map → Validate → Data Health → record (history/audit) ──
+  async function continueFromMap() {
+    if (origin === 'file') {
+      const cs = toCustomers(records, mapping);
+      setReport(runDataHealth({ customers: cs })); setConnQuality(null);
+      setStep('report'); setSaved(null);
+      if (activeId && canManage) {
+        const clean: Record<string, string> = {}; for (const k of Object.keys(mapping)) { const v = mapping[k]; if (v) clean[k] = v; }
+        await saveFieldMapping(activeId, 'customer_master', clean);
+      }
+    } else if (activeId) {
+      // Connector: the server fetches the FULL dataset, runs the SAME pipeline, records the sync.
+      setBusy(true); setMsg(null);
+      const r = await runConnectorSync(activeId, mapping);
+      setBusy(false);
+      if (!r.ok) { setMsg(connErr(r.error)); return; }
+      setReport(null); setConnQuality(r.data!.quality);
+      setSaved({ imported: r.data!.imported, updated: r.data!.updated, rejected: r.data!.rejected });
+      setStep('report'); void refreshRuns(); void refreshSources();
     }
   }
 
-  async function recordSync() {
+  async function recordFileSync() {
+    if (!activeId && origin === 'file') { /* allow ad-hoc */ }
     setMsg(null);
-    const valid = customers.filter((c) => c.name && c.lat != null && c.lng != null);
+    const cs = toCustomers(records, mapping);
+    const valid = cs.filter(isValidCustomer);
     const res = await runManualSync({
       sourceId: activeId, sourceLabel: fileName, master: { customers: valid }, existingCodes: [],
-      rejected: customers.filter((c) => !(c.name && c.lat != null && c.lng != null)).map((_, i) => ({ row: i + 1, reason: 'missing_required' })),
+      rejected: cs.filter((c) => !isValidCustomer(c)).map((_, i) => ({ row: i + 1, reason: 'missing_required' })),
     });
     if (!res.ok) { setMsg(res.error); return; }
     setSaved({ imported: res.data!.imported, updated: res.data!.updated, rejected: res.data!.rejected });
     void refreshRuns(); void refreshSources();
   }
+
+  // Total issues for either source of the report.
+  const issues = report ? dataHealthTotal(report) : connQuality ? Object.values(connQuality).reduce((a, b) => a + b, 0) : 0;
+  const qcount = (k: string): number => report ? (report[k as keyof DataHealthReport]?.count ?? 0) : (connQuality?.[k] ?? 0);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-3">
@@ -152,9 +180,7 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
       <p className="flex items-start gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
         <Activity className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{t('rpShell.intg_purpose')}</span>
       </p>
-      {!canManage && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('rpShell.intg_readOnly')}</p>
-      )}
+      {!canManage && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('rpShell.intg_readOnly')}</p>}
 
       {/* Data Sources strip */}
       <div className="rounded-lg border p-2">
@@ -163,11 +189,26 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
           {canManage && !creating && <Button size="sm" variant="outline" onClick={() => setCreating(true)}><Plus className="h-3.5 w-3.5" /> {t('rpShell.intg_newSource')}</Button>}
         </div>
         {creating && (
-          <div className="mb-2 flex items-center gap-2">
-            <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addSource(); if (e.key === 'Escape') setCreating(false); }}
-              placeholder={t('rpShell.intg_sourceName')} className="flex-1 rounded-md border px-2 py-1.5 text-sm" />
-            <Button size="sm" onClick={addSource} disabled={!newName.trim()}>{t('rpShell.intg_create')}</Button>
-            <Button size="sm" variant="ghost" onClick={() => { setCreating(false); setNewName(''); }}><X className="h-4 w-4" /></Button>
+          <div className="mb-2 space-y-2 rounded-md border bg-muted/20 p-2">
+            <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t('rpShell.intg_sourceName')} className="w-full rounded-md border px-2 py-1.5 text-sm" />
+            <select value={newType} onChange={(e) => setNewType(e.target.value as NewType)} className="w-full rounded-md border px-2 py-1.5 text-sm">
+              <option value="google_sheets">{t('rpShell.intg_t_google_sheets')}</option>
+              <option value="api_erp">{t('rpShell.intg_t_api_erp')}</option>
+              <option value="manual_upload">{t('rpShell.intg_t_manual_upload')}</option>
+            </select>
+            {newType === 'google_sheets' && (
+              <input value={cfgUrl} onChange={(e) => setCfgUrl(e.target.value)} placeholder={t('rpShell.intg_sheetUrl')} dir="ltr" className="w-full rounded-md border px-2 py-1.5 text-sm" />
+            )}
+            {newType === 'api_erp' && (<>
+              <input value={cfgUrl} onChange={(e) => setCfgUrl(e.target.value)} placeholder={t('rpShell.intg_endpoint')} dir="ltr" className="w-full rounded-md border px-2 py-1.5 text-sm" />
+              <input value={cfgToken} onChange={(e) => setCfgToken(e.target.value)} placeholder={t('rpShell.intg_token')} type="password" autoComplete="off" dir="ltr" className="w-full rounded-md border px-2 py-1.5 text-sm" />
+              <input value={cfgPath} onChange={(e) => setCfgPath(e.target.value)} placeholder={t('rpShell.intg_rowsPath')} dir="ltr" className="w-full rounded-md border px-2 py-1.5 text-sm" />
+              <p className="text-[10px] text-muted-foreground">{t('rpShell.intg_tokenNote')}</p>
+            </>)}
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setCreating(false)}><X className="h-4 w-4" /></Button>
+              <Button size="sm" onClick={addSource} disabled={!newName.trim()}>{t('rpShell.intg_create')}</Button>
+            </div>
           </div>
         )}
         {sources.length === 0 && !creating ? (
@@ -189,12 +230,17 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
         )}
       </div>
 
-      {step === 'upload' && (
+      {step === 'home' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
           <UploadCloud className="h-10 w-10 text-primary" />
           <p className="max-w-md text-sm text-muted-foreground">{t('rpShell.intg_intro')}</p>
           <p className="text-xs text-muted-foreground">{activeSource ? `${t('rpShell.intg_activeSource')}: ${String(activeSource.name)}` : t('rpShell.intg_adhoc')}</p>
-          <Button onClick={() => fileRef.current?.click()} disabled={importing}><UploadCloud className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('rpShell.intg_upload')}</Button>
+          {/* Fetch action depends on the active source type. */}
+          {activeType === 'google_sheets' || activeType === 'api_erp' ? (
+            <Button onClick={fetchFromConnector} disabled={busy}><RefreshCw className="h-4 w-4" /> {busy ? t('routePlanner.importing') : t('rpShell.intg_fetchSync')}</Button>
+          ) : (
+            <Button onClick={() => fileRef.current?.click()} disabled={busy}><UploadCloud className="h-4 w-4" /> {busy ? t('routePlanner.importing') : t('rpShell.intg_upload')}</Button>
+          )}
           {msg && <p className="text-sm text-amber-700">{msg}</p>}
           {runs.length > 0 && <SyncHistory runs={runs} t={t} />}
         </div>
@@ -209,32 +255,32 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
             mapping={mapping} onMap={(k, h) => setMapping((m) => ({ ...m, [k]: h }))}
             stats={[{ label: t('dayPlanner.v_total'), value: records.length }, { label: t('dayPlanner.v_valid'), value: validCount, tone: 'ok' }, { label: t('dayPlanner.v_skipped'), value: records.length - validCount, tone: 'warn' }]}
             requiredOk={requiredOk} warning={t('dayPlanner.needRequired')}
-            canContinue={requiredOk && validCount > 0} continueLabel={t('rpShell.intg_runChecks')}
-            onBack={() => setStep('upload')} onContinue={continueToReport}
+            canContinue={requiredOk && (origin === 'connector' || validCount > 0)} continueLabel={origin === 'connector' ? t('rpShell.intg_fetchSync') : t('rpShell.intg_runChecks')}
+            onBack={() => setStep('home')} onContinue={continueFromMap}
           />
+          {origin === 'connector' && <p className="px-1 pt-1 text-[10px] text-muted-foreground">{t('rpShell.intg_connectorMapNote')}</p>}
         </div>
       )}
 
-      {step === 'report' && report && (
+      {step === 'report' && (report || connQuality) && (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /><p className="text-sm font-semibold">{t('rpShell.intg_dataHealth')}</p><span className="text-xs text-muted-foreground">{fileName} · {customers.length} {t('dayPlanner.rows')}</span></div>
+            <div className="flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /><p className="text-sm font-semibold">{t('rpShell.intg_dataHealth')}</p><span className="text-xs text-muted-foreground">{fileName}</span></div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => setStep('map')}>{t('dayPlanner.back')}</Button>
-              {canManage && <Button size="sm" onClick={recordSync}><History className="h-4 w-4" /> {t('rpShell.intg_record')}</Button>}
+              <Button size="sm" variant="outline" onClick={() => setStep('home')}>{t('dayPlanner.back')}</Button>
+              {origin === 'file' && canManage && <Button size="sm" onClick={recordFileSync}><History className="h-4 w-4" /> {t('rpShell.intg_record')}</Button>}
             </div>
           </div>
-          {mapSaved && <p className="rounded bg-sky-50 px-3 py-1.5 text-xs text-sky-700">{t('rpShell.intg_mappingSaved')}</p>}
           {saved && <p className="rounded bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{t('rpShell.intg_recorded').replace('{i}', String(saved.imported)).replace('{u}', String(saved.updated)).replace('{r}', String(saved.rejected))}</p>}
           {msg && <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('rpShell.intg_recordPending')} <span className="text-muted-foreground">({msg})</span></p>}
 
           <div className="rounded-lg border p-2">
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold">{dataHealthTotal(report) === 0 ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-600" />}{t('rpShell.intg_issues').replace('{n}', String(dataHealthTotal(report)))}</div>
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold">{issues === 0 ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-600" />}{t('rpShell.intg_issues').replace('{n}', String(issues))}</div>
             <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-              {RP_QUALITY_CHECKS.map((k) => report[k] && (
-                <div key={k} className={`flex items-center justify-between rounded border px-2 py-1.5 text-xs ${(report[k]!.count > 0) ? 'border-amber-200 bg-amber-50' : ''}`}>
+              {RP_QUALITY_CHECKS.map((k) => (
+                <div key={k} className={`flex items-center justify-between rounded border px-2 py-1.5 text-xs ${qcount(k) > 0 ? 'border-amber-200 bg-amber-50' : ''}`}>
                   <span>{t(`rpShell.dh_${k}` as Parameters<typeof t>[0])}</span>
-                  <span className={`tabular-nums font-semibold ${report[k]!.count > 0 ? 'text-amber-700' : 'text-muted-foreground'}`} dir="ltr">{report[k]!.count}</span>
+                  <span className={`tabular-nums font-semibold ${qcount(k) > 0 ? 'text-amber-700' : 'text-muted-foreground'}`} dir="ltr">{qcount(k)}</span>
                 </div>
               ))}
             </div>

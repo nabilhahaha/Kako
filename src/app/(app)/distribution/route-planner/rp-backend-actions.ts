@@ -3,6 +3,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { summarizeSync } from '@/lib/erp/route-planner-sync';
+import { fetchConnector, redactConfig, type ConnectorType, type ConnectorConfig } from '@/lib/erp/route-planner-connectors';
+import { toCustomers, isValidCustomer, type CmMapping } from '@/lib/erp/route-planner-customer-map';
+import { suggestColumnMapping } from '@/lib/tis/upload';
 import type { DataHealthInput } from '@/lib/erp/route-planner-data-health';
 import type { RpEntity, RpSourceType, RpTicketType, RpTicketStatus, RpApprovalStep } from '@/lib/erp/route-planner-backend';
 import type { RpNode } from '@/lib/erp/route-planner-reporting';
@@ -43,16 +46,39 @@ export async function listDataSources(): Promise<Result<unknown[]>> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
   const { data, error } = await sb.from('erp_rp_data_sources').select('*').eq('company_id', ctx.companyId).order('created_at', { ascending: false });
-  return error ? { ok: false, error: error.message } : { ok: true, data: data ?? [] };
+  if (error) return { ok: false, error: error.message };
+  // SECURITY: never return secrets (e.g. API tokens) to the client — redact config.
+  const rows = (data ?? []).map((r) => ({ ...r, config: redactConfig(r.config as Record<string, unknown> | null) }));
+  return { ok: true, data: rows };
 }
 
 export async function createDataSource(input: { name: string; type: RpSourceType; config?: Record<string, unknown>; schedule?: string | null }): Promise<Result<{ id: string }>> {
   const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  if (!isAdminCtx(ctx)) return { ok: false, error: 'err_unauthorized' }; // connectors are admin-managed
   const sb = await createClient();
   const { data, error } = await sb.from('erp_rp_data_sources')
     .insert({ company_id: ctx.companyId, name: input.name.trim(), type: input.type, config: input.config ?? {}, schedule: input.schedule ?? null, created_by: ctx.userId })
     .select('id').single();
   return error || !data ? { ok: false, error: error?.message ?? 'insert_failed' } : { ok: true, data: { id: data.id } };
+}
+
+/** Update a source's config. A blank token is NOT written — the stored token is kept
+ *  (write-only secret). Admin-only. */
+export async function updateDataSource(sourceId: string, input: { name?: string; config?: Record<string, unknown> }): Promise<Result> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  if (!isAdminCtx(ctx)) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.name) patch.name = input.name.trim();
+  if (input.config) {
+    const { data: cur } = await sb.from('erp_rp_data_sources').select('config').eq('id', sourceId).eq('company_id', ctx.companyId).maybeSingle();
+    const existing = (cur?.config as Record<string, unknown> | null) ?? {};
+    const next = { ...existing, ...input.config };
+    if (!('token' in input.config) || !input.config.token) next.token = existing.token; // keep stored token
+    patch.config = next;
+  }
+  const { error } = await sb.from('erp_rp_data_sources').update(patch).eq('id', sourceId).eq('company_id', ctx.companyId);
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 export async function saveFieldMapping(sourceId: string, entity: RpEntity, mapping: Record<string, string>): Promise<Result> {
@@ -72,23 +98,84 @@ export async function getFieldMapping(sourceId: string, entity: RpEntity): Promi
   return { ok: true, data: (data as { mapping?: Record<string, string> } | null)?.mapping ?? null };
 }
 
-// ── Integration: run a manual sync + history ────────────────────────────────
-export async function runManualSync(input: {
-  sourceId?: string | null; sourceLabel?: string | null;
-  master: DataHealthInput; existingCodes?: string[]; rejected?: { row: number; reason: string }[];
-}): Promise<Result<{ runId: string; imported: number; updated: number; rejected: number; issues: number }>> {
-  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+// ── Integration: the SHARED post-fetch pipeline ─────────────────────────────
+// Validate → Data Health → Sync History → Audit. Used identically by Manual Upload
+// AND every connector — there is no source-specific customer logic past this point.
+type SyncResult = Result<{ runId: string; imported: number; updated: number; rejected: number; issues: number; quality: Record<string, number> }>;
+
+async function recordSync(
+  sb: Awaited<ReturnType<typeof createClient>>, companyId: string,
+  input: { sourceId?: string | null; sourceLabel?: string | null; trigger?: 'manual' | 'scheduled';
+           master: DataHealthInput; existingCodes?: string[]; rejected?: { row: number; reason: string }[] },
+): Promise<SyncResult> {
   const summary = summarizeSync(input.master, { existingKeys: new Set((input.existingCodes ?? []).map((c) => c.toLowerCase())), rejected: input.rejected });
-  const sb = await createClient();
   const { data, error } = await sb.from('erp_rp_sync_runs').insert({
-    source_id: input.sourceId ?? null, company_id: ctx.companyId, trigger: 'manual', source_label: input.sourceLabel ?? null,
+    source_id: input.sourceId ?? null, company_id: companyId, trigger: input.trigger ?? 'manual', source_label: input.sourceLabel ?? null,
     finished_at: new Date().toISOString(), status: summary.status,
     rows_imported: summary.rowsImported, rows_updated: summary.rowsUpdated, rows_rejected: summary.rowsRejected,
     errors: summary.errors, quality: summary.quality,
   }).select('id').single();
   if (error || !data) return { ok: false, error: error?.message ?? 'insert_failed' };
   if (input.sourceId) await sb.from('erp_rp_data_sources').update({ last_sync_at: new Date().toISOString(), last_status: summary.status }).eq('id', input.sourceId);
-  return { ok: true, data: { runId: data.id, imported: summary.rowsImported, updated: summary.rowsUpdated, rejected: summary.rowsRejected, issues: summary.qualityIssues } };
+  return { ok: true, data: { runId: data.id, imported: summary.rowsImported, updated: summary.rowsUpdated, rejected: summary.rowsRejected, issues: summary.qualityIssues, quality: (summary.quality as Record<string, number>) ?? {} } };
+}
+
+/** Manual Upload sync — client has already parsed + mapped to HCustomer; runs the shared pipeline. */
+export async function runManualSync(input: {
+  sourceId?: string | null; sourceLabel?: string | null;
+  master: DataHealthInput; existingCodes?: string[]; rejected?: { row: number; reason: string }[];
+}): Promise<SyncResult> {
+  const ctx = await ctxOrNull(); if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  return recordSync(sb, ctx.companyId!, { ...input, trigger: 'manual' });
+}
+
+// ── Connectors: Fetch (server) → then the SAME shared pipeline ───────────────
+const CONNECTOR_ENTITY: RpEntity = 'customer_master';
+
+async function loadConnectorSource(sb: Awaited<ReturnType<typeof createClient>>, companyId: string, sourceId: string) {
+  const { data } = await sb.from('erp_rp_data_sources').select('id, name, type, config').eq('id', sourceId).eq('company_id', companyId).maybeSingle();
+  return data as { id: string; name: string; type: string; config: ConnectorConfig } | null;
+}
+
+/** Fetch the source's columns + a sample + a suggested mapping (the connector "preview"
+ *  before mapping). Admin-only; the token is used server-side only and never returned. */
+export async function fetchConnectorColumns(sourceId: string): Promise<Result<{ headers: string[]; records: Record<string, string>[]; suggested: Record<string, string | undefined> }>> {
+  const ctx = await ctxOrNull(); if (!ctx || !isAdminCtx(ctx)) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const src = await loadConnectorSource(sb, ctx.companyId!, sourceId);
+  if (!src || (src.type !== 'google_sheets' && src.type !== 'api_erp')) return { ok: false, error: 'err_not_connector' };
+  try {
+    const sheet = await fetchConnector(src.type as ConnectorType, src.config);
+    if (sheet.headers.length === 0) return { ok: false, error: 'err_no_rows' };
+    return { ok: true, data: { headers: sheet.headers, records: sheet.rows.slice(0, 50), suggested: suggestColumnMapping(sheet.headers) as Record<string, string | undefined> } };
+  } catch (e) {
+    return { ok: false, error: `fetch_${e instanceof Error ? e.message : 'failed'}` }; // codes only — no token/url echo
+  }
+}
+
+/** Run a full connector sync: Fetch → shared Map/Validate/Data-Health/History/Audit.
+ *  Persists the mapping for reuse. Admin-only. */
+export async function runConnectorSync(sourceId: string, mapping: CmMapping): Promise<SyncResult> {
+  const ctx = await ctxOrNull(); if (!ctx || !isAdminCtx(ctx)) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const src = await loadConnectorSource(sb, ctx.companyId!, sourceId);
+  if (!src || (src.type !== 'google_sheets' && src.type !== 'api_erp')) return { ok: false, error: 'err_not_connector' };
+
+  let rows: Record<string, string>[];
+  try { rows = (await fetchConnector(src.type as ConnectorType, src.config)).rows; }
+  catch (e) { return { ok: false, error: `fetch_${e instanceof Error ? e.message : 'failed'}` }; }
+
+  // SHARED map step (identical to Manual Upload) — no connector-specific customer logic.
+  const customers = toCustomers(rows, mapping);
+  const valid = customers.filter(isValidCustomer);
+  const rejected = customers.map((c, i) => ({ c, i })).filter(({ c }) => !isValidCustomer(c)).map(({ i }) => ({ row: i + 1, reason: 'missing_required' }));
+
+  // Persist the mapping for reuse, then run the shared pipeline.
+  const clean: Record<string, string> = {}; for (const k of Object.keys(mapping)) { const v = mapping[k]; if (v) clean[k] = v; }
+  await sb.from('erp_rp_field_mappings').upsert({ source_id: sourceId, company_id: ctx.companyId, entity: CONNECTOR_ENTITY, mapping: clean, updated_at: new Date().toISOString() }, { onConflict: 'source_id,entity' });
+
+  return recordSync(sb, ctx.companyId!, { sourceId, sourceLabel: src.name, trigger: 'manual', master: { customers: valid }, existingCodes: [], rejected });
 }
 
 export async function listSyncRuns(limit = 50): Promise<Result<unknown[]>> {
