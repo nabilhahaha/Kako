@@ -156,7 +156,7 @@ const OBS: { kind: StopObservationKind; icon: typeof MessageSquare; key: string 
   { kind: 'follow_up', icon: ListChecks, key: 'mn_obsFollowUp' },
 ];
 
-function MissionDetail({ missionId, perms, nameOf, onClose }: {
+export function MissionDetail({ missionId, perms, nameOf, onClose }: {
   missionId: string; perms: MissionPerms; nameOf: (id: string | null) => string; onClose: () => void;
 }) {
   const { t } = useI18n();

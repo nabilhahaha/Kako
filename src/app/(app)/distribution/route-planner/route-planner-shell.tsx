@@ -118,7 +118,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
   /** Resolved Supervisor-Mission capabilities (create / assign / execute / review). */
   missionPerms?: MissionPerms;
 }) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'missions' | 'soon'>('home');
   const [custFocusSegments, setCustFocusSegments] = useState(false);
   const [terrGroup, setTerrGroup] = useState<'region' | 'city' | 'area'>('region');
@@ -201,7 +201,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, userI
   );
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-background">
+    <div dir={dir} className="flex h-[100dvh] flex-col bg-background">
       {/* Top bar — always visible (desktop + mobile). */}
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
         <button onClick={() => setDrawer((d) => !d)} className="rounded-lg p-1.5 hover:bg-muted lg:hidden" aria-label="Menu"><Menu className="h-5 w-5" /></button>
