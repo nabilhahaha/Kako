@@ -18,6 +18,7 @@ import { parseUploadColumns } from './import-actions';
 import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map';
 import { TrialBanner } from './trial-banner';
 import { JourneyPanel, type JourneyInputCustomer } from './journey-panel';
+import { DayPlanner } from './day-planner';
 import { savePlannerDraft, loadPlannerDraft, clearPlannerDraft, type PlannerDraft } from './planner-draft';
 import { WhatsAppContact } from '@/components/route-planner/whatsapp-contact';
 import { buildSupportWhatsAppUrl, type RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
@@ -116,6 +117,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const [approved, setApproved] = useState(false);
   const [exported, setExported] = useState(false);
   const [journeyMode, setJourneyMode] = useState(false);
+  const [dayPlannerOpen, setDayPlannerOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [mapState, setMapState] = useState<{ headers: string[]; records: Record<string, string>[]; map: Partial<Record<TisFieldKey, string>> } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
@@ -520,6 +522,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button size="lg" onClick={() => fileRef.current?.click()} disabled={importing || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
                 <Button size="lg" variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
+                <Button size="lg" variant="outline" onClick={() => setDayPlannerOpen(true)}><MapIcon className="h-4 w-4" /> {t('dayPlanner.title')}</Button>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -573,6 +576,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => fileRef.current?.click()} disabled={importing || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
                   <Button variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
+                  <Button variant="outline" onClick={() => setDayPlannerOpen(true)}><MapIcon className="h-4 w-4" /> {t('dayPlanner.title')}</Button>
                 </div>
                 <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
               </>
@@ -1003,6 +1007,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
 
       {/* Journey Planning V1 — full-screen overlay opened after the allocation is built. */}
       {journeyMode && <JourneyPanel customers={journeyCustomers} hasSales={hasSales} onClose={() => setJourneyMode(false)} />}
+      {dayPlannerOpen && <DayPlanner hasSalesDefault={hasSales} onClose={() => setDayPlannerOpen(false)} />}
     </div>
   );
 }
