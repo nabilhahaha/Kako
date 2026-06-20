@@ -429,6 +429,20 @@ export const ar = {
     untitledPlan: 'خطة بدون اسم',
     geoErr: 'تعذّر تحديد موقعك. اختر نقطة البداية يدويًا.',
   },
+  rpShell: {
+    home: 'الرئيسية', profile: 'الملف الشخصي', logout: 'تسجيل الخروج',
+    comingSoon: 'قريبًا', comingSoonHint: 'هذا القسم قيد التطوير ضمن المراحل القادمة.',
+    buildTodayRoute: 'ابدأ خطة اليوم', buildTodayRouteHint: 'اختر العملاء وأنشئ مسار اليوم',
+    openRouteBuilder: 'بناء الخطوط', openRouteBuilderHint: 'ارفع العملاء ووزّعهم وراجع وصدّر',
+    dashboardWelcome: 'مرحبًا — اختر إجراءً للبدء',
+    g_planning: 'التخطيط', g_customers: 'العملاء', g_territories: 'المناطق', g_execution: 'تقارير الميدان', g_analytics: 'التحليلات', g_settings: 'الإعدادات',
+    i_dayPlanner: 'مخطط اليوم', i_routeBuilder: 'بناء الخطوط', i_weeklyPlanner: 'المخطط الأسبوعي', i_savedPlans: 'الخطط المحفوظة', i_routeTemplates: 'قوالب الخطوط',
+    i_customerList: 'قائمة العملاء', i_customerGroups: 'مجموعات العملاء', i_savedSegments: 'الشرائح المحفوظة', i_importCustomers: 'استيراد العملاء',
+    i_regions: 'الأقاليم', i_cities: 'المدن', i_drawAreas: 'رسم المناطق', i_territoryAssignment: 'إسناد المناطق',
+    i_supervisorVisits: 'زيارات المشرفين', i_customerVisitHistory: 'سجل زيارات العملاء', i_photosEvidence: 'الصور والأدلة', i_marketIssues: 'مشكلات السوق',
+    i_competitorActivities: 'أنشطة المنافسين', i_opportunities: 'الفرص', i_followUpActions: 'إجراءات المتابعة',
+    i_coverage: 'التغطية', i_routeEfficiency: 'كفاءة الخط', i_distanceTime: 'المسافة والزمن', i_visitFrequency: 'تكرار الزيارة', i_unvisitedCustomers: 'عملاء لم تتم زيارتهم',
+  },
 };
 
 export const en = {
@@ -860,5 +874,19 @@ export const en = {
     navigate: 'Navigate',
     untitledPlan: 'Untitled plan',
     geoErr: 'Could not get your location. Pick a Start point manually.',
+  },
+  rpShell: {
+    home: 'Home', profile: 'Profile', logout: 'Logout',
+    comingSoon: 'Coming soon', comingSoonHint: 'This section is being built in the upcoming phases.',
+    buildTodayRoute: "Build Today's Route", buildTodayRouteHint: 'Pick customers and generate the day route',
+    openRouteBuilder: 'Route Builder', openRouteBuilderHint: 'Upload customers, split, review and export',
+    dashboardWelcome: 'Welcome — pick an action to start',
+    g_planning: 'Planning', g_customers: 'Customers', g_territories: 'Territories', g_execution: 'Execution Reports', g_analytics: 'Analytics', g_settings: 'Settings',
+    i_dayPlanner: 'Day Planner', i_routeBuilder: 'Route Builder', i_weeklyPlanner: 'Weekly Planner', i_savedPlans: 'Saved Plans', i_routeTemplates: 'Route Templates',
+    i_customerList: 'Customer List', i_customerGroups: 'Customer Groups', i_savedSegments: 'Saved Segments', i_importCustomers: 'Import Customers',
+    i_regions: 'Regions', i_cities: 'Cities', i_drawAreas: 'Draw Areas', i_territoryAssignment: 'Territory Assignment',
+    i_supervisorVisits: 'Supervisor Visits', i_customerVisitHistory: 'Customer Visit History', i_photosEvidence: 'Photos & Evidence', i_marketIssues: 'Market Issues',
+    i_competitorActivities: 'Competitor Activities', i_opportunities: 'Opportunities', i_followUpActions: 'Follow-up Actions',
+    i_coverage: 'Coverage', i_routeEfficiency: 'Route Efficiency', i_distanceTime: 'Distance / Time', i_visitFrequency: 'Visit Frequency', i_unvisitedCustomers: 'Unvisited Customers',
   },
 };

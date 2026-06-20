@@ -87,7 +87,7 @@ function downloadXlsx(bytes: Uint8Array, filename: string) {
  * TIS upload pipeline, the shared scenario/plan-edit engine and a single-pass geo
  * split — the manager does the final shaping by box/click-selecting on the map.
  */
-export function RoutePlannerWorkspace({ focus = false, demo = false, subscription }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView } = {}) {
+export function RoutePlannerWorkspace({ focus = false, demo = false, subscription, embedded = false, registerOpenDayPlanner }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView; embedded?: boolean; registerOpenDayPlanner?: (fn: () => void) => void } = {}) {
   const { t, locale, setLocale } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -201,6 +201,9 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const routeCountById = useMemo(() => new Map(reviews.map((r) => [r.routeId, r.customers])), [reviews]);
   const hasSales = useMemo(() => (dataset ? hasSalesData(dataset) : false), [dataset]);
   const unassigned = useMemo(() => (dataset ? unassignedCount(dataset, activeScenario) : 0), [dataset, activeScenario]);
+
+  // Let the shell (sidebar) open the Day Planner — the engine stays here, dataset-fed.
+  useEffect(() => { registerOpenDayPlanner?.(() => setDayPlannerOpen(true)); }, [registerOpenDayPlanner]);
 
   // Customers (with coordinates) handed to the Day Planner as its "existing dataset"
   // source, so the user can plan a day without re-uploading a file.
@@ -470,7 +473,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   // Demo branding header (wordmark + language toggle + "Route Planner Demo" badge) —
   // focus mode only. The language toggle works in the chrome-free demo layout (the
   // i18n provider lives at the root and sets the locale cookie + flips RTL/LTR).
-  const brandHeader = focus ? (
+  const brandHeader = (focus && !embedded) ? (
     <div className={`flex flex-wrap items-center justify-between gap-2 ${dataset ? 'mb-1' : 'mb-3'}`}>
       <div className="flex items-center gap-2">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"><RouteIcon className="h-4 w-4" /></div>
@@ -708,7 +711,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
 
   // ── Planning screen ──
   return (
-    <div className={focus ? 'flex h-[calc(100dvh-0.75rem)] flex-col gap-2 p-2 lg:px-4' : 'space-y-3'}>
+    <div className={embedded ? 'flex h-full flex-col gap-2 p-2' : focus ? 'flex h-[calc(100dvh-0.75rem)] flex-col gap-2 p-2 lg:px-4' : 'space-y-3'}>
       {brandHeader}
       {subBanner}
       {/* Persistent capability nav — switch between Allocation / Split / Manual / Journey
