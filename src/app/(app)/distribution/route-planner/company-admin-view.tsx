@@ -9,7 +9,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import type { RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
 import { resolveMissionPerms, type RpRole } from '@/lib/erp/route-planner-access';
-import { companyOverview, type CompanyOverview } from './rp-company-actions';
+import { companyOverview, listCompanyUsers, setCompanyUserActive, type CompanyOverview } from './rp-company-actions';
 import { listReportingGraph } from './rp-reporting-actions';
 import type { RpNode } from '@/lib/erp/route-planner-reporting';
 
@@ -33,14 +33,25 @@ export function CompanyAdminView({ subscription, companyName, onNavigate }: {
   const [ov, setOv] = useState<CompanyOverview | null>(null);
   const [nodes, setNodes] = useState<RpNode[]>([]);
   const [perms, setPerms] = useState<Record<string, { create?: boolean; assign?: boolean; review?: boolean }>>({});
+  const [activeById, setActiveById] = useState<Record<string, boolean>>({});
+  const [meId, setMeId] = useState<string>('');
+  const [busyUser, setBusyUser] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let on = true;
     void companyOverview().then((r) => { if (on && r.ok) setOv(r.data ?? null); if (on) setLoading(false); });
-    void listReportingGraph().then((r) => { if (on && r.ok) { setNodes(r.data!.nodes); setPerms(r.data!.missionPermsById ?? {}); } });
+    void listReportingGraph().then((r) => { if (on && r.ok) { setNodes(r.data!.nodes); setPerms(r.data!.missionPermsById ?? {}); setMeId(r.data!.meId); } });
+    void listCompanyUsers().then((r) => { if (on && r.ok) setActiveById(Object.fromEntries((r.data ?? []).map((u) => [u.id, u.active]))); });
     return () => { on = false; };
   }, []);
+
+  async function toggleActive(userId: string, next: boolean) {
+    setBusyUser(userId);
+    const res = await setCompanyUserActive(userId, next);
+    if (res.ok) setActiveById((m) => ({ ...m, [userId]: next }));
+    setBusyUser(null);
+  }
 
   const nameOf = useMemo(() => { const m = new Map(nodes.map((n) => [n.userId, n.name])); return (id: string | null) => (id ? m.get(id) ?? id.slice(0, 8) : '—'); }, [nodes]);
 
@@ -108,10 +119,19 @@ export function CompanyAdminView({ subscription, companyName, onNavigate }: {
                       <p className="truncate text-sm font-medium">{n.name}{n.seeAll && <Crown className="ms-1 inline h-3 w-3 text-amber-500" />}</p>
                       <p className="text-[11px] text-muted-foreground">{roleLabel(n.role)}{n.primaryManagerId ? ` · ${nameOf(n.primaryManagerId)}` : ''}</p>
                     </div>
-                    <div className="flex shrink-0 gap-1 text-[10px]">
+                    <div className="flex shrink-0 items-center gap-1 text-[10px]">
                       {mp.canCreate && <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 font-semibold text-emerald-700">{t('rpShell.mp_create')}</span>}
                       {mp.canAssign && <span className="rounded-full bg-sky-100 px-1.5 py-0.5 font-semibold text-sky-700">{t('rpShell.mp_assign')}</span>}
                       {mp.canReview && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-700">{t('rpShell.mp_review')}</span>}
+                      {/* Activate / deactivate — company-scoped; never your own account. */}
+                      {n.userId in activeById && (
+                        n.userId === meId
+                          ? <span className="ms-1 rounded-full bg-emerald-100 px-1.5 py-0.5 font-semibold text-emerald-700">{t('rpShell.ca_active')}</span>
+                          : <button disabled={busyUser === n.userId} onClick={() => toggleActive(n.userId, !activeById[n.userId])}
+                              className={`ms-1 rounded-full px-2 py-0.5 font-semibold transition disabled:opacity-50 ${activeById[n.userId] ? 'bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-700' : 'bg-zinc-200 text-zinc-600 hover:bg-emerald-100 hover:text-emerald-700'}`}>
+                              {activeById[n.userId] ? t('rpShell.ca_active') : t('rpShell.ca_inactive')}
+                            </button>
+                      )}
                     </div>
                   </li>
                 );
