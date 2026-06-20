@@ -21,8 +21,12 @@ export interface SelMapHull { id: string; color: string; ring: [number, number][
 
 const RASTER_STYLE = {
   version: 8 as const,
-  sources: { osm: { type: 'raster' as const, tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } },
-  layers: [{ id: 'osm', type: 'raster' as const, source: 'osm' }],
+  sources: { osm: { type: 'raster' as const, tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', 'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png', 'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, minzoom: 0, maxzoom: 19, attribution: '© OpenStreetMap contributors' } },
+  // Opaque background under the tiles so a slow/blocked tile shows neutral grey, never black.
+  layers: [
+    { id: 'bg', type: 'background' as const, paint: { 'background-color': '#e9eef2' } },
+    { id: 'osm', type: 'raster' as const, source: 'osm' },
+  ],
 };
 
 function toPointGeoJSON(points: SelMapPoint[]) {
@@ -100,6 +104,13 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
       // collides with it.
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
       mapRef.current = map;
+      // Keep the WebGL canvas sized to the (flex/grid) container so it never renders blank.
+      map.on('load', () => { map!.resize(); setTimeout(() => mapRef.current?.resize(), 250); });
+      if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+        const ro = new ResizeObserver(() => mapRef.current?.resize());
+        ro.observe(containerRef.current);
+        (map as unknown as { __ro?: ResizeObserver }).__ro = ro;
+      }
 
       map.on('load', () => {
         // Route boundaries (under the points).
@@ -224,8 +235,9 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
     })();
     return () => {
       cancelled = true;
-      const m = map as unknown as { _rpCleanup?: () => void } | undefined;
+      const m = map as unknown as { _rpCleanup?: () => void; __ro?: ResizeObserver } | undefined;
       m?._rpCleanup?.();
+      m?.__ro?.disconnect();
       if (map) map.remove();
       mapRef.current = null;
     };
