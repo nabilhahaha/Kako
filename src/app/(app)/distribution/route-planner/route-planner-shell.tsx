@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   Home, Map as MapIcon, CalendarRange, Bookmark, LayoutTemplate, Users, UsersRound, Filter, UploadCloud,
   Globe2, Building2, PencilRuler, UserCheck, ClipboardCheck, History, Images, AlertTriangle, Swords,
@@ -11,7 +11,9 @@ import { useI18n } from '@/lib/i18n/provider';
 import { LanguageToggle } from '@/components/layout/language-toggle';
 import { Button } from '@/components/ui/button';
 import type { RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
+import type { DpCustomer } from '@/lib/tis/day-planner-import';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
+import { DayPlanner } from './day-planner';
 
 /** Route Planner feature grants. Mirrors the Field Missions Phase 0 access model
  *  (erp_route_planner_access); kept local here so this PR stays independent of #310. */
@@ -75,13 +77,13 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
   features: RpFeature[] | null;
 }) {
   const { t } = useI18n();
-  const [view, setView] = useState<'home' | 'planning' | 'soon'>('home');
+  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'soon'>('home');
   const [soonLabel, setSoonLabel] = useState('');
   const [active, setActive] = useState<string>('home');
   const [open, setOpen] = useState<Record<string, boolean>>({ planning: true });
   const [drawer, setDrawer] = useState(false); // mobile sidebar
   const [profileOpen, setProfileOpen] = useState(false);
-  const openDayPlannerRef = useRef<(() => void) | null>(null);
+  const [seed, setSeed] = useState<DpCustomer[]>([]); // customers from the Route Builder upload
 
   const can = (f?: RpFeature) => !f || features === null || features.includes(f);
   const groups = NAV.filter((g) => can(g.feature));
@@ -89,7 +91,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
   function go(item: NavItem) {
     setActive(item.key);
     setDrawer(false);
-    if (item.action === 'dayPlanner') { setView('planning'); openDayPlannerRef.current?.(); }
+    if (item.action === 'dayPlanner') setView('dayPlanner');
     else if (item.action === 'planning') setView('planning');
     else { setSoonLabel(t(`rpShell.${item.labelKey}` as Parameters<typeof t>[0])); setView('soon'); }
   }
@@ -172,16 +174,25 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
 
         {/* Content — the map lives INSIDE here, never over the sidebar. */}
         <main className="min-w-0 flex-1 overflow-auto">
-          {/* Workspace stays mounted to preserve its dataset; shown only in planning view. */}
+          {/* Workspace stays mounted to preserve its dataset + feed the Day Planner seed;
+              shown only in the planning view. */}
           <div className={view === 'planning' ? 'h-full' : 'hidden'}>
-            <RoutePlannerWorkspace focus embedded demo={demo} subscription={subscription} registerOpenDayPlanner={(fn) => { openDayPlannerRef.current = fn; }} />
+            <RoutePlannerWorkspace focus embedded demo={demo} subscription={subscription} onSeedChange={setSeed} />
           </div>
+
+          {/* Day Planner — runs INSIDE the content area (sidebar + top bar stay visible),
+              on the existing engine, fed by the Route Builder's uploaded customers. */}
+          {view === 'dayPlanner' && (
+            <div className="h-full">
+              <DayPlanner embedded hasSalesDefault={seed.some((c) => (c.sales ?? 0) > 0)} seedCustomers={seed} autoUseDataset={seed.length > 0} onClose={goHome} />
+            </div>
+          )}
 
           {view === 'home' && (
             <div className="mx-auto max-w-3xl p-6">
               <h1 className="text-xl font-bold">{t('rpShell.dashboardWelcome')}</h1>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <button onClick={() => { setActive('dayPlanner'); setView('planning'); openDayPlannerRef.current?.(); }} className="flex items-start gap-3 rounded-2xl border-2 border-primary bg-primary/5 p-5 text-start hover:bg-primary/10">
+                <button onClick={() => { setActive('dayPlanner'); setView('dayPlanner'); }} className="flex items-start gap-3 rounded-2xl border-2 border-primary bg-primary/5 p-5 text-start hover:bg-primary/10">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><MapIcon className="h-5 w-5" /></div>
                   <div><p className="font-bold">{t('rpShell.buildTodayRoute')}</p><p className="text-xs text-muted-foreground">{t('rpShell.buildTodayRouteHint')}</p></div>
                 </button>

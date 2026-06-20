@@ -43,10 +43,13 @@ const stopNavUrl = (c: { lat: number; lng: number }) => `https://www.google.com/
  * count + distance + time → Generate → Save / Share / Print. Designed for managers &
  * field users, not GIS power-users.
  */
-export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseDataset = false, onClose }: {
+export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseDataset = false, embedded = false, onClose }: {
   hasSalesDefault?: boolean;
   seedCustomers?: DpCustomer[];
   autoUseDataset?: boolean;
+  /** When true, the Day Planner fills its container (inside the dashboard shell) instead
+   *  of being a full-screen overlay — the sidebar + top bar stay visible. */
+  embedded?: boolean;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -371,7 +374,7 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
   const selCount = selectedIds.size;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    <div className={embedded ? 'relative flex h-full w-full flex-col overflow-hidden bg-background' : 'fixed inset-0 z-50 flex flex-col bg-background'}>
       <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
 
       {/* Header */}
@@ -389,7 +392,7 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
             <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> {t('dayPlanner.printPdf')}</Button>
             <Button size="sm" variant="ghost" onClick={exportExcel}><FileDown className="h-4 w-4" /> Excel</Button>
           </>}
-          <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /> {t('routePlanner.cancel')}</Button>
+          {!embedded && <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /> {t('routePlanner.cancel')}</Button>}
         </div>
       </div>
 

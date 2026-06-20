@@ -87,7 +87,7 @@ function downloadXlsx(bytes: Uint8Array, filename: string) {
  * TIS upload pipeline, the shared scenario/plan-edit engine and a single-pass geo
  * split — the manager does the final shaping by box/click-selecting on the map.
  */
-export function RoutePlannerWorkspace({ focus = false, demo = false, subscription, embedded = false, registerOpenDayPlanner }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView; embedded?: boolean; registerOpenDayPlanner?: (fn: () => void) => void } = {}) {
+export function RoutePlannerWorkspace({ focus = false, demo = false, subscription, embedded = false, registerOpenDayPlanner, onSeedChange }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView; embedded?: boolean; registerOpenDayPlanner?: (fn: () => void) => void; onSeedChange?: (seed: DpCustomer[]) => void } = {}) {
   const { t, locale, setLocale } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -216,6 +216,8 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         city: c.city, channel: c.channel, class: c.grade, salesman: c.ownership.salesmanId,
       }));
   }, [dataset]);
+  // Share the uploaded customers with the shell so the embedded Day Planner can use them.
+  useEffect(() => { onSeedChange?.(daySeedCustomers); }, [daySeedCustomers, onSeedChange]);
 
   // Route list sorting + top/bottom-10%-by-sales highlight.
   const effectiveSortKey = (!hasSales && (sortKey === 'sales' || sortKey === 'salesPerCustomer')) ? 'route' : sortKey;
