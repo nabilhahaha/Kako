@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardList, Plus, X, Info, ChevronRight, UserPlus, FileEdit, PauseCircle, StopCircle, Repeat, Crosshair, Route as RouteIcon, GitBranch, CheckCircle2, Bell, type LucideIcon } from 'lucide-react';
+import { ClipboardList, Plus, X, Info, ChevronRight, UserPlus, FileEdit, PauseCircle, StopCircle, Repeat, Crosshair, Route as RouteIcon, GitBranch, CheckCircle2, Bell, Paperclip, Upload, type LucideIcon } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { RP_TICKET_TYPES, RP_TICKET_STATUSES, type RpTicketType, type RpTicketStatus } from '@/lib/erp/route-planner-backend';
 import { REQUEST_FORMS, OPTION_SETS, validateRequest, buildDetails, primaryGps, type FormField } from '@/lib/erp/route-planner-request-forms';
 import { createRequest, listRequests, transitionRequest, getRequestApproval, advanceRequest, listMyApprovals, type RequestApprovalView } from './rp-backend-actions';
+import { listAttachments, uploadAttachment, type AttachmentView } from '@/app/(app)/attachments/actions';
+
+/** Entity key for Request Center evidence in the shared erp_attachments system. */
+const ATTACH_ENTITY = 'route_planner_request';
 
 type Req = Record<string, unknown>;
 
@@ -68,6 +72,8 @@ export function RequestCenterView({ meId = null }: { meId?: string | null }) {
   const [selected, setSelected] = useState<Req | null>(null);
   const [approval, setApproval] = useState<RequestApprovalView | null>(null);
   const [wfBusy, setWfBusy] = useState(false);
+  const [atts, setAtts] = useState<AttachmentView[]>([]);
+  const [attBusy, setAttBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   // create form — schema-driven per ticket type
@@ -136,14 +142,28 @@ export function RequestCenterView({ meId = null }: { meId?: string | null }) {
     setSelected((s) => (s && String(s.id) === id ? { ...s, status } : s));
   }
 
-  // Load the live approval state whenever a ticket is opened.
+  // Load the live approval state + attachments whenever a ticket is opened.
   useEffect(() => {
-    if (!selected) { setApproval(null); return; }
+    if (!selected) { setApproval(null); setAtts([]); return; }
     let live = true;
-    setApproval(null);
-    void getRequestApproval(String(selected.id)).then((r) => { if (live && r.ok) setApproval(r.data!); });
+    setApproval(null); setAtts([]);
+    const id = String(selected.id);
+    void getRequestApproval(id).then((r) => { if (live && r.ok) setApproval(r.data!); });
+    void listAttachments(ATTACH_ENTITY, id).then((a) => { if (live) setAtts(a); });
     return () => { live = false; };
   }, [selected]);
+
+  async function onAttach(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file || !selected) return;
+    setAttBusy(true); setMsg(null);
+    const fd = new FormData();
+    fd.append('entity', ATTACH_ENTITY); fd.append('record_id', String(selected.id)); fd.append('file', file);
+    const r = await uploadAttachment(fd);
+    setAttBusy(false);
+    if (e.target) e.target.value = '';
+    if (!r.ok) { setMsg(t('rpShell.rc_att_failed')); return; }
+    setAtts(await listAttachments(ATTACH_ENTITY, String(selected.id)));
+  }
 
   async function act(action: 'approve' | 'reject' | 'need_info') {
     if (!selected) return;
@@ -323,6 +343,31 @@ export function RequestCenterView({ meId = null }: { meId?: string | null }) {
 
           {/* Submitted request details (per-type fields). Routing/tracking only. */}
           <DetailFields request={selected} t={t} />
+
+          {/* Attachments / photo evidence (shared erp_attachments store). */}
+          <div className="mt-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-xs font-semibold"><Paperclip className="h-3.5 w-3.5 text-primary" /> {t('rpShell.rc_att_title')} {atts.length > 0 && <span className="text-muted-foreground">({atts.length})</span>}</p>
+              <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-[11px] hover:bg-muted">
+                <Upload className="h-3.5 w-3.5" /> {attBusy ? t('routePlanner.importing') : t('rpShell.rc_att_add')}
+                <input type="file" accept="image/*,.pdf" className="hidden" onChange={onAttach} disabled={attBusy} />
+              </label>
+            </div>
+            {atts.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">{t('rpShell.rc_att_none')}</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+                {atts.map((a) => (
+                  <a key={a.id} href={a.url ?? '#'} target="_blank" rel="noreferrer" className="group block overflow-hidden rounded-md border" title={a.file_name}>
+                    {a.mime_type?.startsWith('image/') && a.url
+                      ? <img src={a.url} alt={a.file_name} className="h-16 w-full object-cover" />
+                      : <div className="flex h-16 w-full items-center justify-center bg-muted text-muted-foreground"><Paperclip className="h-4 w-4" /></div>}
+                    <p className="truncate px-1 py-0.5 text-[10px] text-muted-foreground">{a.file_name}</p>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
 
           {approval?.hasFlow ? (
             /* Enforced workflow — driven by the configured Approval Builder flow. */
