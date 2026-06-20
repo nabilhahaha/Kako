@@ -47,7 +47,7 @@ function toCustomers(records: Record<string, string>[], m: Mapping): HCustomer[]
  * → record the sync to erp_rp_sync_runs. The Data Health report runs client-side, so it
  * works without a source; persistence (mapping save, sync history) needs a selected source.
  */
-export function IntegrationView() {
+export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
   const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
   const [sources, setSources] = useState<Source[]>([]);
@@ -121,7 +121,7 @@ export function IntegrationView() {
     setReport(runDataHealth({ customers: cs }));
     setStep('report'); setSaved(null); setMapSaved(false);
     // Persist the field mapping for the active source (only mapped, defined columns).
-    if (activeId) {
+    if (activeId && canManage) {
       const clean: Record<string, string> = {};
       for (const k of Object.keys(mapping)) { const v = mapping[k]; if (v) clean[k] = v; }
       const r = await saveFieldMapping(activeId, 'customer_master', clean);
@@ -149,11 +149,15 @@ export function IntegrationView() {
         <p className="text-sm font-bold">{t('rpShell.g_integrations')}</p>
       </div>
 
+      {!canManage && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('rpShell.intg_readOnly')}</p>
+      )}
+
       {/* Data Sources strip */}
       <div className="rounded-lg border p-2">
         <div className="mb-1.5 flex items-center justify-between">
           <p className="text-xs font-semibold text-muted-foreground">{t('rpShell.intg_sources')}</p>
-          {!creating && <Button size="sm" variant="outline" onClick={() => setCreating(true)}><Plus className="h-3.5 w-3.5" /> {t('rpShell.intg_newSource')}</Button>}
+          {canManage && !creating && <Button size="sm" variant="outline" onClick={() => setCreating(true)}><Plus className="h-3.5 w-3.5" /> {t('rpShell.intg_newSource')}</Button>}
         </div>
         {creating && (
           <div className="mb-2 flex items-center gap-2">
@@ -214,7 +218,7 @@ export function IntegrationView() {
             <div className="flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /><p className="text-sm font-semibold">{t('rpShell.intg_dataHealth')}</p><span className="text-xs text-muted-foreground">{fileName} · {customers.length} {t('dayPlanner.rows')}</span></div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={() => setStep('map')}>{t('dayPlanner.back')}</Button>
-              <Button size="sm" onClick={recordSync}><History className="h-4 w-4" /> {t('rpShell.intg_record')}</Button>
+              {canManage && <Button size="sm" onClick={recordSync}><History className="h-4 w-4" /> {t('rpShell.intg_record')}</Button>}
             </div>
           </div>
           {mapSaved && <p className="rounded bg-sky-50 px-3 py-1.5 text-xs text-sky-700">{t('rpShell.intg_mappingSaved')}</p>}

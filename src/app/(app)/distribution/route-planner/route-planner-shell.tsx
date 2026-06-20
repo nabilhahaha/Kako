@@ -253,10 +253,12 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
             </div>
           )}
 
-          {/* Integrations — Manual Upload connector + Data Health + Sync History. */}
+          {/* Integrations — Manual Upload connector + Data Health + Sync History.
+              Write actions (sources, mapping, record sync) are admin-only at the DB,
+              so they are gated here to match. */}
           {view === 'integration' && (
             <div className="h-full">
-              <IntegrationView />
+              <IntegrationView canManage={isAdmin} />
             </div>
           )}
 
