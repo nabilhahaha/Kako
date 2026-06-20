@@ -509,6 +509,34 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     </div>
   ) : null;
 
+  // Persistent capability nav — Day Planner and the planning capabilities stay reachable
+  // from EVERY dataset-loaded screen (method chooser + planning), so nothing disappears
+  // after upload and the user can switch capabilities without reloading data. Methods
+  // reuse the loaded dataset (chooseMethod keeps `dataset`); Day Planner opens straight
+  // onto it; Journey needs an allocation first (disabled until then).
+  const capabilityNav = () => {
+    if (!dataset) return null;
+    const canCurrent = hasRouteCol() || hasSalesmanCol();
+    const items = [
+      { key: 'current', label: t('routePlanner.methodCurrent'), Icon: LayoutGrid, active: method === 'current', disabled: !canCurrent, title: !canCurrent ? t('routePlanner.methodCurrentNeed') : undefined, on: () => chooseMethod('current') },
+      { key: 'assisted', label: t('routePlanner.methodAssisted'), Icon: Wand2, active: method === 'assisted', disabled: false, title: undefined, on: () => chooseMethod('assisted') },
+      { key: 'manual', label: t('routePlanner.methodManual'), Icon: PenTool, active: method === 'manual', disabled: false, title: undefined, on: () => chooseMethod('manual') },
+      { key: 'journey', label: t('routePlanner.cap_journey'), Icon: CalendarDays, active: false, disabled: reviews.length === 0, title: reviews.length === 0 ? t('routePlanner.jpNeedAlloc') : undefined, on: () => setJourneyMode(true) },
+      { key: 'day', label: t('dayPlanner.title'), Icon: MapIcon, active: false, disabled: false, title: undefined, on: () => setDayPlannerOpen(true) },
+    ];
+    return (
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5 print:hidden">
+        <span className="text-[11px] font-medium text-muted-foreground">{t('routePlanner.capabilities')}</span>
+        {items.map((it) => (
+          <button key={it.key} onClick={it.on} disabled={it.disabled} title={it.title}
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${it.active ? 'border-primary bg-primary text-primary-foreground' : 'hover:border-primary hover:bg-muted'}`}>
+            <it.Icon className="h-3.5 w-3.5" /> {it.label}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   // ── Focus-mode welcome (demo, before upload): branded hero + capabilities ──
   if (focus && !dataset && !mapState) {
     const caps = [
@@ -638,6 +666,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
       <div className="mx-auto max-w-5xl space-y-4">
         {brandHeader}
         {subBanner}
+        {capabilityNav()}
         <p className="text-sm text-muted-foreground">{t('routePlanner.importOk').replace('{n}', String(dataset.customers.length))} {t('routePlanner.chooseMethod')}</p>
         <div className="grid gap-3 sm:grid-cols-3">
           {canCurrent && (
@@ -655,18 +684,6 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
             <p className="mt-2 text-sm text-muted-foreground">{t('routePlanner.methodManualDesc')}</p>
           </button>
         </div>
-        {/* Day Planner — a separate same-day sequencing tool (not a route-planning
-            method), kept reachable from this landing screen too. */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed bg-muted/20 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><MapIcon className="h-5 w-5" /></div>
-            <div>
-              <p className="text-sm font-semibold">{t('dayPlanner.title')}</p>
-              <p className="text-xs text-muted-foreground">{t('dayPlanner.intro')}</p>
-            </div>
-          </div>
-          <Button variant="outline" onClick={() => setDayPlannerOpen(true)}><MapIcon className="h-4 w-4" /> {t('dayPlanner.open')}</Button>
-        </div>
         <Button variant="ghost" size="sm" onClick={reset}><RotateCcw className="h-4 w-4" /> {t('routePlanner.newUpload')}</Button>
       </div>
     );
@@ -677,10 +694,9 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     <div className={focus ? 'flex h-[calc(100dvh-0.75rem)] flex-col gap-2 p-2 lg:px-4' : 'space-y-3'}>
       {brandHeader}
       {subBanner}
-      {/* Day Planner stays one click away from the planning screen too. */}
-      <div className="flex shrink-0 items-center justify-end print:hidden">
-        <button onClick={() => setDayPlannerOpen(true)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted"><MapIcon className="h-3.5 w-3.5" /> {t('dayPlanner.open')}</button>
-      </div>
+      {/* Persistent capability nav — switch between Allocation / Split / Manual / Journey
+          / Day Planner at any time, on the same loaded dataset. */}
+      {capabilityNav()}
       {/* Workflow guide — frames the planner as a guided product (Map → … → Export),
           not an ERP screen. Focus mode only, compact. */}
       {focus && (() => {
@@ -1033,7 +1049,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
 
       {/* Journey Planning V1 — full-screen overlay opened after the allocation is built. */}
       {journeyMode && <JourneyPanel customers={journeyCustomers} hasSales={hasSales} onClose={() => setJourneyMode(false)} />}
-      {dayPlannerOpen && <DayPlanner hasSalesDefault={hasSales} seedCustomers={daySeedCustomers} onClose={() => setDayPlannerOpen(false)} />}
+      {dayPlannerOpen && <DayPlanner hasSalesDefault={hasSales} seedCustomers={daySeedCustomers} autoUseDataset={daySeedCustomers.length > 0} onClose={() => setDayPlannerOpen(false)} />}
     </div>
   );
 }

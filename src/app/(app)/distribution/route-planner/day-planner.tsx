@@ -35,9 +35,13 @@ function downloadXlsx(bytes: Uint8Array, filename: string) {
  * map and export (Excel / Google Maps / WhatsApp / Print). Work autosaves and
  * survives Back / Refresh.
  */
-export function DayPlanner({ hasSalesDefault = false, seedCustomers, onClose }: {
+export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseDataset = false, onClose }: {
   hasSalesDefault?: boolean;
   seedCustomers?: DpCustomer[];
+  /** When the Route Planner already has a dataset loaded, open straight into the plan
+   *  step using those customers (no source picker, no re-upload) — unless a recoverable
+   *  draft exists, which takes precedence. */
+  autoUseDataset?: boolean;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -76,7 +80,11 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, onClose }: 
       const d = await loadDayPlannerDraft();
       if (!on) return;
       if (d && (d.records.length > 0 || d.customers.length > 0)) setPendingDraft(d);
-      else decided.current = true;
+      else {
+        decided.current = true;
+        // Open directly on the Route Planner's existing dataset when asked to.
+        if (autoUseDataset && seedCustomers && seedCustomers.length > 0) useDataset(false);
+      }
     })();
     return () => { on = false; };
   }, []);
