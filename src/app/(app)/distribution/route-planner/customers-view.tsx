@@ -110,14 +110,19 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
         ))}
       </div>
 
-      {/* Table */}
+      {/* Table — secondary columns collapse on small screens for mobile usability. */}
       <div className="min-h-0 flex-1 overflow-auto rounded border">
         <table className="w-full text-[11px]">
           <thead className="sticky top-0 bg-muted">
             <tr>
-              {[t('dayPlanner.f_code'), t('dayPlanner.f_name'), t('dayPlanner.f_city'), t('dayPlanner.f_area'), t('dayPlanner.f_channel'), t('dayPlanner.f_class'), t('dayPlanner.f_salesman'), 'GPS'].map((hd) => (
-                <th key={hd} className="whitespace-nowrap px-2 py-1.5 text-start font-semibold">{hd}</th>
-              ))}
+              <th className="whitespace-nowrap px-2 py-1.5 text-start font-semibold">{t('dayPlanner.f_code')}</th>
+              <th className="whitespace-nowrap px-2 py-1.5 text-start font-semibold">{t('dayPlanner.f_name')}</th>
+              <th className="hidden whitespace-nowrap px-2 py-1.5 text-start font-semibold sm:table-cell">{t('dayPlanner.f_city')}</th>
+              <th className="hidden whitespace-nowrap px-2 py-1.5 text-start font-semibold md:table-cell">{t('dayPlanner.f_area')}</th>
+              <th className="hidden whitespace-nowrap px-2 py-1.5 text-start font-semibold lg:table-cell">{t('dayPlanner.f_channel')}</th>
+              <th className="hidden whitespace-nowrap px-2 py-1.5 text-start font-semibold lg:table-cell">{t('dayPlanner.f_class')}</th>
+              <th className="hidden whitespace-nowrap px-2 py-1.5 text-start font-semibold sm:table-cell">{t('dayPlanner.f_salesman')}</th>
+              <th className="whitespace-nowrap px-2 py-1.5 text-start font-semibold">GPS</th>
             </tr>
           </thead>
           <tbody>
@@ -126,12 +131,15 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
               return (
                 <tr key={c.id} className="border-t hover:bg-muted/40">
                   <td className="whitespace-nowrap px-2 py-1 text-muted-foreground" dir="ltr">{c.code ?? ''}</td>
-                  <td className="px-2 py-1 font-medium">{c.name}</td>
-                  <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{c.city ?? ''}</td>
-                  <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{c.area ?? ''}</td>
-                  <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{c.channel ?? ''}</td>
-                  <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{c.class ?? ''}</td>
-                  <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{c.salesman ?? ''}</td>
+                  <td className="px-2 py-1 font-medium">{c.name}
+                    {/* Surface city/salesman under the name where those columns are hidden. */}
+                    <span className="block text-[10px] font-normal text-muted-foreground sm:hidden">{[c.city, c.salesman].filter(Boolean).join(' · ')}</span>
+                  </td>
+                  <td className="hidden whitespace-nowrap px-2 py-1 text-muted-foreground sm:table-cell">{c.city ?? ''}</td>
+                  <td className="hidden whitespace-nowrap px-2 py-1 text-muted-foreground md:table-cell">{c.area ?? ''}</td>
+                  <td className="hidden whitespace-nowrap px-2 py-1 text-muted-foreground lg:table-cell">{c.channel ?? ''}</td>
+                  <td className="hidden whitespace-nowrap px-2 py-1 text-muted-foreground lg:table-cell">{c.class ?? ''}</td>
+                  <td className="hidden whitespace-nowrap px-2 py-1 text-muted-foreground sm:table-cell">{c.salesman ?? ''}</td>
                   <td className="px-2 py-1">{gps ? <MapPin className="h-3.5 w-3.5 text-emerald-600" /> : <MapPinOff className="h-3.5 w-3.5 text-red-400" />}</td>
                 </tr>
               );

@@ -281,19 +281,23 @@ export function RequestCenterView({ meId = null }: { meId?: string | null }) {
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-muted"><tr>
               <th className="px-3 py-2 text-start font-semibold">{t('rpShell.rc_ticket')}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t('rpShell.rc_type')}</th>
+              <th className="hidden px-3 py-2 text-start font-semibold sm:table-cell">{t('rpShell.rc_type')}</th>
               <th className="px-3 py-2 text-start font-semibold">{t('rpShell.rc_customer')}</th>
               <th className="px-3 py-2 text-start font-semibold">{t('rpShell.rc_status')}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t('rpShell.intg_when')}</th>
+              <th className="hidden px-3 py-2 text-start font-semibold md:table-cell">{t('rpShell.intg_when')}</th>
               <th className="px-3 py-2"></th>
             </tr></thead>
             <tbody>{shown.map((r) => (
               <tr key={String(r.id)} className="cursor-pointer border-t hover:bg-muted/40" onClick={() => { setSelected(r); setCreating(false); }}>
-                <td className="px-3 py-2 font-medium" dir="ltr">{String(r.ticket_no ?? '—')}</td>
-                <td className="px-3 py-2">{t(`rpShell.rc_type_${String(r.type)}` as Parameters<typeof t>[0])}</td>
-                <td className="truncate px-3 py-2">{String(r.customer_ref ?? '—')}</td>
+                <td className="px-3 py-2 font-medium" dir="ltr">
+                  {String(r.ticket_no ?? '—')}
+                  {/* On mobile the Type column is hidden, so surface it under the ticket no. */}
+                  <span className="block text-[10px] font-normal text-muted-foreground sm:hidden">{t(`rpShell.rc_type_${String(r.type)}` as Parameters<typeof t>[0])}</span>
+                </td>
+                <td className="hidden px-3 py-2 sm:table-cell">{t(`rpShell.rc_type_${String(r.type)}` as Parameters<typeof t>[0])}</td>
+                <td className="max-w-[120px] truncate px-3 py-2">{String(r.customer_ref ?? '—')}</td>
                 <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_TONE[String(r.status)] ?? 'bg-muted'}`}>{t(`rpShell.rc_status_${String(r.status)}` as Parameters<typeof t>[0])}</span></td>
-                <td className="whitespace-nowrap px-3 py-2 text-muted-foreground" dir="ltr">{r.created_at ? new Date(String(r.created_at)).toLocaleDateString() : '—'}</td>
+                <td className="hidden whitespace-nowrap px-3 py-2 text-muted-foreground md:table-cell" dir="ltr">{r.created_at ? new Date(String(r.created_at)).toLocaleDateString() : '—'}</td>
                 <td className="px-3 py-2 text-muted-foreground"><ChevronRight className="h-4 w-4 rtl:rotate-180" /></td>
               </tr>
             ))}</tbody>
