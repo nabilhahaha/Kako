@@ -50,7 +50,11 @@ export default async function AppLayout({
   // Route Planner Admin: a limited, product-scoped console — same chrome-free shell, no
   // platform sidebar / nav / module gates. It can only reach its own /planner-admin pages
   // (the pages themselves enforce the route_planner.admin guard).
-  if (ctx.isRoutePlannerAdmin) {
+  // NOTE: platform owners / super admins hold ALL_PERMISSIONS (incl. route_planner.admin),
+  // which would otherwise mis-classify them as Route-Planner admins and strip the full
+  // platform chrome (TopBar with AR/EN + sign-out, Sidebar) from EVERY route including
+  // /platform. Exclude them so the owner console always renders the full header/nav.
+  if (ctx.isRoutePlannerAdmin && !ctx.isPlatformOwner && !ctx.isSuperAdmin) {
     return (
       <ConfirmProvider>
         <PromptProvider>
