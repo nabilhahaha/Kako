@@ -376,3 +376,101 @@ export async function addRoutePlannerUser(
     return { ok: false, error: `exception: ${msg}` };
   }
 }
+
+// ── Platform Owner: Company 360 + per-company admin management ───────────────
+// All service-role, requireAdmin-gated (Route Planner platform owner), and scoped to a
+// single route_planner tenant via loadScopedCompany — every query filters company_id, so
+// no cross-company data is ever returned or written.
+
+export interface PlatformCompany360 {
+  id: string; name: string; planKey: string | null; isActive: boolean;
+  trialEndsAt: string | null; subscriptionEnd: string | null; createdAt: string | null;
+  users: { total: number; active: number; admins: number; managers: number; supervisors: number; fieldUsers: number };
+  datasets: { count: number; activeName: string | null };
+  latestSyncAt: string | null; failedSyncs: number;
+  missions: number; plans: number; requests: number;
+}
+
+export async function platformCompany360(companyId: string): Promise<Result<PlatformCompany360>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  const svc = await loadScopedCompany(companyId);
+  if (!svc) return { ok: false, error: 'err_not_route_planner_tenant' };
+  try {
+    const { data: company } = await svc.from('erp_companies').select('id, name, plan_key, is_active, trial_ends_at, subscription_end, created_at').eq('id', companyId).single();
+    if (!company) return { ok: false, error: 'not_found' };
+
+    const { data: members } = await svc.from('erp_user_branches').select('user_id, role, branch:erp_branches!inner(company_id)').eq('branch.company_id', companyId);
+    const memberIds = [...new Set((members ?? []).map((r) => r.user_id as string))];
+    const admins = new Set((members ?? []).filter((r) => r.role === 'admin').map((r) => r.user_id as string)).size;
+    const [{ data: profiles }, { data: access }] = await Promise.all([
+      memberIds.length ? svc.from('erp_profiles').select('id, is_active').in('id', memberIds) : Promise.resolve({ data: [] as { id: string; is_active: boolean }[] }),
+      svc.from('erp_route_planner_access').select('user_id, role').eq('company_id', companyId),
+    ]);
+    const activeUsers = (profiles ?? []).filter((p) => (p as { is_active?: boolean }).is_active !== false).length;
+    const byRole = { managers: 0, supervisors: 0, fieldUsers: 0 };
+    for (const a of access ?? []) {
+      const role = a.role as string;
+      if (role === 'manager' || role === 'area_manager') byRole.managers++;
+      else if (role === 'supervisor') byRole.supervisors++;
+      else if (role === 'field_user') byRole.fieldUsers++;
+    }
+    const { data: datasets } = await svc.from('erp_rp_datasets').select('name, is_active').eq('company_id', companyId);
+    const activeDs = (datasets ?? []).find((d) => d.is_active);
+    const { data: sync } = await svc.from('erp_rp_sync_runs').select('started_at').eq('company_id', companyId).order('started_at', { ascending: false }).limit(1).maybeSingle();
+    const cnt = async (tbl: string, extra?: [string, string]) => {
+      let q = svc.from(tbl).select('id', { count: 'exact', head: true }).eq('company_id', companyId);
+      if (extra) q = q.eq(extra[0], extra[1]);
+      return (await q).count ?? 0;
+    };
+    const [failedSyncs, missions, dayPlans, journeyPlans, requests] = await Promise.all([
+      cnt('erp_rp_sync_runs', ['status', 'failed']), cnt('erp_rp_missions'), cnt('erp_rp_day_plans'), cnt('erp_rp_journey_plans'), cnt('erp_route_planner_requests'),
+    ]);
+    return {
+      ok: true,
+      data: {
+        id: company.id as string, name: company.name as string, planKey: (company.plan_key as string | null) ?? null,
+        isActive: company.is_active !== false, trialEndsAt: (company.trial_ends_at as string | null) ?? null,
+        subscriptionEnd: (company.subscription_end as string | null) ?? null, createdAt: (company.created_at as string | null) ?? null,
+        users: { total: memberIds.length, active: activeUsers, admins, ...byRole },
+        datasets: { count: (datasets ?? []).length, activeName: (activeDs?.name as string | null) ?? null },
+        latestSyncAt: (sync?.started_at as string | null) ?? null, failedSyncs,
+        missions, plans: dayPlans + journeyPlans, requests,
+      },
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'overview_failed' };
+  }
+}
+
+export interface TenantAdminRow { id: string; name: string; email: string | null; active: boolean }
+
+/** Company admins (branch role 'admin') of a tenant — for Platform Owner management. */
+export async function listCompanyAdmins(companyId: string): Promise<Result<TenantAdminRow[]>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  const svc = await loadScopedCompany(companyId);
+  if (!svc) return { ok: false, error: 'err_not_route_planner_tenant' };
+  const { data: members } = await svc.from('erp_user_branches').select('user_id, role, branch:erp_branches!inner(company_id)').eq('branch.company_id', companyId).eq('role', 'admin');
+  const ids = [...new Set((members ?? []).map((r) => r.user_id as string))];
+  if (ids.length === 0) return { ok: true, data: [] };
+  const { data: profiles } = await svc.from('erp_profiles').select('id, full_name, email, is_active').in('id', ids);
+  const rows = (profiles ?? []).map((p) => ({
+    id: p.id as string, name: (p.full_name as string | null) || (p.email as string | null) || String(p.id).slice(0, 8),
+    email: (p.email as string | null) ?? null, active: (p as { is_active?: boolean }).is_active !== false,
+  })).sort((a, b) => a.name.localeCompare(b.name));
+  return { ok: true, data: rows };
+}
+
+/** Activate / deactivate a user inside a tenant (Platform Owner). Verifies the user is a
+ *  member of THAT company (cross-company safe); platform-owner gated; route_planner tenant only. */
+export async function setTenantUserActive(companyId: string, userId: string, active: boolean): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  const svc = await loadScopedCompany(companyId);
+  if (!svc) return { ok: false, error: 'err_not_route_planner_tenant' };
+  const { data: member } = await svc.from('erp_user_branches').select('user_id, branch:erp_branches!inner(company_id)').eq('user_id', userId).eq('branch.company_id', companyId).limit(1).maybeSingle();
+  if (!member) return { ok: false, error: 'err_not_company_member' };
+  const { error } = await svc.from('erp_profiles').update({ is_active: active }).eq('id', userId);
+  if (error) return { ok: false, error: error.message };
+  try { await svc.rpc('erp_log_audit', { p_action: active ? 'activate' : 'deactivate', p_entity: 'planner_user', p_entity_id: userId, p_details: { active }, p_company_id: companyId }); } catch { /* audit best-effort */ }
+  revalidatePath('/planner-admin');
+  return { ok: true };
+}

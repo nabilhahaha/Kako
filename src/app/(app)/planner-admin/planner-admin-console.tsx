@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Route as RouteIcon, LogOut, Plus, Clock, CheckCircle2, XCircle, Ban, Loader2, RotateCcw, ExternalLink, UserPlus, X, Building2, Users, Target, Database, AlertTriangle, Activity } from 'lucide-react';
+import { Route as RouteIcon, LogOut, Plus, Clock, CheckCircle2, XCircle, Ban, Loader2, RotateCcw, ExternalLink, UserPlus, X, Building2, Users, Target, Database, AlertTriangle, Activity, LayoutDashboard, ShieldCheck, RefreshCw } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,11 @@ import {
   routePlannerAdminDiagnostics,
   platformOverview,
   type PlatformOverview,
+  platformCompany360,
+  listCompanyAdmins,
+  setTenantUserActive,
+  type PlatformCompany360,
+  type TenantAdminRow,
 } from './planner-admin-actions';
 
 const STATUS_SKIN: Record<RoutePlannerStatus, string> = {
@@ -77,6 +82,140 @@ function PlatformOverviewBand({ tenants, counts }: { tenants: PlannerTenantRow[]
   );
 }
 
+/**
+ * Company 360 drawer — Platform Owner view of a single tenant. Right-side panel that loads
+ * the live aggregate (platformCompany360) + the company-admin list (listCompanyAdmins), both
+ * service-role and strictly scoped to this company_id (no cross-company data). Lets the owner
+ * activate/deactivate company admins (setTenantUserActive — membership-verified + audited).
+ */
+function Company360Drawer({ company, onAddUser, onClose }: {
+  company: { id: string; name: string };
+  onAddUser: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [data, setData] = useState<PlatformCompany360 | null>(null);
+  const [admins, setAdmins] = useState<TenantAdminRow[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const reload = useMemo(() => () => {
+    setErr(null);
+    void platformCompany360(company.id).then((r) => { if (r.ok) setData(r.data ?? null); else setErr(r.error); });
+    void listCompanyAdmins(company.id).then((r) => { if (r.ok) setAdmins(r.data ?? []); });
+  }, [company.id]);
+  useEffect(() => { reload(); }, [reload]);
+
+  function toggleUser(u: TenantAdminRow) {
+    startTransition(async () => {
+      const res = await setTenantUserActive(company.id, u.id, !u.active);
+      if (!res.ok) { toast.error(t('routePlanner.adminError'), { description: res.error }); return; }
+      setAdmins((prev) => (prev ?? []).map((a) => (a.id === u.id ? { ...a, active: !u.active } : a)));
+      toast.success(t('routePlanner.c360_userUpdated'));
+    });
+  }
+
+  const fmt = (s: string | null) => (s ? new Date(s).toISOString().slice(0, 10) : '—');
+  const stat: { icon: typeof Users; label: string; v: number | string; tone: string }[] = data ? [
+    { icon: Users, label: t('routePlanner.c360_total'), v: data.users.total, tone: 'bg-sky-50 text-sky-600' },
+    { icon: CheckCircle2, label: t('routePlanner.c360_active'), v: data.users.active, tone: 'bg-emerald-50 text-emerald-600' },
+    { icon: ShieldCheck, label: t('routePlanner.c360_admins'), v: data.users.admins, tone: 'bg-violet-50 text-violet-600' },
+    { icon: Users, label: t('routePlanner.c360_managers'), v: data.users.managers, tone: 'bg-indigo-50 text-indigo-600' },
+    { icon: Users, label: t('routePlanner.c360_supervisors'), v: data.users.supervisors, tone: 'bg-cyan-50 text-cyan-600' },
+    { icon: Users, label: t('routePlanner.c360_field'), v: data.users.fieldUsers, tone: 'bg-teal-50 text-teal-600' },
+    { icon: Target, label: t('routePlanner.c360_missions'), v: data.missions, tone: 'bg-amber-50 text-amber-600' },
+    { icon: LayoutDashboard, label: t('routePlanner.c360_plans'), v: data.plans, tone: 'bg-orange-50 text-orange-600' },
+    { icon: Database, label: t('routePlanner.c360_datasets'), v: data.datasets.count, tone: 'bg-fuchsia-50 text-fuchsia-600' },
+    { icon: AlertTriangle, label: t('routePlanner.c360_requests'), v: data.requests, tone: 'bg-rose-50 text-rose-600' },
+    { icon: AlertTriangle, label: t('routePlanner.c360_failedSyncs'), v: data.failedSyncs, tone: data.failedSyncs > 0 ? 'bg-red-50 text-red-600' : 'bg-muted text-muted-foreground' },
+  ] : [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
+      <div className="flex h-full w-full max-w-lg flex-col bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><Building2 className="h-4 w-4" /></div>
+            <div>
+              <p className="text-sm font-bold leading-tight">{company.name}</p>
+              <p className="text-[11px] leading-tight text-muted-foreground">{t('routePlanner.c360_title')}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={reload} disabled={pending} className="rounded p-1.5 hover:bg-muted disabled:opacity-50" title="Refresh"><RefreshCw className={`h-4 w-4 ${pending ? 'animate-spin' : ''}`} /></button>
+            <button onClick={onClose} className="rounded p-1.5 hover:bg-muted"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          {err && <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{t('routePlanner.c360_loadError')} <span className="font-mono text-xs opacity-80">{err}</span></p>}
+          {!data && !err && <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {t('routePlanner.c360_loading')}</p>}
+
+          {data && (
+            <>
+              {/* Profile */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-xl border p-3 text-xs">
+                <p className="col-span-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('routePlanner.c360_profile')}</p>
+                <span className="text-muted-foreground">{t('routePlanner.c360_plan')}</span><span className="text-end font-medium" dir="ltr">{data.planKey ?? '—'}</span>
+                <span className="text-muted-foreground">{t('routePlanner.adminColStatus')}</span><span className="text-end font-medium">{data.isActive ? t('routePlanner.adminStatusActive') : t('routePlanner.adminStatusSuspended')}</span>
+                <span className="text-muted-foreground">{t('routePlanner.c360_created')}</span><span className="text-end font-medium" dir="ltr">{fmt(data.createdAt)}</span>
+                <span className="text-muted-foreground">{t('routePlanner.c360_activeDataset')}</span><span className="text-end font-medium">{data.datasets.activeName ?? '—'}</span>
+                <span className="text-muted-foreground">{t('routePlanner.c360_lastSync')}</span><span className="text-end font-medium" dir="ltr">{fmt(data.latestSyncAt)}</span>
+              </div>
+
+              {/* KPI grid */}
+              <div className="grid grid-cols-3 gap-2">
+                {stat.map((s) => (
+                  <div key={s.label} className="rounded-xl border bg-card p-2.5">
+                    <div className={`mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg ${s.tone}`}><s.icon className="h-3.5 w-3.5" /></div>
+                    <p className="text-lg font-bold tabular-nums">{s.v}</p>
+                    <p className="text-[10px] leading-tight text-muted-foreground">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Company admins */}
+              <div className="rounded-xl border">
+                <div className="flex items-center justify-between border-b px-3 py-2">
+                  <p className="inline-flex items-center gap-1.5 text-xs font-semibold"><ShieldCheck className="h-4 w-4 text-primary" /> {t('routePlanner.c360_companyAdmins')}</p>
+                  <button onClick={onAddUser} className="inline-flex items-center gap-1 rounded border border-primary/40 px-2 py-1 text-[11px] text-primary hover:bg-primary/10"><UserPlus className="h-3 w-3" /> {t('routePlanner.adminAddUser')}</button>
+                </div>
+                {admins === null ? (
+                  <p className="px-3 py-3 text-xs text-muted-foreground"><Loader2 className="inline h-3.5 w-3.5 animate-spin" /></p>
+                ) : admins.length === 0 ? (
+                  <p className="px-3 py-4 text-center text-xs text-muted-foreground">{t('routePlanner.c360_noAdmins')}</p>
+                ) : (
+                  <ul className="divide-y">
+                    {admins.map((u) => (
+                      <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium">{u.name}</p>
+                          {u.email && <p className="truncate text-[11px] text-muted-foreground" dir="ltr">{u.email}</p>}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${u.active ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-200 text-zinc-600'}`}>
+                            {u.active ? <CheckCircle2 className="h-3 w-3" /> : <Ban className="h-3 w-3" />}
+                            {u.active ? t('routePlanner.c360_active') : t('routePlanner.adminStatusSuspended')}
+                          </span>
+                          <button disabled={pending} onClick={() => toggleUser(u)} className={`rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50 ${u.active ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {u.active ? t('routePlanner.c360_deactivate') : t('routePlanner.c360_activate')}
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <a href="/distribution/route-planner" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /> {t('routePlanner.adminOpenCompany')}</a>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PlannerAdminConsole({ initialTenants, loadError }: { initialTenants: PlannerTenantRow[]; loadError: string | null }) {
   const { t, locale, setLocale } = useI18n();
   const [tenants, setTenants] = useState(initialTenants);
@@ -87,6 +226,8 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
   const [pending, startTransition] = useTransition();
 
   const [diag, setDiag] = useState<AdminDiagnostics | null>(null);
+  // Company 360 drawer (per company).
+  const [view360, setView360] = useState<{ id: string; name: string } | null>(null);
   // Add-user modal state (per company).
   const [addUserFor, setAddUserFor] = useState<{ id: string; name: string } | null>(null);
   const [uName, setUName] = useState('');
@@ -318,6 +459,7 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
                         <button disabled={pending} onClick={() => run(() => setTenantSuspended(c.id, !suspended), (x) => ({ ...x, isActive: suspended }), c.id)} className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50 ${suspended ? '' : 'text-red-600'}`}><Ban className="h-3 w-3" /> {suspended ? t('routePlanner.adminReactivate') : t('routePlanner.adminSuspend')}</button>
                         <button disabled={pending} onClick={() => { if (confirm(t('routePlanner.adminResetConfirm'))) run(() => resetDemoData(c.id), (x) => ({ ...x, planKey: 'route_planner_trial', isActive: true, trialEndsAt: isoIn(30), subscriptionStart: null, subscriptionEnd: null, customerCount: 0, routeCount: 0 }), c.id); }} className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50"><RotateCcw className="h-3 w-3" /> {t('routePlanner.adminResetDemo')}</button>
                         <button disabled={pending} onClick={() => openAddUser(c)} className="inline-flex items-center gap-1 rounded border border-primary/40 px-2 py-1 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50"><UserPlus className="h-3 w-3" /> {t('routePlanner.adminAddUser')}</button>
+                        <button onClick={() => setView360({ id: c.id, name: c.name })} className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted"><LayoutDashboard className="h-3 w-3" /> {t('routePlanner.c360_open')}</button>
                         <a href="/distribution/route-planner" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted"><ExternalLink className="h-3 w-3" /> {t('routePlanner.adminOpenCompany')}</a>
                       </div>
                     </td>
@@ -332,6 +474,15 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
       {pending && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('routePlanner.adminWorking')}</p>}
 
       <p className="text-[11px] text-muted-foreground">{t('routePlanner.adminScopeNote')}</p>
+
+      {/* Company 360 drawer */}
+      {view360 && (
+        <Company360Drawer
+          company={view360}
+          onAddUser={() => openAddUser({ id: view360.id, name: view360.name } as PlannerTenantRow)}
+          onClose={() => setView360(null)}
+        />
+      )}
 
       {/* Add User modal */}
       {addUserFor && (
