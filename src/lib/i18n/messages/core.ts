@@ -150,6 +150,8 @@ export const ar = {
     qaNewInvoice: 'فاتورة جديدة', qaCollect: 'تحصيل', qaNewCustomer: 'عميل جديد', qaReceivePO: 'استلام مشتريات', qaReports: 'التقارير',
   },
   nav: {
+    collapseSidebar: 'طيّ القائمة الجانبية',
+    expandSidebar: 'توسيع القائمة الجانبية',
     sections: {
       provider: 'لوحة المزوّد',
       main: 'الرئيسية',
@@ -571,6 +573,8 @@ export const en = {
     qaNewInvoice: 'New Invoice', qaCollect: 'Record Collection', qaNewCustomer: 'New Customer', qaReceivePO: 'Receive PO', qaReports: 'Reports',
   },
   nav: {
+    collapseSidebar: 'Collapse sidebar',
+    expandSidebar: 'Expand sidebar',
     sections: {
       provider: 'Provider Panel',
       main: 'Main',
