@@ -72,6 +72,7 @@ function PlatformOverviewBand({ tenants, counts }: { tenants: PlannerTenantRow[]
         {health && <span className="text-muted-foreground">· env {health.vercelEnv ?? '—'}{health.commitSha ? ` · ${health.commitSha}` : ''}</span>}
         {ov && ov.failedSyncs > 0 && <span className="text-amber-600">· {ov.failedSyncs} failed syncs</span>}
       </div>
+      <p className="text-[11px] text-muted-foreground">Storage usage, usage trends, and deep service health (API/DB/jobs/queues) are not yet measured — they will appear here once instrumented. The figures above are live counts.</p>
     </div>
   );
 }

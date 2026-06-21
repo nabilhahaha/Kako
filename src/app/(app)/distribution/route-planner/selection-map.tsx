@@ -53,7 +53,7 @@ function toHullGeoJSON(hulls: SelMapHull[]) {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
 
-export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, tall = false, fill = false, onToggle, onBoxSelect, onMoveSingle, onContextMenu, onSelecting, onSelectComplete }: {
+export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOptions, selectMode, tall = false, fill = false, onToggle, onBoxSelect, onMoveSingle, onContextMenu, onSelecting, onSelectComplete, onPointInfo }: {
   points: SelMapPoint[];
   hulls: SelMapHull[];
   selectedIds: Set<string>;
@@ -71,6 +71,8 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
   onSelecting: (info: { count: number; sales: number } | null) => void;
   /** Fired after a Box or Draw selection gesture finishes — the parent returns to Pan mode. */
   onSelectComplete?: () => void;
+  /** Optional: when provided, the point popup shows an "Insight" button → onPointInfo(id). */
+  onPointInfo?: (id: string) => void;
 }) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -82,12 +84,13 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
   const boxRef = useRef(onBoxSelect); boxRef.current = onBoxSelect;
   const moveRef = useRef(onMoveSingle); moveRef.current = onMoveSingle;
   const ctxRef = useRef(onContextMenu); ctxRef.current = onContextMenu;
+  const infoRef = useRef(onPointInfo); infoRef.current = onPointInfo;
   const selectingRef = useRef(onSelecting); selectingRef.current = onSelecting;
   const optionsRef = useRef(routeOptions); optionsRef.current = routeOptions;
   const modeRef = useRef(selectMode); modeRef.current = selectMode;
   const selectDoneRef = useRef(onSelectComplete); selectDoneRef.current = onSelectComplete;
-  const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '', current: '', moveTo: '', routeCount: '', sales: '' });
-  labelsRef.current = { code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), freq: t('routePlanner.colFrequency'), geo: t('routePlanner.colGeo2'), move: t('routePlanner.move'), current: t('routePlanner.currentRoute'), moveTo: t('routePlanner.moveTo'), routeCount: t('routePlanner.routeCustomers'), sales: t('routePlanner.colSales') };
+  const labelsRef = useRef({ code: '', route: '', freq: '', geo: '', move: '', current: '', moveTo: '', routeCount: '', sales: '', insight: '' });
+  labelsRef.current = { code: t('planBoard.pop_code'), route: t('planBoard.pop_route'), freq: t('routePlanner.colFrequency'), geo: t('routePlanner.colGeo2'), move: t('routePlanner.move'), current: t('routePlanner.currentRoute'), moveTo: t('routePlanner.moveTo'), routeCount: t('routePlanner.routeCustomers'), sales: t('routePlanner.colSales'), insight: t('rpShell.ci_open') };
   const fitOnce = useRef(false);
   const focusKey = [...focusIds].sort().join(',');
 
@@ -269,6 +272,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
         <select id="rp-move-sel" style="flex:1;height:28px;border:1px solid #cbd5e1;border-radius:6px;padding:0 4px;font-size:12px;background:#fff">${opts}</select>
         <button id="rp-move-btn" style="padding:0 10px;border:1px solid #2563eb;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:12px">${esc(L.move)}</button>
       </div>
+      ${infoRef.current ? `<button id="rp-insight-btn" style="width:100%;margin-top:6px;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;color:#0f172a;cursor:pointer;font-size:12px">${esc(L.insight)}</button>` : ''}
     </div>`;
     const popup = new gl.Popup({ closeButton: true, closeOnClick: true, offset: 10 }).setLngLat(lngLat).setHTML(html).addTo(map);
     const el = popup.getElement();
@@ -277,6 +281,7 @@ export function SelectionMap({ points, hulls, selectedIds, focusIds, routeOption
       if (sel) moveRef.current(id, sel.value);
       popup.remove();
     });
+    el?.querySelector('#rp-insight-btn')?.addEventListener('click', () => { infoRef.current?.(id); popup.remove(); });
   }
 
   // Recolour / refilter when points change.

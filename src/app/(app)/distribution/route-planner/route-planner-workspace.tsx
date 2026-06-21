@@ -16,6 +16,7 @@ import { formatFrequency } from '@/lib/route-optimization/visit-frequency';
 import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
 import { parseUploadColumns } from './import-actions';
 import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map';
+import { CustomerInsightPanel } from './customer-insight-panel';
 import { TrialBanner } from './trial-banner';
 import { JourneyPanel, type JourneyInputCustomer } from './journey-panel';
 import { DayPlanner } from './day-planner';
@@ -371,6 +372,18 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   // Wave D — rehydrate the saved (active) dataset into the live workspace, exactly like a
   // fresh upload. Lets Route Builder open a persisted dataset without re-uploading.
   const [loadingDs, setLoadingDs] = useState(false);
+  const [insightCustomer, setInsightCustomer] = useState<DpCustomer | null>(null);
+  // Map pin → customer insight (reuses the dataset's customer + the shared drawer).
+  function openInsight(id: string) {
+    const c = dataset?.customers.find((x) => x.id === id);
+    if (!c) return;
+    setInsightCustomer({
+      id: c.id, code: c.code, name: c.name, lat: c.geo?.lat ?? 0, lng: c.geo?.lng ?? 0,
+      salesman: c.ownership.salesmanId, channel: c.channel ?? null, class: c.grade ?? null,
+      city: c.city ?? null, area: c.ownership.areaId, region: c.ownership.regionId,
+      sales: c.salesValue ?? undefined,
+    } as DpCustomer);
+  }
   async function loadSavedDataset() {
     setLoadingDs(true);
     const loaded = await loadActiveDataset();
@@ -916,7 +929,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
           </div>
 
           <div className={focus ? 'h-full' : ''}>
-            <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} fill={focus} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingInfo} onSelectComplete={() => setSelectMode('pan')} />
+            <SelectionMap points={points} hulls={hulls} selectedIds={selectedIds} focusIds={focusIds} routeOptions={routeOptions} selectMode={selectMode} fill={focus} onToggle={toggle} onBoxSelect={boxSelect} onMoveSingle={moveSingle} onContextMenu={(x, y) => setCtxMenu({ x, y })} onSelecting={setSelectingInfo} onSelectComplete={() => setSelectMode('pan')} onPointInfo={openInsight} />
           </div>
         </div>
 
@@ -1086,6 +1099,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
 
       {/* Journey Planning + Day Planner overlays (shared across all screen returns). */}
       {overlays}
+      {insightCustomer && <CustomerInsightPanel customer={insightCustomer} onClose={() => setInsightCustomer(null)} />}
     </div>
   );
 }

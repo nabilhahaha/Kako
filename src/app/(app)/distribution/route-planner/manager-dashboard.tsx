@@ -180,14 +180,36 @@ export function ManagerDashboard({ userId, perms, onOpenMissions, onNewMission }
         </div>
 
         <div className="space-y-3">
-          {/* Plan/mission status mini-bars */}
+          {/* Plan/mission status — proportional bar + counts (real data). */}
           <div className="rounded-2xl border p-3 shadow-sm">
             <p className="mb-2 flex items-center gap-2 text-sm font-bold"><Activity className="h-4 w-4 text-primary" /> {t('rpShell.db_team')}</p>
-            <div className="grid grid-cols-3 gap-2">
-              {([['ms_assigned', k.assigned], ['ms_in_progress', k.inProgress], ['ms_completed', k.completed], ['ms_reviewed', k.reviewed], ['ms_draft', k.draft], ['kpi_overdue', k.overdue]] as const).map(([key, val]) => (
-                <div key={key} className="rounded-lg bg-muted/30 p-2 text-center"><p className="text-base font-bold tabular-nums">{val}</p><p className="text-[10px] text-muted-foreground">{t(`rpShell.${key}` as Parameters<typeof t>[0])}</p></div>
-              ))}
-            </div>
+            {(() => {
+              const segs = [
+                { v: k.draft, c: 'bg-slate-300', key: 'ms_draft' },
+                { v: k.assigned, c: 'bg-sky-400', key: 'ms_assigned' },
+                { v: k.inProgress, c: 'bg-amber-400', key: 'ms_in_progress' },
+                { v: k.completed, c: 'bg-emerald-400', key: 'ms_completed' },
+                { v: k.reviewed, c: 'bg-violet-400', key: 'ms_reviewed' },
+              ];
+              const tot = segs.reduce((a, s) => a + s.v, 0);
+              return tot === 0 ? (
+                <p className="py-2 text-center text-xs text-muted-foreground">{t('rpShell.db_noMissionsYet')}</p>
+              ) : (
+                <>
+                  <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
+                    {segs.map((s) => s.v > 0 && <div key={s.key} className={s.c} style={{ width: `${(s.v / tot) * 100}%` }} title={`${t(`rpShell.${s.key}` as Parameters<typeof t>[0])}: ${s.v}`} />)}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                    {segs.map((s) => (
+                      <span key={s.key} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <span className={`h-2 w-2 rounded-full ${s.c}`} /> {t(`rpShell.${s.key}` as Parameters<typeof t>[0])} <span className="font-semibold text-foreground tabular-nums">{s.v}</span>
+                      </span>
+                    ))}
+                    {k.overdue > 0 && <span className="inline-flex items-center gap-1 text-[11px] text-red-600"><AlertTriangle className="h-3 w-3" /> {t('rpShell.kpi_overdue')} <span className="font-semibold tabular-nums">{k.overdue}</span></span>}
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Plan approvals inbox */}
