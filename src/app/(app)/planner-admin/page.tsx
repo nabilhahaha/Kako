@@ -14,6 +14,10 @@ export const metadata: Metadata = { title: 'VANTORA Route Planner — Admin' };
 export default async function PlannerAdminPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/planner-login');
+  // Consolidation: `/platform` is the single Platform Owner console. A platform owner who
+  // lands here (e.g. an old bookmark) is sent to the unified company workbench so owner
+  // tasks live in one place. Non-owner Route-Planner admins keep this product-scoped tool.
+  if (ctx.isPlatformOwner) redirect('/platform/companies');
   if (!ctx.isRoutePlannerAdmin) redirect('/dashboard');
 
   const res = await listRoutePlannerTenants();

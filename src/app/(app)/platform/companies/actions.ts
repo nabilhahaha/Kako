@@ -12,6 +12,7 @@ import { logAudit } from '@/lib/erp/audit';
 import { ALL_MODULES } from '@/lib/erp/navigation';
 import type { BusinessType } from '@/lib/erp/types';
 import { getT } from '@/lib/i18n/server';
+import { isCompanyMember } from './company-user-guards';
 
 async function requirePlatformOwner() {
   const { t } = await getT();
@@ -324,6 +325,42 @@ export async function resetUserPassword(userId: string, newPassword: string): Pr
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   await logAudit(supabase, { action: 'update', entity: 'user', entityId: userId, details: { password_reset: true } });
+  return { ok: true };
+}
+
+/** Activate / deactivate a tenant user — company-scoped, owner-gated, audited. The Platform
+ *  Owner manages a company's users from /platform Company 360 (general, all companies — no
+ *  Route-Planner scoping). Cross-company safe: the target must be a member of THIS company;
+ *  self-deactivation is blocked. Flips `erp_profiles.is_active`. */
+export async function setCompanyUserActive(companyId: string, userId: string, active: boolean): Promise<ActionResult> {
+  const { ctx, error: authErr } = await requirePlatformOwner();
+  if (authErr) return { ok: false, error: authErr };
+  const { t } = await getT();
+  if (!companyId || !userId) return { ok: false, error: t('platform.errors.userRequired') };
+  if (ctx && userId === ctx.userId) return { ok: false, error: t('platform.errors.cannotDeactivateSelf') };
+
+  const supabase = await createClient();
+  // Verify the target is a member of THIS company before mutating — so a mis-scoped id can
+  // never deactivate a user in another tenant.
+  const { data: memberships } = await supabase
+    .from('erp_user_branches')
+    .select('user_id, branch:erp_branches!inner(company_id)')
+    .eq('branch.company_id', companyId)
+    .eq('user_id', userId);
+  if (!isCompanyMember((memberships ?? []) as { user_id: string }[], userId)) {
+    return { ok: false, error: t('platform.errors.userNotInCompany') };
+  }
+
+  const { error } = await supabase.from('erp_profiles').update({ is_active: active }).eq('id', userId);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  await logAudit(supabase, {
+    action: active ? 'activate' : 'deactivate',
+    entity: 'user',
+    entityId: userId,
+    details: { active },
+    companyId,
+  });
+  revalidatePath('/platform/companies');
   return { ok: true };
 }
 
