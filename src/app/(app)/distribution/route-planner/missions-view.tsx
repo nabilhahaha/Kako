@@ -229,15 +229,15 @@ export function MissionDetail({ missionId, perms, nameOf, onClose }: {
         <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress.pct}%` }} /></div>
       </div>
 
-      {/* Primary lifecycle action */}
+      {/* Primary lifecycle action — full-width for thumb reach on mobile */}
       {status === 'assigned' && perms.canExecute && (
-        <Button size="lg" disabled={busy} onClick={() => doTransition('in_progress')}><Play className="h-4 w-4" /> {t('rpShell.mn_start')}</Button>
+        <Button size="lg" className="w-full" disabled={busy} onClick={() => doTransition('in_progress')}><Play className="h-4 w-4" /> {t('rpShell.mn_start')}</Button>
       )}
       {running && (
-        <Button size="lg" disabled={busy || progress.total === 0} onClick={() => doTransition('completed')}><CheckCircle2 className="h-4 w-4" /> {t('rpShell.mn_complete')}</Button>
+        <Button size="lg" className="w-full" disabled={busy || progress.total === 0} onClick={() => doTransition('completed')}><CheckCircle2 className="h-4 w-4" /> {t('rpShell.mn_complete')}</Button>
       )}
       {status === 'completed' && perms.canReview && (
-        <Button size="lg" variant="outline" disabled={busy} onClick={() => doTransition('reviewed')}><Check className="h-4 w-4" /> {t('rpShell.mn_markReviewed')}</Button>
+        <Button size="lg" variant="outline" className="w-full" disabled={busy} onClick={() => doTransition('reviewed')}><Check className="h-4 w-4" /> {t('rpShell.mn_markReviewed')}</Button>
       )}
 
       {/* Report (completed / reviewed) */}
