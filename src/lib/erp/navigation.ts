@@ -629,3 +629,46 @@ export function visibleSections(
     }),
   })).filter((section) => section.items.length > 0);
 }
+
+/** ── Direct-route module guard ──────────────────────────────────────────────
+ *  Server-side enforcement counterpart to `visibleSections`: maps a URL path to the
+ *  module that guards it, so a disabled module is blocked at the route/URL level —
+ *  not just hidden from navigation. Derived from the SAME NAV_SECTIONS gates
+ *  (item.module ?? section.module), so the route guard and the sidebar can never
+ *  drift. The most specific (longest) matching nav href wins, so /inventory/transfers
+ *  (warehousing) is distinguished from /inventory (inventory). */
+const PATH_MODULE_GATES: { href: string; gate: Module | Module[] }[] = (() => {
+  const out: { href: string; gate: Module | Module[] }[] = [];
+  for (const section of NAV_SECTIONS) {
+    for (const item of section.items) {
+      const gate = item.module ?? section.module;
+      // Only real module gates — skip platform/vendor items (no tenant module).
+      if (item.href && gate && !item.platformOwnerOnly && !item.platformPerm) {
+        out.push({ href: item.href, gate });
+      }
+    }
+  }
+  // Longest href first → most specific match wins.
+  return out.sort((a, b) => b.href.length - a.href.length);
+})();
+
+/** The module gate guarding `pathname`, or null when the route is not module-gated
+ *  (dashboard, settings root, account, …). Matches the most specific nav href that
+ *  equals or is a parent segment of the path. */
+export function routeModuleGate(pathname: string): Module | Module[] | null {
+  for (const { href, gate } of PATH_MODULE_GATES) {
+    if (pathname === href || pathname.startsWith(`${href}/`)) return gate;
+  }
+  return null;
+}
+
+/** Whether a company with the given enabled `modules` may access `pathname`.
+ *  - not module-gated → allowed
+ *  - empty `modules` (legacy/owner/unrestricted) → allowed (no regression)
+ *  - otherwise → the route's module gate must be open (ANY-of for arrays).
+ *  This is the single source of truth for the direct-URL guard in the (app) layout,
+ *  mirroring `isModuleGateOpen` used by the sidebar. */
+export function isRouteModuleAllowed(modules: Module[], pathname: string): boolean {
+  const gate = routeModuleGate(pathname);
+  return gate ? isModuleGateOpen(modules, gate) : true;
+}
