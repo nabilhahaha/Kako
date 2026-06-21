@@ -3,7 +3,8 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Loader2, X } from 'lucide-react';
+import { Plus, Loader2, X, Building2, CheckCircle2, Ban } from 'lucide-react';
+import { StatCard } from '@/components/shared/stat-card';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,7 +74,13 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
 
   const list = (
     <EntityListPanel
-      items={companies.map((c) => ({ id: c.id, primary: c.name_ar || c.name, secondary: c.plan_key ?? undefined, search: c.name }))}
+      items={companies.map((c) => ({
+        id: c.id,
+        primary: c.name_ar || c.name,
+        secondary: [c.plan_key, c.is_active ? t('platform.companies.create.statusActive') : t('platform.companies.create.statusSuspended')]
+          .filter(Boolean).join(' · '),
+        search: c.name,
+      }))}
       selectedId={selectedId}
       onSelect={select}
       searchPlaceholder={t('platform.companies.title')}
@@ -81,43 +88,74 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
         !adding ? (
           <Button size="sm" className="w-full" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {t('platform.companies.newCompany')}</Button>
         ) : (
-          <form onSubmit={onCreate} className="space-y-2 rounded-md border p-2">
-            <div className="flex items-center justify-between"><span className="text-xs font-medium">{t('platform.companies.newCompany')}</span>
-              <button type="button" onClick={() => setAdding(false)} className="rounded p-0.5 hover:bg-secondary"><X className="h-3.5 w-3.5" /></button></div>
-            <Input name="name" placeholder={t('platform.company.info.nameLabel')} required />
-            <Input name="name_ar" placeholder={t('platform.company.info.nameArLabel')} />
-            <Input name="slug" placeholder="slug" dir="ltr" />
-            <select name="business_type" defaultValue="general" className="w-full rounded-md border bg-background px-2 py-1.5 text-sm">
-              {BUSINESS_TYPES.map((bt) => (
-                <option key={bt} value={bt}>{BUSINESS_TYPE_LABELS[bt][locale === 'ar' ? 'ar' : 'en']}</option>
-              ))}
-            </select>
-            <div className="grid grid-cols-2 gap-2">
-              <Input name="country" placeholder={t('platform.companies.create.country')} />
-              <Input name="city" placeholder={t('platform.companies.create.city')} />
+          <form onSubmit={onCreate} className="flex max-h-[70vh] flex-col overflow-hidden rounded-md border">
+            <div className="flex items-center justify-between border-b px-3 py-2">
+              <span className="text-xs font-semibold">{t('platform.companies.newCompany')}</span>
+              <button type="button" onClick={() => setAdding(false)} className="rounded p-0.5 hover:bg-secondary"><X className="h-3.5 w-3.5" /></button>
             </div>
-            <select name="plan" defaultValue="standard" className="w-full rounded-md border bg-background px-2 py-1.5 text-sm" aria-label={t('platform.companies.create.plan')}>
-              {GENERAL_PLAN_KEYS.map((p) => (
-                <option key={p} value={p}>{t(`platform.companies.create.plan_${p}`)}</option>
-              ))}
-            </select>
-            <select name="status" defaultValue="active" className="w-full rounded-md border bg-background px-2 py-1.5 text-sm" aria-label={t('platform.companies.create.status')}>
-              <option value="active">{t('platform.companies.create.statusActive')}</option>
-              <option value="suspended">{t('platform.companies.create.statusSuspended')}</option>
-            </select>
-            <label className="block text-xs text-muted-foreground">{t('platform.companies.create.trialStart')}
-              <Input name="trial_start" type="date" dir="ltr" />
-            </label>
-            <label className="block text-xs text-muted-foreground">{t('platform.companies.create.trialDays')}
-              <Input name="trial_days" type="number" min="0" dir="ltr" placeholder="0" />
-            </label>
-            <label className="block text-xs text-muted-foreground">{t('platform.companies.create.subscriptionEnd')}
-              <Input name="subscription_end" type="date" dir="ltr" />
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="is_pilot" className="h-4 w-4" /> {t('platform.companies.create.pilot')}
-            </label>
-            <Button type="submit" size="sm" className="w-full" disabled={pending}>{pending && <Loader2 className="h-4 w-4 animate-spin" />}{t('platform.companies.newCompany')}</Button>
+            <div className="flex-1 space-y-4 overflow-y-auto p-3">
+              {/* Identity */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('platform.companies.create.sectionIdentity')}</p>
+                <Input name="name" placeholder={t('platform.company.info.nameLabel')} required />
+                <Input name="name_ar" placeholder={t('platform.company.info.nameArLabel')} />
+                <Input name="slug" placeholder="slug" dir="ltr" />
+                <label className="block text-xs text-muted-foreground">{t('platform.companies.create.businessType')}
+                  <select name="business_type" defaultValue="general" className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm">
+                    {BUSINESS_TYPES.map((bt) => (
+                      <option key={bt} value={bt}>{BUSINESS_TYPE_LABELS[bt][locale === 'ar' ? 'ar' : 'en']}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {/* Location */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('platform.companies.create.sectionLocation')}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input name="country" placeholder={t('platform.companies.create.country')} />
+                  <Input name="city" placeholder={t('platform.companies.create.city')} />
+                </div>
+              </div>
+              {/* Plan & trial */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('platform.companies.create.sectionPlan')}</p>
+                <label className="block text-xs text-muted-foreground">{t('platform.companies.create.plan')}
+                  <select name="plan" defaultValue="standard" className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm">
+                    {GENERAL_PLAN_KEYS.map((p) => (
+                      <option key={p} value={p}>{t(`platform.companies.create.plan_${p}`)}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-xs text-muted-foreground">{t('platform.companies.create.trialStart')}
+                    <Input name="trial_start" type="date" dir="ltr" className="mt-1" />
+                  </label>
+                  <label className="block text-xs text-muted-foreground">{t('platform.companies.create.trialDays')}
+                    <Input name="trial_days" type="number" min="0" dir="ltr" placeholder="0" className="mt-1" />
+                  </label>
+                </div>
+                <label className="block text-xs text-muted-foreground">{t('platform.companies.create.subscriptionEnd')}
+                  <Input name="subscription_end" type="date" dir="ltr" className="mt-1" />
+                </label>
+              </div>
+              {/* Status */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('platform.companies.create.sectionStatus')}</p>
+                <label className="block text-xs text-muted-foreground">{t('platform.companies.create.status')}
+                  <select name="status" defaultValue="active" className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm">
+                    <option value="active">{t('platform.companies.create.statusActive')}</option>
+                    <option value="suspended">{t('platform.companies.create.statusSuspended')}</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="is_pilot" className="h-4 w-4" /> {t('platform.companies.create.pilot')}
+                </label>
+              </div>
+            </div>
+            {/* Sticky footer — Save always reachable */}
+            <div className="sticky bottom-0 border-t bg-card p-2">
+              <Button type="submit" size="sm" className="w-full" disabled={pending}>{pending && <Loader2 className="h-4 w-4 animate-spin" />}{t('platform.companies.create.submit')}</Button>
+            </div>
           </form>
         )
       }
@@ -132,5 +170,23 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
     <Company360 initialSection={tab} {...bundle} />
   );
 
-  return <AdminWorkbench list={list} detail={detail} />;
+  // KPI strip from already-loaded rows (no extra fetch / no schema change).
+  const total = companies.length;
+  const active = companies.filter((c) => c.is_active).length;
+  const suspended = total - active;
+
+  return (
+    <div className="space-y-4">
+      <header>
+        <h1 className="text-lg font-bold">{t('platform.companies.title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('platform.companies.subtitle')}</p>
+      </header>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard label={t('platform.companies.kpiTotal')} value={String(total)} icon={Building2} tone="primary" />
+        <StatCard label={t('platform.companies.kpiActive')} value={String(active)} icon={CheckCircle2} tone="success" />
+        <StatCard label={t('platform.companies.kpiSuspended')} value={String(suspended)} icon={Ban} tone={suspended > 0 ? 'warning' : 'primary'} />
+      </div>
+      <AdminWorkbench list={list} detail={detail} />
+    </div>
+  );
 }
