@@ -82,6 +82,7 @@ export async function loadCompanyDetailBundle(
       isDefault: u.is_default as boolean,
       fullName: profileById.get(u.user_id as string)?.full_name ?? null,
       email: profileById.get(u.user_id as string)?.email ?? null,
+      isActive: (profileById.get(u.user_id as string) as { is_active?: boolean } | undefined)?.is_active !== false,
     }));
   }
 

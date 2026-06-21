@@ -43,6 +43,7 @@ import {
   setIntegrationActive,
   setCompanySetupDone,
   resetUserPassword,
+  setCompanyUserActive,
   addBranch,
   onboardAdmin,
 } from '../actions';
@@ -57,6 +58,7 @@ export interface MemberRow {
   isDefault: boolean;
   fullName: string | null;
   email: string | null;
+  isActive: boolean;
 }
 
 export interface IntegrationRow {
@@ -246,6 +248,16 @@ export function CompanyDetail({
         if (!res.ok) { toast.error(res.error ?? t('platform.company.toastError')); return; }
         toast.success(t('platform.company.members.toastPasswordChanged'));
       });
+    });
+  }
+
+  function toggleActive(userId: string, nextActive: boolean) {
+    startTransition(async () => {
+      const res = await setCompanyUserActive(company.id, userId, nextActive);
+      if (!res.ok) { toast.error(res.error ?? t('platform.company.toastError')); return; }
+      toast.success(nextActive
+        ? t('platform.company.members.toastUserActivated')
+        : t('platform.company.members.toastUserDeactivated'));
     });
   }
 
@@ -802,9 +814,12 @@ export function CompanyDetail({
                     <span className="text-muted-foreground">{m.branchName}</span>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <Badge variant="secondary">
+                    <Badge variant={m.isActive ? 'secondary' : 'outline'}>
                       {BRANCH_ROLES[m.role as keyof typeof BRANCH_ROLES]?.ar ?? m.role}
                     </Badge>
+                    {!m.isActive && (
+                      <Badge variant="destructive">{t('platform.company.members.inactiveBadge')}</Badge>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -812,6 +827,16 @@ export function CompanyDetail({
                       onClick={() => resetPassword(m.userId, m.fullName || m.email)}
                     >
                       <KeyRound className="h-3.5 w-3.5" /> {t('platform.company.members.resetPasswordButton')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={m.isActive ? 'outline' : 'default'}
+                      disabled={pending}
+                      onClick={() => toggleActive(m.userId, !m.isActive)}
+                    >
+                      {m.isActive
+                        ? t('platform.company.members.deactivateButton')
+                        : t('platform.company.members.activateButton')}
                     </Button>
                   </div>
                 </div>
