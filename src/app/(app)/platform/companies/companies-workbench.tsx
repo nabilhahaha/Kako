@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Loader2, X, Building2, CheckCircle2, Ban, Clock, Search, Users as UsersIcon } from 'lucide-react';
+import { Plus, Loader2, X, Building2, CheckCircle2, Ban, Clock, Search, Users as UsersIcon, ChevronLeft } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,6 +138,25 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
     <div className="mx-auto max-w-screen-2xl space-y-3">
       <PlatformTabs />
 
+      {selectedId ? (
+        /* In-canvas Company 360 — the selected company's detail lives INSIDE the same
+           workspace (same chrome/tabs), not a disconnected overlay. Company 360 is reused
+           verbatim; a clear back action returns to the list. */
+        <div className="space-y-3">
+          <button
+            onClick={() => select('')}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4 rtl:rotate-180" /> {t('platform.companies.backToList')}
+          </button>
+          {loading || !bundle ? (
+            <div className="rounded-xl border p-10 text-center text-sm text-muted-foreground">…</div>
+          ) : (
+            <Company360 initialSection={tab} {...bundle} />
+          )}
+        </div>
+      ) : (
+      <>
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold tracking-tight">{t('platform.companies.title')}</h1>
@@ -184,8 +203,10 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
 
       {/* Full-width companies table */}
       <CompaniesTable rows={rows} onManage={select} onToggleActive={toggleActive} pending={pending} />
+      </>
+      )}
 
-      {/* Create Company drawer */}
+      {/* Create Company drawer (available from the list view) */}
       <Drawer open={adding} onClose={() => setAdding(false)} title={t('platform.companies.newCompany')}>
         <form onSubmit={onCreate} className="flex min-h-0 flex-1 flex-col">
           <div className="flex-1 space-y-4 overflow-y-auto p-4">
@@ -251,17 +272,6 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
             <Button type="submit" className="w-full" disabled={pending}>{pending && <Loader2 className="h-4 w-4 animate-spin" />}{t('platform.companies.create.submit')}</Button>
           </div>
         </form>
-      </Drawer>
-
-      {/* Company 360 detail drawer (reused verbatim) */}
-      <Drawer open={!!selectedId} onClose={() => select('')} title={t('platform.companies.manage')} wide>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          {loading || !bundle ? (
-            <p className="p-6 text-center text-sm text-muted-foreground">…</p>
-          ) : (
-            <Company360 initialSection={tab} {...bundle} />
-          )}
-        </div>
       </Drawer>
     </div>
   );
