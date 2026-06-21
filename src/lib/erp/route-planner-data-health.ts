@@ -118,3 +118,12 @@ export function runDataHealth(input: DataHealthInput): DataHealthReport {
 export function dataHealthTotal(report: DataHealthReport): number {
   return Object.values(report).reduce((n, r) => n + (r?.count ?? 0), 0);
 }
+
+/** Flatten a report to `{ check: count }` — a serialization-safe shape for returning
+ *  to the client (the full report has nested `{count, sample}` objects which must NOT
+ *  be rendered as React children). */
+export function dataHealthCounts(report: DataHealthReport): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(report)) out[k] = v?.count ?? 0;
+  return out;
+}

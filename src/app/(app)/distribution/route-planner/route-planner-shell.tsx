@@ -1,51 +1,71 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Home, Map as MapIcon, CalendarRange, Bookmark, LayoutTemplate, Users, UsersRound, Filter, UploadCloud,
   Globe2, Building2, PencilRuler, UserCheck, ClipboardCheck, History, Images, AlertTriangle, Swords,
   Lightbulb, ListChecks, PieChart, Gauge, Timer, Repeat, UserX, ChevronDown, ChevronRight, Menu, X,
-  Route as RouteIcon, LogOut, User as UserIcon, type LucideIcon,
+  Route as RouteIcon, LogOut, User as UserIcon, Database, Activity, ClipboardList, Inbox, Network, ShieldCheck, GitBranch, Target, type LucideIcon,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { LanguageToggle } from '@/components/layout/language-toggle';
 import { Button } from '@/components/ui/button';
 import type { RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
 import type { DpCustomer } from '@/lib/tis/day-planner-import';
+import { loadActiveDataset } from './rp-dataset-load';
+import type { DatasetHeader } from './rp-dataset-actions';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { DayPlanner } from './day-planner';
 import { CustomersView } from './customers-view';
 import { TerritoriesView } from './territories-view';
+import { MissionsView } from './missions-view';
+import { PlannerDashboard } from './planner-dashboard';
+import { CompanyAdminView, type AdminNavTarget } from './company-admin-view';
+import type { MissionPerms } from '@/lib/erp/route-planner-access';
+import { IntegrationView } from './integration-view';
+import { RequestCenterView } from './request-center-view';
+import { ReportingAdminView } from './reporting-admin-view';
+import { ApprovalBuilderView } from './approval-builder-view';
 
 /** Route Planner feature grants. Mirrors the Field Missions Phase 0 access model
  *  (erp_route_planner_access); kept local here so this PR stays independent of #310. */
 type RpFeature = 'route_planning' | 'day_planner' | 'field_missions' | 'reports';
 
-type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'soon';
+type Action = 'planning' | 'dayPlanner' | 'customers' | 'segments' | 'import' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'missions' | 'companyConsole' | 'soon';
+type Section = 'planning' | 'data' | 'operations' | 'admin';
 interface NavItem { key: string; labelKey: string; icon: LucideIcon; action: Action }
-interface NavGroup { key: string; labelKey: string; icon: LucideIcon; feature?: RpFeature; items: NavItem[] }
+interface NavGroup { key: string; labelKey: string; icon: LucideIcon; section: Section; feature?: RpFeature; adminOnly?: boolean; items: NavItem[] }
+
+/** Top-level sidebar sections (a light header above the collapsible groups). */
+const SECTIONS: { key: Section; labelKey: string }[] = [
+  { key: 'planning', labelKey: 'sec_planning' },
+  { key: 'data', labelKey: 'sec_data' },
+  { key: 'operations', labelKey: 'sec_operations' },
+  { key: 'admin', labelKey: 'sec_admin' },
+];
 
 const NAV: NavGroup[] = [
-  { key: 'planning', labelKey: 'g_planning', icon: RouteIcon, feature: 'route_planning', items: [
+  { key: 'planning', labelKey: 'g_planning', icon: RouteIcon, section: 'planning', feature: 'route_planning', items: [
     { key: 'dayPlanner', labelKey: 'i_dayPlanner', icon: MapIcon, action: 'dayPlanner' },
     { key: 'routeBuilder', labelKey: 'i_routeBuilder', icon: RouteIcon, action: 'planning' },
     { key: 'weeklyPlanner', labelKey: 'i_weeklyPlanner', icon: CalendarRange, action: 'soon' },
     { key: 'savedPlans', labelKey: 'i_savedPlans', icon: Bookmark, action: 'soon' },
     { key: 'routeTemplates', labelKey: 'i_routeTemplates', icon: LayoutTemplate, action: 'soon' },
   ] },
-  { key: 'customers', labelKey: 'g_customers', icon: Users, feature: 'route_planning', items: [
+  { key: 'customers', labelKey: 'g_customers', icon: Users, section: 'data', feature: 'route_planning', items: [
     { key: 'customerList', labelKey: 'i_customerList', icon: Users, action: 'customers' },
     { key: 'customerGroups', labelKey: 'i_customerGroups', icon: UsersRound, action: 'soon' },
     { key: 'savedSegments', labelKey: 'i_savedSegments', icon: Filter, action: 'segments' },
     { key: 'importCustomers', labelKey: 'i_importCustomers', icon: UploadCloud, action: 'import' },
   ] },
-  { key: 'territories', labelKey: 'g_territories', icon: Globe2, feature: 'route_planning', items: [
+  { key: 'territories', labelKey: 'g_territories', icon: Globe2, section: 'data', feature: 'route_planning', items: [
     { key: 'regions', labelKey: 'i_regions', icon: Globe2, action: 'territories' },
     { key: 'cities', labelKey: 'i_cities', icon: Building2, action: 'territories' },
     { key: 'drawAreas', labelKey: 'i_drawAreas', icon: PencilRuler, action: 'soon' },
     { key: 'territoryAssignment', labelKey: 'i_territoryAssignment', icon: UserCheck, action: 'soon' },
   ] },
-  { key: 'execution', labelKey: 'g_execution', icon: ClipboardCheck, feature: 'field_missions', items: [
+  { key: 'execution', labelKey: 'g_execution', icon: ClipboardCheck, section: 'operations', feature: 'field_missions', items: [
+    { key: 'missions', labelKey: 'i_missions', icon: Target, action: 'missions' },
     { key: 'supervisorVisits', labelKey: 'i_supervisorVisits', icon: ClipboardCheck, action: 'soon' },
     { key: 'customerVisitHistory', labelKey: 'i_customerVisitHistory', icon: History, action: 'soon' },
     { key: 'photosEvidence', labelKey: 'i_photosEvidence', icon: Images, action: 'soon' },
@@ -54,12 +74,26 @@ const NAV: NavGroup[] = [
     { key: 'opportunities', labelKey: 'i_opportunities', icon: Lightbulb, action: 'soon' },
     { key: 'followUpActions', labelKey: 'i_followUpActions', icon: ListChecks, action: 'soon' },
   ] },
-  { key: 'analytics', labelKey: 'g_analytics', icon: PieChart, feature: 'reports', items: [
+  { key: 'analytics', labelKey: 'g_analytics', icon: PieChart, section: 'operations', feature: 'reports', items: [
     { key: 'coverage', labelKey: 'i_coverage', icon: PieChart, action: 'soon' },
     { key: 'routeEfficiency', labelKey: 'i_routeEfficiency', icon: Gauge, action: 'soon' },
     { key: 'distanceTime', labelKey: 'i_distanceTime', icon: Timer, action: 'soon' },
     { key: 'visitFrequency', labelKey: 'i_visitFrequency', icon: Repeat, action: 'soon' },
     { key: 'unvisitedCustomers', labelKey: 'i_unvisitedCustomers', icon: UserX, action: 'soon' },
+  ] },
+  { key: 'integrations', labelKey: 'g_integrations', icon: Database, section: 'data', feature: 'route_planning', items: [
+    { key: 'dataSources', labelKey: 'i_dataSources', icon: Database, action: 'integration' },
+    { key: 'syncHistory', labelKey: 'i_syncHistory', icon: History, action: 'integration' },
+    { key: 'dataHealth', labelKey: 'i_dataHealth', icon: Activity, action: 'integration' },
+  ] },
+  { key: 'requests', labelKey: 'g_requests', icon: ClipboardList, section: 'operations', feature: 'route_planning', items: [
+    { key: 'allRequests', labelKey: 'i_allRequests', icon: Inbox, action: 'requests' },
+    { key: 'newRequest', labelKey: 'i_newRequest', icon: ClipboardList, action: 'requests' },
+  ] },
+  { key: 'admin', labelKey: 'g_admin', icon: ShieldCheck, section: 'admin', adminOnly: true, items: [
+    { key: 'companyConsole', labelKey: 'i_companyConsole', icon: Building2, action: 'companyConsole' },
+    { key: 'reportingGraph', labelKey: 'i_reportingGraph', icon: Network, action: 'reporting' },
+    { key: 'approvalBuilder', labelKey: 'i_approvalBuilder', icon: GitBranch, action: 'approvals' },
   ] },
 ];
 
@@ -71,15 +105,23 @@ const NAV: NavGroup[] = [
  * runs on the existing, dataset-fed engine (no logic rebuilt). Groups the user's
  * `features` (erp_route_planner_access) don't include are hidden.
  */
-export function RoutePlannerShell({ subscription, demo = false, userEmail, features }: {
+export function RoutePlannerShell({ subscription, demo = false, userEmail, userId = null, features, isAdmin = false, integrationAdmin = false, missionPerms }: {
   subscription?: RoutePlannerSubscriptionView;
   demo?: boolean;
   userEmail?: string | null;
+  /** Signed-in user id — for "My Requests / My Approvals". */
+  userId?: string | null;
   /** Route Planner feature grants; null = unrestricted (sees all groups). */
   features: RpFeature[] | null;
+  /** Company admin (or platform/super/RP admin) — gates the Administration group. */
+  isAdmin?: boolean;
+  /** Can manage Integrations/connectors — company admin OR the tenant route_planner_admin. */
+  integrationAdmin?: boolean;
+  /** Resolved Supervisor-Mission capabilities (create / assign / execute / review). */
+  missionPerms?: MissionPerms;
 }) {
-  const { t } = useI18n();
-  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'soon'>('home');
+  const { t, dir } = useI18n();
+  const [view, setView] = useState<'home' | 'planning' | 'dayPlanner' | 'customers' | 'territories' | 'integration' | 'requests' | 'reporting' | 'approvals' | 'missions' | 'companyConsole' | 'soon'>('home');
   const [custFocusSegments, setCustFocusSegments] = useState(false);
   const [terrGroup, setTerrGroup] = useState<'region' | 'city' | 'area'>('region');
   const [soonLabel, setSoonLabel] = useState('');
@@ -87,10 +129,22 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
   const [open, setOpen] = useState<Record<string, boolean>>({ planning: true });
   const [drawer, setDrawer] = useState(false); // mobile sidebar
   const [profileOpen, setProfileOpen] = useState(false);
-  const [seed, setSeed] = useState<DpCustomer[]>([]); // customers from the Route Builder upload
+  const [seed, setSeed] = useState<DpCustomer[]>([]); // customers from the Route Builder upload (this session)
+  // Wave D — rehydration: the owner's active persisted dataset, loaded on mount. The live
+  // upload (seed) takes precedence; otherwise screens are fed by the saved dataset.
+  const [datasetSeed, setDatasetSeed] = useState<DpCustomer[]>([]);
+  const [activeDs, setActiveDs] = useState<DatasetHeader | null>(null);
+  const effectiveSeed = seed.length > 0 ? seed : datasetSeed;
+
+  const reloadActiveDataset = useCallback(async () => {
+    const loaded = await loadActiveDataset();
+    setActiveDs(loaded?.header ?? null);
+    setDatasetSeed(loaded?.dpCustomers ?? []);
+  }, []);
+  useEffect(() => { void reloadActiveDataset(); }, [reloadActiveDataset]);
 
   const can = (f?: RpFeature) => !f || features === null || features.includes(f);
-  const groups = NAV.filter((g) => can(g.feature));
+  const groups = NAV.filter((g) => (g.adminOnly ? isAdmin : can(g.feature)));
 
   function go(item: NavItem) {
     setActive(item.key);
@@ -101,31 +155,48 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
     else if (item.action === 'segments') { setCustFocusSegments(true); setView('customers'); }
     else if (item.action === 'import') setView('planning'); // shared import wizard lives in the Route Builder
     else if (item.action === 'territories') { setTerrGroup(item.key === 'cities' ? 'city' : 'region'); setView('territories'); }
+    else if (item.action === 'integration') setView('integration');
+    else if (item.action === 'requests') setView('requests');
+    else if (item.action === 'reporting') setView('reporting');
+    else if (item.action === 'approvals') setView('approvals');
+    else if (item.action === 'missions') setView('missions');
+    else if (item.action === 'companyConsole') setView('companyConsole');
     else { setSoonLabel(t(`rpShell.${item.labelKey}` as Parameters<typeof t>[0])); setView('soon'); }
   }
   function goHome() { setActive('home'); setView('home'); setDrawer(false); }
 
+  const renderGroup = (g: NavGroup) => {
+    const isOpen = open[g.key] ?? false;
+    return (
+      <div key={g.key}>
+        <button onClick={() => setOpen((s) => ({ ...s, [g.key]: !isOpen }))} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 font-semibold text-foreground/80 hover:bg-muted">
+          <g.icon className="h-4 w-4 shrink-0" />
+          <span className="flex-1 text-start">{t(`rpShell.${g.labelKey}` as Parameters<typeof t>[0])}</span>
+          {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" />}
+        </button>
+        {isOpen && (
+          <div className="ms-3 border-s ps-1">
+            {g.items.map((it) => (
+              <button key={it.key} onClick={() => go(it)} className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start transition ${active === it.key ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
+                <it.icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{t(`rpShell.${it.labelKey}` as Parameters<typeof t>[0])}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const Sidebar = (
     <nav className="flex h-full w-60 shrink-0 flex-col gap-0.5 overflow-y-auto border-e bg-muted/20 p-2 text-sm">
-      {groups.map((g) => {
-        const isOpen = open[g.key] ?? false;
+      {SECTIONS.map((sec) => {
+        const secGroups = groups.filter((g) => g.section === sec.key);
+        if (secGroups.length === 0) return null;
         return (
-          <div key={g.key}>
-            <button onClick={() => setOpen((s) => ({ ...s, [g.key]: !isOpen }))} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 font-semibold text-foreground/80 hover:bg-muted">
-              <g.icon className="h-4 w-4 shrink-0" />
-              <span className="flex-1 text-start">{t(`rpShell.${g.labelKey}` as Parameters<typeof t>[0])}</span>
-              {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" />}
-            </button>
-            {isOpen && (
-              <div className="ms-3 border-s ps-1">
-                {g.items.map((it) => (
-                  <button key={it.key} onClick={() => go(it)} className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start transition ${active === it.key ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
-                    <it.icon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{t(`rpShell.${it.labelKey}` as Parameters<typeof t>[0])}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+          <div key={sec.key} className="mb-1">
+            <p className="px-2 pb-0.5 pt-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{t(`rpShell.${sec.labelKey}` as Parameters<typeof t>[0])}</p>
+            {secGroups.map(renderGroup)}
           </div>
         );
       })}
@@ -133,7 +204,7 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
   );
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-background">
+    <div dir={dir} className="flex h-[100dvh] flex-col bg-background">
       {/* Top bar — always visible (desktop + mobile). */}
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
         <button onClick={() => setDrawer((d) => !d)} className="rounded-lg p-1.5 hover:bg-muted lg:hidden" aria-label="Menu"><Menu className="h-5 w-5" /></button>
@@ -145,6 +216,13 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
         <button onClick={goHome} className={`ms-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${view === 'home' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
           <Home className="h-4 w-4" /> <span className="hidden sm:inline">{t('rpShell.home')}</span>
         </button>
+        {/* Wave D — active dataset indicator: which saved working set the planning screens are using. */}
+        {activeDs && seed.length === 0 && (
+          <span className="ms-2 hidden items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 sm:inline-flex" title={t('rpShell.ds_activeIndicator')}>
+            <Database className="h-3 w-3" /> <span className="max-w-[160px] truncate">{activeDs.name}</span>
+            <span className="text-emerald-500">· {activeDs.validCount}</span>
+          </span>
+        )}
         <div className="ms-auto flex items-center gap-2">
           <LanguageToggle />
           <div className="relative">
@@ -185,35 +263,84 @@ export function RoutePlannerShell({ subscription, demo = false, userEmail, featu
           {/* Workspace stays mounted to preserve its dataset + feed the Day Planner seed;
               shown only in the planning view. */}
           <div className={view === 'planning' ? 'h-full' : 'hidden'}>
-            <RoutePlannerWorkspace focus embedded demo={demo} subscription={subscription} onSeedChange={setSeed} />
+            <RoutePlannerWorkspace focus embedded demo={demo} subscription={subscription} onSeedChange={setSeed} activeDataset={activeDs} />
           </div>
 
           {/* Day Planner — runs INSIDE the content area (sidebar + top bar stay visible),
               on the existing engine, fed by the Route Builder's uploaded customers. */}
           {view === 'dayPlanner' && (
             <div className="h-full">
-              <DayPlanner embedded hasSalesDefault={seed.some((c) => (c.sales ?? 0) > 0)} seedCustomers={seed} autoUseDataset={seed.length > 0} onClose={goHome} />
+              <DayPlanner embedded hasSalesDefault={effectiveSeed.some((c) => (c.sales ?? 0) > 0)} seedCustomers={effectiveSeed} autoUseDataset={effectiveSeed.length > 0} onClose={goHome} />
             </div>
           )}
 
           {/* Customers — list + filters + saved segments over the loaded dataset. */}
           {view === 'customers' && (
             <div className="h-full">
-              <CustomersView customers={seed} focusSegments={custFocusSegments} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
+              <CustomersView customers={effectiveSeed} focusSegments={custFocusSegments} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
             </div>
           )}
 
           {/* Territories — Region/City/Area aggregates over the loaded dataset. */}
           {view === 'territories' && (
             <div className="h-full">
-              <TerritoriesView customers={seed} initialGroup={terrGroup} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
+              <TerritoriesView customers={effectiveSeed} initialGroup={terrGroup} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
+            </div>
+          )}
+
+          {/* Integrations — Manual Upload connector + Data Health + Sync History.
+              Write actions (sources, mapping, record sync) are admin-only at the DB,
+              so they are gated here to match. */}
+          {view === 'integration' && (
+            <div className="h-full">
+              <IntegrationView canManage={isAdmin || integrationAdmin} onDatasetChange={reloadActiveDataset} />
+            </div>
+          )}
+
+          {/* Supervisor Missions — manager builder + list (field operations). */}
+          {view === 'missions' && (
+            <div className="h-full">
+              <MissionsView customers={effectiveSeed} perms={missionPerms ?? { canCreate: true, canAssign: true, canExecute: true, canReview: true }} onImport={() => { setActive('importCustomers'); setView('planning'); }} />
+            </div>
+          )}
+
+          {/* Request Center — trackable customer/route tickets (routing only). */}
+          {view === 'requests' && (
+            <div className="h-full">
+              <RequestCenterView meId={userId} customers={effectiveSeed} />
+            </div>
+          )}
+
+          {/* Administration — Company Admin Console (company-scoped; admin only). */}
+          {view === 'companyConsole' && (
+            <div className="h-full">
+              <CompanyAdminView subscription={subscription} companyName={subscription?.companyName ?? null}
+                onNavigate={(target: AdminNavTarget) => { setActive(target === 'integration' ? 'integration' : target); setView(target); }} />
+            </div>
+          )}
+
+          {/* Administration — Reporting Graph + Visibility Explorer (admin only). */}
+          {view === 'reporting' && (
+            <div className="h-full">
+              <ReportingAdminView />
+            </div>
+          )}
+
+          {/* Administration — Approval Builder (admin only). */}
+          {view === 'approvals' && (
+            <div className="h-full">
+              <ApprovalBuilderView />
             </div>
           )}
 
           {view === 'home' && (
-            <div className="mx-auto max-w-3xl p-6">
+            <div className="mx-auto max-w-4xl space-y-5 p-6">
               <h1 className="text-xl font-bold">{t('rpShell.dashboardWelcome')}</h1>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {/* Planner Dashboard — KPIs + my missions today + (managers) team status. */}
+              <PlannerDashboard userId={userId} perms={missionPerms ?? { canCreate: true, canAssign: true, canExecute: true, canReview: true }}
+                onOpenMissions={(s) => { setActive('missions'); setView('missions'); void s; }}
+                onNewMission={() => { setActive('missions'); setView('missions'); }} />
+              <div className="grid gap-3 sm:grid-cols-2">
                 <button onClick={() => { setActive('dayPlanner'); setView('dayPlanner'); }} className="flex items-start gap-3 rounded-2xl border-2 border-primary bg-primary/5 p-5 text-start hover:bg-primary/10">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><MapIcon className="h-5 w-5" /></div>
                   <div><p className="font-bold">{t('rpShell.buildTodayRoute')}</p><p className="text-xs text-muted-foreground">{t('rpShell.buildTodayRouteHint')}</p></div>

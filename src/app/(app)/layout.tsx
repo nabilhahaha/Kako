@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { getPlatformContext } from '@/lib/erp/platform-context';
 import { createClient } from '@/lib/supabase/server';
@@ -21,6 +22,7 @@ import { unifiedSalesmanWorkspaceEnabled, salesmanRequestsEnabled } from '@/lib/
 import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
 import { getT } from '@/lib/i18n/server';
+import { isRouteModuleAllowed } from '@/lib/erp/navigation';
 import { LockKeyhole, AlertTriangle, MessageCircle } from 'lucide-react';
 
 export default async function AppLayout({
@@ -143,6 +145,19 @@ export default async function AppLayout({
         </div>
       </div>
     );
+  }
+
+  // Direct-route module guard: a disabled module must be blocked at the URL level,
+  // not only hidden from the sidebar. The platform owner / super admin implicitly
+  // hold every module (ctx.modules = ALL_MODULES) so they are never blocked; a legacy
+  // tenant with no module rows has an empty list, which isRouteModuleAllowed treats as
+  // unrestricted (no regression). Scoped by company_id via ctx.modules. The guard maps
+  // the path to its NAV_SECTIONS module gate, so it can never drift from the nav.
+  if (!ctx.isPlatformOwner && !ctx.isSuperAdmin) {
+    const pathname = (await headers()).get('x-pathname') ?? '';
+    if (pathname && !isRouteModuleAllowed(ctx.modules, pathname)) {
+      redirect(`/module-unavailable?from=${encodeURIComponent(pathname)}`);
+    }
   }
 
   const state = ctx.isPlatformOwner ? 'open' : subscriptionState(ctx.company);

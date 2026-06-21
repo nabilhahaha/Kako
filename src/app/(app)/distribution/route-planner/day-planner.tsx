@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Upload, Wand2, FileDown, Share2, Printer, Map as MapIcon, ArrowUp, ArrowDown, RotateCcw, Trash2, LassoSelect, Check, Save, Search, Link2, Smartphone, Navigation, Square, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { X, Upload, Wand2, FileDown, Share2, Printer, Map as MapIcon, ArrowUp, ArrowDown, RotateCcw, Trash2, LassoSelect, Check, Save, Search, Link2, Smartphone, Navigation, Square, ChevronLeft, ChevronRight, Filter, Send, Target } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,10 +16,12 @@ import {
 import { parseUploadColumns } from './import-actions';
 import { ImportMapper, RejectedRowsBar } from './import-mapper';
 import { DayPlannerMap, type DayMapPoint, type DayMapEndpoint, type DaySelectMode } from './day-planner-map';
-import { loadDpTemplates, saveDpTemplate, deleteDpTemplate, findBestTemplate, type DpTemplate } from './day-planner-templates';
+import { loadDpTemplates, syncDpTemplates, persistDpTemplate, findBestTemplate, type DpTemplate } from './day-planner-templates';
 import { saveDayPlannerDraft, loadDayPlannerDraft, clearDayPlannerDraft, type DayPlannerDraft } from './day-planner-draft';
-import { loadDpPlans, saveDpPlan, deleteDpPlan, getDpPlan, planShareUrl, type DpSavedPlan } from './day-planner-plans';
-import { loadSegments, filterBySegment, type RpSegment } from './route-planner-segments';
+import { loadDpPlans, syncDpPlans, persistDpPlan, removeDpPlan, getDpPlan, getDpPlanAsync, planShareUrl, type DpSavedPlan } from './day-planner-plans';
+import { submitPlanForApproval } from './rp-plan-actions';
+import { createMissionFromDayPlan } from './rp-mission-actions';
+import { loadSegments, syncSegments, filterBySegment, type RpSegment } from './route-planner-segments';
 import { getDpLocation, setDpLocation, type DpLocationKey } from './day-planner-locations';
 
 /** Estimated minutes spent at each stop (service time), used for the day-effort estimate. */
@@ -96,7 +98,16 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
   const [pendingDraft, setPendingDraft] = useState<DayPlannerDraft | null>(null);
   const decided = useRef(false);
 
-  useEffect(() => { setTemplates(loadDpTemplates()); setPlans(loadDpPlans()); setSegments(loadSegments()); }, []);
+  // Instant paint from the cache, then reconcile templates + segments with the server
+  // (migrates local-only items up on first load; falls back to cache when offline).
+  useEffect(() => {
+    setTemplates(loadDpTemplates()); setPlans(loadDpPlans()); setSegments(loadSegments());
+    let alive = true;
+    void syncDpTemplates().then((list) => { if (alive) setTemplates(list); });
+    void syncDpPlans().then((list) => { if (alive) setPlans(list); });
+    void syncSegments().then((list) => { if (alive) setSegments(list); });
+    return () => { alive = false; };
+  }, []);
 
   // ── On mount: a ?plan=<id> link reopens a saved plan; else offer draft recovery;
   //    else (dataset present) open straight onto it. ──
@@ -105,7 +116,7 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
     (async () => {
       const planId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('plan') : null;
       if (planId) {
-        const p = getDpPlan(planId);
+        const p = getDpPlan(planId) ?? await getDpPlanAsync(planId);   // cache, then server (cross-device)
         if (p && on) { openSavedPlan(p); decided.current = true; return; }
       }
       const d = await loadDayPlannerDraft();
@@ -308,20 +319,32 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
   function onSavePlan() {
     if (!order || !planName.trim()) return;
     const subset = order.map((id) => byId.get(id)!).filter(Boolean);
-    const { plans: next, id } = saveDpPlan(planName, { customers: subset, order, start, end, hasSales });
-    setPlans(next); setSavedId(id); setPlanName('');
+    const name = planName; setPlanName('');
+    void persistDpPlan(name, { customers: subset, order, start, end, hasSales }).then(({ plans: next, id }) => { setPlans(next); setSavedId(id); });
   }
   function openSavedPlan(p: DpSavedPlan) {
     setCustomers(p.customers); setHasSales(p.hasSales); setSelectedIds(new Set());
     setStart(p.start); setEnd(p.end); setEndKind(p.end ? 'customer' : 'last'); setStartKind(p.start ? 'map' : 'current');
     setOrder(p.order); setConfirming(false); setSavedId(p.id); setStep('plan');
   }
-  function onDeletePlan(id: string) { setPlans(deleteDpPlan(id)); if (savedId === id) setSavedId(null); }
+  function onDeletePlan(id: string) { if (savedId === id) setSavedId(null); void removeDpPlan(id).then(setPlans); }
+  function onSubmitPlan(id: string) {
+    void submitPlanForApproval('daily', id).then((r) => setMsg(r.ok ? t('rpShell.pa_pending') : (r.error === 'err_no_flow' ? t('rpShell.pa_noFlow') : r.error)));
+  }
+  // Day Planning → My Missions: turn a saved day plan into a (draft) supervisor mission,
+  // reusing the plan's optimized stop order. The manager assigns it in the Missions board.
+  function onPlanToMission(id: string) {
+    void createMissionFromDayPlan(id, {}).then((r) => setMsg(r.ok ? t('rpShell.mn_createdDraft') : (r.error === 'err_no_create_perm' ? t('rpShell.mn_errNoCreate') : r.error)));
+  }
 
   async function copyLink() {
     let url = '';
     if (savedId) url = planShareUrl(savedId);
-    else { const subset = order!.map((id) => byId.get(id)!).filter(Boolean); const { id } = saveDpPlan(planName.trim() || t('dayPlanner.untitledPlan'), { customers: subset, order: order!, start, end, hasSales }); setPlans(loadDpPlans()); setSavedId(id); url = id ? planShareUrl(id) : ''; }
+    else {
+      const subset = order!.map((id) => byId.get(id)!).filter(Boolean);
+      const { plans: next, id } = await persistDpPlan(planName.trim() || t('dayPlanner.untitledPlan'), { customers: subset, order: order!, start, end, hasSales });
+      setPlans(next); setSavedId(id); url = id ? planShareUrl(id) : '';
+    }
     try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { setMsg(url); }
   }
 
@@ -469,7 +492,9 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
                         <span className="truncate text-sm font-medium">{p.name}</span>
                         <span className="shrink-0 text-[11px] text-muted-foreground">· {p.order.length} {t('dayPlanner.stops')}</span>
                       </button>
-                      <button onClick={() => onDeletePlan(p.id)} className="ms-2 shrink-0 text-muted-foreground hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                      <button onClick={() => onPlanToMission(p.id)} title={t('rpShell.mn_toMission')} className="ms-2 shrink-0 text-muted-foreground hover:text-primary"><Target className="h-4 w-4" /></button>
+                      <button onClick={() => onSubmitPlan(p.id)} title={t('rpShell.pa_submit')} className="ms-1 shrink-0 text-muted-foreground hover:text-violet-600"><Send className="h-4 w-4" /></button>
+                      <button onClick={() => onDeletePlan(p.id)} className="ms-1 shrink-0 text-muted-foreground hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   ))}
                 </div>
@@ -523,7 +548,7 @@ export function DayPlanner({ hasSalesDefault = false, seedCustomers, autoUseData
               <div className="mt-1 space-y-1.5 border-t pt-2">
                 <p className="text-[11px] font-semibold text-muted-foreground">{t('dayPlanner.tplTitle')}</p>
                 {templates.length > 0 && <select onChange={(e) => { const tp = templates.find((x) => x.id === e.target.value); if (tp) { setMapping(tp.mapping); setAppliedTemplate(tp.name); } }} value="" className="h-7 w-full rounded border bg-background px-1 text-[11px]"><option value="">{t('dayPlanner.tplApply')}</option>{templates.map((tp) => <option key={tp.id} value={tp.id}>{tp.name}</option>)}</select>}
-                <div className="flex items-center gap-1.5"><Input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder={t('dayPlanner.tplName')} className="h-7 flex-1 text-[11px]" /><button onClick={() => { if (tplName.trim()) { setTemplates(saveDpTemplate(tplName, headers, mapping)); setAppliedTemplate(tplName.trim()); setTplName(''); } }} disabled={!tplName.trim()} className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50"><Save className="h-3 w-3" /> {t('dayPlanner.tplSave')}</button></div>
+                <div className="flex items-center gap-1.5"><Input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder={t('dayPlanner.tplName')} className="h-7 flex-1 text-[11px]" /><button onClick={() => { if (tplName.trim()) { const nm = tplName.trim(); setAppliedTemplate(nm); setTplName(''); void persistDpTemplate(nm, headers, mapping).then(setTemplates); } }} disabled={!tplName.trim()} className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50"><Save className="h-3 w-3" /> {t('dayPlanner.tplSave')}</button></div>
               </div>
             </>}
           />

@@ -1,0 +1,10 @@
+{
+  "data": [
+    { "name": "Al Noor Market", "lat": 24.7136, "lng": 46.6753, "code": "C-1001", "salesman": "Khalid", "route": "R-North" },
+    { "name": "Sunrise Grocery", "lat": 24.6900, "lng": 46.7200, "code": "C-1002", "salesman": "Khalid", "route": "R-North" },
+    { "name": "City Hyper", "lat": 21.5433, "lng": 39.1728, "code": "C-1003", "salesman": "Sara", "route": "R-West" },
+    { "name": "Gulf Stores", "lat": null, "lng": null, "code": "C-1004", "salesman": "Sara", "route": "R-West" },
+    { "name": "Al Noor Market", "lat": 24.7136, "lng": 46.6753, "code": "C-1001", "salesman": "Khalid", "route": "R-North" },
+    { "name": "Desert Mart", "lat": 26.4207, "lng": 50.0888, "code": "", "salesman": "Omar", "route": "R-East" }
+  ]
+}

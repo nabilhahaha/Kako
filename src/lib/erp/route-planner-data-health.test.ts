@@ -1,6 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { runDataHealth, dataHealthTotal } from './route-planner-data-health';
+import { runDataHealth, dataHealthTotal, dataHealthCounts } from './route-planner-data-health';
 import { summarizeSync, ManualUploadConnector, getConnector } from './route-planner-sync';
+
+describe('dataHealthCounts (serialization-safe flat shape)', () => {
+  it('flattens the nested report to { check: number } only (no objects)', () => {
+    const report = runDataHealth({ customers: [
+      { code: 'C1', name: 'A', lat: 24, lng: 46, salesman: 'S', route: 'R' },
+      { code: 'C1', name: 'A', lat: 24, lng: 46, salesman: 'S', route: 'R' }, // duplicate
+      { code: null, name: 'B', lat: null, lng: null, salesman: null, route: null }, // missing gps + code
+    ] });
+    const counts = dataHealthCounts(report);
+    for (const v of Object.values(counts)) expect(typeof v).toBe('number');
+    expect(counts.duplicate_customer).toBe(report.duplicate_customer?.count ?? 0);
+    expect(counts.missing_gps).toBe(report.missing_gps?.count ?? 0);
+    // sum of flat counts equals the report total (what the UI renders)
+    expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(dataHealthTotal(report));
+  });
+});
 
 describe('route-planner-data-health', () => {
   const customers = [

@@ -48,6 +48,10 @@ export interface DataConnector {
   fetchRows(config: Record<string, unknown>, entity: RpEntity): Promise<RawRow[]>;
 }
 
+// ── Roles (Route Planner product roles; for Approval-Builder "By Role" steps) ──
+export const RP_ROLES = ['route_planner_admin', 'manager', 'area_manager', 'supervisor', 'field_user'] as const;
+export type RpRole = (typeof RP_ROLES)[number];
+
 // ── Reporting graph (visibility) ─────────────────────────────────────────────
 export const RP_RELATIONS = ['direct_manager', 'managers_manager', 'subtree'] as const;
 export type RpRelation = (typeof RP_RELATIONS)[number];
@@ -55,6 +59,12 @@ export type RpRelation = (typeof RP_RELATIONS)[number];
 // ── Request Center ───────────────────────────────────────────────────────────
 export const RP_TICKET_TYPES = ['new_customer', 'update', 'temp_stop', 'perm_stop', 'reassignment', 'location_fix', 'route_change'] as const;
 export type RpTicketType = (typeof RP_TICKET_TYPES)[number];
+
+/** Plan sign-off flow keys — reuse the same Approval Builder + engine as tickets (Wave K). */
+export const RP_PLAN_APPROVAL_TYPES = ['journey_plan', 'daily_plan'] as const;
+export type RpPlanApprovalType = (typeof RP_PLAN_APPROVAL_TYPES)[number];
+/** Any key the Approval Builder can configure a flow for (tickets OR plans). */
+export type RpApprovalKey = RpTicketType | RpPlanApprovalType;
 
 export const RP_TICKET_STATUSES = [
   'created', 'pending_manager_review', 'approved', 'pending_admin_action',
@@ -81,12 +91,21 @@ export type RpApprovalStage = (typeof RP_APPROVAL_STAGES)[number];
 export const RP_ASSIGN_METHODS = ['role', 'relation', 'user'] as const;
 export type RpAssignMethod = (typeof RP_ASSIGN_METHODS)[number];
 
+/** How a step is satisfied when it resolves to MULTIPLE assignees. */
+export const RP_STEP_MODES = ['all', 'any'] as const;
+export type RpStepMode = (typeof RP_STEP_MODES)[number];
+
 export interface RpApprovalStep {
   stage: RpApprovalStage;
   assignBy: RpAssignMethod;
   role?: string;
   relation?: RpRelation;
   userId?: string;
+  /** 'all' (every assignee must approve, default) | 'any' (any one assignee approves). */
+  mode?: RpStepMode;
+  /** When the step resolves to NO assignee (e.g. no manager in the line), skip it
+   *  instead of blocking the flow. */
+  skipIfEmpty?: boolean;
 }
 export interface RpApprovalFlow { id: string; companyId: string; ticketType: RpTicketType; steps: RpApprovalStep[]; isActive: boolean }
 

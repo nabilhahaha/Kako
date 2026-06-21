@@ -6,7 +6,8 @@ import { useI18n } from '@/lib/i18n/provider';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { DpCustomer } from '@/lib/tis/day-planner-import';
-import { loadSegments, saveSegment, deleteSegment, isFilterActive, type SegmentFilter, type RpSegment } from './route-planner-segments';
+import { loadSegments, syncSegments, persistSegment, removeSegment, isFilterActive, type SegmentFilter, type RpSegment } from './route-planner-segments';
+import { CustomerInsightPanel } from './customer-insight-panel';
 
 type FacetKey = 'city' | 'area' | 'salesman' | 'channel' | 'class';
 
@@ -15,7 +16,8 @@ type FacetKey = 'city' | 'area' | 'salesman' | 'channel' | 'class';
  * dataset with search + facet filters (City / Area / Salesman / Channel / Class) and
  * reusable Saved Segments. Reuses the Day Planner's facet logic; standalone /
  * session-friendly (operates on the customers already loaded). The "Import" action
- * routes to the shared import wizard; segments persist to localStorage.
+ * routes to the shared import wizard; Saved Segments persist server-side (RLS,
+ * owner-scoped) with a localStorage cache + offline fallback.
  */
 export function CustomersView({ customers, focusSegments = false, onImport }: {
   customers: DpCustomer[];
@@ -27,8 +29,16 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
   const [filter, setFilter] = useState<Partial<Record<FacetKey, string>>>({});
   const [segments, setSegments] = useState<RpSegment[]>([]);
   const [segName, setSegName] = useState('');
+  const [insightCustomer, setInsightCustomer] = useState<DpCustomer | null>(null);
 
-  useEffect(() => { setSegments(loadSegments()); }, []);
+  // Instant paint from the cache, then reconcile with the server (migrates local-only
+  // segments up on first load; falls back to the cache when offline / unauthenticated).
+  useEffect(() => {
+    setSegments(loadSegments());
+    let alive = true;
+    void syncSegments().then((list) => { if (alive) setSegments(list); });
+    return () => { alive = false; };
+  }, []);
 
   const facets = useMemo(() => {
     const make = (key: FacetKey): [string, number][] => {
@@ -55,7 +65,7 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
     setSearch(s.filter.search ?? '');
     setFilter({ city: s.filter.city, area: s.filter.area, salesman: s.filter.salesman, channel: s.filter.channel, class: s.filter.class });
   }
-  function onSave() { if (segName.trim()) { setSegments(saveSegment(segName, currentFilter)); setSegName(''); } }
+  function onSave() { if (segName.trim()) { const name = segName; setSegName(''); void persistSegment(name, currentFilter).then(setSegments); } }
   function clearFilters() { setSearch(''); setFilter({}); }
 
   const withGps = filtered.filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng) && !(c.lat === 0 && c.lng === 0)).length;
@@ -67,6 +77,7 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
         <p className="text-lg font-semibold">{t('rpShell.i_customerList')}</p>
         <p className="max-w-sm text-sm text-muted-foreground">{t('rpShell.cust_empty')}</p>
         <Button onClick={onImport}><UploadCloud className="h-4 w-4" /> {t('rpShell.i_importCustomers')}</Button>
+        <p className="max-w-md text-xs text-muted-foreground/80">{t('rpShell.rp_session')}</p>
       </div>
     );
   }
@@ -104,33 +115,41 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
         {segments.map((s) => (
           <span key={s.id} className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]">
             <button onClick={() => applySegment(s)} className="hover:text-primary">{s.name}</button>
-            <button onClick={() => setSegments(deleteSegment(s.id))} className="text-muted-foreground hover:text-red-600"><Trash2 className="h-3 w-3" /></button>
+            <button onClick={() => { void removeSegment(s.id).then(setSegments); }} className="text-muted-foreground hover:text-red-600"><Trash2 className="h-3 w-3" /></button>
           </span>
         ))}
       </div>
 
-      {/* Table */}
+      {/* Table — secondary columns collapse on small screens for mobile usability. */}
       <div className="min-h-0 flex-1 overflow-auto rounded border">
         <table className="w-full text-[11px]">
           <thead className="sticky top-0 bg-muted">
             <tr>
-              {[t('dayPlanner.f_code'), t('dayPlanner.f_name'), t('dayPlanner.f_city'), t('dayPlanner.f_area'), t('dayPlanner.f_channel'), t('dayPlanner.f_class'), t('dayPlanner.f_salesman'), 'GPS'].map((hd) => (
-                <th key={hd} className="whitespace-nowrap px-2 py-1.5 text-start font-semibold">{hd}</th>
-              ))}
+              <th className="whitespace-nowrap px-2 py-1.5 text-start font-semibold">{t('dayPlanner.f_code')}</th>
+              <th className="whitespace-nowrap px-2 py-1.5 text-start font-semibold">{t('dayPlanner.f_name')}</th>
+              <th className="hidden whitespace-nowrap px-2 py-1.5 text-start font-semibold sm:table-cell">{t('dayPlanner.f_city')}</th>
+              <th className="hidden whitespace-nowrap px-2 py-1.5 text-start font-semibold md:table-cell">{t('dayPlanner.f_area')}</th>
+              <th className="hidden whitespace-nowrap px-2 py-1.5 text-start font-semibold lg:table-cell">{t('dayPlanner.f_channel')}</th>
+              <th className="hidden whitespace-nowrap px-2 py-1.5 text-start font-semibold lg:table-cell">{t('dayPlanner.f_class')}</th>
+              <th className="hidden whitespace-nowrap px-2 py-1.5 text-start font-semibold sm:table-cell">{t('dayPlanner.f_salesman')}</th>
+              <th className="whitespace-nowrap px-2 py-1.5 text-start font-semibold">GPS</th>
             </tr>
           </thead>
           <tbody>
             {filtered.slice(0, 2000).map((c) => {
               const gps = Number.isFinite(c.lat) && Number.isFinite(c.lng) && !(c.lat === 0 && c.lng === 0);
               return (
-                <tr key={c.id} className="border-t hover:bg-muted/40">
+                <tr key={c.id} onClick={() => setInsightCustomer(c)} className="cursor-pointer border-t hover:bg-muted/40">
                   <td className="whitespace-nowrap px-2 py-1 text-muted-foreground" dir="ltr">{c.code ?? ''}</td>
-                  <td className="px-2 py-1 font-medium">{c.name}</td>
-                  <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{c.city ?? ''}</td>
-                  <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{c.area ?? ''}</td>
-                  <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{c.channel ?? ''}</td>
-                  <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{c.class ?? ''}</td>
-                  <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{c.salesman ?? ''}</td>
+                  <td className="px-2 py-1 font-medium">{c.name}
+                    {/* Surface city/salesman under the name where those columns are hidden. */}
+                    <span className="block text-[10px] font-normal text-muted-foreground sm:hidden">{[c.city, c.salesman].filter(Boolean).join(' · ')}</span>
+                  </td>
+                  <td className="hidden whitespace-nowrap px-2 py-1 text-muted-foreground sm:table-cell">{c.city ?? ''}</td>
+                  <td className="hidden whitespace-nowrap px-2 py-1 text-muted-foreground md:table-cell">{c.area ?? ''}</td>
+                  <td className="hidden whitespace-nowrap px-2 py-1 text-muted-foreground lg:table-cell">{c.channel ?? ''}</td>
+                  <td className="hidden whitespace-nowrap px-2 py-1 text-muted-foreground lg:table-cell">{c.class ?? ''}</td>
+                  <td className="hidden whitespace-nowrap px-2 py-1 text-muted-foreground sm:table-cell">{c.salesman ?? ''}</td>
                   <td className="px-2 py-1">{gps ? <MapPin className="h-3.5 w-3.5 text-emerald-600" /> : <MapPinOff className="h-3.5 w-3.5 text-red-400" />}</td>
                 </tr>
               );
@@ -138,6 +157,7 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
           </tbody>
         </table>
       </div>
+      {insightCustomer && <CustomerInsightPanel customer={insightCustomer} onClose={() => setInsightCustomer(null)} />}
     </div>
   );
 }
