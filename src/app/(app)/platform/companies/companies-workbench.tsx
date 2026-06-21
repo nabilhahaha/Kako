@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useWorkbenchSelection } from '@/components/admin/admin-workbench';
 import { StatCard } from '@/components/shared/stat-card';
-import { PlatformTabs } from '@/components/platform/platform-tabs';
 import { Company360 } from './[id]/company-360';
 import { CompaniesTable, deriveState } from './companies-table';
 import type { CompanyListRow } from './companies-workbench-server';
@@ -136,8 +135,6 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
 
   return (
     <div className="mx-auto max-w-screen-2xl space-y-3">
-      <PlatformTabs />
-
       {selectedId ? (
         /* In-canvas Company 360 — the selected company's detail lives INSIDE the same
            workspace (same chrome/tabs), not a disconnected overlay. Company 360 is reused
