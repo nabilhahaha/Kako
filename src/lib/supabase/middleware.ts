@@ -10,7 +10,11 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 const PUBLIC_PATHS = ['/login', '/register', '/auth', '/forgot-password', '/reset-password', '/planner'];
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+  // Expose the current path to server components (the (app) layout reads this to run
+  // the direct-route module guard — Next.js does not give layouts the pathname).
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', request.nextUrl.pathname);
+  let supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
 
   const supabase = createServerClient(
     SUPABASE_URL,
@@ -24,7 +28,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          supabaseResponse = NextResponse.next({ request });
+          supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           );
