@@ -327,7 +327,12 @@ export function JourneyPanel({ customers, hasSales, onClose }: { customers: Jour
             )}
           </div>
           {!plan ? (
-            <div className="flex h-full items-center justify-center rounded-xl border text-sm text-muted-foreground">{t('routePlanner.jpEmpty')}</div>
+            <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-8 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><CalendarDays className="h-6 w-6" /></div>
+              <p className="text-base font-semibold">{t('routePlanner.jpEmpty')}</p>
+              <p className="max-w-xs text-sm text-muted-foreground">{t('routePlanner.jpEmptyHint')}</p>
+              <Button size="sm" onClick={planAll}><Wand2 className="h-4 w-4" /> {t('routePlanner.jpGenerate')}</Button>
+            </div>
           ) : (
             <SelectionMap
               points={points} hulls={[]} selectedIds={selectedIds} focusIds={new Set()}
