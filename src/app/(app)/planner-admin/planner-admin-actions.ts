@@ -11,6 +11,7 @@ import {
   ROUTE_PLANNER_PLAN_ANNUAL,
 } from '@/lib/erp/route-planner-admin';
 import { ROUTE_PLANNER_TRIAL_DAYS } from '@/lib/erp/route-planner-subscription';
+import { PLANNER_FEATURE_KEYS } from './planner-features';
 
 /**
  * Route Planner Admin — server actions for the limited, product-scoped console.
@@ -471,6 +472,152 @@ export async function setTenantUserActive(companyId: string, userId: string, act
   const { error } = await svc.from('erp_profiles').update({ is_active: active }).eq('id', userId);
   if (error) return { ok: false, error: error.message };
   try { await svc.rpc('erp_log_audit', { p_action: active ? 'activate' : 'deactivate', p_entity: 'planner_user', p_entity_id: userId, p_details: { active }, p_company_id: companyId }); } catch { /* audit best-effort */ }
+  revalidatePath('/planner-admin');
+  return { ok: true };
+}
+
+// ── Platform Owner: rich create-company + per-company feature enablement ─────
+// Reuses the existing erp_companies + erp_company_modules tables (no new models).
+// All actions are requireAdmin-gated (platform owner) and scoped by company_id;
+// feature reads/writes go through loadScopedCompany so a non-route_planner ERP
+// tenant is never touched, and never leak across companies.
+
+const PLAN_KEY_OF: Record<'trial' | 'monthly' | 'annual', string> = {
+  trial: ROUTE_PLANNER_PLAN_TRIAL,
+  monthly: ROUTE_PLANNER_PLAN_MONTHLY,
+  annual: ROUTE_PLANNER_PLAN_ANNUAL,
+};
+
+export interface CreateTenantInput {
+  name: string;
+  country?: string;
+  city?: string;
+  industry?: string;
+  plan: 'trial' | 'monthly' | 'annual';
+  /** ISO date (yyyy-mm-dd) — optional; defaults applied when omitted. */
+  trialStart?: string | null;
+  trialEnd?: string | null;
+  pilotActive?: boolean;
+  status: 'trial' | 'active' | 'suspended';
+  adminName?: string;
+  adminEmail?: string;
+  adminPassword?: string;
+  /** Feature keys (erp_company_modules.module) to enable; the rest are disabled. */
+  features: string[];
+}
+
+/** Generate a readable temporary password when the owner leaves it blank. */
+function genPassword(): string {
+  return `Vp-${Math.random().toString(36).slice(2, 8)}${Math.floor(10 + Math.random() * 89)}`;
+}
+
+/**
+ * Create a Route Planner tenant with full provisioning metadata, an optional first
+ * company admin, and an explicit per-company feature set. Service-role (the owner is
+ * not a member); strictly caged to route_planner plans. Returns the new id plus the
+ * admin credentials when an admin was created (so the owner can hand them over).
+ */
+export async function createRoutePlannerTenantRich(
+  input: CreateTenantInput,
+): Promise<Result<{ id: string; adminEmail?: string; adminPassword?: string }>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: 'err_name_required' };
+  const sc = serviceClientOrError();
+  if ('err' in sc) { console.error('[planner-admin] createRich:', sc.err); return { ok: false, error: sc.err }; }
+  const svc = sc.svc;
+  try {
+    const planErr = await ensureRoutePlannerPlans(svc);
+    if (planErr) return { ok: false, error: `plans: ${planErr}` };
+
+    const planKey = PLAN_KEY_OF[input.plan] ?? ROUTE_PLANNER_PLAN_TRIAL;
+    const isActive = input.status !== 'suspended';
+    const today = new Date().toISOString().slice(0, 10);
+    const trialDaysEnd = isoIn(ROUTE_PLANNER_TRIAL_DAYS).slice(0, 10);
+    const subDays = input.plan === 'annual' ? 365 : 30;
+
+    const row: Record<string, unknown> = {
+      name, currency: 'SAR', is_active: isActive, plan_key: planKey,
+      business_type: input.industry?.trim() || null,
+      country: input.country?.trim() || null,
+      city: input.city?.trim() || null,
+      is_pilot: Boolean(input.pilotActive),
+      trial_starts_at: input.trialStart || today,
+      trial_ends_at: input.trialEnd || trialDaysEnd,
+    };
+    // A status of 'active' carries a running subscription window.
+    if (input.status === 'active') {
+      row.subscription_start = today;
+      row.subscription_end = input.trialEnd || isoIn(subDays).slice(0, 10);
+    }
+
+    const { data, error } = await svc.from('erp_companies').insert(row).select('id').single();
+    if (error || !data) {
+      const detail = error ? `${error.message}${error.hint ? ` | hint: ${error.hint}` : ''}` : 'no row returned';
+      console.error('[planner-admin] createRich insert:', detail);
+      return { ok: false, error: `insert: ${detail}` };
+    }
+    const newId = data.id as string;
+
+    // Seed the per-company feature set into the SHARED erp_company_modules store.
+    const wanted = new Set(input.features);
+    const moduleRows = PLANNER_FEATURE_KEYS.map((key) => ({ company_id: newId, module: key, enabled: wanted.has(key) }));
+    await svc.from('erp_company_modules').upsert(moduleRows, { onConflict: 'company_id,module' });
+
+    // Optional first company admin (reuses the same provisioning path).
+    let adminEmail: string | undefined;
+    let adminPassword: string | undefined;
+    const email = input.adminEmail?.trim().toLowerCase();
+    if (email) {
+      adminPassword = (input.adminPassword && input.adminPassword.length >= 6) ? input.adminPassword : genPassword();
+      const res = await addRoutePlannerUser(newId, { name: input.adminName || email, email, password: adminPassword, role: 'admin' });
+      if (!res.ok) {
+        // The company exists; surface the admin error but don't roll back the tenant.
+        console.error('[planner-admin] createRich admin:', res.error);
+        return { ok: true, data: { id: newId } };
+      }
+      adminEmail = email;
+    }
+
+    try {
+      await svc.rpc('erp_log_audit', { p_action: 'create', p_entity: 'planner_company', p_entity_id: newId, p_details: { plan: input.plan, status: input.status, pilot: Boolean(input.pilotActive), features: input.features }, p_company_id: newId });
+    } catch { /* audit best-effort */ }
+
+    revalidatePath('/planner-admin');
+    return { ok: true, data: { id: newId, adminEmail, adminPassword: adminEmail ? adminPassword : undefined } };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[planner-admin] createRoutePlannerTenantRich threw:', msg);
+    return { ok: false, error: `exception: ${msg}` };
+  }
+}
+
+/** Per-company feature state — enabled map keyed by feature key. Absent rows default
+ *  to enabled (matching the shared gate: no explicit restriction = on). */
+export async function listCompanyFeatures(companyId: string): Promise<Result<Record<string, boolean>>> {
+  if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  const svc = await loadScopedCompany(companyId);
+  if (!svc) return { ok: false, error: 'err_not_route_planner_tenant' };
+  const { data, error } = await svc.from('erp_company_modules').select('module, enabled').eq('company_id', companyId);
+  if (error) return { ok: false, error: error.message };
+  const explicit = new Map((data ?? []).map((r) => [r.module as string, r.enabled as boolean]));
+  const out: Record<string, boolean> = {};
+  for (const key of PLANNER_FEATURE_KEYS) out[key] = explicit.has(key) ? explicit.get(key)! : true;
+  return { ok: true, data: out };
+}
+
+/** Enable / disable a single feature for a tenant. Platform-owner gated, route_planner
+ *  scoped, company_id-bound (no cross-company write), audited. Writes the shared
+ *  erp_company_modules row the ERP navigation gates on, so a disabled feature drops out
+ *  of that company's menus/routes/actions on the next request. */
+export async function setCompanyFeature(companyId: string, key: string, enabled: boolean): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: 'err_unauthorized' };
+  if (!PLANNER_FEATURE_KEYS.includes(key)) return { ok: false, error: 'err_unknown_feature' };
+  const svc = await loadScopedCompany(companyId);
+  if (!svc) return { ok: false, error: 'err_not_route_planner_tenant' };
+  const { error } = await svc.from('erp_company_modules').upsert({ company_id: companyId, module: key, enabled }, { onConflict: 'company_id,module' });
+  if (error) return { ok: false, error: error.message };
+  try { await svc.rpc('erp_log_audit', { p_action: enabled ? 'enable' : 'disable', p_entity: 'company_feature', p_entity_id: key, p_details: { enabled }, p_company_id: companyId }); } catch { /* best-effort */ }
   revalidatePath('/planner-admin');
   return { ok: true };
 }
