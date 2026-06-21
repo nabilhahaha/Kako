@@ -6,7 +6,8 @@ import { useI18n } from '@/lib/i18n/provider';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { DpCustomer } from '@/lib/tis/day-planner-import';
-import { loadSegments, saveSegment, deleteSegment, isFilterActive, type SegmentFilter, type RpSegment } from './route-planner-segments';
+import { loadSegments, syncSegments, persistSegment, removeSegment, isFilterActive, type SegmentFilter, type RpSegment } from './route-planner-segments';
+import { CustomerInsightPanel } from './customer-insight-panel';
 
 type FacetKey = 'city' | 'area' | 'salesman' | 'channel' | 'class';
 
@@ -15,7 +16,8 @@ type FacetKey = 'city' | 'area' | 'salesman' | 'channel' | 'class';
  * dataset with search + facet filters (City / Area / Salesman / Channel / Class) and
  * reusable Saved Segments. Reuses the Day Planner's facet logic; standalone /
  * session-friendly (operates on the customers already loaded). The "Import" action
- * routes to the shared import wizard; segments persist to localStorage.
+ * routes to the shared import wizard; Saved Segments persist server-side (RLS,
+ * owner-scoped) with a localStorage cache + offline fallback.
  */
 export function CustomersView({ customers, focusSegments = false, onImport }: {
   customers: DpCustomer[];
@@ -27,8 +29,16 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
   const [filter, setFilter] = useState<Partial<Record<FacetKey, string>>>({});
   const [segments, setSegments] = useState<RpSegment[]>([]);
   const [segName, setSegName] = useState('');
+  const [insightCustomer, setInsightCustomer] = useState<DpCustomer | null>(null);
 
-  useEffect(() => { setSegments(loadSegments()); }, []);
+  // Instant paint from the cache, then reconcile with the server (migrates local-only
+  // segments up on first load; falls back to the cache when offline / unauthenticated).
+  useEffect(() => {
+    setSegments(loadSegments());
+    let alive = true;
+    void syncSegments().then((list) => { if (alive) setSegments(list); });
+    return () => { alive = false; };
+  }, []);
 
   const facets = useMemo(() => {
     const make = (key: FacetKey): [string, number][] => {
@@ -55,7 +65,7 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
     setSearch(s.filter.search ?? '');
     setFilter({ city: s.filter.city, area: s.filter.area, salesman: s.filter.salesman, channel: s.filter.channel, class: s.filter.class });
   }
-  function onSave() { if (segName.trim()) { setSegments(saveSegment(segName, currentFilter)); setSegName(''); } }
+  function onSave() { if (segName.trim()) { const name = segName; setSegName(''); void persistSegment(name, currentFilter).then(setSegments); } }
   function clearFilters() { setSearch(''); setFilter({}); }
 
   const withGps = filtered.filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng) && !(c.lat === 0 && c.lng === 0)).length;
@@ -105,7 +115,7 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
         {segments.map((s) => (
           <span key={s.id} className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]">
             <button onClick={() => applySegment(s)} className="hover:text-primary">{s.name}</button>
-            <button onClick={() => setSegments(deleteSegment(s.id))} className="text-muted-foreground hover:text-red-600"><Trash2 className="h-3 w-3" /></button>
+            <button onClick={() => { void removeSegment(s.id).then(setSegments); }} className="text-muted-foreground hover:text-red-600"><Trash2 className="h-3 w-3" /></button>
           </span>
         ))}
       </div>
@@ -129,7 +139,7 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
             {filtered.slice(0, 2000).map((c) => {
               const gps = Number.isFinite(c.lat) && Number.isFinite(c.lng) && !(c.lat === 0 && c.lng === 0);
               return (
-                <tr key={c.id} className="border-t hover:bg-muted/40">
+                <tr key={c.id} onClick={() => setInsightCustomer(c)} className="cursor-pointer border-t hover:bg-muted/40">
                   <td className="whitespace-nowrap px-2 py-1 text-muted-foreground" dir="ltr">{c.code ?? ''}</td>
                   <td className="px-2 py-1 font-medium">{c.name}
                     {/* Surface city/salesman under the name where those columns are hidden. */}
@@ -147,6 +157,7 @@ export function CustomersView({ customers, focusSegments = false, onImport }: {
           </tbody>
         </table>
       </div>
+      {insightCustomer && <CustomerInsightPanel customer={insightCustomer} onClose={() => setInsightCustomer(null)} />}
     </div>
   );
 }

@@ -81,7 +81,14 @@ export function TerritoriesView({ customers, initialGroup = 'region', onImport }
                 <tr key={r.key} className="border-t hover:bg-muted/40">
                   <td className="px-2 py-1 font-medium">{r.key}</td>
                   <td className="px-2 py-1 text-end tabular-nums" dir="ltr">{r.count}</td>
-                  <td className={`px-2 py-1 text-end tabular-nums ${gpsPct < 80 ? 'text-amber-600' : 'text-emerald-600'}`} dir="ltr">{r.withGps} ({gpsPct}%)</td>
+                  <td className="px-2 py-1" dir="ltr">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <span className="h-1.5 w-10 overflow-hidden rounded-full bg-muted">
+                        <span className={`block h-full ${gpsPct < 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${gpsPct}%` }} />
+                      </span>
+                      <span className={`tabular-nums ${gpsPct < 80 ? 'text-amber-600' : 'text-emerald-600'}`}>{gpsPct}%</span>
+                    </div>
+                  </td>
                   <td className={`px-2 py-1 text-end tabular-nums ${r.unassigned > 0 ? 'text-red-600' : 'text-muted-foreground'}`} dir="ltr">{r.unassigned}</td>
                 </tr>
               );

@@ -6,6 +6,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { parseUploadColumns } from './import-actions';
 import { ImportMapper } from './import-mapper';
+import { DatasetsPanel } from './datasets-panel';
 import { runDataHealth, dataHealthTotal, type DataHealthReport } from '@/lib/erp/route-planner-data-health';
 import { toCustomers, isValidCustomer, type CmMapping } from '@/lib/erp/route-planner-customer-map';
 import { RP_QUALITY_CHECKS } from '@/lib/erp/route-planner-backend';
@@ -33,7 +34,7 @@ type NewType = 'manual_upload' | 'google_sheets' | 'api_erp';
  * Sync History → Audit. The connector only fetches; everything after fetch is shared.
  * Connector config is admin-managed; API tokens are write-only and never shown back.
  */
-export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
+export function IntegrationView({ canManage = true, onDatasetChange }: { canManage?: boolean; onDatasetChange?: () => void | Promise<void> }) {
   const { t } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
   const [sources, setSources] = useState<Source[]>([]);
@@ -156,7 +157,7 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
       if (!r.ok) { setMsg(connErr(r.error)); return; }
       setReport(null); setConnQuality(r.data!.quality);
       setSaved({ imported: r.data!.imported, updated: r.data!.updated, rejected: r.data!.rejected });
-      setStep('report'); void refreshRuns(); void refreshSources();
+      setStep('report'); void refreshRuns(); void refreshSources(); void onDatasetChange?.();  // connector persisted a new active dataset
     }
   }
 
@@ -165,13 +166,16 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
     setMsg(null);
     const cs = toCustomers(records, mapping);
     const valid = cs.filter(isValidCustomer);
+    const cleanMap: Record<string, string> = {}; for (const k of Object.keys(mapping)) { const v = mapping[k]; if (v) cleanMap[k] = v; }
     const res = await runManualSync({
       sourceId: activeId, sourceLabel: fileName, master: { customers: valid }, existingCodes: [],
       rejected: cs.filter((c) => !isValidCustomer(c)).map((_, i) => ({ row: i + 1, reason: 'missing_required' })),
+      // Wave B: persist the uploaded working set into the shared dataset model + make it active.
+      datasetName: (fileName?.replace(/\.[^.]+$/, '') || t('rpShell.g_integrations')).slice(0, 80), columns: cleanMap,
     });
     if (!res.ok) { setMsg(res.error); return; }
     setSaved({ imported: res.data!.imported, updated: res.data!.updated, rejected: res.data!.rejected });
-    void refreshRuns(); void refreshSources();
+    void refreshRuns(); void refreshSources(); void onDatasetChange?.();  // a new active dataset was persisted
   }
 
   // Total issues for either source of the report.
@@ -279,6 +283,8 @@ export function IntegrationView({ canManage = true }: { canManage?: boolean }) {
             <Button onClick={() => fileRef.current?.click()} disabled={busy}><UploadCloud className="h-4 w-4" /> {busy ? t('routePlanner.importing') : t('rpShell.intg_upload')}</Button>
           )}
           {msg && <p className="text-sm text-amber-700">{msg}</p>}
+          {/* Wave B: persisted customer working sets (own + reporting subtree). */}
+          <div className="w-full max-w-2xl text-start"><DatasetsPanel canManage={canManage} onChange={onDatasetChange} /></div>
           {runs.length > 0 && <SyncHistory runs={runs} t={t} />}
         </div>
       )}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Route as RouteIcon, LogOut, Plus, Clock, CheckCircle2, XCircle, Ban, Loader2, RotateCcw, ExternalLink, UserPlus, X } from 'lucide-react';
+import { Route as RouteIcon, LogOut, Plus, Clock, CheckCircle2, XCircle, Ban, Loader2, RotateCcw, ExternalLink, UserPlus, X, Building2, Users, Target, Database, AlertTriangle, Activity, LayoutDashboard, ShieldCheck, RefreshCw, Sliders } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,19 @@ import {
   resetDemoData,
   addRoutePlannerUser,
   routePlannerAdminDiagnostics,
+  platformOverview,
+  type PlatformOverview,
+  platformCompany360,
+  listCompanyAdmins,
+  setTenantUserActive,
+  type PlatformCompany360,
+  type TenantAdminRow,
+  createRoutePlannerTenantRich,
+  listCompanyFeatures,
+  setCompanyFeature,
+  type CreateTenantInput,
 } from './planner-admin-actions';
+import { PLANNER_FEATURES, PLANNER_FEATURE_GROUPS, defaultFeaturesForPlan, type PlannerFeatureGroup } from './planner-features';
 
 const STATUS_SKIN: Record<RoutePlannerStatus, string> = {
   trial: 'bg-emerald-100 text-emerald-700',
@@ -26,6 +38,413 @@ const STATUS_SKIN: Record<RoutePlannerStatus, string> = {
   expired: 'bg-red-100 text-red-700',
   suspended: 'bg-zinc-200 text-zinc-700',
 };
+
+/**
+ * Platform Overview band — platform-wide Planner KPIs + a system-health summary for the
+ * platform owner. English-first (internal owner tool). Real aggregates across all tenants
+ * (platformOverview, service-role) + the per-tenant list + runtime diagnostics. Honest
+ * placeholders where a metric isn't measured yet (storage TB, monthly usage %).
+ */
+function PlatformOverviewBand({ tenants, counts }: { tenants: PlannerTenantRow[]; counts: Record<string, number> }) {
+  const [ov, setOv] = useState<PlatformOverview | null>(null);
+  const [health, setHealth] = useState<AdminDiagnostics | null>(null);
+  useEffect(() => {
+    void platformOverview().then((r) => { if (r.ok) setOv(r.data ?? null); });
+    void routePlannerAdminDiagnostics().then((r) => { if (r.ok) setHealth(r.data ?? null); });
+  }, []);
+  const num = (v: number | undefined) => (v === undefined ? '·' : v);
+  const kpis: { icon: typeof Building2; label: string; v: number | string; tone: string }[] = [
+    { icon: Building2, label: 'Companies', v: tenants.length, tone: 'bg-sky-50 text-sky-600' },
+    { icon: CheckCircle2, label: 'Active subscriptions', v: counts.active ?? 0, tone: 'bg-emerald-50 text-emerald-600' },
+    { icon: Users, label: 'Planner users', v: num(ov?.totalUsers), tone: 'bg-violet-50 text-violet-600' },
+    { icon: Target, label: 'Active missions', v: num(ov?.activeMissions), tone: 'bg-amber-50 text-amber-600' },
+    { icon: Database, label: 'Datasets', v: num(ov?.datasets), tone: 'bg-indigo-50 text-indigo-600' },
+    { icon: AlertTriangle, label: 'Failed syncs', v: num(ov?.failedSyncs), tone: 'bg-orange-50 text-orange-600' },
+  ];
+  const healthy = health ? (health.serviceKeyLooksValid && health.keyMatchesUrl !== false) : null;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {kpis.map((c) => (
+          <div key={c.label} className="rounded-2xl border bg-card p-3 shadow-sm">
+            <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${c.tone}`}><c.icon className="h-4 w-4" /></div>
+            <p className="text-2xl font-bold tabular-nums">{c.v}</p>
+            <p className="text-[11px] text-muted-foreground">{c.label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border p-3 text-xs">
+        <span className="inline-flex items-center gap-1.5 font-semibold"><Activity className="h-4 w-4 text-primary" /> System health</span>
+        <span className={`inline-flex items-center gap-1 font-medium ${healthy === false ? 'text-red-600' : healthy ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+          <span className={`h-2 w-2 rounded-full ${healthy === false ? 'bg-red-500' : healthy ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+          {healthy === null ? 'Checking…' : healthy ? 'Operational' : 'Attention needed'}
+        </span>
+        {health && <span className="text-muted-foreground">· env {health.vercelEnv ?? '—'}{health.commitSha ? ` · ${health.commitSha}` : ''}</span>}
+        {ov && ov.failedSyncs > 0 && <span className="text-amber-600">· {ov.failedSyncs} failed syncs</span>}
+      </div>
+      <p className="text-[11px] text-muted-foreground">Storage usage, usage trends, and deep service health (API/DB/jobs/queues) are not yet measured — they will appear here once instrumented. The figures above are live counts.</p>
+    </div>
+  );
+}
+
+/**
+ * Company 360 drawer — Platform Owner view of a single tenant. Right-side panel that loads
+ * the live aggregate (platformCompany360) + the company-admin list (listCompanyAdmins), both
+ * service-role and strictly scoped to this company_id (no cross-company data). Lets the owner
+ * activate/deactivate company admins (setTenantUserActive — membership-verified + audited).
+ */
+function Company360Drawer({ company, onAddUser, onClose }: {
+  company: { id: string; name: string };
+  onAddUser: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [data, setData] = useState<PlatformCompany360 | null>(null);
+  const [admins, setAdmins] = useState<TenantAdminRow[] | null>(null);
+  const [features, setFeatures] = useState<Record<string, boolean> | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const reload = useMemo(() => () => {
+    setErr(null);
+    void platformCompany360(company.id).then((r) => { if (r.ok) setData(r.data ?? null); else setErr(r.error); });
+    void listCompanyAdmins(company.id).then((r) => { if (r.ok) setAdmins(r.data ?? []); });
+    void listCompanyFeatures(company.id).then((r) => { if (r.ok) setFeatures(r.data ?? {}); });
+  }, [company.id]);
+  useEffect(() => { reload(); }, [reload]);
+
+  function toggleFeature(key: string) {
+    const next = !(features?.[key] ?? true);
+    setFeatures((prev) => ({ ...(prev ?? {}), [key]: next })); // optimistic
+    startTransition(async () => {
+      const res = await setCompanyFeature(company.id, key, next);
+      if (!res.ok) {
+        setFeatures((prev) => ({ ...(prev ?? {}), [key]: !next })); // revert
+        toast.error(t('routePlanner.adminError'), { description: res.error });
+        return;
+      }
+      toast.success(t('routePlanner.c360_featureUpdated'));
+    });
+  }
+
+  function toggleUser(u: TenantAdminRow) {
+    startTransition(async () => {
+      const res = await setTenantUserActive(company.id, u.id, !u.active);
+      if (!res.ok) { toast.error(t('routePlanner.adminError'), { description: res.error }); return; }
+      setAdmins((prev) => (prev ?? []).map((a) => (a.id === u.id ? { ...a, active: !u.active } : a)));
+      toast.success(t('routePlanner.c360_userUpdated'));
+    });
+  }
+
+  const fmt = (s: string | null) => (s ? new Date(s).toISOString().slice(0, 10) : '—');
+  const stat: { icon: typeof Users; label: string; v: number | string; tone: string }[] = data ? [
+    { icon: Users, label: t('routePlanner.c360_total'), v: data.users.total, tone: 'bg-sky-50 text-sky-600' },
+    { icon: CheckCircle2, label: t('routePlanner.c360_active'), v: data.users.active, tone: 'bg-emerald-50 text-emerald-600' },
+    { icon: ShieldCheck, label: t('routePlanner.c360_admins'), v: data.users.admins, tone: 'bg-violet-50 text-violet-600' },
+    { icon: Users, label: t('routePlanner.c360_managers'), v: data.users.managers, tone: 'bg-indigo-50 text-indigo-600' },
+    { icon: Users, label: t('routePlanner.c360_supervisors'), v: data.users.supervisors, tone: 'bg-cyan-50 text-cyan-600' },
+    { icon: Users, label: t('routePlanner.c360_field'), v: data.users.fieldUsers, tone: 'bg-teal-50 text-teal-600' },
+    { icon: Target, label: t('routePlanner.c360_missions'), v: data.missions, tone: 'bg-amber-50 text-amber-600' },
+    { icon: LayoutDashboard, label: t('routePlanner.c360_plans'), v: data.plans, tone: 'bg-orange-50 text-orange-600' },
+    { icon: Database, label: t('routePlanner.c360_datasets'), v: data.datasets.count, tone: 'bg-fuchsia-50 text-fuchsia-600' },
+    { icon: AlertTriangle, label: t('routePlanner.c360_requests'), v: data.requests, tone: 'bg-rose-50 text-rose-600' },
+    { icon: AlertTriangle, label: t('routePlanner.c360_failedSyncs'), v: data.failedSyncs, tone: data.failedSyncs > 0 ? 'bg-red-50 text-red-600' : 'bg-muted text-muted-foreground' },
+  ] : [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
+      <div className="flex h-full w-full max-w-lg flex-col bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><Building2 className="h-4 w-4" /></div>
+            <div>
+              <p className="text-sm font-bold leading-tight">{company.name}</p>
+              <p className="text-[11px] leading-tight text-muted-foreground">{t('routePlanner.c360_title')}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={reload} disabled={pending} className="rounded p-1.5 hover:bg-muted disabled:opacity-50" title="Refresh"><RefreshCw className={`h-4 w-4 ${pending ? 'animate-spin' : ''}`} /></button>
+            <button onClick={onClose} className="rounded p-1.5 hover:bg-muted"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          {err && <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{t('routePlanner.c360_loadError')} <span className="font-mono text-xs opacity-80">{err}</span></p>}
+          {!data && !err && <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {t('routePlanner.c360_loading')}</p>}
+
+          {data && (
+            <>
+              {/* Profile */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-xl border p-3 text-xs">
+                <p className="col-span-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('routePlanner.c360_profile')}</p>
+                <span className="text-muted-foreground">{t('routePlanner.c360_plan')}</span><span className="text-end font-medium" dir="ltr">{data.planKey ?? '—'}</span>
+                <span className="text-muted-foreground">{t('routePlanner.adminColStatus')}</span><span className="text-end font-medium">{data.isActive ? t('routePlanner.adminStatusActive') : t('routePlanner.adminStatusSuspended')}</span>
+                <span className="text-muted-foreground">{t('routePlanner.c360_created')}</span><span className="text-end font-medium" dir="ltr">{fmt(data.createdAt)}</span>
+                <span className="text-muted-foreground">{t('routePlanner.c360_activeDataset')}</span><span className="text-end font-medium">{data.datasets.activeName ?? '—'}</span>
+                <span className="text-muted-foreground">{t('routePlanner.c360_lastSync')}</span><span className="text-end font-medium" dir="ltr">{fmt(data.latestSyncAt)}</span>
+              </div>
+
+              {/* KPI grid */}
+              <div className="grid grid-cols-3 gap-2">
+                {stat.map((s) => (
+                  <div key={s.label} className="rounded-xl border bg-card p-2.5">
+                    <div className={`mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg ${s.tone}`}><s.icon className="h-3.5 w-3.5" /></div>
+                    <p className="text-lg font-bold tabular-nums">{s.v}</p>
+                    <p className="text-[10px] leading-tight text-muted-foreground">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Company admins */}
+              <div className="rounded-xl border">
+                <div className="flex items-center justify-between border-b px-3 py-2">
+                  <p className="inline-flex items-center gap-1.5 text-xs font-semibold"><ShieldCheck className="h-4 w-4 text-primary" /> {t('routePlanner.c360_companyAdmins')}</p>
+                  <button onClick={onAddUser} className="inline-flex items-center gap-1 rounded border border-primary/40 px-2 py-1 text-[11px] text-primary hover:bg-primary/10"><UserPlus className="h-3 w-3" /> {t('routePlanner.adminAddUser')}</button>
+                </div>
+                {admins === null ? (
+                  <p className="px-3 py-3 text-xs text-muted-foreground"><Loader2 className="inline h-3.5 w-3.5 animate-spin" /></p>
+                ) : admins.length === 0 ? (
+                  <p className="px-3 py-4 text-center text-xs text-muted-foreground">{t('routePlanner.c360_noAdmins')}</p>
+                ) : (
+                  <ul className="divide-y">
+                    {admins.map((u) => (
+                      <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium">{u.name}</p>
+                          {u.email && <p className="truncate text-[11px] text-muted-foreground" dir="ltr">{u.email}</p>}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${u.active ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-200 text-zinc-600'}`}>
+                            {u.active ? <CheckCircle2 className="h-3 w-3" /> : <Ban className="h-3 w-3" />}
+                            {u.active ? t('routePlanner.c360_active') : t('routePlanner.adminStatusSuspended')}
+                          </span>
+                          <button disabled={pending} onClick={() => toggleUser(u)} className={`rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50 ${u.active ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {u.active ? t('routePlanner.c360_deactivate') : t('routePlanner.c360_activate')}
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Per-company feature / module enablement (writes erp_company_modules) */}
+              <div className="rounded-xl border">
+                <div className="border-b px-3 py-2">
+                  <p className="inline-flex items-center gap-1.5 text-xs font-semibold"><Sliders className="h-4 w-4 text-primary" /> {t('routePlanner.c360_features')}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{t('routePlanner.c360_featuresHint')}</p>
+                </div>
+                {features === null ? (
+                  <p className="px-3 py-3 text-xs text-muted-foreground"><Loader2 className="inline h-3.5 w-3.5 animate-spin" /></p>
+                ) : (
+                  <div className="space-y-3 p-3">
+                    {PLANNER_FEATURE_GROUPS.map((g) => {
+                      const items = PLANNER_FEATURES.filter((f) => f.group === g);
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={g}>
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t(`routePlanner.featGroup_${g}` as Parameters<typeof t>[0])}</p>
+                          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                            {items.map((f) => {
+                              const on = features[f.key] ?? true;
+                              return (
+                                <button key={f.key} disabled={pending} onClick={() => toggleFeature(f.key)} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-start text-xs transition disabled:opacity-60 ${on ? 'border-primary/40 bg-primary/5' : 'bg-muted/30 text-muted-foreground'}`}>
+                                  <span className="truncate">{t(`routePlanner.feat_${f.key}` as Parameters<typeof t>[0])}</span>
+                                  <span className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition ${on ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition ${on ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <a href="/distribution/route-planner" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /> {t('routePlanner.adminOpenCompany')}</a>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Create Company modal — the Platform Owner's rich provisioning form. Captures the
+ * full company profile (name / country / city / industry), subscription (plan /
+ * status / trial window / pilot), the first company admin, and the initial enabled
+ * feature set. All persisted through createRoutePlannerTenantRich (service-role,
+ * route_planner scoped). On success it shows the generated admin credentials.
+ */
+function CreateCompanyModal({ onCreated, onClose }: {
+  onCreated: (row: PlannerTenantRow) => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [pending, startTransition] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  const [creds, setCreds] = useState<{ email: string; password: string } | null>(null);
+
+  const [name, setName] = useState('');
+  const [country, setCountry] = useState('');
+  const [city, setCity] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [plan, setPlan] = useState<'trial' | 'monthly' | 'annual'>('trial');
+  const [status, setStatus] = useState<'trial' | 'active' | 'suspended'>('trial');
+  const today = new Date().toISOString().slice(0, 10);
+  const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const [trialStart, setTrialStart] = useState(today);
+  const [trialEnd, setTrialEnd] = useState(in30);
+  const [pilot, setPilot] = useState(false);
+  const [adminName, setAdminName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [features, setFeatures] = useState<Set<string>>(() => new Set(defaultFeaturesForPlan()));
+
+  function toggle(key: string) {
+    setFeatures((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  }
+
+  function submit() {
+    const clean = name.trim();
+    if (!clean) return;
+    const input: CreateTenantInput = {
+      name: clean, country, city, industry, plan, status,
+      trialStart, trialEnd, pilotActive: pilot,
+      adminName, adminEmail, adminPassword,
+      features: [...features],
+    };
+    startTransition(async () => {
+      const res = await createRoutePlannerTenantRich(input);
+      if (!res.ok || !res.data) { setErr(res.ok ? 'no_id' : res.error); toast.error(t('routePlanner.adminError'), { description: res.ok ? undefined : res.error }); return; }
+      setErr(null);
+      const planKey = plan === 'annual' ? 'route_planner_annual' : plan === 'monthly' ? 'route_planner_monthly' : 'route_planner_trial';
+      onCreated({
+        id: res.data.id, name: clean, planKey, isActive: status !== 'suspended',
+        trialEndsAt: trialEnd, subscriptionStart: status === 'active' ? new Date().toISOString() : null,
+        subscriptionEnd: status === 'active' ? trialEnd : null, createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), customerCount: 0, routeCount: 0, lastActivity: null,
+      });
+      toast.success(t('routePlanner.cc_created'));
+      if (res.data.adminEmail && res.data.adminPassword) setCreds({ email: res.data.adminEmail, password: res.data.adminPassword });
+      else onClose();
+    });
+  }
+
+  const field = 'h-9 w-full rounded-md border bg-background px-2 text-sm';
+  const lbl = 'block text-[11px] text-muted-foreground';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4" onClick={onClose}>
+      <div className="my-4 w-full max-w-2xl rounded-xl border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <p className="inline-flex items-center gap-2 text-sm font-bold"><Building2 className="h-4 w-4 text-primary" /> {t('routePlanner.cc_title')}</p>
+          <button onClick={onClose} className="rounded p-1 hover:bg-muted"><X className="h-4 w-4" /></button>
+        </div>
+
+        {creds ? (
+          <div className="space-y-3 p-4">
+            <p className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600"><CheckCircle2 className="h-4 w-4" /> {t('routePlanner.cc_created')}</p>
+            <div className="space-y-1 rounded-md border bg-muted/40 p-2 font-mono text-xs">
+              <p>email: <b>{creds.email}</b></p>
+              <p>password: <b>{creds.password}</b></p>
+            </div>
+            <p className="text-[11px] text-muted-foreground">{t('routePlanner.adminUserCredsNote')}</p>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={() => { navigator.clipboard?.writeText(`${creds.email} / ${creds.password}`).then(() => toast.success(t('routePlanner.copiedNumber'))).catch(() => {}); }}>{t('routePlanner.copyNumber')}</Button>
+              <Button size="sm" onClick={onClose}>{t('routePlanner.adminUserDone')}</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
+            {/* Profile */}
+            <section className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('routePlanner.cc_section_profile')}</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="sm:col-span-2"><label className={lbl}>{t('routePlanner.cc_name')}</label><Input value={name} onChange={(e) => setName(e.target.value)} className="h-9" /></div>
+                <div><label className={lbl}>{t('routePlanner.cc_country')}</label><Input value={country} onChange={(e) => setCountry(e.target.value)} className="h-9" /></div>
+                <div><label className={lbl}>{t('routePlanner.cc_city')}</label><Input value={city} onChange={(e) => setCity(e.target.value)} className="h-9" /></div>
+                <div className="sm:col-span-2"><label className={lbl}>{t('routePlanner.cc_industry')}</label><Input value={industry} onChange={(e) => setIndustry(e.target.value)} className="h-9" placeholder="FMCG Distribution" /></div>
+              </div>
+            </section>
+
+            {/* Subscription */}
+            <section className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('routePlanner.cc_section_subscription')}</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div>
+                  <label className={lbl}>{t('routePlanner.cc_plan')}</label>
+                  <select value={plan} onChange={(e) => setPlan(e.target.value as typeof plan)} className={field}>
+                    <option value="trial">{t('routePlanner.cc_planTrial')}</option>
+                    <option value="monthly">{t('routePlanner.cc_planMonthly')}</option>
+                    <option value="annual">{t('routePlanner.cc_planAnnual')}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>{t('routePlanner.cc_status')}</label>
+                  <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className={field}>
+                    <option value="trial">{t('routePlanner.cc_statusTrial')}</option>
+                    <option value="active">{t('routePlanner.cc_statusActive')}</option>
+                    <option value="suspended">{t('routePlanner.cc_statusSuspended')}</option>
+                  </select>
+                </div>
+                <div><label className={lbl}>{t('routePlanner.cc_trialStart')}</label><input type="date" value={trialStart} onChange={(e) => setTrialStart(e.target.value)} className={field} dir="ltr" /></div>
+                <div><label className={lbl}>{t('routePlanner.cc_trialEnd')}</label><input type="date" value={trialEnd} onChange={(e) => setTrialEnd(e.target.value)} className={field} dir="ltr" /></div>
+                <label className="flex items-center gap-2 sm:col-span-2"><input type="checkbox" checked={pilot} onChange={(e) => setPilot(e.target.checked)} className="h-4 w-4" /> <span className="text-xs">{t('routePlanner.cc_pilot')}</span></label>
+              </div>
+            </section>
+
+            {/* First admin */}
+            <section className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('routePlanner.cc_section_admin')}</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div><label className={lbl}>{t('routePlanner.cc_adminName')}</label><Input value={adminName} onChange={(e) => setAdminName(e.target.value)} className="h-9" /></div>
+                <div><label className={lbl}>{t('routePlanner.cc_adminEmail')}</label><Input value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} type="email" dir="ltr" className="h-9" placeholder="admin@company.com" /></div>
+                <div className="sm:col-span-2"><label className={lbl}>{t('routePlanner.cc_adminPassword')}</label><Input value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} type="text" dir="ltr" className="h-9" /></div>
+              </div>
+            </section>
+
+            {/* Features */}
+            <section className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('routePlanner.cc_features')}</p>
+              <p className="text-[11px] text-muted-foreground">{t('routePlanner.cc_featuresHint')}</p>
+              <div className="space-y-2.5">
+                {PLANNER_FEATURE_GROUPS.map((g: PlannerFeatureGroup) => {
+                  const items = PLANNER_FEATURES.filter((f) => f.group === g);
+                  return (
+                    <div key={g}>
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">{t(`routePlanner.featGroup_${g}` as Parameters<typeof t>[0])}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {items.map((f) => {
+                          const on = features.has(f.key);
+                          return (
+                            <button key={f.key} type="button" onClick={() => toggle(f.key)} className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${on ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
+                              {t(`routePlanner.feat_${f.key}` as Parameters<typeof t>[0])}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {err && <p className="rounded border border-red-300 bg-red-50 px-2 py-1 font-mono text-[11px] text-red-700">{err}</p>}
+            <div className="flex justify-end gap-2 border-t pt-3">
+              <Button size="sm" variant="ghost" onClick={onClose}>{t('routePlanner.cc_cancel')}</Button>
+              <Button size="sm" onClick={submit} disabled={pending || !name.trim()}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t('routePlanner.cc_create')}</Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function PlannerAdminConsole({ initialTenants, loadError }: { initialTenants: PlannerTenantRow[]; loadError: string | null }) {
   const { t, locale, setLocale } = useI18n();
@@ -37,6 +456,10 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
   const [pending, startTransition] = useTransition();
 
   const [diag, setDiag] = useState<AdminDiagnostics | null>(null);
+  // Rich create-company modal.
+  const [showCreate, setShowCreate] = useState(false);
+  // Company 360 drawer (per company).
+  const [view360, setView360] = useState<{ id: string; name: string } | null>(null);
   // Add-user modal state (per company).
   const [addUserFor, setAddUserFor] = useState<{ id: string; name: string } | null>(null);
   const [uName, setUName] = useState('');
@@ -157,6 +580,9 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
 
       <p className="text-sm text-muted-foreground">{t('routePlanner.adminSubtitle')}</p>
 
+      {/* Platform Overview — platform-wide Planner KPIs + system health (owner scope). */}
+      <PlatformOverviewBand tenants={tenants} counts={counts} />
+
       {/* Usage overview */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {([
@@ -174,13 +600,17 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
         ))}
       </div>
 
-      {/* Create tenant */}
+      {/* Create tenant — primary rich flow + a quick name-only fallback */}
       <Card><CardContent className="flex flex-wrap items-end gap-2 p-3">
-        <div className="flex-1">
-          <label className="block text-[11px] text-muted-foreground">{t('routePlanner.adminTenantName')}</label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('routePlanner.adminTenantNamePlaceholder')} className="h-9" />
+        <Button size="sm" onClick={() => setShowCreate(true)}><Building2 className="h-4 w-4" /> {t('routePlanner.cc_open')}</Button>
+        <span className="text-[11px] text-muted-foreground">{t('routePlanner.cc_featuresHint')}</span>
+        <div className="ms-auto flex items-end gap-2">
+          <div>
+            <label className="block text-[11px] text-muted-foreground">{t('routePlanner.adminTenantName')}</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('routePlanner.adminTenantNamePlaceholder')} className="h-9 max-w-[16rem]" />
+          </div>
+          <Button size="sm" variant="outline" onClick={onCreate} disabled={pending || !name.trim()}><Plus className="h-4 w-4" /> {t('routePlanner.adminCreate')}</Button>
         </div>
-        <Button size="sm" onClick={onCreate} disabled={pending || !name.trim()}><Plus className="h-4 w-4" /> {t('routePlanner.adminCreate')}</Button>
       </CardContent></Card>
 
       {/* Configurable WhatsApp contact (used by renewal / support buttons product-wide). */}
@@ -265,6 +695,7 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
                         <button disabled={pending} onClick={() => run(() => setTenantSuspended(c.id, !suspended), (x) => ({ ...x, isActive: suspended }), c.id)} className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50 ${suspended ? '' : 'text-red-600'}`}><Ban className="h-3 w-3" /> {suspended ? t('routePlanner.adminReactivate') : t('routePlanner.adminSuspend')}</button>
                         <button disabled={pending} onClick={() => { if (confirm(t('routePlanner.adminResetConfirm'))) run(() => resetDemoData(c.id), (x) => ({ ...x, planKey: 'route_planner_trial', isActive: true, trialEndsAt: isoIn(30), subscriptionStart: null, subscriptionEnd: null, customerCount: 0, routeCount: 0 }), c.id); }} className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50"><RotateCcw className="h-3 w-3" /> {t('routePlanner.adminResetDemo')}</button>
                         <button disabled={pending} onClick={() => openAddUser(c)} className="inline-flex items-center gap-1 rounded border border-primary/40 px-2 py-1 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50"><UserPlus className="h-3 w-3" /> {t('routePlanner.adminAddUser')}</button>
+                        <button onClick={() => setView360({ id: c.id, name: c.name })} className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted"><LayoutDashboard className="h-3 w-3" /> {t('routePlanner.c360_open')}</button>
                         <a href="/distribution/route-planner" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted"><ExternalLink className="h-3 w-3" /> {t('routePlanner.adminOpenCompany')}</a>
                       </div>
                     </td>
@@ -279,6 +710,23 @@ export function PlannerAdminConsole({ initialTenants, loadError }: { initialTena
       {pending && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('routePlanner.adminWorking')}</p>}
 
       <p className="text-[11px] text-muted-foreground">{t('routePlanner.adminScopeNote')}</p>
+
+      {/* Rich create-company modal */}
+      {showCreate && (
+        <CreateCompanyModal
+          onCreated={(row) => setTenants((prev) => [row, ...prev])}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
+
+      {/* Company 360 drawer */}
+      {view360 && (
+        <Company360Drawer
+          company={view360}
+          onAddUser={() => openAddUser({ id: view360.id, name: view360.name } as PlannerTenantRow)}
+          onClose={() => setView360(null)}
+        />
+      )}
 
       {/* Add User modal */}
       {addUserFor && (

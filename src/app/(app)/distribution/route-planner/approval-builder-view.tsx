@@ -5,8 +5,8 @@ import { GitBranch, Plus, Trash2, ArrowUp, ArrowDown, Info, CheckCircle2, Save, 
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import {
-  RP_TICKET_TYPES, RP_APPROVAL_STAGES, RP_ASSIGN_METHODS, RP_RELATIONS, RP_ROLES, RP_STEP_MODES, RP_APPROVAL_TEMPLATES,
-  type RpTicketType, type RpApprovalStep, type RpApprovalStage, type RpAssignMethod, type RpRelation, type RpRole, type RpStepMode,
+  RP_TICKET_TYPES, RP_PLAN_APPROVAL_TYPES, RP_APPROVAL_STAGES, RP_ASSIGN_METHODS, RP_RELATIONS, RP_ROLES, RP_STEP_MODES, RP_APPROVAL_TEMPLATES,
+  type RpApprovalKey, type RpApprovalStep, type RpApprovalStage, type RpAssignMethod, type RpRelation, type RpRole, type RpStepMode,
 } from '@/lib/erp/route-planner-backend';
 import { listApprovalFlows, saveApprovalFlow } from './rp-backend-actions';
 import { listReportingGraph } from './rp-reporting-actions';
@@ -24,7 +24,7 @@ export function ApprovalBuilderView() {
   const { t } = useI18n();
   const [flows, setFlows] = useState<Record<string, { steps: RpApprovalStep[]; isActive: boolean }>>({});
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
-  const [selected, setSelected] = useState<RpTicketType>('new_customer');
+  const [selected, setSelected] = useState<RpApprovalKey>('new_customer');
   const [steps, setSteps] = useState<RpApprovalStep[]>([]);
   const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -94,6 +94,18 @@ export function ApprovalBuilderView() {
         <div className="overflow-y-auto rounded-lg border p-1.5">
           <p className="px-2 py-1 text-[11px] font-semibold text-muted-foreground">{t('rpShell.ab_pickType')}</p>
           {RP_TICKET_TYPES.map((ty) => {
+            const f = flows[ty]; const configured = f && f.steps.length > 0;
+            return (
+              <button key={ty} onClick={() => setSelected(ty)}
+                className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-start text-xs transition ${selected === ty ? 'bg-primary/10 font-medium text-primary' : 'hover:bg-muted'}`}>
+                <span>{t(`rpShell.rc_type_${ty}` as Parameters<typeof t>[0])}</span>
+                {configured ? <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 text-[9px] ${f!.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}><CheckCircle2 className="h-2.5 w-2.5" /> {f!.steps.length}</span> : null}
+              </button>
+            );
+          })}
+          {/* Plan sign-off flows (Wave K) — same engine, different keys. */}
+          <p className="mt-2 border-t px-2 pb-1 pt-2 text-[11px] font-semibold text-muted-foreground">{t('rpShell.ab_planFlows')}</p>
+          {RP_PLAN_APPROVAL_TYPES.map((ty) => {
             const f = flows[ty]; const configured = f && f.steps.length > 0;
             return (
               <button key={ty} onClick={() => setSelected(ty)}
