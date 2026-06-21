@@ -64,6 +64,12 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
   const btype = String(formData.get('business_type') || 'general') as BusinessType;
   const business_type = BUSINESS_TYPES.includes(btype) ? btype : 'general';
   const subscription_end = String(formData.get('subscription_end') || '').trim() || null;
+  // Enriched provisioning metadata (additive columns; plan/trial/status are applied by the
+  // caller via the canonical setCompanyPlan/setCompanyTrial/setCompanyActive actions).
+  const country = String(formData.get('country') || '').trim() || null;
+  const city = String(formData.get('city') || '').trim() || null;
+  const trial_starts_at = String(formData.get('trial_start') || '').trim() || null;
+  const is_pilot = formData.has('is_pilot');
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -73,6 +79,10 @@ export async function createCompany(formData: FormData): Promise<ActionResult<{ 
       name_ar,
       slug: slug || null,
       business_type,
+      country,
+      city,
+      trial_starts_at,
+      is_pilot,
       currency: 'EGP',
       is_active: true,
       allow_self_users: formData.get('_self') ? formData.has('allow_self_users') : true,
