@@ -135,19 +135,19 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
   const selectCls = 'w-full rounded-md border bg-background px-2 py-1.5 text-sm';
 
   return (
-    <div className="mx-auto max-w-screen-2xl space-y-4">
+    <div className="mx-auto max-w-screen-2xl space-y-3">
       <PlatformTabs />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-lg font-bold">{t('platform.companies.title')}</h1>
+          <h1 className="text-xl font-bold tracking-tight">{t('platform.companies.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('platform.companies.subtitle')}</p>
         </div>
         <Button onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> {t('platform.companies.newCompany')}</Button>
       </div>
 
       {/* KPI band */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label={t('platform.companies.kpiTotal')} value={String(kpis.total)} icon={Building2} tone="primary" />
         <StatCard label={t('platform.companies.kpiActive')} value={String(kpis.active)} icon={CheckCircle2} tone="success" />
         <StatCard label={t('platform.companies.kpiTrial')} value={String(kpis.trial)} icon={Clock} tone="info" />
@@ -179,9 +179,8 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
             </button>
           ))}
         </div>
+        <span className="ms-auto whitespace-nowrap text-xs text-muted-foreground">{t('platform.companies.countLabel', { count: rows.length, total: companies.length })}</span>
       </div>
-
-      <p className="text-xs text-muted-foreground">{t('platform.companies.countLabel', { count: rows.length, total: companies.length })}</p>
 
       {/* Full-width companies table */}
       <CompaniesTable rows={rows} onManage={select} onToggleActive={toggleActive} pending={pending} />

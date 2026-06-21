@@ -38,10 +38,10 @@ export function PlatformTabs() {
                 href={tab.href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'inline-flex items-center whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors',
+                  'inline-flex items-center whitespace-nowrap rounded-t-md border-b-2 px-3.5 py-2.5 text-sm transition-colors',
                   active
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                    ? 'border-primary bg-primary/10 font-semibold text-primary'
+                    : 'border-transparent font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
                 )}
               >
                 {t(`platform.companies.tab_${tab.key}`)}

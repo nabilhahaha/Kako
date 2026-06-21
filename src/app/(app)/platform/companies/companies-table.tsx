@@ -2,7 +2,6 @@
 
 import { Ban, CheckCircle2, Settings2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { CompanyListRow } from './companies-workbench-server';
 
@@ -18,11 +17,12 @@ export function deriveState(c: CompanyListRow): DerivedState {
   return 'active';
 }
 
-const STATE_BADGE: Record<DerivedState, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  active: 'default',
-  trial: 'secondary',
-  expired: 'destructive',
-  suspended: 'outline',
+/** Strong, scannable status pills (clearer than the muted badge variants). */
+const STATE_PILL: Record<DerivedState, string> = {
+  active: 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200',
+  trial: 'bg-amber-100 text-amber-700 ring-1 ring-amber-200',
+  expired: 'bg-red-100 text-red-700 ring-1 ring-red-200',
+  suspended: 'bg-zinc-200 text-zinc-700 ring-1 ring-zinc-300',
 };
 
 function fmtDate(s: string | null): string {
@@ -48,16 +48,16 @@ export function CompaniesTable({
   const { t } = useI18n();
   return (
     <div className="overflow-x-auto rounded-xl border">
-      <table className="w-full min-w-[860px] text-sm">
-        <thead className="border-b bg-secondary/40 text-xs text-muted-foreground">
-          <tr className="text-start">
-            <th className="px-4 py-2.5 text-start font-medium">{t('platform.companies.thCompany')}</th>
-            <th className="px-4 py-2.5 text-start font-medium">{t('platform.companies.thPlan')}</th>
-            <th className="px-4 py-2.5 text-start font-medium">{t('platform.companies.thStatus')}</th>
-            <th className="px-4 py-2.5 text-start font-medium">{t('platform.companies.thUsers')}</th>
-            <th className="px-4 py-2.5 text-start font-medium">{t('platform.companies.thSubscription')}</th>
-            <th className="px-4 py-2.5 text-start font-medium">{t('platform.companies.thActivity')}</th>
-            <th className="px-4 py-2.5 text-end font-medium">{t('platform.companies.thActions')}</th>
+      <table className="w-full min-w-[880px] text-sm">
+        <thead className="border-b bg-secondary/50 text-[11px] uppercase tracking-wide text-muted-foreground">
+          <tr>
+            <th className="px-4 py-3 text-start font-semibold">{t('platform.companies.thCompany')}</th>
+            <th className="px-4 py-3 text-start font-semibold">{t('platform.companies.thPlan')}</th>
+            <th className="px-4 py-3 text-start font-semibold">{t('platform.companies.thStatus')}</th>
+            <th className="px-4 py-3 text-end font-semibold">{t('platform.companies.thUsers')}</th>
+            <th className="px-4 py-3 text-start font-semibold">{t('platform.companies.thSubscription')}</th>
+            <th className="px-4 py-3 text-start font-semibold">{t('platform.companies.thActivity')}</th>
+            <th className="px-4 py-3 text-end font-semibold">{t('platform.companies.thActions')}</th>
           </tr>
         </thead>
         <tbody className="divide-y">
@@ -66,22 +66,24 @@ export function CompaniesTable({
             const name = c.name_ar || c.name;
             return (
               <tr key={c.id} className="hover:bg-secondary/30">
-                <td className="px-4 py-2.5">
-                  <button onClick={() => onManage(c.id)} className="flex items-center gap-2.5 text-start hover:underline">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold text-primary">
+                <td className="px-4 py-3">
+                  <button onClick={() => onManage(c.id)} className="flex items-center gap-2.5 text-start">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
                       {name.slice(0, 1).toUpperCase()}
                     </span>
-                    <span className="font-medium">{name}</span>
+                    <span className="font-semibold text-foreground hover:underline">{name}</span>
                   </button>
                 </td>
-                <td className="px-4 py-2.5 text-muted-foreground">{c.plan_key ?? '—'}</td>
-                <td className="px-4 py-2.5">
-                  <Badge variant={STATE_BADGE[state]}>{t(`platform.state.${state}`)}</Badge>
+                <td className="px-4 py-3 text-muted-foreground">{c.plan_key ?? '—'}</td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATE_PILL[state]}`}>
+                    {t(`platform.state.${state}`)}
+                  </span>
                 </td>
-                <td className="px-4 py-2.5 tabular-nums" dir="ltr">{c.userCount}</td>
-                <td className="px-4 py-2.5 tabular-nums text-muted-foreground" dir="ltr">{fmtDate(c.subscriptionEnd ?? c.trialEndsAt)}</td>
-                <td className="px-4 py-2.5 tabular-nums text-muted-foreground" dir="ltr">{fmtDate(c.lastActivity)}</td>
-                <td className="px-4 py-2.5">
+                <td className="px-4 py-3 text-end font-medium tabular-nums" dir="ltr">{c.userCount}</td>
+                <td className="px-4 py-3 tabular-nums text-muted-foreground" dir="ltr">{fmtDate(c.subscriptionEnd ?? c.trialEndsAt)}</td>
+                <td className="px-4 py-3 tabular-nums text-muted-foreground" dir="ltr">{fmtDate(c.lastActivity)}</td>
+                <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1.5">
                     <Button size="sm" variant="outline" onClick={() => onManage(c.id)}>
                       <Settings2 className="h-3.5 w-3.5" /> {t('platform.companies.manage')}
