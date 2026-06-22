@@ -14,7 +14,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { useMobileNav } from '@/lib/stores/mobile-nav';
 
 const COLLAPSE_KEY = 'vantora.sidebar.collapsed';
-const GROUPS_KEY = 'vantora.sidebar.closedGroups';
+const GROUPS_KEY = 'vantora.sidebar.openGroups';
 
 export function Sidebar({
   permissions,
@@ -55,17 +55,18 @@ export function Sidebar({
     return next;
   });
 
-  // Per-group collapse — groups are OPEN by default; closed groups are remembered across
-  // sessions (localStorage). The active group is always force-shown regardless (below).
-  const [closedGroups, setClosedGroups] = useState<Set<string>>(new Set());
+  // Accordion: groups are CLOSED by default (only headers shown); opening one reveals its
+  // children. Open groups are remembered across sessions (localStorage). The group containing
+  // the active page is always force-shown + highlighted regardless (below).
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   useEffect(() => {
     try {
       const raw = localStorage.getItem(GROUPS_KEY);
-      if (raw) setClosedGroups(new Set(JSON.parse(raw) as string[]));
+      if (raw) setOpenGroups(new Set(JSON.parse(raw) as string[]));
     } catch { /* ignore */ }
   }, []);
   const toggleGroup = (title: string) =>
-    setClosedGroups((prev) => {
+    setOpenGroups((prev) => {
       const next = new Set(prev);
       if (next.has(title)) next.delete(title); else next.add(title);
       try { localStorage.setItem(GROUPS_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
@@ -145,8 +146,8 @@ export function Sidebar({
           );
         }
 
-        // Expanded: a clickable group header (chevron) + items. Active group is forced open.
-        const isOpen = !closedGroups.has(section.title) || sectionActive;
+        // Accordion: closed by default; opens on click. The active group is force-open + lit.
+        const isOpen = openGroups.has(section.title) || sectionActive;
         return (
           <div key={section.title} className="mb-1">
             <button
@@ -154,7 +155,7 @@ export function Sidebar({
               onClick={() => toggleGroup(section.title)}
               className={cn(
                 'flex w-full items-center justify-between rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors hover:bg-secondary/60',
-                sectionActive ? 'text-primary' : 'text-muted-foreground',
+                sectionActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground',
               )}
               aria-expanded={isOpen}
             >
@@ -162,7 +163,7 @@ export function Sidebar({
               <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', isOpen ? '' : '-rotate-90 rtl:rotate-90')} />
             </button>
             {isOpen && (
-              <div className="mt-0.5 space-y-0.5">
+              <div className="mt-0.5 space-y-0.5 border-s border-border/60 ps-2">
                 {section.items.map((item, idx) => {
                   const showGroup = item.group && item.group !== section.items[idx - 1]?.group;
                   return (
