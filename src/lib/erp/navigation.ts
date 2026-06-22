@@ -166,7 +166,7 @@ export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
   sales_orders: { en: 'Sales Orders', ar: 'أوامر البيع' },
   returns: { en: 'Returns', ar: 'المرتجعات' },
   warehousing: { en: 'Warehouse Management', ar: 'إدارة المخازن' },
-  route_management: { en: 'Route Management', ar: 'إدارة خطوط السير' },
+  route_management: { en: 'Route Planner', ar: 'مخطِّط المسارات' },
   van_sales: { en: 'Van Sales', ar: 'البيع من السيارة' },
   trade_spend: { en: 'Trade Spend', ar: 'الإنفاق التجاري' },
   merchandising: { en: 'Merchandising', ar: 'التسويق الميداني' },
@@ -236,6 +236,18 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.alerts', href: '/alerts', icon: Bell, flag: 'alerts', module: 'critical_alerts' },
       { label: 'nav.items.changeRequests', href: '/change-requests', icon: GitBranch, flag: 'change_requests', module: 'change_requests' },
       { label: 'nav.items.notifications', href: '/notifications', icon: Bell },
+    ],
+  },
+  {
+    // Route Planner as a first-class, sellable module surface. The SECTION has no
+    // module gate (so the admin link stays permission-only and the route guard for
+    // /planner-admin is unchanged); the workspace item keeps its existing ANY-of
+    // gate so no current tenant loses access. Presents route_management as
+    // "Route Planner" in the UI.
+    title: 'nav.sections.routePlanner',
+    items: [
+      { label: 'nav.items.routePlannerOpen', href: '/distribution/route-planner', icon: Route, perm: 'reports.view', module: ['distribution', 'route_management'] },
+      { label: 'nav.items.routePlannerAdmin', href: '/planner-admin', icon: UserCog, perm: 'route_planner.admin' },
     ],
   },
   {
@@ -422,7 +434,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.assortment', href: '/distribution/assortment', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'], group: 'nav.groups.coverage' },
       { label: 'nav.items.mslComplianceDash', href: '/distribution/msl-compliance', icon: PackageCheck, perm: 'reports.view', module: ['distribution', 'merchandising'], group: 'nav.groups.coverage' },
       { label: 'nav.items.oosDash', href: '/distribution/oos', icon: PackageCheck, perm: 'reports.view', group: 'nav.groups.coverage' },
-      { label: 'nav.items.routePlanner', href: '/distribution/route-planner', icon: Route, perm: 'reports.view', module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
+      // Route Planner is now promoted to its own top-level "Route Planner" section
+      // (see nav.sections.routePlanner); the duplicate entry here was removed.
       { label: 'nav.items.studio', href: '/distribution/studio', icon: Compass, perm: 'reports.view', module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
       { label: 'nav.items.newOptimization', href: '/distribution/new-optimization', icon: Wand2, perm: 'tis.run_optimization', group: 'nav.groups.coverage' },
       { label: 'nav.items.territoryAudit', href: '/distribution/territory-audit', icon: Scale, perm: ['reports.view', 'customers.manage'], module: ['distribution', 'route_management'], group: 'nav.groups.coverage' },
