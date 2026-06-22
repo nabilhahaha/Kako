@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isValidDatasetCustomer, datasetBbox, splitDatasetColumns, countValid, DATASET_KNOWN_KEYS, datasetRowsToDpCustomers, datasetRowsToTisDataset } from './route-planner-dataset';
+import { isValidDatasetCustomer, datasetBbox, splitDatasetColumns, countValid, DATASET_KNOWN_KEYS, datasetRowsToDpCustomers, datasetRowsToTisDataset, tisCustomersToDatasetInput } from './route-planner-dataset';
+import { buildTisCustomer } from '@/lib/tis/dataset';
 
 describe('route-planner-dataset — validation', () => {
   it('valid requires a name + finite, non-(0,0) coordinates', () => {
@@ -84,5 +85,32 @@ describe('route-planner-dataset — rehydration (rows → planner models)', () =
     expect(c1.ownership.supervisorId).toBe('sup1');
     expect(c1.salesValue).toBe(1500);
     expect(ds.customers[1].geo).toBeNull();                // (0,0) rejected by isValidGeo
+  });
+});
+
+describe('route-planner-dataset — tisCustomersToDatasetInput (planner -> persist)', () => {
+  it('maps geo/ownership/grade/channel/city to flat columns and drops nameless rows', () => {
+    const customers = [
+      buildTisCustomer({ id: '1', code: 'C1', name: 'Alpha', geo: { lat: 24.7, lng: 46.7 },
+        ownership: { salesmanId: 'S1', supervisorId: null, areaId: 'A1', regionId: 'R1', routeId: 'RT1' },
+        grade: 'A', channel: 'GT', city: 'Riyadh' }),
+      buildTisCustomer({ id: '2', name: '', geo: null }),  // nameless -> dropped
+    ];
+    const rows = tisCustomersToDatasetInput(customers);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      code: 'C1', name: 'Alpha', lat: 24.7, lng: 46.7,
+      salesman: 'S1', route: 'RT1', channel: 'GT', class: 'a', city: 'Riyadh',
+      area: 'A1', region: 'R1',
+    });
+  });
+
+  it('round-trips back through datasetRowsToTisDataset without losing the key columns', () => {
+    const input = tisCustomersToDatasetInput([
+      buildTisCustomer({ id: '1', code: 'C9', name: 'Beta', geo: { lat: 21.5, lng: 39.2 },
+        ownership: { salesmanId: 'S9', supervisorId: null, areaId: null, regionId: null, routeId: null } }),
+    ]);
+    expect(input[0].name).toBe('Beta');
+    expect(input[0].lat).toBe(21.5);
   });
 });
