@@ -98,6 +98,10 @@ export interface Company360Props {
   // Route Planner module-health counts (read-only)
   routeCount: number | null;
   journeyPlanCount: number | null;
+  rpDatasetCount: number | null;
+  rpMissionCount: number | null;
+  rpRequestCount: number | null;
+  rpSourceCount: number | null;
   // Summary timeline
   timeline: TimelineRow[];
   // KPI / health backing data (read-only, degrade gracefully)
@@ -367,6 +371,10 @@ export function Company360(props: Company360Props) {
               daysLeft={left}
               routeCount={props.routeCount}
               journeyPlanCount={props.journeyPlanCount}
+              rpDatasetCount={props.rpDatasetCount}
+              rpMissionCount={props.rpMissionCount}
+              rpRequestCount={props.rpRequestCount}
+              rpSourceCount={props.rpSourceCount}
               settings={props.moduleSettings.filter((s) => s.def.module === 'route')}
             />
           </>
