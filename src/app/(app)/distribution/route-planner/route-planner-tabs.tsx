@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutGrid, Database, BarChart3, ClipboardList, Inbox } from 'lucide-react';
+import { LayoutGrid, Database, BarChart3, ClipboardList, Inbox, Plug } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { DatasetsPanel } from './datasets-panel';
 import { DashboardPanel } from './dashboard-panel';
 import { MissionsBoard } from './missions-board';
 import { RequestCenterPanel } from './request-center-panel';
+import { ConnectorsPanel } from './connectors-panel';
 import { loadDatasetById } from './rp-dataset-load';
 import type { DatasetHeader } from './rp-dataset-actions';
 import type { RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
@@ -21,7 +22,7 @@ import type { TisDataset } from '@/lib/tis/dataset';
  */
 export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlannerSubscriptionView }) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<'planner' | 'datasets' | 'dashboard' | 'missions' | 'requests'>('planner');
+  const [tab, setTab] = useState<'planner' | 'datasets' | 'dashboard' | 'missions' | 'requests' | 'connectors'>('planner');
   const [injected, setInjected] = useState<TisDataset | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -37,7 +38,7 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
     }
   }
 
-  const tabBtn = (key: 'planner' | 'datasets' | 'dashboard' | 'missions' | 'requests', label: string, Icon: typeof LayoutGrid) => (
+  const tabBtn = (key: 'planner' | 'datasets' | 'dashboard' | 'missions' | 'requests' | 'connectors', label: string, Icon: typeof LayoutGrid) => (
     <button
       type="button"
       role="tab"
@@ -60,6 +61,7 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
         {tabBtn('dashboard', t('routePlanner.tab_dashboard'), BarChart3)}
         {tabBtn('missions', t('routePlanner.tab_missions'), ClipboardList)}
         {tabBtn('requests', t('routePlanner.tab_requests'), Inbox)}
+        {tabBtn('connectors', t('routePlanner.tab_connectors'), Plug)}
       </div>
 
       {tab === 'planner' && <RoutePlannerWorkspace subscription={subscription} injectedDataset={injected} />}
@@ -85,6 +87,12 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">{t('routePlanner.tab_requestsHint')}</p>
           <RequestCenterPanel />
+        </div>
+      )}
+      {tab === 'connectors' && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{t('routePlanner.tab_connectorsHint')}</p>
+          <ConnectorsPanel />
         </div>
       )}
     </div>
