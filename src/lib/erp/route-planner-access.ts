@@ -171,3 +171,13 @@ export function missionPermsRestrictive(access: RoutePlannerAccess | null, isCom
     ? { canCreate: true, canAssign: true, canExecute: true, canReview: true }
     : { canCreate: false, canAssign: false, canExecute: false, canReview: false };
 }
+
+/**
+ * D2 request-decision gate (default-restrictive): a company admin, or an explicit
+ * managerial Route Planner role (manager / area_manager / route_planner_admin), may
+ * approve / reject / request-info on requests. Everyone else is denied (they can still
+ * SUBMIT their own request). Self-approval is blocked separately in the action.
+ */
+export function rpCanDecideRequests(role: RpRole | null | undefined, isCompanyAdmin: boolean): boolean {
+  return isCompanyAdmin || role === 'manager' || role === 'area_manager' || role === 'route_planner_admin';
+}

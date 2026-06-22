@@ -25,6 +25,8 @@ export interface RequestRow {
   currentStage: string | null;
   reason: string | null;
   createdAt: string;
+  /** True when the signed-in user is the requester (UI hides "decide" on own requests). */
+  mine: boolean;
 }
 
 export interface RequestCenter {
@@ -39,7 +41,7 @@ export async function getRequestCenter(): Promise<Result<RequestCenter>> {
   if (!ctx?.companyId) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
   const { data, error } = await sb.from('erp_route_planner_requests')
-    .select('id, ticket_no, type, customer_ref, status, current_stage, reason, created_at')
+    .select('id, ticket_no, type, customer_ref, status, current_stage, reason, created_at, requested_by')
     .eq('company_id', ctx.companyId)
     .order('created_at', { ascending: false })
     .limit(300);
@@ -53,6 +55,7 @@ export async function getRequestCenter(): Promise<Result<RequestCenter>> {
     currentStage: (r.current_stage as string | null) ?? null,
     reason: (r.reason as string | null) ?? null,
     createdAt: r.created_at as string,
+    mine: (r.requested_by as string | null) === ctx.userId,
   }));
   const openCount = rows.filter((r) => OPEN.has(r.status)).length;
   return { ok: true, data: { rows, openCount } };
