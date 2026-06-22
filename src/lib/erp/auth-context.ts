@@ -6,6 +6,7 @@ import { ALL_MODULES, type Module } from './navigation';
 import { isRoutePlannerDemoAccount } from './route-planner-demo';
 import { isRoutePlannerAdminAccount } from './route-planner-admin';
 import { isRoutePlannerExperience } from './route-planner-experience';
+import { mapRoutePlannerAccess, type RoutePlannerAccess, type RoutePlannerAccessRow } from './route-planner-access';
 import { TEMP_ACCESS_ENFORCEMENT_ENABLED, partitionGrantKeys, USER_ACCESS_OVERRIDES_ENABLED, ROLE_PERMISSION_OVERRIDES_ENABLED, applyAccessOverrides } from '@/lib/role-governance';
 import { log } from '@/lib/observability';
 
@@ -43,6 +44,11 @@ export interface UserContext {
    *  Planner tenants/subscriptions, never the full platform. Computed by the single
    *  `isRoutePlannerAdminAccount` helper. */
   isRoutePlannerAdmin: boolean;
+  /** Product-scoped Route Planner role/feature/scope INSIDE the Route Planner experience,
+   *  from `erp_route_planner_access` (migration 0353). null when the user has no explicit
+   *  access row. WRITE flows treat null as restrictive (admin-only) via
+   *  `missionPermsRestrictive`; read-side helpers keep their permissive default. */
+  routePlannerAccess: RoutePlannerAccess | null;
 }
 
 const ROLE_RANK: Record<BranchRole, number> = {
@@ -342,6 +348,23 @@ async function resolveUserContext(): Promise<UserContext | null> {
     );
   }
 
+  // Route Planner access (additive): the product-scoped role/feature/scope row, queried
+  // ONLY for companies that have the Route Planner module enabled (one indexed lookup;
+  // skipped for every other tenant). null when no row exists — write flows then fall back
+  // to the default-restrictive (admin-only) posture. Nothing existing consumes this field,
+  // so adding it changes no current behavior.
+  let routePlannerAccess: RoutePlannerAccess | null = null;
+  if (companyId && modules.includes('route_management')) {
+    const { data: accessRow } = await supabase
+      .from('erp_route_planner_access')
+      .select('role, features, scope_level, region_id, area_id, supervisor_id, team_id, mission_perms')
+      .eq('company_id', companyId)
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .maybeSingle();
+    routePlannerAccess = mapRoutePlannerAccess(accessRow as RoutePlannerAccessRow | null);
+  }
+
   return {
     userId: user.id,
     profile: profile as Profile,
@@ -353,6 +376,7 @@ async function resolveUserContext(): Promise<UserContext | null> {
     topRole,
     permissions,
     modules,
+    routePlannerAccess,
     isRoutePlannerExperience: isRoutePlannerExperience({ email: (profile as Profile | null)?.email ?? user.email, companyPlanKey: company?.plan_key }),
     isRoutePlannerDemo: isRoutePlannerDemoAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
     isRoutePlannerAdmin: isRoutePlannerAdminAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
