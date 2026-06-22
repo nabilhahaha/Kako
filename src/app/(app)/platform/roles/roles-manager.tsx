@@ -12,7 +12,7 @@ import { usePrompt } from '@/components/prompt-dialog';
 import { useConfirm } from '@/components/confirm-dialog';
 import { isDangerousPermission, compareRoles } from '@/lib/erp/role-admin';
 import { createRole, renameRole, deleteRole, cloneRole, setRolePermission } from './actions';
-import { Plus, Copy, Trash2, Pencil, ShieldAlert, Search, GitCompare, Lock, X } from 'lucide-react';
+import { Plus, Copy, Trash2, Pencil, ShieldAlert, Search, GitCompare, X } from 'lucide-react';
 
 export interface RoleRow { key: string; nameAr: string; isSystem: boolean; rank: number; permissions: string[] }
 export interface PermMeta { key: string; en: string; ar: string; group: string }
@@ -72,45 +72,42 @@ export function RolesManager({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
-      {/* ── Role list ── */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">{t('platform.roles.rolesTitle')}</p>
-          <Button size="sm" variant="ghost" onClick={() => setCreating((v) => !v)}><Plus className="h-4 w-4" /></Button>
-        </div>
-        {creating && (
-          <Card><CardContent className="space-y-2 p-3">
+    <div className="space-y-4">
+      {/* Role selector toolbar — replaces the old left side column, so the full width is used
+          for the role + permission editor (permissions / matrix / groups live in-page below).
+          The roles are data (erp_roles) selected here, not navigation. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold">{t('platform.roles.rolesTitle')}</span>
+        <select
+          value={selectedKey}
+          onChange={(e) => setSelectedKey(e.target.value)}
+          className="h-9 min-w-[220px] rounded-md border bg-background px-2 text-sm"
+          aria-label={t('platform.roles.rolesTitle')}
+        >
+          {roles.map((r) => (
+            <option key={r.key} value={r.key}>{roleName(r)} · {r.permissions.length}</option>
+          ))}
+        </select>
+        <Button size="sm" variant="outline" onClick={() => setCreating((v) => !v)}><Plus className="h-4 w-4" /> {t('platform.roles.create')}</Button>
+      </div>
+      {creating && (
+        <Card><CardContent className="space-y-2 p-3">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t('platform.roles.nameAr')} dir="rtl" />
             <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder={t('platform.roles.key')} />
-            <div className="flex gap-2">
-              <Button size="sm" disabled={pending} onClick={() => run(async () => {
-                const res = await createRole(newName, newKey || newName);
-                if (res.ok) { setCreating(false); setNewName(''); setNewKey(''); }
-                return res;
-              }, t('platform.roles.created'))}>{t('platform.roles.create')}</Button>
-              <Button size="sm" variant="ghost" onClick={() => setCreating(false)}>{t('common.cancel')}</Button>
-            </div>
-          </CardContent></Card>
-        )}
-        <div className="space-y-1">
-          {roles.map((r) => (
-            <button
-              key={r.key}
-              onClick={() => setSelectedKey(r.key)}
-              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start text-sm transition-colors ${selectedKey === r.key ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary'}`}
-            >
-              <span className="flex items-center gap-1.5 truncate">
-                {r.isSystem && <Lock className="h-3 w-3 shrink-0 opacity-60" />}
-                <span className="truncate">{roleName(r)}</span>
-              </span>
-              <span className={`text-xs ${selectedKey === r.key ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{r.permissions.length}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" disabled={pending} onClick={() => run(async () => {
+              const res = await createRole(newName, newKey || newName);
+              if (res.ok) { setCreating(false); setNewName(''); setNewKey(''); }
+              return res;
+            }, t('platform.roles.created'))}>{t('platform.roles.create')}</Button>
+            <Button size="sm" variant="ghost" onClick={() => setCreating(false)}>{t('common.cancel')}</Button>
+          </div>
+        </CardContent></Card>
+      )}
 
-      {/* ── Editor / compare ── */}
+      {/* ── Editor / compare (full width) ── */}
       <div className="space-y-3">
         {selected && (
           <>
