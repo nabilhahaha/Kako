@@ -8,6 +8,7 @@ import type { TimelineRow } from './company-360';
 import { getCompanyUsage, type Plan, type CompanyUsage } from '@/lib/erp/plans';
 import { ALL_MODULES } from '@/lib/erp/navigation';
 import { describeAuditEvent, AUDIT_DESTRUCTIVE_ACTIONS, type AuditEventLike } from '@/lib/erp/audit';
+import { resolveCompanyModuleSettings, type ResolvedSetting } from '@/lib/erp/module-settings';
 
 const IMPORTANT_TIMELINE_ENTITIES = new Set([
   'subscription', 'plan', 'company', 'role', 'role_permission',
@@ -38,6 +39,8 @@ export interface CompanyDetailBundle {
   permsByRole: Record<string, string[]>;
   auditRows: CompanyAuditRow[];
   timeline: TimelineRow[];
+  /** Module Configuration / Workflow Settings — resolved (default ← company), read-only. */
+  moduleSettings: ResolvedSetting[];
   activeUsers: number;
   totalUsers: number;
   modulesTotal: number;
@@ -137,6 +140,10 @@ export async function loadCompanyDetailBundle(
   const daysSinceLastActivity = lastActivityIso != null
     ? Math.max(0, Math.round((Date.now() - new Date(lastActivityIso).getTime()) / 86_400_000)) : null;
 
+  // Module Configuration / Workflow Settings — resolved read-only (Phase 1 foundation;
+  // no override rows exist until the editor ships, so everything resolves to defaults).
+  const moduleSettings = await resolveCompanyModuleSettings(supabase, id);
+
   const distinctUsers = new Set(members.map((m) => m.userId));
   const timeline: TimelineRow[] = auditLogRows
     .filter((r) => IMPORTANT_TIMELINE_ENTITIES.has(r.entity) || IMPORTANT_TIMELINE_ACTIONS.has(r.action))
@@ -163,6 +170,7 @@ export async function loadCompanyDetailBundle(
     permsByRole,
     auditRows,
     timeline,
+    moduleSettings,
     activeUsers: distinctUsers.size,
     totalUsers: distinctUsers.size,
     modulesTotal: ALL_MODULES.length,
