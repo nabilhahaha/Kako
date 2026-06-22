@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { getT } from '@/lib/i18n/server';
 import { resolveSubscription, subscriptionInputFor } from '@/lib/erp/route-planner-subscription';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
+import { RoutePlannerTabs } from './route-planner-tabs';
 
 export const metadata: Metadata = { title: 'VANTORA Route Planner' };
 
@@ -33,7 +34,7 @@ export default async function RoutePlannerPage() {
   return (
     <div>
       <PageHeader title={t('routePlanner.title')} description={t('routePlanner.description')} />
-      <RoutePlannerWorkspace subscription={subscription} />
+      <RoutePlannerTabs subscription={subscription} />
     </div>
   );
 }

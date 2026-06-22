@@ -2,6 +2,9 @@
 export const ar = {
   routePlanner: {
     title: 'مخطط الخطوط المبسّط',
+    tab_planner: 'المخطط',
+    tab_datasets: 'مجموعات البيانات المحفوظة',
+    tab_datasetsHint: 'مجموعات العملاء المحفوظة على مستوى الشركة. اختر مجموعة لتفعيلها أو احذف ما لم يعد لازمًا.',
     description: 'ارفع العملاء ← حدّد عدد الخطوط ← قسمة جغرافية أولية ← صحّحها يدويًا على الخريطة ← اعتمد ← صدّر إلى Excel. جلسة مؤقتة — لا يُكتب في بيانات النظام.',
     demoBadge: 'تجربة مخطط الخطوط',
     plannerLoginExport: 'تصدير إلى Excel',
@@ -333,11 +336,25 @@ export const ar = {
     cc_section_subscription: 'الاشتراك',
     cc_section_admin: 'مدير الشركة الأول',
   },
+  rpShell: {
+    ds_title: 'مجموعات البيانات المحفوظة',
+    ds_loadHint: 'المجموعة المُفعّلة تُغذّي شاشات التخطيط.',
+    ds_empty: 'لا توجد مجموعات محفوظة بعد.',
+    ds_active: 'مُفعّلة',
+    ds_rows: '{n} صف',
+    ds_valid: '{n} صالح',
+    ds_setActive: 'تفعيل',
+    ds_delete: 'حذف',
+    ds_deleteConfirm: 'تأكيد الحذف',
+  },
 };
 
 export const en = {
   routePlanner: {
     title: 'Simple Route Planner',
+    tab_planner: 'Planner',
+    tab_datasets: 'Saved datasets',
+    tab_datasetsHint: 'Company-saved customer working sets. Set one active or delete what you no longer need.',
     description: 'Upload customers → enter a route count → a rough geographic split → correct it by hand on the map → approve → export to Excel. Temporary session — nothing is written to live data.',
     demoBadge: 'Route Planner Demo',
     plannerLoginExport: 'Export to Excel',
@@ -668,5 +685,16 @@ export const en = {
     cc_section_profile: 'Company profile',
     cc_section_subscription: 'Subscription',
     cc_section_admin: 'First company admin',
+  },
+  rpShell: {
+    ds_title: 'Saved datasets',
+    ds_loadHint: 'The active dataset feeds the planning screens.',
+    ds_empty: 'No saved datasets yet.',
+    ds_active: 'Active',
+    ds_rows: '{n} rows',
+    ds_valid: '{n} valid',
+    ds_setActive: 'Set active',
+    ds_delete: 'Delete',
+    ds_deleteConfirm: 'Confirm delete',
   },
 };
