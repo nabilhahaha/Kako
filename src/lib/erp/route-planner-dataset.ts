@@ -4,7 +4,7 @@
 // column-split / row→model mapping testable and identical across Manual Upload and every
 // connector.
 // ============================================================================
-import { buildTisCustomer, buildTisDataset, type TisDataset } from '@/lib/tis/dataset';
+import { buildTisCustomer, buildTisDataset, type TisCustomer, type TisDataset } from '@/lib/tis/dataset';
 import type { DpCustomer } from '@/lib/tis/day-planner-import';
 
 /** Columns promoted to their own DB column; everything else rides in `attrs`. */
@@ -106,4 +106,27 @@ export function datasetRowsToTisDataset(rows: readonly PersistedRow[], asOf?: st
     salesValue: numAttr(r.attrs, 'sales') ?? null,
   }));
   return buildTisDataset(customers, { source: 'connector', asOf });
+}
+
+/** Convert the planner's in-memory TisCustomers into persistable dataset rows so a working
+ *  set built/edited in the planner can be saved (persistDataset). Inverse of
+ *  datasetRowsToTisDataset. Pure; rows without a name are dropped. */
+export function tisCustomersToDatasetInput(
+  customers: readonly TisCustomer[],
+): (DatasetCustomerLike & { name: string })[] {
+  return customers
+    .filter((c): c is TisCustomer => Boolean(c && c.name))
+    .map((c) => ({
+      code: c.code ?? null,
+      name: c.name,
+      lat: c.geo?.lat ?? null,
+      lng: c.geo?.lng ?? null,
+      salesman: c.ownership?.salesmanId ?? null,
+      route: c.ownership?.routeId ?? null,
+      channel: c.channel ?? null,
+      class: c.grade ?? null,
+      city: c.city ?? null,
+      area: c.ownership?.areaId ?? null,
+      region: c.ownership?.regionId ?? null,
+    }));
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut, Hand } from 'lucide-react';
+import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut, Hand, Save } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,8 @@ import { routeReview, routeColors, routeIdsOf, unassignedCount, unassignedIds, r
 import { formatFrequency } from '@/lib/route-optimization/visit-frequency';
 import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
 import { parseUploadColumns } from './import-actions';
+import { persistDataset } from './rp-dataset-actions';
+import { tisCustomersToDatasetInput } from '@/lib/erp/route-planner-dataset';
 import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map';
 import { TrialBanner } from './trial-banner';
 import { JourneyPanel, type JourneyInputCustomer } from './journey-panel';
@@ -116,6 +118,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const [exported, setExported] = useState(false);
   const [journeyMode, setJourneyMode] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [savingDs, setSavingDs] = useState(false);
   const [mapState, setMapState] = useState<{ headers: string[]; records: Record<string, string>[]; map: Partial<Record<TisFieldKey, string>> } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
 
@@ -388,6 +391,24 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     if (!dataset) return;
     setSelectedIds(new Set(unassignedIds(dataset, scenario)));
   }
+  // B4 — save the current planner working set as a reusable dataset (erp_rp_datasets via
+  // persistDataset). Closes the loop: upload -> save -> reopen later from "Saved datasets".
+  async function saveAsDataset() {
+    if (!dataset || dataset.customers.length === 0 || savingDs || !subCaps.canUpload) return;
+    setSavingDs(true);
+    try {
+      const rows = tisCustomersToDatasetInput(dataset.customers);
+      const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      const res = await persistDataset({ name: `${t('routePlanner.savedSetPrefix')} ${stamp}`, source: 'manual_upload', customers: rows, setActive: true });
+      setMsg(res.ok
+        ? { tone: 'ok', text: t('routePlanner.saveDatasetOk').replace('{n}', String(res.data?.rowCount ?? rows.length)) }
+        : { tone: 'err', text: `${t('routePlanner.saveDatasetErr')} ${res.error}`.trim() });
+    } catch (e) {
+      setMsg({ tone: 'err', text: `${t('routePlanner.saveDatasetErr')} ${e instanceof Error ? e.message : ''}`.trim() });
+    } finally {
+      setSavingDs(false);
+    }
+  }
   function exportRoutes() {
     if (!dataset || !approved || !subCaps.canExport) return;
     try {
@@ -648,6 +669,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
           )}
           <Button size="sm" variant="outline" disabled={!approved || !subCaps.canExport} title={!subCaps.canExport ? t('routePlanner.subLockedAction') : undefined} onClick={exportRoutes}><FileDown className="h-4 w-4" /> {t('routePlanner.exportRoutes')}</Button>
           <Button size="sm" variant="outline" disabled={reviews.length === 0} onClick={() => setJourneyMode(true)}><CalendarDays className="h-4 w-4" /> {t('routePlanner.jpOpenJourney')}</Button>
+          <Button size="sm" variant="outline" disabled={!dataset || dataset.customers.length === 0 || savingDs || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined} onClick={saveAsDataset}><Save className="h-4 w-4" /> {savingDs ? t('routePlanner.saving') : t('routePlanner.saveDataset')}</Button>
           <Button size="sm" variant="ghost" onClick={reset}><RotateCcw className="h-4 w-4" /> {t('routePlanner.newUpload')}</Button>
         </CardContent>
       </Card>
