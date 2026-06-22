@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutGrid, Database } from 'lucide-react';
+import { LayoutGrid, Database, BarChart3 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { DatasetsPanel } from './datasets-panel';
+import { DashboardPanel } from './dashboard-panel';
 import { loadDatasetById } from './rp-dataset-load';
 import type { DatasetHeader } from './rp-dataset-actions';
 import type { RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
@@ -18,7 +19,7 @@ import type { TisDataset } from '@/lib/tis/dataset';
  */
 export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlannerSubscriptionView }) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<'planner' | 'datasets'>('planner');
+  const [tab, setTab] = useState<'planner' | 'datasets' | 'dashboard'>('planner');
   const [injected, setInjected] = useState<TisDataset | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -34,7 +35,7 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
     }
   }
 
-  const tabBtn = (key: 'planner' | 'datasets', label: string, Icon: typeof LayoutGrid) => (
+  const tabBtn = (key: 'planner' | 'datasets' | 'dashboard', label: string, Icon: typeof LayoutGrid) => (
     <button
       type="button"
       role="tab"
@@ -54,14 +55,20 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
       <div role="tablist" className="mb-3 flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
         {tabBtn('planner', t('routePlanner.tab_planner'), LayoutGrid)}
         {tabBtn('datasets', t('routePlanner.tab_datasets'), Database)}
+        {tabBtn('dashboard', t('routePlanner.tab_dashboard'), BarChart3)}
       </div>
 
-      {tab === 'planner' ? (
-        <RoutePlannerWorkspace subscription={subscription} injectedDataset={injected} />
-      ) : (
+      {tab === 'planner' && <RoutePlannerWorkspace subscription={subscription} injectedDataset={injected} />}
+      {tab === 'datasets' && (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">{t('routePlanner.tab_datasetsHint')}</p>
           <DatasetsPanel onLoad={onLoadIntoPlanner} loadingId={loadingId} />
+        </div>
+      )}
+      {tab === 'dashboard' && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{t('routePlanner.tab_dashboardHint')}</p>
+          <DashboardPanel />
         </div>
       )}
     </div>
