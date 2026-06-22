@@ -7,6 +7,8 @@ export const ar = {
     tab_datasetsHint: 'مجموعات العملاء المحفوظة على مستوى الشركة. اختر مجموعة لتفعيلها أو احذف ما لم يعد لازمًا.',
     tab_dashboard: 'لوحة المعلومات',
     tab_dashboardHint: 'ملخص للعرض فقط لنشاط تخطيط الخطوط لشركتك.',
+    tab_missions: 'المهام',
+    tab_missionsHint: 'لوحة مهام الإشراف والتنفيذ الميداني (للعرض فقط حاليًا).',
     saveDataset: 'حفظ كمجموعة',
     saving: 'جارٍ الحفظ…',
     saveDatasetOk: 'تم حفظ المجموعة ({n} عميل). يمكنك إعادة فتحها من «مجموعات البيانات المحفوظة».',
@@ -385,6 +387,15 @@ export const ar = {
     ms_archived: 'مؤرشفة',
     readOnlyNote: 'لوحة معلومات للعرض فقط — لا تُعدّل أي بيانات.',
   },
+  rpMiss: {
+    title: 'لوحة المهام',
+    loading: 'جارٍ التحميل…',
+    empty: 'لا توجد مهام بعد.',
+    stops: '{n} محطة',
+    assigned: 'مُسندة',
+    noDate: 'بلا تاريخ',
+    readOnlyNote: 'لوحة مهام للعرض فقط — يأتي الإنشاء/الإسناد في مرحلة لاحقة.',
+  },
 };
 
 export const en = {
@@ -395,6 +406,8 @@ export const en = {
     tab_datasetsHint: 'Company-saved customer working sets. Set one active or delete what you no longer need.',
     tab_dashboard: 'Dashboard',
     tab_dashboardHint: 'A read-only summary of your company’s Route Planner activity.',
+    tab_missions: 'Missions',
+    tab_missionsHint: 'Supervisor missions & field-execution board (read-only for now).',
     saveDataset: 'Save as dataset',
     saving: 'Saving…',
     saveDatasetOk: 'Dataset saved ({n} customers). Reopen it anytime from "Saved datasets".',
@@ -772,5 +785,14 @@ export const en = {
     ms_reviewed: 'Reviewed',
     ms_archived: 'Archived',
     readOnlyNote: 'Read-only dashboard — nothing here changes data.',
+  },
+  rpMiss: {
+    title: 'Missions board',
+    loading: 'Loading…',
+    empty: 'No missions yet.',
+    stops: '{n} stops',
+    assigned: 'Assigned',
+    noDate: 'No date',
+    readOnlyNote: 'Read-only board — create/assign arrives in a later phase.',
   },
 };

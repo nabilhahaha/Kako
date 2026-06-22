@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutGrid, Database, BarChart3 } from 'lucide-react';
+import { LayoutGrid, Database, BarChart3, ClipboardList } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { DatasetsPanel } from './datasets-panel';
 import { DashboardPanel } from './dashboard-panel';
+import { MissionsBoard } from './missions-board';
 import { loadDatasetById } from './rp-dataset-load';
 import type { DatasetHeader } from './rp-dataset-actions';
 import type { RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
@@ -19,7 +20,7 @@ import type { TisDataset } from '@/lib/tis/dataset';
  */
 export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlannerSubscriptionView }) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<'planner' | 'datasets' | 'dashboard'>('planner');
+  const [tab, setTab] = useState<'planner' | 'datasets' | 'dashboard' | 'missions'>('planner');
   const [injected, setInjected] = useState<TisDataset | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -35,7 +36,7 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
     }
   }
 
-  const tabBtn = (key: 'planner' | 'datasets' | 'dashboard', label: string, Icon: typeof LayoutGrid) => (
+  const tabBtn = (key: 'planner' | 'datasets' | 'dashboard' | 'missions', label: string, Icon: typeof LayoutGrid) => (
     <button
       type="button"
       role="tab"
@@ -56,6 +57,7 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
         {tabBtn('planner', t('routePlanner.tab_planner'), LayoutGrid)}
         {tabBtn('datasets', t('routePlanner.tab_datasets'), Database)}
         {tabBtn('dashboard', t('routePlanner.tab_dashboard'), BarChart3)}
+        {tabBtn('missions', t('routePlanner.tab_missions'), ClipboardList)}
       </div>
 
       {tab === 'planner' && <RoutePlannerWorkspace subscription={subscription} injectedDataset={injected} />}
@@ -69,6 +71,12 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">{t('routePlanner.tab_dashboardHint')}</p>
           <DashboardPanel />
+        </div>
+      )}
+      {tab === 'missions' && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{t('routePlanner.tab_missionsHint')}</p>
+          <MissionsBoard />
         </div>
       )}
     </div>
