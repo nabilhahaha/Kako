@@ -44,6 +44,10 @@ export interface CompanyDetailBundle {
   /** Route Planner module-health counts (read-only; degrade to null gracefully). */
   routeCount: number | null;
   journeyPlanCount: number | null;
+  rpDatasetCount: number | null;
+  rpMissionCount: number | null;
+  rpRequestCount: number | null;
+  rpSourceCount: number | null;
   activeUsers: number;
   totalUsers: number;
   modulesTotal: number;
@@ -148,9 +152,13 @@ export async function loadCompanyDetailBundle(
   const moduleSettings = await resolveCompanyModuleSettings(supabase, id);
 
   // Route Planner module-health counts (read-only; null on any error / missing table).
-  const [routeCount, journeyPlanCount] = await Promise.all([
+  const [routeCount, journeyPlanCount, rpDatasetCount, rpMissionCount, rpRequestCount, rpSourceCount] = await Promise.all([
     safeCount(() => supabase.from('erp_routes').select('id', { count: 'exact', head: true }).eq('company_id', id)),
     safeCount(() => supabase.from('erp_journey_plans').select('id', { count: 'exact', head: true }).eq('company_id', id)),
+    safeCount(() => supabase.from('erp_rp_datasets').select('id', { count: 'exact', head: true }).eq('company_id', id)),
+    safeCount(() => supabase.from('erp_rp_missions').select('id', { count: 'exact', head: true }).eq('company_id', id)),
+    safeCount(() => supabase.from('erp_route_planner_requests').select('id', { count: 'exact', head: true }).eq('company_id', id)),
+    safeCount(() => supabase.from('erp_rp_data_sources').select('id', { count: 'exact', head: true }).eq('company_id', id)),
   ]);
 
   const distinctUsers = new Set(members.map((m) => m.userId));
@@ -182,6 +190,10 @@ export async function loadCompanyDetailBundle(
     moduleSettings,
     routeCount,
     journeyPlanCount,
+    rpDatasetCount,
+    rpMissionCount,
+    rpRequestCount,
+    rpSourceCount,
     activeUsers: distinctUsers.size,
     totalUsers: distinctUsers.size,
     modulesTotal: ALL_MODULES.length,

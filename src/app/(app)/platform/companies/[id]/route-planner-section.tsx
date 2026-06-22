@@ -23,6 +23,10 @@ export function RoutePlannerSection({
   daysLeft,
   routeCount,
   journeyPlanCount,
+  rpDatasetCount,
+  rpMissionCount,
+  rpRequestCount,
+  rpSourceCount,
   settings,
 }: {
   enabled: boolean;
@@ -31,6 +35,10 @@ export function RoutePlannerSection({
   daysLeft: number | null;
   routeCount: number | null;
   journeyPlanCount: number | null;
+  rpDatasetCount: number | null;
+  rpMissionCount: number | null;
+  rpRequestCount: number | null;
+  rpSourceCount: number | null;
   settings: ResolvedSetting[];
 }) {
   const { t, locale } = useI18n();
@@ -92,9 +100,13 @@ export function RoutePlannerSection({
       <Card>
         <CardContent className="p-4">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">{t('platform.company.c360.rpHealth')}</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {stat(t('platform.company.c360.rpRoutes'), routeCount == null ? '—' : String(routeCount))}
             {stat(t('platform.company.c360.rpJourneyPlans'), journeyPlanCount == null ? '—' : String(journeyPlanCount))}
+            {stat(t('platform.company.c360.rpDatasets'), rpDatasetCount == null ? '—' : String(rpDatasetCount))}
+            {stat(t('platform.company.c360.rpMissions'), rpMissionCount == null ? '—' : String(rpMissionCount))}
+            {stat(t('platform.company.c360.rpRequests'), rpRequestCount == null ? '—' : String(rpRequestCount))}
+            {stat(t('platform.company.c360.rpConnectors'), rpSourceCount == null ? '—' : String(rpSourceCount))}
             {stat(t('platform.company.c360.rpModuleState'), enabled ? t('platform.company.c360.rpEnabled') : t('platform.company.c360.rpDisabled'))}
           </div>
         </CardContent>
