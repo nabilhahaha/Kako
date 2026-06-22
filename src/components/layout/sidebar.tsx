@@ -57,7 +57,8 @@ export function Sidebar({
 
   // Accordion: groups are CLOSED by default (only headers shown); opening one reveals its
   // children. Open groups are remembered across sessions (localStorage). The group containing
-  // the active page is always force-shown + highlighted regardless (below).
+  // the active page is auto-opened on navigation + highlighted, but can still be collapsed
+  // by clicking it (see activeGroupKey effect below).
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   useEffect(() => {
     try {
@@ -87,6 +88,19 @@ export function Sidebar({
     .flatMap((s) => s.items.map((i) => i.href))
     .filter((href) => pathname === href || pathname.startsWith(href + '/'))
     .sort((a, b) => b.length - a.length)[0];
+
+  // The accordion key (sub-group key, or section title for group-less sections) that owns the
+  // active page. Auto-opened on navigation so the active item is always reachable — but, unlike
+  // before, it is NOT force-pinned: once open the user can still collapse it by clicking.
+  let activeGroupKey: string | undefined;
+  for (const section of sections) {
+    const item = section.items.find((i) => i.href === activeHref);
+    if (item) { activeGroupKey = item.group ?? section.title; break; }
+  }
+  useEffect(() => {
+    if (!activeGroupKey) return;
+    setOpenGroups((prev) => (prev.has(activeGroupKey) ? prev : new Set(prev).add(activeGroupKey)));
+  }, [activeGroupKey]);
 
   /** One nav item row — icon + label (label hidden when collapsed, shown as a tooltip). */
   const itemLink = (href: string, label: string, Icon: LucideIcon, active: boolean, isCollapsed: boolean) => (
@@ -149,7 +163,7 @@ export function Sidebar({
         // Sections WITHOUT sub-groups keep the section-level accordion (one expandable parent).
         if (!hasGroups) {
           const sectionActive = section.items.some((i) => i.href === activeHref);
-          const isOpen = openGroups.has(section.title) || sectionActive;
+          const isOpen = openGroups.has(section.title);
           return (
             <div key={section.title} className="mb-1">
               <button
@@ -189,7 +203,7 @@ export function Sidebar({
               // Expandable parent only when the sub-group has 2+ real child routes.
               if (unit.label && unit.items.length >= 2) {
                 const groupActive = unit.items.some((i) => i.href === activeHref);
-                const open = openGroups.has(unit.key) || groupActive;
+                const open = openGroups.has(unit.key);
                 return (
                   <div key={unit.key} className="mb-0.5">
                     <button
