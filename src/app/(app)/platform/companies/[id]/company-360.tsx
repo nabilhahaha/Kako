@@ -25,6 +25,7 @@ import {
   LineChart,
   Eye,
   SlidersHorizontal,
+  Route,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, Company } from '@/lib/erp/types';
@@ -41,6 +42,7 @@ import {
 import { CompanyPermissions, type CompanyRoleRow } from './company-permissions';
 import { CompanyAudit, type CompanyAuditRow } from './company-audit';
 import { ModuleSettingsSection } from './module-settings-section';
+import { RoutePlannerSection } from './route-planner-section';
 import type { ResolvedSetting } from '@/lib/erp/module-settings-catalog';
 import { tabToSection, SECTION_ORDER, type SectionKey } from './company-360-section';
 
@@ -53,6 +55,7 @@ const SECTION_HASH: Record<SectionKey, string> = {
   users: 'users',
   roles: 'roles-permissions',
   modules: 'modules',
+  routePlanner: 'route-planner',
   workflow: 'module-settings',
   packs: 'packs',
   integrations: 'integrations',
@@ -92,6 +95,9 @@ export interface Company360Props {
   auditRows: CompanyAuditRow[];
   // Module Configuration / Workflow Settings (read-only foundation)
   moduleSettings: ResolvedSetting[];
+  // Route Planner module-health counts (read-only)
+  routeCount: number | null;
+  journeyPlanCount: number | null;
   // Summary timeline
   timeline: TimelineRow[];
   // KPI / health backing data (read-only, degrade gracefully)
@@ -276,6 +282,7 @@ export function Company360(props: Company360Props) {
     users: t('platform.company.c360.railUsers'),
     roles: t('platform.company.c360.railRoles'),
     modules: t('platform.company.c360.railModules'),
+    routePlanner: t('platform.company.c360.railRoutePlanner'),
     workflow: t('platform.company.c360.railWorkflow'),
     packs: t('platform.company.c360.railPacks'),
     integrations: t('platform.company.c360.railIntegrations'),
@@ -349,6 +356,21 @@ export function Company360(props: Company360Props) {
         );
       case 'modules':
         return (<><SectionHeader icon={Boxes} title={t('platform.company.c360.railModules')} /><CompanyDetail tab="modules" {...detailProps} /></>);
+      case 'routePlanner':
+        return (
+          <>
+            <SectionHeader icon={Route} title={t('platform.company.c360.railRoutePlanner')} />
+            <RoutePlannerSection
+              enabled={props.enabledModules.includes('route_management')}
+              planKey={company.plan_key ?? null}
+              subState={state}
+              daysLeft={left}
+              routeCount={props.routeCount}
+              journeyPlanCount={props.journeyPlanCount}
+              settings={props.moduleSettings.filter((s) => s.def.module === 'route')}
+            />
+          </>
+        );
       case 'workflow':
         return (
           <>

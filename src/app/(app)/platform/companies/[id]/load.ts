@@ -41,6 +41,9 @@ export interface CompanyDetailBundle {
   timeline: TimelineRow[];
   /** Module Configuration / Workflow Settings — resolved (default ← company), read-only. */
   moduleSettings: ResolvedSetting[];
+  /** Route Planner module-health counts (read-only; degrade to null gracefully). */
+  routeCount: number | null;
+  journeyPlanCount: number | null;
   activeUsers: number;
   totalUsers: number;
   modulesTotal: number;
@@ -144,6 +147,12 @@ export async function loadCompanyDetailBundle(
   // no override rows exist until the editor ships, so everything resolves to defaults).
   const moduleSettings = await resolveCompanyModuleSettings(supabase, id);
 
+  // Route Planner module-health counts (read-only; null on any error / missing table).
+  const [routeCount, journeyPlanCount] = await Promise.all([
+    safeCount(() => supabase.from('erp_routes').select('id', { count: 'exact', head: true }).eq('company_id', id)),
+    safeCount(() => supabase.from('erp_journey_plans').select('id', { count: 'exact', head: true }).eq('company_id', id)),
+  ]);
+
   const distinctUsers = new Set(members.map((m) => m.userId));
   const timeline: TimelineRow[] = auditLogRows
     .filter((r) => IMPORTANT_TIMELINE_ENTITIES.has(r.entity) || IMPORTANT_TIMELINE_ACTIONS.has(r.action))
@@ -171,6 +180,8 @@ export async function loadCompanyDetailBundle(
     auditRows,
     timeline,
     moduleSettings,
+    routeCount,
+    journeyPlanCount,
     activeUsers: distinctUsers.size,
     totalUsers: distinctUsers.size,
     modulesTotal: ALL_MODULES.length,
