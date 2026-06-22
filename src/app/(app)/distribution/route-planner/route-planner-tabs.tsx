@@ -5,17 +5,34 @@ import { LayoutGrid, Database } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { DatasetsPanel } from './datasets-panel';
+import { loadDatasetById } from './rp-dataset-load';
+import type { DatasetHeader } from './rp-dataset-actions';
 import type { RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
+import type { TisDataset } from '@/lib/tis/dataset';
 
 /**
- * Phase B2 — minimal gated tab host. Keeps the existing session-only Planner exactly as
- * it was and adds one "Saved datasets" tab backed by the persisted working set
- * (erp_rp_datasets, via rp-dataset-actions). No new gate: this only renders inside the
- * already-permission-gated Route Planner page, so visibility is unchanged.
+ * Phase B2/B3 — minimal gated tab host. Keeps the existing session-only Planner and adds
+ * a "Saved datasets" tab backed by the persisted working set. B3: loading a saved dataset
+ * rehydrates it into the Planner (injectedDataset) and switches to the Planner tab. No new
+ * gate: this only renders inside the already-permission-gated Route Planner page.
  */
 export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlannerSubscriptionView }) {
   const { t } = useI18n();
   const [tab, setTab] = useState<'planner' | 'datasets'>('planner');
+  const [injected, setInjected] = useState<TisDataset | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  async function onLoadIntoPlanner(d: DatasetHeader) {
+    setLoadingId(d.id);
+    try {
+      const loaded = await loadDatasetById(d);
+      // New object identity each load so the planner effect re-fires even for the same id.
+      setInjected({ ...loaded.tis });
+      setTab('planner');
+    } finally {
+      setLoadingId(null);
+    }
+  }
 
   const tabBtn = (key: 'planner' | 'datasets', label: string, Icon: typeof LayoutGrid) => (
     <button
@@ -40,11 +57,11 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
       </div>
 
       {tab === 'planner' ? (
-        <RoutePlannerWorkspace subscription={subscription} />
+        <RoutePlannerWorkspace subscription={subscription} injectedDataset={injected} />
       ) : (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">{t('routePlanner.tab_datasetsHint')}</p>
-          <DatasetsPanel />
+          <DatasetsPanel onLoad={onLoadIntoPlanner} loadingId={loadingId} />
         </div>
       )}
     </div>
