@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Loader2, X, Building2, CheckCircle2, Ban, Clock, Search, Users as UsersIcon, ChevronLeft } from 'lucide-react';
+import { Plus, Loader2, X, Building2, CheckCircle2, Ban, Clock, Search, Users as UsersIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +97,14 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
       return (c.name + ' ' + (c.name_ar ?? '')).toLowerCase().includes(needle);
     });
   }, [companies, query, statusFilter]);
+
+  // Client-side pagination over the filtered rows (data already loaded — no backend change).
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [query, statusFilter]);
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   function onCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -199,7 +207,21 @@ export function CompaniesWorkbench({ companies }: { companies: CompanyListRow[] 
       </div>
 
       {/* Full-width companies table */}
-      <CompaniesTable rows={rows} onManage={select} onToggleActive={toggleActive} pending={pending} />
+      <CompaniesTable rows={pageRows} onManage={select} onToggleActive={toggleActive} pending={pending} />
+
+      {totalPages > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <span className="text-xs text-muted-foreground">{t('platform.companies.pageOf', { page: safePage, pages: totalPages })}</span>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              <ChevronRight className="h-4 w-4 rtl:rotate-180" /> {t('platform.companies.prev')}
+            </Button>
+            <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+              {t('platform.companies.next')} <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
+            </Button>
+          </div>
+        </div>
+      )}
       </>
       )}
 

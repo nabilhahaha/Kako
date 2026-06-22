@@ -14,6 +14,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { useMobileNav } from '@/lib/stores/mobile-nav';
 
 const COLLAPSE_KEY = 'vantora.sidebar.collapsed';
+const GROUPS_KEY = 'vantora.sidebar.closedGroups';
 
 export function Sidebar({
   permissions,
@@ -54,12 +55,20 @@ export function Sidebar({
     return next;
   });
 
-  // Per-group collapse — groups are OPEN by default; users may close them (session-only).
+  // Per-group collapse — groups are OPEN by default; closed groups are remembered across
+  // sessions (localStorage). The active group is always force-shown regardless (below).
   const [closedGroups, setClosedGroups] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(GROUPS_KEY);
+      if (raw) setClosedGroups(new Set(JSON.parse(raw) as string[]));
+    } catch { /* ignore */ }
+  }, []);
   const toggleGroup = (title: string) =>
     setClosedGroups((prev) => {
       const next = new Set(prev);
       if (next.has(title)) next.delete(title); else next.add(title);
+      try { localStorage.setItem(GROUPS_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
       return next;
     });
 

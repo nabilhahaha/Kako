@@ -384,29 +384,31 @@ export function Company360(props: Company360Props) {
       </div>
 
       {/* ── T1: condensed status card (above the fold) ─────────────────────── */}
-      <Card className="mb-4">
-        <CardContent className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">{t('platform.company.health.title')}</p>
-            <p className={`text-lg font-bold ${BAND_RING[health.band]}`} dir="ltr">
-              {health.score} · {t(`platform.company.health.band.${health.band}`)}
+      <Card className="mb-4 overflow-hidden">
+        <CardContent className="grid grid-cols-2 gap-px bg-border p-0 sm:grid-cols-4">
+          <div className="bg-card p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('platform.company.health.title')}</p>
+            <p className={`mt-1 text-2xl font-bold tabular-nums ${BAND_RING[health.band]}`} dir="ltr">
+              {health.score}
             </p>
+            <p className="text-xs text-muted-foreground">{t(`platform.company.health.band.${health.band}`)}</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">{t('platform.company.c360.statusExpiry')}</p>
-            <p className={`text-lg font-bold tabular-nums ${expiryTone === 'destructive' ? 'text-destructive' : expiryTone === 'warning' ? 'text-warning' : ''}`} dir="ltr">
+          <div className="bg-card p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('platform.company.c360.statusExpiry')}</p>
+            <p className={`mt-1 text-2xl font-bold tabular-nums ${expiryTone === 'destructive' ? 'text-destructive' : expiryTone === 'warning' ? 'text-warning' : ''}`} dir="ltr">
               {left == null ? '∞' : left}
             </p>
+            <p className="text-xs text-muted-foreground">{t('platform.company.c360.statusUsers')}</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">{t('platform.company.c360.statusApprovals')}</p>
-            <p className={`text-lg font-bold tabular-nums ${(props.pendingApprovals ?? 0) > 0 ? 'text-warning' : ''}`} dir="ltr">
+          <div className="bg-card p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('platform.company.c360.statusApprovals')}</p>
+            <p className={`mt-1 text-2xl font-bold tabular-nums ${(props.pendingApprovals ?? 0) > 0 ? 'text-warning' : ''}`} dir="ltr">
               {props.pendingApprovals == null ? '—' : props.pendingApprovals}
             </p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">{t('platform.company.c360.statusUsers')}</p>
-            <p className="text-lg font-bold tabular-nums" dir="ltr">{props.totalUsers}</p>
+          <div className="bg-card p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('platform.company.c360.statusUsers')}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums" dir="ltr">{props.totalUsers}</p>
           </div>
         </CardContent>
       </Card>
