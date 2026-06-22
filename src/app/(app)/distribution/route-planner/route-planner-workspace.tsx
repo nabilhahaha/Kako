@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut, Hand } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,10 @@ import { parseUploadColumns } from './import-actions';
 import { SelectionMap, type SelMapPoint, type SelMapHull } from './selection-map';
 import { TrialBanner } from './trial-banner';
 import { JourneyPanel, type JourneyInputCustomer } from './journey-panel';
+import { DayPlanner } from './day-planner';
+import { ImportMapper } from './import-mapper';
+import type { DpCustomer } from '@/lib/tis/day-planner-import';
+import { savePlannerDraft, loadPlannerDraft, clearPlannerDraft, type PlannerDraft } from './planner-draft';
 import { WhatsAppContact } from '@/components/route-planner/whatsapp-contact';
 import { buildSupportWhatsAppUrl, type RoutePlannerSubscriptionView } from '@/lib/erp/route-planner-subscription';
 
@@ -84,7 +88,7 @@ function downloadXlsx(bytes: Uint8Array, filename: string) {
  * TIS upload pipeline, the shared scenario/plan-edit engine and a single-pass geo
  * split — the manager does the final shaping by box/click-selecting on the map.
  */
-export function RoutePlannerWorkspace({ focus = false, demo = false, subscription }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView } = {}) {
+export function RoutePlannerWorkspace({ focus = false, demo = false, subscription, embedded = false, registerOpenDayPlanner, onSeedChange }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView; embedded?: boolean; registerOpenDayPlanner?: (fn: () => void) => void; onSeedChange?: (seed: DpCustomer[]) => void } = {}) {
   const { t, locale, setLocale } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -115,9 +119,68 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const [approved, setApproved] = useState(false);
   const [exported, setExported] = useState(false);
   const [journeyMode, setJourneyMode] = useState(false);
+  const [dayPlannerOpen, setDayPlannerOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [mapState, setMapState] = useState<{ headers: string[]; records: Record<string, string>[]; map: Partial<Record<TisFieldKey, string>> } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
+
+  // ── Auto Save + Draft Recovery (session work survives Back / Refresh / close) ──
+  const [pendingDraft, setPendingDraft] = useState<PlannerDraft | null>(null); // found on load, awaiting decision
+  const decidedDraft = useRef(false); // once restored/discarded, stop offering recovery
+
+  // On first mount, look for a saved draft. Offer recovery only on a fresh load
+  // (no dataset yet) so we never clobber a session already in progress.
+  useEffect(() => {
+    let alive = true;
+    loadPlannerDraft().then((d) => { if (alive && d && !dataset && !decidedDraft.current) setPendingDraft(d); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-save the full snapshot (debounced) after every meaningful change. Suspended while
+  // the recovery prompt is open so we don't overwrite the found draft before the user decides.
+  useEffect(() => {
+    if (!dataset || pendingDraft) return;
+    const id = setTimeout(() => {
+      void savePlannerDraft({
+        v: 1, savedAt: Date.now(), dataset, scenario, baseline, method, allocView,
+        generated, approved, exported, routeCount, targetRoute,
+        focusedRoutes: [...focusedRoutes], selectedIds: [...selectedIds], selectMode,
+        showAllBoundaries, showOnlySelected, compactList, sortKey, sortDir,
+      });
+    }, 600);
+    return () => clearTimeout(id);
+  }, [dataset, scenario, baseline, method, allocView, generated, approved, exported, routeCount, targetRoute, focusedRoutes, selectedIds, selectMode, showAllBoundaries, showOnlySelected, compactList, sortKey, sortDir, pendingDraft]);
+
+  // Unsaved-changes guard: warn before Refresh / Close / Back-out when work is in progress
+  // and not yet exported. (Auto-save still has it covered, but the manager gets a heads-up.)
+  const dirty = !!dataset && !exported;
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [dirty]);
+
+  function restoreDraft() {
+    const d = pendingDraft;
+    if (!d) return;
+    decidedDraft.current = true;
+    setDataset(d.dataset); setScenario(d.scenario); setBaseline(d.baseline);
+    setMethod(d.method); setAllocView(d.allocView); setGenerated(d.generated);
+    setApproved(d.approved); setExported(d.exported); setRouteCount(d.routeCount);
+    setTargetRoute(d.targetRoute); setFocusedRoutes(new Set(d.focusedRoutes));
+    setSelectedIds(new Set(d.selectedIds)); setSelectMode(d.selectMode);
+    setShowAllBoundaries(d.showAllBoundaries); setShowOnlySelected(d.showOnlySelected);
+    setCompactList(d.compactList); setSortKey(d.sortKey); setSortDir(d.sortDir);
+    setPendingDraft(null);
+    setMsg({ tone: 'ok', text: t('routePlanner.draftRestored') });
+  }
+  function discardDraft() {
+    decidedDraft.current = true;
+    setPendingDraft(null);
+    void clearPlannerDraft();
+  }
 
   // In Current Allocation Review the manager can flip the whole view between the loaded
   // "Current" allocation (baseline) and the edited "Proposed" one. Edits always target the
@@ -139,6 +202,23 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const routeCountById = useMemo(() => new Map(reviews.map((r) => [r.routeId, r.customers])), [reviews]);
   const hasSales = useMemo(() => (dataset ? hasSalesData(dataset) : false), [dataset]);
   const unassigned = useMemo(() => (dataset ? unassignedCount(dataset, activeScenario) : 0), [dataset, activeScenario]);
+
+  // Let the shell (sidebar) open the Day Planner — the engine stays here, dataset-fed.
+  useEffect(() => { registerOpenDayPlanner?.(() => setDayPlannerOpen(true)); }, [registerOpenDayPlanner]);
+
+  // Customers (with coordinates) handed to the Day Planner as its "existing dataset"
+  // source, so the user can plan a day without re-uploading a file.
+  const daySeedCustomers = useMemo<DpCustomer[]>(() => {
+    if (!dataset) return [];
+    return dataset.customers
+      .filter((c) => c.geo && Number.isFinite(c.geo.lat) && Number.isFinite(c.geo.lng))
+      .map((c) => ({
+        id: c.id, code: c.code, name: c.name, lat: c.geo!.lat, lng: c.geo!.lng, sales: c.salesValue ?? undefined,
+        city: c.city, channel: c.channel, class: c.grade, salesman: c.ownership.salesmanId,
+      }));
+  }, [dataset]);
+  // Share the uploaded customers with the shell so the embedded Day Planner can use them.
+  useEffect(() => { onSeedChange?.(daySeedCustomers); }, [daySeedCustomers, onSeedChange]);
 
   // Route list sorting + top/bottom-10%-by-sales highlight.
   const effectiveSortKey = (!hasSales && (sortKey === 'sales' || sortKey === 'salesPerCustomer')) ? 'route' : sortKey;
@@ -396,7 +476,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   // Demo branding header (wordmark + language toggle + "Route Planner Demo" badge) —
   // focus mode only. The language toggle works in the chrome-free demo layout (the
   // i18n provider lives at the root and sets the locale cookie + flips RTL/LTR).
-  const brandHeader = focus ? (
+  const brandHeader = (focus && !embedded) ? (
     <div className={`flex flex-wrap items-center justify-between gap-2 ${dataset ? 'mb-1' : 'mb-3'}`}>
       <div className="flex items-center gap-2">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"><RouteIcon className="h-4 w-4" /></div>
@@ -421,6 +501,62 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   // Trial / subscription banner (shown whenever a subscription view is supplied).
   const subBanner = subscription ? <div className={focus ? 'shrink-0' : 'mb-3'}><TrialBanner sub={subscription} compact={focus} /></div> : null;
 
+  // Draft-recovery banner (shown on a fresh load when a saved session is found).
+  const draftBanner = pendingDraft ? (
+    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-900 shadow-sm">
+      <RotateCcw className="h-5 w-5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">{t('routePlanner.draftFound')}</p>
+        <p className="text-xs opacity-90">
+          {t('routePlanner.draftDetail')
+            .replace('{n}', String(pendingDraft.dataset.customers.length))
+            .replace('{when}', new Date(pendingDraft.savedAt).toLocaleString(locale === 'ar' ? 'ar' : 'en'))}
+        </p>
+      </div>
+      <Button size="sm" onClick={restoreDraft}><RotateCcw className="h-4 w-4" /> {t('routePlanner.draftRestore')}</Button>
+      <Button size="sm" variant="ghost" onClick={discardDraft}><X className="h-4 w-4" /> {t('routePlanner.draftDiscard')}</Button>
+    </div>
+  ) : null;
+
+  // Persistent capability nav — Day Planner and the planning capabilities stay reachable
+  // from EVERY dataset-loaded screen (method chooser + planning), so nothing disappears
+  // after upload and the user can switch capabilities without reloading data. Methods
+  // reuse the loaded dataset (chooseMethod keeps `dataset`); Day Planner opens straight
+  // onto it; Journey needs an allocation first (disabled until then).
+  const capabilityNav = () => {
+    if (!dataset) return null;
+    const canCurrent = hasRouteCol() || hasSalesmanCol();
+    const items = [
+      { key: 'current', label: t('routePlanner.methodCurrent'), Icon: LayoutGrid, active: method === 'current', disabled: !canCurrent, title: !canCurrent ? t('routePlanner.methodCurrentNeed') : undefined, on: () => chooseMethod('current') },
+      { key: 'assisted', label: t('routePlanner.methodAssisted'), Icon: Wand2, active: method === 'assisted', disabled: false, title: undefined, on: () => chooseMethod('assisted') },
+      { key: 'manual', label: t('routePlanner.methodManual'), Icon: PenTool, active: method === 'manual', disabled: false, title: undefined, on: () => chooseMethod('manual') },
+      { key: 'journey', label: t('routePlanner.cap_journey'), Icon: CalendarDays, active: false, disabled: reviews.length === 0, title: reviews.length === 0 ? t('routePlanner.jpNeedAlloc') : undefined, on: () => setJourneyMode(true) },
+      { key: 'day', label: t('dayPlanner.title'), Icon: MapIcon, active: false, disabled: false, title: undefined, on: () => setDayPlannerOpen(true) },
+    ];
+    return (
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5 print:hidden">
+        <span className="text-[11px] font-medium text-muted-foreground">{t('routePlanner.capabilities')}</span>
+        {items.map((it) => (
+          <button key={it.key} onClick={it.on} disabled={it.disabled} title={it.title}
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${it.active ? 'border-primary bg-primary text-primary-foreground' : 'hover:border-primary hover:bg-muted'}`}>
+            <it.Icon className="h-3.5 w-3.5" /> {it.label}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  // Full-screen overlays (Journey Planning + Day Planner). These MUST be rendered in
+  // EVERY screen's return — the workspace has several early returns (welcome, upload,
+  // method chooser, planning), and a capability-nav button only opens an overlay if
+  // that screen's tree actually mounts it. Kept in one fragment so all returns share it.
+  const overlays = (
+    <>
+      {journeyMode && <JourneyPanel customers={journeyCustomers} hasSales={hasSales} onClose={() => setJourneyMode(false)} />}
+      {dayPlannerOpen && <DayPlanner hasSalesDefault={hasSales} seedCustomers={daySeedCustomers} autoUseDataset={daySeedCustomers.length > 0} onClose={() => setDayPlannerOpen(false)} />}
+    </>
+  );
+
   // ── Focus-mode welcome (demo, before upload): branded hero + capabilities ──
   if (focus && !dataset && !mapState) {
     const caps = [
@@ -431,9 +567,11 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
     ];
     return (
       <div className="mx-auto max-w-5xl">
+        {overlays}
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
         {brandHeader}
         {subBanner}
+        {draftBanner}
         {msg && <p className={`mb-3 text-sm ${msg.tone === 'err' ? 'text-red-600' : 'text-emerald-600'}`}>{msg.text}</p>}
         <div className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background shadow-sm">
           <div className="grid items-center gap-6 p-8 md:grid-cols-2">
@@ -443,6 +581,7 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button size="lg" onClick={() => fileRef.current?.click()} disabled={importing || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
                 <Button size="lg" variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
+                <Button size="lg" variant="outline" onClick={() => setDayPlannerOpen(true)}><MapIcon className="h-4 w-4" /> {t('dayPlanner.title')}</Button>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -479,59 +618,55 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         if (nm && Number.isFinite(la) && Number.isFinite(lo) && !(la === 0 && lo === 0)) ready++;
       }
     }
+    // Mapping step — the SHARED ImportMapper wizard (identical UX to the Day Planner).
+    if (mapState) {
+      const fields = TIS_MAP_FIELDS.map((f) => ({ key: f.key, label: t(`routePlanner.map_${f.key}` as Parameters<typeof t>[0]), required: f.required }));
+      return (
+        <div className="mx-auto flex h-[calc(100dvh-7rem)] w-full max-w-5xl flex-col gap-2 p-2">
+          {overlays}
+          <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
+          {msg && <p className={`shrink-0 text-sm ${msg.tone === 'err' ? 'text-red-600' : 'text-emerald-600'}`}>{msg.text}</p>}
+          <ImportMapper
+            title={t('routePlanner.uploadTitle')}
+            rowCount={mapState.records.length}
+            headers={mapState.headers}
+            records={mapState.records}
+            fields={fields}
+            mapping={mp ?? {}}
+            onMap={(key, header) => setFieldMap(key as TisFieldKey, header ?? '')}
+            stats={[
+              { label: t('dayPlanner.v_total'), value: mapState.records.length },
+              { label: t('dayPlanner.v_valid'), value: ready, tone: 'ok' },
+              { label: t('dayPlanner.v_skipped'), value: Math.max(0, mapState.records.length - ready), tone: 'warn' },
+            ]}
+            requiredOk={requiredOk}
+            warning={t('routePlanner.mapRequired')}
+            canContinue={requiredOk && ready > 0}
+            continueLabel={t('routePlanner.confirmImport')}
+            onBack={() => setMapState(null)}
+            onContinue={confirmMapping}
+          />
+        </div>
+      );
+    }
     return (
       <div className="mx-auto max-w-3xl space-y-4">
+        {overlays}
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.json,.txt" className="hidden" onChange={onFile} />
         {brandHeader}
         {subBanner}
+        {draftBanner}
         {msg && <p className={`text-sm ${msg.tone === 'err' ? 'text-red-600' : 'text-emerald-600'}`}>{msg.text}</p>}
         <Card>
           <CardContent className="space-y-4 p-6">
             <div className="flex items-center gap-2 text-lg font-semibold"><Upload className="h-5 w-5" /> {t('routePlanner.uploadTitle')}</div>
-
-            {!mapState ? (
-              <>
-                <p className="text-sm text-muted-foreground">{t('routePlanner.uploadLead2')}</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => fileRef.current?.click()} disabled={importing || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
-                  <Button variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
-                </div>
-                <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground">{t('routePlanner.mappingLead').replace('{n}', String(mapState.records.length))}</p>
-                {/* Stacked label-above-field layout: a clean 2-column grid with generous
-                    column/row gaps so labels can never collide with adjacent fields — works
-                    symmetrically in RTL (Arabic) and LTR (English). */}
-                <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-                  {TIS_MAP_FIELDS.map((f) => (
-                    <div key={f.key} className="flex min-w-0 flex-col gap-1">
-                      <label htmlFor={`map-${f.key}`} className="truncate text-sm font-medium">
-                        {t(`routePlanner.map_${f.key}`)} {f.required && <span className="text-red-600">*</span>}
-                      </label>
-                      <select
-                        id={`map-${f.key}`}
-                        className={`h-9 w-full rounded-md border bg-background px-2 text-sm ${f.required && !mp?.[f.key] ? 'border-red-400' : ''}`}
-                        value={mp?.[f.key] ?? ''}
-                        onChange={(e) => setFieldMap(f.key, e.target.value)}
-                      >
-                        <option value="">{t('routePlanner.map_none')}</option>
-                        {mapState.headers.map((h) => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-                <p className={`text-sm ${requiredOk && ready > 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                  {requiredOk ? t('routePlanner.mapReady').replace('{ready}', String(ready)).replace('{total}', String(mapState.records.length)) : t('routePlanner.mapRequired')}
-                </p>
-                <div className="flex gap-2">
-                  <Button size="sm" disabled={!requiredOk || ready === 0} onClick={confirmMapping}><Check className="h-4 w-4" /> {t('routePlanner.confirmImport')}</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setMapState(null)}>{t('routePlanner.cancel')}</Button>
-                </div>
-                <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
-              </>
-            )}
+            <p className="text-sm text-muted-foreground">{t('routePlanner.uploadLead2')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => fileRef.current?.click()} disabled={importing || !subCaps.canUpload} title={!subCaps.canUpload ? t('routePlanner.subLockedAction') : undefined}><Upload className="h-4 w-4" /> {importing ? t('routePlanner.importing') : t('routePlanner.chooseFile')}</Button>
+              <Button variant="outline" onClick={onTemplate}><FileDown className="h-4 w-4" /> {t('routePlanner.downloadTemplate')}</Button>
+              <Button variant="outline" onClick={() => setDayPlannerOpen(true)}><MapIcon className="h-4 w-4" /> {t('dayPlanner.title')}</Button>
+            </div>
+            <p className="text-xs text-muted-foreground">{t('routePlanner.sessionNote')}</p>
           </CardContent>
         </Card>
       </div>
@@ -546,6 +681,8 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
       <div className="mx-auto max-w-5xl space-y-4">
         {brandHeader}
         {subBanner}
+        {overlays}
+        {capabilityNav()}
         <p className="text-sm text-muted-foreground">{t('routePlanner.importOk').replace('{n}', String(dataset.customers.length))} {t('routePlanner.chooseMethod')}</p>
         <div className="grid gap-3 sm:grid-cols-3">
           {canCurrent && (
@@ -570,9 +707,12 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
 
   // ── Planning screen ──
   return (
-    <div className={focus ? 'flex h-[calc(100dvh-0.75rem)] flex-col gap-2 p-2 lg:px-4' : 'space-y-3'}>
+    <div className={embedded ? 'flex h-full flex-col gap-2 p-2' : focus ? 'flex h-[calc(100dvh-0.75rem)] flex-col gap-2 p-2 lg:px-4' : 'space-y-3'}>
       {brandHeader}
       {subBanner}
+      {/* Persistent capability nav — switch between Allocation / Split / Manual / Journey
+          / Day Planner at any time, on the same loaded dataset. */}
+      {capabilityNav()}
       {/* Workflow guide — frames the planner as a guided product (Map → … → Export),
           not an ERP screen. Focus mode only, compact. */}
       {focus && (() => {
@@ -923,8 +1063,8 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
         </>
       )}
 
-      {/* Journey Planning V1 — full-screen overlay opened after the allocation is built. */}
-      {journeyMode && <JourneyPanel customers={journeyCustomers} hasSales={hasSales} onClose={() => setJourneyMode(false)} />}
+      {/* Journey Planning + Day Planner overlays (shared across all screen returns). */}
+      {overlays}
     </div>
   );
 }

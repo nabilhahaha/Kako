@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { getT } from '@/lib/i18n/server';
 import { resolveSubscription, subscriptionInputFor } from '@/lib/erp/route-planner-subscription';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
+import { RoutePlannerShell } from './route-planner-shell';
 
 export const metadata: Metadata = { title: 'VANTORA Route Planner' };
 
@@ -25,10 +26,17 @@ export default async function RoutePlannerPage() {
   const { t } = await getT();
   const subscription = resolveSubscription(subscriptionInputFor(ctx.company, { isDemo: ctx.isRoutePlannerDemo }));
   if (ctx.isRoutePlannerExperience) {
-    // Standalone, presentation-quality experience — the workspace renders its own
-    // branding header / badge; no platform PageHeader. The demo badge shows only for the
-    // temporary demo account, not for real Route Planner tenants.
-    return <RoutePlannerWorkspace focus demo={ctx.isRoutePlannerDemo} subscription={subscription} />;
+    // Redesign Phase A: a dashboard shell (top bar + collapsible sidebar) hosts the
+    // existing workspace as a panel. Sidebar groups are gated by the user's Route Planner
+    // feature grants (erp_route_planner_access); null = unrestricted.
+    return (
+      <RoutePlannerShell
+        demo={ctx.isRoutePlannerDemo}
+        subscription={subscription}
+        userEmail={ctx.profile?.email ?? null}
+        features={null}
+      />
+    );
   }
   return (
     <div>

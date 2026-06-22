@@ -1,0 +1,76 @@
+import { describe, it, expect } from 'vitest';
+import {
+  mapRoutePlannerAccess,
+  rpHasFeature,
+  rpIsManagerial,
+  RP_ROLE_DEFAULT_FEATURES,
+  RP_ROLE_DEFAULT_SCOPE,
+  type RoutePlannerAccessRow,
+} from './route-planner-access';
+
+const row = (over: Partial<RoutePlannerAccessRow> = {}): RoutePlannerAccessRow => ({
+  role: 'field_user',
+  features: ['field_missions'],
+  scope_level: 'self',
+  region_id: null,
+  area_id: null,
+  supervisor_id: null,
+  team_id: null,
+  ...over,
+});
+
+describe('route-planner-access', () => {
+  it('returns null (unrestricted) when there is no row', () => {
+    expect(mapRoutePlannerAccess(null)).toBeNull();
+    expect(mapRoutePlannerAccess(undefined)).toBeNull();
+  });
+
+  it('is default-permissive: null access holds every feature', () => {
+    expect(rpHasFeature(null, 'field_missions')).toBe(true);
+    expect(rpHasFeature(null, 'reports')).toBe(true);
+    expect(rpIsManagerial(null)).toBe(true);
+  });
+
+  it('maps a field user limited to Field Missions only', () => {
+    const a = mapRoutePlannerAccess(row())!;
+    expect(a.role).toBe('field_user');
+    expect(a.features).toEqual(['field_missions']);
+    expect(a.scopeLevel).toBe('self');
+    expect(rpHasFeature(a, 'field_missions')).toBe(true);
+    expect(rpHasFeature(a, 'route_planning')).toBe(false);
+    expect(rpHasFeature(a, 'day_planner')).toBe(false);
+    expect(rpIsManagerial(a)).toBe(false);
+  });
+
+  it('falls back to role defaults when features are empty', () => {
+    const a = mapRoutePlannerAccess(row({ role: 'supervisor', features: [] }))!;
+    expect(a.features).toEqual(RP_ROLE_DEFAULT_FEATURES.supervisor);
+    expect(rpHasFeature(a, 'field_missions')).toBe(true);
+    expect(rpHasFeature(a, 'route_planning')).toBe(false);
+  });
+
+  it('falls back to role default scope when scope_level is invalid', () => {
+    const a = mapRoutePlannerAccess(row({ role: 'area_manager', scope_level: 'bogus' }))!;
+    expect(a.scopeLevel).toBe(RP_ROLE_DEFAULT_SCOPE.area_manager);
+    expect(a.scopeLevel).toBe('area');
+  });
+
+  it('drops unknown feature strings, coerces unknown role to field_user', () => {
+    const a = mapRoutePlannerAccess(row({ role: 'wizard', features: ['field_missions', 'teleport'] }))!;
+    expect(a.role).toBe('field_user');
+    expect(a.features).toEqual(['field_missions']);
+  });
+
+  it('treats route_planner_admin and manager as managerial', () => {
+    expect(rpIsManagerial(mapRoutePlannerAccess(row({ role: 'route_planner_admin', features: [] })))).toBe(true);
+    expect(rpIsManagerial(mapRoutePlannerAccess(row({ role: 'manager', features: [] })))).toBe(true);
+    expect(rpIsManagerial(mapRoutePlannerAccess(row({ role: 'supervisor', features: [] })))).toBe(false);
+  });
+
+  it('preserves scope target ids', () => {
+    const a = mapRoutePlannerAccess(row({ role: 'area_manager', scope_level: 'area', area_id: 'area-1', region_id: 'reg-1' }))!;
+    expect(a.areaId).toBe('area-1');
+    expect(a.regionId).toBe('reg-1');
+    expect(a.isDefault).toBe(false);
+  });
+});

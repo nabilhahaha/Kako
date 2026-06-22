@@ -98,6 +98,137 @@ export interface JourneyPlan {
   dayLoads: JourneyDayLoad[];
 }
 
+/** A distinct map colour per working day (the journey map's primary visual signal). */
+export const JOURNEY_DAY_COLORS: Record<JourneyDay, string> = {
+  sat: '#2563eb', // blue
+  sun: '#16a34a', // green
+  mon: '#f59e0b', // amber
+  tue: '#db2777', // pink
+  wed: '#7c3aed', // violet
+  thu: '#0891b2', // cyan
+};
+export function dayColorOf(day: JourneyDay): string {
+  return JOURNEY_DAY_COLORS[day] ?? '#94a3b8';
+}
+
+/** A customer plus its assigned route (the unit the journey UI/KPIs work with). */
+export type JourneyRoutedCustomer = JourneyCustomer & { routeId: string };
+
+export interface JourneyRouteKpi {
+  routeId: string;
+  customers: number;
+  visitsPerCycle: number;
+  /** Bounding-box diagonal of the route's customers (km) — a quick "route length" estimate. */
+  distanceKm: number;
+  /** Daily-visit balance across the route's working days (100 = perfectly even). */
+  workloadBalance: number;
+  /** Customers with no assigned visit day. */
+  uncovered: number;
+  /** Working days whose visit count exceeds the route's per-day average by > 35%. */
+  overloadedDays: JourneyDay[];
+}
+
+function bboxDiagonalKm(pts: { lat: number; lng: number }[]): number {
+  if (pts.length < 2) return 0;
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const p of pts) { minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat); minLng = Math.min(minLng, p.lng); maxLng = Math.max(maxLng, p.lng); }
+  return Math.round(haversineKm({ lat: minLat, lng: minLng }, { lat: maxLat, lng: maxLng }) * 10) / 10;
+}
+
+/** Per-route KPIs for the route-by-route journey view. */
+export function journeyRouteKpis(
+  customers: JourneyRoutedCustomer[],
+  plan: JourneyPlan,
+  days: readonly JourneyDay[] = JOURNEY_WORKING_DAYS,
+): JourneyRouteKpi[] {
+  const byRoute = new Map<string, JourneyRoutedCustomer[]>();
+  for (const c of customers) {
+    if (!byRoute.has(c.routeId)) byRoute.set(c.routeId, []);
+    byRoute.get(c.routeId)!.push(c);
+  }
+  const out: JourneyRouteKpi[] = [];
+  for (const [routeId, list] of byRoute) {
+    let visits = 0, uncovered = 0;
+    const dayCount: Record<string, number> = {};
+    for (const d of days) dayCount[d] = 0;
+    for (const c of list) {
+      visits += visitsPerCycle(c.frequency);
+      const a = plan.assignments.get(c.id);
+      if (!a || a.days.length === 0) { uncovered++; continue; }
+      for (const d of a.days) if (dayCount[d] != null) dayCount[d] += 1;
+    }
+    const active = days.map((d) => dayCount[d]).filter((n) => n > 0);
+    const max = active.length ? Math.max(...active) : 0;
+    const min = active.length ? Math.min(...active) : 0;
+    const workloadBalance = max > 0 ? Math.round((1 - (max - min) / max) * 100) : 100;
+    const avg = active.length ? active.reduce((s, n) => s + n, 0) / active.length : 0;
+    const overloadedDays = days.filter((d) => dayCount[d] > avg * 1.35 && dayCount[d] > 0);
+    out.push({ routeId, customers: list.length, visitsPerCycle: visits, distanceKm: bboxDiagonalKm(list), workloadBalance, uncovered, overloadedDays });
+  }
+  return out.sort((a, b) => a.routeId.localeCompare(b.routeId));
+}
+
+export type JourneyWarningKind =
+  | 'no_visit_day' | 'frequency_unsatisfied' | 'duplicate_day'
+  | 'day_overloaded' | 'route_too_long' | 'far_from_cluster' | 'unassigned';
+
+export interface JourneyWarning {
+  kind: JourneyWarningKind | JourneySeqWarningKind;
+  routeId?: string;
+  customerId?: string;
+  detail: string;
+}
+
+/** Quality checks over a built plan — surfaced as warnings in the workspace. */
+export function validateJourneyPlan(
+  customers: JourneyRoutedCustomer[],
+  plan: JourneyPlan,
+  opts: { routeTooLongKm?: number; farFromClusterKm?: number; dayOverloadFactor?: number } = {},
+  days: readonly JourneyDay[] = JOURNEY_WORKING_DAYS,
+): JourneyWarning[] {
+  const routeTooLongKm = opts.routeTooLongKm ?? 60;
+  const farKm = opts.farFromClusterKm ?? 25;
+  const overloadFactor = opts.dayOverloadFactor ?? 1.5;
+  const warnings: JourneyWarning[] = [];
+  const byId = new Map(customers.map((c) => [c.id, c]));
+
+  // Per-customer checks.
+  for (const c of customers) {
+    if (!c.routeId) { warnings.push({ kind: 'unassigned', customerId: c.id, detail: c.id }); continue; }
+    const a = plan.assignments.get(c.id);
+    if (!a || a.days.length === 0) { warnings.push({ kind: 'no_visit_day', routeId: c.routeId, customerId: c.id, detail: c.id }); continue; }
+    if (new Set(a.days).size !== a.days.length) warnings.push({ kind: 'duplicate_day', routeId: c.routeId, customerId: c.id, detail: c.id });
+    if (a.days.length !== daysPerWeek(c.frequency)) warnings.push({ kind: 'frequency_unsatisfied', routeId: c.routeId, customerId: c.id, detail: `${c.frequency}: ${a.days.length}/${daysPerWeek(c.frequency)} days` });
+  }
+
+  // Per-day cluster cohesion (far-from-cluster) + global day overload.
+  const dayMembers = new Map<JourneyDay, JourneyRoutedCustomer[]>();
+  for (const d of days) dayMembers.set(d, []);
+  for (const a of plan.assignments.values()) {
+    const c = byId.get(a.customerId); if (!c) continue;
+    for (const d of a.days) dayMembers.get(d)?.push(c);
+  }
+  const dayTotals = days.map((d) => dayMembers.get(d)!.length);
+  const dayAvg = dayTotals.filter((n) => n > 0).reduce((s, n, _, arr) => s + n / arr.length, 0);
+  for (const d of days) {
+    const members = dayMembers.get(d)!;
+    if (members.length === 0) continue;
+    if (members.length > dayAvg * overloadFactor) warnings.push({ kind: 'day_overloaded', detail: `${d}: ${members.length} customers` });
+    // centroid
+    const cx = members.reduce((s, c) => s + c.lat, 0) / members.length;
+    const cy = members.reduce((s, c) => s + c.lng, 0) / members.length;
+    for (const c of members) {
+      if (haversineKm(c, { lat: cx, lng: cy }) > farKm) warnings.push({ kind: 'far_from_cluster', routeId: c.routeId, customerId: c.id, detail: `${d}` });
+    }
+  }
+
+  // Route length.
+  for (const k of journeyRouteKpis(customers, plan, days)) {
+    if (k.distanceKm > routeTooLongKm) warnings.push({ kind: 'route_too_long', routeId: k.routeId, detail: `${k.distanceKm} km` });
+  }
+  return warnings;
+}
+
 const R = 6371;
 const toRad = (d: number) => (d * Math.PI) / 180;
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -233,41 +364,48 @@ export const JOURNEY_FREQUENCY_LABEL: Record<JourneyFrequency, string> = {
 export interface JourneyExportCustomer extends JourneyCustomer {
   code: string | null;
   name: string;
+  routeId: string;
   routeLabel: string;
 }
 
+const ptText = (p?: JourneyPoint): string => (p ? (p.name ? `${p.name} (${p.lat.toFixed(5)}, ${p.lng.toFixed(5)})` : `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`) : '');
+
 /**
  * Build the Journey Plan export rows — ONE row per (customer × assigned weekday), sorted by
- * day then route, with a header. `dayLabel` maps a day key to a display name; `withSales`
- * appends the sales column when sales data exists.
+ * day then route then sequence number. `dayLabel` maps a day key to a display name;
+ * `withSales` appends the sales column. When `sequences` is supplied, the Sequence Number /
+ * Start Point / End Point columns are filled; otherwise they are blank (export still works).
  */
 export function journeyExportRows(
   customers: JourneyExportCustomer[],
   plan: JourneyPlan,
   dayLabel: (d: JourneyDay) => string,
   withSales: boolean,
+  sequences?: Map<SeqKey, DaySequence>,
   days: readonly JourneyDay[] = JOURNEY_WORKING_DAYS,
 ): (string | number)[][] {
   const dayOrder = new Map(days.map((d, i) => [d, i]));
-  const header = ['Route / Salesman', 'Customer Code', 'Customer Name', 'Frequency', 'Visit Day', 'Week Pattern', 'Visit Count', 'Sequence', 'Latitude', 'Longitude'];
+  const header = ['Route / Salesman', 'Visit Day', 'Week Pattern', 'Customer Code', 'Customer Name', 'Frequency', 'Visit Count', 'Sequence Number', 'Start Point', 'End Point', 'Latitude', 'Longitude'];
   if (withSales) header.push('Sales');
   const out: (string | number)[][] = [header];
 
-  const lines: { day: JourneyDay; route: string; row: (string | number)[] }[] = [];
+  const lines: { day: JourneyDay; route: string; seq: number; row: (string | number)[] }[] = [];
   for (const c of customers) {
     const a = plan.assignments.get(c.id);
     if (!a) continue;
     const wp = weekPatternLabel(a.weeks);
     for (const d of a.days) {
+      const ds = sequences?.get(seqKey(c.routeId, d));
+      const seqNum = sequences ? sequenceNumberOf(sequences, c.routeId, d, c.id) : null;
       const row: (string | number)[] = [
-        c.routeLabel, c.code ?? '', c.name, JOURNEY_FREQUENCY_LABEL[c.frequency],
-        dayLabel(d), wp, a.visitCount, '' /* sequence placeholder */, c.lat, c.lng,
+        c.routeLabel, dayLabel(d), wp, c.code ?? '', c.name, JOURNEY_FREQUENCY_LABEL[c.frequency],
+        a.visitCount, seqNum ?? '', ptText(ds?.start), ptText(ds?.end), c.lat, c.lng,
       ];
       if (withSales) row.push(c.sales ?? 0);
-      lines.push({ day: d, route: c.routeLabel, row });
+      lines.push({ day: d, route: c.routeLabel, seq: seqNum ?? 9999, row });
     }
   }
-  lines.sort((a, b) => (dayOrder.get(a.day)! - dayOrder.get(b.day)!) || a.route.localeCompare(b.route));
+  lines.sort((a, b) => (dayOrder.get(a.day)! - dayOrder.get(b.day)!) || a.route.localeCompare(b.route) || a.seq - b.seq);
   for (const l of lines) out.push(l.row);
   return out;
 }
@@ -279,4 +417,133 @@ export function moveCustomerToDay(plan: JourneyPlan, customers: JourneyCustomer[
   const next = new Map(plan.assignments);
   next.set(customerId, { ...a, days: [day] });
   return { assignments: next, dayLoads: computeDayLoads(customers, next, days) };
+}
+
+// ============================================================================
+// Optional Start / End sequencing (V1) — order each route×day from a Start point to an
+// End point. Practical ordering only: nearest-neighbour, no road API, no time math.
+// ============================================================================
+
+export interface JourneyPoint { lat: number; lng: number; name?: string }
+export interface RouteStartEnd { start?: JourneyPoint; end?: JourneyPoint }
+
+/** SeqKey identifies one trip = a (route, day) pair. */
+export type SeqKey = string;
+export function seqKey(routeId: string, day: JourneyDay): SeqKey { return routeId + ' § ' + day; }
+
+export interface DaySequence {
+  routeId: string;
+  day: JourneyDay;
+  order: string[]; // ordered customer ids for this route+day
+  start: JourneyPoint;
+  end: JourneyPoint;
+  startFallback: boolean; // true when no start was configured (route centroid used)
+  endFallback: boolean; // true when no end was configured (farthest customer used)
+}
+
+/**
+ * Nearest-neighbour order from `start`, finishing at the member nearest `end`. Simple +
+ * deterministic; good enough for practical daily execution (no traffic optimisation).
+ */
+export function sequenceStops(members: { id: string; lat: number; lng: number }[], start: JourneyPoint, end: JourneyPoint): string[] {
+  if (members.length <= 1) return members.map((m) => m.id);
+  let lastIdx = 0, lastD = Infinity;
+  members.forEach((m, i) => { const d = haversineKm(m, end); if (d < lastD) { lastD = d; lastIdx = i; } });
+  const last = members[lastIdx];
+  const remaining = members.filter((_, i) => i !== lastIdx);
+  const order: string[] = [];
+  let cur: { lat: number; lng: number } = start;
+  while (remaining.length) {
+    let bi = 0, bd = Infinity;
+    remaining.forEach((m, i) => { const d = haversineKm(cur, m); if (d < bd) { bd = d; bi = i; } });
+    const next = remaining.splice(bi, 1)[0];
+    order.push(next.id);
+    cur = next;
+  }
+  order.push(last.id);
+  return order;
+}
+
+/**
+ * Build per-(route,day) sequences from the plan. Routes without a configured start/end fall
+ * back to the route centroid (start) and the farthest customer from it (end), flagged so the
+ * UI/export can label them.
+ */
+export function buildJourneySequences(
+  customers: JourneyRoutedCustomer[],
+  plan: JourneyPlan,
+  startEndByRoute: Map<string, RouteStartEnd>,
+  onlyRoute?: string,
+): Map<SeqKey, DaySequence> {
+  const byId = new Map(customers.map((c) => [c.id, c]));
+  const routeMembers = new Map<string, JourneyRoutedCustomer[]>();
+  for (const c of customers) { if (!routeMembers.has(c.routeId)) routeMembers.set(c.routeId, []); routeMembers.get(c.routeId)!.push(c); }
+
+  const groups = new Map<SeqKey, { routeId: string; day: JourneyDay; members: JourneyRoutedCustomer[] }>();
+  for (const a of plan.assignments.values()) {
+    const c = byId.get(a.customerId); if (!c) continue;
+    if (onlyRoute && c.routeId !== onlyRoute) continue;
+    for (const d of a.days) {
+      const k = seqKey(c.routeId, d);
+      if (!groups.has(k)) groups.set(k, { routeId: c.routeId, day: d, members: [] });
+      groups.get(k)!.members.push(c);
+    }
+  }
+
+  const out = new Map<SeqKey, DaySequence>();
+  for (const [k, g] of groups) {
+    if (g.members.length === 0) continue;
+    const se = startEndByRoute.get(g.routeId) ?? {};
+    let start = se.start, startFallback = false;
+    let end = se.end, endFallback = false;
+    if (!start) { start = centroid(routeMembers.get(g.routeId)!); startFallback = true; }
+    if (!end) {
+      let far = g.members[0], fd = -1;
+      for (const m of g.members) { const d = haversineKm(start, m); if (d > fd) { fd = d; far = m; } }
+      end = { lat: far.lat, lng: far.lng }; endFallback = true;
+    }
+    out.set(k, { routeId: g.routeId, day: g.day, order: sequenceStops(g.members.map((m) => ({ id: m.id, lat: m.lat, lng: m.lng })), start, end), start, end, startFallback, endFallback });
+  }
+  return out;
+}
+
+/** 1-based stop number for a customer on a given (route, day), or null when not sequenced. */
+export function sequenceNumberOf(sequences: Map<SeqKey, DaySequence>, routeId: string, day: JourneyDay, customerId: string): number | null {
+  const s = sequences.get(seqKey(routeId, day));
+  if (!s) return null;
+  const i = s.order.indexOf(customerId);
+  return i < 0 ? null : i + 1;
+}
+
+export type JourneySeqWarningKind =
+  | 'seq_missing_start' | 'seq_missing_end' | 'seq_empty_day' | 'seq_not_generated'
+  | 'seq_no_number' | 'seq_duplicate' | 'seq_incomplete';
+
+/** Quality checks specific to sequencing — surfaced alongside the plan warnings. */
+export function validateSequencing(
+  customers: JourneyRoutedCustomer[],
+  plan: JourneyPlan,
+  sequences: Map<SeqKey, DaySequence>,
+): JourneyWarning[] {
+  const out: JourneyWarning[] = [];
+  const byId = new Map(customers.map((c) => [c.id, c]));
+  const planned = new Map<SeqKey, { routeId: string; day: JourneyDay; ids: Set<string> }>();
+  for (const a of plan.assignments.values()) {
+    const c = byId.get(a.customerId); if (!c) continue;
+    for (const d of a.days) {
+      const k = seqKey(c.routeId, d);
+      if (!planned.has(k)) planned.set(k, { routeId: c.routeId, day: d, ids: new Set() });
+      planned.get(k)!.ids.add(c.id);
+    }
+  }
+  for (const [k, p] of planned) {
+    const s = sequences.get(k);
+    if (!s) { out.push({ kind: 'seq_not_generated', routeId: p.routeId, detail: p.day }); continue; }
+    if (s.startFallback) out.push({ kind: 'seq_missing_start', routeId: p.routeId, detail: p.day });
+    if (s.endFallback) out.push({ kind: 'seq_missing_end', routeId: p.routeId, detail: p.day });
+    if (new Set(s.order).size !== s.order.length) out.push({ kind: 'seq_duplicate', routeId: p.routeId, detail: p.day });
+    if (s.order.length < p.ids.size) out.push({ kind: 'seq_incomplete', routeId: p.routeId, detail: `${s.order.length}/${p.ids.size}` });
+    for (const id of p.ids) if (!s.order.includes(id)) out.push({ kind: 'seq_no_number', routeId: p.routeId, customerId: id, detail: p.day });
+  }
+  return out;
 }
