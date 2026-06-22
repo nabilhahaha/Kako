@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Database, CheckCircle2, Trash2, Star } from 'lucide-react';
+import { Database, CheckCircle2, Trash2, Star, FolderOpen } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { listDatasets, setActiveDataset, deleteDataset, type DatasetHeader } from './rp-dataset-actions';
 
@@ -10,7 +10,7 @@ import { listDatasets, setActiveDataset, deleteDataset, type DatasetHeader } fro
  * visible to the user (own + reporting subtree), shows row / valid counts and the active
  * marker, and lets the owner set-active or delete. Read-mostly; mobile-friendly stacked rows.
  */
-export function DatasetsPanel({ canManage = true, onChange }: { canManage?: boolean; onChange?: () => void | Promise<void> }) {
+export function DatasetsPanel({ canManage = true, onChange, onLoad, loadingId = null }: { canManage?: boolean; onChange?: () => void | Promise<void>; onLoad?: (d: DatasetHeader) => void | Promise<void>; loadingId?: string | null }) {
   const { t } = useI18n();
   const [rows, setRows] = useState<DatasetHeader[]>([]);
   const [busy, setBusy] = useState(false);
@@ -63,8 +63,15 @@ export function DatasetsPanel({ canManage = true, onChange }: { canManage?: bool
                 {d.source} · {t('rpShell.ds_rows', { n: d.rowCount })} · {t('rpShell.ds_valid', { n: d.validCount })}
               </p>
             </div>
-            {canManage && (
-              <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1">
+              {onLoad && (
+                <button onClick={() => void onLoad(d)} disabled={busy || loadingId === d.id}
+                  className="flex items-center gap-1 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10 disabled:opacity-50">
+                  <FolderOpen className="h-3 w-3" /> {loadingId === d.id ? t('rpShell.ds_loading') : t('rpShell.ds_load')}
+                </button>
+              )}
+              {canManage && (
+                <>
                 {!d.isActive && (
                   <button onClick={() => void onSetActive(d.id)} disabled={busy}
                     className="flex items-center gap-1 rounded border px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50">
@@ -82,8 +89,9 @@ export function DatasetsPanel({ canManage = true, onChange }: { canManage?: bool
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 )}
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </li>
         ))}
       </ul>

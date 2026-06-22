@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, Wand2, Check, MapPin, X, FileDown, RotateCcw, Square, PenTool, Layers, LayoutGrid, Route as RouteIcon, Map as MapIcon, CalendarDays, Compass, LogOut, Hand } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { Button } from '@/components/ui/button';
@@ -84,7 +84,7 @@ function downloadXlsx(bytes: Uint8Array, filename: string) {
  * TIS upload pipeline, the shared scenario/plan-edit engine and a single-pass geo
  * split — the manager does the final shaping by box/click-selecting on the map.
  */
-export function RoutePlannerWorkspace({ focus = false, demo = false, subscription }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView } = {}) {
+export function RoutePlannerWorkspace({ focus = false, demo = false, subscription, injectedDataset }: { focus?: boolean; demo?: boolean; subscription?: RoutePlannerSubscriptionView; injectedDataset?: TisDataset | null } = {}) {
   const { t, locale, setLocale } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -118,6 +118,19 @@ export function RoutePlannerWorkspace({ focus = false, demo = false, subscriptio
   const [importing, setImporting] = useState(false);
   const [mapState, setMapState] = useState<{ headers: string[]; records: Record<string, string>[]; map: Partial<Record<TisFieldKey, string>> } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
+
+  // B3 — rehydrate a saved dataset into the session planner. Mirrors the post-upload
+  // reset in confirmMapping() so an injected dataset lands at the same "choose method"
+  // step. Additive: with no injectedDataset the planner behaves exactly as before.
+  useEffect(() => {
+    if (!injectedDataset) return;
+    setDataset(injectedDataset);
+    setScenario(emptyScenario());
+    setMethod(null); setHistory([]); setGenerated(false); setApproved(false);
+    setSelectedIds(new Set()); setFocusedRoutes(new Set()); setMapState(null);
+    setMsg({ tone: 'ok', text: t('routePlanner.importOk').replace('{n}', String(injectedDataset.customers.length)) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [injectedDataset]);
 
   // In Current Allocation Review the manager can flip the whole view between the loaded
   // "Current" allocation (baseline) and the edited "Proposed" one. Edits always target the
