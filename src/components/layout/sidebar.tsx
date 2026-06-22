@@ -124,8 +124,6 @@ export function Sidebar({
       </div>
 
       {sections.map((section) => {
-        const sectionActive = section.items.some((i) => i.href === activeHref);
-
         // Navigation Standard: the Settings hub collapses to a single rail entry — its pages
         // are navigated via the in-page Top Grouping (settings/layout.tsx).
         if (section.title === 'nav.sections.settings') {
@@ -135,7 +133,7 @@ export function Sidebar({
           return <div key={section.title} className="mt-1">{itemLink('/settings', 'nav.sections.settings', home.icon, active, isCollapsed)}</div>;
         }
 
-        // Collapsed rail: a thin divider between groups, then icon-only items.
+        // Collapsed rail: a thin divider between sections, then icon-only items (with tooltips).
         if (isCollapsed) {
           return (
             <div key={section.title} className="mt-1 border-t border-border/60 pt-1">
@@ -146,37 +144,77 @@ export function Sidebar({
           );
         }
 
-        // Accordion: closed by default; opens on click. The active group is force-open + lit.
-        const isOpen = openGroups.has(section.title) || sectionActive;
-        return (
-          <div key={section.title} className="mb-1">
-            <button
-              type="button"
-              onClick={() => toggleGroup(section.title)}
-              className={cn(
-                'flex w-full items-center justify-between rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors hover:bg-secondary/60',
-                sectionActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground',
+        const hasGroups = section.items.some((i) => i.group);
+
+        // Sections WITHOUT sub-groups keep the section-level accordion (one expandable parent).
+        if (!hasGroups) {
+          const sectionActive = section.items.some((i) => i.href === activeHref);
+          const isOpen = openGroups.has(section.title) || sectionActive;
+          return (
+            <div key={section.title} className="mb-1">
+              <button
+                type="button"
+                onClick={() => toggleGroup(section.title)}
+                className={cn(
+                  'flex w-full items-center justify-between rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors hover:bg-secondary/60',
+                  sectionActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground',
+                )}
+                aria-expanded={isOpen}
+              >
+                <span className="truncate">{t(section.title)}</span>
+                <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', isOpen ? '' : '-rotate-90 rtl:rotate-90')} />
+              </button>
+              {isOpen && (
+                <div className="mt-0.5 space-y-0.5 border-s border-border/60 ps-2">
+                  {section.items.map((item) => itemLink(item.href, item.label, item.icon, item.href === activeHref, false))}
+                </div>
               )}
-              aria-expanded={isOpen}
-            >
-              <span className="truncate">{t(section.title)}</span>
-              <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', isOpen ? '' : '-rotate-90 rtl:rotate-90')} />
-            </button>
-            {isOpen && (
-              <div className="mt-0.5 space-y-0.5 border-s border-border/60 ps-2">
-                {section.items.map((item, idx) => {
-                  const showGroup = item.group && item.group !== section.items[idx - 1]?.group;
-                  return (
-                    <Fragment key={item.href}>
-                      {showGroup && (
-                        <p className="px-3 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">{t(item.group!)}</p>
+            </div>
+          );
+        }
+
+        // Sections WITH sub-groups: each sub-group with ≥2 real routes is an expandable parent;
+        // a single-route sub-group (or ungrouped item) is a direct link. No fake routes/parents.
+        const units: { key: string; label: string | null; items: typeof section.items }[] = [];
+        for (const item of section.items) {
+          const key = item.group ?? `__ungrouped:${section.title}`;
+          const last = units[units.length - 1];
+          if (last && last.key === key) last.items.push(item);
+          else units.push({ key, label: item.group ?? null, items: [item] });
+        }
+        return (
+          <div key={section.title} className="mb-2">
+            <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/50">{t(section.title)}</p>
+            {units.map((unit) => {
+              // Expandable parent only when the sub-group has 2+ real child routes.
+              if (unit.label && unit.items.length >= 2) {
+                const groupActive = unit.items.some((i) => i.href === activeHref);
+                const open = openGroups.has(unit.key) || groupActive;
+                return (
+                  <div key={unit.key} className="mb-0.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(unit.key)}
+                      className={cn(
+                        'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-secondary',
+                        groupActive ? 'bg-primary/10 text-primary' : 'text-foreground',
                       )}
-                      {itemLink(item.href, item.label, item.icon, item.href === activeHref, false)}
-                    </Fragment>
-                  );
-                })}
-              </div>
-            )}
+                      aria-expanded={open}
+                    >
+                      <span className="truncate">{t(unit.label)}</span>
+                      <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', open ? '' : '-rotate-90 rtl:rotate-90')} />
+                    </button>
+                    {open && (
+                      <div className="mt-0.5 space-y-0.5 border-s border-border/60 ps-3">
+                        {unit.items.map((item) => itemLink(item.href, item.label, item.icon, item.href === activeHref, false))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              // Single-route sub-group / ungrouped → direct link(s).
+              return <Fragment key={unit.key}>{unit.items.map((item) => itemLink(item.href, item.label, item.icon, item.href === activeHref, false))}</Fragment>;
+            })}
           </div>
         );
       })}
