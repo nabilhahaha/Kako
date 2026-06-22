@@ -57,6 +57,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, { en: string; ar: string }> = {
   company_role: { en: 'Company role', ar: 'دور شركة' },
   company_role_permission: { en: 'Company role permission', ar: 'صلاحية دور (شركة)' },
   customer_status: { en: 'Customer status', ar: 'حالة العميل' },
+  module_setting: { en: 'Module setting', ar: 'إعداد الوحدة' },
   field_config: { en: 'Field configuration', ar: 'إعداد الحقل' },
   field_access: { en: 'Field access', ar: 'صلاحية الحقل' },
   field_section: { en: 'Field section', ar: 'قسم الحقول' },

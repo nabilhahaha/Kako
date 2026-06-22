@@ -279,6 +279,7 @@ export const ar = {
         railUsers: 'المستخدمون',
         railRoles: 'الأدوار والصلاحيات',
         railModules: 'الوحدات',
+        railWorkflow: 'إعدادات الوحدات',
         railPacks: 'الحزم القطاعية',
         railIntegrations: 'التكاملات',
         railUsage: 'الاستخدام',
@@ -297,6 +298,14 @@ export const ar = {
         statusExpiry: 'حتى الانتهاء',
         statusApprovals: 'موافقات معلّقة',
         statusUsers: 'المستخدمون',
+        // module configuration / workflow settings (read-only foundation)
+        wfIntro: 'كيف تتصرّف كل وحدة لهذه الشركة. عرض فقط الآن — الإعداد والتفعيل يأتيان في مرحلة لاحقة.',
+        wfFoundation: 'أساس فقط — هذه القيم لا تُطبَّق على سير العمل بعد.',
+        wfDefault: 'افتراضي',
+        wfCustom: 'مخصّص',
+        wfSensitive: 'حسّاس',
+        wfOn: 'مفعّل',
+        wfOff: 'متوقّف',
         // mobile section collapse
         expandSection: 'عرض',
         collapseSection: 'إخفاء',
@@ -641,6 +650,7 @@ export const ar = {
     errors: {
       unauthorized: 'غير مصرح. سجّل الدخول.',
       ownerRequired: 'لوحة المزوّد متاحة لمالك المنصّة فقط.',
+      invalidInput: 'قيمة غير صالحة.',
       permissionsOwnerRequired: 'إدارة صلاحيات الشركات متاحة لمالك المنصّة فقط.',
       companyNameRequired: 'اسم الشركة (إنجليزي) مطلوب.',
       slugDuplicate: 'المعرّف (slug) مستخدم بالفعل.',
@@ -944,6 +954,7 @@ export const en = {
         railUsers: 'Users',
         railRoles: 'Roles & Permissions',
         railModules: 'Modules',
+        railWorkflow: 'Module Settings',
         railPacks: 'Industry Packs',
         railIntegrations: 'Integrations',
         railUsage: 'Usage',
@@ -962,6 +973,14 @@ export const en = {
         statusExpiry: 'To expiry',
         statusApprovals: 'Open approvals',
         statusUsers: 'Users',
+        // module configuration / workflow settings (read-only foundation)
+        wfIntro: 'How each module behaves for this company. Read-only for now — editing and enforcement arrive in a later phase.',
+        wfFoundation: 'Foundation only — these values are not enforced on workflows yet.',
+        wfDefault: 'Default',
+        wfCustom: 'Custom',
+        wfSensitive: 'Sensitive',
+        wfOn: 'On',
+        wfOff: 'Off',
         // mobile section collapse
         expandSection: 'Show',
         collapseSection: 'Hide',
@@ -1306,6 +1325,7 @@ export const en = {
     errors: {
       unauthorized: 'Unauthorized. Please log in.',
       ownerRequired: 'Vendor panel is available to the platform owner only.',
+      invalidInput: 'Invalid value.',
       permissionsOwnerRequired: 'Managing company permissions is available to the platform owner only.',
       companyNameRequired: 'Company name (English) is required.',
       slugDuplicate: 'This identifier (slug) is already in use.',

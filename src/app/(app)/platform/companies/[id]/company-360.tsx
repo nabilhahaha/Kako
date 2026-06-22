@@ -26,6 +26,7 @@ import {
   ChevronDown,
   LineChart,
   Eye,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, Company } from '@/lib/erp/types';
@@ -41,6 +42,8 @@ import {
 } from './company-detail';
 import { CompanyPermissions, type CompanyRoleRow } from './company-permissions';
 import { CompanyAudit, type CompanyAuditRow } from './company-audit';
+import { ModuleSettingsSection } from './module-settings-section';
+import type { ResolvedSetting } from '@/lib/erp/module-settings-catalog';
 import { tabToSection, SECTION_ORDER, type SectionKey } from './company-360-section';
 
 /** One curated company event for the Summary timeline (newest-first). */
@@ -69,6 +72,8 @@ export interface Company360Props {
   permsByRole: Record<string, string[]>;
   // Audit section
   auditRows: CompanyAuditRow[];
+  // Module Configuration / Workflow Settings (read-only foundation)
+  moduleSettings: ResolvedSetting[];
   // Summary timeline
   timeline: TimelineRow[];
   // KPI / health backing data (read-only, degrade gracefully)
@@ -280,6 +285,7 @@ export function Company360(props: Company360Props) {
     users: t('platform.company.c360.railUsers'),
     roles: t('platform.company.c360.railRoles'),
     modules: t('platform.company.c360.railModules'),
+    workflow: t('platform.company.c360.railWorkflow'),
     packs: t('platform.company.c360.railPacks'),
     integrations: t('platform.company.c360.railIntegrations'),
     usage: t('platform.company.c360.railUsage'),
@@ -588,6 +594,21 @@ export function Company360(props: Company360Props) {
                 modulesByPlan={props.modulesByPlan}
                 enabledModules={props.enabledModules}
               />
+            </MobileCollapse>
+          </section>
+
+          {/* Module Configuration / Workflow Settings (read-only foundation) */}
+          <section id="section-workflow" className="scroll-mt-32">
+            <MobileCollapse
+              icon={SlidersHorizontal}
+              title={t('platform.company.c360.railWorkflow')}
+              open={expanded.has('workflow')}
+              onToggle={() => toggleSection('workflow')}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
+            >
+              <SectionHeader icon={SlidersHorizontal} title={t('platform.company.c360.railWorkflow')} />
+              <ModuleSettingsSection settings={props.moduleSettings} enabledModules={props.enabledModules} />
             </MobileCollapse>
           </section>
 
