@@ -181,3 +181,13 @@ export function missionPermsRestrictive(access: RoutePlannerAccess | null, isCom
 export function rpCanDecideRequests(role: RpRole | null | undefined, isCompanyAdmin: boolean): boolean {
   return isCompanyAdmin || role === 'manager' || role === 'area_manager' || role === 'route_planner_admin';
 }
+
+/**
+ * D3 connector-admin gate (default-restrictive): a company admin or a route_planner_admin /
+ * manager may manage NON-SECRET data sources (manual upload, public-CSV sheets) — name /
+ * schedule / status / run-sync. Secret-bearing connectors are out of scope until a secure
+ * secret store exists. Everyone else is denied.
+ */
+export function rpCanManageConnectors(role: RpRole | null | undefined, isCompanyAdmin: boolean): boolean {
+  return isCompanyAdmin || role === 'route_planner_admin' || role === 'manager';
+}
