@@ -192,6 +192,17 @@ export function isModuleGateOpen(modules: Module[], gate?: Module | Module[]): b
   return Array.isArray(gate) ? gate.some((g) => modules.includes(g)) : modules.includes(gate);
 }
 
+/** Self-contained, standalone packs that own a dedicated sidebar section. A
+ *  tenant whose enabled modules are EXCLUSIVELY these (e.g. the "Field
+ *  Verification Only" template) sees only its pack section(s) + Settings — the
+ *  generic operational sections that are not module-gated are suppressed. */
+export const STANDALONE_PACK_MODULES: Module[] = ['field_verification'];
+
+/** Operational sidebar sections that are NOT module-gated (so they cannot be
+ *  hidden by the plan filter) and would otherwise leak into a standalone-pack-only
+ *  tenant via broad role permissions. Suppressed for a pack-only tenant. */
+const PACK_SUPPRESSED_SECTIONS = new Set<string>(['nav.sections.main', 'nav.sections.electrical']);
+
 export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'nav.sections.provider',
@@ -637,9 +648,22 @@ export function visibleSections(
   // clutter there, so it is dropped for the clothing business type only.
   const suppressGenericMain = businessType === 'clothing';
 
+  // Standalone packs (e.g. the "Field Verification Only" template) ship their own
+  // self-contained section and must NOT surface the generic operational control
+  // center (`main`) or cross-vertical packs (`electrical`) — neither of which is
+  // module-gated, so without this they leak whenever an admin role happens to
+  // hold broad perms (reports.view / field.sales / electrical.rma …). A tenant
+  // whose enabled modules are EXCLUSIVELY standalone packs sees only its pack
+  // section(s) + Settings, gated by module rather than by role. Empty `modules`
+  // (platform owner / legacy tenant) is treated as unrestricted, as elsewhere, so
+  // it is never suppressed.
+  const packOnlyTenant =
+    modules.length > 0 && modules.every((m) => STANDALONE_PACK_MODULES.includes(m));
+
   return NAV_SECTIONS
     .filter((s) => moduleAllowed(s.module))
     .filter((s) => !(suppressGenericMain && s.title === 'nav.sections.main'))
+    .filter((s) => !(packOnlyTenant && PACK_SUPPRESSED_SECTIONS.has(s.title)))
     .map((section) => ({
     ...section,
     items: section.items.filter((item) => {
