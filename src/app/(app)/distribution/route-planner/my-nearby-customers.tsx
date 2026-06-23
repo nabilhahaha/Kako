@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   MapPin, Navigation, Camera, Check, RefreshCw, ChevronLeft, ArrowRight,
-  CheckCircle2, AlertTriangle, Loader2, Store, Phone, X, Crosshair,
+  CheckCircle2, AlertTriangle, Loader2, Store, Phone, X, Crosshair, Search,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { getMyNearbyCustomers, submitVerification, type NearbyCustomer, type MyProgress } from './rp-verification-actions';
 import { getVerificationConfig } from './rp-verification-config-actions';
+import { filterAssignedCustomers } from './fv-customer-search';
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
 import { NEARBY_RADIUS_M } from '@/lib/erp/geo-distance';
+import { cn } from '@/lib/utils';
 
 type GpsState = { lat: number; lng: number } | null;
 type Phase = 'list' | 'form' | 'done';
@@ -27,6 +29,12 @@ export function MyNearbyCustomers() {
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [nearby, setNearby] = useState<NearbyCustomer[]>([]);
+  // The full list of customers assigned to me (any distance) — the manual selection /
+  // search path, alongside the GPS Nearby list. Open is unrestricted; final submit still
+  // enforces the radius + photo rule server-side.
+  const [assigned, setAssigned] = useState<NearbyCustomer[]>([]);
+  const [tab, setTab] = useState<'nearby' | 'assigned'>('nearby');
+  const [query, setQuery] = useState('');
   const [progress, setProgress] = useState<MyProgress>({ total: 0, completed: 0, remaining: 0, pct: 0 });
   const [config, setConfig] = useState<{ cities: string[]; channels: string[] }>({ cities: [], channels: [] });
   // The active proximity radius is set per-company by the admin (FV-3b); default until loaded.
@@ -44,7 +52,7 @@ export function MyNearbyCustomers() {
   const load = useCallback(async (fix: GpsState) => {
     setLoading(true);
     const res = await getMyNearbyCustomers(fix);
-    if (res.ok) { setNearby(res.data.nearby); setProgress(res.data.progress); setRadiusM(res.data.radiusM); }
+    if (res.ok) { setNearby(res.data.nearby); setAssigned(res.data.assigned); setProgress(res.data.progress); setRadiusM(res.data.radiusM); }
     setLoading(false);
   }, []);
 
@@ -126,6 +134,10 @@ export function MyNearbyCustomers() {
   // ── FORM ───────────────────────────────────────────────────────────────────
   if (phase === 'form' && sel) {
     const oldCity = sel.city ?? '—', oldChannel = sel.channel ?? '—';
+    // Honest range indicator: a customer opened from the Assigned list may be outside the
+    // radius. Submit is unchanged (server enforces the radius), so we flag it here instead
+    // of pretending "within range". null = unknown (no GPS distance yet).
+    const selWithin = sel.distanceM == null ? null : sel.distanceM <= radiusM;
     return (
       <div className="mx-auto max-w-md space-y-3 p-4 pb-28">
         <button onClick={() => setPhase('list')} className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground">
@@ -139,11 +151,13 @@ export function MyNearbyCustomers() {
               <p className="truncate text-base font-extrabold">{sel.name}</p>
               <p className="text-xs text-muted-foreground">{sel.code ?? ''}</p>
             </div>
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
-              <Crosshair className="h-3.5 w-3.5" />{t('rpVerify.withinRange')}
+            <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold',
+              selWithin === false ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')}>
+              <Crosshair className="h-3.5 w-3.5" />{t(selWithin === false ? 'rpVerify.outsideRange' : 'rpVerify.withinRange')}
             </span>
           </div>
           {sel.distanceM != null && <p className="mt-1 text-xs font-semibold text-primary">{t('rpVerify.metersAway', { n: sel.distanceM })}</p>}
+          {selWithin === false && <p className="mt-1 text-[11px] font-medium text-amber-700">{t('rpVerify.mustBeWithin', { n: radiusM })}</p>}
         </div>
 
         {/* current (old) values — read-only */}
@@ -201,6 +215,7 @@ export function MyNearbyCustomers() {
   }
 
   // ── LIST ───────────────────────────────────────────────────────────────────
+  const filteredAssigned = filterAssignedCustomers(assigned, query);
   return (
     <div className="mx-auto max-w-md space-y-3 p-4">
       <div className="flex items-center justify-between">
@@ -210,60 +225,114 @@ export function MyNearbyCustomers() {
         </button>
       </div>
 
-      {/* radius banner (stylized "within range" visual — no map dependency) */}
-      <RadiusBanner t={t} radiusM={radiusM} count={gps ? nearby.length : null} />
-
       <ProgressCard t={t} progress={progress} />
 
-      {gpsError && (
-        <div className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="font-semibold">{t(gpsError === 'denied' ? 'rpVerify.gpsDenied' : 'rpVerify.gpsUnsupported')}</p>
-            <button onClick={requestGps} className="mt-1 inline-flex items-center gap-1 font-semibold underline"><Navigation className="h-3.5 w-3.5" />{t('rpVerify.enableGps')}</button>
-          </div>
-        </div>
-      )}
+      {/* Two ways to pick a customer: GPS "Nearby", or the full "Assigned list" + search. */}
+      <div className="grid grid-cols-2 gap-1 rounded-2xl border bg-muted/30 p-1">
+        {(['nearby', 'assigned'] as const).map((k) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={cn('h-9 rounded-xl text-sm font-bold transition-colors',
+              tab === k ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground')}
+            aria-pressed={tab === k}
+          >
+            {t(k === 'nearby' ? 'rpVerify.tabNearby' : 'rpVerify.tabAssigned')}
+          </button>
+        ))}
+      </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />{t('rpVerify.locating')}</div>
-      ) : !gps ? (
-        <p className="rounded-2xl border bg-muted/30 p-6 text-center text-sm text-muted-foreground">{t('rpVerify.needGps')}</p>
-      ) : nearby.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border bg-muted/30 p-8 text-center">
-          <MapPin className="h-10 w-10 text-muted-foreground" />
-          {/* Same single source of truth as the header banner + the server filter:
-              the company-configured radiusM (getCompanyRadiusM), never a hardcoded value. */}
-          <p className="text-sm font-semibold">{t('rpVerify.emptyTitle', { n: radiusM })}</p>
-          <p className="text-xs text-muted-foreground">{t('rpVerify.emptySub')}</p>
-        </div>
+      {tab === 'nearby' ? (
+        <>
+          {/* radius banner (stylized "within range" visual — no map dependency) */}
+          <RadiusBanner t={t} radiusM={radiusM} count={gps ? nearby.length : null} />
+
+          {gpsError && (
+            <div className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <p className="font-semibold">{t(gpsError === 'denied' ? 'rpVerify.gpsDenied' : 'rpVerify.gpsUnsupported')}</p>
+                <button onClick={requestGps} className="mt-1 inline-flex items-center gap-1 font-semibold underline"><Navigation className="h-3.5 w-3.5" />{t('rpVerify.enableGps')}</button>
+              </div>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />{t('rpVerify.locating')}</div>
+          ) : !gps ? (
+            <p className="rounded-2xl border bg-muted/30 p-6 text-center text-sm text-muted-foreground">{t('rpVerify.needGps')}</p>
+          ) : nearby.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 rounded-2xl border bg-muted/30 p-8 text-center">
+              <MapPin className="h-10 w-10 text-muted-foreground" />
+              {/* Same single source of truth as the header banner + the server filter:
+                  the company-configured radiusM (getCompanyRadiusM), never a hardcoded value. */}
+              <p className="text-sm font-semibold">{t('rpVerify.emptyTitle', { n: radiusM })}</p>
+              <p className="text-xs text-muted-foreground">{t('rpVerify.emptySub')}</p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {nearby.map((c) => <li key={c.id}><CustomerRow t={t} c={c} onOpen={() => openForm(c)} /></li>)}
+            </ul>
+          )}
+        </>
       ) : (
-        <ul className="space-y-2">
-          {nearby.map((c) => (
-            <li key={c.id}>
-              <button onClick={() => openForm(c)} className="flex w-full items-center gap-3 rounded-2xl border bg-card p-3.5 text-start shadow-sm active:scale-[0.99]">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Store className="h-6 w-6" /></div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-bold">{c.name}</p>
-                    {c.code && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{c.code}</span>}
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                    {c.distanceM != null && <span className="font-semibold text-primary">{t('rpVerify.metersAway', { n: c.distanceM })}</span>}
-                    {c.city && <span>· {c.city}</span>}
-                    {c.channel && <span>· {c.channel}</span>}
-                  </div>
-                </div>
-                <span className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t('rpVerify.statusPending')}</span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground rtl:rotate-180" />
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          {/* Assigned list + search (code / name / city / channel). Manual open is allowed
+              for any assigned customer; the submit screen still enforces the radius. */}
+          <div className="flex items-center gap-2 rounded-xl border bg-background px-3">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('rpVerify.searchPlaceholder')}
+              className="h-11 w-full bg-transparent text-base outline-none"
+              aria-label={t('rpVerify.searchPlaceholder')}
+            />
+            {query && <button onClick={() => setQuery('')} aria-label={t('common.close')}><X className="h-4 w-4 text-muted-foreground" /></button>}
+          </div>
+          <p className="px-1 text-[11px] text-muted-foreground">{t('rpVerify.assignedCount', { n: assigned.length })}</p>
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />{t('rpVerify.locating')}</div>
+          ) : assigned.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 rounded-2xl border bg-muted/30 p-8 text-center">
+              <Store className="h-10 w-10 text-muted-foreground" />
+              <p className="text-sm font-semibold">{t('rpVerify.assignedEmpty')}</p>
+            </div>
+          ) : filteredAssigned.length === 0 ? (
+            <p className="rounded-2xl border bg-muted/30 p-6 text-center text-sm text-muted-foreground">{t('rpVerify.noMatches')}</p>
+          ) : (
+            <ul className="space-y-2">
+              {filteredAssigned.map((c) => <li key={c.id}><CustomerRow t={t} c={c} onOpen={() => openForm(c)} /></li>)}
+            </ul>
+          )}
+        </>
       )}
     </div>
+  );
+}
+
+/** One tappable customer row (shared by the Nearby + Assigned lists). */
+function CustomerRow({ t, c, onOpen }: { t: (k: string, p?: Record<string, string | number>) => string; c: NearbyCustomer; onOpen: () => void }) {
+  return (
+    <button onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border bg-card p-3.5 text-start shadow-sm active:scale-[0.99]">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Store className="h-6 w-6" /></div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-bold">{c.name}</p>
+          {c.code && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{c.code}</span>}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+          {c.distanceM != null && <span className="font-semibold text-primary">{t('rpVerify.metersAway', { n: c.distanceM })}</span>}
+          {c.city && <span>· {c.city}</span>}
+          {c.channel && <span>· {c.channel}</span>}
+        </div>
+      </div>
+      <span className="flex shrink-0 flex-col items-end gap-1">
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t('rpVerify.statusPending')}</span>
+        <ArrowRight className="h-4 w-4 text-muted-foreground rtl:rotate-180" />
+      </span>
+    </button>
   );
 }
 
