@@ -69,6 +69,44 @@ describe('navigation — visibleSections', () => {
     }
   });
 
+  it('Field-Verification-only tenant sees ONLY the FV section + Settings (pack-only gating)', () => {
+    // The "Field Verification Only" template enables exactly one module. Its admin
+    // role is seeded with the broad global admin perms (reports.view, field.sales,
+    // electrical.rma, approvals…), so the non-module-gated `main` and `electrical`
+    // sections would leak — they must be suppressed for a pack-only tenant.
+    const broadAdminPerms = [
+      'reports.view', 'field.sales', 'visit.approve_out_of_route', 'day.approve_close_exception',
+      'electrical.rma', 'inventory.view', 'customers.manage', 'workflow.manage',
+      'field_verification.admin', 'field_verification.verify', 'field_verification.reports', 'field_verification.export',
+      'settings.users', 'settings.branches',
+    ] as Parameters<typeof visibleSections>[0];
+    const titles = visibleSections(broadAdminPerms, false, false, ['field_verification']).map((s) => s.title);
+    // Only the FV pack + Settings — nothing else.
+    expect(titles).toContain('nav.sections.fieldVerification');
+    expect(titles).toContain('nav.sections.settings');
+    expect(titles).not.toContain('nav.sections.main');
+    expect(titles).not.toContain('nav.sections.electrical');
+    expect(titles).not.toContain('nav.sections.routePlanner');
+    expect(titles).not.toContain('nav.sections.sales');
+    expect(titles).not.toContain('nav.sections.inventory');
+    expect(titles).not.toContain('nav.sections.crm');
+    // The FV section keeps its own items (perm-gated, module-gated) intact.
+    const fv = visibleSections(broadAdminPerms, false, false, ['field_verification']).find(
+      (s) => s.title === 'nav.sections.fieldVerification',
+    );
+    expect(fv?.items.map((i) => i.href)).toContain('/field-verification/my-customers');
+    expect(fv?.items.map((i) => i.href)).toContain('/field-verification/setup');
+  });
+
+  it('a tenant that has FV alongside operational modules still sees the main section (no over-suppression)', () => {
+    const titles = visibleSections(
+      ['reports.view', 'field_verification.admin'] as Parameters<typeof visibleSections>[0],
+      false, false, ['sales', 'field_verification'],
+    ).map((s) => s.title);
+    expect(titles).toContain('nav.sections.main');
+    expect(titles).toContain('nav.sections.fieldVerification');
+  });
+
   it('clothing storefront hides the generic FMCG "main" control center', () => {
     const titles = (bt: string | null) =>
       visibleSections(['fashion.manage'], false, false, ['fashion'], [], false, bt).map((s) => s.title);
