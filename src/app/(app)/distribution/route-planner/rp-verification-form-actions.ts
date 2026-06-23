@@ -14,9 +14,11 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { hasPermission } from '@/lib/erp/permissions';
 import { FORM_BUILDER_ENABLED } from '@/lib/form-builder';
-import { resolveFvForm, isFvFieldKey, FV_DEFAULT_REQUIRE_GPS, type FvFieldOverride, type ResolvedFvField } from './fv-verification-form';
+import { resolveFvForm, isFvFieldKey, buildFvFormSchema, FV_DEFAULT_REQUIRE_GPS, type FvFieldOverride, type ResolvedFvField } from './fv-verification-form';
 
+type Result = { ok: true } | { ok: false; error: string };
 type ResultD<T> = { ok: true; data: T } | { ok: false; error: string };
 
 export const FV_FORM_CODE = 'fv_verification';
@@ -71,4 +73,59 @@ export async function getFvVerificationForm(): Promise<ResultD<{ fields: Resolve
 
   const schema = (ver as { schema: unknown }).schema;
   return { ok: true, data: { fields: resolveFvForm(parseOverrides(schema)), requireGps: parseRequireGps(schema), configured: true } };
+}
+
+/** Publish a new version of the company's verification form. Company-Admin only
+ *  (field_verification.admin); flag-gated. Reuses erp_forms + erp_form_versions; the prior
+ *  published version is archived. Writes the form DEFINITION only — never a verification row,
+ *  customer, or photo. */
+export async function saveFvVerificationForm(input: { overrides: FvFieldOverride[]; requireGps: boolean }): Promise<Result> {
+  const ctx = await getUserContext();
+  if (!ctx?.companyId) return { ok: false, error: 'err_unauthorized' };
+  if (!hasPermission(ctx, 'field_verification.admin')) return { ok: false, error: 'err_forbidden' };
+  if (!FORM_BUILDER_ENABLED()) return { ok: false, error: 'err_form_builder_disabled' };
+
+  const schema = buildFvFormSchema(input?.overrides ?? [], !!input?.requireGps);
+  const sb = await createClient();
+
+  // Upsert the company's form row.
+  const { data: existing } = await sb.from('erp_forms')
+    .select('id').eq('company_id', ctx.companyId).eq('code', FV_FORM_CODE).maybeSingle();
+  let formId = (existing as { id: string } | null)?.id ?? null;
+  if (!formId) {
+    const { data: ins, error: fErr } = await sb.from('erp_forms')
+      .insert({ company_id: ctx.companyId, code: FV_FORM_CODE, name_en: 'Field Verification', name_ar: 'التحقق الميداني', entity: 'customer', is_active: true, created_by: ctx.userId })
+      .select('id').single();
+    if (fErr) return { ok: false, error: fErr.message };
+    formId = (ins as { id: string }).id;
+  }
+
+  // Next version number; archive the previous published version (read picks latest published).
+  const { data: last } = await sb.from('erp_form_versions')
+    .select('version').eq('form_id', formId).order('version', { ascending: false }).limit(1).maybeSingle();
+  const nextVersion = (((last as { version: number } | null)?.version) ?? 0) + 1;
+  await sb.from('erp_form_versions').update({ status: 'archived' }).eq('form_id', formId).eq('status', 'published');
+
+  const { error: vErr } = await sb.from('erp_form_versions').insert({
+    company_id: ctx.companyId, form_id: formId, version: nextVersion, schema,
+    status: 'published', published_at: new Date().toISOString(),
+  });
+  if (vErr) return { ok: false, error: vErr.message };
+  return { ok: true };
+}
+
+/** Reset to the default form: archive the published version so the read falls back to
+ *  defaults (today's behavior). Company-Admin only. Never deletes data. */
+export async function resetFvVerificationForm(): Promise<Result> {
+  const ctx = await getUserContext();
+  if (!ctx?.companyId) return { ok: false, error: 'err_unauthorized' };
+  if (!hasPermission(ctx, 'field_verification.admin')) return { ok: false, error: 'err_forbidden' };
+  const sb = await createClient();
+  const { data: form } = await sb.from('erp_forms')
+    .select('id').eq('company_id', ctx.companyId).eq('code', FV_FORM_CODE).maybeSingle();
+  if (form) {
+    await sb.from('erp_form_versions').update({ status: 'archived' })
+      .eq('form_id', (form as { id: string }).id).eq('status', 'published');
+  }
+  return { ok: true };
 }

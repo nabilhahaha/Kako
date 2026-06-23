@@ -82,6 +82,32 @@ export interface ResolvedFvField {
 
 const clean = (s: string | null | undefined): string | null => (typeof s === 'string' && s.trim() ? s.trim() : null);
 
+/** Sanitize one admin-entered override → only known keys + trimmed values (null when blank).
+ *  Returns null for an unknown field key. Pure (used by the save action + unit-tested). */
+export function sanitizeFvOverride(o: FvFieldOverride): FvFieldOverride | null {
+  if (!o || !isFvFieldKey(o.key)) return null;
+  const out: FvFieldOverride = { key: o.key };
+  if (typeof o.visible === 'boolean') out.visible = o.visible;
+  if (typeof o.required === 'boolean') out.required = o.required;
+  if (typeof o.labelEn === 'string') out.labelEn = clean(o.labelEn);
+  if (typeof o.labelAr === 'string') out.labelAr = clean(o.labelAr);
+  if (typeof o.help === 'string') out.help = clean(o.help);
+  if (typeof o.order === 'number' && Number.isFinite(o.order)) out.order = o.order;
+  return out;
+}
+
+/** Build the persisted form schema { fields, settings } from admin input (drops unknown
+ *  fields, trims values, coerces requireGps). The same shape the read path parses back. */
+export function buildFvFormSchema(
+  overrides: FvFieldOverride[],
+  requireGps: boolean,
+): { fields: FvFieldOverride[]; settings: FvFormSettings } {
+  const fields = (overrides ?? [])
+    .map(sanitizeFvOverride)
+    .filter((x): x is FvFieldOverride => x !== null);
+  return { fields, settings: { requireGps: !!requireGps } };
+}
+
 /**
  * Resolve the effective field list from admin overrides.
  *  - EVERY field is configurable: visible/required come from the override, else the default.

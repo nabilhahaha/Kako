@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveFvForm, FV_CORE_FIELDS, type FvFieldOverride } from './fv-verification-form';
+import { resolveFvForm, buildFvFormSchema, sanitizeFvOverride, FV_CORE_FIELDS, type FvFieldOverride } from './fv-verification-form';
 
 const keys = (rows: ReturnType<typeof resolveFvForm>) => rows.map((r) => r.key);
 
@@ -64,5 +64,29 @@ describe('resolveFvForm — labels / order / safety', () => {
   });
   it('unknown field keys are ignored (no throw)', () => {
     expect(keys(resolveFvForm([{ key: 'bogus' } as unknown as FvFieldOverride]))).toHaveLength(FV_CORE_FIELDS.length);
+  });
+});
+
+describe('buildFvFormSchema / sanitizeFvOverride — persisted shape', () => {
+  it('drops unknown keys, trims labels/help, coerces requireGps', () => {
+    const schema = buildFvFormSchema(
+      [
+        { key: 'phone', labelEn: '  Mobile  ', labelAr: '', required: true, visible: true, order: 4 },
+        { key: 'bogus' } as unknown as FvFieldOverride,
+      ],
+      true,
+    );
+    expect(schema.settings.requireGps).toBe(true);
+    expect(schema.fields).toHaveLength(1);
+    expect(schema.fields[0]).toMatchObject({ key: 'phone', labelEn: 'Mobile', labelAr: null, required: true, order: 4 });
+  });
+  it('sanitizeFvOverride returns null for an unknown key', () => {
+    expect(sanitizeFvOverride({ key: 'nope' } as unknown as FvFieldOverride)).toBeNull();
+  });
+  it('round-trips through resolveFvForm (save → read gives the same effective config)', () => {
+    const schema = buildFvFormSchema([{ key: 'notes', visible: false }, { key: 'phone', required: true }], false);
+    const resolved = resolveFvForm(schema.fields);
+    expect(resolved.find((f) => f.key === 'notes')!.visible).toBe(false);
+    expect(resolved.find((f) => f.key === 'phone')!.required).toBe(true);
   });
 });
