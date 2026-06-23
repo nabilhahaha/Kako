@@ -26,6 +26,7 @@ import {
   Eye,
   SlidersHorizontal,
   Route,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import type { Branch, Company } from '@/lib/erp/types';
@@ -43,6 +44,7 @@ import { CompanyPermissions, type CompanyRoleRow } from './company-permissions';
 import { CompanyAudit, type CompanyAuditRow } from './company-audit';
 import { ModuleSettingsSection } from './module-settings-section';
 import { RoutePlannerSection } from './route-planner-section';
+import { FieldVerificationSection } from './field-verification-section';
 import type { ResolvedSetting } from '@/lib/erp/module-settings-catalog';
 import { tabToSection, SECTION_ORDER, type SectionKey } from './company-360-section';
 
@@ -56,6 +58,7 @@ const SECTION_HASH: Record<SectionKey, string> = {
   roles: 'roles-permissions',
   modules: 'modules',
   routePlanner: 'route-planner',
+  fieldVerification: 'field-verification',
   workflow: 'module-settings',
   packs: 'packs',
   integrations: 'integrations',
@@ -102,6 +105,13 @@ export interface Company360Props {
   rpMissionCount: number | null;
   rpRequestCount: number | null;
   rpSourceCount: number | null;
+  // Field Verification module-health counts (read-only)
+  fvTotalCustomers: number | null;
+  fvAssignedCustomers: number | null;
+  fvVerifiedCustomers: number | null;
+  fvPendingCustomers: number | null;
+  fvOutsideRadiusAttempts: number | null;
+  fvLastActivity: string | null;
   // Summary timeline
   timeline: TimelineRow[];
   // KPI / health backing data (read-only, degrade gracefully)
@@ -287,6 +297,7 @@ export function Company360(props: Company360Props) {
     roles: t('platform.company.c360.railRoles'),
     modules: t('platform.company.c360.railModules'),
     routePlanner: t('platform.company.c360.railRoutePlanner'),
+    fieldVerification: t('platform.company.c360.railFieldVerification'),
     workflow: t('platform.company.c360.railWorkflow'),
     packs: t('platform.company.c360.railPacks'),
     integrations: t('platform.company.c360.railIntegrations'),
@@ -376,6 +387,21 @@ export function Company360(props: Company360Props) {
               rpRequestCount={props.rpRequestCount}
               rpSourceCount={props.rpSourceCount}
               settings={props.moduleSettings.filter((s) => s.def.module === 'route')}
+            />
+          </>
+        );
+      case 'fieldVerification':
+        return (
+          <>
+            <SectionHeader icon={ClipboardCheck} title={t('platform.company.c360.railFieldVerification')} />
+            <FieldVerificationSection
+              enabled={props.enabledModules.includes('field_verification')}
+              totalCustomers={props.fvTotalCustomers}
+              assignedCustomers={props.fvAssignedCustomers}
+              verifiedCustomers={props.fvVerifiedCustomers}
+              pendingCustomers={props.fvPendingCustomers}
+              outsideRadiusAttempts={props.fvOutsideRadiusAttempts}
+              lastActivity={props.fvLastActivity}
             />
           </>
         );
