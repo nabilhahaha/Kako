@@ -80,15 +80,18 @@ BEGIN
   VALUES (v_dataset, v_company, v_admin, 'Demo Customer Set', 'manual_upload', 25, 25, '{}'::jsonb, true)
   ON CONFLICT (id) DO NOTHING;
 
-  -- 25 customers around Jeddah; salesman alternates rep01/rep02; imported
-  -- city/channel are the OLD/current values (reps pick NEW from the catalog).
+  -- 25 customers around Jeddah; salesman split across 3 reps (rep01=9, rep02=8,
+  -- rep03=8); imported city/channel are the OLD/current values (reps pick NEW from
+  -- the catalog).
   INSERT INTO erp_rp_dataset_customers (dataset_id, company_id, seq, code, name, lat, lng, salesman, city, channel, class, attrs)
   SELECT v_dataset, v_company, gs,
     'C' || lpad(gs::text, 3, '0'),
     'Demo Customer ' || gs,
     21.4858 + ((gs % 5) - 2) * 0.0003,
     39.1925 + ((gs / 5) - 2) * 0.0003,
-    CASE WHEN gs % 2 = 1 THEN 'demo.rep01@vantora.local' ELSE 'demo.rep02@vantora.local' END,
+    CASE WHEN gs <= 9  THEN 'demo.rep01@vantora.local'   -- seq 1–9  (9)
+         WHEN gs <= 17 THEN 'demo.rep02@vantora.local'   -- seq 10–17 (8)
+         ELSE               'demo.rep03@vantora.local' END, -- seq 18–25 (8)
     (ARRAY['Jeddah','Makkah','Taif','Medina','Yanbu'])[1 + (gs % 5)],
     (ARRAY['Grocery','Mini Market','Supermarket','Wholesale','Pharmacy'])[1 + (gs % 5)],
     (ARRAY['A','B','C'])[1 + (gs % 3)],

@@ -2,7 +2,7 @@
 // ============================================================================
 // VANTORA — Step 7 Part B: "Field Verification Demo Co." auth users (STAGING).
 // ----------------------------------------------------------------------------
-// Creates the 5 demo login accounts for the Field Verification demo tenant using
+// Creates the 6 demo login accounts for the Field Verification demo tenant using
 // the SAME supported mechanism as real onboarding: the Supabase Auth Admin API
 // (admin.createUser) for the auth user + password (the erp_profiles row is created
 // by the on-auth-user trigger), then a table write to erp_user_branches to grant
@@ -10,7 +10,7 @@
 //
 //   • DRY RUN by default: prints the plan, touches NOTHING. Add `--apply` to run.
 //   • Idempotent: existing accounts are detected; password re-synced; role upserted.
-//   • Reversible: `--teardown --apply` deletes the 5 accounts (cascades to
+//   • Reversible: `--teardown --apply` deletes the 6 accounts (cascades to
 //     erp_profiles + erp_user_branches).
 //   • Run Section A1 of seed_fv_demo.sql FIRST (company + HQ branch must exist).
 //     Run Section A2 (dataset + customers) AFTER this (it needs the admin profile).
@@ -38,12 +38,13 @@ const TEARDOWN = process.argv.includes('--teardown');
 // The fixed demo company id — MUST match seed_fv_demo.sql.
 const COMPANY_ID = '7f1d0a2e-9c4b-4e6a-b1c2-a1b2c3d4e5f6';
 
-// The 5 demo accounts (role_key valid for the field_verification_only template).
+// The 6 demo accounts (role_key valid for the field_verification_only template).
 const ACCOUNTS = [
   { email: 'demo.admin@vantora.local',      role: 'admin',      name: 'Demo Admin' },
   { email: 'demo.supervisor@vantora.local', role: 'supervisor', name: 'Demo Supervisor' },
   { email: 'demo.rep01@vantora.local',      role: 'salesman',   name: 'Demo Rep 01' },
   { email: 'demo.rep02@vantora.local',      role: 'salesman',   name: 'Demo Rep 02' },
+  { email: 'demo.rep03@vantora.local',      role: 'salesman',   name: 'Demo Rep 03' },
   { email: 'demo.viewer@vantora.local',     role: 'viewer',     name: 'Demo Viewer' },
 ];
 
