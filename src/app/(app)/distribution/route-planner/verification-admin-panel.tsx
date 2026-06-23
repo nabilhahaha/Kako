@@ -80,7 +80,7 @@ function RadiusSection({ t }: { t: (k: string, p?: Record<string, string | numbe
   }
 
   return (
-    <section className="rounded-xl border bg-card p-4">
+    <section id="fv-radius" className="scroll-mt-20 rounded-xl border bg-card p-4">
       <h3 className="flex items-center gap-2 text-sm font-bold"><Ruler className="h-4 w-4" />{t('rpVerifyAdmin.radiusTitle')}</h3>
       <p className="mt-1 text-xs text-muted-foreground">{t('rpVerifyAdmin.radiusHint', { min: RADIUS_MIN_M, max: RADIUS_MAX_M })}</p>
       <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -134,7 +134,7 @@ function UploadSection({ t, onSaved }: { t: (k: string, p?: Record<string, strin
   }
 
   return (
-    <section className="rounded-xl border bg-card p-4">
+    <section id="fv-upload" className="scroll-mt-20 rounded-xl border bg-card p-4">
       <h3 className="flex items-center gap-2 text-sm font-bold"><Upload className="h-4 w-4" />{t('rpVerifyAdmin.uploadTitle')}</h3>
       <p className="mt-1 text-xs text-muted-foreground">{t('rpVerifyAdmin.uploadHint')}</p>
 
@@ -220,7 +220,7 @@ function AssignSection({ t, datasets, reps }: { t: (k: string, p?: Record<string
   }
 
   return (
-    <section className="rounded-xl border bg-card p-4">
+    <section id="fv-assign" className="scroll-mt-20 rounded-xl border bg-card p-4">
       <h3 className="flex items-center gap-2 text-sm font-bold"><Users className="h-4 w-4" />{t('rpVerifyAdmin.assignTitle')}</h3>
       <p className="mt-1 text-xs text-muted-foreground">{t('rpVerifyAdmin.assignHint')}</p>
 
@@ -311,7 +311,7 @@ function CatalogManager({ t }: { t: (k: string, p?: Record<string, string | numb
   useEffect(() => { void reload(); }, [reload]);
 
   return (
-    <section className="rounded-xl border bg-card p-4">
+    <section id="fv-catalog" className="scroll-mt-20 rounded-xl border bg-card p-4">
       <h3 className="flex items-center gap-2 text-sm font-bold"><Tags className="h-4 w-4" />{t('rpVerifyAdmin.catalogTitle')}</h3>
       <p className="mt-1 text-xs text-muted-foreground">{t('rpVerifyAdmin.catalogManageHint')}</p>
       {msg && <Banner msg={msg} />}

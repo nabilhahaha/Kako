@@ -81,8 +81,8 @@ export function VerificationReportsPanel() {
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs text-muted-foreground">{t('rpVerifyReports.hint')}</p>
-        <button onClick={() => void onExport()} disabled={exporting}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold disabled:opacity-50">
+        <button id="fv-export" onClick={() => void onExport()} disabled={exporting}
+          className="inline-flex shrink-0 scroll-mt-20 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold disabled:opacity-50">
           {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}{t('rpVerifyReports.exportXlsx')}
         </button>
       </div>
