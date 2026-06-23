@@ -564,6 +564,10 @@ export const ar = {
     previewNoSubmit: 'معاينة فقط — زر الإرسال معطّل.',
     previewEmpty: 'لا توجد حقول ظاهرة. فعّل حقلاً واحدًا على الأقل.',
     previewLang: 'لغة المعاينة',
+    // مدخل المستخدمين في إعداد التحقق الميداني (يربط بإدارة الموظفين الحالية ضمن نطاق الشركة)
+    usersTitle: 'المستخدمون والصلاحيات',
+    usersHint: 'أضف مستخدمي الشركة، عيّن أدوارهم، وفعّل أو أوقف الوصول. ضمن نطاق شركتك فقط.',
+    usersOpen: 'إدارة المستخدمين',
     catalogTitle: 'كتالوج المدن/القنوات',
     catalogHint: 'قوائم مُدارة من المدير. يختار المندوبون من القيم المفعّلة فقط — بدون كتابة حرّة.',
     catalogManageHint: 'حدّد قيم المدن والقنوات المسموح بها. يختار المندوبون من القيم المفعّلة فقط — لا كتابة حرّة.',
@@ -1159,6 +1163,10 @@ export const en = {
     previewNoSubmit: 'Preview only — Submit is disabled.',
     previewEmpty: 'No fields are visible. Turn on at least one field.',
     previewLang: 'Preview language',
+    // FV Setup → Users entry (links to the existing company-scoped staff management)
+    usersTitle: 'Users & access',
+    usersHint: 'Add company users, set their role, and activate or deactivate access. Scoped to your company.',
+    usersOpen: 'Manage users',
     catalogTitle: 'City/Channel catalog',
     catalogHint: 'Admin-managed lists. Reps select from the active values only — no free typing.',
     catalogManageHint: 'Define the allowed City and Channel values. Reps select from the active values only — no free typing.',
