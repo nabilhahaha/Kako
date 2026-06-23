@@ -41,6 +41,27 @@ describe('translate', () => {
   });
 });
 
+// Regression guard: the My Nearby Customers radius must come from ONE source of truth.
+// The header banner, the empty state, and the server filter all use the same configured
+// `radiusM`, so the radius-bearing strings must be {n}-parametrized — never a hardcoded
+// number (the bug where the header said "1000 m" but the empty state still said "50 m").
+describe('rpVerify radius strings are parametrized (single source of truth)', () => {
+  for (const locale of ['en', 'ar'] as const) {
+    it(`${locale}: showingWithin + emptyTitle interpolate {n} and hold no hardcoded radius`, () => {
+      for (const key of ['rpVerify.showingWithin', 'rpVerify.emptyTitle']) {
+        const at1000 = translate(locale, key, { n: 1000 });
+        expect(at1000).toContain('1000');     // reflects the configured radius
+        expect(at1000).not.toMatch(/\b50\b/); // no stale Latin-digit 50
+        expect(at1000).not.toContain('٥٠');   // no stale Arabic-digit 50
+      }
+    });
+  }
+
+  it('en: empty state reads "No customers within 1000 m" when radius=1000', () => {
+    expect(translate('en', 'rpVerify.emptyTitle', { n: 1000 })).toBe('No customers within 1000 m');
+  });
+});
+
 describe('dictionaries parity', () => {
   it('ar and en expose the same key paths', () => {
     const paths = (obj: Record<string, unknown>, prefix = ''): string[] =>

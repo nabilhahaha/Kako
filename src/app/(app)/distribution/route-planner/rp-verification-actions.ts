@@ -2,8 +2,9 @@
 
 // ============================================================================
 // FV-2 — Field Customer Verification server actions. The rep verifies ONLY customers
-// assigned to them (dataset_customers.salesman = the rep's email) and ONLY within 50 m of
-// the customer's coordinates — enforced HERE on the server (not just the UI). One
+// assigned to them (dataset_customers.salesman = the rep's email) and ONLY within the
+// company-configured proximity radius (getCompanyRadiusM; default 50 m) of the customer's
+// coordinates — enforced HERE on the server (not just the UI). One
 // verification per customer (idempotent: UNIQUE(customer_id) → "verify once"). Old values
 // are snapshotted from the customer master; the master is never silently overwritten.
 // Company-scoped; erp_rp_customer_verifications RLS (0367) is the backstop.
@@ -57,7 +58,8 @@ async function logAttempt(
 }
 
 /** Customers assigned to me + my progress. When a GPS fix is supplied, the returned
- *  `nearby` list is filtered to UNVERIFIED customers within 50 m (sorted nearest-first). */
+ *  `nearby` list is filtered to UNVERIFIED customers within the company-configured radius
+ *  (returned as `radiusM`, the single source of truth for header/empty-state/filter). */
 export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | null): Promise<ResultD<{ nearby: NearbyCustomer[]; progress: MyProgress; gpsValid: boolean; radiusM: number }>> {
   const ctx = await repCtx();
   if (!ctx) return { ok: false, error: 'err_unauthorized' };
