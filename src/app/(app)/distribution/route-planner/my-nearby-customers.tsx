@@ -139,7 +139,7 @@ export function MyNearbyCustomers() {
     // of pretending "within range". null = unknown (no GPS distance yet).
     const selWithin = sel.distanceM == null ? null : sel.distanceM <= radiusM;
     return (
-      <div className="mx-auto max-w-md space-y-3 p-4 pb-28">
+      <div className="mx-auto max-w-md space-y-3 p-4 pb-44 lg:pb-28">
         <button onClick={() => setPhase('list')} className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground">
           <ChevronLeft className="h-4 w-4 rtl:rotate-180" /> {t('rpVerify.back')}
         </button>
@@ -192,7 +192,10 @@ export function MyNearbyCustomers() {
 
         {err && <p className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"><AlertTriangle className="h-4 w-4 shrink-0" />{err}</p>}
 
-        <div className="fixed inset-x-0 bottom-0 border-t bg-background/95 p-3 backdrop-blur">
+        {/* Submit bar: above the mobile bottom nav (z-50 > nav z-40), pushed up by the nav
+            height + safe area on mobile; on desktop (no bottom nav) it sits at bottom-0 with
+            safe-area padding. Keeps Submit clearly tappable, never hidden behind the nav/bar. */}
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 p-3 backdrop-blur max-lg:bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] lg:pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
           <button onClick={() => void onSubmit()} disabled={submitting}
             className="mx-auto flex h-14 w-full max-w-md items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60 active:scale-[0.99]">
             {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
