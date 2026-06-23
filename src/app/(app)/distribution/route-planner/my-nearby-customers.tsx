@@ -13,6 +13,7 @@ import {
 } from './rp-verification-actions';
 import { getVerificationConfig } from './rp-verification-config-actions';
 import { filterAssignedCustomers, filterCompletedVerifications } from './fv-customer-search';
+import { removeFileAt, mergeFiles } from './fv-photo-edit';
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
 import { NEARBY_RADIUS_M } from '@/lib/erp/geo-distance';
 import { cn } from '@/lib/utils';
@@ -289,10 +290,10 @@ export function MyNearbyCustomers() {
         <PickerField label={t('rpVerify.channelNew')} required value={form.channel} placeholder={t('rpVerify.choose')} onOpen={() => setSheet('channel')} />
 
         <Field label={t('rpVerify.outsidePhoto')} required>
-          <PhotoInput files={outside ? [outside] : []} onChange={(fs) => setOutside(fs[0] ?? null)} label={t('rpVerify.takePhoto')} />
+          <PhotoInput t={t} files={outside ? [outside] : []} onChange={(fs) => setOutside(fs[0] ?? null)} label={t('rpVerify.takePhoto')} />
         </Field>
         <Field label={t('rpVerify.insidePhotos')}>
-          <PhotoInput multiple files={inside} onChange={setInside} label={t('rpVerify.addPhotos')} />
+          <PhotoInput t={t} multiple files={inside} onChange={setInside} label={t('rpVerify.addPhotos')} />
         </Field>
 
         <Field label={t('rpVerify.phone')}>
@@ -628,20 +629,38 @@ function OptionSheet({ title, options, selected, emptyText, onPick, onClose }: {
   );
 }
 
-function PhotoInput({ files, onChange, label, multiple }: { files: File[]; onChange: (f: File[]) => void; label: string; multiple?: boolean }) {
+function PhotoInput({ files, onChange, label, multiple, t }: { files: File[]; onChange: (f: File[]) => void; label: string; multiple?: boolean; t: (k: string, p?: Record<string, string | number>) => string }) {
+  // Local object-URL previews; revoked when the file list changes / unmounts. Pre-submit
+  // only — these previews and the File[] are discarded once the photos are uploaded.
+  const [urls, setUrls] = useState<string[]>([]);
+  useEffect(() => {
+    const next = files.map((f) => URL.createObjectURL(f));
+    setUrls(next);
+    return () => { next.forEach((u) => URL.revokeObjectURL(u)); };
+  }, [files]);
   return (
     <div className="space-y-2">
       <label className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed text-sm font-semibold text-primary active:scale-[0.99]">
         <Camera className="h-5 w-5" /> {label}
+        {/* Reset the input value so picking the SAME file again (after removing it) still fires onChange. */}
         <input type="file" accept="image/*" capture="environment" multiple={multiple} className="hidden"
-          onChange={(e) => { const fs = Array.from(e.target.files ?? []); onChange(multiple ? [...files, ...fs] : fs); }} />
+          onChange={(e) => { const fs = Array.from(e.target.files ?? []); onChange(mergeFiles(files, fs, !!multiple)); e.target.value = ''; }} />
       </label>
       {files.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {files.map((f, i) => (
-            <span key={i} className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-700">
-              <Check className="h-3 w-3" />{f.name.length > 16 ? f.name.slice(0, 14) + '…' : f.name}
-            </span>
+            <div key={i} className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={urls[i]} alt={f.name} className="h-20 w-20 rounded-lg border object-cover" />
+              <button
+                type="button"
+                onClick={() => onChange(removeFileAt(files, i))}
+                aria-label={t('rpVerify.removePhoto')}
+                className="absolute -end-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white shadow active:scale-95"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
           ))}
         </div>
       )}
