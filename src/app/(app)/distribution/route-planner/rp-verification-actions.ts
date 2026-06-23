@@ -74,12 +74,17 @@ export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | 
   if (error) return { ok: false, error: error.message };
   const customers = custs ?? [];
 
-  const ids = customers.map((c) => c.id as string);
-  let verified = new Set<string>();
-  if (ids.length) {
-    const { data: vrows } = await sb.from('erp_rp_customer_verifications')
-      .select('customer_id').eq('company_id', ctx.companyId).in('customer_id', ids);
-    verified = new Set((vrows ?? []).map((v) => v.customer_id as string));
+  // Which of my customers are already verified. Scope by rep_id (my own verifications —
+  // the only ones RLS lets a rep read anyway) instead of a `.in('customer_id', [..2000+])`
+  // filter, which PostgREST serialises into the request URL and overflows the gateway limit
+  // for a rep with many assigned customers — silently returning nothing, so Completed stayed
+  // 0 and verified customers never dropped off the list.
+  const verified = new Set<string>();
+  {
+    const { data: vrows, error: vErr } = await sb.from('erp_rp_customer_verifications')
+      .select('customer_id').eq('company_id', ctx.companyId).eq('rep_id', ctx.userId);
+    if (vErr) return { ok: false, error: vErr.message };
+    for (const v of vrows ?? []) verified.add(v.customer_id as string);
   }
 
   const total = customers.length;
