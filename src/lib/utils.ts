@@ -57,3 +57,15 @@ export function initialsFromName(name: string | null | undefined) {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
+
+/** Split an array into batches of at most `size` (default 100), preserving order and
+ *  covering every element exactly once. Used to keep PostgREST `.in(col, ids)` filters —
+ *  which are serialised into the request URL — small enough to avoid the gateway URI
+ *  limit, so a single bulk action can safely span thousands of ids. `size` is clamped to
+ *  ≥1. An empty input yields no batches. */
+export function chunk<T>(arr: T[], size = 100): T[][] {
+  const step = Math.max(1, Math.floor(size));
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += step) out.push(arr.slice(i, i + step));
+  return out;
+}
