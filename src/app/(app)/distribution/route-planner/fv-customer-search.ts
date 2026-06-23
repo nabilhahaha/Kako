@@ -22,3 +22,18 @@ export function matchesCustomerSearch(c: SearchableCustomer, query: string): boo
 export function filterAssignedCustomers<T extends SearchableCustomer>(rows: T[], query: string): T[] {
   return rows.filter((c) => matchesCustomerSearch(c, query));
 }
+
+/** A completed verification, searchable by code / name / submitted (new) city + channel. */
+export interface SearchableCompleted {
+  code: string | null;
+  name: string;
+  newCity: string | null;
+  newChannel: string | null;
+}
+
+/** Filter the "Completed" tab by code / name / city / channel (the submitted/new values). */
+export function filterCompletedVerifications<T extends SearchableCompleted>(rows: T[], query: string): T[] {
+  return rows.filter((c) =>
+    matchesCustomerSearch({ code: c.code, name: c.name, city: c.newCity, channel: c.newChannel }, query),
+  );
+}

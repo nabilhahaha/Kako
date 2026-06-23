@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchesCustomerSearch, filterAssignedCustomers, type SearchableCustomer } from './fv-customer-search';
+import { matchesCustomerSearch, filterAssignedCustomers, filterCompletedVerifications, type SearchableCustomer, type SearchableCompleted } from './fv-customer-search';
 
 const rows: SearchableCustomer[] = [
   { code: 'AZIZ001', name: 'Aziz Test Customer 01', city: 'Jeddah', channel: 'Grocery' },
@@ -40,5 +40,24 @@ describe('FV assigned-customer search (code / name / city / channel)', () => {
   it('null fields never throw and simply do not match', () => {
     expect(matchesCustomerSearch({ code: null, name: 'X', city: null, channel: null }, 'grocery')).toBe(false);
     expect(matchesCustomerSearch({ code: null, name: 'X', city: null, channel: null }, 'x')).toBe(true);
+  });
+});
+
+describe('FV completed-verification search (code / name / submitted city / submitted channel)', () => {
+  const rows: SearchableCompleted[] = [
+    { code: 'AZIZ001', name: 'Aziz Test Customer 01', newCity: 'Jeddah', newChannel: 'Grocery' },
+    { code: 'AZIZ002', name: 'Aziz Test Customer 02', newCity: 'Makkah', newChannel: 'Mini Market' },
+  ];
+  it('empty query returns all', () => {
+    expect(filterCompletedVerifications(rows, '')).toHaveLength(2);
+  });
+  it('matches by code / name / submitted city / submitted channel', () => {
+    expect(filterCompletedVerifications(rows, 'aziz001').map((r) => r.code)).toEqual(['AZIZ001']);
+    expect(filterCompletedVerifications(rows, 'makkah').map((r) => r.code)).toEqual(['AZIZ002']);
+    expect(filterCompletedVerifications(rows, 'grocery').map((r) => r.code)).toEqual(['AZIZ001']);
+    expect(filterCompletedVerifications(rows, 'customer 02').map((r) => r.code)).toEqual(['AZIZ002']);
+  });
+  it('no match returns empty', () => {
+    expect(filterCompletedVerifications(rows, 'riyadh')).toEqual([]);
   });
 });
