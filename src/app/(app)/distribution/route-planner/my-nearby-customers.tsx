@@ -232,7 +232,9 @@ export function MyNearbyCustomers() {
       ) : nearby.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border bg-muted/30 p-8 text-center">
           <MapPin className="h-10 w-10 text-muted-foreground" />
-          <p className="text-sm font-semibold">{t('rpVerify.emptyTitle')}</p>
+          {/* Same single source of truth as the header banner + the server filter:
+              the company-configured radiusM (getCompanyRadiusM), never a hardcoded value. */}
+          <p className="text-sm font-semibold">{t('rpVerify.emptyTitle', { n: radiusM })}</p>
           <p className="text-xs text-muted-foreground">{t('rpVerify.emptySub')}</p>
         </div>
       ) : (
