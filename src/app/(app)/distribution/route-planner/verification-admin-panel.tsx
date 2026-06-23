@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Upload, Users, Tags, Loader2, Check, CheckCircle2, AlertTriangle, Ruler } from 'lucide-react';
+import { Upload, Users, Tags, Loader2, Check, CheckCircle2, AlertTriangle, Ruler, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { parseUploadColumns } from './import-actions';
 import { persistDataset, listDatasets, type DatasetHeader } from './rp-dataset-actions';
@@ -9,7 +9,10 @@ import { applyColumnMapping, buildTisDatasetFromRows, TIS_MAP_FIELDS, type TisFi
 import { tisCustomersToDatasetInput } from '@/lib/erp/route-planner-dataset';
 import { RADIUS_MIN_M, RADIUS_MAX_M } from '@/lib/erp/geo-distance';
 import { getVerificationRadius, setVerificationRadius } from './rp-verification-radius-actions';
-import { getVerificationConfig } from './rp-verification-config-actions';
+import {
+  listCatalog, addCatalogValue, setCatalogActive, deleteCatalogValue,
+  type CatalogEntry, type CatalogKind,
+} from './rp-verification-catalog-actions';
 import {
   listVerificationReps, getAssignmentRoster, assignCustomers,
   type RosterRow, type VerificationRep,
@@ -19,10 +22,11 @@ type Mapping = Partial<Record<TisFieldKey, string>>;
 type Msg = { tone: 'ok' | 'err'; text: string } | null;
 
 /**
- * FV-4a — Company-Admin "Field Verification Setup" panel. Three sections:
+ * FV-4a/4d — Company-Admin "Field Verification Setup" panel:
+ *   0) Nearby radius (FV-3b setting)
  *   1) Upload the customer list (reuses parseUploadColumns + persistDataset; no new schema)
  *   2) Assign customers to reps (writes dataset_customers.salesman; verified rows locked)
- *   3) City/Channel catalog (read-only, derived from the dataset — no free typing)
+ *   3) City/Channel catalog MANAGER (FV-4d) — admin-defined dropdown lists; no free typing
  * All writes are admin-gated + company-scoped in the server actions.
  */
 export function VerificationAdminPanel() {
@@ -31,13 +35,11 @@ export function VerificationAdminPanel() {
   // ── shared ───────────────────────────────────────────────────────────────
   const [datasets, setDatasets] = useState<DatasetHeader[]>([]);
   const [reps, setReps] = useState<VerificationRep[]>([]);
-  const [catalog, setCatalog] = useState<{ cities: string[]; channels: string[] }>({ cities: [], channels: [] });
 
   const refreshShared = useCallback(async () => {
-    const [ds, rp, cat] = await Promise.all([listDatasets(), listVerificationReps(), getVerificationConfig()]);
+    const [ds, rp] = await Promise.all([listDatasets(), listVerificationReps()]);
     if (ds.ok) setDatasets(ds.data ?? []);
     if (rp.ok) setReps(rp.data);
-    if (cat.ok) setCatalog(cat.data);
   }, []);
   useEffect(() => { void refreshShared(); }, [refreshShared]);
 
@@ -45,9 +47,9 @@ export function VerificationAdminPanel() {
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">{t('rpVerifyAdmin.hint')}</p>
       <RadiusSection t={t} />
+      <CatalogManager t={t} />
       <UploadSection t={t} onSaved={refreshShared} />
       <AssignSection t={t} datasets={datasets} reps={reps} />
-      <CatalogSection t={t} catalog={catalog} />
     </div>
   );
 }
@@ -294,31 +296,84 @@ function AssignSection({ t, datasets, reps }: { t: (k: string, p?: Record<string
   );
 }
 
-// ── 3) Catalog ───────────────────────────────────────────────────────────────
-function CatalogSection({ t, catalog }: { t: (k: string, p?: Record<string, string | number>) => string; catalog: { cities: string[]; channels: string[] } }) {
-  const empty = catalog.cities.length === 0 && catalog.channels.length === 0;
+// ── 3) Catalog MANAGER (FV-4d) ────────────────────────────────────────────────
+function CatalogManager({ t }: { t: (k: string, p?: Record<string, string | number>) => string }) {
+  const [city, setCity] = useState<CatalogEntry[]>([]);
+  const [channel, setChannel] = useState<CatalogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState<Msg>(null);
+
+  const reload = useCallback(async () => {
+    const res = await listCatalog();
+    if (res.ok) { setCity(res.data.city); setChannel(res.data.channel); } else setMsg({ tone: 'err', text: res.error });
+    setLoading(false);
+  }, []);
+  useEffect(() => { void reload(); }, [reload]);
+
   return (
     <section className="rounded-xl border bg-card p-4">
       <h3 className="flex items-center gap-2 text-sm font-bold"><Tags className="h-4 w-4" />{t('rpVerifyAdmin.catalogTitle')}</h3>
-      <p className="mt-1 text-xs text-muted-foreground">{t('rpVerifyAdmin.catalogHint')}</p>
-      {empty ? (
-        <p className="mt-3 text-sm text-muted-foreground">{t('rpVerifyAdmin.catalogEmpty')}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{t('rpVerifyAdmin.catalogManageHint')}</p>
+      {msg && <Banner msg={msg} />}
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /></div>
       ) : (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Chips label={t('rpVerifyAdmin.cities')} values={catalog.cities} />
-          <Chips label={t('rpVerifyAdmin.channels')} values={catalog.channels} />
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <KindList t={t} kind="city" label={t('rpVerifyAdmin.cities')} entries={city} onChange={reload} setMsg={setMsg} />
+          <KindList t={t} kind="channel" label={t('rpVerifyAdmin.channels')} entries={channel} onChange={reload} setMsg={setMsg} />
         </div>
       )}
     </section>
   );
 }
-function Chips({ label, values }: { label: string; values: string[] }) {
+
+function KindList({ t, kind, label, entries, onChange, setMsg }: {
+  t: (k: string, p?: Record<string, string | number>) => string;
+  kind: CatalogKind; label: string; entries: CatalogEntry[]; onChange: () => void; setMsg: (m: Msg) => void;
+}) {
+  const [val, setVal] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function add() {
+    if (!val.trim()) return;
+    setBusy(true); setMsg(null);
+    try {
+      const res = await addCatalogValue(kind, val.trim());
+      if (!res.ok) { setMsg({ tone: 'err', text: t(`rpVerifyAdmin.e_${res.error}` as 'rpVerifyAdmin.e_err_duplicate') || res.error }); return; }
+      setVal(''); onChange();
+    } finally { setBusy(false); }
+  }
+  async function toggle(e: CatalogEntry) { setBusy(true); try { await setCatalogActive(e.id, !e.active); onChange(); } finally { setBusy(false); } }
+  async function remove(e: CatalogEntry) { setBusy(true); try { await deleteCatalogValue(e.id); onChange(); } finally { setBusy(false); } }
+
   return (
-    <div>
-      <p className="text-xs font-semibold">{label} <span className="text-muted-foreground">({values.length})</span></p>
-      <div className="mt-1 flex flex-wrap gap-1">
-        {values.map((v) => <span key={v} className="rounded-full bg-muted px-2 py-0.5 text-xs">{v}</span>)}
+    <div className="rounded-lg border p-3">
+      <p className="text-xs font-bold">{label} <span className="text-muted-foreground">({entries.filter((e) => e.active).length}/{entries.length})</span></p>
+      <div className="mt-2 flex gap-1">
+        <input value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void add(); }}
+          placeholder={t('rpVerifyAdmin.addValue')} className="h-9 flex-1 rounded-lg border bg-background px-2 text-sm" />
+        <button onClick={() => void add()} disabled={busy || !val.trim()}
+          className="inline-flex h-9 items-center gap-1 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50">
+          <Plus className="h-3.5 w-3.5" />{t('rpVerifyAdmin.add')}
+        </button>
       </div>
+      {entries.length === 0 ? (
+        <p className="mt-2 text-xs text-muted-foreground">{t('rpVerifyAdmin.catalogEmpty')}</p>
+      ) : (
+        <ul className="mt-2 space-y-1">
+          {entries.map((e) => (
+            <li key={e.id} className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm ${e.active ? '' : 'opacity-50'}`}>
+              <span className="truncate">{e.value}{!e.active && <span className="ms-1 text-[10px] text-muted-foreground">({t('rpVerifyAdmin.inactive')})</span>}</span>
+              <span className="flex shrink-0 items-center gap-1">
+                <button onClick={() => void toggle(e)} disabled={busy} title={e.active ? t('rpVerifyAdmin.disable') : t('rpVerifyAdmin.enable')}
+                  className="rounded p-1 text-muted-foreground hover:bg-muted">{e.active ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</button>
+                <button onClick={() => void remove(e)} disabled={busy} title={t('rpVerifyAdmin.delete')}
+                  className="rounded p-1 text-red-600 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" /></button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

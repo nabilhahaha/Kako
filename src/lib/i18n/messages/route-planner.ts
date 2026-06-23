@@ -506,6 +506,7 @@ export const ar = {
     e_err_too_far: 'يجب أن تكون ضمن ٥٠ مترًا من العميل.', e_err_already_verified: 'تم التحقق من هذا العميل مسبقًا.',
     e_err_not_assigned: 'هذا العميل غير مُسنَد إليك.', e_err_gps_required: 'تعذّر تحديد موقعك.',
     e_err_customer_no_coords: 'لا توجد إحداثيات لهذا العميل.', e_err_outside_photo_required: 'صورة واجهة المحل مطلوبة.',
+    e_err_city_invalid: 'اختر مدينة من القائمة المعتمدة.', e_err_channel_invalid: 'اختر قناة من القائمة المعتمدة.',
   },
   rpVerifyAdmin: {
     title: 'إعداد التحقق الميداني',
@@ -529,13 +530,17 @@ export const ar = {
     colCode: 'الكود', colName: 'الاسم', colCity: 'المدينة', colChannel: 'القناة', colAssigned: 'مُسنَد إلى', colStatus: 'الحالة',
     unassigned: 'غير مُسنَد', verified: 'تم التحقق', pending: 'قيد الانتظار',
     selectAll: 'تحديد الكل', selected: 'محدد: {n}', noRows: 'لا يوجد عملاء في هذه المجموعة.', noReps: 'لا يوجد مندوبون في هذه الشركة.',
-    // catalog
-    catalogTitle: 'كتالوج المدن/القنوات', catalogHint: 'قوائم القوائم المنسدلة مشتقّة من بيانات العملاء (بدون كتابة حرّة).',
-    cities: 'المدن', channels: 'القنوات', catalogEmpty: 'لا توجد قيم بعد — ارفع العملاء أولًا.',
+    // catalog manager (FV-4d)
+    catalogTitle: 'كتالوج المدن/القنوات',
+    catalogHint: 'قوائم مُدارة من المدير. يختار المندوبون من القيم المفعّلة فقط — بدون كتابة حرّة.',
+    catalogManageHint: 'حدّد قيم المدن والقنوات المسموح بها. يختار المندوبون من القيم المفعّلة فقط — لا كتابة حرّة.',
+    cities: 'المدن', channels: 'القنوات', catalogEmpty: 'لا توجد قيم بعد — أضِف قيمة.',
+    addValue: 'أضف قيمة…', add: 'إضافة', inactive: 'موقوف', disable: 'إيقاف', enable: 'تفعيل', delete: 'حذف',
     // errors
     e_err_forbidden: 'هذه الصفحة لمديري الشركة فقط.', e_err_unknown_rep: 'المندوب غير معروف.',
     e_err_no_customers: 'حدّد عميلًا واحدًا على الأقل.', e_err_dataset_not_found: 'لم يتم العثور على المجموعة.',
-    e_err_no_dataset: 'اختر مجموعة بيانات.',
+    e_err_no_dataset: 'اختر مجموعة بيانات.', e_err_duplicate: 'هذه القيمة موجودة بالفعل.',
+    e_err_value_required: 'القيمة مطلوبة.', e_err_bad_kind: 'نوع غير صالح.',
   },
   rpVerifyReports: {
     title: 'تقارير التحقق الميداني',
@@ -1063,6 +1068,7 @@ export const en = {
     e_err_too_far: 'You must be within 50 m of the customer.', e_err_already_verified: 'This customer is already verified.',
     e_err_not_assigned: 'This customer is not assigned to you.', e_err_gps_required: 'Could not read your location.',
     e_err_customer_no_coords: 'This customer has no coordinates.', e_err_outside_photo_required: 'Outside shop photo is required.',
+    e_err_city_invalid: 'Choose a City from the approved list.', e_err_channel_invalid: 'Choose a Channel from the approved list.',
   },
   rpVerifyAdmin: {
     title: 'Field Verification Setup',
@@ -1086,13 +1092,17 @@ export const en = {
     colCode: 'Code', colName: 'Name', colCity: 'City', colChannel: 'Channel', colAssigned: 'Assigned to', colStatus: 'Status',
     unassigned: 'Unassigned', verified: 'Verified', pending: 'Pending',
     selectAll: 'Select all', selected: 'Selected: {n}', noRows: 'No customers in this dataset.', noReps: 'No reps in this company.',
-    // catalog
-    catalogTitle: 'City/Channel catalog', catalogHint: 'Dropdown lists are derived from the customer data (no free typing).',
-    cities: 'Cities', channels: 'Channels', catalogEmpty: 'No values yet — upload customers first.',
+    // catalog manager (FV-4d)
+    catalogTitle: 'City/Channel catalog',
+    catalogHint: 'Admin-managed lists. Reps select from the active values only — no free typing.',
+    catalogManageHint: 'Define the allowed City and Channel values. Reps select from the active values only — no free typing.',
+    cities: 'Cities', channels: 'Channels', catalogEmpty: 'No values yet — add one.',
+    addValue: 'Add value…', add: 'Add', inactive: 'inactive', disable: 'Disable', enable: 'Enable', delete: 'Delete',
     // errors
     e_err_forbidden: 'This page is for company admins only.', e_err_unknown_rep: 'Unknown rep.',
     e_err_no_customers: 'Select at least one customer.', e_err_dataset_not_found: 'Dataset not found.',
-    e_err_no_dataset: 'Choose a dataset.',
+    e_err_no_dataset: 'Choose a dataset.', e_err_duplicate: 'That value already exists.',
+    e_err_value_required: 'Value is required.', e_err_bad_kind: 'Invalid kind.',
   },
   rpVerifyReports: {
     title: 'Field Verification Reports',

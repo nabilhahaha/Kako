@@ -146,11 +146,20 @@ export async function submitVerification(input: {
     return { ok: false, error: 'err_too_far' };
   }
 
+  // FV-4d — City/Channel must be ACTIVE values from the admin-managed catalog (no free typing).
+  const newCity = input.city.trim(), newChannel = input.channel.trim();
+  const { data: catalog } = await sb.from('erp_rp_verification_catalog')
+    .select('kind, value').eq('company_id', ctx.companyId).eq('active', true);
+  const cities = new Set((catalog ?? []).filter((r) => r.kind === 'city').map((r) => r.value as string));
+  const channels = new Set((catalog ?? []).filter((r) => r.kind === 'channel').map((r) => r.value as string));
+  if (!cities.has(newCity)) return { ok: false, error: 'err_city_invalid' };
+  if (!channels.has(newChannel)) return { ok: false, error: 'err_channel_invalid' };
+
   const { data, error } = await sb.from('erp_rp_customer_verifications').insert({
     company_id: ctx.companyId, dataset_id: c.dataset_id, customer_id: c.id,
     customer_code: c.code, customer_name: c.name, rep_id: ctx.userId, status: 'verified',
-    old_city: c.city, new_city: input.city.trim(),
-    old_channel: c.channel, new_channel: input.channel.trim(),
+    old_city: c.city, new_city: newCity,
+    old_channel: c.channel, new_channel: newChannel,
     old_phone: phoneOf(c.attrs), new_phone: input.phone?.trim() || null,
     outside_photo: input.outsidePhotoId, inside_photos: input.insidePhotoIds ?? [],
     gps_lat: input.gps.lat, gps_lng: input.gps.lng, distance_m: Math.round(distanceM),
