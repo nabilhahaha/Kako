@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { haversineMeters, isWithinRadius, validCoord } from '@/lib/erp/geo-distance';
 import { getCompanyRadiusM } from './rp-verification-radius-actions';
+import { getFvVerificationForm } from './rp-verification-form-actions';
 import { ATTACHMENTS_BUCKET } from '@/lib/erp/attachments';
 import { chunk } from '@/lib/utils';
 
@@ -128,18 +129,30 @@ export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | 
  *  required fields + idempotency. Records old→new + photos + GPS + distance; never edits
  *  the customer master. */
 export async function submitVerification(input: {
-  customerId: string; gps: { lat: number; lng: number };
+  customerId: string; gps?: { lat: number; lng: number } | null;
   city: string; channel: string; phone?: string | null;
-  outsidePhotoId: string; insidePhotoIds?: string[]; notes?: string | null;
+  outsidePhotoId?: string | null; insidePhotoIds?: string[]; notes?: string | null;
 }): Promise<ResultD<{ id: string; distanceM: number }>> {
   const ctx = await repCtx();
   if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const me = repKey(ctx);
   if (!me) return { ok: false, error: 'err_no_rep_key' };
-  if (!input.city?.trim()) return { ok: false, error: 'err_city_required' };
-  if (!input.channel?.trim()) return { ok: false, error: 'err_channel_required' };
-  if (!input.outsidePhotoId) return { ok: false, error: 'err_outside_photo_required' };
-  if (!validCoord(input.gps?.lat, input.gps?.lng)) return { ok: false, error: 'err_gps_required' };
+
+  // Submit follows the published form config (Form Builder Phase 1): which fields are
+  // required, and whether the GPS/radius lock applies. Unconfigured → defaults = today's
+  // behavior (city/channel/outside photo required + radius enforced).
+  const cfg = await getFvVerificationForm();
+  const fieldRequired = (k: 'city' | 'channel' | 'outside_photo'): boolean =>
+    cfg.ok ? (cfg.data.fields.find((f) => f.key === k)?.required ?? true) : true;
+  const requireGps = cfg.ok ? cfg.data.requireGps : true;
+
+  const newCity = input.city?.trim() || '';
+  const newChannel = input.channel?.trim() || '';
+  if (fieldRequired('city') && !newCity) return { ok: false, error: 'err_city_required' };
+  if (fieldRequired('channel') && !newChannel) return { ok: false, error: 'err_channel_required' };
+  if (fieldRequired('outside_photo') && !input.outsidePhotoId) return { ok: false, error: 'err_outside_photo_required' };
+  const gpsValid = validCoord(input.gps?.lat, input.gps?.lng);
+  if (requireGps && !gpsValid) return { ok: false, error: 'err_gps_required' };
 
   const sb = await createClient();
   const radiusM = await getCompanyRadiusM(ctx.companyId!);   // company-configured proximity (default 50 m)
@@ -152,34 +165,41 @@ export async function submitVerification(input: {
     return { ok: false, error: 'err_not_assigned' };
   }
   const lat = c.lat as number | null, lng = c.lng as number | null;
-  if (!validCoord(lat, lng)) {
+  const custCoordsOk = validCoord(lat, lng);
+  if (requireGps && !custCoordsOk) {
     await logAttempt(sb, ctx, { customerId: c.id as string, gps: input.gps, allowedRadiusM: radiusM, result: 'no_coords', reason: 'customer_no_coords' });
     return { ok: false, error: 'err_customer_no_coords' };
   }
 
-  const distanceM = haversineMeters(input.gps.lat, input.gps.lng, lat as number, lng as number);
-  if (!isWithinRadius(distanceM, radiusM)) {                                                    // SERVER-SIDE proximity lock (configured radius)
-    await logAttempt(sb, ctx, { customerId: c.id as string, gps: input.gps, distanceM: Math.round(distanceM), allowedRadiusM: radiusM, result: 'outside_radius' });
-    return { ok: false, error: 'err_too_far' };
+  // Distance is recorded when both fixes are present; the radius LOCK is enforced only when
+  // the form requires GPS (the default). When requireGps is off, submit does not gate on
+  // proximity (but still records distance if available).
+  const distanceM = (gpsValid && custCoordsOk)
+    ? haversineMeters(input.gps!.lat, input.gps!.lng, lat as number, lng as number)
+    : null;
+  if (requireGps && (distanceM == null || !isWithinRadius(distanceM, radiusM))) {               // SERVER-SIDE proximity lock
+    await logAttempt(sb, ctx, { customerId: c.id as string, gps: input.gps, distanceM: distanceM != null ? Math.round(distanceM) : null, allowedRadiusM: radiusM, result: 'outside_radius' });
+    return { ok: false, error: distanceM == null ? 'err_gps_required' : 'err_too_far' };
   }
 
   // FV-4d — City/Channel must be ACTIVE values from the admin-managed catalog (no free typing).
-  const newCity = input.city.trim(), newChannel = input.channel.trim();
+  // Validated only when a value is provided (a field may be optional/hidden per the config).
   const { data: catalog } = await sb.from('erp_rp_verification_catalog')
     .select('kind, value').eq('company_id', ctx.companyId).eq('active', true);
   const cities = new Set((catalog ?? []).filter((r) => r.kind === 'city').map((r) => r.value as string));
   const channels = new Set((catalog ?? []).filter((r) => r.kind === 'channel').map((r) => r.value as string));
-  if (!cities.has(newCity)) return { ok: false, error: 'err_city_invalid' };
-  if (!channels.has(newChannel)) return { ok: false, error: 'err_channel_invalid' };
+  if (newCity && !cities.has(newCity)) return { ok: false, error: 'err_city_invalid' };
+  if (newChannel && !channels.has(newChannel)) return { ok: false, error: 'err_channel_invalid' };
 
+  const roundedDist = distanceM != null ? Math.round(distanceM) : null;
   const { data, error } = await sb.from('erp_rp_customer_verifications').insert({
     company_id: ctx.companyId, dataset_id: c.dataset_id, customer_id: c.id,
     customer_code: c.code, customer_name: c.name, rep_id: ctx.userId, status: 'verified',
-    old_city: c.city, new_city: newCity,
-    old_channel: c.channel, new_channel: newChannel,
+    old_city: c.city, new_city: newCity || null,
+    old_channel: c.channel, new_channel: newChannel || null,
     old_phone: phoneOf(c.attrs), new_phone: input.phone?.trim() || null,
-    outside_photo: input.outsidePhotoId, inside_photos: input.insidePhotoIds ?? [],
-    gps_lat: input.gps.lat, gps_lng: input.gps.lng, distance_m: Math.round(distanceM),
+    outside_photo: input.outsidePhotoId || null, inside_photos: input.insidePhotoIds ?? [],
+    gps_lat: gpsValid ? input.gps!.lat : null, gps_lng: gpsValid ? input.gps!.lng : null, distance_m: roundedDist,
     allowed_radius_m: radiusM,                                                                  // radius in force at submit time
     notes: input.notes?.trim() || null, verified_by: ctx.userId,
   }).select('id').single();
@@ -189,8 +209,8 @@ export async function submitVerification(input: {
     }
     return { ok: false, error: error.message };
   }
-  await logAttempt(sb, ctx, { customerId: c.id as string, gps: input.gps, distanceM: Math.round(distanceM), allowedRadiusM: radiusM, result: 'verified' });
-  return { ok: true, data: { id: data.id as string, distanceM: Math.round(distanceM) } };
+  await logAttempt(sb, ctx, { customerId: c.id as string, gps: input.gps, distanceM: roundedDist, allowedRadiusM: radiusM, result: 'verified' });
+  return { ok: true, data: { id: data.id as string, distanceM: roundedDist ?? 0 } };
 }
 
 /** A verification the logged-in rep already completed — the "Completed" tab + read-only
