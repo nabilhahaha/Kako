@@ -5,6 +5,7 @@ import { Loader2, Check, AlertTriangle, ChevronUp, ChevronDown, ClipboardList } 
 import { useI18n } from '@/lib/i18n/provider';
 import { getFvVerificationForm, saveFvVerificationForm, resetFvVerificationForm } from './rp-verification-form-actions';
 import type { ResolvedFvField } from './fv-verification-form';
+import { VerificationFormPreview } from './verification-form-preview';
 
 type Msg = { tone: 'ok' | 'err'; text: string } | null;
 
@@ -14,7 +15,8 @@ type Msg = { tone: 'ok' | 'err'; text: string } | null;
  * form-level GPS/radius lock. Reuses the resolveFvForm config the rep form consumes (no drift).
  * Core fields (city/channel/outside photo) default visible+required but may be relaxed with a
  * warning. Writes the form DEFINITION only (no verification rows / customers / photos).
- * The live mobile PREVIEW arrives in the follow-up PR (2b).
+ * A live, read-only mobile PREVIEW (PR 2b) sits beside the editor and re-resolves the working
+ * config through the same resolver the rep form consumes, so it can never drift from runtime.
  */
 export function VerificationFormPanel() {
   const { t } = useI18n();
@@ -66,7 +68,8 @@ export function VerificationFormPanel() {
   }
 
   return (
-    <section id="fv-form" className="scroll-mt-20 rounded-xl border bg-card p-4">
+    <div id="fv-form" className="scroll-mt-20 grid gap-4 lg:grid-cols-2 lg:items-start">
+    <section className="rounded-xl border bg-card p-4">
       <h3 className="flex items-center gap-2 text-sm font-bold"><ClipboardList className="h-4 w-4" />{t('rpVerifyAdmin.formTitle')}</h3>
       <p className="mt-1 text-xs text-muted-foreground">{t('rpVerifyAdmin.formHint')}</p>
 
@@ -147,5 +150,8 @@ export function VerificationFormPanel() {
         </div>
       )}
     </section>
+
+      {!loading && <VerificationFormPreview fields={fields} requireGps={requireGps} />}
+    </div>
   );
 }
