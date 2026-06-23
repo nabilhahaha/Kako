@@ -17,6 +17,11 @@ describe('geo-distance (Field Verification 50 m lock)', () => {
     expect(isWithinRadius(far)).toBe(false);
     expect(NEARBY_RADIUS_M).toBe(50);
   });
+  it('honours a configurable radius (FV-3b): ~80 m passes at 100 m, fails at 50 m', () => {
+    const far = haversineMeters(24.7136, 46.6753, 24.7136 + 0.00072, 46.6753); // ~80 m
+    expect(isWithinRadius(far, 100)).toBe(true);   // company configured a wider radius
+    expect(isWithinRadius(far, 50)).toBe(false);   // default
+  });
   it('validCoord rejects null-island / out-of-range / non-finite', () => {
     expect(validCoord(24.7, 46.7)).toBe(true);
     expect(validCoord(0, 0)).toBe(false);

@@ -24,6 +24,8 @@ export function MyNearbyCustomers() {
   const [nearby, setNearby] = useState<NearbyCustomer[]>([]);
   const [progress, setProgress] = useState<MyProgress>({ total: 0, completed: 0, remaining: 0, pct: 0 });
   const [config, setConfig] = useState<{ cities: string[]; channels: string[] }>({ cities: [], channels: [] });
+  // The active proximity radius is set per-company by the admin (FV-3b); default until loaded.
+  const [radiusM, setRadiusM] = useState<number>(NEARBY_RADIUS_M);
 
   const [phase, setPhase] = useState<Phase>('list');
   const [sel, setSel] = useState<NearbyCustomer | null>(null);
@@ -36,7 +38,7 @@ export function MyNearbyCustomers() {
   const load = useCallback(async (fix: GpsState) => {
     setLoading(true);
     const res = await getMyNearbyCustomers(fix);
-    if (res.ok) { setNearby(res.data.nearby); setProgress(res.data.progress); }
+    if (res.ok) { setNearby(res.data.nearby); setProgress(res.data.progress); setRadiusM(res.data.radiusM); }
     setLoading(false);
   }, []);
 
@@ -190,7 +192,7 @@ export function MyNearbyCustomers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-extrabold">{t('rpVerify.title')}</h1>
-          <p className="text-xs text-muted-foreground">{t('rpVerify.showingWithin', { n: NEARBY_RADIUS_M })}</p>
+          <p className="text-xs text-muted-foreground">{t('rpVerify.showingWithin', { n: radiusM })}</p>
         </div>
         <button onClick={requestGps} className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold active:scale-95">
           <RefreshCw className="h-3.5 w-3.5" /> {t('rpVerify.refresh')}
