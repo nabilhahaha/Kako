@@ -41,6 +41,9 @@ CREATE TABLE IF NOT EXISTS erp_rp_customer_verifications (
 CREATE INDEX IF NOT EXISTS idx_rp_verif_company ON erp_rp_customer_verifications (company_id, verified_at DESC);
 CREATE INDEX IF NOT EXISTS idx_rp_verif_rep     ON erp_rp_customer_verifications (rep_id);
 CREATE INDEX IF NOT EXISTS idx_rp_verif_dataset ON erp_rp_customer_verifications (dataset_id);
+-- covering indexes for the remaining FKs (repo convention: every FK gets a covering index)
+CREATE INDEX IF NOT EXISTS idx_rp_verif_outside_photo ON erp_rp_customer_verifications (outside_photo);
+CREATE INDEX IF NOT EXISTS idx_rp_verif_verified_by   ON erp_rp_customer_verifications (verified_by);
 
 ALTER TABLE erp_rp_customer_verifications ENABLE ROW LEVEL SECURITY;
 
