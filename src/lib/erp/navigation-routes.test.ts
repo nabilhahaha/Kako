@@ -17,9 +17,11 @@ import { NAV_SECTIONS, visibleSections } from './navigation';
 const ROOT = join(__dirname, '..', '..', '..');
 const APP = join(ROOT, 'src', 'app');
 
-/** A static href resolves if a page.tsx exists under (app)<href> or <href>. */
+/** A static href resolves if a page.tsx exists under (app)<href> or <href>.
+ *  Strips any #anchor / ?query first — a deep-link into a real page is valid. */
 function routeExists(href: string): boolean {
-  const parts = href.split('/').filter(Boolean);
+  const path = href.split('#')[0].split('?')[0];
+  const parts = path.split('/').filter(Boolean);
   return (
     existsSync(join(APP, '(app)', ...parts, 'page.tsx')) ||
     existsSync(join(APP, ...parts, 'page.tsx'))

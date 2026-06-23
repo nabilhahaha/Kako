@@ -69,6 +69,7 @@ import {
   Compass,
   Route,
   Hash,
+  Ruler,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -249,6 +250,24 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'nav.items.routePlannerOpen', href: '/distribution/route-planner', icon: Route, perm: 'reports.view', module: ['distribution', 'route_management'] },
       { label: 'nav.items.routePlannerAdmin', href: '/planner-admin', icon: UserCog, perm: 'route_planner.admin' },
+    ],
+  },
+  {
+    // Field Customer Verification — standalone module (PKG-2). FV-only companies
+    // (only `field_verification` enabled) see ONLY this section + Settings. Pages
+    // reuse the existing tested panels; sub-items deep-link into the setup/report
+    // sections. Route-URL gating is auto-derived from these gates (PATH_MODULE_GATES).
+    title: 'nav.sections.fieldVerification',
+    module: 'field_verification',
+    items: [
+      { label: 'nav.items.fvMyCustomers', href: '/field-verification/my-customers', icon: MapPin, perm: 'field_verification.verify' },
+      { label: 'nav.items.fvSetup', href: '/field-verification/setup', icon: ClipboardCheck, perm: 'field_verification.admin', group: 'nav.groups.fvAdmin' },
+      { label: 'nav.items.fvUpload', href: '/field-verification/setup#fv-upload', icon: Upload, perm: 'field_verification.admin', group: 'nav.groups.fvAdmin' },
+      { label: 'nav.items.fvAssign', href: '/field-verification/setup#fv-assign', icon: Users, perm: 'field_verification.admin', group: 'nav.groups.fvAdmin' },
+      { label: 'nav.items.fvCatalog', href: '/field-verification/setup#fv-catalog', icon: Tags, perm: 'field_verification.admin', group: 'nav.groups.fvAdmin' },
+      { label: 'nav.items.fvRadius', href: '/field-verification/setup#fv-radius', icon: Ruler, perm: 'field_verification.admin', group: 'nav.groups.fvAdmin' },
+      { label: 'nav.items.fvReports', href: '/field-verification/reports', icon: BarChart3, perm: 'field_verification.reports', group: 'nav.groups.fvReports' },
+      { label: 'nav.items.fvExport', href: '/field-verification/reports#fv-export', icon: FileDown, perm: 'field_verification.export', group: 'nav.groups.fvReports' },
     ],
   },
   {
