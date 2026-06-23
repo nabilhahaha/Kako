@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { MapPin, Navigation, Camera, Check, RefreshCw, ChevronRight, ArrowLeft, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import {
+  MapPin, Navigation, Camera, Check, RefreshCw, ChevronLeft, ArrowRight,
+  CheckCircle2, AlertTriangle, Loader2, Store, Phone, X, Crosshair,
+} from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { getMyNearbyCustomers, submitVerification, type NearbyCustomer, type MyProgress } from './rp-verification-actions';
 import { getVerificationConfig } from './rp-verification-config-actions';
@@ -12,9 +15,11 @@ type GpsState = { lat: number; lng: number } | null;
 type Phase = 'list' | 'form' | 'done';
 
 /**
- * FV-3 — mobile-first field screen. GPS → progress → assigned customers within 50 m →
- * verify form (City/Channel/outside photo required) → submit (FV-2) → done. The 50 m lock,
- * assignment scope and "verify once" are all re-enforced server-side.
+ * FV-5 — mobile-first field screen (mockup-aligned, RTL-friendly). GPS → radius banner +
+ * progress → assigned customers within the configured radius → verify form with bottom-sheet
+ * City/Channel pickers (admin catalog, FV-4d) and a current/old-values block → submit (FV-2,
+ * server-validated) → success. The radius lock, assignment scope, catalog membership and
+ * "verify once" are all re-enforced server-side.
  */
 export function MyNearbyCustomers() {
   const { t } = useI18n();
@@ -32,6 +37,7 @@ export function MyNearbyCustomers() {
   const [form, setForm] = useState({ city: '', channel: '', phone: '', notes: '' });
   const [outside, setOutside] = useState<File | null>(null);
   const [inside, setInside] = useState<File[]>([]);
+  const [sheet, setSheet] = useState<null | 'city' | 'channel'>(null);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -62,7 +68,9 @@ export function MyNearbyCustomers() {
 
   function openForm(c: NearbyCustomer) {
     setSel(c); setErr(null);
-    setForm({ city: c.city ?? '', channel: c.channel ?? '', phone: c.phone ?? '', notes: '' });
+    // City/Channel start EMPTY — the rep must pick new values from the admin catalog (FV-4d).
+    // The customer's imported city/channel are shown as "current (old)" only.
+    setForm({ city: '', channel: '', phone: c.phone ?? '', notes: '' });
     setOutside(null); setInside([]); setPhase('form');
   }
 
@@ -95,69 +103,61 @@ export function MyNearbyCustomers() {
     } finally { setSubmitting(false); }
   }
 
-  // ── progress header (always visible) ─────────────────────────────────────
-  const Progress = () => (
-    <div className="rounded-2xl border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold">{t('rpVerify.progress')}</span>
-        <span className="text-2xl font-extrabold tabular-nums text-primary">{progress.pct}%</span>
-      </div>
-      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress.pct}%` }} />
-      </div>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-        {[['total', progress.total], ['completed', progress.completed], ['remaining', progress.remaining]].map(([k, v]) => (
-          <div key={k as string} className="rounded-xl bg-muted/50 py-2">
-            <p className="text-lg font-bold tabular-nums">{v as number}</p>
-            <p className="text-[11px] text-muted-foreground">{t(`rpVerify.${k}` as 'rpVerify.total')}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // ── DONE ─────────────────────────────────────────────────────────────────
+  // ── DONE ───────────────────────────────────────────────────────────────────
   if (phase === 'done') {
     return (
       <div className="mx-auto max-w-md space-y-4 p-4">
-        <div className="flex flex-col items-center gap-3 rounded-2xl border bg-emerald-50 p-8 text-center">
-          <CheckCircle2 className="h-16 w-16 text-emerald-600" />
-          <p className="text-lg font-bold text-emerald-800">{t('rpVerify.doneTitle')}</p>
+        <div className="flex flex-col items-center gap-3 rounded-3xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-card p-8 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+          </div>
+          <p className="text-xl font-extrabold text-emerald-800">{t('rpVerify.doneTitle')}</p>
           <p className="text-sm text-emerald-700">{t('rpVerify.doneSub', { name: sel?.name ?? '' })}</p>
         </div>
-        <Progress />
+        <ProgressCard t={t} progress={progress} />
         <button onClick={() => { setSel(null); setPhase('list'); }}
           className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground active:scale-[0.99]">
-          <ArrowLeft className="h-5 w-5" /> {t('rpVerify.backToList')}
+          {t('rpVerify.backToList')} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
         </button>
       </div>
     );
   }
 
-  // ── FORM ─────────────────────────────────────────────────────────────────
+  // ── FORM ───────────────────────────────────────────────────────────────────
   if (phase === 'form' && sel) {
+    const oldCity = sel.city ?? '—', oldChannel = sel.channel ?? '—';
     return (
       <div className="mx-auto max-w-md space-y-3 p-4 pb-28">
         <button onClick={() => setPhase('list')} className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground">
-          <ArrowLeft className="h-4 w-4" /> {t('rpVerify.back')}
+          <ChevronLeft className="h-4 w-4 rtl:rotate-180" /> {t('rpVerify.back')}
         </button>
+
+        {/* customer header */}
         <div className="rounded-2xl border bg-card p-4">
-          <p className="text-base font-extrabold">{sel.name}</p>
-          <p className="text-xs text-muted-foreground">{sel.code ?? ''}{sel.distanceM != null ? ` · ${t('rpVerify.metersAway', { n: sel.distanceM })}` : ''}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-base font-extrabold">{sel.name}</p>
+              <p className="text-xs text-muted-foreground">{sel.code ?? ''}</p>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+              <Crosshair className="h-3.5 w-3.5" />{t('rpVerify.withinRange')}
+            </span>
+          </div>
+          {sel.distanceM != null && <p className="mt-1 text-xs font-semibold text-primary">{t('rpVerify.metersAway', { n: sel.distanceM })}</p>}
         </div>
 
-        <Field label={t('rpVerify.city')} required>
-          <select value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="h-12 w-full rounded-xl border bg-background px-3 text-base">
-            <option value="">{t('rpVerify.choose')}</option>
-            {[...new Set([...(form.city ? [form.city] : []), ...config.cities])].map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </Field>
-        <Field label={t('rpVerify.channel')} required>
-          <select value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })} className="h-12 w-full rounded-xl border bg-background px-3 text-base">
-            <option value="">{t('rpVerify.choose')}</option>
-            {[...new Set([...(form.channel ? [form.channel] : []), ...config.channels])].map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </Field>
+        {/* current (old) values — read-only */}
+        <div className="rounded-2xl border bg-muted/30 p-3">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t('rpVerify.currentInfo')}</p>
+          <div className="mt-1 grid grid-cols-2 gap-2 text-sm">
+            <div><span className="text-muted-foreground">{t('rpVerify.city')}: </span><span className="font-semibold">{oldCity}</span></div>
+            <div><span className="text-muted-foreground">{t('rpVerify.channel')}: </span><span className="font-semibold">{oldChannel}</span></div>
+          </div>
+        </div>
+
+        {/* new City / Channel via bottom-sheet pickers (admin catalog) */}
+        <PickerField label={t('rpVerify.cityNew')} required value={form.city} placeholder={t('rpVerify.choose')} onOpen={() => setSheet('city')} />
+        <PickerField label={t('rpVerify.channelNew')} required value={form.channel} placeholder={t('rpVerify.choose')} onOpen={() => setSheet('channel')} />
 
         <Field label={t('rpVerify.outsidePhoto')} required>
           <PhotoInput files={outside ? [outside] : []} onChange={(fs) => setOutside(fs[0] ?? null)} label={t('rpVerify.takePhoto')} />
@@ -167,13 +167,16 @@ export function MyNearbyCustomers() {
         </Field>
 
         <Field label={t('rpVerify.phone')}>
-          <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} inputMode="tel" className="h-12 w-full rounded-xl border bg-background px-3 text-base" />
+          <div className="flex items-center gap-2 rounded-xl border bg-background px-3">
+            <Phone className="h-4 w-4 text-muted-foreground" />
+            <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} inputMode="tel" className="h-12 w-full bg-transparent text-base outline-none" />
+          </div>
         </Field>
         <Field label={t('rpVerify.notes')}>
           <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full rounded-xl border bg-background px-3 py-2 text-base" />
         </Field>
 
-        {err && <p className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
+        {err && <p className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"><AlertTriangle className="h-4 w-4 shrink-0" />{err}</p>}
 
         <div className="fixed inset-x-0 bottom-0 border-t bg-background/95 p-3 backdrop-blur">
           <button onClick={() => void onSubmit()} disabled={submitting}
@@ -182,24 +185,35 @@ export function MyNearbyCustomers() {
             {submitting ? t('rpVerify.submitting') : t('rpVerify.submit')}
           </button>
         </div>
+
+        {sheet && (
+          <OptionSheet
+            title={sheet === 'city' ? t('rpVerify.selectCity') : t('rpVerify.selectChannel')}
+            options={sheet === 'city' ? config.cities : config.channels}
+            selected={sheet === 'city' ? form.city : form.channel}
+            emptyText={t('rpVerify.catalogEmpty')}
+            onPick={(v) => { setForm((f) => ({ ...f, [sheet]: v })); setSheet(null); }}
+            onClose={() => setSheet(null)}
+          />
+        )}
       </div>
     );
   }
 
-  // ── LIST ─────────────────────────────────────────────────────────────────
+  // ── LIST ───────────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto max-w-md space-y-3 p-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-extrabold">{t('rpVerify.title')}</h1>
-          <p className="text-xs text-muted-foreground">{t('rpVerify.showingWithin', { n: radiusM })}</p>
-        </div>
+        <h1 className="text-lg font-extrabold">{t('rpVerify.title')}</h1>
         <button onClick={requestGps} className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold active:scale-95">
           <RefreshCw className="h-3.5 w-3.5" /> {t('rpVerify.refresh')}
         </button>
       </div>
 
-      <Progress />
+      {/* radius banner (stylized "within range" visual — no map dependency) */}
+      <RadiusBanner t={t} radiusM={radiusM} count={gps ? nearby.length : null} />
+
+      <ProgressCard t={t} progress={progress} />
 
       {gpsError && (
         <div className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
@@ -225,18 +239,71 @@ export function MyNearbyCustomers() {
         <ul className="space-y-2">
           {nearby.map((c) => (
             <li key={c.id}>
-              <button onClick={() => openForm(c)} className="flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-start active:scale-[0.99]">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><MapPin className="h-5 w-5" /></div>
+              <button onClick={() => openForm(c)} className="flex w-full items-center gap-3 rounded-2xl border bg-card p-3.5 text-start shadow-sm active:scale-[0.99]">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Store className="h-6 w-6" /></div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold">{c.name}</p>
-                  <p className="text-xs text-muted-foreground">{c.code ?? ''}{c.distanceM != null ? ` · ${t('rpVerify.metersAway', { n: c.distanceM })}` : ''}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-bold">{c.name}</p>
+                    {c.code && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{c.code}</span>}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                    {c.distanceM != null && <span className="font-semibold text-primary">{t('rpVerify.metersAway', { n: c.distanceM })}</span>}
+                    {c.city && <span>· {c.city}</span>}
+                    {c.channel && <span>· {c.channel}</span>}
+                  </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <span className="flex shrink-0 flex-col items-end gap-1">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t('rpVerify.statusPending')}</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground rtl:rotate-180" />
+                </span>
               </button>
             </li>
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+// ── pieces ─────────────────────────────────────────────────────────────────────
+function RadiusBanner({ t, radiusM, count }: { t: (k: string, p?: Record<string, string | number>) => string; radiusM: number; count: number | null }) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-4">
+      <div className="flex items-center gap-3">
+        {/* concentric radius rings + center pin */}
+        <div className="relative flex h-16 w-16 shrink-0 items-center justify-center">
+          <span className="absolute inset-0 rounded-full border-2 border-primary/20" />
+          <span className="absolute inset-2 rounded-full border-2 border-primary/30" />
+          <span className="absolute inset-4 rounded-full border-2 border-primary/50" />
+          <MapPin className="relative h-5 w-5 text-primary" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-bold">{t('rpVerify.showingWithin', { n: radiusM })}</p>
+          {count != null && <p className="text-xs text-muted-foreground">{t('rpVerify.nearbyCount', { n: count })}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressCard({ t, progress }: { t: (k: string, p?: Record<string, string | number>) => string; progress: MyProgress }) {
+  return (
+    <div className="rounded-2xl border bg-card p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold">{t('rpVerify.progress')}</span>
+        <span className="text-2xl font-extrabold tabular-nums text-primary">{progress.pct}%</span>
+      </div>
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress.pct}%` }} />
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        {([['total', progress.total], ['completed', progress.completed], ['remaining', progress.remaining]] as const).map(([k, v]) => (
+          <div key={k} className="rounded-xl bg-muted/50 py-2">
+            <p className="text-lg font-bold tabular-nums">{v}</p>
+            <p className="text-[11px] text-muted-foreground">{t(`rpVerify.${k}` as 'rpVerify.total')}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -247,6 +314,51 @@ function Field({ label, required, children }: { label: string; required?: boolea
       <span className="text-sm font-semibold">{label}{required && <span className="text-red-600"> *</span>}</span>
       {children}
     </label>
+  );
+}
+
+/** A tap-to-open field that shows the chosen value or a placeholder; opens a bottom sheet. */
+function PickerField({ label, required, value, placeholder, onOpen }: { label: string; required?: boolean; value: string; placeholder: string; onOpen: () => void }) {
+  return (
+    <Field label={label} required={required}>
+      <button type="button" onClick={onOpen}
+        className="flex h-12 w-full items-center justify-between rounded-xl border bg-background px-3 text-start text-base active:scale-[0.99]">
+        <span className={value ? 'font-semibold' : 'text-muted-foreground'}>{value || placeholder}</span>
+        <ChevronLeft className="h-4 w-4 -rotate-90 text-muted-foreground" />
+      </button>
+    </Field>
+  );
+}
+
+/** Bottom-sheet single-select (City / Channel) sourced from the admin catalog. */
+function OptionSheet({ title, options, selected, emptyText, onPick, onClose }: {
+  title: string; options: string[]; selected: string; emptyText: string; onPick: (v: string) => void; onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative max-h-[70vh] overflow-y-auto rounded-t-3xl border-t bg-card p-4">
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-muted" />
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-base font-bold">{title}</p>
+          <button onClick={onClose} className="rounded-full p-1 text-muted-foreground hover:bg-muted"><X className="h-5 w-5" /></button>
+        </div>
+        {options.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">{emptyText}</p>
+        ) : (
+          <ul className="space-y-1 pb-4">
+            {options.map((o) => (
+              <li key={o}>
+                <button onClick={() => onPick(o)}
+                  className={`flex h-12 w-full items-center justify-between rounded-xl border px-3 text-start text-base active:scale-[0.99] ${o === selected ? 'border-primary bg-primary/5 font-bold' : ''}`}>
+                  {o}{o === selected && <Check className="h-5 w-5 text-primary" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
