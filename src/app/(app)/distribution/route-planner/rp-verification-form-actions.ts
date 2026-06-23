@@ -16,12 +16,10 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { FORM_BUILDER_ENABLED } from '@/lib/form-builder';
-import { resolveFvForm, isFvFieldKey, buildFvFormSchema, FV_DEFAULT_REQUIRE_GPS, type FvFieldOverride, type ResolvedFvField } from './fv-verification-form';
+import { resolveFvForm, isFvFieldKey, buildFvFormSchema, FV_FORM_CODE, FV_DEFAULT_REQUIRE_GPS, type FvFieldOverride, type ResolvedFvField } from './fv-verification-form';
 
 type Result = { ok: true } | { ok: false; error: string };
 type ResultD<T> = { ok: true; data: T } | { ok: false; error: string };
-
-export const FV_FORM_CODE = 'fv_verification';
 
 /** Read the form-level GPS/radius lock toggle from the stored schema.settings (default = on). */
 function parseRequireGps(schema: unknown): boolean {

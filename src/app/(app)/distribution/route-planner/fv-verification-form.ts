@@ -17,6 +17,9 @@
 //
 // Pure module (no I/O / no React) so resolution is unit-tested.
 
+/** Reused Form Builder code for the FV verification form (erp_forms.code). */
+export const FV_FORM_CODE = 'fv_verification';
+
 export type FvFieldKey = 'city' | 'channel' | 'outside_photo' | 'inside_photos' | 'phone' | 'notes';
 
 export interface FvFieldDefault {
