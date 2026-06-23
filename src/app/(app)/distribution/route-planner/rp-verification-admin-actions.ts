@@ -15,9 +15,16 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
+import { chunk } from '@/lib/utils';
 
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 type ResultD<T> = { ok: true; data: T } | { ok: false; error: string };
+
+// Selected-id lists are split with `chunk()` before every `.in(col, ids)` filter:
+// PostgREST serialises `.in()` into the request URL (`?col=in.(id1,id2,…)`), so a
+// single 1000-id filter overflows the gateway URI limit and 400s ("Bad Request").
+// Batching keeps every request's URL small and lets one bulk action cover thousands
+// of customers. UUIDs are ~36 chars; the default 100/batch ≈ 4 KB.
 
 export interface VerificationRep { id: string; name: string; email: string }
 export interface RosterRow {
@@ -84,11 +91,13 @@ export async function getAssignmentRoster(datasetId: string): Promise<ResultD<{ 
   const custs = data ?? [];
 
   const ids = custs.map((c) => c.id as string);
-  let verified = new Set<string>();
-  if (ids.length) {
-    const { data: vrows } = await sb.from('erp_rp_customer_verifications')
-      .select('customer_id').eq('company_id', ctx.companyId).in('customer_id', ids);
-    verified = new Set((vrows ?? []).map((v) => v.customer_id as string));
+  const verified = new Set<string>();
+  // Batched .in() lookup so the roster still loads for large datasets (1000+ rows).
+  for (const batch of chunk(ids)) {
+    const { data: vrows, error: vErr } = await sb.from('erp_rp_customer_verifications')
+      .select('customer_id').eq('company_id', ctx.companyId).in('customer_id', batch);
+    if (vErr) return { ok: false, error: vErr.message };
+    for (const v of vrows ?? []) verified.add(v.customer_id as string);
   }
   const rows: RosterRow[] = custs.map((c) => ({
     id: c.id as string, code: (c.code as string | null) ?? null, name: (c.name as string) ?? '',
@@ -115,16 +124,27 @@ export async function assignCustomers(customerIds: string[], repEmail: string | 
   }
 
   const sb = await createClient();
-  // Don't reassign a customer that's already verified (its old/new snapshot is committed).
-  const { data: vrows } = await sb.from('erp_rp_customer_verifications')
-    .select('customer_id').eq('company_id', ctx.companyId).in('customer_id', ids);
-  const locked = new Set((vrows ?? []).map((v) => v.customer_id as string));
+  // Don't reassign a customer that's already verified (its old/new snapshot is committed):
+  // those are skipped, not failed. Look them up in BATCHES — a single .in() over 1000 ids
+  // overflows the request URL and 400s; batching makes 1000+ assignment work.
+  const locked = new Set<string>();
+  for (const batch of chunk(ids)) {
+    const { data: vrows, error: vErr } = await sb.from('erp_rp_customer_verifications')
+      .select('customer_id').eq('company_id', ctx.companyId).in('customer_id', batch);
+    if (vErr) return { ok: false, error: vErr.message };
+    for (const v of vrows ?? []) locked.add(v.customer_id as string);
+  }
   const target = ids.filter((id) => !locked.has(id));
   if (target.length === 0) return { ok: true, data: { updated: 0, skipped: ids.length } };
 
-  const { data, error } = await sb.from('erp_rp_dataset_customers')
-    .update({ salesman: email }).in('id', target).eq('company_id', ctx.companyId).select('id');
-  if (error) return { ok: false, error: error.message };
-  const updated = (data ?? []).length;
+  // Apply the assignment in batches too (the PATCH filter is also a URL-encoded .in()).
+  // Idempotent + company-scoped, so re-running is safe.
+  let updated = 0;
+  for (const batch of chunk(target)) {
+    const { data, error } = await sb.from('erp_rp_dataset_customers')
+      .update({ salesman: email }).in('id', batch).eq('company_id', ctx.companyId).select('id');
+    if (error) return { ok: false, error: error.message };
+    updated += (data ?? []).length;
+  }
   return { ok: true, data: { updated, skipped: ids.length - updated } };
 }

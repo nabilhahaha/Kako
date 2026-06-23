@@ -213,7 +213,18 @@ function AssignSection({ t, datasets, reps }: { t: (k: string, p?: Record<string
     try {
       const res = await assignCustomers([...checked], unassign ? null : rep);
       if (!res.ok) { setMsg({ tone: 'err', text: res.error }); return; }
-      setMsg({ tone: 'ok', text: t('rpVerifyAdmin.assignedOk', { n: res.data.updated, s: res.data.skipped }) });
+      const { updated, skipped } = res.data;
+      const repName = reps.find((r) => r.email === rep)?.name ?? rep;
+      // Clear, action-specific success message; name the rep on assign, and report any
+      // already-verified (locked) customers that were skipped instead of failing.
+      const text = unassign
+        ? (skipped > 0
+            ? t('rpVerifyAdmin.unassignedOkSkipped', { n: updated, s: skipped })
+            : t('rpVerifyAdmin.unassignedOk', { n: updated }))
+        : (skipped > 0
+            ? t('rpVerifyAdmin.assignedToRepSkipped', { n: updated, s: skipped, rep: repName })
+            : t('rpVerifyAdmin.assignedToRep', { n: updated, rep: repName }));
+      setMsg({ tone: 'ok', text });
       setChecked(new Set());
       await loadRoster(datasetId);
     } finally { setBusy(false); }
