@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { LayoutGrid, Database, BarChart3, ClipboardList, Inbox, Plug, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, Database, BarChart3, ClipboardList, Inbox, Plug, ShieldCheck, FileBarChart } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { RoutePlannerWorkspace } from './route-planner-workspace';
 import { DatasetsPanel } from './datasets-panel';
@@ -11,6 +11,8 @@ import { RequestCenterPanel } from './request-center-panel';
 import { ConnectorsPanel } from './connectors-panel';
 import { VerificationAdminPanel } from './verification-admin-panel';
 import { getVerificationAdminFlag } from './rp-verification-admin-actions';
+import { VerificationReportsPanel } from './verification-reports-panel';
+import { getVerificationReportAccess } from './rp-verification-report-actions';
 import { getRpTabBadges, type RpTabBadges } from './rp-tab-badges-actions';
 import { loadDatasetById } from './rp-dataset-load';
 import type { DatasetHeader } from './rp-dataset-actions';
@@ -25,11 +27,12 @@ import type { TisDataset } from '@/lib/tis/dataset';
  */
 export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlannerSubscriptionView }) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<'planner' | 'datasets' | 'dashboard' | 'missions' | 'requests' | 'connectors' | 'verifyAdmin'>('planner');
+  const [tab, setTab] = useState<'planner' | 'datasets' | 'dashboard' | 'missions' | 'requests' | 'connectors' | 'verifyAdmin' | 'verifyReports'>('planner');
   const [injected, setInjected] = useState<TisDataset | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [badges, setBadges] = useState<RpTabBadges | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canViewReports, setCanViewReports] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -37,6 +40,8 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
       if (res.ok) setBadges(res.data);
       const flag = await getVerificationAdminFlag();
       if (flag.ok) setIsAdmin(flag.data.isAdmin);
+      const rep = await getVerificationReportAccess();
+      if (rep.ok) setCanViewReports(rep.data.canView);
     })();
   }, []);
 
@@ -52,7 +57,7 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
     }
   }
 
-  const tabBtn = (key: 'planner' | 'datasets' | 'dashboard' | 'missions' | 'requests' | 'connectors' | 'verifyAdmin', label: string, Icon: typeof LayoutGrid, badge?: number) => (
+  const tabBtn = (key: 'planner' | 'datasets' | 'dashboard' | 'missions' | 'requests' | 'connectors' | 'verifyAdmin' | 'verifyReports', label: string, Icon: typeof LayoutGrid, badge?: number) => (
     <button
       type="button"
       role="tab"
@@ -80,6 +85,7 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
         {tabBtn('requests', t('routePlanner.tab_requests'), Inbox, badges?.requestsOpen)}
         {tabBtn('connectors', t('routePlanner.tab_connectors'), Plug, badges?.sources)}
         {isAdmin && tabBtn('verifyAdmin', t('routePlanner.tab_verifyAdmin'), ShieldCheck)}
+        {canViewReports && tabBtn('verifyReports', t('routePlanner.tab_verifyReports'), FileBarChart)}
       </div>
 
       {tab === 'planner' && <RoutePlannerWorkspace subscription={subscription} injectedDataset={injected} />}
@@ -117,6 +123,12 @@ export function RoutePlannerTabs({ subscription }: { subscription?: RoutePlanner
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">{t('routePlanner.tab_verifyAdminHint')}</p>
           <VerificationAdminPanel />
+        </div>
+      )}
+      {tab === 'verifyReports' && canViewReports && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{t('routePlanner.tab_verifyReportsHint')}</p>
+          <VerificationReportsPanel />
         </div>
       )}
     </div>

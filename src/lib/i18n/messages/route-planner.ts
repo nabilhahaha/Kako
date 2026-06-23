@@ -15,6 +15,8 @@ export const ar = {
     tab_connectorsHint: 'مصادر البيانات والاستيراد والمزامنة (للعرض فقط حاليًا).',
     tab_verifyAdmin: 'التحقق الميداني',
     tab_verifyAdminHint: 'رفع العملاء وإسنادهم للمندوبين وكتالوج المدن/القنوات (لمديري الشركة).',
+    tab_verifyReports: 'تقارير التحقق',
+    tab_verifyReportsHint: 'ملخص وتفاصيل واستثناءات التحقق الميداني (المديرون والمشرفون).',
     saveDataset: 'حفظ كمجموعة',
     saving: 'جارٍ الحفظ…',
     saveDatasetOk: 'تم حفظ المجموعة ({n} عميل). يمكنك إعادة فتحها من «مجموعات البيانات المحفوظة».',
@@ -531,6 +533,22 @@ export const ar = {
     e_err_no_customers: 'حدّد عميلًا واحدًا على الأقل.', e_err_dataset_not_found: 'لم يتم العثور على المجموعة.',
     e_err_no_dataset: 'اختر مجموعة بيانات.',
   },
+  rpVerifyReports: {
+    title: 'تقارير التحقق الميداني',
+    hint: 'ملخص لكل مندوب، وتفاصيل كل عملية تحقق، وتقرير الاستثناءات (المحاولات خارج النطاق).',
+    tab_summary: 'الملخص', tab_detail: 'التفاصيل', tab_exceptions: 'الاستثناءات',
+    refresh: 'تحديث', loading: 'جارٍ التحميل…', empty: 'لا توجد بيانات بعد.',
+    // summary
+    rep: 'المندوب', assigned: 'مُسنَد', completed: 'مكتمل', remaining: 'متبقٍّ', pct: 'النسبة', lastActivity: 'آخر نشاط',
+    totals: 'الإجمالي',
+    // detail
+    customer: 'العميل', verifiedAt: 'تاريخ التحقق', city: 'المدينة', channel: 'القناة', phone: 'الهاتف',
+    oldNew: 'قديم ← جديد', distance: 'المسافة (م)', radius: 'النطاق (م)', photos: 'الصور', notes: 'ملاحظات', noChange: 'بدون تغيير',
+    // exceptions
+    when: 'الوقت', result: 'النتيجة', reason: 'السبب',
+    r_outside_radius: 'خارج النطاق', r_not_assigned: 'غير مُسنَد', r_no_coords: 'لا إحداثيات', r_error: 'خطأ',
+    e_err_forbidden: 'هذه التقارير لمديري الشركة والمشرفين فقط.',
+  },
 };
 
 export const en = {
@@ -549,6 +567,8 @@ export const en = {
     tab_connectorsHint: 'Data sources, imports & sync runs (read-only for now).',
     tab_verifyAdmin: 'Field Verification',
     tab_verifyAdminHint: 'Upload customers, assign to reps & City/Channel catalog (company admins).',
+    tab_verifyReports: 'Verification Reports',
+    tab_verifyReportsHint: 'Field verification summary, detail & exceptions (admins & supervisors).',
     saveDataset: 'Save as dataset',
     saving: 'Saving…',
     saveDatasetOk: 'Dataset saved ({n} customers). Reopen it anytime from "Saved datasets".',
@@ -1064,5 +1084,21 @@ export const en = {
     e_err_forbidden: 'This page is for company admins only.', e_err_unknown_rep: 'Unknown rep.',
     e_err_no_customers: 'Select at least one customer.', e_err_dataset_not_found: 'Dataset not found.',
     e_err_no_dataset: 'Choose a dataset.',
+  },
+  rpVerifyReports: {
+    title: 'Field Verification Reports',
+    hint: 'Per-rep summary, every verification in detail, and the exception report (out-of-radius attempts).',
+    tab_summary: 'Summary', tab_detail: 'Detail', tab_exceptions: 'Exceptions',
+    refresh: 'Refresh', loading: 'Loading…', empty: 'No data yet.',
+    // summary
+    rep: 'Rep', assigned: 'Assigned', completed: 'Completed', remaining: 'Remaining', pct: '%', lastActivity: 'Last activity',
+    totals: 'Totals',
+    // detail
+    customer: 'Customer', verifiedAt: 'Verified at', city: 'City', channel: 'Channel', phone: 'Phone',
+    oldNew: 'Old → New', distance: 'Distance (m)', radius: 'Radius (m)', photos: 'Photos', notes: 'Notes', noChange: 'no change',
+    // exceptions
+    when: 'When', result: 'Result', reason: 'Reason',
+    r_outside_radius: 'Outside radius', r_not_assigned: 'Not assigned', r_no_coords: 'No coordinates', r_error: 'Error',
+    e_err_forbidden: 'These reports are for company admins and supervisors only.',
   },
 };
