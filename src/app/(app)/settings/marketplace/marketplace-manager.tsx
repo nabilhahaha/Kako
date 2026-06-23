@@ -25,6 +25,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { toggleCompanyModule } from './actions';
 
 const ICONS: Record<Module, LucideIcon> = {
+  field_verification: ClipboardCheck,
   crm: Users, workflow: ClipboardCheck, analytics: BarChart3, field_ops: TruckIcon, integrations: Plug,
   sales: ShoppingCart, inventory: Boxes, purchasing: TruckIcon, accounting: Wallet,
   hotel: BedDouble, clinic: Stethoscope, restaurant: UtensilsCrossed, salon: Scissors,

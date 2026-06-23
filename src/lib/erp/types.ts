@@ -129,7 +129,8 @@ export type BusinessType =
   | 'workshop'
   | 'clinic'
   | 'salon'
-  | 'hotel';
+  | 'hotel'
+  | 'field_verification_only';
 
 export interface Company {
   id: string;
