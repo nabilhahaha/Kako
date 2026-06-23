@@ -12,6 +12,8 @@ import {
   type NearbyCustomer, type MyProgress, type CompletedVerification,
 } from './rp-verification-actions';
 import { getVerificationConfig } from './rp-verification-config-actions';
+import { getFvVerificationForm } from './rp-verification-form-actions';
+import { resolveFvForm, type ResolvedFvField, type FvFieldKey } from './fv-verification-form';
 import { filterAssignedCustomers, filterCompletedVerifications } from './fv-customer-search';
 import { removeFileAt, mergeFiles } from './fv-photo-edit';
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
@@ -29,7 +31,11 @@ type Phase = 'list' | 'form' | 'done' | 'detail';
  * "verify once" are all re-enforced server-side.
  */
 export function MyNearbyCustomers() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  // Published form config (Form Builder Phase 1) — drives which fields show, their order,
+  // required-ness, labels (AR/EN) and help. Default = the standard FV layout (today).
+  const [formFields, setFormFields] = useState<ResolvedFvField[]>(() => resolveFvForm(null));
+  const [formRequireGps, setFormRequireGps] = useState(true);
   const [gps, setGps] = useState<GpsState>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,6 +108,10 @@ export function MyNearbyCustomers() {
       const c = await getVerificationConfig();
       if (c.ok) setConfig(c.data);
     })();
+    void (async () => {
+      const f = await getFvVerificationForm();
+      if (f.ok) { setFormFields(f.data.fields); setFormRequireGps(f.data.requireGps); }
+    })();
     void loadCompleted();
     requestGps();
   }, [requestGps, loadCompleted]);
@@ -121,14 +131,30 @@ export function MyNearbyCustomers() {
     return res.ok ? (res.data?.id ?? null) : null;
   }
 
+  // ── Form-config helpers (drive the verify form per the published config) ──────────────
+  const fieldCfg = (key: FvFieldKey): ResolvedFvField | undefined => formFields.find((f) => f.key === key);
+  const fieldRequired = (key: FvFieldKey) => fieldCfg(key)?.required ?? false;
+  const fieldHelp = (key: FvFieldKey) => fieldCfg(key)?.help ?? null;
+  const fieldLabel = (key: FvFieldKey, fallbackKey: string) => {
+    const f = fieldCfg(key);
+    const ov = locale === 'ar' ? f?.labelAr : f?.labelEn;
+    return (ov && ov.trim()) || t(fallbackKey);
+  };
+
   async function onSubmit() {
-    if (!sel || !gps) return;
-    if (!form.city.trim() || !form.channel.trim()) { setErr(t('rpVerify.errRequired')); return; }
-    if (!outside) { setErr(t('rpVerify.errOutsidePhoto')); return; }
+    if (!sel) return;
+    if (formRequireGps && !gps) return;                                        // proximity needs a fix
+    // Client-side required checks, per the published config (server re-validates).
+    if (fieldRequired('city') && !form.city.trim()) { setErr(t('rpVerify.errRequired')); return; }
+    if (fieldRequired('channel') && !form.channel.trim()) { setErr(t('rpVerify.errRequired')); return; }
+    if (fieldRequired('outside_photo') && !outside) { setErr(t('rpVerify.errOutsidePhoto')); return; }
     setSubmitting(true); setErr(null);
     try {
-      const outsideId = await uploadPhoto(sel.id, outside);
-      if (!outsideId) { setErr(t('rpVerify.errPhotoUpload')); setSubmitting(false); return; }
+      let outsideId: string | null = null;
+      if (outside) {
+        outsideId = await uploadPhoto(sel.id, outside);
+        if (!outsideId) { setErr(t('rpVerify.errPhotoUpload')); setSubmitting(false); return; }
+      }
       const insideIds: string[] = [];
       for (const f of inside) { const id = await uploadPhoto(sel.id, f); if (id) insideIds.push(id); }
       const res = await submitVerification({
@@ -267,13 +293,15 @@ export function MyNearbyCustomers() {
               <p className="truncate text-base font-extrabold">{sel.name}</p>
               <p className="text-xs text-muted-foreground">{sel.code ?? ''}</p>
             </div>
-            <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold',
-              selWithin === false ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')}>
-              <Crosshair className="h-3.5 w-3.5" />{t(selWithin === false ? 'rpVerify.outsideRange' : 'rpVerify.withinRange')}
-            </span>
+            {formRequireGps && (
+              <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold',
+                selWithin === false ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')}>
+                <Crosshair className="h-3.5 w-3.5" />{t(selWithin === false ? 'rpVerify.outsideRange' : 'rpVerify.withinRange')}
+              </span>
+            )}
           </div>
           {sel.distanceM != null && <p className="mt-1 text-xs font-semibold text-primary">{t('rpVerify.metersAway', { n: sel.distanceM })}</p>}
-          {selWithin === false && <p className="mt-1 text-[11px] font-medium text-amber-700">{t('rpVerify.mustBeWithin', { n: radiusM })}</p>}
+          {formRequireGps && selWithin === false && <p className="mt-1 text-[11px] font-medium text-amber-700">{t('rpVerify.mustBeWithin', { n: radiusM })}</p>}
         </div>
 
         {/* current (old) values — read-only */}
@@ -285,26 +313,45 @@ export function MyNearbyCustomers() {
           </div>
         </div>
 
-        {/* new City / Channel via bottom-sheet pickers (admin catalog) */}
-        <PickerField label={t('rpVerify.cityNew')} required value={form.city} placeholder={t('rpVerify.choose')} onOpen={() => setSheet('city')} />
-        <PickerField label={t('rpVerify.channelNew')} required value={form.channel} placeholder={t('rpVerify.choose')} onOpen={() => setSheet('channel')} />
-
-        <Field label={t('rpVerify.outsidePhoto')} required>
-          <PhotoInput t={t} files={outside ? [outside] : []} onChange={(fs) => setOutside(fs[0] ?? null)} label={t('rpVerify.takePhoto')} />
-        </Field>
-        <Field label={t('rpVerify.insidePhotos')}>
-          <PhotoInput t={t} multiple files={inside} onChange={setInside} label={t('rpVerify.addPhotos')} />
-        </Field>
-
-        <Field label={t('rpVerify.phone')}>
-          <div className="flex items-center gap-2 rounded-xl border bg-background px-3">
-            <Phone className="h-4 w-4 text-muted-foreground" />
-            <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} inputMode="tel" className="h-12 w-full bg-transparent text-base outline-none" />
-          </div>
-        </Field>
-        <Field label={t('rpVerify.notes')}>
-          <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full rounded-xl border bg-background px-3 py-2 text-base" />
-        </Field>
+        {/* Fields render per the published config: only visible ones, in configured order,
+            with configured labels (AR/EN), required flags and help text. Default = today. */}
+        {formFields.filter((f) => f.visible).map((f) => {
+          switch (f.key) {
+            case 'city':
+              return <PickerField key={f.key} label={fieldLabel('city', 'rpVerify.cityNew')} required={f.required} help={fieldHelp('city')} value={form.city} placeholder={t('rpVerify.choose')} onOpen={() => setSheet('city')} />;
+            case 'channel':
+              return <PickerField key={f.key} label={fieldLabel('channel', 'rpVerify.channelNew')} required={f.required} help={fieldHelp('channel')} value={form.channel} placeholder={t('rpVerify.choose')} onOpen={() => setSheet('channel')} />;
+            case 'outside_photo':
+              return (
+                <Field key={f.key} label={fieldLabel('outside_photo', 'rpVerify.outsidePhoto')} required={f.required} help={fieldHelp('outside_photo')}>
+                  <PhotoInput t={t} files={outside ? [outside] : []} onChange={(fs) => setOutside(fs[0] ?? null)} label={t('rpVerify.takePhoto')} />
+                </Field>
+              );
+            case 'inside_photos':
+              return (
+                <Field key={f.key} label={fieldLabel('inside_photos', 'rpVerify.insidePhotos')} required={f.required} help={fieldHelp('inside_photos')}>
+                  <PhotoInput t={t} multiple files={inside} onChange={setInside} label={t('rpVerify.addPhotos')} />
+                </Field>
+              );
+            case 'phone':
+              return (
+                <Field key={f.key} label={fieldLabel('phone', 'rpVerify.phone')} required={f.required} help={fieldHelp('phone')}>
+                  <div className="flex items-center gap-2 rounded-xl border bg-background px-3">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} inputMode="tel" className="h-12 w-full bg-transparent text-base outline-none" />
+                  </div>
+                </Field>
+              );
+            case 'notes':
+              return (
+                <Field key={f.key} label={fieldLabel('notes', 'rpVerify.notes')} required={f.required} help={fieldHelp('notes')}>
+                  <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full rounded-xl border bg-background px-3 py-2 text-base" />
+                </Field>
+              );
+            default:
+              return null;
+          }
+        })}
 
         {err && <p className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"><AlertTriangle className="h-4 w-4 shrink-0" />{err}</p>}
 
@@ -575,19 +622,20 @@ function ProgressCard({ t, progress }: { t: (k: string, p?: Record<string, strin
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required, help, children }: { label: string; required?: boolean; help?: string | null; children: React.ReactNode }) {
   return (
     <label className="block space-y-1">
       <span className="text-sm font-semibold">{label}{required && <span className="text-red-600"> *</span>}</span>
+      {help && <span className="block text-[11px] font-normal text-muted-foreground">{help}</span>}
       {children}
     </label>
   );
 }
 
 /** A tap-to-open field that shows the chosen value or a placeholder; opens a bottom sheet. */
-function PickerField({ label, required, value, placeholder, onOpen }: { label: string; required?: boolean; value: string; placeholder: string; onOpen: () => void }) {
+function PickerField({ label, required, help, value, placeholder, onOpen }: { label: string; required?: boolean; help?: string | null; value: string; placeholder: string; onOpen: () => void }) {
   return (
-    <Field label={label} required={required}>
+    <Field label={label} required={required} help={help}>
       <button type="button" onClick={onOpen}
         className="flex h-12 w-full items-center justify-between rounded-xl border bg-background px-3 text-start text-base active:scale-[0.99]">
         <span className={value ? 'font-semibold' : 'text-muted-foreground'}>{value || placeholder}</span>
