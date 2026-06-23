@@ -1,6 +1,6 @@
 import type { Permission } from '@/lib/erp/permissions';
-import { isModuleGateOpen, type Module } from '@/lib/erp/navigation';
-import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, Truck, Inbox, type LucideIcon } from 'lucide-react';
+import { isModuleGateOpen, STANDALONE_PACK_MODULES, type Module } from '@/lib/erp/navigation';
+import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, BarChart3, Truck, Inbox, type LucideIcon } from 'lucide-react';
 
 /** A candidate bottom-nav tab. `href` must resolve to a real route, `labelKey`
  *  is an i18n key, `perm` (when set) gates visibility, and `module` (when set)
@@ -42,6 +42,15 @@ export interface BottomNavTab {
  *  `/inventory` (the catalog is `/products`); the inventory tab must point there.
  *  Only the first 4 the user can see are rendered, plus a "More" drawer trigger. */
 export const BOTTOM_NAV_TABS: BottomNavTab[] = [
+  // ── Field Verification (standalone pack) ──
+  // Listed first so a Field-Verification-Only tenant's mobile bar reads
+  // Nearby · Setup · Reports · More (mirroring the sidebar pack section). Each is
+  // module-gated to `field_verification`, so it appears only when that module is
+  // enabled; for a pack-only tenant the generic operational tabs below are
+  // suppressed (see resolveBottomNavTabs). Hrefs reuse the existing FV pages.
+  { href: '/field-verification/my-customers', icon: MapPin, labelKey: 'nav.bottom.fvCustomers', perm: 'field_verification.verify', module: 'field_verification' },
+  { href: '/field-verification/setup', icon: ClipboardCheck, labelKey: 'nav.bottom.fvSetup', perm: 'field_verification.admin', module: 'field_verification' },
+  { href: '/field-verification/reports', icon: BarChart3, labelKey: 'nav.bottom.fvReports', perm: 'field_verification.reports', module: 'field_verification' },
   // Generic Home — hidden for the unified salesman (Today IS home, no duplicate).
   { href: '/dashboard', icon: Home, labelKey: 'nav.bottom.home', hideWhenUnified: true },
   // Approver direct access (placed high so supervisors/managers get it in the top
@@ -112,8 +121,18 @@ export function resolveBottomNavTabs(
   tabs: BottomNavTab[] = BOTTOM_NAV_TABS,
 ): BottomNavTab[] {
   const can = (p?: Permission) => !p || ctx.isSuperAdmin || ctx.permissions.includes(p);
+  // Pack-only tenant (enabled modules are EXCLUSIVELY standalone packs, e.g. the
+  // "Field Verification Only" template): show ONLY the pack's own tabs. The generic
+  // operational tabs (Home / Approvals / Today / Sell / …) are suppressed so the
+  // mobile bar matches the sidebar (pack section + Settings only). Mirrors the
+  // sidebar's pack-only gating in `visibleSections`. Empty modules (platform owner /
+  // legacy) is unrestricted, as elsewhere, so it is never suppressed.
+  const packOnlyTenant =
+    ctx.modules.length > 0 && ctx.modules.every((m) => STANDALONE_PACK_MODULES.includes(m));
+  const isPackTab = (t: BottomNavTab) => !!t.module && STANDALONE_PACK_MODULES.includes(t.module);
   const candidates = tabs.filter(
-    (t) => can(t.perm) && isModuleGateOpen(ctx.modules, t.module) && (!t.vanSalesOnly || ctx.vanSalesActive)
+    (t) => (!packOnlyTenant || isPackTab(t))
+      && can(t.perm) && isModuleGateOpen(ctx.modules, t.module) && (!t.vanSalesOnly || ctx.vanSalesActive)
       // Unified salesman workspace: surface unifiedOnly tabs, drop hideWhenUnified ones.
       && (!t.unifiedOnly || ctx.unifiedWorkspace) && !(t.hideWhenUnified && ctx.unifiedWorkspace)
       // Salesman Requests hub: surface the Requests tab only when its flag is on.

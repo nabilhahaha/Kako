@@ -44,6 +44,60 @@ describe('bottom-nav — route integrity', () => {
   });
 });
 
+// ── Field Verification Only: pack-only mobile bottom nav ──────────────────────
+describe('bottom-nav — Field Verification Only (pack-only tenant)', () => {
+  const P = (...p: Permission[]) => p;
+  const M = (...m: Module[]) => m;
+  // FV admin holds the broad seeded global-admin perms (the template copies them),
+  // so without pack-only gating the generic tabs (Home/Approvals/Today) would leak.
+  const FV_ADMIN = {
+    permissions: P(
+      'field_verification.verify', 'field_verification.admin', 'field_verification.reports', 'field_verification.export',
+      // broad perms that drive the generic tabs:
+      'field.sales', 'day.approve_close_exception', 'reports.view', 'inventory.view', 'sales.sell',
+    ),
+    isSuperAdmin: false, modules: M('field_verification'), businessType: null,
+  };
+
+  it('shows ONLY the Field Verification tabs — no Home / Approvals / Today / Sell', () => {
+    const hrefs = resolveBottomNavTabs(FV_ADMIN).map((t) => t.href);
+    expect(hrefs).toContain('/field-verification/my-customers');
+    expect(hrefs).toContain('/field-verification/setup');
+    expect(hrefs).toContain('/field-verification/reports');
+    expect(hrefs).not.toContain('/dashboard');          // Home suppressed
+    expect(hrefs).not.toContain('/approvals/queue');    // Approvals suppressed
+    expect(hrefs).not.toContain('/today');              // Today suppressed
+    expect(hrefs).not.toContain('/sales/invoices');     // Sell suppressed
+    // every surviving tab is a Field-Verification route
+    expect(hrefs.every((h) => h.startsWith('/field-verification/'))).toBe(true);
+  });
+
+  it('an FV rep (verify only) sees just the Nearby Customers tab', () => {
+    const hrefs = resolveBottomNavTabs({
+      permissions: P('field_verification.verify'), isSuperAdmin: false,
+      modules: M('field_verification'), businessType: null,
+    }).map((t) => t.href);
+    expect(hrefs).toEqual(['/field-verification/my-customers']);
+  });
+
+  it('no over-suppression: a tenant with FV alongside operational modules keeps its generic tabs', () => {
+    const hrefs = resolveBottomNavTabs({
+      permissions: P('field_verification.admin', 'sales.sell', 'field.sales'),
+      isSuperAdmin: false, modules: M('sales', 'inventory', 'field_verification'), businessType: 'general',
+    }).map((t) => t.href);
+    expect(hrefs).toContain('/dashboard');                       // generic Home stays
+    expect(hrefs).toContain('/field-verification/setup');        // FV tab also present
+  });
+
+  it('FV tabs are module-gated: a non-FV tenant never sees them', () => {
+    const hrefs = resolveBottomNavTabs({
+      permissions: P('field_verification.verify', 'sales.sell'), isSuperAdmin: false,
+      modules: M('sales', 'inventory'), businessType: 'general',
+    }).map((t) => t.href);
+    expect(hrefs.some((h) => h.startsWith('/field-verification/'))).toBe(false);
+  });
+});
+
 // ── Option A: module-aware Sell routing (clothing → Fashion POS) ──────────────
 describe('bottom-nav — module-aware Sell routing', () => {
   const sellTabs = (tabs: BottomNavTab[]) => tabs.filter((t) => t.labelKey === 'nav.bottom.sell');
