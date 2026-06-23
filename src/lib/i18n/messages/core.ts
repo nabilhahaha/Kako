@@ -210,6 +210,9 @@ export const ar = {
       sell: 'بيع',
       inventory: 'المخزون',
       requests: 'الطلبات',
+      fvCustomers: 'القريبون',
+      fvSetup: 'الإعداد',
+      fvReports: 'التقارير',
       more: 'المزيد',
     },
     profile: {
@@ -647,6 +650,9 @@ export const en = {
       sell: 'Sell',
       inventory: 'Inventory',
       requests: 'Requests',
+      fvCustomers: 'Nearby',
+      fvSetup: 'Setup',
+      fvReports: 'Reports',
       more: 'More',
     },
     profile: {
