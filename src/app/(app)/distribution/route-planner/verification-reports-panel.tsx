@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, ListChecks, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { BarChart3, ListChecks, AlertTriangle, Loader2, RefreshCw, FileDown } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
+import { buildXlsxWorkbook, type XlsxSheet } from '@/lib/erp/xlsx-write';
+import { downloadXlsx, xlsxDate } from './xlsx-download';
 import {
   getVerificationSummary, getVerificationDetail, getVerificationExceptions,
   type SummaryReport, type DetailRow, type ExceptionRow,
@@ -23,6 +25,7 @@ const oldNew = (o: string | null, n: string | null, noChange: string) =>
 export function VerificationReportsPanel() {
   const { t } = useI18n() as { t: T };
   const [view, setView] = useState<View>('summary');
+  const [exporting, setExporting] = useState(false);
 
   const btn = (key: View, label: string, Icon: typeof BarChart3) => (
     <button type="button" onClick={() => setView(key)}
@@ -31,9 +34,58 @@ export function VerificationReportsPanel() {
     </button>
   );
 
+  // One-click export: all three reports as sheets in a single workbook (fresh fetch).
+  async function onExport() {
+    setExporting(true);
+    try {
+      const [sum, det, exc] = await Promise.all([getVerificationSummary(), getVerificationDetail(), getVerificationExceptions()]);
+      const sheets: XlsxSheet[] = [];
+      if (sum.ok) {
+        const rows: (string | number | null)[][] = [[t('rpVerifyReports.rep'), t('rpVerifyReports.email'), t('rpVerifyReports.assigned'), t('rpVerifyReports.completed'), t('rpVerifyReports.remaining'), '%', t('rpVerifyReports.lastActivity')]];
+        for (const r of sum.data.reps) rows.push([r.repName, r.repEmail, r.assigned, r.completed, r.remaining, r.pct, xlsxDate(r.lastActivity)]);
+        rows.push([t('rpVerifyReports.totals'), '', sum.data.totals.assigned, sum.data.totals.completed, sum.data.totals.remaining, sum.data.totals.pct, '']);
+        sheets.push({ name: t('rpVerifyReports.tab_summary'), rows });
+      }
+      if (det.ok) {
+        const rows: (string | number | null)[][] = [[
+          t('rpVerifyReports.customer'), t('rpVerifyReports.rep'), t('rpVerifyReports.verifiedAt'),
+          `${t('rpVerifyReports.city')} (old)`, `${t('rpVerifyReports.city')} (new)`,
+          `${t('rpVerifyReports.channel')} (old)`, `${t('rpVerifyReports.channel')} (new)`,
+          `${t('rpVerifyReports.phone')} (old)`, `${t('rpVerifyReports.phone')} (new)`,
+          t('rpVerifyReports.distance'), t('rpVerifyReports.radius'), t('rpVerifyReports.photos'), t('rpVerifyReports.notes'),
+        ]];
+        for (const r of det.data.rows) rows.push([
+          `${r.customerName}${r.customerCode ? ` (${r.customerCode})` : ''}`, r.repName, xlsxDate(r.verifiedAt),
+          r.oldCity, r.newCity, r.oldChannel, r.newChannel, r.oldPhone, r.newPhone,
+          r.distanceM, r.allowedRadiusM, r.photoCount, r.notes,
+        ]);
+        sheets.push({ name: t('rpVerifyReports.tab_detail'), rows });
+      }
+      if (exc.ok) {
+        const rows: (string | number | null)[][] = [[
+          t('rpVerifyReports.when'), t('rpVerifyReports.rep'), t('rpVerifyReports.customer'),
+          t('rpVerifyReports.result'), t('rpVerifyReports.distance'), t('rpVerifyReports.radius'), t('rpVerifyReports.reason'),
+        ]];
+        for (const r of exc.data.rows) rows.push([
+          xlsxDate(r.createdAt), r.repName, r.customerName ?? r.customerCode ?? '',
+          t(`rpVerifyReports.r_${r.result}` as 'rpVerifyReports.r_outside_radius') || r.result,
+          r.distanceM, r.allowedRadiusM, r.reason,
+        ]);
+        sheets.push({ name: t('rpVerifyReports.tab_exceptions'), rows });
+      }
+      if (sheets.length) downloadXlsx(buildXlsxWorkbook(sheets), `field-verification-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } finally { setExporting(false); }
+  }
+
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">{t('rpVerifyReports.hint')}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs text-muted-foreground">{t('rpVerifyReports.hint')}</p>
+        <button onClick={() => void onExport()} disabled={exporting}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold disabled:opacity-50">
+          {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}{t('rpVerifyReports.exportXlsx')}
+        </button>
+      </div>
       <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/30 p-1">
         {btn('summary', t('rpVerifyReports.tab_summary'), BarChart3)}
         {btn('detail', t('rpVerifyReports.tab_detail'), ListChecks)}

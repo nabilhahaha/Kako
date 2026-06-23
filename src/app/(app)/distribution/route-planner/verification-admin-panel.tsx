@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Upload, Users, Tags, Loader2, Check, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Upload, Users, Tags, Loader2, Check, CheckCircle2, AlertTriangle, Ruler } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { parseUploadColumns } from './import-actions';
 import { persistDataset, listDatasets, type DatasetHeader } from './rp-dataset-actions';
 import { applyColumnMapping, buildTisDatasetFromRows, TIS_MAP_FIELDS, type TisFieldKey } from '@/lib/tis/upload';
 import { tisCustomersToDatasetInput } from '@/lib/erp/route-planner-dataset';
+import { RADIUS_MIN_M, RADIUS_MAX_M } from '@/lib/erp/geo-distance';
+import { getVerificationRadius, setVerificationRadius } from './rp-verification-radius-actions';
 import { getVerificationConfig } from './rp-verification-config-actions';
 import {
   listVerificationReps, getAssignmentRoster, assignCustomers,
@@ -42,10 +44,57 @@ export function VerificationAdminPanel() {
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">{t('rpVerifyAdmin.hint')}</p>
+      <RadiusSection t={t} />
       <UploadSection t={t} onSaved={refreshShared} />
       <AssignSection t={t} datasets={datasets} reps={reps} />
       <CatalogSection t={t} catalog={catalog} />
     </div>
+  );
+}
+
+// ── 0) Radius (FV-3b setting, FV-4c admin UI) ─────────────────────────────────
+function RadiusSection({ t }: { t: (k: string, p?: Record<string, string | number>) => string }) {
+  const [radius, setRadius] = useState<number | ''>('');
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<Msg>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const res = await getVerificationRadius();
+      if (res.ok) setRadius(res.data.radiusM);
+      setLoaded(true);
+    })();
+  }, []);
+
+  async function onSave() {
+    const r = Number(radius);
+    if (!Number.isFinite(r) || r < RADIUS_MIN_M || r > RADIUS_MAX_M) { setMsg({ tone: 'err', text: t('rpVerifyAdmin.radiusRange', { min: RADIUS_MIN_M, max: RADIUS_MAX_M }) }); return; }
+    setBusy(true); setMsg(null);
+    try {
+      const res = await setVerificationRadius(r);
+      setMsg(res.ok ? { tone: 'ok', text: t('rpVerifyAdmin.radiusSaved', { n: r }) } : { tone: 'err', text: res.error });
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <section className="rounded-xl border bg-card p-4">
+      <h3 className="flex items-center gap-2 text-sm font-bold"><Ruler className="h-4 w-4" />{t('rpVerifyAdmin.radiusTitle')}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">{t('rpVerifyAdmin.radiusHint', { min: RADIUS_MIN_M, max: RADIUS_MAX_M })}</p>
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <label className="block space-y-1">
+          <span className="text-[11px] text-muted-foreground">{t('rpVerifyAdmin.radiusLabel')}</span>
+          <input type="number" inputMode="numeric" min={RADIUS_MIN_M} max={RADIUS_MAX_M} value={radius} disabled={!loaded}
+            onChange={(e) => setRadius(e.target.value === '' ? '' : Number(e.target.value))}
+            className="h-9 w-32 rounded-lg border bg-background px-2 text-sm" />
+        </label>
+        <button onClick={() => void onSave()} disabled={busy || !loaded}
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-50">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{t('rpVerifyAdmin.save')}
+        </button>
+      </div>
+      {msg && <Banner msg={msg} />}
+    </section>
   );
 }
 

@@ -510,6 +510,10 @@ export const ar = {
   rpVerifyAdmin: {
     title: 'إعداد التحقق الميداني',
     hint: 'ارفع قائمة العملاء، وأسنِد العملاء إلى المندوبين، واطّلع على كتالوج المدن/القنوات.',
+    // radius (FV-3b setting)
+    radiusTitle: 'نطاق التحقق القريب',
+    radiusHint: 'المسافة القصوى (بالمتر) التي يمكن للمندوب عندها التحقق من عميل مُسنَد. بين {min} و{max}.',
+    radiusLabel: 'النطاق (متر)', radiusSaved: 'تم ضبط النطاق على {n} متر.', radiusRange: 'يجب أن يكون النطاق بين {min} و{max} مترًا.',
     // upload
     uploadTitle: 'رفع قائمة العملاء',
     uploadHint: 'ملف Excel أو CSV. طابِق الأعمدة ثم احفظ كمجموعة بيانات نشطة.',
@@ -538,6 +542,7 @@ export const ar = {
     hint: 'ملخص لكل مندوب، وتفاصيل كل عملية تحقق، وتقرير الاستثناءات (المحاولات خارج النطاق).',
     tab_summary: 'الملخص', tab_detail: 'التفاصيل', tab_exceptions: 'الاستثناءات',
     refresh: 'تحديث', loading: 'جارٍ التحميل…', empty: 'لا توجد بيانات بعد.',
+    exportXlsx: 'تصدير Excel', email: 'البريد',
     // summary
     rep: 'المندوب', assigned: 'مُسنَد', completed: 'مكتمل', remaining: 'متبقٍّ', pct: 'النسبة', lastActivity: 'آخر نشاط',
     totals: 'الإجمالي',
@@ -1062,6 +1067,10 @@ export const en = {
   rpVerifyAdmin: {
     title: 'Field Verification Setup',
     hint: 'Upload the customer list, assign customers to reps, and review the City/Channel catalog.',
+    // radius (FV-3b setting)
+    radiusTitle: 'Nearby verification radius',
+    radiusHint: 'The maximum distance (in metres) at which a rep can verify an assigned customer. Between {min} and {max}.',
+    radiusLabel: 'Radius (m)', radiusSaved: 'Radius set to {n} m.', radiusRange: 'Radius must be between {min} and {max} m.',
     // upload
     uploadTitle: 'Upload customer list',
     uploadHint: 'Excel or CSV. Map the columns, then save as the active dataset.',
@@ -1090,6 +1099,7 @@ export const en = {
     hint: 'Per-rep summary, every verification in detail, and the exception report (out-of-radius attempts).',
     tab_summary: 'Summary', tab_detail: 'Detail', tab_exceptions: 'Exceptions',
     refresh: 'Refresh', loading: 'Loading…', empty: 'No data yet.',
+    exportXlsx: 'Export Excel', email: 'Email',
     // summary
     rep: 'Rep', assigned: 'Assigned', completed: 'Completed', remaining: 'Remaining', pct: '%', lastActivity: 'Last activity',
     totals: 'Totals',
