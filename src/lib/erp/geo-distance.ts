@@ -15,8 +15,11 @@ export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: 
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-/** The proximity lock radius for opening/verifying a customer. */
+/** The default proximity lock radius (metres) for opening/verifying a customer. Companies
+ *  may override this (FV-3b) within [RADIUS_MIN_M, RADIUS_MAX_M] — matching the DB CHECK. */
 export const NEARBY_RADIUS_M = 50;
+export const RADIUS_MIN_M = 10;
+export const RADIUS_MAX_M = 1000;
 
 /** Within the lock radius (default 50 m)? */
 export function isWithinRadius(meters: number, radius: number = NEARBY_RADIUS_M): boolean {

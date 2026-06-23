@@ -12,6 +12,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { haversineMeters, isWithinRadius, validCoord } from '@/lib/erp/geo-distance';
+import { getCompanyRadiusM } from './rp-verification-radius-actions';
 
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 type ResultD<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -36,14 +37,34 @@ const phoneOf = (attrs: unknown): string | null => {
   return typeof p === 'string' && p.trim() ? p : null;
 };
 
+type AttemptResult = 'verified' | 'outside_radius' | 'not_assigned' | 'no_coords' | 'error';
+/** Audit trail for field verification attempts (FV-3b). Rejected + successful attempts are
+ *  recorded for the FV-4 exception report. Best-effort: a logging failure never blocks the
+ *  user-facing flow (RLS already restricts the row to the rep's own company + id). */
+async function logAttempt(
+  sb: Awaited<ReturnType<typeof createClient>>,
+  ctx: NonNullable<Awaited<ReturnType<typeof getUserContext>>>,
+  a: { customerId?: string | null; gps?: { lat: number; lng: number } | null; distanceM?: number | null; allowedRadiusM?: number | null; result: AttemptResult; reason?: string },
+): Promise<void> {
+  try {
+    await sb.from('erp_rp_verification_attempts').insert({
+      company_id: ctx.companyId, customer_id: a.customerId ?? null, rep_id: ctx.userId,
+      gps_lat: a.gps?.lat ?? null, gps_lng: a.gps?.lng ?? null,
+      distance_m: a.distanceM ?? null, allowed_radius_m: a.allowedRadiusM ?? null,
+      result: a.result, reason: a.reason ?? null,
+    });
+  } catch { /* audit is best-effort; never fail the verification on a log error */ }
+}
+
 /** Customers assigned to me + my progress. When a GPS fix is supplied, the returned
  *  `nearby` list is filtered to UNVERIFIED customers within 50 m (sorted nearest-first). */
-export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | null): Promise<ResultD<{ nearby: NearbyCustomer[]; progress: MyProgress; gpsValid: boolean }>> {
+export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | null): Promise<ResultD<{ nearby: NearbyCustomer[]; progress: MyProgress; gpsValid: boolean; radiusM: number }>> {
   const ctx = await repCtx();
   if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const me = repKey(ctx);
   if (!me) return { ok: false, error: 'err_no_rep_key' };
   const sb = await createClient();
+  const radiusM = await getCompanyRadiusM(ctx.companyId!);   // company-configured proximity (default 50 m)
 
   const { data: custs, error } = await sb.from('erp_rp_dataset_customers')
     .select('id, code, name, lat, lng, city, channel, attrs')
@@ -73,7 +94,7 @@ export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | 
     let distanceM: number | null = null;
     if (gpsValid) {
       const d = haversineMeters(gps!.lat, gps!.lng, lat as number, lng as number);
-      if (!isWithinRadius(d)) continue;                    // only within 50 m
+      if (!isWithinRadius(d, radiusM)) continue;           // only within the configured radius
       distanceM = Math.round(d);
     }
     nearby.push({
@@ -83,7 +104,7 @@ export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | 
     });
   }
   nearby.sort((a, b) => (a.distanceM ?? Number.POSITIVE_INFINITY) - (b.distanceM ?? Number.POSITIVE_INFINITY));
-  return { ok: true, data: { nearby, progress: { total, completed, remaining, pct }, gpsValid } };
+  return { ok: true, data: { nearby, progress: { total, completed, remaining, pct }, gpsValid, radiusM } };
 }
 
 /** Submit a verification. Server-side: rep-assignment check + 50 m proximity lock +
@@ -104,16 +125,26 @@ export async function submitVerification(input: {
   if (!validCoord(input.gps?.lat, input.gps?.lng)) return { ok: false, error: 'err_gps_required' };
 
   const sb = await createClient();
+  const radiusM = await getCompanyRadiusM(ctx.companyId!);   // company-configured proximity (default 50 m)
   const { data: c, error: e1 } = await sb.from('erp_rp_dataset_customers')
     .select('id, dataset_id, code, name, lat, lng, city, channel, attrs, salesman')
     .eq('id', input.customerId).eq('company_id', ctx.companyId).maybeSingle();
   if (e1 || !c) return { ok: false, error: 'err_customer_not_found' };
-  if ((c.salesman as string | null) !== me) return { ok: false, error: 'err_not_assigned' };   // rep isolation
+  if ((c.salesman as string | null) !== me) {                                                  // rep isolation
+    await logAttempt(sb, ctx, { customerId: input.customerId, gps: input.gps, allowedRadiusM: radiusM, result: 'not_assigned' });
+    return { ok: false, error: 'err_not_assigned' };
+  }
   const lat = c.lat as number | null, lng = c.lng as number | null;
-  if (!validCoord(lat, lng)) return { ok: false, error: 'err_customer_no_coords' };
+  if (!validCoord(lat, lng)) {
+    await logAttempt(sb, ctx, { customerId: c.id as string, gps: input.gps, allowedRadiusM: radiusM, result: 'no_coords', reason: 'customer_no_coords' });
+    return { ok: false, error: 'err_customer_no_coords' };
+  }
 
   const distanceM = haversineMeters(input.gps.lat, input.gps.lng, lat as number, lng as number);
-  if (!isWithinRadius(distanceM)) return { ok: false, error: 'err_too_far' };                  // SERVER-SIDE 50 m lock
+  if (!isWithinRadius(distanceM, radiusM)) {                                                    // SERVER-SIDE proximity lock (configured radius)
+    await logAttempt(sb, ctx, { customerId: c.id as string, gps: input.gps, distanceM: Math.round(distanceM), allowedRadiusM: radiusM, result: 'outside_radius' });
+    return { ok: false, error: 'err_too_far' };
+  }
 
   const { data, error } = await sb.from('erp_rp_customer_verifications').insert({
     company_id: ctx.companyId, dataset_id: c.dataset_id, customer_id: c.id,
@@ -123,6 +154,7 @@ export async function submitVerification(input: {
     old_phone: phoneOf(c.attrs), new_phone: input.phone?.trim() || null,
     outside_photo: input.outsidePhotoId, inside_photos: input.insidePhotoIds ?? [],
     gps_lat: input.gps.lat, gps_lng: input.gps.lng, distance_m: Math.round(distanceM),
+    allowed_radius_m: radiusM,                                                                  // radius in force at submit time
     notes: input.notes?.trim() || null, verified_by: ctx.userId,
   }).select('id').single();
   if (error) {
@@ -131,5 +163,6 @@ export async function submitVerification(input: {
     }
     return { ok: false, error: error.message };
   }
+  await logAttempt(sb, ctx, { customerId: c.id as string, gps: input.gps, distanceM: Math.round(distanceM), allowedRadiusM: radiusM, result: 'verified' });
   return { ok: true, data: { id: data.id as string, distanceM: Math.round(distanceM) } };
 }
