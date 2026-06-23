@@ -13,6 +13,8 @@ export const ar = {
     tab_requestsHint: 'مركز طلبات تخطيط الخطوط وحالة الاعتماد (للعرض فقط حاليًا).',
     tab_connectors: 'الموصّلات',
     tab_connectorsHint: 'مصادر البيانات والاستيراد والمزامنة (للعرض فقط حاليًا).',
+    tab_verifyAdmin: 'التحقق الميداني',
+    tab_verifyAdminHint: 'رفع العملاء وإسنادهم للمندوبين وكتالوج المدن/القنوات (لمديري الشركة).',
     saveDataset: 'حفظ كمجموعة',
     saving: 'جارٍ الحفظ…',
     saveDatasetOk: 'تم حفظ المجموعة ({n} عميل). يمكنك إعادة فتحها من «مجموعات البيانات المحفوظة».',
@@ -503,6 +505,32 @@ export const ar = {
     e_err_not_assigned: 'هذا العميل غير مُسنَد إليك.', e_err_gps_required: 'تعذّر تحديد موقعك.',
     e_err_customer_no_coords: 'لا توجد إحداثيات لهذا العميل.', e_err_outside_photo_required: 'صورة واجهة المحل مطلوبة.',
   },
+  rpVerifyAdmin: {
+    title: 'إعداد التحقق الميداني',
+    hint: 'ارفع قائمة العملاء، وأسنِد العملاء إلى المندوبين، واطّلع على كتالوج المدن/القنوات.',
+    // upload
+    uploadTitle: 'رفع قائمة العملاء',
+    uploadHint: 'ملف Excel أو CSV. طابِق الأعمدة ثم احفظ كمجموعة بيانات نشطة.',
+    chooseFile: 'اختر ملفًا', parsing: 'جارٍ قراءة الملف…', mapTitle: 'مطابقة الأعمدة',
+    datasetName: 'اسم المجموعة', save: 'حفظ القائمة', saving: 'جارٍ الحفظ…',
+    uploadOk: 'تم حفظ {n} عميلًا ({v} بإحداثيات صالحة).', required: 'مطلوب',
+    // assign
+    assignTitle: 'إسناد العملاء إلى المندوبين',
+    assignHint: 'اختر مجموعة بيانات، حدّد العملاء، ثم أسنِدهم إلى مندوب. العملاء المُتحقَّق منهم مقفلون.',
+    dataset: 'مجموعة البيانات', selectDataset: 'اختر مجموعة…', rep: 'المندوب', selectRep: 'اختر مندوبًا…',
+    unassign: 'إلغاء الإسناد', assign: 'إسناد', assigning: 'جارٍ الإسناد…',
+    assignedOk: 'تم تحديث {n} عميلًا (تم تخطّي {s}).',
+    colCode: 'الكود', colName: 'الاسم', colCity: 'المدينة', colChannel: 'القناة', colAssigned: 'مُسنَد إلى', colStatus: 'الحالة',
+    unassigned: 'غير مُسنَد', verified: 'تم التحقق', pending: 'قيد الانتظار',
+    selectAll: 'تحديد الكل', selected: 'محدد: {n}', noRows: 'لا يوجد عملاء في هذه المجموعة.', noReps: 'لا يوجد مندوبون في هذه الشركة.',
+    // catalog
+    catalogTitle: 'كتالوج المدن/القنوات', catalogHint: 'قوائم القوائم المنسدلة مشتقّة من بيانات العملاء (بدون كتابة حرّة).',
+    cities: 'المدن', channels: 'القنوات', catalogEmpty: 'لا توجد قيم بعد — ارفع العملاء أولًا.',
+    // errors
+    e_err_forbidden: 'هذه الصفحة لمديري الشركة فقط.', e_err_unknown_rep: 'المندوب غير معروف.',
+    e_err_no_customers: 'حدّد عميلًا واحدًا على الأقل.', e_err_dataset_not_found: 'لم يتم العثور على المجموعة.',
+    e_err_no_dataset: 'اختر مجموعة بيانات.',
+  },
 };
 
 export const en = {
@@ -519,6 +547,8 @@ export const en = {
     tab_requestsHint: 'Route Planner request center & approval state (read-only for now).',
     tab_connectors: 'Connectors',
     tab_connectorsHint: 'Data sources, imports & sync runs (read-only for now).',
+    tab_verifyAdmin: 'Field Verification',
+    tab_verifyAdminHint: 'Upload customers, assign to reps & City/Channel catalog (company admins).',
     saveDataset: 'Save as dataset',
     saving: 'Saving…',
     saveDatasetOk: 'Dataset saved ({n} customers). Reopen it anytime from "Saved datasets".',
@@ -1008,5 +1038,31 @@ export const en = {
     e_err_too_far: 'You must be within 50 m of the customer.', e_err_already_verified: 'This customer is already verified.',
     e_err_not_assigned: 'This customer is not assigned to you.', e_err_gps_required: 'Could not read your location.',
     e_err_customer_no_coords: 'This customer has no coordinates.', e_err_outside_photo_required: 'Outside shop photo is required.',
+  },
+  rpVerifyAdmin: {
+    title: 'Field Verification Setup',
+    hint: 'Upload the customer list, assign customers to reps, and review the City/Channel catalog.',
+    // upload
+    uploadTitle: 'Upload customer list',
+    uploadHint: 'Excel or CSV. Map the columns, then save as the active dataset.',
+    chooseFile: 'Choose file', parsing: 'Reading file…', mapTitle: 'Map columns',
+    datasetName: 'Dataset name', save: 'Save list', saving: 'Saving…',
+    uploadOk: 'Saved {n} customers ({v} with valid coordinates).', required: 'required',
+    // assign
+    assignTitle: 'Assign customers to reps',
+    assignHint: 'Pick a dataset, select customers, then assign them to a rep. Verified customers are locked.',
+    dataset: 'Dataset', selectDataset: 'Choose dataset…', rep: 'Rep', selectRep: 'Choose a rep…',
+    unassign: 'Unassign', assign: 'Assign', assigning: 'Assigning…',
+    assignedOk: 'Updated {n} customers (skipped {s}).',
+    colCode: 'Code', colName: 'Name', colCity: 'City', colChannel: 'Channel', colAssigned: 'Assigned to', colStatus: 'Status',
+    unassigned: 'Unassigned', verified: 'Verified', pending: 'Pending',
+    selectAll: 'Select all', selected: 'Selected: {n}', noRows: 'No customers in this dataset.', noReps: 'No reps in this company.',
+    // catalog
+    catalogTitle: 'City/Channel catalog', catalogHint: 'Dropdown lists are derived from the customer data (no free typing).',
+    cities: 'Cities', channels: 'Channels', catalogEmpty: 'No values yet — upload customers first.',
+    // errors
+    e_err_forbidden: 'This page is for company admins only.', e_err_unknown_rep: 'Unknown rep.',
+    e_err_no_customers: 'Select at least one customer.', e_err_dataset_not_found: 'Dataset not found.',
+    e_err_no_dataset: 'Choose a dataset.',
   },
 };
