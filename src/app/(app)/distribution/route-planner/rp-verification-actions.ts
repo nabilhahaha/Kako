@@ -60,7 +60,7 @@ async function logAttempt(
 /** Customers assigned to me + my progress. When a GPS fix is supplied, the returned
  *  `nearby` list is filtered to UNVERIFIED customers within the company-configured radius
  *  (returned as `radiusM`, the single source of truth for header/empty-state/filter). */
-export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | null): Promise<ResultD<{ nearby: NearbyCustomer[]; progress: MyProgress; gpsValid: boolean; radiusM: number }>> {
+export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | null): Promise<ResultD<{ nearby: NearbyCustomer[]; assigned: NearbyCustomer[]; progress: MyProgress; gpsValid: boolean; radiusM: number }>> {
   const ctx = await repCtx();
   if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const me = repKey(ctx);
@@ -89,24 +89,32 @@ export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | 
 
   const gpsValid = !!gps && validCoord(gps.lat, gps.lng);
   const nearby: NearbyCustomer[] = [];
+  const assigned: NearbyCustomer[] = [];
   for (const c of customers) {
-    if (verified.has(c.id as string)) continue;            // completed → not asked again
+    if (verified.has(c.id as string)) continue;            // completed → excluded from both lists
     const lat = c.lat as number | null, lng = c.lng as number | null;
-    if (!validCoord(lat, lng)) continue;
+    if (!validCoord(lat, lng)) continue;                   // unverifiable without coordinates
     let distanceM: number | null = null;
+    let within = !gpsValid;                                // no GPS fix → list everything (unchanged)
     if (gpsValid) {
       const d = haversineMeters(gps!.lat, gps!.lng, lat as number, lng as number);
-      if (!isWithinRadius(d, radiusM)) continue;           // only within the configured radius
       distanceM = Math.round(d);
+      within = isWithinRadius(d, radiusM);                 // gate Nearby to the configured radius
     }
-    nearby.push({
+    const row: NearbyCustomer = {
       id: c.id as string, code: (c.code as string | null) ?? null, name: (c.name as string) ?? '',
       lat: lat as number, lng: lng as number, city: (c.city as string | null) ?? null,
       channel: (c.channel as string | null) ?? null, phone: phoneOf(c.attrs), distanceM,
-    });
+    };
+    // Assigned List: EVERY unverified customer assigned to me — searchable + openable
+    // regardless of distance. Nearby: the same rows gated to the configured radius (when a
+    // GPS fix is present). Final submit still enforces the radius + photo rule server-side.
+    assigned.push(row);
+    if (within) nearby.push(row);
   }
   nearby.sort((a, b) => (a.distanceM ?? Number.POSITIVE_INFINITY) - (b.distanceM ?? Number.POSITIVE_INFINITY));
-  return { ok: true, data: { nearby, progress: { total, completed, remaining, pct }, gpsValid, radiusM } };
+  assigned.sort((a, b) => (a.code ?? a.name).localeCompare(b.code ?? b.name));
+  return { ok: true, data: { nearby, assigned, progress: { total, completed, remaining, pct }, gpsValid, radiusM } };
 }
 
 /** Submit a verification. Server-side: rep-assignment check + 50 m proximity lock +
