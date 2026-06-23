@@ -48,6 +48,13 @@ export interface CompanyDetailBundle {
   rpMissionCount: number | null;
   rpRequestCount: number | null;
   rpSourceCount: number | null;
+  /** Field Verification module-health counts (read-only; degrade to null gracefully). */
+  fvTotalCustomers: number | null;
+  fvAssignedCustomers: number | null;
+  fvVerifiedCustomers: number | null;
+  fvPendingCustomers: number | null;
+  fvOutsideRadiusAttempts: number | null;
+  fvLastActivity: string | null;
   activeUsers: number;
   totalUsers: number;
   modulesTotal: number;
@@ -161,6 +168,21 @@ export async function loadCompanyDetailBundle(
     safeCount(() => supabase.from('erp_rp_data_sources').select('id', { count: 'exact', head: true }).eq('company_id', id)),
   ]);
 
+  // Field Verification module-health counts (read-only; null on error / missing table).
+  const [fvTotalCustomers, fvAssignedCustomers, fvVerifiedCustomers, fvOutsideRadiusAttempts] = await Promise.all([
+    safeCount(() => supabase.from('erp_rp_dataset_customers').select('id', { count: 'exact', head: true }).eq('company_id', id)),
+    safeCount(() => supabase.from('erp_rp_dataset_customers').select('id', { count: 'exact', head: true }).eq('company_id', id).not('salesman', 'is', null)),
+    safeCount(() => supabase.from('erp_rp_customer_verifications').select('id', { count: 'exact', head: true }).eq('company_id', id)),
+    safeCount(() => supabase.from('erp_rp_verification_attempts').select('id', { count: 'exact', head: true }).eq('company_id', id).eq('result', 'outside_radius')),
+  ]);
+  // Pending = assigned customers not yet verified (verification requires assignment).
+  const fvPendingCustomers = (fvAssignedCustomers != null && fvVerifiedCustomers != null)
+    ? Math.max(0, fvAssignedCustomers - fvVerifiedCustomers) : null;
+  // Last verification activity (most recent verified_at), null-safe.
+  const { data: fvLastRow } = await supabase.from('erp_rp_customer_verifications')
+    .select('verified_at').eq('company_id', id).order('verified_at', { ascending: false }).limit(1).maybeSingle();
+  const fvLastActivity = (fvLastRow?.verified_at as string | null) ?? null;
+
   const distinctUsers = new Set(members.map((m) => m.userId));
   const timeline: TimelineRow[] = auditLogRows
     .filter((r) => IMPORTANT_TIMELINE_ENTITIES.has(r.entity) || IMPORTANT_TIMELINE_ACTIONS.has(r.action))
@@ -194,6 +216,12 @@ export async function loadCompanyDetailBundle(
     rpMissionCount,
     rpRequestCount,
     rpSourceCount,
+    fvTotalCustomers,
+    fvAssignedCustomers,
+    fvVerifiedCustomers,
+    fvPendingCustomers,
+    fvOutsideRadiusAttempts,
+    fvLastActivity,
     activeUsers: distinctUsers.size,
     totalUsers: distinctUsers.size,
     modulesTotal: ALL_MODULES.length,

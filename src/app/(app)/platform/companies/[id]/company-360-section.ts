@@ -7,11 +7,11 @@
 
 export type SectionKey =
   | 'summary' | 'subscription' | 'users' | 'roles' | 'modules'
-  | 'routePlanner' | 'workflow' | 'packs' | 'integrations' | 'usage' | 'audit';
+  | 'routePlanner' | 'fieldVerification' | 'workflow' | 'packs' | 'integrations' | 'usage' | 'audit';
 
 export const SECTION_ORDER: SectionKey[] = [
   'summary', 'subscription', 'users', 'roles', 'modules',
-  'routePlanner', 'workflow', 'packs', 'integrations', 'usage', 'audit',
+  'routePlanner', 'fieldVerification', 'workflow', 'packs', 'integrations', 'usage', 'audit',
 ];
 
 /** Maps legacy ?tab= values to the new anchor section (back-compat). */
@@ -25,6 +25,8 @@ export function tabToSection(tab: string | undefined): SectionKey {
     case 'modules': return 'modules';
     case 'routePlanner':
     case 'route-planner': return 'routePlanner';
+    case 'fieldVerification':
+    case 'field-verification': return 'fieldVerification';
     case 'workflow':
     case 'settings': return 'workflow';
     case 'packs': return 'packs';
