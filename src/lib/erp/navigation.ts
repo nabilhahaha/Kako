@@ -133,7 +133,7 @@ export type Module =
   // filter passes through keys outside ALL_MODULES, so these stay driven by
   // erp_company_modules, not by the subscription plan.
   | 'route_management' | 'van_sales' | 'trade_spend' | 'merchandising'
-  | 'change_requests' | 'critical_alerts';
+  | 'change_requests' | 'critical_alerts' | 'field_verification';
 
 /** The modules a subscription PLAN can grant (coarse). Core capability modules
  *  are included so they appear in the (grouped) Marketplace and are gateable. */
@@ -172,6 +172,7 @@ export const MODULE_LABELS: Record<Module, { en: string; ar: string }> = {
   merchandising: { en: 'Merchandising', ar: 'التسويق الميداني' },
   change_requests: { en: 'Change Requests', ar: 'طلبات التغيير' },
   critical_alerts: { en: 'Critical Alerts', ar: 'التنبيهات الحرجة' },
+  field_verification: { en: 'Field Verification', ar: 'التحقق الميداني من العملاء' },
 };
 
 /**

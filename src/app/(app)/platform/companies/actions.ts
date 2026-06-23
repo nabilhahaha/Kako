@@ -47,6 +47,7 @@ const BUSINESS_TYPES: BusinessType[] = [
   'clothing', 'restaurant', 'cafe', 'delivery', 'services',
   'bakery', 'butchery', 'herbalist', 'auto_parts', 'bookstore',
   'electronics', 'laundry', 'workshop', 'clinic', 'salon', 'hotel',
+  'field_verification_only',
 ];
 
 /** Create a new tenant company with an optional timed subscription. */

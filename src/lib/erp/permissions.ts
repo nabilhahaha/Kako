@@ -117,6 +117,16 @@ export type Permission =
   | 'route_planner.edit' // split, move, merge, rebalance routes
   | 'route_planner.export' // export the plan to Excel
   | 'route_planner.admin' // manage Route Planner tenants/subscriptions (product-scoped admin)
+  // ── Field Customer Verification (standalone module) ──
+  | 'field_verification.view' // access the Field Verification module
+  | 'field_verification.upload' // import / map the customer list
+  | 'field_verification.assign' // assign customers to field reps
+  | 'field_verification.verify' // verify own assigned customers (mobile)
+  | 'field_verification.catalog_manage' // manage the admin City/Channel catalog
+  | 'field_verification.radius_manage' // set the company verification radius
+  | 'field_verification.reports' // view verification reports
+  | 'field_verification.export' // export verification data to Excel
+  | 'field_verification.admin' // full Field Verification admin
   // ── Fashion Store pack (clothing vertical) ──
   | 'fashion.manage' // full fashion-store management (owner) — implies all below
   | 'fashion.sell' // POS cash + installment sales, customers, returns
@@ -161,6 +171,15 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'route_planner.edit': { en: 'Edit / move routes', ar: 'تعديل ونقل الخطوط', group: 'field_ops' },
   'route_planner.export': { en: 'Export Route Planner Excel', ar: 'تصدير مخطط الخطوط', group: 'field_ops' },
   'route_planner.admin': { en: 'Manage Route Planner tenants', ar: 'إدارة عملاء مخطط الخطوط', group: 'field_ops' },
+  'field_verification.view': { en: 'Access Field Verification', ar: 'الوصول إلى التحقق الميداني', group: 'field_verification' },
+  'field_verification.upload': { en: 'Upload customer list', ar: 'رفع قائمة العملاء', group: 'field_verification' },
+  'field_verification.assign': { en: 'Assign customers to reps', ar: 'إسناد العملاء للمندوبين', group: 'field_verification' },
+  'field_verification.verify': { en: 'Verify assigned customers', ar: 'التحقق من العملاء المُسنَدين', group: 'field_verification' },
+  'field_verification.catalog_manage': { en: 'Manage City/Channel catalog', ar: 'إدارة كتالوج المدن/القنوات', group: 'field_verification' },
+  'field_verification.radius_manage': { en: 'Set verification radius', ar: 'ضبط نطاق التحقق', group: 'field_verification' },
+  'field_verification.reports': { en: 'View verification reports', ar: 'عرض تقارير التحقق', group: 'field_verification' },
+  'field_verification.export': { en: 'Export verification data', ar: 'تصدير بيانات التحقق', group: 'field_verification' },
+  'field_verification.admin': { en: 'Field Verification admin', ar: 'إدارة التحقق الميداني', group: 'field_verification' },
   'settings.branches': { en: 'Manage branches', ar: 'إدارة الفروع', group: 'settings' },
   'settings.users': { en: 'Manage users and permissions', ar: 'إدارة المستخدمين والصلاحيات', group: 'settings' },
   'integrations.manage': { en: 'Manage data import & integrations', ar: 'إدارة استيراد البيانات والتكاملات', group: 'settings' },
@@ -265,6 +284,7 @@ export const PERMISSION_GROUP_LABELS: Record<string, { en: string; ar: string }>
   wholesale: { en: 'Wholesale', ar: 'الجملة' },
   electrical: { en: 'Electrical', ar: 'الكهربائيات' },
   field_ops: { en: 'Field Operations', ar: 'العمليات الميدانية' },
+  field_verification: { en: 'Field Verification', ar: 'التحقق الميداني من العملاء' },
   fashion: { en: 'Fashion Store', ar: 'متجر الملابس' },
 };
 
@@ -364,6 +384,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'day.close.supervisor', 'day.close.reconcile', 'day.close.reopen',
     'stock_request.adjust', 'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
+    'field_verification.view', 'field_verification.assign', 'field_verification.reports',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
@@ -382,6 +403,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'day.close', 'day.reopen.request', 'cash.handover.request', 'customer.request', 'stock.view', 'stock.transfer', 'customer.create',
     'reconciliation.view', 'returns.create', 'day.close.submit',
     'customers.view_balance', 'documents.print', 'documents.share', 'documents.export',
+    'field_verification.view', 'field_verification.verify',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
@@ -404,7 +426,8 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'day.close.reconcile', 'documents.print', 'documents.export',
   ],
   staff: ['inventory.view'],
-  viewer: ['reports.view', 'accounting.view', 'inventory.view', 'documents.export'],
+  viewer: ['reports.view', 'accounting.view', 'inventory.view', 'documents.export',
+    'field_verification.view', 'field_verification.reports'],
   // Auditor: read-only oversight across approvals, settlement and the audit trail.
   auditor: [
     'reports.view', 'accounting.view', 'inventory.view', 'stock.view',
