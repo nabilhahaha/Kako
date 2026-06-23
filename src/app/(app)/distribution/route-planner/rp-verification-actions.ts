@@ -14,6 +14,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { haversineMeters, isWithinRadius, validCoord } from '@/lib/erp/geo-distance';
 import { getCompanyRadiusM } from './rp-verification-radius-actions';
+import { ATTACHMENTS_BUCKET } from '@/lib/erp/attachments';
+import { chunk } from '@/lib/utils';
 
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 type ResultD<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -189,4 +191,68 @@ export async function submitVerification(input: {
   }
   await logAttempt(sb, ctx, { customerId: c.id as string, gps: input.gps, distanceM: Math.round(distanceM), allowedRadiusM: radiusM, result: 'verified' });
   return { ok: true, data: { id: data.id as string, distanceM: Math.round(distanceM) } };
+}
+
+/** A verification the logged-in rep already completed — the "Completed" tab + read-only
+ *  detail. Source: erp_rp_customer_verifications (the same immutable rows the submit writes
+ *  and the admin report reads). Scoped to the rep's OWN rows (rep_id = me); RLS (rp_verif_sel:
+ *  rep_id = auth.uid()) is the backstop, so other reps' completions are never returned. */
+export interface CompletedVerification {
+  id: string; customerId: string; code: string | null; name: string;
+  oldCity: string | null; newCity: string | null;
+  oldChannel: string | null; newChannel: string | null;
+  oldPhone: string | null; newPhone: string | null;
+  notes: string | null; distanceM: number | null; allowedRadiusM: number | null;
+  verifiedAt: string; status: string; repName: string; repEmail: string;
+  outsidePhotoId: string | null; insidePhotoIds: string[];
+}
+
+export async function getMyCompletedVerifications(): Promise<ResultD<CompletedVerification[]>> {
+  const ctx = await repCtx();
+  if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const sb = await createClient();
+  const { data: rows, error } = await sb.from('erp_rp_customer_verifications')
+    .select('id, customer_id, customer_code, customer_name, old_city, new_city, old_channel, new_channel, old_phone, new_phone, notes, distance_m, allowed_radius_m, status, verified_at, created_at, outside_photo, inside_photos')
+    .eq('company_id', ctx.companyId).eq('rep_id', ctx.userId)
+    .order('created_at', { ascending: false }).limit(500);   // latest first
+  if (error) return { ok: false, error: error.message };
+  const repEmail = repKey(ctx) ?? '';
+  const repName = (ctx.profile as { full_name?: string | null } | null)?.full_name || repEmail;
+  return {
+    ok: true,
+    data: (rows ?? []).map((r) => ({
+      id: r.id as string, customerId: r.customer_id as string,
+      code: (r.customer_code as string | null) ?? null, name: (r.customer_name as string) ?? '',
+      oldCity: (r.old_city as string | null) ?? null, newCity: (r.new_city as string | null) ?? null,
+      oldChannel: (r.old_channel as string | null) ?? null, newChannel: (r.new_channel as string | null) ?? null,
+      oldPhone: (r.old_phone as string | null) ?? null, newPhone: (r.new_phone as string | null) ?? null,
+      notes: (r.notes as string | null) ?? null,
+      distanceM: (r.distance_m as number | null) ?? null, allowedRadiusM: (r.allowed_radius_m as number | null) ?? null,
+      verifiedAt: ((r.verified_at as string | null) ?? (r.created_at as string)) as string,
+      status: (r.status as string | null) ?? 'verified', repName, repEmail,
+      outsidePhotoId: (r.outside_photo as string | null) ?? null,
+      insidePhotoIds: ((r.inside_photos as string[] | null) ?? []),
+    })),
+  };
+}
+
+/** Resolve attachment ids → short-lived signed URLs for the read-only verification detail.
+ *  Company-scoped (erp_attachments tenant RLS) + batched (the `.in()` filter is URL-encoded).
+ *  Read-only: never mutates the verification or the attachment. */
+export async function getVerificationPhotos(ids: string[]): Promise<ResultD<{ id: string; url: string }[]>> {
+  const ctx = await repCtx();
+  if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const clean = [...new Set((ids ?? []).filter((x) => typeof x === 'string' && x))];
+  if (clean.length === 0) return { ok: true, data: [] };
+  const sb = await createClient();
+  const out: { id: string; url: string }[] = [];
+  for (const batch of chunk(clean)) {
+    const { data: atts } = await sb.from('erp_attachments')
+      .select('id, path').in('id', batch).eq('company_id', ctx.companyId).is('deleted_at', null);
+    for (const a of atts ?? []) {
+      const { data: signed } = await sb.storage.from(ATTACHMENTS_BUCKET).createSignedUrl(a.path as string, 3600);
+      if (signed?.signedUrl) out.push({ id: a.id as string, url: signed.signedUrl });
+    }
+  }
+  return { ok: true, data: out };
 }
