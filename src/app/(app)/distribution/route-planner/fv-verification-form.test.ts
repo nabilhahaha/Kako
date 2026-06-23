@@ -3,68 +3,66 @@ import { resolveFvForm, FV_CORE_FIELDS, type FvFieldOverride } from './fv-verifi
 
 const keys = (rows: ReturnType<typeof resolveFvForm>) => rows.map((r) => r.key);
 
-describe('resolveFvForm — defaults (no config = current behavior)', () => {
-  it('returns all 6 core fields in canonical order, all visible', () => {
+describe('resolveFvForm — defaults (no config = today\'s behavior)', () => {
+  it('returns all 6 fields in canonical order, all visible', () => {
     const r = resolveFvForm(null);
     expect(keys(r)).toEqual(['city', 'channel', 'outside_photo', 'inside_photos', 'phone', 'notes']);
     expect(r.every((f) => f.visible)).toBe(true);
   });
-  it('core-required fields default to required; optional fields default optional', () => {
-    const r = resolveFvForm([]);
-    const req = Object.fromEntries(r.map((f) => [f.key, f.required]));
+  it('FV-template safe defaults: city/channel/outside required; inside/phone/notes optional', () => {
+    const req = Object.fromEntries(resolveFvForm([]).map((f) => [f.key, f.required]));
     expect(req.city).toBe(true);
     expect(req.channel).toBe(true);
     expect(req.outside_photo).toBe(true);
+    expect(req.inside_photos).toBe(false);
     expect(req.phone).toBe(false);
     expect(req.notes).toBe(false);
-    expect(req.inside_photos).toBe(false);
+  });
+  it('warnOnRelax marks the core fields (city/channel/outside) but not the rest', () => {
+    const warn = Object.fromEntries(resolveFvForm(null).map((f) => [f.key, f.warnOnRelax]));
+    expect(warn.city).toBe(true); expect(warn.channel).toBe(true); expect(warn.outside_photo).toBe(true);
+    expect(warn.phone).toBe(false); expect(warn.notes).toBe(false); expect(warn.inside_photos).toBe(false);
   });
 });
 
-describe('resolveFvForm — guardrails (config can never weaken core validation)', () => {
-  it('a core-required field cannot be hidden or made optional', () => {
-    const overrides: FvFieldOverride[] = [
-      { key: 'city', visible: false, required: false },
-      { key: 'outside_photo', visible: false, required: false },
-    ];
-    const r = resolveFvForm(overrides);
+describe('resolveFvForm — EVERY field is configurable (reusable module)', () => {
+  it('a core field CAN be made optional (allowed) and is flagged relaxed', () => {
+    const r = resolveFvForm([{ key: 'city', required: false }]);
     const city = r.find((f) => f.key === 'city')!;
-    const photo = r.find((f) => f.key === 'outside_photo')!;
-    expect(city.visible).toBe(true); expect(city.required).toBe(true); expect(city.toggleable).toBe(false);
-    expect(photo.visible).toBe(true); expect(photo.required).toBe(true);
+    expect(city.visible).toBe(true);
+    expect(city.required).toBe(false);   // not locked — admin override wins
+    expect(city.relaxed).toBe(true);     // surfaced for the warning
   });
-  it('a hidden optional field is never required', () => {
-    const r = resolveFvForm([{ key: 'phone', visible: false, required: true }]);
-    const phone = r.find((f) => f.key === 'phone')!;
-    expect(phone.visible).toBe(false);
-    expect(phone.required).toBe(false);
+  it('a core field CAN be hidden (allowed) and is flagged relaxed', () => {
+    const photo = resolveFvForm([{ key: 'outside_photo', visible: false }]).find((f) => f.key === 'outside_photo')!;
+    expect(photo.visible).toBe(false);
+    expect(photo.required).toBe(false);  // hidden ⇒ not required
+    expect(photo.relaxed).toBe(true);
+  });
+  it('an optional field can be made required (and is not "relaxed")', () => {
+    const phone = resolveFvForm([{ key: 'phone', required: true }]).find((f) => f.key === 'phone')!;
+    expect(phone.required).toBe(true);
+    expect(phone.relaxed).toBe(false);
+  });
+  it('a hidden field is never required (logical consistency, not a lock)', () => {
+    const notes = resolveFvForm([{ key: 'notes', visible: false, required: true }]).find((f) => f.key === 'notes')!;
+    expect(notes.visible).toBe(false);
+    expect(notes.required).toBe(false);
   });
 });
 
-describe('resolveFvForm — admin overrides (label / order / visible / required)', () => {
-  it('optional field can be hidden', () => {
-    const r = resolveFvForm([{ key: 'notes', visible: false }]);
-    expect(r.find((f) => f.key === 'notes')!.visible).toBe(false);
-  });
-  it('optional field can be made required', () => {
-    const r = resolveFvForm([{ key: 'phone', required: true }]);
-    expect(r.find((f) => f.key === 'phone')!.required).toBe(true);
-  });
-  it('custom AR/EN labels + help are surfaced; blank → null (use default)', () => {
-    const r = resolveFvForm([{ key: 'phone', labelEn: 'Mobile', labelAr: 'الجوال', help: ' call first ' }]);
-    const phone = r.find((f) => f.key === 'phone')!;
+describe('resolveFvForm — labels / order / safety', () => {
+  it('custom AR/EN labels + help surface; blank → null (use default)', () => {
+    const phone = resolveFvForm([{ key: 'phone', labelEn: 'Mobile', labelAr: 'الجوال', help: ' call first ' }]).find((f) => f.key === 'phone')!;
     expect(phone.labelEn).toBe('Mobile');
     expect(phone.labelAr).toBe('الجوال');
     expect(phone.help).toBe('call first');
     expect(resolveFvForm([{ key: 'phone', labelEn: '   ' }]).find((f) => f.key === 'phone')!.labelEn).toBeNull();
   });
-  it('explicit order reorders fields; unset falls back to canonical index', () => {
-    const r = resolveFvForm([{ key: 'notes', order: 0 }, { key: 'city', order: 1 }]);
-    expect(keys(r)[0]).toBe('notes');
+  it('explicit order reorders fields', () => {
+    expect(keys(resolveFvForm([{ key: 'notes', order: 0 }, { key: 'city', order: 1 }]))[0]).toBe('notes');
   });
   it('unknown field keys are ignored (no throw)', () => {
-    // @ts-expect-error — deliberately invalid key
-    expect(() => resolveFvForm([{ key: 'bogus', visible: false }])).not.toThrow();
     expect(keys(resolveFvForm([{ key: 'bogus' } as unknown as FvFieldOverride]))).toHaveLength(FV_CORE_FIELDS.length);
   });
 });

@@ -15,11 +15,17 @@
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { FORM_BUILDER_ENABLED } from '@/lib/form-builder';
-import { resolveFvForm, isFvFieldKey, type FvFieldOverride, type ResolvedFvField } from './fv-verification-form';
+import { resolveFvForm, isFvFieldKey, FV_DEFAULT_REQUIRE_GPS, type FvFieldOverride, type ResolvedFvField } from './fv-verification-form';
 
 type ResultD<T> = { ok: true; data: T } | { ok: false; error: string };
 
 export const FV_FORM_CODE = 'fv_verification';
+
+/** Read the form-level GPS/radius lock toggle from the stored schema.settings (default = on). */
+function parseRequireGps(schema: unknown): boolean {
+  const v = (schema as { settings?: { requireGps?: unknown } } | null)?.settings?.requireGps;
+  return typeof v === 'boolean' ? v : FV_DEFAULT_REQUIRE_GPS;
+}
 
 /** Map an arbitrary stored schema.fields jsonb to safe, typed FvFieldOverride[]. */
 function parseOverrides(schema: unknown): FvFieldOverride[] {
@@ -43,23 +49,26 @@ function parseOverrides(schema: unknown): FvFieldOverride[] {
   return out;
 }
 
-/** The company's effective verification-field layout. `configured` = a published config
- *  exists AND the form-builder flag is on; otherwise the default layout (current behavior). */
-export async function getFvVerificationForm(): Promise<ResultD<{ fields: ResolvedFvField[]; configured: boolean }>> {
+/** The company's effective verification form. `configured` = a published config exists AND
+ *  the form-builder flag is on; otherwise the default layout + requireGps=on (today's
+ *  behavior, byte-for-byte). `requireGps` is the form-level radius/GPS lock toggle. */
+export async function getFvVerificationForm(): Promise<ResultD<{ fields: ResolvedFvField[]; requireGps: boolean; configured: boolean }>> {
   const ctx = await getUserContext();
   if (!ctx?.companyId) return { ok: false, error: 'err_unauthorized' };
 
-  if (!FORM_BUILDER_ENABLED()) return { ok: true, data: { fields: resolveFvForm(null), configured: false } };
+  const def = { fields: resolveFvForm(null), requireGps: FV_DEFAULT_REQUIRE_GPS, configured: false };
+  if (!FORM_BUILDER_ENABLED()) return { ok: true, data: def };
 
   const sb = await createClient();
   const { data: form } = await sb.from('erp_forms')
     .select('id').eq('company_id', ctx.companyId).eq('code', FV_FORM_CODE).maybeSingle();
-  if (!form) return { ok: true, data: { fields: resolveFvForm(null), configured: false } };
+  if (!form) return { ok: true, data: def };
 
   const { data: ver } = await sb.from('erp_form_versions')
     .select('schema').eq('form_id', (form as { id: string }).id).eq('status', 'published')
     .order('version', { ascending: false }).limit(1).maybeSingle();
-  if (!ver) return { ok: true, data: { fields: resolveFvForm(null), configured: false } };
+  if (!ver) return { ok: true, data: def };
 
-  return { ok: true, data: { fields: resolveFvForm(parseOverrides((ver as { schema: unknown }).schema)), configured: true } };
+  const schema = (ver as { schema: unknown }).schema;
+  return { ok: true, data: { fields: resolveFvForm(parseOverrides(schema)), requireGps: parseRequireGps(schema), configured: true } };
 }
