@@ -616,7 +616,7 @@ export const ar = {
     totals: 'الإجمالي',
     // detail
     customer: 'العميل', verifiedAt: 'تاريخ التحقق', city: 'المدينة', channel: 'القناة', phone: 'الهاتف',
-    oldNew: 'قديم ← جديد', distance: 'المسافة (م)', radius: 'النطاق (م)', photos: 'الصور', notes: 'ملاحظات', noChange: 'بدون تغيير',
+    oldNew: 'قديم ← جديد', distance: 'المسافة (م)', radius: 'النطاق (م)', photos: 'الصور', notes: 'ملاحظات', noChange: 'بدون تغيير', noPhotos: 'لا توجد صور',
     // exceptions
     when: 'الوقت', result: 'النتيجة', reason: 'السبب',
     r_outside_radius: 'خارج النطاق', r_not_assigned: 'غير مُسنَد', r_no_coords: 'لا إحداثيات', r_error: 'خطأ',
@@ -1241,7 +1241,7 @@ export const en = {
     totals: 'Totals',
     // detail
     customer: 'Customer', verifiedAt: 'Verified at', city: 'City', channel: 'Channel', phone: 'Phone',
-    oldNew: 'Old → New', distance: 'Distance (m)', radius: 'Radius (m)', photos: 'Photos', notes: 'Notes', noChange: 'no change',
+    oldNew: 'Old → New', distance: 'Distance (m)', radius: 'Radius (m)', photos: 'Photos', notes: 'Notes', noChange: 'no change', noPhotos: 'No photos',
     // exceptions
     when: 'When', result: 'Result', reason: 'Reason',
     r_outside_radius: 'Outside radius', r_not_assigned: 'Not assigned', r_no_coords: 'No coordinates', r_error: 'Error',

@@ -13,7 +13,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
-import { hasPermission } from '@/lib/erp/permissions';
+import { canViewFvReports } from './fv-report-access';
 
 type ResultD<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -35,6 +35,7 @@ export interface DetailRow {
   oldChannel: string | null; newChannel: string | null;
   oldPhone: string | null; newPhone: string | null;
   distanceM: number | null; allowedRadiusM: number | null; photoCount: number; notes: string | null;
+  outsidePhotoId: string | null; insidePhotoIds: string[];
 }
 export interface ExceptionRow {
   id: string; createdAt: number; repName: string;
@@ -44,7 +45,9 @@ export interface ExceptionRow {
 }
 
 function canViewReports(ctx: NonNullable<Awaited<ReturnType<typeof getUserContext>>>): boolean {
-  return ctx.isPlatformOwner || ctx.isSuperAdmin || ctx.topRole === 'admin' || hasPermission(ctx, 'reports.view');
+  // Aligns the report ACTION gate with the page gate (field_verification.reports) so a
+  // Supervisor / Viewer-Reporter who reaches the page is not rejected by the action.
+  return canViewFvReports(ctx);
 }
 async function reportCtx() {
   const ctx = await getUserContext();
@@ -163,6 +166,8 @@ export async function getVerificationDetail(): Promise<ResultD<{ rows: DetailRow
     distanceM: (r.distance_m as number | null) ?? null, allowedRadiusM: (r.allowed_radius_m as number | null) ?? null,
     photoCount: (r.outside_photo ? 1 : 0) + ((r.inside_photos as unknown[] | null)?.length ?? 0),
     notes: (r.notes as string | null) ?? null,
+    outsidePhotoId: (r.outside_photo as string | null) ?? null,
+    insidePhotoIds: ((r.inside_photos as string[] | null) ?? []).filter((x) => typeof x === 'string' && x),
   }));
   return { ok: true, data: { rows } };
 }
