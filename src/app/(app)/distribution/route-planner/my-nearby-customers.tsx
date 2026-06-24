@@ -19,6 +19,7 @@ import type { FvMapPoint } from './fv-map-helpers';
 import { filterAssignedCustomers, filterCompletedVerifications } from './fv-customer-search';
 import { removeFileAt, mergeFiles } from './fv-photo-edit';
 import { radiusWaived } from './fv-radius';
+import { openGoogleMapsNavigation, canNavigate } from './fv-nav';
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
 import { NEARBY_RADIUS_M } from '@/lib/erp/geo-distance';
 import { cn } from '@/lib/utils';
@@ -559,51 +560,69 @@ export function MyNearbyCustomers() {
   );
 }
 
-/** One tappable customer row (shared by the Nearby + Assigned lists). */
-function CustomerRow({ t, c, onOpen }: { t: (k: string, p?: Record<string, string | number>) => string; c: NearbyCustomer; onOpen: () => void }) {
+/** Compact card action button (icon + label). */
+function CardAction({ onClick, icon, label, primary }: { onClick: () => void; icon: React.ReactNode; label: string; primary?: boolean }) {
   return (
-    <button onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border bg-card p-3.5 text-start shadow-sm active:scale-[0.99]">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Store className="h-6 w-6" /></div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-bold">{c.name}</p>
-          {c.code && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{c.code}</span>}
-        </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-          {c.distanceM != null && <span className="font-semibold text-primary">{t('rpVerify.metersAway', { n: c.distanceM })}</span>}
-          {c.city && <span>· {c.city}</span>}
-          {c.channel && <span>· {c.channel}</span>}
-        </div>
-      </div>
-      <span className="flex shrink-0 flex-col items-end gap-1">
-        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t('rpVerify.statusPending')}</span>
-        <ArrowRight className="h-4 w-4 text-muted-foreground rtl:rotate-180" />
-      </span>
+    <button onClick={onClick}
+      className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-xl text-xs font-bold active:scale-[0.98] ${primary ? 'bg-primary text-primary-foreground' : 'border'}`}>
+      {icon}{label}
     </button>
   );
 }
 
-/** One tappable completed-verification row (Completed tab) → opens the read-only detail. */
-function CompletedRow({ t, c, onOpen }: { t: (k: string, p?: Record<string, string | number>) => string; c: CompletedVerification; onOpen: () => void }) {
+/** One customer row (Nearby + Assigned): info + clear Open / Navigate actions. */
+function CustomerRow({ t, c, onOpen }: { t: (k: string, p?: Record<string, string | number>) => string; c: NearbyCustomer; onOpen: () => void }) {
+  const nav = canNavigate(c.lat, c.lng);
   return (
-    <button onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border bg-card p-3.5 text-start shadow-sm active:scale-[0.99]">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700"><CheckCheck className="h-6 w-6" /></div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-bold">{c.name}</p>
-          {c.code && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{c.code}</span>}
+    <div className="rounded-2xl border bg-card p-3.5 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Store className="h-6 w-6" /></div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-bold">{c.name}</p>
+            {c.code && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{c.code}</span>}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+            {c.distanceM != null && <span className="font-semibold text-primary">{t('rpVerify.metersAway', { n: c.distanceM })}</span>}
+            {c.city && <span>· {c.city}</span>}
+            {c.channel && <span>· {c.channel}</span>}
+          </div>
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-          {c.newCity && <span>{c.newCity}</span>}
-          {c.newChannel && <span>· {c.newChannel}</span>}
-          <span className="inline-flex items-center gap-1">· <Clock className="h-3 w-3" />{new Date(c.verifiedAt).toLocaleDateString()}</span>
-        </div>
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t('rpVerify.statusPending')}</span>
       </div>
-      <span className="flex shrink-0 flex-col items-end gap-1">
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{t('rpVerify.statusCompleted')}</span>
-        <ArrowRight className="h-4 w-4 text-muted-foreground rtl:rotate-180" />
-      </span>
-    </button>
+      <div className={`mt-3 grid gap-2 ${nav ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <CardAction onClick={onOpen} primary icon={<ArrowRight className="h-4 w-4 rtl:rotate-180" />} label={t('rpVerify.open')} />
+        {nav && <CardAction onClick={() => openGoogleMapsNavigation(c.lat, c.lng)} icon={<Navigation className="h-4 w-4" />} label={t('rpVerify.navigate')} />}
+      </div>
+    </div>
+  );
+}
+
+/** One completed-verification row (Completed tab): info + View Details / Navigate. */
+function CompletedRow({ t, c, onOpen }: { t: (k: string, p?: Record<string, string | number>) => string; c: CompletedVerification; onOpen: () => void }) {
+  const nav = canNavigate(c.lat, c.lng);
+  return (
+    <div className="rounded-2xl border bg-card p-3.5 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700"><CheckCheck className="h-6 w-6" /></div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-bold">{c.name}</p>
+            {c.code && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{c.code}</span>}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+            {c.newCity && <span>{c.newCity}</span>}
+            {c.newChannel && <span>· {c.newChannel}</span>}
+            <span className="inline-flex items-center gap-1">· <Clock className="h-3 w-3" />{new Date(c.verifiedAt).toLocaleDateString()}</span>
+          </div>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{t('rpVerify.statusCompleted')}</span>
+      </div>
+      <div className={`mt-3 grid gap-2 ${nav ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <CardAction onClick={onOpen} primary icon={<ArrowRight className="h-4 w-4 rtl:rotate-180" />} label={t('rpVerify.viewDetails')} />
+        {nav && <CardAction onClick={() => openGoogleMapsNavigation(c.lat as number, c.lng as number)} icon={<Navigation className="h-4 w-4" />} label={t('rpVerify.navigate')} />}
+      </div>
+    </div>
   );
 }
 

@@ -6,7 +6,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { Navigation, Store, X, CheckCircle2, Clock, Crosshair } from 'lucide-react';
 import { haversineMeters } from '@/lib/erp/geo-distance';
 import type { TFunc } from '@/lib/i18n';
-import { buildNavUrl, toMapGeoJSON, mapCounts, pointFromProps, type FvMapPoint } from './fv-map-helpers';
+import { toMapGeoJSON, mapCounts, pointFromProps, type FvMapPoint } from './fv-map-helpers';
+import { openGoogleMapsNavigation } from './fv-nav';
 
 /**
  * FV Map tab — the logged-in rep's assigned customers on a mobile map (MapLibre, keyless OSM
@@ -94,10 +95,7 @@ export function FvMap({ points, gps, locale, t, onOpenCustomer }: {
     }
   }, [points, ready]);
 
-  const navigate = (p: FvMapPoint) => {
-    const isApple = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
-    if (typeof window !== 'undefined') window.open(buildNavUrl(p.lat, p.lng, isApple ? 'apple' : 'google'), '_blank', 'noopener');
-  };
+  const navigate = (p: FvMapPoint) => openGoogleMapsNavigation(p.lat, p.lng);
 
   const selDistance = selected && gps ? Math.round(haversineMeters(gps.lat, gps.lng, selected.lat, selected.lng)) : null;
 
