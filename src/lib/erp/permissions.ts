@@ -124,7 +124,8 @@ export type Permission =
   | 'field_verification.verify' // verify own assigned customers (mobile)
   | 'field_verification.catalog_manage' // manage the admin City/Channel catalog
   | 'field_verification.radius_manage' // set the company verification radius
-  | 'field_verification.reports' // view verification reports
+  | 'field_verification.reports' // view verification reports (own/team rows per role)
+  | 'field_verification.reports_all' // view COMPANY-WIDE verification reports (viewer/reporter/manager/admin)
   | 'field_verification.export' // export verification data to Excel
   | 'field_verification.admin' // full Field Verification admin
   // ── Fashion Store pack (clothing vertical) ──
@@ -178,6 +179,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'field_verification.catalog_manage': { en: 'Manage City/Channel catalog', ar: 'إدارة كتالوج المدن/القنوات', group: 'field_verification' },
   'field_verification.radius_manage': { en: 'Set verification radius', ar: 'ضبط نطاق التحقق', group: 'field_verification' },
   'field_verification.reports': { en: 'View verification reports', ar: 'عرض تقارير التحقق', group: 'field_verification' },
+  'field_verification.reports_all': { en: 'View company-wide verification reports', ar: 'عرض تقارير التحقق على مستوى الشركة', group: 'field_verification' },
   'field_verification.export': { en: 'Export verification data', ar: 'تصدير بيانات التحقق', group: 'field_verification' },
   'field_verification.admin': { en: 'Field Verification admin', ar: 'إدارة التحقق الميداني', group: 'field_verification' },
   'settings.branches': { en: 'Manage branches', ar: 'إدارة الفروع', group: 'settings' },
@@ -427,7 +429,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   ],
   staff: ['inventory.view'],
   viewer: ['reports.view', 'accounting.view', 'inventory.view', 'documents.export',
-    'field_verification.view', 'field_verification.reports'],
+    'field_verification.view', 'field_verification.reports', 'field_verification.reports_all'],
   // Auditor: read-only oversight across approvals, settlement and the audit trail.
   auditor: [
     'reports.view', 'accounting.view', 'inventory.view', 'stock.view',
