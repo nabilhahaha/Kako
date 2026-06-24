@@ -31,7 +31,7 @@ export default async function FvSetupPage() {
   const { t } = await getT();
   const canManageUsers = hasPermission(ctx, 'settings.users') && !!ctx.companyId;
   return (
-    <div className="mx-auto max-w-5xl space-y-4 p-4">
+    <div className="fv-theme mx-auto max-w-5xl space-y-4 p-4">
       <h1 className="text-lg font-extrabold">Field Verification Setup</h1>
       <VerificationAdminPanel />
       <CustomerListsPanel />

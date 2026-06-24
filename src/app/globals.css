@@ -86,6 +86,27 @@
 }
 
 @layer base {
+  /* ── Field Verification — approved "Navy + Electric Blue" surface theme ─────────
+     Visual-only, scoped to FV screens via the .fv-theme wrapper. Navy stays the text /
+     header / structure color (--foreground, unchanged); the interactive PRIMARY accent
+     (primary buttons, active tabs, selected states, progress) is retargeted from the
+     global navy to electric blue on FV surfaces only. Status tokens are untouched, so
+     green = Completed/Visited, amber = Pending, red = Not-Visited/Problem stay exactly
+     as they are. No logic, permission, or behavior change — these components already use
+     the `primary` token, so nothing per-component is restyled. */
+  .fv-theme {
+    --primary: 221 83% 53%;             /* electric blue */
+    --primary-foreground: 0 0% 100%;    /* white text on electric blue */
+    --ring: 221 83% 53%;                /* matching focus ring */
+  }
+  .dark .fv-theme {
+    --primary: 217 91% 60%;             /* brighter electric blue on dark */
+    --primary-foreground: 216 60% 10%;
+    --ring: 217 91% 60%;
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }

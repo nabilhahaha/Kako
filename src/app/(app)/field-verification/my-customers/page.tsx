@@ -15,5 +15,6 @@ export default async function FvMyCustomersPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!hasPermission(ctx, 'field_verification.verify')) redirect('/dashboard');
-  return <MyNearbyCustomers />;
+  // fv-theme: approved Navy + Electric Blue surface theme (visual only).
+  return <div className="fv-theme"><MyNearbyCustomers /></div>;
 }
