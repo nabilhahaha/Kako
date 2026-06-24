@@ -1,4 +1,5 @@
 import type { Permission } from './permissions';
+import { STANDALONE_PACK_MODULES } from './navigation';
 import type { Module } from './navigation';
 import type { BranchRole } from './types';
 
@@ -43,6 +44,22 @@ export function resolveHomePath(ctx: {
 
   const has = (m: Module) => ctx.modules.includes(m);
   const can = (p: Permission) => ctx.permissions.includes(p);
+
+  // Field Verification Only template (a "pack-only" tenant — every enabled module is a
+  // standalone pack; today that is just `field_verification`). These users live ENTIRELY
+  // inside the FV pack: the generic Today / Journey / dashboard chrome is suppressed for
+  // pack-only tenants (sidebar + bottom nav), so we must NOT fall through to the role-based
+  // FMCG logic below, which would send a salesman to /today. Role-aware, mirroring the
+  // /field-verification resolver. Driven by the SAME module signal the nav uses
+  // (STANDALONE_PACK_MODULES) — module/template-aware, never hardcoded to a demo account.
+  const isPackOnly =
+    ctx.modules.length > 0 && ctx.modules.every((m) => STANDALONE_PACK_MODULES.includes(m));
+  if (isPackOnly) {
+    if (can('field_verification.admin')) return '/field-verification/setup';
+    if (can('field_verification.verify')) return '/field-verification/my-customers';
+    if (can('field_verification.reports')) return '/field-verification/reports';
+    return '/field-verification';
+  }
 
   // Fashion Store (clothing): the store dashboard is home — no generic dashboard.
   if (has('fashion')) return '/fashion';

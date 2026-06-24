@@ -136,4 +136,43 @@ describe('resolveHomePath', () => {
   it('most-senior role wins for a multi-role user', () => {
     expect(resolveHomePath({ companyId: 'c1', modules: ['sales'] as Module[], permissions: [], memberships: [{ role: 'salesman' as never }, { role: 'admin' as never }] })).toBe('/dashboard');
   });
+
+  // ─── Field Verification Only template (pack-only tenant) ───────────────────
+  // The rep must NOT land on the generic Today / Journey screen.
+
+  const fvOnly = (permissions: Permission[], memberships?: { role: string }[]) =>
+    resolveHomePath({
+      companyId: 'c1',
+      modules: ['field_verification'] as Module[],
+      permissions,
+      memberships: memberships?.map((m) => ({ role: m.role as never })),
+    });
+
+  it('FV-Only salesman lands on /field-verification/my-customers, not /today', () => {
+    expect(fvOnly(['field_verification.verify'], [{ role: 'salesman' }])).toBe('/field-verification/my-customers');
+  });
+
+  it('FV-Only admin lands on /field-verification/setup', () => {
+    expect(fvOnly(['field_verification.admin'], [{ role: 'admin' }])).toBe('/field-verification/setup');
+  });
+
+  it('FV-Only reporter lands on /field-verification/reports', () => {
+    expect(fvOnly(['field_verification.reports'])).toBe('/field-verification/reports');
+  });
+
+  it('FV-Only user with no FV permission lands inside the FV pack, never /today or /dashboard', () => {
+    expect(fvOnly([])).toBe('/field-verification');
+  });
+
+  it('an operational/Route-Planner company keeps /today as the salesman default', () => {
+    // field_verification present but NOT the only module → not pack-only → normal role routing.
+    expect(
+      resolveHomePath({
+        companyId: 'c1',
+        modules: ['distribution', 'sales', 'field_verification'] as Module[],
+        permissions: ['field_verification.verify'],
+        memberships: [{ role: 'salesman' as never }],
+      }),
+    ).toBe('/today');
+  });
 });
