@@ -278,6 +278,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.fvCatalog', href: '/field-verification/setup#fv-catalog', icon: Tags, perm: 'field_verification.admin', group: 'nav.groups.fvAdmin' },
       { label: 'nav.items.fvRadius', href: '/field-verification/setup#fv-radius', icon: Ruler, perm: 'field_verification.admin', group: 'nav.groups.fvAdmin' },
       { label: 'nav.items.fvReports', href: '/field-verification/reports', icon: BarChart3, perm: 'field_verification.reports', group: 'nav.groups.fvReports' },
+      { label: 'nav.items.fvCoverage', href: '/field-verification/coverage', icon: MapPin, perm: 'field_verification.reports', group: 'nav.groups.fvReports' },
       { label: 'nav.items.fvExport', href: '/field-verification/reports#fv-export', icon: FileDown, perm: 'field_verification.export', group: 'nav.groups.fvReports' },
     ],
   },
