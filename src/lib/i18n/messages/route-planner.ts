@@ -697,6 +697,9 @@ export const ar = {
     colCustomer: 'العميل', colRep: 'المندوب', colDate: 'التاريخ/الوقت', colPhotos: 'الصور', view: 'عرض',
     noCustomer: 'بدون عميل', close: 'إغلاق', versionLabel: 'نسخة {n}', radiusWaived: 'أُرسل دون اشتراط النطاق',
     noAnswers: 'لا توجد إجابات.', photos: 'الصور', loadingPhotos: 'جارٍ تحميل الصور…', yes: 'نعم', no: 'لا',
+    export: 'تصدير Excel', exp_sheet: 'الإرسالات', exp_empty: 'لا توجد بيانات للتصدير.',
+    exp_form: 'النموذج', exp_version: 'الإصدار', exp_id: 'معرّف الإرسال', exp_code: 'كود العميل', exp_customer: 'العميل',
+    exp_rep: 'المندوب', exp_date: 'التاريخ/الوقت', exp_status: 'الحالة', exp_lat: 'خط العرض', exp_lng: 'خط الطول', exp_photos: 'عدد الصور',
   },
   rpFormsDash: {
     back: 'رجوع للنماذج', refresh: 'تحديث', title: 'تقارير النماذج', subtitle: 'نظرة عامة على كل النماذج وتقرير شامل عبر النماذج.',
@@ -1409,6 +1412,9 @@ export const en = {
     colCustomer: 'Customer', colRep: 'Rep', colDate: 'Date/time', colPhotos: 'Photos', view: 'View',
     noCustomer: 'No customer', close: 'Close', versionLabel: 'v{n}', radiusWaived: 'Submitted without radius enforcement',
     noAnswers: 'No answers.', photos: 'Photos', loadingPhotos: 'Loading photos…', yes: 'Yes', no: 'No',
+    export: 'Export Excel', exp_sheet: 'Submissions', exp_empty: 'Nothing to export.',
+    exp_form: 'Form', exp_version: 'Version', exp_id: 'Submission ID', exp_code: 'Customer code', exp_customer: 'Customer',
+    exp_rep: 'Rep', exp_date: 'Date/time', exp_status: 'Status', exp_lat: 'Latitude', exp_lng: 'Longitude', exp_photos: 'Photos',
   },
   rpFormsDash: {
     back: 'Back to forms', refresh: 'Refresh', title: 'Forms reports', subtitle: 'Overview of all forms and a cross-form report.',
