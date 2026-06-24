@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   FORM_BUILDER_ENABLED,
   allFields, isFieldVisible, validateFormDefinition, validateFormResponse,
@@ -17,7 +17,19 @@ const def = (over: Partial<FormDefinition> = {}): FormDefinition => ({
 });
 
 describe('form-builder/flags', () => {
-  it('defaults OFF', () => { expect(FORM_BUILDER_ENABLED()).toBe(false); });
+  const prevFlag = process.env.KAKO_FORM_BUILDER;
+  const prevVercel = process.env.VERCEL_ENV;
+  const set = (flag?: string, vercel?: string) => {
+    if (flag === undefined) delete process.env.KAKO_FORM_BUILDER; else process.env.KAKO_FORM_BUILDER = flag;
+    if (vercel === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = vercel;
+  };
+  afterEach(() => { set(prevFlag, prevVercel); });
+
+  it('defaults OFF when nothing is set (local/CI)', () => { set(undefined, undefined); expect(FORM_BUILDER_ENABLED()).toBe(false); });
+  it('OFF in production unless explicitly enabled', () => { set(undefined, 'production'); expect(FORM_BUILDER_ENABLED()).toBe(false); });
+  it('ON in Vercel preview (staging) by default', () => { set(undefined, 'preview'); expect(FORM_BUILDER_ENABLED()).toBe(true); });
+  it('explicit KAKO_FORM_BUILDER=1 forces ON anywhere', () => { set('1', 'production'); expect(FORM_BUILDER_ENABLED()).toBe(true); });
+  it('explicit KAKO_FORM_BUILDER=0 forces OFF even on preview (kill switch)', () => { set('0', 'preview'); expect(FORM_BUILDER_ENABLED()).toBe(false); });
 });
 
 describe('form-builder/model', () => {
