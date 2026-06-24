@@ -639,7 +639,7 @@ export const ar = {
   rpForms: {
     libraryTitle: 'مكتبة النماذج', librarySubtitle: 'أنشئ وأدِر نماذج عمل ميداني متعددة. نموذج التحقق الميداني الأساسي مقفل ويبقى كما هو.',
     coreForm: 'نموذج التحقق الميداني (أساسي)', coreFormDesc: 'النموذج الافتراضي — يبقى دون تغيير. يُدار من إعداد التحقق الميداني.', manageCore: 'إدارة',
-    newForm: 'نموذج جديد', newFormTitle: 'إنشاء نموذج جديد', nameEn: 'الاسم (إنجليزي)', nameAr: 'الاسم (عربي)',
+    newForm: 'نموذج جديد', reportsOverview: 'نظرة عامة على التقارير', newFormTitle: 'إنشاء نموذج جديد', nameEn: 'الاسم (إنجليزي)', nameAr: 'الاسم (عربي)',
     create: 'إنشاء', cancel: 'إلغاء', creating: 'جارٍ الإنشاء…',
     edit: 'تعديل', duplicate: 'نسخ', activate: 'تفعيل', deactivate: 'إيقاف', viewReport: 'التقرير',
     statusActive: 'مُفعّل', statusInactive: 'موقوف', statusDraft: 'مسودة', statusPublished: 'منشور', noVersion: 'بدون نسخة',
@@ -697,6 +697,17 @@ export const ar = {
     colCustomer: 'العميل', colRep: 'المندوب', colDate: 'التاريخ/الوقت', colPhotos: 'الصور', view: 'عرض',
     noCustomer: 'بدون عميل', close: 'إغلاق', versionLabel: 'نسخة {n}', radiusWaived: 'أُرسل دون اشتراط النطاق',
     noAnswers: 'لا توجد إجابات.', photos: 'الصور', loadingPhotos: 'جارٍ تحميل الصور…', yes: 'نعم', no: 'لا',
+  },
+  rpFormsDash: {
+    back: 'رجوع للنماذج', refresh: 'تحديث', title: 'تقارير النماذج', subtitle: 'نظرة عامة على كل النماذج وتقرير شامل عبر النماذج.',
+    tab_overview: 'نظرة عامة', tab_cross: 'عبر النماذج',
+    pendingMigration: 'لوحة التقارير غير متاحة بعد في قاعدة البيانات. ستُفعّل بعد تطبيق التحديث.',
+    date_all: 'كل الفترات', date_today: 'اليوم', date_week: 'هذا الأسبوع', date_month: 'هذا الشهر',
+    allForms: 'كل النماذج', allReps: 'كل المندوبين', city: 'المدينة', search: 'بحث', apply: 'تطبيق',
+    overviewEmpty: 'لا توجد نماذج مخصصة بعد.', crossEmpty: 'لا توجد عمليات إرسال.',
+    colForm: 'النموذج', colStatus: 'الحالة', colAssigned: 'المُسنَدون', colSubmissions: 'الإرسالات', colPhotos: 'الصور', colLast: 'آخر إرسال',
+    colCustomer: 'العميل', colRep: 'المندوب', colCity: 'المدينة', colDate: 'التاريخ/الوقت',
+    openReport: 'التقرير', active: 'مُفعّل', inactive: 'موقوف', never: 'لا يوجد',
   },
 };
 
@@ -1340,7 +1351,7 @@ export const en = {
   rpForms: {
     libraryTitle: 'Forms Library', librarySubtitle: 'Create and manage multiple field-work forms. The core Field Verification form is locked and stays unchanged.',
     coreForm: 'Field Verification Form (Core)', coreFormDesc: 'The default form — remains unchanged. Managed from Field Verification Setup.', manageCore: 'Manage',
-    newForm: 'New form', newFormTitle: 'Create a new form', nameEn: 'Name (English)', nameAr: 'Name (Arabic)',
+    newForm: 'New form', reportsOverview: 'Reports overview', newFormTitle: 'Create a new form', nameEn: 'Name (English)', nameAr: 'Name (Arabic)',
     create: 'Create', cancel: 'Cancel', creating: 'Creating…',
     edit: 'Edit', duplicate: 'Duplicate', activate: 'Activate', deactivate: 'Deactivate', viewReport: 'Report',
     statusActive: 'Active', statusInactive: 'Inactive', statusDraft: 'Draft', statusPublished: 'Published', noVersion: 'No version',
@@ -1398,5 +1409,16 @@ export const en = {
     colCustomer: 'Customer', colRep: 'Rep', colDate: 'Date/time', colPhotos: 'Photos', view: 'View',
     noCustomer: 'No customer', close: 'Close', versionLabel: 'v{n}', radiusWaived: 'Submitted without radius enforcement',
     noAnswers: 'No answers.', photos: 'Photos', loadingPhotos: 'Loading photos…', yes: 'Yes', no: 'No',
+  },
+  rpFormsDash: {
+    back: 'Back to forms', refresh: 'Refresh', title: 'Forms reports', subtitle: 'Overview of all forms and a cross-form report.',
+    tab_overview: 'Overview', tab_cross: 'Cross-form',
+    pendingMigration: 'The reports dashboard is not in the database yet. It activates once the update is applied.',
+    date_all: 'All time', date_today: 'Today', date_week: 'This week', date_month: 'This month',
+    allForms: 'All forms', allReps: 'All reps', city: 'City', search: 'Search', apply: 'Apply',
+    overviewEmpty: 'No custom forms yet.', crossEmpty: 'No submissions.',
+    colForm: 'Form', colStatus: 'Status', colAssigned: 'Assigned', colSubmissions: 'Submissions', colPhotos: 'Photos', colLast: 'Last submission',
+    colCustomer: 'Customer', colRep: 'Rep', colCity: 'City', colDate: 'Date/time',
+    openReport: 'Report', active: 'Active', inactive: 'Inactive', never: 'None',
   },
 };
