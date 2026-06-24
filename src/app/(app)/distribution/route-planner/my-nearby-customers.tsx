@@ -679,7 +679,8 @@ function ProgressCard({ t, progress }: { t: (k: string, p?: Record<string, strin
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         {([['total', progress.total], ['completed', progress.completed], ['remaining', progress.remaining]] as const).map(([k, v]) => (
           <div key={k} className="rounded-xl bg-muted/50 py-2">
-            <p className="text-lg font-bold tabular-nums">{v}</p>
+            {/* green = Completed (status color); total/remaining stay navy ink */}
+            <p className={cn('text-lg font-bold tabular-nums', k === 'completed' && 'text-emerald-600')}>{v}</p>
             <p className="text-[11px] text-muted-foreground">{t(`rpVerify.${k}` as 'rpVerify.total')}</p>
           </div>
         ))}

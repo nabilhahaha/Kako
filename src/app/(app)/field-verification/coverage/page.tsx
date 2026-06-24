@@ -18,5 +18,6 @@ export default async function FvCoveragePage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!hasPermission(ctx, 'field_verification.reports')) redirect('/dashboard');
-  return <CoverageMap />;
+  // fv-theme: approved Navy + Electric Blue surface theme (visual only).
+  return <div className="fv-theme"><CoverageMap /></div>;
 }
