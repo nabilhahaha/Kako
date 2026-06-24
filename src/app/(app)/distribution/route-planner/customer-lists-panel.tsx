@@ -31,18 +31,30 @@ export function CustomerListsPanel() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg>(null);
   const [modal, setModal] = useState<Modal>(null);
+  // Safe fallback when this environment's DB doesn't have the 0372 schema yet (e.g. code
+  // deployed before the guarded production migration was applied) — show a notice instead of
+  // a hard error, and keep Upload New List working.
+  const [pending, setPending] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setMsg(null);
     const res = await listFvCustomerLists();
-    if (res.ok) setLists(res.data);
+    if (res.ok) { setLists(res.data); setPending(false); }
+    else if (res.error === 'err_lists_pending_migration') { setPending(true); setLists([]); }
     else setMsg({ tone: 'err', text: res.error });
     setLoading(false);
   }, []);
   useEffect(() => { void load(); }, [load]);
 
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(locale === 'ar' ? 'ar' : 'en', { year: 'numeric', month: 'short', day: 'numeric' });
-  const scrollToUpload = () => { document.getElementById('fv-upload')?.scrollIntoView({ behavior: 'smooth' }); };
+  const scrollToUpload = () => {
+    const el = document.getElementById('fv-upload');
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // brief highlight so the move is obvious even when the section is already near the viewport
+    el.classList.add('ring-2', 'ring-primary');
+    window.setTimeout(() => el.classList.remove('ring-2', 'ring-primary'), 1500);
+  };
 
   async function openDelete(list: FvCustomerList) {
     setMsg(null);
@@ -102,6 +114,10 @@ export function CustomerListsPanel() {
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /></div>
+      ) : pending ? (
+        <p className="mt-3 flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-xs text-amber-800">
+          <AlertTriangle className="h-4 w-4 shrink-0" />{t('rpVerifyAdmin.listsPendingMigration')}
+        </p>
       ) : lists.length === 0 ? (
         <p className="mt-3 rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">{t('rpVerifyAdmin.listsEmpty')}</p>
       ) : (

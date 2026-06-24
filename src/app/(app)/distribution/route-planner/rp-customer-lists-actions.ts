@@ -31,6 +31,26 @@ async function adminCtx() {
   return { err: null, ctx };
 }
 
+/** True when the error means the 0372 schema (status column / RPCs) is not present in this
+ *  environment's DB yet — so the UI can show a safe "pending database update" fallback instead
+ *  of a hard error (e.g. code deployed before the guarded production migration was applied). */
+function schemaMissing(err: { code?: string; message?: string } | null | undefined): boolean {
+  if (!err) return false;
+  const code = err.code ?? '';
+  const msg = (err.message ?? '').toLowerCase();
+  return (
+    code === '42703' ||           // undefined_column (status / archived_at)
+    code === '42883' ||           // undefined_function (erp_fv_* RPCs)
+    code === 'PGRST202' ||        // PostgREST: function not found
+    code === 'PGRST204' ||        // PostgREST: column not found
+    msg.includes('does not exist') ||
+    msg.includes('schema cache')
+  );
+}
+
+/** Sentinel error string the panel maps to the safe "pending migration" fallback. */
+const PENDING = 'err_lists_pending_migration';
+
 /** Owner display name lookup for the listed datasets. */
 async function ownerNames(sb: Awaited<ReturnType<typeof createClient>>, ownerIds: string[]): Promise<Record<string, string | null>> {
   const ids = [...new Set(ownerIds.filter(Boolean))];
@@ -51,11 +71,11 @@ export async function listFvCustomerLists(): Promise<ResultD<FvCustomerList[]>> 
     .select('id, name, created_at, owner_id, status, archived_at')
     .eq('company_id', ctx.companyId)
     .order('created_at', { ascending: false });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: schemaMissing(error) ? PENDING : error.message };
   const datasets = (dsRows ?? []) as FvDatasetRow[];
 
   const { data: statRows, error: sErr } = await sb.rpc('erp_fv_dataset_stats');
-  if (sErr) return { ok: false, error: sErr.message };
+  if (sErr) return { ok: false, error: schemaMissing(sErr) ? PENDING : sErr.message };
   const stats = (statRows ?? []) as FvDatasetStat[];
 
   const owners = await ownerNames(sb, datasets.map((d) => d.owner_id ?? ''));
