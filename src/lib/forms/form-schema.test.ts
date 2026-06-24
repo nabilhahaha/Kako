@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolveFormSchema, emptyFormSchema, buildFormSchema, validateFormSchema,
-  visibleFields, reportFields, fieldLabel, isPhotoField, isChoiceField,
+  visibleFields, reportFields, fieldLabel, isPhotoField, isChoiceField, answerText,
   DEFAULT_FORM_SETTINGS, type FormSchema, type FormField,
 } from './form-schema';
 
@@ -103,6 +103,18 @@ describe('helpers', () => {
     expect(isPhotoField('text')).toBe(false);
     expect(isChoiceField('multiselect')).toBe(true);
     expect(isChoiceField('number')).toBe(false);
+  });
+  it('answerText renders by type', () => {
+    const txt = field({ id: 't', type: 'text' });
+    const bool = field({ id: 'b', type: 'boolean' });
+    const sel = field({ id: 's', type: 'select', options: [{ value: 'r', labelEn: 'Retail', labelAr: 'تجزئة' }] });
+    const multi = field({ id: 'm', type: 'multiselect', options: [{ value: 'a', labelEn: 'A', labelAr: 'أ' }, { value: 'b', labelEn: 'B', labelAr: 'ب' }] });
+    expect(answerText(txt, 'hi', 'en')).toBe('hi');
+    expect(answerText(bool, true, 'en', 'Yes', 'No')).toBe('Yes');
+    expect(answerText(bool, false, 'en', 'Yes', 'No')).toBe('No');
+    expect(answerText(sel, 'r', 'ar')).toBe('تجزئة');
+    expect(answerText(multi, ['a', 'b'], 'en')).toBe('A, B');
+    expect(answerText(txt, null, 'en')).toBe('');
   });
 });
 

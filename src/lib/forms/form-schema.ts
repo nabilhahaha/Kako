@@ -226,3 +226,23 @@ export function fieldLabel(f: FormField, locale: 'ar' | 'en'): string {
   const secondary = locale === 'ar' ? f.labelEn : f.labelAr;
   return (primary && primary.trim()) || (secondary && secondary.trim()) || f.id;
 }
+
+function optionLabel(f: FormField, value: string, locale: 'ar' | 'en'): string {
+  const o = f.options.find((x) => x.value === value);
+  if (!o) return value;
+  return (locale === 'ar' ? o.labelAr : o.labelEn) || (locale === 'ar' ? o.labelEn : o.labelAr) || value;
+}
+
+/** Human-readable display of a stored answer value for a field (reports/export). Pure.
+ *  `yes`/`no` localize boolean values; choice values resolve to their option labels. */
+export function answerText(f: FormField, value: unknown, locale: 'ar' | 'en', yes = 'Yes', no = 'No'): string {
+  if (value == null || value === '') return '';
+  if (f.type === 'boolean') return value === true || value === 'true' ? yes : no;
+  if (f.type === 'select') return optionLabel(f, String(value), locale);
+  if (f.type === 'multiselect') {
+    const arr = Array.isArray(value) ? (value as unknown[]) : [value];
+    return arr.map((v) => optionLabel(f, String(v), locale)).join(', ');
+  }
+  if (Array.isArray(value)) return (value as unknown[]).map(String).join(', ');
+  return String(value);
+}
