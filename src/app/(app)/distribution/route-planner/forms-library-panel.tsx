@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Loader2, Check, AlertTriangle, Plus, Copy, Power, PowerOff, Pencil, BarChart3,
-  FileText, Lock, ShieldCheck, X,
+  FileText, Lock, ShieldCheck, X, LineChart,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { listForms, createForm, duplicateForm, setFormActive } from './rp-forms-actions';
@@ -73,10 +73,16 @@ export function FormsLibraryPanel() {
           <h1 className="flex items-center gap-2 text-lg font-extrabold"><FileText className="h-5 w-5" />{t('rpForms.libraryTitle')}</h1>
           <p className="text-xs text-muted-foreground">{t('rpForms.librarySubtitle')}</p>
         </div>
-        <button onClick={() => { setMsg(null); setShowCreate(true); }}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-bold text-primary-foreground active:scale-[0.99]">
-          <Plus className="h-4 w-4" />{t('rpForms.newForm')}
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/field-verification/forms/reports"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold hover:bg-muted/50">
+            <LineChart className="h-4 w-4" />{t('rpForms.reportsOverview')}
+          </Link>
+          <button onClick={() => { setMsg(null); setShowCreate(true); }}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-bold text-primary-foreground active:scale-[0.99]">
+            <Plus className="h-4 w-4" />{t('rpForms.newForm')}
+          </button>
+        </div>
       </div>
 
       {msg && (
