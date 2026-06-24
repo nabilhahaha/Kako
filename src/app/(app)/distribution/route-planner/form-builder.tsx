@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Loader2, Check, AlertTriangle, Plus, Trash2, ChevronUp, ChevronDown, ChevronLeft,
-  Save, Send, Eye, EyeOff, GripVertical, X,
+  Save, Send, Eye, EyeOff, GripVertical, X, Users,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { getFormForEdit, saveFormDraft, publishForm } from './rp-forms-actions';
@@ -121,6 +122,10 @@ export function FormBuilder({ formId }: { formId: string }) {
         </button>
         <div className="flex items-center gap-2">
           {version > 0 && <span className="text-[11px] text-muted-foreground">{t('rpFormBuilder.versionLabel', { n: version })}</span>}
+          <Link href={`/field-verification/forms/${formId}/assign`}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold hover:bg-muted/50">
+            <Users className="h-4 w-4" />{t('rpFormBuilder.assign')}
+          </Link>
           <button onClick={() => void onSaveDraft()} disabled={saving || publishing}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold hover:bg-muted/50 disabled:opacity-50">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{t('rpFormBuilder.saveDraft')}

@@ -649,7 +649,7 @@ export const ar = {
     disabled: 'منشئ النماذج غير مُفعّل لهذه الشركة.', nameRequired: 'الاسم مطلوب', copySuffix: ' (نسخة)',
   },
   rpFormBuilder: {
-    back: 'رجوع', versionLabel: 'نسخة {n}',
+    back: 'رجوع', versionLabel: 'نسخة {n}', assign: 'الإسناد',
     saveDraft: 'حفظ كمسودة', publish: 'نشر', savedDraft: 'تم حفظ المسودة', published: 'تم نشر النموذج',
     fixErrors: 'يرجى إصلاح الحقول قبل النشر (لكل حقل اسم؛ حقول الاختيار تحتاج خيارات).', notFound: 'النموذج غير موجود.',
     nameEn: 'الاسم (إنجليزي)', nameAr: 'الاسم (عربي)',
@@ -666,6 +666,17 @@ export const ar = {
     previewTitle: 'معاينة مباشرة', previewHint: 'كما سيراها المستخدم — للعرض فقط، لا يتم الإرسال.', previewLang: 'لغة المعاينة',
     previewEmpty: 'أضِف حقولًا لرؤيتها هنا.', previewCustomer: 'اختر العميل', previewGpsOn: 'مطلوب الموقع الجغرافي عند الإرسال.', previewGpsOff: 'الموقع الجغرافي غير مطلوب.',
     previewSubmit: 'إرسال', previewNoSubmit: 'معاينة فقط — لا يتم حفظ أي بيانات.', previewChoose: 'اختر…',
+  },
+  rpFormAssign: {
+    back: 'رجوع للنموذج', title: 'إسناد النموذج', subtitle: 'حدّد من يمكنه استخدام هذا النموذج وعلى أي عملاء ينطبق.',
+    addTarget: 'إضافة جهة', targetType: 'النوع', value: 'القيمة', choose: 'اختر…', add: 'إضافة', remove: 'حذف',
+    chooseValue: 'يرجى اختيار قيمة', added: 'تمت الإضافة', removed: 'تم الحذف',
+    pendingMigration: 'جدول الإسناد غير متوفر بعد في قاعدة البيانات. سيتم تفعيله بعد تطبيق التحديث.', noOptions: 'لا توجد خيارات متاحة لهذا النوع بعد.',
+    whoTitle: 'من يمكنه الاستخدام', whoHint: 'مستخدمون أو أدوار أو فرق أو فروع.', whoEmpty: 'لم يُسنَد لأي مستخدم بعد.',
+    customersTitle: 'العملاء المعنيون', customersHint: 'قوائم أو مدن أو قنوات (اختياري).', customersEmpty: 'لا يوجد تحديد — كل العملاء ضمن نطاق المستخدم.',
+    type_user: 'مستخدم', type_role: 'دور', type_supervisor: 'مشرف', type_team: 'فريق', type_branch: 'فرع', type_department: 'إدارة',
+    type_dataset: 'قائمة عملاء', type_city: 'مدينة', type_channel: 'قناة',
+    role_all: 'الجميع', role_admin: 'مدير النظام', role_manager: 'مدير', role_supervisor: 'مشرف', role_salesman: 'مندوب', role_viewer: 'مُطّلع',
   },
 };
 
@@ -1319,7 +1330,7 @@ export const en = {
     disabled: 'Form Builder is not enabled for this company.', nameRequired: 'Name is required', copySuffix: ' (copy)',
   },
   rpFormBuilder: {
-    back: 'Back', versionLabel: 'v{n}',
+    back: 'Back', versionLabel: 'v{n}', assign: 'Assign',
     saveDraft: 'Save draft', publish: 'Publish', savedDraft: 'Draft saved', published: 'Form published',
     fixErrors: 'Please fix the fields before publishing (each field needs a label; choice fields need options).', notFound: 'Form not found.',
     nameEn: 'Name (English)', nameAr: 'Name (Arabic)',
@@ -1336,5 +1347,16 @@ export const en = {
     previewTitle: 'Live preview', previewHint: 'As the user will see it — preview only, never submits.', previewLang: 'Preview language',
     previewEmpty: 'Add fields to see them here.', previewCustomer: 'Select customer', previewGpsOn: 'GPS is required at submit.', previewGpsOff: 'GPS is not required.',
     previewSubmit: 'Submit', previewNoSubmit: 'Preview only — no data is saved.', previewChoose: 'Choose…',
+  },
+  rpFormAssign: {
+    back: 'Back to form', title: 'Form assignment', subtitle: 'Choose who can use this form and which customers it applies to.',
+    addTarget: 'Add target', targetType: 'Type', value: 'Value', choose: 'Choose…', add: 'Add', remove: 'Remove',
+    chooseValue: 'Please choose a value', added: 'Target added', removed: 'Target removed',
+    pendingMigration: 'The assignment table is not in the database yet. It activates once the update is applied.', noOptions: 'No options available for this type yet.',
+    whoTitle: 'Who can use it', whoHint: 'Users, roles, teams or branches.', whoEmpty: 'Not assigned to anyone yet.',
+    customersTitle: 'Which customers', customersHint: 'Lists, cities or channels (optional).', customersEmpty: 'No restriction — any customer in the user’s scope.',
+    type_user: 'User', type_role: 'Role', type_supervisor: 'Supervisor', type_team: 'Team', type_branch: 'Branch', type_department: 'Department',
+    type_dataset: 'Customer list', type_city: 'City', type_channel: 'Channel',
+    role_all: 'Everyone', role_admin: 'Admin', role_manager: 'Manager', role_supervisor: 'Supervisor', role_salesman: 'Rep', role_viewer: 'Viewer',
   },
 };
