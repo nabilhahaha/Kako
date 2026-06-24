@@ -295,6 +295,7 @@ export interface CompletedVerification {
   verifiedAt: string; status: string; repName: string; repEmail: string;
   outsidePhotoId: string | null; insidePhotoIds: string[];
   radiusEnforced: boolean | null;   // false = submitted with radius enforcement OFF; null = legacy (enforced)
+  lat: number | null; lng: number | null;   // customer coordinates (for Navigate on the completed card)
 }
 
 export async function getMyCompletedVerifications(): Promise<ResultD<CompletedVerification[]>> {
@@ -306,6 +307,17 @@ export async function getMyCompletedVerifications(): Promise<ResultD<CompletedVe
     .eq('company_id', ctx.companyId).eq('rep_id', ctx.userId)
     .order('created_at', { ascending: false }).limit(500);   // latest first
   if (error) return { ok: false, error: error.message };
+
+  // Customer coordinates for the completed card's Navigate action (the verification row stores
+  // the rep's GPS, not the customer's). Rep can read their assigned customers (RLS 0371).
+  const custIds = [...new Set((rows ?? []).map((r) => r.customer_id as string).filter(Boolean))];
+  const coords = new Map<string, { lat: number | null; lng: number | null }>();
+  for (const batch of chunk(custIds)) {
+    const { data: cs } = await sb.from('erp_rp_dataset_customers')
+      .select('id, lat, lng').eq('company_id', ctx.companyId).in('id', batch);
+    for (const cc of cs ?? []) coords.set(cc.id as string, { lat: cc.lat as number | null, lng: cc.lng as number | null });
+  }
+
   const repEmail = repKey(ctx) ?? '';
   const repName = (ctx.profile as { full_name?: string | null } | null)?.full_name || repEmail;
   return {
@@ -323,6 +335,8 @@ export async function getMyCompletedVerifications(): Promise<ResultD<CompletedVe
       outsidePhotoId: (r.outside_photo as string | null) ?? null,
       insidePhotoIds: ((r.inside_photos as string[] | null) ?? []),
       radiusEnforced: (r.radius_enforced as boolean | null) ?? null,
+      lat: coords.get(r.customer_id as string)?.lat ?? null,
+      lng: coords.get(r.customer_id as string)?.lng ?? null,
     })),
   };
 }
