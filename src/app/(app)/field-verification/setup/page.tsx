@@ -8,6 +8,7 @@ import { getT } from '@/lib/i18n/server';
 import { FORM_BUILDER_ENABLED } from '@/lib/form-builder';
 import { VerificationAdminPanel } from '@/app/(app)/distribution/route-planner/verification-admin-panel';
 import { VerificationFormPanel } from '@/app/(app)/distribution/route-planner/verification-form-panel';
+import { CustomerListsPanel } from '@/app/(app)/distribution/route-planner/customer-lists-panel';
 
 export const metadata: Metadata = { title: 'VANTORA — Field Verification Setup' };
 
@@ -33,6 +34,7 @@ export default async function FvSetupPage() {
     <div className="mx-auto max-w-5xl space-y-4 p-4">
       <h1 className="text-lg font-extrabold">Field Verification Setup</h1>
       <VerificationAdminPanel />
+      <CustomerListsPanel />
       {FORM_BUILDER_ENABLED() && <VerificationFormPanel />}
 
       {canManageUsers && (
