@@ -18,7 +18,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasPermission } from '@/lib/erp/permissions';
 import { logAudit } from '@/lib/erp/audit';
 import { FORM_BUILDER_ENABLED } from '@/lib/form-builder';
-import { emptyFormSchema, resolveFormSchema } from '@/lib/forms/form-schema';
+import { emptyFormSchema, resolveFormSchema, buildFormSchema, validateFormSchema, type FormSchema } from '@/lib/forms/form-schema';
 import { buildFormSummaries, isReservedFormCode, type FormSummary, type FormRow, type FormVersionRow } from './forms-library';
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -140,4 +140,127 @@ export async function setFormActive(formId: string, active: boolean): Promise<Re
   await logAudit(sb, { action: active ? 'activate' : 'deactivate', entity: 'form', entityId: formId, companyId: ctx.companyId });
   revalidatePath('/field-verification/forms');
   return { ok: true };
+}
+
+// ── Builder (load / save draft / publish) ────────────────────────────────────
+
+export interface FormForEdit {
+  id: string;
+  code: string;
+  nameEn: string;
+  nameAr: string;
+  isActive: boolean;
+  /** The version currently shown in the builder (latest version of any status). */
+  version: number;
+  status: 'draft' | 'published' | 'archived' | null;
+  hasPublished: boolean;
+  schema: FormSchema;
+}
+
+/** Load a custom form for the builder: its name + the latest version's schema (normalized).
+ *  Reserved-code forms are rejected — they have their own dedicated editors. */
+export async function getFormForEdit(formId: string): Promise<ResultD<FormForEdit>> {
+  const { err, ctx } = await adminCtx();
+  if (err) return { ok: false, error: err };
+  const sb = await createClient();
+
+  const { data: form, error: fErr } = await sb.from('erp_forms')
+    .select('id, code, name_en, name_ar, is_active')
+    .eq('company_id', ctx.companyId).eq('id', formId).maybeSingle();
+  if (fErr) return { ok: false, error: fErr.message };
+  if (!form || isReservedFormCode((form as { code: string }).code)) return { ok: false, error: 'err_not_found' };
+
+  const { data: versions } = await sb.from('erp_form_versions')
+    .select('version, status, schema').eq('form_id', formId).order('version', { ascending: false });
+  const vs = (versions ?? []) as { version: number; status: string; schema: unknown }[];
+  const latest = vs[0];
+  const hasPublished = vs.some((v) => v.status === 'published');
+  const f = form as { id: string; code: string; name_en: string | null; name_ar: string | null; is_active: boolean };
+
+  return {
+    ok: true,
+    data: {
+      id: f.id, code: f.code, nameEn: f.name_en ?? '', nameAr: f.name_ar ?? '', isActive: f.is_active,
+      version: latest?.version ?? 0,
+      status: (latest?.status as FormForEdit['status']) ?? null,
+      hasPublished,
+      schema: resolveFormSchema(latest?.schema ?? null),
+    },
+  };
+}
+
+/** Update the form name (definition only). */
+async function updateFormName(
+  sb: Awaited<ReturnType<typeof createClient>>, companyId: string, formId: string, nameEn: string, nameAr: string,
+) {
+  const en = nameEn.trim(), ar = nameAr.trim();
+  if (!en && !ar) return;
+  await sb.from('erp_forms').update({ name_en: en || ar, name_ar: ar || en }).eq('company_id', companyId).eq('id', formId);
+}
+
+/** Save the working schema as a DRAFT. If the latest version is already a draft it is updated
+ *  in place; otherwise a new draft version is inserted on top. Never touches published rows. */
+export async function saveFormDraft(input: { formId: string; nameEn: string; nameAr: string; schema: FormSchema }): Promise<ResultD<{ version: number }>> {
+  const { err, ctx } = await adminCtx();
+  if (err) return { ok: false, error: err };
+  const sb = await createClient();
+
+  const { data: form } = await sb.from('erp_forms')
+    .select('code').eq('company_id', ctx.companyId).eq('id', input.formId).maybeSingle();
+  if (!form || isReservedFormCode((form as { code: string }).code)) return { ok: false, error: 'err_not_found' };
+
+  const schema = buildFormSchema(input.schema);
+  await updateFormName(sb, ctx.companyId!, input.formId, input.nameEn, input.nameAr);
+
+  const { data: last } = await sb.from('erp_form_versions')
+    .select('version, status').eq('form_id', input.formId).order('version', { ascending: false }).limit(1).maybeSingle();
+  const lv = last as { version: number; status: string } | null;
+
+  if (lv && lv.status === 'draft') {
+    const { error } = await sb.from('erp_form_versions').update({ schema }).eq('form_id', input.formId).eq('version', lv.version);
+    if (error) return { ok: false, error: error.message };
+    await logAudit(sb, { action: 'save_draft', entity: 'form', entityId: input.formId, companyId: ctx.companyId, details: { version: lv.version } });
+    return { ok: true, data: { version: lv.version } };
+  }
+  const nextVersion = (lv?.version ?? 0) + 1;
+  const { error } = await sb.from('erp_form_versions')
+    .insert({ company_id: ctx.companyId, form_id: input.formId, version: nextVersion, schema, status: 'draft' });
+  if (error) return { ok: false, error: error.message };
+  await logAudit(sb, { action: 'save_draft', entity: 'form', entityId: input.formId, companyId: ctx.companyId, details: { version: nextVersion } });
+  return { ok: true, data: { version: nextVersion } };
+}
+
+/** Publish the working schema as a new published version; the prior published version is
+ *  archived (the runner/My-Forms read the latest published). Validates first. */
+export async function publishForm(input: { formId: string; nameEn: string; nameAr: string; schema: FormSchema }): Promise<ResultD<{ version: number }>> {
+  const { err, ctx } = await adminCtx();
+  if (err) return { ok: false, error: err };
+
+  const schema = buildFormSchema(input.schema);
+  if (validateFormSchema(schema).length > 0) return { ok: false, error: 'err_invalid_schema' };
+
+  const sb = await createClient();
+  const { data: form } = await sb.from('erp_forms')
+    .select('code').eq('company_id', ctx.companyId).eq('id', input.formId).maybeSingle();
+  if (!form || isReservedFormCode((form as { code: string }).code)) return { ok: false, error: 'err_not_found' };
+
+  await updateFormName(sb, ctx.companyId!, input.formId, input.nameEn, input.nameAr);
+
+  const { data: last } = await sb.from('erp_form_versions')
+    .select('version').eq('form_id', input.formId).order('version', { ascending: false }).limit(1).maybeSingle();
+  const nextVersion = (((last as { version: number } | null)?.version) ?? 0) + 1;
+
+  // Archive any currently-published version, then add the new published one.
+  await sb.from('erp_form_versions').update({ status: 'archived' }).eq('form_id', input.formId).eq('status', 'published');
+  // If the latest row is the working draft, archive it too so versions stay clean.
+  await sb.from('erp_form_versions').update({ status: 'archived' }).eq('form_id', input.formId).eq('status', 'draft');
+
+  const { error } = await sb.from('erp_form_versions').insert({
+    company_id: ctx.companyId, form_id: input.formId, version: nextVersion, schema,
+    status: 'published', published_at: new Date().toISOString(),
+  });
+  if (error) return { ok: false, error: error.message };
+  await logAudit(sb, { action: 'publish', entity: 'form', entityId: input.formId, companyId: ctx.companyId, details: { version: nextVersion } });
+  revalidatePath('/field-verification/forms');
+  return { ok: true, data: { version: nextVersion } };
 }
