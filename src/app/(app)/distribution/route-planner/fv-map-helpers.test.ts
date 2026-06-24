@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  mapStatus, markerColor, FV_MARKER_COLOR, isValidLatLng, buildNavUrl, toMapGeoJSON, mapCounts,
+  mapStatus, markerColor, FV_MARKER_COLOR, isValidLatLng, buildNavUrl, toMapGeoJSON, mapCounts, pointFromProps,
   type FvMapPoint,
 } from './fv-map-helpers';
 
@@ -47,6 +47,22 @@ describe('fv-map-helpers', () => {
     expect(a.properties.status).toBe('completed');
     expect(a.properties.color).toBe(FV_MARKER_COLOR.completed);
     expect(fc.features.find((f) => f.properties.id === 'b')!.properties.status).toBe('pending');
+  });
+
+  it('toMapGeoJSON: embeds full payload so the tap can rebuild the sheet', () => {
+    const fc = toMapGeoJSON([pt({ id: 'a', code: 'C9', completed: true, lastVerifiedAt: '2026-06-01T10:00:00Z' })]);
+    const p = fc.features[0].properties;
+    expect(p).toMatchObject({ id: 'a', code: 'C9', name: 'Shop', city: 'Riyadh', channel: 'Grocery', completed: 1, lastVerifiedAt: '2026-06-01T10:00:00Z', lat: 24.7, lng: 46.7 });
+  });
+
+  it('pointFromProps: round-trips a clicked feature back to a point', () => {
+    const fc = toMapGeoJSON([pt({ id: 'a', code: 'C9', completed: true, lastVerifiedAt: '2026-06-01T10:00:00Z' })]);
+    const back = pointFromProps(fc.features[0].properties as unknown as Record<string, unknown>);
+    expect(back).toEqual({ id: 'a', code: 'C9', name: 'Shop', lat: 24.7, lng: 46.7, city: 'Riyadh', channel: 'Grocery', completed: true, lastVerifiedAt: '2026-06-01T10:00:00Z' });
+    // pending with empty optionals → nulls
+    const pend = pointFromProps(toMapGeoJSON([pt({ id: 'b', code: null, city: null, channel: null })]).features[0].properties as unknown as Record<string, unknown>);
+    expect(pend).toMatchObject({ id: 'b', code: null, city: null, channel: null, completed: false, lastVerifiedAt: null });
+    expect(pointFromProps(null)).toBeNull();
   });
 
   it('mapCounts: total / completed / pending', () => {
