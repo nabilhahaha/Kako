@@ -16,6 +16,7 @@ import { haversineMeters, isWithinRadius, validCoord } from '@/lib/erp/geo-dista
 import { getCompanyRadiusM } from './rp-verification-radius-actions';
 import { getFvVerificationForm } from './rp-verification-form-actions';
 import type { FvMapPoint } from './fv-map-helpers';
+import { radiusEnforced, radiusLockBlocks } from './fv-radius';
 import { ATTACHMENTS_BUCKET } from '@/lib/erp/attachments';
 import { chunk } from '@/lib/utils';
 
@@ -243,7 +244,7 @@ export async function submitVerification(input: {
   const distanceM = (gpsValid && custCoordsOk)
     ? haversineMeters(input.gps!.lat, input.gps!.lng, lat as number, lng as number)
     : null;
-  if (requireGps && (distanceM == null || !isWithinRadius(distanceM, radiusM))) {               // SERVER-SIDE proximity lock
+  if (radiusLockBlocks(requireGps, distanceM, radiusM)) {                                        // SERVER-SIDE proximity lock (only when requireGps)
     await logAttempt(sb, ctx, { customerId: c.id as string, gps: input.gps, distanceM: distanceM != null ? Math.round(distanceM) : null, allowedRadiusM: radiusM, result: 'outside_radius' });
     return { ok: false, error: distanceM == null ? 'err_gps_required' : 'err_too_far' };
   }
@@ -267,6 +268,8 @@ export async function submitVerification(input: {
     outside_photo: input.outsidePhotoId || null, inside_photos: input.insidePhotoIds ?? [],
     gps_lat: gpsValid ? input.gps!.lat : null, gps_lng: gpsValid ? input.gps!.lng : null, distance_m: roundedDist,
     allowed_radius_m: radiusM,                                                                  // radius in force at submit time
+    radius_enforced: radiusEnforced(requireGps),                                                // was the radius LOCK applied (admin toggle)
+
     notes: input.notes?.trim() || null, verified_by: ctx.userId,
   }).select('id').single();
   if (error) {
@@ -291,6 +294,7 @@ export interface CompletedVerification {
   notes: string | null; distanceM: number | null; allowedRadiusM: number | null;
   verifiedAt: string; status: string; repName: string; repEmail: string;
   outsidePhotoId: string | null; insidePhotoIds: string[];
+  radiusEnforced: boolean | null;   // false = submitted with radius enforcement OFF; null = legacy (enforced)
 }
 
 export async function getMyCompletedVerifications(): Promise<ResultD<CompletedVerification[]>> {
@@ -298,7 +302,7 @@ export async function getMyCompletedVerifications(): Promise<ResultD<CompletedVe
   if (!ctx) return { ok: false, error: 'err_unauthorized' };
   const sb = await createClient();
   const { data: rows, error } = await sb.from('erp_rp_customer_verifications')
-    .select('id, customer_id, customer_code, customer_name, old_city, new_city, old_channel, new_channel, old_phone, new_phone, notes, distance_m, allowed_radius_m, status, verified_at, created_at, outside_photo, inside_photos')
+    .select('id, customer_id, customer_code, customer_name, old_city, new_city, old_channel, new_channel, old_phone, new_phone, notes, distance_m, allowed_radius_m, radius_enforced, status, verified_at, created_at, outside_photo, inside_photos')
     .eq('company_id', ctx.companyId).eq('rep_id', ctx.userId)
     .order('created_at', { ascending: false }).limit(500);   // latest first
   if (error) return { ok: false, error: error.message };
@@ -318,6 +322,7 @@ export async function getMyCompletedVerifications(): Promise<ResultD<CompletedVe
       status: (r.status as string | null) ?? 'verified', repName, repEmail,
       outsidePhotoId: (r.outside_photo as string | null) ?? null,
       insidePhotoIds: ((r.inside_photos as string[] | null) ?? []),
+      radiusEnforced: (r.radius_enforced as boolean | null) ?? null,
     })),
   };
 }

@@ -36,6 +36,7 @@ export interface DetailRow {
   oldPhone: string | null; newPhone: string | null;
   distanceM: number | null; allowedRadiusM: number | null; photoCount: number; notes: string | null;
   outsidePhotoId: string | null; insidePhotoIds: string[];
+  radiusEnforced: boolean | null;
 }
 export interface ExceptionRow {
   id: string; createdAt: number; repName: string;
@@ -151,7 +152,7 @@ export async function getVerificationDetail(): Promise<ResultD<{ rows: DetailRow
   if (err) return { ok: false, error: err };
   const sb = await createClient();
   const { data, error } = await sb.from('erp_rp_customer_verifications')
-    .select('id, customer_code, customer_name, rep_id, verified_at, old_city, new_city, old_channel, new_channel, old_phone, new_phone, distance_m, allowed_radius_m, outside_photo, inside_photos, notes')
+    .select('id, customer_code, customer_name, rep_id, verified_at, old_city, new_city, old_channel, new_channel, old_phone, new_phone, distance_m, allowed_radius_m, radius_enforced, outside_photo, inside_photos, notes')
     .eq('company_id', ctx.companyId).order('verified_at', { ascending: false }).limit(CAP);
   if (error) return { ok: false, error: error.message };
   const { byId } = await nameMaps(sb, (data ?? []).map((r) => r.rep_id as string), []);
@@ -168,6 +169,7 @@ export async function getVerificationDetail(): Promise<ResultD<{ rows: DetailRow
     notes: (r.notes as string | null) ?? null,
     outsidePhotoId: (r.outside_photo as string | null) ?? null,
     insidePhotoIds: ((r.inside_photos as string[] | null) ?? []).filter((x) => typeof x === 'string' && x),
+    radiusEnforced: (r.radius_enforced as boolean | null) ?? null,
   }));
   return { ok: true, data: { rows } };
 }

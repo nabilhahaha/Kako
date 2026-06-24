@@ -506,6 +506,7 @@ export const ar = {
     assignedEmpty: 'لا يوجد عملاء مُسنَدون إليك بعد.', noMatches: 'لا توجد نتائج.',
     assignedCount: '{n} مُسنَد',
     outsideRange: 'خارج النطاق', mustBeWithin: 'يجب أن تكون ضمن {n} م من العميل لإتمام التحقق.',
+    radiusWaived: 'تم الإرسال بدون اشتراط النطاق الجغرافي',
     completedEmpty: 'لا توجد عمليات تحقق مكتملة بعد.', completedCount: '{n} مكتمل',
     removePhoto: 'إزالة الصورة',
     statusCompleted: 'مكتمل', verifiedAt: 'تم التحقق', detailTitle: 'تفاصيل التحقق',
@@ -554,7 +555,7 @@ export const ar = {
     formHint: 'اضبط كيف يظهر نموذج التحقق للمندوب — إظهار/إخفاء، إلزامي، الترتيب، التسمية بالعربية/الإنجليزية، نص المساعدة. الإعدادات الافتراضية تطابق تدفّق التحقق الميداني القياسي.',
     formCol: 'الحقل', formShow: 'إظهار', formRequired: 'إلزامي', formLabelEn: 'التسمية (EN)', formLabelAr: 'التسمية (AR)', formHelp: 'نص المساعدة',
     formMoveUp: 'تحريك لأعلى', formMoveDown: 'تحريك لأسفل',
-    formRequireGps: 'اشتراط GPS / النطاق عند الإرسال', formRequireGpsHint: 'عند التفعيل، يجب أن يكون المندوب ضمن النطاق المحدّد للإرسال (القاعدة القياسية). عند الإيقاف، لا يفرض الإرسال القرب.',
+    formRequireGps: 'اشتراط التحقق داخل النطاق الجغرافي', formRequireGpsHint: 'عند التفعيل، يجب أن يكون المندوب ضمن النطاق المحدّد للإرسال (القاعدة القياسية). عند الإيقاف، يمكن للمندوب الإرسال خارج النطاق، وتُلتقط الإحداثيات/المسافة إن توفّرت، وتظهر شارة "تم الإرسال بدون اشتراط النطاق الجغرافي". تبقى الصور والحقول الإلزامية مطلوبة.',
     formSave: 'حفظ ونشر', formSaving: 'جارٍ الحفظ…', formSaved: 'تم نشر النموذج.', formResetDefault: 'إعادة للوضع الافتراضي',
     formRelaxWarning: 'قد يؤدي هذا إلى إضعاف عملية التحقق الميداني القياسية.',
     formDefaultLabelHint: 'اتركه فارغًا لاستخدام التسمية الافتراضية.',
@@ -616,7 +617,7 @@ export const ar = {
     totals: 'الإجمالي',
     // detail
     customer: 'العميل', verifiedAt: 'تاريخ التحقق', city: 'المدينة', channel: 'القناة', phone: 'الهاتف',
-    oldNew: 'قديم ← جديد', distance: 'المسافة (م)', radius: 'النطاق (م)', photos: 'الصور', notes: 'ملاحظات', noChange: 'بدون تغيير', noPhotos: 'لا توجد صور',
+    oldNew: 'قديم ← جديد', distance: 'المسافة (م)', radius: 'النطاق (م)', photos: 'الصور', notes: 'ملاحظات', noChange: 'بدون تغيير', noPhotos: 'لا توجد صور', radiusWaived: 'بدون اشتراط النطاق',
     // exceptions
     when: 'الوقت', result: 'النتيجة', reason: 'السبب',
     r_outside_radius: 'خارج النطاق', r_not_assigned: 'غير مُسنَد', r_no_coords: 'لا إحداثيات', r_error: 'خطأ',
@@ -1131,6 +1132,7 @@ export const en = {
     assignedEmpty: 'No customers assigned to you yet.', noMatches: 'No matches.',
     assignedCount: '{n} assigned',
     outsideRange: 'Outside range', mustBeWithin: 'You must be within {n} m of the customer to submit.',
+    radiusWaived: 'Submitted without radius enforcement',
     completedEmpty: 'No completed verifications yet.', completedCount: '{n} completed',
     removePhoto: 'Remove photo',
     statusCompleted: 'Completed', verifiedAt: 'Verified', detailTitle: 'Verification details',
@@ -1179,7 +1181,7 @@ export const en = {
     formHint: 'Configure how the verification form appears to the rep — show/hide, required, order, AR/EN label, help. Defaults match the standard Field Verification flow.',
     formCol: 'Field', formShow: 'Show', formRequired: 'Required', formLabelEn: 'Label (EN)', formLabelAr: 'Label (AR)', formHelp: 'Help text',
     formMoveUp: 'Move up', formMoveDown: 'Move down',
-    formRequireGps: 'Require GPS / radius at submit', formRequireGpsHint: 'When on, the rep must be within the configured radius to submit (the standard rule). When off, submit does not enforce proximity.',
+    formRequireGps: 'Require GPS radius validation', formRequireGpsHint: 'When on, the rep must be within the allowed radius to submit (the standard rule). When off, the rep can submit outside the radius; GPS/distance are still captured if available, the completed verification shows a "Submitted without radius enforcement" badge, and photos + required fields remain enforced.',
     formSave: 'Save & publish', formSaving: 'Saving…', formSaved: 'Form published.', formResetDefault: 'Reset to default',
     formRelaxWarning: 'This may weaken the standard Field Verification process.',
     formDefaultLabelHint: 'Leave blank to use the default label.',
@@ -1241,7 +1243,7 @@ export const en = {
     totals: 'Totals',
     // detail
     customer: 'Customer', verifiedAt: 'Verified at', city: 'City', channel: 'Channel', phone: 'Phone',
-    oldNew: 'Old → New', distance: 'Distance (m)', radius: 'Radius (m)', photos: 'Photos', notes: 'Notes', noChange: 'no change', noPhotos: 'No photos',
+    oldNew: 'Old → New', distance: 'Distance (m)', radius: 'Radius (m)', photos: 'Photos', notes: 'Notes', noChange: 'no change', noPhotos: 'No photos', radiusWaived: 'Radius not enforced',
     // exceptions
     when: 'When', result: 'Result', reason: 'Reason',
     r_outside_radius: 'Outside radius', r_not_assigned: 'Not assigned', r_no_coords: 'No coordinates', r_error: 'Error',
