@@ -225,32 +225,32 @@ export function MyNearbyCustomers() {
 
         {/* old → new city / channel */}
         <div className="grid grid-cols-2 gap-2">
-          <DetailPair t={t} label={t('rpVerify.city')} oldV={detail.oldCity} newV={detail.newCity} />
-          <DetailPair t={t} label={t('rpVerify.channel')} oldV={detail.oldChannel} newV={detail.newChannel} />
+          <DetailPair t={t} label={fieldLabel('city', 'rpVerify.city')} oldV={detail.oldCity} newV={detail.newCity} />
+          <DetailPair t={t} label={fieldLabel('channel', 'rpVerify.channel')} oldV={detail.oldChannel} newV={detail.newChannel} />
         </div>
 
         {/* phone + notes */}
         {(detail.newPhone || detail.oldPhone) && (
           <div className="rounded-2xl border bg-card p-3 text-sm">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t('rpVerify.phone')}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{fieldLabel('phone', 'rpVerify.phone')}</p>
             <p className="mt-0.5 font-semibold" dir="ltr">{detail.newPhone || detail.oldPhone}</p>
           </div>
         )}
         {detail.notes && (
           <div className="rounded-2xl border bg-card p-3 text-sm">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t('rpVerify.notes')}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{fieldLabel('notes', 'rpVerify.notes')}</p>
             <p className="mt-0.5 whitespace-pre-wrap">{detail.notes}</p>
           </div>
         )}
 
         {/* photos */}
         <div className="rounded-2xl border bg-card p-3">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t('rpVerify.outsidePhoto')}</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{fieldLabel('outside_photo', 'rpVerify.outsidePhoto')}</p>
           <PhotoView url={outsideUrl} loading={photosLoading} t={t} />
         </div>
         {detail.insidePhotoIds.length > 0 && (
           <div className="rounded-2xl border bg-card p-3">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t('rpVerify.insidePhotos')}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{fieldLabel('inside_photos', 'rpVerify.insidePhotos')}</p>
             {photosLoading ? (
               <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{t('rpVerify.loadingPhotos')}</p>
             ) : (
