@@ -689,6 +689,15 @@ export const ar = {
     submit: 'إرسال', submitting: 'جارٍ الإرسال…', fixErrors: 'يرجى إكمال الحقول المطلوبة.', errPhoto: 'فشل رفع الصورة. حاول مرة أخرى.',
     doneTitle: 'تم إرسال النموذج',
   },
+  rpFormReport: {
+    back: 'رجوع للنماذج', refresh: 'تحديث', title: 'تقرير النموذج', count: '{n} عملية إرسال',
+    date_all: 'كل الفترات', date_today: 'اليوم', date_yesterday: 'أمس', date_week: 'هذا الأسبوع', date_month: 'هذا الشهر',
+    allReps: 'كل المندوبين', search: 'بحث بالعميل', empty: 'لا توجد عمليات إرسال بعد.',
+    pendingMigration: 'تقرير النماذج غير متاح بعد في قاعدة البيانات. سيُفعّل بعد تطبيق التحديث.',
+    colCustomer: 'العميل', colRep: 'المندوب', colDate: 'التاريخ/الوقت', colPhotos: 'الصور', view: 'عرض',
+    noCustomer: 'بدون عميل', close: 'إغلاق', versionLabel: 'نسخة {n}', radiusWaived: 'أُرسل دون اشتراط النطاق',
+    noAnswers: 'لا توجد إجابات.', photos: 'الصور', loadingPhotos: 'جارٍ تحميل الصور…', yes: 'نعم', no: 'لا',
+  },
 };
 
 export const en = {
@@ -1380,5 +1389,14 @@ export const en = {
     yes: 'Yes', choose: 'Choose…', takePhoto: 'Take photo',
     submit: 'Submit', submitting: 'Submitting…', fixErrors: 'Please complete the required fields.', errPhoto: 'Photo upload failed. Try again.',
     doneTitle: 'Form submitted',
+  },
+  rpFormReport: {
+    back: 'Back to forms', refresh: 'Refresh', title: 'Form report', count: '{n} submissions',
+    date_all: 'All time', date_today: 'Today', date_yesterday: 'Yesterday', date_week: 'This week', date_month: 'This month',
+    allReps: 'All reps', search: 'Search customer', empty: 'No submissions yet.',
+    pendingMigration: 'Form reporting is not in the database yet. It activates once the update is applied.',
+    colCustomer: 'Customer', colRep: 'Rep', colDate: 'Date/time', colPhotos: 'Photos', view: 'View',
+    noCustomer: 'No customer', close: 'Close', versionLabel: 'v{n}', radiusWaived: 'Submitted without radius enforcement',
+    noAnswers: 'No answers.', photos: 'Photos', loadingPhotos: 'Loading photos…', yes: 'Yes', no: 'No',
   },
 };
