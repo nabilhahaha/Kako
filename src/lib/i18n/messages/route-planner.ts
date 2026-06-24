@@ -636,6 +636,18 @@ export const ar = {
     lastVisit: 'آخر زيارة', distance: 'المسافة', notes: 'ملاحظات', photos: 'صور الزيارة',
     openCustomer: 'فتح العميل', openReport: 'فتح التقرير', navigate: 'التوجيه',
   },
+  rpForms: {
+    libraryTitle: 'مكتبة النماذج', librarySubtitle: 'أنشئ وأدِر نماذج عمل ميداني متعددة. نموذج التحقق الميداني الأساسي مقفل ويبقى كما هو.',
+    coreForm: 'نموذج التحقق الميداني (أساسي)', coreFormDesc: 'النموذج الافتراضي — يبقى دون تغيير. يُدار من إعداد التحقق الميداني.', manageCore: 'إدارة',
+    newForm: 'نموذج جديد', newFormTitle: 'إنشاء نموذج جديد', nameEn: 'الاسم (إنجليزي)', nameAr: 'الاسم (عربي)',
+    create: 'إنشاء', cancel: 'إلغاء', creating: 'جارٍ الإنشاء…',
+    edit: 'تعديل', duplicate: 'نسخ', activate: 'تفعيل', deactivate: 'إيقاف', viewReport: 'التقرير',
+    statusActive: 'مُفعّل', statusInactive: 'موقوف', statusDraft: 'مسودة', statusPublished: 'منشور', noVersion: 'بدون نسخة',
+    draftPending: 'تعديلات غير منشورة', versionLabel: 'نسخة {n}',
+    empty: 'لا توجد نماذج مخصصة بعد. أنشئ نموذجك الأول.', locked: 'مقفل',
+    created: 'تم إنشاء النموذج', duplicated: 'تم نسخ النموذج', activated: 'تم تفعيل النموذج', deactivated: 'تم إيقاف النموذج',
+    disabled: 'منشئ النماذج غير مُفعّل لهذه الشركة.', nameRequired: 'الاسم مطلوب', copySuffix: ' (نسخة)',
+  },
 };
 
 export const en = {
@@ -1274,5 +1286,17 @@ export const en = {
     assignedRep: 'Assigned rep', cityArea: 'City / area', channel: 'Channel', list: 'List',
     lastVisit: 'Last visit', distance: 'Distance', notes: 'Notes', photos: 'Visit photos',
     openCustomer: 'Open Customer', openReport: 'Open Report', navigate: 'Navigate',
+  },
+  rpForms: {
+    libraryTitle: 'Forms Library', librarySubtitle: 'Create and manage multiple field-work forms. The core Field Verification form is locked and stays unchanged.',
+    coreForm: 'Field Verification Form (Core)', coreFormDesc: 'The default form — remains unchanged. Managed from Field Verification Setup.', manageCore: 'Manage',
+    newForm: 'New form', newFormTitle: 'Create a new form', nameEn: 'Name (English)', nameAr: 'Name (Arabic)',
+    create: 'Create', cancel: 'Cancel', creating: 'Creating…',
+    edit: 'Edit', duplicate: 'Duplicate', activate: 'Activate', deactivate: 'Deactivate', viewReport: 'Report',
+    statusActive: 'Active', statusInactive: 'Inactive', statusDraft: 'Draft', statusPublished: 'Published', noVersion: 'No version',
+    draftPending: 'Unpublished changes', versionLabel: 'v{n}',
+    empty: 'No custom forms yet. Create your first form.', locked: 'Locked',
+    created: 'Form created', duplicated: 'Form duplicated', activated: 'Form activated', deactivated: 'Form deactivated',
+    disabled: 'Form Builder is not enabled for this company.', nameRequired: 'Name is required', copySuffix: ' (copy)',
   },
 };
