@@ -6,20 +6,19 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { Navigation, Store, X, CheckCircle2, Clock, Crosshair } from 'lucide-react';
 import { haversineMeters } from '@/lib/erp/geo-distance';
 import type { TFunc } from '@/lib/i18n';
-import { buildNavUrl, toMapGeoJSON, mapCounts, type FvMapPoint } from './fv-map-helpers';
+import { buildNavUrl, toMapGeoJSON, mapCounts, pointFromProps, type FvMapPoint } from './fv-map-helpers';
 
 /**
  * FV Map tab — the logged-in rep's assigned customers on a mobile map (MapLibre, keyless OSM
- * raster). Green marker = completed/verified, red = pending. Points are fed as a single
- * clustered GeoJSON source so it stays smooth for large assigned lists (clusters expand on
- * zoom). Tapping a marker opens a bottom sheet (code · name · city · channel · status ·
- * distance · last verified) with Open Customer + Navigate. Navigation is never radius-gated;
- * submit stays radius + photo gated elsewhere. Read-only — no writes here.
+ * raster). Green dot = completed/verified, red dot = pending. Every customer is an individual
+ * coloured dot (no numbered cluster bubbles) in one GPU circle layer, which stays smooth for
+ * large assigned lists. Tapping a dot opens a bottom sheet (code · name · city · channel ·
+ * status · distance · last verified) with Open Customer + Navigate — the sheet data is rebuilt
+ * from the clicked feature's own properties (reliable at any zoom). Navigation is never
+ * radius-gated; submit stays radius + photo gated elsewhere. Read-only — no writes here.
  */
 const RASTER_STYLE = {
   version: 8 as const,
-  // demotiles glyphs let the cluster-count labels render; clusters still draw if it fails.
-  glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
   sources: { osm: { type: 'raster' as const, tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } },
   layers: [{ id: 'osm', type: 'raster' as const, source: 'osm' }],
 };
@@ -53,45 +52,28 @@ export function FvMap({ points, gps, locale, t, onOpenCustomer }: {
     if (gps) map.addControl(new maplibregl.GeolocateControl({ showUserLocation: true }), 'top-right');
     mapRef.current = map;
     map.on('load', () => {
-      map.addSource(SRC, { type: 'geojson', data: toMapGeoJSON(points), cluster: true, clusterRadius: 50, clusterMaxZoom: 14 });
+      // Plain GeoJSON source (NO clustering) → every customer is its own coloured dot.
+      map.addSource(SRC, { type: 'geojson', data: toMapGeoJSON(points) });
 
       map.addLayer({
-        id: 'clusters', type: 'circle', source: SRC, filter: ['has', 'point_count'],
+        id: 'points', type: 'circle', source: SRC,
         paint: {
-          'circle-color': '#2563eb',
-          'circle-opacity': 0.85,
+          'circle-color': ['get', 'color'],
+          // a touch larger on zoom-in for an easy tap target on mobile
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 5, 12, 8, 16, 11],
           'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff',
-          'circle-radius': ['step', ['get', 'point_count'], 16, 50, 22, 200, 28],
         },
       });
-      map.addLayer({
-        id: 'cluster-count', type: 'symbol', source: SRC, filter: ['has', 'point_count'],
-        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12 },
-        paint: { 'text-color': '#ffffff' },
-      });
-      map.addLayer({
-        id: 'points', type: 'circle', source: SRC, filter: ['!', ['has', 'point_count']],
-        paint: { 'circle-color': ['get', 'color'], 'circle-radius': 7, 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff' },
-      });
 
-      map.on('click', 'clusters', (e) => {
-        const f = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })[0];
-        const cid = f?.properties?.cluster_id;
-        const src = map.getSource(SRC) as maplibregl.GeoJSONSource | undefined;
-        if (cid == null || !src) return;
-        void src.getClusterExpansionZoom(cid as number).then((z) => {
-          const geom = f.geometry as unknown as { coordinates: [number, number] };
-          map.easeTo({ center: geom.coordinates, zoom: z });
-        }).catch(() => {});
-      });
-      map.on('click', 'points', (e) => {
-        const id = e.features?.[0]?.properties?.id as string | undefined;
-        if (id) setSelected(points.find((p) => p.id === id) ?? null);
-      });
-      for (const lyr of ['clusters', 'points']) {
-        map.on('mouseenter', lyr, () => { map.getCanvas().style.cursor = 'pointer'; });
-        map.on('mouseleave', lyr, () => { map.getCanvas().style.cursor = ''; });
-      }
+      // Rebuild the sheet from the clicked feature's own properties — reliable at any zoom and
+      // independent of the (async-loaded) points prop, which fixes the unreliable tap.
+      const openFromEvent = (e: maplibregl.MapLayerMouseEvent) => {
+        const p = pointFromProps(e.features?.[0]?.properties as Record<string, unknown> | undefined);
+        if (p) setSelected(p);
+      };
+      map.on('click', 'points', openFromEvent);
+      map.on('mouseenter', 'points', () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', 'points', () => { map.getCanvas().style.cursor = ''; });
       setReady(true);
     });
     return () => { map.remove(); mapRef.current = null; };

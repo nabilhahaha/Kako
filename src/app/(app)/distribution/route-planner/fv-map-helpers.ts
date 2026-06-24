@@ -54,7 +54,9 @@ export function buildNavUrl(lat: number, lng: number, platform: 'google' | 'appl
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
 
-/** GeoJSON FeatureCollection for a MapLibre clustered source. Drops invalid coordinates. */
+/** GeoJSON FeatureCollection for the MapLibre points layer. Drops invalid coordinates and
+ *  embeds the full customer payload in each feature's properties so the marker tap can rebuild
+ *  the bottom-sheet data directly from the clicked feature (no stale-closure lookup). */
 export function toMapGeoJSON(points: FvMapPoint[]) {
   return {
     type: 'FeatureCollection' as const,
@@ -63,8 +65,38 @@ export function toMapGeoJSON(points: FvMapPoint[]) {
       .map((p) => ({
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] as [number, number] },
-        properties: { id: p.id, status: mapStatus(p), color: markerColor(p) },
+        properties: {
+          id: p.id,
+          status: mapStatus(p),
+          color: markerColor(p),
+          code: p.code ?? '',
+          name: p.name ?? '',
+          city: p.city ?? '',
+          channel: p.channel ?? '',
+          completed: p.completed ? 1 : 0,
+          lastVerifiedAt: p.lastVerifiedAt ?? '',
+          lat: p.lat,
+          lng: p.lng,
+        },
       })),
+  };
+}
+
+/** Rebuild a point from a clicked feature's properties (values come back as primitives). */
+export function pointFromProps(props: Record<string, unknown> | null | undefined): FvMapPoint | null {
+  if (!props || props.id == null) return null;
+  const str = (v: unknown): string => (v == null ? '' : String(v));
+  const orNull = (v: unknown): string | null => { const s = str(v); return s === '' ? null : s; };
+  return {
+    id: String(props.id),
+    code: orNull(props.code),
+    name: str(props.name),
+    lat: Number(props.lat),
+    lng: Number(props.lng),
+    city: orNull(props.city),
+    channel: orNull(props.channel),
+    completed: props.completed === 1 || props.completed === '1' || props.completed === true,
+    lastVerifiedAt: orNull(props.lastVerifiedAt),
   };
 }
 
