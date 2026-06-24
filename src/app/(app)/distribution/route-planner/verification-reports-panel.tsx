@@ -11,6 +11,7 @@ import {
 } from './rp-verification-report-actions';
 import { getVerificationPhotos } from './rp-verification-actions';
 import { verificationPhotoIds } from './fv-report-access';
+import { radiusWaived } from './fv-radius';
 
 type T = (k: string, p?: Record<string, string | number>) => string;
 type View = 'summary' | 'detail' | 'exceptions';
@@ -213,7 +214,14 @@ function DetailView({ t }: { t: T }) {
                     <td className="p-2">{oldNew(r.oldChannel, r.newChannel, t('rpVerifyReports.noChange'))}</td>
                     <td className="p-2">{oldNew(r.oldPhone, r.newPhone, t('rpVerifyReports.noChange'))}</td>
                     <td className="p-2 text-end tabular-nums">{r.distanceM ?? '—'}</td>
-                    <td className="p-2 text-end tabular-nums">{r.allowedRadiusM ?? '—'}</td>
+                    <td className="p-2 text-end tabular-nums">
+                      {r.allowedRadiusM ?? '—'}
+                      {radiusWaived(r) && (
+                        <span className="ms-1 inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700" title={t('rpVerifyReports.radiusWaived')}>
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                        </span>
+                      )}
+                    </td>
                     <td className="p-2 text-end"><PhotoCell t={t} row={r} /></td>
                   </tr>
                 ))}

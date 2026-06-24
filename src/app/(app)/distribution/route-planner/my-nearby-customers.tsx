@@ -18,6 +18,7 @@ import { FvMap } from './fv-map';
 import type { FvMapPoint } from './fv-map-helpers';
 import { filterAssignedCustomers, filterCompletedVerifications } from './fv-customer-search';
 import { removeFileAt, mergeFiles } from './fv-photo-edit';
+import { radiusWaived } from './fv-radius';
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
 import { NEARBY_RADIUS_M } from '@/lib/erp/geo-distance';
 import { cn } from '@/lib/utils';
@@ -251,6 +252,11 @@ export function MyNearbyCustomers() {
               </span>
             )}
           </div>
+          {radiusWaived(detail) && (
+            <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+              <AlertTriangle className="h-3.5 w-3.5" />{t('rpVerify.radiusWaived')}
+            </p>
+          )}
         </div>
 
         {/* old → new city / channel */}
