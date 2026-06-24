@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, ListChecks, AlertTriangle, Loader2, RefreshCw, FileDown } from 'lucide-react';
+import { BarChart3, ListChecks, AlertTriangle, Loader2, RefreshCw, FileDown, ImageIcon, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { buildXlsxWorkbook, type XlsxSheet } from '@/lib/erp/xlsx-write';
 import { downloadXlsx, xlsxDate } from './xlsx-download';
@@ -9,6 +9,8 @@ import {
   getVerificationSummary, getVerificationDetail, getVerificationExceptions,
   type SummaryReport, type DetailRow, type ExceptionRow,
 } from './rp-verification-report-actions';
+import { getVerificationPhotos } from './rp-verification-actions';
+import { verificationPhotoIds } from './fv-report-access';
 
 type T = (k: string, p?: Record<string, string | number>) => string;
 type View = 'summary' | 'detail' | 'exceptions';
@@ -212,7 +214,7 @@ function DetailView({ t }: { t: T }) {
                     <td className="p-2">{oldNew(r.oldPhone, r.newPhone, t('rpVerifyReports.noChange'))}</td>
                     <td className="p-2 text-end tabular-nums">{r.distanceM ?? '—'}</td>
                     <td className="p-2 text-end tabular-nums">{r.allowedRadiusM ?? '—'}</td>
-                    <td className="p-2 text-end tabular-nums">{r.photoCount}</td>
+                    <td className="p-2 text-end"><PhotoCell t={t} row={r} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -221,6 +223,59 @@ function DetailView({ t }: { t: T }) {
         )}
       </Wrap>
     </div>
+  );
+}
+
+// Read-only photo viewer for a detail row: shows the count, opens a modal of thumbnails
+// (signed URLs resolved on demand, company-scoped). No edit/delete — view only.
+function PhotoCell({ t, row }: { t: T; row: DetailRow }) {
+  const ids = verificationPhotoIds(row);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [urls, setUrls] = useState<string[]>([]);
+
+  if (ids.length === 0) return <span className="text-muted-foreground">—</span>;
+
+  async function show() {
+    setOpen(true);
+    if (urls.length > 0) return;
+    setLoading(true);
+    const res = await getVerificationPhotos(ids);
+    if (res.ok) setUrls(res.data.map((p) => p.url));
+    setLoading(false);
+  }
+
+  return (
+    <>
+      <button type="button" onClick={() => void show()}
+        className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold hover:bg-muted/50">
+        <ImageIcon className="h-3.5 w-3.5" />{ids.length}
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setOpen(false)}>
+          <div className="max-h-[85vh] w-full max-w-lg overflow-auto rounded-2xl border bg-background p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-sm font-bold">{t('rpVerifyReports.photos')} — {row.customerName}</h4>
+              <button type="button" onClick={() => setOpen(false)} aria-label={t('common.close')} className="flex h-7 w-7 items-center justify-center rounded-full border"><X className="h-4 w-4" /></button>
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
+            ) : urls.length === 0 ? (
+              <p className="py-8 text-center text-xs text-muted-foreground">{t('rpVerifyReports.noPhotos')}</p>
+            ) : (
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {urls.map((u, i) => (
+                  <a key={i} href={u} target="_blank" rel="noopener noreferrer" className="block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={u} alt="" className="aspect-square w-full rounded-lg border object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
