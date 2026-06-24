@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getUserContext } from '@/lib/erp/auth-context';
-import { hasPermission } from '@/lib/erp/permissions';
+import { hasAnyPermission } from '@/lib/erp/permissions';
 import { FORM_BUILDER_ENABLED } from '@/lib/form-builder';
 import { FormBuilder } from '@/app/(app)/distribution/route-planner/form-builder';
 
@@ -17,7 +17,7 @@ export default async function FvFormEditPage({ params }: { params: Promise<{ for
   const { formId } = await params;
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
-  if (!hasPermission(ctx, 'field_verification.admin')) redirect('/dashboard');
+  if (!hasAnyPermission(ctx, ['forms.admin', 'field_verification.admin'])) redirect('/dashboard');
   if (!FORM_BUILDER_ENABLED()) redirect('/field-verification/setup');
   return (
     <div className="fv-theme mx-auto max-w-6xl p-4">

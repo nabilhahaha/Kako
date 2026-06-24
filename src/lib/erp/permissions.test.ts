@@ -108,3 +108,26 @@ describe('permissionsForRole', () => {
     expect(viewer.length).toBeLessThan(ALL_PERMISSIONS.length);
   });
 });
+
+describe('Multi-Form forms.* role mapping', () => {
+  it('admin + manager hold all forms.* (ALL)', () => {
+    for (const role of ['admin', 'manager'] as const) {
+      const p = permissionsForRole(role);
+      for (const perm of ['forms.admin', 'forms.fill', 'forms.reports', 'forms.export'] as const) {
+        expect(p).toContain(perm);
+      }
+    }
+  });
+  it('salesman fills, supervisor + viewer report, none of them admin', () => {
+    expect(permissionsForRole('salesman')).toContain('forms.fill');
+    expect(permissionsForRole('salesman')).not.toContain('forms.admin');
+    expect(permissionsForRole('supervisor')).toContain('forms.reports');
+    expect(permissionsForRole('viewer')).toContain('forms.reports');
+    expect(permissionsForRole('viewer')).not.toContain('forms.fill');
+  });
+  it('every forms.* permission has a label in the field_verification group', () => {
+    for (const perm of ['forms.admin', 'forms.fill', 'forms.reports', 'forms.export'] as const) {
+      expect(PERMISSION_LABELS[perm].group).toBe('field_verification');
+    }
+  });
+});
