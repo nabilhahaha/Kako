@@ -22,6 +22,17 @@ import { chunk } from '@/lib/utils';
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 type ResultD<T> = { ok: true; data: T } | { ok: false; error: string };
 
+/** Archived dataset ids for the company — their customers are hidden from rep active work
+ *  (Nearby / Assigned / Map). Empty when nothing is archived, so the rep queries below stay
+ *  byte-identical to today (no behavior change until an admin archives a list). */
+async function archivedDatasetIds(
+  sb: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+): Promise<string[]> {
+  const { data } = await sb.from('erp_rp_datasets').select('id').eq('company_id', companyId).eq('status', 'archived');
+  return (data ?? []).map((d) => d.id as string);
+}
+
 export interface NearbyCustomer {
   id: string; code: string | null; name: string;
   lat: number; lng: number; city: string | null; channel: string | null; phone: string | null;
@@ -72,9 +83,12 @@ export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | 
   const sb = await createClient();
   const radiusM = await getCompanyRadiusM(ctx.companyId!);   // company-configured proximity (default 50 m)
 
-  const { data: custs, error } = await sb.from('erp_rp_dataset_customers')
+  const archived = await archivedDatasetIds(sb, ctx.companyId!);
+  let custQ = sb.from('erp_rp_dataset_customers')
     .select('id, code, name, lat, lng, city, channel, attrs')
     .eq('company_id', ctx.companyId).eq('salesman', me);
+  if (archived.length) custQ = custQ.not('dataset_id', 'in', `(${archived.join(',')})`);
+  const { data: custs, error } = await custQ;
   if (error) return { ok: false, error: error.message };
   const customers = custs ?? [];
 
@@ -138,9 +152,12 @@ export async function getMyMapCustomers(): Promise<ResultD<FvMapPoint[]>> {
   if (!me) return { ok: false, error: 'err_no_rep_key' };
   const sb = await createClient();
 
-  const { data: custs, error } = await sb.from('erp_rp_dataset_customers')
+  const archived = await archivedDatasetIds(sb, ctx.companyId!);
+  let custQ = sb.from('erp_rp_dataset_customers')
     .select('id, code, name, lat, lng, city, channel')
     .eq('company_id', ctx.companyId).eq('salesman', me);
+  if (archived.length) custQ = custQ.not('dataset_id', 'in', `(${archived.join(',')})`);
+  const { data: custs, error } = await custQ;
   if (error) return { ok: false, error: error.message };
 
   // My verifications → completed set + last verified time per customer. Rep-scoped (the only
