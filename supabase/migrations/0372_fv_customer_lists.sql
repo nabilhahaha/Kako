@@ -25,6 +25,9 @@ ALTER TABLE erp_rp_datasets DROP CONSTRAINT IF EXISTS rp_ds_status_chk;
 ALTER TABLE erp_rp_datasets ADD CONSTRAINT rp_ds_status_chk CHECK (status IN ('active','archived'));
 
 CREATE INDEX IF NOT EXISTS idx_rp_datasets_company_status ON erp_rp_datasets (company_id, status);
+-- Covering indexes for the new FK columns (schema-health invariant: every FK is indexed).
+CREATE INDEX IF NOT EXISTS idx_rp_datasets_archived_by ON erp_rp_datasets (archived_by);
+CREATE INDEX IF NOT EXISTS idx_rp_datasets_replaced_by ON erp_rp_datasets (replaced_by);
 
 -- Per-list stats for the admin screen (caller's company only) -----------------
 CREATE OR REPLACE FUNCTION erp_fv_dataset_stats()
