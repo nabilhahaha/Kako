@@ -678,6 +678,17 @@ export const ar = {
     type_dataset: 'قائمة عملاء', type_city: 'مدينة', type_channel: 'قناة',
     role_all: 'الجميع', role_admin: 'مدير النظام', role_manager: 'مدير', role_supervisor: 'مشرف', role_salesman: 'مندوب', role_viewer: 'مُطّلع',
   },
+  rpMyForms: {
+    title: 'نماذجي', subtitle: 'النماذج المُسنَدة إليك. اختر نموذجًا للبدء.',
+    empty: 'لا توجد نماذج مُسنَدة', emptyHint: 'سيظهر هنا أي نموذج يُسنده المسؤول إليك.',
+    fieldCount: '{n} حقل', customerLinked: 'مرتبط بعميل',
+    back: 'رجوع', backToForms: 'العودة إلى نماذجي', notAssigned: 'هذا النموذج غير متاح لك.',
+    customer: 'العميل', selectCustomer: 'اختر عميلًا', change: 'تغيير', searchCustomer: 'بحث عن عميل', noCustomers: 'لا يوجد عملاء ضمن نطاقك.', close: 'إغلاق',
+    gpsOn: 'تم تحديد الموقع', gpsNeeded: 'الموقع الجغرافي مطلوب', enableGps: 'تفعيل الموقع', gpsDenied: 'تعذّر الحصول على الموقع. فعّل صلاحية الموقع.',
+    yes: 'نعم', choose: 'اختر…', takePhoto: 'التقاط صورة',
+    submit: 'إرسال', submitting: 'جارٍ الإرسال…', fixErrors: 'يرجى إكمال الحقول المطلوبة.', errPhoto: 'فشل رفع الصورة. حاول مرة أخرى.',
+    doneTitle: 'تم إرسال النموذج',
+  },
 };
 
 export const en = {
@@ -1358,5 +1369,16 @@ export const en = {
     type_user: 'User', type_role: 'Role', type_supervisor: 'Supervisor', type_team: 'Team', type_branch: 'Branch', type_department: 'Department',
     type_dataset: 'Customer list', type_city: 'City', type_channel: 'Channel',
     role_all: 'Everyone', role_admin: 'Admin', role_manager: 'Manager', role_supervisor: 'Supervisor', role_salesman: 'Rep', role_viewer: 'Viewer',
+  },
+  rpMyForms: {
+    title: 'My Forms', subtitle: 'Forms assigned to you. Pick one to start.',
+    empty: 'No forms assigned', emptyHint: 'Any form an admin assigns to you will appear here.',
+    fieldCount: '{n} fields', customerLinked: 'Customer-linked',
+    back: 'Back', backToForms: 'Back to My Forms', notAssigned: 'This form is not available to you.',
+    customer: 'Customer', selectCustomer: 'Select a customer', change: 'Change', searchCustomer: 'Search customer', noCustomers: 'No customers in your scope.', close: 'Close',
+    gpsOn: 'Location captured', gpsNeeded: 'GPS location required', enableGps: 'Enable location', gpsDenied: 'Could not get location. Enable the location permission.',
+    yes: 'Yes', choose: 'Choose…', takePhoto: 'Take photo',
+    submit: 'Submit', submitting: 'Submitting…', fixErrors: 'Please complete the required fields.', errPhoto: 'Photo upload failed. Try again.',
+    doneTitle: 'Form submitted',
   },
 };
