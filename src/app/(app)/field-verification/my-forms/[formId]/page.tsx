@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getUserContext } from '@/lib/erp/auth-context';
-import { hasPermission } from '@/lib/erp/permissions';
+import { hasAnyPermission } from '@/lib/erp/permissions';
 import { FORM_BUILDER_ENABLED } from '@/lib/form-builder';
 import { FormRunner } from '@/app/(app)/distribution/route-planner/form-runner';
 
@@ -16,7 +16,7 @@ export default async function FvFormRunnerPage({ params }: { params: Promise<{ f
   const { formId } = await params;
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
-  if (!hasPermission(ctx, 'field_verification.verify')) redirect('/dashboard');
+  if (!hasAnyPermission(ctx, ['forms.fill', 'field_verification.verify'])) redirect('/dashboard');
   if (!FORM_BUILDER_ENABLED()) redirect('/field-verification/my-customers');
   return (
     <div className="fv-theme">

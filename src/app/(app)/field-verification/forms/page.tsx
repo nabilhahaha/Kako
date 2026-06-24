@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getUserContext } from '@/lib/erp/auth-context';
-import { hasPermission } from '@/lib/erp/permissions';
+import { hasAnyPermission } from '@/lib/erp/permissions';
 import { FORM_BUILDER_ENABLED } from '@/lib/form-builder';
 import { FormsLibraryPanel } from '@/app/(app)/distribution/route-planner/forms-library-panel';
 
@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: 'VANTORA — Forms Library' };
 export default async function FvFormsPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
-  if (!hasPermission(ctx, 'field_verification.admin')) redirect('/dashboard');
+  if (!hasAnyPermission(ctx, ['forms.admin', 'field_verification.admin'])) redirect('/dashboard');
   if (!FORM_BUILDER_ENABLED()) redirect('/field-verification/setup');
   return (
     <div className="fv-theme mx-auto max-w-5xl p-4">

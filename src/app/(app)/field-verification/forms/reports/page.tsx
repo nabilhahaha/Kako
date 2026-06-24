@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getUserContext } from '@/lib/erp/auth-context';
-import { hasPermission } from '@/lib/erp/permissions';
+import { hasAnyPermission } from '@/lib/erp/permissions';
 import { FORM_BUILDER_ENABLED } from '@/lib/form-builder';
 import { FormsDashboardPanel } from '@/app/(app)/distribution/route-planner/forms-dashboard-panel';
 
@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: 'VANTORA — Forms Reports' };
 export default async function FvFormsReportsPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
-  if (!hasPermission(ctx, 'field_verification.reports')) redirect('/dashboard');
+  if (!hasAnyPermission(ctx, ['forms.reports', 'field_verification.reports'])) redirect('/dashboard');
   if (!FORM_BUILDER_ENABLED()) redirect('/field-verification/reports');
   return (
     <div className="fv-theme mx-auto max-w-5xl p-4">

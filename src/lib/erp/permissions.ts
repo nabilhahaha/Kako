@@ -128,6 +128,11 @@ export type Permission =
   | 'field_verification.reports_all' // view COMPANY-WIDE verification reports (viewer/reporter/manager/admin)
   | 'field_verification.export' // export verification data to Excel
   | 'field_verification.admin' // full Field Verification admin
+  // ── Multi-Form Field Work (custom forms on top of Field Verification) ──
+  | 'forms.admin' // build / publish / assign / activate custom field-work forms
+  | 'forms.fill' // see + fill forms assigned to me (My Forms)
+  | 'forms.reports' // view custom-form submissions / dashboards
+  | 'forms.export' // export custom-form submissions to Excel
   // ── Fashion Store pack (clothing vertical) ──
   | 'fashion.manage' // full fashion-store management (owner) — implies all below
   | 'fashion.sell' // POS cash + installment sales, customers, returns
@@ -182,6 +187,10 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'field_verification.reports_all': { en: 'View company-wide verification reports', ar: 'عرض تقارير التحقق على مستوى الشركة', group: 'field_verification' },
   'field_verification.export': { en: 'Export verification data', ar: 'تصدير بيانات التحقق', group: 'field_verification' },
   'field_verification.admin': { en: 'Field Verification admin', ar: 'إدارة التحقق الميداني', group: 'field_verification' },
+  'forms.admin': { en: 'Build & manage forms', ar: 'إنشاء وإدارة النماذج', group: 'field_verification' },
+  'forms.fill': { en: 'Fill assigned forms', ar: 'تعبئة النماذج المُسنَدة', group: 'field_verification' },
+  'forms.reports': { en: 'View form reports', ar: 'عرض تقارير النماذج', group: 'field_verification' },
+  'forms.export': { en: 'Export form data', ar: 'تصدير بيانات النماذج', group: 'field_verification' },
   'settings.branches': { en: 'Manage branches', ar: 'إدارة الفروع', group: 'settings' },
   'settings.users': { en: 'Manage users and permissions', ar: 'إدارة المستخدمين والصلاحيات', group: 'settings' },
   'integrations.manage': { en: 'Manage data import & integrations', ar: 'إدارة استيراد البيانات والتكاملات', group: 'settings' },
@@ -387,6 +396,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'stock_request.adjust', 'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
     'field_verification.view', 'field_verification.assign', 'field_verification.reports',
+    'forms.reports',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
@@ -405,7 +415,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'day.close', 'day.reopen.request', 'cash.handover.request', 'customer.request', 'stock.view', 'stock.transfer', 'customer.create',
     'reconciliation.view', 'returns.create', 'day.close.submit',
     'customers.view_balance', 'documents.print', 'documents.share', 'documents.export',
-    'field_verification.view', 'field_verification.verify',
+    'field_verification.view', 'field_verification.verify', 'forms.fill',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
@@ -429,7 +439,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   ],
   staff: ['inventory.view'],
   viewer: ['reports.view', 'accounting.view', 'inventory.view', 'documents.export',
-    'field_verification.view', 'field_verification.reports', 'field_verification.reports_all'],
+    'field_verification.view', 'field_verification.reports', 'field_verification.reports_all', 'forms.reports'],
   // Auditor: read-only oversight across approvals, settlement and the audit trail.
   auditor: [
     'reports.view', 'accounting.view', 'inventory.view', 'stock.view',
