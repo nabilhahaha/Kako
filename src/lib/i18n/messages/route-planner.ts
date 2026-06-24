@@ -624,6 +624,18 @@ export const ar = {
     r_outside_radius: 'خارج النطاق', r_not_assigned: 'غير مُسنَد', r_no_coords: 'لا إحداثيات', r_error: 'خطأ',
     e_err_forbidden: 'هذه التقارير لمديري الشركة والمشرفين فقط.',
   },
+  rpCoverage: {
+    title: 'خريطة التغطية', subtitle: 'تغطية التحقق الميداني عبر عملاء الشركة (للقراءة فقط).',
+    refresh: 'تحديث',
+    date_all: 'كل الفترات', date_today: 'اليوم', date_yesterday: 'أمس', date_week: 'هذا الأسبوع', date_month: 'هذا الشهر', date_custom: 'مدى مخصص',
+    allReps: 'كل المندوبين', allStatus: 'كل الحالات', allLists: 'كل القوائم النشطة',
+    statusVisited: 'تمت الزيارة', statusPending: 'لم تتم الزيارة',
+    searchPlaceholder: 'بحث بالكود/الاسم/المدينة/القناة',
+    kpiTotal: 'إجمالي العملاء', kpiVisited: 'تمت الزيارة', kpiNotVisited: 'لم تتم الزيارة', kpiCoverage: 'نسبة التغطية', kpiPhotos: 'الصور الملتقطة', kpiUpdated: 'آخر تحديث',
+    assignedRep: 'المندوب المُسنَد', cityArea: 'المدينة / المنطقة', channel: 'القناة', list: 'القائمة',
+    lastVisit: 'آخر زيارة', distance: 'المسافة', notes: 'ملاحظات', photos: 'صور الزيارة',
+    openCustomer: 'فتح العميل', openReport: 'فتح التقرير', navigate: 'التوجيه',
+  },
 };
 
 export const en = {
@@ -1250,5 +1262,17 @@ export const en = {
     when: 'When', result: 'Result', reason: 'Reason',
     r_outside_radius: 'Outside radius', r_not_assigned: 'Not assigned', r_no_coords: 'No coordinates', r_error: 'Error',
     e_err_forbidden: 'These reports are for company admins and supervisors only.',
+  },
+  rpCoverage: {
+    title: 'Coverage Map', subtitle: 'Field Verification coverage across your company customers (read-only).',
+    refresh: 'Refresh',
+    date_all: 'All time', date_today: 'Today', date_yesterday: 'Yesterday', date_week: 'This week', date_month: 'This month', date_custom: 'Custom range',
+    allReps: 'All reps', allStatus: 'All status', allLists: 'All active lists',
+    statusVisited: 'Visited', statusPending: 'Not visited',
+    searchPlaceholder: 'Search code / name / city / channel',
+    kpiTotal: 'Total customers', kpiVisited: 'Visited', kpiNotVisited: 'Not visited', kpiCoverage: 'Coverage %', kpiPhotos: 'Photos captured', kpiUpdated: 'Last updated',
+    assignedRep: 'Assigned rep', cityArea: 'City / area', channel: 'Channel', list: 'List',
+    lastVisit: 'Last visit', distance: 'Distance', notes: 'Notes', photos: 'Visit photos',
+    openCustomer: 'Open Customer', openReport: 'Open Report', navigate: 'Navigate',
   },
 };
