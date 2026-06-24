@@ -15,6 +15,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { haversineMeters, isWithinRadius, validCoord } from '@/lib/erp/geo-distance';
 import { getCompanyRadiusM } from './rp-verification-radius-actions';
 import { getFvVerificationForm } from './rp-verification-form-actions';
+import type { FvMapPoint } from './fv-map-helpers';
 import { ATTACHMENTS_BUCKET } from '@/lib/erp/attachments';
 import { chunk } from '@/lib/utils';
 
@@ -123,6 +124,54 @@ export async function getMyNearbyCustomers(gps?: { lat: number; lng: number } | 
   nearby.sort((a, b) => (a.distanceM ?? Number.POSITIVE_INFINITY) - (b.distanceM ?? Number.POSITIVE_INFINITY));
   assigned.sort((a, b) => (a.code ?? a.name).localeCompare(b.code ?? b.name));
   return { ok: true, data: { nearby, assigned, progress: { total, completed, remaining, pct }, gpsValid, radiusM } };
+}
+
+/** All customers assigned to me, WITH verification status — the Map tab data source.
+ *  Unlike getMyNearbyCustomers this keeps completed customers (green markers) and does not
+ *  filter by distance. Rep- + company-scoped exactly like the rest of the FV flow
+ *  (erp_rp_customer_verifications + erp_rp_dataset_customers RLS are the backstop). Read-only:
+ *  no submit / radius / photo logic. */
+export async function getMyMapCustomers(): Promise<ResultD<FvMapPoint[]>> {
+  const ctx = await repCtx();
+  if (!ctx) return { ok: false, error: 'err_unauthorized' };
+  const me = repKey(ctx);
+  if (!me) return { ok: false, error: 'err_no_rep_key' };
+  const sb = await createClient();
+
+  const { data: custs, error } = await sb.from('erp_rp_dataset_customers')
+    .select('id, code, name, lat, lng, city, channel')
+    .eq('company_id', ctx.companyId).eq('salesman', me);
+  if (error) return { ok: false, error: error.message };
+
+  // My verifications → completed set + last verified time per customer. Rep-scoped (the only
+  // rows RLS lets a rep read) instead of a `.in('customer_id', [..2000+])` filter, which would
+  // overflow the gateway URL for a rep with many assigned customers.
+  const lastVerifiedAt = new Map<string, string>();
+  {
+    const { data: vrows, error: vErr } = await sb.from('erp_rp_customer_verifications')
+      .select('customer_id, verified_at, created_at').eq('company_id', ctx.companyId).eq('rep_id', ctx.userId);
+    if (vErr) return { ok: false, error: vErr.message };
+    for (const v of vrows ?? []) {
+      const id = v.customer_id as string;
+      const at = ((v.verified_at as string | null) ?? (v.created_at as string | null)) ?? null;
+      if (at && (!lastVerifiedAt.has(id) || at > (lastVerifiedAt.get(id) as string))) lastVerifiedAt.set(id, at);
+    }
+  }
+
+  const points: FvMapPoint[] = [];
+  for (const c of custs ?? []) {
+    const lat = c.lat as number | null, lng = c.lng as number | null;
+    if (!validCoord(lat, lng)) continue;                     // unmappable without coordinates
+    const id = c.id as string;
+    const completed = lastVerifiedAt.has(id);
+    points.push({
+      id, code: (c.code as string | null) ?? null, name: (c.name as string) ?? '',
+      lat: lat as number, lng: lng as number,
+      city: (c.city as string | null) ?? null, channel: (c.channel as string | null) ?? null,
+      completed, lastVerifiedAt: completed ? (lastVerifiedAt.get(id) as string) : null,
+    });
+  }
+  return { ok: true, data: points };
 }
 
 /** Submit a verification. Server-side: rep-assignment check + 50 m proximity lock +

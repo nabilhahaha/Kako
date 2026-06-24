@@ -8,12 +8,14 @@ import {
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import {
-  getMyNearbyCustomers, submitVerification, getMyCompletedVerifications, getVerificationPhotos,
+  getMyNearbyCustomers, submitVerification, getMyCompletedVerifications, getVerificationPhotos, getMyMapCustomers,
   type NearbyCustomer, type MyProgress, type CompletedVerification,
 } from './rp-verification-actions';
 import { getVerificationConfig } from './rp-verification-config-actions';
 import { getFvVerificationForm } from './rp-verification-form-actions';
 import { resolveFvForm, type ResolvedFvField, type FvFieldKey } from './fv-verification-form';
+import { FvMap } from './fv-map';
+import type { FvMapPoint } from './fv-map-helpers';
 import { filterAssignedCustomers, filterCompletedVerifications } from './fv-customer-search';
 import { removeFileAt, mergeFiles } from './fv-photo-edit';
 import { uploadAttachment } from '@/app/(app)/attachments/actions';
@@ -47,7 +49,12 @@ export function MyNearbyCustomers() {
   // Customers I have already verified (read-only review) — the "Completed" tab + detail.
   const [completed, setCompleted] = useState<CompletedVerification[]>([]);
   const [completedLoading, setCompletedLoading] = useState(true);
-  const [tab, setTab] = useState<'nearby' | 'assigned' | 'completed'>('nearby');
+  const [tab, setTab] = useState<'nearby' | 'assigned' | 'completed' | 'map'>('nearby');
+  // Map tab data (all assigned customers + verified status). Loaded lazily the first time the
+  // Map tab is opened so it never costs the other tabs.
+  const [mapPoints, setMapPoints] = useState<FvMapPoint[]>([]);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
   const [query, setQuery] = useState('');
   // Read-only verification detail (opened from the Completed tab) + its resolved photo URLs.
   const [detail, setDetail] = useState<CompletedVerification | null>(null);
@@ -116,6 +123,28 @@ export function MyNearbyCustomers() {
     requestGps();
   }, [requestGps, loadCompleted]);
 
+  // Lazy-load the Map tab's data the first time it is opened (and refresh after a submit).
+  useEffect(() => {
+    if (tab !== 'map' || mapLoaded) return;
+    setMapLoading(true);
+    void (async () => {
+      const res = await getMyMapCustomers();
+      if (res.ok) setMapPoints(res.data);
+      setMapLoaded(true);
+      setMapLoading(false);
+    })();
+  }, [tab, mapLoaded]);
+
+  // Open a customer from the map: completed → read-only detail; pending → the verify form.
+  const openMapCustomer = (p: FvMapPoint) => {
+    if (p.completed) {
+      const rec = completed.find((c) => c.customerId === p.id);
+      if (rec) { void openDetail(rec); return; }
+    }
+    const c = assigned.find((a) => a.id === p.id);
+    openForm(c ?? { id: p.id, code: p.code, name: p.name, lat: p.lat, lng: p.lng, city: p.city, channel: p.channel, phone: null, distanceM: null });
+  };
+
   function openForm(c: NearbyCustomer) {
     setSel(c); setErr(null);
     // City/Channel start EMPTY — the rep must pick new values from the admin catalog (FV-4d).
@@ -165,6 +194,7 @@ export function MyNearbyCustomers() {
       });
       if (!res.ok) { setErr(t(`rpVerify.e_${res.error}` as 'rpVerify.e_err_too_far') || res.error); setSubmitting(false); return; }
       setPhase('done');
+      setMapLoaded(false);                              // a newly-verified customer should turn green on the Map
       await Promise.all([load(gps), loadCompleted()]);  // refresh progress + Completed; verified customer drops off
     } finally { setSubmitting(false); }
   }
@@ -383,7 +413,7 @@ export function MyNearbyCustomers() {
   // ── LIST ───────────────────────────────────────────────────────────────────
   const filteredAssigned = filterAssignedCustomers(assigned, query);
   const filteredCompleted = filterCompletedVerifications(completed, query);
-  const tabLabel = { nearby: 'rpVerify.tabNearby', assigned: 'rpVerify.tabAssigned', completed: 'rpVerify.tabCompleted' } as const;
+  const tabLabel = { nearby: 'rpVerify.tabNearby', assigned: 'rpVerify.tabAssigned', completed: 'rpVerify.tabCompleted', map: 'rpVerify.tabMap' } as const;
   return (
     <div className="mx-auto max-w-md space-y-3 p-4">
       <div className="flex items-center justify-between">
@@ -397,8 +427,8 @@ export function MyNearbyCustomers() {
 
       {/* Three ways to work: GPS "Nearby", the full "Assigned" list + search, or review
           my "Completed" verifications (read-only). */}
-      <div className="grid grid-cols-3 gap-1 rounded-2xl border bg-muted/30 p-1">
-        {(['nearby', 'assigned', 'completed'] as const).map((k) => (
+      <div className="grid grid-cols-4 gap-1 rounded-2xl border bg-muted/30 p-1">
+        {(['nearby', 'assigned', 'completed', 'map'] as const).map((k) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -473,6 +503,17 @@ export function MyNearbyCustomers() {
             <ul className="space-y-2">
               {nearby.map((c) => <li key={c.id}><CustomerRow t={t} c={c} onOpen={() => openForm(c)} /></li>)}
             </ul>
+          )}
+        </>
+      ) : tab === 'map' ? (
+        <>
+          {/* Map tab — the rep's assigned customers (green = completed, red = pending). Tap a
+              marker → bottom sheet → Open Customer / Navigate. Lazy-loaded; navigation is not
+              radius-gated, but Submit still is (enforced in the verify form + server). */}
+          {mapLoading && mapPoints.length === 0 ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />{t('rpVerify.locating')}</div>
+          ) : (
+            <FvMap points={mapPoints} gps={gps} locale={locale} t={t} onOpenCustomer={openMapCustomer} />
           )}
         </>
       ) : (
