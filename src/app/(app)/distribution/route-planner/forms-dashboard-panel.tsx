@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, AlertTriangle, RefreshCw, ChevronLeft, BarChart3, LayoutGrid, Image as ImageIcon } from 'lucide-react';
+import { Loader2, AlertTriangle, RefreshCw, ChevronLeft, BarChart3, LayoutGrid, Image as ImageIcon, Download } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { getFormsOverview, getFormsCross, type FormOverviewRow, type CrossRow } from './rp-forms-dashboard-actions';
+import { buildCrossExportRows, type CommonHeaders, type ExportSubmission } from '@/lib/forms/form-export';
+import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
+import { downloadXlsx } from './xlsx-download';
 
 type Preset = 'all' | 'today' | 'week' | 'month';
 type Tab = 'overview' | 'cross';
@@ -63,6 +66,23 @@ export function FormsDashboardPanel() {
 
   const reps = useMemo(() => { const m = new Map<string, string>(); for (const r of cross) if (r.createdBy) m.set(r.createdBy, r.repName ?? r.createdBy); return [...m.entries()]; }, [cross]);
   const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString(lang === 'ar' ? 'ar' : 'en') : '—');
+
+  function onExportCross() {
+    if (cross.length === 0) return;
+    const common: CommonHeaders = {
+      formName: t('rpFormReport.exp_form'), version: t('rpFormReport.exp_version'), submissionId: t('rpFormReport.exp_id'),
+      customerCode: t('rpFormReport.exp_code'), customerName: t('rpFormReport.exp_customer'), rep: t('rpFormReport.exp_rep'),
+      datetime: t('rpFormReport.exp_date'), status: t('rpFormReport.exp_status'), gpsLat: t('rpFormReport.exp_lat'),
+      gpsLng: t('rpFormReport.exp_lng'), photos: t('rpFormReport.exp_photos'),
+    };
+    const subs: ExportSubmission[] = cross.map((r) => ({
+      id: r.responseId, version: r.version, formName: r.formName, recordCode: r.recordCode, recordName: r.recordName,
+      repName: r.repName, createdAt: r.createdAt, status: r.status, gpsLat: r.gpsLat, gpsLng: r.gpsLng, photoCount: r.photoCount,
+    }));
+    const table = buildCrossExportRows(subs, { common });
+    const sheet = { name: t('rpFormsDash.tab_cross'), rows: [table.columns, ...table.rows] };
+    downloadXlsx(buildXlsxWorkbook([sheet]), `forms-cross-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
   const nameOf = (r: { nameEn: string; nameAr: string; code: string }) => (lang === 'ar' ? r.nameAr : r.nameEn) || (lang === 'ar' ? r.nameEn : r.nameAr) || r.code;
 
   return (
@@ -105,6 +125,9 @@ export function FormsDashboardPanel() {
           <input value={city} onChange={(e) => setCity(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void loadCross(); }} placeholder={t('rpFormsDash.city')} className="h-9 w-28 rounded-lg border bg-background px-2 text-xs" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void loadCross(); }} placeholder={t('rpFormsDash.search')} className="h-9 min-w-[9rem] flex-1 rounded-lg border bg-background px-3 text-xs" />
           <button onClick={() => void loadCross()} className="inline-flex h-9 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground">{t('rpFormsDash.apply')}</button>
+          <button onClick={onExportCross} disabled={cross.length === 0} className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold hover:bg-muted/50 disabled:opacity-50">
+            <Download className="h-3.5 w-3.5" />{t('rpFormReport.export')}
+          </button>
         </div>
       )}
 

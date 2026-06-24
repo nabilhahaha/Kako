@@ -10,7 +10,11 @@ import {
   getFormReport, getFormReportVersions, getFormReportPhotos,
   type FormSubmissionRow, type FormMeta,
 } from './rp-form-report-actions';
-import { reportFields, answerText, fieldLabel, type FormSchema } from '@/lib/forms/form-schema';
+import { reportFields, answerText, fieldLabel, emptyFormSchema, type FormSchema } from '@/lib/forms/form-schema';
+import { buildFormExportRows, type CommonHeaders, type ExportSubmission } from '@/lib/forms/form-export';
+import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
+import { downloadXlsx } from './xlsx-download';
+import { Download } from 'lucide-react';
 
 type Preset = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 
@@ -69,13 +73,38 @@ export function FormReportPanel({ formId }: { formId: string }) {
   const title = meta ? ((lang === 'ar' ? meta.nameAr : meta.nameEn) || meta.nameEn || meta.nameAr) : '';
   const fmt = (iso: string) => new Date(iso).toLocaleString(lang === 'ar' ? 'ar' : 'en');
 
+  const commonHeaders = (): CommonHeaders => ({
+    formName: t('rpFormReport.exp_form'), version: t('rpFormReport.exp_version'), submissionId: t('rpFormReport.exp_id'),
+    customerCode: t('rpFormReport.exp_code'), customerName: t('rpFormReport.exp_customer'), rep: t('rpFormReport.exp_rep'),
+    datetime: t('rpFormReport.exp_date'), status: t('rpFormReport.exp_status'), gpsLat: t('rpFormReport.exp_lat'),
+    gpsLng: t('rpFormReport.exp_lng'), photos: t('rpFormReport.exp_photos'),
+  });
+  function onExport() {
+    if (rows.length === 0) return;
+    // Dynamic columns from the latest version's report fields; rows pull answers by field id.
+    const versionsDesc = meta ? Object.keys(meta.versions).map(Number).sort((a, b) => b - a) : [];
+    const schema: FormSchema = (meta && versionsDesc.length) ? meta.versions[versionsDesc[0]] : emptyFormSchema();
+    const subs: ExportSubmission[] = rows.map((r) => ({
+      id: r.id, version: r.version, recordCode: r.recordCode, recordName: r.recordName, repName: r.repName,
+      createdAt: r.createdAt, status: r.status, gpsLat: r.gpsLat, gpsLng: r.gpsLng, photoCount: r.photoIds.length, answers: r.answers,
+    }));
+    const table = buildFormExportRows(schema, subs, { lang, common: commonHeaders(), formName: title, yes: t('rpFormReport.yes'), no: t('rpFormReport.no') });
+    const sheet = { name: t('rpFormReport.exp_sheet'), rows: [table.columns, ...table.rows] };
+    downloadXlsx(buildXlsxWorkbook([sheet]), `form-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <Link href="/field-verification/forms" className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground"><ChevronLeft className="h-4 w-4 rtl:rotate-180" />{t('rpFormReport.back')}</Link>
-        <button onClick={() => void load()} disabled={loading} className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold hover:bg-muted/50 disabled:opacity-50">
-          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}{t('rpFormReport.refresh')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={onExport} disabled={rows.length === 0} className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold hover:bg-muted/50 disabled:opacity-50">
+            <Download className="h-3.5 w-3.5" />{t('rpFormReport.export')}
+          </button>
+          <button onClick={() => void load()} disabled={loading} className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold hover:bg-muted/50 disabled:opacity-50">
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}{t('rpFormReport.refresh')}
+          </button>
+        </div>
       </div>
       <div>
         <h1 className="flex items-center gap-2 text-lg font-extrabold"><FileText className="h-5 w-5" />{title || t('rpFormReport.title')}</h1>
