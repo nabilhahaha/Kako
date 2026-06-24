@@ -57,7 +57,7 @@ export async function getFvCoverage(f: CoverageFilters = {}): Promise<ResultD<Co
     p_dataset_id: f.datasetId ?? null,
     p_include_archived: f.includeArchived ?? false,
     p_search: f.search ?? null,
-    p_limit: f.limit ?? 5000,
+    p_limit: f.limit ?? 50000,
   });
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: ((data ?? []) as Record<string, unknown>[]).map(mapRow) };
