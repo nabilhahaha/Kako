@@ -92,3 +92,45 @@ export function coverageGeoJSON(rows: CoverageRow[]) {
 export function coveragePhotoIds(r: { outsidePhotoId?: string | null; insidePhotoIds?: readonly (string | null)[] | null }): string[] {
   return [r.outsidePhotoId, ...(r.insidePhotoIds ?? [])].filter((x): x is string => typeof x === 'string' && x.length > 0);
 }
+
+// ── Lean map markers (perf): the map renders from points, not full rows. Full detail for the
+//    tapped customer is fetched on demand. Server returns points ordered pending→visited so
+//    visited (green) draw on top; we preserve that order here. ───────────────────────────────
+
+/** Minimal marker payload for the coverage map. */
+export interface CoveragePoint {
+  customerId: string;
+  lat: number | null;
+  lng: number | null;
+  visited: boolean;
+}
+
+/** Server-computed coverage counters (KPIs), independent of the marker payload. */
+export interface CoverageSummary {
+  total: number;
+  visited: number;
+  pending: number;
+  photos: number;
+}
+
+export function coverageSummaryPct(s: { total: number; visited: number }): number {
+  return s.total > 0 ? Math.round((s.visited / s.total) * 100) : 0;
+}
+
+/** GeoJSON for the marker layer from lean points (drops invalid coords). Order is preserved,
+ *  so server-ordered pending→visited keeps green on top of red. */
+export function coveragePointsGeoJSON(points: CoveragePoint[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: points
+      .filter((p) => isValidLatLng(p.lat as number, p.lng as number))
+      .map((p) => {
+        const status: CoverageStatus = p.visited ? 'visited' : 'pending';
+        return {
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: [p.lng as number, p.lat as number] as [number, number] },
+          properties: { id: p.customerId, status, color: COVERAGE_COLOR[status] },
+        };
+      }),
+  };
+}

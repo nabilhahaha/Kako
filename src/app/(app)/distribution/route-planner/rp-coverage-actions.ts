@@ -11,9 +11,16 @@
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/erp/auth-context';
 import { canViewFvReports } from './fv-report-access';
-import type { CoverageRow, CoverageFilters } from './fv-coverage';
+import type { CoverageRow, CoverageFilters, CoveragePoint, CoverageSummary } from './fv-coverage';
 
 type ResultD<T> = { ok: true; data: T } | { ok: false; error: string };
+
+async function reportGate() {
+  const ctx = await getUserContext();
+  if (!ctx?.companyId) return { err: 'err_unauthorized' as const, ok: false as const };
+  if (!canViewFvReports(ctx)) return { err: 'err_forbidden' as const, ok: false as const };
+  return { err: null, ok: true as const };
+}
 
 function mapRow(r: Record<string, unknown>): CoverageRow {
   return {
@@ -61,4 +68,84 @@ export async function getFvCoverage(f: CoverageFilters = {}): Promise<ResultD<Co
   });
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: ((data ?? []) as Record<string, unknown>[]).map(mapRow) };
+}
+
+// ── Lean coverage (perf): KPIs from a server count, markers from lean points, detail on tap. ──
+
+/** Server-computed KPI counters (no row shipping). Respects every filter incl. status. */
+export async function getFvCoverageSummary(f: CoverageFilters = {}): Promise<ResultD<CoverageSummary>> {
+  const g = await reportGate();
+  if (!g.ok) return { ok: false, error: g.err };
+  const sb = await createClient();
+  const { data, error } = await sb.rpc('erp_fv_coverage_summary', {
+    p_from: f.from ?? null, p_to: f.to ?? null, p_salesman: f.salesman ?? null,
+    p_status: f.status ?? null, p_dataset_id: f.datasetId ?? null,
+    p_include_archived: f.includeArchived ?? false, p_search: f.search ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  const r = ((data ?? []) as Record<string, unknown>[])[0] ?? {};
+  return {
+    ok: true,
+    data: {
+      total: Number(r.total ?? 0), visited: Number(r.visited ?? 0),
+      pending: Number(r.pending ?? 0), photos: Number(r.photos ?? 0),
+    },
+  };
+}
+
+/** Lean marker points (valid coords only), ordered pending→visited so green draws on top. */
+export async function getFvCoveragePoints(f: CoverageFilters = {}): Promise<ResultD<CoveragePoint[]>> {
+  const g = await reportGate();
+  if (!g.ok) return { ok: false, error: g.err };
+  const sb = await createClient();
+  const { data, error } = await sb.rpc('erp_fv_coverage_points', {
+    p_from: f.from ?? null, p_to: f.to ?? null, p_salesman: f.salesman ?? null,
+    p_status: f.status ?? null, p_dataset_id: f.datasetId ?? null,
+    p_include_archived: f.includeArchived ?? false, p_search: f.search ?? null,
+    p_limit: f.limit ?? 60000,
+  });
+  if (error) return { ok: false, error: error.message };
+  return {
+    ok: true,
+    data: ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+      customerId: r.customer_id as string,
+      lat: (r.lat as number | null) ?? null,
+      lng: (r.lng as number | null) ?? null,
+      visited: !!r.visited,
+    })),
+  };
+}
+
+/** Full detail for one customer (the tapped marker's panel). */
+export async function getFvCoverageDetail(customerId: string, from?: string | null, to?: string | null): Promise<ResultD<CoverageRow | null>> {
+  const g = await reportGate();
+  if (!g.ok) return { ok: false, error: g.err };
+  const sb = await createClient();
+  const { data, error } = await sb.rpc('erp_fv_coverage_detail', { p_customer_id: customerId, p_from: from ?? null, p_to: to ?? null });
+  if (error) return { ok: false, error: error.message };
+  const rows = (data ?? []) as Record<string, unknown>[];
+  return { ok: true, data: rows.length ? mapRow(rows[0]) : null };
+}
+
+export interface CoverageFacets {
+  reps: { email: string; name: string }[];
+  datasets: { id: string; name: string }[];
+}
+
+/** Rep + active-dataset option lists for the filter selects. */
+export async function getFvCoverageFacets(): Promise<ResultD<CoverageFacets>> {
+  const g = await reportGate();
+  if (!g.ok) return { ok: false, error: g.err };
+  const sb = await createClient();
+  const { data, error } = await sb.rpc('erp_fv_coverage_facets');
+  if (error) return { ok: false, error: error.message };
+  const reps: { email: string; name: string }[] = [];
+  const datasets: { id: string; name: string }[] = [];
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    if (r.kind === 'rep') reps.push({ email: r.value as string, name: (r.label as string) || (r.value as string) });
+    else if (r.kind === 'dataset') datasets.push({ id: r.value as string, name: (r.label as string) || (r.value as string) });
+  }
+  reps.sort((a, b) => a.name.localeCompare(b.name));
+  datasets.sort((a, b) => a.name.localeCompare(b.name));
+  return { ok: true, data: { reps, datasets } };
 }
