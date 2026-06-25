@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Link from 'next/link';
@@ -9,11 +9,12 @@ import {
   Navigation, FileBarChart, Search, AlertTriangle,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
-import { getFvCoverage } from './rp-coverage-actions';
+import { getFvCoverageSummary, getFvCoveragePoints, getFvCoverageDetail, getFvCoverageFacets } from './rp-coverage-actions';
 import { getVerificationPhotos } from './rp-verification-actions';
 import { openGoogleMapsNavigation } from './fv-nav';
 import {
-  coverageCounters, coverageGeoJSON, coveragePhotoIds, type CoverageRow, type CoverageStatus,
+  coveragePointsGeoJSON, coverageSummaryPct, coveragePhotoIds,
+  type CoverageRow, type CoverageStatus, type CoveragePoint, type CoverageSummary,
 } from './fv-coverage';
 
 type Preset = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom';
@@ -59,41 +60,42 @@ export function CoverageMap() {
   const [datasetId, setDatasetId] = useState('');
   const [search, setSearch] = useState('');
 
-  // data
-  const [rows, setRows] = useState<CoverageRow[]>([]);
+  // data — lean: KPIs come from a server SUMMARY (no row shipping), markers from lean POINTS,
+  // and the full row for the tapped marker is fetched on demand. This fixes the dense-map
+  // undercount/occlusion (visited drawn on top) and the slow ~39k-full-row payload.
+  const [points, setPoints] = useState<CoveragePoint[]>([]);
+  const [summary, setSummary] = useState<CoverageSummary>({ total: 0, visited: 0, pending: 0, photos: 0 });
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [selected, setSelected] = useState<CoverageRow | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [photosLoading, setPhotosLoading] = useState(false);
-  // filter option facets, captured from the first unfiltered load so they stay stable
+  // filter option facets (loaded once, independent of the row payload)
   const [repOptions, setRepOptions] = useState<{ email: string; name: string }[]>([]);
   const [datasetOptions, setDatasetOptions] = useState<{ id: string; name: string }[]>([]);
-  const facetsLoaded = useRef(false);
-
-  const counters = useMemo(() => coverageCounters(rows), [rows]);
+  // current date range, kept in a ref for the once-bound marker-tap handler.
+  const rangeRef = useRef<{ from: string | null; to: string | null }>({ from: null, to: null });
 
   const load = useCallback(async () => {
     setLoading(true);
     const { from, to } = rangeForPreset(preset, customFrom, customTo);
-    const res = await getFvCoverage({ from, to, salesman: salesman || null, status: status || null, datasetId: datasetId || null, search: search || null });
-    if (res.ok) {
-      setRows(res.data);
-      setLastUpdated(Date.now());
-      if (!facetsLoaded.current) {
-        const reps = new Map<string, string>();
-        const dss = new Map<string, string>();
-        for (const r of res.data) {
-          if (r.salesman) reps.set(r.salesman, r.assignedRep || r.salesman);
-          if (r.datasetId) dss.set(r.datasetId, r.datasetName || r.datasetId);
-        }
-        setRepOptions([...reps].map(([email, name]) => ({ email, name })).sort((a, b) => a.name.localeCompare(b.name)));
-        setDatasetOptions([...dss].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)));
-        facetsLoaded.current = true;
-      }
-    }
+    rangeRef.current = { from, to };
+    const filters = { from, to, salesman: salesman || null, status: status || null, datasetId: datasetId || null, search: search || null };
+    const [sum, pts] = await Promise.all([getFvCoverageSummary(filters), getFvCoveragePoints(filters)]);
+    if (sum.ok) setSummary(sum.data);
+    if (pts.ok) setPoints(pts.data);
+    setLastUpdated(Date.now());
     setLoading(false);
   }, [preset, customFrom, customTo, salesman, status, datasetId, search]);
+
+  // facets once on mount (rep + active-dataset option lists)
+  useEffect(() => {
+    void (async () => {
+      const f = await getFvCoverageFacets();
+      if (f.ok) { setRepOptions(f.data.reps); setDatasetOptions(f.data.datasets); }
+    })();
+  }, []);
 
   // debounce search; immediate for the rest
   useEffect(() => { const id = window.setTimeout(() => void load(), search ? 350 : 0); return () => window.clearTimeout(id); }, [load, search]);
@@ -106,14 +108,21 @@ export function CoverageMap() {
     map.addControl(new maplibregl.GeolocateControl({ showUserLocation: true, trackUserLocation: false }), 'top-right');
     mapRef.current = map;
     map.on('load', () => {
-      map.addSource(SRC, { type: 'geojson', data: coverageGeoJSON([]) });
+      map.addSource(SRC, { type: 'geojson', data: coveragePointsGeoJSON([]) });
       map.addLayer({
         id: 'points', type: 'circle', source: SRC,
+        // visited (green) get the higher sort key → always drawn ON TOP of pending (red).
+        layout: { 'circle-sort-key': ['case', ['==', ['get', 'status'], 'visited'], 1, 0] },
         paint: { 'circle-color': ['get', 'color'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 5, 12, 8, 16, 11], 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff' },
       });
       const openFrom = (e: maplibregl.MapLayerMouseEvent) => {
         const id = e.features?.[0]?.properties?.id as string | undefined;
-        if (id) setSelected((cur) => rowsRef.current.find((r) => r.customerId === id) ?? cur);
+        if (!id) return;
+        setDetailLoading(true);
+        const { from, to } = rangeRef.current;
+        void getFvCoverageDetail(id, from, to)
+          .then((res) => { if (res.ok && res.data) setSelected(res.data); })
+          .finally(() => setDetailLoading(false));
       };
       map.on('click', 'points', openFrom);
       map.on('mouseenter', 'points', () => { map.getCanvas().style.cursor = 'pointer'; });
@@ -124,23 +133,19 @@ export function CoverageMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // keep a ref of rows for the (once-bound) click handler
-  const rowsRef = useRef<CoverageRow[]>([]);
-  useEffect(() => { rowsRef.current = rows; }, [rows]);
-
-  // push data + fit bounds
+  // push marker data + fit bounds (lean points; server-ordered pending→visited keeps green on top)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
     const src = map.getSource(SRC) as maplibregl.GeoJSONSource | undefined;
-    if (src) src.setData(coverageGeoJSON(rows));
-    const valid = rows.filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng) && !(r.lat === 0 && r.lng === 0));
+    if (src) src.setData(coveragePointsGeoJSON(points));
+    const valid = points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && !(p.lat === 0 && p.lng === 0));
     if (valid.length > 0) {
       const b = new maplibregl.LngLatBounds();
-      for (const r of valid) b.extend([r.lng as number, r.lat as number]);
+      for (const p of valid) b.extend([p.lng as number, p.lat as number]);
       map.fitBounds(b, { padding: 56, maxZoom: 14, duration: 0 });
     }
-  }, [rows, ready]);
+  }, [points, ready]);
 
   // lazy photos when a visited customer is opened
   useEffect(() => {
@@ -155,11 +160,11 @@ export function CoverageMap() {
   }, [selected]);
 
   const kpis: { label: string; value: string; tone?: 'green' | 'red' }[] = [
-    { label: t('rpCoverage.kpiTotal'), value: String(counters.total) },
-    { label: t('rpCoverage.kpiVisited'), value: String(counters.visited), tone: 'green' },
-    { label: t('rpCoverage.kpiNotVisited'), value: String(counters.pending), tone: 'red' },
-    { label: t('rpCoverage.kpiCoverage'), value: `${counters.coveragePct}%` },
-    { label: t('rpCoverage.kpiPhotos'), value: String(counters.photos) },
+    { label: t('rpCoverage.kpiTotal'), value: String(summary.total) },
+    { label: t('rpCoverage.kpiVisited'), value: String(summary.visited), tone: 'green' },
+    { label: t('rpCoverage.kpiNotVisited'), value: String(summary.pending), tone: 'red' },
+    { label: t('rpCoverage.kpiCoverage'), value: `${coverageSummaryPct(summary)}%` },
+    { label: t('rpCoverage.kpiPhotos'), value: String(summary.photos) },
     { label: t('rpCoverage.kpiUpdated'), value: lastUpdated ? new Date(lastUpdated).toLocaleTimeString(locale === 'ar' ? 'ar' : 'en') : '—' },
   ];
 
@@ -171,7 +176,7 @@ export function CoverageMap() {
           <h1 className="flex items-center gap-2 text-lg font-extrabold"><MapIcon className="h-5 w-5" />{t('rpCoverage.title')}</h1>
           <p className="text-xs text-muted-foreground">{t('rpCoverage.subtitle')}</p>
         </div>
-        <button onClick={() => { facetsLoaded.current = false; void load(); }} disabled={loading}
+        <button onClick={() => void load()} disabled={loading}
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold hover:bg-muted/50 disabled:opacity-50">
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}{t('rpCoverage.refresh')}
         </button>
@@ -225,6 +230,12 @@ export function CoverageMap() {
           <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-red-600" />{t('rpCoverage.statusPending')}</span>
         </div>
         <div ref={holder} className="h-full w-full" />
+
+        {detailLoading && !selected && (
+          <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full border bg-background/95 px-3 py-1.5 text-[11px] font-semibold shadow-sm backdrop-blur">
+            <Loader2 className="inline h-3.5 w-3.5 animate-spin" /> {t('rpCoverage.loadingDetail')}
+          </div>
+        )}
 
         {selected && (
           <DetailPanel row={selected} t={t} locale={locale} photoUrls={photoUrls} photosLoading={photosLoading} onClose={() => setSelected(null)} />

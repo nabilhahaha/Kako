@@ -634,7 +634,7 @@ export const ar = {
     kpiTotal: 'إجمالي العملاء', kpiVisited: 'تمت الزيارة', kpiNotVisited: 'لم تتم الزيارة', kpiCoverage: 'نسبة التغطية', kpiPhotos: 'الصور الملتقطة', kpiUpdated: 'آخر تحديث',
     assignedRep: 'المندوب المُسنَد', cityArea: 'المدينة / المنطقة', channel: 'القناة', list: 'القائمة',
     lastVisit: 'آخر زيارة', distance: 'المسافة', notes: 'ملاحظات', photos: 'صور الزيارة',
-    openCustomer: 'فتح العميل', openReport: 'فتح التقرير', navigate: 'التوجيه',
+    openCustomer: 'فتح العميل', openReport: 'فتح التقرير', navigate: 'التوجيه', loadingDetail: 'جارٍ التحميل…',
   },
   rpForms: {
     libraryTitle: 'مكتبة النماذج', librarySubtitle: 'أنشئ وأدِر نماذج عمل ميداني متعددة. نموذج التحقق الميداني الأساسي مقفل ويبقى كما هو.',
@@ -1349,7 +1349,7 @@ export const en = {
     kpiTotal: 'Total customers', kpiVisited: 'Visited', kpiNotVisited: 'Not visited', kpiCoverage: 'Coverage %', kpiPhotos: 'Photos captured', kpiUpdated: 'Last updated',
     assignedRep: 'Assigned rep', cityArea: 'City / area', channel: 'Channel', list: 'List',
     lastVisit: 'Last visit', distance: 'Distance', notes: 'Notes', photos: 'Visit photos',
-    openCustomer: 'Open Customer', openReport: 'Open Report', navigate: 'Navigate',
+    openCustomer: 'Open Customer', openReport: 'Open Report', navigate: 'Navigate', loadingDetail: 'Loading…',
   },
   rpForms: {
     libraryTitle: 'Forms Library', librarySubtitle: 'Create and manage multiple field-work forms. The core Field Verification form is locked and stays unchanged.',

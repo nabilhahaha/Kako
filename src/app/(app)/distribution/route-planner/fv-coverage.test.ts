@@ -52,3 +52,30 @@ describe('fv-coverage', () => {
     expect(coveragePhotoIds({ outsidePhotoId: '', insidePhotoIds: ['', 'i'] })).toEqual(['i']);
   });
 });
+
+import { coveragePointsGeoJSON, coverageSummaryPct, type CoveragePoint } from './fv-coverage';
+
+const pt = (over: Partial<CoveragePoint> = {}): CoveragePoint => ({ customerId: 'c1', lat: 24.7, lng: 46.7, visited: false, ...over });
+
+describe('coverageSummaryPct', () => {
+  it('rounds visited/total', () => {
+    expect(coverageSummaryPct({ total: 0, visited: 0 })).toBe(0);
+    expect(coverageSummaryPct({ total: 4, visited: 1 })).toBe(25);
+    expect(coverageSummaryPct({ total: 3, visited: 2 })).toBe(67);
+  });
+});
+
+describe('coveragePointsGeoJSON', () => {
+  it('builds green/red features and drops invalid coords; preserves order (green-on-top)', () => {
+    const fc = coveragePointsGeoJSON([
+      pt({ customerId: 'a', visited: false }),
+      pt({ customerId: 'b', visited: true }),
+      pt({ customerId: 'bad', lat: 0, lng: 0 }),
+      pt({ customerId: 'null', lat: null, lng: null }),
+    ]);
+    expect(fc.features.map((f) => f.properties.id)).toEqual(['a', 'b']); // order preserved, invalid dropped
+    expect(fc.features[0].properties.color).toBe(COVERAGE_COLOR.pending);
+    expect(fc.features[1].properties.color).toBe(COVERAGE_COLOR.visited);
+    expect(fc.features[1].geometry.coordinates).toEqual([46.7, 24.7]);
+  });
+});
