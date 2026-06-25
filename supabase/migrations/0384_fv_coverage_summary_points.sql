@@ -107,7 +107,8 @@ BEGIN
          OR (p_status = 'visited' AND v.id IS NOT NULL)
          OR (p_status = 'pending' AND v.id IS NULL))
     AND c.lat IS NOT NULL AND c.lng IS NOT NULL AND NOT (c.lat = 0 AND c.lng = 0)
-  ORDER BY (v.id IS NOT NULL)            -- pending (false) first, visited (true) last → green on top
+  ORDER BY (v.id IS NOT NULL) DESC       -- visited FIRST so they survive the PostgREST max-rows
+                                         -- cap; the map draws green on top via circle-sort-key.
   LIMIT GREATEST(1, LEAST(coalesce(p_limit, 60000), 100000));
 END $$;
 

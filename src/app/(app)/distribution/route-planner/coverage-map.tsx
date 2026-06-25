@@ -111,6 +111,8 @@ export function CoverageMap() {
       map.addSource(SRC, { type: 'geojson', data: coveragePointsGeoJSON([]) });
       map.addLayer({
         id: 'points', type: 'circle', source: SRC,
+        // visited (green) get the higher sort key → always drawn ON TOP of pending (red).
+        layout: { 'circle-sort-key': ['case', ['==', ['get', 'status'], 'visited'], 1, 0] },
         paint: { 'circle-color': ['get', 'color'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 5, 12, 8, 16, 11], 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff' },
       });
       const openFrom = (e: maplibregl.MapLayerMouseEvent) => {
