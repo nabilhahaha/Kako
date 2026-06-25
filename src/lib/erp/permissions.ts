@@ -116,6 +116,7 @@ export type Permission =
   | 'route_planner.upload' // upload a customer file / map columns
   | 'route_planner.edit' // split, move, merge, rebalance routes
   | 'route_planner.export' // export the plan to Excel
+  | 'route_planner.execute' // run an assigned mission on mobile (check-in / done / events)
   | 'route_planner.admin' // manage Route Planner tenants/subscriptions (product-scoped admin)
   // ── Field Customer Verification (standalone module) ──
   | 'field_verification.view' // access the Field Verification module
@@ -176,6 +177,7 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; ar: string; gro
   'route_planner.upload': { en: 'Upload / map columns', ar: 'رفع وربط الأعمدة', group: 'field_ops' },
   'route_planner.edit': { en: 'Edit / move routes', ar: 'تعديل ونقل الخطوط', group: 'field_ops' },
   'route_planner.export': { en: 'Export Route Planner Excel', ar: 'تصدير مخطط الخطوط', group: 'field_ops' },
+  'route_planner.execute': { en: 'Execute assigned route missions', ar: 'تنفيذ مهام الخط المُسندة', group: 'field_ops' },
   'route_planner.admin': { en: 'Manage Route Planner tenants', ar: 'إدارة عملاء مخطط الخطوط', group: 'field_ops' },
   'field_verification.view': { en: 'Access Field Verification', ar: 'الوصول إلى التحقق الميداني', group: 'field_verification' },
   'field_verification.upload': { en: 'Upload customer list', ar: 'رفع قائمة العملاء', group: 'field_verification' },
@@ -350,6 +352,7 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'returns.create', 'returns.approve', 'returns.reject', 'returns.view_all',
     'customers.view_balance', 'customers.view_credit', 'cash.view_outstanding',
     'documents.print', 'documents.share', 'documents.export',
+    'route_planner.view', 'route_planner.upload', 'route_planner.edit', 'route_planner.export', 'route_planner.execute',
   ],
   // Branch Manager: branch operations (NO settings/billing — distinct from Admin).
   branch_manager: [
@@ -397,6 +400,9 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'documents.print', 'documents.share', 'documents.export',
     'field_verification.view', 'field_verification.assign', 'field_verification.reports',
     'forms.reports',
+    // Route Planner: supervisors build/reorder routes, track execution, export, and may
+    // cover/execute an assigned mission. (Canonical RP Missions path.)
+    'route_planner.view', 'route_planner.edit', 'route_planner.export', 'route_planner.execute',
   ],
   accountant: [
     'accounting.view', 'accounting.post', 'reports.view',
@@ -416,12 +422,15 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
     'reconciliation.view', 'returns.create', 'day.close.submit',
     'customers.view_balance', 'documents.print', 'documents.share', 'documents.export',
     'field_verification.view', 'field_verification.verify', 'forms.fill',
+    // Route Planner: a rep sees and executes the missions assigned to them (mobile).
+    'route_planner.view', 'route_planner.execute',
   ],
   driver: [
     'sales.sell', 'sales.collect', 'customers.manage',
     'inventory.view', 'stock_request.create', 'field.sales', 'field.attach_media',
     'returns.create', 'day.close.submit',
     'customers.view_balance', 'documents.print', 'documents.share', 'documents.export',
+    'route_planner.view', 'route_planner.execute',
   ],
   technician: [
     'customers.manage', 'sales.sell', 'inventory.view', 'stock_request.create',
@@ -439,7 +448,8 @@ export const ROLE_PERMISSIONS: Record<BranchRole, Permission[] | typeof ALL> = {
   ],
   staff: ['inventory.view'],
   viewer: ['reports.view', 'accounting.view', 'inventory.view', 'documents.export',
-    'field_verification.view', 'field_verification.reports', 'field_verification.reports_all', 'forms.reports'],
+    'field_verification.view', 'field_verification.reports', 'field_verification.reports_all', 'forms.reports',
+    'route_planner.view', 'route_planner.export'],
   // Auditor: read-only oversight across approvals, settlement and the audit trail.
   auditor: [
     'reports.view', 'accounting.view', 'inventory.view', 'stock.view',
