@@ -727,6 +727,19 @@ export const ar = {
     close: 'إغلاق', saving: 'جارٍ الحفظ…', err: 'حدث خطأ. حاول مرة أخرى.', notFound: 'المهمة غير موجودة أو غير متاحة لك.',
     allDone: 'تمت جميع المحطات', completeHint: 'أنهِ المهمة لإغلاقها وإتاحتها للمشرف.',
   },
+  rpMissionBuild: {
+    title: 'بناء خطة', subtitle: 'اختر العملاء، رتّب المحطات، احفظ الخطة، وأسنِدها لمندوب.', back: 'رجوع',
+    dataset: 'قائمة العملاء', chooseDataset: 'اختر قائمة…', noDatasets: 'لا توجد قوائم عملاء محفوظة. ارفع قائمة أولًا.',
+    searchCustomers: 'بحث بالكود/الاسم/المدينة/القناة', customers: 'العملاء', noCustomers: 'لا يوجد عملاء.',
+    selected: 'المحطات المختارة', emptySelection: 'لم تُختَر محطات بعد. أضِف عملاء من القائمة.',
+    moveUp: 'لأعلى', moveDown: 'لأسفل', remove: 'حذف', count: '{n} محطة',
+    planName: 'اسم الخطة', planNamePlaceholder: 'مثال: مسار وسط الرياض — الأحد',
+    missionDate: 'تاريخ المهمة', assignTo: 'إسناد إلى مندوب', unassigned: 'بدون إسناد (مسودة)',
+    save: 'حفظ وإسناد', saving: 'جارٍ الحفظ…', saved: 'تم حفظ الخطة وإسنادها',
+    tab_list: 'القائمة', tab_map: 'الخريطة',
+    err: 'حدث خطأ. حاول مرة أخرى.', errName: 'اسم الخطة مطلوب', errNoStops: 'اختر محطة واحدة على الأقل',
+    viewMission: 'عرض المهمة', buildAnother: 'بناء خطة أخرى',
+  },
 };
 
 export const en = {
@@ -1456,5 +1469,18 @@ export const en = {
     gpsNeeded: 'Location is needed to check in', enableGps: 'Enable location', gpsDenied: 'Could not get your location. Enable the location permission.',
     close: 'Close', saving: 'Saving…', err: 'Something went wrong. Please try again.', notFound: 'Mission not found or not available to you.',
     allDone: 'All stops handled', completeHint: 'Complete the mission to close it and hand it to your supervisor.',
+  },
+  rpMissionBuild: {
+    title: 'Build a plan', subtitle: 'Pick customers, order the stops, save the plan, and assign it to a rep.', back: 'Back',
+    dataset: 'Customer list', chooseDataset: 'Choose a list…', noDatasets: 'No saved customer lists. Upload one first.',
+    searchCustomers: 'Search by code/name/city/channel', customers: 'Customers', noCustomers: 'No customers.',
+    selected: 'Selected stops', emptySelection: 'No stops yet. Add customers from the list.',
+    moveUp: 'Move up', moveDown: 'Move down', remove: 'Remove', count: '{n} stops',
+    planName: 'Plan name', planNamePlaceholder: 'e.g. Central Riyadh route — Sunday',
+    missionDate: 'Mission date', assignTo: 'Assign to rep', unassigned: 'Unassigned (draft)',
+    save: 'Save & assign', saving: 'Saving…', saved: 'Plan saved and assigned',
+    tab_list: 'List', tab_map: 'Map',
+    err: 'Something went wrong. Please try again.', errName: 'Plan name is required', errNoStops: 'Select at least one stop',
+    viewMission: 'View mission', buildAnother: 'Build another plan',
   },
 };
