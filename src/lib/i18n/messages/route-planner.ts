@@ -740,6 +740,15 @@ export const ar = {
     err: 'حدث خطأ. حاول مرة أخرى.', errName: 'اسم الخطة مطلوب', errNoStops: 'اختر محطة واحدة على الأقل',
     viewMission: 'عرض المهمة', buildAnother: 'بناء خطة أخرى',
   },
+  rpTracking: {
+    title: 'متابعة المهام', subtitle: 'تقدّم خطوط السير: المكتمل مقابل المتبقّي حسب المهمة والمندوب.', back: 'رجوع', refresh: 'تحديث',
+    kpiMissions: 'المهام', kpiActive: 'قيد التنفيذ', kpiCompleted: 'مكتملة', kpiStops: 'إجمالي المحطات', kpiDone: 'منجزة', kpiPending: 'متبقّية', kpiCoverage: 'نسبة الإنجاز',
+    tab_missions: 'المهام', tab_reps: 'حسب المندوب',
+    colMission: 'المهمة', colRep: 'المندوب', colDate: 'التاريخ', colStatus: 'الحالة', colProgress: 'التقدّم',
+    repMissions: '{n} مهمة', empty: 'لا توجد مهام بعد.',
+    detail: 'تفاصيل المهمة', tab_map: 'الخريطة', tab_stops: 'المحطات', activity: 'النشاط', noEvents: 'لا يوجد نشاط بعد.', close: 'إغلاق',
+    unassigned: 'بدون إسناد',
+  },
 };
 
 export const en = {
@@ -1482,5 +1491,14 @@ export const en = {
     tab_list: 'List', tab_map: 'Map',
     err: 'Something went wrong. Please try again.', errName: 'Plan name is required', errNoStops: 'Select at least one stop',
     viewMission: 'View mission', buildAnother: 'Build another plan',
+  },
+  rpTracking: {
+    title: 'Mission tracking', subtitle: 'Route progress: completed vs pending, by mission and by rep.', back: 'Back', refresh: 'Refresh',
+    kpiMissions: 'Missions', kpiActive: 'In progress', kpiCompleted: 'Completed', kpiStops: 'Total stops', kpiDone: 'Done', kpiPending: 'Pending', kpiCoverage: 'Completion',
+    tab_missions: 'Missions', tab_reps: 'By rep',
+    colMission: 'Mission', colRep: 'Rep', colDate: 'Date', colStatus: 'Status', colProgress: 'Progress',
+    repMissions: '{n} missions', empty: 'No missions yet.',
+    detail: 'Mission detail', tab_map: 'Map', tab_stops: 'Stops', activity: 'Activity', noEvents: 'No activity yet.', close: 'Close',
+    unassigned: 'Unassigned',
   },
 };

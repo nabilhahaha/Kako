@@ -262,6 +262,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'nav.items.routePlannerOpen', href: '/distribution/route-planner', icon: Route, perm: 'reports.view', module: ['distribution', 'route_management'] },
       { label: 'nav.items.routePlannerBuild', href: '/distribution/route-planner/build', icon: ClipboardList, perm: ['route_planner.edit', 'route_planner.upload'], module: ['distribution', 'route_management'] },
       { label: 'nav.items.routePlannerMissions', href: '/distribution/route-planner/my-missions', icon: MapPin, perm: ['route_planner.execute', 'route_planner.view'], module: ['distribution', 'route_management'] },
+      { label: 'nav.items.routePlannerTracking', href: '/distribution/route-planner/tracking', icon: BarChart3, perm: ['route_planner.view', 'reports.view'], module: ['distribution', 'route_management'] },
       { label: 'nav.items.routePlannerAdmin', href: '/planner-admin', icon: UserCog, perm: 'route_planner.admin' },
     ],
   },
