@@ -712,6 +712,21 @@ export const ar = {
     colCustomer: 'العميل', colRep: 'المندوب', colCity: 'المدينة', colDate: 'التاريخ/الوقت',
     openReport: 'التقرير', active: 'مُفعّل', inactive: 'موقوف', never: 'لا يوجد',
   },
+  rpMissions: {
+    title: 'مهامي', subtitle: 'خطوط السير المُسنَدة إليك. اختر مهمة لتنفيذها.',
+    refresh: 'تحديث', back: 'رجوع', empty: 'لا توجد مهام مُسنَدة', emptyHint: 'ستظهر هنا أي مهمة يُسنِدها إليك المخطط أو المشرف.',
+    stops: '{n} محطة', progress: '{done}/{total} مكتملة', noStops: 'لا توجد محطات في هذه المهمة.',
+    status_draft: 'مسودة', status_assigned: 'مُسنَدة', status_in_progress: 'قيد التنفيذ', status_completed: 'مكتملة', status_reviewed: 'تمت المراجعة', status_archived: 'مؤرشفة',
+    stop_pending: 'في الانتظار', stop_checked_in: 'تم الوصول', stop_done: 'مكتملة', stop_skipped: 'متخطّاة',
+    start: 'بدء المهمة', started: 'تم بدء المهمة', complete: 'إنهاء المهمة', completed: 'تم إنهاء المهمة',
+    nextStop: 'المحطة التالية', tab_stops: 'المحطات', tab_map: 'الخريطة',
+    checkIn: 'تسجيل الوصول', checkedIn: 'تم تسجيل الوصول', navigate: 'التوجيه', markDone: 'إنهاء المحطة', markedDone: 'تم إنهاء المحطة',
+    skip: 'تخطّي', skipped: 'تم تخطّي المحطة', skipReason: 'سبب التخطّي (اختياري)',
+    notes: 'ملاحظات', notesPlaceholder: 'أضِف ملاحظة…', photos: 'الصور', takePhoto: 'إضافة صورة', uploadingPhoto: 'جارٍ رفع الصورة…',
+    gpsNeeded: 'الموقع الجغرافي مطلوب لتسجيل الوصول', enableGps: 'تفعيل الموقع', gpsDenied: 'تعذّر الحصول على الموقع. فعّل صلاحية الموقع.',
+    close: 'إغلاق', saving: 'جارٍ الحفظ…', err: 'حدث خطأ. حاول مرة أخرى.', notFound: 'المهمة غير موجودة أو غير متاحة لك.',
+    allDone: 'تمت جميع المحطات', completeHint: 'أنهِ المهمة لإغلاقها وإتاحتها للمشرف.',
+  },
 };
 
 export const en = {
@@ -1426,5 +1441,20 @@ export const en = {
     colForm: 'Form', colStatus: 'Status', colAssigned: 'Assigned', colSubmissions: 'Submissions', colPhotos: 'Photos', colLast: 'Last submission',
     colCustomer: 'Customer', colRep: 'Rep', colCity: 'City', colDate: 'Date/time',
     openReport: 'Report', active: 'Active', inactive: 'Inactive', never: 'None',
+  },
+  rpMissions: {
+    title: 'My Missions', subtitle: 'The routes assigned to you. Pick a mission to run it.',
+    refresh: 'Refresh', back: 'Back', empty: 'No missions assigned', emptyHint: 'Any mission a planner or supervisor assigns to you will appear here.',
+    stops: '{n} stops', progress: '{done}/{total} done', noStops: 'This mission has no stops.',
+    status_draft: 'Draft', status_assigned: 'Assigned', status_in_progress: 'In progress', status_completed: 'Completed', status_reviewed: 'Reviewed', status_archived: 'Archived',
+    stop_pending: 'Pending', stop_checked_in: 'Checked in', stop_done: 'Done', stop_skipped: 'Skipped',
+    start: 'Start mission', started: 'Mission started', complete: 'Complete mission', completed: 'Mission completed',
+    nextStop: 'Next stop', tab_stops: 'Stops', tab_map: 'Map',
+    checkIn: 'Check in', checkedIn: 'Checked in', navigate: 'Navigate', markDone: 'Mark done', markedDone: 'Stop completed',
+    skip: 'Skip', skipped: 'Stop skipped', skipReason: 'Skip reason (optional)',
+    notes: 'Notes', notesPlaceholder: 'Add a note…', photos: 'Photos', takePhoto: 'Add photo', uploadingPhoto: 'Uploading photo…',
+    gpsNeeded: 'Location is needed to check in', enableGps: 'Enable location', gpsDenied: 'Could not get your location. Enable the location permission.',
+    close: 'Close', saving: 'Saving…', err: 'Something went wrong. Please try again.', notFound: 'Mission not found or not available to you.',
+    allDone: 'All stops handled', completeHint: 'Complete the mission to close it and hand it to your supervisor.',
   },
 };

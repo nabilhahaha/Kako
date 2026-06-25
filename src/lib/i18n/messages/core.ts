@@ -216,6 +216,7 @@ export const ar = {
       fvForms: 'النماذج',
       fvMyForms: 'نماذجي',
       fvFormsReports: 'تقارير النماذج',
+      myMissions: 'مهامي',
       more: 'المزيد',
     },
     profile: {
@@ -663,6 +664,7 @@ export const en = {
       fvForms: 'Forms',
       fvMyForms: 'My Forms',
       fvFormsReports: 'Form Reports',
+      myMissions: 'My Missions',
       more: 'More',
     },
     profile: {
