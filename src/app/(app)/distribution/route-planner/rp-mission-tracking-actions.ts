@@ -13,6 +13,7 @@ import { getUserContext } from '@/lib/erp/auth-context';
 import { hasAnyPermission } from '@/lib/erp/permissions';
 import { runProgress, type MissionRunStop } from './rp-mission-exec';
 import type { TrackingRow } from './rp-mission-tracking';
+import type { ExportStop } from './rp-mission-export';
 
 type ResultD<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -73,6 +74,63 @@ export async function getMissionTracking(): Promise<ResultD<TrackingRow[]>> {
     };
   });
   return { ok: true, data: rows };
+}
+
+/** PR-7 — flattened mission + stop data for the RP execution export (RLS-scoped, read-only). */
+export async function getMissionExportData(): Promise<ResultD<{ missions: TrackingRow[]; stops: ExportStop[] }>> {
+  const g = await trackGate();
+  if (!g.ok || !g.ctx) return { ok: false, error: 'err_forbidden' };
+  const ctx = g.ctx;
+  const sb = await createClient();
+  const { data: missions, error } = await sb
+    .from('erp_rp_missions')
+    .select('id, name, mission_date, status, assigned_to')
+    .eq('company_id', ctx.companyId).neq('status', 'archived')
+    .order('mission_date', { ascending: false, nullsFirst: false }).limit(500);
+  if (error) return { ok: false, error: error.message };
+  const ids = (missions ?? []).map((m) => m.id as string);
+
+  const stopsByMission = new Map<string, Record<string, unknown>[]>();
+  if (ids.length > 0) {
+    const { data: stops } = await sb.from('erp_rp_mission_stops')
+      .select('mission_id, seq, customer_code, customer_name, status, check_in_at, check_out_at, notes')
+      .eq('company_id', ctx.companyId).in('mission_id', ids).order('seq', { ascending: true });
+    for (const s of stops ?? []) {
+      const mid = s.mission_id as string;
+      (stopsByMission.get(mid) ?? stopsByMission.set(mid, []).get(mid)!).push(s);
+    }
+  }
+  const assigneeIds = [...new Set((missions ?? []).map((m) => m.assigned_to as string | null).filter((x): x is string => !!x))];
+  const nameById = new Map<string, string>();
+  if (assigneeIds.length > 0) {
+    const { data: profs } = await sb.from('erp_profiles').select('id, full_name, email').in('id', assigneeIds);
+    for (const p of profs ?? []) nameById.set(p.id as string, (p.full_name as string) || (p.email as string) || (p.id as string));
+  }
+
+  const missionRows: TrackingRow[] = [];
+  const stopRows: ExportStop[] = [];
+  for (const m of missions ?? []) {
+    const mid = m.id as string;
+    const aid = (m.assigned_to as string | null) ?? null;
+    const repName = aid ? (nameById.get(aid) ?? null) : null;
+    const rawStops = stopsByMission.get(mid) ?? [];
+    const p = runProgress(rawStops.map((s) => ({ status: s.status as string })));
+    missionRows.push({
+      id: mid, name: (m.name as string) ?? '', missionDate: (m.mission_date as string | null) ?? null,
+      status: (m.status as TrackingRow['status']) ?? 'assigned', assigneeId: aid, assigneeName: repName,
+      total: p.total, done: p.done, skipped: p.skipped, pending: p.pending, checkedIn: p.checkedIn, pct: p.pct,
+    });
+    for (const s of rawStops) {
+      stopRows.push({
+        missionName: (m.name as string) ?? '', assigneeName: repName, seq: Number(s.seq ?? 0),
+        customerCode: (s.customer_code as string | null) ?? null, customerName: (s.customer_name as string) ?? '',
+        status: (s.status as string) ?? 'pending',
+        checkInAt: (s.check_in_at as string | null) ?? null, checkOutAt: (s.check_out_at as string | null) ?? null,
+        notes: (s.notes as string | null) ?? null,
+      });
+    }
+  }
+  return { ok: true, data: { missions: missionRows, stops: stopRows } };
 }
 
 export interface TrackingEvent { kind: string; at: string | null; stopId: string | null; byUser: string | null }

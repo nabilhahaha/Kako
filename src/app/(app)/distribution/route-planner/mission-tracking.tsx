@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, RefreshCw, Loader2, Route, X, Users, ListChecks } from 'lucide-react';
+import { ChevronLeft, RefreshCw, Loader2, Route, X, Users, ListChecks, Download } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { cn } from '@/lib/utils';
+import { buildXlsxWorkbook } from '@/lib/erp/xlsx-write';
 import { FvMap } from './fv-map';
-import { getMissionTracking, getMissionTrackingDetail, type TrackingEvent } from './rp-mission-tracking-actions';
+import { downloadXlsx } from './xlsx-download';
+import { getMissionTracking, getMissionTrackingDetail, getMissionExportData, type TrackingEvent } from './rp-mission-tracking-actions';
 import { trackingSummary, repRollup, missionTone, type TrackingRow } from './rp-mission-tracking';
+import { buildMissionsSheet, buildStopsSheet, type MissionExportLabels } from './rp-mission-export';
 import { stopsToMapPoints, stopTone, type MissionRunStop, type StatusTone } from './rp-mission-exec';
 
 const BADGE: Record<StatusTone, string> = {
@@ -41,6 +44,8 @@ export function MissionTracking() {
   const [tab, setTab] = useState<'missions' | 'reps'>('missions');
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  const [exporting, setExporting] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     const res = await getMissionTracking();
@@ -48,6 +53,25 @@ export function MissionTracking() {
     setLoading(false);
   }, []);
   useEffect(() => { void load(); }, [load]);
+
+  async function onExport() {
+    setExporting(true);
+    const res = await getMissionExportData();
+    setExporting(false);
+    if (!res.ok) return;
+    const L: MissionExportLabels = {
+      mission: t('rpTracking.exp_mission'), rep: t('rpTracking.exp_rep'), date: t('rpTracking.exp_date'),
+      status: t('rpTracking.exp_status'), stops: t('rpTracking.exp_stops'), done: t('rpTracking.exp_done'),
+      pending: t('rpTracking.exp_pending'), completion: t('rpTracking.exp_completion'), seq: t('rpTracking.exp_seq'),
+      code: t('rpTracking.exp_code'), customer: t('rpTracking.exp_customer'), checkIn: t('rpTracking.exp_checkin'),
+      checkOut: t('rpTracking.exp_checkout'), notes: t('rpTracking.exp_notes'), unassigned: t('rpTracking.unassigned'),
+    };
+    const wb = buildXlsxWorkbook([
+      { name: t('rpTracking.sheetMissions'), rows: buildMissionsSheet(res.data.missions, L) },
+      { name: t('rpTracking.sheetStops'), rows: buildStopsSheet(res.data.stops, L) },
+    ]);
+    downloadXlsx(wb, `route-missions-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
 
   const summary = trackingSummary(rows);
   const reps = repRollup(rows);
@@ -64,9 +88,15 @@ export function MissionTracking() {
             <p className="text-sm text-slate-500">{t('rpTracking.subtitle')}</p>
           </div>
         </div>
-        <button onClick={() => void load()} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50" aria-label={t('rpTracking.refresh')}>
-          <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => void onExport()} disabled={exporting || rows.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} {t('rpTracking.export')}
+          </button>
+          <button onClick={() => void load()} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50" aria-label={t('rpTracking.refresh')}>
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">

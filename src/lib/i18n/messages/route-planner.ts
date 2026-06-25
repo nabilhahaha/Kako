@@ -748,6 +748,9 @@ export const ar = {
     repMissions: '{n} مهمة', empty: 'لا توجد مهام بعد.',
     detail: 'تفاصيل المهمة', tab_map: 'الخريطة', tab_stops: 'المحطات', activity: 'النشاط', noEvents: 'لا يوجد نشاط بعد.', close: 'إغلاق',
     unassigned: 'بدون إسناد',
+    export: 'تصدير Excel', sheetMissions: 'المهام', sheetStops: 'المحطات',
+    exp_mission: 'المهمة', exp_rep: 'المندوب', exp_date: 'التاريخ', exp_status: 'الحالة', exp_stops: 'المحطات', exp_done: 'منجزة', exp_pending: 'متبقّية', exp_completion: 'الإنجاز',
+    exp_seq: 'التسلسل', exp_code: 'الكود', exp_customer: 'العميل', exp_checkin: 'الوصول', exp_checkout: 'المغادرة', exp_notes: 'ملاحظات',
   },
 };
 
@@ -1500,5 +1503,8 @@ export const en = {
     repMissions: '{n} missions', empty: 'No missions yet.',
     detail: 'Mission detail', tab_map: 'Map', tab_stops: 'Stops', activity: 'Activity', noEvents: 'No activity yet.', close: 'Close',
     unassigned: 'Unassigned',
+    export: 'Export Excel', sheetMissions: 'Missions', sheetStops: 'Stops',
+    exp_mission: 'Mission', exp_rep: 'Rep', exp_date: 'Date', exp_status: 'Status', exp_stops: 'Stops', exp_done: 'Done', exp_pending: 'Pending', exp_completion: 'Completion',
+    exp_seq: 'Seq', exp_code: 'Code', exp_customer: 'Customer', exp_checkin: 'Check-in', exp_checkout: 'Check-out', exp_notes: 'Notes',
   },
 };
