@@ -181,3 +181,23 @@ export function missionPermsRestrictive(access: RoutePlannerAccess | null, isCom
 export function rpCanDecideRequests(role: RpRole | null | undefined, isCompanyAdmin: boolean): boolean {
   return isCompanyAdmin || role === 'manager' || role === 'area_manager' || role === 'route_planner_admin';
 }
+
+/**
+ * Can this user EXECUTE a specific mission — i.e. run it on mobile: check in, add
+ * notes/photos, mark stops done, complete it?
+ *
+ * The **assigned rep can always execute their own mission**. This is the canonical
+ * rep-mobile path (D-2) and must NOT depend on whether the company has configured
+ * `erp_route_planner_access` — otherwise a fresh tenant's reps could be locked out of
+ * their assigned work. For everyone else we fall back to the default-restrictive mission
+ * write perms (explicit access row, or company admin). RLS (`assigned_to` / admin /
+ * reporting-graph on `erp_rp_missions`) remains the database backstop, so this is
+ * defence-in-depth, never the sole gate.
+ */
+export function canExecuteMission(
+  access: RoutePlannerAccess | null,
+  opts: { isCompanyAdmin: boolean; isAssignee: boolean },
+): boolean {
+  if (opts.isAssignee) return true;
+  return missionPermsRestrictive(access, opts.isCompanyAdmin).canExecute;
+}
