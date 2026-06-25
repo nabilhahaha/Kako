@@ -213,6 +213,9 @@ export const ar = {
       fvCustomers: 'القريبون',
       fvSetup: 'الإعداد',
       fvReports: 'التقارير',
+      fvForms: 'النماذج',
+      fvMyForms: 'نماذجي',
+      fvFormsReports: 'تقارير النماذج',
       more: 'المزيد',
     },
     profile: {
@@ -657,6 +660,9 @@ export const en = {
       fvCustomers: 'Nearby',
       fvSetup: 'Setup',
       fvReports: 'Reports',
+      fvForms: 'Forms',
+      fvMyForms: 'My Forms',
+      fvFormsReports: 'Form Reports',
       more: 'More',
     },
     profile: {

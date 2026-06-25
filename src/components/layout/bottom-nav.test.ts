@@ -53,17 +53,23 @@ describe('bottom-nav — Field Verification Only (pack-only tenant)', () => {
   const FV_ADMIN = {
     permissions: P(
       'field_verification.verify', 'field_verification.admin', 'field_verification.reports', 'field_verification.export',
+      // Multi-Form forms.* perms (seeded to the FV admin role by 0383):
+      'forms.admin', 'forms.fill', 'forms.reports', 'forms.export',
       // broad perms that drive the generic tabs:
       'field.sales', 'day.approve_close_exception', 'reports.view', 'inventory.view', 'sales.sell',
     ),
     isSuperAdmin: false, modules: M('field_verification'), businessType: null,
   };
 
-  it('shows ONLY the Field Verification tabs — no Home / Approvals / Today / Sell', () => {
+  it('shows ONLY the Field Verification tabs — including the Multi-Form screens — no Home / Approvals / Today / Sell', () => {
     const hrefs = resolveBottomNavTabs(FV_ADMIN).map((t) => t.href);
     expect(hrefs).toContain('/field-verification/my-customers');
     expect(hrefs).toContain('/field-verification/setup');
     expect(hrefs).toContain('/field-verification/reports');
+    // Multi-Form screens are now in the mobile bottom-nav candidate list:
+    expect(hrefs).toContain('/field-verification/forms');
+    expect(hrefs).toContain('/field-verification/my-forms');
+    expect(hrefs).toContain('/field-verification/forms/reports');
     expect(hrefs).not.toContain('/dashboard');          // Home suppressed
     expect(hrefs).not.toContain('/approvals/queue');    // Approvals suppressed
     expect(hrefs).not.toContain('/today');              // Today suppressed
@@ -72,12 +78,22 @@ describe('bottom-nav — Field Verification Only (pack-only tenant)', () => {
     expect(hrefs.every((h) => h.startsWith('/field-verification/'))).toBe(true);
   });
 
-  it('an FV rep (verify only) sees just the Nearby Customers tab', () => {
+  it('an FV rep (verify only, no forms.*) sees just the Nearby Customers tab', () => {
     const hrefs = resolveBottomNavTabs({
       permissions: P('field_verification.verify'), isSuperAdmin: false,
       modules: M('field_verification'), businessType: null,
     }).map((t) => t.href);
     expect(hrefs).toEqual(['/field-verification/my-customers']);
+  });
+
+  it('an FV rep WITH forms.fill also sees the My Forms tab', () => {
+    const hrefs = resolveBottomNavTabs({
+      permissions: P('field_verification.verify', 'forms.fill'), isSuperAdmin: false,
+      modules: M('field_verification'), businessType: null,
+    }).map((t) => t.href);
+    expect(hrefs).toContain('/field-verification/my-customers');
+    expect(hrefs).toContain('/field-verification/my-forms');
+    expect(hrefs.every((h) => h.startsWith('/field-verification/'))).toBe(true);
   });
 
   it('no over-suppression: a tenant with FV alongside operational modules keeps its generic tabs', () => {
