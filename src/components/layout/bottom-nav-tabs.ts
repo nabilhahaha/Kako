@@ -61,6 +61,8 @@ export const BOTTOM_NAV_TABS: BottomNavTab[] = [
   //    the route_management module + route_planner.execute so a salesman/driver reaches
   //    their assigned missions from the bottom bar. ──
   { href: '/distribution/route-planner/my-missions', icon: Route, labelKey: 'nav.bottom.myMissions', perm: 'route_planner.execute', module: 'route_management' },
+  // ── Fast Food / Restaurant POS — cashier's primary sell surface (own /pos module). ──
+  { href: '/pos', icon: ScanBarcode, labelKey: 'nav.bottom.foodPos', perm: 'restaurant.manage', module: 'restaurant' },
   // Generic Home — hidden for the unified salesman (Today IS home, no duplicate).
   { href: '/dashboard', icon: Home, labelKey: 'nav.bottom.home', hideWhenUnified: true },
   // Approver direct access (placed high so supervisors/managers get it in the top
