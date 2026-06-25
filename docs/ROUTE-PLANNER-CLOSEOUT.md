@@ -89,3 +89,36 @@ customers / verifications / photos / reports; Field Verification behaviour (subm
 radius, photo validation, customer lists, maps, reports) unchanged; company isolation and
 RLS strict; small focused commits; merge only on green CI; live migrations applied to
 `vantora-staging` only when additive and safe, with before/after verification.
+
+## Migrations added (all applied to vantora-staging, verified)
+
+| File | What | Safety |
+|------|------|--------|
+| `0385_rp_permissions_seed.sql` | Seed `route_planner.*` (incl. new `route_planner.execute`) to real roles; backfill route_management companies | additive INSERT … ON CONFLICT |
+| `0386_rp_perf_trgm.sql` | pg_trgm GIN indexes on `erp_rp_dataset_customers(name,code,city)` for plan-builder search | additive CREATE INDEX IF NOT EXISTS |
+| `0387_rp_mission_reports_read.sql` | New **permission-gated** company-scoped SELECT policy on mission tables for `route_planner.export` holders (admin/manager/supervisor/viewer — NOT reps) so oversight roles can track without reporting-graph config | additive NEW permissive policy; reps stay isolated; mirrors FV 0373/0374 |
+
+Note on 0387: this is an **additive** new permissive SELECT policy, not a change to any
+existing policy. Postgres OR-combines permissive policies, so it only ADDS a read path for
+oversight roles; rep isolation (a salesman sees only their own missions) is unchanged, and
+everything stays `company_id = erp_user_company_id()`. This is the same pattern Field
+Verification uses for company-wide report visibility.
+
+## Fresh-company E2E result (vantora-staging, throwaway fmcg company, cleaned up)
+
+A brand-new `fmcg` company auto-provisioned the full stack (route_management module + 26
+`route_planner.*` role permissions) and passed the whole A-to-Z loop:
+
+| Check | Result |
+|-------|--------|
+| Module + permissions seeded on company INSERT | PASS (route_management on; route_planner.* per role) |
+| Permission matrix (admin/rep/supervisor/viewer) | PASS (admin full; rep view+execute; supervisor view+edit+execute+export; viewer view+export, no execute) |
+| Admin builds + assigns mission (+5 stops) | PASS (persisted; admin sees all) |
+| Rep sees assigned mission + stops | PASS (My Missions = 1, 5 stops) |
+| Rep executes under RLS (check-in → done → start mission → event) | PASS (assignee writes allowed; persisted) |
+| Supervisor + Viewer track progress | PASS (mission visible, 2/5 done, event seen — via 0387) |
+| Cross-company isolation | PASS (rep saw 12 own customers, 0 from other companies / 0 other missions) |
+
+Remaining setup note for a new customer: create the company as **fmcg** (or otherwise
+enable the `route_management` module) so Route Planner is provisioned; everything else
+(roles, permissions, module) is automatic on company creation.
