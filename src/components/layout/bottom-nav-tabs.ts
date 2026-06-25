@@ -1,6 +1,6 @@
 import type { Permission } from '@/lib/erp/permissions';
 import { isModuleGateOpen, STANDALONE_PACK_MODULES, type Module } from '@/lib/erp/navigation';
-import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, ClipboardList, FileText, BarChart3, Truck, Inbox, type LucideIcon } from 'lucide-react';
+import { Home, Users, Zap, Boxes, MapPin, ScanBarcode, ClipboardCheck, ClipboardList, FileText, BarChart3, Truck, Inbox, Route, type LucideIcon } from 'lucide-react';
 
 /** A candidate bottom-nav tab. `href` must resolve to a real route, `labelKey`
  *  is an i18n key, `perm` (when set) gates visibility, and `module` (when set)
@@ -57,6 +57,10 @@ export const BOTTOM_NAV_TABS: BottomNavTab[] = [
   { href: '/field-verification/forms', icon: FileText, labelKey: 'nav.bottom.fvForms', perm: 'forms.admin', module: 'field_verification' },
   { href: '/field-verification/my-forms', icon: ClipboardList, labelKey: 'nav.bottom.fvMyForms', perm: 'forms.fill', module: 'field_verification' },
   { href: '/field-verification/forms/reports', icon: BarChart3, labelKey: 'nav.bottom.fvFormsReports', perm: 'forms.reports', module: 'field_verification' },
+  // ── Route Planner — rep mobile mission execution (canonical RP Missions path). Gated to
+  //    the route_management module + route_planner.execute so a salesman/driver reaches
+  //    their assigned missions from the bottom bar. ──
+  { href: '/distribution/route-planner/my-missions', icon: Route, labelKey: 'nav.bottom.myMissions', perm: 'route_planner.execute', module: 'route_management' },
   // Generic Home — hidden for the unified salesman (Today IS home, no duplicate).
   { href: '/dashboard', icon: Home, labelKey: 'nav.bottom.home', hideWhenUnified: true },
   // Approver direct access (placed high so supervisors/managers get it in the top

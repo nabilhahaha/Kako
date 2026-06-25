@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { missionPermsRestrictive } from './route-planner-access';
+import { missionPermsRestrictive, canExecuteMission } from './route-planner-access';
 import {
   mapRoutePlannerAccess,
   rpHasFeature,
@@ -120,5 +120,24 @@ describe('missionPermsRestrictive — default-restrictive WRITE posture (pilot)'
   });
   it('3) normal user with NO access row → DENIED everything (admin gate, RLS backstop)', () => {
     expect(missionPermsRestrictive(null, false)).toEqual({ canCreate: false, canAssign: false, canExecute: false, canReview: false });
+  });
+});
+
+describe('canExecuteMission — the assigned rep can always run their own mission', () => {
+  it('assignee always executes, even with NO access row and not an admin', () => {
+    expect(canExecuteMission(null, { isCompanyAdmin: false, isAssignee: true })).toBe(true);
+  });
+  it('assignee executes even when an explicit access row would otherwise deny', () => {
+    // a field_user row is execute-only anyway; force the point with a managerial row too
+    expect(canExecuteMission(mapRoutePlannerAccess(row({ role: 'field_user' })), { isCompanyAdmin: false, isAssignee: true })).toBe(true);
+  });
+  it('non-assignee normal user with NO access row → cannot execute (RLS backstop)', () => {
+    expect(canExecuteMission(null, { isCompanyAdmin: false, isAssignee: false })).toBe(false);
+  });
+  it('non-assignee company admin → can execute (oversight)', () => {
+    expect(canExecuteMission(null, { isCompanyAdmin: true, isAssignee: false })).toBe(true);
+  });
+  it('non-assignee with an execute-capable access row → can execute', () => {
+    expect(canExecuteMission(mapRoutePlannerAccess(row({ role: 'supervisor' })), { isCompanyAdmin: false, isAssignee: false })).toBe(true);
   });
 });

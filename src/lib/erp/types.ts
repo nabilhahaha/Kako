@@ -130,7 +130,8 @@ export type BusinessType =
   | 'clinic'
   | 'salon'
   | 'hotel'
-  | 'field_verification_only';
+  | 'field_verification_only'
+  | 'route_planner';
 
 export interface Company {
   id: string;
