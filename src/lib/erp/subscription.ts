@@ -22,6 +22,7 @@ export const BUSINESS_TYPE_LABELS: Record<BusinessType, { en: string; ar: string
   salon: { en: 'Salon / Beauty Center', ar: 'صالون / مركز تجميل' },
   hotel: { en: 'Hotel / Furnished Apartments', ar: 'فندق / شقق مفروشة' },
   field_verification_only: { en: 'Field Verification Only', ar: 'التحقق الميداني فقط' },
+  route_planner: { en: 'Route Planner / Field Sales', ar: 'مخطط الخطوط / المبيعات الميدانية' },
 };
 
 export const BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_LABELS) as BusinessType[];
