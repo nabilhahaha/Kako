@@ -59,6 +59,14 @@ create type sla_actual_basis  as enum (
   'gross_sales_excluding_vat','custom_formula_later'
 );
 
+-- How an uploaded file is reconciled against existing imported data.
+create type import_mode as enum (
+  'full_period_replace',   -- full report for a period/month → supersede that range
+  'incremental_append',    -- only new daily/weekly rows → add new, skip dups
+  'replace_overlapping',   -- old+new → replace overlap range, add new dates
+  'correction_reprocess'   -- correct prior data via new file/mapping version
+);
+
 -- ---------------------------------------------------------------------
 -- Organizational hierarchy (company_id denormalized on every level)
 -- ---------------------------------------------------------------------
@@ -280,8 +288,12 @@ create table import_batch (
   id                 uuid primary key default gen_random_uuid(),
   company_id         uuid not null references company(id) on delete cascade,
   agent_id           uuid not null references agent(id) on delete restrict,
-  period_month       date not null,
+  period_month       date not null,         -- primary reporting month
+  period_start       date,                  -- detected date range (daily/weekly/custom)
+  period_end         date,
+  import_mode        import_mode,           -- reconciliation mode chosen at commit
   uploaded_by        uuid references profile(id),
+  confirmed_by       uuid references profile(id),   -- who approved the import decision
   source_filename    text,
   storage_path       text,
   file_checksum      text,
@@ -410,6 +422,9 @@ create table sales_fact (
   free_qty            numeric(18,3),       -- free pieces
   free_qty_cartons    numeric(18,3),       -- free cartons (agents that split)
   currency          text not null default 'SAR',
+  -- stable line key for overlap/dedupe comparison across re-uploads
+  -- (agent+invoice+date+customer+item[+line_id] or value/qty hash fallback)
+  line_hash         text,
   -- reserved: switch to Saudi selling-day calendar without schema change
   is_selling_day    boolean
 );
@@ -420,6 +435,7 @@ create index on sales_fact (company_id, period_month);
 create index on sales_fact (batch_id);
 create index on sales_fact (roshen_item_code);
 create index on sales_fact (invoice_number);
+create index on sales_fact (agent_id, line_hash);
 
 -- ---------------------------------------------------------------------
 -- SLA targets (primary grain: agent x channel x month; roll-up to company)
