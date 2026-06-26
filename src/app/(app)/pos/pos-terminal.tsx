@@ -224,10 +224,10 @@ export function PosTerminal({ companyId, outletName, cashierName }: { companyId:
   const ticketNo = `#${String(ticket).padStart(3, '0')}`;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#fdf6ec]">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fdf6ec]">
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* ════ Menu side ════ */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/* Toolbar: search · scan · manual barcode */}
           <div className="flex items-center gap-2 p-3">
             <div className="relative flex-1">
@@ -289,8 +289,10 @@ export function PosTerminal({ companyId, outletName, cashierName }: { companyId:
           </div>
         </div>
 
-        {/* ════ Cart side (Current Order) ════ */}
-        <aside className="flex w-full shrink-0 flex-col border-s border-[#e7d6c2] bg-white lg:w-[400px]">
+        {/* ════ Cart side (Current Order) — bounded height: the line list scrolls internally
+             while the totals + payment footer stays pinned so Pay never needs page scroll. On
+             tablet/phone the cart is capped so the grid keeps room and Pay stays in view. ════ */}
+        <aside className="flex max-h-[55%] w-full min-h-0 shrink-0 flex-col border-s border-[#e7d6c2] bg-white lg:max-h-none lg:w-[400px]">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[#f0e4d4] px-4 py-3">
             <div>
@@ -368,8 +370,8 @@ export function PosTerminal({ companyId, outletName, cashierName }: { companyId:
             )}
           </div>
 
-          {/* Totals + inline payment */}
-          <div className="space-y-2 p-3">
+          {/* Totals + inline payment — pinned footer (shrink-0) so Pay is always visible. */}
+          <div className="shrink-0 space-y-2 border-t border-[#f0e4d4] bg-white p-3">
             <Row label={t('foodPos.subtotal')} val={totals.subtotal} />
             {totals.discount > 0 && <Row label={t('foodPos.discount')} val={-totals.discount} />}
             {totals.service > 0 && <Row label={t('foodPos.service')} val={totals.service} />}
