@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Orange juice">
+  <rect width="200" height="200" fill="#fff2dd"/>
+  <g stroke="#a85a12" stroke-width="2">
+    <path d="M72 64h56l-6 86a10 10 0 0 1-10 9H88a10 10 0 0 1-10-9z" fill="#f59a1f"/>
+    <path d="M74 76h52l-1 12H75z" fill="#ffd27a" stroke="none"/>
+    <circle cx="132" cy="58" r="16" fill="#ff9f1c"/>
+    <path d="M132 58l10-9M132 58l11 4M132 58l-4 11" stroke="#d97a06" stroke-width="2"/>
+    <line x1="122" y1="40" x2="116" y2="64" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Chicken burger">
+  <rect width="200" height="200" fill="#fdeede"/>
+  <g stroke="#7a4a1e" stroke-width="2">
+    <path d="M44 80c0-27 25-46 56-46s56 19 56 46z" fill="#eab560"/>
+    <circle cx="84" cy="56" r="2.4" fill="#fff3df" stroke="none"/>
+    <circle cx="108" cy="52" r="2.4" fill="#fff3df" stroke="none"/>
+    <rect x="42" y="80" width="116" height="12" rx="6" fill="#8fc24a"/>
+    <rect x="42" y="90" width="116" height="17" rx="5" fill="#e8c98f"/>
+    <rect x="42" y="105" width="116" height="11" rx="5" fill="#f0a04a"/>
+    <path d="M44 116h112c0 16-26 26-56 26s-56-10-56-26z" fill="#eab560"/>
+  </g>
+</svg>

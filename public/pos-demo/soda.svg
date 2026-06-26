@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Soft drink">
+  <rect width="200" height="200" fill="#fdeede"/>
+  <g stroke="#5b2f17" stroke-width="2">
+    <path d="M70 70h60l-7 84a10 10 0 0 1-10 9H87a10 10 0 0 1-10-9z" fill="#c0392b"/>
+    <path d="M73 92h54l-1 14H74z" fill="#ffffff" stroke="none" opacity="0.9"/>
+    <rect x="66" y="62" width="68" height="10" rx="5" fill="#e8e8e8"/>
+    <line x1="118" y1="40" x2="110" y2="66" stroke="#f6c945" stroke-width="6" stroke-linecap="round"/>
+  </g>
+</svg>

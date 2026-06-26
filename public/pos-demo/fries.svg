@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="French fries">
+  <rect width="200" height="200" fill="#fdeede"/>
+  <g stroke="#9a3b22" stroke-width="2">
+    <g fill="#f6c945" stroke="#caa12f">
+      <rect x="74" y="60" width="9" height="62" rx="3"/>
+      <rect x="88" y="50" width="9" height="72" rx="3"/>
+      <rect x="102" y="54" width="9" height="68" rx="3"/>
+      <rect x="116" y="62" width="9" height="60" rx="3"/>
+    </g>
+    <path d="M64 104h72l-9 56a8 8 0 0 1-8 7H81a8 8 0 0 1-8-7z" fill="#e1432b"/>
+    <rect x="70" y="116" width="60" height="12" rx="3" fill="#fff" stroke="none" opacity="0.85"/>
+  </g>
+</svg>

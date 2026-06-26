@@ -50,6 +50,30 @@ export const ar = {
     barcode: 'الباركود', price: 'السعر', active: 'مُفعّل', noImage: 'بدون صورة', saved: 'تم الحفظ',
     search: 'بحث عن صنف', empty: 'لا توجد أصناف.', imageHint: 'صورة مربعة واضحة تظهر في شبكة نقطة البيع.',
   },
+  // Dedicated POS shell — sidebar nav + compact top bar.
+  foodPosNav: {
+    pos: 'نقطة البيع', orders: 'الطلبات', shift: 'ملخص الوردية', reports: 'التقارير',
+    setup: 'الإعداد والأصناف', help: 'مساعدة', backOffice: 'لوحة الإدارة', logout: 'تسجيل الخروج',
+  },
+  foodPosShell: {
+    posMode: 'وضع نقطة البيع', online: 'متصل', offline: 'دون اتصال', syncing: 'جارٍ المزامنة…', synced: 'تمت المزامنة',
+    pendingSync: 'بانتظار المزامنة', shiftOpen: 'وردية مفتوحة', cashier: 'الكاشير', branch: 'الفرع',
+    help: 'مساعدة', logout: 'خروج', menu: 'القائمة', close: 'إغلاق',
+  },
+  foodPosOrders: {
+    title: 'الطلبات الأخيرة', subtitle: 'آخر فواتير نقطة البيع', back: 'رجوع', refresh: 'تحديث',
+    empty: 'لا توجد طلبات بعد.', number: 'رقم الفاتورة', time: 'الوقت', mode: 'النوع', method: 'الدفع',
+    total: 'الإجمالي', status: 'الحالة', view: 'عرض', today: 'اليوم', recent: 'الأحدث',
+    mode_dine_in: 'صالة', mode_takeaway: 'سفري', mode_delivery: 'توصيل', method_cash: 'كاش', method_card: 'بطاقة', method_mixed: 'مختلط',
+    status_issued: 'صادرة', status_voided: 'ملغاة', status_credit_note: 'إشعار دائن',
+  },
+  foodPosShift: {
+    title: 'ملخص الوردية', subtitle: 'مبيعاتك اليوم', back: 'رجوع', refresh: 'تحديث',
+    orders: 'الطلبات', revenue: 'الإيراد', avgTicket: 'متوسط الفاتورة', items: 'الأصناف المباعة',
+    byMethod: 'حسب طريقة الدفع', byMode: 'حسب نوع الطلب', cash: 'كاش', card: 'بطاقة', mixed: 'مختلط',
+    dineIn: 'صالة', takeaway: 'سفري', delivery: 'توصيل', empty: 'لا توجد مبيعات في ورديتك اليوم.',
+    since: 'منذ', cashier: 'الكاشير', you: 'أنت',
+  },
 };
 
 export const en = {
@@ -92,5 +116,29 @@ export const en = {
     products: 'Products', categories: 'Categories', image: 'Image', uploadImage: 'Upload image', uploading: 'Uploading…',
     barcode: 'Barcode', price: 'Price', active: 'Active', noImage: 'No image', saved: 'Saved',
     search: 'Search a product', empty: 'No products.', imageHint: 'A clear square photo shown in the POS grid.',
+  },
+  // Dedicated POS shell — sidebar nav + compact top bar.
+  foodPosNav: {
+    pos: 'Point of Sale', orders: 'Orders', shift: 'Shift Summary', reports: 'Reports',
+    setup: 'Setup & Items', help: 'Help', backOffice: 'Back office', logout: 'Log out',
+  },
+  foodPosShell: {
+    posMode: 'POS mode', online: 'Online', offline: 'Offline', syncing: 'Syncing…', synced: 'Synced',
+    pendingSync: 'Pending sync', shiftOpen: 'Shift open', cashier: 'Cashier', branch: 'Branch',
+    help: 'Help', logout: 'Log out', menu: 'Menu', close: 'Close',
+  },
+  foodPosOrders: {
+    title: 'Recent orders', subtitle: 'Latest POS invoices', back: 'Back', refresh: 'Refresh',
+    empty: 'No orders yet.', number: 'Invoice', time: 'Time', mode: 'Type', method: 'Payment',
+    total: 'Total', status: 'Status', view: 'View', today: 'Today', recent: 'Recent',
+    mode_dine_in: 'Dine-in', mode_takeaway: 'Takeaway', mode_delivery: 'Delivery', method_cash: 'Cash', method_card: 'Card', method_mixed: 'Mixed',
+    status_issued: 'Issued', status_voided: 'Voided', status_credit_note: 'Credit note',
+  },
+  foodPosShift: {
+    title: 'Shift summary', subtitle: 'Your sales today', back: 'Back', refresh: 'Refresh',
+    orders: 'Orders', revenue: 'Revenue', avgTicket: 'Avg ticket', items: 'Items sold',
+    byMethod: 'By payment method', byMode: 'By order type', cash: 'Cash', card: 'Card', mixed: 'Mixed',
+    dineIn: 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery', empty: 'No sales in your shift today.',
+    since: 'Since', cashier: 'Cashier', you: 'You',
   },
 };

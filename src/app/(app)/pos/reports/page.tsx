@@ -15,5 +15,6 @@ export default async function PosReportsPage() {
   const ctx = await getUserContext();
   if (!ctx) redirect('/login');
   if (!hasAnyPermission(ctx, ['reports.view', 'restaurant.manage'])) redirect('/dashboard');
-  return <div className="food-theme"><PosReports /></div>;
+  // Theme comes from the POS shell; this back-office page just needs its own padding.
+  return <div className="p-4 sm:p-6"><PosReports /></div>;
 }
