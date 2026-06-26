@@ -93,6 +93,45 @@ export async function upsertBranch(fd: FormData) {
   revalidatePath("/organization");
 }
 
+/**
+ * Distributor (agent) upsert for the simplified Region → City → Distributor
+ * model. City is the direct location (region is derived from the city);
+ * branch is left null. `area_manager_id` is the optional assigned Roshen
+ * Area Manager. Admin-only (master data).
+ */
+export async function upsertDistributor(fd: FormData) {
+  const { supabase, companyId } = await ctx();
+  const id = str(fd, "id");
+  const name = str(fd, "name");
+  const code = str(fd, "code");
+  const city_id = str(fd, "city_id");
+  const channel_id = str(fd, "channel_id");
+  const area_manager_id = str(fd, "area_manager_id");
+  const is_active = fd.get("is_active") === "on";
+  if (!name) throw new Error("Distributor name is required.");
+  if (!code) throw new Error("Distributor code is required.");
+  if (!city_id) throw new Error("City is required.");
+  if (id) {
+    await supabase
+      .from("agent")
+      .update({ name, code, city_id, channel_id, area_manager_id, is_active })
+      .eq("id", id);
+  } else {
+    await supabase.from("agent").insert({
+      company_id: companyId,
+      type: "distributor",
+      branch_id: null,
+      city_id,
+      channel_id,
+      area_manager_id,
+      name,
+      code,
+      is_active,
+    });
+  }
+  revalidatePath("/organization");
+}
+
 export async function upsertAgent(fd: FormData) {
   const { supabase, companyId } = await ctx();
   const id = str(fd, "id");

@@ -13,8 +13,8 @@ export type ScopeRow = { label: string; count: number };
 export type SetupStep = { label: string; done: boolean };
 
 const ACTIONS = [
-  { href: "/organization", label: "Organization Setup", desc: "Define regions, areas, and branches.", icon: Building2, global: true },
-  { href: "/agents", label: "Agents & Distributors", desc: "Manage agents & distributors.", icon: Truck, global: false },
+  { href: "/organization", label: "Organization Setup", desc: "Define regions, cities, and distributors.", icon: Building2, global: false },
+  { href: "/organization?tab=distributors", label: "Distributors", desc: "Manage Roshen KSA distributors.", icon: Truck, global: false },
   { href: "/raw-data-upload", label: "Raw Data Upload", desc: "Upload raw data for processing.", icon: Upload, global: true },
   { href: "/sla-targets", label: "SLA Target Entry", desc: "Set and manage SLA targets.", icon: Target, global: true },
 ];

@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  experimental: {
+    // Raw-data files are sent to a server action when a draft batch is created.
+    serverActions: { bodySizeLimit: "25mb" },
+  },
 };
 
 export default nextConfig;

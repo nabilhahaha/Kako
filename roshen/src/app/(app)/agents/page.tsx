@@ -1,4 +1,6 @@
-import { PageStub } from "@/components/app/page-stub";
+import { redirect } from "next/navigation";
+
+// Distributors now live under Organization (Region → City → Distributor).
 export default function Page() {
-  return <PageStub title="Agents / Distributors" note="Agent list, details, assigned branch/area, default mapping status — screen #3." />;
+  redirect("/organization?tab=distributors");
 }

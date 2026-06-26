@@ -16,8 +16,10 @@ export type Database = {
     Tables: {
       agent: {
         Row: {
-          branch_id: string
+          area_manager_id: string | null
+          branch_id: string | null
           channel_id: string | null
+          city_id: string | null
           code: string
           company_id: string
           created_at: string
@@ -27,8 +29,10 @@ export type Database = {
           type: Database["public"]["Enums"]["agent_type"]
         }
         Insert: {
-          branch_id: string
+          area_manager_id?: string | null
+          branch_id?: string | null
           channel_id?: string | null
+          city_id?: string | null
           code: string
           company_id: string
           created_at?: string
@@ -38,8 +42,10 @@ export type Database = {
           type?: Database["public"]["Enums"]["agent_type"]
         }
         Update: {
-          branch_id?: string
+          area_manager_id?: string | null
+          branch_id?: string | null
           channel_id?: string | null
+          city_id?: string | null
           code?: string
           company_id?: string
           created_at?: string
@@ -49,6 +55,13 @@ export type Database = {
           type?: Database["public"]["Enums"]["agent_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "agent_area_manager_id_fkey"
+            columns: ["area_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "agent_branch_id_fkey"
             columns: ["branch_id"]
@@ -61,6 +74,13 @@ export type Database = {
             columns: ["channel_id"]
             isOneToOne: false
             referencedRelation: "channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
             referencedColumns: ["id"]
           },
           {
@@ -1205,6 +1225,7 @@ export type Database = {
           agent_id: string | null
           area_id: string | null
           branch_id: string | null
+          city_id: string | null
           company_id: string
           created_at: string
           id: string
@@ -1216,6 +1237,7 @@ export type Database = {
           agent_id?: string | null
           area_id?: string | null
           branch_id?: string | null
+          city_id?: string | null
           company_id: string
           created_at?: string
           id?: string
@@ -1227,6 +1249,7 @@ export type Database = {
           agent_id?: string | null
           area_id?: string | null
           branch_id?: string | null
+          city_id?: string | null
           company_id?: string
           created_at?: string
           id?: string
@@ -1254,6 +1277,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_scope_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
             referencedColumns: ["id"]
           },
           {
@@ -1543,7 +1573,14 @@ export type Database = {
       invoice_status: "posted" | "cancelled" | "draft"
       issue_severity: "error" | "warning" | "info"
       mapping_status: "draft" | "active" | "archived"
-      org_level: "company" | "country" | "region" | "area" | "branch" | "agent"
+      org_level:
+        | "company"
+        | "country"
+        | "region"
+        | "area"
+        | "branch"
+        | "agent"
+        | "city"
       returns_handling:
         | "returns_already_deducted"
         | "subtract_returns_value"
@@ -1730,7 +1767,15 @@ export const Constants = {
       invoice_status: ["posted", "cancelled", "draft"],
       issue_severity: ["error", "warning", "info"],
       mapping_status: ["draft", "active", "archived"],
-      org_level: ["company", "country", "region", "area", "branch", "agent"],
+      org_level: [
+        "company",
+        "country",
+        "region",
+        "area",
+        "branch",
+        "agent",
+        "city",
+      ],
       returns_handling: [
         "returns_already_deducted",
         "subtract_returns_value",

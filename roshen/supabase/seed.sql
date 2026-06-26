@@ -14,12 +14,19 @@ insert into country (id, company_id, name, iso_code) values
    '11111111-1111-1111-1111-111111111111', 'Saudi Arabia', 'SA')
 on conflict do nothing;
 
--- Channels are configurable; seed a starting set.
+-- Channels are configurable; seed the Roshen KSA default set.
 insert into channel (company_id, name, code) values
-  ('11111111-1111-1111-1111-111111111111', 'Modern Trade', 'MT'),
   ('11111111-1111-1111-1111-111111111111', 'Traditional Trade', 'TT'),
+  ('11111111-1111-1111-1111-111111111111', 'Modern Trade', 'MT'),
+  ('11111111-1111-1111-1111-111111111111', 'Wholesale', 'WS'),
+  ('11111111-1111-1111-1111-111111111111', 'Cash Van', 'CV'),
+  ('11111111-1111-1111-1111-111111111111', 'Discounter', 'DISC'),
+  ('11111111-1111-1111-1111-111111111111', 'Key Account', 'KA'),
+  ('11111111-1111-1111-1111-111111111111', 'Internal / GFF', 'GFF'),
+  ('11111111-1111-1111-1111-111111111111', 'E-commerce', 'ECOM'),
+  ('11111111-1111-1111-1111-111111111111', 'B2B', 'B2B'),
   ('11111111-1111-1111-1111-111111111111', 'HoReCa', 'HRC'),
-  ('11111111-1111-1111-1111-111111111111', 'Wholesale', 'WS')
+  ('11111111-1111-1111-1111-111111111111', 'Other', 'OTH')
 on conflict do nothing;
 
 -- Regions (KSA commercial regions)
@@ -37,18 +44,25 @@ insert into area (id, company_id, region_id, name, code) values
   ('44444444-0004-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','33333333-0003-0000-0000-000000000000','Dammam','DMM')
 on conflict do nothing;
 
--- Sample branches
+-- Sample branches (kept for future expansion; not surfaced in the current UI)
 insert into branch (id, company_id, area_id, name, code) values
   ('55555555-0001-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','44444444-0001-0000-0000-000000000000','Riyadh North Branch','RUH-N-01'),
   ('55555555-0002-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','44444444-0003-0000-0000-000000000000','Jeddah Central Branch','JED-01')
 on conflict do nothing;
 
--- Sample agents/distributors
-insert into agent (id, company_id, branch_id, channel_id, type, code, name) values
-  ('66666666-0001-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','55555555-0001-0000-0000-000000000000',
+-- Sample cities (Region → City), the primary distributor location.
+insert into city (id, company_id, region_id, name) values
+  ('77777777-0001-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','33333333-0001-0000-0000-000000000000','Riyadh'),
+  ('77777777-0002-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','33333333-0002-0000-0000-000000000000','Jeddah'),
+  ('77777777-0003-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','33333333-0003-0000-0000-000000000000','Dammam')
+on conflict do nothing;
+
+-- Sample distributors (Region → City → Distributor; branch left null).
+insert into agent (id, company_id, city_id, channel_id, type, code, name) values
+  ('66666666-0001-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','77777777-0001-0000-0000-000000000000',
      (select id from channel where company_id='11111111-1111-1111-1111-111111111111' and code='MT'),
      'distributor','AGT-1001','Riyadh North Distributor A'),
-  ('66666666-0002-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','55555555-0002-0000-0000-000000000000',
+  ('66666666-0002-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','77777777-0002-0000-0000-000000000000',
      (select id from channel where company_id='11111111-1111-1111-1111-111111111111' and code='TT'),
      'distributor','AGT-2001','Jeddah Distributor B')
 on conflict do nothing;

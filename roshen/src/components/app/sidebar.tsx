@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Home,
   Building2,
@@ -41,9 +41,18 @@ const ICONS: Record<string, LucideIcon> = {
 
 export function Sidebar({ nav, currentPath }: { nav: NavItem[]; currentPath?: string }) {
   const live = usePathname();
+  const search = useSearchParams();
   const pathname = currentPath ?? live;
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const tab = search.get("tab");
+  const isActive = (href: string) => {
+    const [path, query] = href.split("?");
+    if (path === "/") return pathname === "/";
+    if (pathname !== path && !pathname.startsWith(path + "/")) return false;
+    if (query) return tab === new URLSearchParams(query).get("tab");
+    // Plain path: stay active unless a tab-specific sibling owns the current tab.
+    if (path === "/organization") return tab !== "distributors";
+    return true;
+  };
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-white lg:flex">
