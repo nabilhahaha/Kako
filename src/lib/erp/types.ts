@@ -131,7 +131,8 @@ export type BusinessType =
   | 'salon'
   | 'hotel'
   | 'field_verification_only'
-  | 'route_planner';
+  | 'route_planner'
+  | 'fast_food';
 
 export interface Company {
   id: string;

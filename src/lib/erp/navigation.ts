@@ -347,6 +347,21 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    // Fast Food / Restaurant POS — an INDEPENDENT module surface. Reuses shared infrastructure
+    // (restaurant order tables, product catalog, scanner, receipt, reports/export, theme) but
+    // is operationally separate: own routes (/pos, /pos/reports), own cashier flow + reports,
+    // own business type (fast_food). Module-gated to restaurant OR pos so restaurant/cafe/
+    // fast_food (and bakery via pos) outlets get it. Does not touch FV / Route Planner /
+    // Multi-Form.
+    title: 'nav.sections.foodPos',
+    module: ['restaurant', 'pos'],
+    items: [
+      { label: 'nav.items.foodPos', href: '/pos', icon: ScanBarcode, perm: 'restaurant.manage' },
+      { label: 'nav.items.foodPosReports', href: '/pos/reports', icon: BarChart3, perm: ['reports.view', 'restaurant.manage'] },
+      { label: 'nav.items.foodPosSetup', href: '/pos/setup', icon: SlidersHorizontal, perm: 'restaurant.manage' },
+    ],
+  },
+  {
     title: 'nav.sections.salon',
     module: 'salon',
     items: [

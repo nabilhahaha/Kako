@@ -104,6 +104,31 @@
     --primary-foreground: 216 60% 10%;
     --ring: 217 91% 60%;
   }
+
+  /* Fast Food / Restaurant POS — warm food-service accent. Visual-only, scoped to POS
+     screens via the .food-theme wrapper. Same approach as .fv-theme: the interactive
+     PRIMARY accent (primary buttons, active category tabs, selected product, totals CTA) is
+     retargeted from the global navy to a warm amber/orange; --foreground (navy text/headers)
+     and the status tokens (green=paid/ready, amber=preparing, red=void) are unchanged. No
+     logic/permission/behavior change — components already use the `primary` token. */
+  .food-theme {
+    --primary: 24 89% 49%;              /* warm amber-orange */
+    --primary-foreground: 0 0% 100%;    /* white on amber */
+    --ring: 24 89% 49%;
+    --secondary: 33 90% 95%;            /* warm cream surface */
+    --secondary-foreground: 20 45% 18%; /* warm brown text on cream */
+    --accent: 33 90% 95%;
+    --accent-foreground: 20 45% 18%;
+  }
+  .dark .food-theme {
+    --primary: 27 92% 56%;              /* brighter warm orange on dark */
+    --primary-foreground: 20 50% 10%;
+    --ring: 27 92% 56%;
+    --secondary: 24 30% 18%;            /* deep warm brown surface */
+    --secondary-foreground: 33 70% 90%;
+    --accent: 24 30% 18%;
+    --accent-foreground: 33 70% 90%;
+  }
 }
 
 @layer base {

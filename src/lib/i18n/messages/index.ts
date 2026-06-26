@@ -96,6 +96,7 @@ import * as planBoard from './plan-board';
 import * as studio from './studio';
 import * as journeyBuilder from './journey-builder';
 import * as routePlanner from './route-planner';
+import * as foodPos from './food-pos';
 
 const MODULES = [
   core, shared, products, inventory, sales, customers, suppliers, purchases,
@@ -140,6 +141,7 @@ const MODULES = [
   studio,
   journeyBuilder,
   routePlanner,
+  foodPos,
 ];
 
 type Catalog = Record<string, unknown>;
