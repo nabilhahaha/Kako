@@ -1,0 +1,54 @@
+{
+  "profile": {
+    "agent_placeholder": "agent-sample-01",
+    "note": "Replace agent_placeholder with the real agent code/id from the file (e.g. AGT-xxxx). Source sheet = 'Row Data' (ignore 'Summary').",
+    "source_sheet": "Row Data",
+    "mapping_name": "Default mapping (agent-sample-01)",
+    "version_number": 1,
+    "is_default": true,
+    "status": "active"
+  },
+  "field_mapping": {
+    "customer_name":              { "source": "Cust Name" },
+    "customer_code":              { "source": "Cust Account" },
+    "city":                       { "source": "Depot", "via": "value_mapping", "note": "Depot doubles as branch; depot string → canonical city" },
+    "channel":                    { "source": "Channel", "via": "value_mapping" },
+    "salesman_name":              { "source": "Salesman Name", "fallback": "Sales Man" },
+    "region":                     { "source": "Region" },
+    "invoice_number":             { "source": "Invoice" },
+    "invoice_date":               { "source": "Invoice Date", "format": "excel_serial_date" },
+    "item_code":                  { "source": "Item Id" },
+    "roshen_item_code":           { "source": "Item Id", "note": "no distinct Roshen master code in file; using Item Id as SKU" },
+    "item_name":                  { "source": "Item Description" },
+    "item_category":              { "source": "Item Type" },
+    "unit_of_measure":            { "source": "SalesUnit" },
+    "sales_qty_pieces":           { "source": "Inv Qty Each" },
+    "sales_qty_cartons":          { "source": "Inv Qty Cases" },
+    "sales_value_excluding_vat":  { "source": "Invoice Amount ex Vat" },
+    "vat_amount":                 { "source": "Sales_Total_Tax" },
+    "net_value_after_discount":   { "source": "Net Amount", "note": "this column is NET INCL VAT in the file → store as net_value_reported, do not treat as ex-VAT" },
+    "cash_discount":              { "source": "Total Line Discount" },
+    "transaction_type":           { "source": "IsReturn", "via": "value_mapping", "note": "Yes → return, otherwise sale" },
+    "return_reason":              { "source": "Return Reason" },
+    "invoice_status":             { "source": "Order Status", "fallback": "Line Status" },
+    "route_number":               { "source": "Warehouse" },
+    "branch_code":                { "source": "Depot" },
+    "credit_note_number":         null
+  },
+  "keys": {
+    "line_dedupe_key": { "source": "Invoice_Key", "note": "natural key for duplicate-line detection" },
+    "invoice_header_key": { "source": "Invoice" }
+  },
+  "unmapped_extras_kept_in_raw": ["Class", "Supervisor", "NSM"],
+  "calculation_policy": {
+    "sales_value_basis": "excluding_vat_before_discount",
+    "vat_handling": "value_excludes_vat",
+    "vat_rate": 0.15,
+    "discount_handling": "ignore_discount_for_sla",
+    "discount_handling_note": "Your note was 'store_only_or_already_reflected'. Mapped to ignore_discount_for_sla (store, never subtract for SLA). If we confirm Total Line Discount is ALREADY reflected in Invoice Amount ex Vat, switch to discount_already_deducted (same SLA result; affects net_sales_ex_vat analytics only).",
+    "returns_handling": "returns_already_deducted",
+    "returns_handling_note": "Returns are negative rows (IsReturn=Yes → negative amounts/qty); summing nets them out, so do NOT subtract again.",
+    "sla_actual_basis": "sales_value_excluding_vat",
+    "resulting_sla_formula": "SLA Actual = SUM(Invoice Amount ex Vat) over Posted rows (negative return rows included)"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "note": "Scaffold. The actual source values must be filled from the file's distinct Channel / Depot / Class / IsReturn / Return Reason values (pending the file bytes). agent_id NULL = company-wide; set per-agent where the agent uses non-standard codes.",
+  "channel": [
+    { "source_value": "MT", "canonical_code": "MT" },
+    { "source_value": "Modern Trade", "canonical_code": "MT" },
+    { "source_value": "TT", "canonical_code": "TT" },
+    { "source_value": "Traditional Trade", "canonical_code": "TT" },
+    { "source_value": "GT", "canonical_code": "TT" },
+    { "source_value": "HoReCa", "canonical_code": "HRC" },
+    { "source_value": "Wholesale", "canonical_code": "WS" },
+    { "source_value": "<FILL FROM FILE>", "canonical_code": "<MAP>" }
+  ],
+  "city_from_depot": [
+    { "source_value": "<Depot value e.g. RUH-DC>", "canonical_city": "Riyadh" },
+    { "source_value": "<Depot value e.g. JED-DC>", "canonical_city": "Jeddah" },
+    { "source_value": "<FILL FROM FILE>", "canonical_city": "<MAP>" }
+  ],
+  "transaction_type_from_isreturn": [
+    { "source_value": "Yes", "canonical": "return" },
+    { "source_value": "Y", "canonical": "return" },
+    { "source_value": "No", "canonical": "sale" },
+    { "source_value": "N", "canonical": "sale" }
+  ],
+  "class_segment": {
+    "note": "Class is not a canonical SLA field. Kept in raw; optionally normalize to a future 'segment' dimension.",
+    "examples": [{ "source_value": "<FILL FROM FILE>", "canonical": "<MAP>" }]
+  },
+  "return_reason": [
+    { "source_value": "<FILL FROM FILE>", "canonical_text": "<standardized reason>" }
+  ]
+}
