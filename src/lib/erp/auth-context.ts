@@ -377,7 +377,7 @@ async function resolveUserContext(): Promise<UserContext | null> {
     permissions,
     modules,
     routePlannerAccess,
-    isRoutePlannerExperience: isRoutePlannerExperience({ email: (profile as Profile | null)?.email ?? user.email, companyPlanKey: company?.plan_key }),
+    isRoutePlannerExperience: isRoutePlannerExperience({ email: (profile as Profile | null)?.email ?? user.email, companyPlanKey: company?.plan_key, businessType: company?.business_type ?? null, modules }),
     isRoutePlannerDemo: isRoutePlannerDemoAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
     isRoutePlannerAdmin: isRoutePlannerAdminAccount({ email: (profile as Profile | null)?.email ?? user.email, topRole, permissions }),
   };
