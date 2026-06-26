@@ -1,5 +1,11 @@
 # Column Mapping Engine + Sales Calculation Policy (design)
 
+> **Format-agnostic by design.** This engine is **not tied to one fixed
+> template**. It supports **any** agent raw-data format through saved mapping
+> profiles, mapping versions, value mapping, validation, and calculation
+> policies. Field-tier rules (required / recommended / optional, what blocks vs.
+> warns) are in **`IMPORT-COMPATIBILITY.md`**.
+
 Each agent/distributor may deliver Excel/CSV in a **different layout and with
 different value semantics**. The platform therefore uses a flexible,
 **versioned** mapping engine: per-agent column mapping, value mapping, and a

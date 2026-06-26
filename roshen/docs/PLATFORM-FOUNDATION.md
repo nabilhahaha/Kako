@@ -130,7 +130,10 @@ layout and value semantics differ, column mapping is **per-agent and versioned**
 (`column_mapping_profile` / `column_mapping_version`), value normalization uses
 `value_mapping`, and each version carries a **sales calculation policy** so net
 sales is not a hardcoded universal rule. `sla_actual_value` is resolved per row
-at import. Full design: **`docs/MAPPING-ENGINE.md`** and
+at import. The engine is **format-agnostic** — any agent layout is supported via
+saved profiles/versions, value mapping, validation, and calculation policy.
+Full design: **`docs/MAPPING-ENGINE.md`**, **`docs/IMPORT-COMPATIBILITY.md`**
+(required/recommended/optional tiers + block-vs-warn rules), and
 **`docs/RAW-DATA-IMPORT-SPEC.md`**.
 
 ---
