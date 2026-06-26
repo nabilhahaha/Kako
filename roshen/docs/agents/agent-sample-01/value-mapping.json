@@ -1,31 +1,41 @@
 {
-  "note": "Scaffold. The actual source values must be filled from the file's distinct Channel / Depot / Class / IsReturn / Return Reason values (pending the file bytes). agent_id NULL = company-wide; set per-agent where the agent uses non-standard codes.",
+  "note": "Finalized from the real file's distinct values. Channels marked NEW are not in the current seed (MT/TT/HRC/WS) and need to be created or folded — see review item 5.",
   "channel": [
-    { "source_value": "MT", "canonical_code": "MT" },
-    { "source_value": "Modern Trade", "canonical_code": "MT" },
-    { "source_value": "TT", "canonical_code": "TT" },
-    { "source_value": "Traditional Trade", "canonical_code": "TT" },
-    { "source_value": "GT", "canonical_code": "TT" },
-    { "source_value": "HoReCa", "canonical_code": "HRC" },
-    { "source_value": "Wholesale", "canonical_code": "WS" },
-    { "source_value": "<FILL FROM FILE>", "canonical_code": "<MAP>" }
+    { "source_value": "TRADITIONAL TRADE", "canonical_code": "TT", "rows": 79828 },
+    { "source_value": "MODERN TRADE", "canonical_code": "MT", "rows": 645 },
+    { "source_value": "E-commerce", "canonical_code": "ECOM", "new": true, "rows": 416 },
+    { "source_value": "INTERNAL SALES", "canonical_code": "INT", "new": true, "rows": 378 },
+    { "source_value": "BUSINESS TO BUSINESS", "canonical_code": "B2B", "new": true, "rows": 6, "alt": "could fold into Wholesale (WS) — confirm" }
   ],
   "city_from_depot": [
-    { "source_value": "<Depot value e.g. RUH-DC>", "canonical_city": "Riyadh" },
-    { "source_value": "<Depot value e.g. JED-DC>", "canonical_city": "Jeddah" },
-    { "source_value": "<FILL FROM FILE>", "canonical_city": "<MAP>" }
+    { "source_value": "Jeddah", "canonical_city": "Jeddah" },
+    { "source_value": "Khamis Mushait", "canonical_city": "Khamis Mushait" },
+    { "source_value": "Riyadh", "canonical_city": "Riyadh" },
+    { "source_value": "Sakaka", "canonical_city": "Sakaka" },
+    { "source_value": "Taif", "canonical_city": "Taif" },
+    { "source_value": "Makkah", "canonical_city": "Makkah" },
+    { "source_value": "Madinah", "canonical_city": "Madinah" },
+    { "source_value": "Al Baha", "canonical_city": "Al Baha" },
+    { "source_value": "Najran", "canonical_city": "Najran" },
+    { "source_value": "Jazan", "canonical_city": "Jazan" },
+    { "source_value": "Yanbu", "canonical_city": "Yanbu" },
+    { "source_value": "Hail", "canonical_city": "Hail" },
+    { "source_value": "Tabuk", "canonical_city": "Tabuk" },
+    { "source_value": "Al Khobar", "canonical_city": "Al Khobar" },
+    { "source_value": "BTB", "canonical_city": "<NON-GEOGRAPHIC — confirm>", "flag": true, "rows": 297 },
+    { "source_value": "MT",  "canonical_city": "<NON-GEOGRAPHIC — confirm>", "flag": true, "rows": 645 }
   ],
+  "region_values_present": ["Western","South","Central","North","Northwestern","Eastern"],
   "transaction_type_from_isreturn": [
-    { "source_value": "Yes", "canonical": "return" },
-    { "source_value": "Y", "canonical": "return" },
-    { "source_value": "No", "canonical": "sale" },
-    { "source_value": "N", "canonical": "sale" }
+    { "source_value": "Yes", "canonical": "return", "rows": 2058 },
+    { "source_value": "No", "canonical": "sale", "rows": 79019 },
+    { "source_value": "(blank)", "canonical": "sale", "rows": 196, "note": "treat blank as sale" }
   ],
   "class_segment": {
-    "note": "Class is not a canonical SLA field. Kept in raw; optionally normalize to a future 'segment' dimension.",
-    "examples": [{ "source_value": "<FILL FROM FILE>", "canonical": "<MAP>" }]
+    "note": "Class = payment-term / customer segment (not a channel). Keep in raw; optional future 'segment' dimension.",
+    "values": ["SSS (45 Days)","SSS (30 Days)","CASH VAN","DISCOUNT STORES","WHOLESALE - RETAIL","LARGE GROCERY (SSS)","FOC","SUPER MARKET","STAND ALONE PORTAL CUSTOMER","OFFICE SALES","SSS (Cash)","SSS (15 Days)","BUSINESS TO BUSINESS","HYPER MARKET"]
   },
   "return_reason": [
-    { "source_value": "<FILL FROM FILE>", "canonical_text": "<standardized reason>" }
+    { "source_value": "<distinct Return Reason values to standardize>", "canonical_text": "<map>" }
   ]
 }

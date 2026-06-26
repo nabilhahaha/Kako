@@ -1,7 +1,7 @@
 {
   "profile": {
     "agent_placeholder": "agent-sample-01",
-    "note": "Replace agent_placeholder with the real agent code/id from the file (e.g. AGT-xxxx). Source sheet = 'Row Data' (ignore 'Summary').",
+    "note": "Replace with the real agent code/id. Source sheet = 'Row Data' (ignore 'Summary'). Verified against Row_Data_up_To_March.xlsx (81,273 rows, Jul 2025–Mar 2026).",
     "source_sheet": "Row Data",
     "mapping_name": "Default mapping (agent-sample-01)",
     "version_number": 1,
@@ -11,14 +11,14 @@
   "field_mapping": {
     "customer_name":              { "source": "Cust Name" },
     "customer_code":              { "source": "Cust Account" },
-    "city":                       { "source": "Depot", "via": "value_mapping", "note": "Depot doubles as branch; depot string → canonical city" },
+    "city":                       { "source": "Depot", "via": "value_mapping", "note": "Depot values are cities for this agent (mostly identity); 'BTB'/'MT' are non-geographic → flag" },
     "channel":                    { "source": "Channel", "via": "value_mapping" },
     "salesman_name":              { "source": "Salesman Name", "fallback": "Sales Man" },
-    "region":                     { "source": "Region" },
+    "region":                     { "source": "Region", "note": "Region is its own column (6 values); NOT derived from Depot — depot↔region is many-to-many" },
     "invoice_number":             { "source": "Invoice" },
     "invoice_date":               { "source": "Invoice Date", "format": "excel_serial_date" },
     "item_code":                  { "source": "Item Id" },
-    "roshen_item_code":           { "source": "Item Id", "note": "no distinct Roshen master code in file; using Item Id as SKU" },
+    "roshen_item_code":           { "source": "Item Id", "note": "no distinct Roshen master code; Item Id is the SKU (73 distinct items)" },
     "item_name":                  { "source": "Item Description" },
     "item_category":              { "source": "Item Type" },
     "unit_of_measure":            { "source": "SalesUnit" },
@@ -26,29 +26,52 @@
     "sales_qty_cartons":          { "source": "Inv Qty Cases" },
     "sales_value_excluding_vat":  { "source": "Invoice Amount ex Vat" },
     "vat_amount":                 { "source": "Sales_Total_Tax" },
-    "net_value_after_discount":   { "source": "Net Amount", "note": "this column is NET INCL VAT in the file → store as net_value_reported, do not treat as ex-VAT" },
+    "net_value_after_discount":   { "source": "Net Amount", "note": "NET INCL VAT (Net = ex-VAT + VAT confirmed for 100% of rows) → store as net_value_reported" },
+    "gross_value_before_discount":{ "source": "Gross Sales", "note": "Gross − Total Line Discount = ex-VAT (99.96% of rows)" },
     "cash_discount":              { "source": "Total Line Discount" },
-    "transaction_type":           { "source": "IsReturn", "via": "value_mapping", "note": "Yes → return, otherwise sale" },
+    "transaction_type":           { "source": "IsReturn", "via": "value_mapping", "note": "Yes → return; returns are negative rows" },
     "return_reason":              { "source": "Return Reason" },
-    "invoice_status":             { "source": "Order Status", "fallback": "Line Status" },
+    "invoice_status":             { "source": "Order Status", "fallback": "Line Status", "note": "all rows = 'Invoice' in this file (all posted)" },
     "route_number":               { "source": "Warehouse" },
     "branch_code":                { "source": "Depot" },
     "credit_note_number":         null
   },
   "keys": {
-    "line_dedupe_key": { "source": "Invoice_Key", "note": "natural key for duplicate-line detection" },
+    "line_dedupe_key": {
+      "sources": ["Invoice", "LineID", "Item Id", "Invoice Date"],
+      "note": "Invoice_Key is INVOICE-level (12,774 = unique invoices), NOT per line. Use Invoice + LineID + Item Id (roshen_item_code) + Invoice Date for line uniqueness."
+    },
+    "line_dedupe_fallback_hash": {
+      "when": "LineID missing in a future agent file",
+      "sources": ["invoice_number", "invoice_date", "customer_code", "item_code", "quantity", "sales_value_excluding_vat"],
+      "note": "Deterministic hash of these fields acts as the line key when LineID is absent."
+    },
     "invoice_header_key": { "source": "Invoice" }
   },
-  "unmapped_extras_kept_in_raw": ["Class", "Supervisor", "NSM"],
+  "unmapped_extras_kept_in_raw": [
+    "Created Date","SO/RMA","CustGroup","SB Reference No.","Invoice Account","SO/Return",
+    "Order Type","Site","Workflow Date","Packing Slip/DN Date:Time","Appointment Date",
+    "Column1","Column2","Creation User","Division","Class","LineID","Item Group",
+    "Price List Name","EA Unit Price","SalesUnitPrice","Order Amount Exc VAT",
+    "Delivered Qty Each","Delivered Qty Cases","Ord: Del Variance Qty Each",
+    "Ord: Del Variance Qty Cases","Ord: Inv Variance Qty Each","Ord: Inv Variance Qty Cases",
+    "Del:Inv Variance Qty Each","Del:Inv Variance Qty Cases","Customer Classification",
+    "NSM","Supervisor","Invoice_Key","Unit standered Price","Total Invoice Amount",
+    "Day","Invoice Month","Invoice Month N","Invoice Yeat","Quarter","Discount %"
+  ],
   "calculation_policy": {
-    "sales_value_basis": "excluding_vat_before_discount",
+    "_locked": true,
+    "sales_value_basis": "excluding_vat_after_discount",
     "vat_handling": "value_excludes_vat",
     "vat_rate": 0.15,
-    "discount_handling": "ignore_discount_for_sla",
-    "discount_handling_note": "Your note was 'store_only_or_already_reflected'. Mapped to ignore_discount_for_sla (store, never subtract for SLA). If we confirm Total Line Discount is ALREADY reflected in Invoice Amount ex Vat, switch to discount_already_deducted (same SLA result; affects net_sales_ex_vat analytics only).",
+    "discount_handling": "discount_already_deducted",
+    "discount_handling_note": "Total Line Discount stored for ANALYSIS ONLY; never subtracted from SLA. Confirmed: Gross − Discount = ex-VAT (99.96%) and Net = ex-VAT + VAT (100%).",
     "returns_handling": "returns_already_deducted",
-    "returns_handling_note": "Returns are negative rows (IsReturn=Yes → negative amounts/qty); summing nets them out, so do NOT subtract again.",
+    "returns_handling_note": "Return rows are negative (IsReturn=Yes). Summing ex-VAT nets them out; do not subtract again. Return value (analysis) = ABS(sum of negative return ex-VAT) = 1765701.05.",
+    "vat_note": "VAT (Sales_Total_Tax) stored separately, excluded from SLA.",
+    "net_amount_note": "Net Amount stored as net_value_reported for reconciliation only; NOT the SLA basis.",
     "sla_actual_basis": "sales_value_excluding_vat",
-    "resulting_sla_formula": "SLA Actual = SUM(Invoice Amount ex Vat) over Posted rows (negative return rows included)"
+    "resulting_sla_formula": "SLA Actual = SUM(Invoice Amount ex Vat) over all rows (negative returns included)",
+    "verified_total_sla_jul2025_mar2026": 23106476.70
   }
 }
