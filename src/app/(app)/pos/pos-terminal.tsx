@@ -265,24 +265,23 @@ export function PosTerminal({ companyId, outletName, cashierName }: { companyId:
             ))}
           </div>
 
-          {/* Product grid */}
-          <div className="grid flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto p-3 sm:grid-cols-3 xl:grid-cols-4">
+          {/* Product grid — dense, touch-friendly cards so the cashier sees more at once. */}
+          <div className="grid flex-1 auto-rows-min grid-cols-3 gap-2 overflow-y-auto p-2.5 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
             {filtered.map((p) => (
               <button key={p.id} onClick={() => add(p)}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#ecdcc7] bg-white text-start shadow-sm transition active:scale-[0.97] hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
+                className="group relative flex flex-col overflow-hidden rounded-xl border border-[#ecdcc7] bg-white text-start shadow-sm transition active:scale-[0.97] hover:border-primary/60 hover:shadow-md">
                 <div className="relative aspect-square w-full overflow-hidden bg-[#f6ece0]">
                   {p.imageUrl
                     ? <img src={p.imageUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition group-hover:scale-105" />
                     : <ImagePlaceholder />}
                   {/* Add affordance */}
-                  <span className="absolute end-2 bottom-2 grid h-8 w-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-md transition group-hover:scale-110">
-                    <Plus className="h-4 w-4" strokeWidth={3} />
+                  <span className="absolute end-1.5 bottom-1.5 grid h-6 w-6 place-items-center rounded-full bg-primary text-primary-foreground shadow transition group-hover:scale-110">
+                    <Plus className="h-3.5 w-3.5" strokeWidth={3} />
                   </span>
                 </div>
-                <div className="flex flex-1 flex-col gap-0.5 p-2.5">
-                  <span className="line-clamp-2 text-sm font-semibold leading-tight">{pname(p)}</span>
-                  {p.categoryId && catName.get(p.categoryId) && <span className="truncate text-[11px] text-muted-foreground">{catName.get(p.categoryId)}</span>}
-                  <span className="mt-1 text-base font-extrabold text-primary tabular-nums">{p.price.toFixed(2)}</span>
+                <div className="flex flex-1 flex-col gap-0 p-1.5">
+                  <span className="line-clamp-2 text-[12px] font-semibold leading-tight">{pname(p)}</span>
+                  <span className="mt-0.5 text-[13px] font-extrabold text-primary tabular-nums">{p.price.toFixed(2)}</span>
                 </div>
               </button>
             ))}
