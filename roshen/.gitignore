@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# Public, build-time Supabase config (publishable key is safe to expose) —
+# committed so preview deploys (Vercel/Netlify) build with the right backend.
+!.env.production
 
 # vercel
 .vercel

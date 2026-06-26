@@ -1,0 +1,7 @@
+# This branch's preview should build the new Roshen Next.js app, not the
+# root Vite "Trade Spend" app. Point Netlify's build base at roshen/.
+# (Netlify auto-installs @netlify/plugin-nextjs when it detects Next.js.)
+[build]
+  base = "roshen"
+  command = "npm run build"
+  publish = ".next"
