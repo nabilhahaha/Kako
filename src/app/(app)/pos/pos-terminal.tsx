@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, Loader2, Plus, Minus, X, Trash2, StickyNote, UtensilsCrossed, ShoppingBag, Bike,
-  RefreshCw, Image as ImageIcon, CheckCircle2, Keyboard, CreditCard, Banknote, Wallet, CloudOff,
+  RefreshCw, Image as ImageIcon, CheckCircle2, Keyboard, CreditCard, Banknote, Wallet, CloudOff, Printer,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ import { localStorageStore, memoryStore } from './offline/offline-store';
 import { useOfflineSync } from './offline/use-offline-sync';
 import { newOfflineSale, tempNumber, type OfflineSalePayload } from './offline/offline-queue';
 import { printOfflineReceipt } from './offline/offline-receipt';
+import { loadPrintSettings, receiptQuery, type PosPrintSettings } from './print-settings';
 import {
   getPosBootstrap, posCheckout, type PosProduct, type PosCategory, type PosTable,
 } from './pos-actions';
@@ -26,7 +27,12 @@ const MODE_ICON = { dine_in: UtensilsCrossed, takeaway: ShoppingBag, delivery: B
 type Method = 'cash' | 'card' | 'mixed';
 const METHOD_ICON = { cash: Banknote, card: CreditCard, mixed: Wallet } as const;
 
-export function PosTerminal({ companyId }: { companyId: string }) {
+/** The last completed sale, retained ONLY in memory for the Reprint action (no extra storage). */
+type LastSale =
+  | { kind: 'online'; invoiceId: string; orderId: string; method: Method; received: number | null; change: number | null }
+  | { kind: 'offline'; tempNumber: string; lines: CartLine[]; total: number; method: Method; received: number | null; change: number | null };
+
+export function PosTerminal({ companyId, outletName, cashierName }: { companyId: string; outletName?: string; cashierName?: string }) {
   const { t, locale } = useI18n();
   const devices = usePosDevices();
   const online = usePosOnline();
@@ -54,8 +60,18 @@ export function PosTerminal({ companyId }: { companyId: string }) {
   const [received, setReceived] = useState('');
   const [busy, setBusy] = useState(false);
   const [ticket, setTicket] = useState(1);
+  const [printSettings, setPrintSettings] = useState<PosPrintSettings>(() => loadPrintSettings(companyId));
+  const [lastSale, setLastSale] = useState<LastSale | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const manualRef = useRef<HTMLInputElement | null>(null);
+
+  // Keep print settings live if the manager changes them (this tab or another).
+  useEffect(() => {
+    const refresh = () => setPrintSettings(loadPrintSettings(companyId));
+    window.addEventListener('storage', refresh);
+    window.addEventListener('focus', refresh);
+    return () => { window.removeEventListener('storage', refresh); window.removeEventListener('focus', refresh); };
+  }, [companyId]);
 
   const pname = useCallback((p: { name: string; nameAr: string | null }) => (ar && p.nameAr) || p.name, [ar]);
 
@@ -125,10 +141,38 @@ export function PosTerminal({ companyId }: { companyId: string }) {
 
   function resetOrder() { setLines([]); setOrderNote(''); setTableId(''); setReceived(''); setMethod('cash'); }
 
+  // Print a completed sale's receipt. ONLY the receipt prints (a dedicated print route / window),
+  // never the POS screen. Returns false when the print could NOT start (e.g. popup blocked) so the
+  // caller can keep the sale and surface a Reprint. Works online (server invoice) and offline
+  // (local receipt data) — printing is independent of sync.
+  const doPrint = useCallback(async (sale: LastSale): Promise<boolean> => {
+    const isCash = sale.method !== 'card';
+    if (sale.kind === 'online') {
+      const q = receiptQuery(printSettings, { received: isCash ? sale.received : null, change: isCash ? sale.change : null });
+      const r = await devices.printer.print({ kind: 'receipt', invoiceId: sale.invoiceId, orderId: sale.orderId, openDrawer: sale.method === 'cash', query: q });
+      return r.ok;
+    }
+    return printOfflineReceipt({
+      tempNumber: sale.tempNumber, outlet: outletName ?? '', lines: sale.lines, total: sale.total,
+      paperWidth: printSettings.paperWidth, received: isCash ? sale.received : null, change: isCash ? sale.change : null,
+      cashier: printSettings.showCashier ? (cashierName ?? null) : null,
+      labels: { pending: t('foodPos.pendingSync'), total: t('foodPos.total'), temp: t('foodPos.tempNo'), paid: t('foodPos.tendered'), change: t('foodPos.change') },
+    });
+  }, [printSettings, devices, outletName, cashierName, t]);
+
+  async function reprint() {
+    if (!lastSale) return;
+    const ok = await doPrint(lastSale);
+    if (!ok) flash(t('foodPos.printFailed'));
+  }
+
   async function pay() {
     if (lines.length === 0 || busy) return;
     setBusy(true);
     const items = lines.map((l) => ({ productId: l.productId, name: l.name, price: l.price, qty: l.qty, note: l.note }));
+    const isCash = method !== 'card';
+    const recv = isCash ? tn : null;
+    const chg = isCash ? change : null;
     try {
       if (online) {
         const res = await posCheckout({
@@ -138,28 +182,36 @@ export function PosTerminal({ companyId }: { companyId: string }) {
           paymentMethod: method, items, clientUuid: crypto.randomUUID(),
         });
         if (res.ok && res.data) {
-          // Print via the device provider (browser now; ESC/POS/bridge later) + open the drawer on cash.
-          void devices.printer.print({ kind: 'receipt', invoiceId: res.data.invoiceId, orderId: res.data.orderId, openDrawer: method === 'cash' });
+          const sale: LastSale = { kind: 'online', invoiceId: res.data.invoiceId, orderId: res.data.orderId, method, received: recv, change: chg };
+          setLastSale(sale);
           if (method === 'cash' && devices.cashDrawer.canOpen) void devices.cashDrawer.open();
-          flash(t('foodPos.paid') + (res.data.invoiceNumber ? ` · ${res.data.invoiceNumber}` : ''));
+          // Auto-print on success when enabled; keep the sale + offer Reprint if print can't start.
+          let printed = true;
+          if (printSettings.autoPrint) printed = await doPrint(sale);
+          flash(printed
+            ? t('foodPos.paid') + (res.data.invoiceNumber ? ` · ${res.data.invoiceNumber}` : '')
+            : t('foodPos.printFailed'));
           setTicket((n) => n + 1); resetOrder();
         } else {
           flash(t('foodPos.errPayment'));
         }
       } else {
-        // OFFLINE: queue locally (frozen prices + a local temp number) and print a "PENDING SYNC"
-        // receipt. It syncs to an official ZATCA invoice when the connection returns.
+        // OFFLINE: queue locally (frozen prices + a local temp number). It syncs to an official
+        // ZATCA invoice when the connection returns — printing uses the LOCAL data, independent of sync.
         const temp = tempNumber(Date.now());
-        const sale: OfflineSalePayload = {
+        const payload: OfflineSalePayload = {
           mode, tableId: tableId || null, customerName: null, customerPhone: null, customerAddress: null,
           deliveryFee: charges.deliveryFee, discountType: charges.discountType, discountValue: charges.discountValue,
           serviceRate: charges.serviceRate, taxRate: charges.taxRate, orderNote: orderNote || null,
           paymentMethod: method, items, capturedTotal: totals.total,
         };
-        store.put(newOfflineSale({ localUuid: crypto.randomUUID(), tempNumber: temp, companyId, cashier: null, createdAt: new Date().toISOString(), sale }));
+        store.put(newOfflineSale({ localUuid: crypto.randomUUID(), tempNumber: temp, companyId, cashier: cashierName ?? null, createdAt: new Date().toISOString(), sale: payload }));
         sync.refresh();
-        printOfflineReceipt({ tempNumber: temp, outlet: '', lines, total: totals.total, labels: { pending: t('foodPos.pendingSync'), total: t('foodPos.total'), temp: t('foodPos.tempNo') } });
-        flash(t('foodPos.pendingSync') + ` · ${temp}`);
+        const sale: LastSale = { kind: 'offline', tempNumber: temp, lines: [...lines], total: totals.total, method, received: recv, change: chg };
+        setLastSale(sale);
+        let printed = true;
+        if (printSettings.autoPrint) printed = await doPrint(sale);
+        flash(printed ? t('foodPos.pendingSync') + ` · ${temp}` : t('foodPos.printFailed'));
         setTicket((n) => n + 1); resetOrder();
       }
     } finally {
@@ -246,7 +298,15 @@ export function PosTerminal({ companyId }: { companyId: string }) {
               <h2 className="text-sm font-bold">{t('foodPos.cart')}</h2>
               <span className="text-[11px] text-muted-foreground">{t('foodPos.itemsCount', { n: lines.reduce((s, l) => s + l.qty, 0) })}</span>
             </div>
-            <span className="rounded-lg bg-[#faf1e6] px-2.5 py-1 font-mono text-xs font-bold text-primary">{ticketNo}</span>
+            <div className="flex items-center gap-1.5">
+              {lastSale && (
+                <button onClick={() => void reprint()} title={t('foodPos.reprint')}
+                  className="inline-flex h-7 items-center gap-1 rounded-lg border border-[#e7d6c2] bg-white px-2 text-[11px] font-semibold text-muted-foreground hover:bg-[#faf1e6]">
+                  <Printer className="h-3.5 w-3.5" /> {t('foodPos.reprint')}
+                </button>
+              )}
+              <span className="rounded-lg bg-[#faf1e6] px-2.5 py-1 font-mono text-xs font-bold text-primary">{ticketNo}</span>
+            </div>
           </div>
 
           {/* Order mode */}

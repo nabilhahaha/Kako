@@ -8,8 +8,11 @@
 import type { PrintProvider, PrintJob, PrintResult, CashDrawerProvider, PosDeviceCapabilities } from './types';
 
 export function receiptUrl(job: PrintJob): string {
-  if (job.invoiceId) return `/print/pos/${job.invoiceId}?autoprint=1`;
-  if (job.orderId) return `/print/restaurant/order/${job.orderId}?autoprint=1`;
+  // The print settings query (paper width, show flags, received/change) already carries
+  // autoprint=1; fall back to a bare autoprint when no settings query was supplied.
+  const q = job.query && job.query.length > 0 ? job.query : 'autoprint=1';
+  if (job.invoiceId) return `/print/pos/${job.invoiceId}?${q}`;
+  if (job.orderId) return `/print/restaurant/order/${job.orderId}?${q}`;
   return '/pos';
 }
 

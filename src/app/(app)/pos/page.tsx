@@ -15,5 +15,7 @@ export default async function FoodPosPage() {
   const ctx = await requirePermission('restaurant.manage');
   // The dedicated POS shell (src/app/(app)/layout.tsx) already provides the `.food-theme`
   // wrapper, the espresso chrome and a full-bleed content area — the terminal fills it.
-  return <PosTerminal companyId={ctx.companyId ?? ''} />;
+  const outletName = ctx.company?.name_ar || ctx.company?.name || '';
+  const cashierName = ctx.profile.full_name || ctx.profile.email || '';
+  return <PosTerminal companyId={ctx.companyId ?? ''} outletName={outletName} cashierName={cashierName} />;
 }

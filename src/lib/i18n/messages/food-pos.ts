@@ -24,6 +24,7 @@ export const ar = {
     tendered: 'المبلغ المدفوع', change: 'الباقي', balanceDue: 'المتبقّي', quickCash: 'مبالغ سريعة', exact: 'بالضبط',
     cashPart: 'كاش', cardPart: 'بطاقة',
     complete: 'إتمام الدفع', completing: 'جارٍ الإتمام…', paid: 'تم الدفع', newOrder: 'طلب جديد', printReceipt: 'طباعة الفاتورة',
+    reprint: 'إعادة طباعة', printFailed: 'تمت عملية البيع. تعذّر بدء الطباعة.',
     // badges
     outOfStock: 'غير متوفر', bestSeller: 'الأكثر مبيعًا',
     // scan feedback
@@ -74,6 +75,12 @@ export const ar = {
     dineIn: 'صالة', takeaway: 'سفري', delivery: 'توصيل', empty: 'لا توجد مبيعات في ورديتك اليوم.',
     since: 'منذ', cashier: 'الكاشير', you: 'أنت',
   },
+  foodPosPrint: {
+    title: 'إعدادات الطباعة', subtitle: 'الطابعة الحرارية والإيصال',
+    autoPrint: 'طباعة تلقائية بعد الدفع', paperWidth: 'عرض الورق',
+    showLogo: 'إظهار الشعار', showQr: 'إظهار رمز QR', showCashier: 'إظهار اسم الكاشير',
+    saved: 'تم الحفظ', note: 'تُحفظ هذه الإعدادات على هذا الجهاز.',
+  },
 };
 
 export const en = {
@@ -94,6 +101,7 @@ export const en = {
     tendered: 'Tendered', change: 'Change', balanceDue: 'Balance', quickCash: 'Quick cash', exact: 'Exact',
     cashPart: 'Cash', cardPart: 'Card',
     complete: 'Complete payment', completing: 'Completing…', paid: 'Paid', newOrder: 'New order', printReceipt: 'Print receipt',
+    reprint: 'Reprint', printFailed: 'Sale completed. Print could not start.',
     outOfStock: 'Out of stock', bestSeller: 'Best seller',
     scanAdded: 'Added', scanQtyUp: 'Qty increased', notFound: 'Barcode not found: {code}',
     multiMatch: 'Multiple matches — pick an item', chooseProduct: 'Choose a product',
@@ -140,5 +148,11 @@ export const en = {
     byMethod: 'By payment method', byMode: 'By order type', cash: 'Cash', card: 'Card', mixed: 'Mixed',
     dineIn: 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery', empty: 'No sales in your shift today.',
     since: 'Since', cashier: 'Cashier', you: 'You',
+  },
+  foodPosPrint: {
+    title: 'Print settings', subtitle: 'Thermal printer & receipt',
+    autoPrint: 'Auto-print after payment', paperWidth: 'Paper width',
+    showLogo: 'Show logo', showQr: 'Show QR', showCashier: 'Show cashier name',
+    saved: 'Saved', note: 'These settings are saved on this device.',
   },
 };
