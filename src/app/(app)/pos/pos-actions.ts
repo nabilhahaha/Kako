@@ -135,9 +135,13 @@ export interface PosCheckoutInput {
   orderNote?: string | null;
   paymentMethod: 'cash' | 'card' | 'mixed';
   items: PosCheckoutItem[];
+  /** Client-generated UUID for offline-sync idempotency: the official invoice is issued
+   *  exactly once per (company, clientUuid). A retry/sync with the same value returns the
+   *  already-issued invoice instead of creating a duplicate official number. */
+  clientUuid?: string | null;
 }
 
-export interface PosCheckoutResult { orderId: string; invoiceId: string; invoiceNumber: string }
+export interface PosCheckoutResult { orderId: string; invoiceId: string; invoiceNumber: string; deduped?: boolean }
 
 /**
  * One-shot checkout: create the order + items, then close it (atomic totals + GL via
@@ -154,6 +158,14 @@ export async function posCheckout(input: PosCheckoutInput): Promise<ActionResult
   const mode: OrderMode = ['dine_in', 'takeaway', 'delivery'].includes(input.mode) ? input.mode : 'takeaway';
   const num = (n: number | undefined) => (Number.isFinite(n) && (n as number) >= 0 ? (n as number) : 0);
   const sb = await createClient();
+
+  // Idempotency: if this clientUuid was already issued (offline sync retry), return it — never
+  // mint a second official invoice number for the same sale.
+  if (input.clientUuid) {
+    const { data: existing } = await sb.from('erp_pos_invoices')
+      .select('id, invoice_number, order_id').eq('company_id', ctx.companyId).eq('client_uuid', input.clientUuid).maybeSingle();
+    if (existing) return { ok: true, data: { orderId: (existing.order_id as string) ?? '', invoiceId: existing.id as string, invoiceNumber: (existing.invoice_number as string) ?? '', deduped: true } };
+  }
 
   const { data: order, error: e1 } = await sb.from('erp_restaurant_orders').insert({
     company_id: ctx.companyId,
@@ -218,6 +230,7 @@ export async function posCheckout(input: PosCheckoutInput): Promise<ActionResult
       subtotal: built.payload.totals.subtotal, discount_total: built.payload.totals.discount,
       service_total: built.payload.totals.service, tax_total: built.payload.totals.tax, grand_total: built.payload.totals.grandTotal,
       status: 'issued', payload: built.payload, zatca_qr: built.qr, created_by: ctx.userId,
+      client_uuid: input.clientUuid ?? null,
     }).select('id').single();
     invoiceId = (inv?.id as string) ?? '';
     if (invoiceId) await logAudit(sb, { action: 'issue', entity: 'pos_invoice', entityId: invoiceId, companyId: ctx.companyId, details: { invoice_number: invoiceNumber, total: built.payload.totals.grandTotal } });

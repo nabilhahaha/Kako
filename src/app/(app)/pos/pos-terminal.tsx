@@ -10,6 +10,10 @@ import { cn } from '@/lib/utils';
 import { ScanButton, type ScanResult } from '@/components/scanning/scanner';
 import { usePosDevices } from './devices/use-pos-devices';
 import { usePosOnline, toggleFullscreen } from './devices/use-pos-online';
+import { localStorageStore, memoryStore } from './offline/offline-store';
+import { useOfflineSync } from './offline/use-offline-sync';
+import { newOfflineSale, tempNumber, type OfflineSalePayload } from './offline/offline-queue';
+import { printOfflineReceipt } from './offline/offline-receipt';
 import {
   getPosBootstrap, posCheckout, type PosProduct, type PosCategory, type PosTable,
 } from './pos-actions';
@@ -20,10 +24,12 @@ import {
 
 const MODE_ICON = { dine_in: UtensilsCrossed, takeaway: ShoppingBag, delivery: Bike } as const;
 
-export function PosTerminal() {
+export function PosTerminal({ companyId }: { companyId: string }) {
   const { t, locale } = useI18n();
   const devices = usePosDevices();
   const online = usePosOnline();
+  const store = useMemo(() => (typeof window !== 'undefined' && companyId ? localStorageStore(companyId) : memoryStore()), [companyId]);
+  const sync = useOfflineSync(store, online);
   const ar = locale === 'ar';
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<PosProduct[]>([]);
@@ -46,10 +52,23 @@ export function PosTerminal() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await getPosBootstrap();
-    if (res.ok) { setProducts(res.data.products); setCategories(res.data.categories); setTables(res.data.tables); }
+    // Wrap the server call so an offline reload (network throw) falls back to the cached menu
+    // instead of breaking the screen — the cashier keeps selling against cached catalog.
+    let ok = false;
+    try {
+      const res = await getPosBootstrap();
+      if (res.ok) {
+        setProducts(res.data.products); setCategories(res.data.categories); setTables(res.data.tables);
+        store.cacheMenu(res.data);   // refresh the offline menu cache while online
+        ok = true;
+      }
+    } catch { /* offline / network error → use cache below */ }
+    if (!ok) {
+      const cached = store.getMenu<{ products: PosProduct[]; categories: PosCategory[]; tables: PosTable[] }>();
+      if (cached) { setProducts(cached.products); setCategories(cached.categories); setTables(cached.tables); }
+    }
     setLoading(false);
-  }, []);
+  }, [store]);
   useEffect(() => { void load(); }, [load]);
 
   function flash(msg: string) { setToast(msg); window.setTimeout(() => setToast(null), 1600); }
@@ -115,6 +134,12 @@ export function PosTerminal() {
               className="h-10 w-full rounded-xl border bg-background ps-9 pe-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <ScanButton onScan={onScan} label={t('foodPos.scan')} className="h-10 shrink-0 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground" />
+          {(sync.counts.pending + sync.counts.failed) > 0 && (
+            <button onClick={() => void sync.drain()} title={t('foodPos.pendingSync')}
+              className="grid h-10 shrink-0 place-items-center rounded-xl border border-amber-300 bg-amber-50 px-2.5 text-xs font-bold text-amber-700">
+              {sync.counts.pending + sync.counts.failed} ⏳
+            </button>
+          )}
           <button onClick={() => void toggleFullscreen()} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border" aria-label={t('foodPos.fullscreen')}>
             <Maximize2 className="h-4 w-4" />
           </button>
@@ -224,8 +249,7 @@ export function PosTerminal() {
           <div className="flex gap-2 pt-1">
             <button onClick={() => { if (lines.length && confirm(t('foodPos.clearConfirm'))) { setLines([]); setOrderNote(''); } }}
               disabled={lines.length === 0} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border text-destructive disabled:opacity-40"><Trash2 className="h-5 w-5" /></button>
-            <button onClick={() => setPayOpen(true)} disabled={lines.length === 0 || !online}
-              title={!online ? t('foodPos.offlinePay') : undefined}
+            <button onClick={() => setPayOpen(true)} disabled={lines.length === 0}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-40">
               {t('foodPos.pay')} · {totals.total.toFixed(2)}
             </button>
@@ -255,15 +279,32 @@ export function PosTerminal() {
           total={totals.total}
           onClose={() => setPayOpen(false)}
           onConfirm={async (method) => {
-            const res = await posCheckout({
-              mode, tableId: tableId || null, orderNote,
-              discountType: charges.discountType, discountValue: charges.discountValue,
-              serviceRate: charges.serviceRate, taxRate: charges.taxRate, deliveryFee: charges.deliveryFee,
-              paymentMethod: method, items: lines.map((l) => ({ productId: l.productId, name: l.name, price: l.price, qty: l.qty, note: l.note })),
-            });
-            if (res.ok && res.data) { void onPaid(res.data.invoiceId, res.data.orderId, method); return true; }
-            flash(t('foodPos.errPayment'));
-            return false;
+            const items = lines.map((l) => ({ productId: l.productId, name: l.name, price: l.price, qty: l.qty, note: l.note }));
+            if (online) {
+              const res = await posCheckout({
+                mode, tableId: tableId || null, orderNote,
+                discountType: charges.discountType, discountValue: charges.discountValue,
+                serviceRate: charges.serviceRate, taxRate: charges.taxRate, deliveryFee: charges.deliveryFee,
+                paymentMethod: method, items, clientUuid: crypto.randomUUID(),
+              });
+              if (res.ok && res.data) { void onPaid(res.data.invoiceId, res.data.orderId, method); return true; }
+              flash(t('foodPos.errPayment'));
+              return false;
+            }
+            // OFFLINE: queue the sale locally (frozen prices + a local temp number) and print a
+            // local "PENDING SYNC" receipt. It syncs to an official ZATCA invoice when online.
+            const temp = tempNumber(Date.now());
+            const sale: OfflineSalePayload = {
+              mode, tableId: tableId || null, customerName: null, customerPhone: null, customerAddress: null,
+              deliveryFee: charges.deliveryFee, discountType: charges.discountType, discountValue: charges.discountValue,
+              serviceRate: charges.serviceRate, taxRate: charges.taxRate, orderNote: orderNote || null,
+              paymentMethod: method, items, capturedTotal: totals.total,
+            };
+            store.put(newOfflineSale({ localUuid: crypto.randomUUID(), tempNumber: temp, companyId, cashier: null, createdAt: new Date().toISOString(), sale }));
+            sync.refresh();
+            printOfflineReceipt({ tempNumber: temp, outlet: '', lines, total: totals.total, labels: { pending: t('foodPos.pendingSync'), total: t('foodPos.total'), temp: t('foodPos.tempNo') } });
+            setPayOpen(false); setLines([]); setOrderNote(''); setTableId('');
+            return true;
           }}
         />
       )}

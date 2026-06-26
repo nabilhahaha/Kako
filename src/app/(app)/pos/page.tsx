@@ -12,10 +12,10 @@ export const metadata: Metadata = { title: 'VANTORA — POS' };
  * scanner and receipt — without touching Field Verification, Route Planner or Multi-Form.
  */
 export default async function FoodPosPage() {
-  await requirePermission('restaurant.manage');
+  const ctx = await requirePermission('restaurant.manage');
   return (
     <div className="food-theme -m-4 sm:-m-6">
-      <PosTerminal />
+      <PosTerminal companyId={ctx.companyId ?? ''} />
     </div>
   );
 }
