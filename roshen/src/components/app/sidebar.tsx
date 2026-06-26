@@ -43,7 +43,7 @@ export function Sidebar({ nav, currentPath }: { nav: NavItem[]; currentPath?: st
   const live = usePathname();
   const pathname = currentPath ?? live;
   const isActive = (href: string) =>
-    href === "/app" ? pathname === "/app" : pathname.startsWith(href);
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-white lg:flex">

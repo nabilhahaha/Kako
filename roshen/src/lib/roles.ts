@@ -11,19 +11,19 @@ const ALL_ACTIVE: AppRole[] = ["admin", "company_manager", "area_manager"];
 const GLOBAL: AppRole[] = ["admin", "company_manager"];
 
 export const NAV: NavItem[] = [
-  { href: "/app", label: "Home", icon: "Home", roles: ALL_ACTIVE },
-  { href: "/app/workspace", label: "Workspace", icon: "CheckSquare", roles: ALL_ACTIVE },
-  { href: "/app/calendar", label: "Calendar", icon: "CalendarDays", roles: ALL_ACTIVE },
-  { href: "/app/requests", label: "Requests", icon: "ClipboardList", roles: ALL_ACTIVE },
-  { href: "/app/organization", label: "Organization", icon: "Building2", roles: GLOBAL },
-  { href: "/app/agents", label: "Agents", icon: "Truck", roles: ALL_ACTIVE },
-  { href: "/app/upload", label: "Raw Data Upload", icon: "Upload", roles: GLOBAL },
-  { href: "/app/mapping", label: "Mapping Profiles", icon: "SlidersHorizontal", roles: GLOBAL },
-  { href: "/app/imports", label: "Import Batches", icon: "Database", roles: ALL_ACTIVE },
-  { href: "/app/targets", label: "SLA Targets", icon: "Target", roles: GLOBAL },
-  { href: "/app/sla", label: "SLA Report", icon: "BarChart3", roles: ALL_ACTIVE },
-  { href: "/app/users", label: "Users & Scopes", icon: "Users", roles: GLOBAL },
-  { href: "/app/settings", label: "Settings", icon: "Settings", roles: ALL_ACTIVE },
+  { href: "/", label: "Home", icon: "Home", roles: ALL_ACTIVE },
+  { href: "/workspace", label: "Workspace", icon: "CheckSquare", roles: ALL_ACTIVE },
+  { href: "/calendar", label: "Calendar", icon: "CalendarDays", roles: ALL_ACTIVE },
+  { href: "/requests", label: "Requests", icon: "ClipboardList", roles: ALL_ACTIVE },
+  { href: "/organization", label: "Organization", icon: "Building2", roles: GLOBAL },
+  { href: "/agents", label: "Agents", icon: "Truck", roles: ALL_ACTIVE },
+  { href: "/raw-data-upload", label: "Raw Data Upload", icon: "Upload", roles: GLOBAL },
+  { href: "/mapping-profiles", label: "Mapping Profiles", icon: "SlidersHorizontal", roles: GLOBAL },
+  { href: "/import-batches", label: "Import Batches", icon: "Database", roles: ALL_ACTIVE },
+  { href: "/sla-targets", label: "SLA Targets", icon: "Target", roles: GLOBAL },
+  { href: "/sla-report", label: "SLA Report", icon: "BarChart3", roles: ALL_ACTIVE },
+  { href: "/users-scopes", label: "Users & Scopes", icon: "Users", roles: GLOBAL },
+  { href: "/settings", label: "Settings", icon: "Settings", roles: ALL_ACTIVE },
 ];
 
 export const ROLE_LABEL: Record<string, string> = {

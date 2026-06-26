@@ -39,7 +39,7 @@ export async function upsertRegion(fd: FormData) {
       .from("region")
       .insert({ company_id: companyId, country_id: country.id, name, code });
   }
-  revalidatePath("/app/organization");
+  revalidatePath("/organization");
 }
 
 export async function upsertCity(fd: FormData) {
@@ -53,7 +53,7 @@ export async function upsertCity(fd: FormData) {
   } else {
     await supabase.from("city").insert({ company_id: companyId, name, region_id });
   }
-  revalidatePath("/app/organization");
+  revalidatePath("/organization");
 }
 
 export async function upsertArea(fd: FormData) {
@@ -71,7 +71,7 @@ export async function upsertArea(fd: FormData) {
       .from("area")
       .insert({ company_id: companyId, region_id, name, code });
   }
-  revalidatePath("/app/organization");
+  revalidatePath("/organization");
 }
 
 export async function upsertBranch(fd: FormData) {
@@ -90,7 +90,7 @@ export async function upsertBranch(fd: FormData) {
       .from("branch")
       .insert({ company_id: companyId, area_id, city_id, name, code });
   }
-  revalidatePath("/app/organization");
+  revalidatePath("/organization");
 }
 
 export async function upsertAgent(fd: FormData) {
@@ -115,5 +115,5 @@ export async function upsertAgent(fd: FormData) {
       .from("agent")
       .insert({ company_id: companyId, branch_id, channel_id, type, name, code, is_active });
   }
-  revalidatePath("/app/organization");
+  revalidatePath("/organization");
 }

@@ -13,10 +13,10 @@ export type ScopeRow = { label: string; count: number };
 export type SetupStep = { label: string; done: boolean };
 
 const ACTIONS = [
-  { href: "/app/organization", label: "Organization Setup", desc: "Define regions, areas, and branches.", icon: Building2, global: true },
-  { href: "/app/agents", label: "Agents & Distributors", desc: "Manage agents & distributors.", icon: Truck, global: false },
-  { href: "/app/upload", label: "Raw Data Upload", desc: "Upload raw data for processing.", icon: Upload, global: true },
-  { href: "/app/targets", label: "SLA Target Entry", desc: "Set and manage SLA targets.", icon: Target, global: true },
+  { href: "/organization", label: "Organization Setup", desc: "Define regions, areas, and branches.", icon: Building2, global: true },
+  { href: "/agents", label: "Agents & Distributors", desc: "Manage agents & distributors.", icon: Truck, global: false },
+  { href: "/raw-data-upload", label: "Raw Data Upload", desc: "Upload raw data for processing.", icon: Upload, global: true },
+  { href: "/sla-targets", label: "SLA Target Entry", desc: "Set and manage SLA targets.", icon: Target, global: true },
 ];
 
 const FOUNDATION = ["Database Ready", "RLS Active", "Mapping Engine Ready", "SLA Views Ready"];
@@ -130,7 +130,7 @@ export function HomeView({
             ))}
           </ul>
           <Link
-            href="/app/organization"
+            href="/organization"
             className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-burgundy hover:underline"
           >
             View all setup steps <ArrowRight className="h-3.5 w-3.5" />

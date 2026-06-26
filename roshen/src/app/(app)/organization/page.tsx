@@ -138,7 +138,7 @@ export default async function OrganizationPage({
         {TABS.map((t) => (
           <Link
             key={t.key}
-            href={`/app/organization?tab=${t.key}`}
+            href={`/organization?tab=${t.key}`}
             className={
               "rounded-t-lg px-4 py-2 text-sm font-medium " +
               (t.key === tab
@@ -152,7 +152,7 @@ export default async function OrganizationPage({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <form className="flex-1" action="/app/organization" method="get">
+        <form className="flex-1" action="/organization" method="get">
           <input type="hidden" name="tab" value={tab} />
           <input
             name="q"
