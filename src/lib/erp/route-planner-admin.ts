@@ -38,14 +38,24 @@ export interface RoutePlannerAdminInput {
 }
 
 /**
- * Is this the Route Planner Admin? Change ONLY this function to upgrade the detection
- * strategy — every consumer just reads the resulting boolean.
+ * Is this the platform-scoped Route Planner Admin (the VENDOR console at /planner-admin that
+ * manages RP *tenants* + their subscriptions)? Change ONLY this function to upgrade the
+ * detection strategy — every consumer just reads the resulting boolean.
+ *
+ * IMPORTANT: this is the VENDOR admin, NOT a company's own RP admin. The company-scoped
+ * `route_planner.admin` permission is an in-tenant capability (managing that company's RP
+ * access/missions) and MUST NOT promote an ordinary tenant admin into the vendor console —
+ * otherwise a normal Route Planner company admin gets bounced to /planner-admin instead of
+ * landing in their own Route Planner workspace. So this is gated to the dedicated vendor
+ * account only (email today; a real platform role later). True platform owners are routed to
+ * /platform separately, so they are intentionally not matched here.
  */
 export function isRoutePlannerAdminAccount(input: RoutePlannerAdminInput): boolean {
-  // v1 (now): email match, or anyone explicitly granted the product-scoped permission.
+  // v1 (now): the dedicated vendor account, by email.
   if ((input.email ?? '').trim().toLowerCase() === ROUTE_PLANNER_ADMIN_EMAIL) return true;
-  if (input.permissions?.includes('route_planner.admin')) return true;
-  // v2 (later): a dedicated role — uncomment when `route_planner_admin` is provisioned.
+  // v2 (later): a dedicated platform role — uncomment when `route_planner_admin` is provisioned.
   // if (input.topRole === ROUTE_PLANNER_ADMIN_ROLE) return true;
+  // NOTE: the `route_planner.admin` PERMISSION is deliberately NOT a trigger — it is a
+  // company-level RP-admin capability, not vendor-console access.
   return false;
 }

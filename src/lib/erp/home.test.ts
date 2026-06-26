@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { resolveHomePath } from './home';
+import { resolveHomePath, routePlannerHome } from './home';
 import type { Module } from './navigation';
 import type { Permission } from './permissions';
+import type { BranchRole } from './types';
 
 // Shorthand helpers
 function path(
@@ -210,6 +211,40 @@ describe('resolveHomePath', () => {
 
   it('FV-Only user with no FV permission lands inside the FV pack, never /today or /dashboard', () => {
     expect(fvOnly([])).toBe('/field-verification');
+  });
+
+  // ─── Route Planner: role-aware landing (the RP experience) ─────────────────
+  const rp = (role: BranchRole) =>
+    resolveHomePath({
+      companyId: 'c1',
+      isRoutePlannerExperience: true,
+      modules: ['route_management'] as Module[],
+      permissions: [],
+      memberships: [{ role: role as never }],
+    });
+
+  it('(4) a company Route Planner admin lands on the workspace, NOT /planner-admin', () => {
+    expect(rp('admin')).toBe('/distribution/route-planner');
+    expect(rp('admin')).not.toBe('/planner-admin');
+    expect(rp('manager')).toBe('/distribution/route-planner');
+  });
+
+  it('(6) a supervisor lands on tracking', () => {
+    expect(rp('supervisor')).toBe('/distribution/route-planner/tracking');
+  });
+
+  it('(7) a rep / salesman / driver lands on My Missions', () => {
+    expect(rp('salesman')).toBe('/distribution/route-planner/my-missions');
+    expect(rp('driver')).toBe('/distribution/route-planner/my-missions');
+  });
+
+  it('(8) a viewer lands on read-only tracking', () => {
+    expect(rp('viewer')).toBe('/distribution/route-planner/tracking');
+  });
+
+  it('routePlannerHome: most-senior role wins, default is the workspace', () => {
+    expect(routePlannerHome(['salesman', 'admin'] as BranchRole[])).toBe('/distribution/route-planner');
+    expect(routePlannerHome([] as BranchRole[])).toBe('/distribution/route-planner');
   });
 
   it('an operational/Route-Planner company keeps /today as the salesman default', () => {
