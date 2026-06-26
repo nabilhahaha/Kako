@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/*
+ * Roshen brand foundation
+ * Inspired by the Roshen confectionery identity: deep ruby/burgundy,
+ * warm chocolate, cream/off-white surfaces, and refined gold accents.
+ */
+@theme {
+  /* Surfaces & neutrals */
+  --color-cream: #faf6ef;
+  --color-cream-deep: #f1e7d6;
+  --color-ink: #2a2220;
+  --color-muted: #8a817c;
+  --color-line: #e7ddcd;
+
+  /* Brand */
+  --color-burgundy: #7b1e2b;
+  --color-burgundy-hover: #661620;
+  --color-burgundy-soft: #f3e3e3;
+  --color-roshen-red: #c8102e;
+  --color-chocolate: #4b2e2b;
+
+  /* Accent */
+  --color-gold: #c2a14d;
+  --color-gold-hover: #a9883b;
+  --color-gold-soft: #e7d6a8;
+
+  /* Type */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-playfair);
+
+  /* Radius scale (soft cards) */
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle warm page texture behind content */
+.brand-surface {
+  background:
+    radial-gradient(60rem 60rem at 110% -10%, rgba(194, 161, 77, 0.08), transparent 55%),
+    radial-gradient(50rem 50rem at -10% 110%, rgba(123, 30, 43, 0.06), transparent 55%);
+}
+
+/* Deep brand panel used on the login hero */
+.brand-panel {
+  background:
+    radial-gradient(40rem 40rem at 80% -20%, rgba(194, 161, 77, 0.22), transparent 60%),
+    linear-gradient(155deg, #7b1e2b 0%, #5c1622 55%, #3f1018 100%);
+}
