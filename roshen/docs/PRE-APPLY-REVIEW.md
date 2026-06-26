@@ -9,6 +9,11 @@ migration runs. No dashboards.
 > 4 helper functions, 40 RLS policies across all 20 tables** — applied cleanly.
 > A functional SLA test (actual 1,500 / target 2,000) returned achievement
 > 75.0%, gap 500, status **At Risk** as expected.
+>
+> ✅ **Full cycle verified:** apply (20/15/3) → `rollback_foundation.sql`
+> (→ 0/0/0) → clean re-apply (20 tables / 40 policies). A stale rollback script
+> (missing the later tables/enums) was **found and fixed** during this pass.
+> No live Supabase database was touched (local unix socket only).
 
 Required import standard (approved, enforced by this design):
 **never blind replace · never blind append · always detect date range & overlap
