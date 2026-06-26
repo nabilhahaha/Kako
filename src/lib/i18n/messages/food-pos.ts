@@ -7,6 +7,7 @@ export const ar = {
     title: 'نقطة البيع', subtitle: 'بيع سريع للمطاعم والوجبات السريعة',
     search: 'بحث بالاسم أو الباركود…', scan: 'مسح', manualBarcode: 'إدخال باركود', allCategories: 'الكل',
     refresh: 'تحديث', back: 'رجوع', close: 'إغلاق', loading: 'جارٍ التحميل…',
+    fullscreen: 'ملء الشاشة', offline: 'لا يوجد اتصال — تم إيقاف الدفع مؤقتًا حتى عودة الإنترنت', offlinePay: 'الدفع غير متاح بدون اتصال',
     // order modes
     dineIn: 'صالة', takeaway: 'سفري', delivery: 'توصيل',
     table: 'طاولة', selectTable: 'اختر طاولة', noTables: 'لا توجد طاولات',
@@ -55,6 +56,7 @@ export const en = {
     title: 'Point of Sale', subtitle: 'Fast selling for restaurants & quick service',
     search: 'Search by name or barcode…', scan: 'Scan', manualBarcode: 'Enter barcode', allCategories: 'All',
     refresh: 'Refresh', back: 'Back', close: 'Close', loading: 'Loading…',
+    fullscreen: 'Full screen', offline: 'You are offline — payment is paused until the connection returns', offlinePay: 'Payment is unavailable offline',
     dineIn: 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery',
     table: 'Table', selectTable: 'Select a table', noTables: 'No tables',
     customerName: 'Customer name', customerPhone: 'Phone', customerAddress: 'Address', deliveryFee: 'Delivery fee',

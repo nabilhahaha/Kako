@@ -1,14 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Search, Loader2, Plus, Minus, X, Trash2, StickyNote, UtensilsCrossed, ShoppingBag, Bike,
-  Delete, RefreshCw, Image as ImageIcon, CheckCircle2,
+  Delete, RefreshCw, Image as ImageIcon, CheckCircle2, Maximize2, WifiOff,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/provider';
 import { cn } from '@/lib/utils';
 import { ScanButton, type ScanResult } from '@/components/scanning/scanner';
+import { usePosDevices } from './devices/use-pos-devices';
+import { usePosOnline, toggleFullscreen } from './devices/use-pos-online';
 import {
   getPosBootstrap, posCheckout, type PosProduct, type PosCategory, type PosTable,
 } from './pos-actions';
@@ -21,7 +22,8 @@ const MODE_ICON = { dine_in: UtensilsCrossed, takeaway: ShoppingBag, delivery: B
 
 export function PosTerminal() {
   const { t, locale } = useI18n();
-  const router = useRouter();
+  const devices = usePosDevices();
+  const online = usePosOnline();
   const ar = locale === 'ar';
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<PosProduct[]>([]);
@@ -84,17 +86,25 @@ export function PosTerminal() {
     }
   }
 
-  function onPaid(invoiceId: string, orderId: string) {
+  async function onPaid(invoiceId: string, orderId: string, method: 'cash' | 'card' | 'mixed') {
     setPayOpen(false);
     setLines([]); setOrderNote(''); setTableId('');
-    // ZATCA-ready POS receipt (with QR). Fall back to the restaurant receipt if no invoice.
-    router.push(invoiceId ? `/print/pos/${invoiceId}?autoprint=1` : `/print/restaurant/order/${orderId}?autoprint=1`);
+    // Print via the device PROVIDER (browser print now; ESC/POS/bridge later) — keeps the
+    // cashier on the POS. Open the cash drawer on cash sales when the device supports it.
+    void devices.printer.print({ kind: 'receipt', invoiceId, orderId, openDrawer: method === 'cash' });
+    if (method === 'cash' && devices.cashDrawer.canOpen) void devices.cashDrawer.open();
   }
 
   if (loading) return <div className="flex h-[60vh] items-center justify-center text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col lg:flex-row">
+    <div className="flex h-[calc(100vh-3.5rem)] flex-col">
+      {!online && (
+        <div className="flex items-center justify-center gap-2 bg-red-600 px-3 py-1.5 text-center text-sm font-medium text-white">
+          <WifiOff className="h-4 w-4 shrink-0" /> {t('foodPos.offline')}
+        </div>
+      )}
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       {/* ── Menu side ── */}
       <div className="flex min-w-0 flex-1 flex-col border-e">
         <div className="flex items-center gap-2 border-b p-3">
@@ -105,6 +115,9 @@ export function PosTerminal() {
               className="h-10 w-full rounded-xl border bg-background ps-9 pe-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <ScanButton onScan={onScan} label={t('foodPos.scan')} className="h-10 shrink-0 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground" />
+          <button onClick={() => void toggleFullscreen()} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border" aria-label={t('foodPos.fullscreen')}>
+            <Maximize2 className="h-4 w-4" />
+          </button>
           <button onClick={() => void load()} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border" aria-label={t('foodPos.refresh')}>
             <RefreshCw className="h-4 w-4" />
           </button>
@@ -211,12 +224,14 @@ export function PosTerminal() {
           <div className="flex gap-2 pt-1">
             <button onClick={() => { if (lines.length && confirm(t('foodPos.clearConfirm'))) { setLines([]); setOrderNote(''); } }}
               disabled={lines.length === 0} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border text-destructive disabled:opacity-40"><Trash2 className="h-5 w-5" /></button>
-            <button onClick={() => setPayOpen(true)} disabled={lines.length === 0}
+            <button onClick={() => setPayOpen(true)} disabled={lines.length === 0 || !online}
+              title={!online ? t('foodPos.offlinePay') : undefined}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-40">
               {t('foodPos.pay')} · {totals.total.toFixed(2)}
             </button>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Toast */}
@@ -246,7 +261,7 @@ export function PosTerminal() {
               serviceRate: charges.serviceRate, taxRate: charges.taxRate, deliveryFee: charges.deliveryFee,
               paymentMethod: method, items: lines.map((l) => ({ productId: l.productId, name: l.name, price: l.price, qty: l.qty, note: l.note })),
             });
-            if (res.ok && res.data) { onPaid(res.data.invoiceId, res.data.orderId); return true; }
+            if (res.ok && res.data) { void onPaid(res.data.invoiceId, res.data.orderId, method); return true; }
             flash(t('foodPos.errPayment'));
             return false;
           }}
