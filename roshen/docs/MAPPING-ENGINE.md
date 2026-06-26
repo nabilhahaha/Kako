@@ -85,9 +85,9 @@ returns pre-deducted…), each version carries a policy. Columns on
 
 | Policy field | Options | MVP default |
 |---|---|---|
-| `sales_value_basis` | gross_before_discount · net_after_discount · excluding_vat_before_discount · excluding_vat_after_discount | `excluding_vat_before_discount` |
+| `sales_value_basis` | gross_before_discount · net_after_discount · excluding_vat_before_discount · excluding_vat_after_discount · net_after_returns_excluding_vat | `excluding_vat_before_discount` |
 | `vat_handling` | value_excludes_vat · value_includes_vat (uses `vat_rate`) | `value_excludes_vat` |
-| `discount_handling` | discount_already_deducted · subtract_cash_discount · ignore_discount_for_sla | `subtract_cash_discount` |
+| `discount_handling` | discount_already_deducted · subtract_cash_discount · ignore_discount_for_sla · store_only | `subtract_cash_discount` |
 | `returns_handling` | returns_already_deducted · subtract_returns_value · store_returns_only | `subtract_returns_value` |
 | `sla_actual_basis` | sales_value_excluding_vat · net_sales_excluding_vat · gross_sales_excluding_vat · custom_formula_later | `net_sales_excluding_vat` |
 
@@ -124,6 +124,27 @@ format on the batch (`import_batch.detected_date_format`). Format is detected on
 mapping and **confirmed/overridden** (stored in `field_mapping.invoice_date.format`)
 so ambiguous DMY/MDY values are never silently guessed. Unparseable rows are
 flagged and excluded from `sales_fact` while the original is retained.
+
+**Multiple date sources & formats.** `invoice_date` accepts a primary `source` +
+`format` and an optional `fallback` { source, format } used when the primary is
+blank/invalid. Supported formats include `excel_serial_date`, `yyyymmdd_int`
+(e.g. 20260502), and explicit masks (`DD/MM/YYYY`, `DD-Mon-YYYY`, `YYYY-MM-DD`).
+All original raw values are preserved.
+
+## 6b. Direct vs computed measures & split returns
+
+- A measure may be **sourced directly** when the file provides it
+  (e.g. `net_sales_ex_vat ← NetSalseValue`, `gross_sales_ex_vat ← GrossValue`);
+  otherwise the engine computes it per policy. `sla_actual_basis` then selects
+  the per-row `sla_actual_value`.
+- **Split returns** are supported via `return_qty_good/expiry/damage` and
+  `return_value_good/expiry/damage` on `sales_fact`; `returns_value` may be the
+  sum of the splits for cross-agent comparability. With
+  `returns_handling = returns_already_deducted` (or `sales_value_basis =
+  net_after_returns_excluding_vat`), returns are **not** subtracted again.
+- Per-agent everything: each `column_mapping_profile`/version has its own field
+  mapping, value mapping, channel taxonomy, date handling, and calculation
+  policy — agents never share a mapping (see agent-sample-01 vs agent-sample-02).
 
 ---
 

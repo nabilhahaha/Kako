@@ -1,0 +1,72 @@
+{
+  "profile": {
+    "agent_placeholder": "agent-sample-02",
+    "note": "SEPARATE profile from agent-sample-01 (different layout). Verified against Roshen_May_.xlsx, sheet 'Sheet1', 2,996 rows, 2026-05-02 → 2026-05-09.",
+    "source_sheet": "Sheet1",
+    "mapping_name": "Default mapping (agent-sample-02)",
+    "version_number": 1,
+    "is_default": true,
+    "status": "active"
+  },
+  "field_mapping": {
+    "customer_code":              { "source": "CustomerNumber" },
+    "customer_name":              { "source": "CustomerDescLan1" },
+    "city":                       { "source": "BranchDescLan1", "via": "value_mapping", "note": "Branch description = city (15 cities)" },
+    "branch_code":                { "source": "BranchRefNo" },
+    "branch_name":                { "source": "BranchDescLan1" },
+    "channel":                    { "source": "TradingChannelName1", "via": "value_mapping" },
+    "salesman_name":              { "source": "SalesmanName1" },
+    "salesman_code":              { "source": "SalesmanCode", "note": "no canonical salesman dim yet → kept as raw extra" },
+    "route_number":               { "source": "RouteCode" },
+    "route_name":                 { "source": "RouteName", "note": "raw extra" },
+    "invoice_number":             { "source": "InvoiceNumber" },
+    "invoice_date":               { "source": "InvoiceDateInt", "format": "yyyymmdd_int", "fallback": { "source": "DocDate", "format": "excel_serial_date" } },
+    "region":                     { "source": null, "note": "no Region column; derive from branch→region map or AreaManagerName" },
+    "item_code":                  { "source": "ItemID" },
+    "item_number":                { "source": "ItemNumber", "note": "raw extra" },
+    "roshen_item_code":           { "source": "ItemRefNo", "note": "REAL master SKU present for this agent" },
+    "item_name":                  { "source": "ItemNameLan1" },
+    "item_category":              { "source": "ItemCategory3DescLan1", "note": "ItemCategory1/2 also available for brand/family" },
+    "sales_qty_pieces":           { "source": "SoldQty" },
+    "sales_qty_cartons":          { "source": null, "note": "pieces only in this file" },
+    "gross_sales_ex_vat":         { "source": "GrossValue", "note": "direct gross ex-VAT" },
+    "net_sales_ex_vat":           { "source": "NetSalseValue", "note": "direct net ex-VAT (typo preserved exactly); SLA basis" },
+    "return_qty_good":            { "source": "GoodReturnQty" },
+    "return_qty_expiry":          { "source": "ExpiryReturnQty" },
+    "return_qty_damage":          { "source": "DamagedReturnQty" },
+    "return_value_good":          { "source": "GoodReturnValue" },
+    "return_value_damage":        { "source": "DamageReturnValue" },
+    "return_value_expiry":        { "source": "ExpiryReturnValue" },
+    "returns_value":              { "computed": "return_value_good + return_value_damage + return_value_expiry", "note": "aggregate for cross-agent comparability" },
+    "vat_amount":                 { "source": "SalseItemTaxVal", "note": "sales VAT; ReturnItemTaxVal kept as raw extra" },
+    "net_value_reported":         { "source": "InvoiceAmountWihTax", "note": "incl-VAT; reconciliation only" },
+    "cash_discount":              { "source": "Discount" },
+    "promotion_qty":              { "source": "PromotionQty" },
+    "free_qty":                   { "source": "FreeQty" },
+    "invoice_status":             { "source": null, "note": "no order status; ItemStatus (Valid/Expired) is item-level → kept as raw extra; treat all as posted" }
+  },
+  "keys": {
+    "line_dedupe_key": { "sources": ["InvoiceNumber", "ItemID", "InvoiceDateInt"], "note": "no LineID in this file" },
+    "line_dedupe_fallback_hash": { "sources": ["invoice_number","invoice_date","customer_code","item_code","quantity","net_sales_ex_vat"] }
+  },
+  "unmapped_extras_kept_in_raw": [
+    "YearID","SalesManagerCode","SalesManagerName1","AreaManagerCode","AreaManagerName",
+    "SupervisorCode","SupervisorNameEnglish","ParentCustomerID","PaymentMethod","RefID","RefName",
+    "ItemStatus","ItemCategory1DescLan1","ItemCategory2DescLan1","SoldPrice","ReturnPrice",
+    "ReturnItemTaxVal","ReturnAmountWihTax","SalesmanCode","RouteName"
+  ],
+  "calculation_policy": {
+    "_locked": false,
+    "sales_value_basis": "net_after_returns_excluding_vat",
+    "vat_handling": "value_excludes_vat",
+    "vat_rate": 0.15,
+    "discount_handling": "store_only",
+    "discount_handling_note": "Discount stored for analysis only; never subtracted from SLA.",
+    "returns_handling": "returns_already_deducted",
+    "returns_handling_note": "NetSalseValue already = Gross − Good − Damage − Expiry returns (verified: 8/2996 rounding-edge rows). Do not subtract returns again.",
+    "sla_actual_basis": "net_sales_excluding_vat",
+    "net_sales_source": "direct from NetSalseValue column (not recomputed)",
+    "resulting_sla_formula": "SLA Actual = SUM(NetSalseValue)",
+    "verified_total_sla_may2026": 513648.64
+  }
+}

@@ -43,11 +43,13 @@ create type invoice_status  as enum ('posted','cancelled','draft');
 -- net-sales rule; each agent's file semantics differ).
 create type sales_value_basis as enum (
   'gross_before_discount','net_after_discount',
-  'excluding_vat_before_discount','excluding_vat_after_discount'
+  'excluding_vat_before_discount','excluding_vat_after_discount',
+  'net_after_returns_excluding_vat'
 );
 create type vat_handling      as enum ('value_excludes_vat','value_includes_vat');
 create type discount_handling as enum (
-  'discount_already_deducted','subtract_cash_discount','ignore_discount_for_sla'
+  'discount_already_deducted','subtract_cash_discount','ignore_discount_for_sla',
+  'store_only'
 );
 create type returns_handling  as enum (
   'returns_already_deducted','subtract_returns_value','store_returns_only'
@@ -393,6 +395,17 @@ create table sales_fact (
   sales_qty_pieces  numeric(18,3) not null default 0,
   return_qty_cartons numeric(18,3),
   return_qty_pieces  numeric(18,3),
+  -- split returns (quantities) — good / expiry / damaged (agents that itemize)
+  return_qty_good    numeric(18,3),
+  return_qty_expiry  numeric(18,3),
+  return_qty_damage  numeric(18,3),
+  -- split returns (values)
+  return_value_good   numeric(18,2),
+  return_value_expiry numeric(18,2),
+  return_value_damage numeric(18,2),
+  -- promotion / free goods (when itemized)
+  promotion_qty     numeric(18,3),
+  free_qty          numeric(18,3),
   currency          text not null default 'SAR',
   -- reserved: switch to Saudi selling-day calendar without schema change
   is_selling_day    boolean

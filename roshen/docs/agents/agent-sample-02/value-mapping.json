@@ -1,0 +1,35 @@
+{
+  "note": "Agent-sample-02 value mappings (per-agent). Channel taxonomy differs from agent-01 → normalize both into one master canonical channel set (see review item 4).",
+  "channel": [
+    { "source_value": "DSD-Cash Van", "canonical": "Cash Van", "canonical_code": "CVAN", "new": true, "rows": 2364 },
+    { "source_value": "DRD-TRADING", "canonical": "Traditional Trade", "canonical_code": "TT", "rows": 564 },
+    { "source_value": "DSD-GFF", "canonical": "Internal / GFF", "canonical_code": "GFF", "new": true, "rows": 34 },
+    { "source_value": "DSD-Key Account", "canonical": "Key Account", "canonical_code": "KA", "new": true, "rows": 23, "alt": "or Modern Trade (MT) — confirm" },
+    { "source_value": "DSD-Wholesale", "canonical": "Wholesale", "canonical_code": "WS", "rows": 11 }
+  ],
+  "city_from_branch": [
+    { "source_value": "RIYADH", "canonical_city": "Riyadh" },
+    { "source_value": "TAIF", "canonical_city": "Taif" },
+    { "source_value": "JEDDAH", "canonical_city": "Jeddah" },
+    { "source_value": "ALKHARJ", "canonical_city": "Al Kharj" },
+    { "source_value": "MAKKAH", "canonical_city": "Makkah" },
+    { "source_value": "DAMMAM", "canonical_city": "Dammam" },
+    { "source_value": "MADINAH", "canonical_city": "Madinah" },
+    { "source_value": "HAFER ALBATIN", "canonical_city": "Hafar Al Batin" },
+    { "source_value": "HAIL", "canonical_city": "Hail" },
+    { "source_value": "BURAIDAH", "canonical_city": "Buraidah" },
+    { "source_value": "JIZAN", "canonical_city": "Jazan" },
+    { "source_value": "HASA", "canonical_city": "Al Ahsa" },
+    { "source_value": "KHAMIS", "canonical_city": "Khamis Mushait" },
+    { "source_value": "YANBU", "canonical_city": "Yanbu" },
+    { "source_value": "TABUK", "canonical_city": "Tabuk" }
+  ],
+  "payment_method": [
+    { "source_value": "Cash", "rows": 2697 },
+    { "source_value": "Credit", "rows": 299 }
+  ],
+  "item_status": [
+    { "source_value": "Valid", "rows": 2722 },
+    { "source_value": "Expired", "rows": 274, "note": "near-expiry relevance" }
+  ]
+}
