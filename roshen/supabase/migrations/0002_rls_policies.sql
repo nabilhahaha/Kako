@@ -41,6 +41,17 @@ language sql stable security definer set search_path = public as $$
   select distinct a.region_id from area a where a.id in (select my_area_ids());
 $$;
 
+-- These SECURITY DEFINER helpers are only for RLS evaluation. Keep them off the
+-- anonymous API surface; authenticated needs EXECUTE for policy evaluation.
+revoke execute on function app_role()      from anon, public;
+revoke execute on function is_global()     from anon, public;
+revoke execute on function my_area_ids()   from anon, public;
+revoke execute on function my_region_ids() from anon, public;
+grant  execute on function app_role()      to authenticated;
+grant  execute on function is_global()     to authenticated;
+grant  execute on function my_area_ids()   to authenticated;
+grant  execute on function my_region_ids() to authenticated;
+
 -- ---------------------------------------------------------------------
 -- Enable RLS
 -- ---------------------------------------------------------------------

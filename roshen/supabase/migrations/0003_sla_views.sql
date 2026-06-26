@@ -131,3 +131,9 @@ select
   sum(actual_amount) as ytd_actual_amount
 from sla_actual_agent_month
 group by 1,2,3,4;
+
+-- Views must enforce the CALLER's RLS (not the view owner's). Without this,
+-- Supabase flags them as SECURITY DEFINER views that bypass RLS.
+alter view sla_actual_agent_month set (security_invoker = on);
+alter view sla_performance        set (security_invoker = on);
+alter view sla_actual_agent_ytd   set (security_invoker = on);

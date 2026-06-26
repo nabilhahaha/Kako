@@ -43,6 +43,10 @@ drop table if exists region                  cascade;
 drop table if exists country                 cascade;
 drop table if exists company                 cascade;
 
+-- Migration history rows for this foundation (so a later `supabase db push`
+-- can cleanly re-apply 0001–0003 after a rollback).
+delete from supabase_migrations.schema_migrations where version in ('0001','0002','0003');
+
 -- Enums last
 drop type if exists import_mode        cascade;
 drop type if exists sla_actual_basis   cascade;
