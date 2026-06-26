@@ -78,6 +78,54 @@ describe('resolveHomePath', () => {
     expect(path(['salon'], [])).toBe('/salon');
   });
 
+  // ─── Fast Food / Restaurant POS (its own independent module) ───────────────
+  // A fast_food company enables BOTH `restaurant` and `pos`; its operational roles
+  // (cashier first) must land on the POS terminal, not the full-service floor.
+
+  it('routes a fast_food company to /pos (business type wins over the restaurant module)', () => {
+    expect(
+      resolveHomePath({
+        companyId: 'c1',
+        company: { business_type: 'fast_food' },
+        modules: ['restaurant', 'pos', 'sales', 'inventory'] as Module[],
+        permissions: ['restaurant.manage'],
+        memberships: [{ role: 'cashier' as never }],
+      }),
+    ).toBe('/pos');
+  });
+
+  it('honours an explicit businessType override for fast_food (view-as preview)', () => {
+    expect(
+      resolveHomePath({ companyId: 'c1', businessType: 'fast_food', modules: ['restaurant', 'pos'] as Module[], permissions: [] }),
+    ).toBe('/pos');
+  });
+
+  it('a regular restaurant company (no pos module, not fast_food) still lands on /restaurant', () => {
+    expect(
+      resolveHomePath({
+        companyId: 'c1',
+        company: { business_type: 'restaurant' },
+        modules: ['restaurant', 'inventory'] as Module[],
+        permissions: ['restaurant.manage'],
+        memberships: [{ role: 'cashier' as never }],
+      }),
+    ).toBe('/restaurant');
+  });
+
+  it('a non-fast_food company that merely holds the pos module keeps its normal home', () => {
+    // fmcg / general / supermarket also carry `pos` (for /sales/pos) — they must NOT be
+    // pulled onto the food POS terminal.
+    expect(
+      resolveHomePath({
+        companyId: 'c1',
+        company: { business_type: 'supermarket' },
+        modules: ['sales', 'inventory', 'pos'] as Module[],
+        permissions: [],
+        memberships: [{ role: 'salesman' as never }],
+      }),
+    ).toBe('/today');
+  });
+
   it('routes laundry module to /laundry', () => {
     expect(path(['laundry'], [])).toBe('/laundry');
   });

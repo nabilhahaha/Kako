@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Beef burger">
+  <rect width="200" height="200" fill="#fbe6cf"/>
+  <g stroke="#7a4a1e" stroke-width="2">
+    <path d="M44 80c0-27 25-46 56-46s56 19 56 46z" fill="#e7a44d"/>
+    <circle cx="78" cy="58" r="2.4" fill="#fff3df" stroke="none"/>
+    <circle cx="100" cy="50" r="2.4" fill="#fff3df" stroke="none"/>
+    <circle cx="122" cy="58" r="2.4" fill="#fff3df" stroke="none"/>
+    <rect x="42" y="80" width="116" height="12" rx="6" fill="#8fc24a"/>
+    <rect x="42" y="90" width="116" height="16" rx="5" fill="#6b3f1d"/>
+    <rect x="42" y="104" width="116" height="12" rx="5" fill="#f6c945"/>
+    <path d="M44 116h112c0 16-26 26-56 26s-56-10-56-26z" fill="#e7a44d"/>
+  </g>
+</svg>

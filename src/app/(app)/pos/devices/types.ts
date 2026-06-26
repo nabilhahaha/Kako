@@ -19,6 +19,10 @@ export interface PrintJob {
   orderId?: string | null;
   /** Open the cash drawer with this job (cash sales). Honoured only when supported. */
   openDrawer?: boolean;
+  /** Resolved receipt query (paper width, show logo/QR/cashier, received/change) built from the
+   *  per-till print settings. The browser provider appends it to the receipt route; a future
+   *  ESC/POS/bridge provider can parse the same parameters. */
+  query?: string;
 }
 export interface PrintResult { ok: boolean; mode: PrintMode; error?: string }
 

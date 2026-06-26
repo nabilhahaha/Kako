@@ -17,16 +17,22 @@ import { buildPosInvoice } from './pos-invoice';
 import type { OrderMode, DiscountType, CartCharges } from './pos-cart';
 
 const isHttp = (s: string | null) => !!s && /^https?:\/\//i.test(s);
+/** A public app asset (e.g. `/pos-demo/burger.svg`, served from /public) — used as-is by the
+ *  browser, never signed as storage. Lets the seeded demo ship clean local food images. */
+const isPublicAsset = (s: string | null) => !!s && s.startsWith('/');
+/** Refs the browser can load directly without a signed-URL round-trip. */
+const isDirectImage = (s: string | null) => isHttp(s) || isPublicAsset(s);
 
-/** Resolve product image refs: external URLs pass through; storage PATHS are batch-signed.
- *  Keeps the POS grid fast (one signing round-trip) and reuses the attachments bucket. */
+/** Resolve product image refs: external URLs and public app assets pass through; storage PATHS
+ *  are batch-signed. Keeps the POS grid fast (one signing round-trip) and reuses the attachments
+ *  bucket. */
 async function resolveImages(sb: Awaited<ReturnType<typeof createClient>>, products: PosProduct[]): Promise<void> {
-  const paths = [...new Set(products.map((p) => p.imageUrl).filter((u): u is string => !!u && !isHttp(u)))];
+  const paths = [...new Set(products.map((p) => p.imageUrl).filter((u): u is string => !!u && !isDirectImage(u)))];
   if (paths.length === 0) return;
   const { data } = await sb.storage.from(ATTACHMENTS_BUCKET).createSignedUrls(paths, 3600);
   const byPath = new Map<string, string>();
   for (const r of data ?? []) if (r.path && r.signedUrl) byPath.set(r.path, r.signedUrl);
-  for (const p of products) if (p.imageUrl && !isHttp(p.imageUrl)) p.imageUrl = byPath.get(p.imageUrl) ?? null;
+  for (const p of products) if (p.imageUrl && !isDirectImage(p.imageUrl)) p.imageUrl = byPath.get(p.imageUrl) ?? null;
 }
 
 export interface PosCategory { id: string; name: string; nameAr: string | null; sort: number }

@@ -13,9 +13,9 @@ export const metadata: Metadata = { title: 'VANTORA — POS' };
  */
 export default async function FoodPosPage() {
   const ctx = await requirePermission('restaurant.manage');
-  return (
-    <div className="food-theme -m-4 sm:-m-6">
-      <PosTerminal companyId={ctx.companyId ?? ''} />
-    </div>
-  );
+  // The dedicated POS shell (src/app/(app)/layout.tsx) already provides the `.food-theme`
+  // wrapper, the espresso chrome and a full-bleed content area — the terminal fills it.
+  const outletName = ctx.company?.name_ar || ctx.company?.name || '';
+  const cashierName = ctx.profile.full_name || ctx.profile.email || '';
+  return <PosTerminal companyId={ctx.companyId ?? ''} outletName={outletName} cashierName={cashierName} />;
 }

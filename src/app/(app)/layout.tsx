@@ -23,6 +23,9 @@ import { getSetupProfile } from '@/lib/erp/setup-wizard';
 import { whatsappLink, SUPPORT_PHONES } from '@/lib/erp/contact';
 import { getT } from '@/lib/i18n/server';
 import { isRouteModuleAllowed } from '@/lib/erp/navigation';
+import { PosShell } from './pos/pos-shell';
+import { posNavItems, posBackOfficeItem, POS_MANAGER_ROLES } from './pos/pos-nav';
+import { BRANCH_ROLES } from '@/lib/erp/constants';
 import { LockKeyhole, AlertTriangle, MessageCircle } from 'lucide-react';
 
 export default async function AppLayout({
@@ -157,11 +160,44 @@ export default async function AppLayout({
   // tenant with no module rows has an empty list, which isRouteModuleAllowed treats as
   // unrestricted (no regression). Scoped by company_id via ctx.modules. The guard maps
   // the path to its NAV_SECTIONS module gate, so it can never drift from the nav.
+  const pathname = (await headers()).get('x-pathname') ?? '';
   if (!ctx.isPlatformOwner && !ctx.isSuperAdmin) {
-    const pathname = (await headers()).get('x-pathname') ?? '';
     if (pathname && !isRouteModuleAllowed(ctx.modules, pathname)) {
       redirect(`/module-unavailable?from=${encodeURIComponent(pathname)}`);
     }
+  }
+
+  // ── Dedicated Fast Food POS shell ──────────────────────────────────────────
+  // /pos* runs in a focused cashier terminal frame (espresso sidebar, cream content, compact
+  // top bar) INSTEAD of the generic ERP Sidebar/TopBar/BottomNav — a real "POS mode". It sits
+  // AFTER every gate above (auth, onboarding, setup wizard, subscription lock, module guard),
+  // so those protections still apply; it only swaps the chrome. Role-aware: a plain cashier
+  // sees the minimum sell-first nav, a manager/admin additionally sees Reports/Setup + a
+  // back-office escape. Scoped strictly to /pos paths — no other module is affected.
+  if (pathname === '/pos' || pathname.startsWith('/pos/')) {
+    const isManager = ctx.isSuperAdmin || ctx.isPlatformOwner
+      || ctx.memberships.some((m) => (POS_MANAGER_ROLES as readonly string[]).includes(m.role));
+    const posBranch = ctx.memberships.find((m) => m.is_default)?.branch ?? ctx.memberships[0]?.branch ?? null;
+    const branchName = (locale === 'ar' ? posBranch?.name_ar : posBranch?.name) || posBranch?.name || '';
+    const roleLabel = BRANCH_ROLES[ctx.topRole]?.[locale] ?? ctx.topRole;
+    return (
+      <ConfirmProvider>
+        <PromptProvider>
+          <PosShell
+            companyId={ctx.companyId ?? ''}
+            navItems={posNavItems({ isManager })}
+            backItem={posBackOfficeItem({ isManager })}
+            companyName={(locale === 'ar' ? ctx.company?.name_ar : ctx.company?.name) || ctx.company?.name || 'POS'}
+            branchName={branchName}
+            cashierName={ctx.profile.full_name || ctx.profile.email || ''}
+            roleLabel={roleLabel}
+            helpHref={whatsappLink('مرحباً، أحتاج مساعدة في نقطة البيع (POS).')}
+          >
+            {children}
+          </PosShell>
+        </PromptProvider>
+      </ConfirmProvider>
+    );
   }
 
   const state = ctx.isPlatformOwner ? 'open' : subscriptionState(ctx.company);
