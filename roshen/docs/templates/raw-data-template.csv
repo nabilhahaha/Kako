@@ -1,0 +1,5 @@
+txn_date,agent_code,channel,city,customer,sku,product_name,quantity,gross_amount,net_amount,currency
+2026-06-01,AGT-1001,Modern Trade,Riyadh,Panda Hypermarket,RSH-CHC-100,Roshen Chocolate Bar 100g,120,3600.00,3240.00,SAR
+2026-06-01,AGT-1001,Modern Trade,Riyadh,Danube,RSH-WAF-050,Roshen Wafers 50g,200,2000.00,1900.00,SAR
+2026-06-02,AGT-1001,Traditional Trade,Riyadh,Al Noor Baqala,RSH-CND-200,Roshen Candy Mix 200g,80,1600.00,1520.00,SAR
+2026-06-02,AGT-2001,Traditional Trade,Jeddah,Corniche Market,RSH-CHC-100,Roshen Chocolate Bar 100g,60,1800.00,1710.00,SAR

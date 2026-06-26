@@ -197,16 +197,19 @@ Tech: Next.js App Router (server components for scoped reads), Supabase Auth +
 Postgres + RLS, server actions for mutations, `xlsx` for parsing, `recharts`
 for charts, and the Roshen brand system already in the app.
 
-### Decisions to confirm before P1
-1. **Apply migrations to the live Roshen Supabase project** now, or keep as
-   files for review first? (I will not apply without your go-ahead.)
-2. **Currency**: assume `SAR` throughout? 
-3. **Channels**: confirm the list (Modern Trade / Traditional Trade / HoReCa /
-   Wholesale) or provide Roshen's actual channels.
-4. **Targets**: set primarily at **agent×channel** level (rolled up), or also
-   entered directly at area/region level?
-5. **SLA status thresholds** (95% / 80%) and **calendar vs Saudi selling-day**
-   calendar — keep defaults or adjust?
-6. A **sample raw data file** from one agent would let me lock the canonical
-   import fields and column-mapping exactly to your real data.
+### Decisions — CONFIRMED
+1. **Apply timing**: keep migrations as reviewable files; **do not apply** to the
+   live project yet. ✅
+2. **Currency**: `SAR` throughout. ✅
+3. **Channels**: configurable per company (seeded with Modern Trade / Traditional
+   Trade / HoReCa / Wholesale; not hardcoded). ✅
+4. **Targets**: primary grain **agent × channel × month**, auto roll-up to
+   branch/area/region/company; direct higher-level targets still supported. ✅
+5. **SLA thresholds**: keep defaults (Achieved / ≥95% pace On Track / ≥80% pace
+   At Risk / Behind). **Calendar days** for MVP, selling-day ready. ✅
+6. **Sample raw file**: still requested to finalize the column mapping — see the
+   template in `docs/templates/raw-data-template.csv`.
+
+➡️ Apply/rollback details live in **`docs/P1-APPLY-RUNBOOK.md`** (prepared, not
+executed).
 ```

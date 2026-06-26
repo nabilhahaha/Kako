@@ -1,7 +1,8 @@
 -- =====================================================================
 -- Roshen KSA — minimal seed (illustrative, safe to edit) [PROPOSAL]
--- Establishes the company, KSA, sales channels, and a sample of the
--- region/area/branch hierarchy so the SLA model can be demonstrated.
+-- Establishes the company, KSA, configurable channels, and a sample of
+-- the region/area/branch hierarchy so the SLA model can be demonstrated.
+-- All rows carry company_id for multi-company safety.
 -- =====================================================================
 
 insert into company (id, name) values
@@ -13,30 +14,41 @@ insert into country (id, company_id, name, iso_code) values
    '11111111-1111-1111-1111-111111111111', 'Saudi Arabia', 'SA')
 on conflict do nothing;
 
-insert into channel (name, code) values
-  ('Modern Trade', 'MT'),
-  ('Traditional Trade', 'TT'),
-  ('HoReCa', 'HRC'),
-  ('Wholesale', 'WS')
+-- Channels are configurable; seed a starting set.
+insert into channel (company_id, name, code) values
+  ('11111111-1111-1111-1111-111111111111', 'Modern Trade', 'MT'),
+  ('11111111-1111-1111-1111-111111111111', 'Traditional Trade', 'TT'),
+  ('11111111-1111-1111-1111-111111111111', 'HoReCa', 'HRC'),
+  ('11111111-1111-1111-1111-111111111111', 'Wholesale', 'WS')
 on conflict do nothing;
 
 -- Regions (KSA commercial regions)
-insert into region (id, country_id, name, code) values
-  ('33333333-0001-0000-0000-000000000000','22222222-2222-2222-2222-222222222222','Central','CEN'),
-  ('33333333-0002-0000-0000-000000000000','22222222-2222-2222-2222-222222222222','Western','WST'),
-  ('33333333-0003-0000-0000-000000000000','22222222-2222-2222-2222-222222222222','Eastern','EST')
+insert into region (id, company_id, country_id, name, code) values
+  ('33333333-0001-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222','Central','CEN'),
+  ('33333333-0002-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222','Western','WST'),
+  ('33333333-0003-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222','Eastern','EST')
 on conflict do nothing;
 
 -- Sample areas
-insert into area (id, region_id, name, code) values
-  ('44444444-0001-0000-0000-000000000000','33333333-0001-0000-0000-000000000000','Riyadh North','RUH-N'),
-  ('44444444-0002-0000-0000-000000000000','33333333-0001-0000-0000-000000000000','Riyadh South','RUH-S'),
-  ('44444444-0003-0000-0000-000000000000','33333333-0002-0000-0000-000000000000','Jeddah','JED'),
-  ('44444444-0004-0000-0000-000000000000','33333333-0003-0000-0000-000000000000','Dammam','DMM')
+insert into area (id, company_id, region_id, name, code) values
+  ('44444444-0001-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','33333333-0001-0000-0000-000000000000','Riyadh North','RUH-N'),
+  ('44444444-0002-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','33333333-0001-0000-0000-000000000000','Riyadh South','RUH-S'),
+  ('44444444-0003-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','33333333-0002-0000-0000-000000000000','Jeddah','JED'),
+  ('44444444-0004-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','33333333-0003-0000-0000-000000000000','Dammam','DMM')
 on conflict do nothing;
 
 -- Sample branches
-insert into branch (id, area_id, name, code) values
-  ('55555555-0001-0000-0000-000000000000','44444444-0001-0000-0000-000000000000','Riyadh North Branch','RUH-N-01'),
-  ('55555555-0002-0000-0000-000000000000','44444444-0003-0000-0000-000000000000','Jeddah Central Branch','JED-01')
+insert into branch (id, company_id, area_id, name, code) values
+  ('55555555-0001-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','44444444-0001-0000-0000-000000000000','Riyadh North Branch','RUH-N-01'),
+  ('55555555-0002-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','44444444-0003-0000-0000-000000000000','Jeddah Central Branch','JED-01')
+on conflict do nothing;
+
+-- Sample agents/distributors
+insert into agent (id, company_id, branch_id, channel_id, type, code, name) values
+  ('66666666-0001-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','55555555-0001-0000-0000-000000000000',
+     (select id from channel where company_id='11111111-1111-1111-1111-111111111111' and code='MT'),
+     'distributor','AGT-1001','Riyadh North Distributor A'),
+  ('66666666-0002-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','55555555-0002-0000-0000-000000000000',
+     (select id from channel where company_id='11111111-1111-1111-1111-111111111111' and code='TT'),
+     'distributor','AGT-2001','Jeddah Distributor B')
 on conflict do nothing;
