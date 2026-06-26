@@ -31,6 +31,12 @@ Confirmed decisions baked into the migrations:
 | Currency = SAR | ✅ | defaults on `sales_fact`, `sla_target` |
 | Selling-day flexibility | ✅ | `sales_fact.is_selling_day` reserved; pace logic isolated in `sla_performance` |
 | Roll-up to company | ✅ | `sla_performance` company-level union |
+| Flexible per-agent column mapping (versioned) | ✅ | `column_mapping_profile`, `column_mapping_version`, `import_batch.mapping_version_id` |
+| Value mapping (channel/city/…) | ✅ | `value_mapping` (agent + company-wide) |
+| Per-version sales calculation policy | ✅ | policy enums/cols on `column_mapping_version`; `sla_actual_value` resolved at import |
+| Validation issues for preview | ✅ | `import_issue` table |
+| Old imports immutable on remap | ✅ | batch keeps `mapping_version_id`; edits create new versions |
+| Product/customer masters | ✅ | `product` (master SKU = roshen_item_code), `customer` |
 
 Pre-apply sanity:
 - Apply order must be **0001 → 0002 → 0003**, then `seed.sql` (optional).

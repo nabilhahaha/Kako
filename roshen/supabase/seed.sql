@@ -52,3 +52,31 @@ insert into agent (id, company_id, branch_id, channel_id, type, code, name) valu
      (select id from channel where company_id='11111111-1111-1111-1111-111111111111' and code='TT'),
      'distributor','AGT-2001','Jeddah Distributor B')
 on conflict do nothing;
+
+-- Company-wide value-mapping examples (agent_id NULL = global fallback).
+-- Channel synonyms → canonical channel.
+insert into value_mapping (company_id, agent_id, dimension, source_value, channel_id)
+select '11111111-1111-1111-1111-111111111111', null, 'channel', sv,
+       (select id from channel where company_id='11111111-1111-1111-1111-111111111111' and code=cc)
+from (values
+  ('TT','TT'),('Traditional','TT'),('Traditional Trade','TT'),('GT','TT'),
+  ('MT','MT'),('Modern','MT'),('Modern Trade','MT'),
+  ('HoReCa','HRC'),('Horeca','HRC'),
+  ('WS','WS'),('Wholesale','WS')
+) as m(sv,cc)
+on conflict do nothing;
+
+-- City synonyms → canonical city (add cities first).
+insert into city (company_id, region_id, name) values
+  ('11111111-1111-1111-1111-111111111111','33333333-0001-0000-0000-000000000000','Riyadh'),
+  ('11111111-1111-1111-1111-111111111111','33333333-0002-0000-0000-000000000000','Jeddah')
+on conflict do nothing;
+
+insert into value_mapping (company_id, agent_id, dimension, source_value, city_id)
+select '11111111-1111-1111-1111-111111111111', null, 'city', sv,
+       (select id from city where company_id='11111111-1111-1111-1111-111111111111' and name=cn)
+from (values
+  ('Riyadh','Riyadh'),('RUH','Riyadh'),('الرياض','Riyadh'),
+  ('Jeddah','Jeddah'),('JED','Jeddah'),('جدة','Jeddah')
+) as m(sv,cn)
+on conflict do nothing;

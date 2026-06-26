@@ -125,6 +125,14 @@ Per agent/distributor, per month:
 This satisfies the foundation requirement: store the import batch, keep original
 uploaded values, and normalize into clean reporting tables.
 
+**Flexible mapping engine + calculation policy.** Because each agent's file
+layout and value semantics differ, column mapping is **per-agent and versioned**
+(`column_mapping_profile` / `column_mapping_version`), value normalization uses
+`value_mapping`, and each version carries a **sales calculation policy** so net
+sales is not a hardcoded universal rule. `sla_actual_value` is resolved per row
+at import. Full design: **`docs/MAPPING-ENGINE.md`** and
+**`docs/RAW-DATA-IMPORT-SPEC.md`**.
+
 ---
 
 ## 4. SLA target vs actual calculation model

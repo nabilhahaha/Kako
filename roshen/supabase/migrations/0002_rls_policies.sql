@@ -52,10 +52,16 @@ alter table area           enable row level security;
 alter table branch         enable row level security;
 alter table channel        enable row level security;
 alter table agent          enable row level security;
+alter table product        enable row level security;
+alter table customer       enable row level security;
 alter table profile        enable row level security;
 alter table user_scope     enable row level security;
+alter table column_mapping_profile enable row level security;
+alter table column_mapping_version enable row level security;
+alter table value_mapping  enable row level security;
 alter table import_batch   enable row level security;
 alter table raw_import_row enable row level security;
+alter table import_issue   enable row level security;
 alter table sales_fact     enable row level security;
 alter table sla_target     enable row level security;
 
@@ -67,7 +73,7 @@ alter table sla_target     enable row level security;
 do $$
 declare t text;
 begin
-  foreach t in array array['company','country','channel','city']
+  foreach t in array array['company','country','channel','city','product','customer']
   loop
     execute format('create policy %1$s_read on %1$s for select to authenticated using (true);', t);
     execute format('create policy %1$s_write on %1$s for all to authenticated using (is_global()) with check (is_global());', t);
@@ -156,6 +162,50 @@ create policy import_batch_write on import_batch for all to authenticated
 create policy raw_row_read on raw_import_row for select to authenticated
   using (batch_id in (select id from import_batch));
 create policy raw_row_write on raw_import_row for all to authenticated
+  using (is_global()) with check (is_global());
+
+-- import_issue: visibility follows the parent batch; writes global-only.
+create policy import_issue_read on import_issue for select to authenticated
+  using (batch_id in (select id from import_batch));
+create policy import_issue_write on import_issue for all to authenticated
+  using (is_global()) with check (is_global());
+
+-- ---------------------------------------------------------------------
+-- Column-mapping engine: readable for agents in the user's scope; managed
+-- by global roles (and via service-role server actions during upload).
+-- ---------------------------------------------------------------------
+create policy mapping_profile_read on column_mapping_profile for select to authenticated
+  using (
+    is_global()
+    or agent_id in (
+      select ag.id from agent ag join branch b on b.id = ag.branch_id
+      where b.area_id in (select my_area_ids())
+    )
+  );
+create policy mapping_profile_write on column_mapping_profile for all to authenticated
+  using (is_global()) with check (is_global());
+
+create policy mapping_version_read on column_mapping_version for select to authenticated
+  using (
+    is_global()
+    or agent_id in (
+      select ag.id from agent ag join branch b on b.id = ag.branch_id
+      where b.area_id in (select my_area_ids())
+    )
+  );
+create policy mapping_version_write on column_mapping_version for all to authenticated
+  using (is_global()) with check (is_global());
+
+create policy value_mapping_read on value_mapping for select to authenticated
+  using (
+    is_global()
+    or agent_id is null
+    or agent_id in (
+      select ag.id from agent ag join branch b on b.id = ag.branch_id
+      where b.area_id in (select my_area_ids())
+    )
+  );
+create policy value_mapping_write on value_mapping for all to authenticated
   using (is_global()) with check (is_global());
 
 -- NOTE: write paths for import/normalization are expected to run through

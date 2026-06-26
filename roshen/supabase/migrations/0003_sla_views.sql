@@ -13,6 +13,12 @@
 -- Monthly actuals per agent + channel (the finest target grain).
 -- Carries the full hierarchy (incl. company_id) so higher levels roll up.
 -- ---------------------------------------------------------------------
+-- SLA actual = sales_fact.sla_actual_value, which is resolved AT IMPORT per the
+-- agent mapping version's calculation policy (sla_actual_basis). The policy —
+-- not this view — decides whether the basis is sales_value_excl_vat,
+-- gross_sales_ex_vat, or net_sales_ex_vat, so there is no universal hardcoded
+-- rule and no risk of double deduction here.
+-- Only Posted invoices count (Cancelled/Draft excluded; NULL treated as posted).
 create or replace view sla_actual_agent_month as
 select
   f.company_id,
@@ -23,11 +29,17 @@ select
   f.region_id,
   f.country_id,
   f.channel_id,
-  sum(f.net_amount)  as actual_amount,
-  sum(f.quantity)    as actual_qty,
-  max(f.txn_date)    as last_txn_date
+  sum(coalesce(f.sla_actual_value, f.net_sales_ex_vat, 0)) as actual_amount,
+  sum(f.gross_sales_ex_vat)    as gross_sales_ex_vat,
+  sum(f.net_sales_ex_vat)      as net_sales_ex_vat,
+  sum(f.returns_value)         as returns_value,
+  sum(f.cash_discount)         as cash_discount,
+  sum(f.sales_qty_cartons)     as actual_qty_cartons,
+  sum(f.sales_qty_pieces)      as actual_qty_pieces,
+  max(f.invoice_date)          as last_invoice_date
 from sales_fact f
 join import_batch b on b.id = f.batch_id and b.status = 'imported'
+where f.invoice_status is null or f.invoice_status = 'posted'
 group by 1,2,3,4,5,6,7,8;
 
 -- ---------------------------------------------------------------------
