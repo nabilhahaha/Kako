@@ -4,7 +4,9 @@
 > template**. It supports **any** agent raw-data format through saved mapping
 > profiles, mapping versions, value mapping, validation, and calculation
 > policies. Field-tier rules (required / recommended / optional, what blocks vs.
-> warns) are in **`IMPORT-COMPATIBILITY.md`**.
+> warns) are in **`IMPORT-COMPATIBILITY.md`**. Re-upload / mapping-drift
+> behavior (extra & renamed columns, replace-vs-append, policy-change
+> confirmation) is in **`IMPORT-DRIFT-AND-REUPLOAD.md`**.
 
 Each agent/distributor may deliver Excel/CSV in a **different layout and with
 different value semantics**. The platform therefore uses a flexible,
