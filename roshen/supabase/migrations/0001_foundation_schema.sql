@@ -36,7 +36,7 @@ create type import_status   as enum (
 create type mapping_status  as enum ('draft','active','archived');
 create type value_dimension as enum ('channel','city','return_reason','salesman','customer','item');
 create type issue_severity  as enum ('error','warning','info');
-create type txn_type        as enum ('sale','return','credit_note');
+create type txn_type        as enum ('sale','return','credit_note','debit_note');
 create type invoice_status  as enum ('posted','cancelled','draft');
 
 -- Per-mapping-version sales calculation policy (avoids a hardcoded universal
@@ -385,6 +385,8 @@ create table sales_fact (
   vat_amount           numeric(18,2),
   returns_value        numeric(18,2) not null default 0,
   cash_discount        numeric(18,2) not null default 0,
+  doc_discount         numeric(18,2),       -- document-level discount (analysis only)
+  item_discount        numeric(18,2),       -- line/item discount (analysis only)
   -- CALCULATED at import per the mapping version's calculation policy
   gross_sales_ex_vat   numeric(18,2),       -- standardized gross ex-VAT, pre discount/returns
   net_sales_ex_vat     numeric(18,2),       -- standardized net ex-VAT (after policy deductions)
@@ -404,8 +406,9 @@ create table sales_fact (
   return_value_expiry numeric(18,2),
   return_value_damage numeric(18,2),
   -- promotion / free goods (when itemized)
-  promotion_qty     numeric(18,3),
-  free_qty          numeric(18,3),
+  promotion_qty       numeric(18,3),
+  free_qty            numeric(18,3),       -- free pieces
+  free_qty_cartons    numeric(18,3),       -- free cartons (agents that split)
   currency          text not null default 'SAR',
   -- reserved: switch to Saudi selling-day calendar without schema change
   is_selling_day    boolean

@@ -1,0 +1,28 @@
+{
+  "note": "Agent-sample-03 (Tala) per-agent value mappings.",
+  "channel": [
+    { "source_value": "Discount Stores", "canonical": "Discounter", "canonical_code": "DISC", "new": true, "rows": 783 },
+    { "source_value": "Wholesale", "canonical": "Wholesale", "canonical_code": "WS", "rows": 359 },
+    { "source_value": "Retail", "canonical": "Traditional Trade", "canonical_code": "TT", "rows": 221, "alt": "or a dedicated 'Retail' canonical — confirm" },
+    { "source_value": "(blank)", "canonical": null, "flag": "UNKNOWN_CHANNEL", "rows": 27 }
+  ],
+  "city_from_city_name": [
+    { "source_value": "Riyadh", "canonical_city": "Riyadh", "rows": 647 },
+    { "source_value": "Dammam", "canonical_city": "Dammam", "rows": 502 },
+    { "source_value": "Khobar", "canonical_city": "Al Khobar", "rows": 45 },
+    { "source_value": "Jubail", "canonical_city": "Jubail", "rows": 32 },
+    { "source_value": "(blank)", "canonical_city": null, "flag": "UNKNOWN_CITY", "rows": 164, "hint": "may infer from Branch Name (tala dammam → Dammam)" }
+  ],
+  "branch_name": [
+    { "source_value": "Riyadh", "rows": 699 },
+    { "source_value": "tala dammam", "canonical_branch": "Tala Dammam", "rows": 691, "note": "branch label; city = Dammam" }
+  ],
+  "transaction_type_from_doc_type": [
+    { "source_value": "Sales", "canonical": "sale", "rows": 1063 },
+    { "source_value": "Good returns", "canonical": "return", "return_reason": "good", "rows": 178 },
+    { "source_value": "Credit Note", "canonical": "credit_note", "rows": 106 },
+    { "source_value": "Damaged returns", "canonical": "return", "return_reason": "damaged", "rows": 40 },
+    { "source_value": "Debit Note", "canonical": "debit_note", "rows": 2 },
+    { "source_value": "Expire returns", "canonical": "return", "return_reason": "expiry", "rows": 1 }
+  ]
+}

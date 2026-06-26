@@ -144,7 +144,13 @@ All original raw values are preserved.
   net_after_returns_excluding_vat`), returns are **not** subtracted again.
 - Per-agent everything: each `column_mapping_profile`/version has its own field
   mapping, value mapping, channel taxonomy, date handling, and calculation
-  policy — agents never share a mapping (see agent-sample-01 vs agent-sample-02).
+  policy — agents never share a mapping (see agent-sample-01/02/03).
+- **Row filters**: a mapping may declare `row_filter` (e.g.
+  `exclude_total_row` / "import only when Doc Id present") to drop trailing
+  total/summary rows so aggregates aren't double-counted.
+- **Transaction types** (`txn_type`): sale · return · credit_note · debit_note.
+  Return sub-reasons (good/damaged/expiry) carried via value mapping →
+  `return_reason` and the split return columns.
 
 ---
 

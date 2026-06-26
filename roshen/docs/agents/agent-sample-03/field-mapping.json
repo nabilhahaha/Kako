@@ -1,0 +1,73 @@
+{
+  "profile": {
+    "agent_placeholder": "agent-sample-03",
+    "note": "SEPARATE profile from agent-01 and agent-02. Verified against Tala.xlsx, sheet 'Sheet1', 1,390 transaction rows (+1 trailing total row EXCLUDED), 2026-05-02 → 2026-05-10.",
+    "source_sheet": "Sheet1",
+    "mapping_name": "Default mapping (agent-sample-03 / Tala)",
+    "version_number": 1,
+    "is_default": true,
+    "status": "active"
+  },
+  "row_filter": {
+    "exclude_total_row": true,
+    "rule": "Skip rows where 'Doc Id' is blank (the trailing total row carries only Net Amount Excl Vat = 441,436.31, equal to the sum of all txn rows).",
+    "import_only_when": "Doc Id is present"
+  },
+  "field_mapping": {
+    "customer_code":              { "source": "Customer Id" },
+    "customer_name":              { "source": "Customer Name" },
+    "city":                       { "source": "City Name En", "via": "value_mapping", "note": "164 blanks → flag" },
+    "branch_name":                { "source": "Branch Name" },
+    "channel":                    { "source": "Channel Name", "via": "value_mapping", "note": "27 blanks → flag" },
+    "salesman_name":              { "source": "Sr Name En" },
+    "salesman_code":              { "source": "Sr No", "note": "raw extra" },
+    "invoice_number":             { "source": "Doc Id" },
+    "invoice_date":               { "source": "Doc Date", "format": "excel_serial_date" },
+    "transaction_type":           { "source": "Doc Type", "via": "value_mapping" },
+    "item_code":                  { "source": "Item Id" },
+    "roshen_item_code":           { "source": "Reference No", "note": "master SKU; 3 blanks → flag" },
+    "item_name":                  { "source": "Product Name" },
+    "item_category":              { "source": "Per The Catalog" },
+    "item_subcategory":           { "source": "Sub Per The Catalog", "note": "raw extra (no canonical subcategory)" },
+    "sales_qty_cartons":          { "source": "Sold Quantity Box" },
+    "sales_qty_pieces":           { "source": "Sold Quantity Pcs" },
+    "free_qty_cartons":           { "source": "Free Quantity Box" },
+    "free_qty":                   { "source": "Free Quantity Pcs" },
+    "return_qty_cartons":         { "source": "Note Quantity Box" },
+    "return_qty_pieces":          { "source": "Note Quantity Pcs" },
+    "gross_sales_ex_vat":         { "source": "Gross Sales Excl Vat Sar" },
+    "sales_value_excl_vat":       { "source": "Net Amount Excl Vat", "note": "ex-VAT after discount" },
+    "net_sales_ex_vat":           { "source": "Net Amount Excl Vat", "note": "direct; SLA basis" },
+    "net_value_reported":         { "source": "Net Amount With Vat Sar", "note": "incl-VAT; reconciliation only" },
+    "cash_discount":              { "source": "Discount Amount" },
+    "doc_discount":               { "source": "Doc Discount Amount" },
+    "item_discount":              { "source": "Item Discount Amount" },
+    "vat_rate_source":            { "source": "Vat Rate", "note": "per-row VAT rate; vat_amount = net_ex_vat * Vat Rate" },
+    "carton_to_piece_factor":     { "source": "Item Carton Config" },
+    "supervisor_name":            { "source": "Sprv Name En", "note": "raw extra" }
+  },
+  "keys": {
+    "line_dedupe_key": { "sources": ["Doc Id", "Item Id", "Doc Date", "Doc Type"], "note": "no LineID; include Doc Type to separate sale vs return lines on same invoice/item" },
+    "line_dedupe_fallback_hash": { "sources": ["invoice_number","invoice_date","customer_code","item_code","quantity","net_sales_ex_vat"] }
+  },
+  "unmapped_extras_kept_in_raw": [
+    "Quantity Box","Quantity Pcs","Total With Vat Sar","Total With Discount Before Vat Sar",
+    "Invoice Price Per Pc Sar","Basic Price Per Pc Sar","Sprv No","Doc Type (raw)",
+    "Sub Per The Catalog","Salesman/Sr No"
+  ],
+  "calculation_policy": {
+    "_locked": false,
+    "sales_value_basis": "excluding_vat_after_discount",
+    "vat_handling": "value_excludes_vat",
+    "vat_rate_note": "per-row 'Vat Rate' column present; use it instead of a flat 0.15",
+    "discount_handling": "discount_already_deducted",
+    "discount_handling_note": "Gross Sales Excl Vat − Discount Amount = Net Amount Excl Vat (0 mismatches). Store Discount Amount, Doc Discount Amount, Item Discount Amount for analysis only; never subtract from SLA.",
+    "returns_handling": "returns_already_deducted",
+    "returns_handling_note": "Good/Damaged/Expire returns, Credit/Debit notes appear as negative rows; summing Net Amount Excl Vat nets them out.",
+    "sla_actual_basis": "net_sales_excluding_vat",
+    "net_sales_source": "direct from 'Net Amount Excl Vat'",
+    "vat_excluded_from_sla": true,
+    "resulting_sla_formula": "SLA Actual = SUM(Net Amount Excl Vat) over txn rows (total row excluded)",
+    "verified_total_sla_may2026": 441436.31
+  }
+}
