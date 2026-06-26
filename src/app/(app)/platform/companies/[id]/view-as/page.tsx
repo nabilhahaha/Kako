@@ -104,7 +104,7 @@ export default async function ViewAsCompanyPage({ params }: { params: Promise<{ 
       {previewRoles.map((role) => {
         const perms = applyFashionUmbrella((permsByRole.get(role) ?? []) as Permission[]);
         const sections = visibleSections(perms, false, false, modules, [], false, company.business_type ?? null);
-        const home = resolveHomePath({ companyId: id, modules, permissions: perms });
+        const home = resolveHomePath({ companyId: id, modules, permissions: perms, businessType: company.business_type ?? null });
         const bottom = resolveBottomNavTabs({ permissions: perms, isSuperAdmin: false, modules, businessType: company.business_type ?? null });
         const roleLabel = BRANCH_ROLES[role]?.[locale] ?? role;
         return (

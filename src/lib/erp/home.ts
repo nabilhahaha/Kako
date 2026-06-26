@@ -27,6 +27,13 @@ export function resolveHomePath(ctx: {
   isRoutePlannerExperience?: boolean;
   /** Product-scoped Route Planner Admin → lands on the limited admin console. */
   isRoutePlannerAdmin?: boolean;
+  /** The tenant company (UserContext callers pass it whole). Its `business_type`
+   *  selects a few business-type-specific homes — e.g. `fast_food` lands on the
+   *  dedicated POS terminal, not the full-service restaurant floor. */
+  company?: { business_type?: string | null } | null;
+  /** Explicit business-type override (preview / view-as callers that don't carry a
+   *  full company). Wins over `company.business_type` when provided. */
+  businessType?: string | null;
 }): string {
   // Route Planner experience: a single-screen product — always land on the planner.
   if (ctx.isRoutePlannerExperience) return '/distribution/route-planner';
@@ -60,6 +67,15 @@ export function resolveHomePath(ctx: {
     if (can('field_verification.reports')) return '/field-verification/reports';
     return '/field-verification';
   }
+
+  // Fast Food / Restaurant POS: its OWN independent module — every operational role
+  // (cashier first) lands straight on the POS terminal, not the full-service restaurant
+  // floor. Keyed on the business type, NOT the broadly-shared `pos` module (fmcg / general /
+  // supermarket / electronics also hold `pos` for /sales/pos and must keep their own homes).
+  // fast_food companies enable BOTH `restaurant` and `pos`, so this must precede the
+  // `restaurant` vertical below or they would fall through to /restaurant.
+  const businessType = ctx.businessType ?? ctx.company?.business_type ?? null;
+  if (businessType === 'fast_food') return '/pos';
 
   // Fashion Store (clothing): the store dashboard is home — no generic dashboard.
   if (has('fashion')) return '/fashion';
