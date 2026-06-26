@@ -13,6 +13,9 @@ import {
   BarChart3,
   Users,
   Settings,
+  CheckSquare,
+  CalendarDays,
+  ClipboardList,
   PanelLeftClose,
   type LucideIcon,
 } from "lucide-react";
@@ -31,6 +34,9 @@ const ICONS: Record<string, LucideIcon> = {
   BarChart3,
   Users,
   Settings,
+  CheckSquare,
+  CalendarDays,
+  ClipboardList,
 };
 
 export function Sidebar({ nav, currentPath }: { nav: NavItem[]; currentPath?: string }) {

@@ -31,3 +31,8 @@ export async function requireProfile() {
 export function isGlobalRole(role: AppRole | null | undefined) {
   return role === "company_manager" || role === "admin";
 }
+
+/** Master-data editing is Admin-only (Company Manager is read-only on setup). */
+export function isAdminRole(role: AppRole | null | undefined) {
+  return role === "admin";
+}

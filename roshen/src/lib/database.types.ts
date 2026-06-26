@@ -1202,6 +1202,7 @@ export type Database = {
       }
       user_scope: {
         Row: {
+          agent_id: string | null
           area_id: string | null
           branch_id: string | null
           company_id: string
@@ -1212,6 +1213,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agent_id?: string | null
           area_id?: string | null
           branch_id?: string | null
           company_id: string
@@ -1222,6 +1224,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agent_id?: string | null
           area_id?: string | null
           branch_id?: string | null
           company_id?: string
@@ -1232,6 +1235,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_scope_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_scope_area_id_fkey"
             columns: ["area_id"]
@@ -1496,6 +1506,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      is_admin: { Args: never; Returns: boolean }
       is_global: { Args: never; Returns: boolean }
       my_area_ids: { Args: never; Returns: string[] }
       my_region_ids: { Args: never; Returns: string[] }

@@ -12,6 +12,9 @@ const GLOBAL: AppRole[] = ["admin", "company_manager"];
 
 export const NAV: NavItem[] = [
   { href: "/app", label: "Home", icon: "Home", roles: ALL_ACTIVE },
+  { href: "/app/workspace", label: "Workspace", icon: "CheckSquare", roles: ALL_ACTIVE },
+  { href: "/app/calendar", label: "Calendar", icon: "CalendarDays", roles: ALL_ACTIVE },
+  { href: "/app/requests", label: "Requests", icon: "ClipboardList", roles: ALL_ACTIVE },
   { href: "/app/organization", label: "Organization", icon: "Building2", roles: GLOBAL },
   { href: "/app/agents", label: "Agents", icon: "Truck", roles: ALL_ACTIVE },
   { href: "/app/upload", label: "Raw Data Upload", icon: "Upload", roles: GLOBAL },
