@@ -50,6 +50,37 @@ KPI definitions support filters and exclusions, e.g. Coverage KPI may exclude
 Gulf Catering Company and/or Small Grocery; Sales KPI may include/exclude
 specific channels/distributors per setup.
 
+## 7b. KPI Units & Conversions (units are first-class — not money-only)
+Supported units: **SAR, Tons, KG, Cartons, Pieces, Customers, Invoices,
+Percentage, Count, Yes/No, File/Document.**
+
+Rules:
+- Store `unit` on BOTH the KPI definition and each KPI record (record inherits
+  from definition by default; record may not override the unit, only values).
+- Display target / fact / forecast / gap / achievement using the record's unit
+  (e.g. "38 / 50 Tons", "80%", "Yes"). Percentage and Yes/No render specially.
+- Volume units (Tons/KG/Cartons/Pieces) support **conversion rules** when the
+  source data unit differs from the KPI target unit:
+  - definition holds `source_unit` + `target_unit` + `conversion_factor`
+    (e.g. source KG → target Tons, factor 0.001; or pieces→cartons via pack size).
+  - auto-fact resolver converts source measure → target unit before compare.
+  - keep raw source value + converted value for audit.
+- Achievement = converted_fact / target (guard divide-by-zero); gap in target unit.
+- Yes/No and File/Document targets: achievement is boolean/threshold-based
+  (e.g. proof attached = achieved), not a ratio.
+
+Examples (real-shaped, not seeded):
+1. Sales Value — target 1,000,000 **SAR**, auto from sales_fact net amount.
+2. Sales Volume — target 50 **Tons**, fact 38 / forecast 47 (source raw qty/weight,
+   convert KG→Tons if needed).
+3. Coverage — target 80 **%**, auto from coverage/SLA view.
+4. Collection — target 500,000 **SAR**, manual entry or finance import.
+5. Presentation — target **Yes/No** or **Count**, manual + attachment proof.
+
+Schema impact (when built): add `unit`, `source_unit`, `target_unit`,
+`conversion_factor` to `kpi_definition`; add `unit`, `source_fact_raw`,
+`fact` (converted) to `kpi_record`. A `kpi_unit` enum covers the list above.
+
 ## 8. Reporting
 By Manager, Region, City, Distributor, Main Channel (TT/MT), Sub Channel;
 Monthly, Quarterly, YTD (later). Roll-ups respect Region → City → Distributor →
