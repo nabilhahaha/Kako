@@ -10,6 +10,7 @@ import {
   coverageByTier,
   unsatisfiedRequirementGroups,
   unmappedHeaders,
+  suggestMapping,
 } from "@/lib/import/mapping";
 import { saveMapping } from "@/lib/import/actions";
 import { DEFAULT_POLICY, type CalcPolicy } from "@/lib/import/types";
@@ -48,11 +49,28 @@ export function MappingEditor({
   initialDateFormat: string;
   sampleRows: Record<string, unknown>[];
 }) {
+  // Self-sufficient auto-map: recompute suggestions on the client from the
+  // headers (don't rely solely on the server-passed ones), so auto-mapping
+  // works wherever the headers reach the browser.
+  const liveSuggestions = useMemo<Sugg[]>(() => {
+    const fromServer = suggestions.filter((s) => s.source).length;
+    return fromServer > 0 ? suggestions : suggestMapping(headers);
+  }, [suggestions, headers]);
+
   const confByKey = useMemo(
-    () => Object.fromEntries(suggestions.map((s) => [s.key, s.confidence])),
-    [suggestions],
+    () => Object.fromEntries(liveSuggestions.map((s) => [s.key, s.confidence])),
+    [liveSuggestions],
   );
-  const [chosen, setChosen] = useState<Record<string, string>>(initialChosen);
+
+  // If the server didn't prefill (or prefilled empty), seed from live suggestions.
+  const seededChosen = useMemo<Record<string, string>>(() => {
+    if (Object.keys(initialChosen).length > 0) return initialChosen;
+    return Object.fromEntries(
+      liveSuggestions.filter((s) => s.source && s.confidence >= 60).map((s) => [s.key, s.source as string]),
+    );
+  }, [initialChosen, liveSuggestions]);
+
+  const [chosen, setChosen] = useState<Record<string, string>>(seededChosen);
   const [dateFormat, setDateFormat] = useState(initialDateFormat || "auto");
   const [policy, setPolicy] = useState<CalcPolicy>(initialPolicy);
   const [showPolicy, setShowPolicy] = useState(false);
@@ -63,9 +81,13 @@ export function MappingEditor({
   const coverage = coverageByTier(fm);
   const unsatisfied = unsatisfiedRequirementGroups(fm);
   const unmapped = unmappedHeaders(headers, fm);
-  const reqMapped = suggestions.filter((s) => s.source && CANONICAL_FIELDS.find((f) => f.key === s.key)?.tier === "required");
+  // Confidence reflects the CURRENT mapping (manual edits included), averaged
+  // over mapped required fields.
+  const reqKeys = CANONICAL_FIELDS.filter((f) => f.tier === "required").map((f) => f.key);
+  const mappedReq = reqKeys.filter((k) => chosen[k]);
   const confidence =
-    reqMapped.length === 0 ? 0 : Math.round(reqMapped.reduce((a, s) => a + (confByKey[s.key] ?? 0), 0) / reqMapped.length);
+    mappedReq.length === 0 ? 0 : Math.round(mappedReq.reduce((a, k) => a + (confByKey[k] ?? 80), 0) / mappedReq.length);
+  const autoCount = Object.keys(seededChosen).length;
 
   function setField(key: string, source: string) {
     setChosen((c) => {
@@ -94,6 +116,11 @@ export function MappingEditor({
 
   return (
     <div className="space-y-5">
+      {autoCount > 0 && (
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-2 text-sm text-emerald-700">
+          Auto-mapped <strong>{autoCount}</strong> columns from the file headers. Review and adjust any field below before saving.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric label="Mapping confidence" value={`${confidence}%`} good={confidence >= 85} />
         {coverage.map((c) => (

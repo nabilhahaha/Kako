@@ -52,7 +52,7 @@ export const CANONICAL_FIELDS: CanonicalField[] = [
 
   // value
   { key: "sales_value_excluding_vat", label: "Sales Value (excl. VAT)", tier: "required", group: "value", numeric: true, synonyms: ["sales value ex vat", "invoice amount ex vat", "amount ex vat", "ex vat", "value excl vat", "net amount ex vat", "sales value"] },
-  { key: "net_value_after_discount", label: "Net Value (after discount)", tier: "optional", group: "value", numeric: true, synonyms: ["net amount", "net value", "net sales value", "netsalsevalue", "net sales"] },
+  { key: "net_value_after_discount", label: "Net Value (after discount)", tier: "optional", group: "value", numeric: true, synonyms: ["net amount", "net value", "net sales value", "netsalsevalue", "net salse value", "netsalesvalue", "net amount incl vat", "net sales"] },
   { key: "gross_value_before_discount", label: "Gross Value (before discount)", tier: "optional", group: "value", numeric: true, synonyms: ["gross sales", "gross value", "gross amount", "gross"] },
   { key: "vat_amount", label: "VAT Amount", tier: "recommended", group: "value", numeric: true, synonyms: ["vat", "vat amount", "sales_total_tax", "tax", "tax amount"] },
   { key: "cash_discount", label: "Cash / Line Discount", tier: "required", group: "value", numeric: true, synonyms: ["discount", "total line discount", "cash discount", "line discount", "discount amount"] },
@@ -68,7 +68,7 @@ export const CANONICAL_FIELDS: CanonicalField[] = [
   { key: "return_qty_pieces", label: "Return Qty (pieces)", tier: "optional", group: "returns", numeric: true, synonyms: ["return qty pieces", "returned each", "return pieces"] },
 
   // location
-  { key: "channel", label: "Channel", tier: "required", group: "location", synonyms: ["channel", "trade channel", "sales channel", "customer classification"] },
+  { key: "channel", label: "Channel", tier: "required", group: "location", synonyms: ["channel", "customer channel", "trade channel", "sales channel", "customer classification"] },
   { key: "city", label: "City", tier: "required", group: "location", synonyms: ["city", "depot", "town", "location"] },
   { key: "region", label: "Region", tier: "optional", group: "location", synonyms: ["region"] },
   { key: "area", label: "Area", tier: "optional", group: "location", synonyms: ["area", "territory"] },
@@ -77,7 +77,7 @@ export const CANONICAL_FIELDS: CanonicalField[] = [
   { key: "route_number", label: "Route Number", tier: "optional", group: "location", synonyms: ["route", "route number", "route no", "warehouse"] },
 
   // people
-  { key: "salesman_name", label: "Salesman Name", tier: "recommended", group: "people", synonyms: ["salesman", "salesman name", "sales man", "sales rep", "rep"] },
+  { key: "salesman_name", label: "Salesman Name", tier: "recommended", group: "people", synonyms: ["salesman", "salesman name", "sales man", "jp salesman", "sales rep", "rep"] },
   { key: "agent_code", label: "Agent / Distributor Code", tier: "optional", group: "people", synonyms: ["agent code", "distributor code", "agent id"] },
   { key: "agent_name", label: "Agent / Distributor Name", tier: "optional", group: "people", synonyms: ["agent name", "distributor name", "agent", "distributor"] },
 ];

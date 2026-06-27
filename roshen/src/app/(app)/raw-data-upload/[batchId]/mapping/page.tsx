@@ -26,7 +26,10 @@ export default async function MappingPage({ params }: { params: Promise<{ batchI
     .order("row_number")
     .limit(5);
   const sampleRows = (rawRows ?? []).map((r) => r.raw as Record<string, unknown>);
-  const headers = sampleRows.length ? Object.keys(sampleRows[0]) : [];
+  // Union of keys across sampled rows (robust to a sparse first row).
+  const headerSet = new Set<string>();
+  for (const row of sampleRows) for (const k of Object.keys(row ?? {})) headerSet.add(k);
+  const headers = [...headerSet];
 
   // Prefill from an existing mapping version (reuse/edit) if present.
   let initialChosen: Record<string, string> = {};
