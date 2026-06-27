@@ -425,6 +425,17 @@ const en: Dict = {
   "lv.days": "Days",
   "lv.reason": "Reason",
   "lv.cover": "Cover person",
+  "req.print": "Print / Export",
+  "print.draft": "DRAFT",
+  "print.generated": "Generated",
+  "print.do_print": "Print",
+  "print.approval_history": "Approval history",
+  "print.attachments": "Attachments",
+  "print.no_history": "No approval history.",
+  "print.action": "Action",
+  "print.actor": "By",
+  "print.when": "When",
+  "print.comment": "Comment",
 };
 
 const uk: Dict = {
@@ -818,6 +829,17 @@ const uk: Dict = {
   "lv.days": "Днів",
   "lv.reason": "Причина",
   "lv.cover": "Заміщення",
+  "req.print": "Друк / Експорт",
+  "print.draft": "ЧЕРНЕТКА",
+  "print.generated": "Сформовано",
+  "print.do_print": "Друк",
+  "print.approval_history": "Історія погоджень",
+  "print.attachments": "Вкладення",
+  "print.no_history": "Історії погоджень немає.",
+  "print.action": "Дія",
+  "print.actor": "Ким",
+  "print.when": "Коли",
+  "print.comment": "Коментар",
 };
 
 const ar: Dict = {
@@ -1211,6 +1233,17 @@ const ar: Dict = {
   "lv.days": "الأيام",
   "lv.reason": "السبب",
   "lv.cover": "الشخص البديل",
+  "req.print": "طباعة / تصدير",
+  "print.draft": "مسودة",
+  "print.generated": "أُنشئ في",
+  "print.do_print": "طباعة",
+  "print.approval_history": "سجل الموافقات",
+  "print.attachments": "المرفقات",
+  "print.no_history": "لا يوجد سجل موافقات.",
+  "print.action": "الإجراء",
+  "print.actor": "بواسطة",
+  "print.when": "متى",
+  "print.comment": "تعليق",
 };
 
 const DICTS: Record<Locale, Dict> = { en, uk, ar };
