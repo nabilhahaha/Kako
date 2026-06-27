@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { money } from "@/lib/req-meta";
 import { SalesBubbleMap, type CityPoint, type MapLabels } from "@/components/app/reports/sales-bubble-map";
 
-type SP = { period?: string; region?: string; city?: string; distributor?: string; main?: string; sub?: string };
+type SP = { period?: string; region?: string; city?: string; distributor?: string; manager?: string; main?: string; sub?: string };
 
 function quarterMonths(q: string): string[] {
   const m = q.match(/^(\d{4})-Q([1-4])$/);
@@ -21,12 +21,13 @@ export default async function SalesMapPage({ searchParams }: { searchParams: Pro
   const supabase = await createClient();
   const { t } = await getT();
 
-  const [channelsR, regionsR, citiesR, agentsR, monthsR] = await Promise.all([
+  const [channelsR, regionsR, citiesR, agentsR, monthsR, profilesR] = await Promise.all([
     supabase.from("channel").select("id,code,name,parent_id,is_active").order("name"),
     supabase.from("region").select("id,name").order("name"),
     supabase.from("city").select("id,name,region_id,latitude,longitude,region:region_id(name)").order("name"),
-    supabase.from("agent").select("id,name").eq("type", "distributor").order("name"),
+    supabase.from("agent").select("id,name,area_manager_id").eq("type", "distributor").order("name"),
     supabase.from("sales_geo_line").select("period_month"),
+    supabase.from("profile").select("id,full_name,email"),
   ]);
 
   const channels = channelsR.data ?? [];
@@ -40,6 +41,12 @@ export default async function SalesMapPage({ searchParams }: { searchParams: Pro
   const distOpts = (agentsR.data ?? []).map((a) => ({ value: a.id as string, label: a.name as string }));
   const agentName = new Map((agentsR.data ?? []).map((a) => [a.id as string, a.name as string]));
 
+  // Manager filter: managers assigned to distributors → restrict to their distributors.
+  const pName = new Map((profilesR.data ?? []).map((p) => [p.id as string, (p.full_name as string) || (p.email as string) || "—"]));
+  const managerIds = [...new Set((agentsR.data ?? []).map((a) => a.area_manager_id as string | null).filter(Boolean) as string[])];
+  const managerOpts = managerIds.map((id) => ({ value: id, label: pName.get(id) ?? "—" }));
+  const agentsByManager = (mgr: string) => (agentsR.data ?? []).filter((a) => a.area_manager_id === mgr).map((a) => a.id as string);
+
   // Period options (months + quarters) from available data.
   const monthSet = new Set<string>();
   for (const r of monthsR.data ?? []) if (r.period_month) monthSet.add(String(r.period_month).slice(0, 7));
@@ -51,6 +58,7 @@ export default async function SalesMapPage({ searchParams }: { searchParams: Pro
   if (sp.region) q = q.eq("region_id", sp.region);
   if (sp.city) q = q.eq("city_id", sp.city);
   if (sp.distributor) q = q.eq("agent_id", sp.distributor);
+  if (sp.manager) { const ids = agentsByManager(sp.manager); q = q.in("agent_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]); }
   if (sp.main) q = q.eq("main_channel_id", sp.main);
   if (sp.sub) q = q.eq("sub_channel_id", sp.sub);
   if (sp.period && /^\d{4}-Q[1-4]$/.test(sp.period)) q = q.in("period_month", quarterMonths(sp.period));
@@ -121,7 +129,11 @@ export default async function SalesMapPage({ searchParams }: { searchParams: Pro
     volume: t("smap.volume"), invoices: t("smap.invoices"), customers: t("smap.customers"),
     distributors: t("smap.distributors"), main: t("smap.main_channel"), sub: t("smap.sub_channel"),
     last: t("smap.last_activity"), view: t("smap.view_report"),
+    legend: t("smap.legend"), legendSize: t("smap.legend_size"),
+    legendLow: t("smap.legend_low"), legendHigh: t("smap.legend_high"), attr: t("smap.attr_note"),
   };
+  const topCityMax = Math.max(1, ...topCities.map((c) => c.sales));
+  const topDistMax = Math.max(1, ...topDists.map(([, v]) => v));
 
   const sel = (name: string, val: string | undefined, opts: { value: string; label: string }[], ph: string) => (
     <select name={name} defaultValue={val ?? ""} className="rounded-xl border border-line bg-white px-3 py-2 text-sm">
@@ -138,19 +150,22 @@ export default async function SalesMapPage({ searchParams }: { searchParams: Pro
       </div>
 
       {/* Filters */}
-      <form action="/reports/sales-map" method="get" className="flex flex-wrap items-end gap-2">
-        <select name="period" defaultValue={sp.period ?? ""} className="rounded-xl border border-line bg-white px-3 py-2 text-sm">
-          <option value="">{t("smap.filter.period")}: {t("common.all")}</option>
-          {quarters.map((qx) => <option key={qx} value={qx}>{qx.replace("-", " ")}</option>)}
-          {months.map((m) => <option key={m} value={m}>{m}</option>)}
-        </select>
-        {sel("region", sp.region, regionOpts, t("smap.filter.region"))}
-        {sel("city", sp.city, cityOpts, t("smap.filter.city"))}
-        {sel("distributor", sp.distributor, distOpts, t("smap.filter.distributor"))}
-        {sel("main", sp.main, mainOpts, t("smap.filter.main"))}
-        {sel("sub", sp.sub, subOpts, t("smap.filter.sub"))}
-        <button type="submit" className="rounded-xl bg-burgundy px-3 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">{t("common.apply_filters")}</button>
-      </form>
+      <Card className="p-3">
+        <form action="/reports/sales-map" method="get" className="flex flex-wrap items-end gap-2">
+          <select name="period" defaultValue={sp.period ?? ""} className="rounded-xl border border-line bg-white px-3 py-2 text-sm">
+            <option value="">{t("smap.filter.period")}: {t("common.all")}</option>
+            {quarters.map((qx) => <option key={qx} value={qx}>{qx.replace("-", " ")}</option>)}
+            {months.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          {sel("region", sp.region, regionOpts, t("smap.filter.region"))}
+          {sel("city", sp.city, cityOpts, t("smap.filter.city"))}
+          {sel("manager", sp.manager, managerOpts, t("smap.filter.manager"))}
+          {sel("distributor", sp.distributor, distOpts, t("smap.filter.distributor"))}
+          {sel("main", sp.main, mainOpts, t("smap.filter.main"))}
+          {sel("sub", sp.sub, subOpts, t("smap.filter.sub"))}
+          <button type="submit" className="rounded-xl bg-burgundy px-3 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">{t("common.apply_filters")}</button>
+        </form>
+      </Card>
 
       {/* KPI cards */}
       <section className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -171,7 +186,6 @@ export default async function SalesMapPage({ searchParams }: { searchParams: Pro
         <div className="lg:col-span-2">
           <SalesBubbleMap cities={cityPoints} labels={mapLabels} />
           {total === 0 && <p className="mt-2 text-sm text-muted">{t("smap.no_data")}</p>}
-          <p className="mt-2 text-xs text-muted">{t("smap.attr_note")}</p>
           {unassigned > 0 && (
             <p className="mt-1 text-xs font-medium text-amber-700">{t("smap.unassigned")}: {money(unassigned, "SAR")}</p>
           )}
@@ -181,17 +195,23 @@ export default async function SalesMapPage({ searchParams }: { searchParams: Pro
         <div className="space-y-5">
           <Card className="p-5">
             <h2 className="font-serif text-base font-semibold text-ink">{t("smap.top_cities")}</h2>
-            <div className="mt-3 space-y-1.5 text-sm">
+            <div className="mt-3 space-y-2.5 text-sm">
               {topCities.length === 0 ? <p className="text-muted">—</p> : topCities.map((c) => (
-                <div key={c.id} className="flex justify-between"><span className="text-ink">{c.name}</span><span className="text-muted">{c.salesLabel}</span></div>
+                <div key={c.id}>
+                  <div className="flex justify-between"><span className="text-ink">{c.name}</span><span className="text-muted">{c.salesLabel}</span></div>
+                  <div className="mt-1 h-1.5 rounded-full bg-cream-deep"><div className="h-1.5 rounded-full bg-burgundy" style={{ width: `${Math.round((100 * c.sales) / topCityMax)}%` }} /></div>
+                </div>
               ))}
             </div>
           </Card>
           <Card className="p-5">
             <h2 className="font-serif text-base font-semibold text-ink">{t("smap.by_distributor")}</h2>
-            <div className="mt-3 space-y-1.5 text-sm">
+            <div className="mt-3 space-y-2.5 text-sm">
               {topDists.length === 0 ? <p className="text-muted">—</p> : topDists.map(([id, v]) => (
-                <div key={id} className="flex justify-between"><span className="text-ink">{agentName.get(id) ?? "—"}</span><span className="text-muted">{money(v, "SAR")}</span></div>
+                <div key={id}>
+                  <div className="flex justify-between"><span className="text-ink">{agentName.get(id) ?? "—"}</span><span className="text-muted">{money(v, "SAR")}</span></div>
+                  <div className="mt-1 h-1.5 rounded-full bg-cream-deep"><div className="h-1.5 rounded-full bg-gold" style={{ width: `${Math.round((100 * v) / topDistMax)}%` }} /></div>
+                </div>
               ))}
             </div>
           </Card>
