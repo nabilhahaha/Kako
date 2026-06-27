@@ -866,10 +866,10 @@ export type Database = {
       sales_fact: {
         Row: {
           agent_id: string
-          area_id: string
+          area_id: string | null
           barcode: string | null
           batch_id: string
-          branch_id: string
+          branch_id: string | null
           brand: string | null
           calculation_policy_used: Json | null
           carton_to_piece_factor: number | null
@@ -926,10 +926,10 @@ export type Database = {
         }
         Insert: {
           agent_id: string
-          area_id: string
+          area_id?: string | null
           barcode?: string | null
           batch_id: string
-          branch_id: string
+          branch_id?: string | null
           brand?: string | null
           calculation_policy_used?: Json | null
           carton_to_piece_factor?: number | null
@@ -986,10 +986,10 @@ export type Database = {
         }
         Update: {
           agent_id?: string
-          area_id?: string
+          area_id?: string | null
           barcode?: string | null
           batch_id?: string
-          branch_id?: string
+          branch_id?: string | null
           brand?: string | null
           calculation_policy_used?: Json | null
           carton_to_piece_factor?: number | null
