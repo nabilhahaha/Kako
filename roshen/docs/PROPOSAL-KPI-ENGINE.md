@@ -12,7 +12,8 @@ target/fact/forecast + auto/manual facts + attachments + include/exclude rules
 
 ## 1. KPI Definition (Admin-authored)
 - name, category, applies-to role
-- period_type: Monthly / Quarterly / Custom
+- period_type: **Monthly / Quarterly / Yearly / Custom** (per KPI — independent
+  of every other KPI)
 - target_type: Amount / Count / Percentage / Yes-No / File-based
 - fact_source: Auto (from imported raw data) / Manual / Mixed
 - requires_attachment: yes/no
@@ -49,6 +50,23 @@ attachment uploader + signed-URL pattern (task/request attachments).
 KPI definitions support filters and exclusions, e.g. Coverage KPI may exclude
 Gulf Catering Company and/or Small Grocery; Sales KPI may include/exclude
 specific channels/distributors per setup.
+
+## 7c. Per-KPI period + unit independence (no global assumptions)
+Every KPI definition controls its **own** period_type AND unit; the engine must
+never assume all KPIs are SAR or all are monthly. Each definition/record carries
+its own target / fact / forecast / achievement % / forecast achievement % /
+gap-vs-target / gap-vs-forecast, all expressed in that KPI's unit and period.
+
+Mixed examples that must coexist:
+- Monthly · Tons — Sales Volume, target 20, forecast 19, fact auto from imported
+  volume/quantity (convert KG→Tons if source differs).
+- Quarterly · SAR — Sales Value, target 3,000,000, forecast 2,900,000, fact auto
+  from imported sales value.
+- Monthly · Percentage — Coverage, target 80%.
+- Monthly · SAR or Count — Collection (SAR) / Presentation (Count or Yes-No).
+
+`period_type` enum (when built): monthly / quarterly / yearly / custom.
+`period_name` examples: "June 2026", "Q2 2026", "2026", or a custom range.
 
 ## 7b. KPI Units & Conversions (units are first-class — not money-only)
 Supported units: **SAR, Tons, KG, Cartons, Pieces, Customers, Invoices,
