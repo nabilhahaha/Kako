@@ -186,6 +186,70 @@ export type Database = {
           },
         ]
       }
+      calendar_event: {
+        Row: {
+          all_day: boolean
+          company_id: string
+          created_at: string
+          end_date: string | null
+          id: string
+          kind: string
+          owner_id: string
+          related_task_id: string | null
+          start_date: string
+          status_color: string | null
+          title: string
+        }
+        Insert: {
+          all_day?: boolean
+          company_id: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          kind?: string
+          owner_id: string
+          related_task_id?: string | null
+          start_date: string
+          status_color?: string | null
+          title: string
+        }
+        Update: {
+          all_day?: boolean
+          company_id?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          kind?: string
+          owner_id?: string
+          related_task_id?: string | null
+          start_date?: string
+          status_color?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_event_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_event_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_event_related_task_id_fkey"
+            columns: ["related_task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       capability_setup: {
         Row: {
           actual_salesmen: number | null
@@ -934,6 +998,70 @@ export type Database = {
           },
         ]
       }
+      notification: {
+        Row: {
+          action_url: string | null
+          company_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string | null
+          read_at: string | null
+          related_task_id: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          read_at?: string | null
+          related_task_id?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          read_at?: string | null
+          related_task_id?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_related_task_id_fkey"
+            columns: ["related_task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product: {
         Row: {
           barcode: string | null
@@ -1468,6 +1596,369 @@ export type Database = {
           },
         ]
       }
+      task: {
+        Row: {
+          assigned_to: string | null
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string | null
+          due_time: string | null
+          id: string
+          priority: Database["public"]["Enums"]["task_priority"]
+          related_agent_id: string | null
+          related_area_id: string | null
+          related_branch_id: string | null
+          related_city_id: string | null
+          related_import_batch_id: string | null
+          related_sla_target_id: string | null
+          reminder_at: string | null
+          reminder_offset: Database["public"]["Enums"]["reminder_offset"]
+          start_date: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          timezone: string
+          title: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["task_visibility_kind"]
+          visible_role: Database["public"]["Enums"]["app_role"] | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          due_time?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          related_agent_id?: string | null
+          related_area_id?: string | null
+          related_branch_id?: string | null
+          related_city_id?: string | null
+          related_import_batch_id?: string | null
+          related_sla_target_id?: string | null
+          reminder_at?: string | null
+          reminder_offset?: Database["public"]["Enums"]["reminder_offset"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          timezone?: string
+          title: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["task_visibility_kind"]
+          visible_role?: Database["public"]["Enums"]["app_role"] | null
+        }
+        Update: {
+          assigned_to?: string | null
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          due_time?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          related_agent_id?: string | null
+          related_area_id?: string | null
+          related_branch_id?: string | null
+          related_city_id?: string | null
+          related_import_batch_id?: string | null
+          related_sla_target_id?: string | null
+          reminder_at?: string | null
+          reminder_offset?: Database["public"]["Enums"]["reminder_offset"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          timezone?: string
+          title?: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["task_visibility_kind"]
+          visible_role?: Database["public"]["Enums"]["app_role"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_related_agent_id_fkey"
+            columns: ["related_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_related_area_id_fkey"
+            columns: ["related_area_id"]
+            isOneToOne: false
+            referencedRelation: "area"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_related_branch_id_fkey"
+            columns: ["related_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_related_city_id_fkey"
+            columns: ["related_city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_related_import_batch_id_fkey"
+            columns: ["related_import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_related_sla_target_id_fkey"
+            columns: ["related_sla_target_id"]
+            isOneToOne: false
+            referencedRelation: "sla_performance"
+            referencedColumns: ["target_id"]
+          },
+          {
+            foreignKeyName: "task_related_sla_target_id_fkey"
+            columns: ["related_sla_target_id"]
+            isOneToOne: false
+            referencedRelation: "sla_target"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_activity: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          from_value: string | null
+          id: string
+          task_id: string
+          to_value: string | null
+          type: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          from_value?: string | null
+          id?: string
+          task_id: string
+          to_value?: string | null
+          type: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          from_value?: string | null
+          id?: string
+          task_id?: string
+          to_value?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_activity_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_comment: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          task_id: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comment_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comment_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_reminder: {
+        Row: {
+          created_at: string
+          id: string
+          remind_at: string
+          reminder_kind: Database["public"]["Enums"]["reminder_offset"] | null
+          sent_at: string | null
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          remind_at: string
+          reminder_kind?: Database["public"]["Enums"]["reminder_offset"] | null
+          sent_at?: string | null
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          remind_at?: string
+          reminder_kind?: Database["public"]["Enums"]["reminder_offset"] | null
+          sent_at?: string | null
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_reminder_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_visibility: {
+        Row: {
+          agent_id: string | null
+          area_id: string | null
+          branch_id: string | null
+          city_id: string | null
+          created_at: string
+          id: string
+          region_id: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          task_id: string
+          user_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          area_id?: string | null
+          branch_id?: string | null
+          city_id?: string | null
+          created_at?: string
+          id?: string
+          region_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          task_id: string
+          user_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          area_id?: string | null
+          branch_id?: string | null
+          city_id?: string | null
+          created_at?: string
+          id?: string
+          region_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          task_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_visibility_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_visibility_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "area"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_visibility_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_visibility_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_visibility_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_visibility_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_visibility_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_scope: {
         Row: {
           agent_id: string | null
@@ -1863,6 +2354,29 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      can_see_task: {
+        Args: {
+          p_assigned_to: string
+          p_created_by: string
+          p_id: string
+          p_related_area_id: string
+          p_related_city_id: string
+          p_visibility: Database["public"]["Enums"]["task_visibility_kind"]
+          p_visible_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
+      enqueue_notification: {
+        Args: {
+          p_action_url?: string
+          p_message?: string
+          p_task_id?: string
+          p_title: string
+          p_type: Database["public"]["Enums"]["notification_type"]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
       is_global: { Args: never; Returns: boolean }
       my_agent_ids: { Args: never; Returns: string[] }
@@ -1901,6 +2415,17 @@ export type Database = {
       invoice_status: "posted" | "cancelled" | "draft"
       issue_severity: "error" | "warning" | "info"
       mapping_status: "draft" | "active" | "archived"
+      notification_type:
+        | "task_assigned"
+        | "task_due_soon"
+        | "task_overdue"
+        | "status_changed"
+        | "comment_added"
+        | "task_reassigned"
+        | "task_completed"
+        | "task_cancelled"
+        | "mentioned"
+        | "scope_task_created"
       org_level:
         | "company"
         | "country"
@@ -1909,6 +2434,7 @@ export type Database = {
         | "branch"
         | "agent"
         | "city"
+      reminder_offset: "none" | "at_due" | "1h_before" | "1d_before" | "custom"
       returns_handling:
         | "returns_already_deducted"
         | "subtract_returns_value"
@@ -1924,6 +2450,20 @@ export type Database = {
         | "net_sales_excluding_vat"
         | "gross_sales_excluding_vat"
         | "custom_formula_later"
+      task_priority: "low" | "normal" | "high" | "urgent"
+      task_status:
+        | "not_started"
+        | "in_progress"
+        | "blocked"
+        | "completed"
+        | "cancelled"
+      task_visibility_kind:
+        | "private_assignee"
+        | "creator_assignee"
+        | "selected_users"
+        | "selected_role"
+        | "selected_scope"
+        | "all_managers"
       txn_type: "sale" | "return" | "credit_note" | "debit_note"
       value_dimension:
         | "channel"
@@ -2095,6 +2635,18 @@ export const Constants = {
       invoice_status: ["posted", "cancelled", "draft"],
       issue_severity: ["error", "warning", "info"],
       mapping_status: ["draft", "active", "archived"],
+      notification_type: [
+        "task_assigned",
+        "task_due_soon",
+        "task_overdue",
+        "status_changed",
+        "comment_added",
+        "task_reassigned",
+        "task_completed",
+        "task_cancelled",
+        "mentioned",
+        "scope_task_created",
+      ],
       org_level: [
         "company",
         "country",
@@ -2104,6 +2656,7 @@ export const Constants = {
         "agent",
         "city",
       ],
+      reminder_offset: ["none", "at_due", "1h_before", "1d_before", "custom"],
       returns_handling: [
         "returns_already_deducted",
         "subtract_returns_value",
@@ -2121,6 +2674,22 @@ export const Constants = {
         "net_sales_excluding_vat",
         "gross_sales_excluding_vat",
         "custom_formula_later",
+      ],
+      task_priority: ["low", "normal", "high", "urgent"],
+      task_status: [
+        "not_started",
+        "in_progress",
+        "blocked",
+        "completed",
+        "cancelled",
+      ],
+      task_visibility_kind: [
+        "private_assignee",
+        "creator_assignee",
+        "selected_users",
+        "selected_role",
+        "selected_scope",
+        "all_managers",
       ],
       txn_type: ["sale", "return", "credit_note", "debit_note"],
       value_dimension: [
