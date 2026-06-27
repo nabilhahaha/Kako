@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useRef, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useRef, useState, useCallback, useEffect, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, X, CheckCircle2, AlertTriangle, Ban, UploadCloud, ArrowRight } from "lucide-react";
+import { Loader2, X, CheckCircle2, AlertTriangle, Ban, UploadCloud, ArrowRight, GripVertical, Minus, ChevronDown, ChevronUp } from "lucide-react";
 import {
   createDraftBatch,
   appendRawRows,
@@ -146,68 +146,178 @@ export function UploadProvider({ children }: { children: ReactNode }) {
   );
 }
 
+const MARGIN = 12;
+const CARD_W = 256; // w-64
+const PILL_W = 132;
+
+function statusMeta(status: Status) {
+  switch (status) {
+    case "completed": return { icon: <CheckCircle2 className="h-4 w-4 text-emerald-600" />, label: "Upload complete", dot: "bg-emerald-500" };
+    case "failed": return { icon: <AlertTriangle className="h-4 w-4 text-roshen-red" />, label: "Upload failed", dot: "bg-roshen-red" };
+    case "cancelled": return { icon: <Ban className="h-4 w-4 text-muted" />, label: "Upload cancelled", dot: "bg-muted" };
+    default: return { icon: <UploadCloud className="h-4 w-4 text-burgundy" />, label: "Uploading…", dot: "bg-burgundy" };
+  }
+}
+
 function UploadIndicator() {
   const { job, cancel, retry, dismiss } = useUpload();
   const router = useRouter();
-  if (!job) return null;
 
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [minimized, setMinimized] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const drag = useRef({ active: false, sx: 0, sy: 0, ox: 0, oy: 0, moved: false });
+
+  // Restore persisted position / minimized state (client-only to avoid SSR
+  // hydration mismatch — hence setState in an effect).
+  useEffect(() => {
+    let v: { x?: number; y?: number; min?: boolean } | null = null;
+    try {
+      const raw = localStorage.getItem("roshen.upload.widget");
+      v = raw ? JSON.parse(raw) : null;
+    } catch {
+      v = null;
+    }
+    if (!v) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (typeof v.x === "number" && typeof v.y === "number") setPos({ x: v.x, y: v.y });
+    if (typeof v.min === "boolean") setMinimized(v.min);
+  }, []);
+
+  const persist = useCallback((p: { x: number; y: number } | null, min: boolean) => {
+    try { localStorage.setItem("roshen.upload.widget", JSON.stringify({ x: p?.x, y: p?.y, min })); } catch {}
+  }, []);
+
+  const onPointerDown = (e: ReactPointerEvent) => {
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    drag.current = { active: true, sx: e.clientX, sy: e.clientY, ox: rect.left, oy: rect.top, moved: false };
+    setPos({ x: rect.left, y: rect.top });
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: ReactPointerEvent) => {
+    const d = drag.current;
+    if (!d.active) return;
+    const dx = e.clientX - d.sx;
+    const dy = e.clientY - d.sy;
+    if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
+    const w = cardRef.current?.offsetWidth ?? CARD_W;
+    const h = cardRef.current?.offsetHeight ?? 80;
+    const x = Math.min(Math.max(d.ox + dx, MARGIN), window.innerWidth - w - MARGIN);
+    const y = Math.min(Math.max(d.oy + dy, MARGIN), window.innerHeight - h - MARGIN);
+    setPos({ x, y });
+  };
+  const onPointerUp = (e: ReactPointerEvent) => {
+    const d = drag.current;
+    if (!d.active) return;
+    d.active = false;
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    const w = cardRef.current?.offsetWidth ?? CARD_W;
+    const h = cardRef.current?.offsetHeight ?? 80;
+    setPos((p) => {
+      if (!p) return p;
+      // Snap horizontally to the nearest edge; clamp vertically.
+      const center = p.x + w / 2;
+      const x = center < window.innerWidth / 2 ? MARGIN : window.innerWidth - w - MARGIN;
+      const y = Math.min(Math.max(p.y, MARGIN), window.innerHeight - h - MARGIN);
+      const snapped = { x, y };
+      persist(snapped, minimized);
+      return snapped;
+    });
+  };
+
+  if (!job) return null;
   const pct = job.total > 0 ? Math.round((job.done / job.total) * 100) : 0;
   const active = job.status === "preparing" || job.status === "uploading";
+  const meta = statusMeta(job.status);
+  const style: React.CSSProperties = pos ? { left: pos.x, top: pos.y } : { right: MARGIN, bottom: MARGIN };
 
+  // ---- Minimized pill ----
+  if (minimized) {
+    return (
+      <div
+        ref={cardRef}
+        style={style}
+        className="fixed z-50 select-none"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={(e) => { onPointerUp(e); if (!drag.current.moved) { setMinimized(false); persist(pos, false); } }}
+      >
+        <button
+          style={{ width: PILL_W }}
+          className="flex cursor-grab items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink shadow-[0_6px_20px_-8px_rgba(42,34,32,0.3)] active:cursor-grabbing"
+        >
+          <span className={"h-2 w-2 rounded-full " + meta.dot + (active ? " animate-pulse" : "")} />
+          {active ? <UploadCloud className="h-3.5 w-3.5 text-burgundy" /> : meta.icon}
+          <span>{active ? `${pct}%` : job.status === "completed" ? "Done" : job.status === "failed" ? "Failed" : "Cancelled"}</span>
+        </button>
+      </div>
+    );
+  }
+
+  // ---- Compact expanded card ----
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-80 rounded-2xl border border-line bg-white shadow-[0_8px_30px_-8px_rgba(42,34,32,0.25)]">
-      <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
-        <span className="flex items-center gap-2 text-sm font-medium text-ink">
-          {job.status === "completed" ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            : job.status === "failed" ? <AlertTriangle className="h-4 w-4 text-roshen-red" />
-            : job.status === "cancelled" ? <Ban className="h-4 w-4 text-muted" />
-            : <UploadCloud className="h-4 w-4 text-burgundy" />}
-          {job.status === "completed" ? "Upload complete" : job.status === "failed" ? "Upload failed" : job.status === "cancelled" ? "Upload cancelled" : "Uploading…"}
-        </span>
-        {!active && (
-          <button onClick={dismiss} className="text-muted hover:text-ink" aria-label="Dismiss"><X className="h-4 w-4" /></button>
-        )}
+    <div ref={cardRef} style={{ ...style, width: CARD_W }} className="fixed z-50 select-none rounded-xl border border-line bg-white shadow-[0_8px_30px_-8px_rgba(42,34,32,0.25)]">
+      {/* drag handle / header */}
+      <div
+        className="flex cursor-grab items-center gap-1.5 rounded-t-xl border-b border-line px-3 py-1.5 active:cursor-grabbing"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+      >
+        <GripVertical className="h-3.5 w-3.5 text-muted" />
+        {meta.icon}
+        <span className="flex-1 truncate text-xs font-medium text-ink">{meta.label}</span>
+        <button onClick={() => { setMinimized(true); persist(pos, true); }} className="text-muted hover:text-ink" aria-label="Minimize"><Minus className="h-3.5 w-3.5" /></button>
+        {!active && <button onClick={dismiss} className="text-muted hover:text-ink" aria-label="Dismiss"><X className="h-3.5 w-3.5" /></button>}
       </div>
 
-      <div className="space-y-2 px-4 py-3">
-        <p className="truncate text-sm font-medium text-ink">{job.filename}</p>
-        <p className="text-xs text-muted">{job.distributor}</p>
+      <div className="space-y-1.5 px-3 py-2">
+        <p className="truncate text-xs font-medium text-ink" title={job.filename}>{job.filename}</p>
 
-        {active && (
-          <>
-            <div className="mt-1 flex justify-between text-xs text-muted">
-              <span className="capitalize">{job.stage}</span>
-              <span>{job.done.toLocaleString()} / {job.total.toLocaleString()} ({pct}%)</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-cream-deep">
-              <div className="h-full bg-burgundy transition-all" style={{ width: `${pct}%` }} />
-            </div>
-            <p className="text-[11px] text-muted">You can keep working — upload continues in the background.</p>
-            <button onClick={cancel} className="mt-1 inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-roshen-red hover:bg-roshen-red/5">
-              <Ban className="h-3.5 w-3.5" /> Cancel upload
-            </button>
-          </>
-        )}
+        <div className="flex items-center justify-between text-[11px] text-muted">
+          <span>{job.done.toLocaleString()} / {job.total.toLocaleString()}</span>
+          <span className="font-medium">{active ? `${pct}%` : job.status}</span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-cream-deep">
+          <div className={"h-full transition-all " + (job.status === "failed" ? "bg-roshen-red" : job.status === "completed" ? "bg-emerald-500" : "bg-burgundy")} style={{ width: `${job.status === "completed" ? 100 : pct}%` }} />
+        </div>
 
+        {/* primary action */}
         {job.status === "completed" && (
           <button
             onClick={() => { router.push(`/raw-data-upload/${job.batchId}/mapping`); dismiss(); }}
-            className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-burgundy px-3 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover"
+            className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-burgundy px-3 py-1.5 text-xs font-medium text-cream hover:bg-burgundy-hover"
           >
-            Open Mapping <ArrowRight className="h-4 w-4" />
+            Open Mapping <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {job.status === "failed" && (
+          <button onClick={retry} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-burgundy px-3 py-1.5 text-xs font-medium text-cream hover:bg-burgundy-hover">
+            <Loader2 className="h-3.5 w-3.5" /> Retry from row {job.done.toLocaleString()}
+          </button>
+        )}
+        {active && (
+          <button onClick={cancel} className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-roshen-red hover:underline">
+            <Ban className="h-3 w-3" /> Cancel
           </button>
         )}
 
-        {job.status === "failed" && (
-          <>
-            {job.error && <p className="text-xs text-roshen-red">{job.error} (from row {job.done.toLocaleString()})</p>}
-            <button onClick={retry} className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-burgundy px-3 py-1.5 text-sm font-medium text-cream hover:bg-burgundy-hover">
-              <Loader2 className="h-4 w-4" /> Retry from row {job.done.toLocaleString()}
-            </button>
-          </>
+        {/* collapsible secondary details */}
+        <button onClick={() => setShowDetails((s) => !s)} className="flex w-full items-center justify-between pt-0.5 text-[11px] text-muted hover:text-ink">
+          <span>Details</span>
+          {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+        {showDetails && (
+          <div className="space-y-0.5 text-[11px] text-muted">
+            <p>Distributor: <span className="text-ink">{job.distributor}</span></p>
+            <p className="capitalize">Stage: <span className="text-ink">{job.stage}</span></p>
+            {active && <p>Upload continues in the background while you work.</p>}
+            {job.status === "failed" && job.error && <p className="text-roshen-red">{job.error}</p>}
+            {job.status === "cancelled" && <p>Uploaded rows kept for audit; excluded from reports.</p>}
+          </div>
         )}
-
-        {job.status === "cancelled" && <p className="text-xs text-muted">Cancelled by user. Already-uploaded rows are kept for audit and excluded from reports.</p>}
       </div>
     </div>
   );
