@@ -95,20 +95,42 @@ export default async function OrganizationPage({
     if (q) query = query.ilike("name", `%${q}%`);
     rows = ((await query).data as Record<string, unknown>[]) ?? [];
   } else {
-    // distributors
-    columns = ["Name", "Code", "City", "Region", "Channel", "Assigned Manager", "Status"];
+    // distributors — master records; multi region/city/channel coverage lives
+    // in distributor_coverage and is summarised in the Coverage column.
+    columns = ["Name", "Code", "Coverage", "Assigned Manager", "Status"];
     let query = supabase
       .from("agent")
       .select(
         "id,name,code,is_active,city_id,channel_id,area_manager_id," +
-          "city:city_id(name,region:region_id(name))," +
-          "channel:channel_id(name)," +
           "area_manager:area_manager_id(full_name,email)",
       )
       .eq("type", "distributor")
+      .order("is_active", { ascending: false })
       .order("name");
     if (q) query = query.ilike("name", `%${q}%`);
     rows = ((await query).data as unknown as Record<string, unknown>[]) ?? [];
+
+    const { data: cov } = await supabase
+      .from("distributor_coverage")
+      .select("distributor_id, region:region_id(name), city:city_id(name), sub:sub_channel_id(name)");
+    const sum = new Map<string, { areas: Set<string>; subs: Set<string> }>();
+    for (const c of cov ?? []) {
+      const id = c.distributor_id as string;
+      if (!sum.has(id)) sum.set(id, { areas: new Set(), subs: new Set() });
+      const e = sum.get(id)!;
+      const city = (Array.isArray(c.city) ? c.city[0] : c.city) as { name?: string } | null;
+      const region = (Array.isArray(c.region) ? c.region[0] : c.region) as { name?: string } | null;
+      e.areas.add(city?.name || region?.name || "All Kingdom");
+      const sub = (Array.isArray(c.sub) ? c.sub[0] : c.sub) as { name?: string } | null;
+      if (sub?.name) e.subs.add(sub.name);
+    }
+    rows = rows.map((r) => {
+      const e = sum.get(r.id as string);
+      const summary = e
+        ? `${[...e.areas].join(", ")}${e.subs.size ? " — " + [...e.subs].join(", ") : ""}`
+        : "";
+      return { ...r, _coverage: summary };
+    });
   }
 
   return (
@@ -232,11 +254,6 @@ function rel(v: unknown) {
   const o = Array.isArray(v) ? v[0] : v;
   return o && typeof o === "object" ? txt((o as { name?: string }).name) : "—";
 }
-function regionOfCity(v: unknown) {
-  const c = (Array.isArray(v) ? v[0] : v) as { region?: unknown } | null;
-  if (!c || typeof c !== "object") return "—";
-  return rel(c.region);
-}
 function person(v: unknown) {
   const o = (Array.isArray(v) ? v[0] : v) as { full_name?: string; email?: string } | null;
   if (!o || typeof o !== "object") return "—";
@@ -252,9 +269,7 @@ function Cells({ tab, row }: { tab: TabKey; row: Record<string, unknown> }) {
     <>
       <td className="px-4 py-2.5 font-medium text-ink">{txt(row.name)}</td>
       <td className="px-4 py-2.5 text-muted">{txt(row.code)}</td>
-      <td className="px-4 py-2.5 text-muted">{rel(row.city)}</td>
-      <td className="px-4 py-2.5 text-muted">{regionOfCity(row.city)}</td>
-      <td className="px-4 py-2.5 text-muted">{rel(row.channel)}</td>
+      <td className="px-4 py-2.5 text-muted"><span className="block max-w-md">{txt(row._coverage)}</span></td>
       <td className="px-4 py-2.5 text-muted">{person(row.area_manager)}</td>
       <td className="px-4 py-2.5">
         <span className={
