@@ -34,7 +34,10 @@ export function UserDialog({
   cities: Opt[];
   distributors: Opt[];
   labels: UserLabels;
-  initial?: { id: string; full_name: string; email: string; role: string; is_active: boolean };
+  initial?: {
+    id: string; full_name: string; email: string; role: string; is_active: boolean;
+    scope?: { level: string; entity: string };
+  };
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -48,8 +51,8 @@ export function UserDialog({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState(roles[0]?.value ?? "area_manager");
   const [active, setActive] = useState(true);
-  const [scopeLevel, setScopeLevel] = useState("");
-  const [scopeEntity, setScopeEntity] = useState("");
+  const [scopeLevel, setScopeLevel] = useState(initial?.scope?.level ?? "");
+  const [scopeEntity, setScopeEntity] = useState(initial?.scope?.entity ?? "");
 
   function close() {
     setOpen(false);
@@ -138,6 +141,22 @@ export function UserDialog({
                   <input type="checkbox" name="is_active" defaultChecked={initial.is_active} className="h-4 w-4 rounded border-line" />
                   {labels.active}
                 </label>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-ink">{labels.scope}</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select name="scope_level" value={scopeLevel} onChange={(e) => { setScopeLevel(e.target.value); setScopeEntity(""); }} className={inputCls}>
+                      <option value="">{labels.none}</option>
+                      <option value="region">{labels.region}</option>
+                      <option value="city">{labels.city}</option>
+                      <option value="agent">{labels.distributor}</option>
+                    </select>
+                    <select name="scope_entity" value={scopeEntity} onChange={(e) => setScopeEntity(e.target.value)} disabled={!scopeLevel} className={inputCls + (!scopeLevel ? " opacity-60" : "")}>
+                      <option value="">{labels.none}</option>
+                      {scopeEntityOpts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <p className="text-xs text-muted">{labels.scope_hint}</p>
+                </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" size="sm" onClick={close}>{labels.cancel}</Button>
                   <Button type="submit" size="sm">{labels.save}</Button>

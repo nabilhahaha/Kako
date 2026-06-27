@@ -66,7 +66,15 @@ export async function createUser(input: CreateInput): Promise<CreateResult> {
   }
 }
 
-/** Update an existing user's profile (name / role / active). Admin-only via RLS. */
+/**
+ * Update an existing user's profile (name / role / active) and, optionally,
+ * replace their org scope. Admin-only (re-checked here; RLS profile_admin /
+ * user_scope_admin enforce it at the database too).
+ *
+ * Scope is a safe full replace: existing rows for the user are removed, then a
+ * single new row is inserted if a level + entity were chosen. An empty level
+ * clears the scope (user falls back to their default role scope).
+ */
 export async function updateUser(fd: FormData) {
   const { profile } = await requireProfile();
   if (!isAdminRole(profile?.role)) throw new Error("Admin only.");
@@ -84,6 +92,19 @@ export async function updateUser(fd: FormData) {
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
+
+  // Scope replace (only when the dialog submitted scope fields).
+  if (fd.has("scope_level")) {
+    const level = str(fd, "scope_level"); // "" => clear
+    const entity = str(fd, "scope_entity");
+    await supabase.from("user_scope").delete().eq("user_id", id);
+    if (level && entity && ["region", "city", "agent"].includes(level) && profile?.company_id) {
+      const row: Record<string, unknown> = { company_id: profile.company_id, user_id: id, level };
+      row[level === "agent" ? "agent_id" : level === "city" ? "city_id" : "region_id"] = entity;
+      const { error: serr } = await supabase.from("user_scope").insert(row as never);
+      if (serr) throw new Error(serr.message);
+    }
+  }
   revalidatePath("/users-scopes");
 }
 

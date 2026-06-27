@@ -23,13 +23,23 @@ export default async function UsersScopesPage() {
   const isAdmin = isAdminRole(profile?.role);
 
   const supabase = await createClient();
-  const [usersRes, regionsRes, citiesRes, distsRes] = await Promise.all([
+  const [usersRes, regionsRes, citiesRes, distsRes, scopeRes] = await Promise.all([
     supabase.from("profile").select("id,full_name,email,role,is_active,created_at").order("created_at", { ascending: true }),
     supabase.from("region").select("id,name").order("name"),
     supabase.from("city").select("id,name").order("name"),
     supabase.from("agent").select("id,name,code").eq("type", "distributor").order("name"),
+    supabase.from("user_scope").select("user_id,level,region_id,city_id,agent_id"),
   ]);
   const users = usersRes.data ?? [];
+
+  // First scope row per user → { level, entity } for the edit dialog.
+  const scopeByUser = new Map<string, { level: string; entity: string }>();
+  for (const s of scopeRes.data ?? []) {
+    if (scopeByUser.has(s.user_id as string)) continue;
+    const level = String(s.level);
+    const entity = level === "agent" ? s.agent_id : level === "city" ? s.city_id : level === "region" ? s.region_id : null;
+    if (entity) scopeByUser.set(s.user_id as string, { level, entity: String(entity) });
+  }
   const roles = ASSIGNABLE_ROLES.map((r) => ({ value: r, label: t(`role.${r}`) }));
   const regions = (regionsRes.data ?? []).map((r) => ({ value: r.id, label: r.name }));
   const cities = (citiesRes.data ?? []).map((c) => ({ value: c.id, label: c.name }));
@@ -97,7 +107,7 @@ export default async function UsersScopesPage() {
                           cities={cities}
                           distributors={distributors}
                           labels={labels}
-                          initial={{ id: u.id, full_name: u.full_name ?? "", email: u.email ?? "", role: u.role, is_active: u.is_active }}
+                          initial={{ id: u.id, full_name: u.full_name ?? "", email: u.email ?? "", role: u.role, is_active: u.is_active, scope: scopeByUser.get(u.id) }}
                         />
                         {u.id !== user.id && (
                           <form action={setUserActive}>
