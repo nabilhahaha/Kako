@@ -146,7 +146,7 @@ export function DistributorDialog({
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="area_manager_id" className="text-sm font-medium text-ink">
-                    Area Manager
+                    Assigned Manager
                   </label>
                   <select id="area_manager_id" name="area_manager_id" defaultValue={(initial?.area_manager_id as string) ?? ""} className={inputCls}>
                     <option value="">Unassigned</option>

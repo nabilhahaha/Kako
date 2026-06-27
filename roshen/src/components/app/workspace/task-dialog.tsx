@@ -28,6 +28,9 @@ export function TaskDialog({
   initial,
   selectedAssignees = [],
   mode = "create",
+  open: openProp,
+  onOpenChange,
+  hideTrigger = false,
 }: {
   action?: (fd: FormData) => Promise<void>;
   createAction?: (fd: FormData) => Promise<string>;
@@ -42,9 +45,15 @@ export function TaskDialog({
   initial?: Record<string, string | null>;
   selectedAssignees?: string[];
   mode?: "create" | "edit";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : openState;
+  const setOpen = (o: boolean) => { onOpenChange?.(o); if (!isControlled) setOpenState(o); };
   const [visibility, setVisibility] = useState((initial?.visibility as string) || "creator_assignee");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -103,7 +112,7 @@ export function TaskDialog({
 
   return (
     <>
-      {mode === "create" ? (
+      {hideTrigger ? null : mode === "create" ? (
         <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> {labels.new_task}</Button>
       ) : (
         <button onClick={() => setOpen(true)} className="rounded-lg p-1.5 text-muted hover:bg-burgundy-soft hover:text-burgundy" aria-label={labels.edit}>

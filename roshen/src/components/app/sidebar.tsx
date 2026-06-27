@@ -4,16 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  Home, Building2, Truck, Upload, SlidersHorizontal, Database, Target, BarChart3,
-  Users, Settings, CheckSquare, CalendarDays, ClipboardList, ChevronDown, Menu, X,
+  Home, Building2, Building, Truck, Upload, SlidersHorizontal, Database, Target, BarChart3,
+  Users, Settings, CheckSquare, CalendarDays, ClipboardList, MapPin, Map, ChevronDown, Menu, X,
   type LucideIcon,
 } from "lucide-react";
 import { Wordmark } from "@/components/brand/wordmark";
 import { cn } from "@/lib/cn";
 
 const ICONS: Record<string, LucideIcon> = {
-  Home, Building2, Truck, Upload, SlidersHorizontal, Database, Target, BarChart3,
-  Users, Settings, CheckSquare, CalendarDays, ClipboardList,
+  Home, Building2, Building, Truck, Upload, SlidersHorizontal, Database, Target, BarChart3,
+  Users, Settings, CheckSquare, CalendarDays, ClipboardList, MapPin, Map,
 };
 
 export type NavChildView = { href: string; key: string; label: string };
@@ -32,8 +32,10 @@ export function Sidebar({ groups, currentPath }: { groups: NavGroupView[]; curre
     const qtab = query ? new URLSearchParams(query).get("tab") : null;
     if (path === "/") return pathname === "/";
     if (path === "/organization") {
-      if (pathname !== "/organization") return false;
-      return qtab ? tab === "distributors" : tab !== "distributors";
+      // Distributors has its own sidebar item; Regions/Cities live under the
+      // Organization overview, so keep the overview item active for those.
+      if (pathname === "/organization") return true;
+      return pathname.startsWith("/organization/") && !pathname.startsWith("/organization/distributors");
     }
     if (path === "/workspace") {
       if (pathname !== "/workspace" && !pathname.startsWith("/workspace/")) return false;

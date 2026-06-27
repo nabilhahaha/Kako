@@ -1,0 +1,45 @@
+{
+  "_note": "Pre-cleanup backup of organization master data before applying the real Roshen KSA structure. Captured 2026-06-27. No sales_fact/import_batch/raw_import_row/tasks/requests/files/auth users are included or affected.",
+  "dependency_summary": {
+    "import_batch_total": 12,
+    "sales_fact_total": 4881,
+    "import_batches_by_agent": {
+      "66666666-0002-0000-0000-000000000000 (Jeddah Distributor B)": 10,
+      "66666666-0001-0000-0000-000000000000 (Riyadh North Distributor A)": 2
+    },
+    "sales_facts_by_agent": {
+      "66666666-0002-0000-0000-000000000000 (Jeddah Distributor B)": 4881
+    }
+  },
+  "regions": [
+    {"id": "33333333-0001-0000-0000-000000000000", "name": "Central", "code": "CEN"},
+    {"id": "33333333-0003-0000-0000-000000000000", "name": "Eastern", "code": "EST"},
+    {"id": "a180a0eb-4641-4702-9c2a-e8c1a5e3a7cf", "name": "North", "code": null},
+    {"id": "e12e440f-0f16-4ecb-8f30-637701203e91", "name": "South", "code": null},
+    {"id": "33333333-0002-0000-0000-000000000000", "name": "Western", "code": "WST"}
+  ],
+  "cities": [
+    {"id": "9528b00c-a3e9-40f3-b857-d2f27ae9138c", "name": "Jeddah", "region": "Western"},
+    {"id": "f693ab29-216c-49be-ab5d-b7e6e4930861", "name": "Riyadh", "region": "Central"}
+  ],
+  "agents_distributors": [
+    {"id": "66666666-0002-0000-0000-000000000000", "name": "Jeddah Distributor B", "code": "AGT-2001", "city": "Jeddah", "channel": "Traditional Trade", "area_manager_id": "7a116457-a766-455f-90bc-a75b28e18873", "is_active": true, "has_import_batches": 10, "has_sales_fact": 4881},
+    {"id": "66666666-0001-0000-0000-000000000000", "name": "Riyadh North Distributor A", "code": "AGT-1001", "city": null, "channel": "Modern Trade", "area_manager_id": null, "is_active": true, "has_import_batches": 2, "has_sales_fact": 0}
+  ],
+  "channels": [
+    {"id": "ba05af8f-3ba1-4ca3-9bf3-d1e8c7e4d9dc", "name": "Traditional Trade", "code": "TT"},
+    {"id": "6ad907a1-217a-42dd-8fec-ccf935759505", "name": "Modern Trade", "code": "MT"},
+    {"id": "284c6277-3744-4770-88d5-da5a7b2787e2", "name": "Cash Van", "code": "CV"},
+    {"id": "2ab81e04-b2d1-4f8b-9531-069049d1005f", "name": "Wholesale", "code": "WS"},
+    {"id": "3721315b-da68-4497-8765-84fe7a006d16", "name": "Discounter", "code": "DISC"},
+    {"id": "e703ac63-d6b8-40c8-80ae-dc461d726fdf", "name": "B2B", "code": "B2B"},
+    {"id": "90b14f17-ec03-4827-91cb-9d16852ec969", "name": "E-commerce", "code": "ECOM"},
+    {"id": "29bd18f2-1a4b-4167-9cad-0fae773696f8", "name": "HoReCa", "code": "HRC"},
+    {"id": "6fcc9f3d-5739-429b-bd27-254302001029", "name": "Internal / GFF", "code": "GFF"},
+    {"id": "123ed4bc-636f-4d0b-a51b-cd89b0011571", "name": "Key Account", "code": "KA"},
+    {"id": "ba598344-6b2a-4620-ba2e-1ea19fef1e0d", "name": "Other", "code": "OTH"}
+  ],
+  "user_scope": [
+    {"id": "57d9ed81-ebfc-4747-ae86-8ad5474046b0", "user_id": "7a116457-a766-455f-90bc-a75b28e18873", "level": "region", "region_id": "33333333-0002-0000-0000-000000000000 (Western)"}
+  ]
+}

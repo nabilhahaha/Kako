@@ -446,6 +446,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          parent_id: string | null
         }
         Insert: {
           code?: string | null
@@ -454,6 +455,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          parent_id?: string | null
         }
         Update: {
           code?: string | null
@@ -462,6 +464,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          parent_id?: string | null
         }
         Relationships: [
           {
@@ -471,24 +474,37 @@ export type Database = {
             referencedRelation: "company"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "channel_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "channel"
+            referencedColumns: ["id"]
+          },
         ]
       }
       city: {
         Row: {
           company_id: string
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           region_id: string | null
         }
         Insert: {
           company_id: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           region_id?: string | null
         }
         Update: {
           company_id?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           region_id?: string | null
         }
@@ -870,6 +886,111 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distributor_coverage: {
+        Row: {
+          city_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          distributor_id: string
+          id: string
+          is_active: boolean
+          main_channel_id: string | null
+          notes: string | null
+          region_id: string | null
+          sub_channel_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          city_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          distributor_id: string
+          id?: string
+          is_active?: boolean
+          main_channel_id?: string | null
+          notes?: string | null
+          region_id?: string | null
+          sub_channel_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          city_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          distributor_id?: string
+          id?: string
+          is_active?: boolean
+          main_channel_id?: string | null
+          notes?: string | null
+          region_id?: string | null
+          sub_channel_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distributor_coverage_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_coverage_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_coverage_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_coverage_distributor_id_fkey"
+            columns: ["distributor_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_coverage_main_channel_id_fkey"
+            columns: ["main_channel_id"]
+            isOneToOne: false
+            referencedRelation: "channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_coverage_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_coverage_sub_channel_id_fkey"
+            columns: ["sub_channel_id"]
+            isOneToOne: false
+            referencedRelation: "channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_coverage_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
         ]
@@ -2914,6 +3035,47 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "import_batch"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_geo_line: {
+        Row: {
+          agent_id: string | null
+          cartons: number | null
+          city_id: string | null
+          city_source: string | null
+          company_id: string | null
+          customer_code: string | null
+          id: number | null
+          invoice_date: string | null
+          invoice_number: string | null
+          main_channel_id: string | null
+          net_sales: number | null
+          period_month: string | null
+          region_id: string | null
+          sub_channel_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_fact_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_fact_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_fact_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
             referencedColumns: ["id"]
           },
         ]

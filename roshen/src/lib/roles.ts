@@ -21,10 +21,12 @@ export const NAV_TREE: NavGroup[] = [
       {
         href: "/workspace", key: "workspace", icon: "CheckSquare", roles: EVERYONE,
         children: [
-          { href: "/workspace?tab=my", key: "my_tasks" },
-          { href: "/workspace?tab=team", key: "team_tasks" },
-          { href: "/workspace?tab=assigned", key: "assigned" },
-          { href: "/calendar", key: "calendar" },
+          { href: "/workspace", key: "ws_overview" },
+          { href: "/workspace/my-tasks", key: "my_tasks" },
+          { href: "/workspace/team-tasks", key: "team_tasks" },
+          { href: "/workspace/assigned-by-me", key: "assigned" },
+          { href: "/workspace/board", key: "board" },
+          { href: "/workspace/calendar", key: "calendar" },
           { href: "/workspace/files", key: "files" },
           { href: "/notifications", key: "notifications" },
         ],
@@ -37,8 +39,9 @@ export const NAV_TREE: NavGroup[] = [
       {
         href: "/requests", key: "requests", icon: "ClipboardList", roles: CORE,
         children: [
-          { href: "/requests/business-trip", key: "business_trip" },
+          { href: "/requests", key: "req_overview" },
           { href: "/requests/expenses", key: "expenses" },
+          { href: "/requests/business-trip", key: "business_trip" },
           { href: "/requests/leave", key: "leave" },
           { href: "/requests/approvals", key: "approvals" },
         ],
@@ -48,8 +51,10 @@ export const NAV_TREE: NavGroup[] = [
   {
     key: "organization",
     items: [
-      { href: "/organization", key: "organization", icon: "Building2", roles: CORE },
-      { href: "/organization?tab=distributors", key: "distributors", icon: "Truck", roles: CORE },
+      { href: "/organization", key: "org_overview", icon: "Building2", roles: CORE },
+      { href: "/organization/regions", key: "regions", icon: "MapPin", roles: CORE },
+      { href: "/organization/cities", key: "cities", icon: "Building", roles: CORE },
+      { href: "/organization/distributors", key: "distributors", icon: "Truck", roles: CORE },
       { href: "/users-scopes", key: "users_scopes", icon: "Users", roles: GLOBAL },
     ],
   },
@@ -66,6 +71,12 @@ export const NAV_TREE: NavGroup[] = [
     items: [
       { href: "/sla-targets", key: "sla_setup", icon: "Target", roles: CORE },
       { href: "/sla-report", key: "sla_report", icon: "BarChart3", roles: CORE },
+    ],
+  },
+  {
+    key: "reporting",
+    items: [
+      { href: "/reports/sales-map", key: "sales_map", icon: "Map", roles: CORE },
     ],
   },
   {
