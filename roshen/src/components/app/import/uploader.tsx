@@ -8,13 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { suggestMapping } from "@/lib/import/mapping";
 import { detectDateFormat, normalizeDate, detectPeriod } from "@/lib/import/parse";
-import { createDraftBatch, appendRawRows, type CreateDraftInput } from "@/lib/import/actions";
-import type { RawRowPayload } from "@/lib/import/types";
-
-// Vercel serverless functions reject request bodies larger than ~4.5 MB, so we
-// stream rows in BYTE-AWARE chunks kept well under that, capped by row count too.
-const MAX_CHUNK_BYTES = 1_200_000; // ~1.2 MB per request
-const MAX_CHUNK_ROWS = 800;
+import { type CreateDraftInput } from "@/lib/import/actions";
+import { useUpload } from "@/components/app/import/upload-provider";
 
 type Opt = { value: string; label: string };
 
@@ -28,10 +23,9 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
   const [activeSheet, setActiveSheet] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [stage, setStage] = useState<string>("");
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { startUpload } = useUpload();
 
   const sheet = sheets.find((s) => s.name === activeSheet);
 
@@ -78,83 +72,36 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
     }
   }
 
-  function friendlyError(e: unknown, rowRange?: string): string {
-    const raw = e instanceof Error ? e.message : String(e);
-    if (/unexpected response|Failed to fetch|Load failed|413|body|too large/i.test(raw)) {
-      return `The server rejected a batch of rows${rowRange ? ` (${rowRange})` : ""} as too large. ` +
-        `This is a request-size limit; please retry — chunks are now smaller.`;
-    }
-    return raw;
-  }
-
-  async function appendWithRetry(batchId: string, chunk: RawRowPayload[], label: string) {
-    try {
-      await appendRawRows(batchId, chunk);
-    } catch {
-      // one retry after a short pause
-      await new Promise((r) => setTimeout(r, 600));
-      try {
-        await appendRawRows(batchId, chunk);
-      } catch (e2) {
-        throw new Error(friendlyError(e2, label));
-      }
-    }
-  }
-
   async function submit() {
     if (!agentId) return setError("Select a distributor first.");
     if (!sheet) return setError("Upload a file and select a sheet.");
     setError(null);
     setBusy(true);
-    setStage("Preparing metadata…");
     const allRows = sheet.rows.map((raw, i) => ({
       row_number: i + 1,
       raw,
       raw_invoice_date: dateSource ? (raw[dateSource] == null ? null : String(raw[dateSource])) : null,
     }));
-    try {
-      // Stage 1a: create the draft from METADATA ONLY (tiny request).
-      setStage("Creating draft import…");
-      const meta: CreateDraftInput = {
-        agentId,
-        filename,
-        sizeBytes,
-        sheet: sheet.name,
-        detectedDateFormat: dateFormat,
-        period,
-        rowCount: allRows.length,
-        headers: sheet.headers,
-        sampleRows: sheet.rows.slice(0, 50),
-      };
-      const { batchId } = await createDraftBatch(meta);
-
-      // Stage 1b: stream rows in byte-aware chunks (kept under the platform limit).
-      setStage("Saving rows");
-      setProgress({ done: 0, total: allRows.length });
-      let i = 0;
-      while (i < allRows.length) {
-        let j = i;
-        let bytes = 0;
-        while (j < allRows.length && j - i < MAX_CHUNK_ROWS) {
-          const sz = JSON.stringify(allRows[j]).length + 1;
-          if (j > i && bytes + sz > MAX_CHUNK_BYTES) break;
-          bytes += sz;
-          j++;
-        }
-        const chunk = allRows.slice(i, j);
-        await appendWithRetry(batchId, chunk, `rows ${i + 1}–${j}`);
-        i = j;
-        setProgress({ done: i, total: allRows.length });
-      }
-
-      setStage("Redirecting to mapping…");
-      router.push(`/raw-data-upload/${batchId}/mapping`);
-    } catch (e) {
+    const meta: CreateDraftInput = {
+      agentId,
+      filename,
+      sizeBytes,
+      sheet: sheet.name,
+      detectedDateFormat: dateFormat,
+      period,
+      rowCount: allRows.length,
+      headers: sheet.headers,
+      sampleRows: sheet.rows.slice(0, 50),
+    };
+    const distributorLabel = distributors.find((d) => d.value === agentId)?.label ?? "Distributor";
+    // The draft (headers + sample) is created synchronously; rows then stream in
+    // the BACKGROUND via the global UploadProvider, so we can open Mapping now.
+    const batchId = await startUpload({ meta, rows: allRows, distributorLabel });
+    if (!batchId) {
       setBusy(false);
-      setProgress(null);
-      setStage("");
-      setError(`Upload failed: ${friendlyError(e)}`);
+      return setError("Could not create the import batch — see the upload status for details.");
     }
+    router.push(`/raw-data-upload/${batchId}/mapping`);
   }
 
   return (
@@ -248,26 +195,13 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
           </div>
 
           <div className="mt-5 flex flex-col items-end gap-2">
-            {busy && stage && !progress && (
-              <p className="w-full text-xs text-muted">{stage}</p>
-            )}
-            {progress && (
-              <div className="w-full">
-                <div className="mb-1 flex justify-between text-xs text-muted">
-                  <span>{stage || "Saving rows…"}</span>
-                  <span>{progress.done.toLocaleString()} / {progress.total.toLocaleString()}</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-cream-deep">
-                  <div
-                    className="h-full bg-burgundy transition-all"
-                    style={{ width: `${Math.round((progress.done / Math.max(progress.total, 1)) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
+            <p className="w-full text-xs text-muted">
+              Rows upload in the background — you can map columns and keep working while they stream.
+              Track progress in the upload status (bottom-right).
+            </p>
             <Button onClick={submit} disabled={busy || !agentId}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
-              {busy ? "Uploading…" : "Create draft & map columns"}
+              {busy ? "Starting…" : "Create draft & map columns"}
             </Button>
           </div>
         </Card>

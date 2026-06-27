@@ -526,17 +526,23 @@ export type Database = {
         Row: {
           agent_id: string
           calculation_policy: Json | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           column_count: number | null
           company_id: string
+          completed_at: string | null
           confirmed_by: string | null
           created_at: string
+          current_upload_stage: string | null
           detected_date_format: string | null
           error_count: number
+          failed_reason: string | null
           file_checksum: string | null
           file_size_bytes: number | null
           id: string
           import_mode: Database["public"]["Enums"]["import_mode"] | null
           imported_at: string | null
+          last_successful_row_index: number | null
           mapping_version_id: string | null
           notes: string | null
           period_end: string | null
@@ -550,23 +556,33 @@ export type Database = {
           source_headers: Json | null
           status: Database["public"]["Enums"]["import_status"]
           storage_path: string | null
+          total_rows_count: number | null
+          upload_progress_percent: number | null
+          upload_status: string | null
           uploaded_by: string | null
+          uploaded_rows_count: number | null
           warning_count: number
         }
         Insert: {
           agent_id: string
           calculation_policy?: Json | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           column_count?: number | null
           company_id: string
+          completed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
+          current_upload_stage?: string | null
           detected_date_format?: string | null
           error_count?: number
+          failed_reason?: string | null
           file_checksum?: string | null
           file_size_bytes?: number | null
           id?: string
           import_mode?: Database["public"]["Enums"]["import_mode"] | null
           imported_at?: string | null
+          last_successful_row_index?: number | null
           mapping_version_id?: string | null
           notes?: string | null
           period_end?: string | null
@@ -580,23 +596,33 @@ export type Database = {
           source_headers?: Json | null
           status?: Database["public"]["Enums"]["import_status"]
           storage_path?: string | null
+          total_rows_count?: number | null
+          upload_progress_percent?: number | null
+          upload_status?: string | null
           uploaded_by?: string | null
+          uploaded_rows_count?: number | null
           warning_count?: number
         }
         Update: {
           agent_id?: string
           calculation_policy?: Json | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           column_count?: number | null
           company_id?: string
+          completed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
+          current_upload_stage?: string | null
           detected_date_format?: string | null
           error_count?: number
+          failed_reason?: string | null
           file_checksum?: string | null
           file_size_bytes?: number | null
           id?: string
           import_mode?: Database["public"]["Enums"]["import_mode"] | null
           imported_at?: string | null
+          last_successful_row_index?: number | null
           mapping_version_id?: string | null
           notes?: string | null
           period_end?: string | null
@@ -610,7 +636,11 @@ export type Database = {
           source_headers?: Json | null
           status?: Database["public"]["Enums"]["import_status"]
           storage_path?: string | null
+          total_rows_count?: number | null
+          upload_progress_percent?: number | null
+          upload_status?: string | null
           uploaded_by?: string | null
+          uploaded_rows_count?: number | null
           warning_count?: number
         }
         Relationships: [
@@ -619,6 +649,13 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batch_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
           {

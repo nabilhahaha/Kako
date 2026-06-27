@@ -16,7 +16,7 @@ export default async function DecisionPage({ params }: { params: Promise<{ batch
 
   const { data: batch } = await supabase
     .from("import_batch")
-    .select("id,status,error_count,agent_id,period_start,period_end,period_month,row_count,source_filename,agent:agent_id(name)")
+    .select("id,status,error_count,agent_id,period_start,period_end,period_month,row_count,source_filename,upload_status,upload_progress_percent,agent:agent_id(name)")
     .eq("id", batchId)
     .maybeSingle();
   if (!batch) notFound();
@@ -60,6 +60,9 @@ export default async function DecisionPage({ params }: { params: Promise<{ batch
   });
   const agent = (Array.isArray(batch.agent) ? batch.agent[0] : batch.agent) as { name?: string } | null;
   const blocked = (batch.error_count ?? 0) > 0;
+  // Block import until the background row upload has finished (so we never
+  // import a partial file). upload_status null = legacy/fully-present batch.
+  const uploadReady = batch.upload_status == null || batch.upload_status === "completed";
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
@@ -88,7 +91,21 @@ export default async function DecisionPage({ params }: { params: Promise<{ batch
         )}
       </Card>
 
-      <DecisionForm batchId={batchId} recommended={rec.mode} reason={rec.reason} blocked={blocked} rowCount={batch.row_count} />
+      {!uploadReady && (
+        <Card className="border-amber-200 bg-amber-50/60 p-3">
+          <p className="text-sm font-medium text-amber-800">
+            Upload still in progress ({batch.upload_progress_percent ?? 0}%). Importing unlocks once all rows finish uploading —
+            track it in the upload status (bottom-right). You can map columns meanwhile.
+          </p>
+        </Card>
+      )}
+      <DecisionForm
+        batchId={batchId}
+        recommended={rec.mode}
+        reason={rec.reason}
+        blocked={blocked || !uploadReady}
+        rowCount={batch.row_count}
+      />
     </div>
   );
 }

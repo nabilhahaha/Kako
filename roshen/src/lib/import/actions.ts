@@ -588,10 +588,73 @@ function numOrZero(raw: Record<string, unknown>, fm: FieldMapping, key: string):
   return isFinite(n) ? n : 0;
 }
 
-// ----------------------------------------------------------------- cancel
-export async function cancelBatch(batchId: string) {
+// ----------------------------------------------------------------- upload tracking
+export async function updateUploadProgress(
+  batchId: string,
+  p: { status: string; stage: string; uploaded: number; total: number; lastIndex: number },
+): Promise<void> {
   const { supabase } = await ctx();
-  await supabase.from("import_batch").update({ status: "cancelled" }).eq("id", batchId);
+  await supabase
+    .from("import_batch")
+    .update({
+      upload_status: p.status,
+      current_upload_stage: p.stage,
+      uploaded_rows_count: p.uploaded,
+      total_rows_count: p.total,
+      upload_progress_percent: p.total > 0 ? Math.round((p.uploaded / p.total) * 100) : 0,
+      last_successful_row_index: p.lastIndex,
+    })
+    .eq("id", batchId);
+}
+
+export async function markUploadComplete(batchId: string, total: number): Promise<void> {
+  const { supabase } = await ctx();
+  await supabase
+    .from("import_batch")
+    .update({
+      upload_status: "completed",
+      current_upload_stage: "completed",
+      uploaded_rows_count: total,
+      total_rows_count: total,
+      upload_progress_percent: 100,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", batchId);
+  revalidatePath("/import-batches");
+}
+
+export async function markUploadFailed(batchId: string, reason: string, lastIndex: number): Promise<void> {
+  const { supabase } = await ctx();
+  await supabase
+    .from("import_batch")
+    .update({ upload_status: "failed", failed_reason: reason.slice(0, 500), last_successful_row_index: lastIndex })
+    .eq("id", batchId);
+  revalidatePath("/import-batches");
+}
+
+/** Cancel an in-progress upload (keeps raw rows for audit; never affects SLA). */
+export async function cancelUpload(batchId: string): Promise<void> {
+  const { supabase, userId } = await ctx();
+  await supabase
+    .from("import_batch")
+    .update({
+      status: "cancelled",
+      upload_status: "cancelled",
+      current_upload_stage: "cancelled",
+      cancelled_by: userId,
+      cancelled_at: new Date().toISOString(),
+    })
+    .eq("id", batchId);
+  revalidatePath("/import-batches");
+}
+
+// ----------------------------------------------------------------- cancel (from decision step)
+export async function cancelBatch(batchId: string) {
+  const { supabase, userId } = await ctx();
+  await supabase
+    .from("import_batch")
+    .update({ status: "cancelled", cancelled_by: userId, cancelled_at: new Date().toISOString() })
+    .eq("id", batchId);
   revalidatePath("/import-batches");
   redirect("/import-batches");
 }
