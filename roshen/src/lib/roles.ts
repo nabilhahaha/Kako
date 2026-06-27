@@ -20,8 +20,8 @@ export const NAV: NavItem[] = [
   { href: "/app/upload", label: "Raw Data Upload", icon: "Upload", roles: GLOBAL },
   { href: "/app/mapping", label: "Mapping Profiles", icon: "SlidersHorizontal", roles: GLOBAL },
   { href: "/app/imports", label: "Import Batches", icon: "Database", roles: ALL_ACTIVE },
-  { href: "/app/targets", label: "SLA Targets", icon: "Target", roles: GLOBAL },
-  { href: "/app/sla", label: "SLA Report", icon: "BarChart3", roles: ALL_ACTIVE },
+  { href: "/app/targets", label: "SLA & Coverage Setup", icon: "Target", roles: GLOBAL },
+  { href: "/app/sla", label: "SLA Scorecard", icon: "BarChart3", roles: ALL_ACTIVE },
   { href: "/app/users", label: "Users & Scopes", icon: "Users", roles: GLOBAL },
   { href: "/app/settings", label: "Settings", icon: "Settings", roles: ALL_ACTIVE },
 ];

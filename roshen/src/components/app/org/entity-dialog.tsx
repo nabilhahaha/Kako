@@ -6,8 +6,20 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 export type DialogField =
-  | { name: string; label: string; type: "text"; required?: boolean; placeholder?: string }
-  | { name: string; label: string; type: "checkbox"; required?: false }
+  | { name: string; label?: string; type: "hidden" }
+  | { name: string; label: string; type: "text"; required?: boolean; placeholder?: string; hint?: string }
+  | {
+      name: string;
+      label: string;
+      type: "number";
+      required?: boolean;
+      placeholder?: string;
+      step?: string;
+      min?: string;
+      hint?: string;
+    }
+  | { name: string; label: string; type: "month"; required?: boolean; hint?: string }
+  | { name: string; label: string; type: "checkbox"; required?: false; hint?: string }
   | {
       name: string;
       label: string;
@@ -15,6 +27,7 @@ export type DialogField =
       required?: boolean;
       options: { value: string; label: string }[];
       allowEmpty?: boolean;
+      hint?: string;
     };
 
 export function EntityDialog({
@@ -74,6 +87,9 @@ export function EntityDialog({
 
               {fields.map((f) => {
                 const val = initial?.[f.name];
+                if (f.type === "hidden") {
+                  return <input key={f.name} type="hidden" name={f.name} value={String(val ?? "")} />;
+                }
                 if (f.type === "checkbox") {
                   return (
                     <label key={f.name} className="flex items-center gap-2 text-sm text-ink">
@@ -115,12 +131,16 @@ export function EntityDialog({
                       <input
                         id={f.name}
                         name={f.name}
+                        type={f.type === "number" ? "number" : f.type === "month" ? "month" : "text"}
+                        step={f.type === "number" ? f.step : undefined}
+                        min={f.type === "number" ? f.min : undefined}
                         required={f.required}
-                        placeholder={f.placeholder}
+                        placeholder={f.type === "text" || f.type === "number" ? f.placeholder : undefined}
                         defaultValue={(val as string) ?? ""}
                         className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none placeholder:text-muted/60 focus:border-burgundy/40 focus:ring-2 focus:ring-burgundy/15"
                       />
                     )}
+                    {f.hint ? <p className="text-xs text-muted">{f.hint}</p> : null}
                   </div>
                 );
               })}

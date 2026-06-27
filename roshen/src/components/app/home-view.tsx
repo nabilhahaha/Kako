@@ -16,7 +16,7 @@ const ACTIONS = [
   { href: "/app/organization", label: "Organization Setup", desc: "Define regions, areas, and branches.", icon: Building2, global: true },
   { href: "/app/agents", label: "Agents & Distributors", desc: "Manage agents & distributors.", icon: Truck, global: false },
   { href: "/app/upload", label: "Raw Data Upload", desc: "Upload raw data for processing.", icon: Upload, global: true },
-  { href: "/app/targets", label: "SLA Target Entry", desc: "Set and manage SLA targets.", icon: Target, global: true },
+  { href: "/app/targets", label: "SLA & Coverage Setup", desc: "Sales, coverage & capability targets.", icon: Target, global: true },
 ];
 
 const FOUNDATION = ["Database Ready", "RLS Active", "Mapping Engine Ready", "SLA Views Ready"];

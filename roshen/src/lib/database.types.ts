@@ -16,8 +16,10 @@ export type Database = {
     Tables: {
       agent: {
         Row: {
-          branch_id: string
+          area_manager_id: string | null
+          branch_id: string | null
           channel_id: string | null
+          city_id: string | null
           code: string
           company_id: string
           created_at: string
@@ -27,8 +29,10 @@ export type Database = {
           type: Database["public"]["Enums"]["agent_type"]
         }
         Insert: {
-          branch_id: string
+          area_manager_id?: string | null
+          branch_id?: string | null
           channel_id?: string | null
+          city_id?: string | null
           code: string
           company_id: string
           created_at?: string
@@ -38,8 +42,10 @@ export type Database = {
           type?: Database["public"]["Enums"]["agent_type"]
         }
         Update: {
-          branch_id?: string
+          area_manager_id?: string | null
+          branch_id?: string | null
           channel_id?: string | null
+          city_id?: string | null
           code?: string
           company_id?: string
           created_at?: string
@@ -49,6 +55,13 @@ export type Database = {
           type?: Database["public"]["Enums"]["agent_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "agent_area_manager_id_fkey"
+            columns: ["area_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "agent_branch_id_fkey"
             columns: ["branch_id"]
@@ -61,6 +74,13 @@ export type Database = {
             columns: ["channel_id"]
             isOneToOne: false
             referencedRelation: "channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
             referencedColumns: ["id"]
           },
           {
@@ -162,6 +182,108 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capability_setup: {
+        Row: {
+          actual_salesmen: number | null
+          agent_id: string | null
+          cashvan_available: boolean
+          cashvan_required: boolean
+          city_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          level: Database["public"]["Enums"]["org_level"]
+          notes: string | null
+          period_month: string
+          region_id: string | null
+          required_salesmen: number | null
+          supervisor_available: boolean
+          supervisor_required: boolean
+          updated_at: string
+          warehouse_available: boolean
+          warehouse_required: boolean
+        }
+        Insert: {
+          actual_salesmen?: number | null
+          agent_id?: string | null
+          cashvan_available?: boolean
+          cashvan_required?: boolean
+          city_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          level: Database["public"]["Enums"]["org_level"]
+          notes?: string | null
+          period_month: string
+          region_id?: string | null
+          required_salesmen?: number | null
+          supervisor_available?: boolean
+          supervisor_required?: boolean
+          updated_at?: string
+          warehouse_available?: boolean
+          warehouse_required?: boolean
+        }
+        Update: {
+          actual_salesmen?: number | null
+          agent_id?: string | null
+          cashvan_available?: boolean
+          cashvan_required?: boolean
+          city_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["org_level"]
+          notes?: string | null
+          period_month?: string
+          region_id?: string | null
+          required_salesmen?: number | null
+          supervisor_available?: boolean
+          supervisor_required?: boolean
+          updated_at?: string
+          warehouse_available?: boolean
+          warehouse_required?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_setup_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_setup_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_setup_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_setup_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_setup_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
             referencedColumns: ["id"]
           },
         ]
@@ -450,6 +572,106 @@ export type Database = {
           },
         ]
       }
+      coverage_target: {
+        Row: {
+          agent_id: string | null
+          channel_id: string | null
+          city_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          level: Database["public"]["Enums"]["org_level"]
+          period_month: string
+          region_id: string | null
+          required_active_customers: number | null
+          required_coverage_pct: number | null
+          required_customer_universe: number | null
+          required_productive_pct: number | null
+          required_visits: number | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          channel_id?: string | null
+          city_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          level: Database["public"]["Enums"]["org_level"]
+          period_month: string
+          region_id?: string | null
+          required_active_customers?: number | null
+          required_coverage_pct?: number | null
+          required_customer_universe?: number | null
+          required_productive_pct?: number | null
+          required_visits?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          channel_id?: string | null
+          city_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["org_level"]
+          period_month?: string
+          region_id?: string | null
+          required_active_customers?: number | null
+          required_coverage_pct?: number | null
+          required_customer_universe?: number | null
+          required_productive_pct?: number | null
+          required_visits?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coverage_target_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coverage_target_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coverage_target_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coverage_target_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coverage_target_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coverage_target_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer: {
         Row: {
           channel_id: string | null
@@ -506,16 +728,23 @@ export type Database = {
         Row: {
           agent_id: string
           calculation_policy: Json | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          column_count: number | null
           company_id: string
+          completed_at: string | null
           confirmed_by: string | null
           created_at: string
+          current_upload_stage: string | null
           detected_date_format: string | null
           error_count: number
+          failed_reason: string | null
           file_checksum: string | null
           file_size_bytes: number | null
           id: string
           import_mode: Database["public"]["Enums"]["import_mode"] | null
           imported_at: string | null
+          last_successful_row_index: number | null
           mapping_version_id: string | null
           notes: string | null
           period_end: string | null
@@ -524,25 +753,38 @@ export type Database = {
           resolved_field_mapping: Json | null
           resolved_value_mapping: Json | null
           row_count: number
+          sample_rows: Json | null
           source_filename: string | null
+          source_headers: Json | null
           status: Database["public"]["Enums"]["import_status"]
           storage_path: string | null
+          total_rows_count: number | null
+          upload_progress_percent: number | null
+          upload_status: string | null
           uploaded_by: string | null
+          uploaded_rows_count: number | null
           warning_count: number
         }
         Insert: {
           agent_id: string
           calculation_policy?: Json | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          column_count?: number | null
           company_id: string
+          completed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
+          current_upload_stage?: string | null
           detected_date_format?: string | null
           error_count?: number
+          failed_reason?: string | null
           file_checksum?: string | null
           file_size_bytes?: number | null
           id?: string
           import_mode?: Database["public"]["Enums"]["import_mode"] | null
           imported_at?: string | null
+          last_successful_row_index?: number | null
           mapping_version_id?: string | null
           notes?: string | null
           period_end?: string | null
@@ -551,25 +793,38 @@ export type Database = {
           resolved_field_mapping?: Json | null
           resolved_value_mapping?: Json | null
           row_count?: number
+          sample_rows?: Json | null
           source_filename?: string | null
+          source_headers?: Json | null
           status?: Database["public"]["Enums"]["import_status"]
           storage_path?: string | null
+          total_rows_count?: number | null
+          upload_progress_percent?: number | null
+          upload_status?: string | null
           uploaded_by?: string | null
+          uploaded_rows_count?: number | null
           warning_count?: number
         }
         Update: {
           agent_id?: string
           calculation_policy?: Json | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          column_count?: number | null
           company_id?: string
+          completed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
+          current_upload_stage?: string | null
           detected_date_format?: string | null
           error_count?: number
+          failed_reason?: string | null
           file_checksum?: string | null
           file_size_bytes?: number | null
           id?: string
           import_mode?: Database["public"]["Enums"]["import_mode"] | null
           imported_at?: string | null
+          last_successful_row_index?: number | null
           mapping_version_id?: string | null
           notes?: string | null
           period_end?: string | null
@@ -578,10 +833,16 @@ export type Database = {
           resolved_field_mapping?: Json | null
           resolved_value_mapping?: Json | null
           row_count?: number
+          sample_rows?: Json | null
           source_filename?: string | null
+          source_headers?: Json | null
           status?: Database["public"]["Enums"]["import_status"]
           storage_path?: string | null
+          total_rows_count?: number | null
+          upload_progress_percent?: number | null
+          upload_status?: string | null
           uploaded_by?: string | null
+          uploaded_rows_count?: number | null
           warning_count?: number
         }
         Relationships: [
@@ -590,6 +851,13 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batch_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
           {
@@ -846,10 +1114,10 @@ export type Database = {
       sales_fact: {
         Row: {
           agent_id: string
-          area_id: string
+          area_id: string | null
           barcode: string | null
           batch_id: string
-          branch_id: string
+          branch_id: string | null
           brand: string | null
           calculation_policy_used: Json | null
           carton_to_piece_factor: number | null
@@ -906,10 +1174,10 @@ export type Database = {
         }
         Insert: {
           agent_id: string
-          area_id: string
+          area_id?: string | null
           barcode?: string | null
           batch_id: string
-          branch_id: string
+          branch_id?: string | null
           brand?: string | null
           calculation_policy_used?: Json | null
           carton_to_piece_factor?: number | null
@@ -966,10 +1234,10 @@ export type Database = {
         }
         Update: {
           agent_id?: string
-          area_id?: string
+          area_id?: string | null
           barcode?: string | null
           batch_id?: string
-          branch_id?: string
+          branch_id?: string | null
           brand?: string | null
           calculation_policy_used?: Json | null
           carton_to_piece_factor?: number | null
@@ -1205,6 +1473,7 @@ export type Database = {
           agent_id: string | null
           area_id: string | null
           branch_id: string | null
+          city_id: string | null
           company_id: string
           created_at: string
           id: string
@@ -1216,6 +1485,7 @@ export type Database = {
           agent_id?: string | null
           area_id?: string | null
           branch_id?: string | null
+          city_id?: string | null
           company_id: string
           created_at?: string
           id?: string
@@ -1227,6 +1497,7 @@ export type Database = {
           agent_id?: string | null
           area_id?: string | null
           branch_id?: string | null
+          city_id?: string | null
           company_id?: string
           created_at?: string
           id?: string
@@ -1254,6 +1525,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_scope_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
             referencedColumns: ["id"]
           },
           {
@@ -1362,6 +1640,22 @@ export type Database = {
       }
     }
     Views: {
+      import_batch_totals: {
+        Row: {
+          batch_id: string | null
+          fact_rows: number | null
+          sla_total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_fact_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batch"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sla_actual_agent_month: {
         Row: {
           actual_amount: number | null
@@ -1465,6 +1759,17 @@ export type Database = {
           },
         ]
       }
+      sla_coverage: {
+        Row: {
+          active_customers: number | null
+          channel_id: string | null
+          ent_id: string | null
+          lvl: Database["public"]["Enums"]["org_level"] | null
+          period_month: string | null
+          uploaded_customers: number | null
+        }
+        Relationships: []
+      }
       sla_performance: {
         Row: {
           achievement_pct: number | null
@@ -1500,6 +1805,58 @@ export type Database = {
           },
         ]
       }
+      sla_scorecard: {
+        Row: {
+          active_customers: number | null
+          actual_coverage_pct: number | null
+          actual_sales: number | null
+          actual_salesmen: number | null
+          cashvan_available: boolean | null
+          cashvan_required: boolean | null
+          channel_id: string | null
+          company_id: string | null
+          ent_id: string | null
+          level: Database["public"]["Enums"]["org_level"] | null
+          period_month: string | null
+          required_active_customers: number | null
+          required_coverage_pct: number | null
+          required_customer_universe: number | null
+          required_salesmen: number | null
+          sales_ach_pct: number | null
+          sales_gap: number | null
+          sales_status: string | null
+          sales_target: number | null
+          salesmen_gap: number | null
+          sc_active: number | null
+          sc_cov: number | null
+          sc_force: number | null
+          sc_sales: number | null
+          sc_service: number | null
+          sla_score: number | null
+          sla_status: string | null
+          supervisor_available: boolean | null
+          supervisor_required: boolean | null
+          uploaded_customers: number | null
+          warehouse_available: boolean | null
+          warehouse_required: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_target_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_target_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       app_role: {
@@ -1508,6 +1865,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_global: { Args: never; Returns: boolean }
+      my_agent_ids: { Args: never; Returns: string[] }
       my_area_ids: { Args: never; Returns: string[] }
       my_region_ids: { Args: never; Returns: string[] }
     }
@@ -1543,7 +1901,14 @@ export type Database = {
       invoice_status: "posted" | "cancelled" | "draft"
       issue_severity: "error" | "warning" | "info"
       mapping_status: "draft" | "active" | "archived"
-      org_level: "company" | "country" | "region" | "area" | "branch" | "agent"
+      org_level:
+        | "company"
+        | "country"
+        | "region"
+        | "area"
+        | "branch"
+        | "agent"
+        | "city"
       returns_handling:
         | "returns_already_deducted"
         | "subtract_returns_value"
@@ -1730,7 +2095,15 @@ export const Constants = {
       invoice_status: ["posted", "cancelled", "draft"],
       issue_severity: ["error", "warning", "info"],
       mapping_status: ["draft", "active", "archived"],
-      org_level: ["company", "country", "region", "area", "branch", "agent"],
+      org_level: [
+        "company",
+        "country",
+        "region",
+        "area",
+        "branch",
+        "agent",
+        "city",
+      ],
       returns_handling: [
         "returns_already_deducted",
         "subtract_returns_value",
