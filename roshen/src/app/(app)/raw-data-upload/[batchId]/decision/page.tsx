@@ -20,7 +20,7 @@ export default async function DecisionPage({ params }: { params: Promise<{ batch
     .eq("id", batchId)
     .maybeSingle();
   if (!batch) notFound();
-  if (!["validated", "mapped", "imported"].includes(batch.status)) redirect(`/raw-data-upload/${batchId}/validation`);
+  if (!["previewed", "validated", "mapped", "imported"].includes(batch.status)) redirect(`/raw-data-upload/${batchId}/validation`);
 
   if (batch.status === "imported") {
     return (
@@ -88,7 +88,7 @@ export default async function DecisionPage({ params }: { params: Promise<{ batch
         )}
       </Card>
 
-      <DecisionForm batchId={batchId} recommended={rec.mode} reason={rec.reason} blocked={blocked} />
+      <DecisionForm batchId={batchId} recommended={rec.mode} reason={rec.reason} blocked={blocked} rowCount={batch.row_count} />
     </div>
   );
 }

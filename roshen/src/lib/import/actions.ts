@@ -8,7 +8,7 @@ import { validate } from "@/lib/import/validate";
 import { computeMeasures, textValue } from "@/lib/import/calc";
 import { normalizeDate, monthOf } from "@/lib/import/parse";
 import { buildFieldMapping } from "@/lib/import/mapping";
-import type { CalcPolicy, FieldMapping, ImportMode, RawRowPayload } from "@/lib/import/types";
+import type { CalcPolicy, FieldMapping, ImportMode, RawRowPayload, Issue } from "@/lib/import/types";
 import type { Json } from "@/lib/database.types";
 
 async function ctx() {
@@ -246,6 +246,12 @@ async function knownValueSets(
   return { knownChannels, knownCities };
 }
 
+const QUICK_SAMPLE = 500;
+
+/**
+ * QUICK validation for the preview page: runs on the first ~500 rows only so it
+ * returns fast. Full row-by-row validation happens at commit (validateRange).
+ */
 export async function runValidation(batchId: string) {
   const { supabase, companyId } = await ctx();
   const { batch, fieldMapping, policy } = await loadMappingContext(supabase, batchId);
@@ -254,11 +260,11 @@ export async function runValidation(batchId: string) {
     .from("raw_import_row")
     .select("row_number,raw")
     .eq("batch_id", batchId)
-    .order("row_number");
+    .order("row_number")
+    .limit(QUICK_SAMPLE);
   const rows = (rawRows ?? []).map((r) => ({ row_number: r.row_number, raw: r.raw as Record<string, unknown> }));
 
   const { knownChannels, knownCities } = await knownValueSets(supabase, companyId, batch.agent_id);
-
   const result = validate({
     rows,
     fieldMapping,
@@ -266,15 +272,15 @@ export async function runValidation(batchId: string) {
     dateFormat: batch.detected_date_format ?? "auto",
     knownChannels,
     knownCities,
+    mappingLevel: true,
   });
 
-  // refresh issues
   await supabase.from("import_issue").delete().eq("batch_id", batchId);
   if (result.issues.length) {
     await insertChunked(
       supabase,
       "import_issue",
-      result.issues.map((i) => ({
+      result.issues.slice(0, 200).map((i) => ({
         batch_id: batchId,
         code: i.code,
         severity: i.severity,
@@ -288,14 +294,49 @@ export async function runValidation(batchId: string) {
 
   await supabase
     .from("import_batch")
-    .update({
-      status: "validated",
-      error_count: result.errorCount,
-      warning_count: result.warningCount,
-    })
+    .update({ status: "previewed", error_count: result.errorCount, warning_count: result.warningCount })
     .eq("id", batchId);
 
   revalidatePath(`/raw-data-upload/${batchId}/validation`);
+}
+
+/**
+ * FULL validation, one row-range per call (client drives the loop with progress).
+ * Mapping-level checks run only on the first range (offset 0).
+ */
+export async function validateRange(
+  batchId: string,
+  offset: number,
+  limit: number,
+): Promise<{ processed: number; errorCount: number; warningCount: number; blocking: Issue[] }> {
+  const { supabase, companyId } = await ctx();
+  const { batch, fieldMapping, policy } = await loadMappingContext(supabase, batchId);
+
+  const { data: rawRows } = await supabase
+    .from("raw_import_row")
+    .select("row_number,raw")
+    .eq("batch_id", batchId)
+    .order("row_number")
+    .range(offset, offset + limit - 1);
+  const rows = (rawRows ?? []).map((r) => ({ row_number: r.row_number, raw: r.raw as Record<string, unknown> }));
+
+  const { knownChannels, knownCities } = await knownValueSets(supabase, companyId, batch.agent_id);
+  const result = validate({
+    rows,
+    fieldMapping,
+    policy,
+    dateFormat: batch.detected_date_format ?? "auto",
+    knownChannels,
+    knownCities,
+    mappingLevel: offset === 0,
+  });
+
+  return {
+    processed: rows.length,
+    errorCount: result.errorCount,
+    warningCount: result.warningCount,
+    blocking: result.issues.filter((i) => i.severity === "error").slice(0, 25),
+  };
 }
 
 // ----------------------------------------------------------------- Stage 4
@@ -378,14 +419,14 @@ function mapInvoiceStatus(v: string | null): "posted" | "cancelled" | "draft" | 
   return "posted";
 }
 
-export async function commitImport(batchId: string, mode: ImportMode) {
-  const { supabase, companyId, userId } = await ctx();
-  const { batch, fieldMapping, policy } = await loadMappingContext(supabase, batchId);
+/**
+ * Step 1 of commit: apply the import mode's supersede effect ONCE, before any
+ * sales_fact is written. Audit is preserved (views read 'imported' only).
+ */
+export async function prepareCommit(batchId: string, mode: ImportMode): Promise<{ ok: true }> {
+  const { supabase } = await ctx();
+  const { batch } = await loadMappingContext(supabase, batchId);
 
-  const org = await resolveOrg(supabase, batch.agent_id);
-  const resolveChannel = await channelResolver(supabase, companyId, batch.agent_id);
-
-  // --- Supersede per import mode (audit kept; views read 'imported' only) ---
   if (mode === "full_period_replace" || mode === "correction_reprocess") {
     await supabase
       .from("import_batch")
@@ -404,93 +445,118 @@ export async function commitImport(batchId: string, mode: ImportMode) {
     const overlapIds = (existing ?? [])
       .filter((e) => e.period_start && e.period_end && e.period_start <= batch.period_end! && batch.period_start! <= e.period_end)
       .map((e) => e.id);
-    if (overlapIds.length) {
-      await supabase.from("import_batch").update({ status: "superseded" }).in("id", overlapIds);
-    }
+    if (overlapIds.length) await supabase.from("import_batch").update({ status: "superseded" }).in("id", overlapIds);
   }
+  // Clear any sales_fact already written for THIS batch (safe re-run).
+  await supabase.from("sales_fact").delete().eq("batch_id", batchId);
+  await supabase.from("import_batch").update({ status: "validated" }).eq("id", batchId);
+  return { ok: true };
+}
 
-  // --- Incremental dedupe: skip lines already present in active imports ---
-  let existingHashes = new Set<string>();
-  if (mode === "incremental_append") {
-    const { data: prior } = await supabase
-      .from("sales_fact")
-      .select("line_hash, import_batch!inner(status)")
-      .eq("agent_id", batch.agent_id)
-      .eq("import_batch.status", "imported");
-    existingHashes = new Set((prior ?? []).map((r) => r.line_hash).filter(Boolean) as string[]);
-  }
+/**
+ * Step 2: write sales_fact for one row-range (client drives the loop with
+ * progress). Skips unparseable-date rows; for incremental mode skips lines
+ * already present in active imports.
+ */
+export async function commitRange(
+  batchId: string,
+  offset: number,
+  limit: number,
+  mode: ImportMode,
+): Promise<{ inserted: number; excluded: number; skipped: number }> {
+  const { supabase, companyId } = await ctx();
+  const { batch, fieldMapping, policy } = await loadMappingContext(supabase, batchId);
+  const org = await resolveOrg(supabase, batch.agent_id);
+  const resolveChannel = await channelResolver(supabase, companyId, batch.agent_id);
 
-  // --- Build sales_fact rows from valid raw rows ---
   const { data: rawRows } = await supabase
     .from("raw_import_row")
     .select("row_number,raw")
     .eq("batch_id", batchId)
-    .order("row_number");
+    .order("row_number")
+    .range(offset, offset + limit - 1);
+  const rows = rawRows ?? [];
 
-  const factRows: Record<string, unknown>[] = [];
+  // Build candidate fact rows for this range.
+  const built: { hash: string; row: Record<string, unknown> }[] = [];
   let excluded = 0;
-  let skippedDup = 0;
-  for (const rr of rawRows ?? []) {
+  for (const rr of rows) {
     const raw = rr.raw as Record<string, unknown>;
-    const dv = textValue(raw, fieldMapping, "invoice_date");
-    const dp = normalizeDate(dv, batch.detected_date_format ?? "auto");
-    if (!dp.iso) {
-      excluded++;
-      continue;
-    }
+    const dp = normalizeDate(textValue(raw, fieldMapping, "invoice_date"), batch.detected_date_format ?? "auto");
+    if (!dp.iso) { excluded++; continue; }
     const m = computeMeasures(raw, fieldMapping, policy);
-    const channelSrc = textValue(raw, fieldMapping, "channel");
-    const channel_id = resolveChannel(channelSrc, org.defaultChannel);
     const invoice_number = textValue(raw, fieldMapping, "invoice_number");
     const customer_code = textValue(raw, fieldMapping, "customer_code");
     const item_code = textValue(raw, fieldMapping, "item_code");
-    const lineHash = [batch.agent_id, invoice_number, dp.iso, customer_code, item_code].join("|");
-
-    if (mode === "incremental_append" && existingHashes.has(lineHash)) {
-      skippedDup++;
-      continue;
-    }
-
-    factRows.push({
-      company_id: companyId,
-      batch_id: batchId,
-      agent_id: batch.agent_id,
-      branch_id: org.branch_id,
-      area_id: org.area_id,
-      region_id: org.region_id,
-      country_id: org.country_id,
-      channel_id,
-      invoice_number,
-      customer_code,
-      customer_name: textValue(raw, fieldMapping, "customer_name"),
-      item_code,
-      item_name: textValue(raw, fieldMapping, "item_name"),
-      roshen_item_code: textValue(raw, fieldMapping, "roshen_item_code"),
-      salesman_name: textValue(raw, fieldMapping, "salesman_name"),
-      route_number: textValue(raw, fieldMapping, "route_number"),
-      return_reason: textValue(raw, fieldMapping, "return_reason"),
-      invoice_date: dp.iso,
-      period_month: monthOf(dp.iso),
-      invoice_status: mapInvoiceStatus(textValue(raw, fieldMapping, "invoice_status")),
-      source_sales_value: m.source_sales_value,
-      sales_value_excl_vat: m.sales_value_excl_vat,
-      gross_value: m.gross_value,
-      net_value_reported: m.net_value_reported,
-      vat_amount: m.vat_amount,
-      returns_value: m.returns_value,
-      cash_discount: m.cash_discount,
-      gross_sales_ex_vat: m.gross_sales_ex_vat,
-      net_sales_ex_vat: m.net_sales_ex_vat,
-      sla_actual_value: m.sla_actual_value,
-      calculation_policy_used: policy as unknown as Json,
-      sales_qty_cartons: numOrZero(raw, fieldMapping, "sales_qty_cartons"),
-      sales_qty_pieces: numOrZero(raw, fieldMapping, "sales_qty_pieces"),
-      line_hash: lineHash,
+    const hash = [batch.agent_id, invoice_number, dp.iso, customer_code, item_code].join("|");
+    built.push({
+      hash,
+      row: {
+        company_id: companyId,
+        batch_id: batchId,
+        agent_id: batch.agent_id,
+        branch_id: org.branch_id,
+        area_id: org.area_id,
+        region_id: org.region_id,
+        country_id: org.country_id,
+        channel_id: resolveChannel(textValue(raw, fieldMapping, "channel"), org.defaultChannel),
+        invoice_number,
+        customer_code,
+        customer_name: textValue(raw, fieldMapping, "customer_name"),
+        item_code,
+        item_name: textValue(raw, fieldMapping, "item_name"),
+        roshen_item_code: textValue(raw, fieldMapping, "roshen_item_code"),
+        salesman_name: textValue(raw, fieldMapping, "salesman_name"),
+        route_number: textValue(raw, fieldMapping, "route_number"),
+        return_reason: textValue(raw, fieldMapping, "return_reason"),
+        invoice_date: dp.iso,
+        period_month: monthOf(dp.iso),
+        invoice_status: mapInvoiceStatus(textValue(raw, fieldMapping, "invoice_status")),
+        source_sales_value: m.source_sales_value,
+        sales_value_excl_vat: m.sales_value_excl_vat,
+        gross_value: m.gross_value,
+        net_value_reported: m.net_value_reported,
+        vat_amount: m.vat_amount,
+        returns_value: m.returns_value,
+        cash_discount: m.cash_discount,
+        gross_sales_ex_vat: m.gross_sales_ex_vat,
+        net_sales_ex_vat: m.net_sales_ex_vat,
+        sla_actual_value: m.sla_actual_value,
+        calculation_policy_used: policy as unknown as Json,
+        sales_qty_cartons: numOrZero(raw, fieldMapping, "sales_qty_cartons"),
+        sales_qty_pieces: numOrZero(raw, fieldMapping, "sales_qty_pieces"),
+        line_hash: hash,
+      },
     });
   }
 
-  if (factRows.length) await insertChunked(supabase, "sales_fact", factRows);
+  // Incremental dedupe: only for this chunk's candidate hashes (bounded query).
+  let skipped = 0;
+  let toInsert = built;
+  if (mode === "incremental_append" && built.length) {
+    const { data: prior } = await supabase
+      .from("sales_fact")
+      .select("line_hash, import_batch!inner(status)")
+      .eq("agent_id", batch.agent_id)
+      .eq("import_batch.status", "imported")
+      .in("line_hash", built.map((b) => b.hash));
+    const existing = new Set((prior ?? []).map((r) => r.line_hash).filter(Boolean) as string[]);
+    toInsert = built.filter((b) => !existing.has(b.hash));
+    skipped = built.length - toInsert.length;
+  }
 
+  if (toInsert.length) await insertChunked(supabase, "sales_fact", toInsert.map((b) => b.row));
+  return { inserted: toInsert.length, excluded, skipped };
+}
+
+/** Step 3: mark the batch imported with a summary once all ranges are written. */
+export async function finalizeCommit(
+  batchId: string,
+  mode: ImportMode,
+  summary: { inserted: number; excluded: number; skipped: number },
+): Promise<{ ok: true }> {
+  const { supabase, userId } = await ctx();
+  const { policy } = await loadMappingContext(supabase, batchId);
   await supabase
     .from("import_batch")
     .update({
@@ -499,19 +565,14 @@ export async function commitImport(batchId: string, mode: ImportMode) {
       confirmed_by: userId,
       imported_at: new Date().toISOString(),
       calculation_policy: policy as unknown as Json,
-      notes: `${batch_note(mode)} — ${factRows.length} rows imported, ${excluded} excluded${
-        skippedDup ? `, ${skippedDup} duplicates skipped` : ""
+      notes: `Imported via ${mode} — ${summary.inserted} rows imported, ${summary.excluded} excluded${
+        summary.skipped ? `, ${summary.skipped} duplicates skipped` : ""
       }.`,
     })
     .eq("id", batchId);
-
   revalidatePath("/import-batches");
   revalidatePath("/sla-report");
-  redirect(`/import-batches/${batchId}`);
-}
-
-function batch_note(mode: ImportMode) {
-  return `Imported via ${mode}`;
+  return { ok: true };
 }
 
 function numOrZero(raw: Record<string, unknown>, fm: FieldMapping, key: string): number {

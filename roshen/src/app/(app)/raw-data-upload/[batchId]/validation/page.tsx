@@ -70,7 +70,7 @@ export default async function ValidationPage({ params }: { params: Promise<{ bat
     return { row: r.row_number, date: d.iso, exVat: m.sales_value_excl_vat, net: m.net_sales_ex_vat, sla: m.sla_actual_value };
   });
 
-  const hasRun = batch.status === "validated" || batch.status === "imported";
+  const hasRun = ["previewed", "validated", "imported"].includes(batch.status);
   const canContinue = hasRun && batch.error_count === 0;
 
   async function doValidate() {
@@ -86,6 +86,13 @@ export default async function ValidationPage({ params }: { params: Promise<{ bat
       </div>
       <Stepper current="Validation" />
 
+      <Card className="border-sky-200 bg-sky-50/50 p-3">
+        <p className="text-sm text-sky-800">
+          <strong>Quick validation</strong> checks the first {Math.min(batch.row_count, 500).toLocaleString()} rows for a fast preview.
+          Full row-by-row validation runs (chunked, with progress) at the import step before any sales are written.
+        </p>
+      </Card>
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Rows" value={batch.row_count.toLocaleString()} />
         <Stat label="Errors" value={String(batch.error_count)} tone={batch.error_count ? "bad" : "good"} />
@@ -96,7 +103,7 @@ export default async function ValidationPage({ params }: { params: Promise<{ bat
       <div className="flex flex-wrap items-center gap-2">
         <form action={doValidate}>
           <Button type="submit" variant="outline">
-            <PlayCircle className="h-4 w-4" /> {hasRun ? "Re-run validation" : "Run validation"}
+            <PlayCircle className="h-4 w-4" /> {hasRun ? "Re-run quick validation" : "Run quick validation"}
           </Button>
         </form>
         <Link
@@ -108,9 +115,9 @@ export default async function ValidationPage({ params }: { params: Promise<{ bat
         >
           Continue to decision <ArrowRight className="h-4 w-4" />
         </Link>
-        {!hasRun && <span className="text-xs text-muted">Run validation to check the file before importing.</span>}
+        {!hasRun && <span className="text-xs text-muted">Run quick validation to preview the file before importing.</span>}
         {hasRun && batch.error_count > 0 && (
-          <span className="text-xs text-roshen-red">Resolve blocking errors before continuing.</span>
+          <span className="text-xs text-roshen-red">Quick validation found mapping-level errors — fix before importing.</span>
         )}
       </div>
 

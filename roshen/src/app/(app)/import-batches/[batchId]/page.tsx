@@ -14,6 +14,7 @@ const SAR = (n: number | null) =>
 const NEXT_STEP: Record<string, string> = {
   pending: "mapping",
   mapped: "validation",
+  previewed: "decision",
   validated: "decision",
 };
 
