@@ -32,8 +32,10 @@ export function Sidebar({ groups, currentPath }: { groups: NavGroupView[]; curre
     const qtab = query ? new URLSearchParams(query).get("tab") : null;
     if (path === "/") return pathname === "/";
     if (path === "/organization") {
-      if (pathname !== "/organization") return false;
-      return qtab ? tab === "distributors" : tab !== "distributors";
+      // Distributors has its own sidebar item; Regions/Cities live under the
+      // Organization overview, so keep the overview item active for those.
+      if (pathname === "/organization") return true;
+      return pathname.startsWith("/organization/") && !pathname.startsWith("/organization/distributors");
     }
     if (path === "/workspace") {
       if (pathname !== "/workspace" && !pathname.startsWith("/workspace/")) return false;

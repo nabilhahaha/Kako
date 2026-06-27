@@ -15,7 +15,7 @@ export type SetupStep = { label: string; done: boolean };
 
 const ACTIONS = [
   { href: "/organization", labelKey: "home.action.organization", descKey: "home.action.organization_desc", icon: Building2, global: false },
-  { href: "/organization?tab=distributors", labelKey: "home.action.distributors", descKey: "home.action.distributors_desc", icon: Truck, global: false },
+  { href: "/organization/distributors", labelKey: "home.action.distributors", descKey: "home.action.distributors_desc", icon: Truck, global: false },
   { href: "/raw-data-upload", labelKey: "home.action.upload", descKey: "home.action.upload_desc", icon: Upload, global: true },
   { href: "/sla-targets", labelKey: "home.action.sla", descKey: "home.action.sla_desc", icon: Target, global: true },
 ];

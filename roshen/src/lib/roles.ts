@@ -52,7 +52,7 @@ export const NAV_TREE: NavGroup[] = [
     key: "organization",
     items: [
       { href: "/organization", key: "organization", icon: "Building2", roles: CORE },
-      { href: "/organization?tab=distributors", key: "distributors", icon: "Truck", roles: CORE },
+      { href: "/organization/distributors", key: "distributors", icon: "Truck", roles: CORE },
       { href: "/users-scopes", key: "users_scopes", icon: "Users", roles: GLOBAL },
     ],
   },
