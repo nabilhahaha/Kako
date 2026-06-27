@@ -1,6 +1,8 @@
-import { Search, Bell } from "lucide-react";
+import { Search } from "lucide-react";
 import { signout } from "@/app/login/actions";
 import { LanguageSwitcher } from "@/components/app/language-switcher";
+import { NotificationBell, type NotifItem } from "@/components/app/notifications/notification-bell";
+import { markAllNotificationsRead } from "@/lib/tasks";
 import type { Locale } from "@/lib/i18n";
 
 function initials(name?: string | null, email?: string | null) {
@@ -19,6 +21,9 @@ export function AppTopbar({
   locale,
   searchPlaceholder,
   signoutLabel,
+  notifCount,
+  notifItems,
+  notifLabels,
 }: {
   name?: string | null;
   email?: string | null;
@@ -26,6 +31,9 @@ export function AppTopbar({
   locale: Locale;
   searchPlaceholder: string;
   signoutLabel: string;
+  notifCount: number;
+  notifItems: NotifItem[];
+  notifLabels: { title: string; none: string; markAll: string };
 }) {
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-3 border-b border-line bg-cream/85 px-4 backdrop-blur lg:px-6">
@@ -43,13 +51,8 @@ export function AppTopbar({
         {/* Language switcher (English / Українська / العربية) */}
         <LanguageSwitcher locale={locale} />
 
-        {/* Notifications placeholder */}
-        <button className="relative rounded-lg border border-line p-2 text-muted hover:bg-burgundy-soft hover:text-burgundy">
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-roshen-red px-1 text-[10px] font-semibold text-cream">
-            3
-          </span>
-        </button>
+        {/* Notifications */}
+        <NotificationBell count={notifCount} items={notifItems} labels={notifLabels} markAllAction={markAllNotificationsRead} />
 
         {/* User + role */}
         <div className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-2 py-1.5">
