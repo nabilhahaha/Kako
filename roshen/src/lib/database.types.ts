@@ -526,6 +526,7 @@ export type Database = {
         Row: {
           agent_id: string
           calculation_policy: Json | null
+          column_count: number | null
           company_id: string
           confirmed_by: string | null
           created_at: string
@@ -544,7 +545,9 @@ export type Database = {
           resolved_field_mapping: Json | null
           resolved_value_mapping: Json | null
           row_count: number
+          sample_rows: Json | null
           source_filename: string | null
+          source_headers: Json | null
           status: Database["public"]["Enums"]["import_status"]
           storage_path: string | null
           uploaded_by: string | null
@@ -553,6 +556,7 @@ export type Database = {
         Insert: {
           agent_id: string
           calculation_policy?: Json | null
+          column_count?: number | null
           company_id: string
           confirmed_by?: string | null
           created_at?: string
@@ -571,7 +575,9 @@ export type Database = {
           resolved_field_mapping?: Json | null
           resolved_value_mapping?: Json | null
           row_count?: number
+          sample_rows?: Json | null
           source_filename?: string | null
+          source_headers?: Json | null
           status?: Database["public"]["Enums"]["import_status"]
           storage_path?: string | null
           uploaded_by?: string | null
@@ -580,6 +586,7 @@ export type Database = {
         Update: {
           agent_id?: string
           calculation_policy?: Json | null
+          column_count?: number | null
           company_id?: string
           confirmed_by?: string | null
           created_at?: string
@@ -598,7 +605,9 @@ export type Database = {
           resolved_field_mapping?: Json | null
           resolved_value_mapping?: Json | null
           row_count?: number
+          sample_rows?: Json | null
           source_filename?: string | null
+          source_headers?: Json | null
           status?: Database["public"]["Enums"]["import_status"]
           storage_path?: string | null
           uploaded_by?: string | null
@@ -1538,6 +1547,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_global: { Args: never; Returns: boolean }
+      my_agent_ids: { Args: never; Returns: string[] }
       my_area_ids: { Args: never; Returns: string[] }
       my_region_ids: { Args: never; Returns: string[] }
     }

@@ -123,6 +123,8 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
         detectedDateFormat: dateFormat,
         period,
         rowCount: allRows.length,
+        headers: sheet.headers,
+        sampleRows: sheet.rows.slice(0, 50),
       };
       const { batchId } = await createDraftBatch(meta);
 

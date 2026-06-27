@@ -45,6 +45,8 @@ export type CreateDraftInput = {
   detectedDateFormat: string;
   period: { start: string | null; end: string | null; month: string | null };
   rowCount: number;
+  headers: string[];
+  sampleRows: Record<string, unknown>[]; // first ~50 rows for mapping/preview
 };
 
 export async function createDraftBatch(input: CreateDraftInput): Promise<{ batchId: string }> {
@@ -65,6 +67,9 @@ export async function createDraftBatch(input: CreateDraftInput): Promise<{ batch
       period_end: input.period.end,
       detected_date_format: input.detectedDateFormat,
       row_count: input.rowCount,
+      column_count: input.headers.length,
+      source_headers: input.headers as unknown as Json,
+      sample_rows: input.sampleRows.slice(0, 50) as unknown as Json,
       status: "pending",
       uploaded_by: userId,
       notes: `sheet: ${input.sheet}`,
