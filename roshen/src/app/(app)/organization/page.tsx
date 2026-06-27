@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Eye } from "lucide-react";
 import { requireProfile, isAdminRole } from "@/lib/auth";
 import { createClient } from "@/utils/supabase/server";
+import { getT } from "@/lib/i18n-server";
 import { EntityDialog, type DialogField } from "@/components/app/org/entity-dialog";
 import { DistributorDialog } from "@/components/app/org/distributor-dialog";
 import { upsertRegion, upsertCity, upsertDistributor } from "@/lib/org";
@@ -28,6 +29,7 @@ export default async function OrganizationPage({
   const { profile } = await requireProfile();
   const isAdmin = isAdminRole(profile!.role);
   const supabase = await createClient();
+  const { t } = await getT();
 
   const [regionsRes, citiesRes, channelsRes, amRes] = await Promise.all([
     supabase.from("region").select("id,name").order("name"),
@@ -110,12 +112,8 @@ export default async function OrganizationPage({
     <div className="mx-auto w-full max-w-6xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">Organization</h1>
-          <p className="text-sm text-muted">
-            {isAdmin
-              ? "Manage the Roshen KSA structure: Region → City → Distributor."
-              : "Review the Roshen KSA structure within your assigned scope (read-only)."}
-          </p>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">{t("org.title")}</h1>
+          <p className="text-sm text-muted">{t("org.desc")}</p>
         </div>
         {!isAdmin && (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-muted">

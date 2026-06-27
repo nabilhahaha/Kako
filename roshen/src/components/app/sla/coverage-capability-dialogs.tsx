@@ -75,18 +75,18 @@ function Trigger({ mode, label, onClick }: { mode: "create" | "edit"; label: str
 }
 
 export function CoverageDialog({
-  distributors, regions, cities, channels, action, initial, mode = "create",
+  distributors, regions, cities, channels, action, initial, mode = "create", addLabel = "Add Coverage Target",
 }: {
   distributors: Opt[]; regions: Opt[]; cities: Opt[]; channels: Opt[];
-  action: (fd: FormData) => Promise<void>; initial?: Record<string, string | null>; mode?: "create" | "edit";
+  action: (fd: FormData) => Promise<void>; initial?: Record<string, string | null>; mode?: "create" | "edit"; addLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState((initial?.level as string) || "agent");
   return (
     <>
-      <Trigger mode={mode} label="Add Coverage Target" onClick={() => setOpen(true)} />
+      <Trigger mode={mode} label={addLabel} onClick={() => setOpen(true)} />
       {open && (
-        <Shell title="Add Coverage Target" mode={mode} action={action} onClose={() => setOpen(false)}>
+        <Shell title={addLabel} mode={mode} action={action} onClose={() => setOpen(false)}>
           {initial?.id ? <input type="hidden" name="id" value={String(initial.id)} /> : null}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -120,18 +120,18 @@ export function CoverageDialog({
 }
 
 export function CapabilityDialog({
-  distributors, regions, cities, action, initial, mode = "create",
+  distributors, regions, cities, action, initial, mode = "create", addLabel = "Add Capability",
 }: {
   distributors: Opt[]; regions: Opt[]; cities: Opt[];
-  action: (fd: FormData) => Promise<void>; initial?: Record<string, string | boolean | null>; mode?: "create" | "edit";
+  action: (fd: FormData) => Promise<void>; initial?: Record<string, string | boolean | null>; mode?: "create" | "edit"; addLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState((initial?.level as string) || "agent");
   return (
     <>
-      <Trigger mode={mode} label="Add Capability" onClick={() => setOpen(true)} />
+      <Trigger mode={mode} label={addLabel} onClick={() => setOpen(true)} />
       {open && (
-        <Shell title="Add Capability" mode={mode} action={action} onClose={() => setOpen(false)}>
+        <Shell title={addLabel} mode={mode} action={action} onClose={() => setOpen(false)}>
           {initial?.id ? <input type="hidden" name="id" value={String(initial.id)} /> : null}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-ink">Month<span className="text-roshen-red"> *</span></label>

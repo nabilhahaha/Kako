@@ -15,6 +15,7 @@ export function TargetDialog({
   action,
   initial,
   mode = "create",
+  addLabel = "Add Sales Target",
 }: {
   distributors: Opt[];
   regions: Opt[];
@@ -22,6 +23,7 @@ export function TargetDialog({
   action: (fd: FormData) => Promise<void>;
   initial?: Record<string, string | null>;
   mode?: "create" | "edit";
+  addLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState<string>((initial?.level as string) || "agent");
@@ -30,7 +32,7 @@ export function TargetDialog({
   return (
     <>
       {mode === "create" ? (
-        <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Add Target</Button>
+        <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> {addLabel}</Button>
       ) : (
         <button onClick={() => setOpen(true)} className="rounded-lg p-1.5 text-muted hover:bg-burgundy-soft hover:text-burgundy" aria-label="Edit">
           <Pencil className="h-4 w-4" />

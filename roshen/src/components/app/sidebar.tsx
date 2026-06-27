@@ -39,7 +39,7 @@ const ICONS: Record<string, LucideIcon> = {
   ClipboardList,
 };
 
-export function Sidebar({ nav, currentPath }: { nav: NavItem[]; currentPath?: string }) {
+export function Sidebar({ nav, currentPath, collapseLabel = "Collapse" }: { nav: NavItem[]; currentPath?: string; collapseLabel?: string }) {
   const live = usePathname();
   const search = useSearchParams();
   const pathname = currentPath ?? live;
@@ -84,7 +84,7 @@ export function Sidebar({ nav, currentPath }: { nav: NavItem[]; currentPath?: st
 
       <button className="flex items-center gap-2 border-t border-line px-5 py-3 text-xs font-medium text-muted hover:text-burgundy">
         <PanelLeftClose className="h-4 w-4" />
-        Collapse
+        {collapseLabel}
       </button>
     </aside>
   );

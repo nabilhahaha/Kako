@@ -2,10 +2,10 @@ import Link from "next/link";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/utils/supabase/server";
 import { Card } from "@/components/ui/card";
+import { getT } from "@/lib/i18n-server";
 
 const SAR = (n: number | null) => (n == null ? "—" : new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n) + " SAR");
 const pct = (n: unknown) => (n == null ? "—" : `${n}%`);
-const yn = (b: unknown) => (b == null ? "—" : b ? "Yes" : "No");
 
 const STATUS_STYLE: Record<string, string> = {
   Achieved: "bg-emerald-50 text-emerald-700",
@@ -38,6 +38,10 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   await requireProfile();
   const supabase = await createClient();
+  const { t } = await getT();
+  const yn = (b: unknown) => (b == null ? "—" : b ? t("common.yes") : t("common.no"));
+  const lvlLabel = (lvl: string) =>
+    lvl === "agent" ? t("level.distributor") : lvl === "region" ? t("level.region") : lvl === "city" ? t("level.city") : lvl;
 
   const { data: months } = await supabase
     .from("sla_target")
@@ -58,15 +62,14 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
 
   let rows: Record<string, unknown>[] = [];
   const maps: Record<string, Map<string, string>> = { region: new Map(), agent: new Map(), city: new Map(), channel: new Map() };
-  const cityRegion = new Map<string, string>(); // city_id -> region_id
-  const agentCity = new Map<string, string>(); // agent_id -> city_id
+  const cityRegion = new Map<string, string>();
+  const agentCity = new Map<string, string>();
   let regionOpts: { id: string; name: string }[] = [];
   let cityOpts: { id: string; name: string }[] = [];
   let distributorOpts: { id: string; name: string }[] = [];
   let channelOpts: { id: string; name: string }[] = [];
 
   if (month) {
-    // Scorecard query — push level / channel / status / score filters into SQL.
     let scq = supabase.from("sla_scorecard").select("*").eq("period_month", month);
     if (level !== "all") scq = scq.eq("level", LEVEL_DB[level] as "region" | "city" | "agent");
     if (channel === "") scq = scq.is("channel_id", null);
@@ -104,7 +107,6 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
   }
   const nameOf = (lvl: string, id: string) => maps[lvl]?.get(id) ?? (id ? id.slice(0, 8) : "—");
 
-  // Resolve each scorecard row's region / city / distributor for hierarchy filtering.
   const resolve = (r: Record<string, unknown>) => {
     const lvl = String(r.level);
     const id = String(r.ent_id ?? "");
@@ -117,7 +119,6 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
     return { region: null as string | null, city: null as string | null, agent: null as string | null };
   };
 
-  // Hierarchy filters (region / city / distributor) applied in JS over the resolved scope.
   if (regionF || cityF || distributorF) {
     rows = rows.filter((r) => {
       const s = resolve(r);
@@ -128,7 +129,6 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
     });
   }
 
-  // Summary — counts/average always; sales totals only when unambiguous (no double-count).
   const scored = rows.filter((r) => r.sla_score != null);
   const avgScore = scored.length ? Math.round(scored.reduce((s, r) => s + Number(r.sla_score), 0) / scored.length) : null;
   const statusCounts: Record<string, number> = {};
@@ -146,21 +146,22 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
   const overallAch = totalTarget > 0 ? Math.round((100 * totalActual) / totalTarget) : null;
 
   const filtersActive = level !== "all" || regionF || cityF || distributorF || channel !== "" || statusF || scoreMin != null || scoreMax != null;
+  const COLS = ["level","entity","channel","sales_target","actual_sales","sales_pct","req_cust","uploaded","active","coverage_pct","req_sm","act_sm","sm_gap","wh_req","wh_avail","score","status"];
 
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">SLA Report</h1>
-          <p className="text-sm text-muted">Combined scorecard — sales, customer coverage, sales-force capacity, and service capability.</p>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">{t("slaReport.title")}</h1>
+          <p className="text-sm text-muted">{t("slaReport.desc")}</p>
         </div>
       </div>
 
       {!month ? (
         <Card className="p-8 text-center">
-          <p className="text-sm font-medium text-ink">No SLA targets yet</p>
-          <p className="mt-1 text-sm text-muted">Add Sales Targets (and optionally Coverage/Capability) in SLA &amp; Coverage Setup, then import data.</p>
-          <Link href="/sla-targets" className="mt-4 inline-block rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream">Go to SLA &amp; Coverage Setup</Link>
+          <p className="text-sm font-medium text-ink">{t("slaReport.noTargets")}</p>
+          <p className="mt-1 text-sm text-muted">{t("slaReport.noTargets_note")}</p>
+          <Link href="/sla-targets" className="mt-4 inline-block rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream">{t("slaReport.go_setup")}</Link>
         </Card>
       ) : (
         <>
@@ -168,60 +169,58 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
           <Card className="p-4">
             <form action="/sla-report" method="get" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
               <label className="space-y-1">
-                <span className="block text-xs font-medium uppercase tracking-wide text-muted">Month</span>
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.filter.month")}</span>
                 <select name="month" defaultValue={month} className={selectCls}>
-                  {monthList.map((m) => (
-                    <option key={m} value={m}>{m.slice(0, 7)}</option>
-                  ))}
+                  {monthList.map((m) => <option key={m} value={m}>{m.slice(0, 7)}</option>)}
                 </select>
               </label>
               <label className="space-y-1">
-                <span className="block text-xs font-medium uppercase tracking-wide text-muted">Level</span>
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.filter.level")}</span>
                 <select name="level" defaultValue={level} className={selectCls}>
-                  <option value="all">All levels</option>
-                  <option value="region">Region</option>
-                  <option value="city">City</option>
-                  <option value="distributor">Distributor</option>
+                  <option value="all">{t("level.all")}</option>
+                  <option value="region">{t("level.region")}</option>
+                  <option value="city">{t("level.city")}</option>
+                  <option value="distributor">{t("level.distributor")}</option>
                 </select>
               </label>
               <label className="space-y-1">
-                <span className="block text-xs font-medium uppercase tracking-wide text-muted">Region</span>
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.filter.region")}</span>
                 <select name="region" defaultValue={regionF} className={selectCls}>
-                  <option value="">All regions</option>
+                  <option value="">{t("slaReport.opt.all_regions")}</option>
                   {regionOpts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                 </select>
               </label>
               <label className="space-y-1">
-                <span className="block text-xs font-medium uppercase tracking-wide text-muted">City</span>
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.filter.city")}</span>
                 <select name="city" defaultValue={cityF} className={selectCls}>
-                  <option value="">All cities</option>
+                  <option value="">{t("slaReport.opt.all_cities")}</option>
                   {cityOpts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                 </select>
               </label>
               <label className="space-y-1">
-                <span className="block text-xs font-medium uppercase tracking-wide text-muted">Distributor</span>
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.filter.distributor")}</span>
                 <select name="distributor" defaultValue={distributorF} className={selectCls}>
-                  <option value="">All distributors</option>
+                  <option value="">{t("slaReport.opt.all_distributors")}</option>
                   {distributorOpts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                 </select>
               </label>
               <label className="space-y-1">
-                <span className="block text-xs font-medium uppercase tracking-wide text-muted">Channel</span>
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.filter.channel")}</span>
                 <select name="channel" defaultValue={channel} className={selectCls}>
-                  <option value="">All-channels rollup</option>
-                  <option value="__all__">Every channel row</option>
+                  <option value="">{t("slaReport.opt.rollup")}</option>
+                  <option value="__all__">{t("slaReport.opt.every_channel")}</option>
                   {channelOpts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                 </select>
               </label>
               <label className="space-y-1">
-                <span className="block text-xs font-medium uppercase tracking-wide text-muted">SLA status</span>
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.filter.status")}</span>
                 <select name="status" defaultValue={statusF} className={selectCls}>
-                  <option value="">All statuses</option>
-                  {STATUS_ORDER.map((s) => <option key={s} value={s}>{s}</option>)}
+                  <option value="">{t("slaReport.opt.all_statuses")}</option>
+                  {STATUS_ORDER.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
                 </select>
               </label>
               <div className="space-y-1">
-                <span className="block text-xs font-medium uppercase tracking-wide text-muted">Score range</span>
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.filter.score")}</span>
                 <div className="flex items-center gap-1">
                   <input name="score_min" type="number" min="0" max="100" defaultValue={scoreMin ?? ""} placeholder="min" className={selectCls} />
                   <span className="text-muted">–</span>
@@ -229,43 +228,41 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
                 </div>
               </div>
               <div className="col-span-2 flex items-end gap-2 sm:col-span-3 lg:col-span-4 xl:col-span-8">
-                <button type="submit" className="rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">Apply filters</button>
+                <button type="submit" className="rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">{t("common.apply_filters")}</button>
                 {filtersActive && (
-                  <Link href={`/sla-report?month=${month}`} className="rounded-xl border border-line px-4 py-2 text-sm font-medium text-muted hover:text-burgundy">Reset</Link>
+                  <Link href={`/sla-report?month=${month}`} className="rounded-xl border border-line px-4 py-2 text-sm font-medium text-muted hover:text-burgundy">{t("common.reset")}</Link>
                 )}
               </div>
             </form>
           </Card>
 
-          {/* KPI summary (reflects active filters) */}
+          {/* KPI summary */}
           {rows.length > 0 && (
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl border border-line bg-white p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">Entries</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.kpi.entries")}</p>
                 <p className="mt-1 font-serif text-3xl font-bold text-ink">{rows.length}</p>
-                <p className="mt-1 text-xs text-muted">targets in view</p>
+                <p className="mt-1 text-xs text-muted">{t("slaReport.kpi.entries_sub")}</p>
               </div>
               <div className="rounded-2xl border border-line bg-white p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">Avg SLA score</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.kpi.avg")}</p>
                 <p className="mt-1 font-serif text-3xl font-bold text-ink">{avgScore ?? "—"}</p>
-                <p className="mt-1 text-xs text-muted">across {scored.length} scored {scored.length === 1 ? "entry" : "entries"}</p>
               </div>
               <div className="rounded-2xl border border-line bg-white p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">Achieved / On Track</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.kpi.healthy")}</p>
                 <p className="mt-1 font-serif text-3xl font-bold text-emerald-700">{healthy}</p>
-                <p className="mt-1 text-xs text-muted">of {rows.length} entries</p>
               </div>
               {moneySafe ? (
                 <div className="rounded-2xl border border-line bg-white p-5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted">Sales achievement</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.kpi.sales_ach")}</p>
                   <p className="mt-1 font-serif text-3xl font-bold text-ink">{overallAch != null ? `${overallAch}%` : "—"}</p>
                   <p className="mt-1 text-xs text-muted">{SAR(totalActual)} / {SAR(totalTarget)}</p>
                 </div>
               ) : (
                 <div className="rounded-2xl border border-line bg-white p-5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted">At Risk / Behind / Critical</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("slaReport.kpi.attention")}</p>
                   <p className="mt-1 font-serif text-3xl font-bold text-roshen-red">{attention}</p>
-                  <p className="mt-1 text-xs text-muted">need attention</p>
+                  <p className="mt-1 text-xs text-muted">{t("slaReport.kpi.attention_sub")}</p>
                 </div>
               )}
             </section>
@@ -275,12 +272,10 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
             <div className="flex flex-wrap items-center gap-2">
               {STATUS_ORDER.filter((s) => statusCounts[s]).map((s) => (
                 <span key={s} className={"inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium " + (STATUS_STYLE[s] ?? "bg-cream-deep text-muted")}>
-                  {s} × {statusCounts[s]}
+                  {t(`status.${s}`)} × {statusCounts[s]}
                 </span>
               ))}
-              {!moneySafe && (
-                <span className="text-xs text-muted">Sales totals hidden — pick a single Level (and a single channel view) to sum sales without double-counting.</span>
-              )}
+              {!moneySafe && <span className="text-xs text-muted">{t("slaReport.money_hidden")}</span>}
             </div>
           )}
 
@@ -288,15 +283,13 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-line bg-cream-deep/40 text-left uppercase tracking-wide text-muted">
-                {["Level","Entity","Channel","Sales Target","Actual Sales","Sales %","Req. Cust","Uploaded","Active","Coverage %","Req. SM","Act. SM","SM Gap","WH Req","WH Avail","Score","Status"].map((h) => (
-                  <th key={h} className="whitespace-nowrap px-3 py-2.5 font-semibold">{h}</th>
-                ))}
+                {COLS.map((c) => <th key={c} className="whitespace-nowrap px-3 py-2.5 font-semibold">{t(`slaReport.col.${c}`)}</th>)}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={17} className="px-4 py-12 text-center text-sm text-muted">
-                  {filtersActive ? "No scorecard rows match the current filters." : "No targets for this month."}
+                <tr><td colSpan={COLS.length} className="px-4 py-12 text-center text-sm text-muted">
+                  {filtersActive ? t("slaReport.empty.filtered") : t("slaReport.empty.month")}
                 </td></tr>
               ) : (
                 rows.map((r, i) => {
@@ -304,9 +297,9 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
                   const status = String(r.sla_status ?? "");
                   return (
                     <tr key={i} className="border-b border-line/60 last:border-0 hover:bg-cream/40">
-                      <td className="px-3 py-2 capitalize text-muted">{lvl === "agent" ? "Distributor" : lvl}</td>
+                      <td className="px-3 py-2 text-muted">{lvlLabel(lvl)}</td>
                       <td className="px-3 py-2 font-medium text-ink">{nameOf(lvl, String(r.ent_id))}</td>
-                      <td className="px-3 py-2 text-muted">{r.channel_id ? nameOf("channel", String(r.channel_id)) : "All"}</td>
+                      <td className="px-3 py-2 text-muted">{r.channel_id ? nameOf("channel", String(r.channel_id)) : t("common.all")}</td>
                       <td className="px-3 py-2 text-ink/80">{SAR(Number(r.sales_target ?? 0))}</td>
                       <td className="px-3 py-2 text-ink/80">{SAR(Number(r.actual_sales ?? 0))}</td>
                       <td className="px-3 py-2 font-medium text-ink">{pct(r.sales_ach_pct)}</td>
@@ -320,7 +313,7 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
                       <td className="px-3 py-2 text-muted">{yn(r.warehouse_required)}</td>
                       <td className="px-3 py-2 text-muted">{yn(r.warehouse_available)}</td>
                       <td className="px-3 py-2 font-semibold text-ink">{r.sla_score != null ? String(r.sla_score) : "—"}</td>
-                      <td className="px-3 py-2"><span className={"inline-flex items-center rounded-full px-2 py-0.5 font-medium " + (STATUS_STYLE[status] ?? "bg-cream-deep text-muted")}>{status || "—"}</span></td>
+                      <td className="px-3 py-2"><span className={"inline-flex items-center rounded-full px-2 py-0.5 font-medium " + (STATUS_STYLE[status] ?? "bg-cream-deep text-muted")}>{status ? t(`status.${status}`) : "—"}</span></td>
                     </tr>
                   );
                 })
