@@ -26,6 +26,8 @@ export const typeOpts = (t: TFn): Opt[] => REQUEST_TYPES.map((k) => ({ value: k,
 export const statusReqOpts = (t: TFn): Opt[] => REQUEST_STATUSES.map((k) => ({ value: k, label: t(`rstatus.${k}`) }));
 export const expenseCatOpts = (t: TFn): Opt[] => EXPENSE_CATEGORIES.map((k) => ({ value: k, label: t(`ecat.${k}`) }));
 export const leaveTypeOpts = (t: TFn): Opt[] => LEAVE_TYPES.map((k) => ({ value: k, label: t(`ltype.${k}`) }));
+export const travelTypeOpts = (t: TFn): Opt[] => TRAVEL_TYPES.map((k) => ({ value: k, label: t(`ttype.${k}`) }));
+export const transportOpts = (t: TFn): Opt[] => TRANSPORT_TYPES.map((k) => ({ value: k, label: t(`ttran.${k}`) }));
 
 export const money = (v: unknown, currency = "SAR") => {
   const n = Number(v);

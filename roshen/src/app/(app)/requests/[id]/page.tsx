@@ -6,10 +6,11 @@ import { createClient } from "@/utils/supabase/server";
 import { getT } from "@/lib/i18n-server";
 import { Card } from "@/components/ui/card";
 import { AttachmentUploader, AttachmentRow } from "@/components/app/workspace/attachments";
-import { RSTATUS_STYLE, money, expenseCatOpts } from "@/lib/req-meta";
+import { RSTATUS_STYLE, money, expenseCatOpts, travelTypeOpts, transportOpts, leaveTypeOpts } from "@/lib/req-meta";
 import {
   addExpenseLine, deleteExpenseLine, submitRequest, decideRequest,
   addRequestAttachment, deleteRequestAttachment, requestReceiptSignedUrl, deleteRequest,
+  saveBusinessTripDetail, saveLeaveDetail,
 } from "@/lib/requests";
 
 export default async function RequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,12 +26,20 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
     .maybeSingle();
   if (!req) notFound(); // not found OR not visible under RLS
 
-  const [profilesRes, linesRes, attRes, actRes] = await Promise.all([
+  const [profilesRes, linesRes, attRes, actRes, btRes, lvRes] = await Promise.all([
     supabase.from("profile").select("id,full_name,email"),
     supabase.from("expense_line").select("id,category,expense_date,amount,currency,description,merchant,vat_amount,payment_method,receipt_required").eq("request_id", id).order("created_at", { ascending: true }),
     supabase.from("request_attachment").select("id,expense_line_id,filename,storage_path,uploaded_by,created_at").eq("request_id", id).order("created_at", { ascending: true }),
     supabase.from("request_activity").select("id,actor_id,type,from_value,to_value,created_at").eq("request_id", id).order("created_at", { ascending: false }),
+    req.request_type === "business_trip"
+      ? supabase.from("business_trip_detail").select("*").eq("request_id", id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    req.request_type === "leave"
+      ? supabase.from("leave_detail").select("*").eq("request_id", id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+  const bt = btRes.data as Record<string, unknown> | null;
+  const lv = lvRes.data as Record<string, unknown> | null;
 
   const nameById = new Map<string, string>();
   (profilesRes.data ?? []).forEach((p) => nameById.set(p.id, p.full_name || p.email || p.id.slice(0, 8)));
@@ -47,7 +56,12 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
   const canDecide = isApprover && ["submitted", "pending_approval"].includes(String(req.status));
 
   const lineReceipts = (lineId: string) => attachments.filter((a) => a.expense_line_id === lineId);
+  const generalAttachments = attachments.filter((a) => !a.expense_line_id);
   const total = lines.reduce((s, l) => s + Number(l.amount ?? 0), 0);
+  const coverOpts = (profilesRes.data ?? []).filter((p) => p.id !== user.id).map((p) => ({ value: p.id, label: p.full_name || p.email || p.id.slice(0, 8) }));
+  const ro = !canEdit; // read-only when not an editable draft owned by the user
+  const bts = (k: string) => (bt?.[k] != null ? String(bt[k]) : "");
+  const lvs = (k: string) => (lv?.[k] != null ? String(lv[k]) : "");
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5 ps-12 lg:ps-0">
@@ -67,7 +81,7 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
           {canEdit && (
             <form action={submitRequest}>
               <input type="hidden" name="id" value={String(req.id)} />
-              <button className="rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover disabled:opacity-60" disabled={lines.length === 0}>
+              <button className="rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover disabled:opacity-60" disabled={req.request_type === "expense" && lines.length === 0}>
                 {t("req.submit")}
               </button>
             </form>
@@ -202,6 +216,96 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
             </Card>
           )}
 
+          {/* Business trip detail */}
+          {req.request_type === "business_trip" && (
+            <Card className="p-5">
+              <h2 className="font-serif text-base font-semibold text-ink">{t("bt.details")}</h2>
+              <form action={saveBusinessTripDetail} className="mt-3 grid gap-3 sm:grid-cols-2">
+                <input type="hidden" name="request_id" value={String(req.id)} />
+                <Field label={t("bt.traveler")} name="traveler_name" defaultValue={bts("traveler_name")} ro={ro} />
+                <Field label={t("bt.country")} name="country" defaultValue={bts("country")} ro={ro} />
+                <Field label={t("bt.from_city")} name="from_city" defaultValue={bts("from_city")} ro={ro} />
+                <Field label={t("bt.to_city")} name="to_city" defaultValue={bts("to_city")} ro={ro} />
+                <Field label={t("bt.start")} name="start_date" type="date" defaultValue={bts("start_date").slice(0, 10)} ro={ro} />
+                <Field label={t("bt.end")} name="end_date" type="date" defaultValue={bts("end_date").slice(0, 10)} ro={ro} />
+                <SelectField label={t("bt.travel_type")} name="travel_type" defaultValue={bts("travel_type")} options={travelTypeOpts(t)} ro={ro} />
+                <SelectField label={t("bt.transport")} name="transportation_type" defaultValue={bts("transportation_type")} options={transportOpts(t)} ro={ro} />
+                <Field label={t("bt.accommodation")} name="accommodation" defaultValue={bts("accommodation")} ro={ro} />
+                <label className="flex items-center gap-2 self-end text-sm text-ink">
+                  <input type="checkbox" name="hotel_required" defaultChecked={bt?.hotel_required === true} disabled={ro} className="h-4 w-4 rounded border-line" />
+                  {t("bt.hotel_required")}
+                </label>
+                <Field label={t("bt.purpose")} name="purpose" defaultValue={bts("purpose")} ro={ro} full />
+                <Field label={t("bt.justification")} name="justification" defaultValue={bts("justification")} ro={ro} full />
+                <Field label={t("bt.est_flight")} name="est_flight" type="number" defaultValue={bts("est_flight")} ro={ro} />
+                <Field label={t("bt.est_hotel")} name="est_hotel" type="number" defaultValue={bts("est_hotel")} ro={ro} />
+                <Field label={t("bt.est_transport")} name="est_transport" type="number" defaultValue={bts("est_transport")} ro={ro} />
+                <Field label={t("bt.est_per_diem")} name="est_per_diem" type="number" defaultValue={bts("est_per_diem")} ro={ro} />
+                <Field label={t("bt.est_other")} name="est_other" type="number" defaultValue={bts("est_other")} ro={ro} />
+                <div className="flex items-end justify-between gap-3 sm:col-span-2">
+                  <span className="text-sm font-semibold text-ink">{t("bt.total_est")}: {money(bt?.total_estimated ?? 0, currency)}</span>
+                  {canEdit && <button className="rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">{t("req.save")}</button>}
+                </div>
+              </form>
+            </Card>
+          )}
+
+          {/* Leave detail */}
+          {req.request_type === "leave" && (
+            <Card className="p-5">
+              <h2 className="font-serif text-base font-semibold text-ink">{t("lv.details")}</h2>
+              <form action={saveLeaveDetail} className="mt-3 grid gap-3 sm:grid-cols-2">
+                <input type="hidden" name="request_id" value={String(req.id)} />
+                <SelectField label={t("lv.type")} name="leave_type" defaultValue={lvs("leave_type") || "annual"} options={leaveTypeOpts(t)} ro={ro} />
+                <SelectField label={t("lv.cover")} name="cover_person_id" defaultValue={lvs("cover_person_id")} options={coverOpts} ro={ro} placeholder="—" />
+                <Field label={t("lv.start")} name="start_date" type="date" defaultValue={lvs("start_date").slice(0, 10)} ro={ro} />
+                <Field label={t("lv.end")} name="end_date" type="date" defaultValue={lvs("end_date").slice(0, 10)} ro={ro} />
+                <Field label={t("lv.reason")} name="reason" defaultValue={lvs("reason")} ro={ro} full />
+                {canEdit && (
+                  <div className="sm:col-span-2">
+                    <button className="rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">{t("req.save")}</button>
+                  </div>
+                )}
+              </form>
+            </Card>
+          )}
+
+          {/* Attachments for non-expense requests */}
+          {req.request_type !== "expense" && (
+            <Card className="p-5">
+              <div className="flex items-center justify-between">
+                <h2 className="font-serif text-base font-semibold text-ink">{t("req.receipts")}</h2>
+                {canEdit && (
+                  <AttachmentUploader
+                    bucket="request-receipts"
+                    pathPrefix={String(req.id)}
+                    fields={{ request_id: String(req.id) }}
+                    add={addRequestAttachment}
+                    labels={{ upload: t("req.add_receipt"), uploading: t("task.uploading"), download: t("common.download"), none: t("req.receipts") }}
+                  />
+                )}
+              </div>
+              <div className="mt-3 space-y-2">
+                {generalAttachments.length === 0 ? (
+                  <p className="text-sm text-muted">{t("task.no_attachments")}</p>
+                ) : (
+                  generalAttachments.map((a) => (
+                    <AttachmentRow
+                      key={a.id}
+                      id={a.id}
+                      filename={a.filename}
+                      path={a.storage_path}
+                      canDelete={canEdit || a.uploaded_by === user.id}
+                      signedUrl={requestReceiptSignedUrl}
+                      remove={deleteRequestAttachment}
+                      labels={{ download: t("common.download") }}
+                    />
+                  ))
+                )}
+              </div>
+            </Card>
+          )}
+
           {/* Approver decision */}
           {canDecide && (
             <Card className="p-5">
@@ -262,5 +366,26 @@ function Row({ label, value }: { label: string; value: string }) {
       <dt className="text-muted">{label}</dt>
       <dd className="font-medium text-ink">{value}</dd>
     </div>
+  );
+}
+
+function Field({ label, name, defaultValue, type = "text", ro, full }: { label: string; name: string; defaultValue?: string; type?: string; ro?: boolean; full?: boolean }) {
+  return (
+    <label className={"text-xs font-medium text-muted" + (full ? " sm:col-span-2" : "")}>
+      {label}
+      <input name={name} type={type} step={type === "number" ? "0.01" : undefined} defaultValue={defaultValue} disabled={ro} className="mt-1 w-full rounded-lg border border-line bg-white px-2 py-1.5 text-sm disabled:bg-cream/40 disabled:text-ink" />
+    </label>
+  );
+}
+
+function SelectField({ label, name, defaultValue, options, ro, placeholder }: { label: string; name: string; defaultValue?: string; options: { value: string; label: string }[]; ro?: boolean; placeholder?: string }) {
+  return (
+    <label className="text-xs font-medium text-muted">
+      {label}
+      <select name={name} defaultValue={defaultValue ?? ""} disabled={ro} className="mt-1 w-full rounded-lg border border-line bg-white px-2 py-1.5 text-sm disabled:bg-cream/40 disabled:text-ink">
+        <option value="">{placeholder ?? "—"}</option>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </label>
   );
 }

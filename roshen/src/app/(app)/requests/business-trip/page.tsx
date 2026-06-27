@@ -1,5 +1,5 @@
-import { PageStub } from "@/components/app/page-stub";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <PageStub titleKey="nav.business_trip" />;
+  redirect("/requests?type=business_trip");
 }

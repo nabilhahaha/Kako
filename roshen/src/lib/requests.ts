@@ -96,6 +96,104 @@ export async function createExpenseDraft(fd: FormData) {
   redirect(`/requests/${id}`);
 }
 
+/** Create a business trip draft (+ empty detail row) and redirect to detail. */
+export async function createBusinessTripDraft(fd: FormData) {
+  const { supabase, userId, companyId, role } = await ctx();
+  const title = str(fd, "title") ?? "Business trip";
+  const approver = await resolveApprover(supabase, companyId, role, userId);
+  const { data, error } = await supabase
+    .from("request")
+    .insert({ company_id: companyId, request_type: "business_trip", title, requested_by: userId, assigned_approver: approver, status: "draft", currency: str(fd, "currency") ?? "SAR" })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  const id = data!.id as string;
+  await supabase.from("business_trip_detail").insert({ request_id: id });
+  await supabase.from("request_activity").insert({ request_id: id, actor_id: userId, type: "created" });
+  revalidatePath("/requests");
+  redirect(`/requests/${id}`);
+}
+
+/** Create a leave draft (+ empty detail row) and redirect to detail. */
+export async function createLeaveDraft(fd: FormData) {
+  const { supabase, userId, companyId, role } = await ctx();
+  const title = str(fd, "title") ?? "Leave request";
+  const approver = await resolveApprover(supabase, companyId, role, userId);
+  const { data, error } = await supabase
+    .from("request")
+    .insert({ company_id: companyId, request_type: "leave", title, requested_by: userId, assigned_approver: approver, status: "draft" })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  const id = data!.id as string;
+  await supabase.from("leave_detail").insert({ request_id: id });
+  await supabase.from("request_activity").insert({ request_id: id, actor_id: userId, type: "created" });
+  revalidatePath("/requests");
+  redirect(`/requests/${id}`);
+}
+
+const dayspan = (a: string | null, b: string | null) => {
+  if (!a || !b) return null;
+  const d = Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1;
+  return d > 0 ? d : null;
+};
+
+export async function saveBusinessTripDetail(fd: FormData) {
+  const { supabase, userId } = await ctx();
+  const requestId = str(fd, "request_id");
+  if (!requestId) return;
+  await assertDraftOwned(supabase, requestId, userId);
+  const start = str(fd, "start_date");
+  const end = str(fd, "end_date");
+  const est = (k: string) => num(fd, k) ?? 0;
+  const total = est("est_flight") + est("est_hotel") + est("est_transport") + est("est_per_diem") + est("est_other");
+  const currency = str(fd, "currency") ?? "SAR";
+  const { error } = await supabase.from("business_trip_detail").update({
+    traveler_name: str(fd, "traveler_name"),
+    purpose: str(fd, "purpose"),
+    justification: str(fd, "justification"),
+    from_city: str(fd, "from_city"),
+    to_city: str(fd, "to_city"),
+    country: str(fd, "country"),
+    start_date: start,
+    end_date: end,
+    num_days: dayspan(start, end),
+    travel_type: (str(fd, "travel_type") as never) ?? null,
+    transportation_type: (str(fd, "transportation_type") as never) ?? null,
+    hotel_required: fd.get("hotel_required") === "on" || fd.get("hotel_required") === "1",
+    accommodation: str(fd, "accommodation"),
+    est_flight: num(fd, "est_flight"),
+    est_hotel: num(fd, "est_hotel"),
+    est_transport: num(fd, "est_transport"),
+    est_per_diem: num(fd, "est_per_diem"),
+    est_other: num(fd, "est_other"),
+    total_estimated: total,
+    currency,
+  }).eq("request_id", requestId);
+  if (error) throw new Error(error.message);
+  await supabase.from("request").update({ total_amount: total, currency, updated_at: new Date().toISOString() }).eq("id", requestId);
+  revalidatePath(`/requests/${requestId}`);
+}
+
+export async function saveLeaveDetail(fd: FormData) {
+  const { supabase, userId } = await ctx();
+  const requestId = str(fd, "request_id");
+  if (!requestId) return;
+  await assertDraftOwned(supabase, requestId, userId);
+  const start = str(fd, "start_date");
+  const end = str(fd, "end_date");
+  const { error } = await supabase.from("leave_detail").update({
+    leave_type: (str(fd, "leave_type") as never) ?? "annual",
+    start_date: start,
+    end_date: end,
+    num_days: dayspan(start, end),
+    reason: str(fd, "reason"),
+    cover_person_id: str(fd, "cover_person_id"),
+  }).eq("request_id", requestId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/requests/${requestId}`);
+}
+
 export async function addExpenseLine(fd: FormData) {
   const { supabase, userId } = await ctx();
   const requestId = str(fd, "request_id");

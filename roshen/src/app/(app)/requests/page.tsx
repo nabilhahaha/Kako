@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { getT } from "@/lib/i18n-server";
 import { Card } from "@/components/ui/card";
 import { REQUEST_TYPES, RSTATUS_STYLE, typeOpts, money } from "@/lib/req-meta";
-import { createExpenseDraft } from "@/lib/requests";
+import { createExpenseDraft, createBusinessTripDraft, createLeaveDraft } from "@/lib/requests";
 import { Plus } from "lucide-react";
 
 const TABS = ["all", "mine", "approvals"] as const;
@@ -53,11 +53,23 @@ export default async function RequestsPage({
           <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">{t("req.title")}</h1>
           <p className="text-sm text-muted">{t("req.subtitle")}</p>
         </div>
-        <form action={createExpenseDraft}>
-          <button className="inline-flex items-center gap-1.5 rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">
-            <Plus className="h-4 w-4" /> {t("req.new_expense")}
-          </button>
-        </form>
+        <div className="flex flex-wrap gap-2">
+          <form action={createExpenseDraft}>
+            <button className="inline-flex items-center gap-1.5 rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">
+              <Plus className="h-4 w-4" /> {t("req.new_expense")}
+            </button>
+          </form>
+          <form action={createBusinessTripDraft}>
+            <button className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-4 py-2 text-sm font-medium text-burgundy hover:bg-burgundy-soft">
+              <Plus className="h-4 w-4" /> {t("bt.new")}
+            </button>
+          </form>
+          <form action={createLeaveDraft}>
+            <button className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-4 py-2 text-sm font-medium text-burgundy hover:bg-burgundy-soft">
+              <Plus className="h-4 w-4" /> {t("lv.new")}
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1 border-b border-line">
