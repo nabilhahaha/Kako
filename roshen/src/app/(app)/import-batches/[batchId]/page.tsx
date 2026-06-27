@@ -43,13 +43,15 @@ export default async function BatchDetail({ params }: { params: Promise<{ batchI
   const fm = (b.resolved_field_mapping as unknown as FieldMapping) ?? {};
   const mode = b.import_mode as keyof typeof MODE_LABEL | null;
 
-  // imported total for this batch (own rows, regardless of supersede)
-  const { data: facts } = await supabase
-    .from("sales_fact")
-    .select("sla_actual_value")
-    .eq("batch_id", batchId);
-  const slaTotal = (facts ?? []).reduce((a, f) => a + Number(f.sla_actual_value ?? 0), 0);
-  const factCount = facts?.length ?? 0;
+  // imported total for this batch — aggregated in Postgres (one row), not by
+  // loading every sales_fact row into the app.
+  const { data: totals } = await supabase
+    .from("import_batch_totals")
+    .select("fact_rows,sla_total")
+    .eq("batch_id", batchId)
+    .maybeSingle();
+  const factCount = Number(totals?.fact_rows ?? 0);
+  const slaTotal = Number(totals?.sla_total ?? 0);
 
   const status = String(b.status);
   const nextStep = isAdmin ? NEXT_STEP[status] : undefined;

@@ -1438,6 +1438,22 @@ export type Database = {
       }
     }
     Views: {
+      import_batch_totals: {
+        Row: {
+          batch_id: string | null
+          fact_rows: number | null
+          sla_total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_fact_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batch"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sla_actual_agent_month: {
         Row: {
           actual_amount: number | null
