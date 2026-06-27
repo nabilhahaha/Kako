@@ -14,3 +14,6 @@ dist-ssr
 *.sln
 *.sw?
 *.log
+
+# Generated Word delivery reports (artifacts, not source)
+*.docx
