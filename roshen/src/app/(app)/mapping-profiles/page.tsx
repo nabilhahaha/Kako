@@ -1,0 +1,5 @@
+import { PageStub } from "@/components/app/page-stub";
+
+export default function Page() {
+  return <PageStub titleKey="nav.mapping_profiles" />;
+}

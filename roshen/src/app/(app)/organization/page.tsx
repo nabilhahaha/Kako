@@ -2,15 +2,18 @@ import Link from "next/link";
 import { Eye } from "lucide-react";
 import { requireProfile, isAdminRole } from "@/lib/auth";
 import { createClient } from "@/utils/supabase/server";
+import { getT } from "@/lib/i18n-server";
 import { EntityDialog, type DialogField } from "@/components/app/org/entity-dialog";
-import { upsertRegion, upsertCity, upsertArea, upsertBranch, upsertAgent } from "@/lib/org";
+import { DistributorDialog } from "@/components/app/org/distributor-dialog";
+import { upsertRegion, upsertCity, upsertDistributor } from "@/lib/org";
 
+// Roshen KSA simplified structure: Region → City → Distributor.
+// Areas & Branches remain in the database for future expansion but are not
+// surfaced as tabs in the current UI.
 const TABS = [
   { key: "regions", label: "Regions" },
   { key: "cities", label: "Cities" },
-  { key: "areas", label: "Areas" },
-  { key: "branches", label: "Branches" },
-  { key: "agents", label: "Agents" },
+  { key: "distributors", label: "Distributors" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -26,21 +29,41 @@ export default async function OrganizationPage({
   const { profile } = await requireProfile();
   const isAdmin = isAdminRole(profile!.role);
   const supabase = await createClient();
+  const { t } = await getT();
 
-  const [regionsOpt, areasOpt, citiesOpt, branchesOpt, channelsOpt] = await Promise.all([
+  const [regionsRes, citiesRes, channelsRes, amRes] = await Promise.all([
     supabase.from("region").select("id,name").order("name"),
-    supabase.from("area").select("id,name").order("name"),
-    supabase.from("city").select("id,name").order("name"),
-    supabase.from("branch").select("id,name").order("name"),
+    supabase.from("city").select("id,name,region_id,region:region_id(name)").order("name"),
     supabase.from("channel").select("id,name").order("name"),
+    supabase
+      .from("profile")
+      .select("id,full_name,email,role")
+      .eq("role", "area_manager")
+      .order("full_name"),
   ]);
   const opt = (rows: { id: string; name: string }[] | null) =>
     (rows ?? []).map((r) => ({ value: r.id, label: r.name }));
 
+  const regionOpts = opt(regionsRes.data);
+  const cityOpts = (citiesRes.data ?? []).map((c) => {
+    const region = (Array.isArray(c.region) ? c.region[0] : c.region) as { name?: string } | null;
+    return {
+      value: c.id as string,
+      label: region?.name ? `${c.name} — ${region.name}` : (c.name as string),
+      region_id: (c.region_id as string) ?? null,
+    };
+  });
+  const channelOpts = opt(channelsRes.data);
+  const amOpts = (amRes.data ?? []).map((p) => ({
+    value: p.id as string,
+    label: (p.full_name as string) || (p.email as string) || "Area Manager",
+  }));
+
+  // -------- Regions / Cities (generic EntityDialog) --------
   let columns: string[] = [];
   let rows: Record<string, unknown>[] = [];
   let fields: DialogField[] = [];
-  let action!: (fd: FormData) => Promise<void>;
+  let action: ((fd: FormData) => Promise<void>) | undefined;
   let addLabel = "";
 
   if (tab === "regions") {
@@ -60,72 +83,37 @@ export default async function OrganizationPage({
     columns = ["Name", "Region"];
     fields = [
       { name: "name", label: "Name", type: "text", required: true },
-      { name: "region_id", label: "Region", type: "select", options: opt(regionsOpt.data), allowEmpty: true },
-    ];
-    let query = supabase.from("city").select("id,name,region_id,region:region_id(name)").order("name");
-    if (q) query = query.ilike("name", `%${q}%`);
-    rows = ((await query).data as Record<string, unknown>[]) ?? [];
-  } else if (tab === "areas") {
-    addLabel = "Add Area";
-    action = upsertArea;
-    columns = ["Name", "Code", "Region"];
-    fields = [
-      { name: "name", label: "Name", type: "text", required: true },
-      { name: "code", label: "Code", type: "text" },
-      { name: "region_id", label: "Region", type: "select", required: true, options: opt(regionsOpt.data) },
-    ];
-    let query = supabase.from("area").select("id,name,code,region_id,region:region_id(name)").order("name");
-    if (q) query = query.ilike("name", `%${q}%`);
-    rows = ((await query).data as Record<string, unknown>[]) ?? [];
-  } else if (tab === "branches") {
-    addLabel = "Add Branch";
-    action = upsertBranch;
-    columns = ["Name", "Code", "Area", "City"];
-    fields = [
-      { name: "name", label: "Name", type: "text", required: true },
-      { name: "code", label: "Code", type: "text" },
-      { name: "area_id", label: "Area", type: "select", required: true, options: opt(areasOpt.data) },
-      { name: "city_id", label: "City", type: "select", options: opt(citiesOpt.data), allowEmpty: true },
+      { name: "region_id", label: "Region", type: "select", options: regionOpts, allowEmpty: true },
     ];
     let query = supabase
-      .from("branch")
-      .select("id,name,code,area_id,city_id,area:area_id(name),city:city_id(name)")
+      .from("city")
+      .select("id,name,region_id,region:region_id(name)")
       .order("name");
     if (q) query = query.ilike("name", `%${q}%`);
     rows = ((await query).data as Record<string, unknown>[]) ?? [];
   } else {
-    addLabel = "Add Agent";
-    action = upsertAgent;
-    columns = ["Name", "Code", "Type", "Branch", "Channel", "Status"];
-    fields = [
-      { name: "name", label: "Name", type: "text", required: true },
-      { name: "code", label: "Code", type: "text", required: true },
-      { name: "type", label: "Type", type: "select", required: true, options: [
-        { value: "distributor", label: "Distributor" },
-        { value: "agent", label: "Agent" },
-      ] },
-      { name: "branch_id", label: "Branch", type: "select", required: true, options: opt(branchesOpt.data) },
-      { name: "channel_id", label: "Channel", type: "select", options: opt(channelsOpt.data), allowEmpty: true },
-      { name: "is_active", label: "Active", type: "checkbox" },
-    ];
+    // distributors
+    columns = ["Name", "Code", "City", "Region", "Channel", "Area Manager", "Status"];
     let query = supabase
       .from("agent")
-      .select("id,name,code,type,is_active,branch_id,channel_id,branch:branch_id(name),channel:channel_id(name)")
+      .select(
+        "id,name,code,is_active,city_id,channel_id,area_manager_id," +
+          "city:city_id(name,region:region_id(name))," +
+          "channel:channel_id(name)," +
+          "area_manager:area_manager_id(full_name,email)",
+      )
+      .eq("type", "distributor")
       .order("name");
     if (q) query = query.ilike("name", `%${q}%`);
-    rows = ((await query).data as Record<string, unknown>[]) ?? [];
+    rows = ((await query).data as unknown as Record<string, unknown>[]) ?? [];
   }
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">Organization</h1>
-          <p className="text-sm text-muted">
-            {isAdmin
-              ? "Manage the KSA hierarchy: regions, cities, areas, branches, and agents."
-              : "Review the KSA organization structure (read-only)."}
-          </p>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">{t("org.title")}</h1>
+          <p className="text-sm text-muted">{t("org.desc")}</p>
         </div>
         {!isAdmin && (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-muted">
@@ -138,7 +126,7 @@ export default async function OrganizationPage({
         {TABS.map((t) => (
           <Link
             key={t.key}
-            href={`/app/organization?tab=${t.key}`}
+            href={`/organization?tab=${t.key}`}
             className={
               "rounded-t-lg px-4 py-2 text-sm font-medium " +
               (t.key === tab
@@ -152,7 +140,7 @@ export default async function OrganizationPage({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <form className="flex-1" action="/app/organization" method="get">
+        <form className="flex-1" action="/organization" method="get">
           <input type="hidden" name="tab" value={tab} />
           <input
             name="q"
@@ -161,7 +149,18 @@ export default async function OrganizationPage({
             className="w-full max-w-xs rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none focus:border-burgundy/40 focus:ring-2 focus:ring-burgundy/15"
           />
         </form>
-        {isAdmin && <EntityDialog title={addLabel} fields={fields} action={action} />}
+        {isAdmin &&
+          (tab === "distributors" ? (
+            <DistributorDialog
+              regions={regionOpts}
+              cities={cityOpts}
+              channels={channelOpts}
+              areaManagers={amOpts}
+              action={upsertDistributor}
+            />
+          ) : (
+            action && <EntityDialog title={addLabel} fields={fields} action={action} />
+          ))}
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-line bg-white">
@@ -190,7 +189,27 @@ export default async function OrganizationPage({
                   <Cells tab={tab} row={r} />
                   {isAdmin && (
                     <td className="px-4 py-2.5 text-right">
-                      <EntityDialog title={addLabel} mode="edit" fields={fields} action={action} initial={initialFor(tab, r)} />
+                      {tab === "distributors" ? (
+                        <DistributorDialog
+                          mode="edit"
+                          regions={regionOpts}
+                          cities={cityOpts}
+                          channels={channelOpts}
+                          areaManagers={amOpts}
+                          action={upsertDistributor}
+                          initial={distributorInitial(r)}
+                        />
+                      ) : (
+                        action && (
+                          <EntityDialog
+                            title={addLabel}
+                            mode="edit"
+                            fields={fields}
+                            action={action}
+                            initial={initialFor(tab, r)}
+                          />
+                        )
+                      )}
                     </td>
                   )}
                 </tr>
@@ -210,23 +229,30 @@ function rel(v: unknown) {
   const o = Array.isArray(v) ? v[0] : v;
   return o && typeof o === "object" ? txt((o as { name?: string }).name) : "—";
 }
+function regionOfCity(v: unknown) {
+  const c = (Array.isArray(v) ? v[0] : v) as { region?: unknown } | null;
+  if (!c || typeof c !== "object") return "—";
+  return rel(c.region);
+}
+function person(v: unknown) {
+  const o = (Array.isArray(v) ? v[0] : v) as { full_name?: string; email?: string } | null;
+  if (!o || typeof o !== "object") return "—";
+  return txt(o.full_name || o.email);
+}
 
 function Cells({ tab, row }: { tab: TabKey; row: Record<string, unknown> }) {
   if (tab === "regions")
     return (<><td className="px-4 py-2.5 font-medium text-ink">{txt(row.name)}</td><td className="px-4 py-2.5 text-muted">{txt(row.code)}</td></>);
   if (tab === "cities")
     return (<><td className="px-4 py-2.5 font-medium text-ink">{txt(row.name)}</td><td className="px-4 py-2.5 text-muted">{rel(row.region)}</td></>);
-  if (tab === "areas")
-    return (<><td className="px-4 py-2.5 font-medium text-ink">{txt(row.name)}</td><td className="px-4 py-2.5 text-muted">{txt(row.code)}</td><td className="px-4 py-2.5 text-muted">{rel(row.region)}</td></>);
-  if (tab === "branches")
-    return (<><td className="px-4 py-2.5 font-medium text-ink">{txt(row.name)}</td><td className="px-4 py-2.5 text-muted">{txt(row.code)}</td><td className="px-4 py-2.5 text-muted">{rel(row.area)}</td><td className="px-4 py-2.5 text-muted">{rel(row.city)}</td></>);
   return (
     <>
       <td className="px-4 py-2.5 font-medium text-ink">{txt(row.name)}</td>
       <td className="px-4 py-2.5 text-muted">{txt(row.code)}</td>
-      <td className="px-4 py-2.5 capitalize text-muted">{txt(row.type)}</td>
-      <td className="px-4 py-2.5 text-muted">{rel(row.branch)}</td>
+      <td className="px-4 py-2.5 text-muted">{rel(row.city)}</td>
+      <td className="px-4 py-2.5 text-muted">{regionOfCity(row.city)}</td>
       <td className="px-4 py-2.5 text-muted">{rel(row.channel)}</td>
+      <td className="px-4 py-2.5 text-muted">{person(row.area_manager)}</td>
       <td className="px-4 py-2.5">
         <span className={
           "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium " +
@@ -242,15 +268,17 @@ function Cells({ tab, row }: { tab: TabKey; row: Record<string, unknown> }) {
 function initialFor(tab: TabKey, r: Record<string, unknown>): Record<string, string | boolean | null> {
   const base = { id: String(r.id), name: (r.name as string) ?? "" };
   if (tab === "regions") return { ...base, code: (r.code as string) ?? "" };
-  if (tab === "cities") return { ...base, region_id: (r.region_id as string) ?? "" };
-  if (tab === "areas") return { ...base, code: (r.code as string) ?? "", region_id: (r.region_id as string) ?? "" };
-  if (tab === "branches") return { ...base, code: (r.code as string) ?? "", area_id: (r.area_id as string) ?? "", city_id: (r.city_id as string) ?? "" };
+  return { ...base, region_id: (r.region_id as string) ?? "" }; // cities
+}
+
+function distributorInitial(r: Record<string, unknown>): Record<string, string | boolean | null> {
   return {
-    ...base,
+    id: String(r.id),
+    name: (r.name as string) ?? "",
     code: (r.code as string) ?? "",
-    type: (r.type as string) ?? "distributor",
-    branch_id: (r.branch_id as string) ?? "",
+    city_id: (r.city_id as string) ?? "",
     channel_id: (r.channel_id as string) ?? "",
+    area_manager_id: (r.area_manager_id as string) ?? "",
     is_active: Boolean(r.is_active),
   };
 }

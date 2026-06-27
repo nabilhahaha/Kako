@@ -1,4 +1,5 @@
 import { PageStub } from "@/components/app/page-stub";
+
 export default function Page() {
-  return <PageStub title="Settings" note="Company settings, channels, currency, SLA thresholds." />;
+  return <PageStub titleKey="nav.settings" />;
 }
