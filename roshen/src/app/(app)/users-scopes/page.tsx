@@ -32,13 +32,18 @@ export default async function UsersScopesPage() {
   ]);
   const users = usersRes.data ?? [];
 
-  // First scope row per user → { level, entity } for the edit dialog.
-  const scopeByUser = new Map<string, { level: string; entity: string }>();
+  // All scope rows per user → { level, entities[] } for the edit dialog.
+  // The dialog assigns one scope type with many values; we group by the first
+  // row's level and collect every matching entity id.
+  const scopeByUser = new Map<string, { level: string; entities: string[] }>();
   for (const s of scopeRes.data ?? []) {
-    if (scopeByUser.has(s.user_id as string)) continue;
+    const uid = s.user_id as string;
     const level = String(s.level);
     const entity = level === "agent" ? s.agent_id : level === "city" ? s.city_id : level === "region" ? s.region_id : null;
-    if (entity) scopeByUser.set(s.user_id as string, { level, entity: String(entity) });
+    if (!entity) continue;
+    const cur = scopeByUser.get(uid);
+    if (!cur) scopeByUser.set(uid, { level, entities: [String(entity)] });
+    else if (cur.level === level && !cur.entities.includes(String(entity))) cur.entities.push(String(entity));
   }
   const roles = ASSIGNABLE_ROLES.map((r) => ({ value: r, label: t(`role.${r}`) }));
   const regions = (regionsRes.data ?? []).map((r) => ({ value: r.id, label: r.name }));
@@ -52,6 +57,8 @@ export default async function UsersScopesPage() {
     save: t("users.save"), saving: t("users.saving"), create: t("users.create"), creating: t("users.creating"),
     cancel: t("users.cancel"), created_title: t("users.created_title"), temp_password: t("users.temp_password"),
     temp_password_hint: t("users.temp_password_hint"), error_generic: t("users.error_generic"),
+    scope_type: t("users.scope_type"), scope_add: t("users.scope_add"), scope_clear: t("users.scope_clear"),
+    scope_required: t("users.scope_required"),
   };
 
   return (

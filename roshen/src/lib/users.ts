@@ -5,12 +5,13 @@ import { createClient } from "@/utils/supabase/server";
 import { requireProfile, isAdminRole } from "@/lib/auth";
 import { ASSIGNABLE_ROLES } from "@/lib/roles";
 
+type ScopeInput = { level: string; region_id?: string; city_id?: string; agent_id?: string };
 type CreateInput = {
   full_name?: string;
   email: string;
   role: string;
   is_active?: boolean;
-  scope?: { level: string; region_id?: string; city_id?: string; agent_id?: string } | null;
+  scopes?: ScopeInput[];
 };
 
 type CreateResult = { ok: boolean; tempPassword?: string; email?: string; error?: string };
@@ -39,7 +40,7 @@ export async function createUser(input: CreateInput): Promise<CreateResult> {
 
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const apikey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
-  const scopes = input.scope?.level ? [input.scope] : [];
+  const scopes = (input.scopes ?? []).filter((s) => s.level && (s.region_id || s.city_id || s.agent_id));
 
   try {
     const res = await fetch(`${base}/functions/v1/admin-create-user`, {
@@ -94,14 +95,19 @@ export async function updateUser(fd: FormData) {
   if (error) throw new Error(error.message);
 
   // Scope replace (only when the dialog submitted scope fields).
+  // Full, safe replace for THIS user only: delete existing rows, then insert
+  // one row per selected value. Empty level => cleared. Validates that a chosen
+  // level has at least one value.
   if (fd.has("scope_level")) {
     const level = str(fd, "scope_level"); // "" => clear
-    const entity = str(fd, "scope_entity");
+    const values = [...new Set(fd.getAll("scope_entity").map((v) => String(v).trim()).filter(Boolean))];
+    if (level && !["region", "city", "agent"].includes(level)) throw new Error("Invalid scope type.");
+    if (level && values.length === 0) throw new Error("Select at least one scope value, or choose None.");
     await supabase.from("user_scope").delete().eq("user_id", id);
-    if (level && entity && ["region", "city", "agent"].includes(level) && profile?.company_id) {
-      const row: Record<string, unknown> = { company_id: profile.company_id, user_id: id, level };
-      row[level === "agent" ? "agent_id" : level === "city" ? "city_id" : "region_id"] = entity;
-      const { error: serr } = await supabase.from("user_scope").insert(row as never);
+    if (level && values.length && profile?.company_id) {
+      const col = level === "agent" ? "agent_id" : level === "city" ? "city_id" : "region_id";
+      const rows = values.map((v) => ({ company_id: profile.company_id, user_id: id, level, [col]: v }));
+      const { error: serr } = await supabase.from("user_scope").insert(rows as never);
       if (serr) throw new Error(serr.message);
     }
   }
