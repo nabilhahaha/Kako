@@ -32,7 +32,8 @@ export default async function CalendarPage({
   const scheduled = filtered.filter((r) => r.due_date) as Record<string, unknown>[];
   const unscheduledCount = filtered.length - scheduled.length;
   const calTasks: CalTask[] = scheduled.map((r) => ({
-    id: String(r.id), title: String(r.title), due_date: String(r.due_date), status: String(r.status),
+    id: String(r.id), title: String(r.title), due_date: String(r.due_date),
+    status: String(r.status), priority: String(r.priority ?? "normal"), assignees: taskAssignees(r.id).length,
   }));
 
   const fmt = new Intl.DateTimeFormat(locale, { weekday: "short" });
@@ -70,24 +71,24 @@ export default async function CalendarPage({
         <button type="submit" className="rounded-xl bg-burgundy px-3 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">{t("common.apply_filters")}</button>
       </form>
 
-      {scheduled.length === 0 ? (
-        <Card className="p-12 text-center">
-          <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-burgundy-soft text-burgundy"><CalendarDays className="h-6 w-6" /></span>
-          <p className="mt-3 text-base font-semibold text-ink">{t("ws.cal.empty_title")}</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-muted">{t("ws.cal.empty_hint")}</p>
-          <div className="mt-4 flex justify-center"><TaskDialog {...dialogProps} /></div>
-        </Card>
-      ) : (
-        <CalendarBoard
-          tasks={calTasks}
-          today={td}
-          month={sp.month}
-          basePath="/workspace/calendar"
-          weekdays={weekdays}
-          moreLabel={t("ws.cal.more")}
-          dialogProps={dialogProps}
-        />
+      {/* Small note when nothing is scheduled — the grid stays visible. */}
+      {scheduled.length === 0 && (
+        <div className="flex items-center gap-2 rounded-xl border border-line bg-cream/40 px-3 py-2 text-sm text-muted">
+          <CalendarDays className="h-4 w-4 shrink-0 text-burgundy" />
+          <span>{t("ws.cal.empty_title")}. {t("ws.cal.empty_hint")}</span>
+        </div>
       )}
+
+      {/* Calendar grid is always rendered. */}
+      <CalendarBoard
+        tasks={calTasks}
+        today={td}
+        month={sp.month}
+        basePath="/workspace/calendar"
+        weekdays={weekdays}
+        moreLabel={t("ws.cal.more")}
+        dialogProps={dialogProps}
+      />
 
       {/* Unscheduled tasks panel */}
       {unscheduledCount > 0 && (

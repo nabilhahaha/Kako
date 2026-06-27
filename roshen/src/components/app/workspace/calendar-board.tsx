@@ -6,7 +6,11 @@ import { Plus } from "lucide-react";
 import { STATUS_STYLE } from "@/lib/task-meta";
 import { TaskDialog, type Opt } from "@/components/app/workspace/task-dialog";
 
-export type CalTask = { id: string; title: string; due_date: string; status: string };
+export type CalTask = { id: string; title: string; due_date: string; status: string; priority?: string; assignees?: number };
+
+const PRIORITY_DOT: Record<string, string> = {
+  low: "bg-slate-300", normal: "bg-sky-400", high: "bg-amber-500", urgent: "bg-roshen-red",
+};
 
 type DialogProps = {
   createAction: (fd: FormData) => Promise<string>;
@@ -98,8 +102,10 @@ export function CalendarBoard({
               <div className="space-y-1">
                 {dayTasks.slice(0, 3).map((r) => (
                   <Link key={r.id} href={`/workspace/${r.id}`} title={r.title}
-                    className={"block truncate rounded px-1 py-0.5 text-[11px] font-medium " + (STATUS_STYLE[r.status] ?? "bg-cream-deep text-muted")}>
-                    {r.title}
+                    className={"flex items-center gap-1 rounded px-1 py-0.5 text-[11px] font-medium " + (STATUS_STYLE[r.status] ?? "bg-cream-deep text-muted")}>
+                    <span className={"h-1.5 w-1.5 shrink-0 rounded-full " + (PRIORITY_DOT[r.priority ?? "normal"] ?? "bg-slate-300")} />
+                    <span className="min-w-0 flex-1 truncate">{r.title}</span>
+                    {r.assignees ? <span className="shrink-0 opacity-70">{r.assignees}</span> : null}
                   </Link>
                 ))}
                 {dayTasks.length > 3 && <div className="px-1 text-[10px] text-muted">+{dayTasks.length - 3} {moreLabel}</div>}
