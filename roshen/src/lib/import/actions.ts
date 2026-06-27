@@ -34,6 +34,9 @@ async function insertChunked(
 }
 
 // ----------------------------------------------------------------- Stage 1
+// Large files (90k+ rows) cannot be sent in a single server-action request, so
+// stage 1 is split: createDraftBatch persists METADATA only and returns the id;
+// the client then streams rows via appendRawRows() in chunks with progress.
 export type CreateDraftInput = {
   agentId: string;
   filename: string;
@@ -41,10 +44,10 @@ export type CreateDraftInput = {
   sheet: string;
   detectedDateFormat: string;
   period: { start: string | null; end: string | null; month: string | null };
-  rows: RawRowPayload[];
+  rowCount: number;
 };
 
-export async function createDraftBatch(input: CreateDraftInput) {
+export async function createDraftBatch(input: CreateDraftInput): Promise<{ batchId: string }> {
   const { supabase, companyId, userId } = await ctx();
   const periodMonth =
     input.period.month ??
@@ -61,7 +64,7 @@ export async function createDraftBatch(input: CreateDraftInput) {
       period_start: input.period.start,
       period_end: input.period.end,
       detected_date_format: input.detectedDateFormat,
-      row_count: input.rows.length,
+      row_count: input.rowCount,
       status: "pending",
       uploaded_by: userId,
       notes: `sheet: ${input.sheet}`,
@@ -69,20 +72,26 @@ export async function createDraftBatch(input: CreateDraftInput) {
     .select("id")
     .single();
   if (error || !batch) throw new Error(error?.message ?? "Could not create import batch.");
+  revalidatePath("/import-batches");
+  return { batchId: batch.id };
+}
 
+/** Append one chunk of raw rows to a draft batch (called repeatedly by the client). */
+export async function appendRawRows(batchId: string, rows: RawRowPayload[]): Promise<{ inserted: number }> {
+  const { supabase } = await ctx();
+  if (!rows.length) return { inserted: 0 };
   await insertChunked(
     supabase,
     "raw_import_row",
-    input.rows.map((r) => ({
-      batch_id: batch.id,
+    rows.map((r) => ({
+      batch_id: batchId,
       row_number: r.row_number,
       raw: r.raw as Json,
       raw_invoice_date: r.raw_invoice_date,
     })),
+    500,
   );
-
-  revalidatePath("/import-batches");
-  redirect(`/raw-data-upload/${batch.id}/mapping`);
+  return { inserted: rows.length };
 }
 
 // ----------------------------------------------------------------- Stage 2

@@ -1,13 +1,16 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { UploadCloud, FileSpreadsheet, Loader2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { suggestMapping } from "@/lib/import/mapping";
 import { detectDateFormat, normalizeDate, detectPeriod } from "@/lib/import/parse";
-import { createDraftBatch, type CreateDraftInput } from "@/lib/import/actions";
+import { createDraftBatch, appendRawRows, type CreateDraftInput } from "@/lib/import/actions";
+
+const CHUNK = 2000; // rows per server request (well under body/serialization limits)
 
 type Opt = { value: string; label: string };
 
@@ -20,8 +23,10 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
   const [sheets, setSheets] = useState<SheetData[]>([]);
   const [activeSheet, setActiveSheet] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const sheet = sheets.find((s) => s.name === activeSheet);
 
@@ -68,31 +73,43 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
     }
   }
 
-  function submit() {
+  async function submit() {
     if (!agentId) return setError("Select a distributor first.");
     if (!sheet) return setError("Upload a file and select a sheet.");
     setError(null);
-    const payload: CreateDraftInput = {
-      agentId,
-      filename,
-      sizeBytes,
-      sheet: sheet.name,
-      detectedDateFormat: dateFormat,
-      period,
-      rows: sheet.rows.map((raw, i) => ({
-        row_number: i + 1,
-        raw,
-        raw_invoice_date: dateSource ? (raw[dateSource] == null ? null : String(raw[dateSource])) : null,
-      })),
-    };
-    startTransition(async () => {
-      try {
-        await createDraftBatch(payload);
-      } catch (e) {
-        if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) return;
-        setError(e instanceof Error ? e.message : "Failed to create draft batch.");
+    setBusy(true);
+    const allRows = sheet.rows.map((raw, i) => ({
+      row_number: i + 1,
+      raw,
+      raw_invoice_date: dateSource ? (raw[dateSource] == null ? null : String(raw[dateSource])) : null,
+    }));
+    try {
+      // Stage 1a: create the draft from metadata only.
+      const meta: CreateDraftInput = {
+        agentId,
+        filename,
+        sizeBytes,
+        sheet: sheet.name,
+        detectedDateFormat: dateFormat,
+        period,
+        rowCount: allRows.length,
+      };
+      const { batchId } = await createDraftBatch(meta);
+
+      // Stage 1b: stream rows to the server in chunks with progress.
+      setProgress({ done: 0, total: allRows.length });
+      for (let i = 0; i < allRows.length; i += CHUNK) {
+        const chunk = allRows.slice(i, i + CHUNK);
+        await appendRawRows(batchId, chunk);
+        setProgress({ done: Math.min(i + CHUNK, allRows.length), total: allRows.length });
       }
-    });
+      router.push(`/raw-data-upload/${batchId}/mapping`);
+    } catch (e) {
+      setBusy(false);
+      setProgress(null);
+      const msg = e instanceof Error ? e.message : "Failed to create the import batch.";
+      setError(`Upload failed: ${msg}`);
+    }
   }
 
   return (
@@ -185,10 +202,24 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
             </table>
           </div>
 
-          <div className="mt-5 flex justify-end">
-            <Button onClick={submit} disabled={pending || !agentId}>
-              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
-              Create draft &amp; map columns
+          <div className="mt-5 flex flex-col items-end gap-2">
+            {progress && (
+              <div className="w-full">
+                <div className="mb-1 flex justify-between text-xs text-muted">
+                  <span>Uploading rows…</span>
+                  <span>{progress.done.toLocaleString()} / {progress.total.toLocaleString()}</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-cream-deep">
+                  <div
+                    className="h-full bg-burgundy transition-all"
+                    style={{ width: `${Math.round((progress.done / Math.max(progress.total, 1)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            <Button onClick={submit} disabled={busy || !agentId}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
+              {busy ? "Uploading…" : "Create draft & map columns"}
             </Button>
           </div>
         </Card>
