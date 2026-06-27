@@ -186,6 +186,108 @@ export type Database = {
           },
         ]
       }
+      capability_setup: {
+        Row: {
+          actual_salesmen: number | null
+          agent_id: string | null
+          cashvan_available: boolean
+          cashvan_required: boolean
+          city_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          level: Database["public"]["Enums"]["org_level"]
+          notes: string | null
+          period_month: string
+          region_id: string | null
+          required_salesmen: number | null
+          supervisor_available: boolean
+          supervisor_required: boolean
+          updated_at: string
+          warehouse_available: boolean
+          warehouse_required: boolean
+        }
+        Insert: {
+          actual_salesmen?: number | null
+          agent_id?: string | null
+          cashvan_available?: boolean
+          cashvan_required?: boolean
+          city_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          level: Database["public"]["Enums"]["org_level"]
+          notes?: string | null
+          period_month: string
+          region_id?: string | null
+          required_salesmen?: number | null
+          supervisor_available?: boolean
+          supervisor_required?: boolean
+          updated_at?: string
+          warehouse_available?: boolean
+          warehouse_required?: boolean
+        }
+        Update: {
+          actual_salesmen?: number | null
+          agent_id?: string | null
+          cashvan_available?: boolean
+          cashvan_required?: boolean
+          city_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["org_level"]
+          notes?: string | null
+          period_month?: string
+          region_id?: string | null
+          required_salesmen?: number | null
+          supervisor_available?: boolean
+          supervisor_required?: boolean
+          updated_at?: string
+          warehouse_available?: boolean
+          warehouse_required?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_setup_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_setup_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_setup_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_setup_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capability_setup_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel: {
         Row: {
           code: string | null
@@ -466,6 +568,106 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coverage_target: {
+        Row: {
+          agent_id: string | null
+          channel_id: string | null
+          city_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          level: Database["public"]["Enums"]["org_level"]
+          period_month: string
+          region_id: string | null
+          required_active_customers: number | null
+          required_coverage_pct: number | null
+          required_customer_universe: number | null
+          required_productive_pct: number | null
+          required_visits: number | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          channel_id?: string | null
+          city_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          level: Database["public"]["Enums"]["org_level"]
+          period_month: string
+          region_id?: string | null
+          required_active_customers?: number | null
+          required_coverage_pct?: number | null
+          required_customer_universe?: number | null
+          required_productive_pct?: number | null
+          required_visits?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          channel_id?: string | null
+          city_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["org_level"]
+          period_month?: string
+          region_id?: string | null
+          required_active_customers?: number | null
+          required_coverage_pct?: number | null
+          required_customer_universe?: number | null
+          required_productive_pct?: number | null
+          required_visits?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coverage_target_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coverage_target_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coverage_target_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coverage_target_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coverage_target_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coverage_target_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
             referencedColumns: ["id"]
           },
         ]
@@ -1557,6 +1759,17 @@ export type Database = {
           },
         ]
       }
+      sla_coverage: {
+        Row: {
+          active_customers: number | null
+          channel_id: string | null
+          ent_id: string | null
+          lvl: Database["public"]["Enums"]["org_level"] | null
+          period_month: string | null
+          uploaded_customers: number | null
+        }
+        Relationships: []
+      }
       sla_performance: {
         Row: {
           achievement_pct: number | null
@@ -1574,6 +1787,58 @@ export type Database = {
           status: string | null
           target_amount: number | null
           target_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_target_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_target_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_scorecard: {
+        Row: {
+          active_customers: number | null
+          actual_coverage_pct: number | null
+          actual_sales: number | null
+          actual_salesmen: number | null
+          cashvan_available: boolean | null
+          cashvan_required: boolean | null
+          channel_id: string | null
+          company_id: string | null
+          ent_id: string | null
+          level: Database["public"]["Enums"]["org_level"] | null
+          period_month: string | null
+          required_active_customers: number | null
+          required_coverage_pct: number | null
+          required_customer_universe: number | null
+          required_salesmen: number | null
+          sales_ach_pct: number | null
+          sales_gap: number | null
+          sales_status: string | null
+          sales_target: number | null
+          salesmen_gap: number | null
+          sc_active: number | null
+          sc_cov: number | null
+          sc_force: number | null
+          sc_sales: number | null
+          sc_service: number | null
+          sla_score: number | null
+          sla_status: string | null
+          supervisor_available: boolean | null
+          supervisor_required: boolean | null
+          uploaded_customers: number | null
+          warehouse_available: boolean | null
+          warehouse_required: boolean | null
         }
         Relationships: [
           {

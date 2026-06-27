@@ -177,6 +177,91 @@ export async function deleteTarget(fd: FormData) {
   revalidatePath("/sla-report");
 }
 
+const entityIds = (level: string, entity_id: string | null) => ({
+  region_id: level === "region" ? entity_id : null,
+  city_id: level === "city" ? entity_id : null,
+  agent_id: level === "agent" ? entity_id : null,
+});
+const numN = (fd: FormData, k: string) => {
+  const v = str(fd, k);
+  return v == null ? null : Number(v);
+};
+function validLevelEntity(fd: FormData) {
+  const monthRaw = str(fd, "period_month");
+  const level = str(fd, "level");
+  const entity_id = str(fd, "entity_id");
+  if (!monthRaw) throw new Error("Month is required.");
+  if (level !== "agent" && level !== "region" && level !== "city") throw new Error("Level must be Distributor, City, or Region.");
+  if (!entity_id) throw new Error("Select the target entity.");
+  return { period_month: monthRaw.length === 7 ? `${monthRaw}-01` : monthRaw, level, entity_id };
+}
+
+/** Coverage target upsert (Customer Coverage). Admin-only. */
+export async function upsertCoverageTarget(fd: FormData) {
+  const { supabase, companyId } = await ctx();
+  const id = str(fd, "id");
+  const { period_month, level, entity_id } = validLevelEntity(fd);
+  const base = {
+    company_id: companyId,
+    period_month,
+    level: level as "agent" | "region" | "city",
+    channel_id: str(fd, "channel_id"),
+    ...entityIds(level, entity_id),
+    required_customer_universe: numN(fd, "required_customer_universe"),
+    required_active_customers: numN(fd, "required_active_customers"),
+    required_coverage_pct: numN(fd, "required_coverage_pct"),
+    required_productive_pct: numN(fd, "required_productive_pct"),
+    required_visits: numN(fd, "required_visits"),
+  };
+  if (id) await supabase.from("coverage_target").update(base).eq("id", id);
+  else await supabase.from("coverage_target").insert(base);
+  revalidatePath("/sla-targets");
+  revalidatePath("/sla-report");
+}
+
+export async function deleteCoverageTarget(fd: FormData) {
+  const { supabase } = await ctx();
+  const id = str(fd, "id");
+  if (id) await supabase.from("coverage_target").delete().eq("id", id);
+  revalidatePath("/sla-targets");
+  revalidatePath("/sla-report");
+}
+
+/** Capability setup upsert (Sales-Force / Service Capability). Admin-only. */
+export async function upsertCapability(fd: FormData) {
+  const { supabase, companyId } = await ctx();
+  const id = str(fd, "id");
+  const { period_month, level, entity_id } = validLevelEntity(fd);
+  const bool = (k: string) => fd.get(k) === "on";
+  const base = {
+    company_id: companyId,
+    period_month,
+    level: level as "agent" | "region" | "city",
+    ...entityIds(level, entity_id),
+    required_salesmen: numN(fd, "required_salesmen"),
+    actual_salesmen: numN(fd, "actual_salesmen"),
+    warehouse_required: bool("warehouse_required"),
+    warehouse_available: bool("warehouse_available"),
+    cashvan_required: bool("cashvan_required"),
+    cashvan_available: bool("cashvan_available"),
+    supervisor_required: bool("supervisor_required"),
+    supervisor_available: bool("supervisor_available"),
+    notes: str(fd, "notes"),
+  };
+  if (id) await supabase.from("capability_setup").update(base).eq("id", id);
+  else await supabase.from("capability_setup").insert(base);
+  revalidatePath("/sla-targets");
+  revalidatePath("/sla-report");
+}
+
+export async function deleteCapability(fd: FormData) {
+  const { supabase } = await ctx();
+  const id = str(fd, "id");
+  if (id) await supabase.from("capability_setup").delete().eq("id", id);
+  revalidatePath("/sla-targets");
+  revalidatePath("/sla-report");
+}
+
 export async function upsertAgent(fd: FormData) {
   const { supabase, companyId } = await ctx();
   const id = str(fd, "id");
