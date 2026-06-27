@@ -74,6 +74,12 @@ export const NAV_TREE: NavGroup[] = [
     ],
   },
   {
+    key: "reporting",
+    items: [
+      { href: "/reports/sales-map", key: "sales_map", icon: "Map", roles: CORE },
+    ],
+  },
+  {
     key: "system",
     items: [{ href: "/settings", key: "settings", icon: "Settings", roles: CORE }],
   },

@@ -487,18 +487,24 @@ export type Database = {
         Row: {
           company_id: string
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           region_id: string | null
         }
         Insert: {
           company_id: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           region_id?: string | null
         }
         Update: {
           company_id?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           region_id?: string | null
         }
@@ -3029,6 +3035,47 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "import_batch"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_geo_line: {
+        Row: {
+          agent_id: string | null
+          cartons: number | null
+          city_id: string | null
+          city_source: string | null
+          company_id: string | null
+          customer_code: string | null
+          id: number | null
+          invoice_date: string | null
+          invoice_number: string | null
+          main_channel_id: string | null
+          net_sales: number | null
+          period_month: string | null
+          region_id: string | null
+          sub_channel_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_fact_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_fact_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_fact_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
             referencedColumns: ["id"]
           },
         ]

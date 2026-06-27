@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Home, Building2, Building, Truck, Upload, SlidersHorizontal, Database, Target, BarChart3,
-  Users, Settings, CheckSquare, CalendarDays, ClipboardList, MapPin, ChevronDown, Menu, X,
+  Users, Settings, CheckSquare, CalendarDays, ClipboardList, MapPin, Map, ChevronDown, Menu, X,
   type LucideIcon,
 } from "lucide-react";
 import { Wordmark } from "@/components/brand/wordmark";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/cn";
 
 const ICONS: Record<string, LucideIcon> = {
   Home, Building2, Building, Truck, Upload, SlidersHorizontal, Database, Target, BarChart3,
-  Users, Settings, CheckSquare, CalendarDays, ClipboardList, MapPin,
+  Users, Settings, CheckSquare, CalendarDays, ClipboardList, MapPin, Map,
 };
 
 export type NavChildView = { href: string; key: string; label: string };
