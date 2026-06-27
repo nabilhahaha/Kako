@@ -12,6 +12,8 @@ const str = (fd: FormData, k: string) => {
   const v = String(fd.get(k) ?? "").trim();
   return v === "" ? null : v;
 };
+const list = (fd: FormData, k: string) =>
+  [...new Set(fd.getAll(k).map((v) => String(v).trim()).filter(Boolean))];
 
 async function ctx() {
   const { user, profile } = await requireProfile();
@@ -21,7 +23,12 @@ async function ctx() {
 
 type SB = Awaited<ReturnType<typeof createClient>>;
 
-/** Fire an in-app notification to each unique recipient (excluding the actor). */
+async function assigneeIds(supabase: SB, taskId: string): Promise<string[]> {
+  const { data } = await supabase.from("task_assignee").select("user_id").eq("task_id", taskId);
+  return (data ?? []).map((r) => r.user_id as string);
+}
+
+/** Notify each unique recipient (excluding the actor). */
 async function notify(
   supabase: SB,
   recipients: (string | null | undefined)[],
@@ -50,7 +57,7 @@ export async function createTask(fd: FormData) {
   const { supabase, userId, companyId } = await ctx();
   const title = str(fd, "title");
   if (!title) throw new Error("Task title is required.");
-  const assigned_to = str(fd, "assigned_to");
+  const assignees = list(fd, "assignees");
   const visibility = (str(fd, "visibility") ?? "creator_assignee") as Visibility;
   const row = {
     company_id: companyId,
@@ -60,7 +67,7 @@ export async function createTask(fd: FormData) {
     status: (str(fd, "status") ?? "not_started") as Status,
     start_date: str(fd, "start_date"),
     due_date: str(fd, "due_date"),
-    assigned_to,
+    assigned_to: assignees[0] ?? null,
     created_by: userId,
     visibility,
     visible_role: visibility === "selected_role" ? (str(fd, "visible_role") as never) : null,
@@ -71,8 +78,11 @@ export async function createTask(fd: FormData) {
   const { data, error } = await supabase.from("task").insert(row).select("id").single();
   if (error) throw new Error(error.message);
   const taskId = data!.id as string;
+  if (assignees.length) {
+    await supabase.from("task_assignee").insert(assignees.map((u) => ({ task_id: taskId, user_id: u, assigned_by: userId })));
+  }
   await supabase.from("task_activity").insert({ task_id: taskId, actor_id: userId, type: "created" });
-  if (assigned_to) await notify(supabase, [assigned_to], userId, "task_assigned", "Task assigned to you", title, taskId);
+  await notify(supabase, assignees, userId, "task_assigned", "Task assigned to you", title, taskId);
   revalidatePath("/workspace");
 }
 
@@ -80,14 +90,10 @@ export async function updateTask(fd: FormData) {
   const { supabase, userId } = await ctx();
   const id = str(fd, "id");
   if (!id) throw new Error("Missing task id.");
-  const { data: before } = await supabase
-    .from("task")
-    .select("title,status,assigned_to,created_by")
-    .eq("id", id)
-    .maybeSingle();
   const title = str(fd, "title");
   if (!title) throw new Error("Task title is required.");
-  const assigned_to = str(fd, "assigned_to");
+  const { data: before } = await supabase.from("task").select("status,created_by").eq("id", id).maybeSingle();
+  const assignees = list(fd, "assignees");
   const status = (str(fd, "status") ?? "not_started") as Status;
   const visibility = (str(fd, "visibility") ?? "creator_assignee") as Visibility;
   const row = {
@@ -97,7 +103,7 @@ export async function updateTask(fd: FormData) {
     status,
     start_date: str(fd, "start_date"),
     due_date: str(fd, "due_date"),
-    assigned_to,
+    assigned_to: assignees[0] ?? null,
     visibility,
     visible_role: visibility === "selected_role" ? (str(fd, "visible_role") as never) : null,
     related_area_id: str(fd, "related_area_id"),
@@ -109,13 +115,18 @@ export async function updateTask(fd: FormData) {
   const { error } = await supabase.from("task").update(row).eq("id", id);
   if (error) throw new Error(error.message);
 
+  // Reconcile assignees
+  const existing = await assigneeIds(supabase, id);
+  const toAdd = assignees.filter((u) => !existing.includes(u));
+  const toRemove = existing.filter((u) => !assignees.includes(u));
+  if (toRemove.length) await supabase.from("task_assignee").delete().eq("task_id", id).in("user_id", toRemove);
+  if (toAdd.length) {
+    await supabase.from("task_assignee").insert(toAdd.map((u) => ({ task_id: id, user_id: u, assigned_by: userId })));
+    await notify(supabase, toAdd, userId, "task_reassigned", "Task assigned to you", title, id);
+  }
   if (before && before.status !== status) {
     await supabase.from("task_activity").insert({ task_id: id, actor_id: userId, type: "status_changed", from_value: before.status, to_value: status });
-    await notify(supabase, [before.created_by, assigned_to], userId, "status_changed", "Task status changed", title, id);
-  }
-  if (before && before.assigned_to !== assigned_to && assigned_to) {
-    await supabase.from("task_activity").insert({ task_id: id, actor_id: userId, type: "reassigned", to_value: assigned_to });
-    await notify(supabase, [assigned_to], userId, "task_reassigned", "Task assigned to you", title, id);
+    await notify(supabase, [before.created_by, ...assignees], userId, "status_changed", "Task status changed", title, id);
   }
   revalidatePath("/workspace");
   revalidatePath(`/workspace/${id}`);
@@ -126,7 +137,7 @@ export async function setTaskStatus(fd: FormData) {
   const id = str(fd, "id");
   const status = str(fd, "status") as Status | null;
   if (!id || !status) return;
-  const { data: before } = await supabase.from("task").select("title,status,assigned_to,created_by").eq("id", id).maybeSingle();
+  const { data: before } = await supabase.from("task").select("title,status,created_by").eq("id", id).maybeSingle();
   const { error } = await supabase
     .from("task")
     .update({ status, completed_at: status === "completed" ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
@@ -134,7 +145,8 @@ export async function setTaskStatus(fd: FormData) {
   if (error) throw new Error(error.message);
   if (before && before.status !== status) {
     await supabase.from("task_activity").insert({ task_id: id, actor_id: userId, type: "status_changed", from_value: before.status, to_value: status });
-    await notify(supabase, [before.created_by, before.assigned_to], userId, "status_changed", "Task status changed", before.title, id);
+    const recips = [before.created_by, ...(await assigneeIds(supabase, id))];
+    await notify(supabase, recips, userId, "status_changed", "Task status changed", before.title, id);
   }
   revalidatePath("/workspace");
   revalidatePath(`/workspace/${id}`);
@@ -148,8 +160,11 @@ export async function addComment(fd: FormData) {
   const { error } = await supabase.from("task_comment").insert({ task_id: id, author_id: userId, body });
   if (error) throw new Error(error.message);
   await supabase.from("task_activity").insert({ task_id: id, actor_id: userId, type: "commented" });
-  const { data: tk } = await supabase.from("task").select("title,assigned_to,created_by").eq("id", id).maybeSingle();
-  if (tk) await notify(supabase, [tk.created_by, tk.assigned_to], userId, "comment_added", "New comment", tk.title, id);
+  const { data: tk } = await supabase.from("task").select("title,created_by").eq("id", id).maybeSingle();
+  if (tk) {
+    const recips = [tk.created_by, ...(await assigneeIds(supabase, id))];
+    await notify(supabase, recips, userId, "comment_added", "New comment", tk.title, id);
+  }
   revalidatePath(`/workspace/${id}`);
 }
 

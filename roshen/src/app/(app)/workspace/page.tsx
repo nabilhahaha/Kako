@@ -9,11 +9,12 @@ import { createClient } from "@/utils/supabase/server";
 import { getT } from "@/lib/i18n-server";
 import { Card } from "@/components/ui/card";
 import { TaskDialog } from "@/components/app/workspace/task-dialog";
+import { StatusSelect } from "@/components/app/workspace/status-select";
 import {
-  STATUSES, STATUS_STYLE, PRIORITY_STYLE,
+  STATUSES, BOARD_STATUSES, STATUS_STYLE, PRIORITY_STYLE,
   priorityOpts, statusOpts, visibilityOpts, roleOpts, taskLabels,
 } from "@/lib/task-meta";
-import { createTask } from "@/lib/tasks";
+import { createTask, setTaskStatus } from "@/lib/tasks";
 
 const TABS = ["my", "team", "assigned"] as const;
 type Tab = (typeof TABS)[number];
@@ -28,35 +29,44 @@ function todayStr() {
 export default async function WorkspacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; view?: string; status?: string; priority?: string; month?: string }>;
+  searchParams: Promise<{ tab?: string; view?: string; status?: string; priority?: string; month?: string; multi?: string }>;
 }) {
   const sp = await searchParams;
   const tab = (TABS.includes(sp.tab as Tab) ? sp.tab : "my") as Tab;
   const view = (VIEWS.includes(sp.view as View) ? sp.view : "list") as View;
   const statusF = (STATUSES as readonly string[]).includes(sp.status ?? "") ? (sp.status as string) : "";
   const priorityF = ["low", "normal", "high", "urgent"].includes(sp.priority ?? "") ? (sp.priority as string) : "";
+  const multiF = sp.multi === "1";
 
   const { user } = await requireProfile();
   const supabase = await createClient();
   const { t } = await getT();
 
-  const [tasksRes, profilesRes, citiesRes, distsRes, activityRes] = await Promise.all([
+  const [tasksRes, profilesRes, citiesRes, distsRes, activityRes, taRes] = await Promise.all([
     supabase.from("task").select("id,title,priority,status,due_date,assigned_to,created_by,created_at"),
     supabase.from("profile").select("id,full_name,email"),
     supabase.from("city").select("id,name").order("name"),
     supabase.from("agent").select("id,name,code").eq("type", "distributor").order("name"),
     supabase.from("task_activity").select("id,actor_id,type,to_value,created_at,task:task_id(id,title)").order("created_at", { ascending: false }).limit(6),
+    supabase.from("task_assignee").select("task_id,user_id"),
   ]);
   const all = (tasksRes.data ?? []) as Record<string, unknown>[];
   const nameById = new Map<string, string>();
   (profilesRes.data ?? []).forEach((p) => nameById.set(p.id, p.full_name || p.email || p.id.slice(0, 8)));
   const assignees = (profilesRes.data ?? []).map((p) => ({ value: p.id, label: p.full_name || p.email || p.id.slice(0, 8) }));
+  const assigneeMap = new Map<string, string[]>();
+  (taRes.data ?? []).forEach((r) => {
+    const arr = assigneeMap.get(r.task_id as string);
+    if (arr) arr.push(r.user_id as string);
+    else assigneeMap.set(r.task_id as string, [r.user_id as string]);
+  });
+  const taskAssignees = (id: unknown) => assigneeMap.get(String(id)) ?? [];
   const cities = (citiesRes.data ?? []).map((c) => ({ value: c.id, label: c.name }));
   const distributors = (distsRes.data ?? []).map((d) => ({ value: d.id, label: `${d.name} (${d.code})` }));
 
   const td = todayStr();
   const active = (r: Record<string, unknown>) => r.status !== "completed" && r.status !== "cancelled";
-  const mine = all.filter((r) => r.assigned_to === user.id);
+  const mine = all.filter((r) => taskAssignees(r.id).includes(user.id) || r.assigned_to === user.id);
   const myDueToday = mine.filter((r) => active(r) && r.due_date === td).length;
   const blocked = all.filter((r) => r.status === "blocked").length;
   const completed = all.filter((r) => r.status === "completed").length;
@@ -70,10 +80,13 @@ export default async function WorkspacePage({
   ];
 
   let rows = all.filter((r) =>
-    tab === "my" ? r.assigned_to === user.id : tab === "assigned" ? r.created_by === user.id : true,
+    tab === "my" ? taskAssignees(r.id).includes(user.id) || r.assigned_to === user.id
+      : tab === "assigned" ? r.created_by === user.id
+      : true,
   );
   if (statusF) rows = rows.filter((r) => r.status === statusF);
   if (priorityF) rows = rows.filter((r) => r.priority === priorityF);
+  if (multiF) rows = rows.filter((r) => taskAssignees(r.id).length > 1);
   rows.sort((a, b) => {
     const ad = (a.due_date as string) || "9999"; const bd = (b.due_date as string) || "9999";
     return ad === bd ? String(b.created_at).localeCompare(String(a.created_at)) : ad.localeCompare(bd);
@@ -87,7 +100,8 @@ export default async function WorkspacePage({
   };
 
   const qs = (over: Record<string, string>) => {
-    const p = new URLSearchParams({ tab, view, status: statusF, priority: priorityF, ...over });
+    const p = new URLSearchParams({ tab, view, status: statusF, priority: priorityF, multi: multiF ? "1" : "", ...over });
+    if (!p.get("multi")) p.delete("multi");
     return `/workspace?${p.toString()}`;
   };
   const viewIcon: Record<View, LucideIcon> = { list: ListIcon, board: LayoutGrid, calendar: CalendarDays };
@@ -159,6 +173,10 @@ export default async function WorkspacePage({
               <option value="">{t("ws.filter.priority")}: {t("common.all")}</option>
               {priorityOpts(t).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+            <label className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink/80">
+              <input type="checkbox" name="multi" value="1" defaultChecked={multiF} className="h-4 w-4 rounded border-line text-burgundy" />
+              {t("ws.filter.multi")}
+            </label>
             <button type="submit" className="rounded-xl bg-burgundy px-3 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">{t("common.apply_filters")}</button>
           </form>
 
@@ -170,9 +188,9 @@ export default async function WorkspacePage({
               <div className="mt-4 flex justify-center"><TaskDialog {...dialogProps} /></div>
             </Card>
           ) : view === "list" ? (
-            <ListView rows={rows} nameById={nameById} t={t} td={td} active={active} />
+            <ListView rows={rows} nameById={nameById} getAssignees={taskAssignees} statusOptions={statusOpts(t)} t={t} td={td} active={active} />
           ) : view === "board" ? (
-            <BoardView rows={rows} t={t} td={td} active={active} />
+            <BoardView rows={rows} nameById={nameById} getAssignees={taskAssignees} t={t} td={td} active={active} />
           ) : (
             <CalendarView rows={rows} td={td} month={sp.month} qs={qs} />
           )}
@@ -256,7 +274,29 @@ function QuickLink({ href, icon, label }: { href: string; icon: React.ReactNode;
 type TFnLike = (k: string, v?: Record<string, string | number>) => string;
 type Row = Record<string, unknown>;
 
-function ListView({ rows, nameById, t, td, active }: { rows: Row[]; nameById: Map<string, string>; t: TFnLike; td: string; active: (r: Row) => boolean }) {
+function chipInitials(name?: string) {
+  const b = (name || "?").trim();
+  return b.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
+}
+
+function AssigneeChips({ ids, nameById, t }: { ids: string[]; nameById: Map<string, string>; t: TFnLike }) {
+  if (!ids.length) return <span className="text-sm text-muted">{t("ws.unassigned")}</span>;
+  const shown = ids.slice(0, 3);
+  return (
+    <div className="flex items-center">
+      <div className="flex -space-x-1.5">
+        {shown.map((id) => (
+          <span key={id} title={nameById.get(id) || id} className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white bg-burgundy-soft text-[10px] font-semibold text-burgundy">
+            {chipInitials(nameById.get(id))}
+          </span>
+        ))}
+      </div>
+      {ids.length > 3 && <span className="ms-1.5 text-xs text-muted">+{ids.length - 3}</span>}
+    </div>
+  );
+}
+
+function ListView({ rows, nameById, getAssignees, statusOptions, t, td, active }: { rows: Row[]; nameById: Map<string, string>; getAssignees: (id: unknown) => string[]; statusOptions: { value: string; label: string }[]; t: TFnLike; td: string; active: (r: Row) => boolean }) {
   return (
     <Card className="overflow-x-auto p-0">
       <table className="w-full text-sm">
@@ -275,10 +315,10 @@ function ListView({ rows, nameById, t, td, active }: { rows: Row[]; nameById: Ma
             return (
               <tr key={String(r.id)} className="border-b border-line/60 last:border-0 hover:bg-cream/40">
                 <td className="px-4 py-2.5 font-medium text-ink"><Link href={`/workspace/${r.id}`} className="hover:text-burgundy hover:underline">{String(r.title)}</Link></td>
-                <td className="px-4 py-2.5 text-muted">{r.assigned_to ? nameById.get(String(r.assigned_to)) ?? "—" : t("ws.unassigned")}</td>
+                <td className="px-4 py-2.5"><AssigneeChips ids={getAssignees(r.id)} nameById={nameById} t={t} /></td>
                 <td className="px-4 py-2.5"><span className={"inline-flex rounded-full px-2 py-0.5 text-xs font-medium " + (PRIORITY_STYLE[String(r.priority)] ?? "")}>{t(`priority.${r.priority}`)}</span></td>
                 <td className={"px-4 py-2.5 " + (overdue ? "font-medium text-roshen-red" : "text-muted")}>{r.due_date ? String(r.due_date) : "—"}</td>
-                <td className="px-4 py-2.5"><span className={"inline-flex rounded-full px-2 py-0.5 text-xs font-medium " + (STATUS_STYLE[String(r.status)] ?? "")}>{t(`tstatus.${r.status}`)}</span></td>
+                <td className="px-4 py-2.5"><StatusSelect id={String(r.id)} current={String(r.status)} options={statusOptions} action={setTaskStatus} /></td>
               </tr>
             );
           })}
@@ -288,9 +328,7 @@ function ListView({ rows, nameById, t, td, active }: { rows: Row[]; nameById: Ma
   );
 }
 
-const BOARD_STATUSES = ["not_started", "in_progress", "blocked", "completed"] as const;
-
-function BoardView({ rows, t, td, active }: { rows: Row[]; t: TFnLike; td: string; active: (r: Row) => boolean }) {
+function BoardView({ rows, nameById, getAssignees, t, td, active }: { rows: Row[]; nameById: Map<string, string>; getAssignees: (id: unknown) => string[]; t: TFnLike; td: string; active: (r: Row) => boolean }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {BOARD_STATUSES.map((s) => {
@@ -311,6 +349,7 @@ function BoardView({ rows, t, td, active }: { rows: Row[]; t: TFnLike; td: strin
                       <span className={"inline-flex rounded-full px-2 py-0.5 font-medium " + (PRIORITY_STYLE[String(r.priority)] ?? "")}>{t(`priority.${r.priority}`)}</span>
                       <span className={overdue ? "font-medium text-roshen-red" : "text-muted"}>{r.due_date ? String(r.due_date) : ""}</span>
                     </div>
+                    <div className="mt-2"><AssigneeChips ids={getAssignees(r.id)} nameById={nameById} t={t} /></div>
                   </Link>
                 );
               })}

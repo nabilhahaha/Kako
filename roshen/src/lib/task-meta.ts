@@ -1,16 +1,18 @@
 import type { TFn } from "@/lib/i18n";
 
 export const PRIORITIES = ["low", "normal", "high", "urgent"] as const;
-export const STATUSES = ["not_started", "in_progress", "blocked", "completed", "cancelled"] as const;
+export const STATUSES = ["not_started", "in_progress", "blocked", "waiting", "completed", "cancelled"] as const;
+export const BOARD_STATUSES = ["not_started", "in_progress", "blocked", "waiting", "completed"] as const;
 export const VISIBILITIES = ["private_assignee", "creator_assignee", "selected_role", "all_managers"] as const;
 export const APP_ROLES = ["company_manager", "area_manager", "admin", "branch_manager", "sales_supervisor", "salesman", "finance"] as const;
 
 export const STATUS_STYLE: Record<string, string> = {
   not_started: "bg-cream-deep text-muted",
   in_progress: "bg-sky-50 text-sky-700",
-  blocked: "bg-amber-50 text-amber-700",
+  blocked: "bg-roshen-red/10 text-roshen-red",
+  waiting: "bg-amber-50 text-amber-700",
   completed: "bg-emerald-50 text-emerald-700",
-  cancelled: "bg-roshen-red/10 text-roshen-red",
+  cancelled: "bg-cream-deep text-muted",
 };
 export const PRIORITY_STYLE: Record<string, string> = {
   low: "bg-cream-deep text-muted",
@@ -36,6 +38,7 @@ export function taskLabels(t: TFn): Record<string, string> {
     priority: t("task.priority"),
     status: t("task.status"),
     assignee: t("task.assignee"),
+    assignees: t("task.assignees"),
     due_date: t("task.due_date"),
     start_date: t("task.start_date"),
     visibility: t("task.visibility"),

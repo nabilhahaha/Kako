@@ -6,11 +6,12 @@ import { createClient } from "@/utils/supabase/server";
 import { getT } from "@/lib/i18n-server";
 import { Card } from "@/components/ui/card";
 import { TaskDialog } from "@/components/app/workspace/task-dialog";
+import { StatusSelect } from "@/components/app/workspace/status-select";
 import {
-  STATUS_STYLE, PRIORITY_STYLE,
+  PRIORITY_STYLE,
   priorityOpts, statusOpts, visibilityOpts, roleOpts, taskLabels,
 } from "@/lib/task-meta";
-import { updateTask, deleteTask, addComment } from "@/lib/tasks";
+import { updateTask, deleteTask, addComment, setTaskStatus } from "@/lib/tasks";
 
 export default async function TaskDetailPage({ params }: { params: Promise<{ taskId: string }> }) {
   const { taskId } = await params;
@@ -25,13 +26,15 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ tas
     .maybeSingle();
   if (!task) notFound(); // not found OR not visible under RLS
 
-  const [profilesRes, citiesRes, distsRes, commentsRes, activityRes] = await Promise.all([
+  const [profilesRes, citiesRes, distsRes, commentsRes, activityRes, taRes] = await Promise.all([
     supabase.from("profile").select("id,full_name,email"),
     supabase.from("city").select("id,name").order("name"),
     supabase.from("agent").select("id,name,code").eq("type", "distributor").order("name"),
     supabase.from("task_comment").select("id,author_id,body,created_at").eq("task_id", taskId).order("created_at", { ascending: true }),
     supabase.from("task_activity").select("id,actor_id,type,from_value,to_value,created_at").eq("task_id", taskId).order("created_at", { ascending: false }),
+    supabase.from("task_assignee").select("user_id").eq("task_id", taskId),
   ]);
+  const assigneeUserIds = (taRes.data ?? []).map((r) => r.user_id as string);
   const nameById = new Map<string, string>();
   (profilesRes.data ?? []).forEach((p) => nameById.set(p.id, p.full_name || p.email || p.id.slice(0, 8)));
   const name = (id: unknown) => (id ? nameById.get(String(id)) ?? "—" : "—");
@@ -66,7 +69,7 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ tas
         <div>
           <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">{task.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className={"inline-flex rounded-full px-2 py-0.5 text-xs font-medium " + (STATUS_STYLE[String(task.status)] ?? "")}>{t(`tstatus.${task.status}`)}</span>
+            <StatusSelect id={String(task.id)} current={String(task.status)} options={statusOpts(t)} action={setTaskStatus} />
             <span className={"inline-flex rounded-full px-2 py-0.5 text-xs font-medium " + (PRIORITY_STYLE[String(task.priority)] ?? "")}>{t(`priority.${task.priority}`)}</span>
           </div>
         </div>
@@ -83,6 +86,7 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ tas
             cities={cities}
             distributors={distributors}
             initial={editInitial}
+            selectedAssignees={assigneeUserIds}
           />
           <form action={deleteTask}>
             <input type="hidden" name="id" value={String(task.id)} />
@@ -129,7 +133,12 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ tas
         <div className="space-y-5">
           <Card className="p-5">
             <dl className="space-y-2 text-sm">
-              <Row label={t("task.assignee")} value={task.assigned_to ? name(task.assigned_to) : t("ws.unassigned")} />
+              <div className="flex items-start justify-between gap-3">
+                <dt className="text-muted">{t("task.assignees")}</dt>
+                <dd className="text-end font-medium text-ink">
+                  {assigneeUserIds.length ? assigneeUserIds.map((id) => name(id)).join(", ") : t("ws.unassigned")}
+                </dd>
+              </div>
               <Row label={t("task.created_by")} value={name(task.created_by)} />
               <Row label={t("task.due_date")} value={(task.due_date as string) ?? t("task.none")} />
               <Row label={t("task.start_date")} value={(task.start_date as string) ?? t("task.none")} />

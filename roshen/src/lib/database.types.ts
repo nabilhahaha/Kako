@@ -1796,6 +1796,58 @@ export type Database = {
           },
         ]
       }
+      task_assignee: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          completed_at: string | null
+          id: string
+          status: Database["public"]["Enums"]["task_status"]
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          completed_at?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["task_status"]
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          completed_at?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["task_status"]
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignee_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignee_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignee_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_comment: {
         Row: {
           author_id: string
@@ -2457,6 +2509,7 @@ export type Database = {
         | "blocked"
         | "completed"
         | "cancelled"
+        | "waiting"
       task_visibility_kind:
         | "private_assignee"
         | "creator_assignee"
@@ -2682,6 +2735,7 @@ export const Constants = {
         "blocked",
         "completed",
         "cancelled",
+        "waiting",
       ],
       task_visibility_kind: [
         "private_assignee",

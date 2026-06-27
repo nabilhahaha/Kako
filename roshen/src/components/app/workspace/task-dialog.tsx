@@ -21,6 +21,7 @@ export function TaskDialog({
   cities,
   distributors,
   initial,
+  selectedAssignees = [],
   mode = "create",
 }: {
   action: (fd: FormData) => Promise<void>;
@@ -33,6 +34,7 @@ export function TaskDialog({
   cities: Opt[];
   distributors: Opt[];
   initial?: Record<string, string | null>;
+  selectedAssignees?: string[];
   mode?: "create" | "edit";
 }) {
   const [open, setOpen] = useState(false);
@@ -67,10 +69,24 @@ export function TaskDialog({
                 <label className="text-sm font-medium text-ink">{labels.description}</label>
                 <textarea name="description" rows={3} defaultValue={v("description")} className={inputCls} />
               </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-ink">{labels.assignees}</label>
+                <div className="max-h-36 space-y-0.5 overflow-y-auto rounded-xl border border-line p-2">
+                  {assignees.length === 0 ? (
+                    <p className="px-2 py-1 text-xs text-muted">—</p>
+                  ) : (
+                    assignees.map((o) => (
+                      <label key={o.value} className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-ink hover:bg-cream/60">
+                        <input type="checkbox" name="assignees" value={o.value} defaultChecked={selectedAssignees.includes(o.value)} className="h-4 w-4 rounded border-line text-burgundy" />
+                        {o.label}
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <Sel name="priority" label={labels.priority} opts={priorities} def={v("priority") || "normal"} />
                 <Sel name="status" label={labels.status} opts={statuses} def={v("status") || "not_started"} />
-                <Sel name="assigned_to" label={labels.assignee} opts={assignees} def={v("assigned_to")} empty={labels.unassigned} />
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-ink">{labels.due_date}</label>
                   <input type="date" name="due_date" defaultValue={v("due_date")} className={inputCls} />
