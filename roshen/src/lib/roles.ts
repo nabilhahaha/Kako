@@ -39,8 +39,9 @@ export const NAV_TREE: NavGroup[] = [
       {
         href: "/requests", key: "requests", icon: "ClipboardList", roles: CORE,
         children: [
-          { href: "/requests/business-trip", key: "business_trip" },
+          { href: "/requests", key: "req_overview" },
           { href: "/requests/expenses", key: "expenses" },
+          { href: "/requests/business-trip", key: "business_trip" },
           { href: "/requests/leave", key: "leave" },
           { href: "/requests/approvals", key: "approvals" },
         ],
