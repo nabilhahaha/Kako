@@ -132,6 +132,51 @@ export async function upsertDistributor(fd: FormData) {
   revalidatePath("/organization");
 }
 
+/**
+ * SLA sales target upsert. Targets are set at Distributor (agent) or Region
+ * level, optionally per Channel, per month. Admin-only (matches RLS).
+ */
+export async function upsertTarget(fd: FormData) {
+  const { supabase, companyId } = await ctx();
+  const id = str(fd, "id");
+  const monthRaw = str(fd, "period_month");
+  const level = str(fd, "level"); // 'agent' | 'region'
+  const entity_id = str(fd, "entity_id");
+  const channel_id = str(fd, "channel_id");
+  const amount = Number(str(fd, "target_amount") ?? "0") || 0;
+  const workingDays = str(fd, "working_days");
+  if (!monthRaw) throw new Error("Month is required.");
+  if (level !== "agent" && level !== "region") throw new Error("Target level must be Distributor or Region.");
+  if (!entity_id) throw new Error("Select the target entity.");
+  const period_month = monthRaw.length === 7 ? `${monthRaw}-01` : monthRaw;
+
+  const base = {
+    company_id: companyId,
+    period_month,
+    level: level as "agent" | "region",
+    channel_id,
+    target_amount: amount,
+    working_days: workingDays ? Number(workingDays) : null,
+    region_id: level === "region" ? entity_id : null,
+    agent_id: level === "agent" ? entity_id : null,
+  };
+  if (id) {
+    await supabase.from("sla_target").update(base).eq("id", id);
+  } else {
+    await supabase.from("sla_target").insert(base);
+  }
+  revalidatePath("/sla-targets");
+  revalidatePath("/sla-report");
+}
+
+export async function deleteTarget(fd: FormData) {
+  const { supabase } = await ctx();
+  const id = str(fd, "id");
+  if (id) await supabase.from("sla_target").delete().eq("id", id);
+  revalidatePath("/sla-targets");
+  revalidatePath("/sla-report");
+}
+
 export async function upsertAgent(fd: FormData) {
   const { supabase, companyId } = await ctx();
   const id = str(fd, "id");
