@@ -21,10 +21,12 @@ export const NAV_TREE: NavGroup[] = [
       {
         href: "/workspace", key: "workspace", icon: "CheckSquare", roles: EVERYONE,
         children: [
-          { href: "/workspace?tab=my", key: "my_tasks" },
-          { href: "/workspace?tab=team", key: "team_tasks" },
-          { href: "/workspace?tab=assigned", key: "assigned" },
-          { href: "/calendar", key: "calendar" },
+          { href: "/workspace", key: "ws_overview" },
+          { href: "/workspace/my-tasks", key: "my_tasks" },
+          { href: "/workspace/team-tasks", key: "team_tasks" },
+          { href: "/workspace/assigned-by-me", key: "assigned" },
+          { href: "/workspace/board", key: "board" },
+          { href: "/workspace/calendar", key: "calendar" },
           { href: "/workspace/files", key: "files" },
           { href: "/notifications", key: "notifications" },
         ],

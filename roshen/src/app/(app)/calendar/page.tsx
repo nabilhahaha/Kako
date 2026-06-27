@@ -1,5 +1,6 @@
-import { PageStub } from "@/components/app/page-stub";
+import { redirect } from "next/navigation";
 
+// Calendar now lives under Workspace.
 export default function Page() {
-  return <PageStub titleKey="nav.calendar" />;
+  redirect("/workspace/calendar");
 }
