@@ -237,6 +237,11 @@ const en: Dict = {
   "task.post": "Post",
   "task.no_comments": "No comments yet.",
   "task.no_activity": "No activity yet.",
+  "task.attachments": "Attachments",
+  "task.no_attachments": "No attachments yet.",
+  "task.upload": "Upload file",
+  "task.uploading": "Uploading…",
+  "common.download": "Download",
   "task.create": "Create Task",
   "task.edit": "Edit Task",
   "task.back": "Back to Workspace",
@@ -266,6 +271,7 @@ const en: Dict = {
   "act.reassigned": "reassigned the task",
   "act.commented": "commented",
   "act.edited": "edited the task",
+  "act.attached": "attached a file",
 };
 
 const uk: Dict = {
@@ -471,6 +477,11 @@ const uk: Dict = {
   "task.post": "Надіслати",
   "task.no_comments": "Коментарів ще немає.",
   "task.no_activity": "Активності ще немає.",
+  "task.attachments": "Вкладення",
+  "task.no_attachments": "Вкладень ще немає.",
+  "task.upload": "Завантажити файл",
+  "task.uploading": "Завантаження…",
+  "common.download": "Завантажити",
   "task.create": "Створити завдання",
   "task.edit": "Редагувати завдання",
   "task.back": "Назад до робочого простору",
@@ -500,6 +511,7 @@ const uk: Dict = {
   "act.reassigned": "перепризначив(ла) завдання",
   "act.commented": "прокоментував(ла)",
   "act.edited": "відредагував(ла) завдання",
+  "act.attached": "додав(ла) файл",
 };
 
 const ar: Dict = {
@@ -705,6 +717,11 @@ const ar: Dict = {
   "task.post": "نشر",
   "task.no_comments": "لا توجد تعليقات بعد.",
   "task.no_activity": "لا يوجد نشاط بعد.",
+  "task.attachments": "المرفقات",
+  "task.no_attachments": "لا توجد مرفقات بعد.",
+  "task.upload": "رفع ملف",
+  "task.uploading": "جارٍ الرفع…",
+  "common.download": "تنزيل",
   "task.create": "إنشاء مهمة",
   "task.edit": "تعديل المهمة",
   "task.back": "العودة إلى مساحة العمل",
@@ -734,6 +751,7 @@ const ar: Dict = {
   "act.reassigned": "أعاد إسناد المهمة",
   "act.commented": "علّق",
   "act.edited": "عدّل المهمة",
+  "act.attached": "أرفق ملفًا",
 };
 
 const DICTS: Record<Locale, Dict> = { en, uk, ar };

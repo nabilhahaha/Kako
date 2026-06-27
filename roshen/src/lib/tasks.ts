@@ -168,6 +168,48 @@ export async function addComment(fd: FormData) {
   revalidatePath(`/workspace/${id}`);
 }
 
+export async function addAttachment(fd: FormData) {
+  const { supabase, userId } = await ctx();
+  const taskId = str(fd, "task_id");
+  const storagePath = str(fd, "storage_path");
+  const filename = str(fd, "filename");
+  if (!taskId || !storagePath || !filename) return;
+  const { error } = await supabase.from("task_attachment").insert({
+    task_id: taskId,
+    storage_path: storagePath,
+    filename,
+    mime_type: str(fd, "mime_type"),
+    size_bytes: fd.get("size_bytes") ? Number(fd.get("size_bytes")) : null,
+    title: str(fd, "title"),
+    uploaded_by: userId,
+  });
+  if (error) throw new Error(error.message);
+  await supabase.from("task_activity").insert({ task_id: taskId, actor_id: userId, type: "attached" });
+  const { data: tk } = await supabase.from("task").select("title,created_by").eq("id", taskId).maybeSingle();
+  if (tk) {
+    const recips = [tk.created_by, ...(await assigneeIds(supabase, taskId))];
+    await notify(supabase, recips, userId, "file_attached", "File attached", tk.title, taskId);
+  }
+  revalidatePath(`/workspace/${taskId}`);
+}
+
+export async function deleteAttachment(fd: FormData) {
+  const { supabase } = await ctx();
+  const id = str(fd, "id");
+  if (!id) return;
+  const { data: a } = await supabase.from("task_attachment").select("storage_path,task_id").eq("id", id).maybeSingle();
+  if (!a) return;
+  await supabase.storage.from("task-attachments").remove([a.storage_path as string]);
+  await supabase.from("task_attachment").delete().eq("id", id);
+  revalidatePath(`/workspace/${a.task_id}`);
+}
+
+export async function attachmentSignedUrl(path: string): Promise<string | null> {
+  const { supabase } = await ctx();
+  const { data } = await supabase.storage.from("task-attachments").createSignedUrl(path, 120);
+  return data?.signedUrl ?? null;
+}
+
 export async function deleteTask(fd: FormData) {
   const { supabase } = await ctx();
   const id = str(fd, "id");

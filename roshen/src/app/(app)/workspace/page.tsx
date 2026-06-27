@@ -238,7 +238,7 @@ export default async function WorkspacePage({
                 <p className="text-sm text-muted">{t("task.no_activity")}</p>
               ) : (
                 (activityRes.data ?? []).map((a) => {
-                  const verb = ({ created: "act.created", status_changed: "act.status_changed", reassigned: "act.reassigned", commented: "act.commented", edited: "act.edited" } as Record<string, string>)[String(a.type)];
+                  const verb = ({ created: "act.created", status_changed: "act.status_changed", reassigned: "act.reassigned", commented: "act.commented", edited: "act.edited", attached: "act.attached" } as Record<string, string>)[String(a.type)];
                   const Icon = ACT_ICON[String(a.type)] ?? Activity;
                   const tk = (Array.isArray(a.task) ? a.task[0] : a.task) as { id?: string; title?: string } | null;
                   return (

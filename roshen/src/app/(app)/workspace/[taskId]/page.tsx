@@ -1,21 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, isGlobalRole } from "@/lib/auth";
 import { createClient } from "@/utils/supabase/server";
 import { getT } from "@/lib/i18n-server";
 import { Card } from "@/components/ui/card";
 import { TaskDialog } from "@/components/app/workspace/task-dialog";
 import { StatusSelect } from "@/components/app/workspace/status-select";
+import { AttachmentUploader, AttachmentRow } from "@/components/app/workspace/attachments";
 import {
   PRIORITY_STYLE,
   priorityOpts, statusOpts, visibilityOpts, roleOpts, taskLabels,
 } from "@/lib/task-meta";
-import { updateTask, deleteTask, addComment, setTaskStatus } from "@/lib/tasks";
+import { updateTask, deleteTask, addComment, setTaskStatus, addAttachment, deleteAttachment, attachmentSignedUrl } from "@/lib/tasks";
 
 export default async function TaskDetailPage({ params }: { params: Promise<{ taskId: string }> }) {
   const { taskId } = await params;
-  await requireProfile();
+  const { user, profile } = await requireProfile();
   const supabase = await createClient();
   const { t } = await getT();
 
@@ -26,15 +27,18 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ tas
     .maybeSingle();
   if (!task) notFound(); // not found OR not visible under RLS
 
-  const [profilesRes, citiesRes, distsRes, commentsRes, activityRes, taRes] = await Promise.all([
+  const [profilesRes, citiesRes, distsRes, commentsRes, activityRes, taRes, attRes] = await Promise.all([
     supabase.from("profile").select("id,full_name,email"),
     supabase.from("city").select("id,name").order("name"),
     supabase.from("agent").select("id,name,code").eq("type", "distributor").order("name"),
     supabase.from("task_comment").select("id,author_id,body,created_at").eq("task_id", taskId).order("created_at", { ascending: true }),
     supabase.from("task_activity").select("id,actor_id,type,from_value,to_value,created_at").eq("task_id", taskId).order("created_at", { ascending: false }),
     supabase.from("task_assignee").select("user_id").eq("task_id", taskId),
+    supabase.from("task_attachment").select("id,filename,storage_path,uploaded_by,created_at").eq("task_id", taskId).order("created_at", { ascending: false }),
   ]);
   const assigneeUserIds = (taRes.data ?? []).map((r) => r.user_id as string);
+  const attachments = attRes.data ?? [];
+  const canManage = isGlobalRole(profile!.role) || task.created_by === user.id;
   const nameById = new Map<string, string>();
   (profilesRes.data ?? []).forEach((p) => nameById.set(p.id, p.full_name || p.email || p.id.slice(0, 8)));
   const name = (id: unknown) => (id ? nameById.get(String(id)) ?? "—" : "—");
@@ -103,6 +107,32 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ tas
             </Card>
           )}
 
+          {/* Attachments */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif text-base font-semibold text-ink">{t("task.attachments")}</h2>
+              <AttachmentUploader taskId={String(task.id)} add={addAttachment} labels={{ upload: t("task.upload"), uploading: t("task.uploading"), download: t("common.download"), none: t("task.no_attachments") }} />
+            </div>
+            <div className="mt-3 space-y-2">
+              {attachments.length === 0 ? (
+                <p className="text-sm text-muted">{t("task.no_attachments")}</p>
+              ) : (
+                attachments.map((a) => (
+                  <AttachmentRow
+                    key={a.id}
+                    id={a.id}
+                    filename={a.filename}
+                    path={a.storage_path}
+                    canDelete={canManage || a.uploaded_by === user.id}
+                    signedUrl={attachmentSignedUrl}
+                    remove={deleteAttachment}
+                    labels={{ download: t("common.download") }}
+                  />
+                ))
+              )}
+            </div>
+          </Card>
+
           {/* Comments */}
           <Card className="p-5">
             <h2 className="font-serif text-base font-semibold text-ink">{t("task.comments")}</h2>
@@ -153,7 +183,7 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ tas
                 <p className="text-sm text-muted">{t("task.no_activity")}</p>
               ) : (
                 activity.map((a) => {
-                  const verb = ({ created: "act.created", status_changed: "act.status_changed", reassigned: "act.reassigned", commented: "act.commented", edited: "act.edited" } as Record<string, string>)[String(a.type)];
+                  const verb = ({ created: "act.created", status_changed: "act.status_changed", reassigned: "act.reassigned", commented: "act.commented", edited: "act.edited", attached: "act.attached" } as Record<string, string>)[String(a.type)];
                   return (
                     <div key={a.id} className="text-sm">
                       <span className="font-medium text-ink">{name(a.actor_id)}</span>{" "}

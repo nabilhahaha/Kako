@@ -1848,6 +1848,57 @@ export type Database = {
           },
         ]
       }
+      task_attachment: {
+        Row: {
+          created_at: string
+          filename: string
+          id: string
+          mime_type: string | null
+          size_bytes: number | null
+          storage_path: string
+          task_id: string
+          title: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          filename: string
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          task_id: string
+          title?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          task_id?: string
+          title?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_attachment_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_attachment_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_comment: {
         Row: {
           author_id: string
@@ -2478,6 +2529,8 @@ export type Database = {
         | "task_cancelled"
         | "mentioned"
         | "scope_task_created"
+        | "file_attached"
+        | "file_shared"
       org_level:
         | "company"
         | "country"
@@ -2699,6 +2752,8 @@ export const Constants = {
         "task_cancelled",
         "mentioned",
         "scope_task_created",
+        "file_attached",
+        "file_shared",
       ],
       org_level: [
         "company",
