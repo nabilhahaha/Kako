@@ -3183,6 +3183,9 @@ export type Database = {
         | "salesman"
         | "finance"
         | "admin"
+        | "supply_chain_manager"
+        | "general_manager"
+        | "accountant"
       discount_handling:
         | "discount_already_deducted"
         | "subtract_cash_discount"
@@ -3438,6 +3441,9 @@ export const Constants = {
         "salesman",
         "finance",
         "admin",
+        "supply_chain_manager",
+        "general_manager",
+        "accountant",
       ],
       discount_handling: [
         "discount_already_deducted",
