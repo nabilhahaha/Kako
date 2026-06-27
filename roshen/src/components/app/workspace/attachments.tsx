@@ -5,16 +5,27 @@ import { useRouter } from "next/navigation";
 import { Paperclip, Download, Trash2, FileText, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
-const BUCKET = "task-attachments";
-
 type Labels = { upload: string; uploading: string; download: string; none: string };
 
+/**
+ * Direct-to-Storage uploader (browser client) reused by Tasks and Requests.
+ * - `taskId` (legacy) uploads to the `task-attachments` bucket under `<taskId>/…`
+ *   and sets the `task_id` form field.
+ * - `bucket` + `pathPrefix` + `fields` generalize it for any entity (e.g. Requests
+ *   receipts in `request-receipts` under `<requestId>/…`).
+ */
 export function AttachmentUploader({
   taskId,
+  bucket,
+  pathPrefix,
+  fields,
   add,
   labels,
 }: {
-  taskId: string;
+  taskId?: string;
+  bucket?: string;
+  pathPrefix?: string;
+  fields?: Record<string, string>;
   add: (fd: FormData) => Promise<void>;
   labels: Labels;
 }) {
@@ -23,17 +34,21 @@ export function AttachmentUploader({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const resolvedBucket = bucket ?? "task-attachments";
+  const prefix = pathPrefix ?? taskId ?? "";
+
   async function onPick(file: File) {
     setErr(null);
     setBusy(true);
     try {
       const supabase = createClient();
       const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
-      const path = `${taskId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false });
+      const path = `${prefix}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from(resolvedBucket).upload(path, file, { contentType: file.type || undefined, upsert: false });
       if (error) throw error;
       const fd = new FormData();
-      fd.set("task_id", taskId);
+      if (taskId) fd.set("task_id", taskId);
+      if (fields) for (const [k, v] of Object.entries(fields)) fd.set(k, v);
       fd.set("storage_path", path);
       fd.set("filename", file.name);
       fd.set("mime_type", file.type);

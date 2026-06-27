@@ -4,6 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 import { getT } from "@/lib/i18n-server";
 import { Card } from "@/components/ui/card";
 import { REQUEST_TYPES, RSTATUS_STYLE, typeOpts, money } from "@/lib/req-meta";
+import { createExpenseDraft } from "@/lib/requests";
+import { Plus } from "lucide-react";
 
 const TABS = ["all", "mine", "approvals"] as const;
 type Tab = (typeof TABS)[number];
@@ -46,9 +48,16 @@ export default async function RequestsPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 ps-12 lg:ps-0">
-      <div>
-        <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">{t("req.title")}</h1>
-        <p className="text-sm text-muted">{t("req.subtitle")}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">{t("req.title")}</h1>
+          <p className="text-sm text-muted">{t("req.subtitle")}</p>
+        </div>
+        <form action={createExpenseDraft}>
+          <button className="inline-flex items-center gap-1.5 rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream hover:bg-burgundy-hover">
+            <Plus className="h-4 w-4" /> {t("req.new_expense")}
+          </button>
+        </form>
       </div>
 
       <div className="flex flex-wrap gap-1 border-b border-line">
