@@ -1,5 +1,5 @@
-import { PageStub } from "@/components/app/page-stub";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <PageStub titleKey="nav.approvals" />;
+  redirect("/requests?tab=approvals");
 }
