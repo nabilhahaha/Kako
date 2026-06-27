@@ -97,11 +97,15 @@ function Group({
   onNavigate: () => void;
 }) {
   const [open, setOpen] = useState(true);
+  const groupActive = group.items.some(itemActive);
   return (
     <div>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted/80 hover:text-burgundy"
+        className={cn(
+          "flex w-full items-center justify-between px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider hover:text-burgundy",
+          groupActive ? "text-burgundy" : "text-muted/80",
+        )}
       >
         {group.label}
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open ? "" : "-rotate-90")} />

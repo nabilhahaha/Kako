@@ -56,12 +56,17 @@ export default async function WorkspacePage({
 
   const td = todayStr();
   const active = (r: Record<string, unknown>) => r.status !== "completed" && r.status !== "cancelled";
-  const kpis: { k: string; v: number; icon: LucideIcon; chip: string; num: string }[] = [
-    { k: "ws.tab.my", v: all.filter((r) => r.assigned_to === user.id).length, icon: CheckSquare, chip: "bg-burgundy-soft text-burgundy", num: "text-ink" },
-    { k: "tstatus.in_progress", v: all.filter((r) => r.status === "in_progress").length, icon: Clock, chip: "bg-sky-50 text-sky-700", num: "text-sky-700" },
-    { k: "ws.kpi.completed", v: all.filter((r) => r.status === "completed").length, icon: CheckCircle2, chip: "bg-emerald-50 text-emerald-700", num: "text-emerald-700" },
-    { k: "ws.kpi.overdue", v: all.filter((r) => active(r) && r.due_date && String(r.due_date) < td).length, icon: AlertTriangle, chip: "bg-roshen-red/10 text-roshen-red", num: "text-roshen-red" },
-    { k: "ws.tab.team", v: all.length, icon: Users, chip: "bg-gold-soft/50 text-chocolate", num: "text-burgundy" },
+  const mine = all.filter((r) => r.assigned_to === user.id);
+  const myDueToday = mine.filter((r) => active(r) && r.due_date === td).length;
+  const blocked = all.filter((r) => r.status === "blocked").length;
+  const completed = all.filter((r) => r.status === "completed").length;
+  const completedPct = all.length ? Math.round((100 * completed) / all.length) : 0;
+  const kpis: { k: string; v: number; icon: LucideIcon; chip: string; num: string; sub: string }[] = [
+    { k: "ws.tab.my", v: mine.length, icon: CheckSquare, chip: "bg-burgundy-soft text-burgundy", num: "text-ink", sub: `${myDueToday} ${t("ws.kpi.due_today")}` },
+    { k: "tstatus.in_progress", v: all.filter((r) => r.status === "in_progress").length, icon: Clock, chip: "bg-sky-50 text-sky-700", num: "text-sky-700", sub: `${blocked} ${t("tstatus.blocked")}` },
+    { k: "ws.kpi.completed", v: completed, icon: CheckCircle2, chip: "bg-emerald-50 text-emerald-700", num: "text-emerald-700", sub: `${completedPct}%` },
+    { k: "ws.kpi.overdue", v: all.filter((r) => active(r) && r.due_date && String(r.due_date) < td).length, icon: AlertTriangle, chip: "bg-roshen-red/10 text-roshen-red", num: "text-roshen-red", sub: t("ws.kpi.attention_sub") },
+    { k: "ws.tab.team", v: all.length, icon: Users, chip: "bg-gold-soft/50 text-chocolate", num: "text-burgundy", sub: t("ws.kpi.across_team") },
   ];
 
   let rows = all.filter((r) =>
@@ -99,16 +104,19 @@ export default async function WorkspacePage({
       </div>
 
       {/* KPI cards */}
-      <section className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <section className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {kpis.map((c) => {
           const Icon = c.icon;
           return (
-            <Card key={c.k} className="p-5">
-              <div className="flex items-center justify-between">
-                <span className={"inline-flex h-10 w-10 items-center justify-center rounded-xl " + c.chip}><Icon className="h-5 w-5" /></span>
-                <span className={"font-serif text-3xl font-bold " + c.num}>{c.v}</span>
+            <Card key={c.k} className="p-4">
+              <div className="flex items-start gap-3">
+                <span className={"inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl " + c.chip}><Icon className="h-5 w-5" /></span>
+                <div className="min-w-0">
+                  <p className={"font-serif text-3xl font-bold leading-none " + c.num}>{c.v}</p>
+                  <p className="mt-1 truncate text-sm font-semibold text-ink">{t(c.k)}</p>
+                  <p className="truncate text-xs text-muted">{c.sub}</p>
+                </div>
               </div>
-              <p className="mt-3 text-sm font-medium text-ink/80">{t(c.k)}</p>
             </Card>
           );
         })}
@@ -280,16 +288,18 @@ function ListView({ rows, nameById, t, td, active }: { rows: Row[]; nameById: Ma
   );
 }
 
+const BOARD_STATUSES = ["not_started", "in_progress", "blocked", "completed"] as const;
+
 function BoardView({ rows, t, td, active }: { rows: Row[]; t: TFnLike; td: string; active: (r: Row) => boolean }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {STATUSES.map((s) => {
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {BOARD_STATUSES.map((s) => {
         const col = rows.filter((r) => r.status === s);
         return (
           <div key={s} className="rounded-2xl border border-line bg-cream/40 p-3">
             <div className="mb-2 flex items-center justify-between">
               <span className={"inline-flex rounded-full px-2 py-0.5 text-xs font-medium " + (STATUS_STYLE[s] ?? "")}>{t(`tstatus.${s}`)}</span>
-              <span className="text-xs text-muted">{col.length}</span>
+              <span className="rounded-full bg-white px-1.5 text-xs font-medium text-muted">{col.length}</span>
             </div>
             <div className="space-y-2">
               {col.map((r) => {
