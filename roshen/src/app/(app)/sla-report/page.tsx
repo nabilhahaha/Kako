@@ -43,6 +43,18 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
   }
   const nameOf = (level: string, id: string) => maps[level]?.get(id) ?? (id ? id.slice(0, 8) : "—");
 
+  // Per-entry summary (counts/average only — rows mix levels, so money is not summed).
+  const STATUS_ORDER = ["Achieved", "On Track", "At Risk", "Behind", "Critical"];
+  const scored = rows.filter((r) => r.sla_score != null);
+  const avgScore = scored.length ? Math.round(scored.reduce((s, r) => s + Number(r.sla_score), 0) / scored.length) : null;
+  const statusCounts: Record<string, number> = {};
+  for (const r of rows) {
+    const s = String(r.sla_status ?? "—");
+    statusCounts[s] = (statusCounts[s] ?? 0) + 1;
+  }
+  const healthy = (statusCounts["Achieved"] ?? 0) + (statusCounts["On Track"] ?? 0);
+  const attention = (statusCounts["At Risk"] ?? 0) + (statusCounts["Behind"] ?? 0) + (statusCounts["Critical"] ?? 0);
+
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -69,7 +81,41 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
           <Link href="/sla-targets" className="mt-4 inline-block rounded-xl bg-burgundy px-4 py-2 text-sm font-medium text-cream">Go to SLA &amp; Coverage Setup</Link>
         </Card>
       ) : (
-        <Card className="overflow-x-auto p-0">
+        <>
+          {rows.length > 0 && (
+            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-line bg-white p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">Entries</p>
+                <p className="mt-1 font-serif text-3xl font-bold text-ink">{rows.length}</p>
+                <p className="mt-1 text-xs text-muted">targets scored this month</p>
+              </div>
+              <div className="rounded-2xl border border-line bg-white p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">Avg SLA score</p>
+                <p className="mt-1 font-serif text-3xl font-bold text-ink">{avgScore ?? "—"}</p>
+                <p className="mt-1 text-xs text-muted">across {scored.length} scored {scored.length === 1 ? "entry" : "entries"}</p>
+              </div>
+              <div className="rounded-2xl border border-line bg-white p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">Achieved / On Track</p>
+                <p className="mt-1 font-serif text-3xl font-bold text-emerald-700">{healthy}</p>
+                <p className="mt-1 text-xs text-muted">of {rows.length} entries</p>
+              </div>
+              <div className="rounded-2xl border border-line bg-white p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">At Risk / Behind / Critical</p>
+                <p className="mt-1 font-serif text-3xl font-bold text-roshen-red">{attention}</p>
+                <p className="mt-1 text-xs text-muted">need attention</p>
+              </div>
+            </section>
+          )}
+          {rows.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {STATUS_ORDER.filter((s) => statusCounts[s]).map((s) => (
+                <span key={s} className={"inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium " + (STATUS_STYLE[s] ?? "bg-cream-deep text-muted")}>
+                  {s} × {statusCounts[s]}
+                </span>
+              ))}
+            </div>
+          )}
+          <Card className="overflow-x-auto p-0">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-line bg-cream-deep/40 text-left uppercase tracking-wide text-muted">
@@ -110,7 +156,8 @@ export default async function SlaReportPage({ searchParams }: { searchParams: Pr
               )}
             </tbody>
           </table>
-        </Card>
+          </Card>
+        </>
       )}
     </div>
   );
