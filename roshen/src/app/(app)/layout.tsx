@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
-import { visibleNav, ROLE_LABEL } from "@/lib/roles";
+import { visibleGroups, ROLE_LABEL } from "@/lib/roles";
 import { Sidebar } from "@/components/app/sidebar";
 import { AppTopbar } from "@/components/app/app-topbar";
 import { UploadProvider } from "@/components/app/import/upload-provider";
@@ -16,7 +16,17 @@ export default async function AppLayout({
   if (!profile) redirect("/account");
 
   const { locale, t } = await getT();
-  const nav = visibleNav(profile.role).map((i) => ({ ...i, label: t(`nav.${i.key}`) }));
+  const groups = visibleGroups(profile.role).map((g) => ({
+    key: g.key,
+    label: t(`navgroup.${g.key}`),
+    items: g.items.map((i) => ({
+      href: i.href,
+      key: i.key,
+      icon: i.icon,
+      label: t(`nav.${i.key}`),
+      children: (i.children ?? []).map((c) => ({ href: c.href, key: c.key, label: t(`nav.${c.key}`) })),
+    })),
+  }));
   const roleLabel = t(`role.${profile.role}`) || ROLE_LABEL[profile.role] || profile.role;
 
   const supabase = await createClient();
@@ -28,7 +38,7 @@ export default async function AppLayout({
   return (
     <UploadProvider>
       <div className="flex min-h-screen w-full bg-cream">
-        <Sidebar nav={nav} collapseLabel={t("shell.collapse")} />
+        <Sidebar groups={groups} />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppTopbar
             name={profile.full_name}
