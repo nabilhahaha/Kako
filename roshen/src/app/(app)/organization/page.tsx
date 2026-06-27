@@ -35,10 +35,12 @@ export default async function OrganizationPage({
     supabase.from("region").select("id,name").order("name"),
     supabase.from("city").select("id,name,region_id,region:region_id(name)").order("name"),
     supabase.from("channel").select("id,name").order("name"),
+    // Any active user can be a distributor's assigned manager (the real
+    // structure assigns managers across roles, not only area_manager).
     supabase
       .from("profile")
       .select("id,full_name,email,role")
-      .eq("role", "area_manager")
+      .eq("is_active", true)
       .order("full_name"),
   ]);
   const opt = (rows: { id: string; name: string }[] | null) =>
@@ -54,10 +56,11 @@ export default async function OrganizationPage({
     };
   });
   const channelOpts = opt(channelsRes.data);
-  const amOpts = (amRes.data ?? []).map((p) => ({
-    value: p.id as string,
-    label: (p.full_name as string) || (p.email as string) || "Area Manager",
-  }));
+  const amOpts = (amRes.data ?? []).map((p) => {
+    const nm = (p.full_name as string) || (p.email as string) || "User";
+    const roleLabel = p.role ? t(`role.${p.role}`) : "";
+    return { value: p.id as string, label: roleLabel ? `${nm} — ${roleLabel}` : nm };
+  });
 
   // -------- Regions / Cities (generic EntityDialog) --------
   let columns: string[] = [];
@@ -93,7 +96,7 @@ export default async function OrganizationPage({
     rows = ((await query).data as Record<string, unknown>[]) ?? [];
   } else {
     // distributors
-    columns = ["Name", "Code", "City", "Region", "Channel", "Area Manager", "Status"];
+    columns = ["Name", "Code", "City", "Region", "Channel", "Assigned Manager", "Status"];
     let query = supabase
       .from("agent")
       .select(
