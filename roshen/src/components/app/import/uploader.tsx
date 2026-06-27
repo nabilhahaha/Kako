@@ -9,8 +9,12 @@ import { Card } from "@/components/ui/card";
 import { suggestMapping } from "@/lib/import/mapping";
 import { detectDateFormat, normalizeDate, detectPeriod } from "@/lib/import/parse";
 import { createDraftBatch, appendRawRows, type CreateDraftInput } from "@/lib/import/actions";
+import type { RawRowPayload } from "@/lib/import/types";
 
-const CHUNK = 2000; // rows per server request (well under body/serialization limits)
+// Vercel serverless functions reject request bodies larger than ~4.5 MB, so we
+// stream rows in BYTE-AWARE chunks kept well under that, capped by row count too.
+const MAX_CHUNK_BYTES = 1_200_000; // ~1.2 MB per request
+const MAX_CHUNK_ROWS = 800;
 
 type Opt = { value: string; label: string };
 
@@ -24,6 +28,7 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
   const [activeSheet, setActiveSheet] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState<string>("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -73,18 +78,43 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
     }
   }
 
+  function friendlyError(e: unknown, rowRange?: string): string {
+    const raw = e instanceof Error ? e.message : String(e);
+    if (/unexpected response|Failed to fetch|Load failed|413|body|too large/i.test(raw)) {
+      return `The server rejected a batch of rows${rowRange ? ` (${rowRange})` : ""} as too large. ` +
+        `This is a request-size limit; please retry — chunks are now smaller.`;
+    }
+    return raw;
+  }
+
+  async function appendWithRetry(batchId: string, chunk: RawRowPayload[], label: string) {
+    try {
+      await appendRawRows(batchId, chunk);
+    } catch {
+      // one retry after a short pause
+      await new Promise((r) => setTimeout(r, 600));
+      try {
+        await appendRawRows(batchId, chunk);
+      } catch (e2) {
+        throw new Error(friendlyError(e2, label));
+      }
+    }
+  }
+
   async function submit() {
     if (!agentId) return setError("Select a distributor first.");
     if (!sheet) return setError("Upload a file and select a sheet.");
     setError(null);
     setBusy(true);
+    setStage("Preparing metadata…");
     const allRows = sheet.rows.map((raw, i) => ({
       row_number: i + 1,
       raw,
       raw_invoice_date: dateSource ? (raw[dateSource] == null ? null : String(raw[dateSource])) : null,
     }));
     try {
-      // Stage 1a: create the draft from metadata only.
+      // Stage 1a: create the draft from METADATA ONLY (tiny request).
+      setStage("Creating draft import…");
       const meta: CreateDraftInput = {
         agentId,
         filename,
@@ -96,19 +126,32 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
       };
       const { batchId } = await createDraftBatch(meta);
 
-      // Stage 1b: stream rows to the server in chunks with progress.
+      // Stage 1b: stream rows in byte-aware chunks (kept under the platform limit).
+      setStage("Saving rows");
       setProgress({ done: 0, total: allRows.length });
-      for (let i = 0; i < allRows.length; i += CHUNK) {
-        const chunk = allRows.slice(i, i + CHUNK);
-        await appendRawRows(batchId, chunk);
-        setProgress({ done: Math.min(i + CHUNK, allRows.length), total: allRows.length });
+      let i = 0;
+      while (i < allRows.length) {
+        let j = i;
+        let bytes = 0;
+        while (j < allRows.length && j - i < MAX_CHUNK_ROWS) {
+          const sz = JSON.stringify(allRows[j]).length + 1;
+          if (j > i && bytes + sz > MAX_CHUNK_BYTES) break;
+          bytes += sz;
+          j++;
+        }
+        const chunk = allRows.slice(i, j);
+        await appendWithRetry(batchId, chunk, `rows ${i + 1}–${j}`);
+        i = j;
+        setProgress({ done: i, total: allRows.length });
       }
+
+      setStage("Redirecting to mapping…");
       router.push(`/raw-data-upload/${batchId}/mapping`);
     } catch (e) {
       setBusy(false);
       setProgress(null);
-      const msg = e instanceof Error ? e.message : "Failed to create the import batch.";
-      setError(`Upload failed: ${msg}`);
+      setStage("");
+      setError(`Upload failed: ${friendlyError(e)}`);
     }
   }
 
@@ -203,10 +246,13 @@ export function Uploader({ distributors }: { distributors: Opt[] }) {
           </div>
 
           <div className="mt-5 flex flex-col items-end gap-2">
+            {busy && stage && !progress && (
+              <p className="w-full text-xs text-muted">{stage}</p>
+            )}
             {progress && (
               <div className="w-full">
                 <div className="mb-1 flex justify-between text-xs text-muted">
-                  <span>Uploading rows…</span>
+                  <span>{stage || "Saving rows…"}</span>
                   <span>{progress.done.toLocaleString()} / {progress.total.toLocaleString()}</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-cream-deep">
