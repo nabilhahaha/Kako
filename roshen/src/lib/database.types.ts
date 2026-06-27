@@ -788,6 +788,197 @@ export type Database = {
           },
         ]
       }
+      file_asset: {
+        Row: {
+          archived: boolean
+          category: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          filename: string | null
+          id: string
+          mime_type: string | null
+          name: string
+          owner_id: string
+          related_agent_id: string | null
+          related_city_id: string | null
+          related_region_id: string | null
+          related_task_id: string | null
+          size_bytes: number | null
+          storage_path: string | null
+          tags: string[] | null
+          updated_at: string
+          visibility: Database["public"]["Enums"]["file_visibility"]
+          visible_role: Database["public"]["Enums"]["app_role"] | null
+        }
+        Insert: {
+          archived?: boolean
+          category?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          filename?: string | null
+          id?: string
+          mime_type?: string | null
+          name: string
+          owner_id: string
+          related_agent_id?: string | null
+          related_city_id?: string | null
+          related_region_id?: string | null
+          related_task_id?: string | null
+          size_bytes?: number | null
+          storage_path?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["file_visibility"]
+          visible_role?: Database["public"]["Enums"]["app_role"] | null
+        }
+        Update: {
+          archived?: boolean
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          filename?: string | null
+          id?: string
+          mime_type?: string | null
+          name?: string
+          owner_id?: string
+          related_agent_id?: string | null
+          related_city_id?: string | null
+          related_region_id?: string | null
+          related_task_id?: string | null
+          size_bytes?: number | null
+          storage_path?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["file_visibility"]
+          visible_role?: Database["public"]["Enums"]["app_role"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_asset_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_asset_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_asset_related_agent_id_fkey"
+            columns: ["related_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_asset_related_city_id_fkey"
+            columns: ["related_city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_asset_related_region_id_fkey"
+            columns: ["related_region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_asset_related_task_id_fkey"
+            columns: ["related_task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_share: {
+        Row: {
+          agent_id: string | null
+          area_id: string | null
+          city_id: string | null
+          created_at: string
+          file_id: string
+          id: string
+          region_id: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          user_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          area_id?: string | null
+          city_id?: string | null
+          created_at?: string
+          file_id: string
+          id?: string
+          region_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          user_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          area_id?: string | null
+          city_id?: string | null
+          created_at?: string
+          file_id?: string
+          id?: string
+          region_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_share_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_share_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "area"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_share_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_share_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "file_asset"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_share_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_share_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_batch: {
         Row: {
           agent_id: string
@@ -2457,6 +2648,15 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      can_see_file: {
+        Args: {
+          p_id: string
+          p_owner: string
+          p_visibility: Database["public"]["Enums"]["file_visibility"]
+          p_visible_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
       can_see_task: {
         Args: {
           p_assigned_to: string
@@ -2501,6 +2701,12 @@ export type Database = {
         | "subtract_cash_discount"
         | "ignore_discount_for_sla"
         | "store_only"
+      file_visibility:
+        | "private"
+        | "selected_users"
+        | "selected_role"
+        | "selected_scope"
+        | "public_company"
       import_mode:
         | "full_period_replace"
         | "incremental_append"
@@ -2721,6 +2927,13 @@ export const Constants = {
         "subtract_cash_discount",
         "ignore_discount_for_sla",
         "store_only",
+      ],
+      file_visibility: [
+        "private",
+        "selected_users",
+        "selected_role",
+        "selected_scope",
+        "public_company",
       ],
       import_mode: [
         "full_period_replace",

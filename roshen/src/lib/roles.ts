@@ -20,6 +20,7 @@ export const NAV_TREE: NavGroup[] = [
           { href: "/workspace?tab=team", key: "team_tasks" },
           { href: "/workspace?tab=assigned", key: "assigned" },
           { href: "/calendar", key: "calendar" },
+          { href: "/workspace/files", key: "files" },
           { href: "/notifications", key: "notifications" },
         ],
       },

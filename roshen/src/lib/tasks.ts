@@ -84,6 +84,7 @@ export async function createTask(fd: FormData) {
   await supabase.from("task_activity").insert({ task_id: taskId, actor_id: userId, type: "created" });
   await notify(supabase, assignees, userId, "task_assigned", "Task assigned to you", title, taskId);
   revalidatePath("/workspace");
+  return taskId;
 }
 
 export async function updateTask(fd: FormData) {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   Plus, LayoutGrid, List as ListIcon, CalendarDays, CheckSquare, Clock, CheckCircle2,
-  AlertTriangle, Users, Activity, MessageSquare, UserPlus, Pencil, ListTodo,
+  AlertTriangle, Users, Activity, MessageSquare, UserPlus, Pencil, ListTodo, Paperclip,
   type LucideIcon,
 } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
@@ -95,7 +95,7 @@ export default async function WorkspacePage({
   const todays = all.filter((r) => active(r) && r.due_date === td).slice(0, 5);
 
   const dialogProps = {
-    action: createTask, labels: taskLabels(t), assignees, roles: roleOpts(t),
+    createAction: createTask, labels: taskLabels(t), assignees, roles: roleOpts(t),
     priorities: priorityOpts(t), statuses: statusOpts(t), visibilities: visibilityOpts(t), cities, distributors,
   };
 
@@ -222,7 +222,7 @@ export default async function WorkspacePage({
               <div className="col-span-2"><TaskDialog {...dialogProps} /></div>
               <QuickLink href={qs({ view: "calendar" })} icon={<CalendarDays className="h-4 w-4" />} label={t("ws.view.calendar")} />
               <QuickLink href={qs({ view: "board" })} icon={<LayoutGrid className="h-4 w-4" />} label={t("ws.view.board")} />
-              <QuickLink href={qs({ tab: "my", view: "list" })} icon={<CheckSquare className="h-4 w-4" />} label={t("ws.tab.my")} />
+              <QuickLink href="/workspace/files" icon={<Paperclip className="h-4 w-4" />} label={t("nav.files")} />
               <QuickLink href={qs({ tab: "assigned", view: "list" })} icon={<UserPlus className="h-4 w-4" />} label={t("ws.tab.assigned")} />
             </div>
           </Card>
