@@ -186,6 +186,92 @@ export type Database = {
           },
         ]
       }
+      business_trip_detail: {
+        Row: {
+          accommodation: string | null
+          country: string | null
+          currency: string
+          end_date: string | null
+          est_flight: number | null
+          est_hotel: number | null
+          est_other: number | null
+          est_per_diem: number | null
+          est_transport: number | null
+          from_city: string | null
+          hotel_required: boolean
+          justification: string | null
+          num_days: number | null
+          purpose: string | null
+          request_id: string
+          start_date: string | null
+          to_city: string | null
+          total_estimated: number | null
+          transportation_type:
+            | Database["public"]["Enums"]["transportation_type"]
+            | null
+          travel_type: Database["public"]["Enums"]["travel_type"] | null
+          traveler_name: string | null
+        }
+        Insert: {
+          accommodation?: string | null
+          country?: string | null
+          currency?: string
+          end_date?: string | null
+          est_flight?: number | null
+          est_hotel?: number | null
+          est_other?: number | null
+          est_per_diem?: number | null
+          est_transport?: number | null
+          from_city?: string | null
+          hotel_required?: boolean
+          justification?: string | null
+          num_days?: number | null
+          purpose?: string | null
+          request_id: string
+          start_date?: string | null
+          to_city?: string | null
+          total_estimated?: number | null
+          transportation_type?:
+            | Database["public"]["Enums"]["transportation_type"]
+            | null
+          travel_type?: Database["public"]["Enums"]["travel_type"] | null
+          traveler_name?: string | null
+        }
+        Update: {
+          accommodation?: string | null
+          country?: string | null
+          currency?: string
+          end_date?: string | null
+          est_flight?: number | null
+          est_hotel?: number | null
+          est_other?: number | null
+          est_per_diem?: number | null
+          est_transport?: number | null
+          from_city?: string | null
+          hotel_required?: boolean
+          justification?: string | null
+          num_days?: number | null
+          purpose?: string | null
+          request_id?: string
+          start_date?: string | null
+          to_city?: string | null
+          total_estimated?: number | null
+          transportation_type?:
+            | Database["public"]["Enums"]["transportation_type"]
+            | null
+          travel_type?: Database["public"]["Enums"]["travel_type"] | null
+          traveler_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_trip_detail_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "request"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_event: {
         Row: {
           all_day: boolean
@@ -788,6 +874,59 @@ export type Database = {
           },
         ]
       }
+      expense_line: {
+        Row: {
+          amount: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at: string
+          currency: string
+          description: string | null
+          expense_date: string | null
+          id: string
+          merchant: string | null
+          payment_method: string | null
+          receipt_required: boolean
+          request_id: string
+          vat_amount: number | null
+        }
+        Insert: {
+          amount?: number
+          category?: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          currency?: string
+          description?: string | null
+          expense_date?: string | null
+          id?: string
+          merchant?: string | null
+          payment_method?: string | null
+          receipt_required?: boolean
+          request_id: string
+          vat_amount?: number | null
+        }
+        Update: {
+          amount?: number
+          category?: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          currency?: string
+          description?: string | null
+          expense_date?: string | null
+          id?: string
+          merchant?: string | null
+          payment_method?: string | null
+          receipt_required?: boolean
+          request_id?: string
+          vat_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_line_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "request"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       file_asset: {
         Row: {
           archived: boolean
@@ -1189,6 +1328,51 @@ export type Database = {
           },
         ]
       }
+      leave_detail: {
+        Row: {
+          cover_person_id: string | null
+          end_date: string | null
+          leave_type: Database["public"]["Enums"]["leave_type"]
+          num_days: number | null
+          reason: string | null
+          request_id: string
+          start_date: string | null
+        }
+        Insert: {
+          cover_person_id?: string | null
+          end_date?: string | null
+          leave_type?: Database["public"]["Enums"]["leave_type"]
+          num_days?: number | null
+          reason?: string | null
+          request_id: string
+          start_date?: string | null
+        }
+        Update: {
+          cover_person_id?: string | null
+          end_date?: string | null
+          leave_type?: Database["public"]["Enums"]["leave_type"]
+          num_days?: number | null
+          reason?: string | null
+          request_id?: string
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_detail_cover_person_id_fkey"
+            columns: ["cover_person_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_detail_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "request"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification: {
         Row: {
           action_url: string | null
@@ -1426,6 +1610,299 @@ export type Database = {
             columns: ["country_id"]
             isOneToOne: false
             referencedRelation: "country"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request: {
+        Row: {
+          approval_comment: string | null
+          assigned_approver: string | null
+          company_id: string
+          created_at: string
+          currency: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          priority: Database["public"]["Enums"]["task_priority"] | null
+          related_agent_id: string | null
+          related_business_trip_id: string | null
+          related_city_id: string | null
+          related_region_id: string | null
+          related_task_id: string | null
+          request_date: string
+          request_type: Database["public"]["Enums"]["request_type"]
+          requested_by: string
+          status: Database["public"]["Enums"]["request_status"]
+          submitted_at: string | null
+          title: string
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          approval_comment?: string | null
+          assigned_approver?: string | null
+          company_id: string
+          created_at?: string
+          currency?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"] | null
+          related_agent_id?: string | null
+          related_business_trip_id?: string | null
+          related_city_id?: string | null
+          related_region_id?: string | null
+          related_task_id?: string | null
+          request_date?: string
+          request_type: Database["public"]["Enums"]["request_type"]
+          requested_by: string
+          status?: Database["public"]["Enums"]["request_status"]
+          submitted_at?: string | null
+          title: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          approval_comment?: string | null
+          assigned_approver?: string | null
+          company_id?: string
+          created_at?: string
+          currency?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"] | null
+          related_agent_id?: string | null
+          related_business_trip_id?: string | null
+          related_city_id?: string | null
+          related_region_id?: string | null
+          related_task_id?: string | null
+          request_date?: string
+          request_type?: Database["public"]["Enums"]["request_type"]
+          requested_by?: string
+          status?: Database["public"]["Enums"]["request_status"]
+          submitted_at?: string | null
+          title?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_assigned_approver_fkey"
+            columns: ["assigned_approver"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_related_agent_id_fkey"
+            columns: ["related_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_related_business_trip_id_fkey"
+            columns: ["related_business_trip_id"]
+            isOneToOne: false
+            referencedRelation: "request"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_related_city_id_fkey"
+            columns: ["related_city_id"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_related_region_id_fkey"
+            columns: ["related_region_id"]
+            isOneToOne: false
+            referencedRelation: "region"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_related_task_id_fkey"
+            columns: ["related_task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_activity: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          from_value: string | null
+          id: string
+          request_id: string
+          to_value: string | null
+          type: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          from_value?: string | null
+          id?: string
+          request_id: string
+          to_value?: string | null
+          type: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          from_value?: string | null
+          id?: string
+          request_id?: string
+          to_value?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_activity_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "request"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_approval: {
+        Row: {
+          action: string
+          actor_id: string | null
+          comment: string | null
+          created_at: string
+          from_status: Database["public"]["Enums"]["request_status"] | null
+          id: string
+          request_id: string
+          to_status: Database["public"]["Enums"]["request_status"] | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          comment?: string | null
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["request_status"] | null
+          id?: string
+          request_id: string
+          to_status?: Database["public"]["Enums"]["request_status"] | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          comment?: string | null
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["request_status"] | null
+          id?: string
+          request_id?: string
+          to_status?: Database["public"]["Enums"]["request_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_approval_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_approval_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "request"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_attachment: {
+        Row: {
+          created_at: string
+          expense_line_id: string | null
+          filename: string
+          id: string
+          mime_type: string | null
+          request_id: string
+          size_bytes: number | null
+          storage_path: string
+          title: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          expense_line_id?: string | null
+          filename: string
+          id?: string
+          mime_type?: string | null
+          request_id: string
+          size_bytes?: number | null
+          storage_path: string
+          title?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          expense_line_id?: string | null
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          request_id?: string
+          size_bytes?: number | null
+          storage_path?: string
+          title?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_attachment_expense_line_id_fkey"
+            columns: ["expense_line_id"]
+            isOneToOne: false
+            referencedRelation: "expense_line"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_attachment_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "request"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_attachment_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
         ]
@@ -2657,6 +3134,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      can_see_request: {
+        Args: {
+          p_approver: string
+          p_related_agent: string
+          p_related_city: string
+          p_related_region: string
+          p_requested_by: string
+        }
+        Returns: boolean
+      }
       can_see_task: {
         Args: {
           p_assigned_to: string
@@ -2701,6 +3188,16 @@ export type Database = {
         | "subtract_cash_discount"
         | "ignore_discount_for_sla"
         | "store_only"
+      expense_category:
+        | "fuel"
+        | "parking"
+        | "taxi"
+        | "hotel"
+        | "meals"
+        | "customer_meeting"
+        | "office_admin"
+        | "business_trip"
+        | "other"
       file_visibility:
         | "private"
         | "selected_users"
@@ -2723,6 +3220,7 @@ export type Database = {
         | "failed"
       invoice_status: "posted" | "cancelled" | "draft"
       issue_severity: "error" | "warning" | "info"
+      leave_type: "annual" | "sick" | "unpaid" | "emergency" | "other"
       mapping_status: "draft" | "active" | "archived"
       notification_type:
         | "task_assigned"
@@ -2737,6 +3235,13 @@ export type Database = {
         | "scope_task_created"
         | "file_attached"
         | "file_shared"
+        | "request_submitted"
+        | "approval_required"
+        | "request_approved"
+        | "request_rejected"
+        | "request_returned"
+        | "request_paid"
+        | "missing_receipt"
       org_level:
         | "company"
         | "country"
@@ -2746,6 +3251,16 @@ export type Database = {
         | "agent"
         | "city"
       reminder_offset: "none" | "at_due" | "1h_before" | "1d_before" | "custom"
+      request_status:
+        | "draft"
+        | "submitted"
+        | "pending_approval"
+        | "approved"
+        | "rejected"
+        | "cancelled"
+        | "paid"
+        | "closed"
+      request_type: "business_trip" | "expense" | "leave"
       returns_handling:
         | "returns_already_deducted"
         | "subtract_returns_value"
@@ -2776,6 +3291,8 @@ export type Database = {
         | "selected_role"
         | "selected_scope"
         | "all_managers"
+      transportation_type: "flight" | "car" | "bus" | "train" | "other"
+      travel_type: "domestic" | "international"
       txn_type: "sale" | "return" | "credit_note" | "debit_note"
       value_dimension:
         | "channel"
@@ -2928,6 +3445,17 @@ export const Constants = {
         "ignore_discount_for_sla",
         "store_only",
       ],
+      expense_category: [
+        "fuel",
+        "parking",
+        "taxi",
+        "hotel",
+        "meals",
+        "customer_meeting",
+        "office_admin",
+        "business_trip",
+        "other",
+      ],
       file_visibility: [
         "private",
         "selected_users",
@@ -2953,6 +3481,7 @@ export const Constants = {
       ],
       invoice_status: ["posted", "cancelled", "draft"],
       issue_severity: ["error", "warning", "info"],
+      leave_type: ["annual", "sick", "unpaid", "emergency", "other"],
       mapping_status: ["draft", "active", "archived"],
       notification_type: [
         "task_assigned",
@@ -2967,6 +3496,13 @@ export const Constants = {
         "scope_task_created",
         "file_attached",
         "file_shared",
+        "request_submitted",
+        "approval_required",
+        "request_approved",
+        "request_rejected",
+        "request_returned",
+        "request_paid",
+        "missing_receipt",
       ],
       org_level: [
         "company",
@@ -2978,6 +3514,17 @@ export const Constants = {
         "city",
       ],
       reminder_offset: ["none", "at_due", "1h_before", "1d_before", "custom"],
+      request_status: [
+        "draft",
+        "submitted",
+        "pending_approval",
+        "approved",
+        "rejected",
+        "cancelled",
+        "paid",
+        "closed",
+      ],
+      request_type: ["business_trip", "expense", "leave"],
       returns_handling: [
         "returns_already_deducted",
         "subtract_returns_value",
@@ -3013,6 +3560,8 @@ export const Constants = {
         "selected_scope",
         "all_managers",
       ],
+      transportation_type: ["flight", "car", "bus", "train", "other"],
+      travel_type: ["domestic", "international"],
       txn_type: ["sale", "return", "credit_note", "debit_note"],
       value_dimension: [
         "channel",
