@@ -170,6 +170,16 @@
   .scn-sc.best{color:var(--green)}
   .scn-btns{display:flex;gap:6px}
   .cell-best{background:var(--green-soft);color:var(--green)!important;font-weight:700;border-radius:6px}
+  .cell-good{color:var(--green)!important;font-weight:700}
+  .cell-warn{background:var(--amber-soft);color:var(--amber)!important;font-weight:700;border-radius:6px}
+  .cell-bad{background:var(--red-soft);color:var(--red)!important;font-weight:700;border-radius:6px}
+  .scn-weak{font-size:10.5px;font-weight:700;color:var(--red);background:var(--red-soft);border-radius:6px;padding:2px 7px}
+  .scn-cur{font-size:12px;color:var(--ink-soft);background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:12px}
+  .scn-badge{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:13px;box-shadow:var(--shadow)}
+  .scn-badge[hidden]{display:none}
+  .scn-badge-name b{color:var(--primary)}
+  .scn-badge-warn{font-size:11.5px;font-weight:700;color:var(--amber);background:var(--amber-soft);border-radius:8px;padding:3px 9px}
+  .scn-badge-btns{margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap}
   .scn-desc{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin-top:14px;font-size:12px;color:var(--ink-soft)}
   @media(max-width:680px){.scn-desc{grid-template-columns:1fr}}
   .scn-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--primary-soft);border:1px solid var(--primary);border-radius:12px;padding:11px 16px;margin-bottom:16px;font-size:13px;color:var(--ink)}
@@ -408,6 +418,7 @@
       <!-- DASHBOARD -->
       <section class="view" id="v-dashboard">
         <div class="scn-banner" id="scnBanner" hidden></div>
+        <div class="scn-badge" id="scnBadge" hidden></div>
         <div class="steps" id="steps"></div>
         <div class="kpi-strip" id="kpiStrip"></div>
         <div class="dash-main">
@@ -578,7 +589,7 @@ const S = {
   pickMode:false, hidden:new Set(), markerIndex:new Map(),
   lang:'en', theme:'light', view:'dashboard',
   ui:{selRoute:0, selDay:0}, _fileName:'', lastMove:null,
-  scenarios:[], committedPlan:null, previewing:false
+  scenarios:[], committedPlan:null, previewing:false, prevCommitted:null
 };
 /* soft, map-readable territory palette */
 const PALETTE = ['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#06B6D4','#EC4899','#84CC16','#F97316','#14B8A6','#6366F1','#A855F7'];
@@ -886,21 +897,29 @@ function salesmanClusters(core,depot,k){
 function scnMetrics(plan){
   const routes=plan.routes,counts=routes.map(r=>r.stops.length),total=counts.reduce((a,b)=>a+b,0)||1;
   const totalDays=routes.reduce((a,r)=>a+r.days.length,0)||1;
+  let overDays=0,overRoutes=0,longDays=0;
+  routes.forEach(r=>{let bad=false;r.days.forEach(d=>{if(d.stops.length>plan.cap){overDays++;bad=true;}if(d.km>plan.maxKm||d.hrs>10){longDays++;bad=true;}});if(bad)overRoutes++;});
+  const okDays=Math.max(0,totalDays-overDays-longDays),feasPct=Math.round(100*okDays/totalDays);
+  const feas=(overDays===0&&longDays===0)?'Feasible':feasPct>=80?'Tight ('+feasPct+'%)':'At risk ('+feasPct+'%)';
   return {score:plan.scores.final,km:Math.round(plan.totalKm),routes:routes.length,
     custPerRoute:`${(total/routes.length).toFixed(1)} (${Math.min(...counts)}–${Math.max(...counts)})`,
     visitsPerDay:(plan.totalVisits/totalDays).toFixed(1),stopsPerRoute:(total/routes.length).toFixed(1),
     stopsPerDay:(total/totalDays).toFixed(1),balance:plan.scores.balance+'%',crossings:plan.scores.cross,
-    outstation:plan.outTotal,hours:routes.reduce((a,r)=>a+r.hrs,0).toFixed(1)+' h'};
+    outstation:plan.outTotal,hours:routes.reduce((a,r)=>a+r.hrs,0).toFixed(1)+' h',
+    overCap:`${overRoutes}r / ${overDays}d`,feas,feasPct};
 }
-const SCN_ROWS=[['Plan score','score'],['Total KM','km'],['Total routes','routes'],['Customers / route','custPerRoute'],['Visits / day','visitsPerDay'],['Avg stops / route','stopsPerRoute'],['Avg stops / day','stopsPerDay'],['Workload balance','balance'],['Route crossings','crossings'],['Outstation customers','outstation'],['Est. time','hours']];
+const SCN_ROWS=[['Plan score','score'],['Total KM','km'],['Est. time','hours'],['Customers / route','custPerRoute'],['Visits / day','visitsPerDay'],['Avg stops / route','stopsPerRoute'],['Avg stops / day','stopsPerDay'],['Workload balance','balance'],['Route crossings','crossings'],['Outstation customers','outstation'],['Over-capacity (routes/days)','overCap'],['Service feasibility','feas']];
 function openScenarios(){
   if(!S.scenarios||!S.scenarios.length)return;
   const m=S.scenarios.map(scnMetrics);
   const bestScore=Math.max(...m.map(x=>x.score)),bestKm=Math.min(...m.map(x=>x.km)),bestBal=Math.max(...m.map(x=>parseFloat(x.balance)));
-  let h='<div style="overflow:auto"><table class="scn-table"><thead><tr><th>Metric</th>';
-  S.scenarios.forEach((pl,i)=>{h+=`<th><div class="scn-h"><b>${escapeHtml(pl.name)}</b><div class="scn-sc ${m[i].score===bestScore?'best':''}">Score ${m[i].score} · ${scoreLabel(m[i].score)}</div><div class="scn-btns"><button type="button" class="btn btn-ghost btn-sm" data-prev="${i}">Preview</button><button type="button" class="btn btn-primary btn-sm" data-apply="${i}">Apply</button></div></div></th>`;});
+  const cur=S.committedPlan?S.committedPlan.scores.final:null;
+  let h='';
+  if(cur!=null)h+=`<div class="scn-cur">Current active plan${S.committedPlan.name?' ('+escapeHtml(S.committedPlan.name)+')':''} scores <b>${cur}</b>. Scenarios scoring lower are flagged ↓.</div>`;
+  h+='<div style="overflow:auto"><table class="scn-table"><thead><tr><th>Metric</th>';
+  S.scenarios.forEach((pl,i)=>{const weak=cur!=null&&m[i].score<cur;h+=`<th><div class="scn-h"><b>${escapeHtml(pl.name)}</b><div class="scn-sc ${m[i].score===bestScore?'best':''}">Score ${m[i].score} · ${scoreLabel(m[i].score)}</div>${weak?`<div class="scn-weak">↓ weaker than current (${cur})</div>`:''}<div class="scn-btns"><button type="button" class="btn btn-ghost btn-sm" data-prev="${i}">Preview</button><button type="button" class="btn btn-primary btn-sm" data-apply="${i}">Apply</button></div></div></th>`;});
   h+='</tr></thead><tbody>';
-  SCN_ROWS.forEach(([label,key])=>{h+=`<tr><td><b>${escapeHtml(label)}</b></td>`+S.scenarios.map((pl,i)=>{const v=m[i][key];let cls='';if(key==='score'&&v===bestScore)cls='cell-best';if(key==='km'&&v===bestKm)cls='cell-best';if(key==='balance'&&parseFloat(v)===bestBal)cls='cell-best';const disp=key==='km'?v+' km':v;return `<td class="${cls}">${escapeHtml(String(disp))}</td>`;}).join('')+'</tr>';});
+  SCN_ROWS.forEach(([label,key])=>{h+=`<tr><td><b>${escapeHtml(label)}</b></td>`+S.scenarios.map((pl,i)=>{const v=m[i][key];let cls='';if(key==='score'&&v===bestScore)cls='cell-best';if(key==='km'&&v===bestKm)cls='cell-best';if(key==='balance'&&parseFloat(v)===bestBal)cls='cell-best';if(key==='feas')cls=v.indexOf('Feasible')===0?'cell-good':v.indexOf('Tight')===0?'cell-warn':'cell-bad';if(key==='overCap'&&v!=='0r / 0d')cls='cell-warn';const disp=key==='km'?v+' km':v;return `<td class="${cls}">${escapeHtml(String(disp))}</td>`;}).join('')+'</tr>';});
   h+='</tbody></table></div><div class="scn-desc">'+SCN_DEFS.map(d=>`<div><b>${escapeHtml(d[1])}</b> — ${escapeHtml(d[2])}</div>`).join('')+'</div>';
   $('scnBody').innerHTML=h;
   $('scnBody').querySelectorAll('[data-prev]').forEach(b=>b.onclick=()=>previewScenario(+b.dataset.prev));
@@ -917,10 +936,31 @@ function previewScenario(i){
 }
 async function applyScenario(i){
   const plan=S.scenarios[i];if(!plan)return;
+  const prevScore=S.committedPlan?S.committedPlan.scores.final:null;
+  S.prevCommitted=S.committedPlan||null;            // enable "revert to previous plan"
   hideScnModal();S.plan=plan;S.committedPlan=plan;S.previewing=false;S.ui={selRoute:0,selDay:0};syncAssignments(plan);
   if(S.engine==='osrm'){toast('Fetching road distances…');setProgress(20);try{await osrmRefine(plan);}catch(e){}setProgress(100);}
   ['exportXlsx','exportCsv'].forEach(id=>$(id).disabled=false);
-  renderAll();hideScnBanner();switchView('dashboard');toast(`${plan.name} applied`);
+  renderAll();hideScnBanner();switchView('dashboard');
+  if(prevScore!=null&&plan.scores.final<prevScore)toast(`⚠ ${plan.name} applied — score ${plan.scores.final} is LOWER than your previous plan (${prevScore})`,true);
+  else toast(`${plan.name} applied`);
+}
+function showActiveBadge(){
+  const b=$('scnBadge');if(!b)return;
+  if(!S.plan||!S.plan.name||S.previewing){b.hidden=true;return;}
+  b.hidden=false;
+  const weak=S.prevCommitted&&S.plan.scores.final<S.prevCommitted.scores.final;
+  b.innerHTML=`<span class="scn-badge-name">📋 Active scenario: <b>${escapeHtml(S.plan.name)}</b> · score ${S.plan.scores.final} · ${scoreLabel(S.plan.scores.final)}</span>`+
+    (weak?`<span class="scn-badge-warn">⚠ lower than previous (${S.prevCommitted.scores.final})</span>`:'')+
+    `<span class="scn-badge-btns">${S.prevCommitted?'<button type="button" class="btn btn-ghost btn-sm" id="revertBtn">Revert to previous plan</button>':''}<button type="button" class="btn btn-ghost btn-sm" id="recompareBtn">Compare scenarios</button></span>`;
+  const rb=$('revertBtn');if(rb)rb.onclick=revertPlan;
+  const cb=$('recompareBtn');if(cb)cb.onclick=()=>{if(S.scenarios&&S.scenarios.length)openScenarios();else optimize();};
+}
+function revertPlan(){
+  if(!S.prevCommitted)return;
+  const back=S.prevCommitted;S.prevCommitted=null;
+  S.plan=back;S.committedPlan=back;S.previewing=false;S.ui={selRoute:0,selDay:0};syncAssignments(back);
+  renderAll();toast('Reverted to previous plan');
 }
 function showScnBanner(i){
   const b=$('scnBanner');if(!b)return;const pl=S.scenarios[i];b.hidden=false;
@@ -982,6 +1022,11 @@ function initMap(){
   S.layers.depot=L.layerGroup().addTo(S.map);
   S.map.on('click',e=>{if(!S.pickMode)return;$('depLat').value=e.latlng.lat.toFixed(4);$('depLng').value=e.latlng.lng.toFixed(4);syncDepot();S.pickMode=false;$('pickDepot').textContent=t('pickDepot');drawDepot();toast('Depot set');});
   S.map.on('popupopen',wirePopup);
+  // robust move handling: delegate change events from the popup's <select> (bubbles to the map container)
+  S.map.getContainer().addEventListener('change',ev=>{
+    const sel=ev.target;
+    if(sel&&sel.classList&&sel.classList.contains('mvsel')){handleMoveSelect(+sel.dataset.id,+sel.value,sel.closest('.leaflet-popup'));}
+  });
   // map renders inside a tab that can start hidden / resize — settle the size once libs paint
   setTimeout(()=>S.map&&S.map.invalidateSize(),300);
 }
@@ -1021,12 +1066,11 @@ function custPopup(s,rt,seq,dayIdx){
   }
   return h;
 }
-/* wire the move dropdown each time a popup opens */
+/* keep map from panning while interacting with popup controls; the move itself is handled by
+   delegated change events bound in initMap (more reliable than per-popup listeners) */
 function wirePopup(e){
   const root=e.popup&&e.popup.getElement&&e.popup.getElement();if(!root)return;
-  const sel=root.querySelector('.mvsel');if(!sel)return;
-  const id=+sel.dataset.id;
-  sel.onchange=()=>handleMoveSelect(id,+sel.value,root);
+  if(typeof L!=='undefined'&&L.DomEvent){try{L.DomEvent.disableClickPropagation(root);L.DomEvent.disableScrollPropagation(root);}catch(_){}}
 }
 function pickLightestDay(route){
   const wd=S.plan.workDays,cnt=new Array(wd).fill(0);
@@ -1042,7 +1086,7 @@ function handleMoveSelect(id,toRoute,root){
     const warn=root&&root.querySelector('.mvwarn');
     if(warn){
       warn.hidden=false;
-      warn.innerHTML=`${dayName(day)} is full (${cnt}/${S.plan.cap}).<br><button type="button" data-a="any">Move anyway</button><button type="button" data-a="other">Move to another day</button>`;
+      warn.innerHTML=`This route/day is over capacity — ${dayName(day)} has ${cnt}/${S.plan.cap}.<br>Move anyway or choose another day?<br><button type="button" data-a="any">Move anyway</button><button type="button" data-a="other">Choose another day</button>`;
       warn.querySelector('[data-a="any"]').onclick=()=>doMove(id,toRoute,day);
       warn.querySelector('[data-a="other"]').onclick=()=>doMove(id,toRoute,pickLightestDay(to));
     } else doMove(id,toRoute,pickLightestDay(to));
@@ -1070,6 +1114,8 @@ function doMove(id,toRoute,dayIndex){
   const to=S.plan.routes.find(r=>r.idx===toRoute);
   moveTo(id,toRoute,dayIndex,true);
   renderAll();
+  // reopen the popup on the freshly-built marker so the new route color + "Route X" text show immediately
+  const mk=S.markerIndex.get(id);if(mk&&mk.openPopup&&!S.hidden.has(toRoute))setTimeout(()=>{try{mk.openPopup();}catch(_){}},20);
   const label=to.isOut?'Outstation':'Route '+(toRoute+1);
   toast(`Customer moved to ${label}`);
   showUndo(`Moved to ${label} · assignment locked 🔒`,undoMove);
@@ -1084,6 +1130,7 @@ function showUndo(msg,fn){const b=$('undobar');if(!b)return;$('undoMsg').textCon
 function hideUndo(){const b=$('undobar');if(!b)return;b.hidden=true;clearTimeout(b._t);}
 function renderPlan(){
   if(!S.map||!S.plan)return;$('mapEmpty').hidden=true;
+  S.map.closePopup(); // drop any popup still anchored to an about-to-be-removed (old-color) marker
   S.layers.hulls.clearLayers();S.layers.markers.clearLayers();S.layers.routes.clearLayers();S.markerIndex.clear();
   S.plan.routes.forEach(rt=>{
     if(S.hidden.has(rt.idx))return;
@@ -1287,7 +1334,7 @@ function renderSteps(){
 }
 
 /* ===================== RENDER ORCHESTRATION ===================== */
-function renderAll(){renderKpiStrip();renderPlan();renderDayPanel();renderDashCharts();renderDashWarn();renderSteps();refreshTags();rerenderActive();}
+function renderAll(){renderKpiStrip();renderPlan();renderDayPanel();renderDashCharts();renderDashWarn();renderSteps();refreshTags();showActiveBadge();rerenderActive();}
 function rerenderActive(){
   if(S.view==='territory')renderTerritory();
   else if(S.view==='journey')renderJourney();
