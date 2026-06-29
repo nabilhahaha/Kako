@@ -144,6 +144,9 @@
   .map-card{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:var(--panel);min-height:560px}
   #map{position:absolute;inset:0}
   .map-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;z-index:500;background:var(--panel-2)}
+  .map-empty[hidden]{display:none}
+  .map-warn{position:absolute;top:14px;inset-inline-start:14px;z-index:650;background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber);border-radius:9px;padding:8px 12px;font-size:12px;font-weight:600;max-width:62%;line-height:1.4}
+  .map-warn[hidden]{display:none}
   .map-empty .box{max-width:380px}
   .map-empty .mk{font-size:42px;color:var(--line);margin-bottom:12px}
   .map-empty h3{font-size:18px;margin-bottom:8px}
@@ -381,6 +384,7 @@
           <div class="map-card">
             <div id="map" role="application" aria-label="Route map"></div>
             <div class="legend" id="legend" hidden></div>
+            <div class="map-warn" id="mapWarn" hidden>⚠ Map tiles failed to load — check your network or ad-blocker. Markers, routes &amp; territories still work.</div>
             <div class="map-empty" id="mapEmpty">
               <div class="box">
                 <div class="mk">◇</div>
@@ -804,14 +808,32 @@ function initMap(){
   if(typeof L==='undefined'){toast('Map library not loaded',true);return;}
   S.map=L.map('map',{zoomControl:true}).setView([21.5,39.2],11);
   L.control.scale({imperial:false}).addTo(S.map);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(S.map);
+  addTiles();
   S.layers.hulls=L.layerGroup().addTo(S.map);
   S.layers.routes=L.layerGroup().addTo(S.map);
   S.layers.markers=L.layerGroup().addTo(S.map);
   S.layers.depot=L.layerGroup().addTo(S.map);
   S.map.on('click',e=>{if(!S.pickMode)return;$('depLat').value=e.latlng.lat.toFixed(4);$('depLng').value=e.latlng.lng.toFixed(4);syncDepot();S.pickMode=false;$('pickDepot').textContent=t('pickDepot');drawDepot();toast('Depot set');});
+  // map renders inside a tab that can start hidden / resize — settle the size once libs paint
+  setTimeout(()=>S.map&&S.map.invalidateSize(),300);
 }
-function fitAll(){if(!S.map)return;const pts=S.rows.filter(r=>!r.excluded).map(r=>[r.lat,r.lng]);if(S.depot)pts.push([S.depot.lat,S.depot.lng]);if(pts.length)S.map.fitBounds(pts,{padding:[50,50]});}
+/* tile layers with automatic fallback if the primary provider is blocked/rate-limited */
+const TILE_PROVIDERS=[
+  {url:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',opts:{attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'}},
+  {url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',opts:{attribution:'© OpenStreetMap',maxZoom:19}},
+  {url:'https://tile.openstreetmap.de/{z}/{x}/{y}.png',opts:{attribution:'© OpenStreetMap',maxZoom:19}}
+];
+function addTiles(idx){
+  idx=idx||0;
+  if(idx>=TILE_PROVIDERS.length){const w=$('mapWarn');if(w)w.hidden=false;return;}
+  const p=TILE_PROVIDERS[idx];
+  if(S._tiles){try{S.map.removeLayer(S._tiles);}catch(e){}}
+  const layer=L.tileLayer(p.url,p.opts);let errs=0,switched=false,ok=false;
+  layer.on('load',()=>{ok=true;const w=$('mapWarn');if(w)w.hidden=true;});
+  layer.on('tileerror',()=>{errs++;if(!ok&&!switched&&errs>=4){switched=true;addTiles(idx+1);}});
+  layer.addTo(S.map);S._tiles=layer;
+}
+function fitAll(){if(!S.map)return;S.map.invalidateSize();const pts=S.rows.filter(r=>!r.excluded).map(r=>[r.lat,r.lng]).filter(p=>isFinite(p[0])&&isFinite(p[1]));if(S.depot)pts.push([S.depot.lat,S.depot.lng]);if(pts.length)S.map.fitBounds(pts,{padding:[50,50],maxZoom:15});}
 function drawDepot(){if(!S.map)return;S.layers.depot.clearLayers();if(!S.depot)return;L.marker([S.depot.lat,S.depot.lng],{icon:L.divIcon({className:'',html:`<div style="background:#0F172A;color:#fff;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:15px;box-shadow:0 3px 10px rgba(0,0,0,.4);border:2px solid #fff">⌂</div>`,iconSize:[32,32],iconAnchor:[16,16]})}).addTo(S.layers.depot).bindPopup('Depot / Warehouse');}
 function gpsColor(s){return s==='bad'?'#DC2626':s==='warn'?'#D97706':'#64748B';}
 function rawIcon(c){return L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:`<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>`});}
@@ -1118,7 +1140,7 @@ function switchView(view){
   document.querySelectorAll('.nav a[data-view]').forEach(a=>a.classList.toggle('active',a.dataset.view===view));
   document.querySelectorAll('.view').forEach(v=>v.hidden=(v.id!=='v-'+view));
   setPageTitle();
-  if(view==='dashboard'&&S.map)setTimeout(()=>S.map.invalidateSize(),60);
+  if(view==='dashboard'&&S.map)setTimeout(()=>{S.map.invalidateSize();if(S.rows.filter(r=>!r.excluded).length)fitAll();},60);
   rerenderActive();
 }
 window.switchView=switchView;
