@@ -234,6 +234,7 @@
   .stopitem .nm{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .stopitem .sub{font-size:10.5px;color:var(--ink-soft)}
   .stopitem .km{font-size:11px;color:var(--ink-soft);font-family:"JetBrains Mono",monospace;flex:none}
+  .navbtn{flex:none;width:24px;height:24px;border-radius:7px;background:var(--green-soft);color:var(--green);display:grid;place-items:center;text-decoration:none;font-size:11px;font-weight:700;border:1px solid var(--green)}
   .gm{display:flex;align-items:center;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
   .gm .qr{width:66px;height:66px;border:1px solid var(--line);border-radius:9px;padding:3px;background:#fff;flex:none}
   .gm .gx{flex:1}
@@ -624,7 +625,14 @@
       <div class="map-grid">
         <div><label class="fld">Scope — Route / Rep</label><select id="expRoute"></select></div>
         <div><label class="fld">Scope — Day</label><select id="expDay"></select></div>
+        <div><label class="fld">Full day route starts from</label>
+          <select id="dayStartSel">
+            <option value="depot">Assigned depot / start point</option>
+            <option value="current">Salesman current location</option>
+            <option value="first">First customer</option>
+          </select></div>
       </div>
+      <p class="note" style="margin:8px 0 0">Each customer's <b>Navigate</b> button always routes from the salesman's current location. The setting above only affects the <b>full-day route</b> link.</p>
       <div id="expPreview" style="margin-top:14px"></div>
       <p class="note">Reflects the applied scenario + all manual route/day/frequency edits and locks. <b>Excel</b> = manager file with per-rep sheets grouped by day. <b>HTML route book</b> = a mobile page to send the salesman on WhatsApp/email (navigate buttons, day route links, QR, AR/EN, print).</p>
     </div>
@@ -668,7 +676,7 @@ const S = {
   ui:{selRoute:0, selDay:0, filter:'all', colorByDay:false, routes:new Set(), dayOnly:false, showLines:true, showTerr:true}, _fileName:'', lastMove:null,
   depots:[], _depotSeq:0,
   scenarios:[], committedPlan:null, previewing:false, prevCommitted:null,
-  perf:false, forceFull:false, cancel:false, dupPolicy:'keepFirst', scope:{field:'',value:''}
+  perf:false, forceFull:false, cancel:false, dupPolicy:'keepFirst', scope:{field:'',value:''}, dayStart:'depot'
 };
 const PERF_THRESHOLD=3000, HARD_THRESHOLD=10000, MAX_MARKERS=1500, PAGE_SIZE=100;
 /* soft, map-readable territory palette */
@@ -1532,9 +1540,9 @@ function renderDayPanel(){
     h+=`<div class="daystats"><div><div class="v">${stats.stops}</div><div class="l">Stops</div></div><div><div class="v">${stats.km}</div><div class="l">km</div></div><div><div class="v">${stats.visits}</div><div class="l">Visits</div></div><div><div class="v">${stats.hrs}h</div><div class="l">Time</div></div></div>`;
     const dfl=dayFlagsHtml(day,S.plan);if(dfl)h+=`<div style="margin:0 0 10px">${dfl}</div>`;
     let prev=routeStart(rt);
-    h+=`<div class="stoplist">`+day.stops.map((s,i)=>{const leg=haversine(prev,s);prev=s;return `<div class="stopitem"><span class="sn" style="background:${rt.color}">${i+1}</span><div class="info"><div class="nm">${escapeHtml(s.name)}</div><div class="sub">${escapeHtml(s.code)} · ${escapeHtml(s.city||'—')}</div></div><span class="km">${leg.toFixed(1)} km</span></div>`;}).join('')+`</div>`;
-    const links=gmapsLinks(routeStart(rt),day.stops,routeEnd(rt));
-    h+=`<div class="gm"><div class="qr" id="dpQr"></div><div class="gx"><b>Google Maps route</b><div class="wl">${day.stops.length} stops${links.length>1?' · Part 1 of '+links.length:''}</div><div class="lk"><a class="linkbtn" href="${escapeHtml(links[0])}" target="_blank" rel="noopener">Open</a><button type="button" class="linkbtn" id="dpCopy">Copy link</button></div></div></div>
+    h+=`<div class="stoplist">`+day.stops.map((s,i)=>{const leg=haversine(prev,s);prev=s;return `<div class="stopitem"><span class="sn" style="background:${rt.color}">${i+1}</span><div class="info"><div class="nm">${escapeHtml(s.name)}</div><div class="sub">${escapeHtml(s.code)} · ${escapeHtml(s.city||'—')}</div></div><span class="km">${leg.toFixed(1)} km</span><a class="navbtn" href="${escapeHtml(gmapsCustomer(s))}" target="_blank" rel="noopener" title="Navigate from current location">▶</a></div>`;}).join('')+`</div>`;
+    const links=gmapsDayLinks(day.stops,routeStart(rt),routeEnd(rt));
+    h+=`<div class="gm"><div class="qr" id="dpQr"></div><div class="gx"><b>Day route</b><div class="wl">from ${dayStartLabel()} · ${day.stops.length} stops${links.length>1?' · Part 1 of '+links.length:''}</div><div class="lk"><a class="linkbtn" href="${escapeHtml(links[0])}" target="_blank" rel="noopener">Open</a><button type="button" class="linkbtn" id="dpCopy">Copy link</button></div></div></div>
         <div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="btn btn-ghost btn-sm btn-block" id="dpMap">${escapeHtml(t('viewOnMap'))}</button><button type="button" class="btn btn-primary btn-sm btn-block" id="dpOpt">${escapeHtml(t('optimize'))}</button></div>
         <button type="button" class="btn btn-soft btn-sm btn-block" id="dpBook" style="margin-top:8px">📕 Route book / share</button>`;
   }
@@ -1544,7 +1552,7 @@ function renderDayPanel(){
   $('dpFilter').onchange=e=>{S.ui.filter=e.target.value;renderPlan();};
   el.querySelectorAll('.daypill').forEach(b=>b.onclick=()=>{S.ui.selDay=+b.dataset.day;renderDayPanel();if(S.ui.filter==='day'||S.ui.filter==='routeday')renderPlan();});
   if(day){
-    const links=gmapsLinks(routeStart(rt),day.stops,routeEnd(rt));
+    const links=gmapsDayLinks(day.stops,routeStart(rt),routeEnd(rt));
     $('dpCopy').onclick=()=>copyText(links[0]);
     $('dpMap').onclick=()=>{switchView('dashboard');if(S.map){S.map.setView([day.stops[0].lat,day.stops[0].lng],13);setTimeout(()=>S.map.invalidateSize(),60);}};
     $('dpOpt').onclick=optimize;
@@ -1587,13 +1595,28 @@ function moveCustomer(id,toRoute){
 
 /* ===================== JOURNEY PLAN ===================== */
 function gmapsLinks(start,stops,end){end=(end===undefined)?start:end;const parts=[];for(let i=0;i<stops.length;i+=GMAPS_WP)parts.push(stops.slice(i,i+GMAPS_WP));if(!parts.length)parts.push([]);return parts.map(p=>{const seq=[start,...p];if(end)seq.push(end);return 'https://www.google.com/maps/dir/'+seq.map(x=>`${x.lat},${x.lng}`).join('/');});}
+// Full-day route links, origin configurable: 'depot' (assigned start), 'current' (device location, no origin), 'first' (first customer)
+function gmapsDayLinks(stops,depotStart,end){
+  const mode=S.dayStart||'depot';
+  if(!stops.length)return ['https://www.google.com/maps'];
+  if(mode==='current'){
+    // omit origin → Google Maps uses the salesman's current location; waypoints in between, destination = last stop
+    const parts=[];for(let i=0;i<stops.length;i+=GMAPS_WP)parts.push(stops.slice(i,i+GMAPS_WP));
+    return parts.map(p=>{const dest=p[p.length-1];const wps=p.slice(0,-1).map(x=>`${x.lat},${x.lng}`).join('|');return 'https://www.google.com/maps/dir/?api=1&destination='+dest.lat+','+dest.lng+(wps?'&waypoints='+encodeURIComponent(wps):'');});
+  }
+  if(mode==='first'){const start=stops[0];return gmapsLinks(start,stops.slice(1),end?start:null);}
+  return gmapsLinks(depotStart,stops,end);
+}
+function dayStartLabel(){return S.dayStart==='current'?'current location':S.dayStart==='first'?'first customer':'depot';}
+// per-customer navigation ALWAYS uses the device's current location (no origin set)
+function gmapsCustomer(s){return 'https://www.google.com/maps/dir/?api=1&destination='+s.lat+','+s.lng;}
 function renderJourney(){
   const pane=$('jpPane');if(!S.plan){pane.innerHTML=emptyPane();return;}
   let h=`<div class="toolbar"><button type="button" class="btn btn-ghost btn-sm" id="printJP">${escapeHtml(t('print'))}</button><span class="pill">Per-rep sheet, split by day, with Google Maps link + QR per day</span></div>`;
   S.plan.routes.forEach(rt=>{
     h+=`<div class="card jcard"><div class="card-h"><div style="display:flex;align-items:center;gap:10px"><span style="width:13px;height:13px;border-radius:50%;background:${rt.color}"></span><div><h3>${rt.isOut?'Outstation route':'Route '+(rt.idx+1)}</h3><div class="note" style="margin:2px 0 0">${rt.stops.length} stops · ${rt.days.length} days · ${rt.km.toFixed(1)} km · ${rt.visits} visits/cycle · ${fmtMoney(rt.sales)} sales · ${escapeHtml(rt.engine)} · ${routeQuality(rt)}</div></div></div></div>`;
     rt.days.forEach((day,di)=>{
-      const links=gmapsLinks(routeStart(rt),day.stops,routeEnd(rt));
+      const links=gmapsDayLinks(day.stops,routeStart(rt),routeEnd(rt));
       h+=`<div class="day-h"><div><div class="dt">${dayName(day.day)} <span class="pill">Day ${di+1}</span> ${dayFlagsHtml(day,S.plan)}</div><div class="dm">${day.stops.length} stops · ${day.km.toFixed(1)} km · ~${day.hrs.toFixed(1)} h · ${day.crossings} crossings</div></div><div class="actions">`;
       links.forEach((u,pi)=>h+=`<a class="linkbtn" href="${escapeHtml(u)}" target="_blank" rel="noopener">Maps${links.length>1?' P'+(pi+1):''}</a>`);
       h+=`<button type="button" class="linkbtn" data-copy="${escapeHtml(links[0])}">Copy</button><div class="qr" id="qr-${rt.idx}-${di}"></div></div></div>`;
@@ -1607,7 +1630,7 @@ function renderJourney(){
   pane.innerHTML=h;
   $('printJP').onclick=()=>window.print();
   pane.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyText(b.dataset.copy));
-  if(typeof QRCode!=='undefined')S.plan.routes.forEach(rt=>rt.days.forEach((day,di)=>{const el=$(`qr-${rt.idx}-${di}`);if(!el)return;try{new QRCode(el,{text:gmapsLinks(routeStart(rt),day.stops,routeEnd(rt))[0],width:52,height:52,correctLevel:QRCode.CorrectLevel.M});}catch(e){el.textContent='QR';}}));
+  if(typeof QRCode!=='undefined')S.plan.routes.forEach(rt=>rt.days.forEach((day,di)=>{const el=$(`qr-${rt.idx}-${di}`);if(!el)return;try{new QRCode(el,{text:gmapsDayLinks(day.stops,routeStart(rt),routeEnd(rt))[0],width:52,height:52,correctLevel:QRCode.CorrectLevel.M});}catch(e){el.textContent='QR';}}));
 }
 
 /* ===================== CHARTS / ANALYTICS ===================== */
@@ -1737,7 +1760,7 @@ function exportXlsx(){
   aoa('Summary',[['FMCG Route & Journey Plan'],[],['Customers (in plan)',S.rows.filter(r=>!r.excluded).length],['Routes',P.routes.length],['Total visits/cycle',P.totalVisits],['Total km',+P.totalKm.toFixed(1)],['Working days',P.workDays],['Cap/day',P.cap],['Capacity',P.capacity],['Outstation',P.outTotal],['Excluded',P.excluded],[],['SCORE','/100'],['Final',sc.final,scoreLabel(sc.final)],['Distance',sc.distance],['Balance',sc.balance],['Compactness',sc.compact],['Coverage',sc.coverage],['GPS quality',sc.gps]],wb);
   aoa('Rep Territory',[['Route','Type','Customers','Visits/cycle','Sales value','KM','Hours','Active','Inactive','Outstation','Crossings','Quality'],...P.routes.map(r=>[r.isOut?'Outstation':'Route '+(r.idx+1),r.isOut?'Outstation':'City',r.stops.length,r.visits,+r.sales.toFixed(0),+r.km.toFixed(1),+r.hrs.toFixed(1),r.activeCount,r.inactiveCount,r.outCount,r.crossings,routeQuality(r)])],wb);
   const jp=[['Route','Day','DayName','Seq','Code','Name','City','Channel','Lat','Lng','From prev (km)','Maps link']];
-  P.routes.forEach(r=>r.days.forEach((d,di)=>{let prev=routeStart(r);d.stops.forEach((s,i)=>{const leg=haversine(prev,s);prev=s;jp.push([r.isOut?'Outstation':'Route '+(r.idx+1),di+1,DAY_NAMES[d.day%7],i+1,s.code,s.name,s.city,s.channel,s.lat,s.lng,+leg.toFixed(2),gmapsLinks(routeStart(r),d.stops,routeEnd(r))[0]]);});}));
+  P.routes.forEach(r=>r.days.forEach((d,di)=>{let prev=routeStart(r);d.stops.forEach((s,i)=>{const leg=haversine(prev,s);prev=s;jp.push([r.isOut?'Outstation':'Route '+(r.idx+1),di+1,DAY_NAMES[d.day%7],i+1,s.code,s.name,s.city,s.channel,s.lat,s.lng,+leg.toFixed(2),gmapsDayLinks(d.stops,routeStart(r),routeEnd(r))[0]]);});}));
   aoa('Daily Journey Plan',jp,wb);
   aoa('Customer Assignment',[['Code','Name','City','Channel','Salesman','Freq','Sales','Active','Route','Day','Locked Rep','Locked Day','Lat','Lng'],...S.rows.filter(r=>!r.excluded&&r.route!=null).map(r=>[r.code,r.name,r.city,r.channel,r.salesman,r.freq,r.sales,r.active?'Active':'Inactive',P.routes[r.route]&&P.routes[r.route].isOut?'Outstation':'Route '+(r.route+1),r._day!=null?r._day+1:'',r.lockRep?'YES':'',r.lockDay?'YES':'',r.lat,r.lng])],wb);
   aoa('GPS Issues',[['Code','Name','City','GPS Score','Reasons','Lat','Lng'],...S.rows.filter(r=>r.gpsScore!=='good').map(r=>[r.code,r.name,r.city,r.gpsScore,r.gpsReasons.join('; '),r.lat,r.lng])],wb);
@@ -1756,7 +1779,7 @@ function exportCsv(){
 }
 
 /* ===================== ROUTE BOOK EXPORT ===================== */
-function gmapsCustomer(s){return `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}`;}
+/* gmapsCustomer defined above (current-location navigation) */
 function lockStatus(s){const p=[];if(s.lockRep)p.push('Rep');if(s.lockDay)p.push('Day');if(s.freqLocked)p.push('Freq');return p.join('+')||'—';}
 function visitNo(s,weekday){const vd=(s.visitDays&&s.visitDays.length?s.visitDays:[s._day]).slice().sort((a,b)=>a-b);const i=vd.indexOf(weekday);return `${(i<0?1:i+1)}/${vd.length}`;}
 function dlBlob(content,type,name){const blob=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);}
@@ -1772,6 +1795,8 @@ function openExport(){
   buildExpDayOpts();
   $('expRoute').onchange=()=>{buildExpDayOpts();previewExport();};
   $('expDay').onchange=previewExport;
+  $('dayStartSel').value=S.dayStart||'depot';
+  $('dayStartSel').onchange=e=>{S.dayStart=e.target.value;saveSettingsOnly();previewExport();if(S.view==='journey')renderJourney();renderDayPanel();};
   previewExport();
   $('expModal').classList.add('show');
 }
@@ -1782,7 +1807,7 @@ function buildExpDayOpts(){
 function previewExport(){
   const routes=expScopeRoutes(),df=expScopeDay();let rows=0,stops=0,km=0,hrs=0,parts=0;
   let h='<table><thead><tr><th>Route</th><th>Day</th><th>Stops</th><th>KM</th><th>Time</th><th>Maps link</th></tr></thead><tbody>';
-  routes.forEach(rt=>scopeDays(rt,df).forEach(d=>{rows++;stops+=d.stops.length;km+=d.km;hrs+=d.hrs;const L=gmapsLinks(routeStart(rt),d.stops,routeEnd(rt));parts+=L.length;h+=`<tr><td>${rt.isOut?'Outstation':'R'+(rt.idx+1)}</td><td>${escapeHtml(dayName(d.day))}</td><td>${d.stops.length}</td><td>${d.km.toFixed(1)}</td><td>~${d.hrs.toFixed(1)}h</td><td>${L.length>1?L.length+' parts':'OK'}</td></tr>`;}));
+  routes.forEach(rt=>scopeDays(rt,df).forEach(d=>{rows++;stops+=d.stops.length;km+=d.km;hrs+=d.hrs;const L=gmapsDayLinks(d.stops,routeStart(rt),routeEnd(rt));parts+=L.length;h+=`<tr><td>${rt.isOut?'Outstation':'R'+(rt.idx+1)}</td><td>${escapeHtml(dayName(d.day))}</td><td>${d.stops.length}</td><td>${d.km.toFixed(1)}</td><td>~${d.hrs.toFixed(1)}h</td><td>${L.length>1?L.length+' parts':'OK'}</td></tr>`;}));
   h+='</tbody></table>';
   if(!rows)h='<p class="note">No stops in this scope.</p>';
   $('expPreview').innerHTML=`<div class="note" style="margin:0 0 8px"><b>${rows}</b> day-route(s) · <b>${stops}</b> stops · <b>${Math.round(km)}</b> km · ~<b>${hrs.toFixed(1)}</b> h · ${parts} Maps link(s)</div>`+h;
@@ -1797,7 +1822,7 @@ function buildRouteBookExcel(){
   routes.forEach(rt=>{
     const rows=[cols];const st=routeStart(rt);const stName=(rt.depotId&&depotById(rt.depotId)?depotById(rt.depotId).name:'Main depot');const stLL=st.lat.toFixed(4)+','+st.lng.toFixed(4);
     scopeDays(rt,df).forEach(d=>{
-      const dayLink=gmapsLinks(routeStart(rt),d.stops,routeEnd(rt))[0];let prev=routeStart(rt);
+      const dayLink=gmapsDayLinks(d.stops,routeStart(rt),routeEnd(rt))[0];let prev=routeStart(rt);
       d.stops.forEach((s,i)=>{const leg=haversine(prev,s);prev=s;rows.push([i+1,rt.isOut?'Outstation':'Route '+(rt.idx+1),stName,stLL,dayName(d.day),visitNo(s,d.day),s.code,s.name,s.city,s.channel,s.lat,s.lng,+leg.toFixed(2),Math.round(legTimeMin(leg)),freqLabelOf(s,S.plan.workDays)||'',s.freqPattern||'',lockStatus(s),gmapsCustomer(s),dayLink]);});
     });
     let nm=(rt.isOut?'Outstation':'Route '+(rt.idx+1)).slice(0,31);
@@ -1814,9 +1839,9 @@ function buildRouteBookHtml(){
     const st=routeStart(rt);const stName=(rt.depotId&&depotById(rt.depotId)?depotById(rt.depotId).name:'Main depot');
     body+=`<section class="rt" data-route="${rt.idx}"><h2><span class="dot" style="background:${rt.color}"></span>${rt.isOut?'Outstation route':'Route '+(rt.idx+1)}</h2><div class="startpt">▶ Start: ${escapeHtml(stName)} (${st.lat.toFixed(4)}, ${st.lng.toFixed(4)})</div>`;
     days.forEach(d=>{
-      const L=gmapsLinks(routeStart(rt),d.stops,routeEnd(rt));let prev=routeStart(rt);
+      const L=gmapsDayLinks(d.stops,routeStart(rt),routeEnd(rt));let prev=routeStart(rt);
       body+=`<div class="day" data-day="${d.day}"><div class="dh"><div><b>${escapeHtml(dayName(d.day))}</b><div class="m">${d.stops.length} stops · ${d.km.toFixed(1)} km · ~${d.hrs.toFixed(1)} h</div></div><img class="qr" src="${qr(L[0])}" alt="QR"/></div>`;
-      body+=`<div class="links">`+L.map((u,i)=>`<a href="${u}" target="_blank" rel="noopener">Open day route${L.length>1?' · Part '+(i+1):''}</a>`).join('')+`</div><ol>`;
+      body+=`<div class="links">`+L.map((u,i)=>`<a href="${u}" target="_blank" rel="noopener">Open day route from ${dayStartLabel()}${L.length>1?' · Part '+(i+1):''}</a>`).join('')+`</div><ol>`;
       d.stops.forEach(s=>{const leg=haversine(prev,s);prev=s;body+=`<li><div class="cn">${escapeHtml(s.name)}</div><div class="cm">${escapeHtml(s.code)} · ${escapeHtml(s.city||'')}${s.channel&&s.channel!=='—'?' · '+escapeHtml(s.channel):''} · ${leg.toFixed(1)} km</div><a class="nav" href="${gmapsCustomer(s)}" target="_blank" rel="noopener">▶ Navigate</a></li>`;});
       body+=`</ol></div>`;
     });
@@ -1865,7 +1890,7 @@ function tg(){var h=document.documentElement;h.dir=h.dir==='rtl'?'ltr':'rtl';}
 function closeExport(){$('expModal').classList.remove('show');}
 
 /* ===================== STORAGE ===================== */
-function settingsObj(){return{depLat:$('depLat').value,depLng:$('depLng').value,reps:$('reps').value,days:$('days').value,cap:$('cap').value,maxKm:$('maxKm').value,speed:$('speed').value,service:$('service').value,wStops:$('wStops').value,wVisits:$('wVisits').value,wSales:$('wSales').value,engine:$('engine').value,outThr:$('outThr').value,outMode:$('outMode').value,lang:S.lang,theme:S.theme,
+function settingsObj(){return{depLat:$('depLat').value,depLng:$('depLng').value,reps:$('reps').value,days:$('days').value,cap:$('cap').value,maxKm:$('maxKm').value,speed:$('speed').value,service:$('service').value,wStops:$('wStops').value,wVisits:$('wVisits').value,wSales:$('wSales').value,engine:$('engine').value,outThr:$('outThr').value,outMode:$('outMode').value,lang:S.lang,theme:S.theme,dayStart:S.dayStart,
   depots:S.depots,display:{routes:[...S.ui.routes],dayOnly:S.ui.dayOnly,colorByDay:S.ui.colorByDay,showLines:S.ui.showLines,showTerr:S.ui.showTerr,selRoute:S.ui.selRoute,selDay:S.ui.selDay}};}
 function persist(){try{localStorage.setItem(LS_KEY,JSON.stringify({settings:settingsObj(),rows:S.rows,skipped:S.skipped,depot:S.depot}));}catch(e){}}
 function saveSettingsOnly(){try{const p=JSON.parse(localStorage.getItem(LS_KEY)||'{}');p.settings=settingsObj();localStorage.setItem(LS_KEY,JSON.stringify(p));}catch(e){}}
@@ -1876,6 +1901,7 @@ function restore(){
   if(s.lang)S.lang=s.lang;if(s.theme)S.theme=s.theme;applyTheme();syncDepot();
   if(Array.isArray(s.depots)&&s.depots.length){S.depots=s.depots;S._depotSeq=s.depots.reduce((m,d)=>Math.max(m,+(String(d.id).replace('d',''))||0),0);}
   if(s.display){const D=s.display;S.ui.routes=new Set(D.routes||[]);S.ui.dayOnly=!!D.dayOnly;S.ui.colorByDay=!!D.colorByDay;if(D.showLines!=null)S.ui.showLines=D.showLines;if(D.showTerr!=null)S.ui.showTerr=D.showTerr;}
+  if(s.dayStart)S.dayStart=s.dayStart;
   renderDepotList();
   if(p.rows&&p.rows.length){S.rows=p.rows.map(r=>({route:null,day:null,lockRep:false,lockDay:false,excluded:false,...r}));S.skipped=p.skipped||[];S.depot=p.depot||S.depot;S.perf=S.rows.length>PERF_THRESHOLD;S.forceFull=false;S.ui.showLines=!S.perf;S.ui.showTerr=!S.perf;S.ui.routes=new Set();gpsQuality(S.rows);$('drop').classList.add('has');$('dropTitle').textContent='Restored data';$('dropSub').textContent=S.rows.length.toLocaleString()+' customers';enableRun();buildScopeValues();plotRaw();renderKpiStrip();renderSteps();refreshTags();toast('Previous data restored — press Optimize to rebuild');}
 }
