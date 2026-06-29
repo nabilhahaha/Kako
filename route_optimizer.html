@@ -526,6 +526,11 @@
                 <option value="include" data-i18n="outInc">Include in normal route</option>
                 <option value="exclude" data-i18n="outExc">Exclude from plan</option>
               </select>
+              <label class="fld" for="scopeField" style="margin-top:14px">Optimize scope (large data)</label>
+              <div class="grid2">
+                <select id="scopeField"><option value="">All data</option><option value="city">By city</option><option value="channel">By channel</option><option value="salesman">By salesman/route</option></select>
+                <select id="scopeValue" disabled><option value="">—</option></select>
+              </div>
               <button type="button" class="btn btn-primary btn-block" id="run" disabled style="margin-top:16px" data-i18n="optimize">Optimize routes</button>
               <div class="grid2" style="margin-top:10px">
                 <button type="button" class="btn btn-ghost" id="exportXlsx" disabled data-i18n="exXlsx">Export Excel</button>
@@ -557,6 +562,13 @@
     <div class="modal-b">
       <p class="note" data-i18n="mapNote">Match each field to a column from your file. Only latitude &amp; longitude are required; the rest enrich the plan.</p>
       <div class="map-grid" id="mapGrid"></div>
+      <div style="margin-top:14px"><label class="fld">Duplicate customer code policy</label>
+        <select id="dupPolicy" style="max-width:320px">
+          <option value="keepFirst">Keep first occurrence</option>
+          <option value="keepLast">Keep last occurrence</option>
+          <option value="mergeLatest">Keep latest invoice date</option>
+          <option value="skip">Skip all duplicates</option>
+        </select></div>
       <div class="preview" id="mapPreview"></div>
     </div>
     <div class="modal-f">
@@ -593,6 +605,17 @@
     </div>
   </div>
 </div>
+<!-- PROGRESS MODAL (cancelable, for large files) -->
+<div class="modal" id="progModal" role="dialog" aria-modal="true">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-h"><h3 id="progTitle">Working…</h3></div>
+    <div class="modal-b">
+      <p class="note" id="progStage" style="margin:0 0 10px;min-height:18px"></p>
+      <div style="height:8px;background:var(--field);border-radius:6px;overflow:hidden"><div id="progBar" style="height:100%;width:0;background:var(--primary);transition:width .15s"></div></div>
+    </div>
+    <div class="modal-f"><button type="button" class="btn btn-ghost btn-sm" id="progCancel">Cancel</button></div>
+  </div>
+</div>
 <div class="undobar" id="undobar" hidden><span id="undoMsg"></span><button type="button" id="undoBtn">Undo</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -613,8 +636,10 @@ const S = {
   pickMode:false, hidden:new Set(), markerIndex:new Map(),
   lang:'en', theme:'light', view:'dashboard',
   ui:{selRoute:0, selDay:0, filter:'all', colorByDay:false}, _fileName:'', lastMove:null,
-  scenarios:[], committedPlan:null, previewing:false, prevCommitted:null
+  scenarios:[], committedPlan:null, previewing:false, prevCommitted:null,
+  perf:false, forceFull:false, cancel:false, dupPolicy:'keepFirst', scope:{field:'',value:''}
 };
+const PERF_THRESHOLD=3000, HARD_THRESHOLD=10000, MAX_MARKERS=1500, PAGE_SIZE=100;
 /* soft, map-readable territory palette */
 const PALETTE = ['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#06B6D4','#EC4899','#84CC16','#F97316','#14B8A6','#6366F1','#A855F7'];
 const DAY_NAMES = ['Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'];
@@ -705,6 +730,12 @@ function applyLang(){
 /* ===================== UTIL ===================== */
 function toast(m,e){const el=$('toast');if(!el)return;el.textContent=m;el.classList.toggle('err',!!e);el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2800);}
 function setProgress(p){const el=$('progress');el.style.width=(p<=0?0:Math.min(100,p))+'%';if(p>=100)setTimeout(()=>el.style.width='0',400);}
+const yieldUI=()=>new Promise(r=>setTimeout(r,0));
+/* cancelable progress modal for heavy work */
+function progOpen(title){S.cancel=false;$('progTitle').textContent=title||'Working…';$('progStage').textContent='';$('progBar').style.width='0%';$('progModal').classList.add('show');}
+function progStage(stage,pct){$('progStage').textContent=stage;if(pct!=null)$('progBar').style.width=Math.min(100,Math.max(0,pct))+'%';}
+function progClose(){$('progModal').classList.remove('show');}
+function checkCancel(){if(S.cancel){throw new Error('__cancelled__');}}
 function escapeHtml(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function num(v){const n=parseFloat(v);return isFinite(n)?n:0;}
 function intParam(id,f){const v=parseInt($(id).value,10);return isFinite(v)?v:f;}
@@ -763,28 +794,67 @@ function renderPreview(){
   $('mapPreview').innerHTML=h+'</tbody></table>';
 }
 function closeMapping(){$('mapModal').classList.remove('show');}
-function confirmImport(){
+async function confirmImport(){
   const m=S.mapping;if(!m.lat||!m.lng){toast('Latitude & longitude are required',true);return;}
-  const rows=[],skipped=[],codeSeen=new Map(),coordSeen=new Map();
-  S.raw.forEach((o,i)=>{
-    const name=m.name?String(o[m.name]).trim():'',code=m.code?String(o[m.code]).trim():'';
-    const lat=parseFloat(o[m.lat]),lng=parseFloat(o[m.lng]);
-    if(!isFinite(lat)||!isFinite(lng)){skipped.push({row:i+2,code,name,reason:'Missing GPS'});return;}
-    if(lat===0||lng===0||Math.abs(lat)>90||Math.abs(lng)>180){skipped.push({row:i+2,code,name,reason:'Invalid GPS'});return;}
-    if(m.name&&!name){skipped.push({row:i+2,code,name,reason:'Missing customer name'});return;}
-    if(code){if(codeSeen.has(code)){skipped.push({row:i+2,code,name,reason:'Duplicate customer code'});return;}codeSeen.set(code,1);}
-    let active=true;if(m.active){const s=String(o[m.active]).trim().toLowerCase();active=!/(inactive|^0$|^no$|غير|متوقف|false)/.test(s);}
-    rows.push({id:rows.length,code:code||('C'+(i+1)),name:name||('Outlet '+(i+1)),city:m.city?String(o[m.city]).trim():'',channel:m.channel?String(o[m.channel]).trim()||'—':'—',salesman:m.salesman?String(o[m.salesman]).trim():'',lat,lng,freq:m.freq?Math.max(1,Math.round(num(o[m.freq])||1)):1,sales:m.sales?Math.max(0,num(o[m.sales])):0,lastInv:m.lastInv?fmtDate(o[m.lastInv]):'',active,route:null,day:null,lockRep:false,lockDay:false,excluded:false});
-  });
-  if(!rows.length){toast('No valid customers after cleaning',true);return;}
-  rows.forEach(r=>{const k=r.lat.toFixed(5)+','+r.lng.toFixed(5);coordSeen.set(k,(coordSeen.get(k)||0)+1);});
-  rows.forEach(r=>r.dupCoord=coordSeen.get(r.lat.toFixed(5)+','+r.lng.toFixed(5))>1);
-  S.rows=rows;S.skipped=skipped;S.plan=null;gpsQuality(rows);resetPlanUI();
-  $('drop').classList.add('has');$('dropTitle').textContent=(S._fileName||'File').length>26?S._fileName.slice(0,24)+'…':S._fileName;
-  $('dropSub').textContent=`${rows.length} valid · ${skipped.length} skipped`;
-  autoDepot();enableRun();plotRaw();closeMapping();
-  switchView('data');refreshTags();renderKpiStrip();renderSteps();
-  toast(`Imported ${rows.length} customers · ${skipped.length} skipped`);
+  const policy=$('dupPolicy').value||'keepFirst'; S.dupPolicy=policy;
+  closeMapping(); progOpen('Importing customers'); progStage('Reading rows…',2);
+  const total=S.raw.length;
+  try{
+    // pass 1: parse + validate (chunked, yields to keep UI alive)
+    const valid=[],skipped=[];
+    for(let i=0;i<total;i++){
+      if(i%2000===0){checkCancel();progStage(`Validating rows… ${i.toLocaleString()}/${total.toLocaleString()}`,2+i/total*55);await yieldUI();}
+      const o=S.raw[i];
+      const name=m.name?String(o[m.name]).trim():'',code=m.code?String(o[m.code]).trim():'';
+      const lat=parseFloat(o[m.lat]),lng=parseFloat(o[m.lng]);
+      if(!isFinite(lat)||!isFinite(lng)){skipped.push({row:i+2,code,name,reason:'Missing GPS'});continue;}
+      if(lat===0||lng===0||Math.abs(lat)>90||Math.abs(lng)>180){skipped.push({row:i+2,code,name,reason:'Invalid GPS'});continue;}
+      if(m.name&&!name){skipped.push({row:i+2,code,name,reason:'Missing customer name'});continue;}
+      let active=true;if(m.active){const s=String(o[m.active]).trim().toLowerCase();active=!/(inactive|^0$|^no$|غير|متوقف|false)/.test(s);}
+      valid.push({row:i+2,code,name,city:m.city?String(o[m.city]).trim():'',channel:m.channel?String(o[m.channel]).trim()||'—':'—',salesman:m.salesman?String(o[m.salesman]).trim():'',lat,lng,freq:m.freq?Math.max(1,Math.round(num(o[m.freq])||1)):1,sales:m.sales?Math.max(0,num(o[m.sales])):0,lastInv:m.lastInv?fmtDate(o[m.lastInv]):'',active});
+    }
+    // pass 2: duplicate-code policy
+    progStage('Deduplicating customer codes…',62);await yieldUI();checkCancel();
+    let dupCount=0; const byCode=new Map(); const noCode=[];
+    valid.forEach(v=>{if(!v.code){noCode.push(v);return;}(byCode.get(v.code)||byCode.set(v.code,[]).get(v.code)).push(v);});
+    const kept=[...noCode];
+    byCode.forEach((arr,code)=>{
+      if(arr.length===1){kept.push(arr[0]);return;}
+      dupCount+=arr.length-1;
+      if(policy==='skip'){arr.forEach(v=>skipped.push({row:v.row,code,name:v.name,reason:'Duplicate customer code (skipped)'}));return;}
+      let chosen;
+      if(policy==='keepLast')chosen=arr[arr.length-1];
+      else if(policy==='mergeLatest')chosen=arr.slice().sort((a,b)=>String(b.lastInv).localeCompare(String(a.lastInv)))[0];
+      else chosen=arr[0]; // keepFirst
+      arr.forEach(v=>{if(v!==chosen)skipped.push({row:v.row,code,name:v.name,reason:'Duplicate customer code ('+policy+')'});});
+      kept.push(chosen);
+    });
+    if(!kept.length){progClose();toast('No valid customers after cleaning',true);return;}
+    // pass 3: build records + dup-coord flag (chunked)
+    progStage('Building records…',72);await yieldUI();
+    const coordSeen=new Map();
+    kept.forEach(v=>{const k=v.lat.toFixed(5)+','+v.lng.toFixed(5);coordSeen.set(k,(coordSeen.get(k)||0)+1);});
+    const rows=[];
+    for(let i=0;i<kept.length;i++){
+      if(i%4000===0){checkCancel();await yieldUI();}
+      const v=kept[i];
+      rows.push({id:i,code:v.code||('C'+(v.row)),name:v.name||('Outlet '+v.row),city:v.city,channel:v.channel,salesman:v.salesman,lat:v.lat,lng:v.lng,freq:v.freq,sales:v.sales,lastInv:v.lastInv,active:v.active,dupCoord:coordSeen.get(v.lat.toFixed(5)+','+v.lng.toFixed(5))>1,route:null,day:null,lockRep:false,lockDay:false,excluded:false});
+    }
+    progStage('Scoring GPS quality…',85);await yieldUI();checkCancel();
+    gpsQuality(rows);
+    S.rows=rows;S.skipped=skipped;S.plan=null;S.scenarios=[];S.committedPlan=null;
+    S.perf=rows.length>PERF_THRESHOLD; S.forceFull=false;
+    resetPlanUI();
+    progStage('Rendering…',94);await yieldUI();
+    $('drop').classList.add('has');$('dropTitle').textContent=(S._fileName||'File').length>26?S._fileName.slice(0,24)+'…':S._fileName;
+    $('dropSub').textContent=`${rows.length.toLocaleString()} valid · ${skipped.length.toLocaleString()} skipped${dupCount?' · '+dupCount+' dup codes':''}`;
+    autoDepot();enableRun();buildScopeValues();plotRaw();
+    switchView('data');refreshTags();renderKpiStrip();renderSteps();
+    progStage('Done',100);progClose();
+    if(S.perf)toast(`Large file detected (${rows.length.toLocaleString()}). Performance mode enabled.`);
+    else toast(`Imported ${rows.length.toLocaleString()} customers · ${skipped.length} skipped`);
+    if(rows.length>HARD_THRESHOLD)setTimeout(()=>toast(`${rows.length.toLocaleString()} customers — consider optimizing by city/region (Setup → Optimize scope) for best speed`,false),1200);
+  }catch(err){progClose();if(err&&err.message==='__cancelled__'){toast('Import cancelled');}else{console.error(err);toast('Import failed — see console',true);}}
 }
 
 /* ===================== VALIDATION / GPS QUALITY ===================== */
@@ -819,7 +889,24 @@ function clusterReps(core,depot,k,w){
 }
 function nearestNeighbour(stops,depot){const rem=stops.slice(),p=[];let cur=depot;while(rem.length){let bi=0,bd=Infinity;rem.forEach((s,i)=>{const d=haversine(cur,s);if(d<bd){bd=d;bi=i;}});cur=rem[bi];p.push(cur);rem.splice(bi,1);}return p;}
 function routeLen(p,depot){if(!p.length)return 0;let d=haversine(depot,p[0]);for(let i=0;i<p.length-1;i++)d+=haversine(p[i],p[i+1]);return d+haversine(p[p.length-1],depot);}
-function twoOpt(p,depot){if(p.length<4)return p;let b=p.slice(),bl=routeLen(b,depot),imp=true,g=0;while(imp&&g++<80){imp=false;for(let i=0;i<b.length-1;i++)for(let j=i+1;j<b.length;j++){const np=b.slice(0,i).concat(b.slice(i,j+1).reverse(),b.slice(j+1));const nl=routeLen(np,depot);if(nl+1e-6<bl){b=np;bl=nl;imp=true;}}}return b;}
+// 2-opt with O(1) delta evaluation (no full routeLen per candidate) + size cap for very large days
+function twoOpt(p,depot){
+  const n=p.length;if(n<4)return p;
+  if(n>150)return p; // huge day (likely over capacity): nearest-neighbour order is enough; keeps UI responsive
+  const pts=[depot,...p,depot];const D=haversine;
+  let improved=true,guard=0;
+  while(improved&&guard++<30){
+    improved=false;
+    for(let i=1;i<=n-1;i++){
+      const a=pts[i-1],b=pts[i];
+      for(let j=i+1;j<=n;j++){
+        const c=pts[j],d=pts[j+1];
+        if((D(a,c)+D(b,d))-(D(a,b)+D(c,d))<-1e-9){let lo=i,hi=j;while(lo<hi){const tmp=pts[lo];pts[lo]=pts[hi];pts[hi]=tmp;lo++;hi--;}improved=true;break;}
+      }
+    }
+  }
+  return pts.slice(1,n+1);
+}
 function segInt(a,b,c,d){const cc=(p,q,r)=>(r.lat-p.lat)*(q.lng-p.lng)-(q.lat-p.lat)*(r.lng-p.lng);return cc(a,c,d)*cc(b,c,d)<0&&cc(a,b,c)*cc(a,b,d)<0;}
 function countCrossings(p,depot){const pts=[depot,...p,depot];let x=0;for(let i=0;i<pts.length-1;i++)for(let j=i+2;j<pts.length-1;j++){if(i===0&&j===pts.length-2)continue;if(segInt(pts[i],pts[i+1],pts[j],pts[j+1]))x++;}return x;}
 /* Day splitting = GEOGRAPHIC, capacity-balanced day clusters within a route (each day a compact
@@ -837,8 +924,9 @@ function assignDays(custs,workDays,depot,cap){
   let assign=new Array(free.length).fill(0);
   for(let it=0;it<12;it++){
     const sizes=lockedBy.map(a=>a.length);
-    const order=free.map((_,i)=>i).sort((a,b)=>Math.min(...cents.map(c=>haversine(c,free[a])))-Math.min(...cents.map(c=>haversine(c,free[b]))));
-    order.forEach(i=>{const cand=cents.map((c,ci)=>({ci,d:haversine(c,free[i])})).sort((a,b)=>a.d-b.d);let chosen=cand[0].ci;for(const o of cand){if(sizes[o.ci]<target){chosen=o.ci;break;}}assign[i]=chosen;sizes[chosen]++;});
+    const dist=free.map(r=>cents.map(c=>haversine(c,r))); // distances computed once per iteration (was inside the sort comparator)
+    const order=free.map((_,i)=>i).sort((a,b)=>Math.min(...dist[a])-Math.min(...dist[b]));
+    order.forEach(i=>{const cand=dist[i].map((d,ci)=>({ci,d})).sort((a,b)=>a.d-b.d);let chosen=cand[0].ci;for(const o of cand){if(sizes[o.ci]<target){chosen=o.ci;break;}}assign[i]=chosen;sizes[chosen]++;});
     const groups=Array.from({length:wd},(_,ci)=>lockedBy[ci].concat(free.filter((_,i)=>assign[i]===ci)));
     cents=groups.map((g,ci)=>g.length?centroid(g):cents[ci]);
   }
@@ -866,7 +954,7 @@ function readParams(){
 /* Build a plan for a strategy WITHOUT committing it to S.plan (haversine; OSRM is applied on Apply). */
 function buildPlan(strategy,p){
   flagOutstations(S.rows,S.depot,p.thr);
-  let active=S.rows.filter(r=>!r.excluded);
+  let active=S.rows.filter(r=>!r.excluded&&inScope(r));
   let outRows=active.filter(r=>r.out),coreRows=active.filter(r=>!r.out);
   if(p.outMode==='exclude')outRows.forEach(r=>r.route=null);
   else if(p.outMode==='include'){coreRows=active;outRows=[];}
@@ -894,19 +982,33 @@ const SCN_DEFS=[
   ['salesman','C · Keep Current Salesman','Keeps existing salesman; moves only major outliers'],
   ['compact','D · Compact Territories','Clean compact areas, less crossing']
 ];
+function inScope(r){return !S.scope||!S.scope.field||!S.scope.value||r[S.scope.field]===S.scope.value;}
 async function optimize(){
   syncDepot();
   if(!S.rows.length){toast('Import customer data first',true);switchView('setup');return;}
   if(!S.depot){toast('Set a valid depot first',true);switchView('setup');return;}
   const p=readParams();
-  $('run').disabled=true;$('optimizeTop').disabled=true;$('run').textContent='…';setProgress(8);
-  await new Promise(r=>setTimeout(r,20));
+  S.scope={field:$('scopeField').value,value:$('scopeValue').value};
+  const planned=S.rows.filter(r=>!r.excluded&&inScope(r)).length;
+  if(!planned){toast('No customers in the selected scope',true);return;}
+  if(planned>HARD_THRESHOLD&&!S.scope.value){
+    if(!confirm(`Optimizing ${planned.toLocaleString()} customers at once can be slow. Continue?\n\nTip: Setup → "Optimize scope" lets you plan one city / channel / salesman at a time.`))return;
+  }
+  S.rows.forEach(r=>{if(r.excluded||!inScope(r))r.route=null;}); // out-of-scope are not planned
+  $('run').disabled=true;$('optimizeTop').disabled=true;$('run').textContent='…';
+  progOpen('Building optimization scenarios');progStage(`Preparing… (${planned.toLocaleString()} customers)`,5);await yieldUI();
   try{
     S.scenarios=[];
-    for(let i=0;i<SCN_DEFS.length;i++){const plan=buildPlan(SCN_DEFS[i][0],p);plan.key=SCN_DEFS[i][0];plan.name=SCN_DEFS[i][1];S.scenarios.push(plan);setProgress(15+(i+1)/SCN_DEFS.length*75);}
-    openScenarios();setProgress(100);
+    for(let i=0;i<SCN_DEFS.length;i++){
+      checkCancel();
+      progStage(`Optimizing scenario ${i+1}/4 — ${(SCN_DEFS[i][1].split('· ')[1]||SCN_DEFS[i][1])}`,10+i/SCN_DEFS.length*80);await yieldUI();
+      const plan=buildPlan(SCN_DEFS[i][0],p);plan.key=SCN_DEFS[i][0];plan.name=SCN_DEFS[i][1];S.scenarios.push(plan);
+      await yieldUI();
+    }
+    progStage('Scoring & ready',100);progClose();
+    openScenarios();
     toast('4 scenarios ready — compare, preview & apply');
-  }catch(err){console.error(err);toast('Optimization error — see console',true);setProgress(0);}
+  }catch(err){progClose();if(err&&err.message==='__cancelled__')toast('Optimization cancelled');else{console.error(err);toast('Optimization error — see console',true);}}
   finally{$('run').disabled=false;$('optimizeTop').disabled=false;$('run').textContent=S.lang==='ar'?'تحسين المسارات':'Optimize routes';}
 }
 /* ---- clustering strategies (all honour lockRep) ---- */
@@ -934,8 +1036,9 @@ function kmeansClusters(core,depot,k,balanced){
   const cap=balanced?Math.ceil(core.length/k):Infinity;
   for(let it=0;it<15;it++){
     const sizes=lockedBy.map(a=>a.length);
-    const order=balanced?free.map((_,i)=>i).sort((a,b)=>Math.min(...cents.map(c=>haversine(c,free[a])))-Math.min(...cents.map(c=>haversine(c,free[b])))):free.map((_,i)=>i);
-    order.forEach(i=>{const cand=cents.map((c,ci)=>({ci,d:haversine(c,free[i])})).sort((a,b)=>a.d-b.d);let chosen=cand[0].ci;if(balanced){for(const o of cand){if(sizes[o.ci]<cap){chosen=o.ci;break;}}}assign[i]=chosen;sizes[chosen]++;});
+    const dist=free.map(r=>cents.map(c=>haversine(c,r))); // once per iteration instead of inside comparators
+    const order=balanced?free.map((_,i)=>i).sort((a,b)=>Math.min(...dist[a])-Math.min(...dist[b])):free.map((_,i)=>i);
+    order.forEach(i=>{const cand=dist[i].map((d,ci)=>({ci,d})).sort((a,b)=>a.d-b.d);let chosen=cand[0].ci;if(balanced){for(const o of cand){if(sizes[o.ci]<cap){chosen=o.ci;break;}}}assign[i]=chosen;sizes[chosen]++;});
     const groups=Array.from({length:k},(_,ci)=>lockedBy[ci].concat(free.filter((_,i)=>assign[i]===ci)));
     const nc=groups.map((g,ci)=>g.length?centroid(g):cents[ci]);
     const moved=nc.reduce((a,c,ci)=>a+haversine(c,cents[ci]),0);cents=nc;
@@ -1080,7 +1183,7 @@ function dayFlagsHtml(day,plan){return dayFlags(day,plan).map(f=>`<span class="b
 /* ===================== MAP ===================== */
 function initMap(){
   if(typeof L==='undefined'){toast('Map library not loaded',true);return;}
-  S.map=L.map('map',{zoomControl:true}).setView([21.5,39.2],11);
+  S.map=L.map('map',{zoomControl:true,preferCanvas:true}).setView([21.5,39.2],11);
   L.control.scale({imperial:false}).addTo(S.map);
   addTiles();
   S.layers.hulls=L.layerGroup().addTo(S.map);
@@ -1120,7 +1223,27 @@ function fitAll(){if(!S.map)return;S.map.invalidateSize();const pts=S.rows.filte
 function drawDepot(){if(!S.map)return;S.layers.depot.clearLayers();if(!S.depot)return;L.marker([S.depot.lat,S.depot.lng],{icon:L.divIcon({className:'',html:`<div style="background:#0F172A;color:#fff;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:15px;box-shadow:0 3px 10px rgba(0,0,0,.4);border:2px solid #fff">⌂</div>`,iconSize:[32,32],iconAnchor:[16,16]})}).addTo(S.layers.depot).bindPopup('Depot / Warehouse');}
 function gpsColor(s){return s==='bad'?'#DC2626':s==='warn'?'#D97706':'#64748B';}
 function rawIcon(c){return L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:`<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>`});}
-function plotRaw(){if(!S.map)return;$('mapEmpty').hidden=true;S.layers.hulls.clearLayers();S.layers.markers.clearLayers();S.layers.routes.clearLayers();S.markerIndex.clear();S.rows.filter(r=>!r.excluded).forEach(r=>{const mk=L.marker([r.lat,r.lng],{icon:rawIcon(gpsColor(r.gpsScore))}).addTo(S.layers.markers).bindPopup(custPopup(r));S.markerIndex.set(r.id,mk);});drawDepot();fitAll();}
+// cheap canvas circle marker — handles tens of thousands of points without freezing
+function dotMarker(r,color){return L.circleMarker([r.lat,r.lng],{radius:5,color:'#fff',weight:1,fillColor:color,fillOpacity:.95,renderer:S._canvas||(S._canvas=L.canvas({padding:.5}))});}
+function plotRaw(){
+  if(!S.map)return;$('mapEmpty').hidden=true;
+  S.layers.hulls.clearLayers();S.layers.markers.clearLayers();S.layers.routes.clearLayers();S.markerIndex.clear();
+  const list=S.rows.filter(r=>!r.excluded);
+  // cap markers in performance mode to keep the browser responsive
+  const cap=S.perf&&!S.forceFull?MAX_MARKERS:list.length;
+  const draw=list.slice(0,cap);
+  draw.forEach(r=>{const mk=dotMarker(r,gpsColor(r.gpsScore)).addTo(S.layers.markers).bindPopup(custPopup(r));S.markerIndex.set(r.id,mk);});
+  setMapBanner(list.length>cap?`Performance mode — showing ${cap.toLocaleString()} of ${list.length.toLocaleString()} points. Optimize, then pick a route/day for full detail.`:'');
+  drawDepot();fitAll();
+}
+function setMapBanner(msg,showAll){const w=$('mapWarn');if(!w)return;if(msg){w.hidden=false;w.innerHTML=escapeHtml(msg)+(showAll?' <button type="button" id="showAllBtn" class="linkbtn" style="padding:3px 9px;margin-inline-start:6px">Show all routes &amp; lines</button>':'');const b=$('showAllBtn');if(b)b.onclick=()=>{S.forceFull=true;renderPlan();};}else{w.hidden=true;w.innerHTML='';}}
+function buildScopeValues(){
+  const f=$('scopeField').value,sv=$('scopeValue');
+  if(!f){sv.disabled=true;sv.innerHTML='<option value="">—</option>';S.scope={field:'',value:''};return;}
+  const vals=[...new Set(S.rows.map(r=>r[f]).filter(x=>x&&x!=='—'))].sort();
+  sv.disabled=false;sv.innerHTML='<option value="">All ('+vals.length+')</option>'+vals.map(v=>`<option>${escapeHtml(v)}</option>`).join('');
+  S.scope={field:f,value:''};
+}
 function custPopup(s,rt,seq,dayIdx){
   let h=`<b>${escapeHtml(s.name)}</b><br><span class="mono">${escapeHtml(s.code)}</span>`+
     (s.city?` · ${escapeHtml(s.city)}`:'')+(s.channel&&s.channel!=='—'?` · ${escapeHtml(s.channel)}`:'')+
@@ -1268,19 +1391,28 @@ function renderPlan(){
   const selWk=(selRt&&selRt.days[ui.selDay])?selRt.days[ui.selDay].day:null;
   const routeOnly=(ui.filter==='route'||ui.filter==='routeday');
   const dayOnly=(ui.filter==='day'||ui.filter==='routeday');
+  // how many stops would show given the current filter?
+  let shown=0;S.plan.routes.forEach(rt=>{if(S.hidden.has(rt.idx))return;if(routeOnly&&rt.idx!==ui.selRoute)return;rt.days.forEach(day=>{if(dayOnly&&selWk!=null&&day.day!==selWk)return;shown+=day.stops.length;});});
+  // full detail (numbered pins + route lines + hulls) only for small sets; otherwise cheap canvas dots
+  const detail=!S.perf||S.forceFull||routeOnly||dayOnly||shown<=MAX_MARKERS;
   S.plan.routes.forEach(rt=>{
     if(S.hidden.has(rt.idx))return;
     if(routeOnly&&rt.idx!==ui.selRoute)return;
-    // territory hull only when showing whole route(s) by route color
-    if(!byDay&&!dayOnly&&typeof turf!=='undefined'&&rt.stops.length>=3){try{const fc=turf.featureCollection(rt.stops.map(s=>turf.point([s.lng,s.lat])));const hull=turf.convex(fc);if(hull)L.geoJSON(hull,{style:{color:rt.color,weight:1,opacity:.5,fillColor:rt.color,fillOpacity:.10}}).addTo(S.layers.hulls);}catch(e){}}
+    if(detail&&!byDay&&!dayOnly&&typeof turf!=='undefined'&&rt.stops.length>=3){try{const fc=turf.featureCollection(rt.stops.map(s=>turf.point([s.lng,s.lat])));const hull=turf.convex(fc);if(hull)L.geoJSON(hull,{style:{color:rt.color,weight:1,opacity:.5,fillColor:rt.color,fillOpacity:.10}}).addTo(S.layers.hulls);}catch(e){}}
     rt.days.forEach((day,di)=>{
       if(dayOnly&&selWk!=null&&day.day!==selWk)return;
       const col=byDay?dayColor(day.day):rt.color;
-      if(day.geo)L.geoJSON(day.geo,{style:{color:col,weight:3,opacity:.85}}).addTo(S.layers.routes);
-      else{const line=[[S.depot.lat,S.depot.lng],...day.stops.map(s=>[s.lat,s.lng]),[S.depot.lat,S.depot.lng]];L.polyline(line,{color:col,weight:2.5,opacity:.75}).addTo(S.layers.routes);}
-      day.stops.forEach((s,i)=>{const mk=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],html:`<div style="width:22px;height:22px;border-radius:50%;background:${col};color:#fff;border:2px solid #fff;display:grid;place-items:center;font-size:10px;font-weight:700;font-family:monospace;box-shadow:0 1px 3px rgba(0,0,0,.4);${s.out?'outline:2px solid #D97706;outline-offset:1px;':''}">${i+1}</div>`})}).addTo(S.layers.markers).bindPopup(custPopup(s,rt.idx,i+1,day.day));S.markerIndex.set(s.id,mk);});
+      if(detail){
+        if(day.geo)L.geoJSON(day.geo,{style:{color:col,weight:3,opacity:.85}}).addTo(S.layers.routes);
+        else{const line=[[S.depot.lat,S.depot.lng],...day.stops.map(s=>[s.lat,s.lng]),[S.depot.lat,S.depot.lng]];L.polyline(line,{color:col,weight:2.5,opacity:.75}).addTo(S.layers.routes);}
+        day.stops.forEach((s,i)=>{const mk=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],html:`<div style="width:22px;height:22px;border-radius:50%;background:${col};color:#fff;border:2px solid #fff;display:grid;place-items:center;font-size:10px;font-weight:700;font-family:monospace;box-shadow:0 1px 3px rgba(0,0,0,.4);${s.out?'outline:2px solid #D97706;outline-offset:1px;':''}">${i+1}</div>`})}).addTo(S.layers.markers).bindPopup(custPopup(s,rt.idx,i+1,day.day));S.markerIndex.set(s.id,mk);});
+      }else{
+        // performance: cheap canvas dots, no lines/numbers/hulls
+        day.stops.forEach(s=>{const mk=dotMarker(s,col).addTo(S.layers.markers).bindPopup(custPopup(s,rt.idx,null,day.day));S.markerIndex.set(s.id,mk);});
+      }
     });
   });
+  setMapBanner(detail?'':`Performance mode — ${shown.toLocaleString()} stops shown as dots (no route lines). Pick a route/day for full detail.`, !detail);
   drawDepot();fitAll();renderLegend();
 }
 function renderLegend(){
@@ -1471,18 +1603,31 @@ function renderDataIssues(){
   let h=`<div class="toolbar"><select id="fCity" style="width:auto"><option value="">All cities</option>${cities.map(c=>`<option>${escapeHtml(c)}</option>`).join('')}</select><select id="fChan" style="width:auto"><option value="">All channels</option>${chans.map(c=>`<option>${escapeHtml(c)}</option>`).join('')}</select><select id="fGps" style="width:auto"><option value="">All GPS</option><option value="good">Good</option><option value="warn">Warning</option><option value="bad">Bad</option></select><span class="pill" id="cleanReport"></span></div>`;
   if(S.skipped.length){
     const byR={};S.skipped.forEach(s=>byR[s.reason]=(byR[s.reason]||0)+1);
-    h+=`<div class="card" style="margin-bottom:16px"><div class="card-h"><h3>Import errors — ${S.skipped.length} skipped rows</h3></div><div style="overflow:auto"><table><thead><tr><th>Row</th><th>Code</th><th>Name</th><th>Reason</th></tr></thead><tbody>${S.skipped.slice(0,200).map(s=>`<tr><td class="mono">${s.row}</td><td class="mono">${escapeHtml(s.code)}</td><td>${escapeHtml(s.name)}</td><td><span class="badge bad">${escapeHtml(s.reason)}</span></td></tr>`).join('')}</tbody></table></div><div class="card-b note">${Object.entries(byR).map(([k,v])=>`${escapeHtml(k)}: ${v}`).join(' · ')}</div></div>`;
+    h+=`<div class="card" style="margin-bottom:16px"><div class="card-h"><h3>Import errors — ${S.skipped.length.toLocaleString()} skipped rows</h3><button type="button" class="btn btn-ghost btn-sm" id="expSkip">Export skipped rows</button></div><div style="overflow:auto"><table><thead><tr><th>Row</th><th>Code</th><th>Name</th><th>Reason</th></tr></thead><tbody id="skipBody"></tbody></table></div><div class="card-b" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button type="button" class="btn btn-ghost btn-sm" id="skipPrev">‹ Prev</button><span class="pill" id="skipPage"></span><button type="button" class="btn btn-ghost btn-sm" id="skipNext">Next ›</button><span class="note" style="margin:0">${Object.entries(byR).map(([k,v])=>`${escapeHtml(k)}: ${v}`).join(' · ')}</span></div></div>`;
   }
-  h+=`<div class="card"><div class="card-h"><h3>Customers</h3><span class="pill" id="rowCount"></span></div><div style="overflow:auto"><table><thead><tr><th>Code</th><th>Name</th><th>City</th><th>Channel</th><th>Freq</th><th>Sales</th><th>Status</th><th>GPS quality</th><th>Route</th><th></th></tr></thead><tbody id="custBody"></tbody></table></div></div>`;
+  h+=`<div class="card"><div class="card-h"><h3>Customers</h3><span class="pill" id="rowCount"></span></div><div style="overflow:auto"><table><thead><tr><th>Code</th><th>Name</th><th>City</th><th>Channel</th><th>Freq</th><th>Sales</th><th>Status</th><th>GPS quality</th><th>Route</th><th></th></tr></thead><tbody id="custBody"></tbody></table></div><div class="card-b" style="display:flex;align-items:center;gap:10px"><button type="button" class="btn btn-ghost btn-sm" id="custPrev">‹ Prev</button><span class="pill" id="custPage"></span><button type="button" class="btn btn-ghost btn-sm" id="custNext">Next ›</button></div></div>`;
   pane.innerHTML=h;
+  // paginated skipped rows
+  if(S.skipped.length){
+    let sp=0;const drawSkip=()=>{const pages=Math.max(1,Math.ceil(S.skipped.length/PAGE_SIZE));sp=Math.min(sp,pages-1);const slice=S.skipped.slice(sp*PAGE_SIZE,(sp+1)*PAGE_SIZE);
+      $('skipBody').innerHTML=slice.map(s=>`<tr><td class="mono">${s.row}</td><td class="mono">${escapeHtml(s.code)}</td><td>${escapeHtml(s.name)}</td><td><span class="badge bad">${escapeHtml(s.reason)}</span></td></tr>`).join('');
+      $('skipPage').textContent=`Page ${sp+1}/${pages}`;};
+    $('skipPrev').onclick=()=>{sp=Math.max(0,sp-1);drawSkip();};$('skipNext').onclick=()=>{sp++;drawSkip();};
+    $('expSkip').onclick=()=>{const rows=[['Row','Code','Name','Reason'],...S.skipped.map(s=>[s.row,s.code,s.name,s.reason])];const csv=rows.map(r=>r.map(v=>{const x=String(v==null?'':v);return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;}).join(',')).join('\n');dlBlob('﻿'+csv,'text/csv;charset=utf-8','skipped_rows.csv');toast('Skipped rows exported');};
+    drawSkip();
+  }
+  let cp=0;
   const draw=()=>{
     const fc=$('fCity').value,fch=$('fChan').value,fg=$('fGps').value;
     const list=S.rows.filter(r=>(!fc||r.city===fc)&&(!fch||r.channel===fch)&&(!fg||r.gpsScore===fg));
-    $('custBody').innerHTML=list.slice(0,500).map(r=>`<tr style="${r.excluded?'opacity:.45':''}"><td class="mono">${escapeHtml(r.code)}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.city)||'—'}</td><td>${escapeHtml(r.channel)}</td><td class="mono">${r.freq}×</td><td class="mono">${fmtMoney(r.sales)}</td><td>${r.active?'<span class="badge good">Active</span>':'<span class="badge bad">Inactive</span>'}</td><td><span class="badge ${r.gpsScore}">${r.gpsScore}</span>${r.gpsReasons.length?`<div class="note" style="margin:3px 0 0">${escapeHtml(r.gpsReasons.join('; '))}</div>`:''}</td><td>${r.route!=null?(S.plan&&S.plan.routes[r.route]&&S.plan.routes[r.route].isOut?'Out':'R'+(r.route+1)):'—'}</td><td><button type="button" class="linkbtn" data-ex="${r.id}">${r.excluded?'Include':'Exclude'}</button></td></tr>`).join('');
-    $('rowCount').textContent=`${list.length} shown`;
+    const pages=Math.max(1,Math.ceil(list.length/PAGE_SIZE));cp=Math.min(cp,pages-1);
+    const slice=list.slice(cp*PAGE_SIZE,(cp+1)*PAGE_SIZE);
+    $('custBody').innerHTML=slice.map(r=>`<tr style="${r.excluded?'opacity:.45':''}"><td class="mono">${escapeHtml(r.code)}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.city)||'—'}</td><td>${escapeHtml(r.channel)}</td><td class="mono">${r.freq}×</td><td class="mono">${fmtMoney(r.sales)}</td><td>${r.active?'<span class="badge good">Active</span>':'<span class="badge bad">Inactive</span>'}</td><td><span class="badge ${r.gpsScore}">${r.gpsScore}</span>${r.gpsReasons.length?`<div class="note" style="margin:3px 0 0">${escapeHtml(r.gpsReasons.join('; '))}</div>`:''}</td><td>${r.route!=null?(S.plan&&S.plan.routes[r.route]&&S.plan.routes[r.route].isOut?'Out':'R'+(r.route+1)):'—'}</td><td><button type="button" class="linkbtn" data-ex="${r.id}">${r.excluded?'Include':'Exclude'}</button></td></tr>`).join('');
+    $('rowCount').textContent=`${list.length.toLocaleString()} shown`;$('custPage').textContent=`Page ${cp+1}/${pages}`;
     $('custBody').querySelectorAll('[data-ex]').forEach(b=>b.onclick=()=>{const r=S.rows.find(x=>x.id===+b.dataset.ex);if(r){r.excluded=!r.excluded;draw();refreshTags();toast(r.excluded?'Excluded from plan':'Included');}});
   };
-  ['fCity','fChan','fGps'].forEach(id=>$(id).onchange=draw);
+  $('custPrev').onclick=()=>{cp=Math.max(0,cp-1);draw();};$('custNext').onclick=()=>{cp++;draw();};
+  ['fCity','fChan','fGps'].forEach(id=>$(id).onchange=()=>{cp=0;draw();});
   const act=S.rows.filter(r=>!r.excluded),good=act.filter(r=>r.gpsScore==='good').length,warn=act.filter(r=>r.gpsScore==='warn').length,bad=act.filter(r=>r.gpsScore==='bad').length;
   $('cleanReport').textContent=`GPS — Good ${good} · Warn ${warn} · Bad ${bad}`;
   draw();
@@ -1654,12 +1799,12 @@ function restore(){
   let p;try{p=JSON.parse(localStorage.getItem(LS_KEY)||'null');}catch(e){return;}if(!p)return;
   const s=p.settings||{};['depLat','depLng','reps','days','cap','maxKm','speed','service','wStops','wVisits','wSales','engine','outThr','outMode'].forEach(id=>{if(s[id]!=null&&s[id]!=='')$(id).value=s[id];});
   if(s.lang)S.lang=s.lang;if(s.theme)S.theme=s.theme;applyTheme();syncDepot();
-  if(p.rows&&p.rows.length){S.rows=p.rows.map(r=>({route:null,day:null,lockRep:false,lockDay:false,excluded:false,...r}));S.skipped=p.skipped||[];S.depot=p.depot||S.depot;gpsQuality(S.rows);$('drop').classList.add('has');$('dropTitle').textContent='Restored data';$('dropSub').textContent=S.rows.length+' customers';enableRun();plotRaw();renderKpiStrip();renderSteps();refreshTags();toast('Previous data restored — press Optimize to rebuild');}
+  if(p.rows&&p.rows.length){S.rows=p.rows.map(r=>({route:null,day:null,lockRep:false,lockDay:false,excluded:false,...r}));S.skipped=p.skipped||[];S.depot=p.depot||S.depot;S.perf=S.rows.length>PERF_THRESHOLD;S.forceFull=false;gpsQuality(S.rows);$('drop').classList.add('has');$('dropTitle').textContent='Restored data';$('dropSub').textContent=S.rows.length.toLocaleString()+' customers';enableRun();buildScopeValues();plotRaw();renderKpiStrip();renderSteps();refreshTags();toast('Previous data restored — press Optimize to rebuild');}
 }
 function clearAll(){
   if(!confirm('Clear all imported data, edits and saved plan from this browser?'))return;
   try{localStorage.removeItem(LS_KEY);}catch(e){}
-  S.rows=[];S.skipped=[];S.plan=null;S.raw=[];S.hidden.clear();S.scenarios=[];S.committedPlan=null;S.previewing=false;hideScnBanner();resetPlanUI();
+  S.rows=[];S.skipped=[];S.plan=null;S.raw=[];S.hidden.clear();S.scenarios=[];S.committedPlan=null;S.previewing=false;S.perf=false;S.forceFull=false;S.scope={field:'',value:''};hideScnBanner();setMapBanner('');if($('scopeField')){$('scopeField').value='';buildScopeValues();}resetPlanUI();
   $('drop').classList.remove('has');$('dropTitle').textContent=t('dropTitle');$('dropSub').textContent=t('dropSub');
   if(S.map){S.layers.hulls.clearLayers();S.layers.markers.clearLayers();S.layers.routes.clearLayers();}
   $('mapEmpty').hidden=false;['dataPane','terrPane','jpPane','analyticsPane','alertsPane'].forEach(id=>$(id).innerHTML='');
@@ -1679,9 +1824,9 @@ function applyTheme(){document.documentElement.setAttribute('data-theme',S.theme
 function demoData(){
   const base=[['Tamimi Markets Rawdah',21.5810,39.1620,'Jeddah','Hyper',2,52000,1],['Panda Hamra',21.5430,39.1610,'Jeddah','Super',2,38000,1],['Bin Dawood Corniche',21.5920,39.1390,'Jeddah','Hyper',3,71000,1],['Carrefour Salama',21.6020,39.1730,'Jeddah','Hyper',2,64000,1],['Al Othaim Naseem',21.6210,39.2010,'Jeddah','Super',1,21000,1],['Manuel Faisaliah',21.5680,39.1490,'Jeddah','Super',2,33000,1],['Star Market Aziziyah',21.5520,39.1880,'Jeddah','Mini',1,9000,0],['Danube Tahliah',21.5610,39.1410,'Jeddah','Hyper',3,68000,1],['Farm Superstore Safa',21.5340,39.2050,'Jeddah','Super',1,18000,1],['Nesto Balad',21.4830,39.1860,'Jeddah','Super',2,29000,1],['Lulu Hyper Sari',21.6450,39.1520,'Jeddah','Hyper',3,82000,1],['Spar Rabwah',21.5190,39.2230,'Jeddah','Mini',1,7000,1],['Grocery Rehab',21.6090,39.1100,'Jeddah','Grocery',2,12000,1],['Mini Mart Bawadi',21.5050,39.2440,'Jeddah','Mini',1,6000,0],['Bin Dawood Shati',21.6730,39.1080,'Jeddah','Hyper',2,55000,1],['Tamimi Murjan',21.6310,39.1230,'Jeddah','Super',2,40000,1],['Panda Bryman',21.6880,39.1960,'Jeddah','Super',1,24000,1],['Othaim Wahah',21.4710,39.2280,'Jeddah','Super',1,20000,1],['Carrefour Marwah',21.5990,39.2150,'Jeddah','Hyper',2,60000,1],['Danube Khalidiyah',21.5870,39.1350,'Jeddah','Hyper',2,57000,1],['Lulu Thuwal',22.2820,39.1080,'Thuwal','Hyper',1,15000,1],['Market Rabigh',22.7990,39.0340,'Rabigh','Grocery',1,9000,1],['Manuel Hada',21.3580,39.1730,'Jeddah South','Super',1,16000,1],['Star Mart Kandara',21.4920,39.1810,'Jeddah','Mini',1,8000,1],['Bin Dawood Faisaliah',21.5440,39.1700,'Jeddah','Hyper',2,49000,1]];
   S.rows=base.map((b,i)=>({id:i,code:'C'+(1000+i),name:b[0],lat:b[1],lng:b[2],city:b[3],channel:b[4],salesman:'',freq:b[5],sales:b[6],lastInv:'',active:!!b[7],dupCoord:false,route:null,day:null,lockRep:false,lockDay:false,excluded:false}));
-  S.skipped=[];S.plan=null;gpsQuality(S.rows);resetPlanUI();$('depLat').value='21.5430';$('depLng').value='39.1728';syncDepot();
+  S.skipped=[];S.plan=null;S.scenarios=[];S.committedPlan=null;S.perf=false;S.forceFull=false;S.scope={field:'',value:''};gpsQuality(S.rows);resetPlanUI();$('depLat').value='21.5430';$('depLng').value='39.1728';syncDepot();
   $('drop').classList.add('has');$('dropTitle').textContent='Demo — Jeddah';$('dropSub').textContent=S.rows.length+' outlets loaded';
-  enableRun();plotRaw();renderKpiStrip();renderSteps();refreshTags();toast('Demo data loaded — press Optimize');
+  enableRun();buildScopeValues();plotRaw();renderKpiStrip();renderSteps();refreshTags();toast('Demo data loaded — press Optimize');
 }
 
 /* ===================== NAV / WIRING ===================== */
@@ -1725,6 +1870,9 @@ function boot(){
   $('scnClose').onclick=closeScn;$('scnCloseBtn').onclick=closeScn;
   $('scnModal').onclick=e=>{if(e.target===$('scnModal'))closeScn();};
   $('expClose').onclick=closeExport;$('expCancel').onclick=closeExport;$('expExcel').onclick=buildRouteBookExcel;$('expHtml').onclick=buildRouteBookHtml;
+  $('progCancel').onclick=()=>{S.cancel=true;};
+  $('scopeField').onchange=buildScopeValues;
+  $('scopeValue').onchange=()=>{S.scope={field:$('scopeField').value,value:$('scopeValue').value};};
   $('expModal').onclick=e=>{if(e.target===$('expModal'))closeExport();};
   window.addEventListener('beforeunload',()=>{if(S.rows.length)persist();});
   window.addEventListener('error',ev=>console.error(ev.error||ev.message));
