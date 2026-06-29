@@ -147,6 +147,18 @@
   .map-empty[hidden]{display:none}
   .map-warn{position:absolute;top:14px;inset-inline-start:14px;z-index:650;background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber);border-radius:9px;padding:8px 12px;font-size:12px;font-weight:600;max-width:62%;line-height:1.4}
   .map-warn[hidden]{display:none}
+  /* in-popup move panel */
+  .mvpop{margin-top:8px;border-top:1px solid var(--line);padding-top:8px}
+  .mvlbl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);font-weight:700;margin-bottom:4px}
+  .mvsel{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;font-family:inherit;background:var(--field);color:var(--ink)}
+  .mvwarn{margin-top:7px;font-size:11px;color:var(--amber);background:var(--amber-soft);border:1px solid var(--amber);border-radius:7px;padding:7px 8px;line-height:1.5}
+  .mvwarn[hidden]{display:none}
+  .mvwarn button{margin-top:7px;margin-inline-end:6px;font-size:11px;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 9px;cursor:pointer;font-weight:700;font-family:inherit;color:var(--ink)}
+  /* undo snackbar */
+  .undobar{position:fixed;bottom:72px;inset-inline-start:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:11px;font-size:13px;font-weight:600;z-index:9999;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:16px}
+  html[dir="rtl"] .undobar{transform:translateX(50%)}
+  .undobar[hidden]{display:none}
+  .undobar button{background:var(--primary);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-weight:700;cursor:pointer;font-family:inherit;font-size:12px}
   .map-empty .box{max-width:380px}
   .map-empty .mk{font-size:42px;color:var(--line);margin-bottom:12px}
   .map-empty h3{font-size:18px;margin-bottom:8px}
@@ -520,6 +532,7 @@
   </div>
 </div>
 
+<div class="undobar" id="undobar" hidden><span id="undoMsg"></span><button type="button" id="undoBtn">Undo</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -538,7 +551,7 @@ const S = {
   map:null, layers:{markers:null, routes:null, hulls:null, depot:null},
   pickMode:false, hidden:new Set(), markerIndex:new Map(),
   lang:'en', theme:'light', view:'dashboard',
-  ui:{selRoute:0, selDay:0}, _fileName:''
+  ui:{selRoute:0, selDay:0}, _fileName:'', lastMove:null
 };
 /* soft, map-readable territory palette */
 const PALETTE = ['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#06B6D4','#EC4899','#84CC16','#F97316','#14B8A6','#6366F1','#A855F7'];
@@ -814,6 +827,7 @@ function initMap(){
   S.layers.markers=L.layerGroup().addTo(S.map);
   S.layers.depot=L.layerGroup().addTo(S.map);
   S.map.on('click',e=>{if(!S.pickMode)return;$('depLat').value=e.latlng.lat.toFixed(4);$('depLng').value=e.latlng.lng.toFixed(4);syncDepot();S.pickMode=false;$('pickDepot').textContent=t('pickDepot');drawDepot();toast('Depot set');});
+  S.map.on('popupopen',wirePopup);
   // map renders inside a tab that can start hidden / resize — settle the size once libs paint
   setTimeout(()=>S.map&&S.map.invalidateSize(),300);
 }
@@ -838,7 +852,82 @@ function drawDepot(){if(!S.map)return;S.layers.depot.clearLayers();if(!S.depot)r
 function gpsColor(s){return s==='bad'?'#DC2626':s==='warn'?'#D97706':'#64748B';}
 function rawIcon(c){return L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:`<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>`});}
 function plotRaw(){if(!S.map)return;$('mapEmpty').hidden=true;S.layers.hulls.clearLayers();S.layers.markers.clearLayers();S.layers.routes.clearLayers();S.markerIndex.clear();S.rows.filter(r=>!r.excluded).forEach(r=>{const mk=L.marker([r.lat,r.lng],{icon:rawIcon(gpsColor(r.gpsScore))}).addTo(S.layers.markers).bindPopup(custPopup(r));S.markerIndex.set(r.id,mk);});drawDepot();fitAll();}
-function custPopup(s,rt,seq){return `<b>${escapeHtml(s.name)}</b><br><span class="mono">${escapeHtml(s.code)}</span>`+(s.city?` · ${escapeHtml(s.city)}`:'')+(s.channel&&s.channel!=='—'?` · ${escapeHtml(s.channel)}`:'')+(rt!=null?`<br>Route ${rt+1}${seq?' · #'+seq:''}`:'')+`<br>Freq ${s.freq}× · Sales ${fmtMoney(s.sales)}`+(s.salesman?`<br>Rep: ${escapeHtml(s.salesman)}`:'')+`<br>${s.depDist!=null?s.depDist.toFixed(1)+' km from depot':''}`+(s.out?' · <span style="color:#D97706">OUTSTATION</span>':'')+(!s.active?' · <span style="color:#DC2626">INACTIVE</span>':'')+(s.gpsScore!=='good'?`<br><span style="color:#D97706">GPS: ${escapeHtml(s.gpsReasons.join('; '))}</span>`:'');}
+function custPopup(s,rt,seq,dayIdx){
+  let h=`<b>${escapeHtml(s.name)}</b><br><span class="mono">${escapeHtml(s.code)}</span>`+
+    (s.city?` · ${escapeHtml(s.city)}`:'')+(s.channel&&s.channel!=='—'?` · ${escapeHtml(s.channel)}`:'')+
+    (rt!=null?`<br><b>Route ${rt+1}</b>${seq?' · #'+seq:''}${dayIdx!=null?' · '+dayName(dayIdx):''}`:'')+
+    `<br>Freq ${s.freq}× · Sales ${fmtMoney(s.sales)}`+(s.salesman?`<br>Rep: ${escapeHtml(s.salesman)}`:'')+
+    `<br>${s.depDist!=null?s.depDist.toFixed(1)+' km from depot':''}`+
+    (s.out?' · <span style="color:#D97706">OUTSTATION</span>':'')+(!s.active?' · <span style="color:#DC2626">INACTIVE</span>':'')+
+    (s.lockRep?' · <span style="color:#2563EB">🔒 LOCKED</span>':'')+
+    (s.gpsScore!=='good'?`<br><span style="color:#D97706">GPS: ${escapeHtml(s.gpsReasons.join('; '))}</span>`:'');
+  if(S.plan && rt!=null){
+    const opts=S.plan.routes.map(r=>`<option value="${r.idx}" ${r.idx===rt?'selected':''}>${r.isOut?'Outstation':'Route '+(r.idx+1)}</option>`).join('');
+    h+=`<div class="mvpop"><label class="mvlbl">Move to rep / route</label><select class="mvsel" data-id="${s.id}">${opts}</select><div class="mvwarn" hidden></div></div>`;
+  }
+  return h;
+}
+/* wire the move dropdown each time a popup opens */
+function wirePopup(e){
+  const root=e.popup&&e.popup.getElement&&e.popup.getElement();if(!root)return;
+  const sel=root.querySelector('.mvsel');if(!sel)return;
+  const id=+sel.dataset.id;
+  sel.onchange=()=>handleMoveSelect(id,+sel.value,root);
+}
+function pickLightestDay(route){
+  const wd=S.plan.workDays,cnt=new Array(wd).fill(0);
+  route.days.forEach(d=>{if(d.day<wd)cnt[d.day]=d.stops.length;});
+  let bi=0;for(let i=1;i<wd;i++)if(cnt[i]<cnt[bi])bi=i;return bi;
+}
+function handleMoveSelect(id,toRoute,root){
+  const s=S.rows.find(r=>r.id===id);if(!s||s.route===toRoute)return;
+  const to=S.plan.routes.find(r=>r.idx===toRoute);if(!to)return;
+  const day=s._day;
+  const tgt=to.days.find(d=>d.day===day);const cnt=tgt?tgt.stops.length:0;
+  if(cnt>=S.plan.cap){
+    const warn=root&&root.querySelector('.mvwarn');
+    if(warn){
+      warn.hidden=false;
+      warn.innerHTML=`${dayName(day)} is full (${cnt}/${S.plan.cap}).<br><button type="button" data-a="any">Move anyway</button><button type="button" data-a="other">Move to another day</button>`;
+      warn.querySelector('[data-a="any"]').onclick=()=>doMove(id,toRoute,day);
+      warn.querySelector('[data-a="other"]').onclick=()=>doMove(id,toRoute,pickLightestDay(to));
+    } else doMove(id,toRoute,pickLightestDay(to));
+    return;
+  }
+  doMove(id,toRoute,day); // keep same day when capacity allows
+}
+/* core move: re-home a customer to a route + weekday, recompute, lock assignment */
+function moveTo(id,toRoute,dayIndex,lock){
+  const s=S.rows.find(r=>r.id===id);if(!s)return;
+  const from=S.plan.routes.find(r=>r.idx===s.route),to=S.plan.routes.find(r=>r.idx===toRoute);if(!to)return;
+  if(from){from.days.forEach(d=>d.stops=d.stops.filter(x=>x.id!==id));from.days=from.days.filter(d=>d.stops.length);}
+  let tgt=to.days.find(d=>d.day===dayIndex);
+  if(!tgt){tgt={day:dayIndex,stops:[],km:0,crossings:0,hrs:0};to.days.push(tgt);to.days.sort((a,b)=>a.day-b.day);}
+  s.route=toRoute;s._day=dayIndex;tgt.stops.push(s);
+  if(lock){s.lockRep=true;s.lockDay=true;s.day=dayIndex;}
+  if(from)recomputeRoute(from,S.plan.speed,S.plan.serviceMin,S.depot);
+  recomputeRoute(to,S.plan.speed,S.plan.serviceMin,S.depot);
+  S.plan.totalKm=S.plan.routes.reduce((a,r)=>a+r.km,0);S.plan.totalVisits=S.plan.routes.reduce((a,r)=>a+r.visits,0);
+  computeScores();
+}
+function doMove(id,toRoute,dayIndex){
+  const s=S.rows.find(r=>r.id===id);if(!s)return;
+  S.lastMove={id,route:s.route,day:s._day,dayVal:s.day,lockRep:s.lockRep,lockDay:s.lockDay};
+  const to=S.plan.routes.find(r=>r.idx===toRoute);
+  moveTo(id,toRoute,dayIndex,true);
+  renderAll();
+  const label=to.isOut?'Outstation':'Route '+(toRoute+1);
+  toast(`Customer moved to ${label}`);
+  showUndo(`Moved to ${label} · assignment locked 🔒`,undoMove);
+}
+function undoMove(){
+  const m=S.lastMove;if(!m||m.route==null)return;
+  moveTo(m.id,m.route,m.day,false);
+  const s=S.rows.find(r=>r.id===m.id);if(s){s.lockRep=m.lockRep;s.lockDay=m.lockDay;s.day=m.dayVal;}
+  S.lastMove=null;renderAll();hideUndo();toast('Move undone');
+}
+function showUndo(msg,fn){const b=$('undobar');if(!b)return;$('undoMsg').textContent=msg;b._fn=fn;b.hidden=false;clearTimeout(b._t);b._t=setTimeout(()=>{b.hidden=true;},9000);}
+function hideUndo(){const b=$('undobar');if(!b)return;b.hidden=true;clearTimeout(b._t);}
 function renderPlan(){
   if(!S.map||!S.plan)return;$('mapEmpty').hidden=true;
   S.layers.hulls.clearLayers();S.layers.markers.clearLayers();S.layers.routes.clearLayers();S.markerIndex.clear();
@@ -849,7 +938,7 @@ function renderPlan(){
     rt.days.forEach((day,di)=>{
       if(day.geo)L.geoJSON(day.geo,{style:{color:rt.color,weight:3,opacity:.85}}).addTo(S.layers.routes);
       else{const line=[[S.depot.lat,S.depot.lng],...day.stops.map(s=>[s.lat,s.lng]),[S.depot.lat,S.depot.lng]];L.polyline(line,{color:rt.color,weight:2.5,opacity:.75}).addTo(S.layers.routes);}
-      day.stops.forEach((s,i)=>{const mk=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],html:`<div style="width:22px;height:22px;border-radius:50%;background:${rt.color};color:#fff;border:2px solid #fff;display:grid;place-items:center;font-size:10px;font-weight:700;font-family:monospace;box-shadow:0 1px 3px rgba(0,0,0,.4);${s.out?'outline:2px solid #D97706;outline-offset:1px;':''}">${i+1}</div>`})}).addTo(S.layers.markers).bindPopup(custPopup(s,rt.idx,i+1)+`<br><span class="mono">Day ${di+1} · ${dayName(day.day)}</span>`);S.markerIndex.set(s.id,mk);});
+      day.stops.forEach((s,i)=>{const mk=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],html:`<div style="width:22px;height:22px;border-radius:50%;background:${rt.color};color:#fff;border:2px solid #fff;display:grid;place-items:center;font-size:10px;font-weight:700;font-family:monospace;box-shadow:0 1px 3px rgba(0,0,0,.4);${s.out?'outline:2px solid #D97706;outline-offset:1px;':''}">${i+1}</div>`})}).addTo(S.layers.markers).bindPopup(custPopup(s,rt.idx,i+1,day.day));S.markerIndex.set(s.id,mk);});
     });
   });
   drawDepot();fitAll();renderLegend();
@@ -929,15 +1018,8 @@ function renderTerritory(){
 }
 function moveCustomer(id,toRoute){
   const s=S.rows.find(r=>r.id===id);if(!s||s.route===toRoute)return;
-  const from=S.plan.routes.find(r=>r.idx===s.route),to=S.plan.routes.find(r=>r.idx===toRoute);if(!from||!to)return;
-  from.days.forEach(d=>d.stops=d.stops.filter(x=>x.id!==id));from.days=from.days.filter(d=>d.stops.length);
-  let tgt=to.days.length?to.days.reduce((a,b)=>a.stops.length<=b.stops.length?a:b):null;
-  if(!tgt){tgt={day:0,stops:[],km:0,crossings:0,hrs:0};to.days.push(tgt);}
-  s.route=toRoute;s._day=tgt.day;tgt.stops.push(s);
-  recomputeRoute(from,S.plan.speed,S.plan.serviceMin,S.depot);recomputeRoute(to,S.plan.speed,S.plan.serviceMin,S.depot);
-  S.plan.totalKm=S.plan.routes.reduce((a,r)=>a+r.km,0);S.plan.totalVisits=S.plan.routes.reduce((a,r)=>a+r.visits,0);
-  computeScores();renderAll();
-  toast(`Moved ${s.name} → ${to.isOut?'Outstation':'Route '+(toRoute+1)}`);
+  const to=S.plan.routes.find(r=>r.idx===toRoute);if(!to)return;
+  doMove(id,toRoute,pickLightestDay(to)); // territory drag shares the locked-move + undo path
 }
 
 /* ===================== JOURNEY PLAN ===================== */
@@ -1162,6 +1244,7 @@ function boot(){
   $('run').onclick=optimize;$('optimizeTop').onclick=optimize;
   $('exportXlsx').onclick=exportXlsx;$('exportCsv').onclick=exportCsv;
   $('saveBtn').onclick=saveAll;$('clearBtn').onclick=clearAll;
+  $('undoBtn').onclick=()=>{const fn=$('undobar')._fn;if(fn)fn();};
   $('langBtn').onclick=()=>{S.lang=S.lang==='ar'?'en':'ar';applyLang();saveSettingsOnly();};
   const toggleTheme=()=>{S.theme=S.theme==='dark'?'light':'dark';applyTheme();saveSettingsOnly();};
   $('themeTgl').onclick=toggleTheme;$('themeBtn2').onclick=toggleTheme;
