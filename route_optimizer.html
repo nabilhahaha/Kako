@@ -778,14 +778,32 @@ function routeLen(p,depot){if(!p.length)return 0;let d=haversine(depot,p[0]);for
 function twoOpt(p,depot){if(p.length<4)return p;let b=p.slice(),bl=routeLen(b,depot),imp=true,g=0;while(imp&&g++<80){imp=false;for(let i=0;i<b.length-1;i++)for(let j=i+1;j<b.length;j++){const np=b.slice(0,i).concat(b.slice(i,j+1).reverse(),b.slice(j+1));const nl=routeLen(np,depot);if(nl+1e-6<bl){b=np;bl=nl;imp=true;}}}return b;}
 function segInt(a,b,c,d){const cc=(p,q,r)=>(r.lat-p.lat)*(q.lng-p.lng)-(q.lat-p.lat)*(r.lng-p.lng);return cc(a,c,d)*cc(b,c,d)<0&&cc(a,b,c)*cc(a,b,d)<0;}
 function countCrossings(p,depot){const pts=[depot,...p,depot];let x=0;for(let i=0;i<pts.length-1;i++)for(let j=i+2;j<pts.length-1;j++){if(i===0&&j===pts.length-2)continue;if(segInt(pts[i],pts[i+1],pts[j],pts[j+1]))x++;}return x;}
-function assignDays(custs,workDays){
-  const load=new Array(workDays).fill(0);
-  custs.slice().sort((a,b)=>b.freq-a.freq).forEach(c=>{
-    if(c.lockDay&&c.day!=null&&c.day<workDays){c.visitDays=[c.day];load[c.day]++;return;}
-    const f=Math.min(c.freq,workDays),step=workDays/f;let bs=0,bc=Infinity;
-    for(let s=0;s<Math.max(1,Math.ceil(step));s++){const ds=[];for(let i=0;i<f;i++)ds.push(Math.floor(s+i*step)%workDays);const cost=ds.reduce((a,d)=>a+load[d],0);if(cost<bc){bc=cost;bs=s;}}
-    const ds=[];for(let i=0;i<f;i++)ds.push(Math.floor(bs+i*step)%workDays);
-    c.visitDays=[...new Set(ds)];c.visitDays.forEach(d=>load[d]++);
+/* Day splitting = GEOGRAPHIC, capacity-balanced day clusters within a route (each day a compact
+   mini-route), then frequency spacing around the compact "primary" day. Honours lockDay. */
+function assignDays(custs,workDays,depot,cap){
+  const wd=workDays;
+  // 1) capacity-balanced geographic clustering for each customer's primary day (k-means style)
+  const lockedBy=Array.from({length:wd},()=>[]),free=[];
+  custs.forEach(c=>{if(c.lockDay&&c.day!=null&&c.day<wd)lockedBy[c.day].push(c);else free.push(c);});
+  const target=Math.max(1,Math.min(cap||Infinity,Math.ceil(custs.length/wd)));
+  let cents=seedCentroids(free.length?free:custs,depot,wd,lockedBy);
+  let assign=new Array(free.length).fill(0);
+  for(let it=0;it<12;it++){
+    const sizes=lockedBy.map(a=>a.length);
+    const order=free.map((_,i)=>i).sort((a,b)=>Math.min(...cents.map(c=>haversine(c,free[a])))-Math.min(...cents.map(c=>haversine(c,free[b]))));
+    order.forEach(i=>{const cand=cents.map((c,ci)=>({ci,d:haversine(c,free[i])})).sort((a,b)=>a.d-b.d);let chosen=cand[0].ci;for(const o of cand){if(sizes[o.ci]<target){chosen=o.ci;break;}}assign[i]=chosen;sizes[chosen]++;});
+    const groups=Array.from({length:wd},(_,ci)=>lockedBy[ci].concat(free.filter((_,i)=>assign[i]===ci)));
+    cents=groups.map((g,ci)=>g.length?centroid(g):cents[ci]);
+  }
+  free.forEach((c,i)=>c._primaryDay=assign[i]);
+  lockedBy.forEach((g,ci)=>g.forEach(c=>c._primaryDay=ci));
+  // 2) frequency>1 → spread visits across days with even spacing, anchored on the compact primary day
+  custs.forEach(c=>{
+    if(c.lockDay&&c.day!=null&&c.day<wd){c.visitDays=[c.day];return;}
+    const f=Math.min(c.freq,wd),p=c._primaryDay||0;
+    if(f<=1){c.visitDays=[p];return;}
+    const step=wd/f,ds=[];for(let j=0;j<f;j++)ds.push(Math.floor(p+j*step)%wd);
+    c.visitDays=[...new Set(ds)];
   });
 }
 async function osrmRoute(path,depot){const pts=[depot,...path,depot].map(p=>`${p.lng},${p.lat}`).join(';');const ctrl=new AbortController(),tid=setTimeout(()=>ctrl.abort(),12000);try{const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${pts}?overview=full&geometries=geojson`,{signal:ctrl.signal});if(!r.ok)throw 0;const j=await r.json();if(!j.routes||!j.routes[0])throw 0;return{km:j.routes[0].distance/1000,geo:j.routes[0].geometry};}finally{clearTimeout(tid);}}
@@ -807,8 +825,8 @@ function buildPlan(strategy,p){
   else if(p.outMode==='include'){coreRows=active;outRows=[];}
   const clusters=clusterByStrategy(strategy,coreRows,S.depot,p.k,p.w);
   const routes=[];
-  for(let i=0;i<clusters.length;i++){let stops=clusters[i];if(!stops.length)continue;stops.forEach(s=>s.route=routes.length);assignDays(stops,p.workDays);routes.push(makeRoute(routes.length,buildDays(stops,p.workDays,p.cap,S.depot),p.speed,p.serviceMin,false));}
-  if(p.outMode==='separate'&&outRows.length){outRows.forEach(s=>s.route=routes.length);assignDays(outRows,p.workDays);routes.push(makeRoute(routes.length,buildDays(outRows,p.workDays,p.cap,S.depot),p.speed,p.serviceMin,true));}
+  for(let i=0;i<clusters.length;i++){let stops=clusters[i];if(!stops.length)continue;stops.forEach(s=>s.route=routes.length);assignDays(stops,p.workDays,S.depot,p.cap);routes.push(makeRoute(routes.length,buildDays(stops,p.workDays,p.cap,S.depot),p.speed,p.serviceMin,false));}
+  if(p.outMode==='separate'&&outRows.length){outRows.forEach(s=>s.route=routes.length);assignDays(outRows,p.workDays,S.depot,p.cap);routes.push(makeRoute(routes.length,buildDays(outRows,p.workDays,p.cap,S.depot),p.speed,p.serviceMin,true));}
   routes.forEach(rt=>rt.engine='haversine');
   const plan={routes,totalKm:routes.reduce((a,r)=>a+r.km,0),totalVisits:routes.reduce((a,r)=>a+r.visits,0),workDays:p.workDays,cap:p.cap,maxKm:p.maxKm,speed:p.speed,serviceMin:p.serviceMin,capacity:p.k*p.workDays*p.cap,outTotal:S.rows.filter(r=>r.out&&!r.excluded).length,excluded:S.rows.filter(r=>r.excluded).length};
   computeScores(plan);
@@ -1009,6 +1027,8 @@ function computeScores(plan){
 }
 function scoreLabel(s){return s>=85?'Excellent':s>=70?'Good':s>=50?'Needs review':'Bad';}
 function routeQuality(rt){const per=rt.stops.length?rt.crossings/rt.stops.length:0;return per<=0.02?'Excellent':per<=0.08?'Good':per<=0.18?'Needs review':'Bad';}
+function dayFlags(day,plan){const f=[];if(plan){if(day.stops.length>plan.cap)f.push(['bad','Over capacity '+day.stops.length+'/'+plan.cap]);if(day.km>plan.maxKm)f.push(['warn','Over '+plan.maxKm+' km']);}if(day.crossings>=3)f.push(['warn','Scattered · '+day.crossings+' crossings']);return f;}
+function dayFlagsHtml(day,plan){return dayFlags(day,plan).map(f=>`<span class="badge ${f[0]}">${escapeHtml(f[1])}</span>`).join(' ');}
 
 /* ===================== MAP ===================== */
 function initMap(){
@@ -1181,6 +1201,7 @@ function renderDayPanel(){
         <div class="daypills">${rt.days.map((d,i)=>`<button type="button" class="daypill ${i===S.ui.selDay?'on':''}" data-day="${i}">${dayName(d.day).slice(0,3)} ${d.stops.length}</button>`).join('')}</div>`;
   if(day){
     h+=`<div class="daystats"><div><div class="v">${stats.stops}</div><div class="l">Stops</div></div><div><div class="v">${stats.km}</div><div class="l">km</div></div><div><div class="v">${stats.visits}</div><div class="l">Visits</div></div><div><div class="v">${stats.hrs}h</div><div class="l">Time</div></div></div>`;
+    const dfl=dayFlagsHtml(day,S.plan);if(dfl)h+=`<div style="margin:0 0 10px">${dfl}</div>`;
     let prev=S.depot;
     h+=`<div class="stoplist">`+day.stops.map((s,i)=>{const leg=haversine(prev,s);prev=s;return `<div class="stopitem"><span class="sn" style="background:${rt.color}">${i+1}</span><div class="info"><div class="nm">${escapeHtml(s.name)}</div><div class="sub">${escapeHtml(s.code)} · ${escapeHtml(s.city||'—')}</div></div><span class="km">${leg.toFixed(1)} km</span></div>`;}).join('')+`</div>`;
     const links=gmapsLinks(S.depot,day.stops);
@@ -1232,7 +1253,7 @@ function renderJourney(){
     h+=`<div class="card jcard"><div class="card-h"><div style="display:flex;align-items:center;gap:10px"><span style="width:13px;height:13px;border-radius:50%;background:${rt.color}"></span><div><h3>${rt.isOut?'Outstation route':'Route '+(rt.idx+1)}</h3><div class="note" style="margin:2px 0 0">${rt.stops.length} stops · ${rt.days.length} days · ${rt.km.toFixed(1)} km · ${rt.visits} visits/cycle · ${fmtMoney(rt.sales)} sales · ${escapeHtml(rt.engine)} · ${routeQuality(rt)}</div></div></div></div>`;
     rt.days.forEach((day,di)=>{
       const links=gmapsLinks(S.depot,day.stops);
-      h+=`<div class="day-h"><div><div class="dt">${dayName(day.day)} <span class="pill">Day ${di+1}</span></div><div class="dm">${day.stops.length} stops · ${day.km.toFixed(1)} km · ~${day.hrs.toFixed(1)} h · ${day.crossings} crossings</div></div><div class="actions">`;
+      h+=`<div class="day-h"><div><div class="dt">${dayName(day.day)} <span class="pill">Day ${di+1}</span> ${dayFlagsHtml(day,S.plan)}</div><div class="dm">${day.stops.length} stops · ${day.km.toFixed(1)} km · ~${day.hrs.toFixed(1)} h · ${day.crossings} crossings</div></div><div class="actions">`;
       links.forEach((u,pi)=>h+=`<a class="linkbtn" href="${escapeHtml(u)}" target="_blank" rel="noopener">Maps${links.length>1?' P'+(pi+1):''}</a>`);
       h+=`<button type="button" class="linkbtn" data-copy="${escapeHtml(links[0])}">Copy</button><div class="qr" id="qr-${rt.idx}-${di}"></div></div></div>`;
       let prev=S.depot;
