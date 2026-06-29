@@ -159,6 +159,23 @@
   html[dir="rtl"] .undobar{transform:translateX(50%)}
   .undobar[hidden]{display:none}
   .undobar button{background:var(--primary);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-weight:700;cursor:pointer;font-family:inherit;font-size:12px}
+  /* scenarios */
+  .scn-table th,.scn-table td{text-align:center;vertical-align:top}
+  .scn-table th:first-child,.scn-table td:first-child{text-align:start;white-space:nowrap}
+  .scn-table tbody td{font-family:"JetBrains Mono",monospace;font-size:12px}
+  .scn-table tbody td:first-child{font-family:inherit}
+  .scn-h{display:flex;flex-direction:column;gap:7px;align-items:center;min-width:170px}
+  .scn-h b{font-size:12.5px;text-transform:none;letter-spacing:0;color:var(--ink)}
+  .scn-sc{font-size:11px;font-weight:700;color:var(--ink-soft)}
+  .scn-sc.best{color:var(--green)}
+  .scn-btns{display:flex;gap:6px}
+  .cell-best{background:var(--green-soft);color:var(--green)!important;font-weight:700;border-radius:6px}
+  .scn-desc{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin-top:14px;font-size:12px;color:var(--ink-soft)}
+  @media(max-width:680px){.scn-desc{grid-template-columns:1fr}}
+  .scn-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--primary-soft);border:1px solid var(--primary);border-radius:12px;padding:11px 16px;margin-bottom:16px;font-size:13px;color:var(--ink)}
+  .scn-banner em{color:var(--ink-soft);font-style:italic}
+  .scn-banner[hidden]{display:none}
+  .scn-bar-btns{display:flex;gap:8px;flex-wrap:wrap}
   .map-empty .box{max-width:380px}
   .map-empty .mk{font-size:42px;color:var(--line);margin-bottom:12px}
   .map-empty h3{font-size:18px;margin-bottom:8px}
@@ -390,6 +407,7 @@
     <div class="content" id="content">
       <!-- DASHBOARD -->
       <section class="view" id="v-dashboard">
+        <div class="scn-banner" id="scnBanner" hidden></div>
         <div class="steps" id="steps"></div>
         <div class="kpi-strip" id="kpiStrip"></div>
         <div class="dash-main">
@@ -532,6 +550,14 @@
   </div>
 </div>
 
+<!-- SCENARIOS MODAL -->
+<div class="modal" id="scnModal" role="dialog" aria-modal="true" aria-labelledby="scnModalH">
+  <div class="modal-box" style="max-width:1060px">
+    <div class="modal-h"><h3 id="scnModalH">Optimization scenarios — compare &amp; choose</h3><button type="button" class="iconbtn" id="scnClose" aria-label="Close">✕</button></div>
+    <div class="modal-b"><div id="scnBody"></div></div>
+    <div class="modal-f"><span class="note" style="margin:0;flex:1">Preview shows a scenario on the map without committing · Apply makes it the active plan · Manual locks (🔒) are respected.</span><button type="button" class="btn btn-ghost btn-sm" id="scnCloseBtn">Close</button></div>
+  </div>
+</div>
 <div class="undobar" id="undobar" hidden><span id="undoMsg"></span><button type="button" id="undoBtn">Undo</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -551,7 +577,8 @@ const S = {
   map:null, layers:{markers:null, routes:null, hulls:null, depot:null},
   pickMode:false, hidden:new Set(), markerIndex:new Map(),
   lang:'en', theme:'light', view:'dashboard',
-  ui:{selRoute:0, selDay:0}, _fileName:'', lastMove:null
+  ui:{selRoute:0, selDay:0}, _fileName:'', lastMove:null,
+  scenarios:[], committedPlan:null, previewing:false
 };
 /* soft, map-readable territory palette */
 const PALETTE = ['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#06B6D4','#EC4899','#84CC16','#F97316','#14B8A6','#6366F1','#A855F7'];
@@ -752,35 +779,161 @@ function assignDays(custs,workDays){
 }
 async function osrmRoute(path,depot){const pts=[depot,...path,depot].map(p=>`${p.lng},${p.lat}`).join(';');const ctrl=new AbortController(),tid=setTimeout(()=>ctrl.abort(),12000);try{const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${pts}?overview=full&geometries=geojson`,{signal:ctrl.signal});if(!r.ok)throw 0;const j=await r.json();if(!j.routes||!j.routes[0])throw 0;return{km:j.routes[0].distance/1000,geo:j.routes[0].geometry};}finally{clearTimeout(tid);}}
 
+function readParams(){
+  const k=Math.max(1,intParam('reps',1)),workDays=Math.max(1,intParam('days',6)),cap=Math.max(1,intParam('cap',35));
+  const speed=Math.max(5,num($('speed').value)||30),serviceMin=Math.max(0,num($('service').value)||0);
+  const w={stops:num($('wStops').value),visits:num($('wVisits').value),sales:num($('wSales').value)};if(w.stops+w.visits+w.sales<=0)w.stops=1;
+  S.engine=$('engine').value;
+  const maxKm=Math.max(10,num($('maxKm').value)||180),thr=Math.max(5,num($('outThr').value)||40),outMode=$('outMode').value;
+  return {k,workDays,cap,speed,serviceMin,w,maxKm,thr,outMode};
+}
+/* Build a plan for a strategy WITHOUT committing it to S.plan (haversine; OSRM is applied on Apply). */
+function buildPlan(strategy,p){
+  flagOutstations(S.rows,S.depot,p.thr);
+  let active=S.rows.filter(r=>!r.excluded);
+  let outRows=active.filter(r=>r.out),coreRows=active.filter(r=>!r.out);
+  if(p.outMode==='exclude')outRows.forEach(r=>r.route=null);
+  else if(p.outMode==='include'){coreRows=active;outRows=[];}
+  const clusters=clusterByStrategy(strategy,coreRows,S.depot,p.k,p.w);
+  const routes=[];
+  for(let i=0;i<clusters.length;i++){let stops=clusters[i];if(!stops.length)continue;stops.forEach(s=>s.route=routes.length);assignDays(stops,p.workDays);routes.push(makeRoute(routes.length,buildDays(stops,p.workDays,p.cap,S.depot),p.speed,p.serviceMin,false));}
+  if(p.outMode==='separate'&&outRows.length){outRows.forEach(s=>s.route=routes.length);assignDays(outRows,p.workDays);routes.push(makeRoute(routes.length,buildDays(outRows,p.workDays,p.cap,S.depot),p.speed,p.serviceMin,true));}
+  routes.forEach(rt=>rt.engine='haversine');
+  const plan={routes,totalKm:routes.reduce((a,r)=>a+r.km,0),totalVisits:routes.reduce((a,r)=>a+r.visits,0),workDays:p.workDays,cap:p.cap,maxKm:p.maxKm,speed:p.speed,serviceMin:p.serviceMin,capacity:p.k*p.workDays*p.cap,outTotal:S.rows.filter(r=>r.out&&!r.excluded).length,excluded:S.rows.filter(r=>r.excluded).length};
+  computeScores(plan);
+  return plan;
+}
+/* OSRM refinement applied to one committed plan */
+async function osrmRefine(plan){
+  for(const rt of plan.routes)for(const d of rt.days){if(d.stops.length>=1&&d.stops.length<=23){try{const o=await osrmRoute(d.stops,S.depot);d.km=o.km;d.geo=o.geo;rt.engine='osrm';}catch(e){rt.engine='haversine (osrm failed)';}}}
+  plan.routes.forEach(rt=>{rt.km=rt.days.reduce((a,d)=>a+d.km,0);rt.days.forEach(d=>d.hrs=d.km/plan.speed+d.stops.length*plan.serviceMin/60);rt.hrs=rt.days.reduce((a,d)=>a+d.hrs,0);});
+  plan.totalKm=plan.routes.reduce((a,r)=>a+r.km,0);computeScores(plan);
+}
+/* customers reference shared objects; re-stamp route/day from a plan's structure before render */
+function syncAssignments(plan){plan.routes.forEach(rt=>rt.days.forEach(d=>d.stops.forEach(s=>{s.route=rt.idx;s._day=d.day;})));}
+
+const SCN_DEFS=[
+  ['balanced','A · Balanced Workload','Even customers & visits per rep'],
+  ['distance','B · Minimum Distance','Lowest total KM; balance may vary'],
+  ['salesman','C · Keep Current Salesman','Keeps existing salesman; moves only major outliers'],
+  ['compact','D · Compact Territories','Clean compact areas, less crossing']
+];
 async function optimize(){
   syncDepot();
   if(!S.rows.length){toast('Import customer data first',true);switchView('setup');return;}
   if(!S.depot){toast('Set a valid depot first',true);switchView('setup');return;}
-  const k=Math.max(1,intParam('reps',1)),workDays=Math.max(1,intParam('days',6)),cap=Math.max(1,intParam('cap',35));
-  const speed=Math.max(5,num($('speed').value)||30),serviceMin=Math.max(0,num($('service').value)||0);
-  const w={stops:num($('wStops').value),visits:num($('wVisits').value),sales:num($('wSales').value)};if(w.stops+w.visits+w.sales<=0)w.stops=1;
-  S.engine=$('engine').value;const maxKm=Math.max(10,num($('maxKm').value)||180),thr=Math.max(5,num($('outThr').value)||40),outMode=$('outMode').value;
+  const p=readParams();
   $('run').disabled=true;$('optimizeTop').disabled=true;$('run').textContent='…';setProgress(8);
   await new Promise(r=>setTimeout(r,20));
   try{
-    flagOutstations(S.rows,S.depot,thr);
-    let active=S.rows.filter(r=>!r.excluded);
-    let outRows=active.filter(r=>r.out),coreRows=active.filter(r=>!r.out);
-    if(outMode==='exclude')outRows.forEach(r=>r.route=null);
-    else if(outMode==='include'){coreRows=active;outRows=[];}
-    setProgress(25);
-    const clusters=clusterReps(coreRows,S.depot,k,w);const routes=[];
-    for(let i=0;i<clusters.length;i++){let stops=clusters[i];if(!stops.length)continue;stops.forEach(s=>s.route=routes.length);assignDays(stops,workDays);routes.push(makeRoute(routes.length,buildDays(stops,workDays,cap,S.depot),speed,serviceMin,false));setProgress(25+(i+1)/clusters.length*40);}
-    if(outMode==='separate'&&outRows.length){outRows.forEach(s=>s.route=routes.length);assignDays(outRows,workDays);routes.push(makeRoute(routes.length,buildDays(outRows,workDays,cap,S.depot),speed,serviceMin,true));}
-    if(S.engine==='osrm'){for(const rt of routes)for(const d of rt.days){if(d.stops.length>=1&&d.stops.length<=23){try{const o=await osrmRoute(d.stops,S.depot);d.km=o.km;d.geo=o.geo;rt.engine='osrm';}catch(e){rt.engine='haversine (osrm failed)';}}}routes.forEach(rt=>{rt.km=rt.days.reduce((a,d)=>a+d.km,0);rt.days.forEach(d=>d.hrs=d.km/speed+d.stops.length*serviceMin/60);rt.hrs=rt.days.reduce((a,d)=>a+d.hrs,0);});}
-    setProgress(80);
-    S.plan={routes,totalKm:routes.reduce((a,r)=>a+r.km,0),totalVisits:routes.reduce((a,r)=>a+r.visits,0),workDays,cap,maxKm,speed,serviceMin,capacity:k*workDays*cap,outTotal:S.rows.filter(r=>r.out&&!r.excluded).length,excluded:S.rows.filter(r=>r.excluded).length};
-    computeScores();S.ui={selRoute:0,selDay:0};
-    renderAll();['exportXlsx','exportCsv'].forEach(id=>$(id).disabled=false);
-    setProgress(100);switchView('dashboard');
-    toast(`Plan ready · ${routes.length} routes · ${S.plan.totalKm.toFixed(0)} km · score ${S.plan.scores.final}`);
+    S.scenarios=[];
+    for(let i=0;i<SCN_DEFS.length;i++){const plan=buildPlan(SCN_DEFS[i][0],p);plan.key=SCN_DEFS[i][0];plan.name=SCN_DEFS[i][1];S.scenarios.push(plan);setProgress(15+(i+1)/SCN_DEFS.length*75);}
+    openScenarios();setProgress(100);
+    toast('4 scenarios ready — compare, preview & apply');
   }catch(err){console.error(err);toast('Optimization error — see console',true);setProgress(0);}
-  finally{$('run').disabled=false;$('optimizeTop').disabled=false;$('run').textContent=t('optimize')==='تحسين'?'تحسين المسارات':'Optimize routes';}
+  finally{$('run').disabled=false;$('optimizeTop').disabled=false;$('run').textContent=S.lang==='ar'?'تحسين المسارات':'Optimize routes';}
+}
+/* ---- clustering strategies (all honour lockRep) ---- */
+function clusterByStrategy(strategy,core,depot,k,w){
+  if(strategy==='distance')return kmeansClusters(core,depot,k,false);
+  if(strategy==='compact')return kmeansClusters(core,depot,k,true);
+  if(strategy==='salesman')return salesmanClusters(core,depot,k);
+  return clusterReps(core,depot,k,w);
+}
+function seedCentroids(pts,depot,k,lockedBy){
+  const sorted=pts.map(p=>({p,a:Math.atan2(p.lat-depot.lat,p.lng-depot.lng)})).sort((x,y)=>x.a-y.a).map(o=>o.p);
+  const cents=[];
+  for(let i=0;i<k;i++){
+    if(lockedBy&&lockedBy[i]&&lockedBy[i].length)cents.push(centroid(lockedBy[i]));
+    else if(sorted.length){const idx=Math.floor((i+0.5)/k*sorted.length)%sorted.length;cents.push({lat:sorted[idx].lat,lng:sorted[idx].lng});}
+    else cents.push({lat:depot.lat,lng:depot.lng});
+  }
+  return cents;
+}
+function kmeansClusters(core,depot,k,balanced){
+  const lockedBy=Array.from({length:k},()=>[]),free=[];
+  core.forEach(r=>{if(r.lockRep&&r.route!=null&&r.route<k)lockedBy[r.route].push(r);else free.push(r);});
+  let cents=seedCentroids(free.length?free:core,depot,k,lockedBy);
+  let assign=new Array(free.length).fill(0);
+  const cap=balanced?Math.ceil(core.length/k):Infinity;
+  for(let it=0;it<15;it++){
+    const sizes=lockedBy.map(a=>a.length);
+    const order=balanced?free.map((_,i)=>i).sort((a,b)=>Math.min(...cents.map(c=>haversine(c,free[a])))-Math.min(...cents.map(c=>haversine(c,free[b])))):free.map((_,i)=>i);
+    order.forEach(i=>{const cand=cents.map((c,ci)=>({ci,d:haversine(c,free[i])})).sort((a,b)=>a.d-b.d);let chosen=cand[0].ci;if(balanced){for(const o of cand){if(sizes[o.ci]<cap){chosen=o.ci;break;}}}assign[i]=chosen;sizes[chosen]++;});
+    const groups=Array.from({length:k},(_,ci)=>lockedBy[ci].concat(free.filter((_,i)=>assign[i]===ci)));
+    const nc=groups.map((g,ci)=>g.length?centroid(g):cents[ci]);
+    const moved=nc.reduce((a,c,ci)=>a+haversine(c,cents[ci]),0);cents=nc;
+    if(moved<0.002&&!balanced)break;
+  }
+  return Array.from({length:k},(_,ci)=>lockedBy[ci].concat(free.filter((_,i)=>assign[i]===ci)));
+}
+function salesmanClusters(core,depot,k){
+  const names=[...new Set(core.map(r=>r.salesman).filter(Boolean))];
+  if(!names.length)return clusterReps(core,depot,k,{stops:1,visits:1,sales:0});
+  const counts={};core.forEach(r=>{if(r.salesman)counts[r.salesman]=(counts[r.salesman]||0)+1;});
+  const map={};names.sort((a,b)=>counts[b]-counts[a]).slice(0,k).forEach((n,i)=>map[n]=i);
+  const clusters=Array.from({length:k},()=>[]);
+  core.forEach(r=>{r._si=(r.lockRep&&r.route!=null&&r.route<k)?r.route:(r.salesman&&map[r.salesman]!=null?map[r.salesman]:null);});
+  core.forEach(r=>{if(r._si!=null)clusters[r._si].push(r);});
+  let cents=clusters.map(c=>c.length?centroid(c):depot);
+  core.forEach(r=>{if(r._si==null){let bi=0,bd=Infinity;cents.forEach((c,i)=>{const d=haversine(c,r);if(d<bd){bd=d;bi=i;}});clusters[bi].push(r);}});
+  // move only MAJOR outliers (another centroid >5km closer), never locked
+  cents=clusters.map(c=>c.length?centroid(c):depot);
+  clusters.forEach((c,ci)=>{for(let j=c.length-1;j>=0;j--){const r=c[j];if(r.lockRep)continue;let bi=ci,bd=haversine(cents[ci],r);cents.forEach((cen,i)=>{if(i===ci)return;const d=haversine(cen,r);if(d<bd-5){bd=d;bi=i;}});if(bi!==ci){c.splice(j,1);clusters[bi].push(r);}}});
+  return clusters;
+}
+/* ---- scenarios comparison / preview / apply ---- */
+function scnMetrics(plan){
+  const routes=plan.routes,counts=routes.map(r=>r.stops.length),total=counts.reduce((a,b)=>a+b,0)||1;
+  const totalDays=routes.reduce((a,r)=>a+r.days.length,0)||1;
+  return {score:plan.scores.final,km:Math.round(plan.totalKm),routes:routes.length,
+    custPerRoute:`${(total/routes.length).toFixed(1)} (${Math.min(...counts)}–${Math.max(...counts)})`,
+    visitsPerDay:(plan.totalVisits/totalDays).toFixed(1),stopsPerRoute:(total/routes.length).toFixed(1),
+    stopsPerDay:(total/totalDays).toFixed(1),balance:plan.scores.balance+'%',crossings:plan.scores.cross,
+    outstation:plan.outTotal,hours:routes.reduce((a,r)=>a+r.hrs,0).toFixed(1)+' h'};
+}
+const SCN_ROWS=[['Plan score','score'],['Total KM','km'],['Total routes','routes'],['Customers / route','custPerRoute'],['Visits / day','visitsPerDay'],['Avg stops / route','stopsPerRoute'],['Avg stops / day','stopsPerDay'],['Workload balance','balance'],['Route crossings','crossings'],['Outstation customers','outstation'],['Est. time','hours']];
+function openScenarios(){
+  if(!S.scenarios||!S.scenarios.length)return;
+  const m=S.scenarios.map(scnMetrics);
+  const bestScore=Math.max(...m.map(x=>x.score)),bestKm=Math.min(...m.map(x=>x.km)),bestBal=Math.max(...m.map(x=>parseFloat(x.balance)));
+  let h='<div style="overflow:auto"><table class="scn-table"><thead><tr><th>Metric</th>';
+  S.scenarios.forEach((pl,i)=>{h+=`<th><div class="scn-h"><b>${escapeHtml(pl.name)}</b><div class="scn-sc ${m[i].score===bestScore?'best':''}">Score ${m[i].score} · ${scoreLabel(m[i].score)}</div><div class="scn-btns"><button type="button" class="btn btn-ghost btn-sm" data-prev="${i}">Preview</button><button type="button" class="btn btn-primary btn-sm" data-apply="${i}">Apply</button></div></div></th>`;});
+  h+='</tr></thead><tbody>';
+  SCN_ROWS.forEach(([label,key])=>{h+=`<tr><td><b>${escapeHtml(label)}</b></td>`+S.scenarios.map((pl,i)=>{const v=m[i][key];let cls='';if(key==='score'&&v===bestScore)cls='cell-best';if(key==='km'&&v===bestKm)cls='cell-best';if(key==='balance'&&parseFloat(v)===bestBal)cls='cell-best';const disp=key==='km'?v+' km':v;return `<td class="${cls}">${escapeHtml(String(disp))}</td>`;}).join('')+'</tr>';});
+  h+='</tbody></table></div><div class="scn-desc">'+SCN_DEFS.map(d=>`<div><b>${escapeHtml(d[1])}</b> — ${escapeHtml(d[2])}</div>`).join('')+'</div>';
+  $('scnBody').innerHTML=h;
+  $('scnBody').querySelectorAll('[data-prev]').forEach(b=>b.onclick=()=>previewScenario(+b.dataset.prev));
+  $('scnBody').querySelectorAll('[data-apply]').forEach(b=>b.onclick=()=>applyScenario(+b.dataset.apply));
+  $('scnModal').classList.add('show');
+}
+function hideScnModal(){$('scnModal').classList.remove('show');}
+function closeScn(){hideScnModal();if(S.previewing)return;if(S.committedPlan){S.plan=S.committedPlan;syncAssignments(S.plan);renderAll();}else{S.plan=null;plotRaw();}}
+function previewScenario(i){
+  const plan=S.scenarios[i];if(!plan)return;
+  S.plan=plan;S.previewing=true;S.ui={selRoute:0,selDay:0};syncAssignments(plan);
+  ['exportXlsx','exportCsv'].forEach(id=>$(id).disabled=false);
+  hideScnModal();renderAll();showScnBanner(i);switchView('dashboard');toast(`Previewing ${plan.name}`);
+}
+async function applyScenario(i){
+  const plan=S.scenarios[i];if(!plan)return;
+  hideScnModal();S.plan=plan;S.committedPlan=plan;S.previewing=false;S.ui={selRoute:0,selDay:0};syncAssignments(plan);
+  if(S.engine==='osrm'){toast('Fetching road distances…');setProgress(20);try{await osrmRefine(plan);}catch(e){}setProgress(100);}
+  ['exportXlsx','exportCsv'].forEach(id=>$(id).disabled=false);
+  renderAll();hideScnBanner();switchView('dashboard');toast(`${plan.name} applied`);
+}
+function showScnBanner(i){
+  const b=$('scnBanner');if(!b)return;const pl=S.scenarios[i];b.hidden=false;
+  b.innerHTML=`<span>👁 Previewing <b>${escapeHtml(pl.name)}</b> · score ${pl.scores.final} · ${Math.round(pl.totalKm)} km <em>(not applied yet)</em></span><span class="scn-bar-btns"><button type="button" class="btn btn-primary btn-sm" data-ab="${i}">Apply this scenario</button><button type="button" class="btn btn-ghost btn-sm" data-cb>Compare all</button><button type="button" class="btn btn-ghost btn-sm" data-db>Discard</button></span>`;
+  b.querySelector('[data-ab]').onclick=()=>applyScenario(i);
+  b.querySelector('[data-cb]').onclick=()=>openScenarios();
+  b.querySelector('[data-db]').onclick=discardPreview;
+}
+function hideScnBanner(){const b=$('scnBanner');if(b)b.hidden=true;}
+function discardPreview(){
+  S.previewing=false;hideScnBanner();
+  if(S.committedPlan){S.plan=S.committedPlan;syncAssignments(S.plan);renderAll();toast('Preview discarded');}
+  else{S.plan=null;plotRaw();renderKpiStrip();renderSteps();renderDayPanel();$('dashCharts').innerHTML='';$('dashWarn').innerHTML='';['exportXlsx','exportCsv'].forEach(id=>$(id).disabled=true);toast('Preview discarded');}
 }
 function buildDays(stops,workDays,cap,depot){
   const days=[];
@@ -800,8 +953,8 @@ function recomputeRoute(rt,speed,serviceMin,depot){
 }
 
 /* ===================== SCORING ===================== */
-function computeScores(){
-  const P=S.plan,routes=P.routes,counts=routes.map(r=>r.stops.length),total=counts.reduce((a,b)=>a+b,0)||1;
+function computeScores(plan){
+  const P=plan||S.plan,routes=P.routes,counts=routes.map(r=>r.stops.length),total=counts.reduce((a,b)=>a+b,0)||1;
   const mean=total/routes.length,sd=Math.sqrt(counts.reduce((a,c)=>a+(c-mean)**2,0)/routes.length),cv=mean?sd/mean:0;
   const balance=Math.max(0,Math.round(100*(1-cv)));
   const kmPer=P.totalKm/total,distance=Math.max(0,Math.min(100,Math.round(100-(kmPer-3)/9*100)));
@@ -812,6 +965,7 @@ function computeScores(){
   const act=S.rows.filter(r=>!r.excluded),good=act.filter(r=>r.gpsScore==='good').length,gps=act.length?Math.round(100*good/act.length):100;
   const final=Math.round(distance*.25+balance*.25+compact*.2+coverage*.15+gps*.15);
   P.scores={distance,balance,compact,coverage,gps,final,overflow,cross};
+  return P.scores;
 }
 function scoreLabel(s){return s>=85?'Excellent':s>=70?'Good':s>=50?'Needs review':'Bad';}
 function routeQuality(rt){const per=rt.stops.length?rt.crossings/rt.stops.length:0;return per<=0.02?'Excellent':per<=0.08?'Good':per<=0.18?'Needs review':'Bad';}
@@ -1188,7 +1342,7 @@ function restore(){
 function clearAll(){
   if(!confirm('Clear all imported data, edits and saved plan from this browser?'))return;
   try{localStorage.removeItem(LS_KEY);}catch(e){}
-  S.rows=[];S.skipped=[];S.plan=null;S.raw=[];S.hidden.clear();resetPlanUI();
+  S.rows=[];S.skipped=[];S.plan=null;S.raw=[];S.hidden.clear();S.scenarios=[];S.committedPlan=null;S.previewing=false;hideScnBanner();resetPlanUI();
   $('drop').classList.remove('has');$('dropTitle').textContent=t('dropTitle');$('dropSub').textContent=t('dropSub');
   if(S.map){S.layers.hulls.clearLayers();S.layers.markers.clearLayers();S.layers.routes.clearLayers();}
   $('mapEmpty').hidden=false;['dataPane','terrPane','jpPane','analyticsPane','alertsPane'].forEach(id=>$(id).innerHTML='');
@@ -1251,6 +1405,8 @@ function boot(){
   const search=$('search');search.onkeydown=e=>{if(e.key==='Enter')searchOutlet(search.value);};search.onsearch=()=>searchOutlet(search.value);
   $('mapClose').onclick=closeMapping;$('mapCancel').onclick=closeMapping;$('mapConfirm').onclick=confirmImport;
   $('mapModal').onclick=e=>{if(e.target===$('mapModal'))closeMapping();};
+  $('scnClose').onclick=closeScn;$('scnCloseBtn').onclick=closeScn;
+  $('scnModal').onclick=e=>{if(e.target===$('scnModal'))closeScn();};
   window.addEventListener('beforeunload',()=>{if(S.rows.length)persist();});
   window.addEventListener('error',ev=>console.error(ev.error||ev.message));
   restore();applyTheme();applyLang();renderKpiStrip();renderSteps();renderDayPanel();
