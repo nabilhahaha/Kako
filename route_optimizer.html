@@ -202,6 +202,17 @@
   .legrow.off{opacity:.4}
   .legrow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .legrow .ct{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ink-soft)}
+  .lgsel{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-size:12px;font-family:inherit;margin-bottom:7px}
+  .lgchk{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-soft);font-weight:600;cursor:pointer;margin:4px 0}
+  .lgchk input,.lgr input{width:auto;flex:none}
+  .lgr{display:flex;align-items:center;gap:7px;flex:1;cursor:pointer;min-width:0}
+  .lgrouw{display:flex;align-items:center;justify-content:space-between}
+  .lgmini{font-size:10.5px;color:var(--ink-soft)} .lgmini a{cursor:pointer;color:var(--primary);font-weight:700}
+  .lgnote{margin-top:8px;font-size:10px;color:var(--ink-mute);border-top:1px solid var(--line);padding-top:6px}
+  .depot-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line-2);font-size:12px}
+  .depot-row .dn{flex:1;font-weight:600}
+  .depot-row .dc{color:var(--ink-soft);font-family:"JetBrains Mono",monospace;font-size:11px}
+  .asg-table select{width:100%;padding:5px 7px;font-size:12px;border:1px solid var(--line);border-radius:7px;background:var(--field);color:var(--ink)}
 
   /* right day panel */
   .side-panel{display:flex;flex-direction:column;gap:16px}
@@ -489,6 +500,25 @@
           </div>
 
           <div class="card">
+            <div class="card-h"><h3>②b Start points / depots</h3></div>
+            <div class="card-b">
+              <div id="depotList"></div>
+              <label class="fld" style="margin-top:10px">Add a start point</label>
+              <input type="text" id="depNewName" placeholder="Name (e.g. Makkah depot)">
+              <div class="grid3" style="margin-top:8px">
+                <input type="number" id="depNewLat" step="0.0001" placeholder="Lat" inputmode="decimal">
+                <input type="number" id="depNewLng" step="0.0001" placeholder="Lng" inputmode="decimal">
+                <input type="text" id="depNewCity" placeholder="City/Area">
+              </div>
+              <div class="grid2" style="margin-top:8px">
+                <button type="button" class="btn btn-soft" id="depAdd">Add depot</button>
+                <button type="button" class="btn btn-ghost" id="depPick">Pick on map</button>
+              </div>
+              <p class="note">Assign routes to depots in the Territory tab after optimizing. Each route is auto-assigned to its nearest depot.</p>
+            </div>
+          </div>
+
+          <div class="card">
             <div class="card-h"><h3>③ <span data-i18n="secPlan">Plan parameters</span></h3></div>
             <div class="card-b">
               <div class="grid3">
@@ -635,7 +665,8 @@ const S = {
   map:null, layers:{markers:null, routes:null, hulls:null, depot:null},
   pickMode:false, hidden:new Set(), markerIndex:new Map(),
   lang:'en', theme:'light', view:'dashboard',
-  ui:{selRoute:0, selDay:0, filter:'all', colorByDay:false}, _fileName:'', lastMove:null,
+  ui:{selRoute:0, selDay:0, filter:'all', colorByDay:false, routes:new Set(), dayOnly:false, showLines:true, showTerr:true}, _fileName:'', lastMove:null,
+  depots:[], _depotSeq:0,
   scenarios:[], committedPlan:null, previewing:false, prevCommitted:null,
   perf:false, forceFull:false, cancel:false, dupPolicy:'keepFirst', scope:{field:'',value:''}
 };
@@ -843,12 +874,12 @@ async function confirmImport(){
     progStage('Scoring GPS quality…',85);await yieldUI();checkCancel();
     gpsQuality(rows);
     S.rows=rows;S.skipped=skipped;S.plan=null;S.scenarios=[];S.committedPlan=null;
-    S.perf=rows.length>PERF_THRESHOLD; S.forceFull=false;
+    S.perf=rows.length>PERF_THRESHOLD; S.forceFull=false; S.ui.showLines=!S.perf; S.ui.showTerr=!S.perf; S.ui.routes=new Set();
     resetPlanUI();
     progStage('Rendering…',94);await yieldUI();
     $('drop').classList.add('has');$('dropTitle').textContent=(S._fileName||'File').length>26?S._fileName.slice(0,24)+'…':S._fileName;
     $('dropSub').textContent=`${rows.length.toLocaleString()} valid · ${skipped.length.toLocaleString()} skipped${dupCount?' · '+dupCount+' dup codes':''}`;
-    autoDepot();enableRun();buildScopeValues();plotRaw();
+    autoDepot();enableRun();buildScopeValues();renderDepotList();plotRaw();
     switchView('data');refreshTags();renderKpiStrip();renderSteps();
     progStage('Done',100);progClose();
     if(S.perf)toast(`Large file detected (${rows.length.toLocaleString()}). Performance mode enabled.`);
@@ -960,8 +991,17 @@ function buildPlan(strategy,p){
   else if(p.outMode==='include'){coreRows=active;outRows=[];}
   const clusters=clusterByStrategy(strategy,coreRows,S.depot,p.k,p.w);
   const routes=[];
-  for(let i=0;i<clusters.length;i++){let stops=clusters[i];if(!stops.length)continue;stops.forEach(s=>s.route=routes.length);assignDays(stops,p.workDays,S.depot,p.cap);routes.push(makeRoute(routes.length,buildDays(stops,p.workDays,p.cap,S.depot),p.speed,p.serviceMin,false));}
-  if(p.outMode==='separate'&&outRows.length){outRows.forEach(s=>s.route=routes.length);assignDays(outRows,p.workDays,S.depot,p.cap);routes.push(makeRoute(routes.length,buildDays(outRows,p.workDays,p.cap,S.depot),p.speed,p.serviceMin,true));}
+  const mkRouteFrom=(stops,isOut)=>{
+    const cen=centroid(stops), dep=nearestDepot(cen)||{id:'main',name:'Main depot',lat:S.depot.lat,lng:S.depot.lng};
+    const start={lat:dep.lat,lng:dep.lng};
+    stops.forEach(s=>s.route=routes.length);
+    assignDays(stops,p.workDays,start,p.cap);
+    const rt=makeRoute(routes.length,buildDays(stops,p.workDays,p.cap,start,start),p.speed,p.serviceMin,isOut);
+    rt.depotId=dep.id;rt.depotName=dep.name;rt.endMode='start';
+    routes.push(rt);
+  };
+  for(let i=0;i<clusters.length;i++){if(clusters[i].length)mkRouteFrom(clusters[i],false);}
+  if(p.outMode==='separate'&&outRows.length)mkRouteFrom(outRows,true);
   routes.forEach(rt=>rt.engine='haversine');
   const plan={routes,totalKm:routes.reduce((a,r)=>a+r.km,0),totalVisits:routes.reduce((a,r)=>a+r.visits,0),workDays:p.workDays,cap:p.cap,maxKm:p.maxKm,speed:p.speed,serviceMin:p.serviceMin,capacity:p.k*p.workDays*p.cap,outTotal:S.rows.filter(r=>r.out&&!r.excluded).length,excluded:S.rows.filter(r=>r.excluded).length};
   computeScores(plan);
@@ -969,7 +1009,7 @@ function buildPlan(strategy,p){
 }
 /* OSRM refinement applied to one committed plan */
 async function osrmRefine(plan){
-  for(const rt of plan.routes)for(const d of rt.days){if(d.stops.length>=1&&d.stops.length<=23){try{const o=await osrmRoute(d.stops,S.depot);d.km=o.km;d.geo=o.geo;rt.engine='osrm';}catch(e){rt.engine='haversine (osrm failed)';}}}
+  for(const rt of plan.routes)for(const d of rt.days){if(d.stops.length>=1&&d.stops.length<=23){try{const o=await osrmRoute(d.stops,routeStart(rt));d.km=o.km;d.geo=o.geo;rt.engine='osrm';}catch(e){rt.engine='haversine (osrm failed)';}}}
   plan.routes.forEach(rt=>{rt.km=rt.days.reduce((a,d)=>a+d.km,0);rt.days.forEach(d=>d.hrs=d.km/plan.speed+d.stops.length*plan.serviceMin/60);rt.hrs=rt.days.reduce((a,d)=>a+d.hrs,0);});
   plan.totalKm=plan.routes.reduce((a,r)=>a+r.km,0);computeScores(plan);
 }
@@ -1096,9 +1136,10 @@ function openScenarios(){
 }
 function hideScnModal(){$('scnModal').classList.remove('show');}
 function closeScn(){hideScnModal();if(S.previewing)return;if(S.committedPlan){S.plan=S.committedPlan;syncAssignments(S.plan);renderAll();}else{S.plan=null;plotRaw();}}
+function resetSel(){S.ui.selRoute=0;S.ui.selDay=0;S.ui.routes=new Set();S.ui.dayOnly=false;}
 function previewScenario(i){
   const plan=S.scenarios[i];if(!plan)return;
-  S.plan=plan;S.previewing=true;S.ui={selRoute:0,selDay:0};syncAssignments(plan);
+  S.plan=plan;S.previewing=true;resetSel();syncAssignments(plan);
   ['exportXlsx','exportCsv'].forEach(id=>$(id).disabled=false);
   hideScnModal();renderAll();showScnBanner(i);switchView('dashboard');toast(`Previewing ${plan.name}`);
 }
@@ -1106,7 +1147,7 @@ async function applyScenario(i){
   const plan=S.scenarios[i];if(!plan)return;
   const prevScore=S.committedPlan?S.committedPlan.scores.final:null;
   S.prevCommitted=S.committedPlan||null;            // enable "revert to previous plan"
-  hideScnModal();S.plan=plan;S.committedPlan=plan;S.previewing=false;S.ui={selRoute:0,selDay:0};syncAssignments(plan);
+  hideScnModal();S.plan=plan;S.committedPlan=plan;S.previewing=false;resetSel();syncAssignments(plan);
   if(S.engine==='osrm'){toast('Fetching road distances…');setProgress(20);try{await osrmRefine(plan);}catch(e){}setProgress(100);}
   ['exportXlsx','exportCsv'].forEach(id=>$(id).disabled=false);
   renderAll();hideScnBanner();switchView('dashboard');
@@ -1127,7 +1168,7 @@ function showActiveBadge(){
 function revertPlan(){
   if(!S.prevCommitted)return;
   const back=S.prevCommitted;S.prevCommitted=null;
-  S.plan=back;S.committedPlan=back;S.previewing=false;S.ui={selRoute:0,selDay:0};syncAssignments(back);
+  S.plan=back;S.committedPlan=back;S.previewing=false;resetSel();syncAssignments(back);
   renderAll();toast('Reverted to previous plan');
 }
 function showScnBanner(i){
@@ -1143,9 +1184,10 @@ function discardPreview(){
   if(S.committedPlan){S.plan=S.committedPlan;syncAssignments(S.plan);renderAll();toast('Preview discarded');}
   else{S.plan=null;plotRaw();renderKpiStrip();renderSteps();renderDayPanel();$('dashCharts').innerHTML='';$('dashWarn').innerHTML='';['exportXlsx','exportCsv'].forEach(id=>$(id).disabled=true);toast('Preview discarded');}
 }
-function buildDays(stops,workDays,cap,depot){
+function buildDays(stops,workDays,cap,start,end){
+  end=(end===undefined)?start:end;
   const days=[];
-  for(let d=0;d<workDays;d++){let ds=stops.filter(s=>s.visitDays&&s.visitDays.includes(d));if(!ds.length)continue;const ord=twoOpt(nearestNeighbour(ds,depot),depot);ord.forEach((s,i)=>{s._seq=i+1;s._day=d;});days.push({day:d,stops:ord,km:routeLen(ord,depot),crossings:countCrossings(ord,depot)});}
+  for(let d=0;d<workDays;d++){let ds=stops.filter(s=>s.visitDays&&s.visitDays.includes(d));if(!ds.length)continue;const ord=twoOpt(nearestNeighbour(ds,start),start);ord.forEach((s,i)=>{s._seq=i+1;s._day=d;});days.push({day:d,stops:ord,km:routeLen2(ord,start,end),crossings:countCrossings(ord,start)});}
   return days;
 }
 function makeRoute(idx,days,speed,serviceMin,isOut){
@@ -1153,8 +1195,9 @@ function makeRoute(idx,days,speed,serviceMin,isOut){
   const flat=[];days.forEach(d=>d.stops.forEach(s=>flat.push(s)));
   return{idx,color:PALETTE[idx%PALETTE.length],isOut,days,stops:flat,km:days.reduce((a,d)=>a+d.km,0),engine:S.engine==='osrm'?'osrm':'haversine',visits:flat.reduce((a,s)=>a+s.freq,0),sales:flat.reduce((a,s)=>a+s.sales,0),activeCount:flat.filter(s=>s.active).length,inactiveCount:flat.filter(s=>!s.active).length,outCount:flat.filter(s=>s.out).length,crossings:days.reduce((a,d)=>a+d.crossings,0),hrs:days.reduce((a,d)=>a+(d.km/speed+d.stops.length*serviceMin/60),0)};
 }
-function recomputeRoute(rt,speed,serviceMin,depot){
-  rt.days.forEach(d=>{d.stops=twoOpt(nearestNeighbour(d.stops,depot),depot);d.stops.forEach((s,i)=>s._seq=i+1);d.km=routeLen(d.stops,depot);d.crossings=countCrossings(d.stops,depot);d.hrs=d.km/speed+d.stops.length*serviceMin/60;});
+function recomputeRoute(rt,speed,serviceMin){
+  const start=routeStart(rt),end=routeEnd(rt);
+  rt.days.forEach(d=>{d.stops=twoOpt(nearestNeighbour(d.stops,start),start);d.stops.forEach((s,i)=>s._seq=i+1);d.km=routeLen2(d.stops,start,end);d.crossings=countCrossings(d.stops,start);d.hrs=d.km/speed+d.stops.length*serviceMin/60;});
   rt.stops=[];rt.days.forEach(d=>d.stops.forEach(s=>rt.stops.push(s)));
   rt.km=rt.days.reduce((a,d)=>a+d.km,0);rt.visits=rt.stops.reduce((a,s)=>a+s.freq,0);rt.sales=rt.stops.reduce((a,s)=>a+s.sales,0);
   rt.activeCount=rt.stops.filter(s=>s.active).length;rt.inactiveCount=rt.stops.filter(s=>!s.active).length;rt.outCount=rt.stops.filter(s=>s.out).length;rt.crossings=rt.days.reduce((a,d)=>a+d.crossings,0);rt.hrs=rt.days.reduce((a,d)=>a+d.hrs,0);
@@ -1190,7 +1233,10 @@ function initMap(){
   S.layers.routes=L.layerGroup().addTo(S.map);
   S.layers.markers=L.layerGroup().addTo(S.map);
   S.layers.depot=L.layerGroup().addTo(S.map);
-  S.map.on('click',e=>{if(!S.pickMode)return;$('depLat').value=e.latlng.lat.toFixed(4);$('depLng').value=e.latlng.lng.toFixed(4);syncDepot();S.pickMode=false;$('pickDepot').textContent=t('pickDepot');drawDepot();toast('Depot set');});
+  S.map.on('click',e=>{
+    if(S.pickNewDepot){addDepot('Depot '+(S.depots.length),+e.latlng.lat.toFixed(4),+e.latlng.lng.toFixed(4),'');S.pickNewDepot=false;renderDepotList();drawDepots();fitAll();saveSettingsOnly();toast('Depot added — rename it in Setup');return;}
+    if(!S.pickMode)return;$('depLat').value=e.latlng.lat.toFixed(4);$('depLng').value=e.latlng.lng.toFixed(4);syncDepot();S.pickMode=false;$('pickDepot').textContent=t('pickDepot');drawDepots();renderDepotList();toast('Depot set');
+  });
   S.map.on('popupopen',wirePopup);
   // robust move handling: delegate change events from the popup's <select> (bubbles to the map container)
   S.map.getContainer().addEventListener('change',ev=>{
@@ -1219,8 +1265,10 @@ function addTiles(idx){
   layer.on('tileerror',()=>{errs++;if(!ok&&!switched&&errs>=4){switched=true;addTiles(idx+1);}});
   layer.addTo(S.map);S._tiles=layer;
 }
-function fitAll(){if(!S.map)return;S.map.invalidateSize();const pts=S.rows.filter(r=>!r.excluded).map(r=>[r.lat,r.lng]).filter(p=>isFinite(p[0])&&isFinite(p[1]));if(S.depot)pts.push([S.depot.lat,S.depot.lng]);if(pts.length)S.map.fitBounds(pts,{padding:[50,50],maxZoom:15});}
-function drawDepot(){if(!S.map)return;S.layers.depot.clearLayers();if(!S.depot)return;L.marker([S.depot.lat,S.depot.lng],{icon:L.divIcon({className:'',html:`<div style="background:#0F172A;color:#fff;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:15px;box-shadow:0 3px 10px rgba(0,0,0,.4);border:2px solid #fff">⌂</div>`,iconSize:[32,32],iconAnchor:[16,16]})}).addTo(S.layers.depot).bindPopup('Depot / Warehouse');}
+function fitAll(){if(!S.map)return;S.map.invalidateSize();const pts=S.rows.filter(r=>!r.excluded).map(r=>[r.lat,r.lng]).filter(p=>isFinite(p[0])&&isFinite(p[1]));(S.depots.length?S.depots:(S.depot?[S.depot]:[])).forEach(d=>pts.push([d.lat,d.lng]));if(pts.length)S.map.fitBounds(pts,{padding:[50,50],maxZoom:15});}
+function depotIcon(main){return L.divIcon({className:'',html:`<div style="background:${main?'#0F172A':'#1F6F5C'};color:#fff;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:14px;box-shadow:0 3px 10px rgba(0,0,0,.4);border:2px solid #fff">${main?'⌂':'⚑'}</div>`,iconSize:[30,30],iconAnchor:[15,15]});}
+function drawDepots(){if(!S.map)return;S.layers.depot.clearLayers();const list=S.depots.length?S.depots:(S.depot?[{id:'main',name:'Depot',lat:S.depot.lat,lng:S.depot.lng}]:[]);list.forEach((d,i)=>{L.marker([d.lat,d.lng],{icon:depotIcon(i===0)}).addTo(S.layers.depot).bindPopup(`<b>${escapeHtml(d.name||('Depot '+(i+1)))}</b>${d.city?'<br>'+escapeHtml(d.city):''}<br><span class="mono">${(+d.lat).toFixed(4)}, ${(+d.lng).toFixed(4)}</span>`);});}
+function drawDepot(){drawDepots();}
 function gpsColor(s){return s==='bad'?'#DC2626':s==='warn'?'#D97706':'#64748B';}
 function rawIcon(c){return L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:`<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>`});}
 // cheap canvas circle marker — handles tens of thousands of points without freezing
@@ -1248,6 +1296,7 @@ function custPopup(s,rt,seq,dayIdx){
   let h=`<b>${escapeHtml(s.name)}</b><br><span class="mono">${escapeHtml(s.code)}</span>`+
     (s.city?` · ${escapeHtml(s.city)}`:'')+(s.channel&&s.channel!=='—'?` · ${escapeHtml(s.channel)}`:'')+
     (rt!=null?`<br><b>Route ${rt+1}</b>${seq?' · #'+seq:''}${dayIdx!=null?' · '+dayName(dayIdx):''}`:'')+
+    (rt!=null&&S.plan&&S.plan.routes[rt]?(()=>{const R=S.plan.routes[rt];const d=R.depotId?depotById(R.depotId):null;return `<br>Start: ${d?escapeHtml(d.name):'<span style=\"color:#D97706\">default depot (unassigned)</span>'}`;})():'')+
     `<br>Freq ${s.freq}× · Sales ${fmtMoney(s.sales)}`+(s.salesman?`<br>Rep: ${escapeHtml(s.salesman)}`:'')+
     `<br>${s.depDist!=null?s.depDist.toFixed(1)+' km from depot':''}`+
     (s.out?' · <span style="color:#D97706">OUTSTATION</span>':'')+(!s.active?' · <span style="color:#DC2626">INACTIVE</span>':'')+
@@ -1308,8 +1357,8 @@ function moveTo(id,toRoute,dayIndex,lock){
   if(!tgt){tgt={day:dayIndex,stops:[],km:0,crossings:0,hrs:0};to.days.push(tgt);to.days.sort((a,b)=>a.day-b.day);}
   s.route=toRoute;s._day=dayIndex;tgt.stops.push(s);
   if(lock){s.lockRep=true;s.lockDay=true;s.day=dayIndex;}
-  if(from)recomputeRoute(from,S.plan.speed,S.plan.serviceMin,S.depot);
-  recomputeRoute(to,S.plan.speed,S.plan.serviceMin,S.depot);
+  if(from)recomputeRoute(from,S.plan.speed,S.plan.serviceMin);
+  recomputeRoute(to,S.plan.speed,S.plan.serviceMin);
   S.plan.totalKm=S.plan.routes.reduce((a,r)=>a+r.km,0);S.plan.totalVisits=S.plan.routes.reduce((a,r)=>a+r.visits,0);
   computeScores();
 }
@@ -1357,7 +1406,7 @@ function applyFreq(id,key,patIdx){
   s.freqLocked=true;s.lockDay=true;s.lockRep=true;s.day=fp.days[0];s._day=fp.days[0];
   fp.days.forEach(wd=>{let d=rt.days.find(x=>x.day===wd);if(!d){d={day:wd,stops:[],km:0,crossings:0,hrs:0};rt.days.push(d);}if(!d.stops.some(x=>x.id===id))d.stops.push(s);});
   rt.days=rt.days.filter(d=>d.stops.length);rt.days.sort((a,b)=>a.day-b.day);
-  recomputeRoute(rt,S.plan.speed,S.plan.serviceMin,S.depot);
+  recomputeRoute(rt,S.plan.speed,S.plan.serviceMin);
   S.plan.totalKm=S.plan.routes.reduce((a,r)=>a+r.km,0);S.plan.totalVisits=S.plan.routes.reduce((a,r)=>a+r.visits,0);
   computeScores();renderAll();
   const mk=S.markerIndex.get(id);if(mk&&mk.openPopup)setTimeout(()=>{try{mk.openPopup();}catch(_){}},20);
@@ -1376,54 +1425,69 @@ function undoMove(){
   const back=S.plan.routes.find(r=>r.idx===m.route);
   const days=(s.visitDays&&s.visitDays.length)?s.visitDays:[m.day!=null?m.day:0];
   if(back){days.forEach(wd=>{let d=back.days.find(x=>x.day===wd);if(!d){d={day:wd,stops:[],km:0,crossings:0,hrs:0};back.days.push(d);}if(!d.stops.some(x=>x.id===m.id))d.stops.push(s);});back.days=back.days.filter(d=>d.stops.length);back.days.sort((a,b)=>a.day-b.day);}
-  S.plan.routes.forEach(r=>recomputeRoute(r,S.plan.speed,S.plan.serviceMin,S.depot));
+  S.plan.routes.forEach(r=>recomputeRoute(r,S.plan.speed,S.plan.serviceMin));
   S.plan.totalKm=S.plan.routes.reduce((a,r)=>a+r.km,0);S.plan.totalVisits=S.plan.routes.reduce((a,r)=>a+r.visits,0);
   computeScores();S.lastMove=null;renderAll();hideUndo();toast('Change undone');
 }
 function showUndo(msg,fn){const b=$('undobar');if(!b)return;$('undoMsg').textContent=msg;b._fn=fn;b.hidden=false;clearTimeout(b._t);b._t=setTimeout(()=>{b.hidden=true;},9000);}
 function hideUndo(){const b=$('undobar');if(!b)return;b.hidden=true;clearTimeout(b._t);}
+function routeVisible(rt){return S.ui.routes.size===0||S.ui.routes.has(rt.idx);}
+function selWeekday(){if(!S.ui.dayOnly)return null;const r=S.plan.routes[S.ui.selRoute];return(r&&r.days[S.ui.selDay])?r.days[S.ui.selDay].day:null;}
 function renderPlan(){
   if(!S.map||!S.plan)return;$('mapEmpty').hidden=true;
-  S.map.closePopup(); // drop any popup still anchored to an about-to-be-removed (old-color) marker
+  S.map.closePopup();
   S.layers.hulls.clearLayers();S.layers.markers.clearLayers();S.layers.routes.clearLayers();S.markerIndex.clear();
-  const ui=S.ui, byDay=ui.colorByDay;
-  const selRt=S.plan.routes[ui.selRoute];
-  const selWk=(selRt&&selRt.days[ui.selDay])?selRt.days[ui.selDay].day:null;
-  const routeOnly=(ui.filter==='route'||ui.filter==='routeday');
-  const dayOnly=(ui.filter==='day'||ui.filter==='routeday');
-  // how many stops would show given the current filter?
-  let shown=0;S.plan.routes.forEach(rt=>{if(S.hidden.has(rt.idx))return;if(routeOnly&&rt.idx!==ui.selRoute)return;rt.days.forEach(day=>{if(dayOnly&&selWk!=null&&day.day!==selWk)return;shown+=day.stops.length;});});
-  // full detail (numbered pins + route lines + hulls) only for small sets; otherwise cheap canvas dots
-  const detail=!S.perf||S.forceFull||routeOnly||dayOnly||shown<=MAX_MARKERS;
+  const ui=S.ui, byDay=ui.colorByDay, selWk=selWeekday();
+  const sel=ui.routes.size>0; // an explicit route selection is active
+  // stops that will show under the current route/day filter
+  let shown=0;S.plan.routes.forEach(rt=>{if(!routeVisible(rt))return;rt.days.forEach(day=>{if(selWk!=null&&day.day!==selWk)return;shown+=day.stops.length;});});
+  // numbered pins only for small sets; otherwise fast canvas dots
+  const detail=!S.perf||S.forceFull||sel||shown<=MAX_MARKERS;
+  const wantLines=ui.showLines&&detail;       // lines need ordered detail
+  const wantTerr=ui.showTerr&&!byDay;
   S.plan.routes.forEach(rt=>{
-    if(S.hidden.has(rt.idx))return;
-    if(routeOnly&&rt.idx!==ui.selRoute)return;
-    if(detail&&!byDay&&!dayOnly&&typeof turf!=='undefined'&&rt.stops.length>=3){try{const fc=turf.featureCollection(rt.stops.map(s=>turf.point([s.lng,s.lat])));const hull=turf.convex(fc);if(hull)L.geoJSON(hull,{style:{color:rt.color,weight:1,opacity:.5,fillColor:rt.color,fillOpacity:.10}}).addTo(S.layers.hulls);}catch(e){}}
+    if(!routeVisible(rt))return;
+    const start=routeStart(rt);
+    if(wantTerr&&typeof turf!=='undefined'&&rt.stops.length>=3){try{const fc=turf.featureCollection(rt.stops.map(s=>turf.point([s.lng,s.lat])));const hull=turf.convex(fc);if(hull)L.geoJSON(hull,{style:{color:rt.color,weight:1,opacity:.5,fillColor:rt.color,fillOpacity:.10}}).addTo(S.layers.hulls);}catch(e){}}
     rt.days.forEach((day,di)=>{
-      if(dayOnly&&selWk!=null&&day.day!==selWk)return;
-      const col=byDay?dayColor(day.day):rt.color;
-      if(detail){
+      if(selWk!=null&&day.day!==selWk)return;
+      const col=byDay?dayColor(day.day):rt.color, end=routeEnd(rt);
+      if(wantLines){
         if(day.geo)L.geoJSON(day.geo,{style:{color:col,weight:3,opacity:.85}}).addTo(S.layers.routes);
-        else{const line=[[S.depot.lat,S.depot.lng],...day.stops.map(s=>[s.lat,s.lng]),[S.depot.lat,S.depot.lng]];L.polyline(line,{color:col,weight:2.5,opacity:.75}).addTo(S.layers.routes);}
-        day.stops.forEach((s,i)=>{const mk=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],html:`<div style="width:22px;height:22px;border-radius:50%;background:${col};color:#fff;border:2px solid #fff;display:grid;place-items:center;font-size:10px;font-weight:700;font-family:monospace;box-shadow:0 1px 3px rgba(0,0,0,.4);${s.out?'outline:2px solid #D97706;outline-offset:1px;':''}">${i+1}</div>`})}).addTo(S.layers.markers).bindPopup(custPopup(s,rt.idx,i+1,day.day));S.markerIndex.set(s.id,mk);});
-      }else{
-        // performance: cheap canvas dots, no lines/numbers/hulls
-        day.stops.forEach(s=>{const mk=dotMarker(s,col).addTo(S.layers.markers).bindPopup(custPopup(s,rt.idx,null,day.day));S.markerIndex.set(s.id,mk);});
+        else{const line=[[start.lat,start.lng],...day.stops.map(s=>[s.lat,s.lng]),[(end||start).lat,(end||start).lng]];L.polyline(line,{color:col,weight:2.5,opacity:.75}).addTo(S.layers.routes);}
       }
+      if(detail){day.stops.forEach((s,i)=>{const mk=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],html:`<div style="width:22px;height:22px;border-radius:50%;background:${col};color:#fff;border:2px solid #fff;display:grid;place-items:center;font-size:10px;font-weight:700;font-family:monospace;box-shadow:0 1px 3px rgba(0,0,0,.4);${s.out?'outline:2px solid #D97706;outline-offset:1px;':''}">${i+1}</div>`})}).addTo(S.layers.markers).bindPopup(custPopup(s,rt.idx,i+1,day.day));S.markerIndex.set(s.id,mk);});}
+      else{day.stops.forEach(s=>{const mk=dotMarker(s,col).addTo(S.layers.markers).bindPopup(custPopup(s,rt.idx,null,day.day));S.markerIndex.set(s.id,mk);});}
     });
   });
-  setMapBanner(detail?'':`Performance mode — ${shown.toLocaleString()} stops shown as dots (no route lines). Pick a route/day for full detail.`, !detail);
-  drawDepot();fitAll();renderLegend();
+  setMapBanner(detail?'':`Performance mode — ${shown.toLocaleString()} stops shown as dots. Select route(s)/day for full detail &amp; lines.`, !detail);
+  drawDepots();fitAll();renderLegend();
 }
+/* Map controls + legend: display mode, color-by, day, line/territory toggles, route checkboxes */
 function renderLegend(){
-  const el=$('legend');el.hidden=false;
-  if(S.ui.colorByDay){
-    const wd=S.plan.workDays||6;let h='<h4>Days</h4>';
-    for(let d=0;d<wd;d++)h+=`<div class="legrow"><span class="sw" style="background:${dayColor(d)}"></span><span class="nm">${escapeHtml(dayName(d))}</span></div>`;
-    el.innerHTML=h;return;
-  }
-  el.innerHTML='<h4>Reps / Territories</h4>'+S.plan.routes.map(rt=>`<div class="legrow ${S.hidden.has(rt.idx)?'off':''}" data-idx="${rt.idx}" role="button" tabindex="0"><span class="sw" style="background:${rt.color}"></span><span class="nm">${rt.isOut?'Outstation':'Route '+(rt.idx+1)}</span><span class="ct">${rt.stops.length}</span></div>`).join('');
-  el.querySelectorAll('.legrow').forEach(row=>{const tog=()=>{const i=+row.dataset.idx;S.hidden.has(i)?S.hidden.delete(i):S.hidden.add(i);renderPlan();};row.onclick=tog;row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tog();}};});
+  const el=$('legend');el.hidden=false;const ui=S.ui;
+  const mode=ui.showLines&&ui.showTerr?'full':ui.showLines?'lines':ui.showTerr?'terr':'markers';
+  const wd=S.plan.workDays||6;
+  let h=`<h4>Map display</h4>
+    <select class="lgsel" id="lgMode">
+      <option value="markers" ${mode==='markers'?'selected':''}>Markers only</option>
+      <option value="lines" ${mode==='lines'?'selected':''}>Markers + route lines</option>
+      <option value="terr" ${mode==='terr'?'selected':''}>Markers + territories</option>
+      <option value="full" ${mode==='full'?'selected':''}>Full view</option>
+    </select>
+    <label class="lgchk"><input type="checkbox" id="lgColorDay" ${ui.colorByDay?'checked':''}> Color by day</label>
+    <label class="lgchk"><input type="checkbox" id="lgDayOnly" ${ui.dayOnly?'checked':''}> Only selected day${selWeekday()!=null?' ('+escapeHtml(dayName(selWeekday()))+')':''}</label>
+    <div class="lgrouw"><h4 style="margin:8px 0 6px">Routes</h4><span class="lgmini"><a id="lgAll">All</a> · <a id="lgNone">None</a></span></div>`;
+  h+=S.plan.routes.map(rt=>{const on=routeVisible(rt);return `<div class="legrow ${on?'':'off'}"><label class="lgr"><input type="checkbox" class="lgck" data-idx="${rt.idx}" ${ui.routes.has(rt.idx)?'checked':''}><span class="sw" style="background:${rt.color}"></span><span class="nm">${rt.isOut?'Outstation':'Route '+(rt.idx+1)}</span></label><span class="ct">${rt.stops.length}</span></div>`;}).join('');
+  if(ui.colorByDay){h+='<h4 style="margin-top:8px">Days</h4>';for(let d=0;d<wd;d++)h+=`<div class="legrow"><span class="sw" style="background:${dayColor(d)}"></span><span class="nm">${escapeHtml(dayName(d))}</span></div>`;}
+  h+=`<div class="lgnote">${ui.showLines?'Lines on':'Lines off'} · ${ui.showTerr?'Territories on':'Territories off'}</div>`;
+  el.innerHTML=h;
+  $('lgMode').onchange=e=>{const v=e.target.value;ui.showLines=(v==='lines'||v==='full');ui.showTerr=(v==='terr'||v==='full');if(ui.showLines&&S.perf&&!S.forceFull&&ui.routes.size===0){if(!confirm('Showing all route lines with large data may slow the map. Continue?')){ui.showLines=false;}else S.forceFull=true;}saveSettingsOnly();renderPlan();};
+  $('lgColorDay').onchange=e=>{ui.colorByDay=e.target.checked;saveSettingsOnly();renderPlan();};
+  $('lgDayOnly').onchange=e=>{ui.dayOnly=e.target.checked;saveSettingsOnly();renderPlan();};
+  $('lgAll').onclick=()=>{ui.routes.clear();saveSettingsOnly();renderPlan();};
+  $('lgNone').onclick=()=>{ui.routes=new Set(S.plan.routes.map(r=>r.idx));if(ui.routes.size===S.plan.routes.length){/*all*/}saveSettingsOnly();renderPlan();};
+  el.querySelectorAll('.lgck').forEach(c=>c.onchange=()=>{const i=+c.dataset.idx;if(c.checked)ui.routes.add(i);else ui.routes.delete(i);if(ui.routes.size===S.plan.routes.length)ui.routes.clear();saveSettingsOnly();renderPlan();});
 }
 
 /* ===================== KPI STRIP + SCORE ===================== */
@@ -1467,9 +1531,9 @@ function renderDayPanel(){
   if(day){
     h+=`<div class="daystats"><div><div class="v">${stats.stops}</div><div class="l">Stops</div></div><div><div class="v">${stats.km}</div><div class="l">km</div></div><div><div class="v">${stats.visits}</div><div class="l">Visits</div></div><div><div class="v">${stats.hrs}h</div><div class="l">Time</div></div></div>`;
     const dfl=dayFlagsHtml(day,S.plan);if(dfl)h+=`<div style="margin:0 0 10px">${dfl}</div>`;
-    let prev=S.depot;
+    let prev=routeStart(rt);
     h+=`<div class="stoplist">`+day.stops.map((s,i)=>{const leg=haversine(prev,s);prev=s;return `<div class="stopitem"><span class="sn" style="background:${rt.color}">${i+1}</span><div class="info"><div class="nm">${escapeHtml(s.name)}</div><div class="sub">${escapeHtml(s.code)} · ${escapeHtml(s.city||'—')}</div></div><span class="km">${leg.toFixed(1)} km</span></div>`;}).join('')+`</div>`;
-    const links=gmapsLinks(S.depot,day.stops);
+    const links=gmapsLinks(routeStart(rt),day.stops,routeEnd(rt));
     h+=`<div class="gm"><div class="qr" id="dpQr"></div><div class="gx"><b>Google Maps route</b><div class="wl">${day.stops.length} stops${links.length>1?' · Part 1 of '+links.length:''}</div><div class="lk"><a class="linkbtn" href="${escapeHtml(links[0])}" target="_blank" rel="noopener">Open</a><button type="button" class="linkbtn" id="dpCopy">Copy link</button></div></div></div>
         <div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="btn btn-ghost btn-sm btn-block" id="dpMap">${escapeHtml(t('viewOnMap'))}</button><button type="button" class="btn btn-primary btn-sm btn-block" id="dpOpt">${escapeHtml(t('optimize'))}</button></div>
         <button type="button" class="btn btn-soft btn-sm btn-block" id="dpBook" style="margin-top:8px">📕 Route book / share</button>`;
@@ -1480,7 +1544,7 @@ function renderDayPanel(){
   $('dpFilter').onchange=e=>{S.ui.filter=e.target.value;renderPlan();};
   el.querySelectorAll('.daypill').forEach(b=>b.onclick=()=>{S.ui.selDay=+b.dataset.day;renderDayPanel();if(S.ui.filter==='day'||S.ui.filter==='routeday')renderPlan();});
   if(day){
-    const links=gmapsLinks(S.depot,day.stops);
+    const links=gmapsLinks(routeStart(rt),day.stops,routeEnd(rt));
     $('dpCopy').onclick=()=>copyText(links[0]);
     $('dpMap').onclick=()=>{switchView('dashboard');if(S.map){S.map.setView([day.stops[0].lat,day.stops[0].lng],13);setTimeout(()=>S.map.invalidateSize(),60);}};
     $('dpOpt').onclick=optimize;
@@ -1492,7 +1556,13 @@ function renderDayPanel(){
 /* ===================== TERRITORY (drag + locks) ===================== */
 function renderTerritory(){
   const pane=$('terrPane');if(!S.plan){pane.innerHTML=emptyPane();return;}
-  let h=`<div class="toolbar"><button type="button" class="btn btn-primary btn-sm" id="reoptBtn">${escapeHtml(t('reopt'))}</button><span class="pill">Drag a customer card onto another rep to reassign · click 🔒 to lock</span></div><div class="terr-grid">`;
+  let h=`<div class="toolbar"><button type="button" class="btn btn-primary btn-sm" id="reoptBtn">${escapeHtml(t('reopt'))}</button><span class="pill">Drag a customer card onto another rep to reassign · click 🔒 to lock</span></div>`;
+  // route → depot/start-point assignment table
+  const depOpts=rt=>S.depots.map(d=>`<option value="${d.id}" ${routeStart(rt).lat===d.lat&&routeStart(rt).lng===d.lng?'selected':''}>${escapeHtml(d.name)}</option>`).join('');
+  h+=`<div class="card" style="margin-bottom:16px"><div class="card-h"><h3>Start points (depots) per route</h3><span class="pill">${S.depots.length} depot(s)</span></div><div style="overflow:auto"><table class="asg-table"><thead><tr><th>Route</th><th>Start point</th><th>Start lat/lng</th><th>End point</th><th>KM</th></tr></thead><tbody>`;
+  S.plan.routes.forEach(rt=>{const st=routeStart(rt);h+=`<tr><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${rt.color};margin-inline-end:6px"></span>${rt.isOut?'Outstation':'Route '+(rt.idx+1)}</td><td><select data-asg="${rt.idx}">${depOpts(rt)}</select></td><td class="mono" style="font-size:11px">${st.lat.toFixed(4)},${st.lng.toFixed(4)}</td><td><select data-end="${rt.idx}"><option value="start" ${rt.endMode!=='last'&&rt.endMode!=='custom'?'selected':''}>Return to start</option><option value="last" ${rt.endMode==='last'?'selected':''}>End at last customer</option></select></td><td class="mono">${rt.km.toFixed(0)}</td></tr>`;});
+  h+=`</tbody></table></div></div>`;
+  h+=`<div class="terr-grid">`;
   S.plan.routes.forEach(rt=>{
     h+=`<div class="terr" data-route="${rt.idx}"><div class="terr-h"><span class="dot" style="background:${rt.color}"></span><b>${rt.isOut?'Outstation route':'Route '+(rt.idx+1)}</b></div><div class="terr-body" data-route="${rt.idx}">`;
     rt.stops.forEach(s=>{h+=`<div class="chip" draggable="true" data-id="${s.id}"><span class="lk ${s.lockRep?'on':''}" data-lock="${s.id}" title="Lock to rep">${s.lockRep?'🔒':'🔓'}</span><span class="cn">${escapeHtml(s.name)} <span class="pill">${s.freq}×</span></span><span class="mono" style="font-size:10px">${escapeHtml(s.city||'')}</span></div>`;});
@@ -1505,6 +1575,8 @@ function renderTerritory(){
   pane.querySelectorAll('.chip').forEach(c=>c.ondragstart=e=>{e.dataTransfer.setData('text/plain',c.dataset.id);e.dataTransfer.effectAllowed='move';});
   pane.querySelectorAll('.terr-body').forEach(b=>{b.ondragover=e=>{e.preventDefault();b.parentElement.classList.add('dragover');};b.ondragleave=()=>b.parentElement.classList.remove('dragover');b.ondrop=e=>{e.preventDefault();b.parentElement.classList.remove('dragover');moveCustomer(+e.dataTransfer.getData('text/plain'),+b.dataset.route);};});
   pane.querySelectorAll('.lk').forEach(lk=>lk.onclick=e=>{e.stopPropagation();const s=S.rows.find(r=>r.id===+lk.dataset.lock);if(s){s.lockRep=!s.lockRep;renderTerritory();}});
+  pane.querySelectorAll('[data-asg]').forEach(sel=>sel.onchange=()=>{const rt=S.plan.routes.find(r=>r.idx===+sel.dataset.asg);if(rt){rt.depotId=sel.value;rt.depotName=(depotById(sel.value)||{}).name;recomputeRoute(rt,S.plan.speed,S.plan.serviceMin);S.plan.totalKm=S.plan.routes.reduce((a,r)=>a+r.km,0);computeScores();renderAll();toast('Start point updated');}});
+  pane.querySelectorAll('[data-end]').forEach(sel=>sel.onchange=()=>{const rt=S.plan.routes.find(r=>r.idx===+sel.dataset.end);if(rt){rt.endMode=sel.value;recomputeRoute(rt,S.plan.speed,S.plan.serviceMin);S.plan.totalKm=S.plan.routes.reduce((a,r)=>a+r.km,0);computeScores();renderAll();toast('End point updated');}});
   $('reoptBtn').onclick=optimize;
 }
 function moveCustomer(id,toRoute){
@@ -1514,18 +1586,18 @@ function moveCustomer(id,toRoute){
 }
 
 /* ===================== JOURNEY PLAN ===================== */
-function gmapsLinks(depot,stops){const parts=[];for(let i=0;i<stops.length;i+=GMAPS_WP)parts.push(stops.slice(i,i+GMAPS_WP));if(!parts.length)parts.push([]);return parts.map(p=>'https://www.google.com/maps/dir/'+[depot,...p,depot].map(x=>`${x.lat},${x.lng}`).join('/'));}
+function gmapsLinks(start,stops,end){end=(end===undefined)?start:end;const parts=[];for(let i=0;i<stops.length;i+=GMAPS_WP)parts.push(stops.slice(i,i+GMAPS_WP));if(!parts.length)parts.push([]);return parts.map(p=>{const seq=[start,...p];if(end)seq.push(end);return 'https://www.google.com/maps/dir/'+seq.map(x=>`${x.lat},${x.lng}`).join('/');});}
 function renderJourney(){
   const pane=$('jpPane');if(!S.plan){pane.innerHTML=emptyPane();return;}
   let h=`<div class="toolbar"><button type="button" class="btn btn-ghost btn-sm" id="printJP">${escapeHtml(t('print'))}</button><span class="pill">Per-rep sheet, split by day, with Google Maps link + QR per day</span></div>`;
   S.plan.routes.forEach(rt=>{
     h+=`<div class="card jcard"><div class="card-h"><div style="display:flex;align-items:center;gap:10px"><span style="width:13px;height:13px;border-radius:50%;background:${rt.color}"></span><div><h3>${rt.isOut?'Outstation route':'Route '+(rt.idx+1)}</h3><div class="note" style="margin:2px 0 0">${rt.stops.length} stops · ${rt.days.length} days · ${rt.km.toFixed(1)} km · ${rt.visits} visits/cycle · ${fmtMoney(rt.sales)} sales · ${escapeHtml(rt.engine)} · ${routeQuality(rt)}</div></div></div></div>`;
     rt.days.forEach((day,di)=>{
-      const links=gmapsLinks(S.depot,day.stops);
+      const links=gmapsLinks(routeStart(rt),day.stops,routeEnd(rt));
       h+=`<div class="day-h"><div><div class="dt">${dayName(day.day)} <span class="pill">Day ${di+1}</span> ${dayFlagsHtml(day,S.plan)}</div><div class="dm">${day.stops.length} stops · ${day.km.toFixed(1)} km · ~${day.hrs.toFixed(1)} h · ${day.crossings} crossings</div></div><div class="actions">`;
       links.forEach((u,pi)=>h+=`<a class="linkbtn" href="${escapeHtml(u)}" target="_blank" rel="noopener">Maps${links.length>1?' P'+(pi+1):''}</a>`);
       h+=`<button type="button" class="linkbtn" data-copy="${escapeHtml(links[0])}">Copy</button><div class="qr" id="qr-${rt.idx}-${di}"></div></div></div>`;
-      let prev=S.depot;
+      let prev=routeStart(rt);
       h+=`<table><thead><tr><th>#</th><th>Code</th><th>Outlet</th><th>City</th><th>Channel</th><th>GPS</th><th>From prev</th><th>Quality</th></tr></thead><tbody>`;
       day.stops.forEach((s,i)=>{const leg=haversine(prev,s);prev=s;h+=`<tr><td class="seq">${i+1}</td><td class="mono">${escapeHtml(s.code)}</td><td>${escapeHtml(s.name)}${s.out?' <span class="badge out">OUT</span>':''}${!s.active?' <span class="badge bad">INACT</span>':''}</td><td>${escapeHtml(s.city)||'—'}</td><td><span class="badge ch">${escapeHtml(s.channel)}</span></td><td class="mono" style="font-size:10px">${s.lat.toFixed(4)},${s.lng.toFixed(4)}</td><td class="mono">${leg.toFixed(1)} km</td><td><span class="badge ${s.gpsScore}">${s.gpsScore.toUpperCase()}</span></td></tr>`;});
       h+=`</tbody></table>`;
@@ -1535,7 +1607,7 @@ function renderJourney(){
   pane.innerHTML=h;
   $('printJP').onclick=()=>window.print();
   pane.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copyText(b.dataset.copy));
-  if(typeof QRCode!=='undefined')S.plan.routes.forEach(rt=>rt.days.forEach((day,di)=>{const el=$(`qr-${rt.idx}-${di}`);if(!el)return;try{new QRCode(el,{text:gmapsLinks(S.depot,day.stops)[0],width:52,height:52,correctLevel:QRCode.CorrectLevel.M});}catch(e){el.textContent='QR';}}));
+  if(typeof QRCode!=='undefined')S.plan.routes.forEach(rt=>rt.days.forEach((day,di)=>{const el=$(`qr-${rt.idx}-${di}`);if(!el)return;try{new QRCode(el,{text:gmapsLinks(routeStart(rt),day.stops,routeEnd(rt))[0],width:52,height:52,correctLevel:QRCode.CorrectLevel.M});}catch(e){el.textContent='QR';}}));
 }
 
 /* ===================== CHARTS / ANALYTICS ===================== */
@@ -1665,7 +1737,7 @@ function exportXlsx(){
   aoa('Summary',[['FMCG Route & Journey Plan'],[],['Customers (in plan)',S.rows.filter(r=>!r.excluded).length],['Routes',P.routes.length],['Total visits/cycle',P.totalVisits],['Total km',+P.totalKm.toFixed(1)],['Working days',P.workDays],['Cap/day',P.cap],['Capacity',P.capacity],['Outstation',P.outTotal],['Excluded',P.excluded],[],['SCORE','/100'],['Final',sc.final,scoreLabel(sc.final)],['Distance',sc.distance],['Balance',sc.balance],['Compactness',sc.compact],['Coverage',sc.coverage],['GPS quality',sc.gps]],wb);
   aoa('Rep Territory',[['Route','Type','Customers','Visits/cycle','Sales value','KM','Hours','Active','Inactive','Outstation','Crossings','Quality'],...P.routes.map(r=>[r.isOut?'Outstation':'Route '+(r.idx+1),r.isOut?'Outstation':'City',r.stops.length,r.visits,+r.sales.toFixed(0),+r.km.toFixed(1),+r.hrs.toFixed(1),r.activeCount,r.inactiveCount,r.outCount,r.crossings,routeQuality(r)])],wb);
   const jp=[['Route','Day','DayName','Seq','Code','Name','City','Channel','Lat','Lng','From prev (km)','Maps link']];
-  P.routes.forEach(r=>r.days.forEach((d,di)=>{let prev=S.depot;d.stops.forEach((s,i)=>{const leg=haversine(prev,s);prev=s;jp.push([r.isOut?'Outstation':'Route '+(r.idx+1),di+1,DAY_NAMES[d.day%7],i+1,s.code,s.name,s.city,s.channel,s.lat,s.lng,+leg.toFixed(2),gmapsLinks(S.depot,d.stops)[0]]);});}));
+  P.routes.forEach(r=>r.days.forEach((d,di)=>{let prev=routeStart(r);d.stops.forEach((s,i)=>{const leg=haversine(prev,s);prev=s;jp.push([r.isOut?'Outstation':'Route '+(r.idx+1),di+1,DAY_NAMES[d.day%7],i+1,s.code,s.name,s.city,s.channel,s.lat,s.lng,+leg.toFixed(2),gmapsLinks(routeStart(r),d.stops,routeEnd(r))[0]]);});}));
   aoa('Daily Journey Plan',jp,wb);
   aoa('Customer Assignment',[['Code','Name','City','Channel','Salesman','Freq','Sales','Active','Route','Day','Locked Rep','Locked Day','Lat','Lng'],...S.rows.filter(r=>!r.excluded&&r.route!=null).map(r=>[r.code,r.name,r.city,r.channel,r.salesman,r.freq,r.sales,r.active?'Active':'Inactive',P.routes[r.route]&&P.routes[r.route].isOut?'Outstation':'Route '+(r.route+1),r._day!=null?r._day+1:'',r.lockRep?'YES':'',r.lockDay?'YES':'',r.lat,r.lng])],wb);
   aoa('GPS Issues',[['Code','Name','City','GPS Score','Reasons','Lat','Lng'],...S.rows.filter(r=>r.gpsScore!=='good').map(r=>[r.code,r.name,r.city,r.gpsScore,r.gpsReasons.join('; '),r.lat,r.lng])],wb);
@@ -1678,7 +1750,7 @@ function exportXlsx(){
 function exportCsv(){
   if(!S.plan){toast('Optimize first',true);return;}
   const rows=[['Route','Day','DayName','Seq','Code','Name','City','Channel','Lat','Lng','From prev (km)','Active','GPS']];
-  S.plan.routes.forEach(r=>r.days.forEach((d,di)=>{let prev=S.depot;d.stops.forEach((s,i)=>{const leg=haversine(prev,s);prev=s;rows.push([r.isOut?'Outstation':'Route '+(r.idx+1),di+1,DAY_NAMES[d.day%7],i+1,s.code,s.name,s.city,s.channel,s.lat,s.lng,leg.toFixed(2),s.active?'Active':'Inactive',s.gpsScore]);});}));
+  S.plan.routes.forEach(r=>r.days.forEach((d,di)=>{let prev=routeStart(r);d.stops.forEach((s,i)=>{const leg=haversine(prev,s);prev=s;rows.push([r.isOut?'Outstation':'Route '+(r.idx+1),di+1,DAY_NAMES[d.day%7],i+1,s.code,s.name,s.city,s.channel,s.lat,s.lng,leg.toFixed(2),s.active?'Active':'Inactive',s.gpsScore]);});}));
   const csv=rows.map(r=>r.map(v=>{const x=String(v==null?'':v);return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;}).join(',')).join('\n');
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='fmcg_route_plan.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('CSV exported');
 }
@@ -1710,7 +1782,7 @@ function buildExpDayOpts(){
 function previewExport(){
   const routes=expScopeRoutes(),df=expScopeDay();let rows=0,stops=0,km=0,hrs=0,parts=0;
   let h='<table><thead><tr><th>Route</th><th>Day</th><th>Stops</th><th>KM</th><th>Time</th><th>Maps link</th></tr></thead><tbody>';
-  routes.forEach(rt=>scopeDays(rt,df).forEach(d=>{rows++;stops+=d.stops.length;km+=d.km;hrs+=d.hrs;const L=gmapsLinks(S.depot,d.stops);parts+=L.length;h+=`<tr><td>${rt.isOut?'Outstation':'R'+(rt.idx+1)}</td><td>${escapeHtml(dayName(d.day))}</td><td>${d.stops.length}</td><td>${d.km.toFixed(1)}</td><td>~${d.hrs.toFixed(1)}h</td><td>${L.length>1?L.length+' parts':'OK'}</td></tr>`;}));
+  routes.forEach(rt=>scopeDays(rt,df).forEach(d=>{rows++;stops+=d.stops.length;km+=d.km;hrs+=d.hrs;const L=gmapsLinks(routeStart(rt),d.stops,routeEnd(rt));parts+=L.length;h+=`<tr><td>${rt.isOut?'Outstation':'R'+(rt.idx+1)}</td><td>${escapeHtml(dayName(d.day))}</td><td>${d.stops.length}</td><td>${d.km.toFixed(1)}</td><td>~${d.hrs.toFixed(1)}h</td><td>${L.length>1?L.length+' parts':'OK'}</td></tr>`;}));
   h+='</tbody></table>';
   if(!rows)h='<p class="note">No stops in this scope.</p>';
   $('expPreview').innerHTML=`<div class="note" style="margin:0 0 8px"><b>${rows}</b> day-route(s) · <b>${stops}</b> stops · <b>${Math.round(km)}</b> km · ~<b>${hrs.toFixed(1)}</b> h · ${parts} Maps link(s)</div>`+h;
@@ -1718,15 +1790,15 @@ function previewExport(){
 function buildRouteBookExcel(){
   if(typeof XLSX==='undefined'){toast('Spreadsheet library not loaded',true);return;}
   const routes=expScopeRoutes(),df=expScopeDay(),wb=XLSX.utils.book_new();
-  const sum=[['FMCG Route Book'+(S.plan.name?' — '+S.plan.name:'')],[],['Route','Days','Customers','Visits/cycle','KM','Hours','Sales','Quality']];
-  routes.forEach(rt=>sum.push([rt.isOut?'Outstation':'Route '+(rt.idx+1),scopeDays(rt,df).length,rt.stops.length,rt.visits,+rt.km.toFixed(1),+rt.hrs.toFixed(1),+rt.sales.toFixed(0),routeQuality(rt)]));
+  const sum=[['FMCG Route Book'+(S.plan.name?' — '+S.plan.name:'')],[],['Route','Start point','Start lat/lng','End point','Days','Customers','Visits/cycle','KM','Hours','Sales','Quality']];
+  routes.forEach(rt=>{const st=routeStart(rt);sum.push([rt.isOut?'Outstation':'Route '+(rt.idx+1),(rt.depotId&&depotById(rt.depotId)?depotById(rt.depotId).name:'Main depot'),st.lat.toFixed(4)+','+st.lng.toFixed(4),rt.endMode==='last'?'Last customer':'Return to start',scopeDays(rt,df).length,rt.stops.length,rt.visits,+rt.km.toFixed(1),+rt.hrs.toFixed(1),+rt.sales.toFixed(0),routeQuality(rt)]);});
   aoa('All Routes',sum,wb);
-  const cols=['Visit order','Route','Day','Visit #','Code','Name','City','Channel','Lat','Lng','Dist prev (km)','Est time (min)','Visit frequency','Frequency pattern','Lock','Navigate link','Day route link'];
+  const cols=['Visit order','Route','Start point','Start lat/lng','Day','Visit #','Code','Name','City','Channel','Lat','Lng','Dist prev (km)','Est time (min)','Visit frequency','Frequency pattern','Lock','Navigate link','Day route link'];
   routes.forEach(rt=>{
-    const rows=[cols];
+    const rows=[cols];const st=routeStart(rt);const stName=(rt.depotId&&depotById(rt.depotId)?depotById(rt.depotId).name:'Main depot');const stLL=st.lat.toFixed(4)+','+st.lng.toFixed(4);
     scopeDays(rt,df).forEach(d=>{
-      const dayLink=gmapsLinks(S.depot,d.stops)[0];let prev=S.depot;
-      d.stops.forEach((s,i)=>{const leg=haversine(prev,s);prev=s;rows.push([i+1,rt.isOut?'Outstation':'Route '+(rt.idx+1),dayName(d.day),visitNo(s,d.day),s.code,s.name,s.city,s.channel,s.lat,s.lng,+leg.toFixed(2),Math.round(legTimeMin(leg)),freqLabelOf(s,S.plan.workDays)||'',s.freqPattern||'',lockStatus(s),gmapsCustomer(s),dayLink]);});
+      const dayLink=gmapsLinks(routeStart(rt),d.stops,routeEnd(rt))[0];let prev=routeStart(rt);
+      d.stops.forEach((s,i)=>{const leg=haversine(prev,s);prev=s;rows.push([i+1,rt.isOut?'Outstation':'Route '+(rt.idx+1),stName,stLL,dayName(d.day),visitNo(s,d.day),s.code,s.name,s.city,s.channel,s.lat,s.lng,+leg.toFixed(2),Math.round(legTimeMin(leg)),freqLabelOf(s,S.plan.workDays)||'',s.freqPattern||'',lockStatus(s),gmapsCustomer(s),dayLink]);});
     });
     let nm=(rt.isOut?'Outstation':'Route '+(rt.idx+1)).slice(0,31);
     aoa(nm,rows,wb);
@@ -1739,9 +1811,10 @@ function buildRouteBookHtml(){
   let body='';
   routes.forEach(rt=>{
     const days=scopeDays(rt,df);if(!days.length)return;
-    body+=`<section class="rt" data-route="${rt.idx}"><h2><span class="dot" style="background:${rt.color}"></span>${rt.isOut?'Outstation route':'Route '+(rt.idx+1)}</h2>`;
+    const st=routeStart(rt);const stName=(rt.depotId&&depotById(rt.depotId)?depotById(rt.depotId).name:'Main depot');
+    body+=`<section class="rt" data-route="${rt.idx}"><h2><span class="dot" style="background:${rt.color}"></span>${rt.isOut?'Outstation route':'Route '+(rt.idx+1)}</h2><div class="startpt">▶ Start: ${escapeHtml(stName)} (${st.lat.toFixed(4)}, ${st.lng.toFixed(4)})</div>`;
     days.forEach(d=>{
-      const L=gmapsLinks(S.depot,d.stops);let prev=S.depot;
+      const L=gmapsLinks(routeStart(rt),d.stops,routeEnd(rt));let prev=routeStart(rt);
       body+=`<div class="day" data-day="${d.day}"><div class="dh"><div><b>${escapeHtml(dayName(d.day))}</b><div class="m">${d.stops.length} stops · ${d.km.toFixed(1)} km · ~${d.hrs.toFixed(1)} h</div></div><img class="qr" src="${qr(L[0])}" alt="QR"/></div>`;
       body+=`<div class="links">`+L.map((u,i)=>`<a href="${u}" target="_blank" rel="noopener">Open day route${L.length>1?' · Part '+(i+1):''}</a>`).join('')+`</div><ol>`;
       d.stops.forEach(s=>{const leg=haversine(prev,s);prev=s;body+=`<li><div class="cn">${escapeHtml(s.name)}</div><div class="cm">${escapeHtml(s.code)} · ${escapeHtml(s.city||'')}${s.channel&&s.channel!=='—'?' · '+escapeHtml(s.channel):''} · ${leg.toFixed(1)} km</div><a class="nav" href="${gmapsCustomer(s)}" target="_blank" rel="noopener">▶ Navigate</a></li>`;});
@@ -1759,6 +1832,7 @@ h1{font-size:18px;margin-bottom:4px}.sub{font-size:12px;color:#64748B;margin-bot
 .bar button{background:#2563EB;color:#fff;border:none;font-weight:700;cursor:pointer}
 .rt{background:#fff;border:1px solid #E2E8F0;border-radius:14px;margin-bottom:14px;overflow:hidden}
 .rt h2{font-size:15px;padding:13px 16px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;gap:9px}
+.startpt{padding:8px 16px;font-size:12px;color:#1F6F5C;font-weight:700;background:#ECFDF3;border-bottom:1px solid #E2E8F0}
 .dot{width:13px;height:13px;border-radius:50%}
 .day{border-bottom:8px solid #F1F5F9}
 .dh{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 16px;background:#F8FAFC}
@@ -1791,7 +1865,8 @@ function tg(){var h=document.documentElement;h.dir=h.dir==='rtl'?'ltr':'rtl';}
 function closeExport(){$('expModal').classList.remove('show');}
 
 /* ===================== STORAGE ===================== */
-function settingsObj(){return{depLat:$('depLat').value,depLng:$('depLng').value,reps:$('reps').value,days:$('days').value,cap:$('cap').value,maxKm:$('maxKm').value,speed:$('speed').value,service:$('service').value,wStops:$('wStops').value,wVisits:$('wVisits').value,wSales:$('wSales').value,engine:$('engine').value,outThr:$('outThr').value,outMode:$('outMode').value,lang:S.lang,theme:S.theme};}
+function settingsObj(){return{depLat:$('depLat').value,depLng:$('depLng').value,reps:$('reps').value,days:$('days').value,cap:$('cap').value,maxKm:$('maxKm').value,speed:$('speed').value,service:$('service').value,wStops:$('wStops').value,wVisits:$('wVisits').value,wSales:$('wSales').value,engine:$('engine').value,outThr:$('outThr').value,outMode:$('outMode').value,lang:S.lang,theme:S.theme,
+  depots:S.depots,display:{routes:[...S.ui.routes],dayOnly:S.ui.dayOnly,colorByDay:S.ui.colorByDay,showLines:S.ui.showLines,showTerr:S.ui.showTerr,selRoute:S.ui.selRoute,selDay:S.ui.selDay}};}
 function persist(){try{localStorage.setItem(LS_KEY,JSON.stringify({settings:settingsObj(),rows:S.rows,skipped:S.skipped,depot:S.depot}));}catch(e){}}
 function saveSettingsOnly(){try{const p=JSON.parse(localStorage.getItem(LS_KEY)||'{}');p.settings=settingsObj();localStorage.setItem(LS_KEY,JSON.stringify(p));}catch(e){}}
 function saveAll(){persist();toast('Saved to this browser');}
@@ -1799,12 +1874,15 @@ function restore(){
   let p;try{p=JSON.parse(localStorage.getItem(LS_KEY)||'null');}catch(e){return;}if(!p)return;
   const s=p.settings||{};['depLat','depLng','reps','days','cap','maxKm','speed','service','wStops','wVisits','wSales','engine','outThr','outMode'].forEach(id=>{if(s[id]!=null&&s[id]!=='')$(id).value=s[id];});
   if(s.lang)S.lang=s.lang;if(s.theme)S.theme=s.theme;applyTheme();syncDepot();
-  if(p.rows&&p.rows.length){S.rows=p.rows.map(r=>({route:null,day:null,lockRep:false,lockDay:false,excluded:false,...r}));S.skipped=p.skipped||[];S.depot=p.depot||S.depot;S.perf=S.rows.length>PERF_THRESHOLD;S.forceFull=false;gpsQuality(S.rows);$('drop').classList.add('has');$('dropTitle').textContent='Restored data';$('dropSub').textContent=S.rows.length.toLocaleString()+' customers';enableRun();buildScopeValues();plotRaw();renderKpiStrip();renderSteps();refreshTags();toast('Previous data restored — press Optimize to rebuild');}
+  if(Array.isArray(s.depots)&&s.depots.length){S.depots=s.depots;S._depotSeq=s.depots.reduce((m,d)=>Math.max(m,+(String(d.id).replace('d',''))||0),0);}
+  if(s.display){const D=s.display;S.ui.routes=new Set(D.routes||[]);S.ui.dayOnly=!!D.dayOnly;S.ui.colorByDay=!!D.colorByDay;if(D.showLines!=null)S.ui.showLines=D.showLines;if(D.showTerr!=null)S.ui.showTerr=D.showTerr;}
+  renderDepotList();
+  if(p.rows&&p.rows.length){S.rows=p.rows.map(r=>({route:null,day:null,lockRep:false,lockDay:false,excluded:false,...r}));S.skipped=p.skipped||[];S.depot=p.depot||S.depot;S.perf=S.rows.length>PERF_THRESHOLD;S.forceFull=false;S.ui.showLines=!S.perf;S.ui.showTerr=!S.perf;S.ui.routes=new Set();gpsQuality(S.rows);$('drop').classList.add('has');$('dropTitle').textContent='Restored data';$('dropSub').textContent=S.rows.length.toLocaleString()+' customers';enableRun();buildScopeValues();plotRaw();renderKpiStrip();renderSteps();refreshTags();toast('Previous data restored — press Optimize to rebuild');}
 }
 function clearAll(){
   if(!confirm('Clear all imported data, edits and saved plan from this browser?'))return;
   try{localStorage.removeItem(LS_KEY);}catch(e){}
-  S.rows=[];S.skipped=[];S.plan=null;S.raw=[];S.hidden.clear();S.scenarios=[];S.committedPlan=null;S.previewing=false;S.perf=false;S.forceFull=false;S.scope={field:'',value:''};hideScnBanner();setMapBanner('');if($('scopeField')){$('scopeField').value='';buildScopeValues();}resetPlanUI();
+  S.rows=[];S.skipped=[];S.plan=null;S.raw=[];S.hidden.clear();S.scenarios=[];S.committedPlan=null;S.previewing=false;S.perf=false;S.forceFull=false;S.scope={field:'',value:''};S.depots=[];S._depotSeq=0;S.ui.routes=new Set();S.ui.showLines=true;S.ui.showTerr=true;S.ui.dayOnly=false;syncDepot();renderDepotList();hideScnBanner();setMapBanner('');if($('scopeField')){$('scopeField').value='';buildScopeValues();}resetPlanUI();
   $('drop').classList.remove('has');$('dropTitle').textContent=t('dropTitle');$('dropSub').textContent=t('dropSub');
   if(S.map){S.layers.hulls.clearLayers();S.layers.markers.clearLayers();S.layers.routes.clearLayers();}
   $('mapEmpty').hidden=false;['dataPane','terrPane','jpPane','analyticsPane','alertsPane'].forEach(id=>$(id).innerHTML='');
@@ -1814,7 +1892,25 @@ function clearAll(){
 
 /* ===================== DEPOT / HELPERS ===================== */
 function autoDepot(){if($('depLat').value&&$('depLng').value&&S.depot){syncDepot();return;}if(!S.rows.length)return;const c=S.rows.reduce((a,r)=>({lat:a.lat+r.lat,lng:a.lng+r.lng}),{lat:0,lng:0});$('depLat').value=(c.lat/S.rows.length).toFixed(4);$('depLng').value=(c.lng/S.rows.length).toFixed(4);syncDepot();}
-function syncDepot(){const lat=parseFloat($('depLat').value),lng=parseFloat($('depLng').value);const ok=isFinite(lat)&&isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180;S.depot=ok?{lat,lng}:null;$('depLat').setAttribute('aria-invalid',$('depLat').value&&!ok?'true':'false');$('depLng').setAttribute('aria-invalid',$('depLng').value&&!ok?'true':'false');saveSettingsOnly();}
+function syncDepot(){const lat=parseFloat($('depLat').value),lng=parseFloat($('depLng').value);const ok=isFinite(lat)&&isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180;S.depot=ok?{lat,lng}:null;$('depLat').setAttribute('aria-invalid',$('depLat').value&&!ok?'true':'false');$('depLng').setAttribute('aria-invalid',$('depLng').value&&!ok?'true':'false');
+  // keep the main depot in sync as depots[0]
+  if(ok){if(!S.depots.length)S.depots.unshift({id:'main',name:'Main depot',lat,lng,city:''});else{S.depots[0].lat=lat;S.depots[0].lng=lng;}}
+  saveSettingsOnly();}
+/* ---- multi-depot helpers ---- */
+function mainDepot(){return S.depots[0]||S.depot;}
+function depotById(id){return S.depots.find(d=>d.id===id)||null;}
+function nearestDepot(pt){if(!S.depots.length)return S.depot?{id:'main',name:'Main depot',lat:S.depot.lat,lng:S.depot.lng}:null;let best=S.depots[0],bd=Infinity;S.depots.forEach(d=>{const v=haversine(d,pt);if(v<bd){bd=v;best=d;}});return best;}
+function routeStart(rt){const d=rt&&rt.depotId?depotById(rt.depotId):null;return d||mainDepot();}
+function routeEnd(rt){if(!rt)return mainDepot();if(rt.endMode==='last')return null;if(rt.endMode==='custom'&&isFinite(rt.endLat)&&isFinite(rt.endLng))return{lat:rt.endLat,lng:rt.endLng,name:'Custom end'};return routeStart(rt);}
+function routeLen2(path,start,end){if(!path.length)return 0;let d=haversine(start,path[0]);for(let i=0;i<path.length-1;i++)d+=haversine(path[i],path[i+1]);if(end)d+=haversine(path[path.length-1],end);return d;}
+function addDepot(name,lat,lng,city){const id='d'+(++S._depotSeq);S.depots.push({id,name:name||('Depot '+S.depots.length),lat,lng,city:city||''});return id;}
+function removeDepot(id){if(id==='main')return;S.depots=S.depots.filter(d=>d.id!==id);if(S.plan)S.plan.routes.forEach(rt=>{if(rt.depotId===id){rt.depotId='main';recomputeRoute(rt,S.plan.speed,S.plan.serviceMin);}});}
+function renderDepotList(){
+  const el=$('depotList');if(!el)return;
+  if(!S.depots.length){el.innerHTML='<p class="note" style="margin:0">Main depot uses the latitude/longitude above.</p>';return;}
+  el.innerHTML=S.depots.map((d,i)=>`<div class="depot-row"><span class="dn">${escapeHtml(d.name||('Depot '+(i+1)))}${i===0?' <span class="pill">main</span>':''}</span><span class="dc">${(+d.lat).toFixed(3)},${(+d.lng).toFixed(3)}</span>${d.city?'<span class="dc">'+escapeHtml(d.city)+'</span>':''}${i>0?`<button type="button" class="linkbtn" data-rmdep="${d.id}">Remove</button>`:''}</div>`).join('');
+  el.querySelectorAll('[data-rmdep]').forEach(b=>b.onclick=()=>{removeDepot(b.dataset.rmdep);renderDepotList();S.plan?renderAll():plotRaw();saveSettingsOnly();toast('Depot removed');});
+}
 function enableRun(){const ok=S.rows.length>0;$('run').disabled=!ok;$('optimizeTop').disabled=!ok;}
 function resetPlanUI(){['exportXlsx','exportCsv'].forEach(id=>$(id).disabled=true);$('legend').hidden=true;S.hidden.clear();}
 
@@ -1824,9 +1920,9 @@ function applyTheme(){document.documentElement.setAttribute('data-theme',S.theme
 function demoData(){
   const base=[['Tamimi Markets Rawdah',21.5810,39.1620,'Jeddah','Hyper',2,52000,1],['Panda Hamra',21.5430,39.1610,'Jeddah','Super',2,38000,1],['Bin Dawood Corniche',21.5920,39.1390,'Jeddah','Hyper',3,71000,1],['Carrefour Salama',21.6020,39.1730,'Jeddah','Hyper',2,64000,1],['Al Othaim Naseem',21.6210,39.2010,'Jeddah','Super',1,21000,1],['Manuel Faisaliah',21.5680,39.1490,'Jeddah','Super',2,33000,1],['Star Market Aziziyah',21.5520,39.1880,'Jeddah','Mini',1,9000,0],['Danube Tahliah',21.5610,39.1410,'Jeddah','Hyper',3,68000,1],['Farm Superstore Safa',21.5340,39.2050,'Jeddah','Super',1,18000,1],['Nesto Balad',21.4830,39.1860,'Jeddah','Super',2,29000,1],['Lulu Hyper Sari',21.6450,39.1520,'Jeddah','Hyper',3,82000,1],['Spar Rabwah',21.5190,39.2230,'Jeddah','Mini',1,7000,1],['Grocery Rehab',21.6090,39.1100,'Jeddah','Grocery',2,12000,1],['Mini Mart Bawadi',21.5050,39.2440,'Jeddah','Mini',1,6000,0],['Bin Dawood Shati',21.6730,39.1080,'Jeddah','Hyper',2,55000,1],['Tamimi Murjan',21.6310,39.1230,'Jeddah','Super',2,40000,1],['Panda Bryman',21.6880,39.1960,'Jeddah','Super',1,24000,1],['Othaim Wahah',21.4710,39.2280,'Jeddah','Super',1,20000,1],['Carrefour Marwah',21.5990,39.2150,'Jeddah','Hyper',2,60000,1],['Danube Khalidiyah',21.5870,39.1350,'Jeddah','Hyper',2,57000,1],['Lulu Thuwal',22.2820,39.1080,'Thuwal','Hyper',1,15000,1],['Market Rabigh',22.7990,39.0340,'Rabigh','Grocery',1,9000,1],['Manuel Hada',21.3580,39.1730,'Jeddah South','Super',1,16000,1],['Star Mart Kandara',21.4920,39.1810,'Jeddah','Mini',1,8000,1],['Bin Dawood Faisaliah',21.5440,39.1700,'Jeddah','Hyper',2,49000,1]];
   S.rows=base.map((b,i)=>({id:i,code:'C'+(1000+i),name:b[0],lat:b[1],lng:b[2],city:b[3],channel:b[4],salesman:'',freq:b[5],sales:b[6],lastInv:'',active:!!b[7],dupCoord:false,route:null,day:null,lockRep:false,lockDay:false,excluded:false}));
-  S.skipped=[];S.plan=null;S.scenarios=[];S.committedPlan=null;S.perf=false;S.forceFull=false;S.scope={field:'',value:''};gpsQuality(S.rows);resetPlanUI();$('depLat').value='21.5430';$('depLng').value='39.1728';syncDepot();
+  S.skipped=[];S.plan=null;S.scenarios=[];S.committedPlan=null;S.perf=false;S.forceFull=false;S.ui.showLines=true;S.ui.showTerr=true;S.ui.routes=new Set();S.scope={field:'',value:''};gpsQuality(S.rows);resetPlanUI();$('depLat').value='21.5430';$('depLng').value='39.1728';syncDepot();
   $('drop').classList.add('has');$('dropTitle').textContent='Demo — Jeddah';$('dropSub').textContent=S.rows.length+' outlets loaded';
-  enableRun();buildScopeValues();plotRaw();renderKpiStrip();renderSteps();refreshTags();toast('Demo data loaded — press Optimize');
+  enableRun();buildScopeValues();renderDepotList();plotRaw();renderKpiStrip();renderSteps();refreshTags();toast('Demo data loaded — press Optimize');
 }
 
 /* ===================== NAV / WIRING ===================== */
@@ -1857,6 +1953,8 @@ function boot(){
   ['reps','days','cap','maxKm','speed','service','wStops','wVisits','wSales','outThr'].forEach(id=>$(id).onchange=()=>{clampInput($(id));saveSettingsOnly();});
   $('engine').onchange=saveSettingsOnly;$('outMode').onchange=saveSettingsOnly;
   $('pickDepot').onclick=()=>{S.pickMode=!S.pickMode;$('pickDepot').textContent=S.pickMode?'Click the map…':t('pickDepot');if(S.pickMode){switchView('dashboard');toast('Click the map to set the depot');}};
+  $('depAdd').onclick=()=>{const lat=parseFloat($('depNewLat').value),lng=parseFloat($('depNewLng').value);if(!isFinite(lat)||!isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180){toast('Enter valid lat/lng for the depot',true);return;}addDepot($('depNewName').value.trim(),lat,lng,$('depNewCity').value.trim());$('depNewName').value='';$('depNewLat').value='';$('depNewLng').value='';$('depNewCity').value='';renderDepotList();drawDepots();fitAll();saveSettingsOnly();toast('Depot added');};
+  $('depPick').onclick=()=>{S.pickNewDepot=true;switchView('dashboard');toast('Click the map to add a new depot');};
   $('run').onclick=optimize;$('optimizeTop').onclick=optimize;
   $('exportXlsx').onclick=exportXlsx;$('exportCsv').onclick=exportCsv;
   $('saveBtn').onclick=saveAll;$('clearBtn').onclick=clearAll;
@@ -1876,7 +1974,7 @@ function boot(){
   $('expModal').onclick=e=>{if(e.target===$('expModal'))closeExport();};
   window.addEventListener('beforeunload',()=>{if(S.rows.length)persist();});
   window.addEventListener('error',ev=>console.error(ev.error||ev.message));
-  restore();applyTheme();applyLang();renderKpiStrip();renderSteps();renderDayPanel();
+  restore();applyTheme();applyLang();renderKpiStrip();renderSteps();renderDayPanel();renderDepotList();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 </script>
