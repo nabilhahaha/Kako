@@ -808,7 +808,9 @@ function clusterReps(core,depot,k,w){
   const clusters=Array.from({length:k},()=>[]);const free=[];
   core.forEach(r=>{if(r.lockRep&&r.route!=null&&r.route<k)clusters[r.route].push(r);else free.push(r);});
   if(core.length<=k){free.forEach((r,i)=>clusters[i%k].push(r));return clusters;}
-  const wa=free.map(r=>({...r,ang:Math.atan2(r.lat-depot.lat,r.lng-depot.lng)})).sort((a,b)=>a.ang-b.ang);
+  // sort by angle around depot WITHOUT cloning (must keep the original object identity so
+  // S.rows and plan stops stay the same references — otherwise manual moves desync)
+  const wa=free.map(r=>({r,ang:Math.atan2(r.lat-depot.lat,r.lng-depot.lng)})).sort((a,b)=>a.ang-b.ang).map(o=>o.r);
   const lockedW=clusters.map(c=>c.reduce((a,r)=>a+custWeight(r,w),0));
   const totalW=wa.reduce((a,r)=>a+custWeight(r,w),0)+lockedW.reduce((a,b)=>a+b,0);
   const target=totalW/k;let ci=0,acc=lockedW[0]||0;
