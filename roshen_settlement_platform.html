@@ -3103,6 +3103,46 @@ const PromoPublisher = (() => {
 
 </script>
 <script>
+/* ============ STORAGE RESILIENCE — blocked-storage fallback ============ */
+/* ===========================
+   STORAGE RESILIENCE (ADDITIVE) — some browsers block localStorage for
+   file:// pages (cookie/site-data settings). The frozen PBModel fails
+   silently in that case, so promotions would "activate" without ever being
+   saved. This patch probes storage once; when blocked it transparently
+   mirrors the promotion store in memory (same behavior within the session)
+   and raises a visible warning so the user knows nothing will survive a
+   reload. No calculation logic is touched.
+   =========================== */
+(function () {
+  let ok = true;
+  try { const k = '__roshen_probe__'; localStorage.setItem(k, '1'); localStorage.removeItem(k); }
+  catch (e) { ok = false; }
+  window.__storageBlocked = !ok;
+  if (ok) return;
+  let memory = [];
+  PBModel.load = () => JSON.parse(JSON.stringify(memory));
+  PBModel.upsert = (p) => {
+    p.updatedAt = Date.now();
+    const i = memory.findIndex(x => x.id === p.id);
+    if (i >= 0) memory[i] = p; else memory.push(p);
+    return p;
+  };
+  PBModel.remove = (id) => { memory = memory.filter(p => p.id !== id); };
+  PBModel.get = (id) => { const p = memory.find(x => x.id === id); return p ? JSON.parse(JSON.stringify(p)) : null; };
+  PBModel.duplicate = (id) => {
+    const src = memory.find(p => p.id === id);
+    if (!src) return null;
+    const c = JSON.parse(JSON.stringify(src));
+    c.id = 'pb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    c.name = (src.name || 'Promotion') + ' (Copy)';
+    c.status = 'draft'; c.createdAt = c.updatedAt = Date.now();
+    memory.push(c);
+    return JSON.parse(JSON.stringify(c));
+  };
+})();
+
+</script>
+<script>
 /* ============ VIEWS — dashboard · settlement · explorer · analytics ============ */
 /* ===========================
    VIEWS — one renderer per route.
@@ -4055,8 +4095,21 @@ const Wizard = (() => {
   function bodyActivate() {
     const { errs } = errorsByStep();
     const ok = !errs.length;
+    if (draft.status === 'active' && ok) {
+      const campIdx = engine.promotions.findIndex(p => p.id === PromoPublisher.TAG + draft.id);
+      return `<div class="card"><div class="card-h"><h2>Activate</h2><span class="pill ok">Active</span></div><div class="card-b">
+        <div class="validation-ok">✓ This promotion is <b>ACTIVE</b> and published as a campaign next to the audited promotions.
+          It recalculates automatically whenever new sales data is added to the pool.</div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px">
+          ${campIdx >= 0 ? `<button class="btn primary" data-wz="openCampaign" data-idx="${campIdx}">▤ Open its Settlement view</button>` : ''}
+          <button class="btn" data-go="promotions">View all promotions</button>
+          <button class="btn" data-wz="saveDraft">Revert to Draft</button>
+          <button class="btn" data-wz="duplicate">Duplicate</button>
+          <button class="btn danger" data-wz="delete">Delete</button>
+        </div></div></div>`;
+    }
     return `<div class="card"><div class="card-h"><h2>Activate</h2></div><div class="card-b">
-      ${ok ? '<div class="validation-ok">✓ All checks passed. Activating publishes this promotion to the promotion list.</div>'
+      ${ok ? '<div class="validation-ok">✓ All checks passed. Activating publishes this promotion as a campaign next to the audited promotions.</div>'
            : `<div class="validation-box"><b>${errs.length} issue(s) remain.</b> Return to the Validation step to review and fix them.</div>`}
       <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px">
         <button class="btn primary" data-wz="activate" ${ok ? '' : 'disabled'}>✓ Activate Promotion</button>
@@ -4147,6 +4200,7 @@ const Wizard = (() => {
         rerender();
         Toast.ok('Promotion activated ✓ — it now appears as a campaign next to the audited promotions.');
       }
+      else if (a === 'openCampaign') { App.setActivePromo(+act.dataset.idx); App.go('settlement/overview'); }
       else if (a === 'simDetail') openSimModal(draft);
       else if (a === 'moreProd') { prodShown += CAP; rerender(); }
       else if (a === 'moreCust') { custShown += CAP; rerender(); }
@@ -4872,6 +4926,29 @@ const App = (() => {
       const b = e.target.closest('[data-nav]');
       if (b) go(b.dataset.nav);
     });
+    // cross-tab sync: another tab of this file changed promotions / saved state
+    let lastPbRaw = null;
+    try { lastPbRaw = localStorage.getItem('roshen_pb_promotions_v1'); } catch (e) {}
+    const crossTabSync = Util.debounce(() => {
+      try { PromoPublisher.sync(); } catch (e) {}
+      updateBadges(); paintCtxbar(); paintSidebar();
+      // don't yank the DOM out from under in-progress editing screens
+      if (current.path !== 'promotions/builder' && current.path !== 'admin/upload') renderView();
+    }, 250);
+    window.addEventListener('storage', e => {
+      if (!e.key || String(e.key).includes('roshen')) {
+        try { lastPbRaw = localStorage.getItem('roshen_pb_promotions_v1'); } catch (er) {}
+        crossTabSync();
+      }
+    });
+    const focusCheck = () => {
+      let raw = null;
+      try { raw = localStorage.getItem('roshen_pb_promotions_v1'); } catch (e) { return; }
+      if (raw !== lastPbRaw) { lastPbRaw = raw; crossTabSync(); }
+    };
+    window.addEventListener('focus', focusCheck);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) focusCheck(); });
+
     // responsive: show hamburger under 900px
     const mq = matchMedia('(max-width: 900px)');
     const applyMq = () => { Util.el('navToggle').style.display = mq.matches ? '' : 'none'; };
@@ -4952,6 +5029,14 @@ const App = (() => {
     try { await DataStore.init(); } catch (e) { console.warn('data pool init failed', e); }
     try { PromoPublisher.sync(); } catch (e) { console.warn('promo publish failed', e); }
     initEvents();
+    if (window.__storageBlocked) {
+      const warn = Util.h('div', { id: 'storageWarn', role: 'alert' },
+        `⚠ <b>Browser storage is blocked for this file.</b> Promotions, uploads and preferences work normally now but will be lost when you close the page.
+        Allow cookies / site data for local files (browser settings) to keep them.`);
+      warn.style.cssText = 'background:var(--warn-bg);color:var(--warn);padding:9px 18px;font-size:12.5px;border-bottom:1px solid var(--line)';
+      const topbar = document.querySelector('.topbar');
+      topbar.parentNode.insertBefore(warn, topbar.nextSibling);
+    }
     updateBadges();
     onRoute();
   }
