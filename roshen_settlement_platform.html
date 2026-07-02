@@ -3071,6 +3071,7 @@ const PromoPublisher = (() => {
     };
   }
   const isPublished = id => String(id).startsWith(TAG);
+  const lastErrors = new Map(); // campaign id -> last publish failure message
 
   /** Rebuild every ACTIVE builder promotion's campaign entry from the current pool. */
   function sync() {
@@ -3091,14 +3092,19 @@ const PromoPublisher = (() => {
           rate: prevRates.has(cfg.id) ? prevRates.get(cfg.id) : cfg.rate, vat: cfg.vat,
           theme: { accent: '#B01116' }, data,
         });
-      } catch (e) { console.warn('publish promotion failed:', p.name, e); }
+        lastErrors.delete(TAG + p.id);
+      } catch (e) {
+        console.warn('publish promotion failed:', p.name, e);
+        lastErrors.set(TAG + p.id, String((e && e.message) || e));
+        try { Toast.err('Could not publish "' + (p.name || 'promotion') + '": ' + ((e && e.message) || e)); } catch (e2) {}
+      }
     });
     let idx = engine.promotions.findIndex(p => p.id === activeId);
     if (idx < 0) idx = 0;
     engine.setActive(idx);
     if (typeof Palette !== 'undefined') Palette.invalidate();
   }
-  return { sync, isPublished, TAG };
+  return { sync, isPublished, TAG, lastError: id => lastErrors.get(id) || null };
 })();
 
 </script>
@@ -4097,10 +4103,16 @@ const Wizard = (() => {
     const ok = !errs.length;
     if (draft.status === 'active' && ok) {
       const campIdx = engine.promotions.findIndex(p => p.id === PromoPublisher.TAG + draft.id);
+      const savedOk = !!PBModel.get(draft.id);
+      const pubErr = PromoPublisher.lastError(PromoPublisher.TAG + draft.id);
+      const statusLines = `<div class="risk-note" style="margin-top:10px">
+        <div>Saved in this browser: ${savedOk ? '✓ yes' : '✗ <b>NO — storage is blocked; it lives in memory for this session only</b>'}</div>
+        <div>Published as a campaign: ${campIdx >= 0 ? `✓ yes — <b>${Util.esc(engine.promotions[campIdx].displayName)}</b> (${Fmt.money0(engine.promotions[campIdx].compensation)} @ ${(engine.promotions[campIdx].rate * 100).toFixed(0)}%)` : `✗ <b>NO</b>${pubErr ? ' — ' + Util.esc(pubErr) : ''}`}</div>
+      </div>`;
       return `<div class="card"><div class="card-h"><h2>Activate</h2><span class="pill ok">Active</span></div><div class="card-b">
-        <div class="validation-ok">✓ This promotion is <b>ACTIVE</b> and published as a campaign next to the audited promotions.
-          It recalculates automatically whenever new sales data is added to the pool.</div>
-        <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px">
+        <div class="validation-ok">✓ This promotion is <b>ACTIVE</b>. It recalculates automatically whenever new sales data is added to the pool.</div>
+        ${statusLines}
+        <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">
           ${campIdx >= 0 ? `<button class="btn primary" data-wz="openCampaign" data-idx="${campIdx}">▤ Open its Settlement view</button>` : ''}
           <button class="btn" data-go="promotions">View all promotions</button>
           <button class="btn" data-wz="saveDraft">Revert to Draft</button>
@@ -4176,38 +4188,10 @@ const Wizard = (() => {
 
   function wire(main) {
     const rerender = () => render(main, {});
-    main.querySelector('.wiz').addEventListener('click', async e => {
-      const stepBtn = e.target.closest('[data-wz-step]');
-      if (stepBtn) { step = stepBtn.dataset.wzStep; rerender(); return; }
-      const jump = e.target.closest('[data-wz-jump]');
-      if (jump) { step = jump.dataset.wzJump; rerender(); return; }
-      const act = e.target.closest('[data-wz]');
-      if (!act) return;
-      const a = act.dataset.wz;
-      const i = STEPS.findIndex(s => s.id === step);
-      if (a === 'prev' && i > 0) { step = STEPS[i - 1].id; rerender(); }
-      else if (a === 'next' && i < STEPS.length - 1) { step = STEPS[i + 1].id; rerender(); }
-      else if (a === 'new') { newDraft(); rerender(); Toast.show('New promotion started.'); }
-      else if (a === 'copyFrom') openCopyModal(main);
-      else if (a === 'saveDraft') { draft.status = 'draft'; PBModel.upsert(draft); PromoPublisher.sync(); rerender(); Toast.ok('Draft saved.'); }
-      else if (a === 'duplicate') { PBModel.upsert(draft); const c = PBModel.duplicate(draft.id); if (c) { setDraft(c); rerender(); Toast.ok('Duplicated. Editing the copy.'); } }
-      else if (a === 'delete') { if (await Modal.confirm('Delete promotion', 'Delete this promotion? This cannot be undone.', 'Delete')) { PBModel.remove(draft.id); PromoPublisher.sync(); newDraft(); rerender(); Toast.ok('Deleted.'); } }
-      else if (a === 'activate') {
-        const errs = PBModel.validate(draft);
-        if (errs.length) { step = 'validation'; rerender(); Toast.warn('Please complete the highlighted fields.'); return; }
-        draft.status = 'active'; PBModel.upsert(draft);
-        PromoPublisher.sync();
-        rerender();
-        Toast.ok('Promotion activated ✓ — it now appears as a campaign next to the audited promotions.');
-      }
-      else if (a === 'openCampaign') { App.setActivePromo(+act.dataset.idx); App.go('settlement/overview'); }
-      else if (a === 'simDetail') openSimModal(draft);
-      else if (a === 'moreProd') { prodShown += CAP; rerender(); }
-      else if (a === 'moreCust') { custShown += CAP; rerender(); }
-      else if (a === 'clearCust') { draft.customerCodes = []; rerender(); }
-    });
-    // field syncing (delegated per-step)
-    const sync = Util.debounce(() => {
+    /* Immediate field collection. MUST run before any re-render or action so
+       typed values are never lost to the debounce window (real field bug:
+       type a quantity then instantly click a radio → value wiped). */
+    const collect = () => {
       const v = id => { const e = main.querySelector('#' + id); return e ? e.value : null; };
       if (v('wzName') != null) draft.name = v('wzName');
       if (v('wzStart') != null) draft.startDate = v('wzStart');
@@ -4220,11 +4204,58 @@ const Wizard = (() => {
         if (v('wzDisc') != null) draft.reward.discountPct = v('wzDisc') ? Number(v('wzDisc')) : null;
       } else if (v('wzRewAmt') != null) draft.reward.rewardAmount = v('wzRewAmt') ? Number(v('wzRewAmt')) : null;
       refreshSummary(main);
-    }, 120);
+    };
+    main.querySelector('.wiz').addEventListener('click', async e => {
+      const stepBtn = e.target.closest('[data-wz-step]');
+      if (stepBtn) { collect(); step = stepBtn.dataset.wzStep; rerender(); return; }
+      const jump = e.target.closest('[data-wz-jump]');
+      if (jump) { collect(); step = jump.dataset.wzJump; rerender(); return; }
+      const act = e.target.closest('[data-wz]');
+      if (!act) return;
+      const a = act.dataset.wz;
+      const i = STEPS.findIndex(s => s.id === step);
+      if (a === 'prev' && i > 0) { collect(); step = STEPS[i - 1].id; rerender(); }
+      else if (a === 'next' && i < STEPS.length - 1) { collect(); step = STEPS[i + 1].id; rerender(); }
+      else if (a === 'new') { newDraft(); rerender(); Toast.show('New promotion started.'); }
+      else if (a === 'copyFrom') openCopyModal(main);
+      else if (a === 'saveDraft') { collect(); draft.status = 'draft'; PBModel.upsert(draft); PromoPublisher.sync(); App.announceChange(); rerender(); Toast.ok('Draft saved.'); }
+      else if (a === 'duplicate') { collect(); PBModel.upsert(draft); const c = PBModel.duplicate(draft.id); if (c) { setDraft(c); rerender(); Toast.ok('Duplicated. Editing the copy.'); } }
+      else if (a === 'delete') { if (await Modal.confirm('Delete promotion', 'Delete this promotion? This cannot be undone.', 'Delete')) { PBModel.remove(draft.id); PromoPublisher.sync(); App.announceChange(); newDraft(); rerender(); Toast.ok('Deleted.'); } }
+      else if (a === 'activate') {
+        collect();
+        const errs = PBModel.validate(draft);
+        if (errs.length) { step = 'validation'; rerender(); Toast.warn('Please complete the highlighted fields.'); return; }
+        draft.status = 'active';
+        PBModel.upsert(draft);
+        PromoPublisher.sync();
+        App.announceChange();
+        // Verify end-to-end before declaring success: saved in the store AND
+        // registered as a live campaign. Never fail silently.
+        const savedOk = !!PBModel.get(draft.id);
+        const campIdx = engine.promotions.findIndex(p => p.id === PromoPublisher.TAG + draft.id);
+        if (savedOk && campIdx >= 0) {
+          Toast.ok('Promotion activated ✓ — here it is in the list.');
+          App.go('promotions');           // take the user straight to where it appears
+        } else {
+          rerender();
+          const reason = PromoPublisher.lastError(PromoPublisher.TAG + draft.id)
+            || (!savedOk ? 'the browser refused to store it (storage blocked)' : 'publishing to the campaign list failed');
+          Toast.err('Activated, but something failed: ' + reason);
+        }
+      }
+      else if (a === 'openCampaign') { App.setActivePromo(+act.dataset.idx); App.go('settlement/overview'); }
+      else if (a === 'simDetail') { collect(); openSimModal(draft); }
+      else if (a === 'moreProd') { prodShown += CAP; rerender(); }
+      else if (a === 'moreCust') { custShown += CAP; rerender(); }
+      else if (a === 'clearCust') { draft.customerCodes = []; rerender(); }
+    });
+    // field syncing (delegated per-step): debounced for keystrokes,
+    // immediate collect() on every structural interaction above.
+    const sync = Util.debounce(collect, 120);
     main.querySelector('.wiz-body').addEventListener('input', sync);
     main.querySelector('.wiz-body').addEventListener('change', e => {
-      if (e.target.name === 'wzScope') { draft.customerScope = e.target.value; render(main, {}); return; }
-      if (e.target.name === 'wzQtyMode') { draft.qtyMode = e.target.value; render(main, {}); return; }
+      if (e.target.name === 'wzScope') { collect(); draft.customerScope = e.target.value; render(main, {}); return; }
+      if (e.target.name === 'wzQtyMode') { collect(); draft.qtyMode = e.target.value; render(main, {}); return; }
       const cust = e.target.closest('[data-cust]');
       if (cust) {
         const code = cust.dataset.cust;
@@ -4240,11 +4271,11 @@ const Wizard = (() => {
         const cnt = main.querySelector('#wzProdCount'); if (cnt) cnt.textContent = `${draft.productCodes.length} product(s) selected`;
         refreshSummary(main); return;
       }
-      sync();
+      collect();
     });
     // reward type choice cards
     main.querySelectorAll('.choice[data-rt]').forEach(c => {
-      const pick = () => { draft.rewardType = c.dataset.rt; render(main, {}); };
+      const pick = () => { collect(); draft.rewardType = c.dataset.rt; render(main, {}); };
       c.addEventListener('click', pick);
       c.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
     });
@@ -4390,8 +4421,8 @@ Views.promotions = (() => {
       const act = b.dataset.pb, id = b.dataset.id;
       if (act === 'calc') { const p = PBModel.get(id); if (p) openSimModal(p); }
       else if (act === 'edit') { const p = PBModel.get(id); if (p) { Wizard.setDraft(JSON.parse(JSON.stringify(p))); App.go('promotions/builder'); Toast.show('Editing "' + (p.name || 'promotion') + '".'); } }
-      else if (act === 'dup') { const c = PBModel.duplicate(id); if (c) { App.refresh(); Toast.ok('Duplicated.'); } }
-      else if (act === 'del') { if (await Modal.confirm('Delete promotion', 'Delete this promotion? This cannot be undone.', 'Delete')) { PBModel.remove(id); PromoPublisher.sync(); App.refresh(); Toast.ok('Deleted.'); } }
+      else if (act === 'dup') { const c = PBModel.duplicate(id); if (c) { App.announceChange(); App.refresh(); Toast.ok('Duplicated.'); } }
+      else if (act === 'del') { if (await Modal.confirm('Delete promotion', 'Delete this promotion? This cannot be undone.', 'Delete')) { PBModel.remove(id); PromoPublisher.sync(); App.announceChange(); App.refresh(); Toast.ok('Deleted.'); } }
     });
   };
 })();
@@ -4494,6 +4525,7 @@ Views.upload = (() => {
           from: parsed.dateFrom, to: parsed.dateTo, nInv: invoices.length, nRows: parsed.nRows, invoices };
         const where = await DataStore.add(batch);
         PromoPublisher.sync(); // published promotions pick up the new period immediately
+        App.announceChange();
         App.onPromoRegistered();
         main.querySelector('#poolWrap').innerHTML = poolSection();
         addPool.disabled = false;
@@ -4574,6 +4606,7 @@ Views.upload = (() => {
       if (await Modal.confirm('Remove uploaded period', 'Remove this data batch from the pool? Promotions will stop counting its invoices. The built-in campaign data is unaffected.', 'Remove')) {
         await DataStore.remove(b.dataset.id);
         PromoPublisher.sync();
+        App.announceChange();
         App.onPromoRegistered();
         main.querySelector('#poolWrap').innerHTML = poolSection();
         Toast.ok('Batch removed — promotions recalculated.');
@@ -4615,6 +4648,18 @@ Views.preferences = function (main) {
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:7px">
         ${shortcuts.map(([k, d]) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:5px 0"><span>${d}</span><kbd>${k}</kbd></div>`).join('')}
       </div></div></div>
+    <div class="card"><div class="card-h"><h2>Storage Diagnostics</h2><span class="sub">for troubleshooting "my promotion didn't appear"</span></div><div class="card-b">
+      <div class="risk-note" id="prefDiag">${(() => {
+        let ls = '✓ working';
+        try { const k = '__diag__'; localStorage.setItem(k, '1'); localStorage.removeItem(k); } catch (e) { ls = '✗ BLOCKED — promotions/uploads will not survive closing the page'; }
+        const promos = PBModel.load();
+        const pubs = engine.promotions.filter(p => PromoPublisher.isPublished(p.id));
+        return `<div>Local storage (promotions, preferences): <b>${ls}</b></div>
+          <div>Data pool storage: <b>${DataStore.mode === 'idb' ? '✓ IndexedDB (persistent)' : DataStore.mode === 'local' ? '✓ localStorage (persistent)' : '✗ memory only (session)'}</b> · ${DataStore.batches().length} uploaded batch(es)</div>
+          <div>Builder promotions stored: <b>${promos.length}</b> (${promos.filter(p => p.status === 'active').length} active)</div>
+          <div>Published campaigns in engine: <b>${pubs.length}</b> of ${engine.promotions.length} total promotions</div>`;
+      })()}</div>
+    </div></div>
     <div class="card"><div class="card-h"><h2>About</h2></div><div class="card-b">
       <div class="risk-note"><b>Roshen KSA · Trade Settlement Platform.</b> Single-file, fully offline enterprise application.
       Settlement formulas, promotion-engine calculations and VAT logic are frozen — the audited calculation engine is the source of truth
@@ -4906,7 +4951,9 @@ const App = (() => {
   }
 
   /* ---------- global events ---------- */
-  let chordG = false, chordTimer = null;
+  let chordG = false, chordTimer = null, _bc = null;
+  /** Notify other open tabs of this file that shared state changed. */
+  function announceChange() { try { if (_bc) _bc.postMessage('changed'); } catch (e) {} }
   function initEvents() {
     window.addEventListener('hashchange', onRoute);
     Util.el('backBtn').addEventListener('click', () => history.back());
@@ -4948,6 +4995,13 @@ const App = (() => {
     };
     window.addEventListener('focus', focusCheck);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) focusCheck(); });
+    window.addEventListener('pageshow', focusCheck);
+    // BroadcastChannel: reliable same-origin tab-to-tab signal (storage events
+    // can be unavailable for file:// pages in some browsers)
+    try {
+      _bc = new BroadcastChannel('roshen_platform_sync');
+      _bc.onmessage = () => crossTabSync();
+    } catch (e) { _bc = null; }
 
     // responsive: show hamburger under 900px
     const mq = matchMedia('(max-width: 900px)');
@@ -5040,7 +5094,7 @@ const App = (() => {
     updateBadges();
     onRoute();
   }
-  return { boot, go, refresh, routesFlat, setActivePromo, onPromoRegistered, openRef, toggleTheme, get route() { return current; } };
+  return { boot, go, refresh, routesFlat, setActivePromo, onPromoRegistered, openRef, toggleTheme, announceChange, get route() { return current; } };
 })();
 
 App.boot();
