@@ -4881,21 +4881,115 @@ Views.upload = (() => {
       });
     }
 
+    /* ----- Header repair (ADDITIVE) -----
+       Real exports name columns inconsistently ("Gross Value", "GrossSalesValue",
+       "Qty in Cases"…) and sometimes carry title rows above the header. The
+       frozen RawParser matches its canonical labels case/space-insensitively
+       and rejects anything else, so before parsing we rewrite recognisable
+       variants in the header row to the canonical names. Data cells and every
+       calculation stay untouched — RawParser itself is not modified. */
+    const hNorm = s => String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' ');
+    const hLoose = s => String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9؀-ۿ]+/g, '');
+    const REQUIRED_LABELS = ['Invoice', 'Cust Account', 'Cust Name', 'Invoice Date', 'Item Id', 'Item Description', 'Net Amount', 'Gross Sales value', 'Qty Cases'];
+    const HEADER_ALIASES = {
+      'Invoice': ['invoice', 'invoiceno', 'invoicenumber', 'invoicenbr', 'invno', 'invnum', 'invoiceid', 'billno', 'documentno', 'رقمالفاتورة'],
+      'Cust Account': ['custaccount', 'customeraccount', 'custcode', 'customercode', 'customerid', 'custno', 'customerno', 'customernumber', 'accountcode', 'accountno', 'custid', 'كودالعميل', 'رقمالعميل'],
+      'Cust Name': ['custname', 'customername', 'customer', 'custdescription', 'customerdescription', 'اسمالعميل'],
+      'Invoice Date': ['invoicedate', 'invdate', 'date', 'billdate', 'transactiondate', 'postingdate', 'docdate', 'تاريخالفاتورة', 'التاريخ'],
+      'Sales Man': ['salesman', 'salesrep', 'salesperson', 'salesmanname', 'repname', 'salesrepname', 'المندوب', 'اسمالمندوب'],
+      'Channel': ['channel', 'saleschannel', 'القناة'],
+      'City': ['city', 'المدينة'],
+      'Region': ['region', 'المنطقة'],
+      'Division': ['division'],
+      'Item Id': ['itemid', 'itemcode', 'itemno', 'itemnumber', 'sku', 'skucode', 'productcode', 'productid', 'materialcode', 'material', 'كودالصنف', 'رقمالصنف'],
+      'Item Description': ['itemdescription', 'itemdesc', 'itemname', 'productname', 'productdescription', 'materialdescription', 'description', 'اسمالصنف'],
+      'Item Group': ['itemgroup', 'productgroup', 'itemcategory', 'category'],
+      'SalesUnit': ['salesunit', 'unit', 'uom', 'salesuom', 'unitofmeasure'],
+      'Qty Each': ['qtyeach', 'qtyea', 'eachqty', 'qtyunits', 'qtypcs', 'pcsqty', 'qtypieces', 'piecesqty', 'الكميةبالحبة'],
+      'Qty Cases': ['qtycases', 'qtycase', 'casesqty', 'caseqty', 'cases', 'qtyctn', 'ctnqty', 'qtycartons', 'cartonsqty', 'cartonqty', 'qtyincases', 'الكميةبالكرتون'],
+      'SalesUnitPrice': ['salesunitprice', 'unitprice', 'caseprice'],
+      'EA Unit Price': ['eaunitprice', 'eaprice', 'unitpriceea', 'pieceprice', 'eachprice'],
+      'Net Amount': ['netamount', 'netvalue', 'netsales', 'netsalesvalue', 'netsalesamount', 'netamt', 'صافيالمبيعات'],
+      'Gross Sales value': ['grosssalesvalue', 'grossvalue', 'grosssales', 'grossamount', 'grosssalesamount', 'grossamt', 'gross', 'grosssalevalue', 'grosstotal', 'totalgross', 'salesvaluegross', 'اجماليالمبيعات', 'إجماليالمبيعات'],
+      'IsReturn': ['isreturn', 'returnflag', 'isret'],
+      'Price List Name': ['pricelistname', 'pricelist'],
+      'Order Type': ['ordertype', 'documenttype', 'doctype'],
+    };
+    const ALIAS_TO_CANON = (() => {
+      const m = {};
+      Object.entries(HEADER_ALIASES).forEach(([canon, keys]) => { m[hLoose(canon)] = canon; keys.forEach(k => { if (!(k in m)) m[k] = canon; }); });
+      return m;
+    })();
+    // Last-resort matching for required columns only — applied when a required
+    // canonical is still missing and exactly ONE unclaimed header fits.
+    const REQUIRED_HINTS = {
+      'Gross Sales value': k => k.includes('gross') || k.includes('اجمالي') || k.includes('إجمالي'),
+      'Net Amount': k => k.includes('net') && !k.includes('gross'),
+      'Qty Cases': k => k.includes('case') || k.includes('ctn') || k.includes('carton') || k.includes('كرتون'),
+      'Invoice': k => k.includes('invoice') && !k.includes('date'),
+      'Invoice Date': k => k.includes('date') || k.includes('تاريخ'),
+      'Cust Account': k => (k.includes('cust') || k.includes('customer')) && (k.includes('acc') || k.includes('code') || k.includes('id') || k.includes('no')),
+      'Cust Name': k => (k.includes('cust') || k.includes('customer')) && k.includes('name'),
+      'Item Id': k => (k.includes('item') || k.includes('product')) && (k.includes('id') || k.includes('code') || k.includes('no')),
+      'Item Description': k => (k.includes('item') || k.includes('product')) && (k.includes('desc') || k.includes('name')),
+    };
+    function repairHeaders(rows) {
+      if (!rows.length) return { rows, renamed: [], headers: [] };
+      // Some exports put title/blank rows above the real header — pick the row
+      // (within the first 15) that matches the most known column names.
+      const rowScore = r => (r || []).reduce((n, h) => n + (ALIAS_TO_CANON[hLoose(h)] ? 1 : 0), 0);
+      let hi = 0, best = rowScore(rows[0]);
+      for (let i = 1; i < Math.min(rows.length, 15); i++) {
+        const s = rowScore(rows[i]);
+        if (s > best + 2) { best = s; hi = i; }
+      }
+      const out = hi > 0 ? rows.slice(hi) : rows.slice();
+      const header = (out[0] || []).slice();
+      const canonByNorm = {};
+      Object.keys(HEADER_ALIASES).forEach(c => { canonByNorm[hNorm(c)] = c; });
+      const present = new Set(), claimed = new Set(), renamed = [];
+      header.forEach((h, i) => { const c = canonByNorm[hNorm(h)]; if (c) { present.add(c); claimed.add(i); } });
+      header.forEach((h, i) => {
+        if (claimed.has(i)) return;
+        const c = ALIAS_TO_CANON[hLoose(h)];
+        if (c && !present.has(c)) { renamed.push({ from: String(h), to: c }); header[i] = c; present.add(c); claimed.add(i); }
+      });
+      REQUIRED_LABELS.forEach(c => {
+        if (present.has(c)) return;
+        const hint = REQUIRED_HINTS[c]; if (!hint) return;
+        const hits = [];
+        header.forEach((h, i) => { if (!claimed.has(i) && String(h).trim() && hint(hLoose(h))) hits.push(i); });
+        if (hits.length === 1) { const i = hits[0]; renamed.push({ from: String(header[i]), to: c }); header[i] = c; present.add(c); claimed.add(i); }
+      });
+      out[0] = header;
+      return { rows: out, renamed, headers: ((rows[hi] || [])).map(h => String(h == null ? '' : h).trim()).filter(Boolean) };
+    }
+
     function handleFile(f) {
       lastFile = f.name;
       statusMsg('Reading <b>' + Util.esc(f.name) + '</b>…', '');
       const rd = new FileReader();
       rd.onload = e => {
+        let fix = null;
         try {
           const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
           const ws = wb.Sheets[wb.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
-          parsed = RawParser.parse(rows);
+          fix = repairHeaders(XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' }));
+          parsed = RawParser.parse(fix.rows);
           selectedSkus = new Set();
-          statusMsg(`✓ Parsed <b>${Fmt.n0(parsed.nRows)}</b> lines · <b>${Fmt.n0(parsed.nInv)}</b> invoices · <b>${parsed.skus.length}</b> SKUs · <b>${parsed.cities.length}</b> cities · period <b>${parsed.dateFrom} → ${parsed.dateTo}</b>`, 'ok');
+          const matchedNote = fix.renamed.length
+            ? `<br><small>Auto-matched columns: ${fix.renamed.map(r => Util.esc(r.from) + ' → ' + Util.esc(r.to)).join(' · ')}</small>` : '';
+          statusMsg(`✓ Parsed <b>${Fmt.n0(parsed.nRows)}</b> lines · <b>${Fmt.n0(parsed.nInv)}</b> invoices · <b>${parsed.skus.length}</b> SKUs · <b>${parsed.cities.length}</b> cities · period <b>${parsed.dateFrom} → ${parsed.dateTo}</b>${matchedNote}`, 'ok');
           main.querySelector('#upBuilder').innerHTML = poolActionHtml() + builderHtml();
           wireBuilder();
-        } catch (err) { statusMsg('✗ ' + Util.esc(err.message), 'warn'); console.error(err); }
+        } catch (err) {
+          let msg = '✗ ' + Util.esc(err.message);
+          if (/^Missing required columns/.test(String(err.message)) && fix && fix.headers.length) {
+            msg += `<br><small><b>Columns found in your file:</b> ${fix.headers.map(Util.esc).join(' · ')}</small>` +
+              `<br><small><b>The platform needs:</b> ${REQUIRED_LABELS.join(' · ')} — variants like “Gross Value”, “GrossSalesValue” or “Cases Qty” are matched automatically; if a column above should map to one of these, rename it in Excel or send me its exact name.</small>`;
+          }
+          statusMsg(msg, 'warn'); console.error(err);
+        }
       };
       rd.onerror = () => statusMsg('✗ Could not read file.', 'warn');
       rd.readAsArrayBuffer(f);
