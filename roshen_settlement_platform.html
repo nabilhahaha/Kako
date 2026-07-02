@@ -4501,10 +4501,13 @@ Views.promotions = (() => {
         <div><span class="pcm-l">Compensation</span><span class="pcm-v tnum">${Fmt.money0(pr.compensation)}</span></div>
         <div><span class="pcm-l">Recipients</span><span class="pcm-v tnum">${Fmt.n0(pr.recipients)} · ${Fmt.n0(pr.invoiceCount)} invoices</span></div>
       </div>
-      <div class="pb-card-actions">
+      <div class="pb-card-actions" style="flex-wrap:wrap">
         <button class="btn sm" data-camp="${i}" data-view="settlement/overview">Settlement</button>
         <button class="btn sm" data-camp="${i}" data-view="analytics/charts">Analytics</button>
         <button class="btn sm" data-camp="${i}" data-view="settlement/explorer">Invoices</button>
+        ${PromoPublisher.isPublished(pr.id) ? `
+        <button class="btn sm" data-pbcamp="edit" data-pbid="${Util.esc(String(pr.id).slice(PromoPublisher.TAG.length))}">✎ Edit</button>
+        <button class="btn sm danger" data-pbcamp="del" data-pbid="${Util.esc(String(pr.id).slice(PromoPublisher.TAG.length))}">Delete</button>` : ''}
       </div></div>`).join('');
 
     main.innerHTML = `
@@ -4534,6 +4537,19 @@ Views.promotions = (() => {
     main.querySelector('#pbStatus').addEventListener('change', e => { status = e.target.value; App.refresh(); });
     main.querySelector('#pbSort').addEventListener('change', e => { sortBy = e.target.value; App.refresh(); });
     main.addEventListener('click', async e => {
+      const pbcamp = e.target.closest('[data-pbcamp]');
+      if (pbcamp) {
+        const id = pbcamp.dataset.pbid;
+        if (pbcamp.dataset.pbcamp === 'edit') {
+          const p = PBModel.get(id);
+          if (p) { Wizard.setDraft(JSON.parse(JSON.stringify(p))); App.go('promotions/builder'); Toast.show('Editing "' + (p.name || 'promotion') + '" — activate again to republish your changes.'); }
+        } else if (pbcamp.dataset.pbcamp === 'del') {
+          if (await Modal.confirm('Delete promotion', 'This removes the promotion and its campaign from the platform. The audited campaigns and all calculations are unaffected.', 'Delete')) {
+            Seeds.dismiss(id); PBModel.remove(id); PromoPublisher.sync(); App.announceChange(); App.refresh(); Toast.ok('Promotion deleted.');
+          }
+        }
+        return;
+      }
       const camp = e.target.closest('[data-camp]');
       if (camp) { App.setActivePromo(+camp.dataset.camp); App.go(camp.dataset.view); return; }
       const b = e.target.closest('[data-pb]');
@@ -4913,9 +4929,11 @@ const App = (() => {
       <span class="pn"><span class="dot ${p.health}" aria-hidden="true"></span>${Util.esc(p.displayName)}</span>
       <span class="pm">${p.mechanic} · ${p.startDate}${PromoPublisher.isPublished(p.id) ? ' · Builder' : ''}</span></button>`).join('');
     const rate = (engine.active.rate * 100).toFixed(0);
+    const editable = PromoPublisher.isPublished(engine.active.id);
     bar.innerHTML = `
       <div class="promo-seg" role="group" aria-label="Active promotion">${segs}</div>
       <span class="spacer"></span>
+      ${editable ? '<button class="btn sm" id="ctxEditPromo" title="Edit this promotion in the wizard">✎ Edit promotion</button>' : ''}
       <div class="rate-pod">
         <label for="rateSlider">Comp Rate</label>
         <input type="range" id="rateSlider" min="0" max="100" step="1" value="${rate}" aria-label="Compensation rate percent">
@@ -4929,6 +4947,13 @@ const App = (() => {
       setActivePromo(+b.dataset.pseg);
       render();
     }));
+    const editBtn = bar.querySelector('#ctxEditPromo');
+    if (editBtn) editBtn.addEventListener('click', () => {
+      const pbId = String(engine.active.id).slice(PromoPublisher.TAG.length);
+      const p = PBModel.get(pbId);
+      if (p) { Wizard.setDraft(JSON.parse(JSON.stringify(p))); go('promotions/builder'); Toast.show('Editing "' + (p.name || 'promotion') + '" — activate again to republish your changes.'); }
+      else Toast.warn('The underlying promotion could not be found in this browser\'s storage.');
+    });
     const slider = bar.querySelector('#rateSlider'), input = bar.querySelector('#rateInput'), box = bar.querySelector('#rateBox');
     const rerender = Util.debounce(() => renderView(), 140);
     /* Same validation semantics as the original rate control: rate is clamped
