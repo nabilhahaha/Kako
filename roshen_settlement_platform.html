@@ -3097,6 +3097,9 @@ function simHint(sim, promo) {
 }
 function openSimModal(promo) {
   const sim = PromoSimulator.analyze(promo);
+  if (typeof PromoExport !== 'undefined') PromoExport.setContext(promo); // allow export of unsaved drafts from the modal
+  const exportBtns = `<button class="btn" data-promoexport="excel" data-id="${Util.esc(promo.id)}">⤓ Excel</button>
+    <button class="btn" data-promoexport="pdf" data-id="${Util.esc(promo.id)}">⤓ PDF</button>`;
   if (sim.repMode) {
     const repRows = sim.repRows.map((r, i) => `<tr>
       <td data-l="#" class="tnum">${i + 1}</td>
@@ -3110,7 +3113,7 @@ function openSimModal(promo) {
         <div class="twrap" style="max-height:340px;margin-top:12px"><table class="dt cardable"><thead><tr>
           <th>#</th><th>Salesman</th><th class="num">Qualifying customers</th><th class="num">Status</th><th class="num">Payout</th>
         </tr></thead><tbody>${repRows || `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--faint)">No sales of the selected products in this period.</td></tr>`}</tbody></table></div>`,
-      foot: `<div class="spacer"></div><button class="btn" data-close>Close</button>`,
+      foot: `${exportBtns}<div class="spacer"></div><button class="btn" data-close>Close</button>`,
     });
     return;
   }
@@ -3430,6 +3433,199 @@ const Seeds = (() => {
     if (!d.includes(id)) { d.push(id); Store.set('seedDismissed', d); }
   }
   return { merge, dismiss };
+})();
+
+</script>
+<script>
+/* ============ PROMO EXPORT — per-promotion Excel / PDF downloads ============ */
+/* ===========================
+   PROMO EXPORT (ADDITIVE) — formatted Excel / PDF downloads for any builder
+   promotion or rep-incentive program, built from the same PromoSimulator
+   analysis shown in the UI. Published campaign bundles keep using the frozen
+   exportExcel / exportPDF settlement statements — this module only ADDS a
+   per-card way to run them (set active → export → restore). No engine or
+   formula changes.
+   =========================== */
+const PromoExport = (() => {
+  let _ctx = null; // last promo shown in a calculation modal (may be an unsaved draft)
+  const nameOf = code => { const p = PBData.resolveProduct(code); return (p && p.name) || code; };
+  const money = n => 'SAR ' + Math.round(Calc.num(n)).toLocaleString('en-US');
+  const fname = p => 'Roshen_' + String(p.name || p.id).trim().replace(/[^\w؀-ۿ-]+/g, '_').slice(0, 60);
+  const today = () => new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  function describe(promo, sim) {
+    const R = PBModel.REWARD_TYPES[promo.rewardType] || {};
+    const unit = promo.buyUnit === 'pcs' ? 'pieces (Pcs)' : 'cartons (cases)';
+    const mode = promo.qtyMode === 'combined' ? 'any selected products together (mix allowed)' : 'each product separately (no mixing)';
+    let reward;
+    if (promo.rewardType === 'free_product') {
+      reward = Calc.num(promo.reward.rewardQty) + ' × ' +
+        (promo.reward.rewardProduct === '__SAME__' ? 'the same product the customer bought' : nameOf(promo.reward.rewardProduct)) + ' — free';
+    } else if (promo.rewardType === 'discount_pct') reward = Calc.num(promo.reward.discountPct) + '% discount on qualifying paid value';
+    else reward = money(promo.reward.rewardAmount) + (promo.rewardType === 'salesman_reward' ? ' per achieving salesman' : ' cash per completed condition');
+    return { typeLabel: R.label || promo.rewardType, unit, mode, reward, isRep: !!sim.repMode };
+  }
+
+  /** Per-customer reward figure, mirroring the calculation modal. */
+  function custReward(promo, r, sim) {
+    if (promo.rewardType === 'free_product') return Calc.round(r.achievements * Calc.num(promo.reward.rewardQty), 2) + ' ' + sim.unitShort;
+    if (promo.rewardType === 'discount_pct') return r.achievements > 0 ? Calc.round(r.paidValue * Calc.num(promo.reward.discountPct) / 100) : '—';
+    return r.achievements > 0 ? Calc.round(r.achievements * Calc.num(promo.reward.rewardAmount)) : '—';
+  }
+
+  function summaryPairs(promo, sim, d) {
+    const pairs = [
+      ['Type', d.typeLabel],
+      ['Status', String(promo.status || '').toUpperCase()],
+      ['Period', (promo.startDate || '…') + ' → ' + (promo.endDate || '…')],
+      ['Buy condition', Calc.num(promo.buyQty) + ' ' + d.unit + ' — ' + d.mode],
+      ['Reward', d.reward],
+      ['Customer scope', promo.customerScope === 'selected' ? promo.customerCodes.length + ' selected customers' : 'All customers'],
+      ['Products in scope', promo.productCodes.length],
+    ];
+    if (d.isRep) pairs.push(
+      ['Min qualifying customers / salesman', sim.repMin],
+      ['Supervisor amount per achieving rep', money((promo.repIncentive || {}).supervisorAmount)]);
+    return pairs;
+  }
+  function resultPairs(promo, sim, d) {
+    const pairs = [
+      ['Data coverage', sim.coverage ? sim.coverage.label : '—'],
+      ['Invoices scanned in period', sim.invoices],
+      ['Buyers of selected products', sim.buyers],
+      ['Qualifying customers', sim.qualifying],
+    ];
+    if (d.isRep) pairs.push(
+      ['Salesmen in scope', sim.repsTotal],
+      ['Salesmen achieved (≥ ' + sim.repMin + ' customers)', sim.repsAchieved],
+      ['Total incentive payout', money(sim.cost || 0)]);
+    else {
+      pairs.push(['Conditions completed', sim.achievements]);
+      if (sim.rewardType === 'free_product') pairs.push([sim.rewardLabel, Calc.round(sim.freeCases || 0, 2)]);
+      pairs.push(['Estimated cost (list price)', sim.cost != null ? money(sim.cost) : '—']);
+    }
+    return pairs;
+  }
+
+  function excel(promo) {
+    try {
+      const sim = PromoSimulator.analyze(promo);
+      const d = describe(promo, sim);
+      const wb = XLSX.utils.book_new();
+      const sum = [
+        ['ROSHEN KSA — Promotion Report'], [promo.name || 'Untitled promotion'], ['Generated ' + today()], [],
+        ['CONFIGURATION'], ...summaryPairs(promo, sim, d), [],
+        ['CALCULATED FROM LOADED DATA'], ...resultPairs(promo, sim, d), [],
+        ['Note', 'Calculated against the ' + sim.poolSize + ' invoices in the data pool (paid volume only). '
+          + (d.isRep ? 'Staff payout program — not part of the customer settlement. ' : '')
+          + 'Audited settlement figures are unaffected.'],
+      ];
+      const ws1 = XLSX.utils.aoa_to_sheet(sum);
+      ws1['!cols'] = [{ wch: 38 }, { wch: 64 }];
+      XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+
+      const prod = [['Code', 'Product'], ...promo.productCodes.map(c => [c, nameOf(c)])];
+      const ws2 = XLSX.utils.aoa_to_sheet(prod);
+      ws2['!cols'] = [{ wch: 12 }, { wch: 60 }];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Products');
+
+      if (d.isRep) {
+        const rep = [['#', 'Salesman', 'Qualifying Customers', 'Minimum', 'Achieved', 'Payout (SAR)'],
+          ...sim.repRows.map((r, i) => [i + 1, r.rep, r.customers, sim.repMin, r.achieved ? 'YES' : 'no', r.payout || 0])];
+        const ws3 = XLSX.utils.aoa_to_sheet(rep);
+        ws3['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
+        XLSX.utils.book_append_sheet(wb, ws3, 'By Salesman');
+      }
+
+      const ch = ['#', 'Customer', 'Code', 'City', 'Salesman', 'Bought (' + sim.unitShort + ')', 'Conditions Met', 'Reward'];
+      const cr = sim.rows.map((r, i) => [i + 1, r.cust, r.code, r.city, r.rep, Calc.round(r.bought, 2), r.achievements, custReward(promo, r, sim)]);
+      const ws4 = XLSX.utils.aoa_to_sheet([ch, ...cr]);
+      ws4['!cols'] = [{ wch: 5 }, { wch: 34 }, { wch: 11 }, { wch: 14 }, { wch: 22 }, { wch: 13 }, { wch: 14 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, ws4, 'By Customer');
+
+      XLSX.writeFile(wb, fname(promo) + '.xlsx');
+      Toast.ok('Excel downloaded — ' + sim.rows.length + ' customers' + (d.isRep ? ', ' + sim.repsTotal + ' salesmen' : '') + '.');
+    } catch (e) { console.error(e); Toast.err('Excel export failed: ' + ((e && e.message) || e)); }
+  }
+
+  function pdf(promo) {
+    try {
+      const sim = PromoSimulator.analyze(promo);
+      const d = describe(promo, sim);
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      const W = doc.internal.pageSize.getWidth();
+      doc.setFillColor(176, 17, 22); doc.rect(0, 0, W, 86, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFont('times', 'bold'); doc.setFontSize(24); doc.text('ROSHEN · KSA', 40, 44);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+      doc.text(d.isRep ? 'REP INCENTIVE PROGRAM — REPORT' : 'TRADE PROMOTION — REPORT', 40, 60);
+      doc.setFontSize(8); doc.text((promo.name || 'Untitled') + '  |  ' + (promo.startDate || '…') + ' → ' + (promo.endDate || '…') + '  |  generated ' + today(), 40, 74);
+
+      let y = 108;
+      doc.setTextColor(176, 17, 22); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('1. Configuration', 40, y); y += 6;
+      doc.autoTable({ startY: y, body: summaryPairs(promo, sim, d).map(p => [p[0], String(p[1])]), theme: 'grid',
+        bodyStyles: { fontSize: 9 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 190, fillColor: [241, 245, 249] } }, margin: { left: 40, right: 40 } });
+      y = doc.lastAutoTable.finalY + 16;
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(176, 17, 22); doc.text('2. Calculated from loaded data', 40, y); y += 6;
+      doc.autoTable({ startY: y, body: resultPairs(promo, sim, d).map(p => [p[0], String(p[1])]), theme: 'grid',
+        bodyStyles: { fontSize: 9 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 190, fillColor: [241, 245, 249] } }, margin: { left: 40, right: 40 } });
+      y = doc.lastAutoTable.finalY + 16;
+
+      const head = { fillColor: [176, 17, 22], textColor: [255, 255, 255], fontSize: 8 };
+      if (d.isRep) {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(176, 17, 22); doc.text('3. Salesmen', 40, y); y += 6;
+        doc.autoTable({ startY: y, head: [['#', 'Salesman', 'Qualifying', 'Min', 'Status', 'Payout (SAR)']],
+          body: sim.repRows.map((r, i) => [i + 1, r.rep, r.customers, sim.repMin, r.achieved ? 'ACHIEVED' : 'not yet', r.payout ? Math.round(r.payout).toLocaleString('en-US') : '—']),
+          theme: 'striped', headStyles: head, bodyStyles: { fontSize: 8 },
+          columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 5: { halign: 'right', fontStyle: 'bold' } },
+          didParseCell: c => { if (c.section === 'body' && sim.repRows[c.row.index] && sim.repRows[c.row.index].achieved) c.cell.styles.textColor = [11, 110, 58]; },
+          margin: { left: 40, right: 40 } });
+        y = doc.lastAutoTable.finalY + 16;
+      }
+
+      const TOP = 40;
+      const rows = sim.rows.slice(0, TOP);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(176, 17, 22);
+      doc.text((d.isRep ? '4' : '3') + '. Customers (' + (sim.rows.length > TOP ? 'top ' + TOP + ' of ' + sim.rows.length : sim.rows.length) + ')', 40, y); y += 6;
+      doc.autoTable({ startY: y, head: [['#', 'Customer', 'City', 'Salesman', 'Bought (' + sim.unitShort + ')', 'Cond.', 'Reward']],
+        body: rows.map((r, i) => [i + 1, r.cust.length > 32 ? r.cust.slice(0, 31) + '…' : r.cust, r.city, r.rep, Calc.round(r.bought, 2), r.achievements, String(custReward(promo, r, sim))]),
+        theme: 'striped', headStyles: head, bodyStyles: { fontSize: 7.5 },
+        columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right', fontStyle: 'bold' } },
+        margin: { left: 40, right: 40 } });
+      y = doc.lastAutoTable.finalY + 22;
+
+      if (y > 760) { doc.addPage(); y = 50; }
+      doc.setDrawColor(20, 26, 33); [40, 220, 400].forEach(x => doc.line(x, y, x + 150, y));
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 26, 33);
+      doc.text('Prepared by', 40, y + 12); doc.text('Approved by', 220, y + 12); doc.text('Acknowledged', 400, y + 12);
+      doc.save(fname(promo) + '.pdf');
+      Toast.ok('PDF downloaded.');
+    } catch (e) { console.error(e); Toast.err('PDF export failed: ' + ((e && e.message) || e)); }
+  }
+
+  /* Delegated buttons — work from cards, calculation modals, anywhere:
+     [data-promoexport="excel|pdf" data-id]   → builder promo / rep program
+     [data-campexport="excel|pdf" data-idx]   → published campaign via the
+       frozen settlement statements (set active → export → restore) */
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-promoexport]');
+    if (b) {
+      const p = PBModel.get(b.dataset.id) || (_ctx && _ctx.id === b.dataset.id ? _ctx : null);
+      if (!p) { Toast.warn('Save the promotion first, then export.'); return; }
+      b.dataset.promoexport === 'pdf' ? pdf(p) : excel(p);
+      return;
+    }
+    const c = e.target.closest('[data-campexport]');
+    if (c) {
+      const prev = engine.promotions.indexOf(engine.active);
+      engine.setActive(+c.dataset.idx);
+      try { c.dataset.campexport === 'pdf' ? exportPDF() : exportExcel(); }
+      finally { engine.setActive(prev >= 0 ? prev : 0); }
+    }
+  });
+
+  return { excel, pdf, setContext: p => { _ctx = p; } };
 })();
 
 </script>
@@ -4697,8 +4893,10 @@ Views.promotions = (() => {
           <div><span class="pcm-l">Buy</span><span class="pcm-v">${p.buyQty || '—'} ${p.buyUnit === 'pcs' ? 'pcs' : 'cases'} · ${p.productCodes.length} product(s)</span></div>
           <div><span class="pcm-l">Est. from data</span>${est}</div>
         </div>
-        <div class="pb-card-actions">
+        <div class="pb-card-actions" style="flex-wrap:wrap">
           <button class="btn sm" data-pb="calc" data-id="${p.id}">Calculation</button>
+          <button class="btn sm" data-promoexport="excel" data-id="${p.id}">⤓ Excel</button>
+          <button class="btn sm" data-promoexport="pdf" data-id="${p.id}">⤓ PDF</button>
           <button class="btn sm" data-pb="edit" data-id="${p.id}">Edit</button>
           <button class="btn sm" data-pb="dup" data-id="${p.id}">Duplicate</button>
           <button class="btn sm danger" data-pb="del" data-id="${p.id}">Delete</button>
@@ -4718,6 +4916,8 @@ Views.promotions = (() => {
         <button class="btn sm" data-camp="${i}" data-view="settlement/overview">Settlement</button>
         <button class="btn sm" data-camp="${i}" data-view="analytics/charts">Analytics</button>
         <button class="btn sm" data-camp="${i}" data-view="settlement/explorer">Invoices</button>
+        <button class="btn sm" data-campexport="excel" data-idx="${i}">⤓ Excel</button>
+        <button class="btn sm" data-campexport="pdf" data-idx="${i}">⤓ PDF</button>
         ${PromoPublisher.isPublished(pr.id) ? `
         <button class="btn sm" data-pbcamp="edit" data-pbid="${Util.esc(String(pr.id).slice(PromoPublisher.TAG.length))}">✎ Edit</button>
         <button class="btn sm danger" data-pbcamp="del" data-pbid="${Util.esc(String(pr.id).slice(PromoPublisher.TAG.length))}">Delete</button>` : `
