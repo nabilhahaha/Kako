@@ -580,9 +580,9 @@ table.dt{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
 @media(max-width:560px){.pb-cards{grid-template-columns:1fr}}
 .pb-card{border:1px solid var(--line);border-radius:var(--r);padding:14px;background:var(--surface);transition:box-shadow .13s,transform .13s}
 .pb-card:hover{box-shadow:var(--sh-md);transform:translateY(-1px)}
-.pb-card-top{display:flex;align-items:flex-start;gap:11px;margin-bottom:11px}
+.pb-card-top{display:flex;align-items:flex-start;gap:11px;margin-bottom:11px;flex-wrap:wrap}
 .pb-card-ic{font-size:21px;flex:none}
-.pb-card-title{flex:1;min-width:0}
+.pb-card-title{flex:1 1 52%;min-width:52%}
 .pb-card-name{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pb-card-type{font-size:11px;color:var(--muted);font-weight:600;margin-top:1px}
 .pb-card-badges{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;flex:none}
@@ -2928,11 +2928,12 @@ const PromoSimulator = (() => {
     const rows = [];
     byCust.forEach(o => {
       let ach = 0;
+      const achByProd = {};
       if (buy > 0) {
-        if (promo.qtyMode === 'each') o.perProd.forEach(c => { ach += Math.floor(Calc.num(c) / buy); });
+        if (promo.qtyMode === 'each') o.perProd.forEach((c, code) => { const a = Math.floor(Calc.num(c) / buy); if (a > 0) achByProd[code] = a; ach += a; });
         else ach = Math.floor(o.bought / buy);
       }
-      rows.push({ cust: o.cust, code: o.code, city: o.city, rep: o.rep, bought: o.bought, paidValue: o.paidValue, achievements: ach });
+      rows.push({ cust: o.cust, code: o.code, city: o.city, rep: o.rep, bought: o.bought, paidValue: o.paidValue, achievements: ach, achByProd });
     });
     rows.sort((a, b) => b.achievements - a.achievements || b.bought - a.bought);
     const qualifying = rows.filter(r => r.achievements > 0);
@@ -2944,7 +2945,29 @@ const PromoSimulator = (() => {
       rewardType: promo.rewardType, rewardLabel: '', rewardQty: null, freeCases: null,
       unitPrice: null, cost: null, note: '',
     };
-    if (promo.rewardType === 'free_product') {
+    if (promo.rewardType === 'free_product' && promo.reward.rewardProduct === '__SAME__') {
+      // reward is the same SKU the customer bought — value each achievement
+      // at its own product's average list price in the loaded invoices
+      const qty = Calc.num(promo.reward.rewardQty);
+      out.rewardQty = qty;
+      out.freeCases = totalAch * qty;
+      const priceCache = new Map();
+      const priceOf = code => { if (!priceCache.has(code)) priceCache.set(code, avgCasePrice(code, pool)); return priceCache.get(code); };
+      let cost = 0, valued = 0;
+      if (promo.qtyMode === 'each') {
+        qualifying.forEach(r => Object.entries(r.achByProd || {}).forEach(([code, a]) => {
+          const pr = priceOf(code);
+          if (pr != null) { cost += a * qty * pr; valued += a; }
+        }));
+      } else {
+        const prices = promo.productCodes.map(priceOf).filter(x => x != null);
+        const avg = prices.length ? prices.reduce((a, b) => a + b, 0) / prices.length : null;
+        if (avg != null) { cost = out.freeCases * avg; valued = totalAch; }
+      }
+      out.cost = valued > 0 ? cost : null;
+      out.rewardLabel = 'Free cases owed';
+      out.note = 'Reward = the same SKU the customer bought; each free case is valued at that SKU’s own average list price in the loaded invoices.';
+    } else if (promo.rewardType === 'free_product') {
       const qty = Calc.num(promo.reward.rewardQty);
       out.rewardQty = qty;
       out.freeCases = totalAch * qty;
@@ -3183,6 +3206,56 @@ const PromoPublisher = (() => {
     memory.push(c);
     return JSON.parse(JSON.stringify(c));
   };
+})();
+
+</script>
+<script>
+/* ============ SEEDED PROMOTIONS — shipped business configurations ============ */
+/* ===========================
+   SEEDED PROMOTIONS (ADDITIVE) — business-provided configurations shipped
+   with the platform. Merged into the promotion store on boot unless the
+   user already has them or explicitly deleted them (tombstoned), so they
+   appear automatically as campaigns and keep recalculating as new sales
+   periods are uploaded. Settlement engines untouched.
+   =========================== */
+const SEED_PROMOS = [
+  {
+    id: 'seed_june_10p1', status: 'active', rewardType: 'free_product',
+    name: 'June Promo 10+1',
+    startDate: '2026-06-01', endDate: '2026-06-30',
+    customerScope: 'all', customerCodes: [],
+    buyQty: 10, qtyMode: 'each',
+    productCodes: ['ROS24001', 'ROS29785', 'ROS34352', 'ROS08810', 'ROS05000', 'ROS11926'],
+    reward: { rewardProduct: '__SAME__', rewardQty: 1, rewardAmount: null, discountPct: null },
+    createdAt: 1780300800000, updatedAt: 1780300800000,
+  },
+  {
+    id: 'seed_june_4p1', status: 'active', rewardType: 'free_product',
+    name: 'June Promo 4+1',
+    startDate: '2026-06-01', endDate: '2026-06-30',
+    customerScope: 'all', customerCodes: [],
+    buyQty: 4, qtyMode: 'each',
+    productCodes: ['ROS44061', 'ROS44092'],
+    reward: { rewardProduct: '__SAME__', rewardQty: 1, rewardAmount: null, discountPct: null },
+    createdAt: 1780300800000, updatedAt: 1780300800000,
+  },
+];
+const Seeds = (() => {
+  function merge() {
+    const dismissed = Store.get('seedDismissed', []);
+    const existing = new Set(PBModel.load().map(p => p.id));
+    SEED_PROMOS.forEach(s => {
+      if (dismissed.includes(s.id) || existing.has(s.id)) return;
+      PBModel.upsert(JSON.parse(JSON.stringify(s)));
+    });
+  }
+  /** Remember that the user deleted a seeded promotion so it never comes back. */
+  function dismiss(id) {
+    if (!String(id).startsWith('seed_')) return;
+    const d = Store.get('seedDismissed', []);
+    if (!d.includes(id)) { d.push(id); Store.set('seedDismissed', d); }
+  }
+  return { merge, dismiss };
 })();
 
 </script>
@@ -4085,9 +4158,11 @@ const Wizard = (() => {
     if (t === 'free_product') {
       indices();
       const known = prodIndex.some(p => p.code === r.rewardProduct);
-      let opts = '<option value="">Choose a product…</option>' + prodIndex.map(p =>
+      let opts = '<option value="">Choose a product…</option>'
+        + `<option value="__SAME__" ${r.rewardProduct === '__SAME__' ? 'selected' : ''}>— Same as the purchased product —</option>`
+        + prodIndex.map(p =>
         `<option value="${Util.esc(p.code)}" ${r.rewardProduct === p.code ? 'selected' : ''}>${Util.esc(Util.trunc(p.name, 50))}</option>`).join('');
-      if (r.rewardProduct && !known) opts += `<option value="${Util.esc(r.rewardProduct)}" selected>${Util.esc(r.rewardProduct)} (Inactive)</option>`;
+      if (r.rewardProduct && r.rewardProduct !== '__SAME__' && !known) opts += `<option value="${Util.esc(r.rewardProduct)}" selected>${Util.esc(r.rewardProduct)} (Inactive)</option>`;
       return `<div class="two-col" style="margin:0">
         <label class="field"><span>Reward product</span><select id="wzRewProd" class="select">${opts}</select></label>
         <label class="field"><span>Reward quantity</span><div class="qty-wrap"><input id="wzRewQty" type="number" min="1" class="input" placeholder="1" value="${r.rewardQty != null ? r.rewardQty : ''}"><span class="unit">Cases</span></div></label></div>`;
@@ -4177,8 +4252,12 @@ const Wizard = (() => {
     let rewardLine = '';
     const r = draft.reward;
     if (draft.rewardType === 'free_product') {
-      const rp = PBData.resolveProduct(r.rewardProduct);
-      rewardLine = `${r.rewardQty || '—'} Case(s)<br><b class="${rp.inactive ? 'inactive' : ''}">${r.rewardProduct ? Util.esc(Util.trunc(rp.name, 30)) : '—'}</b>`;
+      if (r.rewardProduct === '__SAME__') {
+        rewardLine = `${r.rewardQty || '—'} Case(s)<br><b>Same as the purchased product</b>`;
+      } else {
+        const rp = PBData.resolveProduct(r.rewardProduct);
+        rewardLine = `${r.rewardQty || '—'} Case(s)<br><b class="${rp.inactive ? 'inactive' : ''}">${r.rewardProduct ? Util.esc(Util.trunc(rp.name, 30)) : '—'}</b>`;
+      }
     } else if (draft.rewardType === 'discount_pct') rewardLine = `<b>${r.discountPct || '—'}%</b> discount`;
     else rewardLine = `<b>SAR ${Math.round(Number(r.rewardAmount) || 0).toLocaleString('en-US')}</b>${draft.rewardType === 'salesman_reward' ? ' to salesman' : ''}`;
     const fmtD = d => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -4258,7 +4337,7 @@ const Wizard = (() => {
       else if (a === 'copyFrom') openCopyModal(main);
       else if (a === 'saveDraft') { collect(); draft.status = 'draft'; PBModel.upsert(draft); PromoPublisher.sync(); App.announceChange(); rerender(); Toast.ok('Draft saved.'); }
       else if (a === 'duplicate') { collect(); PBModel.upsert(draft); const c = PBModel.duplicate(draft.id); if (c) { setDraft(c); rerender(); Toast.ok('Duplicated. Editing the copy.'); } }
-      else if (a === 'delete') { if (await Modal.confirm('Delete promotion', 'Delete this promotion? This cannot be undone.', 'Delete')) { PBModel.remove(draft.id); PromoPublisher.sync(); App.announceChange(); newDraft(); rerender(); Toast.ok('Deleted.'); } }
+      else if (a === 'delete') { if (await Modal.confirm('Delete promotion', 'Delete this promotion? This cannot be undone.', 'Delete')) { Seeds.dismiss(draft.id); PBModel.remove(draft.id); PromoPublisher.sync(); App.announceChange(); newDraft(); rerender(); Toast.ok('Deleted.'); } }
       else if (a === 'activate') {
         collect();
         const errs = PBModel.validate(draft);
@@ -4375,12 +4454,15 @@ Views.promotions = (() => {
       const R = PBModel.REWARD_TYPES[p.rewardType] || PBModel.REWARD_TYPES.free_product;
       const st = { active: { l: 'Active', c: 'ok' }, draft: { l: 'Draft', c: 'warn' }, paused: { l: 'Paused', c: 'orange' } }[p.status] || { l: p.status, c: 'ok' };
       let rw = '';
-      if (p.rewardType === 'free_product') { const rp = PBData.resolveProduct(p.reward.rewardProduct); rw = `${p.reward.rewardQty || '—'} × <span class="${rp.inactive ? 'inactive' : ''}">${Util.esc(Util.trunc(rp.name, 24))}</span>`; }
+      if (p.rewardType === 'free_product') {
+        if (p.reward.rewardProduct === '__SAME__') rw = `${p.reward.rewardQty || '—'} × same as purchased`;
+        else { const rp = PBData.resolveProduct(p.reward.rewardProduct); rw = `${p.reward.rewardQty || '—'} × <span class="${rp.inactive ? 'inactive' : ''}">${Util.esc(Util.trunc(rp.name, 24))}</span>`; }
+      }
       else if (p.rewardType === 'discount_pct') rw = `${p.reward.discountPct || '—'}% discount`;
       else rw = 'SAR ' + Math.round(Number(p.reward.rewardAmount) || 0).toLocaleString('en-US');
       let inactiveCount = 0;
       p.productCodes.forEach(c => { if (PBData.resolveProduct(c).inactive) inactiveCount++; });
-      if (p.rewardType === 'free_product' && p.reward.rewardProduct && PBData.resolveProduct(p.reward.rewardProduct).inactive) inactiveCount++;
+      if (p.rewardType === 'free_product' && p.reward.rewardProduct && p.reward.rewardProduct !== '__SAME__' && PBData.resolveProduct(p.reward.rewardProduct).inactive) inactiveCount++;
       const inactiveFlag = inactiveCount ? `<span class="pill orange" title="Some products are no longer in the master data">${inactiveCount} inactive</span>` : '';
       // additive estimate from the loaded invoice pool (never touches settlement figures)
       let est = '<span class="pcm-v">—</span>';
@@ -4460,7 +4542,7 @@ Views.promotions = (() => {
       if (act === 'calc') { const p = PBModel.get(id); if (p) openSimModal(p); }
       else if (act === 'edit') { const p = PBModel.get(id); if (p) { Wizard.setDraft(JSON.parse(JSON.stringify(p))); App.go('promotions/builder'); Toast.show('Editing "' + (p.name || 'promotion') + '".'); } }
       else if (act === 'dup') { const c = PBModel.duplicate(id); if (c) { App.announceChange(); App.refresh(); Toast.ok('Duplicated.'); } }
-      else if (act === 'del') { if (await Modal.confirm('Delete promotion', 'Delete this promotion? This cannot be undone.', 'Delete')) { PBModel.remove(id); PromoPublisher.sync(); App.announceChange(); App.refresh(); Toast.ok('Deleted.'); } }
+      else if (act === 'del') { if (await Modal.confirm('Delete promotion', 'Delete this promotion? This cannot be undone.', 'Delete')) { Seeds.dismiss(id); PBModel.remove(id); PromoPublisher.sync(); App.announceChange(); App.refresh(); Toast.ok('Deleted.'); } }
     });
   };
 })();
@@ -4714,7 +4796,9 @@ Views.preferences = function (main) {
   });
   main.querySelector('#prefClearPromos').addEventListener('click', async () => {
     if (await Modal.confirm('Delete builder promotions', 'This permanently deletes every promotion created in the Promotion Builder. Settlement campaigns and calculations are not affected.', 'Delete all')) {
-      PBModel.load().forEach(p => PBModel.remove(p.id));
+      PBModel.load().forEach(p => { Seeds.dismiss(p.id); PBModel.remove(p.id); });
+      PromoPublisher.sync();
+      App.announceChange();
       Toast.ok('All builder promotions deleted.');
     }
   });
@@ -5119,6 +5203,7 @@ const App = (() => {
     if (Store.get('sideMin', false)) document.getElementById('app').classList.add('side-min');
     SavedViews.restore();
     try { await DataStore.init(); } catch (e) { console.warn('data pool init failed', e); }
+    try { Seeds.merge(); } catch (e) { console.warn('seed merge failed', e); }
     try { PromoPublisher.sync(); } catch (e) { console.warn('promo publish failed', e); }
     initEvents();
     if (window.__storageBlocked) {
