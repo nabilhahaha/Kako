@@ -3366,17 +3366,20 @@ const SEED_PROMOS = [
     repIncentive: { minCustomers: 10, supervisorAmount: 2 },
     createdAt: 1780300800000, updatedAt: 1780300800000,
   },
-  /* Johnny Krocker 2+1 — ran in June alongside Lovita 2+1 but was never in
-     the audited tool. The June data already carries its free JK goods
-     (net = 0 lines), so publishing this promo compensates them through the
-     frozen engine exactly like the Lovita campaign model. */
+  /* Johnny Krocker COCONUT 2+1 — a standing offer on the coconut wafer only
+     (business confirmed; the data agrees: every free JK case in June is
+     ROS48038). It was never in the audited tool. Runs 1 Jun - 30 Sep 2026:
+     June starts it right after Eid (Apr-May coconut free goods were already
+     compensated under the Eid campaign), and each new month's upload
+     (Jul-Sep) recalculates it automatically through the frozen engine,
+     exactly like the Lovita campaign model. */
   {
-    id: 'seed_jk_2p1', status: 'active', rewardType: 'free_product',
-    name: 'Johnny Krocker 2+1',
-    startDate: '2026-06-01', endDate: '2026-06-30',
+    id: 'seed_jk_2p1', rev: 2, status: 'active', rewardType: 'free_product',
+    name: 'Johnny Krocker Coconut 2+1',
+    startDate: '2026-06-01', endDate: '2026-09-30',
     customerScope: 'all', customerCodes: [],
     buyQty: 2, qtyMode: 'each',
-    productCodes: ['ROS35588', 'ROS35625', 'ROS48038', 'ROS38831', 'ROS38848'],
+    productCodes: ['ROS48038'],
     reward: { rewardProduct: '__SAME__', rewardQty: 1, rewardAmount: null, discountPct: null },
     createdAt: 1780300800000, updatedAt: 1780300800000,
   },
