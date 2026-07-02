@@ -1,0 +1,4620 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roshen × Relia — Trade Spend Management System</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --roshen-red: #8B0000;
+    --roshen-red-dark: #5C0000;
+    --roshen-red-light: #B22222;
+    --roshen-gold: #C9A961;
+    --roshen-gold-light: #E5D4A3;
+    --roshen-gold-dark: #8B7340;
+    --bg: #FAF9F6;
+    --surface: #FFFFFF;
+    --border: #E5E0D5;
+    --border-strong: #D0C9B8;
+    --text: #1A1A1A;
+    --text-muted: #6B6B6B;
+    --text-light: #999999;
+    --success: #2E7D32;
+    --success-bg: #E8F5E9;
+    --warning: #ED6C02;
+    --warning-bg: #FFF3E0;
+    --danger: #C62828;
+    --danger-bg: #FFEBEE;
+    --info: #1565C0;
+    --info-bg: #E3F2FD;
+    --relia-blue: #1A3B6E;
+    --relia-blue-light: #E8EEF5;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ============ TOP BAR ============ */
+  .topbar {
+    background: linear-gradient(135deg, var(--roshen-red) 0%, var(--roshen-red-dark) 100%);
+    color: #FFFFFF;
+    padding: 0;
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 3px solid var(--roshen-gold);
+  }
+
+  .topbar-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .brand-logo {
+    width: 48px;
+    height: 48px;
+    background: #FFFFFF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--roshen-gold);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .brand-logo span {
+    color: var(--roshen-red);
+    font-weight: 900;
+    font-size: 20px;
+    letter-spacing: -1px;
+  }
+
+  .brand-text h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1.1;
+  }
+
+  .brand-text p {
+    font-size: 11px;
+    opacity: 0.85;
+    margin-top: 2px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .brand-gold {
+    color: var(--roshen-gold-light);
+  }
+
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .lang-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    backdrop-filter: blur(10px);
+    font-family: inherit;
+  }
+  
+  .lang-toggle:hover {
+    background: rgba(255,255,255,0.25);
+    border-color: var(--roshen-gold);
+    transform: translateY(-1px);
+  }
+  
+  .lang-flag {
+    font-size: 16px;
+    line-height: 1;
+  }
+  
+  .lang-name {
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  
+  /* Body language class for RTL/LTR adjustments (none needed for Ukrainian) */
+  body.lang-uk {
+    /* Ukrainian uses Latin/Cyrillic, no special RTL needed */
+  }
+  
+  .save-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+  }
+
+  .save-status.saved::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4ADE80;
+    box-shadow: 0 0 8px #4ADE80;
+  }
+
+  /* ============ TABS ============ */
+  .tabs-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0;
+    position: sticky;
+    top: 76px;
+    z-index: 90;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  }
+
+  .tabs-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    gap: 4px;
+  }
+
+  .tab {
+    padding: 16px 28px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: inherit;
+  }
+
+  .tab i {
+    font-size: 16px;
+  }
+
+  .tab:hover {
+    color: var(--roshen-red);
+    background: rgba(139,0,0,0.03);
+  }
+
+  .tab.active {
+    color: var(--roshen-red);
+    border-bottom-color: var(--roshen-red);
+    font-weight: 600;
+  }
+
+  .tab .badge {
+    background: var(--roshen-gold);
+    color: var(--roshen-red-dark);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    min-width: 22px;
+    text-align: center;
+  }
+
+  /* ============ MAIN ============ */
+  .main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ============ KPI CARDS ============ */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s;
+  }
+
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--roshen-red);
+  }
+
+  .kpi.gold::before { background: var(--roshen-gold); }
+  .kpi.success::before { background: var(--success); }
+  .kpi.warning::before { background: var(--warning); }
+  .kpi.info::before { background: var(--info); }
+
+  .kpi-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .kpi-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.1;
+  }
+
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 4px;
+  }
+
+  /* ============ FORM ============ */
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .form-header {
+    background: linear-gradient(135deg, var(--roshen-red) 0%, var(--roshen-red-dark) 100%);
+    padding: 20px 28px;
+    color: #FFFFFF;
+    border-bottom: 3px solid var(--roshen-gold);
+  }
+
+  .form-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .form-header p {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-top: 4px;
+  }
+
+  .form-body {
+    padding: 28px;
+  }
+
+  .form-section {
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px dashed var(--border);
+  }
+
+  .form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .section-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+    color: var(--roshen-red);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::before {
+    content: '';
+    width: 24px;
+    height: 2px;
+    background: var(--roshen-gold);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+
+  .form-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+
+  .form-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+
+  .full-width { grid-column: 1 / -1; }
+
+  .field-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .field-label .required {
+    color: var(--roshen-red);
+    margin-left: 2px;
+  }
+
+  .field-input, .field-select, .field-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--surface);
+    color: var(--text);
+    transition: all 0.15s;
+  }
+
+  .field-input:focus, .field-select:focus, .field-textarea:focus {
+    outline: none;
+    border-color: var(--roshen-red);
+    box-shadow: 0 0 0 3px rgba(139,0,0,0.08);
+  }
+
+  .field-input::placeholder {
+    color: var(--text-light);
+  }
+
+  .field-textarea {
+    resize: vertical;
+    min-height: 70px;
+    font-family: inherit;
+  }
+
+  /* Autocomplete */
+  .autocomplete {
+    position: relative;
+  }
+
+  .autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--roshen-red);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 50;
+    display: none;
+    box-shadow: var(--shadow-md);
+  }
+
+  .autocomplete-list.show { display: block; }
+
+  .autocomplete-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+
+  .autocomplete-item:last-child { border-bottom: none; }
+
+  .autocomplete-item:hover, .autocomplete-item.highlighted {
+    background: var(--roshen-red);
+    color: #FFFFFF;
+  }
+
+  .autocomplete-item .code {
+    font-weight: 700;
+    color: var(--roshen-red);
+    margin-right: 10px;
+  }
+
+  .autocomplete-item:hover .code, .autocomplete-item.highlighted .code {
+    color: var(--roshen-gold-light);
+  }
+
+  .autocomplete-empty {
+    padding: 14px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-light);
+  }
+
+  /* Multi-select chips */
+  .chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .chip {
+    background: var(--roshen-gold-light);
+    color: var(--roshen-red-dark);
+    padding: 4px 10px 4px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--roshen-gold);
+  }
+
+  .chip-remove {
+    cursor: pointer;
+    opacity: 0.7;
+    font-size: 10px;
+  }
+
+  .chip-remove:hover { opacity: 1; }
+
+  /* Checkbox list */
+  .checkbox-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    background: #FAFAFA;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.1s;
+  }
+
+  .checkbox-row:hover {
+    background: var(--surface);
+  }
+
+  .checkbox-row input[type="checkbox"] {
+    accent-color: var(--roshen-red);
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Approval split panel */
+  .approval-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 16px;
+  }
+
+  .approval-panel {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    background: var(--surface);
+    position: relative;
+  }
+
+  .approval-panel.relia {
+    border-top: 4px solid var(--relia-blue);
+    background: var(--relia-blue-light);
+  }
+
+  .approval-panel.roshen {
+    border-top: 4px solid var(--roshen-red);
+    background: #FFF8F0;
+  }
+
+  .approval-panel-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .approval-panel.relia .approval-panel-title {
+    color: var(--relia-blue);
+  }
+
+  .approval-panel.roshen .approval-panel-title {
+    color: var(--roshen-red);
+  }
+
+  .approval-panel-title .share {
+    margin-left: auto;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  /* Amount split display */
+  .amount-display {
+    background: linear-gradient(135deg, #FFF8F0 0%, #FAF3E5 100%);
+    border: 1.5px solid var(--roshen-gold);
+    border-radius: 10px;
+    padding: 18px;
+    margin-top: 16px;
+  }
+
+  .amount-split-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  .amount-piece {
+    text-align: center;
+    padding: 12px;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .amount-piece.relia {
+    border-top: 3px solid var(--relia-blue);
+  }
+
+  .amount-piece.roshen {
+    border-top: 3px solid var(--roshen-red);
+  }
+
+  .amount-piece-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .amount-piece-value {
+    font-size: 20px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .amount-piece.relia .amount-piece-value {
+    color: var(--relia-blue);
+  }
+
+  .amount-piece.roshen .amount-piece-value {
+    color: var(--roshen-red);
+  }
+
+  .amount-split-divider {
+    color: var(--roshen-gold-dark);
+    font-size: 24px;
+    font-weight: 300;
+  }
+
+  .split-percent-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--roshen-gold);
+  }
+
+  .split-slider {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    background: linear-gradient(to right, var(--relia-blue) 0%, var(--relia-blue) 50%, var(--roshen-red) 50%, var(--roshen-red) 100%);
+    border-radius: 3px;
+    outline: none;
+  }
+
+  .split-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--roshen-gold);
+    border: 2px solid var(--surface);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+  }
+
+  .split-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: var(--roshen-gold);
+    border: 2px solid var(--surface);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  /* File upload */
+  .file-upload {
+    border: 2px dashed var(--border-strong);
+    border-radius: 10px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #FAFAFA;
+  }
+
+  .file-upload:hover {
+    border-color: var(--roshen-red);
+    background: rgba(139,0,0,0.02);
+  }
+
+  .file-upload.has-file {
+    border-style: solid;
+    border-color: var(--success);
+    background: var(--success-bg);
+  }
+
+  .file-upload i {
+    font-size: 28px;
+    color: var(--text-light);
+    margin-bottom: 8px;
+  }
+
+  .file-upload.has-file i {
+    color: var(--success);
+  }
+
+  .file-upload p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .file-upload .filename {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 6px;
+  }
+
+  /* Performance preview */
+  .performance-card {
+    background: linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 100%);
+    color: #FFFFFF;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-top: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .performance-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, var(--roshen-gold) 0%, transparent 70%);
+    opacity: 0.1;
+  }
+
+  .performance-title {
+    font-size: 12px;
+    color: var(--roshen-gold);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .performance-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .perf-metric-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .perf-metric-value {
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .perf-metric-value.good { color: #4ADE80; }
+  .perf-metric-value.bad { color: #F87171; }
+  .perf-metric-value.gold { color: var(--roshen-gold-light); }
+
+  .verdict-pill {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 8px;
+  }
+
+  .verdict-pill.successful {
+    background: rgba(74,222,128,0.2);
+    color: #4ADE80;
+    border: 1px solid #4ADE80;
+  }
+
+  .verdict-pill.breakeven {
+    background: rgba(251,191,36,0.2);
+    color: #FBBF24;
+    border: 1px solid #FBBF24;
+  }
+
+  .verdict-pill.loss {
+    background: rgba(248,113,113,0.2);
+    color: #F87171;
+    border: 1px solid #F87171;
+  }
+
+  .verdict-pill.pending {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.7);
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--roshen-red);
+    color: #FFFFFF;
+  }
+
+  .btn-primary:hover {
+    background: var(--roshen-red-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139,0,0,0.3);
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1.5px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--roshen-red);
+    color: var(--roshen-red);
+  }
+
+  .btn-gold {
+    background: linear-gradient(135deg, var(--roshen-gold) 0%, var(--roshen-gold-dark) 100%);
+    color: #FFFFFF;
+  }
+
+  .btn-gold:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(201,169,97,0.4);
+  }
+
+  .btn-danger {
+    background: var(--danger);
+    color: #FFFFFF;
+  }
+
+  .btn-icon {
+    padding: 8px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    font-size: 13px;
+  }
+
+  .btn-icon:hover {
+    border-color: var(--roshen-red);
+    color: var(--roshen-red);
+    background: rgba(139,0,0,0.03);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 28px;
+    background: #FAFAFA;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ============ LOG TABLE ============ */
+  .log-toolbar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    flex: 1;
+    min-width: 240px;
+    padding: 9px 12px 9px 36px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.35-4.35'/></svg>");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+    background-size: 14px;
+  }
+
+  .filter-select {
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--surface);
+    min-width: 130px;
+  }
+
+  .log-table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .log-table thead {
+    background: linear-gradient(135deg, var(--roshen-red) 0%, var(--roshen-red-dark) 100%);
+    color: #FFFFFF;
+  }
+
+  .log-table th {
+    padding: 14px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    border-bottom: 3px solid var(--roshen-gold);
+  }
+
+  .log-table td {
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  .log-table tbody tr {
+    transition: background 0.1s;
+  }
+
+  .log-table tbody tr:hover {
+    background: #FAF7F0;
+  }
+
+  .log-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .activity-id {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--roshen-red);
+    font-size: 12px;
+  }
+
+  .cust-cell {
+    max-width: 220px;
+  }
+
+  .cust-cell .code {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Courier New', monospace;
+  }
+
+  .cust-cell .name {
+    font-weight: 500;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .status-pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  .status-pill.successful { background: var(--success-bg); color: var(--success); }
+  .status-pill.breakeven { background: var(--warning-bg); color: var(--warning); }
+  .status-pill.loss { background: var(--danger-bg); color: var(--danger); }
+  .status-pill.pending { background: #F0F0F0; color: var(--text-muted); }
+  .status-pill.approved { background: var(--success-bg); color: var(--success); }
+  .status-pill.rejected { background: var(--danger-bg); color: var(--danger); }
+  .status-pill.completed { background: var(--success-bg); color: var(--success); }
+  .status-pill.inprogress { background: var(--info-bg); color: var(--info); }
+
+  .action-buttons {
+    display: flex;
+    gap: 4px;
+  }
+
+  .action-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .action-btn:hover {
+    border-color: var(--roshen-red);
+    color: var(--roshen-red);
+    background: rgba(139,0,0,0.03);
+  }
+
+  .action-btn.delete:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+
+  .empty-state i {
+    font-size: 48px;
+    color: var(--border-strong);
+    margin-bottom: 16px;
+  }
+
+  .empty-state h3 {
+    color: var(--text);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  /* Warning alert */
+  .alert {
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .alert.warning {
+    background: var(--warning-bg);
+    border: 1px solid #FFD180;
+    color: #5D4037;
+  }
+
+  .alert.info {
+    background: var(--info-bg);
+    border: 1px solid #90CAF9;
+    color: var(--info);
+  }
+
+  .alert i {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Modal */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-backdrop.show { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 12px;
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .modal-header {
+    background: linear-gradient(135deg, var(--roshen-red) 0%, var(--roshen-red-dark) 100%);
+    padding: 18px 24px;
+    color: #FFFFFF;
+    border-bottom: 3px solid var(--roshen-gold);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .modal-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: #FFFFFF;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-body {
+    padding: 24px;
+  }
+
+  /* Pre/Post Analysis page */
+  .analysis-filter {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .analysis-results {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+
+  .analysis-period {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .analysis-period-header {
+    padding: 14px 20px;
+    color: #FFFFFF;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .analysis-period.before .analysis-period-header {
+    background: linear-gradient(135deg, #455A64 0%, #263238 100%);
+  }
+
+  .analysis-period.after .analysis-period-header {
+    background: linear-gradient(135deg, var(--roshen-red) 0%, var(--roshen-red-dark) 100%);
+  }
+
+  .analysis-period-body {
+    padding: 20px;
+  }
+
+  .analysis-metric {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+    font-size: 13px;
+  }
+
+  .analysis-metric:last-child { border-bottom: none; }
+
+  .analysis-metric-label { color: var(--text-muted); }
+  .analysis-metric-value { font-weight: 700; }
+
+  /* Print styles */
+  @media print {
+    .topbar, .tabs-bar, .form-actions, .log-toolbar, .action-buttons { display: none !important; }
+    body { background: white; }
+    .main { padding: 0; max-width: 100%; }
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .performance-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-grid, .form-grid-3, .form-grid-4 { grid-template-columns: 1fr; }
+    .approval-split { grid-template-columns: 1fr; }
+    .amount-split-row { grid-template-columns: 1fr; }
+    .analysis-results { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body class="lang-en">
+
+<!-- ============ TOP BAR ============ -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-logo"><span>R</span></div>
+      <div class="brand-text">
+        <h1>ROSHEN <span class="brand-gold">×</span> RELIA</h1>
+        <p>Trade Spend Management System</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="lang-toggle" onclick="toggleLanguage()" title="Switch language" id="langToggle">
+        <span class="lang-flag" id="langFlag">🇬🇧</span>
+        <span class="lang-name" id="langName">EN</span>
+      </button>
+      <div class="save-status saved" id="saveStatus">
+        <span id="saveStatusText">All changes saved</span>
+      </div>
+      <button class="btn btn-secondary" style="background: rgba(255,255,255,0.95); color: var(--roshen-red); border-color: var(--roshen-gold);" onclick="document.getElementById('uploadSalesInput').click()" title="Upload latest sales data Excel file" data-i18n="upload_sales_btn">upload_sales_btn</button>
+      <input type="file" id="uploadSalesInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="onUploadSalesFile(event)">
+      <button class="btn btn-gold" onclick="downloadFullProgram()">
+        <i class="fas fa-download"></i> <span data-i18n="save_program">Save Program</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TABS ============ -->
+<div class="tabs-bar">
+  <div class="tabs-inner">
+    <button class="tab active" data-page="log" onclick="switchPage('log')">
+      <i class="fas fa-list-alt"></i>
+      <span data-i18n="tab_log">Trade Spend Log</span>
+      <span class="badge" id="logCount">0</span>
+    </button>
+    <button class="tab" data-page="analysis" onclick="switchPage('analysis')">
+      <i class="fas fa-chart-line"></i>
+      <span data-i18n="tab_analysis">Pre/Post Analysis</span>
+    </button>
+    <button class="tab" data-page="new" onclick="switchPage('new')">
+      <i class="fas fa-plus-circle"></i>
+      <span data-i18n="tab_new">New Activity</span>
+    </button>
+  </div>
+</div>
+
+<!-- ============ MAIN CONTENT ============ -->
+<div class="main">
+
+  <!-- ===================== PAGE: LOG ===================== -->
+  <div class="page active" id="page-log">
+    
+    <!-- KPI Bar -->
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-label" data-i18n="kpi_total">Total Activities</div>
+        <div class="kpi-value" id="kpi-total">0</div>
+      </div>
+      <div class="kpi gold">
+        <div class="kpi-label" data-i18n="kpi_spend">Total Spend</div>
+        <div class="kpi-value" id="kpi-spend">SAR 0</div>
+      </div>
+      <div class="kpi info">
+        <div class="kpi-label" data-i18n="kpi_pending">Pending Approval</div>
+        <div class="kpi-value" id="kpi-pending">0</div>
+      </div>
+      <div class="kpi success">
+        <div class="kpi-label" data-i18n="kpi_successful">Successful</div>
+        <div class="kpi-value" id="kpi-success">0</div>
+      </div>
+      <div class="kpi warning">
+        <div class="kpi-label" data-i18n="kpi_progress">In Progress</div>
+        <div class="kpi-value" id="kpi-progress">0</div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="log-toolbar">
+      <input type="text" class="search-input" placeholder="Search by activity ID, customer name or code..." data-i18n-placeholder="search_placeholder" id="searchInput" oninput="renderLog()">
+      <select class="filter-select" id="filterStatus" onchange="renderLog()">
+        <option value="" data-i18n="filter_all_statuses">All Statuses</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Completed">Completed</option>
+        <option value="Approved">Approved</option>
+        <option value="Rejected">Rejected</option>
+        <option value="Pending Approval">Pending Approval</option>
+      </select>
+      <select class="filter-select" id="filterVerdict" onchange="renderLog()">
+        <option value="" data-i18n="filter_all_verdicts">All Verdicts</option>
+        <option value="Successful">Successful</option>
+        <option value="Break-even">Break-even</option>
+        <option value="Loss">Loss</option>
+        <option value="Pending">Pending</option>
+      </select>
+      <select class="filter-select" id="filterCategory" onchange="renderLog()"><option value="">All Categories</option></select>
+      <button class="btn btn-secondary" onclick="exportAllToExcel()">
+        <i class="fas fa-file-excel"></i> <span data-i18n="btn_export_excel">Export Excel</span>
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="log-table-wrap">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th><span data-i18n="col_activity_id">Activity ID</span></th>
+            <th><span data-i18n="col_customer">Customer</span></th>
+            <th><span data-i18n="col_category">Category</span></th>
+            <th><span data-i18n="col_type">Type</span></th>
+            <th><span data-i18n="col_period">Period</span></th>
+            <th><span data-i18n="col_total">Total Amount</span></th>
+            <th><span data-i18n="col_uplift">Uplift</span></th>
+            <th><span data-i18n="col_roi">ROI</span></th>
+            <th><span data-i18n="col_verdict">Verdict</span></th>
+            <th><span data-i18n="col_status">Status</span></th>
+            <th><span data-i18n="col_actions">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="logTableBody"><tr><td colspan="11"><div class="empty-state">
+      <i class="fas fa-clipboard-list"></i>
+      <h3>No activities yet</h3>
+      <p>Click "New Activity" to create your first Trade Spend record.</p>
+    </div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== PAGE: ANALYSIS ===================== -->
+  <div class="page" id="page-analysis">
+    <div class="analysis-filter">
+      <h2 style="font-size: 18px; margin-bottom: 14px; color: var(--roshen-red); display: flex; align-items: center; gap: 10px;">
+        <i class="fas fa-chart-line"></i> <span data-i18n="analysis_title">Pre/Post Performance Analysis</span>
+      </h2>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 18px;">
+        <span data-i18n="analysis_subtitle">&lt;span data-i18n="analysis_subtitle"&gt;Select an activity from the Trade Spend Log to view detailed before/after analysis.&lt;/span&gt;</span>
+      </p>
+      <select class="field-select" id="analysisActivitySelect" onchange="renderAnalysis()"><option value="" data-i18n="analysis_placeholder">— Select an activity —</option></select>
+    </div>
+    <div id="analysisContent"></div>
+    
+    <!-- Period Comparison Section -->
+    <div style="margin-top: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px;">
+      <h2 style="font-size: 18px; margin-bottom: 8px; color: var(--roshen-red); display: flex; align-items: center; gap: 10px;">
+        <i class="fas fa-calendar-alt"></i> <span data-i18n="comparison_title">Period-over-Period Comparison</span>
+      </h2>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 18px;" data-i18n="comparison_subtitle">Quarter-over-Quarter and Year-over-Year comparison for any customer × category combination — useful for seasonality-adjusted ROI.</p>
+      <div class="form-grid" style="margin-bottom: 18px;">
+        <div>
+          <label class="field-label" data-i18n="comp_customer">Customer (optional)</label>
+          <div class="autocomplete">
+            <input type="text" class="field-input" id="compCustCode" placeholder="Type customer code or leave empty for all..." data-i18n-placeholder="comp_cust_placeholder" autocomplete="off" oninput="onCompCustInput(event)" onfocus="onCompCustInput(event)" onblur="setTimeout(()=&gt;document.getElementById('compCustList').classList.remove('show'),200)">
+            <div class="autocomplete-list" id="compCustList"></div>
+          </div>
+        </div>
+        <div>
+          <label class="field-label" data-i18n="comp_category">Category (optional)</label>
+          <select class="field-select" id="compCategory"><option value="">All Categories</option></select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="renderComparison()" style="margin-bottom: 18px;">
+        <i class="fas fa-sync"></i> <span data-i18n="comp_run">Run Comparison</span>
+      </button>
+      <div id="comparisonContent">
+    <div style="padding: 14px 18px; background: var(--roshen-gold-light); border-radius: 8px; margin-bottom: 18px; border-left: 4px solid var(--roshen-gold);">
+      <strong style="color: var(--roshen-red-dark);">Scope:</strong> All customers · Roshetto
+      <span style="margin-left: 12px; color: var(--text-muted); font-size: 12px;">Data range: 2025-07-08 → 2026-05-18</span>
+    </div>
+    
+    <!-- Quarter table -->
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
+      <div style="background: var(--roshen-red); color: white; padding: 12px 16px; font-weight: 600; font-size: 14px;">
+        <i class="fas fa-chart-bar"></i> <span data-i18n="comp_qoq_title">Quarter-over-Quarter (YoY Same Quarter)</span>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #FAFAFA; border-bottom: 2px solid var(--border);">
+            <th style="padding: 10px; text-align: left; font-weight: 600;">Quarter</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">Sales (SAR)</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">Cases</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">Prev Year Q</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">YoY Growth</th>
+            <th style="padding: 10px; text-align: center; font-weight: 600;">Activities</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr style="border-bottom: 1px solid var(--border); background: #FAFAFA;">
+              <td style="padding: 10px; font-weight: 600;">Q3 2025</td>
+              <td style="padding: 10px; text-align: right; font-weight: 600;">SAR 223,362</td>
+              <td style="padding: 10px; text-align: right;">1,015</td>
+              <td style="padding: 10px; text-align: right; color: var(--text-muted);">—</td>
+              <td style="padding: 10px; text-align: right; font-weight: 700; color: var(--text-muted);">
+                —
+              </td>
+              <td style="padding: 10px; text-align: center;">—</td>
+            </tr>
+          
+            <tr style="border-bottom: 1px solid var(--border); ">
+              <td style="padding: 10px; font-weight: 600;">Q4 2025</td>
+              <td style="padding: 10px; text-align: right; font-weight: 600;">SAR 275,519</td>
+              <td style="padding: 10px; text-align: right;">1,280</td>
+              <td style="padding: 10px; text-align: right; color: var(--text-muted);">—</td>
+              <td style="padding: 10px; text-align: right; font-weight: 700; color: var(--text-muted);">
+                —
+              </td>
+              <td style="padding: 10px; text-align: center;">—</td>
+            </tr>
+          
+            <tr style="border-bottom: 1px solid var(--border); background: #FAFAFA;">
+              <td style="padding: 10px; font-weight: 600;">Q1 2026</td>
+              <td style="padding: 10px; text-align: right; font-weight: 600;">SAR 824,299</td>
+              <td style="padding: 10px; text-align: right;">4,285</td>
+              <td style="padding: 10px; text-align: right; color: var(--text-muted);">—</td>
+              <td style="padding: 10px; text-align: right; font-weight: 700; color: var(--text-muted);">
+                —
+              </td>
+              <td style="padding: 10px; text-align: center;">—</td>
+            </tr>
+          
+            <tr style="border-bottom: 1px solid var(--border); ">
+              <td style="padding: 10px; font-weight: 600;">Q2 2026</td>
+              <td style="padding: 10px; text-align: right; font-weight: 600;">SAR 1,276,454</td>
+              <td style="padding: 10px; text-align: right;">5,347</td>
+              <td style="padding: 10px; text-align: right; color: var(--text-muted);">—</td>
+              <td style="padding: 10px; text-align: right; font-weight: 700; color: var(--text-muted);">
+                —
+              </td>
+              <td style="padding: 10px; text-align: center;">—</td>
+            </tr>
+          
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Year table -->
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+      <div style="background: var(--roshen-red); color: white; padding: 12px 16px; font-weight: 600; font-size: 14px;">
+        <i class="fas fa-calendar"></i> <span data-i18n="comp_yoy_title">Year-over-Year Comparison</span>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #FAFAFA; border-bottom: 2px solid var(--border);">
+            <th style="padding: 10px; text-align: left; font-weight: 600;">Year</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">Sales (SAR)</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">Cases</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">Growth vs Prev</th>
+            <th style="padding: 10px; text-align: center; font-weight: 600;">Activities</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr style="border-bottom: 1px solid var(--border); background: #FAFAFA;">
+              <td style="padding: 10px; font-weight: 600;">2025</td>
+              <td style="padding: 10px; text-align: right; font-weight: 600;">SAR 499,043</td>
+              <td style="padding: 10px; text-align: right;">2,296</td>
+              <td style="padding: 10px; text-align: right; font-weight: 700; color: var(--text-muted);">
+                —
+              </td>
+              <td style="padding: 10px; text-align: center;">—</td>
+            </tr>
+          
+            <tr style="border-bottom: 1px solid var(--border); ">
+              <td style="padding: 10px; font-weight: 600;">2026</td>
+              <td style="padding: 10px; text-align: right; font-weight: 600;">SAR 2,100,591</td>
+              <td style="padding: 10px; text-align: right;">9,631</td>
+              <td style="padding: 10px; text-align: right; font-weight: 700; color: var(--success);">
+                +320.9%
+              </td>
+              <td style="padding: 10px; text-align: center;">—</td>
+            </tr>
+          
+        </tbody>
+      </table>
+    </div>
+  </div>
+    </div>
+  </div>
+
+  <!-- ===================== PAGE: NEW ACTIVITY ===================== -->
+  <div class="page" id="page-new">
+    <div class="form-card">
+      <div class="form-header">
+        <h2><i class="fas fa-plus-circle"></i> <span id="formTitle" data-i18n="form_title_new">New Trade Spend Activity</span></h2>
+        <p><span data-i18n="form_subtitle">Fill in the activity details. Performance metrics calculate automatically once the activity date is selected.</span></p>
+      </div>
+      <div class="form-body">
+        
+        <!-- Duplicate warning -->
+        <div class="alert warning" id="duplicateWarning" style="display:none;">
+          <i class="fas fa-exclamation-triangle"></i>
+          <div id="duplicateWarningText"></div>
+        </div>
+
+        <input type="hidden" id="activityId" value="">
+
+        <!-- Section 1: Customer & Activity Info -->
+        <div class="form-section">
+          <div class="section-title" data-i18n="section_customer_info">Customer &amp; Activity Information</div>
+          <div class="form-grid">
+            <div class="autocomplete">
+              <label class="field-label"><span data-i18n="label_cust_code">Customer Code</span> <span class="required">*</span></label>
+              <input type="text" class="field-input" id="custCode" placeholder="Type or select customer code..." autocomplete="off" oninput="onCustCodeInput(event)" onfocus="onCustCodeInput(event)" onblur="setTimeout(()=&gt;document.getElementById('custList').classList.remove('show'),200)">
+              <div class="autocomplete-list" id="custList"></div>
+            </div>
+            <div>
+              <label class="field-label" data-i18n="label_cust_name">Customer Name</label>
+              <input type="text" class="field-input" id="custName" readonly="" style="background:#F5F5F5;">
+            </div>
+          </div>
+          <div class="form-grid" style="margin-top: 16px;">
+            <div>
+              <label class="field-label"><span data-i18n="label_category">Category</span> <span class="required">*</span></label>
+              <select class="field-select" id="catSelect" onchange="onCategoryChange()"><option value="">— Select category —</option></select>
+            </div>
+            <div>
+              <label class="field-label"><span data-i18n="label_activity_type">Activity Type</span> <span class="required">*</span></label>
+              <div style="display:flex; gap:8px;">
+                <select class="field-select" id="actType" style="flex:1;" onchange="onActTypeChange()">
+    <option value="" data-i18n="placeholder_act_type">— Select type —</option>
+    <optgroup label="Floor Display">
+      <option value="Floor Display">Floor Display</option>
+      <option value="Floor Display - Rent 1 Month">Floor Display — Rent 1 Month</option>
+      <option value="Floor Display - Rent 3 Months">Floor Display — Rent 3 Months</option>
+      <option value="Floor Display - Rent 6 Months">Floor Display — Rent 6 Months</option>
+      <option value="Floor Display - Rent 1 Year">Floor Display — Rent 1 Year</option>
+    </optgroup>
+    <optgroup label="Gondola">
+      <option value="Gondola">Gondola</option>
+      <option value="Gondola - Rent 1 Month">Gondola — Rent 1 Month</option>
+      <option value="Gondola - Rent 3 Months">Gondola — Rent 3 Months</option>
+      <option value="Gondola - Rent 6 Months">Gondola — Rent 6 Months</option>
+      <option value="Gondola - Rent 1 Year">Gondola — Rent 1 Year</option>
+    </optgroup>
+    <optgroup label="Other">
+      <option value="Shelf">Shelf</option>
+      
+      <option value="__OTHER__">+ Other (custom)</option>
+    </optgroup>
+  </select>
+              </div>
+              <input type="text" class="field-input" id="actTypeCustom" placeholder="Enter custom activity type..." style="display:none; margin-top:8px;">
+            </div>
+          </div>
+          <!-- Conditional Rental Details -->
+          <div id="rentalDetailsSection" style="display:none; margin-top: 16px; padding: 14px; background: #FFF8F0; border: 1px solid var(--roshen-gold-light); border-radius: 8px;">
+            <div style="font-size: 12px; font-weight: 700; color: var(--roshen-red); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">
+              <i class="fas fa-cog"></i> <span data-i18n="rental_details_title">Rental Details</span>
+            </div>
+            <div class="form-grid-3">
+              <div id="floorDisplaysWrap" style="display:none;">
+                <label class="field-label">
+                  <span data-i18n="label_num_floor_displays">Number of Floor Displays</span> <span class="required">*</span>
+                </label>
+                <input type="number" class="field-input" id="numFloorDisplays" min="1" step="1" placeholder="1" oninput="onRentalFieldsChange()">
+              </div>
+              <div id="metersWrap" style="display:none;">
+                <label class="field-label">
+                  <span data-i18n="label_meters">Meters</span> <span class="required">*</span>
+                </label>
+                <input type="number" class="field-input" id="metersValue" min="0.1" step="0.1" placeholder="3" oninput="onRentalFieldsChange()">
+              </div>
+              <div id="branchesWrap" style="display:none;">
+                <label class="field-label">
+                  <span data-i18n="label_num_branches">Number of Branches</span> <span class="required">*</span>
+                </label>
+                <input type="number" class="field-input" id="numBranches" min="1" step="1" placeholder="1" oninput="onRentalFieldsChange()">
+              </div>
+            </div>
+            <div id="totalPhotosRequiredDisplay" style="margin-top: 12px; padding: 8px 12px; background: #FFFFFF; border-radius: 6px; border: 1px solid var(--roshen-gold); display: none;">
+              <span style="font-size: 12px; color: var(--text-muted);" data-i18n="photos_required_count">Photos required:</span>
+              <strong id="totalPhotosCount" style="color: var(--roshen-red); font-size: 14px; margin-left: 6px;">0</strong>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <label class="field-label" data-i18n="label_skus">Specific SKUs / Items (optional)</label>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+              Leave empty to include all SKUs in this category, or select specific items for precise ROI calculation.
+            </p>
+            <div class="checkbox-list" id="skuList"><div style="padding: 12px; text-align: center; color: var(--text-light); font-size: 12px;"><span data-i18n="sku_warning">Select a category first</span></div></div>
+          </div>
+        </div>
+
+        <!-- Section 2: Activity Date -->
+        <div class="form-section">
+          <div class="section-title" data-i18n="activity_date_title">Activity Date</div>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" data-i18n="activity_date_hint">Performance measured by comparing 3 months BEFORE and 3 months AFTER this date (auto-truncated if another activity exists for the same customer/category).</p>
+          <div class="form-grid">
+            <div>
+              <label class="field-label" data-i18n="activity_date_label">Activity Start Date</label>
+              <input type="date" class="field-input" id="activityDate" onchange="onPeriodChange()" style="max-width: 320px;">
+            </div>
+            <div>
+              <label class="field-label" data-i18n="auto_period_label">Calculated Period</label>
+              <div style="font-size: 12px; color: var(--text-muted); padding: 12px 14px; background: #FAFAFA; border: 1px solid var(--border); border-radius: 8px; min-height: 42px;" id="autoPeriodDisplay"><span data-i18n="auto_period_hint">Select a date to see the comparison window</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Trade Spend Amount + Split -->
+        <div class="form-section">
+          <div class="section-title" data-i18n="section_amount">Trade Spend Amount</div>
+          <div class="form-grid">
+            <div>
+              <label class="field-label"><span data-i18n="label_total_amount">Total Amount (SAR)</span> <span class="required">*</span></label>
+              <input type="number" class="field-input" id="totalAmount" placeholder="0" min="0" step="100" oninput="updateAmountSplit()">
+            </div>
+            <div>
+              <label class="field-label" data-i18n="label_currency">Currency</label>
+              <input type="text" class="field-input" value="SAR (Saudi Riyal)" readonly="" style="background:#F5F5F5;">
+            </div>
+          </div>
+
+          <div class="amount-display" id="amountSplitDisplay" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong style="color: var(--roshen-red-dark); font-size: 14px;">
+                <i class="fas fa-handshake"></i> Cost Split: Relia / Roshen
+              </strong>
+              <span id="splitStatusBadge" style="font-size: 11px; padding: 4px 10px; border-radius: 10px; background: var(--success-bg); color: var(--success); font-weight: 600;">✓ Split Activated</span>
+            </div>
+            <div class="amount-split-row">
+              <div class="amount-piece relia">
+                <div class="amount-piece-label">Relia Share (<span id="reliaPct">50</span>%)</div>
+                <div class="amount-piece-value" id="reliaAmount">SAR 500</div>
+              </div>
+              <div class="amount-split-divider">|</div>
+              <div class="amount-piece roshen">
+                <div class="amount-piece-label">Roshen Share (<span id="roshenPct">50</span>%)</div>
+                <div class="amount-piece-value" id="roshenAmount">SAR 500</div>
+              </div>
+            </div>
+            <div class="split-percent-controls">
+              <span style="font-size: 12px; color: var(--text-muted); min-width: 60px;">Adjust %:</span>
+              <span style="font-size: 13px; font-weight: 600; color: var(--relia-blue); min-width: 50px;">Relia <span id="reliaPctLabel">50</span>%</span>
+              <input type="range" class="split-slider" id="splitSlider" min="0" max="100" value="50" step="5" oninput="onSplitChange()" style="background: linear-gradient(to right, var(--relia-blue) 0%, var(--relia-blue) 50%, var(--roshen-red) 50%, var(--roshen-red) 100%);">
+              <span style="font-size: 13px; font-weight: 600; color: var(--roshen-red); min-width: 60px; text-align: right;">Roshen <span id="roshenPctLabel">50</span>%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Relia Approval -->
+        <div class="form-section" style="padding-bottom: 0; border-bottom: none;">
+          <div class="section-title"><i class="fas fa-building"></i> <span data-i18n="section_relia_approval">Relia Approval</span></div>
+          <div class="approval-panel relia">
+            <div class="approval-panel-title">
+              <span data-i18n="approver_status">Approver Status</span>
+              <span class="share"><span id="reliaSharePct">50</span>%</span>
+            </div>
+            <label class="field-label" data-i18n="label_approval_status">Approval Status</label>
+            <select class="field-select" id="reliaStatus" onchange="updateSplitStatus()">
+              <option value="Pending Approval" data-i18n="status_pending">Pending Approval</option>
+              <option value="Approved" data-i18n="status_approved">Approved</option>
+              <option value="Rejected" data-i18n="status_rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section 5: Roshen Approval -->
+        <div class="form-section" style="padding-bottom: 0; border-bottom: none;">
+          <div class="section-title"><i class="fas fa-industry"></i> <span data-i18n="section_roshen_approval">Roshen Approval</span></div>
+          <div class="approval-panel roshen">
+            <div class="approval-panel-title">
+              <span data-i18n="approver_status">Approver Status</span>
+              <span class="share"><span id="roshenSharePct">50</span>%</span>
+            </div>
+            <label class="field-label" data-i18n="label_approval_status">Approval Status</label>
+            <select class="field-select" id="roshenStatus" onchange="updateSplitStatus()">
+              <option value="Pending Approval" data-i18n="status_pending">Pending Approval</option>
+              <option value="Approved" data-i18n="status_approved">Approved</option>
+              <option value="Rejected" data-i18n="status_rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section 5b: Shared Email Subject -->
+        <div class="form-section">
+          <div class="section-title"><i class="fas fa-envelope"></i> <span data-i18n="section_email_subject">Approval Email Subject</span></div>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+            Subject line of the approval email sent to both Relia and Roshen.
+          </p>
+          <input type="text" class="field-input" id="approvalEmailSubject" placeholder="Trade Spend Approval — TS-XXXX">
+        </div>
+
+        <!-- Section 6: Execution Confirmation -->
+        <div class="form-section">
+          <div class="section-title" data-i18n="section_execution">Execution Confirmation</div>
+          <div>
+            <label class="field-label" data-i18n="label_exec_status">Execution Status</label>
+            <select class="field-select" id="execStatus" onchange="updateSplitStatus()" style="max-width: 400px;">
+              <option value="Not Executed" data-i18n="exec_not_executed">Not Executed</option>
+              <option value="Partially Executed" data-i18n="exec_partially">Partially Executed</option>
+              <option value="Fully Executed" data-i18n="exec_fully">Fully Executed</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section 7: Execution Photos (multi-upload) -->
+        <div class="form-section">
+          <div class="section-title"><i class="fas fa-camera"></i> <span data-i18n="section_exec_photo">Execution Photo (After)</span></div>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" data-i18n="exec_photos_hint">Upload one photo per Floor Display × Branch (e.g., 2 displays × 3 branches = 6 photos).</p>
+          <div id="photoCountStatus" style="display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; font-weight: 600;"></div>
+          <div class="file-upload" id="execPhotoUpload" onclick="document.getElementById('execPhotoInput').click()">
+            <i class="fas fa-camera"></i>
+            <p data-i18n="exec_photos_click">Click to upload execution photos (multi-select allowed)</p>
+            <p class="filename" id="execPhotoFilename"></p>
+          </div>
+          <input type="file" id="execPhotoInput" accept="image/*" multiple="" style="display:none;" onchange="onExecPhotosUpload(event)">
+          <div id="execPhotosList" style="margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;"></div>
+        </div>
+
+        <!-- Section 8: Credit Note Photo -->
+        <div class="form-section">
+          <div class="section-title"><i class="fas fa-receipt"></i> <span data-i18n="section_credit_note">Credit Note</span></div>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+            Upload the Credit Note image or PDF document.
+          </p>
+          <div class="file-upload" id="cnUpload" onclick="document.getElementById('cnFileInput').click()" data-image-data="">
+            <i class="fas fa-receipt"></i>
+            <p>Click to upload Credit Note image</p>
+            <p class="filename" id="cnFilename"></p>
+          </div>
+          <input type="file" id="cnFileInput" accept="image/*,application/pdf" style="display:none;" onchange="onCNUpload(event)">
+        </div>
+
+        <!-- Section 9: Notes -->
+        <div class="form-section">
+          <div class="section-title" data-i18n="section_notes">Additional Notes</div>
+          <textarea class="field-textarea" id="notes" placeholder="Optional notes about this activity..."></textarea>
+        </div>
+
+        <!-- Section 10 (LAST): LIVE PERFORMANCE -->
+        <div class="form-section" style="border-bottom: none;">
+          <div class="section-title"><i class="fas fa-bolt"></i> <span data-i18n="section_performance">Live Performance Preview</span></div>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+            Auto-calculated based on customer, category, period, and trade spend. Updates as you fill the form.
+          </p>
+          <div class="performance-card">
+            <div class="performance-title">
+              <i class="fas fa-chart-line"></i> <span data-i18n="perf_title">Performance Metrics</span>
+            </div>
+            <div class="performance-grid">
+              <div>
+                <div class="perf-metric-label" data-i18n="perf_before">Sales BEFORE</div>
+                <div class="perf-metric-value" id="perfBefore">—</div>
+              </div>
+              <div>
+                <div class="perf-metric-label" data-i18n="perf_after">Sales AFTER</div>
+                <div class="perf-metric-value gold" id="perfAfter">—</div>
+              </div>
+              <div>
+                <div class="perf-metric-label" data-i18n="perf_uplift">Uplift %</div>
+                <div class="perf-metric-value good" id="perfUplift">—</div>
+              </div>
+              <div>
+                <div class="perf-metric-label" data-i18n="perf_incremental">Incremental</div>
+                <div class="perf-metric-value good" id="perfIncremental">—</div>
+              </div>
+            </div>
+            <div style="margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div class="perf-metric-label" data-i18n="perf_roi">ROI (Return on Investment)</div>
+                <div class="perf-metric-value good" id="perfROI" style="font-size: 32px;">—</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="perf-metric-label" data-i18n="perf_verdict">Verdict</div>
+                <div class="verdict-pill pending" id="perfVerdict">Pending Period</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="resetForm()">
+          <i class="fas fa-times"></i> <span data-i18n="btn_reset">Reset</span>
+        </button>
+        <button class="btn btn-primary" onclick="saveActivity()">
+          <i class="fas fa-save"></i> <span id="saveBtnText" data-i18n="btn_save">Save Activity</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal for View -->
+<div class="modal-backdrop" id="viewModal" onclick="if(event.target===this)closeViewModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="viewModalTitle"><i class="fas fa-eye"></i></h2>
+      <div style="display:flex; gap:8px; align-items: center;">
+        <button class="btn btn-gold" onclick="exportActivityPDF()" style="padding: 6px 14px; font-size: 12px;">
+          <i class="fas fa-file-pdf"></i> Export PDF
+        </button>
+        <button class="modal-close" onclick="closeViewModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+    <div class="modal-body" id="viewModalBody"></div>
+  </div>
+</div>
+
+
+<script>
+// ============ I18N (English / Ukrainian) ============
+const TRANSLATIONS = {
+  en: {
+    optgroup_fd: 'Floor Display',
+    optgroup_gn: 'Gondola',
+    actt_fd: 'Floor Display',
+    actt_gn: 'Gondola',
+    optgroup_fd_rentals: 'Floor Display Rentals',
+    optgroup_gn_rentals: 'Gondola Rentals',
+    optgroup_other: 'Other',
+    actt_fd_1m: 'Floor Display — Rent 1 Month',
+    actt_fd_3m: 'Floor Display — Rent 3 Months',
+    actt_fd_6m: 'Floor Display — Rent 6 Months',
+    actt_fd_1y: 'Floor Display — Rent 1 Year',
+    actt_gn_1m: 'Gondola — Rent 1 Month',
+    actt_gn_3m: 'Gondola — Rent 3 Months',
+    actt_gn_6m: 'Gondola — Rent 6 Months',
+    actt_gn_1y: 'Gondola — Rent 1 Year',
+    actt_branded_gondola: 'Branded Gondola',
+    actt_shelf: 'Shelf',
+    actt_other_custom: '+ Other (custom)',
+    rental_details_title: 'Rental Details',
+    label_num_floor_displays: 'Number of Floor Displays',
+    label_meters: 'Meters',
+    label_num_branches: 'Number of Branches',
+    photos_required_count: 'Photos required:',
+    exec_photos_hint: 'Upload one photo per Floor Display × Branch (e.g., 2 displays × 3 branches = 6 photos).',
+    exec_photos_click: 'Click to upload execution photos (multi-select allowed)',
+    comparison_title: 'Period-over-Period Comparison',
+    comparison_subtitle: 'Quarter-over-Quarter and Year-over-Year comparison for any customer × category combination — useful for seasonality-adjusted ROI.',
+    comp_customer: 'Customer (optional)',
+    comp_cust_placeholder: 'Type customer code or leave empty for all...',
+    comp_category: 'Category (optional)',
+    comp_all_categories: 'All Categories',
+    comp_run: 'Run Comparison',
+    comp_scope: 'Scope',
+    comp_range: 'Data range',
+    comp_qoq_title: 'Quarter-over-Quarter (YoY Same Quarter)',
+    comp_yoy_title: 'Year-over-Year Comparison',
+    comp_quarter: 'Quarter',
+    comp_year: 'Year',
+    comp_sales_amount: 'Sales (SAR)',
+    comp_cases: 'Cases',
+    comp_prev_year: 'Prev Year Q',
+    comp_yoy_growth: 'YoY Growth',
+    comp_growth: 'Growth vs Prev',
+    comp_activities: 'Activities',
+
+    msg_saving: 'Saving...',
+    msg_storage_error: 'Storage error',
+    msg_activity_saved: 'Activity saved',
+    msg_activity_updated: 'Activity updated',
+    msg_missing_fields: 'Please fill required fields: ',
+    msg_delete_confirm: 'Are you sure you want to delete this activity?',
+    msg_upload_confirm: 'This will REPLACE all current sales data with the new file.\n\nYour Trade Spend Activities will be kept.\n\nProceed?',
+    msg_no_activities_excel: 'No activities to export',
+    msg_upload_processing: 'Processing file...',
+    msg_upload_empty: 'The file is empty or could not be read.',
+    msg_upload_missing_cols: 'Missing required columns:\n\n',
+    msg_upload_missing_cols_2: '\n\nPlease use a file with the same column structure as the original sales data.',
+    msg_upload_failed: 'Upload failed',
+    msg_upload_success: 'Sales data updated successfully.\n\n',
+    msg_program_downloaded: 'Program file downloaded',
+    msg_sales_updated: 'Sales data updated',
+    sku_no_items: 'No items in this category',
+    split_status_pending: 'Pending: ',
+    split_status_rejected_text: '✗ Rejected',
+    cust_no_results: 'No customers found',
+
+    // Topbar
+    save_program: 'Save Program',
+    upload_sales: 'Upload Sales Data',
+    save_status_saved: 'All changes saved',
+    save_status_saving: 'Saving...',
+    save_status_error: 'Storage error',
+    
+    // Tabs
+    tab_log: 'Trade Spend Log',
+    tab_analysis: 'Pre/Post Analysis',
+    tab_new: 'New Activity',
+    
+    // KPIs
+    kpi_total: 'Total Activities',
+    kpi_spend: 'Total Spend',
+    kpi_pending: 'Pending Approval',
+    kpi_successful: 'Successful',
+    kpi_progress: 'In Progress',
+    
+    // Form
+    form_title_new: 'New Trade Spend Activity',
+    form_subtitle: 'Fill in the activity details. Performance metrics calculate automatically once the activity date is selected.',
+    section_customer_info: 'Customer & Activity Information',
+    section_activity_date: 'Activity Date',
+    section_amount: 'Trade Spend Amount',
+    section_relia_approval: 'Relia Approval',
+    section_roshen_approval: 'Roshen Approval',
+    section_email_subject: 'Approval Email Subject',
+    section_execution: 'Execution Confirmation',
+    section_exec_photo: 'Execution Photo (After)',
+    section_credit_note: 'Credit Note',
+    section_notes: 'Additional Notes',
+    section_performance: 'Live Performance Preview',
+    
+    label_cust_code: 'Customer Code',
+    label_cust_name: 'Customer Name',
+    label_category: 'Category',
+    label_activity_type: 'Activity Type',
+    label_skus: 'Specific SKUs / Items (optional)',
+    label_total_amount: 'Total Amount (SAR)',
+    label_currency: 'Currency',
+    label_approval_status: 'Approval Status',
+    label_email_subject_field: 'Email Subject',
+    label_exec_status: 'Execution Status',
+    
+    activity_date_title: 'Activity Date',
+    activity_date_hint: 'Performance measured by comparing 3 months BEFORE and 3 months AFTER this date (auto-truncated if another activity exists for the same customer/category).',
+    activity_date_label: 'Activity Start Date',
+    auto_period_label: 'Calculated Period',
+    auto_period_hint: 'Select a date to see the comparison window',
+    
+    placeholder_cust_code: 'Type or select customer code...',
+    placeholder_category: '— Select category —',
+    placeholder_act_type: '— Select type —',
+    placeholder_total_amount: '0',
+    placeholder_email_subject: 'Trade Spend Approval — TS-XXXX',
+    placeholder_notes: 'Optional notes about this activity...',
+    
+    btn_save: 'Save Activity',
+    btn_update: 'Update Activity',
+    btn_reset: 'Reset',
+    btn_export_excel: 'Export Excel',
+    btn_export_pdf: 'Export PDF',
+    
+    // Performance
+    perf_title: 'Performance Metrics',
+    perf_before: 'Sales BEFORE',
+    perf_after: 'Sales AFTER',
+    perf_uplift: 'Uplift %',
+    perf_incremental: 'Incremental',
+    perf_roi: 'ROI (Return on Investment)',
+    perf_verdict: 'Verdict',
+    
+    verdict_successful: 'Successful',
+    verdict_breakeven: 'Break-even',
+    verdict_loss: 'Loss',
+    verdict_pending_period: 'Pending Period',
+    verdict_enter_amount: 'Enter Amount',
+    
+    // Approvals
+    approver_status: 'Approver Status',
+    status_pending: 'Pending Approval',
+    status_approved: 'Approved',
+    status_rejected: 'Rejected',
+    exec_not_executed: 'Not Executed',
+    exec_partially: 'Partially Executed',
+    exec_fully: 'Fully Executed',
+    
+    // Amount Split
+    split_title: 'Cost Split: Relia / Roshen',
+    split_relia_share: 'Relia Share',
+    split_roshen_share: 'Roshen Share',
+    split_adjust: 'Adjust %:',
+    split_pending: 'Pending Execution + Credit Note',
+    split_activated: '✓ Split Activated',
+    
+    // Cost / Sales
+    sar: 'SAR',
+    
+    // Photo upload
+    photo_exec_hint: 'Upload a photo showing the activity was executed in-store (e.g., display photo, gondola photo).',
+    photo_exec_click: 'Click to upload execution photo',
+    photo_cn_hint: 'Upload the Credit Note image or PDF document.',
+    photo_cn_click: 'Click to upload Credit Note image',
+    
+    // Log
+    search_placeholder: 'Search by activity ID, customer name or code...',
+    filter_all_statuses: 'All Statuses',
+    filter_all_verdicts: 'All Verdicts',
+    filter_all_categories: 'All Categories',
+    col_activity_id: 'Activity ID',
+    col_customer: 'Customer',
+    col_category: 'Category',
+    col_type: 'Type',
+    col_period: 'Period',
+    col_total: 'Total Amount',
+    col_uplift: 'Uplift',
+    col_roi: 'ROI',
+    col_verdict: 'Verdict',
+    col_status: 'Status',
+    col_actions: 'Actions',
+    empty_title: 'No activities yet',
+    empty_subtitle: 'Click "New Activity" to create your first Trade Spend record.',
+    
+    // Analysis
+    analysis_title: 'Pre/Post Performance Analysis',
+    analysis_subtitle: '<span data-i18n="analysis_subtitle">Select an activity from the Trade Spend Log to view detailed before/after analysis.</span>',
+    analysis_placeholder: '— Select an activity —',
+    
+    sku_warning: 'Select a category first',
+    select_all: 'Select all',
+    items_count: 'items',
+    
+    // Misc
+    no_customers: 'No customers found',
+    optional_skus_hint: 'Leave empty to include all SKUs in this category, or select specific items for precise ROI calculation.',
+  },
+  
+  uk: {
+    optgroup_fd: 'Floor Display',
+    optgroup_gn: 'Gondola',
+    actt_fd: 'Floor Display',
+    actt_gn: 'Gondola',
+    optgroup_fd_rentals: 'Оренда Floor Display',
+    optgroup_gn_rentals: 'Оренда Gondola',
+    optgroup_other: 'Інше',
+    actt_fd_1m: 'Floor Display — Оренда 1 Місяць',
+    actt_fd_3m: 'Floor Display — Оренда 3 Місяці',
+    actt_fd_6m: 'Floor Display — Оренда 6 Місяців',
+    actt_fd_1y: 'Floor Display — Оренда 1 Рік',
+    actt_gn_1m: 'Gondola — Оренда 1 Місяць',
+    actt_gn_3m: 'Gondola — Оренда 3 Місяці',
+    actt_gn_6m: 'Gondola — Оренда 6 Місяців',
+    actt_gn_1y: 'Gondola — Оренда 1 Рік',
+    actt_branded_gondola: 'Брендована Gondola',
+    actt_shelf: 'Полиця',
+    actt_other_custom: '+ Інше (користувацьке)',
+    rental_details_title: 'Деталі Оренди',
+    label_num_floor_displays: 'Кількість Floor Displays',
+    label_meters: 'Метри',
+    label_num_branches: 'Кількість Філій',
+    photos_required_count: 'Необхідно фото:',
+    exec_photos_hint: 'Завантажте одне фото на Floor Display × Філію (напр., 2 вітрини × 3 філії = 6 фото).',
+    exec_photos_click: 'Натисніть, щоб завантажити фото виконання (можна вибрати декілька)',
+    comparison_title: 'Порівняння Період-до-Періоду',
+    comparison_subtitle: 'Порівняння Квартал-до-Кварталу та Рік-до-Року для будь-якої комбінації клієнт × категорія — корисно для ROI з урахуванням сезонності.',
+    comp_customer: 'Клієнт (необов\'язково)',
+    comp_cust_placeholder: 'Введіть код клієнта або залиште порожнім для всіх...',
+    comp_category: 'Категорія (необов\'язково)',
+    comp_all_categories: 'Всі Категорії',
+    comp_run: 'Запустити Порівняння',
+    comp_scope: 'Область',
+    comp_range: 'Діапазон даних',
+    comp_qoq_title: 'Квартал-до-Кварталу (Той же Квартал Минулого Року)',
+    comp_yoy_title: 'Порівняння Рік-до-Року',
+    comp_quarter: 'Квартал',
+    comp_year: 'Рік',
+    comp_sales_amount: 'Продажі (SAR)',
+    comp_cases: 'Кейси',
+    comp_prev_year: 'Той же Квартал Мин. Року',
+    comp_yoy_growth: 'Зростання YoY',
+    comp_growth: 'Зростання vs Минулий',
+    comp_activities: 'Активності',
+
+    msg_saving: 'Збереження...',
+    msg_storage_error: 'Помилка зберігання',
+    msg_activity_saved: 'Активність збережено',
+    msg_activity_updated: 'Активність оновлено',
+    msg_missing_fields: 'Будь ласка, заповніть обов\'язкові поля: ',
+    msg_delete_confirm: 'Ви впевнені, що хочете видалити цю активність?',
+    msg_upload_confirm: 'Це ЗАМІНИТЬ усі поточні дані продажів новим файлом.\n\nВаші активності Trade Spend будуть збережені.\n\nПродовжити?',
+    msg_no_activities_excel: 'Немає активностей для експорту',
+    msg_upload_processing: 'Обробка файлу...',
+    msg_upload_empty: 'Файл порожній або не може бути прочитаний.',
+    msg_upload_missing_cols: 'Відсутні необхідні стовпці:\n\n',
+    msg_upload_missing_cols_2: '\n\nБудь ласка, використовуйте файл з тією ж структурою стовпців, що й оригінальні дані продажів.',
+    msg_upload_failed: 'Завантаження не вдалося',
+    msg_upload_success: 'Дані продажів успішно оновлено.\n\n',
+    msg_program_downloaded: 'Файл програми завантажено',
+    msg_sales_updated: 'Дані продажів оновлено',
+    sku_no_items: 'Немає товарів у цій категорії',
+    split_status_pending: 'Очікує: ',
+    split_status_rejected_text: '✗ Відхилено',
+    cust_no_results: 'Клієнтів не знайдено',
+
+    // Topbar
+    save_program: 'Зберегти Програму',
+    upload_sales: 'Завантажити Дані Продажів',
+    save_status_saved: 'Усі зміни збережено',
+    save_status_saving: 'Збереження...',
+    save_status_error: 'Помилка зберігання',
+    
+    // Tabs
+    tab_log: 'Журнал Trade Spend',
+    tab_analysis: 'До/Після Аналіз',
+    tab_new: 'Нова Активність',
+    
+    // KPIs
+    kpi_total: 'Всього Активностей',
+    kpi_spend: 'Загальні Витрати',
+    kpi_pending: 'Очікує Затвердження',
+    kpi_successful: 'Успішні',
+    kpi_progress: 'У Процесі',
+    
+    // Form
+    form_title_new: 'Нова Активність Trade Spend',
+    form_subtitle: 'Заповніть деталі активності. Показники ефективності розраховуються автоматично після вибору дати активності.',
+    section_customer_info: 'Інформація про Клієнта та Активність',
+    section_activity_date: 'Дата Активності',
+    section_amount: 'Сума Trade Spend',
+    section_relia_approval: 'Затвердження Relia',
+    section_roshen_approval: 'Затвердження Roshen',
+    section_email_subject: 'Тема Email Затвердження',
+    section_execution: 'Підтвердження Виконання',
+    section_exec_photo: 'Фото Виконання (Після)',
+    section_credit_note: 'Кредит-Нота',
+    section_notes: 'Додаткові Примітки',
+    section_performance: 'Попередній Перегляд Ефективності',
+    
+    label_cust_code: 'Код Клієнта',
+    label_cust_name: 'Ім\'я Клієнта',
+    label_category: 'Категорія',
+    label_activity_type: 'Тип Активності',
+    label_skus: 'Конкретні SKU / Товари (необов\'язково)',
+    label_total_amount: 'Загальна Сума (SAR)',
+    label_currency: 'Валюта',
+    label_approval_status: 'Статус Затвердження',
+    label_email_subject_field: 'Тема Email',
+    label_exec_status: 'Статус Виконання',
+    
+    activity_date_title: 'Дата Активності',
+    activity_date_hint: 'Ефективність вимірюється шляхом порівняння 3 місяців ДО та 3 місяців ПІСЛЯ цієї дати (автоматично скорочується, якщо існує інша активність для того ж клієнта/категорії).',
+    activity_date_label: 'Дата Початку Активності',
+    auto_period_label: 'Розрахований Період',
+    auto_period_hint: 'Виберіть дату, щоб побачити вікно порівняння',
+    
+    placeholder_cust_code: 'Введіть або виберіть код клієнта...',
+    placeholder_category: '— Виберіть категорію —',
+    placeholder_act_type: '— Виберіть тип —',
+    placeholder_total_amount: '0',
+    placeholder_email_subject: 'Trade Spend Затвердження — TS-XXXX',
+    placeholder_notes: 'Додаткові примітки про цю активність...',
+    
+    btn_save: 'Зберегти Активність',
+    btn_update: 'Оновити Активність',
+    btn_reset: 'Скинути',
+    btn_export_excel: 'Експорт Excel',
+    btn_export_pdf: 'Експорт PDF',
+    
+    // Performance
+    perf_title: 'Показники Ефективності',
+    perf_before: 'Продажі ДО',
+    perf_after: 'Продажі ПІСЛЯ',
+    perf_uplift: 'Підйом %',
+    perf_incremental: 'Приріст',
+    perf_roi: 'ROI (Рентабельність Інвестицій)',
+    perf_verdict: 'Вердикт',
+    
+    verdict_successful: 'Успішно',
+    verdict_breakeven: 'Беззбитково',
+    verdict_loss: 'Збиток',
+    verdict_pending_period: 'Очікує Періоду',
+    verdict_enter_amount: 'Введіть Суму',
+    
+    // Approvals
+    approver_status: 'Статус Затверджувача',
+    status_pending: 'Очікує Затвердження',
+    status_approved: 'Затверджено',
+    status_rejected: 'Відхилено',
+    exec_not_executed: 'Не Виконано',
+    exec_partially: 'Частково Виконано',
+    exec_fully: 'Повністю Виконано',
+    
+    // Amount Split
+    split_title: 'Розподіл Витрат: Relia / Roshen',
+    split_relia_share: 'Частка Relia',
+    split_roshen_share: 'Частка Roshen',
+    split_adjust: 'Налаштувати %:',
+    split_pending: 'Очікує Виконання + Кредит-Ноти',
+    split_activated: '✓ Розподіл Активовано',
+    
+    sar: 'SAR',
+    
+    // Photo upload
+    photo_exec_hint: 'Завантажте фото, що показує виконання активності в магазині (наприклад, фото вітрини, гондоли).',
+    photo_exec_click: 'Натисніть, щоб завантажити фото виконання',
+    photo_cn_hint: 'Завантажте зображення Кредит-Ноти або PDF документ.',
+    photo_cn_click: 'Натисніть, щоб завантажити зображення Кредит-Ноти',
+    
+    // Log
+    search_placeholder: 'Пошук за ID активності, ім\'ям клієнта або кодом...',
+    filter_all_statuses: 'Всі Статуси',
+    filter_all_verdicts: 'Всі Вердикти',
+    filter_all_categories: 'Всі Категорії',
+    col_activity_id: 'ID Активності',
+    col_customer: 'Клієнт',
+    col_category: 'Категорія',
+    col_type: 'Тип',
+    col_period: 'Період',
+    col_total: 'Загальна Сума',
+    col_uplift: 'Підйом',
+    col_roi: 'ROI',
+    col_verdict: 'Вердикт',
+    col_status: 'Статус',
+    col_actions: 'Дії',
+    empty_title: 'Ще немає активностей',
+    empty_subtitle: 'Натисніть "Нова Активність", щоб створити перший запис Trade Spend.',
+    
+    // Analysis
+    analysis_title: 'Аналіз Ефективності До/Після',
+    analysis_subtitle: 'Виберіть активність з Журналу Trade Spend, щоб переглянути детальний аналіз до/після.',
+    analysis_placeholder: '— Виберіть активність —',
+    
+    sku_warning: 'Спочатку виберіть категорію',
+    select_all: 'Вибрати все',
+    items_count: 'товарів',
+    
+    no_customers: 'Клієнтів не знайдено',
+    optional_skus_hint: 'Залиште порожнім, щоб включити всі SKU в цій категорії, або виберіть конкретні товари для точного розрахунку ROI.',
+  }
+};
+
+let currentLang = 'en';
+
+function i18nT(key) {
+  return TRANSLATIONS[currentLang]?.[key] || TRANSLATIONS.en[key] || key;
+}
+
+function toggleLanguage() {
+  currentLang = (currentLang === 'en') ? 'uk' : 'en';
+  localStorage.setItem('rrtss_lang', currentLang);
+  document.getElementById('langFlag').textContent = currentLang === 'en' ? '🇬🇧' : '🇺🇦';
+  document.getElementById('langName').textContent = currentLang === 'en' ? 'EN' : 'УК';
+  document.body.className = 'lang-' + currentLang;
+  if (typeof renderLog === 'function') renderLog();
+  if (typeof recalcPerformance === 'function') recalcPerformance();
+  if (typeof updateSplitStatus === 'function') updateSplitStatus();
+  applyTranslations();
+}
+
+function applyTranslations() {
+  // Translate elements with data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const t = i18nT(key);
+    if (t) el.textContent = t;
+  });
+  // Translate placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    const t = i18nT(key);
+    if (t) el.placeholder = t;
+  });
+  // Update select option text
+  document.querySelectorAll('[data-i18n-options]').forEach(el => {
+    const opts = el.getAttribute('data-i18n-options').split(',');
+    Array.from(el.options).forEach((opt, i) => {
+      if (opts[i]) {
+        const t = i18nT(opts[i]);
+        if (t) opt.text = t;
+      }
+    });
+  });
+  // Update save status if showing default
+  const ss = document.getElementById('saveStatusText');
+  if (ss && (ss.textContent === 'All changes saved' || ss.textContent === 'Усі зміни збережено')) {
+    ss.textContent = i18nT('save_status_saved');
+  }
+}
+
+function loadLangPreference() {
+  const saved = localStorage.getItem('rrtss_lang');
+  if (saved && (saved === 'en' || saved === 'uk')) {
+    currentLang = saved;
+    document.getElementById('langFlag').textContent = currentLang === 'en' ? '🇬🇧' : '🇺🇦';
+    document.getElementById('langName').textContent = currentLang === 'en' ? 'EN' : 'УК';
+    document.body.className = 'lang-' + currentLang;
+    applyTranslations();
+  }
+}
+
+// ============ DATA LOADING ============
+const PAYLOAD_B64 = "H4sIAAAAAAAAA6tWSi4tLsnPTS0qVrKKjtVRSk4sSU3PL8pMhfIzS1JzkZnxSZXxyYklSlbVtTpKxYk5MHVJicWp8SmJJalKVkpGBkamugaGugaGSjpKILGgxLx0kIRSLQCo6PVVcAAAAA==";
+let DATA = null;
+let activities = [];
+let custType = [];  // custom activity types
+let currentActivity = null;
+let saveTimer = null;
+
+// Gzip decompression: pako when available, otherwise the browser-native
+// DecompressionStream (so the file also works offline / when the CDN is blocked)
+async function gunzipToString(bytes) {
+  if (typeof pako !== 'undefined' && pako && typeof pako.ungzip === 'function') {
+    const out = pako.ungzip(bytes, { to: 'string' });
+    return (typeof out === 'string') ? out : new TextDecoder('utf-8').decode(out);
+  }
+  if (typeof DecompressionStream !== 'undefined') {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const buf = await new Response(stream).arrayBuffer();
+    return new TextDecoder('utf-8').decode(buf);
+  }
+  throw new Error('No gzip decompressor available (pako failed to load and this browser has no DecompressionStream)');
+}
+
+// Load embedded base data (from compressed payload)
+async function loadEmbeddedData() {
+  try {
+    const binary = atob(PAYLOAD_B64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const decompressed = await gunzipToString(bytes);
+    DATA = JSON.parse(decompressed);
+    console.log('Data loaded from embedded:', DATA.customers.length, 'customers,', DATA.sales.length, 'sales records');
+
+    DATA.salesByCust = {};
+    for (const s of DATA.sales) {
+      if (!DATA.salesByCust[s[0]]) DATA.salesByCust[s[0]] = [];
+      DATA.salesByCust[s[0]].push(s);
+    }
+
+    // The embedded payload may not include items_by_cat (only categories/items/sales).
+    // Rebuild it from the sales records [cust_idx, cat_idx, item_idx, day, amt, cs]
+    // so the SKU list works when editing an activity.
+    if (!DATA.items_by_cat) {
+      const byCat = {};
+      for (const s of DATA.sales) {
+        const cat = DATA.categories[s[1]];
+        const item = DATA.items[s[2]];
+        if (cat === undefined || item === undefined) continue;
+        if (!byCat[cat]) byCat[cat] = new Set();
+        byCat[cat].add(item);
+      }
+      DATA.items_by_cat = {};
+      for (const cat of Object.keys(byCat)) {
+        DATA.items_by_cat[cat] = Array.from(byCat[cat]).sort();
+      }
+    }
+
+    DATA.baseDateObj = new Date(DATA.base_date);
+  } catch (e) {
+    console.error('Failed to load embedded data:', e);
+    alert('Error loading embedded data: ' + e.message);
+  }
+}
+
+// Convert date string to day offset from base
+// (falls back to a fixed base date if sales data failed to load, so the
+// form never crashes — sales lookups will simply return 0 in that case)
+function _baseDateObj() {
+  return (DATA && DATA.baseDateObj) ? DATA.baseDateObj : new Date('2025-01-01');
+}
+
+function dateToDay(dateStr) {
+  const d = new Date(dateStr);
+  const ms = d - _baseDateObj();
+  return Math.round(ms / (1000*60*60*24));
+}
+
+function dayToDate(day) {
+  const d = new Date(_baseDateObj());
+  d.setDate(d.getDate() + day);
+  return d.toISOString().slice(0,10);
+}
+
+// ============ STORAGE (IndexedDB) ============
+let _db = null;
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (_db) return resolve(_db);
+    const req = indexedDB.open('RRTradeSpendDB', 2);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('state')) {
+        db.createObjectStore('state', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('salesData')) {
+        db.createObjectStore('salesData', { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = (e) => { _db = e.target.result; resolve(_db); };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function idbSet(store, key, value) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put({ key, value });
+    req.onsuccess = () => resolve();
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function idbGet(store, key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result ? req.result.value : null);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function saveAll() {
+  try {
+    const state = { activities, custType, version: 2 };
+    await idbSet('state', 'main', state);
+    showSaveStatus(i18nT('save_status_saved'));
+  } catch (e) {
+    console.error('IndexedDB save error:', e);
+    // Fallback to localStorage
+    try {
+      localStorage.setItem('rrtss_state', JSON.stringify({ activities, custType, version: 2 }));
+      showSaveStatus(i18nT('save_status_saved'));
+    } catch (e2) {
+      showSaveStatus(i18nT('msg_storage_error'), true);
+    }
+  }
+}
+
+async function loadState() {
+  // Embedded state takes priority (when file is downloaded with data inside)
+  const embedded = document.getElementById('embedded-state');
+  if (embedded && embedded.textContent.trim()) {
+    try {
+      const state = JSON.parse(embedded.textContent);
+      activities = state.activities || [];
+      custType = state.custType || [];
+      console.log('Loaded state from embedded:', activities.length, 'activities');
+      // Migrate to IndexedDB on first load
+      await saveAll();
+      return;
+    } catch (e) {
+      console.error('Embedded state error:', e);
+    }
+  }
+  
+  // Try IndexedDB
+  try {
+    const state = await idbGet('state', 'main');
+    if (state) {
+      activities = state.activities || [];
+      custType = state.custType || [];
+      console.log('Loaded state from IndexedDB:', activities.length, 'activities');
+      return;
+    }
+  } catch (e) {
+    console.error('IndexedDB load error:', e);
+  }
+  
+  // Final fallback: localStorage
+  try {
+    const raw = localStorage.getItem('rrtss_state');
+    if (raw) {
+      const state = JSON.parse(raw);
+      activities = state.activities || [];
+      custType = state.custType || [];
+      console.log('Loaded state from localStorage:', activities.length, 'activities');
+    }
+  } catch (e) {}
+}
+
+function showSaveStatus(msg, isError) {
+  const el = document.getElementById('saveStatusText');
+  el.textContent = msg;
+  const parent = document.getElementById('saveStatus');
+  parent.className = 'save-status ' + (isError ? 'error' : 'saved');
+}
+
+function debouncedSave() {
+  clearTimeout(saveTimer);
+  showSaveStatus(i18nT('msg_saving'));
+  saveTimer = setTimeout(() => saveAll(), 500);
+}
+
+// ============ TAB SWITCHING ============
+function switchPage(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + pageId).classList.add('active');
+  document.querySelector(`[data-page="${pageId}"]`).classList.add('active');
+  
+  if (pageId === 'log') renderLog();
+  if (pageId === 'analysis') populateAnalysisSelect();
+  if (pageId === 'new' && !currentActivity) resetForm();
+}
+
+// ============ CUSTOMER AUTOCOMPLETE ============
+function onCustCodeInput(event) {
+  const q = event.target.value.trim().toLowerCase();
+  const listEl = document.getElementById('custList');
+  
+  if (!DATA) {
+    listEl.classList.remove('show');
+    return;
+  }
+  
+  // BUG FIX: Deduplicate customer codes (same code may appear with name variations)
+  const seenCodes = new Set();
+  const deduped = [];
+  for (const c of DATA.customers) {
+    if (!seenCodes.has(c[0])) {
+      seenCodes.add(c[0]);
+      deduped.push(c);
+    }
+  }
+  
+  // Filter customers (dedup applied)
+  let filtered;
+  if (!q) {
+    filtered = deduped.slice(0, 50);
+  } else {
+    filtered = deduped.filter(c => 
+      c[0].toLowerCase().includes(q) || c[1].toLowerCase().includes(q)
+    ).slice(0, 50);
+  }
+  
+  if (filtered.length === 0) {
+    listEl.innerHTML = `<div class="autocomplete-empty">${i18nT('cust_no_results')}</div>`;
+  } else {
+    listEl.innerHTML = filtered.map((c,i) => 
+      `<div class="autocomplete-item" onclick="selectCustomer('${c[0].replace(/'/g,"\'")}','${c[1].replace(/'/g,"\'")}')">
+        <span class="code">${c[0]}</span>${c[1]}
+      </div>`
+    ).join('');
+  }
+  listEl.classList.add('show');
+}
+
+function selectCustomer(code, name) {
+  document.getElementById('custCode').value = code;
+  document.getElementById('custName').value = name;
+  document.getElementById('custList').classList.remove('show');
+  checkDuplicates();
+  recalcPerformance();
+}
+
+// ============ CATEGORY & SKU ============
+function populateCategories() {
+  const sel = document.getElementById('catSelect');
+  const filterSel = document.getElementById('filterCategory');
+  if (!DATA) return;
+  
+  sel.innerHTML = '<option value="">— Select category —</option>' + 
+    DATA.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+  
+  filterSel.innerHTML = '<option value="">All Categories</option>' + 
+    DATA.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function onCategoryChange() {
+  const cat = document.getElementById('catSelect').value;
+  const skuListEl = document.getElementById('skuList');
+  
+  if (!cat) {
+    skuListEl.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-light); font-size: 12px;"><span data-i18n="sku_warning">Select a category first</span></div>';
+    return;
+  }
+  
+  const items = (DATA && DATA.items_by_cat && DATA.items_by_cat[cat]) || [];
+  if (items.length === 0) {
+    skuListEl.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-light); font-size: 12px;">${i18nT('sku_no_items')}</div>`;
+    return;
+  }
+  
+  skuListEl.innerHTML = `
+    <div style="display: flex; gap: 12px; padding: 6px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px;">
+      <label style="font-size: 12px; color: var(--text-muted);">
+        <input type="checkbox" id="selectAllSku" onchange="toggleAllSku(this)"> ${i18nT('select_all')}
+      </label>
+      <span style="font-size: 11px; color: var(--text-light); margin-left: auto;">${items.length} ${i18nT('items_count')}</span>
+    </div>
+  ` + items.map((it,i) => 
+    `<label class="checkbox-row">
+      <input type="checkbox" class="sku-check" value="${escapeHtml(it)}" onchange="onSkuChange()">
+      <span>${escapeHtml(it)}</span>
+    </label>`
+  ).join('');
+  
+  checkDuplicates();
+  recalcPerformance();
+}
+
+function toggleAllSku(chk) {
+  document.querySelectorAll('.sku-check').forEach(c => c.checked = chk.checked);
+  recalcPerformance();
+}
+
+function onSkuChange() {
+  recalcPerformance();
+}
+
+function getSelectedSkus() {
+  return Array.from(document.querySelectorAll('.sku-check:checked')).map(c => c.value);
+}
+
+// ============ ACTIVITY TYPE ============
+function onActTypeChange() {
+  const v = document.getElementById('actType').value;
+  const customInput = document.getElementById('actTypeCustom');
+  const rentalSection = document.getElementById('rentalDetailsSection');
+  const floorDisplaysWrap = document.getElementById('floorDisplaysWrap');
+  const metersWrap = document.getElementById('metersWrap');
+  const branchesWrap = document.getElementById('branchesWrap');
+  
+  // Custom type input
+  if (v === '__OTHER__') {
+    customInput.style.display = '';
+    customInput.focus();
+  } else {
+    customInput.style.display = 'none';
+  }
+  
+  // Conditional rental fields
+  const isFloorDisplayRental = v && v.startsWith('Floor Display - Rent');
+  const isGondolaRental = v && v.startsWith('Gondola - Rent');
+  const isRental = isFloorDisplayRental || isGondolaRental;
+  
+  if (isRental) {
+    rentalSection.style.display = '';
+    floorDisplaysWrap.style.display = isFloorDisplayRental ? '' : 'none';
+    metersWrap.style.display = isGondolaRental ? '' : 'none';
+    branchesWrap.style.display = '';
+  } else {
+    rentalSection.style.display = 'none';
+    floorDisplaysWrap.style.display = 'none';
+    metersWrap.style.display = 'none';
+    branchesWrap.style.display = 'none';
+  }
+  
+  // Update end date if rental
+  onPeriodChange();
+  onRentalFieldsChange();
+  validatePhotoCount();
+}
+
+function onRentalFieldsChange() {
+  // Update required photos count
+  const v = document.getElementById('actType').value;
+  const isFloorDisplayRental = v && v.startsWith('Floor Display - Rent');
+  const isGondolaRental = v && v.startsWith('Gondola - Rent');
+  
+  let required = 0;
+  if (isFloorDisplayRental) {
+    const fd = parseInt(document.getElementById('numFloorDisplays').value) || 0;
+    const br = parseInt(document.getElementById('numBranches').value) || 0;
+    required = fd * br;
+  } else if (isGondolaRental) {
+    const br = parseInt(document.getElementById('numBranches').value) || 0;
+    required = br;
+  }
+  
+  const display = document.getElementById('totalPhotosRequiredDisplay');
+  const count = document.getElementById('totalPhotosCount');
+  if (required > 0) {
+    display.style.display = '';
+    count.textContent = required;
+  } else {
+    display.style.display = 'none';
+  }
+  validatePhotoCount();
+}
+
+function getRequiredPhotoCount() {
+  const v = document.getElementById('actType').value;
+  const isFloorDisplayRental = v && v.startsWith('Floor Display - Rent');
+  const isGondolaRental = v && v.startsWith('Gondola - Rent');
+  
+  if (isFloorDisplayRental) {
+    const fd = parseInt(document.getElementById('numFloorDisplays').value) || 0;
+    const br = parseInt(document.getElementById('numBranches').value) || 0;
+    return fd * br;
+  } else if (isGondolaRental) {
+    const br = parseInt(document.getElementById('numBranches').value) || 0;
+    return br;
+  }
+  return 0;
+}
+
+function getRentalDurationMonths(actType) {
+  if (!actType) return null;
+  if (actType.includes('Rent 1 Month')) return 1;
+  if (actType.includes('Rent 3 Months')) return 3;
+  if (actType.includes('Rent 6 Months')) return 6;
+  if (actType.includes('Rent 1 Year')) return 12;
+  return null;
+}
+
+function getActivityType() {
+  const v = document.getElementById('actType').value;
+  if (v === '__OTHER__') {
+    const custom = document.getElementById('actTypeCustom').value.trim();
+    if (custom && !custType.includes(custom)) {
+      custType.push(custom);
+      refreshActTypeOptions();
+    }
+    return custom;
+  }
+  return v;
+}
+
+function refreshActTypeOptions() {
+  const sel = document.getElementById('actType');
+  const current = sel.value;
+  sel.innerHTML = `
+    <option value="" data-i18n="placeholder_act_type">${i18nT('placeholder_act_type') || '— Select type —'}</option>
+    <optgroup label="${i18nT('optgroup_fd') || 'Floor Display'}">
+      <option value="Floor Display">${i18nT('actt_fd') || 'Floor Display'}</option>
+      <option value="Floor Display - Rent 1 Month">${i18nT('actt_fd_1m') || 'Floor Display — Rent 1 Month'}</option>
+      <option value="Floor Display - Rent 3 Months">${i18nT('actt_fd_3m') || 'Floor Display — Rent 3 Months'}</option>
+      <option value="Floor Display - Rent 6 Months">${i18nT('actt_fd_6m') || 'Floor Display — Rent 6 Months'}</option>
+      <option value="Floor Display - Rent 1 Year">${i18nT('actt_fd_1y') || 'Floor Display — Rent 1 Year'}</option>
+    </optgroup>
+    <optgroup label="${i18nT('optgroup_gn') || 'Gondola'}">
+      <option value="Gondola">${i18nT('actt_gn') || 'Gondola'}</option>
+      <option value="Gondola - Rent 1 Month">${i18nT('actt_gn_1m') || 'Gondola — Rent 1 Month'}</option>
+      <option value="Gondola - Rent 3 Months">${i18nT('actt_gn_3m') || 'Gondola — Rent 3 Months'}</option>
+      <option value="Gondola - Rent 6 Months">${i18nT('actt_gn_6m') || 'Gondola — Rent 6 Months'}</option>
+      <option value="Gondola - Rent 1 Year">${i18nT('actt_gn_1y') || 'Gondola — Rent 1 Year'}</option>
+    </optgroup>
+    <optgroup label="${i18nT('optgroup_other') || 'Other'}">
+      <option value="Shelf">${i18nT('actt_shelf') || 'Shelf'}</option>
+      ${custType.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
+      <option value="__OTHER__">${i18nT('actt_other_custom') || '+ Other (custom)'}</option>
+    </optgroup>
+  `;
+  sel.value = current;
+}
+
+// ============ PERIOD & PERFORMANCE ============
+function onPeriodChange() {
+  checkDuplicates();
+  recalcPerformance();
+}
+
+function getPeriodForActivity(actType, activityDateStr, currentId, custCode, category) {
+  // For rentals: Pre = same months before, Post = same months from activity date
+  // For non-rentals: 3 months before, 3 months after (default), truncated by next activity
+  const months = getRentalDurationMonths(actType);
+  const activityDate = new Date(activityDateStr);
+  
+  const preEndDate = new Date(activityDate); 
+  preEndDate.setDate(preEndDate.getDate() - 1);
+  
+  const preStartDate = new Date(activityDate);
+  preStartDate.setMonth(preStartDate.getMonth() - (months || 3));
+  
+  const maxPostEndDate = new Date(activityDate); 
+  maxPostEndDate.setMonth(maxPostEndDate.getMonth() + (months || 3));
+  maxPostEndDate.setDate(maxPostEndDate.getDate() - 1);
+  
+  let truncatedBy = null;
+  let actualPostEndDate = maxPostEndDate;
+  
+  const futureActivities = activities
+    .filter(a => 
+      a.id !== currentId &&
+      a.custCode === custCode &&
+      a.category === category &&
+      a.activityDate &&
+      new Date(a.activityDate) > activityDate
+    )
+    .sort((a,b) => new Date(a.activityDate) - new Date(b.activityDate));
+  
+  if (futureActivities.length > 0) {
+    const next = futureActivities[0];
+    const nextDate = new Date(next.activityDate);
+    if (nextDate < maxPostEndDate) {
+      actualPostEndDate = new Date(nextDate);
+      actualPostEndDate.setDate(actualPostEndDate.getDate() - 1);
+      truncatedBy = next.id;
+    }
+  }
+  
+  const fmt = (d) => d.toISOString().slice(0,10);
+  const dayDiff = (a,b) => Math.round((a-b)/(1000*60*60*24)) + 1;
+  
+  return {
+    preStart: dateToDay(fmt(preStartDate)),
+    preEnd: dateToDay(fmt(preEndDate)),
+    postStart: dateToDay(activityDateStr),
+    postEnd: dateToDay(fmt(actualPostEndDate)),
+    preStartDateStr: fmt(preStartDate),
+    preEndDateStr: fmt(preEndDate),
+    postStartDateStr: activityDateStr,
+    postEndDateStr: fmt(actualPostEndDate),
+    postDays: dayDiff(actualPostEndDate, activityDate),
+    truncatedBy: truncatedBy,
+    rentalMonths: months
+  };
+}
+
+function calcSalesForRange(custCode, category, skus, startDay, endDay) {
+  if (!DATA) return { amount: 0, cases: 0 };
+  
+  // BUG FIX: A customer code may appear under multiple customer entries
+  // (slight name variations like "ACME CO" vs "ACME CO."). 
+  // Aggregate sales from ALL matching customer indexes.
+  const custIndexes = [];
+  for (let i = 0; i < DATA.customers.length; i++) {
+    if (DATA.customers[i][0] === custCode) custIndexes.push(i);
+  }
+  if (custIndexes.length === 0) return { amount: 0, cases: 0 };
+  
+  const catIdx = category ? DATA.categories.indexOf(category) : -1;
+  
+  // Resolve SKU indices if filtering by specific SKUs
+  let skuIndices = null;
+  if (skus && skus.length > 0) {
+    skuIndices = new Set();
+    skus.forEach(s => {
+      const i = DATA.items.indexOf(s);
+      if (i >= 0) skuIndices.add(i);
+    });
+  }
+  
+  let amount = 0, cases = 0;
+  for (const custIdx of custIndexes) {
+    const records = DATA.salesByCust[custIdx] || [];
+    for (const r of records) {
+      // [cust_idx, cat_idx, item_idx, day, amt, cs]
+      if (r[3] < startDay || r[3] > endDay) continue;
+      if (catIdx >= 0 && r[1] !== catIdx) continue;
+      if (skuIndices && !skuIndices.has(r[2])) continue;
+      amount += r[4];
+      cases += r[5];
+    }
+  }
+  return { amount, cases };
+}
+
+function recalcPerformance() {
+  const custCode = document.getElementById('custCode').value.trim();
+  const category = document.getElementById('catSelect').value;
+  const activityDateStr = document.getElementById('activityDate').value;
+  const skus = getSelectedSkus();
+  const currentId = document.getElementById('activityId').value;
+  
+  // Reset
+  document.getElementById('perfBefore').textContent = '—';
+  document.getElementById('perfAfter').textContent = '—';
+  document.getElementById('perfUplift').textContent = '—';
+  document.getElementById('perfIncremental').textContent = '—';
+  document.getElementById('perfROI').textContent = '—';
+  const verdictEl = document.getElementById('perfVerdict');
+  verdictEl.className = 'verdict-pill pending';
+  verdictEl.textContent = i18nT('verdict_pending_period') || 'Pending Period';
+  const autoPeriodEl = document.getElementById('autoPeriodDisplay');
+  if (autoPeriodEl) autoPeriodEl.innerHTML = '<span data-i18n="auto_period_hint">' + (i18nT('auto_period_hint') || 'Select a date to see the comparison window') + '</span>';
+  
+  if (!custCode || !category || !activityDateStr) return;
+  
+  // Compute Pre/Post windows
+  const periods = computePeriodWindows(custCode, category, activityDateStr, currentId);
+  
+  // Display the auto period
+  if (autoPeriodEl) {
+    let postLabel = `${periods.postStartDateStr} → ${periods.postEndDateStr}`;
+    if (periods.truncatedBy) {
+      postLabel += ` <span style="color: var(--warning); font-weight: 600;">(truncated by ${periods.truncatedBy})</span>`;
+    }
+    const months = periods.rentalMonths || 3;
+    const monthLabel = months === 1 ? '1 month' : (months === 12 ? '1 year' : months + ' months');
+    autoPeriodEl.innerHTML = `
+      <div style="font-size: 11px; line-height: 1.6;">
+        <strong>Pre (${monthLabel}):</strong> ${periods.preStartDateStr} → ${periods.preEndDateStr}<br>
+        <strong>Post (${periods.postDays} days):</strong> ${postLabel}
+      </div>`;
+  }
+  
+  const pre = calcSalesForRange(custCode, category, skus, periods.preStart, periods.preEnd);
+  const post = calcSalesForRange(custCode, category, skus, periods.postStart, periods.postEnd);
+  
+  document.getElementById('perfBefore').textContent = 'SAR ' + fmtNum(pre.amount);
+  document.getElementById('perfAfter').textContent = 'SAR ' + fmtNum(post.amount);
+  
+  const incremental = post.amount - pre.amount;
+  document.getElementById('perfIncremental').textContent = 'SAR ' + fmtNum(incremental);
+  document.getElementById('perfIncremental').className = 'perf-metric-value ' + (incremental >= 0 ? 'good' : 'bad');
+  
+  if (pre.amount > 0) {
+    const uplift = (post.amount - pre.amount) / pre.amount;
+    document.getElementById('perfUplift').textContent = fmtPct(uplift);
+    document.getElementById('perfUplift').className = 'perf-metric-value ' + (uplift >= 0 ? 'good' : 'bad');
+  } else {
+    document.getElementById('perfUplift').textContent = post.amount > 0 ? 'New' : '0%';
+    document.getElementById('perfUplift').className = 'perf-metric-value gold';
+  }
+  
+  const totalAmount = parseFloat(document.getElementById('totalAmount').value) || 0;
+  if (totalAmount > 0) {
+    const roi = (incremental - totalAmount) / totalAmount;
+    document.getElementById('perfROI').textContent = fmtPct(roi);
+    document.getElementById('perfROI').className = 'perf-metric-value ' + (roi >= 0 ? 'good' : 'bad');
+    
+    if (roi >= 0.2) {
+      verdictEl.className = 'verdict-pill successful';
+      verdictEl.textContent = i18nT('verdict_successful') || 'Successful';
+    } else if (roi >= 0) {
+      verdictEl.className = 'verdict-pill breakeven';
+      verdictEl.textContent = i18nT('verdict_breakeven') || 'Break-even';
+    } else {
+      verdictEl.className = 'verdict-pill loss';
+      verdictEl.textContent = i18nT('verdict_loss') || 'Loss';
+    }
+  } else {
+    document.getElementById('perfROI').textContent = '—';
+    verdictEl.textContent = i18nT('verdict_enter_amount') || 'Enter Amount';
+  }
+}
+
+function computePeriodWindows(custCode, category, activityDateStr, currentId) {
+  const actType = document.getElementById('actType')?.value || '';
+  return getPeriodForActivity(actType, activityDateStr, currentId, custCode, category);
+}
+
+// ============ AMOUNT SPLIT ============
+function updateAmountSplit() {
+  const total = parseFloat(document.getElementById('totalAmount').value) || 0;
+  const reliaPct = parseInt(document.getElementById('splitSlider').value);
+  const roshenPct = 100 - reliaPct;
+  
+  const display = document.getElementById('amountSplitDisplay');
+  if (total > 0) {
+    display.style.display = '';
+    document.getElementById('reliaAmount').textContent = 'SAR ' + fmtNum(total * reliaPct / 100);
+    document.getElementById('roshenAmount').textContent = 'SAR ' + fmtNum(total * roshenPct / 100);
+    document.getElementById('reliaPct').textContent = reliaPct;
+    document.getElementById('roshenPct').textContent = roshenPct;
+    document.getElementById('reliaSharePct').textContent = reliaPct;
+    document.getElementById('roshenSharePct').textContent = roshenPct;
+  } else {
+    display.style.display = 'none';
+  }
+  recalcPerformance();
+}
+
+function onSplitChange() {
+  const reliaPct = parseInt(document.getElementById('splitSlider').value);
+  const roshenPct = 100 - reliaPct;
+  document.getElementById('reliaPctLabel').textContent = reliaPct;
+  document.getElementById('roshenPctLabel').textContent = roshenPct;
+  // Update slider gradient
+  const slider = document.getElementById('splitSlider');
+  slider.style.background = `linear-gradient(to right, var(--relia-blue) 0%, var(--relia-blue) ${reliaPct}%, var(--roshen-red) ${reliaPct}%, var(--roshen-red) 100%)`;
+  updateAmountSplit();
+}
+
+function updateSplitStatus() {
+  const exec = document.getElementById('execStatus').value;
+  const relia = document.getElementById('reliaStatus').value;
+  const roshen = document.getElementById('roshenStatus').value;
+  const cnFile = document.getElementById('cnFilename').textContent;
+  
+  const badge = document.getElementById('splitStatusBadge');
+  
+  if (exec === 'Fully Executed' && cnFile && relia === 'Approved' && roshen === 'Approved') {
+    badge.style.background = 'var(--success-bg)';
+    badge.style.color = 'var(--success)';
+    badge.textContent = i18nT('split_activated');
+  } else if (relia === 'Rejected' || roshen === 'Rejected') {
+    badge.style.background = 'var(--danger-bg)';
+    badge.style.color = 'var(--danger)';
+    badge.textContent = i18nT('split_status_rejected_text');
+  } else {
+    badge.style.background = 'var(--warning-bg)';
+    badge.style.color = 'var(--warning)';
+    let missing = [];
+    const t_exec = currentLang === 'uk' ? 'Виконання' : 'Execution';
+    const t_cn = currentLang === 'uk' ? 'Кредит-Нота' : 'Credit Note';
+    const t_relia = currentLang === 'uk' ? 'Затвердження Relia' : 'Relia Approval';
+    const t_roshen = currentLang === 'uk' ? 'Затвердження Roshen' : 'Roshen Approval';
+    if (exec !== 'Fully Executed') missing.push(t_exec);
+    if (!cnFile) missing.push(t_cn);
+    if (relia !== 'Approved') missing.push(t_relia);
+    if (roshen !== 'Approved') missing.push(t_roshen);
+    badge.textContent = i18nT('split_status_pending') + missing.join(', ');
+  }
+}
+
+// ============ CREDIT NOTE UPLOAD ============
+function onCNUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('cnUpload').classList.add('has-file');
+    document.getElementById('cnFilename').textContent = file.name;
+    document.getElementById('cnUpload').dataset.imageData = e.target.result;
+    updateSplitStatus();
+  };
+  reader.readAsDataURL(file);
+}
+
+// Storage for multiple photos
+let _execPhotos = []; // [{ name, data }]
+
+function onExecPhotosUpload(event) {
+  const files = Array.from(event.target.files);
+  if (files.length === 0) return;
+  
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      _execPhotos.push({ name: file.name, data: e.target.result });
+      renderExecPhotosList();
+      validatePhotoCount();
+    };
+    reader.readAsDataURL(file);
+  });
+  
+  // Reset input so user can add more
+  event.target.value = '';
+}
+
+function renderExecPhotosList() {
+  const container = document.getElementById('execPhotosList');
+  if (_execPhotos.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = _execPhotos.map((p, i) => `
+    <div style="position: relative; background: white; border: 1px solid var(--border); border-radius: 8px; padding: 6px; box-shadow: var(--shadow-sm);">
+      <img src="${p.data}" style="width: 100%; height: 100px; object-fit: cover; border-radius: 4px;">
+      <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</div>
+      <button onclick="removeExecPhoto(${i})" style="position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; background: rgba(198,40,40,0.9); color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center;">✕</button>
+    </div>
+  `).join('');
+  
+  // Mark upload area as has-file
+  const upload = document.getElementById('execPhotoUpload');
+  upload.classList.add('has-file');
+  document.getElementById('execPhotoFilename').textContent = _execPhotos.length + ' ' + (currentLang === 'uk' ? 'фото завантажено' : 'photos uploaded');
+}
+
+function removeExecPhoto(idx) {
+  _execPhotos.splice(idx, 1);
+  renderExecPhotosList();
+  validatePhotoCount();
+  if (_execPhotos.length === 0) {
+    document.getElementById('execPhotoUpload').classList.remove('has-file');
+    document.getElementById('execPhotoFilename').textContent = '';
+  }
+}
+
+function validatePhotoCount() {
+  const required = getRequiredPhotoCount();
+  const have = _execPhotos.length;
+  const status = document.getElementById('photoCountStatus');
+  
+  if (required === 0) {
+    status.style.display = 'none';
+    return true;
+  }
+  
+  status.style.display = '';
+  if (have < required) {
+    status.style.background = 'var(--warning-bg)';
+    status.style.color = 'var(--warning)';
+    status.style.border = '1px solid #FFD180';
+    const msg = currentLang === 'uk' 
+      ? `⚠️ Завантажте ${required} фото (поточно ${have}) — потрібно ще ${required - have}`
+      : `⚠️ Upload ${required} photos (currently ${have}) — ${required - have} more needed`;
+    status.textContent = msg;
+    return false;
+  } else if (have === required) {
+    status.style.background = 'var(--success-bg)';
+    status.style.color = 'var(--success)';
+    status.style.border = '1px solid #A5D6A7';
+    const msg = currentLang === 'uk' 
+      ? `✓ Всі фото завантажено (${have}/${required})`
+      : `✓ All photos uploaded (${have}/${required})`;
+    status.textContent = msg;
+    return true;
+  } else {
+    status.style.background = 'var(--info-bg)';
+    status.style.color = 'var(--info)';
+    status.style.border = '1px solid #90CAF9';
+    const msg = currentLang === 'uk' 
+      ? `ℹ️ ${have} фото завантажено (необхідно ${required})`
+      : `ℹ️ ${have} photos uploaded (${required} required)`;
+    status.textContent = msg;
+    return true;
+  }
+}
+
+function calcSkuBreakdown(custCode, category, skus, startDay, endDay) {
+  if (!DATA) return [];
+  // BUG FIX: aggregate from all customer entries sharing this code
+  const custIndexes = [];
+  for (let i = 0; i < DATA.customers.length; i++) {
+    if (DATA.customers[i][0] === custCode) custIndexes.push(i);
+  }
+  if (custIndexes.length === 0) return [];
+  
+  const catIdx = category ? DATA.categories.indexOf(category) : -1;
+  
+  let skuIndices = null;
+  if (skus && skus.length > 0) {
+    skuIndices = new Set();
+    skus.forEach(s => {
+      const i = DATA.items.indexOf(s);
+      if (i >= 0) skuIndices.add(i);
+    });
+  }
+  
+  // Aggregate by item_idx across all matching customer entries
+  const byItem = {};
+  for (const custIdx of custIndexes) {
+    const records = DATA.salesByCust[custIdx] || [];
+    for (const r of records) {
+      if (r[3] < startDay || r[3] > endDay) continue;
+      if (catIdx >= 0 && r[1] !== catIdx) continue;
+      if (skuIndices && !skuIndices.has(r[2])) continue;
+      if (!byItem[r[2]]) byItem[r[2]] = { amount: 0, cases: 0 };
+      byItem[r[2]].amount += r[4];
+      byItem[r[2]].cases += r[5];
+    }
+  }
+  
+  // Return as array sorted by amount desc
+  return Object.entries(byItem)
+    .map(([idx, v]) => ({ 
+      sku: DATA.items[parseInt(idx)] || 'Unknown', 
+      cases: v.cases, 
+      amount: v.amount 
+    }))
+    .filter(r => r.amount !== 0 || r.cases !== 0)
+    .sort((a,b) => b.amount - a.amount);
+}
+
+// ============ DUPLICATE CHECK ============
+function checkDuplicates() {
+  const custCode = document.getElementById('custCode').value.trim();
+  const category = document.getElementById('catSelect').value;
+  const activityDateStr = document.getElementById('activityDate').value;
+  const currentId = document.getElementById('activityId').value;
+  
+  if (!custCode || !category || !activityDateStr) {
+    document.getElementById('duplicateWarning').style.display = 'none';
+    return;
+  }
+  
+  const activityDate = new Date(activityDateStr);
+  
+  // Look for nearby activities (within 90 days) for same customer + category
+  const conflicts = activities.filter(a => {
+    if (a.id === currentId) return false;
+    if (a.custCode !== custCode || a.category !== category) return false;
+    if (!a.activityDate) return false;
+    const aDate = new Date(a.activityDate);
+    const dayDiff = Math.abs((activityDate - aDate) / (1000*60*60*24));
+    return dayDiff < 90;
+  });
+  
+  if (conflicts.length > 0) {
+    document.getElementById('duplicateWarning').style.display = '';
+    document.getElementById('duplicateWarningText').innerHTML = 
+      `<strong>Notice: Nearby activity detected</strong><br>
+       This customer (${custCode}) already has ${conflicts.length} activit${conflicts.length>1?'ies':'y'} on category <strong>${category}</strong> within 90 days: ${conflicts.map(c=>`<strong>${c.id}</strong> (${c.activityDate})`).join(', ')}.
+       <br><span style="color: var(--text-muted); font-size: 12px;">The Post-period will auto-adjust based on activity dates. You may proceed if intentional.</span>`;
+  } else {
+    document.getElementById('duplicateWarning').style.display = 'none';
+  }
+}
+
+// ============ SAVE / LOAD ACTIVITY ============
+function generateActivityId() {
+  const year = new Date().getFullYear();
+  const existing = activities.filter(a => a.id && a.id.startsWith(`TS-${year}-`));
+  let maxNum = 0;
+  for (const a of existing) {
+    const m = a.id.match(/TS-\d+-(\d+)/);
+    if (m) maxNum = Math.max(maxNum, parseInt(m[1]));
+  }
+  return `TS-${year}-${String(maxNum+1).padStart(3,'0')}`;
+}
+
+function saveActivity() {
+  const custCode = document.getElementById('custCode').value.trim();
+  const category = document.getElementById('catSelect').value;
+  const activityDateStr = document.getElementById('activityDate').value;
+  const totalAmount = parseFloat(document.getElementById('totalAmount').value);
+  const actType = getActivityType();
+  
+  // Validation
+  const missing = [];
+  if (!custCode) missing.push('Customer Code');
+  if (!category) missing.push('Category');
+  if (!actType) missing.push('Activity Type');
+  if (!activityDateStr) missing.push('Activity Date');
+  if (!totalAmount || totalAmount <= 0) missing.push('Total Amount');
+  
+  // Rental-specific validation
+  const isFloorDisplayRental = actType && actType.startsWith('Floor Display - Rent');
+  const isGondolaRental = actType && actType.startsWith('Gondola - Rent');
+  const isRental = isFloorDisplayRental || isGondolaRental;
+  
+  if (isRental) {
+    if (isFloorDisplayRental) {
+      const fd = parseInt(document.getElementById('numFloorDisplays').value);
+      if (!fd || fd < 1) missing.push('Number of Floor Displays');
+    }
+    if (isGondolaRental) {
+      const m = parseFloat(document.getElementById('metersValue').value);
+      if (!m || m <= 0) missing.push('Meters');
+    }
+    const br = parseInt(document.getElementById('numBranches').value);
+    if (!br || br < 1) missing.push('Number of Branches');
+    
+    // Photo count validation
+    const required = getRequiredPhotoCount();
+    if (required > 0 && _execPhotos.length < required) {
+      const photoMsg = currentLang === 'uk' 
+        ? `Потрібно ${required} фото (поточно ${_execPhotos.length})`
+        : `Required: ${required} photos (currently ${_execPhotos.length})`;
+      alert(photoMsg);
+      return;
+    }
+  }
+  
+  if (missing.length > 0) {
+    alert(i18nT('msg_missing_fields') + missing.join(', '));
+    return;
+  }
+  
+  const id = document.getElementById('activityId').value || generateActivityId();
+  
+  // Calculate metrics using new 3-months-before/3-months-after logic
+  const skus = getSelectedSkus();
+  const currentId = document.getElementById('activityId').value;
+  const periods = computePeriodWindows(custCode, category, activityDateStr, currentId);
+  const pre = calcSalesForRange(custCode, category, skus, periods.preStart, periods.preEnd);
+  const post = calcSalesForRange(custCode, category, skus, periods.postStart, periods.postEnd);
+  const incremental = post.amount - pre.amount;
+  const duration = periods.postDays;
+  const startDay = periods.postStart;
+  const endDay = periods.postEnd;
+  const preStart = periods.preStart;
+  const preEnd = periods.preEnd;
+  const uplift = pre.amount > 0 ? (incremental / pre.amount) : null;
+  const roi = totalAmount > 0 ? ((incremental - totalAmount) / totalAmount) : null;
+  let verdict = 'Pending';
+  if (roi !== null) {
+    if (roi >= 0.2) verdict = 'Successful';
+    else if (roi >= 0) verdict = 'Break-even';
+    else verdict = 'Loss';
+  }
+  
+  const reliaPct = parseInt(document.getElementById('splitSlider').value);
+  const roshenPct = 100 - reliaPct;
+  const execStatus = document.getElementById('execStatus').value;
+  const reliaStatus = document.getElementById('reliaStatus').value;
+  const roshenStatus = document.getElementById('roshenStatus').value;
+  
+  let overallStatus = 'In Progress';
+  if (reliaStatus === 'Rejected' || roshenStatus === 'Rejected') overallStatus = 'Rejected';
+  else if (reliaStatus === 'Approved' && roshenStatus === 'Approved') {
+    overallStatus = execStatus === 'Fully Executed' ? 'Completed' : 'Approved';
+  } else if (reliaStatus === 'Pending Approval' || roshenStatus === 'Pending Approval') {
+    overallStatus = 'Pending Approval';
+  }
+  
+  const activity = {
+    id: id,
+    custCode: custCode,
+    custName: document.getElementById('custName').value,
+    category: category,
+    skus: skus,
+    actType: actType,
+    activityDate: activityDateStr,
+    startDate: activityDateStr,  // legacy compat
+    endDate: periods.postEndDateStr,  // legacy compat
+    preStartDate: periods.preStartDateStr,
+    preEndDate: periods.preEndDateStr,
+    postStartDate: periods.postStartDateStr,
+    postEndDate: periods.postEndDateStr,
+    truncatedBy: periods.truncatedBy,
+    duration: duration,
+    totalAmount: totalAmount,
+    reliaPct: reliaPct,
+    roshenPct: roshenPct,
+    reliaAmount: totalAmount * reliaPct / 100,
+    roshenAmount: totalAmount * roshenPct / 100,
+    execStatus: execStatus,
+    creditNoteImage: document.getElementById('cnUpload').dataset.imageData || '',
+    creditNoteFilename: document.getElementById('cnFilename').textContent,
+    execPhotos: _execPhotos.slice(),  // Array of {name, data}
+    execPhotoCount: _execPhotos.length,
+    numFloorDisplays: parseInt(document.getElementById('numFloorDisplays').value) || null,
+    metersValue: parseFloat(document.getElementById('metersValue').value) || null,
+    numBranches: parseInt(document.getElementById('numBranches').value) || null,
+    rentalMonths: getRentalDurationMonths(actType),
+    skuBreakdownBefore: calcSkuBreakdown(custCode, category, skus, preStart, preEnd),
+    skuBreakdownAfter: calcSkuBreakdown(custCode, category, skus, startDay, endDay),
+    approvalEmailSubject: document.getElementById('approvalEmailSubject').value,
+    reliaEmailSubject: document.getElementById('approvalEmailSubject').value,
+    reliaStatus: reliaStatus,
+    roshenEmailSubject: document.getElementById('approvalEmailSubject').value,
+    roshenStatus: roshenStatus,
+    overallStatus: overallStatus,
+    notes: document.getElementById('notes').value,
+    preAmount: pre.amount,
+    preCases: pre.cases,
+    postAmount: post.amount,
+    postCases: post.cases,
+    incremental: incremental,
+    uplift: uplift,
+    roi: roi,
+    verdict: verdict,
+    createdAt: currentActivity?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  // Save (update or insert)
+  const idx = activities.findIndex(a => a.id === id);
+  if (idx >= 0) activities[idx] = activity;
+  else activities.push(activity);
+  
+  saveAll();
+  alert(idx >= 0 ? i18nT('msg_activity_updated') : i18nT('msg_activity_saved'));
+  resetForm();
+  switchPage('log');
+}
+
+function resetForm() {
+  currentActivity = null;
+  document.getElementById('activityId').value = '';
+  document.getElementById('custCode').value = '';
+  document.getElementById('custName').value = '';
+  document.getElementById('catSelect').value = '';
+  document.getElementById('actType').value = '';
+  document.getElementById('actTypeCustom').value = '';
+  document.getElementById('actTypeCustom').style.display = 'none';
+  document.getElementById('activityDate').value = '';
+  document.getElementById('totalAmount').value = '';
+  document.getElementById('splitSlider').value = 50;
+  document.getElementById('execStatus').value = 'Not Executed';
+  document.getElementById('approvalEmailSubject').value = '';
+  document.getElementById('reliaStatus').value = 'Pending Approval';
+  document.getElementById('roshenStatus').value = 'Pending Approval';
+  document.getElementById('notes').value = '';
+  document.getElementById('cnUpload').classList.remove('has-file');
+  document.getElementById('cnFilename').textContent = '';
+  document.getElementById('cnUpload').dataset.imageData = '';
+  document.getElementById('execPhotoUpload').classList.remove('has-file');
+  document.getElementById('execPhotoFilename').textContent = '';
+  _execPhotos = [];
+  renderExecPhotosList();
+  document.getElementById('numFloorDisplays').value = '';
+  document.getElementById('metersValue').value = '';
+  document.getElementById('numBranches').value = '';
+  document.getElementById('rentalDetailsSection').style.display = 'none';
+  document.getElementById('totalPhotosRequiredDisplay').style.display = 'none';
+  document.getElementById('photoCountStatus').style.display = 'none';
+  document.getElementById('skuList').innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-light); font-size: 12px;"><span data-i18n="sku_warning">Select a category first</span></div>';
+  document.getElementById('duplicateWarning').style.display = 'none';
+  document.getElementById('amountSplitDisplay').style.display = 'none';
+  document.getElementById('formTitle').textContent = 'New Trade Spend Activity';
+  document.getElementById('saveBtnText').textContent = 'Save Activity';
+  onSplitChange();
+  recalcPerformance();
+}
+
+function editActivity(id) {
+  const a = activities.find(x => x.id === id);
+  if (!a) return;
+  currentActivity = a;
+  
+  document.getElementById('activityId').value = a.id;
+  document.getElementById('custCode').value = a.custCode;
+  document.getElementById('custName').value = a.custName;
+  document.getElementById('catSelect').value = a.category;
+  onCategoryChange();
+  // Check appropriate SKUs
+  setTimeout(() => {
+    if (a.skus && a.skus.length > 0) {
+      document.querySelectorAll('.sku-check').forEach(c => {
+        c.checked = a.skus.includes(c.value);
+      });
+    }
+  }, 50);
+  
+  // Activity type
+  const standardTypes = ['Floor Display','Gondola','Branded Gondola','Shelf'];
+  if (standardTypes.includes(a.actType)) {
+    document.getElementById('actType').value = a.actType;
+  } else {
+    if (!custType.includes(a.actType)) {
+      custType.push(a.actType);
+      refreshActTypeOptions();
+    }
+    document.getElementById('actType').value = a.actType;
+  }
+  
+  document.getElementById('activityDate').value = a.activityDate || a.startDate;
+  document.getElementById('totalAmount').value = a.totalAmount;
+  document.getElementById('splitSlider').value = a.reliaPct;
+  document.getElementById('execStatus').value = a.execStatus;
+  document.getElementById('approvalEmailSubject').value = a.approvalEmailSubject || a.reliaEmailSubject || a.roshenEmailSubject || '';
+  document.getElementById('reliaStatus').value = a.reliaStatus;
+  document.getElementById('roshenStatus').value = a.roshenStatus;
+  document.getElementById('notes').value = a.notes || '';
+  
+  if (a.creditNoteImage) {
+    document.getElementById('cnUpload').classList.add('has-file');
+    document.getElementById('cnFilename').textContent = a.creditNoteFilename || 'credit-note';
+    document.getElementById('cnUpload').dataset.imageData = a.creditNoteImage;
+  }
+  
+  // Load multiple photos
+  _execPhotos = [];
+  if (a.execPhotos && Array.isArray(a.execPhotos)) {
+    _execPhotos = a.execPhotos.slice();
+  } else if (a.execPhotoImage) {
+    // Legacy single photo
+    _execPhotos = [{ name: a.execPhotoFilename || 'execution-photo', data: a.execPhotoImage }];
+  }
+  renderExecPhotosList();
+  
+  // Load rental fields
+  if (a.numFloorDisplays) document.getElementById('numFloorDisplays').value = a.numFloorDisplays;
+  if (a.metersValue) document.getElementById('metersValue').value = a.metersValue;
+  if (a.numBranches) document.getElementById('numBranches').value = a.numBranches;
+  onActTypeChange();
+  onRentalFieldsChange();
+  
+  document.getElementById('formTitle').textContent = 'Edit Activity: ' + a.id;
+  document.getElementById('saveBtnText').textContent = 'Update Activity';
+  
+  onSplitChange();
+  updateSplitStatus();
+  recalcPerformance();
+  switchPage('new');
+}
+
+function deleteActivity(id) {
+  if (!confirm(i18nT('msg_delete_confirm'))) return;
+  activities = activities.filter(a => a.id !== id);
+  saveAll();
+  renderLog();
+}
+
+// ============ LOG TABLE ============
+function renderLog() {
+  // KPIs
+  document.getElementById('logCount').textContent = activities.length;
+  document.getElementById('kpi-total').textContent = activities.length;
+  document.getElementById('kpi-spend').textContent = 'SAR ' + fmtNum(activities.reduce((s,a) => s + (a.totalAmount||0), 0));
+  document.getElementById('kpi-pending').textContent = activities.filter(a => a.overallStatus === 'Pending Approval').length;
+  document.getElementById('kpi-success').textContent = activities.filter(a => a.verdict === 'Successful').length;
+  document.getElementById('kpi-progress').textContent = activities.filter(a => a.overallStatus === 'In Progress' || a.overallStatus === 'Approved').length;
+  
+  // Filters
+  const search = document.getElementById('searchInput').value.toLowerCase().trim();
+  const fStatus = document.getElementById('filterStatus').value;
+  const fVerdict = document.getElementById('filterVerdict').value;
+  const fCat = document.getElementById('filterCategory').value;
+  
+  let filtered = activities.slice();
+  if (search) {
+    filtered = filtered.filter(a => 
+      (a.id || '').toLowerCase().includes(search) ||
+      (a.custCode || '').toLowerCase().includes(search) ||
+      (a.custName || '').toLowerCase().includes(search)
+    );
+  }
+  if (fStatus) filtered = filtered.filter(a => a.overallStatus === fStatus);
+  if (fVerdict) filtered = filtered.filter(a => a.verdict === fVerdict);
+  if (fCat) filtered = filtered.filter(a => a.category === fCat);
+  
+  // Sort by createdAt desc
+  filtered.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+  
+  const tbody = document.getElementById('logTableBody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state">
+      <i class="fas fa-clipboard-list"></i>
+      <h3>${i18nT('empty_title')}</h3>
+      <p>${i18nT('empty_subtitle')}</p>
+    </div></td></tr>`;
+    return;
+  }
+  
+  tbody.innerHTML = filtered.map(a => `
+    <tr>
+      <td><span class="activity-id">${escapeHtml(a.id)}</span></td>
+      <td class="cust-cell">
+        <div class="code">${escapeHtml(a.custCode)}</div>
+        <div class="name">${escapeHtml(a.custName)}</div>
+      </td>
+      <td>${escapeHtml(a.category)}</td>
+      <td>${escapeHtml(a.actType)}</td>
+      <td style="font-size: 11px;">
+        ${a.activityDate || a.startDate}<br>
+        <span style="color: var(--text-muted); font-size: 10px;">
+          ${a.rentalMonths ? '+' + a.rentalMonths + 'mo' : '+ 3mo'}${a.truncatedBy ? ' ⓘ' : ''}
+          ${a.numBranches ? ' · ' + a.numBranches + ' br' : ''}
+        </span>
+      </td>
+      <td><strong>SAR ${fmtNum(a.totalAmount)}</strong></td>
+      <td>${a.uplift !== null && a.uplift !== undefined ? `<span style="color: ${a.uplift>=0?'var(--success)':'var(--danger)'}; font-weight: 600;">${fmtPct(a.uplift)}</span>` : '—'}</td>
+      <td>${a.roi !== null && a.roi !== undefined ? `<span style="color: ${a.roi>=0?'var(--success)':'var(--danger)'}; font-weight: 600;">${fmtPct(a.roi)}</span>` : '—'}</td>
+      <td><span class="status-pill ${verdictClass(a.verdict)}">${a.verdict}</span></td>
+      <td><span class="status-pill ${statusClass(a.overallStatus)}">${a.overallStatus}</span></td>
+      <td>
+        <div class="action-buttons">
+          <button class="action-btn" onclick="viewActivity('${a.id}')" title="View"><i class="fas fa-eye"></i></button>
+          <button class="action-btn" onclick="editActivity('${a.id}')" title="Edit"><i class="fas fa-edit"></i></button>
+          <button class="action-btn" onclick="exportSingleActivityPDF('${a.id}')" title="Export PDF"><i class="fas fa-file-pdf"></i></button>
+          <button class="action-btn delete" onclick="deleteActivity('${a.id}')" title="Delete"><i class="fas fa-trash"></i></button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function verdictClass(v) {
+  return ({'Successful':'successful','Break-even':'breakeven','Loss':'loss','Pending':'pending'})[v] || 'pending';
+}
+
+function statusClass(s) {
+  return ({'In Progress':'inprogress','Completed':'completed','Approved':'approved','Pending Approval':'pending','Rejected':'rejected'})[s] || 'pending';
+}
+
+// ============ VIEW MODAL ============
+let currentViewId = null;
+function viewActivity(id) {
+  const a = activities.find(x => x.id === id);
+  if (!a) return;
+  currentViewId = id;
+  
+  document.getElementById('viewModalTitle').innerHTML = `<i class="fas fa-eye"></i> ${a.id} — ${a.custName}`;
+  document.getElementById('viewModalBody').innerHTML = buildViewHTML(a);
+  document.getElementById('viewModal').classList.add('show');
+}
+
+function closeViewModal() {
+  document.getElementById('viewModal').classList.remove('show');
+  currentViewId = null;
+}
+
+function buildViewHTML(a) {
+  const skuBefore = a.skuBreakdownBefore || [];
+  const skuAfter = a.skuBreakdownAfter || [];
+  
+  // Merge SKU data: union of SKUs from before/after
+  const allSkus = new Set();
+  skuBefore.forEach(s => allSkus.add(s.sku));
+  skuAfter.forEach(s => allSkus.add(s.sku));
+  
+  const beforeMap = Object.fromEntries(skuBefore.map(s => [s.sku, s]));
+  const afterMap = Object.fromEntries(skuAfter.map(s => [s.sku, s]));
+  
+  const skuRows = Array.from(allSkus).map(sku => {
+    const b = beforeMap[sku] || { cases: 0, amount: 0 };
+    const af = afterMap[sku] || { cases: 0, amount: 0 };
+    return { 
+      sku, 
+      beforeCases: b.cases, beforeAmount: b.amount,
+      afterCases: af.cases, afterAmount: af.amount,
+      diffCases: af.cases - b.cases,
+      diffAmount: af.amount - b.amount
+    };
+  }).sort((a,b) => b.afterAmount - a.afterAmount);
+  
+  let skuTableHTML = '';
+  if (skuRows.length > 0) {
+    skuTableHTML = `
+      <div style="background: white; border: 1px solid #E5E0D5; border-radius: 8px; padding: 18px; margin-bottom: 18px; page-break-inside: avoid;">
+        <h3 style="color: #8B0000; font-size: 14px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">SKU-Level Sales Breakdown</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <thead>
+            <tr style="background: #8B0000; color: white;">
+              <th style="padding: 8px; text-align: left; border: 1px solid #5C0000;">#</th>
+              <th style="padding: 8px; text-align: left; border: 1px solid #5C0000;">SKU Description</th>
+              <th style="padding: 8px; text-align: right; border: 1px solid #5C0000;">BEFORE<br><span style="font-size:9px; opacity:0.8;">Cases</span></th>
+              <th style="padding: 8px; text-align: right; border: 1px solid #5C0000;">BEFORE<br><span style="font-size:9px; opacity:0.8;">Value (SAR)</span></th>
+              <th style="padding: 8px; text-align: right; border: 1px solid #5C0000;">AFTER<br><span style="font-size:9px; opacity:0.8;">Cases</span></th>
+              <th style="padding: 8px; text-align: right; border: 1px solid #5C0000;">AFTER<br><span style="font-size:9px; opacity:0.8;">Value (SAR)</span></th>
+              <th style="padding: 8px; text-align: right; border: 1px solid #5C0000; background: #C9A961; color: #5C0000;">Δ Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${skuRows.map((r, i) => `
+              <tr style="background: ${i%2===0 ? '#FAFAFA' : 'white'};">
+                <td style="padding: 6px 8px; border: 1px solid #E5E0D5; color: #6B6B6B;">${i+1}</td>
+                <td style="padding: 6px 8px; border: 1px solid #E5E0D5; font-weight: 500;">${escapeHtml(r.sku)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #E5E0D5; text-align: right;">${fmtNum(r.beforeCases)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #E5E0D5; text-align: right;">${fmtNum(r.beforeAmount)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #E5E0D5; text-align: right; font-weight: 600;">${fmtNum(r.afterCases)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #E5E0D5; text-align: right; font-weight: 600;">${fmtNum(r.afterAmount)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #E5E0D5; text-align: right; font-weight: 700; color: ${r.diffAmount >= 0 ? '#2E7D32' : '#C62828'};">${r.diffAmount >= 0 ? '+' : ''}${fmtNum(r.diffAmount)}</td>
+              </tr>
+            `).join('')}
+            <tr style="background: #1A1A1A; color: white; font-weight: 700;">
+              <td colspan="2" style="padding: 8px; border: 1px solid #1A1A1A;">TOTAL</td>
+              <td style="padding: 8px; border: 1px solid #1A1A1A; text-align: right;">${fmtNum(skuRows.reduce((s,r)=>s+r.beforeCases,0))}</td>
+              <td style="padding: 8px; border: 1px solid #1A1A1A; text-align: right;">${fmtNum(skuRows.reduce((s,r)=>s+r.beforeAmount,0))}</td>
+              <td style="padding: 8px; border: 1px solid #1A1A1A; text-align: right;">${fmtNum(skuRows.reduce((s,r)=>s+r.afterCases,0))}</td>
+              <td style="padding: 8px; border: 1px solid #1A1A1A; text-align: right;">${fmtNum(skuRows.reduce((s,r)=>s+r.afterAmount,0))}</td>
+              <td style="padding: 8px; border: 1px solid #1A1A1A; text-align: right; color: ${(a.incremental >= 0) ? '#4ADE80' : '#F87171'};">${a.incremental >= 0 ? '+' : ''}${fmtNum(a.incremental)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+  
+  return `
+    <div id="pdfContent" style="background: white; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; color: #1A1A1A;">
+      <!-- Header -->
+      <div style="text-align: center; padding: 20px 0; border-bottom: 3px solid #C9A961; margin-bottom: 18px; page-break-after: avoid;">
+        <div style="display: inline-flex; align-items: center; gap: 16px;">
+          <div style="width: 52px; height: 52px; background: #8B0000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; border: 3px solid #C9A961;">
+            <span style="color: white; font-weight: 900; font-size: 22px;">R</span>
+          </div>
+          <div style="text-align: left;">
+            <div style="font-size: 18px; font-weight: 700; color: #8B0000;">ROSHEN × RELIA</div>
+            <div style="font-size: 10px; color: #6B6B6B; letter-spacing: 2px; text-transform: uppercase;">Trade Spend Activity Report</div>
+          </div>
+        </div>
+        <div style="margin-top: 14px; font-size: 16px; font-weight: 600;">${a.id}</div>
+        <div style="font-size: 11px; color: #6B6B6B; margin-top: 4px;">Generated ${new Date().toLocaleDateString()}</div>
+      </div>
+      
+      <!-- Status overview -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; page-break-inside: avoid;">
+        <div style="background: #FFF8F0; padding: 12px; border-radius: 6px; border-left: 4px solid #8B0000;">
+          <div style="font-size: 9px; color: #6B6B6B; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Overall Status</div>
+          <div style="font-size: 14px; font-weight: 700; margin-top: 4px;">${a.overallStatus}</div>
+        </div>
+        <div style="background: #FFF8F0; padding: 12px; border-radius: 6px; border-left: 4px solid #C9A961;">
+          <div style="font-size: 9px; color: #6B6B6B; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Verdict</div>
+          <div style="font-size: 14px; font-weight: 700; margin-top: 4px;">${a.verdict}</div>
+        </div>
+        <div style="background: #FFF8F0; padding: 12px; border-radius: 6px; border-left: 4px solid #1A1A1A;">
+          <div style="font-size: 9px; color: #6B6B6B; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">ROI</div>
+          <div style="font-size: 14px; font-weight: 700; margin-top: 4px; color: ${a.roi >= 0 ? '#2E7D32' : '#C62828'};">${a.roi !== null ? fmtPct(a.roi) : '—'}</div>
+        </div>
+      </div>
+      
+      <!-- Activity Info -->
+      <div style="background: #FAFAFA; border-radius: 6px; padding: 14px; margin-bottom: 14px; page-break-inside: avoid;">
+        <h3 style="color: #8B0000; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Activity Information</h3>
+        <table style="width: 100%; font-size: 12px;">
+          <tr><td style="padding: 4px 0; color: #6B6B6B; width: 35%;">Customer Code:</td><td style="font-weight: 600;">${a.custCode}</td></tr>
+          <tr><td style="padding: 4px 0; color: #6B6B6B;">Customer Name:</td><td style="font-weight: 600;">${escapeHtml(a.custName)}</td></tr>
+          <tr><td style="padding: 4px 0; color: #6B6B6B;">Category:</td><td style="font-weight: 600;">${escapeHtml(a.category)}</td></tr>
+          <tr><td style="padding: 4px 0; color: #6B6B6B;">Activity Type:</td><td style="font-weight: 600;">${escapeHtml(a.actType)}</td></tr>
+          ${a.rentalMonths ? `<tr><td style="padding: 4px 0; color: #6B6B6B;">Rental Duration:</td><td style="font-weight: 600;">${a.rentalMonths === 1 ? '1 Month' : (a.rentalMonths === 12 ? '1 Year' : a.rentalMonths + ' Months')}</td></tr>` : ''}
+          ${a.numFloorDisplays ? `<tr><td style="padding: 4px 0; color: #6B6B6B;">Floor Displays:</td><td style="font-weight: 600;">${a.numFloorDisplays}</td></tr>` : ''}
+          ${a.metersValue ? `<tr><td style="padding: 4px 0; color: #6B6B6B;">Meters:</td><td style="font-weight: 600;">${a.metersValue} m</td></tr>` : ''}
+          ${a.numBranches ? `<tr><td style="padding: 4px 0; color: #6B6B6B;">Branches:</td><td style="font-weight: 600;">${a.numBranches}</td></tr>` : ''}
+          <tr><td style="padding: 4px 0; color: #6B6B6B;">Activity Date:</td><td style="font-weight: 600;">${a.activityDate || a.startDate}</td></tr>
+          <tr><td style="padding: 4px 0; color: #6B6B6B;">Pre Period:</td><td style="font-weight: 600;">${a.preStartDate || '—'} → ${a.preEndDate || '—'}</td></tr>
+          <tr><td style="padding: 4px 0; color: #6B6B6B;">Post Period (${a.duration} days):</td><td style="font-weight: 600;">${a.postStartDate || a.startDate} → ${a.postEndDate || a.endDate}${a.truncatedBy ? ` <span style="color: #ED6C02; font-size: 10px;">(truncated by ${a.truncatedBy})</span>` : ''}</td></tr>
+          <tr><td style="padding: 4px 0; color: #6B6B6B;">Execution Status:</td><td style="font-weight: 600;">${a.execStatus}</td></tr>
+        </table>
+      </div>
+      
+      <!-- Performance Summary -->
+      <div style="background: #1A1A1A; color: white; border-radius: 6px; padding: 16px; margin-bottom: 14px; page-break-inside: avoid;">
+        <h3 style="color: #C9A961; font-size: 13px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Performance Summary</h3>
+        <table style="width: 100%; font-size: 12px; color: white;">
+          <tr>
+            <td style="padding: 5px 0; opacity: 0.7;">Sales BEFORE:</td>
+            <td style="text-align: right; font-weight: 700;">SAR ${fmtNum(a.preAmount)} (${fmtNum(a.preCases)} cases)</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0; opacity: 0.7;">Sales AFTER:</td>
+            <td style="text-align: right; font-weight: 700; color: #C9A961;">SAR ${fmtNum(a.postAmount)} (${fmtNum(a.postCases)} cases)</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0; opacity: 0.7;">Incremental Sales:</td>
+            <td style="text-align: right; font-weight: 700; color: ${a.incremental >= 0 ? '#4ADE80' : '#F87171'};">SAR ${fmtNum(a.incremental)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0; opacity: 0.7;">Uplift %:</td>
+            <td style="text-align: right; font-weight: 700; color: ${a.uplift >= 0 ? '#4ADE80' : '#F87171'};">${a.uplift !== null ? fmtPct(a.uplift) : '—'}</td>
+          </tr>
+          <tr style="border-top: 1px solid rgba(255,255,255,0.2);">
+            <td style="padding: 10px 0 0; opacity: 0.7;">Trade Spend (Total):</td>
+            <td style="padding: 10px 0 0; text-align: right; font-weight: 700;">SAR ${fmtNum(a.totalAmount)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0; opacity: 0.7;">Return on Investment:</td>
+            <td style="text-align: right; font-weight: 900; font-size: 16px; color: ${a.roi >= 0 ? '#4ADE80' : '#F87171'};">${a.roi !== null ? fmtPct(a.roi) : '—'}</td>
+          </tr>
+        </table>
+      </div>
+      
+      ${skuTableHTML}
+      
+      <!-- Cost Split (single occurrence) -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; page-break-inside: avoid;">
+        <div style="background: #E8EEF5; border-top: 4px solid #1A3B6E; padding: 14px; border-radius: 6px;">
+          <div style="font-size: 10px; color: #1A3B6E; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Relia Share (${a.reliaPct}%)</div>
+          <div style="font-size: 20px; font-weight: 700; color: #1A3B6E; margin-top: 4px;">SAR ${fmtNum(a.reliaAmount)}</div>
+          <div style="margin-top: 10px; font-size: 11px;">
+            <strong>Status:</strong> ${a.reliaStatus}
+          </div>
+        </div>
+        <div style="background: #FFF8F0; border-top: 4px solid #8B0000; padding: 14px; border-radius: 6px;">
+          <div style="font-size: 10px; color: #8B0000; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Roshen Share (${a.roshenPct}%)</div>
+          <div style="font-size: 20px; font-weight: 700; color: #8B0000; margin-top: 4px;">SAR ${fmtNum(a.roshenAmount)}</div>
+          <div style="margin-top: 10px; font-size: 11px;">
+            <strong>Status:</strong> ${a.roshenStatus}
+          </div>
+        </div>
+      </div>
+      
+      ${(a.approvalEmailSubject || a.reliaEmailSubject || a.roshenEmailSubject) ? `
+        <div style="background: #FAFAFA; border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; page-break-inside: avoid;">
+          <div style="font-size: 11px; color: #6B6B6B; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;"><i class="fas fa-envelope"></i> Approval Email Subject</div>
+          <div style="font-size: 13px; font-weight: 600; margin-top: 4px;">${escapeHtml(a.approvalEmailSubject || a.reliaEmailSubject || a.roshenEmailSubject)}</div>
+        </div>
+      ` : ''}
+      
+      ${(() => {
+        // Build photos array - support legacy single + new multi
+        let photos = [];
+        if (a.execPhotos && Array.isArray(a.execPhotos)) {
+          photos = a.execPhotos;
+        } else if (a.execPhotoImage) {
+          photos = [{ name: a.execPhotoFilename || 'execution-photo', data: a.execPhotoImage }];
+        }
+        if (photos.length === 0) return '';
+        
+        return `
+        <div style="background: #FAFAFA; border-radius: 6px; padding: 14px; margin-bottom: 14px; page-break-inside: avoid;">
+          <h3 style="color: #8B0000; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;"><i class="fas fa-camera"></i> Execution Photos (${photos.length})</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px;">
+            ${photos.map((p, i) => `
+              <div style="background: white; border: 1px solid #E5E0D5; border-radius: 4px; padding: 6px;">
+                <img src="${p.data}" style="width: 100%; height: 140px; object-fit: cover; border-radius: 3px;">
+                <div style="font-size: 10px; color: #6B6B6B; margin-top: 4px; text-align: center;">${(i+1)}. ${escapeHtml(p.name).substring(0, 30)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        `;
+      })()}
+      
+      ${a.creditNoteImage ? `
+        <div style="background: #FAFAFA; border-radius: 6px; padding: 14px; margin-bottom: 14px; page-break-inside: avoid;">
+          <h3 style="color: #8B0000; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;"><i class="fas fa-receipt"></i> Credit Note</h3>
+          <div style="text-align: center;">
+            ${a.creditNoteImage.startsWith('data:image') ? 
+              `<img src="${a.creditNoteImage}" style="max-width: 100%; max-height: 350px; border: 1px solid #E5E0D5; border-radius: 4px;">` :
+              `<div style="padding: 18px;"><i class="fas fa-file-pdf" style="font-size: 44px; color: #8B0000;"></i><br><div style="font-size: 12px; margin-top: 6px;">${escapeHtml(a.creditNoteFilename)}</div></div>`
+            }
+          </div>
+        </div>
+      ` : ''}
+      
+      ${a.notes ? `
+        <div style="background: #FAFAFA; border-radius: 6px; padding: 14px; margin-bottom: 14px; page-break-inside: avoid;">
+          <h3 style="color: #8B0000; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Notes</h3>
+          <p style="font-size: 12px; line-height: 1.5;">${escapeHtml(a.notes).replace(/\n/g,'<br>')}</p>
+        </div>
+      ` : ''}
+      
+      <!-- Footer -->
+      <div style="border-top: 1px solid #E5E0D5; padding-top: 12px; margin-top: 20px; text-align: center; font-size: 10px; color: #6B6B6B;">
+        Created: ${new Date(a.createdAt).toLocaleString()} • Last Updated: ${new Date(a.updatedAt).toLocaleString()}
+        <br><strong style="color: #8B0000;">Roshen × Relia Trade Spend Management System</strong>
+      </div>
+    </div>
+  `;
+}
+
+// ============ PDF EXPORT ============
+function exportActivityPDF() {
+  if (!currentViewId) return;
+  exportSingleActivityPDF(currentViewId);
+}
+
+async function exportSingleActivityPDF(id) {
+  const a = activities.find(x => x.id === id);
+  if (!a) return;
+  
+  // Render in hidden container, but render each major section separately
+  // so we can put page breaks between them
+  const tempDiv = document.createElement('div');
+  tempDiv.style.position = 'absolute';
+  tempDiv.style.left = '-9999px';
+  tempDiv.style.top = '0';
+  tempDiv.style.width = '780px';
+  tempDiv.style.background = 'white';
+  tempDiv.style.padding = '30px';
+  tempDiv.innerHTML = buildViewHTML(a);
+  document.body.appendChild(tempDiv);
+  
+  try {
+    // Get all top-level direct child blocks of #pdfContent
+    const root = tempDiv.querySelector('#pdfContent');
+    const blocks = Array.from(root.children);
+    
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const usableW = pageW - margin * 2;
+    const usableH = pageH - margin * 2;
+    
+    let curY = margin;
+    let firstPage = true;
+    
+    for (const block of blocks) {
+      // Render each block
+      const canvas = await html2canvas(block, { scale: 2, backgroundColor: '#ffffff', logging: false });
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const imgW = usableW;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      
+      // If block doesn't fit on current page, start a new one
+      if (!firstPage && (curY + imgH) > (pageH - margin)) {
+        pdf.addPage();
+        curY = margin;
+      }
+      
+      // If block alone is bigger than a page, we still place it and let it overflow
+      // (large images like full-page photos)
+      if (imgH > usableH) {
+        // Place on its own page
+        if (!firstPage && curY > margin) {
+          pdf.addPage();
+          curY = margin;
+        }
+        // Scale to fit page height
+        const scaledW = (usableH * canvas.width) / canvas.height;
+        const scaledH = usableH;
+        const offsetX = margin + (usableW - scaledW) / 2;
+        pdf.addImage(imgData, 'JPEG', offsetX, margin, scaledW, scaledH);
+        curY = margin + scaledH + 4;
+      } else {
+        pdf.addImage(imgData, 'JPEG', margin, curY, imgW, imgH);
+        curY += imgH + 4;
+      }
+      
+      firstPage = false;
+    }
+    
+    pdf.save(`${a.id}_${a.custCode}_TradeSpend.pdf`);
+  } catch (e) {
+    console.error('PDF generation failed:', e);
+    alert('PDF generation failed: ' + e.message);
+  } finally {
+    document.body.removeChild(tempDiv);
+  }
+}
+
+// ============ ANALYSIS ============
+function populateAnalysisSelect() {
+  const sel = document.getElementById('analysisActivitySelect');
+  sel.innerHTML = '<option value="" data-i18n="analysis_placeholder">— Select an activity —</option>' + 
+    activities.map(a => `<option value="${a.id}">${a.id} — ${escapeHtml(a.custName)} / ${escapeHtml(a.category)}</option>`).join('');
+}
+
+function renderAnalysis() {
+  const id = document.getElementById('analysisActivitySelect').value;
+  const container = document.getElementById('analysisContent');
+  if (!id) {
+    container.innerHTML = '';
+    return;
+  }
+  const a = activities.find(x => x.id === id);
+  if (!a) return;
+  
+  container.innerHTML = `
+    <div class="kpi-row">
+      <div class="kpi gold">
+        <div class="kpi-label">Uplift %</div>
+        <div class="kpi-value" style="color: ${a.uplift >= 0 ? 'var(--success)' : 'var(--danger)'};">${a.uplift !== null ? fmtPct(a.uplift) : '—'}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Incremental Sales</div>
+        <div class="kpi-value">SAR ${fmtNum(a.incremental)}</div>
+      </div>
+      <div class="kpi success">
+        <div class="kpi-label">ROI</div>
+        <div class="kpi-value" style="color: ${a.roi >= 0 ? 'var(--success)' : 'var(--danger)'};">${a.roi !== null ? fmtPct(a.roi) : '—'}</div>
+      </div>
+      <div class="kpi info">
+        <div class="kpi-label">Duration</div>
+        <div class="kpi-value">${a.duration} d</div>
+      </div>
+      <div class="kpi warning">
+        <div class="kpi-label">Verdict</div>
+        <div class="kpi-value" style="font-size: 18px;">${a.verdict}</div>
+      </div>
+    </div>
+    
+    <div class="analysis-results">
+      <div class="analysis-period before">
+        <div class="analysis-period-header">
+          <span><i class="fas fa-history"></i> BEFORE Period</span>
+          <span style="font-size: 11px; opacity: 0.8;">Like-for-Like baseline</span>
+        </div>
+        <div class="analysis-period-body">
+          <div class="analysis-metric">
+            <span class="analysis-metric-label">Sales Amount</span>
+            <span class="analysis-metric-value">SAR ${fmtNum(a.preAmount)}</span>
+          </div>
+          <div class="analysis-metric">
+            <span class="analysis-metric-label">Cases Sold</span>
+            <span class="analysis-metric-value">${fmtNum(a.preCases)}</span>
+          </div>
+          <div class="analysis-metric">
+            <span class="analysis-metric-label">Avg Daily Sales</span>
+            <span class="analysis-metric-value">SAR ${fmtNum(a.preAmount / Math.max(a.duration,1))}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="analysis-period after">
+        <div class="analysis-period-header">
+          <span><i class="fas fa-bolt"></i> AFTER Period</span>
+          <span style="font-size: 11px; opacity: 0.9;">${a.postStartDate || a.startDate} → ${a.postEndDate || a.endDate}</span>
+        </div>
+        <div class="analysis-period-body">
+          <div class="analysis-metric">
+            <span class="analysis-metric-label">Sales Amount</span>
+            <span class="analysis-metric-value">SAR ${fmtNum(a.postAmount)}</span>
+          </div>
+          <div class="analysis-metric">
+            <span class="analysis-metric-label">Cases Sold</span>
+            <span class="analysis-metric-value">${fmtNum(a.postCases)}</span>
+          </div>
+          <div class="analysis-metric">
+            <span class="analysis-metric-label">Avg Daily Sales</span>
+            <span class="analysis-metric-value">SAR ${fmtNum(a.postAmount / Math.max(a.duration,1))}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px;">
+      <h3 style="color: var(--roshen-red); font-size: 14px; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px;">Activity Details</h3>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; font-size: 13px;">
+        <div><strong>Customer:</strong><br>${a.custCode} — ${escapeHtml(a.custName)}</div>
+        <div><strong>Category:</strong><br>${escapeHtml(a.category)}</div>
+        <div><strong>Activity Type:</strong><br>${escapeHtml(a.actType)}</div>
+        <div><strong>Activity Date:</strong><br>${a.activityDate || a.startDate}</div>
+        <div><strong>Total Spend:</strong><br>SAR ${fmtNum(a.totalAmount)}</div>
+        <div><strong>Relia Share:</strong><br>SAR ${fmtNum(a.reliaAmount)} (${a.reliaPct}%)</div>
+        <div><strong>Roshen Share:</strong><br>SAR ${fmtNum(a.roshenAmount)} (${a.roshenPct}%)</div>
+      </div>
+      ${a.skus && a.skus.length > 0 ? `
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border); font-size: 13px;">
+          <strong>SKUs included:</strong><br>
+          <div class="chips-container">${a.skus.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}</div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// ============ QOQ / YOY COMPARISON ============
+function onCompCustInput(event) {
+  const q = event.target.value.trim().toLowerCase();
+  const listEl = document.getElementById('compCustList');
+  if (!DATA) {
+    listEl.classList.remove('show');
+    return;
+  }
+  const seenCodes = new Set();
+  const deduped = [];
+  for (const c of DATA.customers) {
+    if (!seenCodes.has(c[0])) {
+      seenCodes.add(c[0]);
+      deduped.push(c);
+    }
+  }
+  let filtered;
+  if (!q) {
+    filtered = deduped.slice(0, 50);
+  } else {
+    filtered = deduped.filter(c => 
+      c[0].toLowerCase().includes(q) || c[1].toLowerCase().includes(q)
+    ).slice(0, 50);
+  }
+  if (filtered.length === 0) {
+    listEl.innerHTML = `<div class="autocomplete-empty">${i18nT('cust_no_results')}</div>`;
+  } else {
+    listEl.innerHTML = filtered.map(c => 
+      `<div class="autocomplete-item" onclick="selectCompCust('${c[0].replace(/'/g,"\\'")}')">
+        <span class="code">${c[0]}</span>${escapeHtml(c[1])}
+      </div>`
+    ).join('');
+  }
+  listEl.classList.add('show');
+}
+
+function selectCompCust(code) {
+  document.getElementById('compCustCode').value = code;
+  document.getElementById('compCustList').classList.remove('show');
+}
+
+function populateCompCategory() {
+  const sel = document.getElementById('compCategory');
+  if (!DATA || !sel) return;
+  const allOption = `<option value="">${i18nT('comp_all_categories')}</option>`;
+  sel.innerHTML = allOption + DATA.categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+}
+
+function calcSalesForDateRange(custCode, category, startDateStr, endDateStr) {
+  if (!DATA) return { amount: 0, cases: 0 };
+  const startDay = dateToDay(startDateStr);
+  const endDay = dateToDay(endDateStr);
+  
+  if (custCode) {
+    return calcSalesForRange(custCode, category, null, startDay, endDay);
+  }
+  
+  // Aggregate across all customers
+  const catIdx = category ? DATA.categories.indexOf(category) : -1;
+  let amount = 0, cases = 0;
+  for (const s of DATA.sales) {
+    if (s[3] < startDay || s[3] > endDay) continue;
+    if (catIdx >= 0 && s[1] !== catIdx) continue;
+    amount += s[4];
+    cases += s[5];
+  }
+  return { amount, cases };
+}
+
+function getDataDateRange() {
+  if (!DATA || !DATA.sales || DATA.sales.length === 0) return null;
+  let minDay = Infinity, maxDay = -Infinity;
+  for (const s of DATA.sales) {
+    if (s[3] < minDay) minDay = s[3];
+    if (s[3] > maxDay) maxDay = s[3];
+  }
+  const minDate = new Date(DATA.baseDateObj);
+  minDate.setDate(minDate.getDate() + minDay);
+  const maxDate = new Date(DATA.baseDateObj);
+  maxDate.setDate(maxDate.getDate() + maxDay);
+  return { minDate, maxDate, minDay, maxDay };
+}
+
+function getQuartersInRange(minDate, maxDate) {
+  // Returns list of quarters: { year, quarter, startDate, endDate, label }
+  const quarters = [];
+  let y = minDate.getFullYear();
+  let q = Math.floor(minDate.getMonth() / 3) + 1;
+  
+  while (true) {
+    const startMonth = (q - 1) * 3;
+    const startDate = new Date(y, startMonth, 1);
+    const endDate = new Date(y, startMonth + 3, 0);
+    if (startDate > maxDate) break;
+    quarters.push({
+      year: y,
+      quarter: q,
+      startDate: startDate.toISOString().slice(0,10),
+      endDate: endDate.toISOString().slice(0,10),
+      label: `Q${q} ${y}`
+    });
+    q++;
+    if (q > 4) { q = 1; y++; }
+  }
+  return quarters;
+}
+
+function getYearsInRange(minDate, maxDate) {
+  const years = [];
+  for (let y = minDate.getFullYear(); y <= maxDate.getFullYear(); y++) {
+    years.push({
+      year: y,
+      startDate: `${y}-01-01`,
+      endDate: `${y}-12-31`,
+      label: `${y}`
+    });
+  }
+  return years;
+}
+
+function renderComparison() {
+  const custCode = document.getElementById('compCustCode').value.trim();
+  const category = document.getElementById('compCategory').value;
+  const container = document.getElementById('comparisonContent');
+  
+  if (!DATA) {
+    container.innerHTML = '<p style="color: var(--text-muted);">No data loaded</p>';
+    return;
+  }
+  
+  const range = getDataDateRange();
+  if (!range) {
+    container.innerHTML = '<p style="color: var(--text-muted);">No sales data available</p>';
+    return;
+  }
+  
+  // Get all quarters and years
+  const quarters = getQuartersInRange(range.minDate, range.maxDate);
+  const years = getYearsInRange(range.minDate, range.maxDate);
+  
+  // Calculate sales for each period
+  const qData = quarters.map(q => {
+    const sales = calcSalesForDateRange(custCode, category, q.startDate, q.endDate);
+    return { ...q, sales: sales.amount, cases: sales.cases };
+  });
+  
+  const yData = years.map(y => {
+    const sales = calcSalesForDateRange(custCode, category, y.startDate, y.endDate);
+    return { ...y, sales: sales.amount, cases: sales.cases };
+  });
+  
+  // Compute YoY growth (compare same quarter year-over-year)
+  const qoqYoyTable = qData.map((q, i) => {
+    // Find same quarter previous year
+    const prev = qData.find(p => p.quarter === q.quarter && p.year === q.year - 1);
+    const yoyGrowth = (prev && prev.sales > 0) ? ((q.sales - prev.sales) / prev.sales) : null;
+    return { ...q, prevSales: prev ? prev.sales : null, yoyGrowth };
+  });
+  
+  // Year-over-year for full years
+  const yoyTable = yData.map((y, i) => {
+    const prev = yData[i - 1];
+    const growth = (prev && prev.sales > 0) ? ((y.sales - prev.sales) / prev.sales) : null;
+    return { ...y, prevSales: prev ? prev.sales : null, growth };
+  });
+  
+  // Find activities count per period for context
+  const activitiesByQ = {};
+  const activitiesByY = {};
+  activities.forEach(a => {
+    if (custCode && a.custCode !== custCode) return;
+    if (category && a.category !== category) return;
+    if (!a.activityDate) return;
+    const d = new Date(a.activityDate);
+    const qIdx = `${d.getFullYear()}-Q${Math.floor(d.getMonth()/3)+1}`;
+    activitiesByQ[qIdx] = (activitiesByQ[qIdx] || 0) + 1;
+    const yIdx = `${d.getFullYear()}`;
+    activitiesByY[yIdx] = (activitiesByY[yIdx] || 0) + 1;
+  });
+  
+  // Render
+  const scope = custCode ? `${custCode}${category ? ' · ' + category : ''}` : (category ? `All customers · ${category}` : `All customers · All categories`);
+  
+  container.innerHTML = `
+    <div style="padding: 14px 18px; background: var(--roshen-gold-light); border-radius: 8px; margin-bottom: 18px; border-left: 4px solid var(--roshen-gold);">
+      <strong style="color: var(--roshen-red-dark);">${i18nT('comp_scope') || 'Scope'}:</strong> ${escapeHtml(scope)}
+      <span style="margin-left: 12px; color: var(--text-muted); font-size: 12px;">${i18nT('comp_range') || 'Data range'}: ${range.minDate.toISOString().slice(0,10)} → ${range.maxDate.toISOString().slice(0,10)}</span>
+    </div>
+    
+    <!-- Quarter table -->
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
+      <div style="background: var(--roshen-red); color: white; padding: 12px 16px; font-weight: 600; font-size: 14px;">
+        <i class="fas fa-chart-bar"></i> <span data-i18n="comp_qoq_title">Quarter-over-Quarter (YoY Same Quarter)</span>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #FAFAFA; border-bottom: 2px solid var(--border);">
+            <th style="padding: 10px; text-align: left; font-weight: 600;">${i18nT('comp_quarter') || 'Quarter'}</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">${i18nT('comp_sales_amount') || 'Sales (SAR)'}</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">${i18nT('comp_cases') || 'Cases'}</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">${i18nT('comp_prev_year') || 'Prev Year Q'}</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">${i18nT('comp_yoy_growth') || 'YoY Growth'}</th>
+            <th style="padding: 10px; text-align: center; font-weight: 600;">${i18nT('comp_activities') || 'Activities'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${qoqYoyTable.map((q, i) => `
+            <tr style="border-bottom: 1px solid var(--border); ${i%2===0 ? 'background: #FAFAFA;' : ''}">
+              <td style="padding: 10px; font-weight: 600;">${q.label}</td>
+              <td style="padding: 10px; text-align: right; font-weight: 600;">SAR ${fmtNum(q.sales)}</td>
+              <td style="padding: 10px; text-align: right;">${fmtNum(q.cases)}</td>
+              <td style="padding: 10px; text-align: right; color: var(--text-muted);">${q.prevSales !== null ? 'SAR ' + fmtNum(q.prevSales) : '—'}</td>
+              <td style="padding: 10px; text-align: right; font-weight: 700; color: ${q.yoyGrowth === null ? 'var(--text-muted)' : (q.yoyGrowth >= 0 ? 'var(--success)' : 'var(--danger)')};">
+                ${q.yoyGrowth === null ? '—' : (q.yoyGrowth >= 0 ? '+' : '') + fmtPct(q.yoyGrowth)}
+              </td>
+              <td style="padding: 10px; text-align: center;">${activitiesByQ[q.year + '-Q' + q.quarter] || '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Year table -->
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+      <div style="background: var(--roshen-red); color: white; padding: 12px 16px; font-weight: 600; font-size: 14px;">
+        <i class="fas fa-calendar"></i> <span data-i18n="comp_yoy_title">Year-over-Year Comparison</span>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #FAFAFA; border-bottom: 2px solid var(--border);">
+            <th style="padding: 10px; text-align: left; font-weight: 600;">${i18nT('comp_year') || 'Year'}</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">${i18nT('comp_sales_amount') || 'Sales (SAR)'}</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">${i18nT('comp_cases') || 'Cases'}</th>
+            <th style="padding: 10px; text-align: right; font-weight: 600;">${i18nT('comp_growth') || 'Growth vs Prev'}</th>
+            <th style="padding: 10px; text-align: center; font-weight: 600;">${i18nT('comp_activities') || 'Activities'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${yoyTable.map((y, i) => `
+            <tr style="border-bottom: 1px solid var(--border); ${i%2===0 ? 'background: #FAFAFA;' : ''}">
+              <td style="padding: 10px; font-weight: 600;">${y.label}</td>
+              <td style="padding: 10px; text-align: right; font-weight: 600;">SAR ${fmtNum(y.sales)}</td>
+              <td style="padding: 10px; text-align: right;">${fmtNum(y.cases)}</td>
+              <td style="padding: 10px; text-align: right; font-weight: 700; color: ${y.growth === null ? 'var(--text-muted)' : (y.growth >= 0 ? 'var(--success)' : 'var(--danger)')};">
+                ${y.growth === null ? '—' : (y.growth >= 0 ? '+' : '') + fmtPct(y.growth)}
+              </td>
+              <td style="padding: 10px; text-align: center;">${activitiesByY[y.year] || '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  
+  // Apply translations for any newly rendered data-i18n attributes
+  applyTranslations();
+}
+
+// ============ EXPORT EXCEL ============
+function exportAllToExcel() {
+  if (activities.length === 0) {
+    alert(i18nT('msg_no_activities_excel'));
+    return;
+  }
+  
+  const data = activities.map(a => ({
+    'Activity ID': a.id,
+    'Customer Code': a.custCode,
+    'Customer Name': a.custName,
+    'Category': a.category,
+    'SKUs': (a.skus || []).join('; '),
+    'Activity Type': a.actType,
+    'Activity Date': a.activityDate || a.startDate,
+    'Rental Months': a.rentalMonths || '',
+    'Floor Displays': a.numFloorDisplays || '',
+    'Meters': a.metersValue || '',
+    'Branches': a.numBranches || '',
+    'Photos Count': a.execPhotoCount || (a.execPhotos ? a.execPhotos.length : 0),
+    'Pre Period Start': a.preStartDate || '',
+    'Pre Period End': a.preEndDate || '',
+    'Post Period Start': a.postStartDate || a.startDate,
+    'Post Period End': a.postEndDate || a.endDate,
+    'Post Duration (days)': a.duration,
+    'Truncated By Next Activity': a.truncatedBy || '',
+    'Total Amount (SAR)': a.totalAmount,
+    'Relia %': a.reliaPct,
+    'Relia Amount (SAR)': a.reliaAmount,
+    'Roshen %': a.roshenPct,
+    'Roshen Amount (SAR)': a.roshenAmount,
+    'Sales Before (SAR)': a.preAmount,
+    'Sales After (SAR)': a.postAmount,
+    'Cases Before': a.preCases,
+    'Cases After': a.postCases,
+    'Incremental (SAR)': a.incremental,
+    'Uplift %': a.uplift !== null ? (a.uplift * 100).toFixed(2) + '%' : '',
+    'ROI %': a.roi !== null ? (a.roi * 100).toFixed(2) + '%' : '',
+    'Verdict': a.verdict,
+    'Execution Status': a.execStatus,
+    'Credit Note': a.creditNoteFilename || '',
+    'Approval Email Subject': a.approvalEmailSubject || a.reliaEmailSubject || '',
+    'Relia Status': a.reliaStatus,
+    'Roshen Status': a.roshenStatus,
+    'Overall Status': a.overallStatus,
+    'Notes': a.notes,
+    'Created': a.createdAt,
+    'Updated': a.updatedAt
+  }));
+  
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Trade Spend Log');
+  XLSX.writeFile(wb, `TradeSpend_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ============ SAVE PROGRAM (Self-contained) ============
+async function downloadFullProgram() {
+  // Get the current page HTML and embed the activities data
+  const stateJSON = JSON.stringify({ activities: activities, custType: custType, version: 1 });
+  
+  // Read this file's HTML
+  let html = document.documentElement.outerHTML;
+  
+  // Replace any existing embedded state
+  const stateRegex = new RegExp('<' + 'script id="embedded-state" type="application/json">[\\s\\S]*?<' + '/script>');
+  const newState = '<' + 'script id="embedded-state" type="application/json">' + stateJSON.replace(/<\//g, '<\\/') + '<' + '/script>';
+  
+  if (stateRegex.test(html)) {
+    html = html.replace(stateRegex, newState);
+  } else {
+    // Insert before </body>
+    html = html.replace('</body>', newState + '</body>');
+  }
+  
+  // Create download
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const dateStr = new Date().toISOString().slice(0,10);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Roshen_Relia_TradeSpend_${dateStr}.html`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showSaveStatus(i18nT('msg_program_downloaded'));
+  setTimeout(() => showSaveStatus(i18nT('save_status_saved')), 2000);
+}
+
+// ============ UTILS ============
+function fmtNum(n) {
+  if (n === null || n === undefined || isNaN(n)) return '0';
+  return Math.round(n).toLocaleString('en-US');
+}
+
+function fmtPct(p) {
+  if (p === null || p === undefined || isNaN(p)) return '—';
+  return (p * 100).toFixed(1) + '%';
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+
+// ============ UPLOAD SALES DATA ============
+async function onUploadSalesFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (!confirm(i18nT('msg_upload_confirm'))) {
+    event.target.value = '';
+    return;
+  }
+  
+  showSaveStatus(i18nT('msg_upload_processing'));
+  
+  try {
+    const ab = await file.arrayBuffer();
+    const wb = XLSX.read(ab, { type: 'array', cellDates: true });
+    const sheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+    
+    if (rows.length === 0) {
+      alert(i18nT('msg_upload_empty'));
+      showSaveStatus(i18nT('save_status_saved'));
+      event.target.value = '';
+      return;
+    }
+    
+    console.log('Parsing', rows.length, 'rows from upload');
+    
+    // Verify column headers
+    const firstRow = rows[0];
+    const required = ['Invoice Date', 'Cust Account', 'Cust Name', 'Item Category',
+                      'Item Description', 'Inv Qty Cases', 'Invoice Amount ex Vat', 'IsReturn'];
+    const missing = required.filter(c => !(c in firstRow));
+    if (missing.length > 0) {
+      alert(i18nT('msg_upload_missing_cols') + missing.join(', ') + i18nT('msg_upload_missing_cols_2'));
+      showSaveStatus(i18nT('msg_upload_failed'), true);
+      event.target.value = '';
+      return;
+    }
+    
+    // Rebuild DATA structure
+    const newData = rebuildDataFromRows(rows);
+    DATA = newData;
+    
+    // Persist to IndexedDB
+    await idbSet('salesData', 'main', {
+      base_date: newData.base_date,
+      customers: newData.customers,
+      categories: newData.categories,
+      items: newData.items,
+      items_by_cat: newData.items_by_cat,
+      sales: newData.sales
+    });
+    
+    populateCategories();
+    renderLog();
+    
+    alert(i18nT('msg_upload_success') + newData.customers.length.toLocaleString() + ' customers\n' + newData.categories.length + ' categories\n' + newData.sales.length.toLocaleString() + ' sales records\nDate range: ' + newData.dateRange);
+    
+    showSaveStatus(i18nT('msg_sales_updated'));
+    setTimeout(() => showSaveStatus(i18nT('save_status_saved')), 2000);
+  } catch (e) {
+    console.error('Upload error:', e);
+    alert('Error processing file: ' + e.message);
+    showSaveStatus(i18nT('msg_upload_failed'), true);
+  } finally {
+    event.target.value = '';
+  }
+}
+
+function rebuildDataFromRows(rows) {
+  // Process rows similar to Python preprocessing
+  const baseDate = new Date('2025-01-01');
+  
+  const customers = new Map();
+  const categories = new Set();
+  const itemsByCat = {};
+  const allItems = new Set();
+  
+  const cleanRows = [];
+  let minDate = null, maxDate = null;
+  
+  for (const r of rows) {
+    let invDate = r['Invoice Date'];
+    if (!invDate) continue;
+    if (typeof invDate === 'number') {
+      // Excel serial date
+      invDate = new Date((invDate - 25569) * 86400 * 1000);
+    } else if (typeof invDate === 'string') {
+      invDate = new Date(invDate);
+    }
+    if (!(invDate instanceof Date) || isNaN(invDate.getTime())) continue;
+    
+    const custAcct = String(r['Cust Account'] || '').trim();
+    const custName = String(r['Cust Name'] || '').trim();
+    const cat = String(r['Item Category'] || '').trim();
+    if (!custAcct || !cat || cat === 'nan' || cat === '0') continue;
+    
+    const itemDesc = String(r['Item Description'] || '').trim();
+    const cases = parseFloat(r['Inv Qty Cases']) || 0;
+    const amount = parseFloat(r['Invoice Amount ex Vat']) || 0;
+    const isReturn = String(r['IsReturn'] || 'No').toLowerCase();
+    
+    const sign = (isReturn === 'yes') ? -1 : 1;
+    
+    if (!customers.has(custAcct)) customers.set(custAcct, custName);
+    categories.add(cat);
+    allItems.add(itemDesc);
+    if (!itemsByCat[cat]) itemsByCat[cat] = new Set();
+    itemsByCat[cat].add(itemDesc);
+    
+    if (!minDate || invDate < minDate) minDate = invDate;
+    if (!maxDate || invDate > maxDate) maxDate = invDate;
+    
+    cleanRows.push({
+      cust: custAcct,
+      cat: cat,
+      item: itemDesc,
+      day: Math.round((invDate - baseDate) / (1000*60*60*24)),
+      amt: amount * sign,
+      cs: cases * sign
+    });
+  }
+  
+  const customersList = Array.from(customers.entries()).sort((a,b) => a[0].localeCompare(b[0])).map(([k,v]) => [k,v]);
+  const custToIdx = new Map(customersList.map(([k,v],i) => [k,i]));
+  
+  const categoriesList = Array.from(categories).sort();
+  const catToIdx = new Map(categoriesList.map((c,i) => [c,i]));
+  
+  const itemsList = Array.from(allItems).filter(x => x).sort();
+  const itemToIdx = new Map(itemsList.map((it,i) => [it,i]));
+  
+  const itemsByCatObj = {};
+  for (const [c, items] of Object.entries(itemsByCat)) {
+    itemsByCatObj[c] = Array.from(items).filter(x => x).sort();
+  }
+  
+  // Aggregate by [cust_idx, cat_idx, item_idx, day]
+  const agg = new Map();
+  for (const r of cleanRows) {
+    const key = `${custToIdx.get(r.cust)}|${catToIdx.get(r.cat)}|${itemToIdx.get(r.item)}|${r.day}`;
+    const existing = agg.get(key);
+    if (existing) {
+      existing.amt += r.amt;
+      existing.cs += r.cs;
+    } else {
+      agg.set(key, { amt: r.amt, cs: r.cs });
+    }
+  }
+  
+  const sales = [];
+  for (const [key, v] of agg) {
+    const parts = key.split('|');
+    sales.push([parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]), parseInt(parts[3]), Math.round(v.amt*10)/10, Math.round(v.cs*10)/10]);
+  }
+  
+  // Build salesByCust index
+  const salesByCust = {};
+  for (const s of sales) {
+    if (!salesByCust[s[0]]) salesByCust[s[0]] = [];
+    salesByCust[s[0]].push(s);
+  }
+  
+  const fmt = (d) => d ? d.toISOString().slice(0,10) : '?';
+  const dateRange = `${fmt(minDate)} → ${fmt(maxDate)}`;
+  
+  return {
+    base_date: '2025-01-01',
+    baseDateObj: baseDate,
+    customers: customersList,
+    categories: categoriesList,
+    items: itemsList,
+    items_by_cat: itemsByCatObj,
+    sales: sales,
+    salesByCust: salesByCust,
+    dateRange: dateRange
+  };
+}
+
+// ============ DATA LOADING (Enhanced) ============
+async function loadData() {
+  // Check if we have uploaded data in IndexedDB first
+  try {
+    const stored = await idbGet('salesData', 'main');
+    if (stored) {
+      console.log('Loading sales data from IndexedDB');
+      DATA = {
+        base_date: stored.base_date,
+        baseDateObj: new Date(stored.base_date),
+        customers: stored.customers,
+        categories: stored.categories,
+        items: stored.items,
+        items_by_cat: stored.items_by_cat,
+        sales: stored.sales,
+        salesByCust: {}
+      };
+      for (const s of DATA.sales) {
+        if (!DATA.salesByCust[s[0]]) DATA.salesByCust[s[0]] = [];
+        DATA.salesByCust[s[0]].push(s);
+      }
+      console.log('Loaded from IndexedDB:', DATA.customers.length, 'customers,', DATA.sales.length, 'records');
+      return;
+    }
+  } catch (e) {
+    console.warn('IndexedDB load failed:', e);
+  }
+  
+  // Fall back to embedded base data
+  await loadEmbeddedData();
+}
+
+// ============ INIT ============
+window.addEventListener('DOMContentLoaded', async () => {
+  await loadData();
+  await loadState();
+  populateCategories();
+  populateCompCategory();
+  loadLangPreference();
+  applyTranslations();
+  refreshActTypeOptions();
+  renderLog();
+  onSplitChange();
+  recalcPerformance();
+  
+  // Auto-save on changes
+  ['custCode','catSelect','actType','activityDate','totalAmount','reliaStatus','roshenStatus','execStatus'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', debouncedSave);
+  });
+  
+  // Hot-key: Esc to close modal
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeViewModal();
+  });
+});
+</script>
+
+<!-- Embedded state placeholder -->
+<script id="embedded-state" type="application/json">{"activities":[],"custType":[],"version":2}</script>
+
+
+
+</div></body></html>
