@@ -2723,6 +2723,126 @@ const healthLabel = h => h === 'healthy' ? 'On Plan' : h === 'attention' ? 'Unde
 
 </script>
 <script>
+/* ============ DATA POOL — cumulative uploaded sales periods ============ */
+/* ===========================
+   DATA POOL (ADDITIVE) — cumulative store of uploaded sales periods.
+   Raw exports uploaded under Administration → Data Upload are normalized
+   into invoice batches and persisted in the browser (IndexedDB, with a
+   localStorage fallback). The Promo Simulator reads the combined pool, so
+   promotions defined ahead of time start calculating automatically the
+   moment the matching period's sales file is added. Read-only alongside
+   the frozen settlement engines — audited campaign figures are untouched.
+   =========================== */
+const DataStore = (() => {
+  const DB_NAME = 'roshen_platform_datapool_v1', STORE = 'batches';
+  const LS_KEY = Store.NS + 'datapool';
+  let mem = [];            // [{id, name, addedAt, from, to, nInv, nRows, invoices:[…]}]
+  let mode = 'memory';     // 'idb' | 'local' | 'memory'
+  let version = 0;
+
+  function idbOpen() {
+    return new Promise((res, rej) => {
+      if (!window.indexedDB) return rej(new Error('IndexedDB unavailable'));
+      const rq = indexedDB.open(DB_NAME, 1);
+      rq.onupgradeneeded = () => { rq.result.createObjectStore(STORE, { keyPath: 'id' }); };
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error || new Error('IndexedDB open failed'));
+    });
+  }
+  function idbAll(db) {
+    return new Promise((res, rej) => {
+      const rq = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error);
+    });
+  }
+  function idbPut(db, batch) {
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(batch);
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+  }
+  function idbDel(db, id) {
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(id);
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+  }
+  function persistLocal() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(mem)); return true; }
+    catch (e) { console.warn('data pool: localStorage persist failed', e); return false; }
+  }
+
+  async function init() {
+    try {
+      const db = await idbOpen();
+      mem = await idbAll(db);
+      db.close();
+      mode = 'idb';
+    } catch (e) {
+      try { mem = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); mode = 'local'; }
+      catch (e2) { mem = []; mode = 'memory'; }
+    }
+    mem.sort((a, b) => a.addedAt - b.addedAt);
+    version++;
+  }
+  async function add(batch) {
+    mem.push(batch);
+    version++;
+    if (mode === 'idb') {
+      try { const db = await idbOpen(); await idbPut(db, batch); db.close(); return 'idb'; }
+      catch (e) { console.warn('data pool: idb persist failed', e); mode = 'local'; }
+    }
+    if (mode === 'local') return persistLocal() ? 'local' : 'memory';
+    return 'memory';
+  }
+  async function remove(id) {
+    mem = mem.filter(b => b.id !== id);
+    version++;
+    if (mode === 'idb') {
+      try { const db = await idbOpen(); await idbDel(db, id); db.close(); return; }
+      catch (e) { console.warn('data pool: idb delete failed', e); mode = 'local'; }
+    }
+    if (mode === 'local') persistLocal();
+  }
+  return {
+    init, add, remove,
+    batches: () => mem.slice(),
+    get version() { return version; },
+    get mode() { return mode; },
+  };
+})();
+
+/**
+ * Normalize a RawParser.parse() result into platform-shaped invoice objects
+ * for the simulation pool. Mirrors the invoice assembly of the frozen
+ * buildPromoData (paid net, free value, CN flag) without promo tagging —
+ * the simulator matches lines by product code and paid amount only.
+ */
+function invoicesFromParsed(parsed) {
+  const invMap = new Map();
+  parsed.lines.forEach(l => {
+    let o = invMap.get(l.inv);
+    if (!o) {
+      o = { inv: l.inv, date: l.date, cust: l.cust, code: l.custCode, city: l.city, sales: l.rep,
+        channel: l.channel, lines: [], net: 0, tax: 0, total: 0, freeval: 0, nlines: 0, isCN: l.isReturn };
+      invMap.set(l.inv, o);
+    }
+    o.lines.push({ code: l.code, name: l.name, unit: l.unit, cases: l.cases, each: l.each,
+      price: l.price, net: l.net, gross: l.gross, type: (l.net === 0 ? 'FREE' : 'PAID'), promo: false });
+    o.nlines++;
+    if (l.net > 0) o.net += l.net;
+    if (l.net === 0) o.freeval += l.gross;
+    o.total = o.net;
+    if (l.isReturn) o.isCN = true;
+  });
+  return [...invMap.values()];
+}
+
+</script>
+<script>
 /* ============ PROMO SIMULATOR — additive estimation over loaded data ============ */
 /* ===========================
    PROMO SIMULATOR (ADDITIVE ESTIMATION LAYER)
@@ -2733,14 +2853,18 @@ const healthLabel = h => h === 'healthy' ? 'On Plan' : h === 'attention' ? 'Unde
    formulas, or any published settlement figure.
    =========================== */
 const PromoSimulator = (() => {
-  /** All invoices across every loaded campaign, deduplicated by invoice no. */
+  /** All invoices: campaign bundles + uploaded data-pool batches,
+      deduplicated by invoice number. Memoized until the data changes. */
+  let _pool = null, _poolKey = '';
   function invoicePool() {
+    const key = engine.promotions.map(p => p.id + ':' + (p.data.invoices || []).length).join(',')
+      + '|ds' + (typeof DataStore !== 'undefined' ? DataStore.version : 0);
+    if (_pool && key === _poolKey) return _pool;
     const seen = new Set(), pool = [];
-    engine.promotions.forEach(p => (p.data.invoices || []).forEach(inv => {
-      if (seen.has(inv.inv)) return;
-      seen.add(inv.inv);
-      pool.push(inv);
-    }));
+    const take = inv => { if (!seen.has(inv.inv)) { seen.add(inv.inv); pool.push(inv); } };
+    engine.promotions.forEach(p => (p.data.invoices || []).forEach(take));
+    if (typeof DataStore !== 'undefined') DataStore.batches().forEach(b => (b.invoices || []).forEach(take));
+    _pool = pool; _poolKey = key;
     return pool;
   }
   /** Coverage window of the loaded data (for honest "no data in period" hints). */
@@ -2858,11 +2982,11 @@ function simHint(sim, promo) {
   const period = (promo.startDate || promo.endDate)
     ? `${promo.startDate || '…'} → ${promo.endDate || '…'}` : 'all loaded data';
   const zero = sim.invoices === 0
-    ? `<div class="up-status warn" style="margin-top:10px">No loaded invoice falls inside the promotion period with the selected products. The loaded data covers <b>${sim.coverage ? sim.coverage.label : '—'}</b> — adjust the dates or the product list to simulate against it.</div>`
+    ? `<div class="up-status warn" style="margin-top:10px">No loaded invoice falls inside the promotion period with the selected products. The data pool currently covers <b>${sim.coverage ? sim.coverage.label : '—'}</b> — the promotion stays at zero until you upload that period's sales file under <b>Administration → Data Upload → Add to Data Pool</b>; it will then calculate automatically.</div>`
     : '';
-  return `<div class="risk-note" style="margin-top:10px"><b>Estimate, not a settlement.</b> Simulated against the ${Fmt.n0(sim.poolSize)} invoices already loaded in the platform
-    (deduplicated across campaigns; data coverage ${sim.coverage ? sim.coverage.label : '—'}), period ${Util.esc(period)}, paid volume only.
-    ${sim.note} Settlement figures for the audited campaigns are unaffected.</div>${zero}`;
+  return `<div class="risk-note" style="margin-top:10px"><b>Estimate, not a settlement.</b> Simulated against the ${Fmt.n0(sim.poolSize)} invoices in the data pool
+    (campaign bundles + your uploads, deduplicated; coverage ${sim.coverage ? sim.coverage.label : '—'}), period ${Util.esc(period)}, paid volume only.
+    ${sim.note} Upload new sales periods any time — every promotion recalculates automatically. Settlement figures for the audited campaigns are unaffected.</div>${zero}`;
 }
 function openSimModal(promo) {
   const sim = PromoSimulator.analyze(promo);
@@ -4131,7 +4255,32 @@ Views.promotions = (() => {
    Parsing and KPI math delegated verbatim to RawParser (frozen).
    =========================== */
 Views.upload = (() => {
-  let parsed = null, selectedSkus = new Set();
+  let parsed = null, selectedSkus = new Set(), lastFile = '';
+  function poolSection() {
+    const batches = DataStore.batches();
+    const rows = batches.length ? batches.map(b => `<div class="li">
+        <span style="flex:none">🗂</span>
+        <span class="main"><b>${Util.esc(b.name)}</b><small>${Fmt.n0(b.nInv)} invoices · ${Fmt.n0(b.nRows)} lines · ${Util.esc(b.from || '—')} → ${Util.esc(b.to || '—')} · added ${new Date(b.addedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</small></span>
+        <button class="btn sm danger" data-up="delBatch" data-id="${Util.esc(b.id)}">Remove</button>
+      </div>`).join('')
+      : '<div class="notif-empty">No uploaded periods yet. Campaign bundles built into the platform are always included.</div>';
+    const persistNote = DataStore.mode === 'memory'
+      ? '<div class="up-status warn" style="margin:10px 16px 14px">This browser blocks offline storage — uploaded data stays for this session only.</div>' : '';
+    return `<div class="card" style="margin-top:16px"><div class="card-h"><h2>Data Pool</h2>
+        <span class="sub">every promotion recalculates automatically against these periods</span></div>
+      <div class="list-lite">${rows}</div>${persistNote}</div>`;
+  }
+  function poolActionHtml() {
+    return `<div class="card" style="margin-top:16px"><div class="card-h"><h2>Add to Data Pool</h2>
+        <span class="sub">recommended — feeds the promotion calculations, no campaign setup needed</span></div>
+      <div class="card-b">
+        <div class="risk-note">Adds <b>${Util.esc(lastFile)}</b> (${Fmt.n0(parsed.nInv)} invoices, ${Fmt.n0(parsed.nRows)} lines, ${Util.esc(parsed.dateFrom)} → ${Util.esc(parsed.dateTo)}) to the cumulative data pool stored in this browser.
+        Promotions whose period this data covers — including ones you created earlier for a future month — start calculating immediately. Duplicate invoice numbers are ignored.</div>
+        <div style="display:flex;gap:10px;margin-top:12px;justify-content:flex-end">
+          <button class="btn primary" id="upAddPool">＋ Add to Data Pool</button>
+        </div>
+      </div></div>`;
+  }
   /* Identical inference to the original builder: plan ratio from mechanic X+Y. */
   function cfg(main) {
     const v = id => main.querySelector('#' + id).value;
@@ -4182,13 +4331,27 @@ Views.upload = (() => {
         <button class="btn" id="upBrowse" style="margin-top:12px">Choose file</button>
       </div>
       <div id="upStatus" role="status"></div>
-      <div id="upBuilder">${parsed ? builderHtml() : ''}</div>`;
+      <div id="upBuilder">${parsed ? poolActionHtml() + builderHtml() : ''}</div>
+      <div id="poolWrap">${poolSection()}</div>`;
 
     const statusMsg = (html, cls) => { main.querySelector('#upStatus').innerHTML = `<div class="up-status ${cls || ''}">${html}</div>`; };
 
     function wireBuilder() {
       const host = main.querySelector('#upBuilder');
       if (!parsed || !host.innerHTML) return;
+      const addPool = host.querySelector('#upAddPool');
+      if (addPool) addPool.addEventListener('click', async () => {
+        addPool.disabled = true;
+        const invoices = invoicesFromParsed(parsed);
+        const batch = { id: 'batch_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+          name: lastFile || 'Sales upload', addedAt: Date.now(),
+          from: parsed.dateFrom, to: parsed.dateTo, nInv: invoices.length, nRows: parsed.nRows, invoices };
+        const where = await DataStore.add(batch);
+        main.querySelector('#poolWrap').innerHTML = poolSection();
+        addPool.disabled = false;
+        statusMsg(`✓ Added <b>${Util.esc(batch.name)}</b> to the data pool (${Fmt.n0(batch.nInv)} invoices). All promotions now recalculate against it${where === 'memory' ? ' — note: this browser blocks offline storage, so it lasts this session only' : ''}.`, 'ok');
+        Toast.ok('Data added — promotions recalculate automatically.');
+      });
       host.querySelector('#upPreview').addEventListener('click', () => {
         const c = cfg(main);
         if (!c.skuCodes.length) { host.querySelector('#upPreviewBox').innerHTML = '<div class="up-status warn">Select at least one promotion SKU.</div>'; return; }
@@ -4229,6 +4392,7 @@ Views.upload = (() => {
     }
 
     function handleFile(f) {
+      lastFile = f.name;
       statusMsg('Reading <b>' + Util.esc(f.name) + '</b>…', '');
       const rd = new FileReader();
       rd.onload = e => {
@@ -4239,7 +4403,7 @@ Views.upload = (() => {
           parsed = RawParser.parse(rows);
           selectedSkus = new Set();
           statusMsg(`✓ Parsed <b>${Fmt.n0(parsed.nRows)}</b> lines · <b>${Fmt.n0(parsed.nInv)}</b> invoices · <b>${parsed.skus.length}</b> SKUs · <b>${parsed.cities.length}</b> cities · period <b>${parsed.dateFrom} → ${parsed.dateTo}</b>`, 'ok');
-          main.querySelector('#upBuilder').innerHTML = builderHtml();
+          main.querySelector('#upBuilder').innerHTML = poolActionHtml() + builderHtml();
           wireBuilder();
         } catch (err) { statusMsg('✗ ' + Util.esc(err.message), 'warn'); console.error(err); }
       };
@@ -4255,6 +4419,15 @@ Views.upload = (() => {
     ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
     ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
     drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+    main.querySelector('#poolWrap').addEventListener('click', async e => {
+      const b = e.target.closest('[data-up=delBatch]');
+      if (!b) return;
+      if (await Modal.confirm('Remove uploaded period', 'Remove this data batch from the pool? Promotions will stop counting its invoices. The built-in campaign data is unaffected.', 'Remove')) {
+        await DataStore.remove(b.dataset.id);
+        main.querySelector('#poolWrap').innerHTML = poolSection();
+        Toast.ok('Batch removed — promotions recalculated.');
+      }
+    });
     wireBuilder();
   };
 })();
@@ -4675,10 +4848,11 @@ const App = (() => {
   }
 
   /* ---------- boot ---------- */
-  function boot() {
+  async function boot() {
     AppState.applyTheme();
     if (Store.get('sideMin', false)) document.getElementById('app').classList.add('side-min');
     SavedViews.restore();
+    try { await DataStore.init(); } catch (e) { console.warn('data pool init failed', e); }
     initEvents();
     updateBadges();
     onRoute();
